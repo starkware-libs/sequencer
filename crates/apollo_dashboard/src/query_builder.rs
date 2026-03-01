@@ -23,6 +23,15 @@ pub(crate) fn increase(metric: &dyn MetricQueryName, duration: &str) -> String {
     format!("increase({}[{}])", metric.get_name_with_filter(), duration)
 }
 
+/// Returns a query that calculates the number of seconds since the last event timestamp recorded
+/// in a gauge (unix timestamp seconds).
+///
+/// Example output:
+/// `time() - max(last_over_time(my_last_success_timestamp_seconds{...}[12h]))`
+pub(crate) fn seconds_since_last_timestamp(metric: &dyn MetricQueryName) -> String {
+    format!("time() - max(last_over_time({}[12h]))", metric.get_name_with_filter())
+}
+
 /// Returns a query string that sums a metric **by a label**, optionally using
 /// `increase()` and filtering zeros.
 ///

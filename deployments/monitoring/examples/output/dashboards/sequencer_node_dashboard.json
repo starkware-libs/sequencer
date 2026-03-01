@@ -529,8 +529,8 @@
                     {
                         "id": 15,
                         "type": "stat",
-                        "title": "consensus_proposals_valid_init",
-                        "description": "The total number of proposals received with a valid init",
+                        "title": "consensus_proposals_accepted_for_validation",
+                        "description": "The number of proposal inits that passed initial checks and were accepted for validation",
                         "gridPos": {
                             "h": 6,
                             "w": 12,
@@ -539,7 +539,7 @@
                         },
                         "targets": [
                             {
-                                "expr": "consensus_proposals_valid_init",
+                                "expr": "consensus_proposals_accepted_for_validation",
                                 "refId": "P"
                             }
                         ],

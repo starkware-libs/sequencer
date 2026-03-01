@@ -1,28 +1,28 @@
 #[cfg(test)]
 #[path = "build_proposal_test.rs"]
 mod build_proposal_test;
-
 use std::borrow::BorrowMut;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
+    FinishedProposalInfo,
     GetProposalContent,
     GetProposalContentInput,
     ProposalId,
     ProposeBlockInput,
 };
-use apollo_batcher_types::communication::BatcherClientError;
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_consensus::types::{ProposalCommitment, Round};
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_protobuf::consensus::{
-    ConsensusBlockInfo,
+    BuildParam,
+    CommitmentParts,
     ProposalFin,
     ProposalInit,
     ProposalPart,
     TransactionBatch,
 };
-use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::{Clock, DateTime};
 use apollo_transaction_converter::TransactionConverterError;
 use starknet_api::block::GasPrice;
@@ -43,6 +43,7 @@ use crate::utils::{
     truncate_to_executed_txs,
     wait_for_retrospective_block_hash,
     GasPriceParams,
+    PreviousBlockInfo,
     RetrospectiveBlockHashError,
     StreamSender,
 };
@@ -52,7 +53,7 @@ const MIN_WAIT_DURATION: Duration = Duration::from_millis(1);
 pub(crate) struct ProposalBuildArguments {
     pub deps: SequencerConsensusContextDeps,
     pub batcher_deadline: DateTime,
-    pub proposal_init: ProposalInit,
+    pub build_param: BuildParam,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub stream_sender: StreamSender,
     pub gas_price_params: GasPriceParams,
@@ -62,11 +63,12 @@ pub(crate) struct ProposalBuildArguments {
     pub l2_gas_price: GasPrice,
     pub builder_address: ContractAddress,
     pub cancel_token: CancellationToken,
-    pub previous_block_info: Option<ConsensusBlockInfo>,
+    pub previous_block_info: Option<PreviousBlockInfo>,
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
-    pub use_state_sync_block_timestamp: bool,
+    // If true, for echonet mode, use the timestamp from the original block.
+    pub override_timestamp: bool,
 }
 
 type BuildProposalResult<T> = Result<T, BuildProposalError>;
@@ -105,48 +107,49 @@ pub(crate) enum BuildProposalError {
 pub(crate) async fn build_proposal(
     mut args: ProposalBuildArguments,
 ) -> BuildProposalResult<ProposalCommitment> {
-    let block_info = initiate_build(&args).await?;
-    args.stream_sender.send(ProposalPart::Init(args.proposal_init)).await.map_err(|e| {
-        BuildProposalError::SendError(format!("Failed to send proposal init: {e:?}"))
-    })?;
-    args.stream_sender
-        .send(ProposalPart::BlockInfo(block_info.clone()))
-        .await
-        .map_err(|e| BuildProposalError::SendError(format!("Failed to send block info: {e:?}")))?;
+    let init = initiate_build(&mut args).await?;
+    let height = init.height;
 
-    let (proposal_commitment, content) = get_proposal_content(&mut args).await?;
+    args.stream_sender
+        .send(ProposalPart::Init(init.clone()))
+        .await
+        .map_err(|e| BuildProposalError::SendError(format!("Failed to send init: {e:?}")))?;
+
+    let (proposal_commitment, content, finished_info) = get_proposal_content(&mut args).await?;
 
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
     let mut valid_proposals = args.valid_proposals.lock().expect("Lock was poisoned");
     valid_proposals.insert_proposal_for_height(
-        &args.proposal_init.height,
-        &proposal_commitment,
-        block_info,
+        &height,
+        init,
         content,
         &args.proposal_id,
+        finished_info,
     );
     Ok(proposal_commitment)
 }
 
 async fn get_proposal_timestamp(
-    use_state_sync_block_timestamp: bool,
-    state_sync_client: &SharedStateSyncClient,
+    override_timestamp: bool,
+    batcher: &dyn BatcherClient,
     clock: &dyn Clock,
 ) -> u64 {
-    if use_state_sync_block_timestamp {
-        if let Ok(Some(block_header)) = state_sync_client.get_latest_block_header().await {
-            return block_header.block_header_without_hash.timestamp.0;
+    if override_timestamp {
+        match batcher.get_timestamp().await {
+            Ok(timestamp) => return timestamp,
+            Err(err) => {
+                warn!("Failed to get timestamp from batcher, falling back to clock time: {err:?}");
+            }
         }
-        warn!("No latest block header available from state sync, falling back to clock time");
     }
     clock.unix_now()
 }
 
-async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
+async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResult<ProposalInit> {
     let timestamp = get_proposal_timestamp(
-        args.use_state_sync_block_timestamp,
-        &args.deps.state_sync_client,
+        args.override_timestamp,
+        args.deps.batcher.as_ref(),
         args.deps.clock.as_ref(),
     )
     .await;
@@ -157,22 +160,28 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
         &args.gas_price_params,
     )
     .await;
-    let block_info = ConsensusBlockInfo {
-        height: args.proposal_init.height,
-        timestamp,
+    let init = ProposalInit {
+        height: args.build_param.height,
+        round: args.build_param.round,
+        valid_round: args.build_param.valid_round,
+        proposer: args.build_param.proposer,
         builder: args.builder_address,
+        timestamp,
         l1_da_mode: args.l1_da_mode,
         l2_gas_price_fri: args.l2_gas_price,
         l1_gas_price_wei: l1_prices_wei.l1_gas_price,
         l1_data_gas_price_wei: l1_prices_wei.l1_data_gas_price,
         l1_gas_price_fri: l1_prices_fri.l1_gas_price,
         l1_data_gas_price_fri: l1_prices_fri.l1_data_gas_price,
+        starknet_version: starknet_api::block::StarknetVersion::LATEST,
+        // TODO(Asmaa): Put the real value once we have it.
+        version_constant_commitment: Default::default(),
     };
 
     let retrospective_block_hash = wait_for_retrospective_block_hash(
         args.deps.batcher.clone(),
         args.deps.state_sync_client.clone(),
-        &block_info,
+        &init,
         args.deps.clock.as_ref(),
         args.retrospective_block_hash_deadline,
         args.retrospective_block_hash_retry_interval_millis,
@@ -183,7 +192,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
         proposal_id: args.proposal_id,
         deadline: args.batcher_deadline,
         retrospective_block_hash,
-        block_info: convert_to_sn_api_block_info(&block_info)?,
+        block_info: convert_to_sn_api_block_info(&init)?,
         proposal_round: args.proposal_round,
     };
     debug!("Initiating build proposal: {build_proposal_input:?}");
@@ -193,14 +202,18 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
             err,
         )
     })?;
-    Ok(block_info)
+    Ok(init)
 }
 /// 1. Receive chunks of content from the batcher.
 /// 2. Forward these to the stream handler to be streamed out to the network.
 /// 3. Once finished, receive the commitment from the batcher.
 async fn get_proposal_content(
     args: &mut ProposalBuildArguments,
-) -> BuildProposalResult<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
+) -> BuildProposalResult<(
+    ProposalCommitment,
+    Vec<Vec<InternalConsensusTransaction>>,
+    FinishedProposalInfo,
+)> {
     let mut content = Vec::new();
     loop {
         if args.cancel_token.is_cancelled() {
@@ -249,27 +262,33 @@ async fn get_proposal_content(
                         ))
                     })?;
             }
-            GetProposalContent::Finished { id, final_n_executed_txs } => {
-                let proposal_commitment = ProposalCommitment(id.state_diff_commitment.0.0);
-                content = truncate_to_executed_txs(&mut content, final_n_executed_txs);
+            GetProposalContent::Finished(info) => {
+                let proposal_commitment =
+                    ProposalCommitment(info.proposal_commitment.state_diff_commitment.0.0);
+                content = truncate_to_executed_txs(&mut content, info.final_n_executed_txs);
 
                 info!(
                     ?proposal_commitment,
-                    num_txs = final_n_executed_txs,
+                    num_txs = info.final_n_executed_txs,
                     "Finished building proposal",
                 );
-                if final_n_executed_txs == 0 {
+                if info.final_n_executed_txs == 0 {
                     warn!("Built an empty proposal.");
                 }
 
                 // If the blob writing operation to Aerospike doesn't return a success status, we
                 // can't finish the proposal. Must wait for it at least until batcher_timeout is
                 // reached.
-                let remaining = (args.batcher_deadline - args.deps.clock.now())
+                let remaining_duration = (args.batcher_deadline - args.deps.clock.now())
                     .to_std()
                     .unwrap_or_default()
-                    .max(MIN_WAIT_DURATION); // Ensure we wait at least 1 ms to avoid immediate timeout. 
-                match tokio::time::timeout(remaining, args.cende_write_success.borrow_mut()).await {
+                    .max(MIN_WAIT_DURATION); // Ensure we wait at least 1 ms to avoid immediate timeout.
+                match tokio::time::timeout(
+                    remaining_duration,
+                    args.cende_write_success.borrow_mut(),
+                )
+                .await
+                {
                     Err(_) => {
                         return Err(BuildProposalError::CendeWriteError(
                             "Writing blob to Aerospike didn't return in time.".to_string(),
@@ -288,15 +307,21 @@ async fn get_proposal_content(
                     }
                 }
 
-                let executed_transaction_count: u64 = final_n_executed_txs
+                let executed_transaction_count: u64 = info
+                    .final_n_executed_txs
                     .try_into()
                     .expect("Number of executed transactions should fit in u64");
-                let fin = ProposalFin { proposal_commitment, executed_transaction_count };
+                let commitment_parts = CommitmentParts::from(&info);
+                let fin = ProposalFin {
+                    proposal_commitment,
+                    executed_transaction_count,
+                    commitment_parts: Some(commitment_parts),
+                };
                 info!("Sending fin={fin:?}");
                 args.stream_sender.send(ProposalPart::Fin(fin)).await.map_err(|e| {
                     BuildProposalError::SendError(format!("Failed to send proposal fin: {e:?}"))
                 })?;
-                return Ok((proposal_commitment, content));
+                return Ok((proposal_commitment, content, info));
             }
         }
     }

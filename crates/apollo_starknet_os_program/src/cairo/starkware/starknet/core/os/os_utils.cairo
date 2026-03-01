@@ -14,7 +14,7 @@ from starkware.starknet.core.os.constants import (
 from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import (
     compiled_class_hash as blake_compiled_class_hash,
 )
-from starkware.starknet.core.os.contract_class.compiled_class import CompiledClassFact
+from starkware.starknet.core.os.contract_class.compiled_class_struct import CompiledClassFact
 from starkware.starknet.core.os.contract_class.poseidon_compiled_class_hash import (
     compiled_class_hash as poseidon_compiled_class_hash,
 )
@@ -38,7 +38,6 @@ func pre_process_block{
 
     // Update the contract class changes according to the migration.
     local n_classes_to_migrate;
-    // TODO(Meshi): Change to rust VM notion once all python tests only uses the rust VM.
     %{ GetNClassHashesToMigrate %}
     migrate_classes_to_v2_casm_hash(n_classes=n_classes_to_migrate, block_context=block_context);
     return ();
@@ -128,6 +127,8 @@ func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
     // NOTE: both the previous block hash and previous state root are guessed, and the OS
     // does not verify their consistency (unlike the new hash and root).
     // The consumer of the OS output should verify both.
+    // TODO(Yoni): verify the consistency of the previous block hash and state root, and remove the
+    // state roots from the OS output header.
     let (prev_block_hash, new_block_hash) = get_block_hashes{poseidon_ptr=poseidon_ptr}(
         block_info=block_context.block_info_for_execute, state_root=state_update_output.final_root
     );
@@ -151,13 +152,7 @@ func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
 // Processes OS outputs by combining blocks and serializing the result.
 func process_os_output{
     output_ptr: felt*, range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*
-}(
-    n_blocks: felt,
-    os_outputs: OsOutput*,
-    n_public_keys: felt,
-    public_keys: felt*,
-    os_global_context: OsGlobalContext*,
-) {
+}(n_blocks: felt, os_outputs: OsOutput*, n_public_keys: felt, public_keys: felt*) {
     alloc_locals;
     // Guess whether to use KZG commitment scheme and whether to output the full state.
     // TODO(meshi): Once use_kzg_da field is used in the OS for the computation of fees and block

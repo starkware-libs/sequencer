@@ -6,7 +6,7 @@ from starkware.starknet.core.os.constants import (
     VALIDATE_BLOCK_NUMBER_ROUNDING,
     VALIDATE_TIMESTAMP_ROUNDING,
 )
-from starkware.starknet.core.os.contract_class.compiled_class import CompiledClassFact
+from starkware.starknet.core.os.contract_class.compiled_class_struct import CompiledClassFact
 from starkware.starknet.core.os.contract_class.deprecated_compiled_class import (
     DeprecatedCompiledClassFact,
 )
@@ -66,7 +66,6 @@ func get_block_context{range_check_ptr}(os_global_context: OsGlobalContext*) -> 
         block_info.block_timestamp, VALIDATE_TIMESTAMP_ROUNDING
     );
     tempvar block_timestamp_for_validate = divided_block_timestamp * VALIDATE_TIMESTAMP_ROUNDING;
-    let compiled_class_facts_bundle = os_global_context.compiled_class_facts_bundle;
     local block_context: BlockContext = BlockContext(
         os_global_context=[os_global_context],
         block_info_for_execute=block_info,

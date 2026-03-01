@@ -1,10 +1,11 @@
 use std::collections::BTreeMap;
+use std::fmt;
 use std::sync::Arc;
 
 use apollo_sizeof::SizeOf;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
-use strum_macros::EnumIter;
+use strum::EnumIter;
 
 use crate::block::{BlockHash, BlockNumber, GasPrice, NonzeroGasPrice};
 use crate::crypto::utils::HashChain;
@@ -617,14 +618,15 @@ impl AccountDeploymentData {
 }
 
 // Represent the string `VIRTUAL_SNOS` as a Felt.
-pub const VIRTUAL_SNOS: u128 = 0x5649525455414c5f534e4f53;
+pub const VIRTUAL_SNOS: Felt = Felt::from_hex_unchecked("0x5649525455414c5f534e4f53");
 
 // Represent the `PROOF_VERSION` marker as a Felt ('PROOF0').
-pub const PROOF_VERSION: u128 = 0x50524f4f4630;
+pub const PROOF_VERSION: Felt = Felt::from_hex_unchecked("0x50524f4f4630");
 
 /// The version of the virtual OS output (short string 'VIRTUAL_SNOS0').
 /// This must match the Cairo constant `VIRTUAL_OS_OUTPUT_VERSION` in `virtual_os_output.cairo`.
-pub const VIRTUAL_OS_OUTPUT_VERSION: u128 = 0x5649525455414c5f534e4f5330;
+pub const VIRTUAL_OS_OUTPUT_VERSION: Felt =
+    Felt::from_hex_unchecked("0x5649525455414c5f534e4f5330");
 
 /// Client-provided proof facts used for client-side proving.
 /// Only needed when the client supplies a proof; otherwise empty.
@@ -670,21 +672,19 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
         };
 
         // Validate that the first element is PROOF_VERSION.
-        if *proof_version != Felt::from(PROOF_VERSION) {
+        if *proof_version != PROOF_VERSION {
             return Err(StarknetApiError::InvalidProofFacts(format!(
                 "Expected first field to be {} (PROOF_VERSION), but got {}",
-                Felt::from(PROOF_VERSION),
-                proof_version
+                PROOF_VERSION, proof_version
             )));
         }
 
         // Validate that the second element is VIRTUAL_SNOS.
-        if *variant_marker != Felt::from(VIRTUAL_SNOS) {
+        if *variant_marker != VIRTUAL_SNOS {
             return Err(StarknetApiError::InvalidProofFacts(format!(
                 "Non-SNOS proofs are not currently supported. Expected second field to be {} \
                  (VIRTUAL_SNOS), but got {}",
-                Felt::from(VIRTUAL_SNOS),
-                variant_marker
+                VIRTUAL_SNOS, variant_marker
             )));
         }
 
@@ -698,7 +698,7 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
         };
 
         // TODO(Yoni): reuse VirtualOsOutput parsing.
-        let expected_version = Felt::from(VIRTUAL_OS_OUTPUT_VERSION);
+        let expected_version = VIRTUAL_OS_OUTPUT_VERSION;
         if *output_version != expected_version {
             return Err(StarknetApiError::InvalidProofFacts(format!(
                 "Expected SNOS proof facts version to be {} (VIRTUAL_OS_OUTPUT_VERSION), but got \
@@ -754,22 +754,53 @@ impl TryFrom<ProofFacts> for SnosProofFacts {
 }
 
 /// Client-provided proof used for client-side proving.
+/// Serialized as a base64 string of big-endian u32 bytes.
 #[derive(
     Clone,
-    Debug,
     Default,
-    Deserialize,
     Eq,
     Hash,
     Ord,
     PartialEq,
     PartialOrd,
-    Serialize,
     SizeOf,
     derive_more::Deref,
     derive_more::From,
 )]
 pub struct Proof(pub Arc<Vec<u32>>);
+
+impl fmt::Debug for Proof {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let len = self.0.len();
+
+        if len == 0 { write!(f, "Proof([])") } else { write!(f, "Proof(<{} elements>)", len) }
+    }
+}
+
+impl Serialize for Proof {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let bytes: Vec<u8> = self.0.iter().flat_map(|n| n.to_be_bytes()).collect();
+        serializer.serialize_str(&base64::encode(bytes))
+    }
+}
+
+impl<'de> Deserialize<'de> for Proof {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        if s.is_empty() {
+            return Ok(Self::default());
+        }
+        let bytes = base64::decode(&s).map_err(serde::de::Error::custom)?;
+        let (chunks, []) = bytes.as_chunks::<4>() else {
+            return Err(serde::de::Error::custom(format!(
+                "Proof base64 data length {} is not a multiple of 4",
+                bytes.len()
+            )));
+        };
+        let data: Vec<u32> = chunks.iter().map(|c| u32::from_be_bytes(*c)).collect();
+        Ok(Self(Arc::new(data)))
+    }
+}
 
 impl From<Vec<u32>> for Proof {
     fn from(value: Vec<u32>) -> Self {

@@ -7,13 +7,13 @@ use apollo_infra::metrics::{
     RemoteServerMetrics,
 };
 use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};
-use strum::VariantNames;
+use strum::{Display, EnumVariantNames, IntoStaticStr};
 
 use crate::communication::CLASS_MANAGER_REQUEST_LABELS;
 
 const CAIRO_CLASS_TYPE_LABEL: &str = "class_type";
 
-#[derive(strum_macros::EnumVariantNames, strum_macros::IntoStaticStr)]
+#[derive(EnumVariantNames, IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
 pub(crate) enum CairoClassType {
     Regular,
@@ -27,9 +27,7 @@ generate_permutation_labels! {
 
 const CLASS_OBJECT_TYPE_LABEL: &str = "class_object_type";
 
-#[derive(
-    Debug, strum_macros::Display, strum_macros::EnumVariantNames, strum_macros::IntoStaticStr,
-)]
+#[derive(Debug, Display, EnumVariantNames, IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
 pub(crate) enum ClassObjectType {
     Sierra,

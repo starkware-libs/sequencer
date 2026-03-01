@@ -8,27 +8,24 @@ on:
 env:
   CI: 1
   RUSTFLAGS: "-D warnings"
-  EXTRA_RUST_TOOLCHAINS: nightly-2024-04-29
 
 jobs:
   code_style:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
       # Environment setup.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Install rust components + lld.
       - uses: ./.github/actions/bootstrap
         with:
-          extra_rust_toolchains: ${{ env.EXTRA_RUST_TOOLCHAINS }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          
+
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
         id: setup-pypy
         with:
           python-version: "pypy3.9"
-          cache: "pip"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
@@ -46,6 +43,4 @@ jobs:
         run: scripts/run_tests.py --command clippy
 
       - name: "Run rustfmt on merge queue"
-        # The nightly here is coupled with the one in install_rust/action.yml.
-        # If we move the install here we can use a const.
-        run: cargo +"$EXTRA_RUST_TOOLCHAINS" fmt --all -- --check
+        run: scripts/rust_fmt.sh --check

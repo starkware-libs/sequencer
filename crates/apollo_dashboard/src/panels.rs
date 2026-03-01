@@ -1,6 +1,7 @@
 pub(crate) mod batcher;
 pub(crate) mod blockifier;
 pub(crate) mod class_manager;
+pub(crate) mod committer;
 pub(crate) mod consensus;
 pub(crate) mod gateway;
 pub(crate) mod http_server;

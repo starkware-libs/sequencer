@@ -46,6 +46,7 @@ cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-native = { workspace = true, optional = true }
 cairo-vm.workspace = true
+dashmap.workspace = true
 derive_more = { workspace = true, features = [
   "add",
   "add_assign",
@@ -73,10 +74,9 @@ serde_json = { workspace = true, features = ["arbitrary_precision"] }
 sha2.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-strum.workspace = true
-strum_macros.workspace = true
+strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
-dashmap.workspace = true
+validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true

@@ -4,14 +4,13 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::{BlockNumber, GasPriceVector};
 use starknet_api::calldata;
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce, OsChainInfo};
+use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce, OsChainInfo};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{AccountTransaction as Transaction, TransactionType};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     Fee,
@@ -137,7 +136,8 @@ impl AccountTransaction {
         (nonce, Nonce),
         (nonce_data_availability_mode, DataAvailabilityMode),
         (fee_data_availability_mode, DataAvailabilityMode),
-        (paymaster_data, PaymasterData)
+        (paymaster_data, PaymasterData),
+        (tx_type, TransactionType)
     );
 
     pub fn new_with_default_flags(tx: Transaction) -> Self {
@@ -152,31 +152,6 @@ impl AccountTransaction {
             strict_nonce_check: true,
         };
         AccountTransaction { tx, execution_flags }
-    }
-
-    pub fn class_hash(&self) -> Option<ClassHash> {
-        match &self.tx {
-            Transaction::Declare(tx) => Some(tx.tx.class_hash()),
-            Transaction::DeployAccount(tx) => Some(tx.tx.class_hash()),
-            Transaction::Invoke(_) => None,
-        }
-    }
-
-    pub fn account_deployment_data(&self) -> Option<AccountDeploymentData> {
-        match &self.tx {
-            Transaction::Declare(tx) => Some(tx.tx.account_deployment_data().clone()),
-            Transaction::DeployAccount(_) => None,
-            Transaction::Invoke(tx) => Some(tx.tx.account_deployment_data().clone()),
-        }
-    }
-
-    // TODO(nir, 01/11/2023): Consider instantiating CommonAccountFields in AccountTransaction.
-    pub fn tx_type(&self) -> TransactionType {
-        match &self.tx {
-            Transaction::Declare(_) => TransactionType::Declare,
-            Transaction::DeployAccount(_) => TransactionType::DeployAccount,
-            Transaction::Invoke(_) => TransactionType::InvokeFunction,
-        }
     }
 
     fn validate_entry_point_selector(&self) -> EntryPointSelector {
@@ -206,7 +181,7 @@ impl AccountTransaction {
         }
     }
 
-    pub fn calldata_length(&self) -> usize {
+    fn calldata_length(&self) -> usize {
         let calldata = match &self.tx {
             Transaction::Declare(_tx) => return 0,
             Transaction::DeployAccount(tx) => tx.constructor_calldata(),
@@ -220,8 +195,19 @@ impl AccountTransaction {
         self.signature().0.len()
     }
 
-    pub fn enforce_fee(&self) -> bool {
-        self.create_tx_info().enforce_fee()
+    fn proof_facts_length(&self) -> usize {
+        if let Transaction::Invoke(tx) = &self.tx { tx.proof_facts_length() } else { 0 }
+    }
+
+    /// Returns the total calldata length, including proof_facts.
+    /// Both are charged at the same gas per data felt rate.
+    pub fn extended_calldata_length(&self) -> usize {
+        self.calldata_length() + self.proof_facts_length()
+    }
+
+    /// Returns whether this transaction includes client-side proof facts.
+    pub fn has_client_side_proof(&self) -> bool {
+        self.proof_facts_length() > 0
     }
 
     fn verify_tx_version(&self, version: TransactionVersion) -> TransactionExecutionResult<()> {
@@ -737,10 +723,11 @@ impl AccountTransaction {
                 remaining_gas.limit_usage(tx_context.sierra_gas_limit(&ExecutionMode::Execute)),
             )),
         );
+        let extended_calldata_length = self.extended_calldata_length();
         let n_allotted_execution_steps = execution_context.subtract_validation_and_overhead_steps(
             &validate_call_info,
             &self.tx_type(),
-            self.calldata_length(),
+            extended_calldata_length,
         );
 
         // Save the state changes resulting from running `validate_tx`, to be used later for

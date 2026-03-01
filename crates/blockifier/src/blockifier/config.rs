@@ -7,6 +7,7 @@ use serde::de::{self, Deserializer};
 use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
+use validator::Validate;
 
 use crate::blockifier::transaction_executor::DEFAULT_STACK_SIZE;
 use crate::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
@@ -136,10 +137,11 @@ impl SerializeConfig for WorkerPoolConfig {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 pub struct ContractClassManagerConfig {
     pub cairo_native_run_config: CairoNativeRunConfig,
     pub contract_cache_size: usize,
+    #[validate(nested)]
     pub native_compiler_config: SierraCompilationConfig,
 }
 
@@ -155,12 +157,9 @@ impl Default for ContractClassManagerConfig {
 
 impl ContractClassManagerConfig {
     #[cfg(any(test, feature = "testing", feature = "native_blockifier"))]
-    pub fn create_for_testing(run_cairo_native: bool, wait_on_native_compilation: bool) -> Self {
-        let cairo_native_run_config = CairoNativeRunConfig {
-            run_cairo_native,
-            wait_on_native_compilation,
-            ..Default::default()
-        };
+    pub fn create_for_testing(cairo_native_run_mode: CairoNativeMode) -> Self {
+        let cairo_native_run_config =
+            CairoNativeRunConfig { cairo_native_run_mode, ..Default::default() };
         let native_compiler_config = SierraCompilationConfig::create_for_testing();
         Self { cairo_native_run_config, native_compiler_config, ..Default::default() }
     }
@@ -230,25 +229,27 @@ impl Serialize for NativeClassesWhitelist {
     }
 }
 
+impl NativeClassesWhitelist {
+    pub fn contains(&self, class_hash: &ClassHash) -> bool {
+        match self {
+            NativeClassesWhitelist::All => true,
+            NativeClassesWhitelist::Limited(contracts) => contracts.contains(class_hash),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CairoNativeRunConfig {
-    pub run_cairo_native: bool,
-    pub wait_on_native_compilation: bool,
+    pub cairo_native_run_mode: CairoNativeMode,
     pub channel_size: usize,
-    pub native_classes_whitelist: NativeClassesWhitelist,
     pub panic_on_compilation_failure: bool,
 }
 
 impl Default for CairoNativeRunConfig {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "cairo_native")]
-            run_cairo_native: true,
-            #[cfg(not(feature = "cairo_native"))]
-            run_cairo_native: false,
-            wait_on_native_compilation: false,
+            cairo_native_run_mode: CairoNativeMode::default(),
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
-            native_classes_whitelist: NativeClassesWhitelist::All,
             panic_on_compilation_failure: false,
         }
     }
@@ -258,15 +259,11 @@ impl SerializeConfig for CairoNativeRunConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
-                "run_cairo_native",
-                &self.run_cairo_native,
-                "Enables Cairo native execution.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "wait_on_native_compilation",
-                &self.wait_on_native_compilation,
-                "Block Sequencer main program while compiling sierra, for testing.",
+                "cairo_native_run_mode",
+                &self.cairo_native_run_mode,
+                "Cairo native execution mode. 'off' disables native execution, \
+                 'wait_on_compilation' compiles synchronously, and 'lazy_compilation' compiles \
+                 asynchronously.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -276,18 +273,28 @@ impl SerializeConfig for CairoNativeRunConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "native_classes_whitelist",
-                &self.native_classes_whitelist,
-                "Specifies whether to execute all class hashes or only specific ones using Cairo \
-                 native. If limited, a specific list of class hashes is provided.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
                 "panic_on_compilation_failure",
                 &self.panic_on_compilation_failure,
                 "Whether to panic on compilation failure.",
                 ParamPrivacyInput::Public,
             ),
         ])
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CairoNativeMode {
+    Off,
+    WaitOnCompilation,
+    LazyCompilation,
+}
+
+impl Default for CairoNativeMode {
+    fn default() -> Self {
+        #[cfg(feature = "cairo_native")]
+        return Self::LazyCompilation;
+        #[cfg(not(feature = "cairo_native"))]
+        return Self::Off;
     }
 }

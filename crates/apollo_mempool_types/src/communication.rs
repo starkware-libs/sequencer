@@ -7,26 +7,33 @@ use apollo_infra::component_definitions::{
     RequestPriority,
     RequestWrapper,
 };
-use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_infra::{
+    handle_all_response_variants,
+    impl_debug_for_infra_requests_and_responses,
+    impl_labeled_request,
+};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::GasPrice;
+use starknet_api::block::{GasPrice, UnixTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
-use strum::EnumVariantNames;
-use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use thiserror::Error;
 
 use crate::errors::MempoolError;
-use crate::mempool_types::{AddTransactionArgs, CommitBlockArgs, MempoolSnapshot, ValidationArgs};
+use crate::mempool_types::{
+    AddTransactionArgs,
+    CommitBlockArgs,
+    MempoolResult,
+    MempoolSnapshot,
+    ValidationArgs,
+};
 
 pub type LocalMempoolClient = LocalComponentClient<MempoolRequest, MempoolResponse>;
 pub type RemoteMempoolClient = RemoteComponentClient<MempoolRequest, MempoolResponse>;
-pub type MempoolResult<T> = Result<T, MempoolError>;
 pub type MempoolClientResult<T> = Result<T, MempoolClientError>;
 pub type MempoolRequestWrapper = RequestWrapper<MempoolRequest, MempoolResponse>;
 pub type SharedMempoolClient = Arc<dyn MempoolClient>;
@@ -54,6 +61,7 @@ pub trait MempoolClient: Send + Sync {
     ) -> MempoolClientResult<bool>;
     async fn update_gas_price(&self, gas_price: GasPrice) -> MempoolClientResult<()>;
     async fn get_mempool_snapshot(&self) -> MempoolClientResult<MempoolSnapshot>;
+    async fn get_timestamp(&self) -> MempoolClientResult<UnixTimestamp>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -71,6 +79,7 @@ pub enum MempoolRequest {
     // TODO(yair): Rename to `StartBlock` and add cleanup of staged txs.
     UpdateGasPrice(GasPrice),
     GetMempoolSnapshot(),
+    GetTimestamp,
 }
 impl_debug_for_infra_requests_and_responses!(MempoolRequest);
 impl_labeled_request!(MempoolRequest, MempoolRequestLabelValue);
@@ -84,7 +93,8 @@ impl PrioritizedRequest for MempoolRequest {
             | MempoolRequest::ValidateTransaction(_)
             | MempoolRequest::AccountTxInPoolOrRecentBlock(_)
             | MempoolRequest::UpdateGasPrice(_)
-            | MempoolRequest::GetMempoolSnapshot() => RequestPriority::Normal,
+            | MempoolRequest::GetMempoolSnapshot()
+            | MempoolRequest::GetTimestamp => RequestPriority::Normal,
         }
     }
 }
@@ -98,6 +108,7 @@ pub enum MempoolResponse {
     AccountTxInPoolOrRecentBlock(MempoolResult<bool>),
     UpdateGasPrice(MempoolResult<()>),
     GetMempoolSnapshot(MempoolResult<MempoolSnapshot>),
+    GetTimestamp(MempoolResult<UnixTimestamp>),
 }
 impl_debug_for_infra_requests_and_responses!(MempoolResponse);
 
@@ -117,6 +128,8 @@ where
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()> {
         let request = MempoolRequest::AddTransaction(args);
         handle_all_response_variants!(
+            self,
+            request,
             MempoolResponse,
             AddTransaction,
             MempoolClientError,
@@ -128,6 +141,8 @@ where
     async fn validate_tx(&self, args: ValidationArgs) -> MempoolClientResult<()> {
         let request = MempoolRequest::ValidateTransaction(args);
         handle_all_response_variants!(
+            self,
+            request,
             MempoolResponse,
             ValidateTransaction,
             MempoolClientError,
@@ -139,6 +154,8 @@ where
     async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()> {
         let request = MempoolRequest::CommitBlock(args);
         handle_all_response_variants!(
+            self,
+            request,
             MempoolResponse,
             CommitBlock,
             MempoolClientError,
@@ -150,6 +167,8 @@ where
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<InternalRpcTransaction>> {
         let request = MempoolRequest::GetTransactions(n_txs);
         handle_all_response_variants!(
+            self,
+            request,
             MempoolResponse,
             GetTransactions,
             MempoolClientError,
@@ -164,6 +183,8 @@ where
     ) -> MempoolClientResult<bool> {
         let request = MempoolRequest::AccountTxInPoolOrRecentBlock(account_address);
         handle_all_response_variants!(
+            self,
+            request,
             MempoolResponse,
             AccountTxInPoolOrRecentBlock,
             MempoolClientError,
@@ -175,6 +196,8 @@ where
     async fn update_gas_price(&self, gas_price: GasPrice) -> MempoolClientResult<()> {
         let request = MempoolRequest::UpdateGasPrice(gas_price);
         handle_all_response_variants!(
+            self,
+            request,
             MempoolResponse,
             UpdateGasPrice,
             MempoolClientError,
@@ -186,8 +209,23 @@ where
     async fn get_mempool_snapshot(&self) -> MempoolClientResult<MempoolSnapshot> {
         let request = MempoolRequest::GetMempoolSnapshot();
         handle_all_response_variants!(
+            self,
+            request,
             MempoolResponse,
             GetMempoolSnapshot,
+            MempoolClientError,
+            MempoolError,
+            Direct
+        )
+    }
+
+    async fn get_timestamp(&self) -> MempoolClientResult<UnixTimestamp> {
+        let request = MempoolRequest::GetTimestamp;
+        handle_all_response_variants!(
+            self,
+            request,
+            MempoolResponse,
+            GetTimestamp,
             MempoolClientError,
             MempoolError,
             Direct

@@ -1,4 +1,4 @@
-// ConsensusBlockInfo tests.
+// ProposalInit tests.
 
 use starknet_api::block::GasPrice;
 use starknet_api::StarknetApiError;

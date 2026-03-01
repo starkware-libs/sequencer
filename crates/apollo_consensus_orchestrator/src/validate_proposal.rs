@@ -3,9 +3,10 @@
 mod validate_proposal_test;
 
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use apollo_batcher_types::batcher_types::{
+    FinishedProposalInfo,
     ProposalId,
     ProposalStatus,
     SendProposalContent,
@@ -17,10 +18,10 @@ use apollo_batcher_types::errors::BatcherError;
 use apollo_consensus::types::ProposalCommitment;
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
-use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalFin, ProposalPart, TransactionBatch};
+use apollo_protobuf::consensus::{ProposalFin, ProposalInit, ProposalPart, TransactionBatch};
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::{Clock, ClockExt, DateTime};
-use apollo_transaction_converter::TransactionConverterTrait;
+use apollo_transaction_converter::{TransactionConverterTrait, VerifyAndStoreProofTask};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use starknet_api::block::{BlockNumber, GasPrice};
@@ -29,8 +30,7 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::StarknetApiError;
-use strum::EnumVariantNames;
-use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
+use strum::{EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, instrument, warn};
 
@@ -47,6 +47,7 @@ use crate::utils::{
     retrospective_block_hash,
     truncate_to_executed_txs,
     GasPriceParams,
+    PreviousBlockInfo,
     RetrospectiveBlockHashError,
 };
 
@@ -54,6 +55,7 @@ const GAS_PRICE_ABS_DIFF_MARGIN: u128 = 1;
 
 pub(crate) struct ProposalValidateArguments {
     pub deps: SequencerConsensusContextDeps,
+    pub init: ProposalInit,
     pub block_info_validation: BlockInfoValidation,
     pub proposal_id: ProposalId,
     pub timeout: Duration,
@@ -69,7 +71,7 @@ pub(crate) struct ProposalValidateArguments {
 pub(crate) struct BlockInfoValidation {
     pub height: BlockNumber,
     pub block_timestamp_window_seconds: u64,
-    pub previous_block_info: Option<ConsensusBlockInfo>,
+    pub previous_block_info: Option<PreviousBlockInfo>,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub l2_gas_price_fri: GasPrice,
 }
@@ -77,13 +79,8 @@ pub(crate) struct BlockInfoValidation {
 enum HandledProposalPart {
     Continue,
     Invalid(String),
-    Finished(ProposalCommitment, ProposalFin),
+    Finished(ProposalCommitment, ProposalFin, FinishedProposalInfo),
     Failed(String),
-}
-
-enum SecondProposalPart {
-    BlockInfo(ConsensusBlockInfo),
-    Fin(ProposalFin),
 }
 
 type ValidateProposalResult<T> = Result<T, ValidateProposalError>;
@@ -109,13 +106,11 @@ pub(crate) enum ValidateProposalError {
     #[error("Block info conversion error: {0}")]
     BlockInfoConversion(#[from] StarknetApiError),
     #[error("Invalid BlockInfo: {2}. received:{0:?}, validation criteria {1:?}.")]
-    InvalidBlockInfo(ConsensusBlockInfo, BlockInfoValidation, String),
+    InvalidBlockInfo(ProposalInit, BlockInfoValidation, String),
     #[error("Validation timed out while {0}")]
     ValidationTimeout(String),
     #[error("Proposal interrupted while {0}")]
     ProposalInterrupted(String),
-    #[error("Got an invalid second proposal part: {0:?}.")]
-    InvalidSecondProposalPart(Option<ProposalPart>),
     #[error("Batcher returned Invalid status: {0}.")]
     InvalidProposal(String),
     #[error("Proposal part {1:?} failed validation: {0}.")]
@@ -130,6 +125,7 @@ pub(crate) async fn validate_proposal(
     mut args: ProposalValidateArguments,
 ) -> ValidateProposalResult<ProposalCommitment> {
     let mut content = Vec::new();
+    let mut verify_and_store_proof_tasks: Vec<VerifyAndStoreProofTask> = Vec::new();
     let now = args.deps.clock.now();
 
     let Some(deadline) = now.checked_add_signed(chrono::TimeDelta::from_std(args.timeout).unwrap())
@@ -137,25 +133,9 @@ pub(crate) async fn validate_proposal(
         return Err(ValidateProposalError::CannotCalculateDeadline { timeout: args.timeout, now });
     };
 
-    let block_info = match await_second_proposal_part(
-        &args.cancel_token,
-        deadline,
-        &mut args.content_receiver,
-        args.deps.clock.as_ref(),
-    )
-    .await?
-    {
-        SecondProposalPart::BlockInfo(block_info) => block_info,
-        SecondProposalPart::Fin(ProposalFin {
-            proposal_commitment,
-            executed_transaction_count: _,
-        }) => {
-            return Ok(proposal_commitment);
-        }
-    };
     is_block_info_valid(
-        args.block_info_validation.clone(),
-        block_info.clone(),
+        &args.block_info_validation,
+        &args.init,
         args.deps.clock.as_ref(),
         args.deps.l1_gas_price_provider,
         &args.gas_price_params,
@@ -165,7 +145,7 @@ pub(crate) async fn validate_proposal(
     initiate_validation(
         args.deps.batcher.clone(),
         args.deps.state_sync_client,
-        block_info.clone(),
+        &args.init,
         args.proposal_id,
         args.timeout + args.batcher_timeout_margin,
         args.deps.clock.as_ref(),
@@ -173,7 +153,7 @@ pub(crate) async fn validate_proposal(
     .await?;
 
     // Validating the rest of the proposal parts.
-    let (built_block, received_fin) = loop {
+    let (built_block, received_fin, finished_info) = loop {
         tokio::select! {
             _ = args.cancel_token.cancelled() => {
                 // Ignoring batcher errors, to better reflect the proposal interruption.
@@ -195,10 +175,11 @@ pub(crate) async fn validate_proposal(
                     args.deps.batcher.as_ref(),
                     proposal_part.clone(),
                     &mut content,
+                    &mut verify_and_store_proof_tasks,
                     args.deps.transaction_converter.clone(),
                 ).await {
-                    HandledProposalPart::Finished(built_block, received_fin) => {
-                        break (built_block, received_fin);
+                    HandledProposalPart::Finished(built_block, received_fin, finished_info) => {
+                        break (built_block, received_fin, finished_info);
                     }
                     HandledProposalPart::Continue => {continue;}
                     HandledProposalPart::Invalid(err) => {
@@ -223,10 +204,10 @@ pub(crate) async fn validate_proposal(
     let mut valid_proposals = args.valid_proposals.lock().unwrap();
     valid_proposals.insert_proposal_for_height(
         &args.block_info_validation.height,
-        &built_block,
-        block_info,
+        args.init,
         content,
         &args.proposal_id,
+        finished_info,
     );
 
     // TODO(matan): Switch to signature validation.
@@ -238,10 +219,10 @@ pub(crate) async fn validate_proposal(
     Ok(built_block)
 }
 
-#[instrument(level = "warn", skip_all, fields(?block_info_validation, ?block_info_proposed))]
+#[instrument(level = "warn", skip_all, fields(?block_info_validation, ?init_proposed))]
 async fn is_block_info_valid(
-    block_info_validation: BlockInfoValidation,
-    block_info_proposed: ConsensusBlockInfo,
+    block_info_validation: &BlockInfoValidation,
+    init_proposed: &ProposalInit,
     clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     gas_price_params: &GasPriceParams,
@@ -249,42 +230,40 @@ async fn is_block_info_valid(
     let now: u64 = clock.unix_now();
     let last_block_timestamp =
         block_info_validation.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
-    if block_info_proposed.timestamp < last_block_timestamp {
+    if init_proposed.timestamp < last_block_timestamp {
         return Err(ValidateProposalError::InvalidBlockInfo(
-            block_info_proposed.clone(),
+            init_proposed.clone(),
             block_info_validation.clone(),
             format!(
                 "Timestamp is too old: last_block_timestamp={}, proposed={}",
-                last_block_timestamp, block_info_proposed.timestamp
+                last_block_timestamp, init_proposed.timestamp
             ),
         ));
     }
-    if block_info_proposed.timestamp > now + block_info_validation.block_timestamp_window_seconds {
+    if init_proposed.timestamp > now + block_info_validation.block_timestamp_window_seconds {
         return Err(ValidateProposalError::InvalidBlockInfo(
-            block_info_proposed.clone(),
+            init_proposed.clone(),
             block_info_validation.clone(),
             format!(
                 "Timestamp is in the future: now={}, block_timestamp_window_seconds={}, \
                  proposed={}",
-                now,
-                block_info_validation.block_timestamp_window_seconds,
-                block_info_proposed.timestamp
+                now, block_info_validation.block_timestamp_window_seconds, init_proposed.timestamp
             ),
         ));
     }
-    if !(block_info_proposed.height == block_info_validation.height
-        && block_info_proposed.l1_da_mode == block_info_validation.l1_da_mode
-        && block_info_proposed.l2_gas_price_fri == block_info_validation.l2_gas_price_fri)
+    if !(init_proposed.height == block_info_validation.height
+        && init_proposed.l1_da_mode == block_info_validation.l1_da_mode
+        && init_proposed.l2_gas_price_fri == block_info_validation.l2_gas_price_fri)
     {
         return Err(ValidateProposalError::InvalidBlockInfo(
-            block_info_proposed.clone(),
+            init_proposed.clone(),
             block_info_validation.clone(),
             "Block info validation failed".to_string(),
         ));
     }
     let (l1_gas_prices_fri, _l1_gas_prices_wei) = get_l1_prices_in_fri_and_wei(
         l1_gas_price_provider,
-        block_info_proposed.timestamp,
+        init_proposed.timestamp,
         block_info_validation.previous_block_info.as_ref(),
         gas_price_params,
     )
@@ -295,8 +274,8 @@ async fn is_block_info_valid(
 
     let l1_gas_price_fri = l1_gas_prices_fri.l1_gas_price;
     let l1_data_gas_price_fri = l1_gas_prices_fri.l1_data_gas_price;
-    let l1_gas_price_fri_proposed = block_info_proposed.l1_gas_price_fri;
-    let l1_data_gas_price_fri_proposed = block_info_proposed.l1_data_gas_price_fri;
+    let l1_gas_price_fri_proposed = init_proposed.l1_gas_price_fri;
+    let l1_data_gas_price_fri_proposed = init_proposed.l1_data_gas_price_fri;
 
     if !(within_margin(l1_gas_price_fri_proposed, l1_gas_price_fri, l1_gas_price_margin_percent)
         && within_margin(
@@ -306,8 +285,8 @@ async fn is_block_info_valid(
         ))
     {
         return Err(ValidateProposalError::InvalidBlockInfo(
-            block_info_proposed,
-            block_info_validation,
+            init_proposed.clone(),
+            block_info_validation.clone(),
             format!(
                 "L1 gas price mismatch: expected L1 gas price FRI={l1_gas_price_fri}, \
                  proposed={l1_gas_price_fri_proposed}, expected L1 data gas price \
@@ -333,46 +312,11 @@ fn within_margin(number1: GasPrice, number2: GasPrice, margin_percent: u128) -> 
 
 // The second proposal part when validating a proposal must be:
 // 1. Fin - empty proposal.
-// 2. BlockInfo - required to begin executing TX batches.
-async fn await_second_proposal_part(
-    cancel_token: &CancellationToken,
-    deadline: DateTime,
-    content_receiver: &mut mpsc::Receiver<ProposalPart>,
-    clock: &dyn Clock,
-) -> ValidateProposalResult<SecondProposalPart> {
-    tokio::select! {
-        _ = cancel_token.cancelled() => {
-            Err(ValidateProposalError::ProposalInterrupted(
-                "waiting for second proposal part".to_string(),
-            ))
-        }
-        _ = clock.sleep_until(deadline) => {
-            Err(ValidateProposalError::ValidationTimeout(
-                "waiting for second proposal part".to_string(),
-            ))
-        }
-        proposal_part = content_receiver.next() => {
-            match proposal_part {
-                Some(ProposalPart::BlockInfo(block_info)) => {
-                    Ok(SecondProposalPart::BlockInfo(block_info))
-                }
-                Some(ProposalPart::Fin(ProposalFin { proposal_commitment, executed_transaction_count })) => {
-                    warn!("Received an empty proposal.");
-                    Ok(SecondProposalPart::Fin(ProposalFin { proposal_commitment, executed_transaction_count }))
-                }
-                x => {
-                    Err(ValidateProposalError::InvalidSecondProposalPart(x
-                    ))
-                }
-            }
-        }
-    }
-}
-
+// 2. ProposalInit (init) - required to begin executing TX batches.
 async fn initiate_validation(
     batcher: Arc<dyn BatcherClient>,
     state_sync_client: SharedStateSyncClient,
-    block_info: ConsensusBlockInfo,
+    init: &ProposalInit,
     proposal_id: ProposalId,
     timeout_plus_margin: Duration,
     clock: &dyn Clock,
@@ -386,11 +330,11 @@ async fn initiate_validation(
         retrospective_block_hash: retrospective_block_hash(
             batcher.clone(),
             state_sync_client,
-            &block_info,
+            init,
         )
         .await
         .map_err(ValidateProposalError::from)?,
-        block_info: convert_to_sn_api_block_info(&block_info)?,
+        block_info: convert_to_sn_api_block_info(init)?,
     };
     debug!("Initiating validate proposal: input={input:?}");
     batcher.validate_block(input.clone()).await.map_err(|err| {
@@ -402,6 +346,13 @@ async fn initiate_validation(
     Ok(())
 }
 
+/// Awaits a task that verifies and stores a proof spawned during consensus transaction conversion.
+async fn await_verify_and_store_proof_task(task: VerifyAndStoreProofTask) -> Result<(), String> {
+    task.await
+        .map_err(|e| format!("Verify and store proof task panicked: {e}"))?
+        .map_err(|e| e.to_string())
+}
+
 /// Handles receiving a proposal from another node without blocking consensus:
 /// 1. Receives the proposal part from the network.
 /// 2. Pass this to the batcher.
@@ -411,6 +362,7 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
+    verify_and_store_proof_tasks: &mut Vec<VerifyAndStoreProofTask>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> HandledProposalPart {
     match proposal_part {
@@ -434,6 +386,19 @@ async fn handle_proposal_part(
 
             *content = truncate_to_executed_txs(content, executed_txs_count);
 
+            // Verification and store proof tasks are spawned during consensus transaction
+            // conversion, running concurrently with batcher execution. Since the fin
+            // is always the last proposal part, we await all tasks here to ensure every
+            // proof is verified and stored before finalizing the proposal.
+            let start = Instant::now();
+            for task in verify_and_store_proof_tasks.drain(..) {
+                if let Err(e) = await_verify_and_store_proof_task(task).await {
+                    return HandledProposalPart::Failed(e);
+                }
+            }
+            let duration = start.elapsed();
+            info!("Awaiting the verify and store proof tasks took: {duration:?}");
+
             // Output this along with the ID from batcher, to compare them.
             let input = SendProposalContentInput {
                 proposal_id,
@@ -447,37 +412,40 @@ async fn handle_proposal_part(
                     ));
                 }
             };
-            let response_id = match response.response {
-                ProposalStatus::Finished(id) => id,
+            let finished_info = match response.response {
+                ProposalStatus::Finished(info) => info,
                 ProposalStatus::InvalidProposal(err) => return HandledProposalPart::Invalid(err),
                 status => {
                     unreachable!("Unexpected batcher status for fin: {status:?}");
                 }
             };
-            let batcher_block_id = ProposalCommitment(response_id.state_diff_commitment.0.0);
+            let batcher_block_commitment =
+                ProposalCommitment(finished_info.proposal_commitment.state_diff_commitment.0.0);
 
             info!(
-                network_block_id = ?fin.proposal_commitment,
-                ?batcher_block_id,
+                network_block_commitment = ?fin.proposal_commitment,
+                ?batcher_block_commitment,
                 executed_txs_count,
                 "Finished validating proposal."
             );
             if executed_txs_count == 0 {
                 warn!("Validated an empty proposal.");
             }
-            HandledProposalPart::Finished(batcher_block_id, fin)
+            HandledProposalPart::Finished(batcher_block_commitment, fin, finished_info)
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
+            // TODO(guyn): check that the length of txs and the number of batches we receive is not
+            // so big it would fill up the memory (in case of a malicious proposal)
             debug!("Received transaction batch with {} txs", txs.len());
-            let txs =
+            let conversion_results =
                 futures::future::join_all(txs.into_iter().map(|tx| {
                     transaction_converter.convert_consensus_tx_to_internal_consensus_tx(tx)
                 }))
                 .await
                 .into_iter()
                 .collect::<Result<Vec<_>, _>>();
-            let txs = match txs {
-                Ok(txs) => txs,
+            let conversion_results = match conversion_results {
+                Ok(results) => results,
                 Err(e) => {
                     return HandledProposalPart::Failed(format!(
                         "Failed to convert transactions. Stopping the build of the current \
@@ -485,6 +453,16 @@ async fn handle_proposal_part(
                     ));
                 }
             };
+
+            // Separate internal transactions from verification and store proof tasks. Each task
+            // verifies the proof and stores it in the proof manager. Tasks are collected
+            // and awaited later in the fin case.
+            let (txs, tasks): (
+                Vec<InternalConsensusTransaction>,
+                Vec<Option<VerifyAndStoreProofTask>>,
+            ) = conversion_results.into_iter().unzip();
+            verify_and_store_proof_tasks.extend(tasks.into_iter().flatten());
+
             debug!(
                 "Converted transactions to internal representation. hashes={:?}",
                 txs.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>()
@@ -509,7 +487,10 @@ async fn handle_proposal_part(
                 }
             }
         }
-        _ => HandledProposalPart::Failed("Invalid proposal part".to_string()),
+        _ => HandledProposalPart::Failed(format!(
+            "Invalid proposal part: {:?}",
+            proposal_part.clone()
+        )),
     }
 }
 

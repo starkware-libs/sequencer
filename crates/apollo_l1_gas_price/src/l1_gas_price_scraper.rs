@@ -8,6 +8,7 @@ use apollo_infra_utils::info_every_n_ms;
 use apollo_l1_gas_price_provider_config::config::L1GasPriceScraperConfig;
 use apollo_l1_gas_price_types::errors::L1GasPriceClientError;
 use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderClient, PriceInfo};
+use apollo_metrics::metrics::set_unix_now_seconds;
 use async_trait::async_trait;
 use papyrus_base_layer::{BaseLayerContract, L1BlockHeader, L1BlockNumber};
 use starknet_api::block::GasPrice;
@@ -17,6 +18,7 @@ use tracing::{error, info, trace, warn};
 use crate::metrics::{
     register_scraper_metrics,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_GAS_PRICE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS,
     L1_GAS_PRICE_SCRAPER_LATEST_SCRAPED_BLOCK,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
     L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
@@ -148,6 +150,7 @@ impl<B: BaseLayerContract + Send + Sync + Debug> L1GasPriceScraper<B> {
                 .await
                 .map_err(L1GasPriceScraperError::GasPriceClientError)?;
             L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT.increment(1);
+            set_unix_now_seconds(&L1_GAS_PRICE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS);
             *block_number += 1;
         }
         Ok(())

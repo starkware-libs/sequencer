@@ -22,7 +22,9 @@ use apollo_starknet_client::reader::StorageEntry;
 use blockifier::execution::call_info::{
     CallExecution,
     CallInfo,
+    ExtendedExecutionResources,
     MessageToL1,
+    OpcodeCounterMap,
     OrderedEvent,
     OrderedL2ToL1Message,
     Retdata,
@@ -46,11 +48,7 @@ use blockifier::state::cached_state::{
     StateChangesCount,
     StateChangesCountForFee,
 };
-use blockifier::transaction::objects::{
-    ExecutionResourcesTraits,
-    RevertError,
-    TransactionExecutionInfo,
-};
+use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint};
 use cairo_lang_casm::operand::{CellRef, Register};
 use cairo_lang_starknet_classes::casm_contract_class::{
@@ -82,7 +80,7 @@ use starknet_api::block::{
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion};
-use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, L1Address};
+use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, EthAddress, L1Address};
 use starknet_api::data_availability::{DataAvailabilityMode, L1DataAvailabilityMode};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::execution_resources::{GasAmount, GasVector};
@@ -122,6 +120,7 @@ use starknet_api::transaction::{
     EventData,
     EventKey,
     L2ToL1Payload,
+    MessageToL1 as StarknetAPIMessageToL1,
     TransactionHash,
     TransactionOffsetInBlock,
     TransactionVersion,
@@ -491,18 +490,25 @@ fn central_casm_contract_class_default_optional_fields() -> CentralCasmContractC
     CentralCasmContractClass::from(casm_contract_class)
 }
 
-fn execution_resources() -> ExecutionResources {
-    ExecutionResources {
-        n_steps: 2,
-        n_memory_holes: 3,
-        builtin_instance_counter: BTreeMap::from([
-            (BuiltinName::range_check, 31),
-            (BuiltinName::pedersen, 4),
-        ]),
+fn extended_execution_resources() -> ExtendedExecutionResources {
+    ExtendedExecutionResources {
+        vm_resources: ExecutionResources {
+            n_steps: 2,
+            n_memory_holes: 3,
+            builtin_instance_counter: BTreeMap::from([
+                (BuiltinName::range_check, 31),
+                (BuiltinName::pedersen, 4),
+            ]),
+        },
+        // TODO(AvivG): test with non-default opcode instance counter.
+        opcode_instance_counter: OpcodeCounterMap::default(),
     }
 }
 
 fn call_info() -> CallInfo {
+    let extended_execution_resources = extended_execution_resources();
+    let builtin_counters = extended_execution_resources.prover_cairo_primitives();
+
     CallInfo {
         call: CallEntryPoint {
             class_hash: Some(ClassHash(felt!("0x80020000"))),
@@ -543,7 +549,7 @@ fn call_info() -> CallInfo {
             cairo_native: false,
         },
         inner_calls: Vec::new(),
-        resources: execution_resources(),
+        resources: extended_execution_resources,
         tracked_resource: TrackedResource::SierraGas,
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: felt_vector(),
@@ -553,7 +559,7 @@ fn call_info() -> CallInfo {
             read_block_hash_values: vec![BlockHash(felt!("0xdeafbee"))],
             accessed_blocks: HashSet::from([BlockNumber(100)]),
         },
-        builtin_counters: execution_resources().prover_builtins(),
+        builtin_counters,
         syscalls_usage: HashMap::from([
             (SyscallSelector::CallContract, SyscallUsage { call_count: 7, linear_factor: 0 }),
             (SyscallSelector::StorageRead, SyscallUsage { call_count: 4, linear_factor: 0 }),
@@ -607,7 +613,7 @@ fn transaction_execution_info() -> TransactionExecutionInfo {
                     },
                 },
                 computation: ComputationResources {
-                    tx_vm_resources: execution_resources(),
+                    tx_extended_vm_resources: extended_execution_resources(),
                     os_vm_resources: ExecutionResources::default(),
                     n_reverted_steps: 2,
                     sierra_gas: GasAmount(0x128140),
@@ -737,6 +743,19 @@ fn central_blob_with_empty_or_none_fields() -> AerospikeBlob {
             Arc::new(mock_class_manager),
         ))
         .unwrap()
+}
+
+fn message_to_l1_from_serialized_fields(
+    from_address: &str,
+    to_address: &str,
+    payload: Vec<&str>,
+) -> StarknetAPIMessageToL1 {
+    StarknetAPIMessageToL1 {
+        from_address: contract_address!(from_address),
+        to_address: EthAddress::try_from(felt!(to_address))
+            .expect("Failed to convert to_address to EthAddress"),
+        payload: L2ToL1Payload(payload.into_iter().map(|s| felt!(s)).collect::<Vec<_>>()),
+    }
 }
 
 fn event_from_serialized_fields(from_address: &str, keys: Vec<&str>, data: Vec<&str>) -> Event {
@@ -905,7 +924,18 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
             "0xa07cd0a966655216edb9bf3982e8c3ee6321c7fb7a218c5c25e30c462f3f39"
         )),
         l1_to_l2_consumed_message: None,
-        l2_to_l1_messages: vec![],
+        l2_to_l1_messages: vec![
+            message_to_l1_from_serialized_fields(
+                "0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8",
+                "0x2",
+                vec!["0x2000", "0x2001", "0x2002", "0x2003", "0x2004"],
+            ),
+            message_to_l1_from_serialized_fields(
+                "0x67e7555f9ff00f5c4e9b353ad1f400e2274964ea0942483fae97363fd5d7958",
+                "0x3",
+                vec!["0x3000", "0x3001"],
+            ),
+        ],
         events: vec![
             event_from_serialized_fields(
                 "0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8",

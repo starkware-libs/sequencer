@@ -3,7 +3,6 @@ use std::fmt::Display;
 use std::fs::File;
 use std::io::Read;
 use std::iter::once;
-use std::net::{IpAddr, Ipv4Addr};
 use std::path::{Path, PathBuf};
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
@@ -21,8 +20,14 @@ use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
 use phf::phf_set;
 use serde::{Serialize, Serializer};
 use serde_json::{from_str, json, Map, Value};
-use strum::{Display, EnumVariantNames, IntoEnumIterator};
-use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
+use strum::{
+    Display,
+    EnumDiscriminants,
+    EnumIter,
+    EnumVariantNames,
+    IntoEnumIterator,
+    IntoStaticStr,
+};
 
 use crate::deployment_definitions::{ComponentConfigInService, CONFIG_BASE_DIR};
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
@@ -42,22 +47,24 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "base_layer_config.bpo2_start_block_number",
     "base_layer_config.fusaka_no_bpo_start_block_number",
     "base_layer_config.starknet_contract_address",
-    "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_events",
-    "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size",
-    "batcher_config.block_builder_config.execute_config.n_workers",
-    "batcher_config.block_builder_config.proposer_idle_detection_delay_millis",
-    "batcher_config.first_block_with_partial_block_hash.#is_none",
-    "batcher_config.first_block_with_partial_block_hash.block_number",
-    "batcher_config.first_block_with_partial_block_hash.block_hash",
-    "batcher_config.first_block_with_partial_block_hash.parent_block_hash",
-    "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
+    "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.n_events",
+    "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size",
+    "batcher_config.static_config.block_builder_config.execute_config.n_workers",
+    "batcher_config.static_config.block_builder_config.proposer_idle_detection_delay_millis",
+    "batcher_config.static_config.first_block_with_partial_block_hash.#is_none",
+    "batcher_config.static_config.first_block_with_partial_block_hash.block_number",
+    "batcher_config.static_config.first_block_with_partial_block_hash.block_hash",
+    "batcher_config.static_config.first_block_with_partial_block_hash.parent_block_hash",
+    "batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
     "chain_id",
-    "class_manager_config.class_manager_config.max_compiled_contract_class_object_size",
+    "class_manager_config.static_config.class_manager_config.max_compiled_contract_class_object_size",
+    "committer_config.storage_config.cache_size",
     "committer_config.verify_state_diff_hash",
+    "consensus_manager_config.consensus_manager_config.dynamic_config.require_virtual_proposer_vote",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max",
     "consensus_manager_config.context_config.static_config.build_proposal_margin_millis",
-    "consensus_manager_config.context_config.static_config.num_validators",
+    "consensus_manager_config.context_config.dynamic_config.min_l2_gas_price_per_height",
     "consensus_manager_config.context_config.dynamic_config.override_eth_to_fri_rate.#is_none",
     "consensus_manager_config.context_config.dynamic_config.override_eth_to_fri_rate",
     "consensus_manager_config.context_config.dynamic_config.override_l1_data_gas_price_fri.#is_none",
@@ -71,13 +78,16 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none",
     "consensus_manager_config.network_config.bootstrap_peer_multiaddr",
     "consensus_manager_config.network_config.port",
+    "consensus_manager_config.staking_manager_config.dynamic_config.default_committee",
+    "consensus_manager_config.staking_manager_config.dynamic_config.override_committee.#is_none",
+    "consensus_manager_config.staking_manager_config.dynamic_config.override_committee",
     "eth_fee_token_address",
-    "gateway_config.authorized_declarer_accounts.#is_none",
-    "gateway_config.authorized_declarer_accounts",
-    "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
-    "gateway_config.proof_archive_writer_config.bucket_name",
-    "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap",
-    "gateway_config.stateless_tx_validator_config.min_gas_price",
+    "gateway_config.static_config.authorized_declarer_accounts.#is_none",
+    "gateway_config.static_config.authorized_declarer_accounts",
+    "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
+    "gateway_config.static_config.proof_archive_writer_config.bucket_name",
+    "gateway_config.static_config.stateful_tx_validator_config.max_allowed_nonce_gap",
+    "gateway_config.static_config.stateless_tx_validator_config.min_gas_price",
     "http_server_config.static_config.port",
     "mempool_config.dynamic_config.transaction_ttl",
     "mempool_p2p_config.network_config.advertised_multiaddr.#is_none",
@@ -91,10 +101,11 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "sierra_compiler_config.audited_libfuncs_only",
     "sierra_compiler_config.max_bytecode_size",
     "starknet_url",
-    "state_sync_config.central_sync_client_config.#is_none",
-    "state_sync_config.network_config.#is_none",
-    "state_sync_config.p2p_sync_client_config.#is_none",
-    "state_sync_config.rpc_config.port",
+    "state_sync_config.static_config.central_sync_client_config.#is_none",
+    "state_sync_config.static_config.central_sync_client_config.sync_config.store_sierras_and_casms_block_threshold",
+    "state_sync_config.static_config.network_config.#is_none",
+    "state_sync_config.static_config.p2p_sync_client_config.#is_none",
+    "state_sync_config.static_config.rpc_config.port",
     "strk_fee_token_address",
     "validator_id",
     "versioned_constants_overrides.max_n_events",
@@ -374,7 +385,6 @@ pub(crate) trait GetComponentConfigs: ServiceNameInner {
     fn component_config_for_local_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
         ReactiveComponentExecutionConfig::local_with_remote_enabled(
             REMOTE_SERVICE_URL_PLACEHOLDER.to_string(),
-            IpAddr::from(Ipv4Addr::UNSPECIFIED),
             port,
         )
     }
@@ -383,13 +393,9 @@ pub(crate) trait GetComponentConfigs: ServiceNameInner {
     fn component_config_for_remote_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
         let idle_connections = self.get_scale_policy().idle_connections();
         let retries = self.get_retries();
-        ReactiveComponentExecutionConfig::remote(
-            REMOTE_SERVICE_URL_PLACEHOLDER.to_string(),
-            IpAddr::from(Ipv4Addr::UNSPECIFIED),
-            port,
-        )
-        .with_idle_connections(idle_connections)
-        .with_retries(retries)
+        ReactiveComponentExecutionConfig::remote(REMOTE_SERVICE_URL_PLACEHOLDER.to_string(), port)
+            .with_idle_connections(idle_connections)
+            .with_retries(retries)
     }
 
     fn component_config_pair(&self, port: u16) -> ComponentConfigPair {

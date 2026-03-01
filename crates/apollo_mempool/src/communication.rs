@@ -20,7 +20,7 @@ use apollo_mempool_types::mempool_types::{
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_time::time::DefaultClock;
 use async_trait::async_trait;
-use starknet_api::block::GasPrice;
+use starknet_api::block::{GasPrice, UnixTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use tracing::warn;
@@ -138,6 +138,10 @@ impl MempoolCommunicationWrapper {
     fn mempool_snapshot(&self) -> MempoolResult<MempoolSnapshot> {
         self.mempool.mempool_snapshot()
     }
+
+    fn get_timestamp(&self) -> MempoolResult<UnixTimestamp> {
+        Ok(self.mempool.get_timestamp())
+    }
 }
 
 #[async_trait]
@@ -169,6 +173,7 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
             MempoolRequest::GetMempoolSnapshot() => {
                 MempoolResponse::GetMempoolSnapshot(self.mempool_snapshot())
             }
+            MempoolRequest::GetTimestamp => MempoolResponse::GetTimestamp(self.get_timestamp()),
         }
     }
 }

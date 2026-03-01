@@ -2,19 +2,10 @@
 
 set -euo pipefail
 
-if [[ -n "${CI:-}" ]]; then
-  echo "This script should not be run in a CI environment, as it installs toolchains out of cache."
-  exit 1
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+source "${SCRIPT_DIR}/cargo_tool_utils.sh"
 
-SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
-TOOLCHAIN=$(grep "EXTRA_RUST_TOOLCHAINS:" "${SCRIPT_DIR}"/../.github/workflows/main.yml  | awk '{print $2}')
+TOOLCHAIN=$(verify_and_return_fmt_toolchain)
 
-function install_rustfmt() {
-    rustup toolchain install "${TOOLCHAIN}"
-    rustup component add --toolchain "${TOOLCHAIN}" rustfmt
-}
-
-rustup toolchain list | grep -q "${TOOLCHAIN}" || install_rustfmt
-
+echo "Running cargo fmt with toolchain ${TOOLCHAIN}"
 cargo +"${TOOLCHAIN}" fmt --all -- "$@"

@@ -3,15 +3,17 @@ use std::fmt::Display;
 use apollo_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
 use prost::DecodeError;
 use rand::Rng;
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::{BlockNumber, GasPrice, StarknetVersion};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ContractAddress;
+use starknet_api::crypto::utils::RawSignature;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::hash::StarkHash;
+use starknet_types_core::felt::Felt;
 
 use super::ProtobufConversionError;
 use crate::consensus::{
-    ConsensusBlockInfo,
+    CommitmentParts,
     ProposalCommitment,
     ProposalFin,
     ProposalInit,
@@ -30,27 +32,33 @@ auto_impl_get_test_instance! {
         pub round: u32,
         pub proposal_commitment: Option<ProposalCommitment>,
         pub voter: ContractAddress,
+        pub signature: RawSignature,
     }
     pub enum VoteType {
         Prevote = 0,
         Precommit = 1,
+    }
+    pub struct ProposalCommitment(pub StarkHash);
+    pub struct CommitmentParts {
+        pub concatenated_counts: Felt,
+        pub parent_commitment: Option<ProposalCommitment>,
+        pub transaction_commitment: StarkHash,
+        pub event_commitment: StarkHash,
+        pub receipt_commitment: StarkHash,
+    }
+    pub struct ProposalFin {
+        pub proposal_commitment: ProposalCommitment,
+        pub executed_transaction_count: u64,
+        pub commitment_parts: Option<CommitmentParts>,
+    }
+    pub struct TransactionBatch {
+        pub transactions: Vec<ConsensusTransaction>,
     }
     pub struct ProposalInit {
         pub height: BlockNumber,
         pub round: u32,
         pub valid_round: Option<u32>,
         pub proposer: ContractAddress,
-    }
-    pub struct ProposalCommitment(pub StarkHash);
-    pub struct ProposalFin {
-        pub proposal_commitment: ProposalCommitment,
-        pub executed_transaction_count: u64,
-    }
-    pub struct TransactionBatch {
-        pub transactions: Vec<ConsensusTransaction>,
-    }
-    pub struct ConsensusBlockInfo {
-        pub height: BlockNumber,
         pub timestamp: u64,
         pub builder: ContractAddress,
         pub l1_da_mode: L1DataAvailabilityMode,
@@ -59,12 +67,13 @@ auto_impl_get_test_instance! {
         pub l1_data_gas_price_fri: GasPrice,
         pub l1_gas_price_wei: GasPrice,
         pub l1_data_gas_price_wei: GasPrice,
+        pub starknet_version: StarknetVersion,
+        pub version_constant_commitment: StarkHash,
     }
     pub enum ProposalPart {
         Init(ProposalInit) = 0,
         Fin(ProposalFin) = 1,
-        BlockInfo(ConsensusBlockInfo) = 2,
-        Transactions(TransactionBatch) = 3,
+        Transactions(TransactionBatch) = 2,
     }
 
 }

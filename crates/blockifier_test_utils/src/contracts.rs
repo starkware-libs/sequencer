@@ -11,11 +11,11 @@ use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::state::SierraContractClass;
 use starknet_api::{class_hash, contract_address, felt};
-use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
+use strum::{EnumIter, IntoEnumIterator};
 
 use crate::cairo_compile::{
     allowed_libfuncs_json_path,
+    allowed_libfuncs_legacy_json_path,
     cairo0_compile,
     cairo1_compile,
     CompilationArtifacts,
@@ -62,12 +62,12 @@ const CAIRO_STEPS_TEST_CONTRACT_BASE: u32 = 9 * CLASS_HASH_BASE;
 const SIERRA_EXECUTION_INFO_V1_CONTRACT_BASE: u32 = 10 * CLASS_HASH_BASE;
 const META_TX_CONTRACT_BASE: u32 = 11 * CLASS_HASH_BASE;
 const EMPTY_ACCOUNT_BASE: u32 = 12 * CLASS_HASH_BASE;
-const MOCK_STAKING_CONTRACT_BASE: u32 = 12 * CLASS_HASH_BASE;
 const DELEGATE_PROXY_BASE: u32 = 13 * CLASS_HASH_BASE;
 const TEST_CONTRACT2_BASE: u32 = 14 * CLASS_HASH_BASE;
 const EXPERIMENTAL_CONTRACT_BASE: u32 = 15 * CLASS_HASH_BASE;
 const TX_INFO_WRITER_CONTRACT_BASE: u32 = 16 * CLASS_HASH_BASE;
 const BLOCK_INFO_TEST_CONTRACT_BASE: u32 = 17 * CLASS_HASH_BASE;
+const MOCK_STAKING_CONTRACT_BASE: u32 = 18 * CLASS_HASH_BASE;
 
 // Contract names.
 const ACCOUNT_LONG_VALIDATE_NAME: &str = "account_with_long_validate";
@@ -152,9 +152,9 @@ const LEGACY_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
     expect!["0x4b5dc7adc1a0d682e41a74ccd34f6eb4c9d25f398fe2fbfe71e111451359bd8"];
 
 const TEST_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x3013e016720f7a67294d51796495341f3d9d5cc208ee4b80ef51cfb30c210b6"];
+    expect!["0x71b2d0f1b195e8c507accc592b838820790dae84ae6fbb6bf6a5d0b16f06b5"];
 const TEST_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x4ae4d4981a9b1b988f9b1d57f97dc98c7342042a04d0a736bcce04d36878ae7"];
+    expect!["0x6b211d8c58fb5b988b82153ae2e37c8ba34ba8d1853cf5ef1b3453ff2c41fff"];
 
 const SIERRA_EXECUTION_INFO_V1_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
     expect!["0x4d9b6a21d9261ca5f4002ba074925ace389746af0dddc39c91514cced81a5e7"];
@@ -539,6 +539,9 @@ impl FeatureContract {
                 let libfunc_list_arg = match self {
                     Self::Experimental => {
                         LibfuncArg::ListFile("./resources/experimental_libfuncs.json".to_string())
+                    }
+                    Self::LegacyTestContract | Self::CairoStepsTestContract => {
+                        LibfuncArg::ListFile(allowed_libfuncs_legacy_json_path())
                     }
                     _ => LibfuncArg::ListFile(allowed_libfuncs_json_path()),
                 };

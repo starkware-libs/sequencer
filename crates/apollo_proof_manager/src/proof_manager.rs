@@ -22,15 +22,18 @@ impl ProofCache {
     }
 
     pub fn get(&self, facts_hash: &Felt) -> Option<Proof> {
-        self.cache.lock().expect("Failed to lock proof cache.").get(facts_hash).cloned()
+        let mut guard = self.cache.lock().expect("Failed to lock proof cache.");
+        guard.get(facts_hash).cloned()
     }
 
     pub fn insert(&self, facts_hash: Felt, proof: Proof) {
-        self.cache.lock().expect("Failed to lock proof cache.").put(facts_hash, proof);
+        let mut guard = self.cache.lock().expect("Failed to lock proof cache.");
+        guard.put(facts_hash, proof);
     }
 
     pub fn contains(&self, facts_hash: &Felt) -> bool {
-        self.cache.lock().expect("Failed to lock proof cache.").contains(facts_hash)
+        let guard = self.cache.lock().expect("Failed to lock proof cache.");
+        guard.contains(facts_hash)
     }
 }
 
@@ -48,41 +51,48 @@ impl ProofManager {
         Self { proof_storage, cache: ProofCache::new(config.cache_size) }
     }
 
-    pub fn set_proof(
+    pub async fn set_proof(
         &self,
         proof_facts: ProofFacts,
         proof: Proof,
     ) -> Result<(), FsProofStorageError> {
-        if self.contains_proof(proof_facts.clone())? {
+        if self.contains_proof(proof_facts.clone()).await? {
             return Ok(());
         }
         let facts_hash = proof_facts.hash();
-        self.cache.insert(facts_hash, proof.clone());
-        self.proof_storage.set_proof(facts_hash, proof)
+        self.proof_storage.set_proof(facts_hash, proof.clone()).await?;
+        self.cache.insert(facts_hash, proof);
+        Ok(())
     }
 
-    pub fn get_proof(&self, proof_facts: ProofFacts) -> Result<Option<Proof>, FsProofStorageError> {
+    pub async fn get_proof(
+        &self,
+        proof_facts: ProofFacts,
+    ) -> Result<Option<Proof>, FsProofStorageError> {
         let facts_hash = proof_facts.hash();
         // Check cache first.
         if let Some(proof) = self.cache.get(&facts_hash) {
             return Ok(Some(proof));
         }
         // Fallback to filesystem.
-        let proof = self.proof_storage.get_proof(facts_hash)?;
+        let proof = self.proof_storage.get_proof(facts_hash).await?;
         if let Some(proof) = &proof {
             self.cache.insert(facts_hash, proof.clone());
         }
         Ok(proof)
     }
 
-    pub fn contains_proof(&self, proof_facts: ProofFacts) -> Result<bool, FsProofStorageError> {
+    pub async fn contains_proof(
+        &self,
+        proof_facts: ProofFacts,
+    ) -> Result<bool, FsProofStorageError> {
         let facts_hash = proof_facts.hash();
         // Check cache first.
         if self.cache.contains(&facts_hash) {
             return Ok(true);
         }
         // Fallback to filesystem.
-        self.proof_storage.contains_proof(facts_hash)
+        self.proof_storage.contains_proof(facts_hash).await
     }
 }
 

@@ -6,8 +6,9 @@ use serde::Deserialize;
 #[path = "template_test.rs"]
 mod template_test;
 
+// TODO(Tsabary): remove the `Clone` and `PartialEq` constraints.
 /// A simple positional template with `{}` placeholders.
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct Template(pub String);
 
 impl Template {
@@ -18,7 +19,7 @@ impl Template {
 
     /// Renders the template by substituting `{}` placeholders with the provided args. Panics if the
     /// number of `{}` in the template doesn't match the number of args provided.
-    pub fn format(&self, args: &[&dyn Display]) -> String {
+    pub fn format(&self, args: &[impl Display]) -> String {
         // Count how many `{}` placeholders are in the template string, and ensure the number of
         // args matches the number of placeholders.
         let placeholder_count = self.0.matches("{}").count();

@@ -1,3 +1,6 @@
+pub mod codec;
+#[cfg(test)]
+mod codec_test;
 // TODO(shahak): Internalize this once network doesn't depend on protobuf.
 pub mod converters;
 // TODO(shahak): Internalize this once network doesn't depend on protobuf.

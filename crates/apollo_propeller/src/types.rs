@@ -3,7 +3,40 @@
 use libp2p::identity::PeerId;
 use thiserror::Error;
 
+use crate::padding::UnpaddingError;
 use crate::MerkleHash;
+
+// TODO(AndrewL): reduce redundant documentation in this file
+
+// TODO(AndrewL): Re-evaluate the error approach in propeller.
+
+/// Events emitted by the Propeller protocol to the application layer.
+#[derive(Debug, Clone)]
+pub enum Event {
+    /// A complete message has been reconstructed from shards.
+    MessageReceived { publisher: PeerId, message_root: MessageRoot, message: Vec<u8> },
+    /// Failed to reconstruct a message from shards.
+    MessageReconstructionFailed {
+        message_root: MessageRoot,
+        publisher: PeerId,
+        error: ReconstructionError,
+    },
+    // TODO(AndrewL): remove this and just use ShardSendFailed
+    /// Failed to broadcast a shard.
+    ShardPublishFailed { error: ShardPublishError },
+    /// Failed to send a shard to a peer.
+    ShardSendFailed { sent_from: Option<PeerId>, sent_to: Option<PeerId>, error: ShardPublishError },
+    /// Failed to verify shard
+    ShardValidationFailed {
+        /// The sender of the shard that filed verification. They should be reported.
+        sender: PeerId,
+        claimed_root: MessageRoot,
+        claimed_publisher: PeerId,
+        error: ShardValidationError,
+    },
+    /// Message processing timed out before completion.
+    MessageTimeout { channel: Channel, publisher: PeerId, message_root: MessageRoot },
+}
 
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
 // TODO(AndrewL): rename to ChannelId
@@ -82,14 +115,39 @@ pub enum ReconstructionError {
     MismatchedMessageRoot,
     #[error("Unequal shard lengths, the shards are most likely malicious")]
     UnequalShardLengths,
-    #[error("The message was padded incorrectly by the publisher")]
-    MessagePaddingError,
+    #[error("The message was padded incorrectly by the publisher: {0}")]
+    MessagePaddingError(UnpaddingError),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
+// TODO(AndrewL): rename to ChannelSetupError
 pub enum PeerSetError {
     #[error("Local peer is not a member in the channel you're requesting")]
     LocalPeerNotInChannel,
     #[error("Invalid public key")]
     InvalidPublicKey,
+    #[error("Duplicate peer IDs")]
+    DuplicatePeerIds,
+}
+
+/// Specific errors that can occur during shard verification.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum ShardValidationError {
+    #[error("Self received a shard from myself (libp2p should not allow this)")]
+    SelfSending,
+    #[error("Publisher should not receive their own shard")]
+    ReceivedSelfPublishedShard,
+    #[error("Received shard that is already in cache (duplicate)")]
+    DuplicateShard,
+    #[error("Received shard but error getting parent in tree topology: {0}")]
+    ScheduleManagerError(TreeGenerationError),
+    #[error(
+        "Shard failed parent verification (expected sender = {expected_sender}, shard index = \
+         {shard_index:?})"
+    )]
+    UnexpectedSender { expected_sender: PeerId, shard_index: ShardIndex },
+    #[error("Shard failed signature verification: {0}")]
+    SignatureVerificationFailed(ShardSignatureVerificationError),
+    #[error("Shard failed Merkle proof verification")]
+    MerkleProofVerificationFailed,
 }

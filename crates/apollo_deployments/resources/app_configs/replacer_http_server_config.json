@@ -3,5 +3,6 @@
   "http_server_config.dynamic_config.max_sierra_program_size": 4194304,
   "http_server_config.static_config.dynamic_config_poll_interval": 1000,
   "http_server_config.static_config.ip": "0.0.0.0",
+  "http_server_config.static_config.max_request_body_size": 5242880,
   "http_server_config.static_config.port": "$$$_HTTP_SERVER_CONFIG-STATIC_CONFIG-PORT_$$$"
 }

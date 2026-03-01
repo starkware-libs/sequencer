@@ -2,9 +2,10 @@ use blockifier::state::errors::StateError;
 use blockifier_reexecution::errors::ReexecutionError;
 use cairo_vm::types::errors::program_errors::ProgramError;
 use proving_utils::proof_encoding::ProofEncodingError;
-use proving_utils::stwo_run_and_prove::StwoRunAndProveError;
 use starknet_api::core::ClassHash;
+use starknet_api::transaction::TransactionHash;
 use starknet_os::errors::StarknetOsError;
+use starknet_patricia_storage::errors::SerializationError;
 use starknet_rust::providers::ProviderError;
 use thiserror::Error;
 
@@ -15,6 +16,8 @@ pub enum VirtualBlockExecutorError {
     ReexecutionError(#[from] Box<ReexecutionError>),
     #[error("Transaction execution failed: {0}")]
     TransactionExecutionError(String),
+    #[error("Reverted transactions are not supported; hash: {0:?}, revert reason: {1}")]
+    TransactionReverted(TransactionHash, String),
     #[error("Block state unavailable after execution")]
     StateUnavailable,
     #[error("Failed to acquire bouncer lock: {0}")]
@@ -33,17 +36,24 @@ pub enum RunnerError {
     OsExecution(#[from] StarknetOsError),
     #[error("OS Input generation failed: {0}")]
     InputGenerationError(String),
+    #[error("Failed to calculate transaction hash: {0}")]
+    TransactionHashError(String),
     #[error(transparent)]
     TaskJoin(#[from] tokio::task::JoinError),
 }
 
 #[derive(Debug, Error)]
 pub enum ProofProviderError {
+    #[error("Invalid state diff: {0}")]
+    InvalidStateDiff(String),
     #[error("RPC provider error: {0}")]
     Rpc(#[from] ProviderError),
-
+    #[error(transparent)]
+    SerializationError(#[from] SerializationError),
     #[error("Invalid RPC proof response: {0}")]
     InvalidProofResponse(String),
+    #[error("Block commitment error: {0}")]
+    BlockCommitmentError(String),
 }
 
 #[derive(Debug, Error)]
@@ -68,15 +78,6 @@ pub enum ProvingError {
     #[error("Failed to create temporary file: {0}")]
     CreateTempFile(#[source] std::io::Error),
 
-    #[error("Failed to write Cairo PIE to zip file: {0}")]
-    WriteCairoPie(#[source] std::io::Error),
-
-    #[error("Failed to write program input: {0}")]
-    WriteProgramInput(#[source] std::io::Error),
-
-    #[error("Failed to serialize program input: {0}")]
-    SerializeProgramInput(#[source] serde_json::Error),
-
     #[error("Failed to resolve resource path for {file_name}: {source}")]
     ResolveResourcePath {
         file_name: String,
@@ -84,8 +85,9 @@ pub enum ProvingError {
         source: std::io::Error,
     },
 
+    #[cfg(feature = "stwo_proving")]
     #[error("Prover execution failed: {0}")]
-    ProverExecution(#[from] StwoRunAndProveError),
+    ProverExecution(#[from] crate::proving::error::StwoRunAndProveError),
 
     #[error("Failed to read proof file: {0}")]
     ReadProof(#[source] ProofEncodingError),

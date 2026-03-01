@@ -33,7 +33,7 @@ impl VirtualOsOutput {
         let mut iter = raw_output.iter().copied();
 
         let version = wrap_missing(iter.next(), "version")?;
-        let expected_version = Felt::from(VIRTUAL_OS_OUTPUT_VERSION);
+        let expected_version = VIRTUAL_OS_OUTPUT_VERSION;
         if version != expected_version {
             return Err(OsOutputError::InvalidOsOutputField {
                 value_name: "version".to_string(),
@@ -44,11 +44,11 @@ impl VirtualOsOutput {
         let base_block_number = BlockNumber(wrap_missing_as(iter.next(), "base_block_number")?);
         let base_block_hash = wrap_missing(iter.next(), "base_block_hash")?;
         let starknet_os_config_hash = wrap_missing(iter.next(), "starknet_os_config_hash")?;
-        let n_messages_to_l1: usize = wrap_missing_as(iter.next(), "n_messages_to_l1")?;
+        let n_l2_to_l1_messages: usize = wrap_missing_as(iter.next(), "n_l2_to_l1_messages")?;
 
         // Read the hashes array.
-        let mut messages_to_l1_hashes = Vec::with_capacity(n_messages_to_l1);
-        for i in 0..n_messages_to_l1 {
+        let mut messages_to_l1_hashes = Vec::with_capacity(n_l2_to_l1_messages);
+        for i in 0..n_l2_to_l1_messages {
             let hash = wrap_missing(iter.next(), &format!("messages_to_l1_hashes[{}]", i))?;
             messages_to_l1_hashes.push(hash);
         }
@@ -68,7 +68,7 @@ impl VirtualOsOutput {
     }
 }
 
-/// Computes the Poseidon hash of each message to L1 separately.
+/// Computes the hash of each message to L1 separately.
 /// Each message is serialized as: [from_address, to_address, payload_size, ...payload]
 /// Returns an array of hashes, one per message.
 pub fn compute_messages_to_l1_hashes(messages: &[MessageToL1]) -> Vec<StarkHash> {

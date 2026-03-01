@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
+use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
@@ -12,20 +13,37 @@ use starknet_patricia_storage::storage_trait::{
     DbKey,
     DbKeyPrefix,
     DbValue,
+    PatriciaStorageResult,
     Storage,
 };
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
-use crate::db::forest_trait::{ForestMetadata, ForestMetadataType, ForestReader, ForestWriter};
+use crate::db::forest_trait::{
+    EmptyInitialReadContext,
+    ForestMetadata,
+    ForestMetadataType,
+    ForestReader,
+    ForestWriter,
+    StorageInitializer,
+};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
+pub const EMPTY_DB_KEY_SEPARATOR: &[u8] = b"";
+
+#[derive(Clone)]
 pub struct MockIndexInitialRead {}
 
 impl InputContext for MockIndexInitialRead {}
+
+impl EmptyInitialReadContext for MockIndexInitialRead {
+    fn create_empty() -> Self {
+        Self {}
+    }
+}
 
 // TODO(Yoav): Remove this once we have a real storage implementation.
 pub struct MockForestStorage<S: Storage> {
@@ -39,11 +57,14 @@ impl<S: Storage> ForestMetadata for MockForestStorage<S> {
             ForestMetadataType::CommitmentOffset => DbKey("commitment_offset".into()),
             ForestMetadataType::StateDiffHash(block_number) => create_db_key(
                 DbKeyPrefix::new(b"state_diff_hash".into()),
+                EMPTY_DB_KEY_SEPARATOR,
                 &block_number.serialize(),
             ),
-            ForestMetadataType::StateRoot(block_number) => {
-                create_db_key(DbKeyPrefix::new(b"state_root".into()), &block_number.serialize())
-            }
+            ForestMetadataType::StateRoot(block_number) => create_db_key(
+                DbKeyPrefix::new(b"state_root".into()),
+                EMPTY_DB_KEY_SEPARATOR,
+                &block_number.serialize(),
+            ),
         }
     }
 
@@ -53,10 +74,12 @@ impl<S: Storage> ForestMetadata for MockForestStorage<S> {
 }
 
 #[async_trait]
-impl<S: Storage> ForestReader<MockIndexInitialRead> for MockForestStorage<S> {
+impl<S: Storage> ForestReader for MockForestStorage<S> {
+    type InitialReadContext = MockIndexInitialRead;
+
     async fn read<'a>(
         &mut self,
-        _context: MockIndexInitialRead,
+        _roots: StateRoots,
         _storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         _classes_updates: &'a LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
@@ -75,6 +98,16 @@ impl<S: Storage> ForestReader<MockIndexInitialRead> for MockForestStorage<S> {
             HashMap::new(),
         ))
     }
+
+    async fn read_roots(
+        &mut self,
+        _initial_read_context: Self::InitialReadContext,
+    ) -> PatriciaStorageResult<StateRoots> {
+        Ok(StateRoots {
+            contracts_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+            classes_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+        })
+    }
 }
 
 #[async_trait]
@@ -87,5 +120,12 @@ impl<S: Storage> ForestWriter for MockForestStorage<S> {
         let n_updates = updates.len();
         self.storage.mset(updates).await.expect("Write of updates to storage failed");
         n_updates
+    }
+}
+
+impl<S: Storage> StorageInitializer for MockForestStorage<S> {
+    type Storage = S;
+    fn new(storage: Self::Storage) -> Self {
+        Self { storage }
     }
 }

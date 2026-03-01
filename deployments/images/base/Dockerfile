@@ -6,10 +6,12 @@
 
 FROM ubuntu:24.04 AS base
 
-COPY scripts/install_build_tools.sh .
-COPY scripts/dependencies.sh .
-COPY scripts/apt_utils.sh .
-COPY scripts/requirements.txt .
+COPY scripts/install_build_tools.sh scripts/install_build_tools.sh
+COPY scripts/install_cargo_tools.sh scripts/install_cargo_tools.sh
+COPY scripts/dependencies.sh scripts/dependencies.sh
+COPY scripts/apt_utils.sh scripts/apt_utils.sh
+COPY scripts/cargo_tool_utils.sh scripts/cargo_tool_utils.sh
+COPY scripts/requirements.txt scripts/requirements.txt
 COPY rust-toolchain.toml .
 
 RUN apt update && apt -y install \
@@ -22,7 +24,7 @@ ENV RUSTUP_HOME=/var/tmp/rust
 ENV CARGO_HOME=${RUSTUP_HOME}
 ENV PATH=$PATH:${RUSTUP_HOME}/bin
 
-RUN ./install_build_tools.sh
+RUN scripts/install_build_tools.sh
 RUN rustup toolchain install
 RUN cargo install cargo-chef
 
@@ -33,8 +35,8 @@ ENV TABLEGEN_190_PREFIX="/usr/lib/llvm-19/"
 # Define python venv and install python packages.
 ENV VIRTUAL_ENV=/opt/sequencer_venv
 RUN python3 -m venv ${VIRTUAL_ENV}
-RUN ${VIRTUAL_ENV}/bin/pip install -r requirements.txt
+RUN ${VIRTUAL_ENV}/bin/pip install -r scripts/requirements.txt
 ENV PATH="${VIRTUAL_ENV}/bin:$PATH"
 
 # Cleanup.
-RUN rm -f install_build_tools.sh dependencies.sh apt_utils.sh requirements.txt
+RUN rm -f scripts/install_build_tools.sh scripts/install_cargo_tools.sh scripts/cargo_tool_utils.sh scripts/dependencies.sh scripts/apt_utils.sh scripts/requirements.txt

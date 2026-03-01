@@ -20,8 +20,7 @@ base64.workspace = true
 cairo-lang-starknet-classes.workspace = true
 flate2.workspace = true
 hex.workspace = true
-hyper = { workspace = true, features = ["full"] }
-jsonrpsee = { workspace = true, features = ["full"] }
+jsonrpsee = { workspace = true, features = ["http-client", "macros", "server"] }
 lazy_static.workspace = true
 metrics.workspace = true
 papyrus_common.workspace = true
@@ -60,8 +59,7 @@ rand_chacha.workspace = true
 reqwest.workspace = true
 starknet-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
-strum.workspace = true
-strum_macros.workspace = true
+strum = { workspace = true, features = ["derive"] }
 
 [lints]
 workspace = true

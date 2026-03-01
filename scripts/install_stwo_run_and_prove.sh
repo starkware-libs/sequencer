@@ -27,35 +27,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/proving_utils_env.sh"
 
 # Configuration.
-PACKAGE_NAME="stwo_run_and_prove"
+PACKAGE_NAME="stwo-run-and-prove"
+# The compiled binary name uses hyphens (matching the package name).
+COMPILED_BINARY_NAME="stwo-run-and-prove"
+# The installed binary name uses underscores (matching codebase expectations).
 BINARY_NAME="stwo_run_and_prove"
 
 # Build and install directories.
 TOOLS_DIR="${REPO_ROOT}/target/tools"
 BINARY_PATH="${TOOLS_DIR}/${BINARY_NAME}"
-
-# Colors for output.
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-error() {
-    echo -e "${RED}[ERROR]${NC} $1" >&2
-}
 
 # Check for required tools.
 check_requirements() {
@@ -80,35 +60,6 @@ check_requirements() {
     fi
 }
 
-# Clone or update the proving-utils repository (only if needed).
-clone_or_update_repo() {
-    mkdir -p "${THIRD_PARTY_DIR}"
-
-    if [ -d "${BUILD_DIR}/.git" ]; then
-        info "Proving-utils already cloned at ${BUILD_DIR}"
-        cd "${BUILD_DIR}"
-
-        # Check if we're at the right revision.
-        local current_rev
-        current_rev=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-
-        if [[ "${current_rev}" == "${PROVING_UTILS_REV}"* ]]; then
-            info "Already at revision ${PROVING_UTILS_REV}"
-            return 0
-        fi
-
-        info "Fetching and checking out revision ${PROVING_UTILS_REV}..."
-        git fetch origin
-        git checkout "${PROVING_UTILS_REV}"
-    else
-        info "Cloning proving-utils to ${BUILD_DIR}..."
-        rm -rf "${BUILD_DIR}"
-        git clone "${PROVING_UTILS_REPO}" "${BUILD_DIR}"
-        cd "${BUILD_DIR}"
-        git checkout "${PROVING_UTILS_REV}"
-    fi
-}
-
 # Build the binary.
 build_binary() {
     cd "${BUILD_DIR}"
@@ -120,10 +71,10 @@ build_binary() {
     info "Building with toolchain: ${toolchain}"
     info "This may take several minutes on first build..."
 
-    cargo build --release -p "${PACKAGE_NAME}" --bin "${BINARY_NAME}"
+    cargo build --release -p "${PACKAGE_NAME}" --bin "${COMPILED_BINARY_NAME}"
 
-    if [ ! -f "target/release/${BINARY_NAME}" ]; then
-        error "Build succeeded but binary not found at target/release/${BINARY_NAME}"
+    if [ ! -f "target/release/${COMPILED_BINARY_NAME}" ]; then
+        error "Build succeeded but binary not found at target/release/${COMPILED_BINARY_NAME}"
         exit 1
     fi
 
@@ -135,10 +86,25 @@ install_binary() {
     mkdir -p "${TOOLS_DIR}"
 
     info "Installing ${BINARY_NAME} to ${BINARY_PATH}..."
-    cp "${BUILD_DIR}/target/release/${BINARY_NAME}" "${BINARY_PATH}"
+    cp "${BUILD_DIR}/target/release/${COMPILED_BINARY_NAME}" "${BINARY_PATH}"
     chmod +x "${BINARY_PATH}"
 
     success "Binary installed to ${BINARY_PATH}"
+}
+
+# Sync the bootloader from proving-utils into starknet_os_runner resources.
+sync_bootloader() {
+    local src="${BUILD_DIR}/crates/cairo-program-runner-lib/resources/compiled_programs/bootloaders/simple_bootloader_compiled.json"
+    local dst="${REPO_ROOT}/crates/starknet_os_runner/resources/simple_bootloader_compiled.json"
+
+    if [ ! -f "${src}" ]; then
+        warn "Bootloader not found at ${src}, skipping sync"
+        return 0
+    fi
+
+    info "Syncing bootloader to ${dst}..."
+    cp "${src}" "${dst}"
+    success "Bootloader synced"
 }
 
 # Print usage instructions.
@@ -181,9 +147,10 @@ main() {
 
     check_requirements
     check_existing
-    clone_or_update_repo
+    clone_or_update_proving_utils "${BUILD_DIR}"
     build_binary
     install_binary
+    sync_bootloader
     print_instructions
 }
 

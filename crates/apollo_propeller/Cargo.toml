@@ -10,14 +10,23 @@ description = "Implementation of the Propeller algorithm for the Starknet sequen
 testing = []
 
 [dependencies]
+apollo_infra_utils.workspace = true
+apollo_protobuf.workspace = true
+asynchronous-codec.workspace = true
+futures.workspace = true
 libp2p.workspace = true
+prost.workspace = true
+rand.workspace = true
 reed-solomon-simd.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
+tokio.workspace = true
 tracing.workspace = true
+unsigned-varint.workspace = true
 
 [dev-dependencies]
 rstest.workspace = true
+tokio-test.workspace = true
 
 
 [lints]

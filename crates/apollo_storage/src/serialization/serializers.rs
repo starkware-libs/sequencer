@@ -1278,19 +1278,8 @@ auto_storage_serde_conditionally_compressed! {
         pub calldata: Calldata,
     }
 
-    pub struct InvokeTransactionV3 {
-        pub resource_bounds: ValidResourceBounds,
-        pub tip: Tip,
-        pub signature: TransactionSignature,
-        pub nonce: Nonce,
-        pub sender_address: ContractAddress,
-        pub calldata: Calldata,
-        pub nonce_data_availability_mode: DataAvailabilityMode,
-        pub fee_data_availability_mode: DataAvailabilityMode,
-        pub paymaster_data: PaymasterData,
-        pub account_deployment_data: AccountDeploymentData,
-        pub proof_facts: ProofFacts,
-    }
+    // NOTE: InvokeTransactionV3 has a custom StorageSerde impl below for backward compatibility
+    // (handling transactions stored before the proof_facts field was added)
 
     pub struct L1HandlerTransaction {
         pub version: TransactionVersion,
@@ -1342,3 +1331,87 @@ auto_storage_serde_conditionally_compressed! {
         pub execution_resources: ExecutionResources,
     }
 }
+
+// Custom StorageSerde for InvokeTransactionV3 (backward compatibility).
+// Allows deserializing legacy on-disk txs that were stored before `proof_facts` was added.
+//
+// NOTE: This is a temporary migration shim. Once all nodes have re-synced (i.e., no stored
+// transactions exist in the old format), remove this impl and move InvokeTransactionV3 back
+// to `auto_storage_serde_conditionally_compressed!`.
+// TODO(AvivG): Remove this migration shim once all nodes have re-synced.
+impl StorageSerde for InvokeTransactionV3 {
+    fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
+        let mut to_compress: Vec<u8> = Vec::new();
+        self.resource_bounds.serialize_into(&mut to_compress)?;
+        self.tip.serialize_into(&mut to_compress)?;
+        self.signature.serialize_into(&mut to_compress)?;
+        self.nonce.serialize_into(&mut to_compress)?;
+        self.sender_address.serialize_into(&mut to_compress)?;
+        self.calldata.serialize_into(&mut to_compress)?;
+        self.nonce_data_availability_mode.serialize_into(&mut to_compress)?;
+        self.fee_data_availability_mode.serialize_into(&mut to_compress)?;
+        self.paymaster_data.serialize_into(&mut to_compress)?;
+        self.account_deployment_data.serialize_into(&mut to_compress)?;
+        self.proof_facts.serialize_into(&mut to_compress)?;
+        if to_compress.len() > COMPRESSION_THRESHOLD_BYTES {
+            IsCompressed::Yes.serialize_into(res)?;
+            if to_compress.len() > crate::compression_utils::MAX_DECOMPRESSED_SIZE {
+                warn!(
+                    "InvokeTransactionV3 serialization size is too large and will lead to \
+                     deserialization error: {}",
+                    to_compress.len()
+                );
+            }
+            let compressed = compress(to_compress.as_slice())?;
+            compressed.serialize_into(res)?;
+        } else {
+            IsCompressed::No.serialize_into(res)?;
+            to_compress.serialize_into(res)?;
+        }
+        Ok(())
+    }
+
+    fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
+        let is_compressed = IsCompressed::deserialize_from(bytes)?;
+        let maybe_compressed_data = Vec::<u8>::deserialize_from(bytes)?;
+        let data = match is_compressed {
+            IsCompressed::No => maybe_compressed_data,
+            IsCompressed::Yes => decompress(maybe_compressed_data.as_slice())
+                .expect("destination buffer should be large enough"),
+        };
+        let data = &mut data.as_slice();
+        let resource_bounds = ValidResourceBounds::deserialize_from(data)?;
+        let tip = Tip::deserialize_from(data)?;
+        let signature = TransactionSignature::deserialize_from(data)?;
+        let nonce = Nonce::deserialize_from(data)?;
+        let sender_address = ContractAddress::deserialize_from(data)?;
+        let calldata = Calldata::deserialize_from(data)?;
+        let nonce_data_availability_mode = DataAvailabilityMode::deserialize_from(data)?;
+        let fee_data_availability_mode = DataAvailabilityMode::deserialize_from(data)?;
+        let paymaster_data = PaymasterData::deserialize_from(data)?;
+        let account_deployment_data = AccountDeploymentData::deserialize_from(data)?;
+        // Backward compatibility: proof_facts may not exist in old transactions.
+        // If no data remains, default to empty; otherwise, deserialize normally.
+        let proof_facts = if data.is_empty() {
+            ProofFacts::default()
+        } else {
+            ProofFacts::deserialize_from(data)?
+        };
+        Some(Self {
+            resource_bounds,
+            tip,
+            signature,
+            nonce,
+            sender_address,
+            calldata,
+            nonce_data_availability_mode,
+            fee_data_availability_mode,
+            paymaster_data,
+            account_deployment_data,
+            proof_facts,
+        })
+    }
+}
+
+#[cfg(test)]
+create_storage_serde_test!(InvokeTransactionV3);

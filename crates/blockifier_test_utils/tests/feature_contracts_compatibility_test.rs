@@ -1,6 +1,10 @@
 use std::fs;
 
-use blockifier_test_utils::cairo_compile::{verify_cairo1_package, CompilationArtifacts};
+use blockifier_test_utils::cairo_compile::{
+    generate_allowed_libfuncs_legacy_json,
+    verify_cairo1_package,
+    CompilationArtifacts,
+};
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::{
     FeatureContract,
@@ -8,6 +12,7 @@ use blockifier_test_utils::contracts::{
     SIERRA_CONTRACTS_SUBDIR,
 };
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use expect_test::expect_file;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
@@ -353,4 +358,12 @@ async fn verify_feature_contracts_cairo1() {
         &FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm)),
         None,
     );
+}
+
+/// Verifies that `allowed_libfuncs_legacy.json` is in sync with `allowed_libfuncs.json`.
+/// Run with `UPDATE_EXPECT=1` to regenerate.
+#[test]
+fn verify_allowed_libfuncs_legacy() {
+    let generated = generate_allowed_libfuncs_legacy_json();
+    expect_file!["../resources/allowed_libfuncs_legacy.json"].assert_eq(&generated);
 }

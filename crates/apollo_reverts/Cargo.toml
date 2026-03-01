@@ -16,5 +16,6 @@ apollo_storage.workspace = true
 futures.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
+tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true

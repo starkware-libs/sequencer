@@ -1,5 +1,4 @@
 //! Interface for handling data related to the class manager.
-// TODO(noamsp): Add Documentation
 #[cfg(test)]
 #[path = "class_manager_test.rs"]
 mod class_manager_test;

@@ -1366,7 +1366,8 @@ mod TestContract {
 
     // Tests forbidden syscalls in virtual OS mode.
     // Gets valid class_hash and contract_address from the current contract.
-    // syscall_selector should be one of: 'Deploy', 'GetBlockHash', 'ReplaceClass', 'MetaTxV0'.
+    // syscall_selector should be one of: 'Deploy', 'GetBlockHash', 'Keccak', 'ReplaceClass',
+    // 'MetaTxV0'.
     #[external(v0)]
     fn test_forbidden_syscall_in_virtual_mode(self: @ContractState, syscall_selector: felt252) {
         let execution_info = get_execution_info().unbox();
@@ -1375,6 +1376,11 @@ mod TestContract {
 
         if syscall_selector == 'GetBlockHash' {
             syscalls::get_block_hash_syscall(0).unwrap_syscall();
+        } else if syscall_selector == 'Keccak' {
+            // Use the high-level keccak function which internally calls the keccak syscall.
+            let mut input: Array<u256> = Default::default();
+            input.append(u256 { low: 1, high: 0 });
+            keccak::keccak_u256s_le_inputs(input.span());
         } else if syscall_selector == 'ReplaceClass' {
             syscalls::replace_class_syscall(class_hash).unwrap_syscall();
         } else if syscall_selector == 'Deploy' {

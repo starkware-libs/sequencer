@@ -170,7 +170,7 @@ pub(crate) fn get_block_hashes<S: StateReader>(
     let gas_prices = &block_info.gas_prices;
     let commitments = &os_input.block_hash_commitments;
 
-    ctx.insert_value(Ids::ParentHash, os_input.prev_block_hash.0)?;
+    ctx.insert_value(Ids::PreviousBlockHash, os_input.prev_block_hash.0)?;
 
     let header_commitments_ptr = ctx.vm.add_memory_segment();
     ctx.insert_values_to_fields(
@@ -181,7 +181,7 @@ pub(crate) fn get_block_hashes<S: StateReader>(
             ("event_commitment", commitments.event_commitment.0.into()),
             ("receipt_commitment", commitments.receipt_commitment.0.into()),
             ("state_diff_commitment", commitments.state_diff_commitment.0.0.into()),
-            ("concatenated_counts", commitments.concatenated_counts.into()),
+            ("packed_lengths", commitments.concatenated_counts.into()),
         ],
     )?;
     ctx.insert_value(Ids::HeaderCommitments, header_commitments_ptr)?;

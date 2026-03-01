@@ -1,4 +1,27 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+
+pub(crate) const NS_PER_MS: f64 = 1_000_000.0;
+
+/// Entry format for github-action-benchmark's "customSmallerIsBetter" tool.
+/// See: <https://github.com/benchmark-action/github-action-benchmark>
+#[derive(Debug, Serialize, PartialEq)]
+pub struct GithubBenchmarkEntry {
+    pub name: String,
+    pub unit: String,
+    pub value: f64,
+}
+
+impl GithubBenchmarkEntry {
+    /// Creates a GithubBenchmarkEntry from Criterion estimates.
+    /// Converts nanoseconds to milliseconds.
+    pub fn from_estimates(name: &str, estimates: &Estimates) -> Self {
+        Self {
+            name: name.to_string(),
+            unit: "ms".to_string(),
+            value: estimates.mean.point_estimate / NS_PER_MS,
+        }
+    }
+}
 
 /// Criterion benchmark estimates.
 #[derive(Debug, Deserialize, Default)]

@@ -37,7 +37,7 @@ pub async fn default_component_start_fn<T: ComponentStarter + ?Sized>() {
 
 // Generic std::fmt::debug implementation for request and response enums. Requires the
 // request/response to support returning a string representation of the enum, e.g., by deriving
-// `strum_macros::AsRefStr`.
+// `strum::AsRefStr`.
 pub fn default_request_response_debug_impl<T: AsRef<str>>(
     f: &mut Formatter<'_>,
     value: &T,

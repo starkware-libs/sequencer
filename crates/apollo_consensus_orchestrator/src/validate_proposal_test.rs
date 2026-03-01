@@ -2,20 +2,21 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
+    FinishedProposalInfo,
     ProposalCommitment,
     ProposalId,
     ProposalStatus,
     SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
-    StartHeightInput,
 };
-use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
+use apollo_batcher_types::communication::BatcherClientError;
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_infra::component_client::ClientError;
 use apollo_protobuf::consensus::{
     ProposalCommitment as ConsensusProposalCommitment,
     ProposalFin,
+    ProposalInit,
     ProposalPart,
     TransactionBatch,
 };
@@ -24,6 +25,7 @@ use futures::channel::mpsc;
 use futures::SinkExt;
 use rstest::rstest;
 use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::hash::PoseidonHash;
@@ -53,6 +55,7 @@ use crate::validate_proposal::{
 
 struct TestProposalValidateArguments {
     pub deps: TestDeps,
+    pub init: ProposalInit,
     pub block_info_validation: BlockInfoValidation,
     pub proposal_id: ProposalId,
     pub timeout: Duration,
@@ -67,6 +70,7 @@ impl From<TestProposalValidateArguments> for ProposalValidateArguments {
     fn from(args: TestProposalValidateArguments) -> Self {
         ProposalValidateArguments {
             deps: args.deps.into(),
+            init: args.init,
             block_info_validation: args.block_info_validation,
             proposal_id: args.proposal_id,
             timeout: args.timeout,
@@ -83,6 +87,7 @@ fn create_proposal_validate_arguments()
 -> (TestProposalValidateArguments, mpsc::Sender<ProposalPart>) {
     let (mut deps, _) = create_test_and_network_deps();
     deps.setup_default_expectations();
+    let init = block_info(BlockNumber(0), 0);
     let block_info_validation = BlockInfoValidation {
         height: BlockNumber(0),
         block_timestamp_window_seconds: 60,
@@ -102,6 +107,7 @@ fn create_proposal_validate_arguments()
     (
         TestProposalValidateArguments {
             deps,
+            init,
             block_info_validation,
             proposal_id,
             timeout,
@@ -117,12 +123,33 @@ fn create_proposal_validate_arguments()
 
 #[tokio::test]
 async fn validate_empty_proposal() {
-    let (proposal_args, mut content_sender) = create_proposal_validate_arguments();
+    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
+    // Empty proposals call validate_block and send Finish (no Txs)
+    proposal_args.deps.batcher.expect_validate_block().times(1).returning(|_| Ok(()));
+    proposal_args
+        .deps
+        .batcher
+        .expect_start_height()
+        .withf(|input| input.height == BlockNumber(0))
+        .return_const(Ok(()));
+    proposal_args.deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
+        assert!(matches!(input.content, SendProposalContent::Finish(_)));
+        Ok(SendProposalContentResponse {
+            response: ProposalStatus::Finished(FinishedProposalInfo {
+                proposal_commitment: ProposalCommitment::default(),
+                final_n_executed_txs: 0,
+                block_header_commitments: BlockHeaderCommitments::default(),
+                parent_proposal_commitment: None,
+            }),
+        })
+    });
+
     // Send an empty proposal.
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ConsensusProposalCommitment::default(),
             executed_transaction_count: 0,
+            commitment_parts: None,
         }))
         .await
         .unwrap();
@@ -136,21 +163,11 @@ async fn validate_proposal_success() {
     let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
     let n_executed_txs_count = 1;
     // Setup deps to validate the block.
-    proposal_args
-        .deps
-        .setup_deps_for_validate(SetupDepsArgs { n_executed_txs_count, ..Default::default() });
-
-    // Batcher will expect a "start height" due to setup_deps_for_validate.
-    proposal_args
-        .deps
-        .batcher
-        .start_height(StartHeightInput { height: BlockNumber(0) })
-        .await
-        .unwrap();
-
-    // Send a valid block info.
-    let block_info = block_info(BlockNumber(0));
-    content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
+    proposal_args.deps.setup_deps_for_validate(SetupDepsArgs {
+        n_executed_txs_count,
+        expect_start_height: false,
+        ..Default::default()
+    });
     // Send transactions and finally Fin part with executed transaction count.
     content_sender
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.clone() }))
@@ -160,6 +177,7 @@ async fn validate_proposal_success() {
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ConsensusProposalCommitment::default(),
             executed_transaction_count: n_executed_txs_count.try_into().unwrap(),
+            commitment_parts: None,
         }))
         .await
         .unwrap();
@@ -170,7 +188,20 @@ async fn validate_proposal_success() {
 
 #[tokio::test]
 async fn interrupt_proposal() {
-    let (proposal_args, _content_sender) = create_proposal_validate_arguments();
+    let (mut proposal_args, _content_sender) = create_proposal_validate_arguments();
+    // Interrupted proposals call validate_block and send Abort
+    proposal_args.deps.batcher.expect_validate_block().times(1).returning(|_| Ok(()));
+    proposal_args
+        .deps
+        .batcher
+        .expect_start_height()
+        .withf(|input| input.height == BlockNumber(0))
+        .return_const(Ok(()));
+    proposal_args.deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
+        assert!(matches!(input.content, SendProposalContent::Abort));
+        Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
+    });
+
     // Interrupt the proposal.
     proposal_args.cancel_token.cancel();
 
@@ -181,6 +212,19 @@ async fn interrupt_proposal() {
 #[tokio::test]
 async fn validation_timeout() {
     let (mut proposal_args, _content_sender) = create_proposal_validate_arguments();
+    // Timed out proposals call validate_block and send Abort
+    proposal_args.deps.batcher.expect_validate_block().times(1).returning(|_| Ok(()));
+    proposal_args
+        .deps
+        .batcher
+        .expect_start_height()
+        .withf(|input| input.height == BlockNumber(0))
+        .return_const(Ok(()));
+    proposal_args.deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
+        assert!(matches!(input.content, SendProposalContent::Abort));
+        Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
+    });
+
     // Set a very short timeout to trigger a timeout error.
     proposal_args.timeout = Duration::from_micros(1);
 
@@ -189,26 +233,12 @@ async fn validation_timeout() {
 }
 
 #[tokio::test]
-async fn invalid_second_proposal_part() {
-    let (proposal_args, mut content_sender) = create_proposal_validate_arguments();
-    // Send an invalid proposal part (not BlockInfo or Fin). Send Transactions as 2nd part.
-    content_sender
-        .send(ProposalPart::Transactions(TransactionBatch { transactions: vec![] }))
-        .await
-        .unwrap();
-
-    let res = validate_proposal(proposal_args.into()).await;
-    assert!(matches!(res, Err(ValidateProposalError::InvalidSecondProposalPart(_))));
-}
-
-#[tokio::test]
 async fn invalid_block_info() {
-    let (proposal_args, mut content_sender) = create_proposal_validate_arguments();
+    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
 
-    let mut block_info = block_info(BlockNumber(0));
-    block_info.l2_gas_price_fri =
+    proposal_args.init.l2_gas_price_fri =
         GasPrice(proposal_args.block_info_validation.l2_gas_price_fri.0 + 1);
-    content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
+    content_sender.send(ProposalPart::Init(proposal_args.init.clone())).await.unwrap();
 
     let res = validate_proposal(proposal_args.into()).await;
     assert!(matches!(res, Err(ValidateProposalError::InvalidBlockInfo(_, _, _))));
@@ -216,14 +246,11 @@ async fn invalid_block_info() {
 
 #[tokio::test]
 async fn validate_block_fail() {
-    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
+    let (mut proposal_args, _content_sender) = create_proposal_validate_arguments();
     // Setup batcher to return an error when validating the block.
     proposal_args.deps.batcher.expect_validate_block().returning(|_| {
         Err(BatcherClientError::ClientError(ClientError::CommunicationFailure("".to_string())))
     });
-    // Send a valid block info.
-    let block_info = block_info(BlockNumber(0));
-    content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
 
     let res = validate_proposal(proposal_args.into()).await;
     assert_matches!(res, Err(ValidateProposalError::Batcher(msg,_ ))
@@ -248,19 +275,20 @@ async fn proposal_fin_mismatch() {
         })
         .returning(move |_| {
             Ok(SendProposalContentResponse {
-                response: ProposalStatus::Finished(ProposalCommitment {
-                    state_diff_commitment: built_block,
+                response: ProposalStatus::Finished(FinishedProposalInfo {
+                    proposal_commitment: ProposalCommitment { state_diff_commitment: built_block },
+                    final_n_executed_txs: n_executed,
+                    block_header_commitments: BlockHeaderCommitments::default(),
+                    parent_proposal_commitment: None,
                 }),
             })
         });
-    // Send a valid block info.
-    let block_info = block_info(BlockNumber(0));
-    content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
     let received_fin = ConsensusProposalCommitment::default();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: received_fin,
             executed_transaction_count: n_executed.try_into().unwrap(),
+            commitment_parts: None,
         }))
         .await
         .unwrap();
@@ -289,13 +317,11 @@ async fn batcher_returns_invalid_proposal() {
                 response: ProposalStatus::InvalidProposal("test error".to_string()),
             })
         });
-    // Send a valid block info.
-    let block_info = block_info(BlockNumber(0));
-    content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ConsensusProposalCommitment::default(),
             executed_transaction_count: n_executed.try_into().unwrap(),
+            commitment_parts: None,
         }))
         .await
         .unwrap();

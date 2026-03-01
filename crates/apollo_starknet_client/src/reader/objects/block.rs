@@ -42,7 +42,7 @@ fn default_old_starknet_version() -> StarknetVersion {
     StarknetVersion::PreV0_9_1
 }
 
-/// A block as returned by the starknet gateway since V0.13.1.
+/// A block as returned by the starknet feeder gateway since V0.13.1.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct BlockPostV0_13_1 {
@@ -56,6 +56,8 @@ pub struct BlockPostV0_13_1 {
     #[serde(default)]
     pub timestamp: BlockTimestamp,
     pub transactions: Vec<Transaction>,
+    // Default to empty for compatibility with ABORTED blocks that don't include this field.
+    #[serde(default)]
     pub transaction_receipts: Vec<TransactionReceipt>,
     // Default to PreV0_9_1 for compatibility with old blocks that don't include this field.
     #[serde(default = "default_old_starknet_version")]
@@ -80,9 +82,10 @@ pub struct BlockPostV0_13_1 {
     pub receipt_commitment: Option<ReceiptCommitment>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state_diff_length: Option<usize>,
-    // New field in V0.14.0.
+
+    // New fields in V0.14.0. Only returned by the feeder gateway when the request includes
+    // `withFeeMarketInfo=true`.
     pub l2_gas_consumed: GasAmount,
-    // New field in V0.14.0.
     pub next_l2_gas_price: GasPrice,
 }
 
@@ -93,6 +96,7 @@ impl BlockPostV0_13_1 {
     }
 }
 
+/// A block as returned by the starknet feeder gateway.
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(untagged)]
 pub enum Block {

@@ -51,8 +51,7 @@ fn test_merkle_proof_validity(#[case] n: u8) {
     let tree = MerkleTree::new(&data);
     for (proof_index, data_chunk) in data.iter().enumerate() {
         let proof = tree.prove(proof_index).unwrap();
-        let leaf_hash = MerkleTree::hash_leaf(data_chunk);
-        assert!(tree.verify(&leaf_hash, &proof, proof_index).unwrap());
+        assert!(tree.verify(data_chunk, &proof, proof_index).unwrap());
     }
 }
 

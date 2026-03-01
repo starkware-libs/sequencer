@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 from cdk8s import App, YamlOutputType
@@ -5,6 +6,7 @@ from src.charts.monitoring import MonitoringChart
 from src.charts.node import SequencerNodeChart
 from src.cli import argument_parser
 from src.config.loaders import (
+    ConfigValidationError,
     GrafanaAlertRuleGroupConfigLoader,
     GrafanaDashboardConfigLoader,
 )
@@ -33,12 +35,28 @@ def main():
     monitoring_configs = _prepare_monitoring_configs(args)
     namespace = sanitize_name(args.namespace)
 
-    # Create charts
-    _create_service_charts(app, deployment_config, namespace, monitoring_configs["enabled"])
-    _create_monitoring_chart(app, namespace, args.cluster, monitoring_configs)
+    try:
+        # Create charts
+        _create_service_charts(
+            app,
+            deployment_config,
+            namespace,
+            monitoring_configs["enabled"],
+            args.layout,
+            args.overlay,
+        )
+        _create_monitoring_chart(app, namespace, args.cluster, monitoring_configs)
 
-    # Synthesize manifests
-    app.synth()
+        # Synthesize manifests
+        app.synth()
+    except ConfigValidationError:
+        # For config validation errors, suppress traceback unless verbose mode is enabled
+        if args.verbose:
+            # Re-raise with full traceback in verbose mode
+            raise
+        else:
+            # Exit cleanly without traceback
+            sys.exit(1)
 
 
 def _validate_args(args):
@@ -168,6 +186,8 @@ def _create_service_charts(
     deployment_config: DeploymentSchema,
     namespace: str,
     monitoring_enabled: bool,
+    layout: str,
+    overlay: str | None,
 ):
     """Create SequencerNodeChart for each service."""
     for service_cfg in deployment_config.services:
@@ -177,6 +197,8 @@ def _create_service_charts(
             namespace=namespace,
             monitoring=monitoring_enabled,
             service_config=service_cfg,
+            layout=layout,
+            overlay=overlay,
         )
 
 

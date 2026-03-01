@@ -29,6 +29,8 @@ class SequencerNodeChart(Chart):
         namespace: str,
         monitoring: bool,
         service_config: ServiceConfig,
+        layout: str,
+        overlay: str | None,
     ):
         super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
 
@@ -46,7 +48,7 @@ class SequencerNodeChart(Chart):
 
         # Create ConfigMap
         self.config_map = ConfigMapConstruct(
-            self, "configmap", service_config, labels, monitoring_endpoint_port
+            self, "configmap", service_config, labels, monitoring_endpoint_port, layout, overlay
         )
 
         # Create ServiceAccount if enabled
@@ -269,21 +271,3 @@ class SequencerNodeChart(Chart):
             f"Available ports: {available_names}. "
             f"Please add a port with 'monitoring' in the name (e.g., 'monitoring' or 'monitoring-endpoint')."
         )
-
-    @staticmethod
-    def _load_service_config_paths(service_config: ServiceConfig) -> dict:
-        """Load or construct config values from the ServiceConfig."""
-        # For configList, we can't extract the paths here as they're in a JSON file
-        # This method may not be applicable for configList format
-        return {}
-
-    def _get_nested_attr(self, obj: dict, dotted_key: str):
-        """Traverse nested dict keys like 'a.b.c'."""
-        parts = dotted_key.split(".")
-        val = obj
-        for p in parts:
-            if isinstance(val, dict) and p in val:
-                val = val[p]
-            else:
-                raise KeyError(f"Key '{dotted_key}' not found in node_config")
-        return val

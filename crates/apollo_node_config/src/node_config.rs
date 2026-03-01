@@ -3,9 +3,9 @@ use std::fs::File;
 use std::sync::LazyLock;
 use std::vec::Vec;
 
-use apollo_batcher_config::config::BatcherConfig;
-use apollo_class_manager_config::config::FsClassManagerConfig;
-use apollo_committer_config::config::CommitterConfig;
+use apollo_batcher_config::config::{BatcherConfig, BatcherDynamicConfig};
+use apollo_class_manager_config::config::{ClassManagerDynamicConfig, FsClassManagerConfig};
+use apollo_committer_config::config::ApolloCommitterConfig;
 use apollo_config::dumping::{
     generate_optional_struct_pointer,
     generate_struct_pointer,
@@ -39,7 +39,8 @@ use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_proof_manager_config::config::ProofManagerConfig;
 use apollo_reverts::RevertConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
-use apollo_state_sync_config::config::StateSyncConfig;
+use apollo_staking_config::config::StakingManagerDynamicConfig;
+use apollo_state_sync_config::config::{StateSyncConfig, StateSyncDynamicConfig};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
@@ -70,19 +71,19 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
             ),
             set_pointing_param_paths(&[
-                "batcher_config.block_builder_config.chain_info.chain_id",
-                "batcher_config.storage.db_config.chain_id",
-                "class_manager_config.class_storage_config.class_hash_storage_config.db_config.chain_id",
+                "batcher_config.static_config.block_builder_config.chain_info.chain_id",
+                "batcher_config.static_config.storage.db_config.chain_id",
+                "class_manager_config.static_config.class_storage_config.class_hash_storage_config.db_config.chain_id",
                 "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.chain_id",
                 "consensus_manager_config.context_config.static_config.chain_id",
                 "consensus_manager_config.network_config.chain_id",
-                "gateway_config.chain_info.chain_id",
+                "gateway_config.static_config.chain_info.chain_id",
                 "l1_scraper_config.chain_id",
                 "l1_gas_price_scraper_config.chain_id",
                 "mempool_p2p_config.network_config.chain_id",
-                "state_sync_config.storage_config.db_config.chain_id",
-                "state_sync_config.network_config.chain_id",
-                "state_sync_config.rpc_config.chain_id",
+                "state_sync_config.static_config.storage_config.db_config.chain_id",
+                "state_sync_config.static_config.network_config.chain_id",
+                "state_sync_config.static_config.rpc_config.chain_id",
             ]),
         ),
         (
@@ -92,10 +93,10 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "Address of the ETH fee token.",
             ),
             set_pointing_param_paths(&[
-                "batcher_config.block_builder_config.chain_info.fee_token_addresses.\
+                "batcher_config.static_config.block_builder_config.chain_info.fee_token_addresses.\
                  eth_fee_token_address",
-                "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address",
-                "state_sync_config.rpc_config.execution_config.eth_fee_contract_address",
+                "gateway_config.static_config.chain_info.fee_token_addresses.eth_fee_token_address",
+                "state_sync_config.static_config.rpc_config.execution_config.eth_fee_contract_address",
             ]),
         ),
         (
@@ -105,11 +106,9 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "Specifies whether to execute all class hashes or only specific ones using Cairo \
                 native. If limited, a specific list of class hashes is provided.",
             ),
+            // TODO(Arni): consider adding native_classes_whitelist to the gateway config.
             set_pointing_param_paths(&[
-                "batcher_config.contract_class_manager_config.cairo_native_run_config.\
-                native_classes_whitelist",
-                "gateway_config.contract_class_manager_config.cairo_native_run_config.\
-                native_classes_whitelist",
+                "batcher_config.dynamic_config.native_classes_whitelist",
             ]),
         ),
         (
@@ -119,8 +118,8 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "URL for communicating with Starknet.",
             ),
             set_pointing_param_paths(&[
-                "state_sync_config.central_sync_client_config.central_source_config.starknet_url",
-                "state_sync_config.rpc_config.starknet_url",
+                "state_sync_config.static_config.central_sync_client_config.central_source_config.starknet_url",
+                "state_sync_config.static_config.rpc_config.starknet_url",
             ]),
         ),
         (
@@ -130,10 +129,10 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "Address of the STRK fee token.",
             ),
             set_pointing_param_paths(&[
-                "batcher_config.block_builder_config.chain_info.fee_token_addresses.\
+                "batcher_config.static_config.block_builder_config.chain_info.fee_token_addresses.\
                  strk_fee_token_address",
-                "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address",
-                "state_sync_config.rpc_config.execution_config.strk_fee_contract_address",
+                "gateway_config.static_config.chain_info.fee_token_addresses.strk_fee_token_address",
+                "state_sync_config.static_config.rpc_config.execution_config.strk_fee_contract_address",
             ]),
         ),
         (
@@ -153,7 +152,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             ),
             set_pointing_param_paths(&[
                 "consensus_manager_config.cende_config.recorder_url",
-                "batcher_config.pre_confirmed_cende_config.recorder_url",
+                "batcher_config.static_config.pre_confirmed_cende_config.recorder_url",
             ]),
         ),
         (
@@ -164,8 +163,8 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 It should be set to false during a system bootstrap.",
             ),
             set_pointing_param_paths(&[
-                "gateway_config.stateful_tx_validator_config.validate_resource_bounds",
-                "gateway_config.stateless_tx_validator_config.validate_resource_bounds",
+                "gateway_config.static_config.stateful_tx_validator_config.validate_resource_bounds",
+                "gateway_config.static_config.stateless_tx_validator_config.validate_resource_bounds",
                 "mempool_config.static_config.validate_resource_bounds",
             ]),
         ),
@@ -174,8 +173,9 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         "versioned_constants_overrides".to_owned(),
         None,
         set_pointing_param_paths(&[
-            "batcher_config.block_builder_config.versioned_constants_overrides",
-            "gateway_config.stateful_tx_validator_config.versioned_constants_overrides",
+            "batcher_config.static_config.block_builder_config.versioned_constants_overrides",
+            "gateway_config.static_config.stateful_tx_validator_config.\
+             versioned_constants_overrides",
         ]),
     );
     pointers.append(&mut common_execution_config);
@@ -184,7 +184,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         "revert_config".to_owned(),
         &RevertConfig::default(),
         set_pointing_param_paths(&[
-            "state_sync_config.revert_config",
+            "state_sync_config.static_config.revert_config",
             "consensus_manager_config.revert_config",
         ]),
     );
@@ -214,7 +214,7 @@ pub struct SequencerNodeConfig {
     #[validate(nested)]
     pub class_manager_config: Option<FsClassManagerConfig>,
     #[validate(nested)]
-    pub committer_config: Option<CommitterConfig>,
+    pub committer_config: Option<ApolloCommitterConfig>,
     #[validate(nested)]
     pub consensus_manager_config: Option<ConsensusManagerConfig>,
     #[validate(nested)]
@@ -291,7 +291,7 @@ impl Default for SequencerNodeConfig {
             base_layer_config: Some(EthereumBaseLayerConfig::default()),
             batcher_config: Some(BatcherConfig::default()),
             class_manager_config: Some(FsClassManagerConfig::default()),
-            committer_config: Some(CommitterConfig::default()),
+            committer_config: Some(ApolloCommitterConfig::default()),
             consensus_manager_config: Some(ConsensusManagerConfig::default()),
             gateway_config: Some(GatewayConfig::default()),
             http_server_config: Some(HttpServerConfig::default()),
@@ -312,6 +312,10 @@ impl Default for SequencerNodeConfig {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate, Default)]
 pub struct NodeDynamicConfig {
     #[validate(nested)]
+    pub batcher_dynamic_config: Option<BatcherDynamicConfig>,
+    #[validate(nested)]
+    pub class_manager_dynamic_config: Option<ClassManagerDynamicConfig>,
+    #[validate(nested)]
     pub consensus_dynamic_config: Option<ConsensusDynamicConfig>,
     #[validate(nested)]
     pub context_dynamic_config: Option<ContextDynamicConfig>,
@@ -319,15 +323,29 @@ pub struct NodeDynamicConfig {
     pub http_server_dynamic_config: Option<HttpServerDynamicConfig>,
     #[validate(nested)]
     pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
+    #[validate(nested)]
+    pub staking_manager_dynamic_config: Option<StakingManagerDynamicConfig>,
+    #[validate(nested)]
+    pub state_sync_dynamic_config: Option<StateSyncDynamicConfig>,
 }
 
 impl SerializeConfig for NodeDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = [
+            ser_optional_sub_config(&self.batcher_dynamic_config, "batcher_dynamic_config"),
+            ser_optional_sub_config(
+                &self.class_manager_dynamic_config,
+                "class_manager_dynamic_config",
+            ),
             ser_optional_sub_config(&self.consensus_dynamic_config, "consensus_dynamic_config"),
             ser_optional_sub_config(&self.context_dynamic_config, "context_dynamic_config"),
             ser_optional_sub_config(&self.http_server_dynamic_config, "http_server_dynamic_config"),
             ser_optional_sub_config(&self.mempool_dynamic_config, "mempool_dynamic_config"),
+            ser_optional_sub_config(
+                &self.staking_manager_dynamic_config,
+                "staking_manager_dynamic_config",
+            ),
+            ser_optional_sub_config(&self.state_sync_dynamic_config, "state_sync_dynamic_config"),
         ];
         sub_configs.into_iter().flatten().collect()
     }
@@ -336,6 +354,14 @@ impl SerializeConfig for NodeDynamicConfig {
 impl From<&SequencerNodeConfig> for NodeDynamicConfig {
     fn from(sequencer_node_config: &SequencerNodeConfig) -> Self {
         // TODO(Nadin/Tsabary): consider creating a macro for this.
+        let batcher_dynamic_config = sequencer_node_config
+            .batcher_config
+            .as_ref()
+            .map(|batcher_config| batcher_config.dynamic_config.clone());
+        let class_manager_dynamic_config = sequencer_node_config
+            .class_manager_config
+            .as_ref()
+            .map(|class_manager_config| class_manager_config.dynamic_config.clone());
         let consensus_dynamic_config = sequencer_node_config.consensus_manager_config.as_ref().map(
             |consensus_manager_config| {
                 consensus_manager_config.consensus_manager_config.dynamic_config.clone()
@@ -354,11 +380,25 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
             .mempool_config
             .as_ref()
             .map(|mempool_config| mempool_config.dynamic_config.clone());
+        let staking_manager_dynamic_config = sequencer_node_config
+            .consensus_manager_config
+            .as_ref()
+            .map(|consensus_manager_config| {
+                consensus_manager_config.staking_manager_config.dynamic_config.clone()
+            });
+        let state_sync_dynamic_config = sequencer_node_config
+            .state_sync_config
+            .as_ref()
+            .map(|state_sync_config| state_sync_config.dynamic_config.clone());
         Self {
+            batcher_dynamic_config,
+            class_manager_dynamic_config,
             consensus_dynamic_config,
             context_dynamic_config,
             http_server_dynamic_config,
             mempool_dynamic_config,
+            staking_manager_dynamic_config,
+            state_sync_dynamic_config,
         }
     }
 }
@@ -437,6 +477,37 @@ impl SequencerNodeConfig {
             sierra_compiler_config
         );
         validate_component_config_is_set_iff_running_locally!(state_sync, state_sync_config);
+
+        // Validate proposer_idle_detection_delay < batcher_deadline.
+        // The batcher_deadline = proposal_timeout - build_proposal_margin.
+        // If idle_delay >= batcher_deadline, idle detection never triggers (hard deadline fires
+        // first).
+        if let (Some(batcher_config), Some(consensus_manager_config)) =
+            (&self.batcher_config, &self.consensus_manager_config)
+        {
+            let idle_delay = batcher_config
+                .static_config
+                .block_builder_config
+                .proposer_idle_detection_delay_millis;
+            let proposal_timeout = consensus_manager_config
+                .consensus_manager_config
+                .dynamic_config
+                .timeouts
+                .get_proposal_timeout(0); // base timeout (round 0)
+            let build_margin =
+                consensus_manager_config.context_config.static_config.build_proposal_margin_millis;
+            let batcher_deadline = proposal_timeout.saturating_sub(build_margin);
+
+            if idle_delay >= batcher_deadline {
+                return Err(ConfigError::ComponentConfigMismatch {
+                    component_config_mismatch: format!(
+                        "proposer_idle_detection_delay_millis ({:?}) must be less than \
+                         batcher_deadline ({:?}) = proposal_timeout ({:?}) - build_margin ({:?})",
+                        idle_delay, batcher_deadline, proposal_timeout, build_margin
+                    ),
+                });
+            }
+        }
 
         Ok(())
     }

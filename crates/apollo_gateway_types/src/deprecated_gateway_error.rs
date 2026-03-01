@@ -61,6 +61,8 @@ pub enum KnownStarknetErrorCode {
     TransactionLimitExceeded,
     #[serde(rename = "StarknetErrorCode.UNAUTHORIZED_DECLARE")]
     UnauthorizedDeclare,
+    #[serde(rename = "StarknetErrorCode.INVALID_PROOF")]
+    InvalidProof,
 }
 
 /// A client error wrapping error codes returned by the starknet gateway.

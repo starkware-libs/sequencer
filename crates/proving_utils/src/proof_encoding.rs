@@ -140,10 +140,10 @@ mod tests {
     #[case::aligned_4_bytes(vec![0x01, 0x02, 0x03, 0x04])]
     #[case::unaligned_6_bytes(vec![0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF])]
     fn test_proof_bytes_to_proof_round_trip(#[case] data: Vec<u8>) {
-        let original = ProofBytes(data);
-        let proof: Proof = original.clone().into();
+        let original_proof = ProofBytes(data);
+        let proof: Proof = original_proof.clone().into();
         let recovered: ProofBytes = proof.try_into().unwrap();
-        assert_eq!(original, recovered);
+        assert_eq!(original_proof, recovered);
     }
 
     #[rstest]
@@ -151,13 +151,13 @@ mod tests {
     #[case::small(vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09])]
     #[case::large((0u8..=255).cycle().take(10000).collect())]
     fn test_proof_bytes_file_round_trip(#[case] data: Vec<u8>) {
-        let original = ProofBytes(data);
+        let original_proof = ProofBytes(data);
         let temp_file = tempfile::NamedTempFile::new().unwrap();
         let path = temp_file.path();
 
-        original.to_file(path).unwrap();
+        original_proof.to_file(path).unwrap();
         let recovered = ProofBytes::from_file(path).unwrap();
 
-        assert_eq!(original, recovered);
+        assert_eq!(original_proof, recovered);
     }
 }

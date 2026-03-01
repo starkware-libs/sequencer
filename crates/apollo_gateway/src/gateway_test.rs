@@ -6,6 +6,7 @@ use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
 use apollo_gateway_config::config::{
     GatewayConfig,
+    GatewayStaticConfig,
     ProofArchiveWriterConfig,
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
@@ -31,17 +32,20 @@ use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs, ValidationArgs};
 use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_proof_manager_types::{MockProofManagerClient, ProofManagerClient};
 use apollo_test_utils::{get_rng, GetTestInstance};
 use apollo_transaction_converter::{
     MockTransactionConverterTrait,
     TransactionConverterError,
     TransactionConverterResult,
+    VerificationHandle,
 };
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::ChainInfo;
-use blockifier::test_utils::generate_block_hash_storage_updates;
 use blockifier::test_utils::initial_test_state::fund_account;
+use blockifier::test_utils::{
+    create_valid_proof_facts_for_testing,
+    generate_block_hash_storage_updates,
+};
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
@@ -126,13 +130,15 @@ fn mock_stateless_transaction_validator() -> MockStatelessTransactionValidatorTr
 #[fixture]
 fn mock_dependencies() -> MockDependencies {
     let config = GatewayConfig {
-        stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
-        stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
-        contract_class_manager_config: ContractClassManagerConfig::default(),
-        chain_info: ChainInfo::create_for_testing(),
-        block_declare: false,
-        authorized_declarer_accounts: None,
-        proof_archive_writer_config: ProofArchiveWriterConfig::default(),
+        static_config: GatewayStaticConfig {
+            stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
+            stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
+            contract_class_manager_config: ContractClassManagerConfig::default(),
+            chain_info: ChainInfo::create_for_testing(),
+            block_declare: false,
+            authorized_declarer_accounts: None,
+            proof_archive_writer_config: ProofArchiveWriterConfig::default(),
+        },
     };
     let state_reader_factory =
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), true);
@@ -140,8 +146,6 @@ fn mock_dependencies() -> MockDependencies {
     let mock_transaction_converter = MockTransactionConverterTrait::new();
     let mock_stateless_transaction_validator = mock_stateless_transaction_validator();
     let mock_proof_archive_writer = MockProofArchiveWriterTrait::new();
-    let mut mock_proof_manager_client = MockProofManagerClient::new();
-    mock_proof_manager_client.expect_contains_proof().returning(|_| Ok(false));
     MockDependencies {
         config,
         state_reader_factory,
@@ -149,7 +153,6 @@ fn mock_dependencies() -> MockDependencies {
         mock_transaction_converter,
         mock_stateless_transaction_validator,
         mock_proof_archive_writer,
-        mock_proof_manager_client,
     }
 }
 
@@ -160,25 +163,16 @@ struct MockDependencies {
     mock_transaction_converter: MockTransactionConverterTrait,
     mock_stateless_transaction_validator: MockStatelessTransactionValidatorTrait,
     mock_proof_archive_writer: MockProofArchiveWriterTrait,
-    mock_proof_manager_client: MockProofManagerClient,
 }
 
 impl MockDependencies {
     fn gateway(
-        mut self,
+        self,
     ) -> GenericGateway<
         MockStatelessTransactionValidatorTrait,
         MockTransactionConverterTrait,
         StatefulTransactionValidatorFactory<TestStateReaderFactory>,
     > {
-        // TODO(Einat): Move to mock dependencies fixture.
-        let proof_manager_client: Arc<dyn ProofManagerClient> =
-            Arc::new(self.mock_proof_manager_client);
-        let pmc = proof_manager_client.clone();
-        self.mock_transaction_converter
-            .expect_get_proof_manager_client()
-            .returning(move || pmc.clone());
-
         register_metrics();
         GenericGateway::new(
             self.config,
@@ -198,12 +192,12 @@ impl MockDependencies {
         self.mock_mempool_client.expect_validate_tx().once().with(eq(args)).return_once(|_| result);
     }
 
-    fn expect_set_proof(&mut self, proof_facts: ProofFacts, proof: Proof) {
-        self.mock_proof_manager_client
-            .expect_set_proof()
+    fn expect_store_proof(&mut self, proof_facts: ProofFacts, proof: Proof) {
+        self.mock_transaction_converter
+            .expect_store_proof_in_proof_manager()
             .once()
             .with(eq(proof_facts), eq(proof))
-            .returning(|_, _| Ok(()));
+            .returning(|_, _| Ok(std::time::Duration::ZERO));
     }
 }
 
@@ -216,7 +210,7 @@ fn invoke_args() -> InvokeTxArgs {
 }
 
 fn invoke_args_with_client_side_proving() -> InvokeTxArgs {
-    invoke_args_impl(ProofFacts::snos_proof_facts_for_testing(), Proof::proof_for_testing())
+    invoke_args_impl(create_valid_proof_facts_for_testing(), Proof::proof_for_testing())
 }
 
 fn invoke_args_impl(proof_facts: ProofFacts, proof: Proof) -> InvokeTxArgs {
@@ -268,11 +262,30 @@ fn setup_transaction_converter_mock(
 ) {
     let rpc_tx = tx_args.get_rpc_tx();
     let internal_tx = tx_args.get_internal_tx();
+
+    // Create verification handle if the transaction has proof facts.
+    let verification_handle =
+        if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref invoke_tx)) = rpc_tx {
+            if !invoke_tx.proof_facts.is_empty() {
+                // Create a simple task that just returns Ok (verification is mocked).
+                let verification_task = tokio::spawn(async { Ok(()) });
+                Some(VerificationHandle {
+                    proof_facts: invoke_tx.proof_facts.clone(),
+                    proof: invoke_tx.proof.clone(),
+                    verification_task,
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
     mock_transaction_converter
         .expect_convert_rpc_tx_to_internal_rpc_tx()
         .once()
         .with(eq(rpc_tx))
-        .return_once(move |_| Ok(internal_tx));
+        .return_once(move |_| Ok((internal_tx, verification_handle)));
 
     let internal_tx = tx_args.get_internal_tx();
     let executable_tx = tx_args.get_executable_tx();
@@ -326,7 +339,7 @@ async fn setup_mock_state(
         &mut mock_dependencies.state_reader_factory.state_reader.blockifier_state_reader;
     let address = expected_internal_tx.contract_address();
     fund_account(
-        &mock_dependencies.config.chain_info,
+        &mock_dependencies.config.static_config.chain_info,
         address,
         VALID_ACCOUNT_BALANCE,
         state_reader,
@@ -339,7 +352,7 @@ async fn setup_mock_state(
     if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref invoke_tx)) = input_tx {
         if !invoke_tx.proof_facts.is_empty() {
             mock_dependencies
-                .expect_set_proof(invoke_tx.proof_facts.clone(), invoke_tx.proof.clone());
+                .expect_store_proof(invoke_tx.proof_facts.clone(), invoke_tx.proof.clone());
         }
     }
 
@@ -463,12 +476,15 @@ async fn test_add_tx_positive(
     Ok(executable_invoke_tx(invoke_args())),
 )]
 #[case::internal_to_executable_fails(
-    Ok(invoke_args().get_internal_tx()),
+    Ok((invoke_args().get_internal_tx(), None)),
     Err(TransactionConverterError::ClassNotFound { class_hash: ClassHash::default() })
 )]
 #[tokio::test]
 async fn test_transaction_converter_error(
-    #[case] expect_internal_rpc_tx_result: TransactionConverterResult<InternalRpcTransaction>,
+    #[case] expect_internal_rpc_tx_result: TransactionConverterResult<(
+        InternalRpcTransaction,
+        Option<VerificationHandle>,
+    )>,
     #[case] expect_executable_tx_result: TransactionConverterResult<AccountTransaction>,
     mut mock_dependencies: MockDependencies,
 ) {
@@ -496,7 +512,7 @@ async fn test_transaction_converter_error(
 #[rstest]
 #[tokio::test]
 async fn test_block_declare_config(mut mock_dependencies: MockDependencies) {
-    mock_dependencies.config.block_declare = true;
+    mock_dependencies.config.static_config.block_declare = true;
     let gateway = mock_dependencies.gateway();
 
     let result = gateway.add_tx(declare_tx(), None).await;
@@ -543,7 +559,8 @@ fn test_register_metrics() {
 #[tokio::test]
 async fn test_unauthorized_declare_config(mut mock_dependencies: MockDependencies) {
     let authorized_address = contract_address!("0x1");
-    mock_dependencies.config.authorized_declarer_accounts = Some(vec![authorized_address]);
+    mock_dependencies.config.static_config.authorized_declarer_accounts =
+        Some(vec![authorized_address]);
 
     let gateway = mock_dependencies.gateway();
     let rpc_declare_tx = declare_tx();
@@ -578,7 +595,9 @@ async fn test_unauthorized_declare_config(mut mock_dependencies: MockDependencie
 fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
     #[case] authorized_declarer_accounts: Option<Vec<ContractAddress>>,
 ) {
-    let original_config = GatewayConfig { authorized_declarer_accounts, ..Default::default() };
+    let original_config = GatewayConfig {
+        static_config: GatewayStaticConfig { authorized_declarer_accounts, ..Default::default() },
+    };
 
     // Create a temporary file to dump the config.
     let file_path = TempDir::new().unwrap().path().join("config.json");

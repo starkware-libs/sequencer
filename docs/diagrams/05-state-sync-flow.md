@@ -1,0 +1,198 @@
+# State Sync Flow
+
+## Central Sync (from Feeder Gateway)
+
+*Three parallel streams with marker-based ordering: compiled_class_marker ≤ state_marker ≤ header_marker ≤ central_block_marker*
+
+### Block Stream
+
+```mermaid
+sequenceDiagram
+    participant FGW as Feeder Gateway
+
+    box Sequencer
+        participant CSC as Central Sync Client
+        participant Storage as Storage
+    end
+
+    loop Until caught up
+        CSC->>Storage: get_header_marker()
+        Storage-->>CSC: header_marker
+        CSC->>FGW: get_latest_block_number()
+        FGW-->>CSC: central_block_marker
+
+        opt header_marker < central_block_marker
+            Note over CSC: up_to = min(central_block_marker,<br/>header_marker + max_stream_size)
+            CSC->>FGW: stream_new_blocks(header_marker, up_to)
+            FGW-->>CSC: blocks
+            CSC->>Storage: store_block(block)
+            Note over Storage: Updates header_marker
+        end
+
+        Note over CSC: Sleep if caught up
+    end
+```
+
+### State Diff Stream
+
+**Class types:**
+- **Deprecated (Cairo 0)**: Old contracts before Cairo 1. No Sierra. Sent immediately.
+- **Non-backward-compatible (Cairo 1, Starknet < 0.12.0)**: Class Manager cannot compile Sierra→CASM. Must wait for pre-compiled CASM.
+- **Backward-compatible (Cairo 1, Starknet ≥ 0.12.0)**: Class Manager can compile Sierra→CASM internally. Sent immediately.
+
+```mermaid
+sequenceDiagram
+    participant FGW as Feeder Gateway
+
+    box Sequencer
+        participant CSC as Central Sync Client
+        participant Storage as Storage
+        participant CM as Class Manager
+    end
+
+    loop Until caught up
+        CSC->>Storage: get_state_marker()
+        Storage-->>CSC: state_marker
+        CSC->>Storage: get_header_marker()
+        Storage-->>CSC: header_marker
+
+        opt state_marker < header_marker
+            Note over CSC: up_to = min(header_marker,<br/>state_marker + max_stream_size)
+            CSC->>FGW: stream_state_updates(state_marker, up_to)
+            FGW-->>CSC: state_diffs (with Sierra classes)
+
+            CSC->>Storage: store_state_diff(state_diff)
+
+            opt Backward-compatible classes (Starknet version >= 0.12.0)
+                CSC->>CM: add_class(sierra_class)
+                Note over CM: Compiles Sierra to CASM internally
+            end
+
+            opt Deprecated (Cairo 0) classes
+                CSC->>CM: add_deprecated_class(class_hash, class)
+            end
+
+            Note over CSC: Non-backward-compatible classes<br/>(Starknet version < 0.12.0)<br/>deferred to compiled classes stream
+
+            Note over Storage: Updates state_marker,<br/>class_manager_marker
+        end
+
+        Note over CSC: Sleep if waiting for headers
+    end
+```
+
+### Compiled Classes Stream
+
+```mermaid
+sequenceDiagram
+    participant FGW as Feeder Gateway
+
+    box Sequencer
+        participant CSC as Central Sync Client
+        participant Storage as Storage
+        participant CM as Class Manager
+    end
+
+    loop Until caught up
+        CSC->>Storage: get_compiled_class_marker()
+        Storage-->>CSC: compiled_class_marker
+        CSC->>Storage: get_state_marker()
+        Storage-->>CSC: state_marker
+
+        Note over CSC: Skip blocks with no declared classes
+
+        opt compiled_class_marker < state_marker
+            Note over CSC: up_to = min(state_marker,<br/>compiled_class_marker + max_stream_size)
+            CSC->>FGW: stream_compiled_classes(compiled_class_marker, up_to)
+            FGW-->>CSC: compiled_classes (CASMs)
+
+            opt Non-backward-compatible classes (Starknet version < 0.12.0)
+                CSC->>Storage: get sierra_class for this CASM
+                Storage-->>CSC: sierra_class
+                CSC->>CM: add_class_and_executable_unsafe(sierra, casm)
+                Note over CM: Cannot compile these Sierras internally
+            end
+
+            CSC->>Storage: store_compiled_class(casm)
+            Note over Storage: Updates compiled_class_marker<br/>when last class of block stored
+        end
+
+        Note over CSC: Sleep if waiting for state diffs
+    end
+```
+
+## State Query Handling (Reactive)
+
+```mermaid
+sequenceDiagram
+    participant GW as Gateway
+    participant SS as State Sync Server
+    participant Storage as Storage
+
+    rect rgb(240, 248, 255)
+        Note over GW,Storage: Transaction Validation Queries
+        GW->>SS: get_nonce_at(block_number, contract_address)
+        SS->>Storage: read_nonce(block_number, contract_address)
+        Storage-->>SS: Nonce
+        SS-->>GW: Nonce
+
+        GW->>SS: get_storage_at(block_number, contract_address, key)
+        SS->>Storage: read_storage(block_number, contract_address, key)
+        Storage-->>SS: Felt
+        SS-->>GW: Felt
+
+        GW->>SS: get_class_hash_at(block_number, contract_address)
+        SS->>Storage: read_class_hash(block_number, contract_address)
+        Storage-->>SS: ClassHash
+        SS-->>GW: ClassHash
+    end
+
+    rect rgb(255, 245, 238)
+        Note over GW,Storage: Class Declaration Queries
+        GW->>SS: is_class_declared_at(block_number, class_hash)
+        SS->>Storage: check_class_exists(block_number, class_hash)
+        Storage-->>SS: bool
+        SS-->>GW: bool
+
+        GW->>SS: is_cairo_1_class_declared_at(block_number, class_hash)
+        SS->>Storage: check_cairo1_class_exists(block_number, class_hash)
+        Storage-->>SS: bool
+        SS-->>GW: bool
+    end
+
+    rect rgb(240, 255, 240)
+        Note over GW,Storage: Block Info Queries
+        GW->>SS: get_latest_block_number()
+        SS->>Storage: read_latest_block()
+        Storage-->>SS: BlockNumber or None
+        SS-->>GW: BlockNumber or None
+
+        GW->>SS: get_block(block_number)
+        SS->>Storage: read_block(block_number)
+        Storage-->>SS: SyncBlock
+        SS-->>GW: SyncBlock
+    end
+```
+
+## Consensus Block Update Flow
+
+*Note: Batcher and State Sync have separate storages. In Central Sync mode, blocks from consensus are discarded - State Sync storage is only populated from Feeder Gateway.*
+
+```mermaid
+sequenceDiagram
+    participant Ctx as Orchestrator
+    participant SS as State Sync Client
+
+    Note over Ctx: After batcher.decision_reached()<br/>(Batcher wrote to Batcher storage)
+
+    rect rgb(240, 248, 255)
+        Note over Ctx,SS: update_state_sync_with_new_block()
+        Ctx->>Ctx: Build SyncBlock from DecisionReachedResponse
+        Note over Ctx: SyncBlock contains:<br/>state_diff, tx_hashes,<br/>block_header, commitments
+
+        Ctx->>SS: add_new_block(sync_block)
+        SS-->>Ctx: Ok
+    end
+
+    Note over SS: In Central Sync mode:<br/>Block is discarded (dev_null)<br/>to prevent buffer overflow.<br/>State Sync storage is populated<br/>only from Feeder Gateway streams.
+```

@@ -16,12 +16,14 @@ use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
 use starknet_api::block::BlockNumber;
+use starknet_api::crypto::utils::RawSignature;
 use starknet_types_core::felt::Felt;
 use strum::{EnumIter, IntoEnumIterator};
 use test_case::test_case;
 
 use crate::single_height_consensus::SingleHeightConsensus;
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
+use crate::test_utils::mock_committee_virtual_equal_to_actual;
 use crate::types::{Decision, ProposalCommitment, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
@@ -199,6 +201,17 @@ impl DiscreteEventSimulation {
         let validators: Vec<ValidatorId> =
             (0..total_nodes).map(|i| ValidatorId::from(u64::try_from(i).unwrap())).collect();
 
+        let committee = mock_committee_virtual_equal_to_actual(
+            validators.clone(),
+            Box::new({
+                let validators = validators.clone();
+                move |round| {
+                    let idx = get_leader_index(seed, total_nodes, round);
+                    validators[idx]
+                }
+            }),
+        );
+
         let shc = SingleHeightConsensus::new(
             HEIGHT_0,
             false,
@@ -206,6 +219,8 @@ impl DiscreteEventSimulation {
             validators.clone(),
             QuorumType::Byzantine,
             TimeoutsConfig::default(),
+            committee,
+            true,
         );
 
         let quorum_threshold = (2 * total_nodes / 3) + 1;
@@ -284,6 +299,7 @@ impl DiscreteEventSimulation {
                 round,
                 proposal_commitment: commitment,
                 voter,
+                signature: RawSignature::default(),
             }),
         );
         self.schedule_at_tick(
@@ -294,6 +310,7 @@ impl DiscreteEventSimulation {
                 round,
                 proposal_commitment: commitment,
                 voter,
+                signature: RawSignature::default(),
             }),
         );
     }
@@ -331,6 +348,7 @@ impl DiscreteEventSimulation {
                         round,
                         proposer: leader_id,
                         valid_round: None,
+                        ..Default::default()
                     }),
                 );
             }
@@ -408,6 +426,7 @@ impl DiscreteEventSimulation {
                         round,
                         proposer: node_id,
                         valid_round: None,
+                        ..Default::default()
                     }),
                 );
             }
@@ -463,17 +482,9 @@ impl DiscreteEventSimulation {
     fn run(&mut self, deadline_ticks: u64) -> Option<Decision> {
         // Pre-generate all rounds events
         self.pre_generate_all_rounds();
-
-        let validators = self.validators.clone();
-        let seed = self.seed;
-        let total_nodes = self.total_nodes;
-        let leader_fn = move |r: Round| {
-            let idx = get_leader_index(seed, total_nodes, r);
-            validators[idx]
-        };
-
+        // Create two separate closures with the same logic (for proposer and virtual_proposer)
         // Start the single height consensus
-        let requests = self.shc.start(&leader_fn);
+        let requests = self.shc.start();
         if let Some(decision) = self.handle_requests(requests) {
             return Some(decision);
         }
@@ -491,28 +502,24 @@ impl DiscreteEventSimulation {
             let requests = match timed_event.event {
                 InputEvent::Vote(v) => {
                     self.track_precommit(&v);
-                    self.shc.handle_vote(&leader_fn, v)
+                    self.shc.handle_vote(v)
                 }
-                InputEvent::Proposal(p) => self.shc.handle_proposal(&leader_fn, p),
+                InputEvent::Proposal(p) => self.shc.handle_proposal(p),
                 InputEvent::Internal(StateMachineEvent::FinishedValidation(
                     commitment,
                     round,
                     _,
                 )) => {
                     self.track_finished_proposal(round, commitment);
-                    self.shc.handle_event(
-                        &leader_fn,
-                        StateMachineEvent::FinishedValidation(commitment, round, None),
-                    )
+                    self.shc.handle_event(StateMachineEvent::FinishedValidation(
+                        commitment, round, None,
+                    ))
                 }
                 InputEvent::Internal(StateMachineEvent::FinishedBuilding(commitment, round)) => {
                     self.track_finished_proposal(round, commitment);
-                    self.shc.handle_event(
-                        &leader_fn,
-                        StateMachineEvent::FinishedBuilding(commitment, round),
-                    )
+                    self.shc.handle_event(StateMachineEvent::FinishedBuilding(commitment, round))
                 }
-                InputEvent::Internal(e) => self.shc.handle_event(&leader_fn, e),
+                InputEvent::Internal(e) => self.shc.handle_event(e),
             };
 
             if let Some(decision) = self.handle_requests(requests) {
@@ -592,6 +599,7 @@ fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
     // A decision should be reached when:
     // 1. Proposal finished (validation or building)
     // 2. At least THRESHOLD precommits from validators for that round+commitment
+    // 3. The virtual proposer for that round precommitted in favor of the block
     let expected_decision =
         sim.round_stats.iter().find_map(|((r, commitment), (precommits, proposal_ready))| {
             if !*proposal_ready {
@@ -609,8 +617,19 @@ fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
                 .iter()
                 .count();
             let total_precommits = peer_precommits + self_vote;
+            // Match the state machine's `virtual_proposer_in_favor` gating for decision.
+            // In this simulation the virtual leader function is the same as the leader function.
+            let virtual_proposer = {
+                let idx = get_leader_index(sim.seed, sim.total_nodes, *r);
+                sim.validators[idx]
+            };
+            let virtual_proposer_precommitted_in_favor = if virtual_proposer == *NODE_0 {
+                self_vote == 1
+            } else {
+                precommits.iter().any(|v| v.voter == virtual_proposer)
+            };
 
-            if total_precommits >= sim.quorum_threshold {
+            if total_precommits >= sim.quorum_threshold && virtual_proposer_precommitted_in_favor {
                 Some((*r, *commitment, precommits.clone()))
             } else {
                 None

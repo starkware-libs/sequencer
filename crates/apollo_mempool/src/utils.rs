@@ -1,5 +1,5 @@
-use apollo_mempool_types::communication::MempoolResult;
 use apollo_mempool_types::errors::MempoolError;
+use apollo_mempool_types::mempool_types::MempoolResult;
 use starknet_api::core::Nonce;
 
 pub fn try_increment_nonce(nonce: Nonce) -> MempoolResult<Nonce> {

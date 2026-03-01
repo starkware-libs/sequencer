@@ -79,6 +79,32 @@ pub trait StateReader {
     }
 }
 
+impl<T: StateReader + ?Sized> StateReader for Box<T> {
+    fn get_storage_at(
+        &self,
+        contract_address: ContractAddress,
+        key: StorageKey,
+    ) -> StateResult<Felt> {
+        self.as_ref().get_storage_at(contract_address, key)
+    }
+
+    fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
+        self.as_ref().get_nonce_at(contract_address)
+    }
+
+    fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
+        self.as_ref().get_class_hash_at(contract_address)
+    }
+
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        self.as_ref().get_compiled_class(class_hash)
+    }
+
+    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        self.as_ref().get_compiled_class_hash(class_hash)
+    }
+}
+
 /// A class defining the API for writing to Starknet global state.
 ///
 /// Reader functionality should be delegated to the associated type; which is passed in by

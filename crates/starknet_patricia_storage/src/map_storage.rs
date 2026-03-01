@@ -1,20 +1,29 @@
+use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::num::NonZeroUsize;
 
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use lru::LruCache;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use validator::{Validate, ValidationErrors};
 
 use crate::storage_trait::{
     AsyncStorage,
     DbHashMap,
     DbKey,
     DbValue,
+    EmptyStorageConfig,
     NoStats,
     NullStorage,
     PatriciaStorageResult,
     Storage,
+    StorageConfigTrait,
     StorageStats,
 };
+
+// 1M entries.
+const DEFAULT_CACHE_SIZE: usize = 1000000;
 
 #[derive(Debug, Default, PartialEq, Serialize)]
 pub struct MapStorage(pub DbHashMap);
@@ -26,6 +35,7 @@ pub struct BorrowedStorage<'a, S: Storage> {
 
 impl Storage for MapStorage {
     type Stats = NoStats;
+    type Config = EmptyStorageConfig;
 
     async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
         self.0.insert(key, value);
@@ -72,7 +82,8 @@ pub struct CachedStorage<S: Storage> {
     include_inner_stats: bool,
 }
 
-pub struct CachedStorageConfig {
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CachedStorageConfig<InnerStorageConfig: StorageConfigTrait> {
     // Max number of entries in the cache.
     pub cache_size: NonZeroUsize,
 
@@ -81,6 +92,65 @@ pub struct CachedStorageConfig {
 
     // If true, the inner stats are included when collecting statistics.
     pub include_inner_stats: bool,
+
+    // The config of the underlying storage.
+    pub inner_storage_config: InnerStorageConfig,
+}
+
+impl<InnerStorageConfig: StorageConfigTrait> Default for CachedStorageConfig<InnerStorageConfig> {
+    fn default() -> Self {
+        Self {
+            cache_size: NonZeroUsize::new(DEFAULT_CACHE_SIZE).unwrap(),
+            cache_on_write: true,
+            include_inner_stats: true,
+            inner_storage_config: InnerStorageConfig::default(),
+        }
+    }
+}
+
+impl<InnerStorageConfig: StorageConfigTrait> Validate for CachedStorageConfig<InnerStorageConfig> {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        self.inner_storage_config.validate()
+    }
+}
+
+impl<InnerStorageConfig: StorageConfigTrait> SerializeConfig
+    for CachedStorageConfig<InnerStorageConfig>
+{
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut cached_storage_config = BTreeMap::from([
+            ser_param(
+                "cache_size",
+                &self.cache_size,
+                "Max number of entries in the cache",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "cache_on_write",
+                &self.cache_on_write,
+                "If true, the cache is updated on write operations",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "include_inner_stats",
+                &self.include_inner_stats,
+                "If true, the inner stats are included when collecting statistics",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
+
+        cached_storage_config.extend(prepend_sub_config_name(
+            self.inner_storage_config.dump(),
+            "inner_storage_config",
+        ));
+
+        cached_storage_config
+    }
+}
+
+impl<InnerStorageConfig: StorageConfigTrait> StorageConfigTrait
+    for CachedStorageConfig<InnerStorageConfig>
+{
 }
 
 #[derive(Default)]
@@ -118,14 +188,18 @@ impl<S: StorageStats> StorageStats for CachedStorageStats<S> {
                 self.writes.to_string(),
                 self.cache_hit_rate().to_string(),
             ],
-            self.inner_stats.as_ref().map(|s| s.column_values()).unwrap_or_default(),
+            self.inner_stats.as_ref().map(|s| s.column_values()).unwrap_or(vec![
+                "".to_string();
+                S::column_titles()
+                    .len()
+            ]),
         ]
         .concat()
     }
 }
 
 impl<S: Storage> CachedStorage<S> {
-    pub fn new(storage: S, config: CachedStorageConfig) -> Self {
+    pub fn new(storage: S, config: CachedStorageConfig<S::Config>) -> Self {
         Self {
             storage,
             cache: LruCache::new(config.cache_size),
@@ -158,6 +232,7 @@ impl<S: Storage> CachedStorage<S> {
 
 impl<S: Storage> Storage for CachedStorage<S> {
     type Stats = CachedStorageStats<S::Stats>;
+    type Config = CachedStorageConfig<S::Config>;
 
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads += 1;

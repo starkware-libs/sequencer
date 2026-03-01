@@ -18,8 +18,6 @@ pub enum FilledTreeError {
     MissingLeafInput(NodeIndex),
     #[error("Missing root.")]
     MissingRoot,
-    #[error("Poisoned lock: {0}.")]
-    PoisonedLock(String),
     #[error(transparent)]
     SerializeError(#[from] serde_json::Error),
     #[error(transparent)]

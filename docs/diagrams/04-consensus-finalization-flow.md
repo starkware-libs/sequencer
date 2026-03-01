@@ -1,0 +1,107 @@
+# Consensus & Finalization Flow
+
+## Consensus Voting
+
+```mermaid
+sequenceDiagram
+    participant SM as State Machine
+    participant CM as Consensus Manager
+    participant Net as P2P Network
+
+    Note over SM: Proposal received and validated
+
+    rect rgb(240, 248, 255)
+        Note over SM,Net: Prevote Phase
+        SM->>SM: upon_new_proposal()
+        par [Parallel: Broadcast own vote]
+            SM->>CM: SMRequest::BroadcastVote(Prevote)
+            CM->>Net: broadcast prevote
+        and [Parallel: Receive votes from peers]
+            loop Until 2/3+ quorum
+                Net->>CM: receive prevote
+                CM->>SM: handle_prevote(vote)
+            end
+        end
+    end
+
+    rect rgb(255, 245, 238)
+        Note over SM,Net: Precommit Phase
+        SM->>SM: upon_prevote_quorum()
+        par [Parallel: Broadcast own vote]
+            SM->>CM: SMRequest::BroadcastVote(Precommit)
+            CM->>Net: broadcast precommit
+        and [Parallel: Receive votes from peers]
+            loop Until 2/3+ quorum
+                Net->>CM: receive precommit
+                CM->>SM: handle_precommit(vote)
+            end
+        end
+    end
+
+    rect rgb(240, 255, 240)
+        Note over SM: Decision
+        SM->>SM: upon_decision(round)
+        SM->>CM: SMRequest::DecisionReached(Decision)
+    end
+```
+
+## Finalization Flow
+
+```mermaid
+sequenceDiagram
+    participant CM as Consensus Manager
+    participant Ctx as Orchestrator/Context
+    participant B as Batcher
+    participant L1P as L1 Provider
+    participant MP as Mempool
+    participant Comm as Committer
+    participant SS as State Sync
+    participant Storage as Storage
+
+    CM->>Ctx: decision_reached(height, commitment)
+    Ctx->>Ctx: interrupt_active_proposal()
+    Ctx->>Ctx: get proposal from valid_proposals cache
+
+    rect rgb(240, 248, 255)
+        Note over Ctx,Storage: Batcher.decision_reached()
+        Ctx->>B: decision_reached(DecisionReachedInput)
+
+        rect rgb(255, 245, 238)
+            Note over B,Storage: commit_proposal_and_block()
+            B->>B: calculate_state_diff_hash(state_diff)
+            B->>Storage: commit_proposal(height, state_diff)
+            B->>L1P: commit_block(consumed_l1_txs, rejected_l1_txs, height)
+            L1P-->>B: Ok
+            B->>MP: commit_block(CommitBlockArgs)
+            Note over MP: Update nonces, remove committed/rejected txs
+            MP-->>B: Ok
+        end
+
+        B->>Comm: add_commitment_task(height, state_diff, state_diff_commitment)
+        Note over Comm: Queues async task to calculate global root
+
+        B->>B: write_commitment_results_to_storage()
+        B->>Comm: get_commitment_results()
+        Note over Comm: Returns any completed results (may be empty)
+        Comm-->>B: Vec<CommitmentTaskOutput>
+
+        opt If commitment results ready
+            B->>B: final_commitment_output() - calculate block hash
+            B->>Storage: set_global_root_and_block_hash(height, global_root, block_hash)
+        end
+
+        B-->>Ctx: DecisionReachedResponse
+    end
+
+    Note over Ctx,B: Block is now committed (CRITICAL POINT)
+
+    rect rgb(240, 255, 240)
+        Note over Ctx,SS: finalize_decision()
+        Ctx->>Ctx: update_l2_gas_price(l2_gas_used)
+        Ctx->>SS: update_state_sync_with_new_block()
+        Ctx->>Ctx: prepare_blob_for_next_height()
+    end
+
+    Ctx->>Ctx: previous_block_info = block_info
+    Ctx-->>CM: Ok
+```

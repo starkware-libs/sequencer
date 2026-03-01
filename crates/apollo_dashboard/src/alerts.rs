@@ -1,67 +1,49 @@
 use std::collections::HashSet;
-use std::fmt;
 
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
-use strum_macros::EnumIter;
+
+use crate::alert_placeholders::{
+    ComparisonValueOrPlaceholder,
+    ExpressionOrExpressionWithPlaceholder,
+    SeverityValueOrPlaceholder,
+};
 
 pub(crate) const PENDING_DURATION_DEFAULT: &str = "30s";
 pub(crate) const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
 pub(crate) const SECS_IN_MIN: u64 = 60;
 
 /// Alerts to be configured in the dashboard.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct Alerts {
     alerts: Vec<Alert>,
 }
 
 impl Alerts {
-    pub(crate) fn new(alerts: Vec<Alert>, alert_env_filtering: AlertEnvFiltering) -> Self {
-        let filtered_alerts: Vec<Alert> = alerts
-            .into_iter()
-            .filter(|alert| alert.alert_env_filtering.matches(&alert_env_filtering))
-            .collect();
-        let mut alert_names: HashSet<&str> = HashSet::new();
+    pub(crate) fn new(alerts: Vec<Alert>) -> Self {
+        // Validate that there are no duplicate alert names.
+        alerts
+            .iter()
+            .map(|alert| alert.name.as_str())
+            .try_fold(HashSet::new(), |mut set, name| set.insert(name).then_some(set).ok_or(name))
+            .unwrap_or_else(|duplicate| panic!("Duplicate alert name found: {duplicate}"));
 
-        for alert in &filtered_alerts {
-            if !alert_names.insert(alert.name.as_str()) {
-                panic!(
-                    "Duplicate alert name found: {} for env: {}",
-                    alert.name, alert.alert_env_filtering
-                );
-            }
-        }
-        Self { alerts: filtered_alerts }
+        // Validate that there are no duplicate placeholder names across all alerts.
+        alerts
+            .iter()
+            .flat_map(|alert| alert.get_placeholder_names().iter())
+            .try_fold(HashSet::new(), |mut set, name| {
+                set.insert(name.clone()).then_some(set).ok_or(name)
+            })
+            .unwrap_or_else(|duplicate| {
+                panic!("Duplicate placeholder name found across alerts: {duplicate}")
+            });
+
+        Self { alerts }
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumIter)]
-pub enum AlertEnvFiltering {
-    All,
-    MainnetStyleAlerts,
-    TestnetStyleAlerts,
-}
-
-impl AlertEnvFiltering {
-    pub fn matches(&self, target: &AlertEnvFiltering) -> bool {
-        self == target || *self == AlertEnvFiltering::All
-    }
-}
-
-impl fmt::Display for AlertEnvFiltering {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            AlertEnvFiltering::All => {
-                unreachable!()
-            } // This variant is used for internal logic and should not be displayed.
-            AlertEnvFiltering::MainnetStyleAlerts => "mainnet",
-            AlertEnvFiltering::TestnetStyleAlerts => "testnet",
-        };
-        write!(f, "{s}")
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Debug, Serialize)]
 pub(crate) enum AlertSeverity {
     /// Critical issues that demand immediate attention. These are high-impact incidents that
     /// affect the system's availability.
@@ -85,7 +67,7 @@ pub(crate) enum AlertSeverity {
     Informational,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Debug, Serialize)]
 pub(crate) enum AlertComparisonOp {
     #[serde(rename = "gt")]
     GreaterThan,
@@ -93,7 +75,7 @@ pub(crate) enum AlertComparisonOp {
     LessThan,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum AlertLogicalOp {
     And,
@@ -103,16 +85,35 @@ pub(crate) enum AlertLogicalOp {
 }
 
 /// Defines the condition to trigger the alert.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug)]
 pub(crate) struct AlertCondition {
     // The comparison operator to use when comparing the expression to the value.
-    pub(crate) comparison_op: AlertComparisonOp,
+    comparison_op: AlertComparisonOp,
     // The value to compare the expression to.
-    pub(crate) comparison_value: f64,
+    comparison_value: ComparisonValueOrPlaceholder,
     // The logical operator between this condition and other conditions.
     // TODO(Yael): Consider moving this field to the be one per alert to avoid ambiguity when
     // trying to use a combination of `and` and `or` operators.
-    pub(crate) logical_op: AlertLogicalOp,
+    logical_op: AlertLogicalOp,
+}
+
+impl AlertCondition {
+    pub(crate) fn new(
+        comparison_op: AlertComparisonOp,
+        comparison_value: impl Into<ComparisonValueOrPlaceholder>,
+        logical_op: AlertLogicalOp,
+    ) -> Self {
+        Self { comparison_op, comparison_value: comparison_value.into(), logical_op }
+    }
+
+    pub(crate) fn get_comparison_value_placeholder_name(&self) -> Option<String> {
+        match &self.comparison_value {
+            ComparisonValueOrPlaceholder::Placeholder(_) => {
+                self.comparison_value.unique_alert_placeholder_name()
+            }
+            ComparisonValueOrPlaceholder::ConcreteValue(_) => None,
+        }
+    }
 }
 
 impl Serialize for AlertCondition {
@@ -151,7 +152,7 @@ impl Serialize for AlertCondition {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum AlertGroup {
     Batcher,
@@ -166,7 +167,7 @@ pub(crate) enum AlertGroup {
 }
 
 /// Describes the properties of an alert defined in grafana.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Debug, Serialize)]
 pub(crate) struct Alert {
     // The name of the alert.
     name: String,
@@ -176,7 +177,7 @@ pub(crate) struct Alert {
     #[serde(rename = "ruleGroup")]
     alert_group: AlertGroup,
     // The expression to evaluate for the alert.
-    expr: String,
+    expr: ExpressionOrExpressionWithPlaceholder,
     // The conditions that must be met for the alert to be triggered.
     conditions: Vec<AlertCondition>,
     // The time duration for which the alert conditions must be true before an alert is triggered.
@@ -186,11 +187,11 @@ pub(crate) struct Alert {
     #[serde(rename = "intervalSec")]
     evaluation_interval_sec: u64,
     // The severity level of the alert.
-    severity: AlertSeverity,
+    severity: SeverityValueOrPlaceholder,
     // Indicates if relevant for observer nodes.
     observer_applicable: ObserverApplicability,
     #[serde(skip)]
-    alert_env_filtering: AlertEnvFiltering,
+    placeholder_names: HashSet<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -217,27 +218,48 @@ impl Alert {
         name: impl ToString,
         title: impl ToString,
         alert_group: AlertGroup,
-        expr: impl ToString,
+        expr: impl Into<ExpressionOrExpressionWithPlaceholder>,
         conditions: Vec<AlertCondition>,
         pending_duration: impl ToString,
         evaluation_interval_sec: u64,
-        severity: AlertSeverity,
+        severity: impl Into<SeverityValueOrPlaceholder>,
         observer_applicable: ObserverApplicability,
-        alert_env_filtering: AlertEnvFiltering,
     ) -> Self {
+        let severity = severity.into();
+
+        // Collect all placeholder names from the conditions and severity field.
+        let severity_placeholder = severity.unique_alert_placeholder_name();
+
+        // Extract the expression and the placeholder names from the expression field.
+        let expr = expr.into();
+        let expr_placeholder_names = expr.unique_alert_placeholder_name();
+
+        // Validate there are no duplicate placeholder names.
+        let placeholder_names = conditions
+            .iter()
+            .filter_map(|condition| condition.get_comparison_value_placeholder_name())
+            .chain(severity_placeholder)
+            .chain(expr_placeholder_names.into_iter().flatten())
+            .try_fold(HashSet::new(), |mut set, name| {
+                set.insert(name.clone()).then_some(set).ok_or(name)
+            })
+            .unwrap_or_else(|duplicate| panic!("Duplicate placeholder name found: {duplicate}"));
+
         Self {
             name: name.to_string(),
             title: title.to_string(),
             alert_group,
-            // Grafana's alert evaluation does not substitute `$pod`. If we keep
-            // `pod=~"$pod"` in alert PromQL, rules may evaluate to empty/no-data and stop firing.
-            expr: expr.to_string().replace(", pod=~\"$pod\"", ""),
+            expr,
             conditions,
             pending_duration: pending_duration.to_string(),
             evaluation_interval_sec,
             severity,
             observer_applicable,
-            alert_env_filtering,
+            placeholder_names,
         }
+    }
+
+    pub(crate) fn get_placeholder_names(&self) -> &HashSet<String> {
+        &self.placeholder_names
     }
 }

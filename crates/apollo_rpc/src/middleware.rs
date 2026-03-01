@@ -1,5 +1,5 @@
-use hyper::{Body, Request};
 use jsonrpsee::core::http_helpers::read_body;
+use jsonrpsee::server::HttpRequest;
 use regex::Regex;
 use tower::BoxError;
 use tracing::debug;
@@ -9,14 +9,14 @@ use crate::SERVER_MAX_BODY_SIZE;
 
 /// [`Tower`] middleware intended to proxy method requests to the last supported version of the API,
 /// which is V0_8. The middleware reads the JsonRPC request body and request path then prefixes the
-/// method name with the appropriate version identifier. It returns a new [`hyper::Request`] object
-/// with the new method name.
+/// method name with the appropriate version identifier. It returns a new
+/// [`jsonrpsee::server::HttpRequest`] object with the new method name.
 ///
 /// # Arguments
-/// * req - [`hyper::Request`] object passed by the server.
+/// * req - [`jsonrpsee::server::HttpRequest`] object passed by the server.
 ///
 /// [`Tower`]: https://crates.io/crates/tower
-pub(crate) async fn proxy_rpc_request(req: Request<Body>) -> Result<Request<Body>, BoxError> {
+pub(crate) async fn proxy_rpc_request(req: HttpRequest) -> Result<HttpRequest, BoxError> {
     debug!("proxy_rpc_request -> Request received: {:?}", req);
 
     // Sanity check.
@@ -39,7 +39,7 @@ pub(crate) async fn proxy_rpc_request(req: Request<Body>) -> Result<Request<Body
             add_version_to_method_name_in_body(vec_body, prefix, is_single)
         }
     }?;
-    Ok(Request::from_parts(parts, new_body.into()))
+    Ok(HttpRequest::from_parts(parts, new_body.into()))
 }
 
 fn add_version_to_method_name_in_body(

@@ -87,6 +87,10 @@ pub enum StatelessTransactionValidatorError {
         (has_proof_facts: {has_proof_facts:?}, has_proof: {has_proof:?})."
     )]
     ProofFactsAndProofConsistency { has_proof_facts: bool, has_proof: bool },
+    #[error(
+        "Client-side proof is too large: size {proof_size} (maximum allowed: {max_proof_size})."
+    )]
+    ProofTooLarge { proof_size: usize, max_proof_size: usize },
 }
 
 impl From<StatelessTransactionValidatorError> for GatewaySpecError {
@@ -110,7 +114,8 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
             | StatelessTransactionValidatorError::MaxGasPriceTooLow { .. }
             | StatelessTransactionValidatorError::MaxGasAmountTooHigh { .. }
             | StatelessTransactionValidatorError::ClientSideProvingNotAllowed
-            | StatelessTransactionValidatorError::ProofFactsAndProofConsistency { .. } => {
+            | StatelessTransactionValidatorError::ProofFactsAndProofConsistency { .. }
+            | StatelessTransactionValidatorError::ProofTooLarge { .. } => {
                 GatewaySpecError::ValidationFailure { data: e.to_string() }
             }
         }
@@ -193,6 +198,9 @@ impl From<StatelessTransactionValidatorError> for StarknetError {
                 StarknetErrorCode::UnknownErrorCode(
                     "StarknetErrorCode.PROOF_FACTS_AND_PROOF_CONSISTENCY".to_string(),
                 )
+            }
+            StatelessTransactionValidatorError::ProofTooLarge { .. } => {
+                StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.PROOF_TOO_LARGE".to_string())
             }
         };
         StarknetError { code, message }
@@ -315,9 +323,10 @@ pub fn transaction_converter_err_to_deprecated_gw_err(
         TransactionConverterError::ProofManagerClientError(err) => {
             StarknetError::internal_with_logging("Proof manager client error", err)
         }
-        TransactionConverterError::ProofVerificationError(err) => {
-            StarknetError::internal_with_logging("Proof verification error", err)
-        }
+        TransactionConverterError::ProofVerificationError(err) => StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidProof),
+            message: format!("Proof verification error: {err}"),
+        },
         TransactionConverterError::ValidateCompiledClassHashError(err) => {
             convert_compiled_class_hash_error(err)
         }
@@ -422,7 +431,8 @@ fn convert_sn_api_error(err: StarknetApiError) -> StarknetError {
         | StarknetApiError::ResourceHexToFeltConversion(..)
         | StarknetApiError::OutOfRange { .. }
         | StarknetApiError::InvalidChainIdHex(..)
-        | StarknetApiError::MissingBlockHeaderCommitments { .. } => StarknetError {
+        | StarknetApiError::MissingBlockHeaderCommitments { .. }
+        | StarknetApiError::InvalidProofFacts(..) => StarknetError {
             code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
             message: err.to_string(),
         },
@@ -432,8 +442,5 @@ fn convert_sn_api_error(err: StarknetApiError) -> StarknetError {
             ),
             message: err.to_string(),
         },
-        StarknetApiError::InvalidProofFacts(_) => {
-            todo!()
-        }
     }
 }

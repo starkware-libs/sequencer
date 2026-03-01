@@ -99,6 +99,10 @@ where
             "Successfully reverted {component_name}'s storage to height marker \
              {storage_height_marker}."
         );
+        // Yield to the tokio runtime so other futures (e.g. the monitoring endpoint) can make
+        // progress. Without this, callers whose revert closure resolves synchronously (like state
+        // sync) would monopolize the executor for the entire loop, starving co-located tasks.
+        tokio::task::yield_now().await;
     }
 
     info!("Done reverting {component_name}'s storage up to height {target_height_marker}!");

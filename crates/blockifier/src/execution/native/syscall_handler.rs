@@ -61,8 +61,6 @@ use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
 use crate::utils::u64_from_usize;
 
-pub const CALL_CONTRACT_SELECTOR_NAME: &str = "call_contract";
-pub const LIBRARY_CALL_SELECTOR_NAME: &str = "library_call";
 pub struct NativeSyscallHandler<'state> {
     pub base: Box<SyscallHandlerBase<'state>>,
 

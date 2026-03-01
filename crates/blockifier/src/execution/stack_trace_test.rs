@@ -51,6 +51,7 @@ use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::test_templates::cairo_version;
 use crate::test_utils::BALANCE;
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
+use crate::transaction::objects::TransactionInfoCreator;
 use crate::transaction::test_utils::{
     block_context,
     create_account_tx_for_validate_test_nonce_0,
@@ -627,8 +628,10 @@ fn test_validate_trace(
     }
 
     // TODO(AvivG): Change this fixup to not create account_tx twice w wrong charge_fee.
-    let execution_flags =
-        ExecutionFlags { charge_fee: account_tx.enforce_fee(), ..ExecutionFlags::default() };
+    let execution_flags = ExecutionFlags {
+        charge_fee: account_tx.create_tx_info().enforce_fee(),
+        ..ExecutionFlags::default()
+    };
     let account_tx = AccountTransaction { tx: account_tx.tx, execution_flags };
 
     let contract_address = *sender_address.0.key();

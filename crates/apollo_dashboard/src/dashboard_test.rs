@@ -5,13 +5,12 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertEnvFiltering,
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
     ObserverApplicability,
 };
-use crate::dashboard::{Panel, PanelType, ThresholdMode, ThresholdStep, Thresholds, Unit};
+use crate::panel::{Panel, PanelType, ThresholdMode, ThresholdStep, Thresholds, Unit};
 
 #[test]
 fn serialize_alert() {
@@ -20,16 +19,11 @@ fn serialize_alert() {
         "Message",
         AlertGroup::Batcher,
         "max".to_string(),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 10.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
         "5m",
         20,
         AlertSeverity::Sos,
         ObserverApplicability::Applicable,
-        AlertEnvFiltering::All,
     );
 
     let serialized = serde_json::to_value(&alert).unwrap();
@@ -66,8 +60,8 @@ fn test_ratio_time_series() {
             .with_log_query("Query");
 
     let expected = format!(
-        "(increase({}[{duration}]) / (increase({}[{duration}]) + increase({}[{duration}]) + \
-         increase({}[{duration}])))",
+        "(increase({}[{duration}]) / clamp_min((increase({}[{duration}]) + \
+         increase({}[{duration}]) + increase({}[{duration}])), 1))",
         metric_1.get_name_with_filter(),
         metric_1.get_name_with_filter(),
         metric_2.get_name_with_filter(),
@@ -79,7 +73,7 @@ fn test_ratio_time_series() {
     assert_eq!(panel.extra.log_query, Some("\"Query\"".to_string()));
 
     let expected = format!(
-        "(increase({}[{duration}]) / (increase({}[{duration}])))",
+        "(increase({}[{duration}]) / clamp_min((increase({}[{duration}])), 1))",
         metric_1.get_name_with_filter(),
         metric_2.get_name_with_filter(),
     );

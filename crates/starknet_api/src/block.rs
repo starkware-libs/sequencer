@@ -10,7 +10,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
-use strum_macros::EnumIter;
+use strum::EnumIter;
 use time::OffsetDateTime;
 
 use crate::core::{
@@ -56,7 +56,7 @@ macro_rules! starknet_version_enum {
         $latest:ident
     ) => {
         /// A version of the Starknet protocol used when creating a block.
-        #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumIter))]
+        #[cfg_attr(any(test, feature = "testing"), derive(EnumIter))]
         #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
         pub enum StarknetVersion {
             $($variant,)+

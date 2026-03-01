@@ -54,14 +54,14 @@ static CONTRACT_STATE_LEAF: LazyLock<IndexFilledNode<IndexLayoutContractState>> 
             nonce: Nonce(Felt::from(3)),
         }));
         let hash = TreeHashFunctionImpl::compute_node_hash(&data);
-        IndexFilledNode(FilledNode { hash, data: index_leaf_data_from_hash_data(data) })
+        IndexFilledNode::new(FilledNode { hash, data: index_leaf_data_from_hash_data(data) })
     });
 
 static COMPILED_CLASS_HASH_LEAF: LazyLock<IndexFilledNode<IndexLayoutCompiledClassHash>> =
     LazyLock::new(|| {
         let data = NodeData::Leaf(IndexLayoutCompiledClassHash(CompiledClassHash(Felt::from(1))));
         let hash = TreeHashFunctionImpl::compute_node_hash(&data);
-        IndexFilledNode(FilledNode { hash, data: index_leaf_data_from_hash_data(data) })
+        IndexFilledNode::new(FilledNode { hash, data: index_leaf_data_from_hash_data(data) })
     });
 
 static STARKNET_STORAGE_VALUE_LEAF: LazyLock<IndexFilledNode<IndexLayoutStarknetStorageValue>> =
@@ -69,7 +69,7 @@ static STARKNET_STORAGE_VALUE_LEAF: LazyLock<IndexFilledNode<IndexLayoutStarknet
         let data =
             NodeData::Leaf(IndexLayoutStarknetStorageValue(StarknetStorageValue(Felt::from(1))));
         let hash = TreeHashFunctionImpl::compute_node_hash(&data);
-        IndexFilledNode(FilledNode { hash, data: index_leaf_data_from_hash_data(data) })
+        IndexFilledNode::new(FilledNode { hash, data: index_leaf_data_from_hash_data(data) })
     });
 
 fn starknet_storage_value_leaf_96_bits() -> IndexLayoutStarknetStorageValue {
@@ -85,14 +85,14 @@ fn starknet_storage_value_leaf_136_bits() -> IndexLayoutStarknetStorageValue {
 }
 
 fn binary_node() -> IndexFilledNode<IndexLayoutContractState> {
-    IndexFilledNode(FilledNode {
+    IndexFilledNode::new(FilledNode {
         hash: HashOutput(Felt::from(1)),
         data: NodeData::Binary(BinaryData { left_data: EmptyNodeData, right_data: EmptyNodeData }),
     })
 }
 
 fn edge_node_short_path_len_3() -> IndexFilledNode<IndexLayoutContractState> {
-    IndexFilledNode(FilledNode {
+    IndexFilledNode::new(FilledNode {
         hash: HashOutput(Felt::from(1)),
         data: NodeData::Edge(EdgeData {
             bottom_data: EmptyNodeData,
@@ -107,7 +107,7 @@ fn edge_node_short_path_len_3() -> IndexFilledNode<IndexLayoutContractState> {
 }
 
 fn edge_node_short_path_len_10() -> IndexFilledNode<IndexLayoutContractState> {
-    IndexFilledNode(FilledNode {
+    IndexFilledNode::new(FilledNode {
         hash: HashOutput(Felt::from(1)),
         data: NodeData::Edge(EdgeData {
             bottom_data: EmptyNodeData,
@@ -122,7 +122,7 @@ fn edge_node_short_path_len_10() -> IndexFilledNode<IndexLayoutContractState> {
 }
 
 fn edge_node_path_divisible_by_8() -> IndexFilledNode<IndexLayoutContractState> {
-    IndexFilledNode(FilledNode {
+    IndexFilledNode::new(FilledNode {
         hash: HashOutput(Felt::from(1)),
         data: NodeData::Edge(EdgeData {
             bottom_data: EmptyNodeData,
@@ -137,7 +137,7 @@ fn edge_node_path_divisible_by_8() -> IndexFilledNode<IndexLayoutContractState> 
 }
 
 fn edge_node_path_not_divisible_by_8() -> IndexFilledNode<IndexLayoutContractState> {
-    IndexFilledNode(FilledNode {
+    IndexFilledNode::new(FilledNode {
         hash: HashOutput(Felt::from(1)),
         data: NodeData::Edge(EdgeData {
             bottom_data: EmptyNodeData,
@@ -152,7 +152,7 @@ fn edge_node_path_not_divisible_by_8() -> IndexFilledNode<IndexLayoutContractSta
 }
 
 fn edge_node_long_zero_path() -> IndexFilledNode<IndexLayoutContractState> {
-    IndexFilledNode(FilledNode {
+    IndexFilledNode::new(FilledNode {
         hash: HashOutput(Felt::from(1)),
         data: NodeData::Edge(EdgeData {
             bottom_data: EmptyNodeData,
@@ -167,7 +167,7 @@ fn edge_node_long_zero_path() -> IndexFilledNode<IndexLayoutContractState> {
 }
 
 fn edge_node_long_non_zero_path() -> IndexFilledNode<IndexLayoutContractState> {
-    IndexFilledNode(FilledNode {
+    IndexFilledNode::new(FilledNode {
         hash: HashOutput(Felt::from(1)),
         data: NodeData::Edge(EdgeData {
             bottom_data: EmptyNodeData,

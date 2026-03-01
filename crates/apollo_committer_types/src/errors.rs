@@ -39,6 +39,15 @@ pub enum CommitterError {
         "The next height to revert is {last_committed_block}, but got lower height {input_height}."
     )]
     RevertHeightHole { input_height: BlockNumber, last_committed_block: BlockNumber },
+    #[error(
+        "State diff hash mismatch for block number {height}. Provided commitment: \
+         {provided_commitment}, calculated commitment: {calculated_commitment}."
+    )]
+    StateDiffHashMismatch {
+        provided_commitment: StateDiffCommitment,
+        calculated_commitment: StateDiffCommitment,
+        height: BlockNumber,
+    },
 }
 
 pub type CommitterResult<T> = Result<T, CommitterError>;

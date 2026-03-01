@@ -4,6 +4,7 @@ use std::vec;
 use apollo_gateway_config::compiler_version::{VersionId, VersionIdError};
 use apollo_gateway_config::config::StatelessTransactionValidatorConfig;
 use assert_matches::assert_matches;
+use blockifier::test_utils::create_valid_proof_facts_for_testing;
 use rstest::rstest;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{EntryPointSelector, L2_ADDRESS_UPPER_BOUND};
@@ -21,7 +22,15 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     TransactionSignature,
 };
-use starknet_api::{calldata, contract_address, declare_tx_args, felt, StarknetApiError};
+use starknet_api::{
+    calldata,
+    contract_address,
+    declare_tx_args,
+    felt,
+    proof,
+    proof_facts,
+    StarknetApiError,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StatelessTransactionValidatorResult;
@@ -47,8 +56,9 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
         validate_resource_bounds: false,
         min_gas_price: 0,
         max_l2_gas_amount: 1_000_000_000,
-        max_calldata_length: 1,
+        max_calldata_length: 10,
         max_signature_length: 1,
+        max_proof_size: 10,
         max_contract_bytecode_size: 100_000,
         max_contract_class_object_size: 100_000,
         min_sierra_version: *MIN_SIERRA_VERSION,
@@ -137,7 +147,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
 )]
 #[case::client_side_proving(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
-    RpcTransactionArgs { proof_facts: ProofFacts::snos_proof_facts_for_testing(), proof: Proof::proof_for_testing(), ..Default::default()}
+    RpcTransactionArgs { proof_facts: create_valid_proof_facts_for_testing(), proof: Proof::proof_for_testing(), ..Default::default()}
 )]
 #[case::client_side_proving_disabled(
     StatelessTransactionValidatorConfig {
@@ -262,6 +272,10 @@ fn test_invalid_max_l2_gas_amount(
 
 #[rstest]
 #[case::calldata_too_long(
+    StatelessTransactionValidatorConfig {
+        max_calldata_length: 1,
+        ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+    },
     RpcTransactionArgs { calldata: calldata![Felt::ONE, Felt::TWO], ..Default::default() },
     StatelessTransactionValidatorError::CalldataTooLong {
         calldata_length: 2,
@@ -269,7 +283,20 @@ fn test_invalid_max_l2_gas_amount(
     },
     vec![TransactionType::DeployAccount, TransactionType::Invoke],
 )]
+#[case::client_side_proving_calldata_too_long(
+    StatelessTransactionValidatorConfig {
+        max_calldata_length: 1,
+        ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+    },
+    RpcTransactionArgs { calldata: calldata![Felt::ONE], proof_facts: proof_facts![Felt::TWO], ..Default::default() },
+    StatelessTransactionValidatorError::CalldataTooLong {
+        calldata_length: 2,
+        max_calldata_length: 1
+    },
+    vec![TransactionType::Invoke],
+)]
 #[case::signature_too_long(
+    DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
     RpcTransactionArgs {
         signature: TransactionSignature(vec![Felt::ONE, Felt::TWO].into()),
         ..Default::default()
@@ -280,7 +307,20 @@ fn test_invalid_max_l2_gas_amount(
     },
     vec![TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke],
 )]
+#[case::client_side_proving_proof_too_large(
+    StatelessTransactionValidatorConfig {
+        max_proof_size: 1,
+        ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+    },
+    RpcTransactionArgs { proof_facts: proof_facts![Felt::ONE], proof: proof![1, 2], ..Default::default() },
+    StatelessTransactionValidatorError::ProofTooLarge {
+        proof_size: 2,
+        max_proof_size: 1
+    },
+    vec![TransactionType::Invoke],
+)]
 #[case::nonce_data_availability_mode(
+    DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
     RpcTransactionArgs {
         nonce_data_availability_mode: DataAvailabilityMode::L2,
         ..Default::default()
@@ -291,6 +331,7 @@ fn test_invalid_max_l2_gas_amount(
     vec![TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke],
 )]
 #[case::fee_data_availability_mode(
+    DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
     RpcTransactionArgs {
         fee_data_availability_mode: DataAvailabilityMode::L2,
         ..Default::default()
@@ -301,6 +342,7 @@ fn test_invalid_max_l2_gas_amount(
     vec![TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke],
 )]
 #[case::non_empty_account_deployment_data(
+    DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
     RpcTransactionArgs {
         account_deployment_data: AccountDeploymentData(vec![felt!(1_u128)]),
         ..Default::default()
@@ -311,6 +353,7 @@ fn test_invalid_max_l2_gas_amount(
     vec![TransactionType::Declare, TransactionType::Invoke],
 )]
 #[case::non_empty_paymaster_data(
+    DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
     RpcTransactionArgs {
         paymaster_data: PaymasterData(vec![felt!(1_u128)]),
         ..Default::default()
@@ -321,6 +364,7 @@ fn test_invalid_max_l2_gas_amount(
     vec![TransactionType::Declare, TransactionType::Invoke],
 )]
 #[case::contract_address_1(
+    DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
     RpcTransactionArgs {
         sender_address: contract_address!(1_u32),
         ..Default::default()
@@ -331,6 +375,7 @@ fn test_invalid_max_l2_gas_amount(
     vec![TransactionType::Declare, TransactionType::Invoke],
 )]
 #[case::contract_address_upper_bound(
+    DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
     RpcTransactionArgs {
         sender_address: contract_address!("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00"),
         ..Default::default()
@@ -341,12 +386,12 @@ fn test_invalid_max_l2_gas_amount(
     vec![TransactionType::Declare, TransactionType::Invoke],
 )]
 fn test_invalid_tx(
+    #[case] config: StatelessTransactionValidatorConfig,
     #[case] rpc_tx_args: RpcTransactionArgs,
     #[case] expected_error: StatelessTransactionValidatorError,
     #[case] tx_types: Vec<TransactionType>,
 ) {
-    let tx_validator =
-        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
+    let tx_validator = StatelessTransactionValidator { config };
     for tx_type in tx_types {
         let tx = rpc_tx_for_testing(tx_type, rpc_tx_args.clone());
 
@@ -594,16 +639,16 @@ fn test_declare_entry_points_not_sorted_by_selector(
 
 #[rstest]
 #[case::no_proof_data_allowed_when_disabled(false, None, None)]
-#[case::proof_facts_only(false, Some(ProofFacts::snos_proof_facts_for_testing()), None)]
+#[case::proof_facts_only(false, Some(create_valid_proof_facts_for_testing()), None)]
 #[case::proof_only(false, None, Some(Proof::proof_for_testing()))]
 #[case::both_proof_and_facts(
     false,
-    Some(ProofFacts::snos_proof_facts_for_testing()),
+    Some(create_valid_proof_facts_for_testing()),
     Some(Proof::proof_for_testing())
 )]
 #[case::enabled_accepts_both(
     true,
-    Some(ProofFacts::snos_proof_facts_for_testing()),
+    Some(create_valid_proof_facts_for_testing()),
     Some(Proof::proof_for_testing())
 )]
 fn test_client_side_proving_flag(
@@ -643,12 +688,8 @@ fn test_client_side_proving_flag(
 // Tests that the proof facts and the proof must be either both empty or both non-empty.
 #[rstest]
 #[case::both_empty(ProofFacts::default(), Proof::default(), true)]
-#[case::both_non_empty(
-    ProofFacts::snos_proof_facts_for_testing(),
-    Proof::proof_for_testing(),
-    true
-)]
-#[case::proof_facts_only(ProofFacts::snos_proof_facts_for_testing(), Proof::default(), false)]
+#[case::both_non_empty(create_valid_proof_facts_for_testing(), Proof::proof_for_testing(), true)]
+#[case::proof_facts_only(create_valid_proof_facts_for_testing(), Proof::default(), false)]
 #[case::proof_only(ProofFacts::default(), Proof::proof_for_testing(), false)]
 fn test_proof_facts_and_proof_consistency(
     #[case] proof_facts: ProofFacts,

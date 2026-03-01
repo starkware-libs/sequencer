@@ -2,8 +2,7 @@ use std::cmp::Eq;
 use std::collections::HashSet;
 use std::hash::Hash;
 
-use strum::VariantNames;
-use strum_macros::EnumVariantNames;
+use strum::EnumVariantNames;
 
 #[allow(dead_code)]
 #[derive(Debug, EnumVariantNames, Clone, Copy)]

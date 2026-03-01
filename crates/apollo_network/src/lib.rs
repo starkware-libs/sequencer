@@ -231,6 +231,7 @@ use apollo_config::secrets::Sensitive;
 use apollo_config::validators::validate_optional_sensitive_vec_u256;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use discovery::DiscoveryConfig;
+use libp2p::identity::Keypair;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::Multiaddr;
 use peer_manager::PeerManagerConfig;
@@ -294,6 +295,7 @@ pub(crate) type Bytes = Vec<u8>;
 /// - Checking that bootstrap peer IDs are unique
 /// - Validating the secret key format if provided
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Validate)]
+#[validate(schema(function = "validate_advertised_multiaddr_peer_id"))]
 pub struct NetworkConfig {
     /// TCP port for incoming connections. Default: 10000
     pub port: u16,
@@ -502,5 +504,52 @@ fn validate_bootstrap_peer_multiaddr_list(
             return Err(error);
         }
     }
+    Ok(())
+}
+
+/// Validates that if advertised_multiaddr contains a peer id, it matches the peer id
+/// generated from secret_key.
+///
+/// If advertised_multiaddr contains a peer id, secret_key must not be None.
+fn validate_advertised_multiaddr_peer_id(
+    config: &NetworkConfig,
+) -> Result<(), validator::ValidationError> {
+    let Some(advertised_multiaddr) = &config.advertised_multiaddr else {
+        return Ok(());
+    };
+
+    let Some(advertised_peer_id) = DialOpts::from(advertised_multiaddr.clone()).get_peer_id()
+    else {
+        // If advertised_multiaddr doesn't contain a peer id, no validation needed
+        return Ok(());
+    };
+
+    // If advertised_multiaddr contains a peer id, secret_key must not be None
+    let Some(secret_key) = &config.secret_key else {
+        return Err(ValidationError::new(
+            "If advertised_multiaddr contains a peer id, secret_key must be provided.",
+        ));
+    };
+
+    // Generate the peer id from secret_key
+    let keypair =
+        Keypair::ed25519_from_bytes(secret_key.clone().expose_secret()).map_err(|err| {
+            let mut error = ValidationError::new("Failed to parse secret_key as Ed25519 keypair.");
+            error.message = Some(std::borrow::Cow::from(format!("Error: {err}")));
+            error
+        })?;
+    let my_peer_id = keypair.public().to_peer_id();
+
+    if advertised_peer_id != my_peer_id {
+        let mut error = ValidationError::new(
+            "The peer id in advertised_multiaddr does not match the peer id generated from \
+             secret_key.",
+        );
+        error.message = Some(std::borrow::Cow::from(format!(
+            "advertised peer id: {advertised_peer_id}, my peer id: {my_peer_id}"
+        )));
+        return Err(error);
+    }
+
     Ok(())
 }

@@ -1,8 +1,10 @@
 use std::collections::{BTreeMap, HashMap};
 
 use blockifier::execution::call_info::{
+    cairo_primitive_counter_map,
     CallExecution,
     CallInfo,
+    ExtendedExecutionResources,
     MessageToL1 as BlockifierMessageToL1,
     OrderedEvent,
     OrderedL2ToL1Message,
@@ -126,8 +128,8 @@ fn create_execution_resources(
     memory_holes: usize,
     range_check_builtin: usize,
     pedersen_builtin: usize,
-) -> ExecutionResources {
-    ExecutionResources {
+) -> ExtendedExecutionResources {
+    let execution_resources = ExecutionResources {
         n_steps: steps,
         n_memory_holes: memory_holes,
         builtin_instance_counter: BTreeMap::from([
@@ -136,6 +138,12 @@ fn create_execution_resources(
             (cairo_vm::types::builtin_name::BuiltinName::bitwise, 1),
             (cairo_vm::types::builtin_name::BuiltinName::ec_op, 2),
         ]),
+    };
+
+    ExtendedExecutionResources {
+        vm_resources: execution_resources,
+        // TODO(AvivG): test with non-default opcode instance counter.
+        opcode_instance_counter: Default::default(),
     }
 }
 
@@ -211,7 +219,7 @@ fn create_call_info(
         resources: create_execution_resources(1000, 0, 10, 5),
         tracked_resource: blockifier::execution::contract_class::TrackedResource::CairoSteps,
         storage_access_tracker: Default::default(),
-        builtin_counters: BTreeMap::from([
+        builtin_counters: cairo_primitive_counter_map([
             (cairo_vm::types::builtin_name::BuiltinName::range_check, 10),
             (cairo_vm::types::builtin_name::BuiltinName::pedersen, 5),
         ]),
@@ -224,8 +232,8 @@ fn create_transaction_resources() -> TransactionResources {
     TransactionResources {
         starknet_resources: StarknetResources::default(),
         computation: ComputationResources {
-            tx_vm_resources: create_execution_resources(2000, 5, 20, 10),
-            os_vm_resources: create_execution_resources(500, 1, 5, 2),
+            tx_extended_vm_resources: create_execution_resources(2000, 5, 20, 10),
+            os_vm_resources: create_execution_resources(500, 1, 5, 2).vm_resources,
             n_reverted_steps: 0,
             sierra_gas: GasAmount(1000),
             reverted_sierra_gas: GasAmount(0),

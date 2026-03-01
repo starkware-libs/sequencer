@@ -6,6 +6,7 @@ use starknet_api::hash::StarkHash;
 
 use crate::blockifier::transaction_executor::CompiledClassHashV2ToV1;
 use crate::blockifier_versioned_constants::{BaseGasCosts, BuiltinGasCosts};
+use crate::execution::call_info::CairoPrimitiveName;
 use crate::state::state_api::{StateReader, StateResult};
 use crate::transaction::errors::NumericConversionError;
 
@@ -80,7 +81,7 @@ pub fn get_gas_cost_from_vm_resources(
         .iter()
         .map(|(builtin, amount)| {
             let builtin_cost = builtin_costs
-                .get_builtin_gas_cost(builtin)
+                .get_cairo_primitive_gas_cost(&CairoPrimitiveName::Builtin(*builtin))
                 .unwrap_or_else(|err| panic!("Failed to get gas cost: {err}"));
             builtin_cost * u64_from_usize(*amount)
         })

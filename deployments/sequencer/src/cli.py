@@ -37,5 +37,11 @@ def argument_parser():
         type=str,
         help="Override image for all services. Format: 'repository:tag' or 'repository' (defaults to 'latest' tag).",
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output including full tracebacks for errors.",
+    )
 
     return parser.parse_args()

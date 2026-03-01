@@ -1,11 +1,24 @@
 import json
 import os
+import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 from src.config.schema import CommonConfig, ServiceConfig
+
+
+class ConfigValidationError(ValueError):
+    """Custom exception for configuration validation errors.
+
+    This exception is used to signal that a nicely formatted error message
+    has already been displayed, so the traceback can be suppressed unless
+    verbose mode is enabled.
+    """
 
 
 class Config(ABC):
@@ -313,44 +326,203 @@ class NodeConfigLoader(Config):
     def _yaml_key_to_placeholder(yaml_key: str) -> str:
         """Convert a YAML key to the full placeholder format.
 
-        Assumes all placeholders in the application config use snake_case (e.g., COMPONENTS_SIERRA_COMPILER_URL).
-        The YAML key should match this format (e.g., components_sierra_compiler_url).
+        YAML keys use hierarchical structure with dots (e.g., 'components.batcher.port'),
+        which map to placeholders with hyphens (e.g., '$$$_COMPONENTS-BATCHER-PORT_$$$').
+
+        The transformation:
+        - Dots (.) in YAML → Hyphens (-) in placeholder
+        - Lowercase → Uppercase
+        - Special keys with '.#is_none' → '.#is_none' becomes '-IS_NONE' (hash removed)
 
         Args:
-            yaml_key: The YAML key in snake_case (e.g., 'chain_id', 'components_sierra_compiler_url')
+            yaml_key: The YAML key with dots (e.g., 'components.batcher.port', 'chain_id')
 
         Returns:
-            The full placeholder format (e.g., '$$$_CHAIN_ID_$$$', '$$$_COMPONENTS_SIERRA_COMPILER_URL_$$$')
+            The full placeholder format (e.g., '$$$_COMPONENTS-BATCHER-PORT_$$$', '$$$_CHAIN_ID_$$$')
 
         Examples:
-            'chain_id' -> '$$$_CHAIN_ID_$$$'
-            'components_sierra_compiler_url' -> '$$$_COMPONENTS_SIERRA_COMPILER_URL_$$$'
-            'consensus_manager_config_network_config_advertised_multiaddr' -> '$$$_CONSENSUS_MANAGER_CONFIG_NETWORK_CONFIG_ADVERTISED_MULTIADDR_$$$'
+            'components.batcher.port' -> '$$$_COMPONENTS-BATCHER-PORT_$$$'
+            'components.sierra_compiler.url' -> '$$$_COMPONENTS-SIERRA_COMPILER-URL_$$$'
+            'consensus_manager_config.context_config.override_eth_to_fri_rate.#is_none' -> '$$$_CONSENSUS_MANAGER_CONFIG-CONTEXT_CONFIG-OVERRIDE_ETH_TO_FRI_RATE-IS_NONE_$$$'
+            'chain_id' -> '$$$_CHAIN_ID_$$$' (single-level keys still work)
         """
-        # Simple: just uppercase the key and wrap with placeholder markers
-        placeholder = yaml_key.upper()
+        # Convert dots to hyphens, then uppercase
+        # Special handling: '.#is_none' becomes '-IS_NONE' (remove the #)
+        placeholder = yaml_key.replace(".#is_none", "-is_none").replace(".", "-").upper()
         return f"$$$_{placeholder}_$$$"
 
     @staticmethod
+    def _placeholder_to_yaml_key(placeholder: str) -> str:
+        """Convert a placeholder back to YAML key format.
+
+        This is the inverse of _yaml_key_to_placeholder.
+
+        Args:
+            placeholder: The placeholder string (e.g., '$$$_COMPONENTS-BATCHER-PORT_$$$')
+
+        Returns:
+            The YAML key format (e.g., 'components.batcher.port')
+
+        Examples:
+            '$$$_COMPONENTS-BATCHER-PORT_$$$' -> 'components.batcher.port'
+            '$$$_CONSENSUS_MANAGER_CONFIG-CONTEXT_CONFIG-OVERRIDE_ETH_TO_FRI_RATE-IS_NONE_$$$' -> 'consensus_manager_config.context_config.override_eth_to_fri_rate.#is_none'
+        """
+        # Remove $$$_ prefix and _$$$ suffix
+        middle = placeholder[4:-4]
+        # Convert hyphens to dots and lowercase
+        yaml_key = middle.replace("-", ".").lower()
+        # Special handling: convert '-is_none' back to '.#is_none'
+        yaml_key = yaml_key.replace(".is_none", ".#is_none")
+        return yaml_key
+
+    @staticmethod
+    def _print_file_paths_section(
+        console: Console,
+        config_list_path: Optional[str],
+        layout: Optional[str] = None,
+        overlay: Optional[str] = None,
+    ) -> None:
+        """Print the file paths section using rich formatting.
+
+        Args:
+            console: Rich Console instance
+            config_list_path: Optional path to the config list JSON file
+            layout: Optional layout name (e.g., "hybrid")
+            overlay: Optional overlay flag value (e.g., "hybrid.testing.node-0")
+        """
+        paths_table = Table(show_header=False, box=None, padding=(0, 2))
+        paths_table.add_column(style="bold cyan", width=30)
+        paths_table.add_column(style="white")
+
+        if config_list_path:
+            full_config_path = os.path.abspath(
+                os.path.join(NodeConfigLoader.ROOT_DIR, config_list_path)
+            )
+            paths_table.add_row("application_config_json_path:", full_config_path)
+        else:
+            paths_table.add_row("application_config_json_path:", "[dim]<unknown>[/dim]")
+
+        # Construct layout path
+        if layout:
+            layout_path = (
+                Path(NodeConfigLoader.ROOT_DIR) / "configs" / "layouts" / layout
+            ).resolve()
+            paths_table.add_row("config_layout_path:", str(layout_path))
+        else:
+            paths_table.add_row("config_layout_path:", "[dim]<unknown>[/dim]")
+
+        # Construct overlay path from overlay flag value
+        if overlay:
+            # Build overlay path: configs/overlays/{layout}/{segment2}/{segment3}/...
+            overlay_path_segments = overlay.split(".")
+            if overlay_path_segments and overlay_path_segments[0] == layout:
+                overlay_base_path = (
+                    Path(NodeConfigLoader.ROOT_DIR) / "configs" / "overlays" / layout
+                ).resolve()
+                for segment in overlay_path_segments[1:]:
+                    overlay_base_path = overlay_base_path / segment
+                paths_table.add_row("config_overlay_path:", str(overlay_base_path))
+            else:
+                paths_table.add_row("config_overlay_path:", "[dim]<none>[/dim]")
+        else:
+            paths_table.add_row("config_overlay_path:", "[dim]<none>[/dim]")
+
+        console.print("\n[bold]File Paths:[/bold]")
+        console.print(paths_table)
+
+    @staticmethod
+    def _print_unused_config_keys_section(
+        console: Console, unmatched_keys: List[tuple[str, str]]
+    ) -> None:
+        """Print the unused config keys section using rich formatting.
+
+        Args:
+            console: Rich Console instance
+            unmatched_keys: List of (yaml_key, placeholder) tuples
+        """
+        if not unmatched_keys:
+            return
+
+        console.print()
+        console.print(
+            Panel.fit(
+                f"[yellow]Found {len(unmatched_keys)} config key(s) in your YAML file that don't have\n"
+                "corresponding placeholders in the application config JSON file[/yellow]",
+                title="[bold red]Unused Config Keys[/bold red]",
+                border_style="red",
+            )
+        )
+
+        # Simple list format: config key on one line, placeholder on next line
+        for yaml_key, placeholder in unmatched_keys:
+            console.print(f"[yellow]{yaml_key}[/yellow]")
+            console.print(f"[dim]{placeholder}[/dim]")
+            console.print()  # Empty line between items
+
+    @staticmethod
+    def _print_missing_placeholders_section(
+        console: Console, remaining_placeholders: set[str], config: dict
+    ) -> None:
+        """Print the missing placeholders section using rich formatting.
+
+        Args:
+            console: Rich Console instance
+            remaining_placeholders: Set of placeholder strings that weren't overridden
+            config: The config dictionary to find placeholder locations in
+        """
+        if not remaining_placeholders:
+            return
+
+        sorted_placeholders = sorted(remaining_placeholders)
+        console.print()
+        console.print(
+            Panel.fit(
+                f"[yellow]The following {len(sorted_placeholders)} placeholder(s) were found in the\n"
+                "application config but were not overridden in your YAML overlay[/yellow]",
+                title="[bold red]Missing Placeholders[/bold red]",
+                border_style="red",
+            )
+        )
+
+        # Simple list format: placeholder on one line, expected config key on next line
+        for placeholder in sorted_placeholders:
+            # Convert placeholder back to YAML key format for suggestion
+            yaml_key_suggestion = NodeConfigLoader._placeholder_to_yaml_key(placeholder)
+            console.print(f"[red]{placeholder}[/red]")
+            console.print(f"[green]{yaml_key_suggestion}[/green]")
+            console.print()  # Empty line between items
+
+    @staticmethod
     def apply_sequencer_overrides(
-        merged_json_config: dict, sequencer_config: Dict[str, Any], service_name: str = "unknown"
+        merged_json_config: dict,
+        sequencer_config: Dict[str, Any],
+        service_name: str = "unknown",
+        config_list_path: Optional[str] = None,
+        layout: Optional[str] = None,
+        overlay: Optional[str] = None,
     ) -> dict:
         """Apply sequencerConfig overrides from YAML to merged JSON config.
 
         Overrides are applied by placeholder value, not by JSON key. This makes the
         deployment resilient to JSON key changes as long as the placeholder values remain the same.
 
-        YAML keys are simplified (e.g., 'chain_id') and automatically converted to
-        placeholder format (e.g., '$$$_CHAIN_ID_$$$') for matching.
+        YAML keys use hierarchical structure with dots (e.g., 'components.batcher.port'),
+        which are automatically converted to placeholder format (e.g., '$$$_COMPONENTS-BATCHER-PORT_$$$')
+        for matching against placeholders in the JSON config.
 
         Args:
             merged_json_config: The merged JSON config dictionary from all config files
-            sequencer_config: Dictionary from YAML with simplified keys:
+            sequencer_config: Dictionary from YAML with hierarchical keys:
                 {
-                    'chain_id': '$$$_CHAIN_ID_$$$',
-                    'starknet_url': '$$$_STARKNET_URL_$$$'
+                    'components.batcher.port': 55000,
+                    'components.sierra_compiler.url': 'sequencer-sierracompiler-service',
+                    'chain_id': '123'
                 }
                 These are converted to placeholder format for matching.
+            service_name: Name of the service (for error messages)
+            config_list_path: Optional path to the config list JSON file (for error messages)
+            layout: Optional layout name (e.g., "hybrid")
+            overlay: Optional overlay flag value (e.g., "hybrid.testing.node-0")
 
         Returns:
             Updated config dictionary with overrides applied
@@ -359,47 +531,92 @@ class NodeConfigLoader(Config):
             ValueError: If any YAML key doesn't match any placeholder in the config
 
         Examples:
-            JSON: {'chain_id': '$$$_CHAIN_ID_$$$', 'some_other_key': '$$$_CHAIN_ID_$$$'}
-            YAML: {'chain_id': '123'}
-            Result: {'chain_id': '123', 'some_other_key': '123'}
+            JSON: {'components.batcher.port': '$$$_COMPONENTS-BATCHER-PORT_$$$'}
+            YAML: {'components.batcher.port': 55000}
+            Result: {'components.batcher.port': 55000}
         """
-        # Step 1: Normalize all placeholders in the merged config (replace - with _)
-        result = NodeConfigLoader._normalize_placeholders_in_config(merged_json_config)
+        # Use config as-is (no normalization needed - placeholders already use hyphens)
+        result = merged_json_config
 
-        # Step 2: Validate that all YAML keys match existing placeholders
+        # Step 1: Validate that all YAML keys match existing placeholders
+        # Collect unmatched keys but don't raise yet - we'll check after applying overrides
         unmatched_keys = []
+        matched_keys = []
         for yaml_key, replacement_value in sequencer_config.items():
-            # Convert YAML key to placeholder format and normalize it
+            # Convert YAML key to placeholder format (dots -> hyphens, uppercase)
             placeholder = NodeConfigLoader._yaml_key_to_placeholder(yaml_key)
-            placeholder = NodeConfigLoader._normalize_placeholder(placeholder)
-            # Check if placeholder exists in the normalized config
+            # Check if placeholder exists in the config
             exists = NodeConfigLoader._placeholder_exists(result, placeholder)
             if not exists:
                 unmatched_keys.append((yaml_key, placeholder))
+            else:
+                matched_keys.append((yaml_key, placeholder, replacement_value))
 
-        # Raise error if any keys don't match
-        if unmatched_keys:
-            error_messages = []
-            for yaml_key, placeholder in unmatched_keys:
-                error_messages.append(
-                    f"  - YAML key '{yaml_key}' (maps to placeholder '{placeholder}') "
-                    f"does not match any placeholder in the '{service_name}' service application config."
-                )
-            raise ValueError(
-                f"Invalid sequencerConfig override keys found for service '{service_name}'. "
-                f"The following keys do not match any placeholder in the application config:\n"
-                + "\n".join(error_messages)
-            )
-
-        # Step 3: Apply overrides
-        for yaml_key, replacement_value in sequencer_config.items():
-            # Convert YAML key to placeholder format and normalize it
-            placeholder = NodeConfigLoader._yaml_key_to_placeholder(yaml_key)
-            placeholder = NodeConfigLoader._normalize_placeholder(placeholder)
+        # Step 2: Apply overrides for matched keys only
+        for yaml_key, placeholder, replacement_value in matched_keys:
             # Replace the placeholder value wherever it appears in the config
             result = NodeConfigLoader._replace_placeholder_value(
                 result, placeholder, replacement_value
             )
+
+        # Step 3: Check for remaining placeholders
+        remaining_placeholders = NodeConfigLoader._find_all_placeholders(result)
+
+        # Step 4: If there are any issues, raise a combined error
+        if unmatched_keys or remaining_placeholders:
+            # Use stderr for error output to ensure it's visible even when stdout is captured
+            console = Console(file=sys.stderr, force_terminal=True)
+            total_issues = len(unmatched_keys) + len(remaining_placeholders)
+
+            # Determine error title
+            if unmatched_keys and remaining_placeholders:
+                error_title = (
+                    "CONFIGURATION ERRORS DETECTED (Unused Config Keys & Unhandled Placeholders)"
+                )
+            elif unmatched_keys:
+                error_title = "UNUSED CONFIG KEY(S) DETECTED"
+            else:
+                error_title = "UNHANDLED PLACEHOLDER(S) DETECTED"
+
+            # Print formatted error message
+            console.print()
+            console.print(
+                Panel.fit(
+                    f"[bold red]{error_title}[/bold red]\n\n"
+                    f"Found [yellow]{total_issues}[/yellow] issue(s):\n"
+                    + (
+                        f"  - [cyan]{len(remaining_placeholders)}[/cyan] unhandled placeholder(s)\n"
+                        if remaining_placeholders
+                        else ""
+                    )
+                    + (
+                        f"  - [cyan]{len(unmatched_keys)}[/cyan] unused config key(s)\n"
+                        if unmatched_keys
+                        else ""
+                    ),
+                    border_style="red",
+                )
+            )
+
+            NodeConfigLoader._print_file_paths_section(console, config_list_path, layout, overlay)
+            NodeConfigLoader._print_missing_placeholders_section(
+                console, remaining_placeholders, result
+            )
+            NodeConfigLoader._print_unused_config_keys_section(console, unmatched_keys)
+
+            # Ensure output is flushed before raising exception
+            sys.stderr.flush()
+
+            # Build plain text version for ValueError
+            error_message = f"{error_title}\n\n"
+            error_message += f"Found {total_issues} issue(s):\n"
+            if remaining_placeholders:
+                error_message += f"  - {len(remaining_placeholders)} unhandled placeholder(s)\n"
+            if unmatched_keys:
+                error_message += f"  - {len(unmatched_keys)} unused config key(s)\n"
+            error_message += "\nSee formatted output above for details."
+
+            raise ConfigValidationError(error_message)
 
         # Re-sort after modifications
         return dict[Any, Any](sorted(result.items()))
@@ -432,12 +649,52 @@ class NodeConfigLoader(Config):
         return placeholders
 
     @staticmethod
-    def validate_no_remaining_placeholders(config: dict, service_name: str = "unknown") -> None:
+    def _find_placeholder_locations(obj: Any, placeholder: str, path: str = "") -> List[str]:
+        """Recursively find all key paths where a placeholder value appears in the config object.
+
+        Args:
+            obj: The object to search (dict, list, or primitive)
+            placeholder: The placeholder string to find (e.g., '$$$_CHAIN_ID_$$$')
+            path: Current path in the object (for building full paths)
+
+        Returns:
+            List of key paths where the placeholder was found (e.g., ['chain_id', 'components.batcher.port'])
+        """
+        locations: List[str] = []
+
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                current_path = f"{path}.{key}" if path else key
+                locations.extend(
+                    NodeConfigLoader._find_placeholder_locations(value, placeholder, current_path)
+                )
+        elif isinstance(obj, list):
+            for idx, item in enumerate(obj):
+                current_path = f"{path}[{idx}]" if path else f"[{idx}]"
+                locations.extend(
+                    NodeConfigLoader._find_placeholder_locations(item, placeholder, current_path)
+                )
+        elif isinstance(obj, str) and obj == placeholder:
+            locations.append(path if path else "<root>")
+        elif isinstance(obj, (int, float)) and str(obj) == placeholder:
+            locations.append(path if path else "<root>")
+
+        return locations
+
+    @staticmethod
+    def validate_no_remaining_placeholders(
+        config: dict,
+        config_list_path: Optional[str] = None,
+        layout: Optional[str] = None,
+        overlay: Optional[str] = None,
+    ) -> None:
         """Validate that no placeholder values remain in the final config.
 
         Args:
             config: The final config dictionary after all overrides are applied
-            service_name: Name of the service being validated (for error messages)
+            config_list_path: Optional path to the config list JSON file (for error messages)
+            layout: Optional layout name (e.g., "hybrid")
+            overlay: Optional overlay flag value (e.g., "hybrid.testing.node-0")
 
         Raises:
             ValueError: If any placeholder values ($$$_..._$$$) are found in the config
@@ -445,14 +702,34 @@ class NodeConfigLoader(Config):
         remaining_placeholders = NodeConfigLoader._find_all_placeholders(config)
 
         if remaining_placeholders:
+            # Use stderr for error output to ensure it's visible even when stdout is captured
+            console = Console(file=sys.stderr, force_terminal=True)
             sorted_placeholders = sorted(remaining_placeholders)
-            error_message = f"Unhandled config placeholders found in service '{service_name}':\n"
-            for placeholder in sorted_placeholders:
-                error_message += f"  - {placeholder}\n"
-            error_message += (
-                "Please add these placeholders to sequencerConfig in your YAML configuration."
+
+            # Print formatted error message
+            console.print()
+            console.print(
+                Panel.fit(
+                    f"[bold red]UNHANDLED PLACEHOLDERS DETECTED[/bold red]\n\n"
+                    f"Found [yellow]{len(sorted_placeholders)}[/yellow] unhandled placeholder(s) in the final config.",
+                    border_style="red",
+                )
             )
-            raise ValueError(error_message)
+
+            NodeConfigLoader._print_file_paths_section(console, config_list_path, layout, overlay)
+            NodeConfigLoader._print_missing_placeholders_section(
+                console, remaining_placeholders, config
+            )
+
+            # Ensure output is flushed before raising exception
+            sys.stderr.flush()
+
+            # Build plain text version for ValueError
+            error_message = "UNHANDLED PLACEHOLDERS DETECTED\n\n"
+            error_message += f"Found {len(sorted_placeholders)} unhandled placeholder(s) in the final config.\n\n"
+            error_message += "See formatted output above for details."
+
+            raise ConfigValidationError(error_message)
 
 
 class GrafanaDashboardConfigLoader(Config):

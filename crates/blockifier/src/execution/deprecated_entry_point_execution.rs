@@ -13,7 +13,7 @@ use starknet_api::hash::StarkHash;
 
 use super::call_info::StorageAccessTracker;
 use super::execution_utils::SEGMENT_ARENA_BUILTIN_SIZE;
-use crate::execution::call_info::{CallExecution, CallInfo};
+use crate::execution::call_info::{CallExecution, CallInfo, ExtendedExecutionResources};
 use crate::execution::contract_class::{CompiledClassV0, TrackedResource};
 use crate::execution::deprecated_syscalls::deprecated_syscall_executor::DeprecatedSyscallExecutor;
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallHintProcessor;
@@ -25,7 +25,6 @@ use crate::execution::entry_point::{
 use crate::execution::errors::{PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{read_execution_retdata, Args, ReadOnlySegments};
 use crate::state::state_api::State;
-use crate::transaction::objects::ExecutionResourcesTraits;
 
 pub struct VmExecutionContext<'a> {
     pub runner: CairoRunner,
@@ -267,7 +266,12 @@ pub fn finalize_execution(
     vm_resources_without_inner_calls +=
         &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscalls_usage);
 
-    let vm_resources = &vm_resources_without_inner_calls
+    // NOTE: Deprecated entry point execution does not support tracking opcode counters.
+    let extended_resources_without_inner_calls = ExtendedExecutionResources {
+        vm_resources: vm_resources_without_inner_calls,
+        opcode_instance_counter: Default::default(),
+    };
+    let resources = &extended_resources_without_inner_calls
         + &CallInfo::summarize_vm_resources(syscall_handler.inner_calls.iter());
 
     Ok(CallInfo {
@@ -282,13 +286,13 @@ pub fn finalize_execution(
         },
         inner_calls: syscall_handler.inner_calls,
         tracked_resource: TrackedResource::CairoSteps,
-        resources: vm_resources,
+        resources,
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: syscall_handler.read_values,
             accessed_storage_keys: syscall_handler.accessed_keys,
             ..Default::default()
         },
-        builtin_counters: vm_resources_without_inner_calls.prover_builtins(),
+        builtin_counters: extended_resources_without_inner_calls.prover_cairo_primitives(),
         syscalls_usage: syscall_handler.syscalls_usage,
     })
 }

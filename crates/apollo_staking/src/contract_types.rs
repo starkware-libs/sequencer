@@ -8,8 +8,16 @@ use thiserror::Error;
 use crate::committee_provider::Staker;
 use crate::staking_manager::Epoch;
 
+#[cfg(test)]
+#[path = "contract_types_test.rs"]
+mod contract_types_test;
+
+// TODO(Dafna): Remove the dead_code attributes when we have a CairoStakingContract implementation.
+#[allow(dead_code)]
 pub(crate) const GET_STAKERS_ENTRY_POINT: &str = "get_stakers";
+#[allow(dead_code)]
 pub(crate) const GET_CURRENT_EPOCH_DATA_ENTRY_POINT: &str = "get_current_epoch_data";
+#[allow(dead_code)]
 pub(crate) const EPOCH_LENGTH: u64 = 100; // Number of heights in an epoch.
 
 /// Conversion from an [`Iterator`].
@@ -27,9 +35,11 @@ pub trait TryFromIterator<Felt>: Sized {
 // Represents a Cairo1 `Array` containing elements that can be deserialized to `T`.
 // `T` must implement `TryFrom<[Felt; N]>`, where `N` is the size of `T`'s Cairo equivalent.
 #[derive(Debug, PartialEq, Eq)]
+// TODO(Dafna): Remove this when we have a CairoStakingContract implementation.
+#[allow(dead_code)]
 struct ArrayRetdata<T>(Vec<T>);
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) struct ContractStaker {
     pub(crate) contract_address: ContractAddress,
     pub(crate) staking_power: StakingWeight,
@@ -53,6 +63,8 @@ pub enum RetdataDeserializationError {
 }
 
 impl ContractStaker {
+    // TODO(Dafna): Remove this when we have a CairoStakingContract implementation.
+    #[allow(dead_code)]
     pub fn from_retdata_many(retdata: Retdata) -> Result<Vec<Self>, RetdataDeserializationError> {
         Ok(ArrayRetdata::try_from(retdata)?.0)
     }

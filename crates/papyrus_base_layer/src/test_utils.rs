@@ -47,9 +47,9 @@ pub async fn make_block_history_on_anvil(
             .with_from(sender_address)
             .with_to(receiver_address)
             .with_value(U256::from(100));
-        let pending =
+        let pending_tx =
             provider.send_transaction(tx).await.expect("Could not post transaction to base layer");
-        let receipt: alloy::rpc::types::TransactionReceipt = pending
+        let receipt: alloy::rpc::types::TransactionReceipt = pending_tx
             .get_receipt()
             .await
             .expect("Could not get receipt for transaction to base layer");

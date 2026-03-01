@@ -64,9 +64,9 @@ pub fn remove_unused_cairo0_imports(content: &str) -> String {
     let mut result_lines: Vec<String> = Vec::new();
     let mut i = 0;
 
-    // Find where imports end and build the code section once
+    // Find where imports end and build the code section once (with comments stripped).
     let imports_end = find_imports_end(&lines);
-    let code_section = lines[imports_end..].join("\n");
+    let code_section = strip_comments(&lines[imports_end..].join("\n"));
 
     // Regex to match import lines
     let single_import_re = Regex::new(r"^from\s+\S+\s+import\s+(.+)$").unwrap();
@@ -161,15 +161,23 @@ fn get_imported_name(import_item: &str) -> &str {
     }
 }
 
-/// Checks if an import item is used in the given code.
+/// Strips Cairo0 single-line comments (`//`) from code.
+fn strip_comments(code: &str) -> String {
+    code.lines()
+        .map(|line| if let Some(pos) = line.find("//") { &line[..pos] } else { line })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Checks if an import item is used in the given code (assumes comments are already stripped).
 /// Handles `X as Y` syntax by checking if Y is used.
 /// Uses word boundary matching to avoid false positives.
-fn is_import_used(import_item: &str, code: &str) -> bool {
+fn is_import_used(import_item: &str, code_without_comments: &str) -> bool {
     let name_to_search = get_imported_name(import_item);
     // Match identifier as a whole word (not part of another identifier)
     let pattern = format!(r"\b{}\b", regex::escape(name_to_search));
     let re = Regex::new(&pattern).unwrap();
-    re.is_match(code)
+    re.is_match(code_without_comments)
 }
 
 /// Runs the Cairo0 formatter on the input source code.

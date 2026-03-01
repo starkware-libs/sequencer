@@ -1,11 +1,13 @@
 use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
+    ETH_TO_STRK_LAST_SUCCESS_TIMESTAMP_SECONDS,
     ETH_TO_STRK_RATE,
     ETH_TO_STRK_SUCCESS_COUNT,
     L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
     L1_GAS_PRICE_LATEST_MEAN_VALUE,
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_GAS_PRICE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS,
     L1_GAS_PRICE_SCRAPER_LATEST_SCRAPED_BLOCK,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
     L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
@@ -13,8 +15,9 @@ use apollo_l1_gas_price::metrics::{
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::dashboard::{get_time_since_last_increase_expr, Panel, PanelType, Row, Unit};
-use crate::query_builder::{increase, DEFAULT_DURATION};
+use crate::dashboard::Row;
+use crate::panel::{Panel, PanelType, Unit};
+use crate::query_builder::{increase, seconds_since_last_timestamp, DEFAULT_DURATION};
 
 fn get_panel_eth_to_strk_error_count() -> Panel {
     Panel::new(
@@ -34,7 +37,7 @@ fn get_panel_eth_to_strk_seconds_since_last_successful_update() -> Panel {
         "Seconds since last successful ETH→STRK rate update",
         "The number of seconds since the last successful ETH→STRK rate update (assuming there was \
          an update in the last 12 hours)",
-        get_time_since_last_increase_expr(&ETH_TO_STRK_SUCCESS_COUNT.get_name_with_filter()),
+        seconds_since_last_timestamp(&ETH_TO_STRK_LAST_SUCCESS_TIMESTAMP_SECONDS),
         PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
@@ -115,9 +118,7 @@ fn get_panel_l1_gas_price_scraper_seconds_since_last_successful_scrape() -> Pane
         "Seconds since last successful L1 gas price scrape",
         "The number of seconds since the last successful scrape of the L1 gas price scraper \
          (assuming there was a scrape in the last 12 hours)",
-        get_time_since_last_increase_expr(
-            &L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT.get_name_with_filter(),
-        ),
+        seconds_since_last_timestamp(&L1_GAS_PRICE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS),
         PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)

@@ -2,10 +2,16 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
+use apollo_batcher_config::config::{
+    BatcherConfig,
+    BatcherDynamicConfig,
+    BatcherStaticConfig,
+    BlockBuilderConfig,
+};
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
+    FinishedProposalInfo,
     GetHeightResponse,
     GetProposalContent,
     GetProposalContentInput,
@@ -21,6 +27,8 @@ use apollo_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use apollo_batcher_types::errors::BatcherError;
+use apollo_committer_types::committer_types::CommitBlockRequest;
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
@@ -35,7 +43,7 @@ use assert_matches::assert_matches;
 use blockifier::abi::constants;
 use indexmap::{indexmap, IndexMap, IndexSet};
 use metrics_exporter_prometheus::PrometheusBuilder;
-use mockall::predicate::eq;
+use mockall::predicate::{always, eq};
 use rstest::rstest;
 use starknet_api::block::{
     BlockHash,
@@ -47,7 +55,7 @@ use starknet_api::block::{
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot, Nonce};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
@@ -56,6 +64,7 @@ use tempfile::TempDir;
 use validator::Validate;
 
 use crate::batcher::{
+    finished_proposal_info_from_artifacts,
     Batcher,
     BatcherStorageReader,
     BatcherStorageWriter,
@@ -71,6 +80,7 @@ use crate::block_builder::{
     MockBlockBuilderFactoryTrait,
 };
 use crate::commitment_manager::commitment_manager_impl::CommitmentManager;
+use crate::commitment_manager::types::CommitterTaskInput;
 use crate::metrics::{
     BATCHED_TRANSACTIONS,
     BUILDING_HEIGHT,
@@ -85,12 +95,14 @@ use crate::metrics::{
     SYNCED_TRANSACTIONS,
 };
 use crate::test_utils::{
+    get_number_of_items_in_channel_from_receiver,
     propose_block_input,
     test_contract_nonces,
     test_l1_handler_txs,
     test_state_diff,
     test_txs,
     verify_indexed_execution_infos,
+    wait_for_n_items,
     FakeProposeBlockBuilder,
     FakeValidateBlockBuilder,
     MockClients,
@@ -159,8 +171,12 @@ fn write_state_diff(batcher: &mut Batcher, height: BlockNumber, state_diff: &Thi
         .expect("set_state_diff failed");
 }
 
-async fn proposal_commitment() -> ProposalCommitment {
-    BlockExecutionArtifacts::create_for_testing().await.commitment()
+async fn finished_proposal_info() -> FinishedProposalInfo {
+    let artifacts = BlockExecutionArtifacts::create_for_testing().await;
+    FinishedProposalInfo::from_artifacts_and_parent(
+        finished_proposal_info_from_artifacts(&artifacts),
+        Some(parent_proposal_commitment()),
+    )
 }
 
 fn parent_proposal_commitment() -> ProposalCommitment {
@@ -193,7 +209,10 @@ impl Default for MockDependenciesWithRealStorage {
             storage_writer,
             clients: MockClients::default(),
             batcher_config: BatcherConfig {
-                outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
+                static_config: BatcherStaticConfig {
+                    outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             _temp_dir: temp_dir,
@@ -231,12 +250,16 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
 ) -> Batcher {
     let committer_client = Arc::new(clients.committer_client);
     let commitment_manager = CommitmentManager::create_commitment_manager(
-        &config,
-        &config.commitment_manager_config,
-        storage_reader.as_ref(),
+        &config.static_config.commitment_manager_config,
+        storage_reader.clone(),
         committer_client.clone(),
     )
     .await;
+
+    let mut mock_config_manager = MockConfigManagerClient::new();
+    mock_config_manager
+        .expect_get_batcher_dynamic_config()
+        .returning(|| Ok(BatcherDynamicConfig::default()));
 
     let mut batcher = Batcher::new(
         config,
@@ -245,6 +268,7 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
         committer_client,
         Arc::new(clients.l1_provider_client),
         Arc::new(clients.mempool_client),
+        Arc::new(mock_config_manager),
         Box::new(clients.block_builder_factory),
         Box::new(clients.pre_confirmed_block_writer_factory),
         commitment_manager,
@@ -274,7 +298,7 @@ fn mock_create_builder_for_validate_block(
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        |_, _, tx_provider, _, _, _, _| {
+        |_, _, _, tx_provider, _, _, _, _| {
             let block_builder = FakeValidateBlockBuilder {
                 tx_provider,
                 build_block_result: Some(build_block_result),
@@ -284,13 +308,22 @@ fn mock_create_builder_for_validate_block(
     );
 }
 
+fn mock_storage_reader_for_revert() -> MockBatcherStorageReader {
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader.expect_reversed_state_diff().returning(|_| Ok(test_state_diff()));
+    storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_global_root().returning(|_| Ok(Some(GlobalRoot::default())));
+    storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader
+}
+
 fn mock_create_builder_for_propose_block(
     block_builder_factory: &mut MockBlockBuilderFactoryTrait,
     output_txs: Vec<InternalConsensusTransaction>,
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        move |_, _, tx_provider, output_content_sender, _, _, _| {
+        move |_, _, _, tx_provider, output_content_sender, _, _, _| {
             let block_builder = FakeProposeBlockBuilder {
                 output_content_sender: output_content_sender.unwrap(),
                 output_txs,
@@ -373,38 +406,42 @@ fn verify_decision_reached_response(
 
 fn assert_proposal_metrics(
     metrics: &str,
-    expected_started: u64,
-    expected_succeeded: u64,
-    expected_failed: u64,
-    expected_aborted: u64,
+    expected_started_count: u64,
+    expected_succeeded_count: u64,
+    expected_failed_count: u64,
+    expected_aborted_count: u64,
 ) {
-    let n_expected_active_proposals =
-        expected_started - (expected_succeeded + expected_failed + expected_aborted);
+    let n_expected_active_proposals = expected_started_count
+        - (expected_succeeded_count + expected_failed_count + expected_aborted_count);
     assert!(n_expected_active_proposals <= 1);
-    let started = PROPOSAL_STARTED.parse_numeric_metric::<u64>(metrics);
-    let succeeded = PROPOSAL_SUCCEEDED.parse_numeric_metric::<u64>(metrics);
-    let failed = PROPOSAL_FAILED.parse_numeric_metric::<u64>(metrics);
-    let aborted = PROPOSAL_ABORTED.parse_numeric_metric::<u64>(metrics);
+    let actual_started_count = PROPOSAL_STARTED.parse_numeric_metric::<u64>(metrics);
+    let actual_succeeded_count = PROPOSAL_SUCCEEDED.parse_numeric_metric::<u64>(metrics);
+    let actual_failed_count = PROPOSAL_FAILED.parse_numeric_metric::<u64>(metrics);
+    let actual_aborted_count = PROPOSAL_ABORTED.parse_numeric_metric::<u64>(metrics);
 
     assert_eq!(
-        started,
-        Some(expected_started),
-        "unexpected value proposal_started, expected {expected_started} got {started:?}",
+        actual_started_count,
+        Some(expected_started_count),
+        "unexpected value proposal_started, expected {expected_started_count} got \
+         {actual_started_count:?}",
     );
     assert_eq!(
-        succeeded,
-        Some(expected_succeeded),
-        "unexpected value proposal_succeeded, expected {expected_succeeded} got {succeeded:?}",
+        actual_succeeded_count,
+        Some(expected_succeeded_count),
+        "unexpected value proposal_succeeded, expected {expected_succeeded_count} got \
+         {actual_succeeded_count:?}",
     );
     assert_eq!(
-        failed,
-        Some(expected_failed),
-        "unexpected value proposal_failed, expected {expected_failed} got {failed:?}",
+        actual_failed_count,
+        Some(expected_failed_count),
+        "unexpected value proposal_failed, expected {expected_failed_count} got \
+         {actual_failed_count:?}",
     );
     assert_eq!(
-        aborted,
-        Some(expected_aborted),
-        "unexpected value proposal_aborted, expected {expected_aborted} got {aborted:?}",
+        actual_aborted_count,
+        Some(expected_aborted_count),
+        "unexpected value proposal_aborted, expected {expected_aborted_count} got \
+         {actual_aborted_count:?}",
     );
 }
 
@@ -509,8 +546,7 @@ async fn ignore_l1_handler_provider_not_ready(#[case] proposer: bool) {
 #[tokio::test]
 async fn consecutive_heights_success() {
     let mut storage_reader = MockBatcherStorageReader::new();
-    storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // metrics registration
-    storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // create commitment manager
+    storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // batcher start
     storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // first start_height
     storage_reader
         .expect_state_diff_height()
@@ -581,11 +617,10 @@ async fn validate_block_full_flow() {
         proposal_id: PROPOSAL_ID,
         content: SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
     };
+    let expected_info = finished_proposal_info().await;
     assert_eq!(
         batcher.send_proposal_content(finish_proposal).await.unwrap(),
-        SendProposalContentResponse {
-            response: ProposalStatus::Finished(proposal_commitment().await)
-        }
+        SendProposalContentResponse { response: ProposalStatus::Finished(expected_info) }
     );
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 1, 1, 0, 0);
@@ -736,16 +771,10 @@ async fn propose_block_full_flow() {
         .get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID })
         .await
         .unwrap();
+    let expected_info = finished_proposal_info().await;
     assert_eq!(
         commitment,
-        GetProposalContentResponse {
-            content: GetProposalContent::Finished {
-                id: proposal_commitment().await,
-                final_n_executed_txs: BlockExecutionArtifacts::create_for_testing()
-                    .await
-                    .final_n_executed_txs
-            }
-        }
+        GetProposalContentResponse { content: GetProposalContent::Finished(expected_info) }
     );
 
     let exhausted =
@@ -774,21 +803,17 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
         );
     }
 
-    let mut storage_writer = MockBatcherStorageWriter::new();
-    storage_writer.expect_revert_block().times(N_PROPOSALS).returning(|_| ());
-
     let mut l1_provider_client = MockL1ProviderClient::new();
     l1_provider_client.expect_start_block().times(N_PROPOSALS).returning(|_, _| Ok(()));
 
     let mock_dependencies = MockDependencies {
-        storage_writer,
         clients: MockClients { block_builder_factory, l1_provider_client, ..Default::default() },
         ..Default::default()
     };
 
     let mut batcher = create_batcher(mock_dependencies).await;
     // Only propose L1 txs every PROPOSALS_L1_MODULATOR proposals.
-    batcher.config.propose_l1_txs_every = PROPOSALS_L1_MODULATOR.try_into().unwrap();
+    batcher.config.static_config.propose_l1_txs_every = PROPOSALS_L1_MODULATOR.try_into().unwrap();
 
     for i in 0..N_PROPOSALS {
         batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
@@ -807,10 +832,7 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
         }
 
         batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
-        batcher
-            .revert_block(RevertBlockInput { height: INITIAL_HEIGHT.prev().unwrap() })
-            .await
-            .unwrap();
+        batcher.abort_active_height().await;
     }
 }
 
@@ -1294,7 +1316,11 @@ async fn revert_block() {
         .with(eq(LATEST_BLOCK_IN_STORAGE))
         .returning(|_| ());
 
-    let mock_dependencies = MockDependencies { storage_writer, ..Default::default() };
+    let storage_reader = mock_storage_reader_for_revert();
+    let mock_dependencies =
+        MockDependencies { storage_reader, storage_writer, ..Default::default() };
+
+    let committer_offset = mock_dependencies.clients.committer_client.get_offset();
 
     let mut batcher = create_batcher(mock_dependencies).await;
 
@@ -1302,7 +1328,10 @@ async fn revert_block() {
     assert_eq!(BUILDING_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
 
     let revert_input = RevertBlockInput { height: LATEST_BLOCK_IN_STORAGE };
+
+    assert_eq!(*(committer_offset.lock().await), INITIAL_HEIGHT);
     batcher.revert_block(revert_input).await.unwrap();
+    assert_eq!(*committer_offset.lock().await, LATEST_BLOCK_IN_STORAGE);
 
     let metrics = recorder.handle().render();
     assert_eq!(BUILDING_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0 - 1));
@@ -1499,8 +1528,14 @@ async fn mempool_not_ready() {
 #[test]
 fn validate_batcher_config_failure() {
     let config = BatcherConfig {
-        input_stream_content_buffer_size: 99,
-        block_builder_config: BlockBuilderConfig { n_concurrent_txs: 100, ..Default::default() },
+        static_config: BatcherStaticConfig {
+            input_stream_content_buffer_size: 99,
+            block_builder_config: BlockBuilderConfig {
+                n_concurrent_txs: 100,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
         ..Default::default()
     };
 
@@ -1584,7 +1619,7 @@ async fn get_block_hash() {
         .with(eq(INITIAL_HEIGHT))
         .returning(|_| Ok(Some(BlockHash::default())));
 
-    let batcher = create_batcher(mock_dependencies).await;
+    let mut batcher = create_batcher(mock_dependencies).await;
     let result = batcher.get_block_hash(INITIAL_HEIGHT);
     assert_eq!(result, Ok(BlockHash::default()));
 }
@@ -1597,9 +1632,57 @@ async fn get_block_hash_not_found() {
         .expect_get_block_hash()
         .with(eq(INITIAL_HEIGHT))
         .returning(|_| Ok(None));
-    let batcher = create_batcher(mock_dependencies).await;
+    let mut batcher = create_batcher(mock_dependencies).await;
     let result = batcher.get_block_hash(INITIAL_HEIGHT);
     assert_eq!(result, Err(BatcherError::BlockHashNotFound(INITIAL_HEIGHT)));
+}
+
+#[tokio::test]
+async fn get_block_hash_after_reading_commitment_results() {
+    let mut mock_dependencies = MockDependencies::default();
+    let block_hash = BlockHash::default();
+
+    // Should be called by the commitment manager when finalizing results and writing them to
+    // storage.
+    mock_dependencies
+        .storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(INITIAL_HEIGHT))
+        .returning(|height| {
+            let partial = PartialBlockHashComponents { block_number: height, ..Default::default() };
+            Ok((Some(BlockHash::default()), Some(partial)))
+        });
+    mock_dependencies
+        .storage_writer
+        .expect_set_global_root_and_block_hash()
+        .times(1)
+        .with(eq(INITIAL_HEIGHT), eq(GlobalRoot::default()), always())
+        .returning(|_, _, _| Ok(()));
+
+    mock_dependencies
+        .storage_reader
+        .expect_get_block_hash()
+        .times(1)
+        .with(eq(INITIAL_HEIGHT))
+        .returning(move |_| Ok(Some(block_hash)));
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+
+    // Send a commitment task directly to the state committer so a result will be available.
+    let task = CommitterTaskInput::Commit(CommitBlockRequest {
+        height: INITIAL_HEIGHT,
+        state_diff: ThinStateDiff::default(),
+        state_diff_commitment: None,
+    });
+    batcher.commitment_manager.tasks_sender.send(task).await.unwrap();
+    wait_for_n_items(&mut batcher.commitment_manager.results_receiver, 1).await;
+
+    let result = batcher.get_block_hash(INITIAL_HEIGHT);
+    assert_eq!(result, Ok(block_hash));
+    assert_eq!(
+        get_number_of_items_in_channel_from_receiver(&batcher.commitment_manager.results_receiver),
+        0
+    );
 }
 
 #[tokio::test]
@@ -1610,7 +1693,7 @@ async fn get_block_hash_error() {
         .expect_get_block_hash()
         .with(eq(INITIAL_HEIGHT))
         .returning(|_| Err(StorageError::InnerError(DbError::InnerDeserialization)));
-    let batcher = create_batcher(mock_dependencies).await;
+    let mut batcher = create_batcher(mock_dependencies).await;
     let result = batcher.get_block_hash(INITIAL_HEIGHT);
     assert_eq!(result, Err(BatcherError::InternalError));
 }

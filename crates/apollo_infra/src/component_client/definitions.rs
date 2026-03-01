@@ -1,4 +1,4 @@
-use hyper::StatusCode;
+use http::StatusCode;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use thiserror::Error;

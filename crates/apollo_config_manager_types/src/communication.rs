@@ -1,19 +1,25 @@
 use std::sync::Arc;
 
+use apollo_batcher_config::config::BatcherDynamicConfig;
+use apollo_class_manager_config::config::ClassManagerDynamicConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
-use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_infra::{
+    handle_all_response_variants,
+    impl_debug_for_infra_requests_and_responses,
+    impl_labeled_request,
+};
 use apollo_mempool_config::config::MempoolDynamicConfig;
 use apollo_metrics::generate_permutation_labels;
 use apollo_node_config::node_config::NodeDynamicConfig;
-use apollo_proc_macros::handle_all_response_variants;
+use apollo_staking_config::config::StakingManagerDynamicConfig;
+use apollo_state_sync_config::config::StateSyncDynamicConfig;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use strum::{EnumVariantNames, VariantNames};
-use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use thiserror::Error;
 
 use crate::config_manager_types::ConfigManagerResult;
@@ -34,12 +40,23 @@ pub trait ConfigManagerClient: Send + Sync {
         &self,
     ) -> ConfigManagerClientResult<ConsensusDynamicConfig>;
 
+    async fn get_class_manager_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<ClassManagerDynamicConfig>;
+
     async fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig>;
     async fn get_http_server_dynamic_config(
         &self,
     ) -> ConfigManagerClientResult<HttpServerDynamicConfig>;
 
     async fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig>;
+    async fn get_batcher_dynamic_config(&self) -> ConfigManagerClientResult<BatcherDynamicConfig>;
+    async fn get_state_sync_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<StateSyncDynamicConfig>;
+    async fn get_staking_manager_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<StakingManagerDynamicConfig>;
 
     async fn set_node_dynamic_config(
         &self,
@@ -55,10 +72,14 @@ pub trait ConfigManagerClient: Send + Sync {
 )]
 pub enum ConfigManagerRequest {
     GetConsensusDynamicConfig,
+    GetClassManagerDynamicConfig,
     GetContextDynamicConfig,
     GetHttpServerDynamicConfig,
     GetMempoolDynamicConfig,
-    SetNodeDynamicConfig(NodeDynamicConfig),
+    GetBatcherDynamicConfig,
+    GetStateSyncDynamicConfig,
+    GetStakingManagerDynamicConfig,
+    SetNodeDynamicConfig(Box<NodeDynamicConfig>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerRequest);
 impl_labeled_request!(ConfigManagerRequest, ConfigManagerRequestLabelValue);
@@ -74,9 +95,13 @@ generate_permutation_labels! {
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum ConfigManagerResponse {
     GetConsensusDynamicConfig(ConfigManagerResult<ConsensusDynamicConfig>),
+    GetClassManagerDynamicConfig(ConfigManagerResult<ClassManagerDynamicConfig>),
     GetContextDynamicConfig(ConfigManagerResult<ContextDynamicConfig>),
     GetHttpServerDynamicConfig(ConfigManagerResult<HttpServerDynamicConfig>),
     GetMempoolDynamicConfig(ConfigManagerResult<MempoolDynamicConfig>),
+    GetBatcherDynamicConfig(ConfigManagerResult<BatcherDynamicConfig>),
+    GetStateSyncDynamicConfig(ConfigManagerResult<StateSyncDynamicConfig>),
+    GetStakingManagerDynamicConfig(ConfigManagerResult<StakingManagerDynamicConfig>),
     SetNodeDynamicConfig(ConfigManagerResult<()>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerResponse);
@@ -99,8 +124,25 @@ where
     ) -> ConfigManagerClientResult<ConsensusDynamicConfig> {
         let request = ConfigManagerRequest::GetConsensusDynamicConfig;
         handle_all_response_variants!(
+            self,
+            request,
             ConfigManagerResponse,
             GetConsensusDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_class_manager_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<ClassManagerDynamicConfig> {
+        let request = ConfigManagerRequest::GetClassManagerDynamicConfig;
+        handle_all_response_variants!(
+            self,
+            request,
+            ConfigManagerResponse,
+            GetClassManagerDynamicConfig,
             ConfigManagerClientError,
             ConfigManagerError,
             Direct
@@ -110,6 +152,8 @@ where
     async fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig> {
         let request = ConfigManagerRequest::GetContextDynamicConfig;
         handle_all_response_variants!(
+            self,
+            request,
             ConfigManagerResponse,
             GetContextDynamicConfig,
             ConfigManagerClientError,
@@ -123,6 +167,8 @@ where
     ) -> ConfigManagerClientResult<HttpServerDynamicConfig> {
         let request = ConfigManagerRequest::GetHttpServerDynamicConfig;
         handle_all_response_variants!(
+            self,
+            request,
             ConfigManagerResponse,
             GetHttpServerDynamicConfig,
             ConfigManagerClientError,
@@ -134,8 +180,53 @@ where
     async fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig> {
         let request = ConfigManagerRequest::GetMempoolDynamicConfig;
         handle_all_response_variants!(
+            self,
+            request,
             ConfigManagerResponse,
             GetMempoolDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_batcher_dynamic_config(&self) -> ConfigManagerClientResult<BatcherDynamicConfig> {
+        let request = ConfigManagerRequest::GetBatcherDynamicConfig;
+        handle_all_response_variants!(
+            self,
+            request,
+            ConfigManagerResponse,
+            GetBatcherDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_state_sync_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<StateSyncDynamicConfig> {
+        let request = ConfigManagerRequest::GetStateSyncDynamicConfig;
+        handle_all_response_variants!(
+            self,
+            request,
+            ConfigManagerResponse,
+            GetStateSyncDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_staking_manager_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<StakingManagerDynamicConfig> {
+        let request = ConfigManagerRequest::GetStakingManagerDynamicConfig;
+        handle_all_response_variants!(
+            self,
+            request,
+            ConfigManagerResponse,
+            GetStakingManagerDynamicConfig,
             ConfigManagerClientError,
             ConfigManagerError,
             Direct
@@ -146,8 +237,10 @@ where
         &self,
         config: NodeDynamicConfig,
     ) -> ConfigManagerClientResult<()> {
-        let request = ConfigManagerRequest::SetNodeDynamicConfig(config);
+        let request = ConfigManagerRequest::SetNodeDynamicConfig(Box::new(config));
         handle_all_response_variants!(
+            self,
+            request,
             ConfigManagerResponse,
             SetNodeDynamicConfig,
             ConfigManagerClientError,

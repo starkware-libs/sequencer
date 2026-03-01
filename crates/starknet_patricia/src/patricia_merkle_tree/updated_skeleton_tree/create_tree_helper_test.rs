@@ -495,11 +495,12 @@ fn test_update_node_in_nonempty_tree(
 #[tokio::test]
 async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
     let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_unmodified(root_hash);
-    let updated =
+    let updated_tree =
         UpdatedSkeletonTreeImpl::create(&mut original_skeleton_tree, &HashMap::new()).unwrap();
     let empty_map = HashMap::new();
-    let filled = MockTrie::create_with_existing_leaves::<TestTreeHashFunction>(updated, empty_map)
-        .await
-        .unwrap();
+    let filled =
+        MockTrie::create_with_existing_leaves::<TestTreeHashFunction>(updated_tree, empty_map)
+            .await
+            .unwrap();
     assert_eq!(root_hash, filled.get_root_hash());
 }

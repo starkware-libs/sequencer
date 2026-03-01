@@ -16,11 +16,11 @@ use blockifier::metrics::{
     TOTAL_CALLS,
 };
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::Row;
+use crate::panel::{Panel, PanelType};
 
 const DENOMINATOR_DIVISOR_FOR_READABILITY: f64 = 1_000_000_000.0;
 
-// TODO(MatanL/Shahak): use clamp_min(X, 1) on denom to avoid division by zero.
 fn get_panel_blockifier_state_reader_class_cache_miss_ratio(
     class_cache_metrics: &CacheMetrics,
 ) -> Panel {
@@ -45,7 +45,6 @@ fn get_panel_blockifier_state_reader_class_cache_miss_ratio(
     )
 }
 
-// TODO(MatanL/Shahak): use clamp_min(X, 1) on denom to avoid division by zero.
 fn get_panel_blockifier_state_reader_native_class_returned_ratio() -> Panel {
     let class_cache_metrics = BATCHER_CLASS_CACHE_METRICS;
 
