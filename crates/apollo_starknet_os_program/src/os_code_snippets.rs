@@ -14,15 +14,23 @@ fn get_code_snippet(location: &Location) -> Option<String> {
     get_code_snippet_from_filemap(location, &CAIRO_FILES_MAP)
 }
 
-/// Gets a code snippet from an OS file at a specific location.
+/// Gets a code snippet from a cairo file at a specific location.
 fn get_code_snippet_from_filemap(
     location: &Location,
     files_map: &HashMap<String, String>,
 ) -> Option<String> {
-    let path = location.input_file.filename.split_once("cairo/").map(|(_, rest)| rest)?;
-    let file_bytes = files_map.get(path)?.as_bytes();
-
-    Some(location.get_location_marks(file_bytes).to_string())
+    Some(
+        match location.input_file.filename.split_once("cairo/").map(|(_, rest)| files_map.get(rest))
+        {
+            Some(Some(file_string)) => {
+                location.get_location_marks(file_string.as_bytes()).to_string()
+            }
+            // The file may exist on the filesystem - try reading it.
+            None | Some(None) => location
+                .get_location_marks(&std::fs::read(&location.input_file.filename).ok()?)
+                .to_string(),
+        },
+    )
 }
 
 /// Adds code snippets to the traceback of a VM exception.
