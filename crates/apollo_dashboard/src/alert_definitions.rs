@@ -2,6 +2,8 @@ use apollo_consensus::metrics::{
     CONSENSUS_CONFLICTING_VOTES,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
     CONSENSUS_DECISIONS_REACHED_BY_SYNC,
+    CONSENSUS_INBOUND_PEER_EVICTED,
+    CONSENSUS_INBOUND_STREAM_BUFFER_FULL,
     CONSENSUS_INBOUND_STREAM_EVICTED,
 };
 use apollo_consensus_manager::metrics::{
@@ -145,6 +147,40 @@ fn get_consensus_inbound_stream_evicted_alert() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
+        ObserverApplicability::NotApplicable,
+    )
+}
+
+fn get_consensus_inbound_peer_evicted_alert() -> Alert {
+    Alert::new(
+        "consensus_inbound_peer_evicted",
+        "Consensus inbound peer evicted",
+        AlertGroup::Consensus,
+        format!(
+            "sum(increase({}[1h])) or vector(0)",
+            CONSENSUS_INBOUND_PEER_EVICTED.get_name_with_filter()
+        ),
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 5.0, AlertLogicalOp::And)],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        AlertSeverity::Informational,
+        ObserverApplicability::NotApplicable,
+    )
+}
+
+fn get_consensus_inbound_stream_buffer_full_alert() -> Alert {
+    Alert::new(
+        "consensus_inbound_stream_buffer_full",
+        "Consensus inbound stream buffer full",
+        AlertGroup::Consensus,
+        format!(
+            "sum(increase({}[1h])) or vector(0)",
+            CONSENSUS_INBOUND_STREAM_BUFFER_FULL.get_name_with_filter()
+        ),
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 1.0, AlertLogicalOp::And)],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
     )
 }
@@ -501,6 +537,8 @@ pub fn get_apollo_alerts() -> Alerts {
         get_cende_write_prev_height_blob_latency_too_high(),
         get_consensus_conflicting_votes(),
         get_consensus_decisions_reached_by_consensus_ratio(),
+        get_consensus_inbound_peer_evicted_alert(),
+        get_consensus_inbound_stream_buffer_full_alert(),
         get_consensus_inbound_stream_evicted_alert(),
         get_consensus_l1_gas_price_provider_failure(),
         get_consensus_l1_gas_price_provider_failure_once(),
