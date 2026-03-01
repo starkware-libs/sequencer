@@ -1,3 +1,4 @@
+pub mod authentication;
 pub mod codec;
 #[cfg(test)]
 mod codec_test;
