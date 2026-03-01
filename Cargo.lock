@@ -4709,14 +4709,13 @@ dependencies = [
 [[package]]
 name = "cairo-vm"
 version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "182965d2ccbc05674f798b30097854ecf015eed695194a3a5fe9b682c4163b9d"
+source = "git+https://github.com/lambdaclass/cairo-vm?rev=22cd4adccb059a4411b2d1ff16812c8aa9596c5f#22cd4adccb059a4411b2d1ff16812c8aa9596c5f"
 dependencies = [
  "anyhow",
- "bincode 2.0.1",
  "bitvec",
  "clap",
  "generic-array",
+ "getrandom 0.2.16",
  "hashbrown 0.15.5",
  "indoc 2.0.7",
  "keccak",
@@ -4735,6 +4734,7 @@ dependencies = [
  "starknet-crypto 0.8.1",
  "starknet-types-core",
  "thiserror 2.0.17",
+ "tracing",
  "zip",
 ]
 
