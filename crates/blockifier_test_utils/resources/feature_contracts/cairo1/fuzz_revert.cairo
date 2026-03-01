@@ -7,14 +7,18 @@ trait IOrchestrator<TContractState> {
 mod FuzzRevertContract {
     use super::IOrchestratorDispatcher;
     use super::IOrchestratorDispatcherTrait;
+    use core::panic_with_felt252;
     use starknet::storage::StoragePointerWriteAccess;
-    use starknet::ContractAddress;
+    use starknet::{ContractAddress, syscalls};
     use starknet::contract_address::ContractAddressZero;
 
     // Scenarios.
     // The RETURN scenario *must* be zero, as the zero value also indicates end of scenario stream
     // (when cairo0 fuzz contracts get the None value from the orchestrator).
     const SCENARIO_RETURN: felt252 = 0;
+    const SCENARIO_CALL: felt252 = 1;
+
+    const FUZZ_TEST_SELECTOR: felt252 = selector!("test_revert_fuzz");
 
     #[storage]
     struct Storage {
@@ -54,6 +58,21 @@ mod FuzzRevertContract {
 
         if scenario == SCENARIO_RETURN {
             return;
+        }
+
+        if scenario == SCENARIO_CALL {
+            let contract_address: ContractAddress = self.pop_front().try_into().unwrap();
+            let should_unwrap_with = self.pop_front();
+            match syscalls::call_contract_syscall(
+                contract_address, FUZZ_TEST_SELECTOR, array![].span(),
+            ) {
+                Result::Ok(_) => (),
+                Result::Err(_) => {
+                    if should_unwrap_with != 0 {
+                        panic_with_felt252(should_unwrap_with);
+                    }
+                },
+            }
         }
 
         // Unless explicitly stated otherwise, the next operation should be in the current call
