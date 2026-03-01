@@ -550,6 +550,10 @@ async fn test_compiled_class_hash_resources_estimation(
                         "{contract_name}: Expected single segment bytecode."
                     );
                 }
+                // TODO(Dori): When these contracts are no longer empty, reinstate the assert.
+                FeatureContract::FuzzTest(_)
+                | FeatureContract::FuzzTest2(_)
+                | FeatureContract::FuzzTestOrchestrator(_) => {}
                 // Other contracts are node-segmented by their functions.
                 _ => {
                     assert!(
