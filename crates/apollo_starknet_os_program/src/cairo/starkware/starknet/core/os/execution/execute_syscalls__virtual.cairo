@@ -59,6 +59,9 @@ from starkware.starknet.core.os.output import OsCarriedOutputs
 
 // Virtual OS version of execute_syscalls.
 // Executes a subset of the system calls that are allowed in virtual OS mode.
+//
+// The set of allowed syscalls is part of the VIRTUAL_SNOS0 version contract.
+// Changes must trigger a version bump.
 func execute_syscalls{
     range_check_ptr,
     syscall_ptr: felt*,
