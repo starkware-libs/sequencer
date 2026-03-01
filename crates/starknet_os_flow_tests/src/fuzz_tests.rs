@@ -200,6 +200,16 @@ struct FuzzCallInfo {
     pub inner_calls: Vec<FuzzCallInfo>,
 }
 
+impl FuzzCallInfo {
+    pub fn new_call(
+        address: ContractAddress,
+        class_hash: ClassHash,
+        parent_failure_behavior: ParentFailureBehavior,
+    ) -> Self {
+        Self { address, class_hash, parent_failure_behavior, inner_calls: vec![] }
+    }
+}
+
 /// Represents the call tree of a fuzz test.
 #[allow(dead_code)]
 struct FuzzTestManager {
@@ -268,13 +278,12 @@ impl FuzzTestManager {
         }
 
         // First call is the orchestrator calling the first fuzz test contract.
-        let first_call = FuzzCallInfo {
-            address: cairo1_contract_address_a,
-            class_hash: *CAIRO1_CONTRACT_CLASS_HASH,
+        let first_call = FuzzCallInfo::new_call(
+            cairo1_contract_address_a,
+            *CAIRO1_CONTRACT_CLASS_HASH,
             // The orchestrator always starts the test in a catching context.
-            parent_failure_behavior: ParentFailureBehavior::Cairo1Catching,
-            inner_calls: vec![],
-        };
+            ParentFailureBehavior::Cairo1Catching,
+        );
         Self {
             calls: vec![first_call],
             current_call: vec![0],
@@ -403,22 +412,20 @@ impl FuzzTestManager {
             FuzzOperationData::Call(call_operation_data) => {
                 let address = *call_operation_data.address();
                 let class_hash = *self.deployed_fuzz_contracts.get(&address).unwrap();
-                self.current_fuzz_call_info_mut().inner_calls.push(FuzzCallInfo {
+                self.current_fuzz_call_info_mut().inner_calls.push(FuzzCallInfo::new_call(
                     address,
                     class_hash,
-                    parent_failure_behavior: call_operation_data.parent_failure_behavior(),
-                    inner_calls: vec![],
-                });
+                    call_operation_data.parent_failure_behavior(),
+                ));
                 self.current_call.push(self.current_fuzz_call_info().inner_calls.len() - 1);
             }
             FuzzOperationData::LibraryCall(library_call_operation_data) => {
                 let current_address = self.current_fuzz_call_info().address;
-                self.current_fuzz_call_info_mut().inner_calls.push(FuzzCallInfo {
-                    address: current_address,
-                    class_hash: *library_call_operation_data.class_hash(),
-                    parent_failure_behavior: library_call_operation_data.parent_failure_behavior(),
-                    inner_calls: vec![],
-                });
+                self.current_fuzz_call_info_mut().inner_calls.push(FuzzCallInfo::new_call(
+                    current_address,
+                    *library_call_operation_data.class_hash(),
+                    library_call_operation_data.parent_failure_behavior(),
+                ));
                 self.current_call.push(self.current_fuzz_call_info().inner_calls.len() - 1);
             }
         }
