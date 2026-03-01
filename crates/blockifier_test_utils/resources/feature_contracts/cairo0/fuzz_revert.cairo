@@ -18,6 +18,7 @@ const SCENARIO_LIBRARY_CALL = 2;
 const SCENARIO_WRITE = 3;
 const SCENARIO_REPLACE_CLASS = 4;
 const SCENARIO_DEPLOY = 5;
+const SCENARIO_PANIC = 6;
 
 // selector_from_name("pop_front").
 const POP_FRONT_SELECTOR = 0x289c2d7d6351cd03d4f928bde75fa14d5f52e32bdbc750d5296e1b48c12f1c3;
@@ -160,6 +161,20 @@ func test_revert_fuzz{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
             constructor_calldata=ctor_calldata,
             deploy_from_zero=1,
         );
+        tempvar syscall_ptr = syscall_ptr;
+        tempvar pedersen_ptr = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    } else {
+        tempvar syscall_ptr = syscall_ptr;
+        tempvar pedersen_ptr = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    }
+
+    if (scenario == SCENARIO_PANIC) {
+        // Cairo0 panics cannot be caught, so no need to handle orchestrator index.
+        with_attr error_message("panic_scenario") {
+            assert 0 = 1;
+        }
         tempvar syscall_ptr = syscall_ptr;
         tempvar pedersen_ptr = pedersen_ptr;
         tempvar range_check_ptr = range_check_ptr;

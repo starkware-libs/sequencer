@@ -32,6 +32,16 @@ mod FuzzRevertOrchestratorContract {
         value
     }
 
+    #[external(v0)]
+    fn get_index(ref self: ContractState) -> felt252 {
+        self.front_index.read().into()
+    }
+
+    #[external(v0)]
+    fn set_index(ref self: ContractState, index: felt252) {
+        self.front_index.write(index.try_into().unwrap());
+    }
+
     /// Start the test. The first address must be an initialized fuzz test contract.
     #[external(v0)]
     fn start_test(ref self: ContractState, first_address: ContractAddress) {

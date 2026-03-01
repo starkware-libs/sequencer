@@ -2,7 +2,7 @@
 mod FuzzRevertContract {
     use core::panic_with_felt252;
     use starknet::storage::StoragePointerWriteAccess;
-    use starknet::{ClassHash, ContractAddress, StorageAddress, syscalls};
+    use starknet::{ClassHash, ContractAddress, StorageAddress, SyscallResult, syscalls};
     use starknet::contract_address::ContractAddressZero;
     use starknet::info::SyscallResultTrait;
 
@@ -15,7 +15,10 @@ mod FuzzRevertContract {
     const SCENARIO_WRITE: felt252 = 3;
     const SCENARIO_REPLACE_CLASS: felt252 = 4;
     const SCENARIO_DEPLOY: felt252 = 5;
+    const SCENARIO_PANIC: felt252 = 6;
 
+    const GET_INDEX_SELECTOR: felt252 = selector!("get_index");
+    const SET_INDEX_SELECTOR: felt252 = selector!("set_index");
     const POP_FRONT_SELECTOR: felt252 = selector!("pop_front");
     const FUZZ_TEST_SELECTOR: felt252 = selector!("test_revert_fuzz");
 
@@ -37,6 +40,22 @@ mod FuzzRevertContract {
             )
                 .unwrap_syscall();
             *result.pop_front().unwrap()
+        }
+
+        /// Handle error-catching: innermost panic data should include the next scenario index in
+        /// the orchestrator. This index must be explicitly reset as it's increments were reverted
+        /// when the inner call panicked.
+        fn handle_error_catch(ref self: ContractState, result: SyscallResult<Span<felt252>>) {
+            match result {
+                Result::Ok(_) => (),
+                Result::Err(mut error) => {
+                    let index: felt252 = error.pop_front().unwrap();
+                    syscalls::call_contract_syscall(
+                        self.orchestrator_address.read(), SET_INDEX_SELECTOR, array![index].span(),
+                    )
+                        .unwrap_syscall();
+                },
+            }
         }
     }
 
@@ -68,28 +87,26 @@ mod FuzzRevertContract {
         if scenario == SCENARIO_CALL {
             let contract_address: ContractAddress = self.pop_front().try_into().unwrap();
             let should_unwrap_with = self.pop_front();
-            match syscalls::call_contract_syscall(
+            let result = syscalls::call_contract_syscall(
                 contract_address, FUZZ_TEST_SELECTOR, array![].span(),
-            ) {
-                Result::Ok(_) => (),
-                Result::Err(_) => {
-                    if should_unwrap_with != 0 {
-                        panic_with_felt252(should_unwrap_with);
-                    }
-                },
+            );
+            if should_unwrap_with != 0 {
+                result.unwrap_syscall();
+            } else {
+                self.handle_error_catch(result);
             }
         }
 
         if scenario == SCENARIO_LIBRARY_CALL {
             let class_hash: ClassHash = self.pop_front().try_into().unwrap();
             let should_unwrap_with = self.pop_front();
-            match syscalls::library_call_syscall(class_hash, FUZZ_TEST_SELECTOR, array![].span()) {
-                Result::Ok(_) => (),
-                Result::Err(_) => {
-                    if should_unwrap_with != 0 {
-                        panic_with_felt252(should_unwrap_with);
-                    }
-                },
+            let result = syscalls::library_call_syscall(
+                class_hash, FUZZ_TEST_SELECTOR, array![].span()
+            );
+            if should_unwrap_with != 0 {
+                result.unwrap_syscall();
+            } else {
+                self.handle_error_catch(result);
             }
         }
 
@@ -116,6 +133,14 @@ mod FuzzRevertContract {
             // Deploy errors cannot be caught. Just unwrap the syscall.
             syscalls::deploy_syscall(class_hash, salt, ctor_calldata.span(), deploy_from_zero)
                 .unwrap_syscall();
+        }
+
+        if scenario == SCENARIO_PANIC {
+            let mut current_index = syscalls::call_contract_syscall(
+                self.orchestrator_address.read(), GET_INDEX_SELECTOR, array![].span(),
+            )
+                .unwrap_syscall();
+            panic_with_felt252(*current_index.pop_front().unwrap());
         }
 
         // Unless explicitly stated otherwise, the next operation should be in the current call
