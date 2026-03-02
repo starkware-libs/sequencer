@@ -43,10 +43,6 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::SendTxsRequest(input) => {
                 BatcherResponse::SendTxsRequest(self.send_txs_request(input).await)
             }
-            // TODO(Itamar): Remove this variant once all callers migrate to `send_txs_request`.
-            BatcherRequest::SendProposalContent(input) => {
-                BatcherResponse::SendProposalContent(self.send_proposal_content(input).await)
-            }
             BatcherRequest::AbortProposal(proposal_id) => {
                 BatcherResponse::AbortProposal(self.abort_proposal(proposal_id).await)
             }
