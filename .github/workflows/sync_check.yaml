@@ -1,0 +1,53 @@
+name: Cross-Repo Sync Check
+
+on:
+  pull_request:
+    # 'edited' allows the check to pass the moment the dev clicks the box
+    # 'synchronize' handles new commits
+    types: [opened, synchronize, edited]
+    paths:
+      - "crates/apollo_deployments/src/service.rs"
+      - ".github/workflows/sync_check.yaml"
+
+jobs:
+  manage-sync:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Sync Checkbox Logic
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const checkbox = "- [ ] I have synced these changes to **Private Repo Y**";
+            const checked = "- [x] I have synced these changes to **Private Repo Y**";
+            
+            // 1. Fetch the latest PR body (don't rely on the 'context' which might be stale)
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+
+            const body = pr.body || "";
+            const hasCheckbox = body.includes("- [ ] I have synced") || body.includes("- [x] I have synced");
+
+            // 2. If Cursor BOT or the Dev hasn't added the checkbox, append it.
+            if (!hasCheckbox) {
+              const newBody = body + "\n\n---\n### ⚠️ Cross-Repo Sync Required\n" + checkbox + "\n*The private repo Y depends on these config changes.*";
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                body: newBody
+              });
+              core.setFailed("Added sync checklist. Please update Private Repo Y and check the box.");
+              return; 
+            }
+
+            // 3. Final enforcement: Is it checked?
+            if (body.includes(checked)) {
+              console.log("Sync confirmed!");
+            } else {
+              core.setFailed("Please check the 'Sync to Private Repo Y' box once the private repo is aligned.");
+            }
