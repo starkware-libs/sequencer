@@ -30,8 +30,6 @@ use crate::batcher_types::{
     ProposalId,
     ProposeBlockInput,
     RevertBlockInput,
-    SendProposalContentInput,
-    SendProposalContentResponse,
     SendTxsForProposalInput,
     SendTxsForProposalStatus,
     StartHeightInput,
@@ -64,18 +62,6 @@ pub trait BatcherClient: Send + Sync {
     ) -> BatcherClientResult<GetProposalContentResponse>;
     /// Starts the process of validating a proposal.
     async fn validate_block(&self, input: ValidateBlockInput) -> BatcherClientResult<()>;
-
-    // TODO(Itamar): Remove this method once all callers migrate to their own method.
-    /// Sends the content of a proposal. Only relevant when validating a proposal.
-    /// Note:
-    ///   * This call can be blocking if the batcher has too many unprocessed transactions.
-    ///   * The next send might receive an `InvalidProposal` response for the previous send.
-    ///   * If this marks the end of the content, i.e. `SendProposalContent::Finish` is received,
-    ///     the batcher will block until the proposal has finished processing before responding.
-    async fn send_proposal_content(
-        &self,
-        input: SendProposalContentInput,
-    ) -> BatcherClientResult<SendProposalContentResponse>;
     /// Starts the process of a new height.
     /// From this point onwards, the batcher will accept requests only for proposals associated
     /// with this height.
@@ -118,8 +104,6 @@ pub enum BatcherRequest {
     GetBlockHash(BlockNumber),
     GetProposalContent(GetProposalContentInput),
     ValidateBlock(ValidateBlockInput),
-    // TODO(Itamar): Remove this variant once all callers migrate to their own method.
-    SendProposalContent(SendProposalContentInput),
     AbortProposal(ProposalId),
     FinishProposal(FinishProposalInput),
     SendTxsForProposal(SendTxsForProposalInput),
@@ -147,7 +131,6 @@ pub enum BatcherResponse {
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
     SendTxsForProposal(BatcherResult<SendTxsForProposalStatus>),
-    SendProposalContent(BatcherResult<SendProposalContentResponse>),
     AbortProposal(BatcherResult<()>),
     FinishProposal(BatcherResult<FinishProposalStatus>),
     StartHeight(BatcherResult<()>),
@@ -236,22 +219,6 @@ where
             request,
             BatcherResponse,
             SendTxsForProposal,
-            BatcherClientError,
-            BatcherError,
-            Direct
-        )
-    }
-
-    async fn send_proposal_content(
-        &self,
-        input: SendProposalContentInput,
-    ) -> BatcherClientResult<SendProposalContentResponse> {
-        let request = BatcherRequest::SendProposalContent(input);
-        handle_all_response_variants!(
-            self,
-            request,
-            BatcherResponse,
-            SendProposalContent,
             BatcherClientError,
             BatcherError,
             Direct

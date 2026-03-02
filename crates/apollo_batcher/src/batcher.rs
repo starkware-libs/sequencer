@@ -25,9 +25,6 @@ use apollo_batcher_types::batcher_types::{
     ProposalStatus,
     ProposeBlockInput,
     RevertBlockInput,
-    SendProposalContent,
-    SendProposalContentInput,
-    SendProposalContentResponse,
     SendTxsForProposalInput,
     SendTxsForProposalStatus,
     StartHeightInput,
@@ -480,33 +477,6 @@ impl Batcher {
         );
 
         Ok(())
-    }
-
-    // This function assumes that requests are received in order, otherwise the content could
-    // be processed out of order.
-    #[instrument(skip(self), err)]
-    pub async fn send_proposal_content(
-        &mut self,
-        send_proposal_content_input: SendProposalContentInput,
-    ) -> BatcherResult<SendProposalContentResponse> {
-        let proposal_id = send_proposal_content_input.proposal_id;
-        self.ensure_validate_proposal_exists(proposal_id)?;
-
-        match send_proposal_content_input.content {
-            // TODO(Itamar): Remove this arm once all callers migrate to `send_txs_for_proposal`.
-            SendProposalContent::Txs(txs) => {
-                let txs_response = self
-                    .send_txs_for_proposal(SendTxsForProposalInput { proposal_id, txs })
-                    .await?;
-                let response = match txs_response {
-                    SendTxsForProposalStatus::Processing => ProposalStatus::Processing,
-                    SendTxsForProposalStatus::InvalidProposal(err) => {
-                        ProposalStatus::InvalidProposal(err)
-                    }
-                };
-                Ok(SendProposalContentResponse { response })
-            }
-        }
     }
 
     /// Clear all the proposals from the previous height.
