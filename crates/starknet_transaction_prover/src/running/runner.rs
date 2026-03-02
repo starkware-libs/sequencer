@@ -42,10 +42,6 @@ use crate::running::virtual_block_executor::{
     VirtualBlockExecutor,
 };
 
-// ================================================================================================
-// Virtual Os Types
-// ================================================================================================
-
 /// Virtual block input containing all non-trivial fields for OS block input construction.
 pub(crate) struct VirtualOsBlockInput {
     contract_state_commitment_info: CommitmentInfo,
@@ -113,10 +109,6 @@ impl From<VirtualOsBlockInput> for OsHints {
         }
     }
 }
-
-// ================================================================================================
-// Runner
-// ================================================================================================
 
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
 pub struct RunnerConfig {
@@ -340,10 +332,6 @@ where
     }
 }
 
-// ================================================================================================
-// VirtualSnosRunner Trait
-// ================================================================================================
-
 /// Trait for runners that can execute the virtual Starknet OS.
 ///
 /// This trait abstracts the execution of transactions through the virtual OS,
@@ -358,10 +346,6 @@ pub(crate) trait VirtualSnosRunner: Clone + Send + Sync {
         txs: Vec<InvokeTransaction>,
     ) -> Result<RunnerOutput, RunnerError>;
 }
-
-// ================================================================================================
-// RPC Runner Factory
-// ================================================================================================
 
 /// Type alias for an RPC-based runner.
 ///
