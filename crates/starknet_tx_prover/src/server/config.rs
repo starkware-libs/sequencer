@@ -205,7 +205,7 @@ impl ServiceConfig {
 
 /// CLI arguments for the proving service.
 #[derive(Parser, Debug)]
-#[command(name = "starknet-os-runner")]
+#[command(name = "starknet-tx-prover")]
 #[command(about = "HTTP service for generating Starknet OS proofs", long_about = None)]
 pub struct CliArgs {
     /// Path to JSON configuration file.

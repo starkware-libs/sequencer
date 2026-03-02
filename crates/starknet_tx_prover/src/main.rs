@@ -1,8 +1,8 @@
-//! CLI for Starknet OS Runner.
+//! CLI for the Starknet transaction prover.
 
 #[cfg(not(feature = "stwo_proving"))]
 fn main() {
-    eprintln!("The `starknet_os_runner` binary requires the `stwo_proving` feature.");
+    eprintln!("The `starknet_tx_prover` binary requires the `stwo_proving` feature.");
     std::process::exit(1);
 }
 
@@ -14,19 +14,19 @@ async fn main() -> anyhow::Result<()> {
     use anyhow::Context;
     use clap::Parser;
     use jsonrpsee::server::{ServerBuilder, ServerConfig};
-    use starknet_os_runner::server::config::{CliArgs, ServiceConfig};
-    use starknet_os_runner::server::cors::{build_cors_layer, cors_mode};
-    use starknet_os_runner::server::rpc_impl::ProvingRpcServerImpl;
-    use starknet_os_runner::server::rpc_trait::ProvingRpcServer;
+    use starknet_tx_prover::server::config::{CliArgs, ServiceConfig};
+    use starknet_tx_prover::server::cors::{build_cors_layer, cors_mode};
+    use starknet_tx_prover::server::rpc_impl::ProvingRpcServerImpl;
+    use starknet_tx_prover::server::rpc_trait::ProvingRpcServer;
     use tower::ServiceBuilder;
     use tracing::info;
     use tracing_subscriber::prelude::*;
     use tracing_subscriber::{fmt, EnvFilter};
 
-    // TODO(Avi): Revisit the starknet_os_runner=debug default once the service stabilizes.
-    // Initialize tracing with RUST_LOG (default: info,starknet_os_runner=debug).
+    // TODO(Avi): Revisit the starknet_tx_prover=debug default once the service stabilizes.
+    // Initialize tracing with RUST_LOG (default: info,starknet_tx_prover=debug).
     let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info,starknet_os_runner=debug"));
+        .unwrap_or_else(|_| EnvFilter::new("info,starknet_tx_prover=debug"));
     tracing_subscriber::registry().with(fmt::layer()).with(filter).init();
 
     // Parse CLI args and load config.

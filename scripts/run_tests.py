@@ -16,7 +16,7 @@ CAIRO_NATIVE_CRATE_TRIGGERS: Set[str] = {"blockifier"}
 # Packages that have features requiring a nightly Rust toolchain.  These are excluded from the
 # main CI clippy run (which uses --all-features on stable) and are instead checked by their own
 # dedicated CI workflow with the appropriate toolchain.
-NIGHTLY_FEATURES_PACKAGES: Set[str] = {"starknet_os_runner"}
+NIGHTLY_FEATURES_PACKAGES: Set[str] = {"starknet_tx_prover"}
 
 # Sequencer node binary name.
 SEQUENCER_BINARY_NAME: str = "apollo_node"

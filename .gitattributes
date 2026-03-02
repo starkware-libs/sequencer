@@ -7,7 +7,7 @@ crates/blockifier_test_utils/resources/feature_contracts/cairo1/sierra/*.json -d
 # list of all uncovered hints, which *should* be reviewed.
 crates/starknet_os/resources/hint_coverage/*.json -diff
 
-# Starknet OS runner proving resources - large binary/JSON files.
-crates/starknet_os_runner/resources/*.json -diff
-crates/starknet_os_runner/resources/*.bin -diff
-crates/starknet_os_runner/resources/*.zip -diff
+# Starknet tx prover proving resources - large binary/JSON files.
+crates/starknet_tx_prover/resources/*.json -diff
+crates/starknet_tx_prover/resources/*.bin -diff
+crates/starknet_tx_prover/resources/*.zip -diff
