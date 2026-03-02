@@ -224,14 +224,13 @@ async fn setup_concurrent_config_manager_test() -> LocalConfigManagerClient {
 
     let local_client =
         LocalConfigManagerClient::new(tx, CONFIG_MANAGER_INFRA_METRICS.get_local_client_metrics());
-    let local_server_config = LocalServerConfig::default();
-    let max_concurrency = 10;
+    let local_server_config = LocalServerConfig { max_concurrency: 10, ..Default::default() };
 
     let mut server = ConcurrentLocalComponentServer::new(
         component,
         &local_server_config,
         rx,
-        max_concurrency,
+        10,
         CONFIG_MANAGER_INFRA_METRICS.get_local_server_metrics(),
     );
 
