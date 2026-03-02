@@ -1,6 +1,4 @@
 #[cfg(feature = "stwo_proving")]
-pub(crate) mod error;
-#[cfg(feature = "stwo_proving")]
 pub(crate) mod prover;
 #[cfg(feature = "stwo_proving")]
 pub(crate) mod stwo_run_and_prove;

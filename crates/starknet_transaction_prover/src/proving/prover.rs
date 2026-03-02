@@ -13,8 +13,7 @@ use starknet_api::transaction::fields::Proof;
 use stwo_run_and_prove_lib::ProveConfig;
 use tempfile::NamedTempFile;
 
-use crate::errors::ProvingError;
-use crate::proving::error::StwoRunAndProveError;
+use crate::errors::{ProvingError, StwoRunAndProveError};
 use crate::proving::stwo_run_and_prove::prove_pie_in_memory;
 
 /// Bootloader program file name.
