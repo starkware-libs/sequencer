@@ -2068,6 +2068,7 @@ dependencies = [
  "lazy_static",
  "libp2p",
  "libp2p-swarm-test",
+ "mockall",
  "pretty_assertions",
  "prost",
  "replace_with",

@@ -68,7 +68,7 @@ pub enum NegotiatorError {
 #[derive(Clone)]
 pub struct ComposedNoise<TNegotiator>
 where
-    TNegotiator: Negotiator,
+    TNegotiator: Negotiator + Clone,
 {
     noise_config: noise::Config,
     my_peer_id: PeerId,
@@ -80,7 +80,7 @@ type UpgradeFuture<Socket> =
 
 impl<TNegotiator> ComposedNoise<TNegotiator>
 where
-    TNegotiator: Negotiator + 'static,
+    TNegotiator: Negotiator + Clone + 'static,
     TNegotiator::WireMessage: Send,
 {
     // TODO(noam.s): Remove this once we use the ComposedNoiseConfig in the network manager.
@@ -144,7 +144,7 @@ where
 
 impl<TNegotiator> UpgradeInfo for ComposedNoise<TNegotiator>
 where
-    TNegotiator: Negotiator,
+    TNegotiator: Negotiator + Clone,
 {
     type Info = String;
     type InfoIter = std::iter::Once<Self::Info>;
@@ -157,7 +157,7 @@ where
 
 impl<TNegotiator, Socket> InboundConnectionUpgrade<Socket> for ComposedNoise<TNegotiator>
 where
-    TNegotiator: Negotiator + 'static,
+    TNegotiator: Negotiator + Clone + 'static,
     TNegotiator::WireMessage: Send,
     Socket: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
@@ -172,7 +172,7 @@ where
 
 impl<TNegotiator, Socket> OutboundConnectionUpgrade<Socket> for ComposedNoise<TNegotiator>
 where
-    TNegotiator: Negotiator + 'static,
+    TNegotiator: Negotiator + Clone + 'static,
     TNegotiator::WireMessage: Send,
     Socket: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
