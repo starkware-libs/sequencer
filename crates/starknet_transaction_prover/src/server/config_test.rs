@@ -62,7 +62,7 @@ fn cors_allow_origin_rejects_path() {
 #[test]
 fn cli_parses_repeated_cors_allow_origin_flags() {
     let args = CliArgs::parse_from([
-        "starknet-os-runner",
+        "starknet-transaction-prover",
         "--rpc-url",
         "http://localhost:9545",
         "--cors-allow-origin",

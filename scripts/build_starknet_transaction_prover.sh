@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-# Builds the starknet_os_runner Docker image.
+# Builds the starknet_transaction_prover Docker image.
 #
 # Usage:
-#   ./scripts/build_starknet_os_runner.sh [OPTIONS]
+#   ./scripts/build_starknet_transaction_prover.sh [OPTIONS]
 #
 # Options:
-#   --image-tag TAG               Docker image tag (default: os_runner:latest)
+#   --image-tag TAG               Docker image tag (default: transaction_prover:latest)
 #   --build-mode MODE             Build mode: release or debug (default: release)
 #   --rustflags FLAGS             RUSTFLAGS passed to cargo build inside Docker
 #   --docker-build-args ARGS      Additional arguments to pass to docker build
@@ -17,10 +17,10 @@
 #
 # Examples:
 #   # Build with default settings
-#   ./scripts/build_starknet_os_runner.sh
+#   ./scripts/build_starknet_transaction_prover.sh
 #
 #   # Build debug mode
-#   ./scripts/build_starknet_os_runner.sh --build-mode debug
+#   ./scripts/build_starknet_transaction_prover.sh --build-mode debug
 
 # If any command fails, exit immediately.
 set -euo pipefail
@@ -47,8 +47,8 @@ error() {
 }
 
 # Default values.
-DOCKERFILE_PATH="${REPO_ROOT}/crates/starknet_os_runner/Dockerfile"
-IMAGE_TAG="us-central1-docker.pkg.dev/starkware-dev/sequencer/os-runner:latest"
+DOCKERFILE_PATH="${REPO_ROOT}/crates/starknet_transaction_prover/Dockerfile"
+IMAGE_TAG="us-central1-docker.pkg.dev/starkware-dev/sequencer/transaction-prover:latest"
 BUILD_MODE="release"
 RUSTFLAGS=""
 DOCKER_BUILD_ARGS=""
@@ -95,10 +95,10 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
-            echo "Builds the starknet_os_runner Docker image."
+            echo "Builds the starknet_transaction_prover Docker image."
             echo ""
             echo "Options:"
-            echo "  --image-tag TAG               Docker image tag (default: os_runner:latest)"
+            echo "  --image-tag TAG               Docker image tag (default: transaction_prover:latest)"
             echo "  --build-mode MODE             Build mode: release or debug (default: release)"
             echo "  --rustflags FLAGS             RUSTFLAGS passed to cargo build inside Docker"
             echo "  --docker-build-args ARGS      Additional arguments to pass to docker build"
@@ -172,7 +172,7 @@ build_docker_image() {
 
 main() {
     echo ""
-    info "Building starknet_os_runner Docker image"
+    info "Building starknet_transaction_prover Docker image"
     echo ""
 
     build_docker_image

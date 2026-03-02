@@ -34,7 +34,7 @@ fn initial_reads() -> (StateMaps, ContractAddress, StorageKey) {
 /// Sanity test that verifies storage proof fetching works with a real RPC endpoint.
 ///
 /// This test is ignored by default because it requires a running RPC node.
-/// Run with: `NODE_URL=<your_rpc_url> cargo test -p starknet_os_runner -- --ignored`
+/// Run with: `NODE_URL=<your_rpc_url> cargo test -p starknet_transaction_prover -- --ignored`
 #[rstest]
 #[ignore]
 fn test_get_storage_proofs_from_rpc(
