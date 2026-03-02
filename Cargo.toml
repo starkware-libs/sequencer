@@ -109,9 +109,9 @@ members = [
   "crates/starknet_committer_cli",
   "crates/starknet_os",
   "crates/starknet_os_flow_tests",
-  "crates/starknet_os_runner",
   "crates/starknet_patricia",
   "crates/starknet_patricia_storage",
+  "crates/starknet_tx_prover",
   "toml_test_utils",
   "workspace_tests",
 ]
@@ -373,9 +373,9 @@ starknet_committer_and_os_cli.path = "crates/starknet_committer_and_os_cli"
 starknet_committer_cli.path = "crates/starknet_committer_cli"
 starknet_os.path = "crates/starknet_os"
 starknet_os_flow_tests.path = "crates/starknet_os_flow_tests"
-starknet_os_runner.path = "crates/starknet_os_runner"
 starknet_patricia.path = "crates/starknet_patricia"
 starknet_patricia_storage.path = "crates/starknet_patricia_storage"
+starknet_tx_prover.path = "crates/starknet_tx_prover"
 static_assertions = "1.1.0"
 strum = "0.25.0"
 stwo = "2.1.0"

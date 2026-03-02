@@ -19,13 +19,13 @@
 //!
 //! ```bash
 //! # Live mode:
-//! NODE_URL=http://localhost:9545/rpc/v0_10 cargo test -p starknet_os_runner virtual_snos_prover_test -- --ignored
+//! NODE_URL=http://localhost:9545/rpc/v0_10 cargo test -p starknet_tx_prover virtual_snos_prover_test -- --ignored
 //!
 //! # Recording mode (saves records files under resources/rpc_records/):
-//! RECORD_RPC_RECORDS=1 NODE_URL=http://localhost:9545/rpc/v0_10 cargo test -p starknet_os_runner virtual_snos_prover_test -- --ignored
+//! RECORD_RPC_RECORDS=1 NODE_URL=http://localhost:9545/rpc/v0_10 cargo test -p starknet_tx_prover virtual_snos_prover_test -- --ignored
 //!
 //! # Offline mode (uses saved records files):
-//! cargo test -p starknet_os_runner virtual_snos_prover_test -- --ignored
+//! cargo test -p starknet_tx_prover virtual_snos_prover_test -- --ignored
 //! ```
 
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
