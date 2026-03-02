@@ -20,11 +20,7 @@ use apollo_batcher_types::batcher_types::{
     GetProposalContentResponse,
     ProposalCommitment,
     ProposalId,
-    ProposalStatus,
     RevertBlockInput,
-    SendProposalContent,
-    SendProposalContentInput,
-    SendProposalContentResponse,
     SendTxsForProposalInput,
     SendTxsForProposalStatus,
     StartHeightInput,
@@ -615,13 +611,11 @@ async fn validate_block_full_flow() {
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 1, 0, 0, 0);
 
-    let send_proposal_input_txs = SendProposalContentInput {
-        proposal_id: PROPOSAL_ID,
-        content: SendProposalContent::Txs(test_txs(0..1)),
-    };
+    let send_txs_for_proposal_input =
+        SendTxsForProposalInput { proposal_id: PROPOSAL_ID, txs: test_txs(0..1) };
     assert_eq!(
-        batcher.send_proposal_content(send_proposal_input_txs).await.unwrap(),
-        SendProposalContentResponse { response: ProposalStatus::Processing }
+        batcher.send_txs_for_proposal(send_txs_for_proposal_input).await.unwrap(),
+        SendTxsForProposalStatus::Processing
     );
 
     let finish_proposal = FinishProposalInput {
@@ -635,20 +629,6 @@ async fn validate_block_full_flow() {
     );
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 1, 1, 0, 0);
-}
-
-#[rstest]
-// TODO(Itamar): Remove this case once we migrate to `send_txs_for_proposal`.
-// This case is tested in `action_on_unknown_proposal::send_txs`.
-#[case::send_txs(SendProposalContent::Txs(test_txs(0..1)))]
-#[tokio::test]
-async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) {
-    let mut batcher = create_batcher(MockDependencies::default()).await;
-
-    let send_proposal_content_input =
-        SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
-    let result = batcher.send_proposal_content(send_proposal_content_input).await;
-    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
 }
 
 #[rstest]
@@ -675,10 +655,6 @@ async fn action_on_unknown_proposal(#[case] action: ProposalAction) {
             })
             .await
             .map(|_| ()),
-        ProposalAction::SendContent(content) => {
-            let input = SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
-            batcher.send_proposal_content(input).await.map(|_| ())
-        }
     };
     assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
 }
@@ -721,59 +697,7 @@ async fn action_on_invalid_proposal(#[case] action: ProposalAction) {
                 SendTxsForProposalStatus::InvalidProposal("Block is full".to_string())
             );
         }
-        ProposalAction::SendContent(content) => {
-            let input = SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
-            let result = batcher.send_proposal_content(input).await.unwrap();
-            assert_eq!(
-                result.response,
-                ProposalStatus::InvalidProposal("Block is full".to_string())
-            );
-        }
     }
-}
-
-// TODO(Itamar): Remove this test once all cases are tested separately for each method.
-#[rstest]
-#[case::send_txs(SendProposalContent::Txs(test_txs(0..1)), ProposalStatus::InvalidProposal("Block is full".to_string()))]
-#[tokio::test]
-async fn send_content_to_an_invalid_proposal(
-    #[case] content: SendProposalContent,
-    #[case] response: ProposalStatus,
-) {
-    let mut batcher =
-        create_batcher_with_active_validate_block(Err(BUILD_BLOCK_FAIL_ON_ERROR)).await;
-    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
-
-    let send_proposal_content_input =
-        SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
-    let result = batcher.send_proposal_content(send_proposal_content_input).await.unwrap();
-    assert_eq!(result, SendProposalContentResponse { response });
-}
-
-#[rstest]
-// TODO(Itamar): Remove this case once we migrate to `send_txs_for_proposal`.
-// This case is tested in
-// `proposal_not_found_after_terminal_action::send_txs_for_proposal_after_finish`.
-#[case::send_txs_after_finish(SendProposalContent::Txs(test_txs(0..1)))]
-#[tokio::test]
-async fn send_proposal_content_after_finish(#[case] content: SendProposalContent) {
-    let mut batcher = create_batcher_with_active_validate_block(Ok(
-        BlockExecutionArtifacts::create_for_testing().await,
-    ))
-    .await;
-
-    // End the proposal.
-    let end_proposal = FinishProposalInput {
-        proposal_id: PROPOSAL_ID,
-        final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
-    };
-    batcher.finish_proposal(end_proposal).await.unwrap();
-
-    // Send another request.
-    let send_proposal_content_input =
-        SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
-    let result = batcher.send_proposal_content(send_proposal_content_input).await;
-    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
 }
 
 #[derive(Clone)]
@@ -785,17 +709,12 @@ enum EndProposalAction {
 #[derive(Clone)]
 enum ProposalAction {
     Abort,
-    SendContent(SendProposalContent),
     FinishProposal,
     SendTxsForProposal,
 }
 
 #[rstest]
 #[case::abort_after_finish(EndProposalAction::Finish, ProposalAction::Abort)]
-#[case::send_txs_after_abort(
-    EndProposalAction::Abort,
-    ProposalAction::SendContent(SendProposalContent::Txs(test_txs(0..1)))
-)]
 #[case::abort_after_abort(EndProposalAction::Abort, ProposalAction::Abort)]
 #[case::finish_after_finish(EndProposalAction::Finish, ProposalAction::FinishProposal)]
 #[case::finish_after_abort(EndProposalAction::Abort, ProposalAction::FinishProposal)]
@@ -834,10 +753,6 @@ async fn proposal_not_found_after_terminal_action(
 
     let result = match after_end_action {
         ProposalAction::Abort => batcher.abort_proposal(PROPOSAL_ID).await,
-        ProposalAction::SendContent(content) => {
-            let input = SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
-            batcher.send_proposal_content(input).await.map(|_| ())
-        }
         ProposalAction::FinishProposal => batcher
             .finish_proposal(FinishProposalInput {
                 proposal_id: PROPOSAL_ID,
