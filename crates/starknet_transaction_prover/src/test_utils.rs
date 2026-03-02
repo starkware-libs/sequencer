@@ -29,12 +29,6 @@ use crate::running::virtual_block_executor::{
     RpcVirtualBlockExecutorConfig,
 };
 
-// ================================================================================================
-// Constants
-// ================================================================================================
-
-// --- Mainnet ---
-
 /// Block number to use for testing (mainnet block with known state).
 pub const TEST_BLOCK_NUMBER: u64 = 800000;
 
@@ -57,10 +51,6 @@ pub const STRK_TOKEN_ADDRESS_SEPOLIA: Felt =
 pub const DUMMY_ACCOUNT_ADDRESS: Felt =
     Felt::from_hex_unchecked("0x0786ed7d8dcbf1489241d65a4dd55f18b984c078558ce12def69802526fa918e");
 
-// ================================================================================================
-// Environment Helpers
-// ================================================================================================
-
 /// Gets the RPC URL from the `NODE_URL` env var (defaults to `http://localhost:9545`).
 pub fn get_rpc_url() -> String {
     env::var("NODE_URL").unwrap_or_else(|_| "http://localhost:9545/rpc/v0_10".to_string())
@@ -79,10 +69,6 @@ pub fn get_strk_fee_token_override() -> Option<ContractAddress> {
             .expect("Invalid STRK_FEE_TOKEN_ADDRESS")
     })
 }
-
-// ================================================================================================
-// Mainnet Fixtures
-// ================================================================================================
 
 /// Fixture that creates an RpcStateReader for mainnet testing.
 #[fixture]
@@ -115,10 +101,6 @@ pub fn rpc_provider() -> RpcStorageProofsProvider {
     RpcStorageProofsProvider::new(rpc_url)
 }
 
-// ================================================================================================
-// Runner Factory
-// ================================================================================================
-
 /// Creates an [`RpcRunnerFactory`] pointed at the given RPC URL.
 ///
 /// Chain ID and STRK fee token address are read from the environment via [`get_chain_id`] and
@@ -143,10 +125,6 @@ pub(crate) fn runner_factory(rpc_url: &str) -> RpcRunnerFactory {
     let chain_info = get_chain_info(&get_chain_id(), get_strk_fee_token_override());
     RpcRunnerFactory::new(rpc_url, chain_info, contract_class_manager, runner_config)
 }
-
-// ================================================================================================
-// Test Mode Infrastructure
-// ================================================================================================
 
 /// Holds the test RPC infrastructure (proxy or mock server) alive for the duration of a test.
 ///
@@ -203,10 +181,6 @@ pub(crate) async fn resolve_test_mode(test_name: &str) -> TestRpcSetup {
         TestRpcSetup::Live { rpc_url }
     }
 }
-
-// ================================================================================================
-// Test Utils
-// ================================================================================================
 
 /// Builds a client-side `RpcTransaction::Invoke` (v3) for the given sender and calldata.
 ///
