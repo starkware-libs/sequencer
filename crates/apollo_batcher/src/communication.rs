@@ -40,7 +40,10 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::ValidateBlock(input) => {
                 BatcherResponse::ValidateBlock(self.validate_block(input).await)
             }
-            // TODO(Itamar): Remove this variant once all callers migrate to their own method.
+            BatcherRequest::SendTxsRequest(input) => {
+                BatcherResponse::SendTxsRequest(self.send_txs_request(input).await)
+            }
+            // TODO(Itamar): Remove this variant once all callers migrate to `send_txs_request`.
             BatcherRequest::SendProposalContent(input) => {
                 BatcherResponse::SendProposalContent(self.send_proposal_content(input).await)
             }

@@ -121,6 +121,12 @@ pub struct SendProposalContentInput {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SendTxsRequestInput {
+    pub proposal_id: ProposalId,
+    pub txs: Vec<InternalConsensusTransaction>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FinishProposalInput {
     pub proposal_id: ProposalId,
     pub final_n_executed_txs: usize,
@@ -135,6 +141,17 @@ pub enum SendProposalContent {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SendProposalContentResponse {
     pub response: ProposalStatus,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum SendTxsRequestStatus {
+    Processing,
+    InvalidProposal(String),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct SendTxsRequestResponse {
+    pub response: SendTxsRequestStatus,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

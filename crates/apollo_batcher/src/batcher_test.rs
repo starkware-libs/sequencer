@@ -26,6 +26,9 @@ use apollo_batcher_types::batcher_types::{
     SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
+    SendTxsRequestInput,
+    SendTxsRequestResponse,
+    SendTxsRequestStatus,
     StartHeightInput,
     ValidateBlockInput,
 };
@@ -630,6 +633,8 @@ async fn validate_block_full_flow() {
 }
 
 #[rstest]
+// TODO(Itamar): Remove this case once we migrate to `send_txs_request`.
+// This case is tested in `send_txs_request_to_unknown_proposal`.
 #[case::send_txs(SendProposalContent::Txs(test_txs(0..1)))]
 #[tokio::test]
 async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) {
@@ -638,6 +643,17 @@ async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) 
     let send_proposal_content_input =
         SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
     let result = batcher.send_proposal_content(send_proposal_content_input).await;
+    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
+}
+
+#[rstest]
+#[tokio::test]
+async fn send_txs_request_to_unknown_proposal() {
+    let mut batcher = create_batcher(MockDependencies::default()).await;
+
+    let result = batcher
+        .send_txs_request(SendTxsRequestInput { proposal_id: PROPOSAL_ID, txs: test_txs(0..1) })
+        .await;
     assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
 }
 
@@ -666,6 +682,8 @@ async fn abort_unknown_proposal() {
 
 /// TODO(Itamar): Remove this test once all cases are tested separately for each method.
 #[rstest]
+// TODO(Itamar): Remove this case once we migrate to `send_txs_request`.
+// This case is tested in `send_txs_request_to_an_invalid_proposal`.
 #[case::send_txs(SendProposalContent::Txs(test_txs(0..1)), ProposalStatus::InvalidProposal("Block is full".to_string()))]
 #[tokio::test]
 async fn send_content_to_an_invalid_proposal(
@@ -683,44 +701,22 @@ async fn send_content_to_an_invalid_proposal(
 }
 
 #[rstest]
-#[case::send_txs_after_finish(SendProposalContent::Txs(test_txs(0..1)))]
 #[tokio::test]
-async fn send_proposal_content_after_finish(#[case] content: SendProposalContent) {
-    let mut batcher = create_batcher_with_active_validate_block(Ok(
-        BlockExecutionArtifacts::create_for_testing().await,
-    ))
-    .await;
+async fn send_txs_request_to_an_invalid_proposal() {
+    let mut batcher =
+        create_batcher_with_active_validate_block(Err(BUILD_BLOCK_FAIL_ON_ERROR)).await;
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
 
-    // End the proposal.
-    let end_proposal = FinishProposalInput {
-        proposal_id: PROPOSAL_ID,
-        final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
-    };
-    batcher.finish_proposal(end_proposal).await.unwrap();
-
-    // Send another request.
-    let send_proposal_content_input =
-        SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
-    let result = batcher.send_proposal_content(send_proposal_content_input).await;
-    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
-}
-
-#[rstest]
-#[tokio::test]
-async fn abort_after_finish() {
-    let mut batcher = create_batcher_with_active_validate_block(Ok(
-        BlockExecutionArtifacts::create_for_testing().await,
-    ))
-    .await;
-
-    let end_proposal = FinishProposalInput {
-        proposal_id: PROPOSAL_ID,
-        final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
-    };
-    batcher.finish_proposal(end_proposal).await.unwrap();
-
-    let result = batcher.abort_proposal(PROPOSAL_ID).await;
-    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
+    let result = batcher
+        .send_txs_request(SendTxsRequestInput { proposal_id: PROPOSAL_ID, txs: test_txs(0..1) })
+        .await
+        .unwrap();
+    assert_eq!(
+        result,
+        SendTxsRequestResponse {
+            response: SendTxsRequestStatus::InvalidProposal("Block is full".to_string())
+        }
+    );
 }
 
 #[rstest]
@@ -746,6 +742,73 @@ async fn finish_invalid_proposal() {
 }
 
 #[rstest]
+// TODO(Itamar): Remove this case once we migrate to `send_txs_request`.
+// This case is tested in `send_txs_request_after_finish`.
+#[case::send_txs_after_finish(SendProposalContent::Txs(test_txs(0..1)))]
+#[tokio::test]
+async fn send_proposal_content_after_finish(#[case] content: SendProposalContent) {
+    let mut batcher = create_batcher_with_active_validate_block(Ok(
+        BlockExecutionArtifacts::create_for_testing().await,
+    ))
+    .await;
+
+    // End the proposal.
+    let end_proposal = FinishProposalInput {
+        proposal_id: PROPOSAL_ID,
+        final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
+    };
+    batcher.finish_proposal(end_proposal).await.unwrap();
+
+    // Send another request.
+    let send_proposal_content_input =
+        SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
+    let result = batcher.send_proposal_content(send_proposal_content_input).await;
+    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
+}
+
+#[rstest]
+#[tokio::test]
+async fn send_txs_request_after_finish() {
+    let mut batcher = create_batcher_with_active_validate_block(Ok(
+        BlockExecutionArtifacts::create_for_testing().await,
+    ))
+    .await;
+
+    batcher
+        .finish_proposal(FinishProposalInput {
+            proposal_id: PROPOSAL_ID,
+            final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
+        })
+        .await
+        .unwrap();
+
+    let result = batcher
+        .send_txs_request(SendTxsRequestInput { proposal_id: PROPOSAL_ID, txs: test_txs(0..1) })
+        .await;
+    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
+}
+
+#[rstest]
+#[tokio::test]
+async fn abort_after_finish() {
+    let mut batcher = create_batcher_with_active_validate_block(Ok(
+        BlockExecutionArtifacts::create_for_testing().await,
+    ))
+    .await;
+
+    let end_proposal = FinishProposalInput {
+        proposal_id: PROPOSAL_ID,
+        final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
+    };
+    batcher.finish_proposal(end_proposal).await.unwrap();
+
+    let result = batcher.abort_proposal(PROPOSAL_ID).await;
+    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
+}
+
+#[rstest]
+// TODO(Itamar): Remove this case once we migrate to `send_txs_request`.
+// This case is tested in `send_txs_request_after_abort`.
 #[case::send_txs_after_abort(SendProposalContent::Txs(test_txs(0..1)))]
 #[tokio::test]
 async fn send_proposal_content_after_abort(#[case] content: SendProposalContent) {
@@ -759,6 +822,22 @@ async fn send_proposal_content_after_abort(#[case] content: SendProposalContent)
     let send_proposal_content_input =
         SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
     let result = batcher.send_proposal_content(send_proposal_content_input).await;
+    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
+}
+
+#[rstest]
+#[tokio::test]
+async fn send_txs_request_after_abort() {
+    let mut batcher = create_batcher_with_active_validate_block(Ok(
+        BlockExecutionArtifacts::create_for_testing().await,
+    ))
+    .await;
+
+    batcher.abort_proposal(PROPOSAL_ID).await.unwrap();
+
+    let result = batcher
+        .send_txs_request(SendTxsRequestInput { proposal_id: PROPOSAL_ID, txs: test_txs(0..1) })
+        .await;
     assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
 }
 

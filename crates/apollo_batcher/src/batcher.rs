@@ -29,6 +29,9 @@ use apollo_batcher_types::batcher_types::{
     SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
+    SendTxsRequestInput,
+    SendTxsRequestResponse,
+    SendTxsRequestStatus,
     StartHeightInput,
     ValidateBlockInput,
 };
@@ -492,7 +495,18 @@ impl Batcher {
         }
 
         match send_proposal_content_input.content {
-            SendProposalContent::Txs(txs) => self.handle_send_txs_request(proposal_id, txs).await,
+            // TODO(Itamar): Remove this arm once all callers migrate to `send_txs_request`.
+            SendProposalContent::Txs(txs) => {
+                let txs_response =
+                    self.send_txs_request(SendTxsRequestInput { proposal_id, txs }).await?;
+                let response = match txs_response.response {
+                    SendTxsRequestStatus::Processing => ProposalStatus::Processing,
+                    SendTxsRequestStatus::InvalidProposal(err) => {
+                        ProposalStatus::InvalidProposal(err)
+                    }
+                };
+                Ok(SendProposalContentResponse { response })
+            }
         }
     }
 
@@ -506,32 +520,44 @@ impl Batcher {
         self.active_height = None;
     }
 
-    async fn handle_send_txs_request(
+    #[instrument(skip(self), err)]
+    pub async fn send_txs_request(
         &mut self,
-        proposal_id: ProposalId,
-        txs: Vec<InternalConsensusTransaction>,
-    ) -> BatcherResult<SendProposalContentResponse> {
+        send_txs_request_input: SendTxsRequestInput,
+    ) -> BatcherResult<SendTxsRequestResponse> {
+        let proposal_id = send_txs_request_input.proposal_id;
+        if !self.validate_tx_streams.contains_key(&proposal_id) {
+            return Err(BatcherError::ProposalNotFound { proposal_id });
+        }
+
         if self.is_active(proposal_id).await {
-            //   The proposal is active. Send the transactions through the tx provider.
+            // The proposal is active. Send transactions through the tx provider.
             let tx_provider_sender = &self
                 .validate_tx_streams
                 .get(&proposal_id)
                 .expect("Expecting tx_provider_sender to exist during batching.");
-            for tx in txs {
+            for tx in send_txs_request_input.txs {
                 tx_provider_sender.send(tx).await.map_err(|err| {
                     error!("Failed to send transaction to the tx provider: {}", err);
                     BatcherError::InternalError
                 })?;
             }
-            return Ok(SendProposalContentResponse { response: ProposalStatus::Processing });
+            return Ok(SendTxsRequestResponse { response: SendTxsRequestStatus::Processing });
         }
 
-        // The proposal is no longer active, can't send the transactions.
+        // The proposal is no longer active, cannot accept more transactions.
         let proposal_result =
             self.get_completed_proposal_result(proposal_id).await.expect("Proposal should exist.");
         match proposal_result {
             Ok(_) => panic!("Proposal finished validation before all transactions were sent."),
-            Err(err) => Ok(SendProposalContentResponse { response: proposal_status_from(err)? }),
+            Err(err) => match proposal_status_from(err)? {
+                ProposalStatus::InvalidProposal(err) => Ok(SendTxsRequestResponse {
+                    response: SendTxsRequestStatus::InvalidProposal(err),
+                }),
+                status => {
+                    unreachable!("Unexpected batcher status for send txs request: {status:?}")
+                }
+            },
         }
     }
 
