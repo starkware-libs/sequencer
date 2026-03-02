@@ -77,7 +77,7 @@ fn construct_balance_of_invoke() -> (InvokeTransaction, TransactionHash) {
 /// # Running
 ///
 /// ```bash
-/// NODE_URL=https://your-rpc-node cargo test -p starknet_os_runner -- --ignored
+/// NODE_URL=https://your-rpc-node cargo test -p starknet_transaction_prover -- --ignored
 /// ```
 #[rstest]
 #[ignore] // Requires RPC access 
@@ -185,10 +185,10 @@ fn construct_privacy_invoke() -> (InvokeTransaction, TransactionHash) {
 /// ```bash
 /// # Record:
 /// RECORD_RPC_RECORDS=1 NODE_URL=http://<privacy-env-node>/rpc/v0_10 \
-///     cargo test -p starknet_os_runner test_simulate_and_get_initial_reads
+///     cargo test -p starknet_transaction_prover test_simulate_and_get_initial_reads
 ///
 /// # Offline (after recording):
-/// cargo test -p starknet_os_runner test_simulate_and_get_initial_reads
+/// cargo test -p starknet_transaction_prover test_simulate_and_get_initial_reads
 /// ```
 #[tokio::test(flavor = "multi_thread")]
 async fn test_simulate_and_get_initial_reads() {
@@ -232,10 +232,10 @@ async fn test_simulate_and_get_initial_reads() {
 /// ```bash
 /// # Record:
 /// RECORD_RPC_RECORDS=1 NODE_URL=http://<privacy-env-node>/rpc/v0_10 \
-///     cargo test -p starknet_os_runner test_execute_with_prefetch -- --ignored
+///     cargo test -p starknet_transaction_prover test_execute_with_prefetch -- --ignored
 ///
 /// # Offline (after recording):
-/// cargo test -p starknet_os_runner test_execute_with_prefetch -- --ignored
+/// cargo test -p starknet_transaction_prover test_execute_with_prefetch -- --ignored
 /// ```
 #[tokio::test(flavor = "multi_thread")]
 #[ignore] // Requires RPC records or a live pathfinder v0.10 node
