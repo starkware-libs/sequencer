@@ -18,8 +18,6 @@ use tracing::{info, instrument};
 use url::Url;
 
 use crate::config::ProverConfig;
-#[cfg(feature = "stwo_proving")]
-use crate::errors::ProvingError;
 use crate::errors::VirtualSnosProverError;
 #[cfg(feature = "stwo_proving")]
 use crate::proving::prover::prove;

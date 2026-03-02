@@ -272,4 +272,3 @@ pub struct CliArgs {
     )]
     pub cors_allow_origin: Vec<String>,
 }
-
