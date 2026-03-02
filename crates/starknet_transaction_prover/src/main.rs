@@ -14,8 +14,8 @@ async fn main() -> anyhow::Result<()> {
     use clap::Parser;
     use starknet_transaction_prover::server::config::{CliArgs, ServiceConfig, TransportMode};
     use starknet_transaction_prover::server::cors::{build_cors_layer, cors_mode};
+    use starknet_transaction_prover::server::rpc_api::ProvingRpcServer;
     use starknet_transaction_prover::server::rpc_impl::ProvingRpcServerImpl;
-    use starknet_transaction_prover::server::rpc_trait::ProvingRpcServer;
     use starknet_transaction_prover::server::start_server;
     use tracing::info;
     use tracing_subscriber::prelude::*;
