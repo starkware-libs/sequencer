@@ -8,9 +8,7 @@ use apollo_batcher_types::batcher_types::{
     FinishedProposalInfo,
     FinishedProposalInfoWithoutParent,
     ProposalCommitment as BatcherProposalCommitment,
-    ProposalStatus,
-    SendProposalContent,
-    SendProposalContentResponse,
+    SendTxsForProposalStatus,
 };
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
@@ -342,10 +340,10 @@ async fn interrupt_active_proposal() {
     deps.batcher.expect_abort_proposal().times(1).returning(|_| Ok(()));
 
     // Round 1: Will send Txs then Finish
-    deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
-        let SendProposalContent::Txs(txs) = input.content;
+    deps.batcher.expect_send_txs_for_proposal().times(1).returning(|input| {
+        let txs = input.txs;
         assert_eq!(txs, *INTERNAL_TX_BATCH);
-        Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
+        Ok(SendTxsForProposalStatus::Processing)
     });
     deps.batcher.expect_finish_proposal().times(1).returning(|input| {
         assert_eq!(input.final_n_executed_txs, INTERNAL_TX_BATCH.len());

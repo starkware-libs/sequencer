@@ -86,10 +86,10 @@ sequenceDiagram
     and [Parallel: Orchestrator forwards proposal parts]
         loop Until Fin received
             CM->>Orch: ProposalPart::Transactions(batch)
-            Orch->>B: send_proposal_content(SendProposalContent::Txs)
+            Orch->>B: send_txs_request(txs)
         end
         CM->>Orch: ProposalPart::Fin(commitment, final_n_executed_txs)
-        Orch->>B: send_proposal_content(SendProposalContent::Finish)
+        Orch->>B: finish_proposal(final_n_executed_txs)
     end
 
     Note over B: Truncate to final_n_executed_txs
