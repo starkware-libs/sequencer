@@ -68,7 +68,6 @@ pub(crate) struct ProposalBuildArguments {
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
     pub use_state_sync_block_timestamp: bool,
-    #[allow(dead_code)]
     pub compare_retrospective_block_hash: bool,
 }
 
@@ -177,6 +176,7 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
         args.deps.clock.as_ref(),
         args.retrospective_block_hash_deadline,
         args.retrospective_block_hash_retry_interval_millis,
+        args.compare_retrospective_block_hash,
     )
     .await?;
 

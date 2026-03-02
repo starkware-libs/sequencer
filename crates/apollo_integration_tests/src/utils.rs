@@ -34,6 +34,7 @@ use apollo_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
 use apollo_consensus_orchestrator_config::config::{
     CendeConfig,
     ContextConfig,
+    ContextDynamicConfig,
     ContextStaticConfig,
 };
 use apollo_gateway_config::config::{
@@ -434,7 +435,10 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                     builder_address: ContractAddress::from(4_u128),
                     ..Default::default()
                 },
-                ..Default::default()
+                dynamic_config: ContextDynamicConfig {
+                    compare_retrospective_block_hash: false,
+                    ..Default::default()
+                },
             },
             cende_config: CendeConfig {
                 ..Default::default()
