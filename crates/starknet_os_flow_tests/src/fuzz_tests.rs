@@ -4,6 +4,7 @@ use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use chrono::{Datelike, Utc};
 use rand::prelude::IteratorRandom;
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha8Rng;
@@ -892,6 +893,37 @@ impl FuzzTestManager {
     }
 }
 
+async fn fuzz_test_body(seed: u64, max_n_operations: usize) {
+    let mut fuzz_tester = FuzzTestManager::init(seed).await;
+
+    // Create scenarios.
+    for _ in 0..max_n_operations {
+        // An error value means the context is finalized - no more operations can be applied.
+        if let Err(_) = fuzz_tester.add_random_operation() {
+            break;
+        }
+    }
+
+    println!("Seed: {seed}.");
+    #[cfg(feature = "fuzz_test_debug")]
+    println!("{}", fuzz_tester.prettify_operations());
+
+    fuzz_tester.run_test().await;
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_daily_fuzz_seed(
+    #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] inner_seed: u64,
+) {
+    let now = Utc::now();
+    let day: u64 = now.day().into();
+    let month: u64 = now.month().into();
+    let year: u64 = now.year().try_into().unwrap();
+    let seed = day * 100000000 + month * 1000000 + year * 100 + inner_seed;
+    fuzz_test_body(seed, 10).await;
+}
+
 #[rstest]
 #[tokio::test]
 async fn test_cairo1_revert_fuzz(
@@ -900,22 +932,6 @@ async fn test_cairo1_revert_fuzz(
 ) {
     for i in 0..iterations {
         let iteration_seed = seed + i * 16;
-        let mut fuzz_tester = FuzzTestManager::init(iteration_seed).await;
-
-        let max_n_operations = 10;
-
-        // Create scenarios.
-        for _ in 0..max_n_operations {
-            // An error value means the context is finalized - no more operations can be applied.
-            if let Err(_) = fuzz_tester.add_random_operation() {
-                break;
-            }
-        }
-
-        println!("Seed: {iteration_seed}.");
-        #[cfg(feature = "fuzz_test_debug")]
-        println!("{}", fuzz_tester.prettify_operations());
-
-        fuzz_tester.run_test().await;
+        fuzz_test_body(iteration_seed, 10).await;
     }
 }
