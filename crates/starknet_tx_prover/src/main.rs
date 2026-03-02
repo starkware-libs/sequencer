@@ -16,8 +16,8 @@ async fn main() -> anyhow::Result<()> {
     use jsonrpsee::server::{ServerBuilder, ServerConfig};
     use starknet_tx_prover::server::config::{CliArgs, ServiceConfig};
     use starknet_tx_prover::server::cors::{build_cors_layer, cors_mode};
+    use starknet_tx_prover::server::rpc_api::ProvingRpcServer;
     use starknet_tx_prover::server::rpc_impl::ProvingRpcServerImpl;
-    use starknet_tx_prover::server::rpc_trait::ProvingRpcServer;
     use tower::ServiceBuilder;
     use tracing::info;
     use tracing_subscriber::prelude::*;
