@@ -956,14 +956,30 @@ async fn test_daily_fuzz_seed(
     fuzz_test_body(seed, 10).await;
 }
 
-#[rstest]
-#[tokio::test]
-async fn test_cairo1_revert_fuzz(
-    #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] seed: u64,
-    #[values(1)] iterations: u64, // Easy way to multiply the number of test seeds.
-) {
-    for i in 0..iterations {
-        let iteration_seed = seed + i * 16;
-        fuzz_test_body(iteration_seed, 10).await;
+#[cfg(feature = "long_fuzz_test")]
+mod long_fuzz_test {
+    use super::*;
+
+    /// Long fuzz test. This generates a lot of code, so instead of `#[cfg_attr(.., ignore)]`, we
+    /// gate the actual module.
+    /// It is strongly recommended to run this test in release mode only.
+    #[rstest]
+    #[tokio::test]
+    async fn test_fuzz(
+        #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)] seed0: u64,
+        #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)] seed1: u64,
+        #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)] seed2: u64,
+        #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)] seed3: u64,
+    ) {
+        let seed_base = 10;
+        assert!(seed0 < seed_base);
+        assert!(seed1 < seed_base);
+        assert!(seed2 < seed_base);
+        assert!(seed3 < seed_base);
+        let seed = seed0
+            + seed1 * seed_base
+            + seed2 * seed_base * seed_base
+            + seed3 * seed_base * seed_base * seed_base;
+        fuzz_test_body(seed, 10).await;
     }
 }
