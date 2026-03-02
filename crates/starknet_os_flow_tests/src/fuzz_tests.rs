@@ -21,6 +21,12 @@ use crate::test_manager::{TestBuilder, FUNDED_ACCOUNT_ADDRESS};
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::get_class_hash_of_feature_contract;
 
+// TODO: Operations to add:
+// 1. advance counter (read -> write)
+// 2. message to L1
+// 3. events
+// 4. call / libcall non-existing entry points (should panic) (catchable in cairo0 even?)
+// 5. deploy non-existing class hash (should panic, not catchable in cairo0).
 #[derive(Clone, Copy, EnumIter)]
 enum FuzzOperation {
     Return,
@@ -951,3 +957,5 @@ mod long_fuzz_test {
         fuzz_test_body(seed, 10).await;
     }
 }
+
+// TODO: Add an exhaustive fuzz test that covers all possible operations for some small limit n.
