@@ -176,7 +176,7 @@ impl MockRpcServer {
 // Path helpers
 // ================================================================================================
 
-/// Returns the path to the RPC records directory for the starknet_os_runner crate.
+/// Returns the path to the RPC records directory for the starknet_transaction_prover crate.
 pub fn records_dir() -> PathBuf {
     PathBuf::from(compile_time_cargo_manifest_dir!()).join("resources").join("rpc_records")
 }

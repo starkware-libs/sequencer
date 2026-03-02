@@ -22,7 +22,7 @@ const EXPECTED_PROOF_FACTS_FILE: &str = "proof_facts_10_transfers.json";
 ///
 /// Run with:
 /// ```shell
-/// rustup run nightly-2025-07-14 cargo test -p starknet_os_runner --release --features \
+/// rustup run nightly-2025-07-14 cargo test -p starknet_transaction_prover --release --features \
 ///     stwo_proving test_prove_cairo_pie_10_transfers
 /// ```
 #[tokio::test]
@@ -69,7 +69,7 @@ async fn test_prove_cairo_pie_10_transfers() {
 ///
 /// Run manually with:
 /// ```bash
-/// cargo test -p starknet_os_runner --features stwo_proving -- --ignored regenerate_proof_fixtures
+/// cargo test -p starknet_transaction_prover --features stwo_proving -- --ignored regenerate_proof_fixtures
 /// ```
 #[tokio::test]
 #[ignore]
