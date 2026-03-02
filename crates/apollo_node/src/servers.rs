@@ -145,7 +145,6 @@ macro_rules! create_remote_server {
         $local_client_getter:expr,
         $remote_server_config:expr,
         $port:expr,
-        $max_concurrency:expr,
         $metrics:expr
     ) => {
         match *$execution_mode {
@@ -159,7 +158,6 @@ macro_rules! create_remote_server {
                         .clone()
                         .expect("Should have remote server config for inbound remote connections"),
                     $port,
-                    $max_concurrency,
                     $metrics,
                 )))
             }
@@ -186,8 +184,6 @@ macro_rules! create_remote_server {
 /// * $local_server_config - The component's local server configuration.
 /// * $receiver - receiver side for the server.
 /// * $server_metrics - The metrics for the server.
-/// * $max_concurrency - The maximum number of concurrent requests the server will handle. Only
-///   required for the CONCURRENT_LOCAL_SERVER.
 ///
 /// # Returns
 ///
@@ -219,8 +215,7 @@ macro_rules! create_local_server {
         $component:expr,
         $local_server_config:expr,
         $receiver:expr,
-        $server_metrics:expr
-        $(, $max_concurrency:expr)?
+        $server_metrics:expr $(,)?
     ) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
@@ -231,7 +226,6 @@ macro_rules! create_local_server {
                         .expect(concat!(stringify!($component), " is not initialized.")),
                     $local_server_config,
                     $receiver,
-                    $( $max_concurrency,)?
                     $server_metrics,
                 )))
             }
@@ -321,7 +315,6 @@ fn create_local_servers(
             .expect("Class manager local server config should be available."),
         communication.take_class_manager_rx(),
         &CLASS_MANAGER_INFRA_METRICS.get_local_server_metrics(),
-        config.components.class_manager.max_concurrency
     );
 
     let committer_server = create_local_server!(
@@ -350,7 +343,6 @@ fn create_local_servers(
             .expect("Config manager local server config should be available."),
         communication.take_config_manager_rx(),
         &CONFIG_MANAGER_INFRA_METRICS.get_local_server_metrics(),
-        config.components.config_manager.max_concurrency
     );
 
     let gateway_server = create_local_server!(
@@ -365,7 +357,6 @@ fn create_local_servers(
             .expect("Gateway local server config should be available."),
         communication.take_gateway_rx(),
         &GATEWAY_INFRA_METRICS.get_local_server_metrics(),
-        config.components.gateway.max_concurrency
     );
 
     let l1_gas_price_provider_server = create_local_server!(
@@ -436,7 +427,6 @@ fn create_local_servers(
             .expect("Proof manager local server config should be available."),
         communication.take_proof_manager_rx(),
         &PROOF_MANAGER_INFRA_METRICS.get_local_server_metrics(),
-        config.components.proof_manager.max_concurrency
     );
 
     let sierra_compiler_server = create_local_server!(
@@ -451,7 +441,6 @@ fn create_local_servers(
             .expect("Sierra compiler local server config should be available."),
         communication.take_sierra_compiler_rx(),
         &SIERRA_COMPILER_INFRA_METRICS.get_local_server_metrics(),
-        config.components.sierra_compiler.max_concurrency
     );
 
     let signature_manager_server = create_local_server!(
@@ -466,7 +455,6 @@ fn create_local_servers(
             .expect("Signature manager local server config should be available."),
         communication.take_signature_manager_rx(),
         &SIGNATURE_MANAGER_INFRA_METRICS.get_local_server_metrics(),
-        config.components.signature_manager.max_concurrency
     );
 
     let state_sync_server = create_local_server!(
@@ -481,7 +469,6 @@ fn create_local_servers(
             .expect("State sync local server config should be available."),
         communication.take_state_sync_rx(),
         &STATE_SYNC_INFRA_METRICS.get_local_server_metrics(),
-        config.components.state_sync.max_concurrency
     );
 
     LocalServers {
@@ -541,7 +528,6 @@ pub fn create_remote_servers(
         || { clients.get_batcher_local_client() },
         config.components.batcher.remote_server_config,
         config.components.batcher.port,
-        config.components.batcher.max_concurrency,
         BATCHER_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -550,7 +536,6 @@ pub fn create_remote_servers(
         || { clients.get_class_manager_local_client() },
         config.components.class_manager.remote_server_config,
         config.components.class_manager.port,
-        config.components.class_manager.max_concurrency,
         CLASS_MANAGER_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -559,7 +544,6 @@ pub fn create_remote_servers(
         || { clients.get_committer_local_client() },
         config.components.committer.remote_server_config,
         config.components.committer.port,
-        config.components.committer.max_concurrency,
         COMMITTER_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -568,7 +552,6 @@ pub fn create_remote_servers(
         || { clients.get_gateway_local_client() },
         config.components.gateway.remote_server_config,
         config.components.gateway.port,
-        config.components.gateway.max_concurrency,
         GATEWAY_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -577,7 +560,6 @@ pub fn create_remote_servers(
         || { clients.get_l1_events_provider_local_client() },
         config.components.l1_events_provider.remote_server_config,
         config.components.l1_events_provider.port,
-        config.components.l1_events_provider.max_concurrency,
         L1_EVENTS_PROVIDER_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -586,7 +568,6 @@ pub fn create_remote_servers(
         || { clients.get_l1_gas_price_provider_local_client() },
         config.components.l1_gas_price_provider.remote_server_config,
         config.components.l1_gas_price_provider.port,
-        config.components.l1_gas_price_provider.max_concurrency,
         L1_GAS_PRICE_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -595,7 +576,6 @@ pub fn create_remote_servers(
         || { clients.get_mempool_local_client() },
         config.components.mempool.remote_server_config,
         config.components.mempool.port,
-        config.components.mempool.max_concurrency,
         MEMPOOL_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -604,7 +584,6 @@ pub fn create_remote_servers(
         || { clients.get_mempool_p2p_propagator_local_client() },
         config.components.mempool_p2p.remote_server_config,
         config.components.mempool_p2p.port,
-        config.components.mempool_p2p.max_concurrency,
         MEMPOOL_P2P_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -613,7 +592,6 @@ pub fn create_remote_servers(
         || { clients.get_proof_manager_local_client() },
         config.components.proof_manager.remote_server_config,
         config.components.proof_manager.port,
-        config.components.proof_manager.max_concurrency,
         PROOF_MANAGER_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -622,7 +600,6 @@ pub fn create_remote_servers(
         || { clients.get_sierra_compiler_local_client() },
         config.components.sierra_compiler.remote_server_config,
         config.components.sierra_compiler.port,
-        config.components.sierra_compiler.max_concurrency,
         SIERRA_COMPILER_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -631,7 +608,6 @@ pub fn create_remote_servers(
         || { clients.get_signature_manager_local_client() },
         config.components.signature_manager.remote_server_config,
         config.components.signature_manager.port,
-        config.components.signature_manager.max_concurrency,
         SIGNATURE_MANAGER_INFRA_METRICS.get_remote_server_metrics()
     );
 
@@ -640,7 +616,6 @@ pub fn create_remote_servers(
         || { clients.get_state_sync_local_client() },
         config.components.state_sync.remote_server_config,
         config.components.state_sync.port,
-        config.components.state_sync.max_concurrency,
         STATE_SYNC_INFRA_METRICS.get_remote_server_metrics()
     );
 

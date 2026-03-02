@@ -619,11 +619,6 @@
     "privacy": "Public",
     "value": 3000
   },
-  "components.batcher.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
   "components.batcher.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -743,11 +738,6 @@
     "description": "Request processing threshold time in ms after which a warning message is logged.",
     "privacy": "Public",
     "value": 3000
-  },
-  "components.class_manager.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
   },
   "components.class_manager.port": {
     "description": "Listening port of the remote component server.",
@@ -869,11 +859,6 @@
     "privacy": "Public",
     "value": 3000
   },
-  "components.committer.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
   "components.committer.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -993,11 +978,6 @@
     "description": "Request processing threshold time in ms after which a warning message is logged.",
     "privacy": "Public",
     "value": 3000
-  },
-  "components.config_manager.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
   },
   "components.config_manager.port": {
     "description": "Listening port of the remote component server.",
@@ -1124,11 +1104,6 @@
     "privacy": "Public",
     "value": 3000
   },
-  "components.gateway.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
   "components.gateway.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -1253,11 +1228,6 @@
     "description": "Request processing threshold time in ms after which a warning message is logged.",
     "privacy": "Public",
     "value": 3000
-  },
-  "components.l1_events_provider.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
   },
   "components.l1_events_provider.port": {
     "description": "Listening port of the remote component server.",
@@ -1384,11 +1354,6 @@
     "privacy": "Public",
     "value": 3000
   },
-  "components.l1_gas_price_provider.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
   "components.l1_gas_price_provider.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -1514,11 +1479,6 @@
     "privacy": "Public",
     "value": 3000
   },
-  "components.mempool.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
   "components.mempool.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -1638,11 +1598,6 @@
     "description": "Request processing threshold time in ms after which a warning message is logged.",
     "privacy": "Public",
     "value": 3000
-  },
-  "components.mempool_p2p.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
   },
   "components.mempool_p2p.port": {
     "description": "Listening port of the remote component server.",
@@ -1769,11 +1724,6 @@
     "privacy": "Public",
     "value": 3000
   },
-  "components.proof_manager.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
   "components.proof_manager.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -1893,11 +1843,6 @@
     "description": "Request processing threshold time in ms after which a warning message is logged.",
     "privacy": "Public",
     "value": 3000
-  },
-  "components.sierra_compiler.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
   },
   "components.sierra_compiler.port": {
     "description": "Listening port of the remote component server.",
@@ -2019,11 +1964,6 @@
     "privacy": "Public",
     "value": 3000
   },
-  "components.signature_manager.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
   "components.signature_manager.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -2143,11 +2083,6 @@
     "description": "Request processing threshold time in ms after which a warning message is logged.",
     "privacy": "Public",
     "value": 3000
-  },
-  "components.state_sync.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
   },
   "components.state_sync.port": {
     "description": "Listening port of the remote component server.",

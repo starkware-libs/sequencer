@@ -231,7 +231,6 @@ async fn setup_concurrent_config_manager_test() -> LocalConfigManagerClient {
         component,
         &local_server_config,
         rx,
-        max_concurrency,
         CONFIG_MANAGER_INFRA_METRICS.get_local_server_metrics(),
     );
 
