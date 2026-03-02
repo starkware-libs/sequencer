@@ -339,11 +339,12 @@ impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for Componen
     }
 }
 
-fn dummy_remote_server_config(ip: IpAddr) -> RemoteServerConfig {
+fn dummy_remote_server_config(ip: IpAddr, max_concurrency: usize) -> RemoteServerConfig {
     RemoteServerConfig {
         bind_ip: ip,
         // arbitrary value
         max_streams_per_connection: 5,
         set_tcp_nodelay: true,
+        max_concurrency,
     }
 }

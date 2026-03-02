@@ -155,7 +155,6 @@ async fn setup_concurrent_local_test() -> LocalConcurrentComponentClient {
     local_client
 }
 
-// Uses available_ports_factory with index 7.
 async fn setup_concurrent_remote_test() -> RemoteConcurrentComponentClient {
     let local_client = setup_concurrent_local_test().await;
     let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();
@@ -164,7 +163,7 @@ async fn setup_concurrent_remote_test() -> RemoteConcurrentComponentClient {
     let max_concurrency = 10;
     let mut concurrent_remote_server = RemoteComponentServer::new(
         local_client.clone(),
-        dummy_remote_server_config(socket.ip()),
+        dummy_remote_server_config(socket.ip(), max_concurrency),
         socket.port(),
         max_concurrency,
         &TEST_REMOTE_SERVER_METRICS,
