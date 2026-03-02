@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::validators::validate_positive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
@@ -32,6 +33,7 @@ const DEFAULT_INBOUND_REQUESTS_CHANNEL_CAPACITY: usize = 1024;
 const DEFAULT_HIGH_PRIORITY_REQUESTS_CHANNEL_CAPACITY: usize = 1024;
 const DEFAULT_NORMAL_PRIORITY_REQUESTS_CHANNEL_CAPACITY: usize = 1024;
 const DEFAULT_PROCESSING_TIME_WARNING_THRESHOLD_MS: u128 = 3_000;
+const DEFAULT_MAX_CONCURRENCY: usize = 128;
 
 // The communication configuration of a local component server.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
@@ -40,6 +42,8 @@ pub struct LocalServerConfig {
     pub high_priority_requests_channel_capacity: usize,
     pub normal_priority_requests_channel_capacity: usize,
     pub processing_time_warning_threshold_ms: u128,
+    #[validate(custom(function = "validate_positive"))]
+    pub max_concurrency: usize,
 }
 
 impl SerializeConfig for LocalServerConfig {
@@ -69,6 +73,12 @@ impl SerializeConfig for LocalServerConfig {
                 "Request processing threshold time in ms after which a warning message is logged.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "max_concurrency",
+                &self.max_concurrency,
+                "The maximum number of concurrent requests handling.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -82,6 +92,7 @@ impl Default for LocalServerConfig {
             normal_priority_requests_channel_capacity:
                 DEFAULT_NORMAL_PRIORITY_REQUESTS_CHANNEL_CAPACITY,
             processing_time_warning_threshold_ms: DEFAULT_PROCESSING_TIME_WARNING_THRESHOLD_MS,
+            max_concurrency: DEFAULT_MAX_CONCURRENCY,
         }
     }
 }

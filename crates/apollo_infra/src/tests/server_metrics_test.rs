@@ -45,6 +45,7 @@ use crate::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 type TestResult = ClientResult<()>;
 
 const NUMBER_OF_ITERATIONS: usize = 10;
+const NO_CONCURRENCY: usize = 1;
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(
@@ -123,8 +124,8 @@ struct BasicSetup {
     local_server_config: LocalServerConfig,
 }
 
-fn basic_test_setup() -> BasicSetup {
-    let local_server_config = LocalServerConfig::default();
+fn basic_test_setup(max_concurrency: usize) -> BasicSetup {
+    let local_server_config = LocalServerConfig { max_concurrency, ..Default::default() };
     let test_sem = Arc::new(Semaphore::new(0));
     let component = TestComponent::new(test_sem.clone());
 
@@ -135,9 +136,11 @@ fn basic_test_setup() -> BasicSetup {
     BasicSetup { component, local_client, rx, test_sem, local_server_config }
 }
 
-async fn setup_local_server_test() -> (Arc<Semaphore>, LocalTestComponentClient) {
+async fn setup_local_server_test(
+    max_concurrency: usize,
+) -> (Arc<Semaphore>, LocalTestComponentClient) {
     let BasicSetup { component, local_client, rx, test_sem, local_server_config } =
-        basic_test_setup();
+        basic_test_setup(max_concurrency);
 
     let mut local_server =
         LocalComponentServer::new(component, &local_server_config, rx, &TEST_LOCAL_SERVER_METRICS);
@@ -152,7 +155,7 @@ async fn setup_concurrent_local_server_test(
     max_concurrency: usize,
 ) -> (Arc<Semaphore>, LocalTestComponentClient) {
     let BasicSetup { component, local_client, rx, test_sem, local_server_config } =
-        basic_test_setup();
+        basic_test_setup(max_concurrency);
 
     let mut concurrent_local_server = ConcurrentLocalComponentServer::new(
         component,
@@ -169,17 +172,16 @@ async fn setup_concurrent_local_server_test(
     (test_sem, local_client)
 }
 
-// Uses available_ports_factory with index 6.
 async fn setup_remote_server_test(
     max_concurrency: usize,
 ) -> (Arc<Semaphore>, RemoteTestComponentClient) {
-    let (test_sem, local_client) = setup_local_server_test().await;
+    let (test_sem, local_client) = setup_local_server_test(max_concurrency).await;
     let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();
     let config = RemoteClientConfig::default();
 
     let mut remote_server = RemoteComponentServer::new(
         local_client.clone(),
-        dummy_remote_server_config(socket.ip()),
+        dummy_remote_server_config(socket.ip(), max_concurrency),
         socket.port(),
         max_concurrency,
         &TEST_REMOTE_SERVER_METRICS,
@@ -275,7 +277,7 @@ async fn only_metrics_counters_for_local_server() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = set_default_local_recorder(&recorder);
 
-    let (test_sem, client) = setup_local_server_test().await;
+    let (test_sem, client) = setup_local_server_test(NO_CONCURRENCY).await;
 
     // At the beginning all metrics counters are zero.
     let metrics_as_string = recorder.handle().render();
@@ -301,7 +303,7 @@ async fn all_metrics_for_local_server() {
 
     let _recorder_guard = set_default_local_recorder(&recorder);
 
-    let (test_sem, client) = setup_local_server_test().await;
+    let (test_sem, client) = setup_local_server_test(NO_CONCURRENCY).await;
 
     // In order to test not only message counters but the queue depth too, first we will send all
     // the messages by spawning multiple clients and by that filling the channel queue.
