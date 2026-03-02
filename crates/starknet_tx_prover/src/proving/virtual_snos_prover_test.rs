@@ -71,7 +71,7 @@ async fn test_prove_balance_of_transaction() {
 
     // Verify execution and proving succeeded.
     let output = result.expect("prove_transaction should succeed");
-    assert!(!output.result.proof.0.is_empty(), "proof should not be empty");
+    assert!(!output.proof.0.is_empty(), "proof should not be empty");
 }
 
 /// Integration test for the full prover pipeline with a STRK `transfer` transaction.
@@ -108,5 +108,5 @@ async fn test_prove_transfer_transaction() {
 
     // Verify execution and proving succeeded.
     let output = result.expect("prove_transaction should succeed");
-    assert!(!output.result.proof.0.is_empty(), "proof should not be empty");
+    assert!(!output.proof.0.is_empty(), "proof should not be empty");
 }

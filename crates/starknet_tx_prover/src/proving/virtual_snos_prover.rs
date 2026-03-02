@@ -3,7 +3,7 @@
 //! This module contains the core proving logic, extracted from the HTTP layer
 //! to enable better separation of concerns and testability.
 
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
@@ -38,21 +38,6 @@ pub struct ProveTransactionResult {
     pub proof_facts: ProofFacts,
     /// Messages sent from L2 to L1 during execution.
     pub l2_to_l1_messages: Vec<MessageToL1>,
-}
-
-/// Output from a successful proving operation.
-///
-/// Contains the RPC-facing result plus internal metrics.
-#[derive(Debug, Clone)]
-pub struct VirtualSnosProverOutput {
-    /// The proving result (proof, proof facts, and messages).
-    pub result: ProveTransactionResult,
-    /// Duration of OS execution.
-    pub os_duration: Duration,
-    /// Duration of proving.
-    pub prove_duration: Duration,
-    /// Total duration from start to finish.
-    pub total_duration: Duration,
 }
 
 /// Virtual SNOS prover for Starknet transactions.
@@ -112,7 +97,7 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
         &self,
         block_id: BlockId,
         transaction: RpcTransaction,
-    ) -> Result<VirtualSnosProverOutput, VirtualSnosProverError> {
+    ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
         let start_time = Instant::now();
 
         // Validate block_id is not pending.
@@ -135,15 +120,14 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
             .await
             .map_err(|err| VirtualSnosProverError::RunnerError(Box::new(err)))?;
 
-        let os_duration = os_start.elapsed();
         info!(
-            os_duration_ms = %os_duration.as_millis(),
+            os_duration_ms = %os_start.elapsed().as_millis(),
             "OS execution completed"
         );
 
         #[cfg(not(feature = "stwo_proving"))]
         {
-            let _ = (runner_output, os_duration, start_time);
+            let _ = (runner_output, start_time);
             unimplemented!(
                 "In-memory proving requires the `stwo_proving` feature flag and a nightly Rust \
                  toolchain."
@@ -153,21 +137,16 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
         // Run the prover.
         #[cfg(feature = "stwo_proving")]
         {
-            let (result, prove_duration) = {
-                let prove_start = Instant::now();
-                let result = prove_virtual_snos_run(runner_output).await?;
-                let prove_duration = prove_start.elapsed();
+            let prove_start = Instant::now();
+            let result = prove_virtual_snos_run(runner_output).await?;
 
-                info!(
-                    prove_duration_ms = %prove_duration.as_millis(),
-                    "Proving completed"
-                );
-                (result, prove_duration)
-            };
+            info!(
+                prove_duration_ms = %prove_start.elapsed().as_millis(),
+                "Proving completed"
+            );
 
-            let total_duration = start_time.elapsed();
-            info!(total_duration_ms = %total_duration.as_millis(), "prove_transaction completed");
-            Ok(VirtualSnosProverOutput { result, os_duration, prove_duration, total_duration })
+            info!(total_duration_ms = %start_time.elapsed().as_millis(), "prove_transaction completed");
+            Ok(result)
         }
     }
 }
