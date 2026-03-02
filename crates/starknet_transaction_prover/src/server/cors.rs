@@ -5,7 +5,7 @@ use http::{header, HeaderValue, Method};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use url::Url;
 
-use crate::server::config::ConfigError;
+use crate::errors::ConfigError;
 
 /// Builds a tower-http `CorsLayer` from the (already normalized) list of allowed origins.
 ///
