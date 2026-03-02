@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772389518641,
+  "lastUpdate": 1772439443490,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1563,6 +1563,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1186.11356866,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "106665835+Itay-Tsabary-Starkware@users.noreply.github.com",
+            "name": "Itay-Tsabary-Starkware",
+            "username": "Itay-Tsabary-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "014a0d0e3d3122abea86202d3d5d7afb3c7e1ef2",
+          "message": "apollo_storage: directly use http status code (#12927)\n\n* apollo_storage: directly use http status code\n\n* apollo_storage: sort Cargo.toml file",
+          "timestamp": "2026-03-02T07:54:40Z",
+          "tree_id": "80e4a077c41ac5817a09ba32fa4b7daac0c03d93",
+          "url": "https://github.com/starkware-libs/sequencer/commit/014a0d0e3d3122abea86202d3d5d7afb3c7e1ef2"
+        },
+        "date": 1772439443184,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 819.34541968,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1236.26046243,
             "unit": "ms"
           }
         ]
