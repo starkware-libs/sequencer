@@ -64,7 +64,6 @@ pub(crate) struct ProposalValidateArguments {
     pub content_receiver: mpsc::Receiver<ProposalPart>,
     pub gas_price_params: GasPriceParams,
     pub cancel_token: CancellationToken,
-    #[allow(dead_code)]
     pub compare_retrospective_block_hash: bool,
 }
 
@@ -150,6 +149,7 @@ pub(crate) async fn validate_proposal(
         args.proposal_id,
         args.timeout + args.batcher_timeout_margin,
         args.deps.clock.as_ref(),
+        args.compare_retrospective_block_hash,
     )
     .await?;
 
@@ -314,6 +314,7 @@ async fn initiate_validation(
     proposal_id: ProposalId,
     timeout_plus_margin: Duration,
     clock: &dyn Clock,
+    compare_retrospective_block_hash: bool,
 ) -> ValidateProposalResult<()> {
     let chrono_timeout = chrono::Duration::from_std(timeout_plus_margin)
         .expect("Can't convert timeout to chrono::Duration");
@@ -325,6 +326,7 @@ async fn initiate_validation(
             batcher.clone(),
             state_sync_client,
             init,
+            compare_retrospective_block_hash,
         )
         .await
         .map_err(ValidateProposalError::from)?,
