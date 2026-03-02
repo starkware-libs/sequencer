@@ -44,6 +44,16 @@ struct Args {
     /// Progress report interval (number of entries)
     #[arg(long, default_value = "100000")]
     progress_interval: u64,
+
+    /// Sample interval: compare every Nth entry instead of all entries.
+    /// 1 = compare all (full validation), 100 = compare every 100th entry.
+    #[arg(long, default_value = "1")]
+    sample_interval: u64,
+
+    /// Number of probe samples per table (uses set_range seek instead of iteration).
+    /// When set, overrides sample_interval. Each probe is an O(log N) seek.
+    #[arg(long)]
+    num_samples: Option<u64>,
 }
 
 const ALL_TABLES: &[&str] = &[
@@ -117,6 +127,16 @@ fn main() {
 
     let skip_tables: HashSet<&str> = args.skip_tables.split(',').map(|s| s.trim()).collect();
     println!("Skipping tables: {:?}", skip_tables);
+    if let Some(n) = args.num_samples {
+        println!("Probe sampling mode: {n} random probes per table (O(log N) seek each)");
+    } else if args.sample_interval > 1 {
+        println!(
+            "Sampling mode: comparing every {}th entry (still traverses all entries)",
+            args.sample_interval
+        );
+    } else {
+        println!("Full comparison mode: comparing every entry");
+    }
 
     // --- Open databases ---
     println!();
@@ -188,7 +208,18 @@ fn main() {
         io::stdout().flush().ok();
 
         let t = Instant::now();
-        match compare_table_subset(ref_env, other_env, table_name, args.progress_interval) {
+        let result = if let Some(num_samples) = args.num_samples {
+            compare_table_probe(ref_env, other_env, table_name, num_samples)
+        } else {
+            compare_table_subset(
+                ref_env,
+                other_env,
+                table_name,
+                args.progress_interval,
+                args.sample_interval,
+            )
+        };
+        match result {
             Ok(result) => {
                 let elapsed = t.elapsed().as_secs_f64();
                 let rate = if elapsed > 0.0 {
@@ -271,6 +302,11 @@ fn main() {
     println!("  Tables compared: {tables_compared}");
     println!("  Entries verified: {total_entries}");
     println!("  Entries skipped (extra in larger DB): {total_skipped}");
+    if let Some(n) = args.num_samples {
+        println!("  Probe samples per table: {n}");
+    } else if args.sample_interval > 1 {
+        println!("  Sample interval: every {}th entry", args.sample_interval);
+    }
     println!("  Total time: {}", fmt_duration(total_elapsed));
     println!("════════════════════════════════════════════");
 
@@ -319,6 +355,7 @@ fn compare_table_subset(
     other_env: &Environment,
     table_name: &str,
     progress_interval: u64,
+    sample_interval: u64,
 ) -> Result<CompareResult, String> {
     let txn_ref = ref_env.begin_ro_txn().map_err(|e| format!("begin ref txn: {e}"))?;
     let txn_other = other_env.begin_ro_txn().map_err(|e| format!("begin other txn: {e}"))?;
@@ -340,6 +377,7 @@ fn compare_table_subset(
 
     let mut matched = 0u64;
     let mut skipped = 0u64;
+    let mut ref_position = 0u64;
 
     loop {
         match (&entry_ref, &entry_other) {
@@ -359,11 +397,9 @@ fn compare_table_subset(
                     Ordering::Equal => {
                         if v_ref.as_ref() != v_other.as_ref() {
                             return Err(format!(
-                                "Value mismatch at entry {matched}. \
-                                 Key ({kb} bytes): 0x{key_hex}  \
-                                 Ref value: {vr} bytes, Other value: {vo} bytes. \
-                                 Ref first bytes: 0x{ref_hex}  \
-                                 Other first bytes: 0x{other_hex}",
+                                "Value mismatch at ref position {ref_position}. Key ({kb} bytes): \
+                                 0x{key_hex}  Ref value: {vr} bytes, Other value: {vo} bytes. Ref \
+                                 first bytes: 0x{ref_hex}  Other first bytes: 0x{other_hex}",
                                 kb = k_ref.len(),
                                 key_hex = hex_prefix(k_ref.as_ref(), 32),
                                 vr = v_ref.len(),
@@ -373,17 +409,52 @@ fn compare_table_subset(
                             ));
                         }
                         matched += 1;
+                        ref_position += 1;
                         if matched % progress_interval == 0 {
-                            print!("\r  ... {matched} entries verified, {skipped} skipped");
+                            print!(
+                                "\r  ... {matched} entries verified, {skipped} skipped, ref pos \
+                                 {ref_position}"
+                            );
                             io::stdout().flush().ok();
+                        }
+
+                        // Skip (sample_interval - 1) entries in both cursors
+                        for _ in 0..sample_interval.saturating_sub(1) {
+                            entry_ref = cur_ref
+                                .next::<DbKeyType<'_>, DbValueType<'_>>()
+                                .map_err(|e| format!("next ref (sample skip): {e}"))?;
+                            if entry_ref.is_none() {
+                                break;
+                            }
+                            ref_position += 1;
+                        }
+                        if entry_ref.is_none() {
+                            break;
                         }
 
                         entry_ref = cur_ref
                             .next::<DbKeyType<'_>, DbValueType<'_>>()
                             .map_err(|e| format!("next ref at entry {matched}: {e}"))?;
-                        entry_other = cur_other
-                            .next::<DbKeyType<'_>, DbValueType<'_>>()
-                            .map_err(|e| format!("next other at entry {matched}: {e}"))?;
+                        ref_position += 1;
+
+                        // Advance other cursor to match or pass the new ref key
+                        if let Some((k_ref_new, _)) = &entry_ref {
+                            loop {
+                                entry_other = cur_other
+                                    .next::<DbKeyType<'_>, DbValueType<'_>>()
+                                    .map_err(|e| format!("next other (advance): {e}"))?;
+                                match &entry_other {
+                                    None => break,
+                                    Some((k_o, _)) => match k_o.as_ref().cmp(k_ref_new.as_ref()) {
+                                        Ordering::Less => {
+                                            skipped += 1;
+                                            continue;
+                                        }
+                                        _ => break,
+                                    },
+                                }
+                            }
+                        }
                     }
                     Ordering::Greater => {
                         skipped += 1;
@@ -414,27 +485,175 @@ fn compare_table_subset(
     Ok(CompareResult { matched, skipped })
 }
 
-/// Compare mmap files up to the smaller file's size. The larger file may have extra
-/// data appended from additional blocks, which is expected and ignored.
-fn compare_mmap_file_prefix(path1: &PathBuf, path2: &PathBuf) -> Result<(u64, u64, u64), String> {
-    let data1 = fs::read(path1).map_err(|e| format!("read {path1:?}: {e}"))?;
-    let data2 = fs::read(path2).map_err(|e| format!("read {path2:?}: {e}"))?;
+/// Generate evenly-spaced probe keys between first_key and last_key.
+/// Treats keys as big-endian unsigned integers and interpolates.
+fn generate_probe_keys(first_key: &[u8], last_key: &[u8], num_probes: u64) -> Vec<Vec<u8>> {
+    let key_len = first_key.len();
+    if key_len == 0 || num_probes == 0 {
+        return vec![];
+    }
 
-    let compare_len = data1.len().min(data2.len());
+    let first = bytes_to_u128(first_key);
+    let last = bytes_to_u128(last_key);
+    if first >= last || num_probes <= 1 {
+        return vec![first_key.to_vec()];
+    }
 
-    for i in 0..compare_len {
-        if data1[i] != data2[i] {
-            let context_start = i.saturating_sub(8);
-            let context_end = (i + 8).min(compare_len);
-            return Err(format!(
-                "Content mismatch at byte offset {i} / {compare_len}. \
-                 DB1[{context_start}..{context_end}]: 0x{}  DB2[{context_start}..{context_end}]: \
-                 0x{}",
-                hex_prefix(&data1[context_start..context_end], 32),
-                hex_prefix(&data2[context_start..context_end], 32),
-            ));
+    let range = last - first;
+    let mut probes = Vec::with_capacity(num_probes as usize);
+    for i in 0..num_probes {
+        let offset = range * i as u128 / (num_probes - 1) as u128;
+        let val = first + offset;
+        probes.push(u128_to_bytes(val, key_len));
+    }
+    probes
+}
+
+fn bytes_to_u128(bytes: &[u8]) -> u128 {
+    let mut val: u128 = 0;
+    for (i, &b) in bytes.iter().enumerate().take(16) {
+        val |= (b as u128) << (8 * (15 - i));
+    }
+    val
+}
+
+fn u128_to_bytes(val: u128, len: usize) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(len);
+    for i in 0..len.min(16) {
+        bytes.push((val >> (8 * (15 - i))) as u8);
+    }
+    while bytes.len() < len {
+        bytes.push(0);
+    }
+    bytes
+}
+
+/// Compare tables using probe sampling: generate evenly-spaced keys across the key space
+/// and use set_range() to seek directly to each one. O(num_samples * log(N)) instead of O(N).
+fn compare_table_probe(
+    ref_env: &Environment,
+    other_env: &Environment,
+    table_name: &str,
+    num_samples: u64,
+) -> Result<CompareResult, String> {
+    let txn_ref = ref_env.begin_ro_txn().map_err(|e| format!("begin ref txn: {e}"))?;
+    let txn_other = other_env.begin_ro_txn().map_err(|e| format!("begin other txn: {e}"))?;
+
+    let tbl_ref =
+        txn_ref.open_table(Some(table_name)).map_err(|e| format!("open table in ref DB: {e}"))?;
+    let tbl_other = txn_other
+        .open_table(Some(table_name))
+        .map_err(|e| format!("open table in other DB: {e}"))?;
+
+    let stat = txn_ref.table_stat(&tbl_ref).map_err(|e| format!("table_stat: {e}"))?;
+    let total_entries = stat.entries() as u64;
+
+    if total_entries == 0 {
+        return Ok(CompareResult { matched: 0, skipped: 0 });
+    }
+
+    let mut cur_ref = txn_ref.cursor(&tbl_ref).map_err(|e| format!("cursor ref: {e}"))?;
+    let mut cur_other = txn_other.cursor(&tbl_other).map_err(|e| format!("cursor other: {e}"))?;
+
+    let first_entry: Option<(DbKeyType<'_>, DbValueType<'_>)> =
+        cur_ref.first().map_err(|e| format!("first: {e}"))?;
+    let last_entry: Option<(DbKeyType<'_>, DbValueType<'_>)> =
+        cur_ref.last().map_err(|e| format!("last: {e}"))?;
+
+    let (first_key, _) = first_entry.ok_or("table is empty")?;
+    let (last_key, _) = last_entry.ok_or("table is empty")?;
+
+    let effective_samples = num_samples.min(total_entries);
+    let probes = generate_probe_keys(first_key.as_ref(), last_key.as_ref(), effective_samples);
+
+    let mut matched = 0u64;
+    let mut mismatched_keys = 0u64;
+
+    for probe_key in &probes {
+        let ref_entry: Option<(DbKeyType<'_>, DbValueType<'_>)> =
+            cur_ref.set_range(probe_key.as_slice()).map_err(|e| format!("set_range ref: {e}"))?;
+
+        let Some((k_ref, v_ref)) = ref_entry else {
+            break;
+        };
+
+        let other_entry: Option<(DbKeyType<'_>, DbValueType<'_>)> =
+            cur_other.set_range(k_ref.as_ref()).map_err(|e| format!("set_range other: {e}"))?;
+
+        match other_entry {
+            None => {
+                mismatched_keys += 1;
+            }
+            Some((k_other, v_other)) => {
+                if k_ref.as_ref() != k_other.as_ref() {
+                    mismatched_keys += 1;
+                } else if v_ref.as_ref() != v_other.as_ref() {
+                    return Err(format!(
+                        "Value mismatch at probe. Key ({kb} bytes): 0x{key_hex}  Ref value: {vr} \
+                         bytes, Other value: {vo} bytes. Ref first bytes: 0x{ref_hex}  Other \
+                         first bytes: 0x{other_hex}",
+                        kb = k_ref.len(),
+                        key_hex = hex_prefix(k_ref.as_ref(), 32),
+                        vr = v_ref.len(),
+                        vo = v_other.len(),
+                        ref_hex = hex_prefix(v_ref.as_ref(), 16),
+                        other_hex = hex_prefix(v_other.as_ref(), 16),
+                    ));
+                } else {
+                    matched += 1;
+                }
+            }
         }
     }
 
-    Ok((compare_len as u64, data1.len() as u64, data2.len() as u64))
+    Ok(CompareResult { matched, skipped: mismatched_keys })
+}
+
+/// Compare mmap files up to the smaller file's size using streaming 1MB chunks.
+/// Never loads more than 2MB into memory regardless of file size.
+fn compare_mmap_file_prefix(path1: &PathBuf, path2: &PathBuf) -> Result<(u64, u64, u64), String> {
+    use std::io::{BufReader, Read as IoRead};
+
+    let meta1 = fs::metadata(path1).map_err(|e| format!("metadata {path1:?}: {e}"))?;
+    let meta2 = fs::metadata(path2).map_err(|e| format!("metadata {path2:?}: {e}"))?;
+    let size1 = meta1.len();
+    let size2 = meta2.len();
+    let compare_len = size1.min(size2);
+
+    let f1 = fs::File::open(path1).map_err(|e| format!("open {path1:?}: {e}"))?;
+    let f2 = fs::File::open(path2).map_err(|e| format!("open {path2:?}: {e}"))?;
+    let mut r1 = BufReader::with_capacity(1 << 20, f1);
+    let mut r2 = BufReader::with_capacity(1 << 20, f2);
+
+    const CHUNK: usize = 1 << 20; // 1 MB
+    let mut buf1 = vec![0u8; CHUNK];
+    let mut buf2 = vec![0u8; CHUNK];
+    let mut offset: u64 = 0;
+
+    while offset < compare_len {
+        let to_read = CHUNK.min((compare_len - offset) as usize);
+        r1.read_exact(&mut buf1[..to_read])
+            .map_err(|e| format!("read {path1:?} at offset {offset}: {e}"))?;
+        r2.read_exact(&mut buf2[..to_read])
+            .map_err(|e| format!("read {path2:?} at offset {offset}: {e}"))?;
+
+        if buf1[..to_read] != buf2[..to_read] {
+            for i in 0..to_read {
+                if buf1[i] != buf2[i] {
+                    let abs = offset as usize + i;
+                    let ctx_start = i.saturating_sub(8);
+                    let ctx_end = (i + 8).min(to_read);
+                    return Err(format!(
+                        "Content mismatch at byte offset {abs} / {compare_len}. DB1: 0x{}  DB2: \
+                         0x{}",
+                        hex_prefix(&buf1[ctx_start..ctx_end], 32),
+                        hex_prefix(&buf2[ctx_start..ctx_end], 32),
+                    ));
+                }
+            }
+        }
+        offset += to_read as u64;
+    }
+
+    Ok((compare_len, size1, size2))
 }
