@@ -35,7 +35,9 @@ pub(crate) struct ProverOutput {
 /// Resolves a path to a resource file in the crate's resources directory.
 /// Constructs the path relative to the project root.
 pub(crate) fn resolve_resource_path(file_name: &str) -> Result<PathBuf, ProvingError> {
-    let path = ["crates", "starknet_os_runner", "resources", file_name].iter().collect::<PathBuf>();
+    let path = ["crates", "starknet_transaction_prover", "resources", file_name]
+        .iter()
+        .collect::<PathBuf>();
     resolve_project_relative_path(&path.to_string_lossy()).map_err(|source| {
         ProvingError::ResolveResourcePath { file_name: file_name.to_string(), source }
     })
