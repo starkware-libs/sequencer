@@ -118,7 +118,6 @@ where
     local_client: LocalComponentClient<Request, Response>,
     config: RemoteServerConfig,
     port: u16,
-    max_concurrency: usize,
     metrics: &'static RemoteServerMetrics,
 }
 
@@ -131,11 +130,10 @@ where
         local_client: LocalComponentClient<Request, Response>,
         remote_server_config: RemoteServerConfig,
         port: u16,
-        max_concurrency: usize,
         metrics: &'static RemoteServerMetrics,
     ) -> Self {
         metrics.register();
-        Self { local_client, config: remote_server_config, port, max_concurrency, metrics }
+        Self { local_client, config: remote_server_config, port, metrics }
     }
 
     #[instrument(skip_all,fields(request_id = %request_id))]
@@ -215,9 +213,9 @@ where
         let bind_socket = SocketAddr::new(self.config.bind_ip, self.port);
         debug!(
             "Starting server with socket {:?} with {:?} concurrent connections",
-            bind_socket, self.max_concurrency
+            bind_socket, self.config.max_concurrency
         );
-        let connection_semaphore = Arc::new(Semaphore::new(self.max_concurrency));
+        let connection_semaphore = Arc::new(Semaphore::new(self.config.max_concurrency));
 
         let per_connection_service =
             |io: TokioIo<tokio::net::TcpStream>,
