@@ -12436,6 +12436,7 @@ dependencies = [
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",
  "cairo-vm",
+ "chrono",
  "expect-test",
  "itertools 0.12.1",
  "rand 0.8.5",
