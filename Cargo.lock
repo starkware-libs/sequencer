@@ -12448,15 +12448,60 @@ dependencies = [
  "starknet_api",
  "starknet_committer",
  "starknet_os",
- "starknet_os_runner",
  "starknet_patricia",
  "starknet_patricia_storage",
+ "starknet_transaction_prover",
  "strum",
  "tokio",
 ]
 
 [[package]]
-name = "starknet_os_runner"
+name = "starknet_patricia"
+version = "0.18.0-dev.0"
+dependencies = [
+ "async-recursion",
+ "derive_more 2.1.1",
+ "ethnum",
+ "num-bigint",
+ "pretty_assertions",
+ "rand 0.8.5",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet-rust-core 0.16.0",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_patricia_storage",
+ "strum",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
+name = "starknet_patricia_storage"
+version = "0.18.0-dev.0"
+dependencies = [
+ "aerospike",
+ "apollo_config",
+ "blake2",
+ "digest 0.10.7",
+ "hex",
+ "libmdbx",
+ "lru 0.12.5",
+ "page_size",
+ "rstest",
+ "rust-rocksdb",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "thiserror 1.0.69",
+ "tokio",
+ "validator",
+]
+
+[[package]]
+name = "starknet_transaction_prover"
 version = "0.18.0-dev.0"
 dependencies = [
  "anyhow",
@@ -12504,51 +12549,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
-]
-
-[[package]]
-name = "starknet_patricia"
-version = "0.18.0-dev.0"
-dependencies = [
- "async-recursion",
- "derive_more 2.1.1",
- "ethnum",
- "num-bigint",
- "pretty_assertions",
- "rand 0.8.5",
- "rstest",
- "serde",
- "serde_json",
- "starknet-rust-core 0.16.0",
- "starknet-types-core",
- "starknet_api",
- "starknet_patricia_storage",
- "strum",
- "thiserror 1.0.69",
- "tokio",
-]
-
-[[package]]
-name = "starknet_patricia_storage"
-version = "0.18.0-dev.0"
-dependencies = [
- "aerospike",
- "apollo_config",
- "blake2",
- "digest 0.10.7",
- "hex",
- "libmdbx",
- "lru 0.12.5",
- "page_size",
- "rstest",
- "rust-rocksdb",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
- "thiserror 1.0.69",
- "tokio",
- "validator",
 ]
 
 [[package]]
