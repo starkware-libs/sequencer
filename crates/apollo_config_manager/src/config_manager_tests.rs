@@ -230,7 +230,6 @@ async fn setup_concurrent_config_manager_test() -> LocalConfigManagerClient {
         component,
         &local_server_config,
         rx,
-        10,
         CONFIG_MANAGER_INFRA_METRICS.get_local_server_metrics(),
     );
 

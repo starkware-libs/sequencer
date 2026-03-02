@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::net::ToSocketAddrs;
 
 use apollo_config::dumping::{ser_optional_sub_config, ser_param, SerializeConfig};
-use apollo_config::validators::{create_validation_error, validate_positive};
+use apollo_config::validators::create_validation_error;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::{LocalServerConfig, RemoteServerConfig};
@@ -18,10 +18,6 @@ pub const DEFAULT_INVALID_PORT: u16 = 0;
 
 // TODO(Tsabary): create custom configs per service, considering the required throughput and spike
 // tolerance.
-
-// TODO(Tsabary): rename this constant and config field to better reflect its purpose.
-
-pub const MAX_CONCURRENCY: usize = 128;
 
 pub trait ExpectedComponentConfig {
     fn is_running_locally(&self) -> bool;
@@ -70,8 +66,6 @@ pub struct ReactiveComponentExecutionConfig {
     pub local_server_config: Option<LocalServerConfig>,
     pub remote_server_config: Option<RemoteServerConfig>,
     pub remote_client_config: Option<RemoteClientConfig>,
-    #[validate(custom(function = "validate_positive"))]
-    pub max_concurrency: usize,
     pub url: String,
     pub port: u16,
 }
@@ -83,12 +77,6 @@ impl SerializeConfig for ReactiveComponentExecutionConfig {
                 "execution_mode",
                 &self.execution_mode,
                 "The component execution mode.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_concurrency",
-                &self.max_concurrency,
-                "The maximum number of concurrent requests handling.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -129,7 +117,6 @@ impl ReactiveComponentExecutionConfig {
             local_server_config: None,
             remote_server_config: None,
             remote_client_config: None,
-            max_concurrency: MAX_CONCURRENCY,
             url: DEFAULT_URL.to_string(),
             port: DEFAULT_INVALID_PORT,
         }
@@ -141,7 +128,6 @@ impl ReactiveComponentExecutionConfig {
             local_server_config: None,
             remote_server_config: None,
             remote_client_config: Some(RemoteClientConfig::default()),
-            max_concurrency: MAX_CONCURRENCY,
             url,
             port,
         }
@@ -153,7 +139,6 @@ impl ReactiveComponentExecutionConfig {
             local_server_config: Some(LocalServerConfig::default()),
             remote_server_config: Some(RemoteServerConfig::default()),
             remote_client_config: None,
-            max_concurrency: MAX_CONCURRENCY,
             url,
             port,
         }
@@ -165,7 +150,6 @@ impl ReactiveComponentExecutionConfig {
             local_server_config: Some(LocalServerConfig::default()),
             remote_server_config: None,
             remote_client_config: None,
-            max_concurrency: MAX_CONCURRENCY,
             url: DEFAULT_URL.to_string(),
             port: DEFAULT_INVALID_PORT,
         }
