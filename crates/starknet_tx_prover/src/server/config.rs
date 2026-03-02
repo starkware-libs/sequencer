@@ -10,6 +10,7 @@ use starknet_api::core::{ChainId, ContractAddress};
 use tracing::info;
 
 use crate::config::ProverConfig;
+use crate::errors::ConfigError;
 use crate::server::cors::normalize_cors_allow_origins;
 
 #[cfg(test)]
@@ -268,15 +269,4 @@ pub struct CliArgs {
             Use --no-cors to explicitly disable CORS when a config file sets origins."
     )]
     pub cors_allow_origin: Vec<String>,
-}
-
-/// Errors that can occur during configuration.
-#[derive(Debug, thiserror::Error)]
-pub enum ConfigError {
-    #[error("Configuration file error: {0}")]
-    ConfigFileError(String),
-    #[error("Invalid argument: {0}")]
-    InvalidArgument(String),
-    #[error("Missing required field: {0}")]
-    MissingRequiredField(String),
 }

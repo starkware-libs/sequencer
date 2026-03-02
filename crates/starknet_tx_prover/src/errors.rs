@@ -1,3 +1,4 @@
+use apollo_transaction_converter::ProgramOutputError;
 use blockifier::state::errors::StateError;
 use blockifier_reexecution::errors::ReexecutionError;
 use cairo_vm::types::errors::program_errors::ProgramError;
@@ -5,6 +6,7 @@ use proving_utils::proof_encoding::ProofEncodingError;
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::TransactionHash;
 use starknet_os::errors::StarknetOsError;
+use starknet_os::io::os_output::OsOutputError;
 use starknet_patricia_storage::errors::SerializationError;
 use starknet_rust::providers::ProviderError;
 use thiserror::Error;
@@ -87,7 +89,7 @@ pub enum ProvingError {
 
     #[cfg(feature = "stwo_proving")]
     #[error("Prover execution failed: {0}")]
-    ProverExecution(#[from] crate::proving::error::StwoRunAndProveError),
+    ProverExecution(#[from] StwoRunAndProveError),
 
     #[error("Failed to read proof file: {0}")]
     ReadProof(#[source] ProofEncodingError),
@@ -97,4 +99,45 @@ pub enum ProvingError {
 
     #[error("Failed to parse proof facts: {0}")]
     ParseProofFacts(#[source] serde_json::Error),
+}
+
+/// Errors from in-memory stwo proving.
+#[cfg(feature = "stwo_proving")]
+#[derive(Debug, Error)]
+pub enum StwoRunAndProveError {
+    #[error("In-memory proving failed: {0}")]
+    Proving(#[from] stwo_run_and_prove_lib::StwoRunAndProveError),
+
+    #[error("Proving task failed to join: {0}")]
+    TaskJoin(#[from] tokio::task::JoinError),
+}
+
+/// Error type for the virtual SNOS prover.
+#[derive(Debug, Error)]
+pub enum VirtualSnosProverError {
+    #[error("Invalid transaction type: {0}")]
+    InvalidTransactionType(String),
+    #[error("Validation error: {0}")]
+    ValidationError(String),
+    #[error(transparent)]
+    ProgramOutputError(#[from] ProgramOutputError),
+    #[error(transparent)]
+    // Boxed to reduce the size of Result on the stack (RunnerError is >128 bytes).
+    RunnerError(#[from] Box<RunnerError>),
+    #[cfg(feature = "stwo_proving")]
+    #[error(transparent)]
+    ProvingError(#[from] ProvingError),
+    #[error(transparent)]
+    OutputParseError(#[from] OsOutputError),
+}
+
+/// Errors that can occur during configuration.
+#[derive(Debug, Error)]
+pub enum ConfigError {
+    #[error("Configuration file error: {0}")]
+    ConfigFileError(String),
+    #[error("Invalid argument: {0}")]
+    InvalidArgument(String),
+    #[error("Missing required field: {0}")]
+    MissingRequiredField(String),
 }
