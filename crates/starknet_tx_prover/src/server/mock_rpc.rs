@@ -26,7 +26,7 @@ use starknet_api::rpc_transaction::RpcTransaction;
 
 use crate::proving::virtual_snos_prover::ProveTransactionResult;
 use crate::server::rpc_impl::SPEC_VERSION;
-use crate::server::rpc_trait::ProvingRpcServer;
+use crate::server::rpc_api::ProvingRpcServer;
 
 /// Mock of `prove_transaction` that returns a pre-loaded [`ProveTransactionResult`]
 /// loaded from `resources/mock_proving_rpc/prove_transaction_result.json`.
