@@ -24,7 +24,7 @@ cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-program-runner-lib = { workspace = true, optional = true }
 cairo-vm.workspace = true
-clap = { workspace = true, features = ["derive"] }
+clap = { workspace = true, features = ["derive", "env"] }
 futures.workspace = true
 http.workspace = true
 indexmap.workspace = true
