@@ -16,12 +16,13 @@ apollo_metrics.workspace = true
 apollo_proc_macros.workspace = true
 async-trait.workspace = true
 axum.workspace = true
-http-body-util.workspace = true
 byteorder.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 clap = { workspace = true, features = ["derive"], optional = true }
+http.workspace = true
+http-body-util.workspace = true
 human_bytes.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 integer-encoding.workspace = true
@@ -36,8 +37,8 @@ primitive-types.workspace = true
 reqwest = { workspace = true, features = ["json"], optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
-starknet-types-core = { workspace = true, features = ["papyrus-serialization"] }
 starknet_api.workspace = true
+starknet-types-core = { workspace = true, features = ["papyrus-serialization"] }
 tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
