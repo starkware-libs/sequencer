@@ -293,11 +293,10 @@ where
         component: Component,
         config: &LocalServerConfig,
         rx: Receiver<RequestWrapper<Request, Response>>,
-        max_concurrency: usize,
         metrics: &'static LocalServerMetrics,
     ) -> Self {
         let local_component_server = LocalComponentServer::new(component, config, rx, metrics);
-        Self { local_component_server, max_concurrency }
+        Self { local_component_server, max_concurrency: config.max_concurrency }
     }
 
     async fn await_requests(&mut self) {
