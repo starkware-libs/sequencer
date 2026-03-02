@@ -3,7 +3,6 @@ use apollo_state_sync_metrics::metrics::{
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
     STATE_SYNC_BODY_MARKER,
     STATE_SYNC_CLASS_MANAGER_MARKER,
-    STATE_SYNC_COMPILED_CLASS_MARKER,
     STATE_SYNC_HEADER_LATENCY_SEC,
 };
 
@@ -11,43 +10,34 @@ use crate::dashboard::Row;
 use crate::panel::{Panel, PanelType, Unit};
 use crate::query_builder::DEFAULT_DURATION;
 
-fn get_panel_central_sync_central_block_marker() -> Panel {
+fn get_panel_current_feeder_gateway_marker() -> Panel {
     Panel::new(
-        "Central Block Marker",
-        "The first block number that doesn't exist yet",
+        "Current Feeder Gateway Marker",
+        "The latest block number available in the feeder gateway + 1",
         CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.get_name_with_filter().to_string(),
         PanelType::Stat,
     )
 }
-fn get_panel_state_sync_body_marker() -> Panel {
+fn get_panel_sync_body_marker() -> Panel {
     Panel::new(
-        "State Sync Body Marker",
-        "The first block number for which the state sync component does not have a body",
+        "Current Sync Body Marker",
+        "The first block whose body hasn't been downloaded",
         STATE_SYNC_BODY_MARKER.get_name_with_filter().to_string(),
         PanelType::Stat,
     )
 }
-fn get_panel_state_sync_class_manager_marker() -> Panel {
+fn get_panel_current_sync_marker() -> Panel {
     Panel::new(
-        "State Sync Class Manager Marker",
-        "The first block number for which the state sync component does not have a class",
+        "Current Sync Marker",
+        "The first block that hasn't been fully downloaded",
         STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter().to_string(),
         PanelType::Stat,
     )
 }
-fn get_panel_state_sync_compiled_class_marker() -> Panel {
+fn get_panel_sync_diff_from_feeder_gateway() -> Panel {
     Panel::new(
-        "State Sync Compiled Class Marker",
-        "The first block number for which the state sync component does not have all of the \
-         corresponding compiled classes",
-        STATE_SYNC_COMPILED_CLASS_MARKER.get_name_with_filter().to_string(),
-        PanelType::Stat,
-    )
-}
-fn get_panel_state_sync_diff_from_central() -> Panel {
-    Panel::new(
-        "Sync Diff From Central",
-        "The number of blocks that were not fully synced yet",
+        "Sync Diff From Feeder Gateway",
+        "The number of blocks that exist in the feeder but weren't downloaded yet",
         format!(
             "{} - {}",
             CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.get_name_with_filter(),
@@ -56,10 +46,10 @@ fn get_panel_state_sync_diff_from_central() -> Panel {
         PanelType::TimeSeries,
     )
 }
-fn get_panel_state_sync_new_header_maturity() -> Panel {
+fn get_panel_sync_block_age() -> Panel {
     Panel::new(
         "Sync Block Age",
-        "The time from a block’s timestamp until its header is synced through the feeder-gateway.",
+        "The time from a block’s timestamp until its header is downloaded.",
         STATE_SYNC_HEADER_LATENCY_SEC.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
@@ -70,9 +60,8 @@ fn get_panel_time_to_complete_sync() -> Panel {
         "Time to Complete Sync",
         format!(
             "Estimated time to complete syncing to the latest block (based on a {} window \
-             rate).\nThe value is computed from the sync rate of the `class manager marker` \
-             (which is the last component to finish downloading among all state sync parts), \
-             compared against the `central block marker` (the latest block known to central).",
+             rate).\nThe value is computed from the sync rate of the `current sync marker` \
+             compared against the `current feeder gateway marker`.",
             DEFAULT_DURATION
         ),
         format!(
@@ -91,13 +80,12 @@ pub(crate) fn get_state_sync_row() -> Row {
     Row::new(
         "State Sync",
         vec![
-            get_panel_central_sync_central_block_marker(),
+            get_panel_current_feeder_gateway_marker(),
+            get_panel_current_sync_marker(),
             get_panel_time_to_complete_sync(),
-            get_panel_state_sync_diff_from_central(),
-            get_panel_state_sync_new_header_maturity(),
-            get_panel_state_sync_body_marker(),
-            get_panel_state_sync_class_manager_marker(),
-            get_panel_state_sync_compiled_class_marker(),
+            get_panel_sync_diff_from_feeder_gateway(),
+            get_panel_sync_block_age(),
+            get_panel_sync_body_marker(),
         ],
     )
 }
