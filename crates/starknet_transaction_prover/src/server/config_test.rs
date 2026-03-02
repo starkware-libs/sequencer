@@ -2,10 +2,30 @@ use std::io::Write;
 
 use clap::Parser;
 use rstest::rstest;
+use serial_test::serial;
 use tempfile::NamedTempFile;
 
 use crate::errors::ConfigError;
 use crate::server::config::{CliArgs, ServiceConfig};
+
+/// RAII guard that removes an environment variable on drop, ensuring cleanup even on panic.
+struct EnvGuard(&'static str);
+
+impl EnvGuard {
+    fn set(key: &'static str, value: &str) -> Self {
+        // SAFETY: tests that call EnvGuard::set are annotated with #[serial] so they never run
+        // concurrently with each other.
+        unsafe { std::env::set_var(key, value) };
+        Self(key)
+    }
+}
+
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        // SAFETY: cleanup of env var set by the same test.
+        unsafe { std::env::remove_var(self.0) };
+    }
+}
 
 fn base_args() -> CliArgs {
     CliArgs {
@@ -101,4 +121,24 @@ fn cors_allow_origin_rejects_non_array_in_config_file() {
     let error = ServiceConfig::from_args(args).unwrap_err();
 
     assert!(matches!(error, ConfigError::ConfigFileError(_)));
+}
+
+#[test]
+#[serial]
+fn env_var_sets_rpc_url() {
+    let _guard = EnvGuard::set("RPC_URL", "http://env-provided:9545");
+
+    let args = CliArgs::parse_from(["starknet-transaction-prover"]);
+
+    assert_eq!(args.rpc_url, Some("http://env-provided:9545".to_string()));
+}
+
+#[test]
+#[serial]
+fn cli_flag_overrides_env_var() {
+    let _guard = EnvGuard::set("PROVER_PORT", "5000");
+
+    let args = CliArgs::parse_from(["starknet-transaction-prover", "--port", "6000"]);
+
+    assert_eq!(args.port, Some(6000));
 }
