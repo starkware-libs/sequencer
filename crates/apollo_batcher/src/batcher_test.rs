@@ -25,6 +25,8 @@ use apollo_batcher_types::batcher_types::{
     SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
+    SendTxsForProposalInput,
+    SendTxsForProposalStatus,
     StartHeightInput,
     ValidateBlockInput,
 };
@@ -636,6 +638,8 @@ async fn validate_block_full_flow() {
 }
 
 #[rstest]
+// TODO(Itamar): Remove this case once we migrate to `send_txs_for_proposal`.
+// This case is tested in `action_on_unknown_proposal::send_txs`.
 #[case::send_txs(SendProposalContent::Txs(test_txs(0..1)))]
 #[tokio::test]
 async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) {
@@ -650,6 +654,7 @@ async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) 
 #[rstest]
 #[case::abort(ProposalAction::Abort)]
 #[case::finish(ProposalAction::FinishProposal)]
+#[case::send_txs(ProposalAction::SendTxsForProposal)]
 #[tokio::test]
 async fn action_on_unknown_proposal(#[case] action: ProposalAction) {
     let mut batcher = create_batcher(MockDependencies::default()).await;
@@ -660,6 +665,13 @@ async fn action_on_unknown_proposal(#[case] action: ProposalAction) {
             .finish_proposal(FinishProposalInput {
                 proposal_id: PROPOSAL_ID,
                 final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
+            })
+            .await
+            .map(|_| ()),
+        ProposalAction::SendTxsForProposal => batcher
+            .send_txs_for_proposal(SendTxsForProposalInput {
+                proposal_id: PROPOSAL_ID,
+                txs: test_txs(0..1),
             })
             .await
             .map(|_| ()),
@@ -674,6 +686,7 @@ async fn action_on_unknown_proposal(#[case] action: ProposalAction) {
 #[rstest]
 #[case::abort(ProposalAction::Abort)]
 #[case::finish(ProposalAction::FinishProposal)]
+#[case::send_txs(ProposalAction::SendTxsForProposal)]
 #[tokio::test]
 async fn action_on_invalid_proposal(#[case] action: ProposalAction) {
     let mut batcher =
@@ -696,6 +709,18 @@ async fn action_on_invalid_proposal(#[case] action: ProposalAction) {
                 FinishProposalStatus::InvalidProposal("Block is full".to_string())
             );
         }
+        ProposalAction::SendTxsForProposal => {
+            assert_eq!(
+                batcher
+                    .send_txs_for_proposal(SendTxsForProposalInput {
+                        proposal_id: PROPOSAL_ID,
+                        txs: test_txs(0..1),
+                    })
+                    .await
+                    .unwrap(),
+                SendTxsForProposalStatus::InvalidProposal("Block is full".to_string())
+            );
+        }
         ProposalAction::SendContent(content) => {
             let input = SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
             let result = batcher.send_proposal_content(input).await.unwrap();
@@ -706,6 +731,7 @@ async fn action_on_invalid_proposal(#[case] action: ProposalAction) {
         }
     }
 }
+
 // TODO(Itamar): Remove this test once all cases are tested separately for each method.
 #[rstest]
 #[case::send_txs(SendProposalContent::Txs(test_txs(0..1)), ProposalStatus::InvalidProposal("Block is full".to_string()))]
@@ -724,8 +750,9 @@ async fn send_content_to_an_invalid_proposal(
     assert_eq!(result, SendProposalContentResponse { response });
 }
 
-// TODO(Itamar): Remove this test once all cases are tested separately for each method.
 #[rstest]
+// TODO(Itamar): Remove this case once we migrate to `send_txs_for_proposal`.
+// This case is tested in `proposal_not_found_after_terminal_action::send_txs_for_proposal_after_finish`.
 #[case::send_txs_after_finish(SendProposalContent::Txs(test_txs(0..1)))]
 #[tokio::test]
 async fn send_proposal_content_after_finish(#[case] content: SendProposalContent) {
@@ -759,6 +786,7 @@ enum ProposalAction {
     Abort,
     SendContent(SendProposalContent),
     FinishProposal,
+    SendTxsForProposal,
 }
 
 #[rstest]
@@ -770,6 +798,14 @@ enum ProposalAction {
 #[case::abort_after_abort(EndProposalAction::Abort, ProposalAction::Abort)]
 #[case::finish_after_finish(EndProposalAction::Finish, ProposalAction::FinishProposal)]
 #[case::finish_after_abort(EndProposalAction::Abort, ProposalAction::FinishProposal)]
+#[case::send_txs_for_proposal_after_finish(
+    EndProposalAction::Finish,
+    ProposalAction::SendTxsForProposal
+)]
+#[case::send_txs_for_proposal_after_abort(
+    EndProposalAction::Abort,
+    ProposalAction::SendTxsForProposal
+)]
 #[tokio::test]
 async fn proposal_not_found_after_terminal_action(
     #[case] end_action: EndProposalAction,
@@ -805,6 +841,13 @@ async fn proposal_not_found_after_terminal_action(
             .finish_proposal(FinishProposalInput {
                 proposal_id: PROPOSAL_ID,
                 final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
+            })
+            .await
+            .map(|_| ()),
+        ProposalAction::SendTxsForProposal => batcher
+            .send_txs_for_proposal(SendTxsForProposalInput {
+                proposal_id: PROPOSAL_ID,
+                txs: test_txs(0..1),
             })
             .await
             .map(|_| ()),
