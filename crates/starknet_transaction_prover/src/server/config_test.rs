@@ -4,7 +4,8 @@ use clap::Parser;
 use rstest::rstest;
 use tempfile::NamedTempFile;
 
-use crate::server::config::{CliArgs, ConfigError, ServiceConfig};
+use crate::errors::ConfigError;
+use crate::server::config::{CliArgs, ServiceConfig};
 
 fn base_args() -> CliArgs {
     CliArgs {

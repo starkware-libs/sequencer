@@ -5,7 +5,6 @@
 
 use std::time::{Duration, Instant};
 
-use apollo_transaction_converter::ProgramOutputError;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::utils::get_chain_info;
@@ -15,38 +14,16 @@ use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::transaction::fields::VIRTUAL_SNOS;
 use starknet_api::transaction::fields::{Proof, ProofFacts};
 use starknet_api::transaction::{InvokeTransaction, MessageToL1};
-use starknet_os::io::os_output::OsOutputError;
 use tracing::{info, instrument};
 use url::Url;
 
 use crate::config::ProverConfig;
-#[cfg(feature = "stwo_proving")]
-use crate::errors::ProvingError;
-use crate::errors::RunnerError;
+use crate::errors::VirtualSnosProverError;
 #[cfg(feature = "stwo_proving")]
 use crate::proving::prover::prove;
 #[cfg(feature = "stwo_proving")]
 use crate::running::runner::RunnerOutput;
 use crate::running::runner::{RpcRunnerFactory, VirtualSnosRunner};
-
-/// Error type for the virtual SNOS prover.
-#[derive(Debug, thiserror::Error)]
-pub enum VirtualSnosProverError {
-    #[error("Invalid transaction type: {0}")]
-    InvalidTransactionType(String),
-    #[error("Validation error: {0}")]
-    ValidationError(String),
-    #[error(transparent)]
-    ProgramOutputError(#[from] ProgramOutputError),
-    #[error(transparent)]
-    // Boxed to reduce the size of Result on the stack (RunnerError is >128 bytes).
-    RunnerError(#[from] Box<RunnerError>),
-    #[cfg(feature = "stwo_proving")]
-    #[error(transparent)]
-    ProvingError(#[from] ProvingError),
-    #[error(transparent)]
-    OutputParseError(#[from] OsOutputError),
-}
 
 /// Result of a successful prove transaction operation.
 ///
