@@ -72,7 +72,7 @@ where
 {
     noise_config: noise::Config,
     my_peer_id: PeerId,
-    negotiator: Option<TNegotiator>,
+    negotiator: TNegotiator,
 }
 
 type UpgradeFuture<Socket> =
@@ -87,7 +87,7 @@ where
     #[allow(dead_code)]
     pub fn new(
         identity: &identity::Keypair,
-        negotiator: Option<TNegotiator>,
+        negotiator: TNegotiator,
     ) -> Result<Self, NegotiatorError> {
         Ok(Self {
             noise_config: noise::Config::new(identity)?,
@@ -110,10 +110,6 @@ where
         };
 
         async move {
-            let Some(negotiator) = self.negotiator.as_mut() else {
-                return noise_upgrade_future.await.map_err(NegotiatorError::Noise);
-            };
-
             let (pk, io) = noise_upgrade_future.await?;
 
             let codec = ProtoCodec::<TNegotiator::WireMessage>::new(MAX_WIRE_MESSAGE_SIZE);
@@ -123,7 +119,7 @@ where
             // TODO(noam.s): Add timeout mechanism for negotiation to prevent hanging connections.
             // Consider following libp2p's approach with configurable timeout duration where the
             // transport is configured
-            negotiator
+            self.negotiator
                 .negotiate_connection(
                     self.my_peer_id,
                     pk,
@@ -154,16 +150,8 @@ where
     type InfoIter = std::iter::Once<Self::Info>;
 
     fn protocol_info(&self) -> Self::InfoIter {
-        std::iter::once(match &self.negotiator {
-            // TODO(noam.s): Check this value with product team.
-            Some(negotiator) => format!("/noise_with_{}", negotiator.protocol_name()),
-            None => String::from(
-                self.noise_config
-                    .protocol_info()
-                    .next()
-                    .expect("Noise protocol info should return a single value"),
-            ),
-        })
+        // TODO(noam.s): Check this value with product team.
+        std::iter::once(format!("/noise_with_{}", self.negotiator.protocol_name()))
     }
 }
 
