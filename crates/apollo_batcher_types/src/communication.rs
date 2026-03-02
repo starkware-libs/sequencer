@@ -32,6 +32,8 @@ use crate::batcher_types::{
     RevertBlockInput,
     SendProposalContentInput,
     SendProposalContentResponse,
+    SendTxsForProposalInput,
+    SendTxsForProposalStatus,
     StartHeightInput,
     ValidateBlockInput,
 };
@@ -94,6 +96,11 @@ pub trait BatcherClient: Send + Sync {
         &self,
         input: FinishProposalInput,
     ) -> BatcherClientResult<FinishProposalStatus>;
+    /// Sends transactions for a proposal being validated.
+    async fn send_txs_for_proposal(
+        &self,
+        input: SendTxsForProposalInput,
+    ) -> BatcherClientResult<SendTxsForProposalStatus>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
     async fn get_timestamp(&self) -> BatcherClientResult<UnixTimestamp>;
@@ -115,6 +122,7 @@ pub enum BatcherRequest {
     SendProposalContent(SendProposalContentInput),
     AbortProposal(ProposalId),
     FinishProposal(FinishProposalInput),
+    SendTxsForProposal(SendTxsForProposalInput),
     StartHeight(StartHeightInput),
     GetCurrentHeight,
     DecisionReached(DecisionReachedInput),
@@ -138,6 +146,7 @@ pub enum BatcherResponse {
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
+    SendTxsForProposal(BatcherResult<SendTxsForProposalStatus>),
     SendProposalContent(BatcherResult<SendProposalContentResponse>),
     AbortProposal(BatcherResult<()>),
     FinishProposal(BatcherResult<FinishProposalStatus>),
@@ -211,6 +220,22 @@ where
             request,
             BatcherResponse,
             ValidateBlock,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    async fn send_txs_for_proposal(
+        &self,
+        input: SendTxsForProposalInput,
+    ) -> BatcherClientResult<SendTxsForProposalStatus> {
+        let request = BatcherRequest::SendTxsForProposal(input);
+        handle_all_response_variants!(
+            self,
+            request,
+            BatcherResponse,
+            SendTxsForProposal,
             BatcherClientError,
             BatcherError,
             Direct
