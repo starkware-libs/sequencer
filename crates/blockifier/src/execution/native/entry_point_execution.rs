@@ -4,10 +4,9 @@ use cairo_vm::types::builtin_name::BuiltinName;
 
 use crate::execution::call_info::{
     cairo_primitive_counter_map,
-    CairoPrimitiveCounterMap,
+    BuiltinCounterMap,
     CallExecution,
     CallInfo,
-    OpcodeName,
     Retdata,
 };
 use crate::execution::contract_class::TrackedResource;
@@ -45,7 +44,6 @@ pub fn execute_entry_point_call(
         poseidon: gas_costs.builtins.poseidon,
         add_mod: gas_costs.builtins.add_mod,
         mul_mod: gas_costs.builtins.mul_mod,
-        blake: gas_costs.builtins.blake,
     };
 
     // Pre-charge entry point's initial budget to ensure sufficient gas for executing a minimal
@@ -97,15 +95,14 @@ fn create_callinfo(
     let gas_consumed = syscall_handler.base.call.initial_gas - remaining_gas;
     let vm_resources = CallInfo::summarize_vm_resources(syscall_handler.base.inner_calls.iter());
 
-    // Combine syscall builtins (no opcodes) with entry-point cairo primitives (builtins + opcodes).
     let version_constants = syscall_handler.base.context.versioned_constants();
-    let syscall_builtins = version_constants
+    let syscall_builtin_counts = version_constants
         .get_additional_os_syscall_resources(&syscall_handler.base.syscalls_usage)
         .filter_unused_builtins()
         .prover_builtins();
-    let mut entry_point_primitive_counters =
-        builtin_stats_to_primitive_counters(call_result.builtin_stats);
-    add_maps(&mut entry_point_primitive_counters, &cairo_primitive_counter_map(syscall_builtins));
+    let entry_point_builtins = builtin_stats_to_builtin_counter_map(call_result.builtin_stats);
+    let mut builtin_counters = syscall_builtin_counts;
+    add_maps(&mut builtin_counters, &entry_point_builtins);
 
     Ok(CallInfo {
         call: syscall_handler.base.call.into(),
@@ -121,29 +118,21 @@ fn create_callinfo(
         inner_calls: syscall_handler.base.inner_calls,
         storage_access_tracker: syscall_handler.base.storage_access_tracker,
         tracked_resource: TrackedResource::SierraGas,
-        builtin_counters: entry_point_primitive_counters,
+        builtin_counters: cairo_primitive_counter_map(builtin_counters),
         syscalls_usage: syscall_handler.base.syscalls_usage,
     })
 }
 
-/// Converts native `BuiltinStats` into a unified `CairoPrimitiveCounterMap` (builtins + opcodes).
-fn builtin_stats_to_primitive_counters(stats: BuiltinStats) -> CairoPrimitiveCounterMap {
+fn builtin_stats_to_builtin_counter_map(builtin_stats: BuiltinStats) -> BuiltinCounterMap {
     let builtins = [
-        (BuiltinName::range_check, stats.range_check),
-        (BuiltinName::pedersen, stats.pedersen),
-        (BuiltinName::bitwise, stats.bitwise),
-        (BuiltinName::ec_op, stats.ec_op),
-        (BuiltinName::poseidon, stats.poseidon),
-        (BuiltinName::range_check96, stats.range_check96),
-        (BuiltinName::add_mod, stats.add_mod),
-        (BuiltinName::mul_mod, stats.mul_mod),
+        (BuiltinName::range_check, builtin_stats.range_check),
+        (BuiltinName::pedersen, builtin_stats.pedersen),
+        (BuiltinName::bitwise, builtin_stats.bitwise),
+        (BuiltinName::ec_op, builtin_stats.ec_op),
+        (BuiltinName::poseidon, builtin_stats.poseidon),
+        (BuiltinName::range_check96, builtin_stats.range_check96),
+        (BuiltinName::add_mod, builtin_stats.add_mod),
+        (BuiltinName::mul_mod, builtin_stats.mul_mod),
     ];
-    let opcodes = [(OpcodeName::Blake, stats.blake)];
-
-    builtins
-        .into_iter()
-        .map(|(builtin_name, count)| (builtin_name.into(), count))
-        .chain(opcodes.into_iter().map(|(opcode_name, count)| (opcode_name.into(), count)))
-        .filter(|(_, count)| *count > 0)
-        .collect()
+    builtins.into_iter().filter(|(_, count)| *count > 0).collect()
 }

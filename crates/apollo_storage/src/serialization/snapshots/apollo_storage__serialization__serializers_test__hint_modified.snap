@@ -19,7 +19,7 @@ $defs:
       - sign
       - data
   BigIntAsHex:
-    description: The underlying signed big integer value.
+    description: A field element that encodes the signature of the called function.
     $ref: "#/$defs/BigInt"
   BigUint:
     type: object
