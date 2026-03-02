@@ -50,6 +50,12 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 static VALID_STORAGE_KEYS: LazyLock<Vec<Felt>> =
     LazyLock::new(|| vec![Felt::from(1u16 << 8), Felt::from(1u16 << 9)]);
 
+// TODO(Dori): Operations to add:
+// 1. advance counter (read -> write)
+// 2. message to L1
+// 3. events
+// 4. call / libcall non-existing entry points (should panic) (catchable in cairo0 even?)
+// 5. deploy non-existing class hash (should panic, not catchable in cairo0).
 #[derive(Clone, Copy, EnumIter)]
 enum FuzzOperation {
     Return,
@@ -983,3 +989,6 @@ mod long_fuzz_test {
         fuzz_test_body(seed, 10).await;
     }
 }
+
+// TODO(Dori): Add an exhaustive fuzz test that covers all possible operations for some small limit
+// n.
