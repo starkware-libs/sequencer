@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772113813364,
+  "lastUpdate": 1772455122970,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2685,6 +2685,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1201.40768308,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "88497213+amosStarkware@users.noreply.github.com",
+            "name": "amosStarkware",
+            "username": "amosStarkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9884b673934cd3a00e6077464c01aa211e4d7626",
+          "message": "starknet_api,apollo_p2p_sync: use real number of events in p2p sync (#12785)",
+          "timestamp": "2026-03-02T12:19:21Z",
+          "tree_id": "08a23bc804ea3327d254ebac2f22f31e2960e846",
+          "url": "https://github.com/starkware-libs/sequencer/commit/9884b673934cd3a00e6077464c01aa211e4d7626"
+        },
+        "date": 1772455122632,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 796.8095074500001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1205.3769803399998,
             "unit": "ms"
           }
         ]
