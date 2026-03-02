@@ -1,5 +1,9 @@
 //! TLS helpers for serving JSON-RPC over HTTPS.
 
+#[cfg(test)]
+#[path = "tls_test.rs"]
+mod tls_test;
+
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;

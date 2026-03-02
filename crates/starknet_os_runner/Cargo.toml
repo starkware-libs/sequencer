@@ -55,6 +55,7 @@ axum.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 mockito.workspace = true
+rcgen.workspace = true
 reqwest.workspace = true
 rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }

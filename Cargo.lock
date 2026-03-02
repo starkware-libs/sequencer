@@ -12338,6 +12338,7 @@ dependencies = [
  "jsonrpsee",
  "mockito",
  "proving_utils",
+ "rcgen",
  "reqwest 0.12.24",
  "rstest",
  "serde",
