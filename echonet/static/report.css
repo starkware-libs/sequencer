@@ -282,6 +282,8 @@ a:hover {
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
+    padding: 2px 2px 2px 4px;
+    scroll-padding-left: 4px;
 }
 
 .tableMeta {
@@ -363,17 +365,17 @@ a:hover {
 }
 
 /* Collapsible section cards (page-level sections). */
-.sectionDetails > summary {
+.sectionDetails>summary {
     list-style: none;
     cursor: pointer;
     user-select: none;
 }
 
-.sectionDetails > summary::-webkit-details-marker {
+.sectionDetails>summary::-webkit-details-marker {
     display: none;
 }
 
-.sectionDetails > summary.sectionSummary {
+.sectionDetails>summary.sectionSummary {
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -384,11 +386,12 @@ a:hover {
     color: var(--text);
     font-size: inherit;
     position: relative;
-    padding-right: 18px; /* room for chevron */
+    padding-right: 18px;
+    /* room for chevron */
     margin: 0 0 10px;
 }
 
-.sectionDetails:not([open]) > summary.sectionSummary {
+.sectionDetails:not([open])>summary.sectionSummary {
     margin-bottom: 0;
 }
 
@@ -405,7 +408,7 @@ a:hover {
     gap: 8px;
 }
 
-.sectionDetails > summary.sectionSummary::after {
+.sectionDetails>summary.sectionSummary::after {
     content: "";
     position: absolute;
     right: 0;
@@ -420,13 +423,13 @@ a:hover {
     transition: transform 120ms ease, border-top-color 120ms ease, opacity 120ms ease;
 }
 
-.sectionDetails[open] > summary.sectionSummary::after {
+.sectionDetails[open]>summary.sectionSummary::after {
     transform: translateY(-50%) rotate(180deg);
     border-top-color: color-mix(in oklab, var(--link) 70%, transparent);
     opacity: 0.95;
 }
 
-.sectionDetails > summary.sectionSummary:focus {
+.sectionDetails>summary.sectionSummary:focus {
     outline: none;
     box-shadow: 0 0 0 4px color-mix(in oklab, var(--link) 16%, transparent);
     border-radius: 12px;

@@ -32,6 +32,11 @@ flask_logger = get_logger("flask")
 logger = get_logger("echo_center")
 
 
+def _static_file_b64(filename: str) -> str:
+    p = Path(__file__).resolve().parent / "static" / filename
+    return base64.b64encode(p.read_bytes()).decode("ascii")
+
+
 def _build_gcp_logs_context() -> dict[str, str]:
     """Context used by the report UI to build GCP Logs Explorer links."""
     ns = _read_namespace_from_serviceaccount()
@@ -699,6 +704,7 @@ class EchoCenterService:
         return flask.render_template(
             "report.html",
             export=False,
+            inline_favicon_b64=_static_file_b64("favicon.svg"),
             logs=_build_gcp_logs_context(),
             **vm,
         )
@@ -709,13 +715,12 @@ class EchoCenterService:
         """
         vm = build_report_view_model(self.shared.get_report_snapshot())
 
-        css_path = Path(__file__).resolve().parent / "static" / "report.css"
-        inline_css_b64 = base64.b64encode(css_path.read_bytes()).decode("ascii")
-
         html = flask.render_template(
             "report.html",
             export=True,
-            inline_css_b64=inline_css_b64,
+            inline_favicon_b64=_static_file_b64("favicon.svg"),
+            inline_css_b64=_static_file_b64("report.css"),
+            inline_js_b64=_static_file_b64("report.js"),
             logs=_build_gcp_logs_context(),
             **vm,
         )
