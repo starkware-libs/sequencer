@@ -6,7 +6,7 @@ use jsonrpsee::types::error::ErrorCode::InternalError;
 use jsonrpsee::types::error::INTERNAL_ERROR_MSG;
 use jsonrpsee::types::ErrorObjectOwned;
 
-use crate::proving::virtual_snos_prover::VirtualSnosProverError;
+use crate::errors::VirtualSnosProverError;
 
 // Starknet RPC v0.10 error codes.
 
