@@ -1,4 +1,4 @@
-use core::net::Ipv4Addr;
+use std::net::Ipv4Addr;
 use std::time::Duration;
 
 use futures::channel::mpsc::{Receiver, SendError, Sender};
@@ -27,8 +27,7 @@ use super::{
     SqmrServerReceiver,
     Topic,
 };
-use crate::utils::make_multiaddr;
-use crate::{Bytes, NetworkConfig};
+use crate::{Bytes, MultiaddrVectorConfig, NetworkConfig};
 
 pub fn mock_register_sqmr_protocol_client<Query, Response>(
     buffer_size: usize,
@@ -171,19 +170,17 @@ pub fn create_connected_network_configs(ports: Vec<u16>) -> Vec<NetworkConfig> {
         .map(Keypair::ed25519_from_bytes)
         .map(|key_pair_result| key_pair_result.unwrap().public())
         .collect();
-    let nodes_addresses: Vec<_> = public_keys
-        .iter()
-        .zip(ports.iter())
-        .map(|(public_key, port)| {
-            make_multiaddr(Ipv4Addr::LOCALHOST, *port, Some(PeerId::from_public_key(public_key)))
-        })
-        .collect();
+    let bootstrap_peer_multiaddr = MultiaddrVectorConfig {
+        domain: vec![Ipv4Addr::LOCALHOST.to_string(); number_of_nodes],
+        port: ports.to_vec(),
+        peer_id: public_keys.iter().map(PeerId::from_public_key).collect(),
+    };
     ports
         .into_iter()
         .zip(private_keys)
         .map(|(port, private_key)| NetworkConfig {
             port,
-            bootstrap_peer_multiaddr: Some(nodes_addresses.clone()),
+            bootstrap_peer_multiaddr: Some(bootstrap_peer_multiaddr.clone()),
             secret_key: Some(private_key.to_vec().into()),
             ..Default::default()
         })
