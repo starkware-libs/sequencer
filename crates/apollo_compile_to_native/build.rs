@@ -19,7 +19,7 @@ fn install_starknet_native_compile() {
     // TODO(Avi): Revert to `--version` install once cairo-native publishes a release with blake
     // builtin support.
     let cargo_install_args =
-        &[binary_name, "--git", CAIRO_NATIVE_GIT_URL, "--branch", CAIRO_NATIVE_GIT_BRANCH];
+        &[binary_name, "--git", CAIRO_NATIVE_GIT_URL, "--rev", CAIRO_NATIVE_GIT_REV];
     install_compiler_binary(binary_name, required_version, cargo_install_args, &out_dir());
 }
 
