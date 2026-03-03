@@ -30,3 +30,4 @@ service:
     port: 53200
     targetPort: 53200
     protocol: TCP
+    
