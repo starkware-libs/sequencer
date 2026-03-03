@@ -255,6 +255,7 @@ impl StateSyncRunner {
             NetworkManager::new(
                 network_config.clone(),
                 Some(VERSION_FULL.to_string()),
+                None,
                 network_manager_metrics,
             )
         });

@@ -40,6 +40,7 @@
 //! let network_manager = NetworkManager::new(
 //!     config,
 //!     Some("apollo-node/0.1.0".to_string()),
+//!     None, // signature manager
 //!     None, // metrics
 //! );
 //!

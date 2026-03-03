@@ -230,7 +230,7 @@ impl ConsensusManager {
             latency_metrics: Some(LatencyMetrics { ping_latency_seconds: CONSENSUS_PING_LATENCY }),
         });
 
-        NetworkManager::new(self.config.network_config.clone(), None, network_manager_metrics)
+        NetworkManager::new(self.config.network_config.clone(), None, None, network_manager_metrics)
     }
 
     fn create_stream_handler(
