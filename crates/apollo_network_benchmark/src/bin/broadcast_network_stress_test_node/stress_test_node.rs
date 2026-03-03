@@ -44,7 +44,8 @@ impl BroadcastNetworkStressTestNode {
                 .iter()
                 .map(|s| Multiaddr::from_str(s.trim()).unwrap())
                 .collect();
-            network_config.bootstrap_peer_multiaddr = Some(bootstrap_peers);
+            network_config.bootstrap_peer_multiaddr =
+                Some(bootstrap_peers.try_into().expect("Invalid bootstrap peer multiaddr"));
         }
 
         network_config
