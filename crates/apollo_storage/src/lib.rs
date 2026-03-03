@@ -662,8 +662,21 @@ impl StorageWriter {
     /// This is a no-op if there are no pending writes (commit_counter == 0).
     pub fn flush_pending_writes(&mut self) -> StorageResult<()> {
         let mut guard = self.shared_state.lock().unwrap();
+        Self::flush_pending_locked(&self.file_writers, &mut guard)
+    }
+
+    /// Changes the batch size at runtime. The new size takes effect on the next
+    /// commit cycle (pending writes continue with the current batch).
+    pub fn set_batch_size(&mut self, batch_size: usize) {
+        self.shared_state.lock().unwrap().batch_size = batch_size;
+    }
+
+    fn flush_pending_locked(
+        file_writers: &FileHandlers<RW>,
+        guard: &mut std::sync::MutexGuard<'_, SharedState>,
+    ) -> StorageResult<()> {
         if guard.commit_counter > 0 {
-            self.file_writers.flush();
+            file_writers.flush();
             guard.commit_counter = 0;
             if let Some(txn) = guard.active_txn.take() {
                 txn.commit()?;
