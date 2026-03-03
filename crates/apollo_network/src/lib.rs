@@ -216,21 +216,22 @@ use std::collections::{BTreeMap, HashSet};
 use std::time::Duration;
 
 use apollo_config::converters::{
-    deserialize_comma_separated_str,
     deserialize_optional_sensitive_vec_u8,
     deserialize_seconds_to_duration,
-    serialize_optional_comma_separated,
+    deserialize_vec,
     serialize_optional_vec_u8,
+    serialize_vector,
 };
 use apollo_config::dumping::{
     prepend_sub_config_name,
-    ser_optional_param,
+    ser_optional_sub_config,
     ser_param,
     SerializeConfig,
 };
 use apollo_config::secrets::Sensitive;
 use apollo_config::validators::validate_optional_sensitive_vec_u256;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_network_types::network_types::PeerId;
 use discovery::DiscoveryConfig;
 use libp2p::identity::Keypair;
 use libp2p::swarm::dial_opts::DialOpts;
@@ -272,18 +273,18 @@ pub(crate) type Bytes = Vec<u8>;
 /// ## Configuration with Bootstrap Peers
 ///
 /// ```rust
-/// use apollo_network::NetworkConfig;
-/// use libp2p::Multiaddr;
+/// use apollo_network::{MultiaddrVectorConfig, NetworkConfig};
 /// use starknet_api::core::ChainId;
 ///
-/// let bootstrap_peer = "/ip4/1.2.3.4/tcp/10000/p2p/\
-///                       12D3KooWQYHvEJzuBPEXdwMfVdPGXeEFSioa7YcXqWn5Ey6qM8q7"
-///     .parse()
-///     .unwrap();
+/// let bootstrap_peer_id = "12D3KooWQYHvEJzuBPEXdwMfVdPGXeEFSioa7YcXqWn5Ey6qM8q7".parse().unwrap();
 /// let config = NetworkConfig {
 ///     port: 10000,
 ///     chain_id: ChainId::Mainnet,
-///     bootstrap_peer_multiaddr: Some(vec![bootstrap_peer]),
+///     bootstrap_peer_multiaddr: Some(MultiaddrVectorConfig {
+///         domain: vec!["1.2.3.4".to_string()],
+///         port: vec![10000],
+///         peer_id: vec![bootstrap_peer_id],
+///     }),
 ///     ..Default::default()
 /// };
 /// ```
@@ -312,9 +313,8 @@ pub struct NetworkConfig {
 
     /// Bootstrap peer multiaddresses for initial connectivity. Each must include a valid peer ID.
     /// Format: `/ip4/1.2.3.4/tcp/10000/p2p/<peer-id>`. Default: None
-    #[serde(deserialize_with = "deserialize_comma_separated_str")]
     #[validate(custom(function = "validate_bootstrap_peer_multiaddr_list"))]
-    pub bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>,
+    pub bootstrap_peer_multiaddr: Option<MultiaddrVectorConfig>,
 
     /// Optional 32-byte Ed25519 private key for deterministic peer ID generation.
     /// If None, a random key is generated on each startup. Default: None
@@ -324,7 +324,7 @@ pub struct NetworkConfig {
 
     /// Optional external multiaddress advertised to other peers. Useful for NAT traversal.
     /// Default: None (automatic detection)
-    pub advertised_multiaddr: Option<Multiaddr>,
+    pub advertised_multiaddr: Option<MultiaddrConfig>,
 
     /// Starknet chain ID. Ensures connections only to peers on the same network.
     /// Default: ChainId::Mainnet
@@ -409,27 +409,17 @@ impl SerializeConfig for NetworkConfig {
                 ParamPrivacyInput::Private,
             ),
         ]);
-        config.extend(ser_optional_param(
-            &serialize_optional_comma_separated(&self.bootstrap_peer_multiaddr),
-            String::from(""),
+        config.extend(ser_optional_sub_config(
+            &self.bootstrap_peer_multiaddr,
             "bootstrap_peer_multiaddr",
-            "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
-            ParamPrivacyInput::Public,
-        ));
-        config.extend(ser_optional_param(
-            &self.advertised_multiaddr,
-            Multiaddr::empty(),
-            "advertised_multiaddr",
-            "The external address other peers see this node. If this is set, the node will not \
-             try to find out which addresses it has and will write this address as external \
-             instead",
-            ParamPrivacyInput::Public,
         ));
         config.extend(prepend_sub_config_name(self.discovery_config.dump(), "discovery_config"));
         config.extend(prepend_sub_config_name(
             self.peer_manager_config.dump(),
             "peer_manager_config",
         ));
+        config.extend(ser_optional_sub_config(&self.advertised_multiaddr, "advertised_multiaddr"));
+
         config
     }
 }
@@ -451,6 +441,136 @@ impl Default for NetworkConfig {
             prune_dead_connections_ping_interval: DEFAULT_PING_INTERVAL,
             prune_dead_connections_ping_timeout: DEFAULT_PING_TIMEOUT,
         }
+    }
+}
+
+/// Returns the libp2p protocol prefix for the given domain string:
+/// `ip4` for IPv4 addresses, `ip6` for IPv6 addresses, and `dns` for everything else.
+fn domain_protocol(domain: &str) -> &'static str {
+    if domain.parse::<std::net::Ipv4Addr>().is_ok() {
+        "ip4"
+    } else if domain.parse::<std::net::Ipv6Addr>().is_ok() {
+        "ip6"
+    } else {
+        "dns"
+    }
+}
+
+/// A subconfig used to define a single multiaddr.
+/// The domain is interpreted as an IPv4 address, IPv6 address, or DNS name, producing
+/// /ip4/{domain}/tcp/{port}, /ip6/{domain}/tcp/{port}, or /dns/{domain}/tcp/{port} respectively.
+/// The /p2p/{peer_id} component is appended when peer_id is Some.
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Validate)]
+pub struct MultiaddrConfig {
+    pub domain: String,
+    pub port: u16,
+    pub peer_id: Option<PeerId>,
+}
+
+impl MultiaddrConfig {
+    pub fn validate(&self) -> Result<(), ValidationError> {
+        let _: Multiaddr = self.clone().try_into()?;
+        Ok(())
+    }
+}
+
+impl TryFrom<MultiaddrConfig> for Multiaddr {
+    type Error = ValidationError;
+    fn try_from(config: MultiaddrConfig) -> Result<Multiaddr, ValidationError> {
+        let base =
+            format!("/{}/{}/tcp/{}", domain_protocol(&config.domain), config.domain, config.port);
+        let addr_str = match config.peer_id {
+            Some(peer_id) => format!("{}/p2p/{}", base, peer_id),
+            None => base,
+        };
+        addr_str.parse::<Multiaddr>().map_err(|e| {
+            ValidationError::new("Failed to parse multiaddr").with_message(e.to_string().into())
+        })
+    }
+}
+
+impl SerializeConfig for MultiaddrConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param("domain", &self.domain, "The domain to use.", ParamPrivacyInput::Public),
+            ser_param("port", &self.port, "The port to use.", ParamPrivacyInput::Public),
+            ser_param(
+                "peer_id",
+                &self.peer_id,
+                "The peer id to use. If not provided, the multiaddr will not contain a peer id.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+/// A subconfig used to define a vector of multiaddrs.
+/// Each domain is interpreted as an IPv4 address, IPv6 address, or DNS name, producing
+/// /ip4/{domain}/tcp/{port}/p2p/{peer_id}, /ip6/{domain}/tcp/{port}/p2p/{peer_id}, or
+/// /dns/{domain}/tcp/{port}/p2p/{peer_id} respectively.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Validate, Default)]
+pub struct MultiaddrVectorConfig {
+    #[serde(deserialize_with = "deserialize_vec")]
+    pub domain: Vec<String>,
+    #[serde(deserialize_with = "deserialize_vec")]
+    pub port: Vec<u16>,
+    #[serde(deserialize_with = "deserialize_vec")]
+    pub peer_id: Vec<PeerId>,
+}
+
+impl MultiaddrVectorConfig {
+    pub fn validate(&self) -> Result<(), ValidationError> {
+        if self.domain.len() != self.port.len() || self.domain.len() != self.peer_id.len() {
+            return Err(ValidationError::new(
+                "Domain, port and peer id must have the same length.",
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl TryFrom<MultiaddrVectorConfig> for Vec<Multiaddr> {
+    type Error = ValidationError;
+    fn try_from(config: MultiaddrVectorConfig) -> Result<Vec<Multiaddr>, ValidationError> {
+        config
+            .domain
+            .iter()
+            .zip(config.port.iter())
+            .zip(config.peer_id.iter())
+            .map(|((domain, port), peer_id)| {
+                format!("/{}/{}/tcp/{}/p2p/{}", domain_protocol(domain), domain, port, peer_id)
+                    .parse::<Multiaddr>()
+                    .map_err(|e| {
+                        ValidationError::new("Failed to parse multiaddr")
+                            .with_message(e.to_string().into())
+                    })
+            })
+            .collect()
+    }
+}
+
+impl SerializeConfig for MultiaddrVectorConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "domain",
+                &serialize_vector(&self.domain),
+                "The domain to use.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "port",
+                &serialize_vector(&self.port),
+                "The port to use.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "peer_id",
+                &serialize_vector(&self.peer_id),
+                "The peer id to use.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 
@@ -489,10 +609,12 @@ impl Default for NetworkConfig {
 /// /ip4/5.6.7.8/tcp/10000/p2p/12D3KooWSamePeer...
 /// ```
 fn validate_bootstrap_peer_multiaddr_list(
-    bootstrap_peer_multiaddr: &[Multiaddr],
+    bootstrap_peer_multiaddr: &MultiaddrVectorConfig,
 ) -> Result<(), validator::ValidationError> {
     let mut peers = HashSet::new();
-    for address in bootstrap_peer_multiaddr.iter() {
+    bootstrap_peer_multiaddr.validate()?;
+    let addresses: Vec<Multiaddr> = bootstrap_peer_multiaddr.clone().try_into()?;
+    for address in addresses.iter() {
         let Some(peer_id) = DialOpts::from(address.clone()).get_peer_id() else {
             return Err(ValidationError::new(
                 "Bootstrap peer Multiaddr does not contain a PeerId.",
@@ -519,7 +641,8 @@ fn validate_advertised_multiaddr_peer_id(
         return Ok(());
     };
 
-    let Some(advertised_peer_id) = DialOpts::from(advertised_multiaddr.clone()).get_peer_id()
+    let Some(advertised_peer_id) =
+        DialOpts::from(Multiaddr::try_from(advertised_multiaddr.clone())?).get_peer_id()
     else {
         // If advertised_multiaddr doesn't contain a peer id, no validation needed
         return Ok(());
