@@ -278,6 +278,11 @@ pub fn serialize_slice<T: AsRef<str>>(vector: &[T]) -> String {
     vector.iter().map(|item| item.as_ref()).collect::<Vec<_>>().join(" ")
 }
 
+/// Serializes a `&[T]` into a single space-separated string.
+pub fn serialize_vector<T: ToString>(vector: &[T]) -> String {
+    vector.iter().map(|item| item.to_string()).collect::<Vec<_>>().join(" ")
+}
+
 /// Deserializes a space-separated string into a `Vec<T>`.
 /// Returns an error if any of the substrings cannot be parsed into `T`.
 pub fn deserialize_vec<'de, D, T>(de: D) -> Result<Vec<T>, D::Error>
