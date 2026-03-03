@@ -2114,6 +2114,11 @@
     "privacy": "Public",
     "value": "StateOnly"
   },
+  "consensus_manager_config.context_config.dynamic_config.compare_retrospective_block_hash": {
+    "description": "Whether to compare the retrospective block hash between the Batcher and the State Sync.",
+    "privacy": "Public",
+    "value": false
+  },
   "consensus_manager_config.context_config.dynamic_config.l1_data_gas_price_multiplier_ppt": {
     "description": "Part per thousand of multiplicative factor to apply to the data gas price, to enable fine-tuning of the price charged to end users.",
     "privacy": "Public",
