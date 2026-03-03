@@ -127,12 +127,12 @@ class Ingress(StrictBaseModel):
     alternative_names: List[str] = Field(default_factory=list)
     rules: List[AnyDict] = Field(default_factory=list)
     # Backend configuration
-    backendServiceName: Optional[
-        str
-    ] = None  # Custom backend service name (defaults to sequencer-{service-name}-service)
-    backendServicePort: Optional[
-        int
-    ] = None  # Backend port (required when enabled=True - no hardcoded defaults)
+    backendServiceName: Optional[str] = (
+        None  # Custom backend service name (defaults to sequencer-{service-name}-service)
+    )
+    backendServicePort: Optional[int] = (
+        None  # Backend port (required when enabled=True - no hardcoded defaults)
+    )
 
     def model_post_init(self, __context):
         """Validate that backendServicePort is required when ingress is enabled."""
@@ -220,9 +220,9 @@ class ExternalSecret(StrictBaseModel):
     targetName: Optional[str] = None  # Custom target secret name
     data: List[ExternalSecretData] = Field(default_factory=list)
     mountPath: Optional[str] = None  # Where to mount the external secret (default: /etc/secrets)
-    readOnly: Optional[
-        bool
-    ] = None  # Whether the external secret mount is read-only. Defaults to True.
+    readOnly: Optional[bool] = (
+        None  # Whether the external secret mount is read-only. Defaults to True.
+    )
     # Advanced options
     template: Optional[AnyDict] = None  # Custom template for secret generation
     metadata: Optional[AnyDict] = None  # Custom metadata for the secret
@@ -441,38 +441,38 @@ class NetworkPolicy(StrictBaseModel):
 
 class PriorityClass(StrictBaseModel):
     enabled: bool = False
-    existingPriorityClass: Optional[
-        str
-    ] = None  # Use existing PriorityClass by name (skip creation)
+    existingPriorityClass: Optional[str] = (
+        None  # Use existing PriorityClass by name (skip creation)
+    )
     name: Optional[str] = None
     annotations: StrDict = Field(default_factory=dict)
     labels: StrDict = Field(default_factory=dict)
-    value: Optional[
-        int
-    ] = None  # Priority value (higher = more important) - required when creating new PriorityClass
+    value: Optional[int] = (
+        None  # Priority value (higher = more important) - required when creating new PriorityClass
+    )
     globalDefault: bool = False  # Whether this is the default PriorityClass
     description: Optional[str] = None  # Description of the PriorityClass
     preemptionPolicy: Optional[str] = None  # "Never" or "PreemptLowerPriority"
 
 
 class Config(StrictBaseModel):
-    configList: Optional[
-        str
-    ] = None  # Path to JSON file containing list of config paths (required for service configs, optional for common)
+    configList: Optional[str] = (
+        None  # Path to JSON file containing list of config paths (required for service configs, optional for shared config)
+    )
     mountPath: Optional[str] = None  # Default: "/config/sequencer/presets/"
     readOnly: Optional[bool] = None  # Whether the config map mount is read-only. Defaults to True.
-    sequencerConfig: Optional[
-        AnyDict
-    ] = None  # Override values for sequencer config. Keys use hierarchical structure with dots (e.g., 'components.batcher.port'), values are the replacement. Automatically converted to placeholder format (dots -> hyphens) for matching.
+    sequencerConfig: Optional[AnyDict] = (
+        None  # Override values for sequencer config. Keys use hierarchical structure with dots (e.g., 'components.batcher.port'), values are the replacement. Automatically converted to placeholder format (dots -> hyphens) for matching.
+    )
 
 
 class ServiceConfig(StrictBaseModel):
     _source: str | None = PrivateAttr(default=None)
-    name: Optional[str] = None  # Required for services, optional for common.yaml
-    # Common fields (used in both common.yaml and service.yaml)
-    image: Optional[Image] = Field(default=None)  # Image config (common.yaml)
-    imagePullSecrets: List[str] = Field(default_factory=list)  # Image pull secrets (common.yaml)
-    metaLabels: StrDict = Field(default_factory=dict)  # Base labels for all services (common.yaml)
+    name: Optional[str] = None  # Required for services, optional for shared config
+    # Fields shared across services (used in both shared config and per-service YAML)
+    image: Optional[Image] = Field(default=None)  # Image config
+    imagePullSecrets: List[str] = Field(default_factory=list)  # Image pull secrets
+    metaLabels: StrDict = Field(default_factory=dict)  # Base labels for all services
     # Service-specific fields
     config: Optional[Config] = None
     replicas: int = 1
@@ -521,9 +521,9 @@ class ServiceConfig(StrictBaseModel):
     priorityClass: Optional[PriorityClass] = None
 
 
-# CommonConfig is now just ServiceConfig - common.yaml and service.yaml use the same schema
-# This allows any field in ServiceConfig to be used in common.yaml
-# Defined here after ServiceConfig to avoid forward reference issues
+# CommonConfig is now just ServiceConfig - shared config and service YAML use the same schema.
+# Shared-config YAML may also use an optional "include: <path>" key (path to another YAML file);
+# the loader resolves it and strips it before validation, so it is not a field on ServiceConfig.
 CommonConfig = ServiceConfig
 
 

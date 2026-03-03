@@ -30,7 +30,7 @@ class SequencerNodeChart(Chart):
         monitoring: bool,
         service_config: ServiceConfig,
         layout: str,
-        overlay: str | None,
+        overlays: list[str],
     ):
         super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
 
@@ -38,7 +38,7 @@ class SequencerNodeChart(Chart):
         self.service_config = service_config
 
         # Create labels dictionary from service config + service name
-        # Base labels from common.yaml (metaLabels) - now merged into service_config
+        # Base labels from shared config (metaLabels) - now merged into service_config
         labels = dict(service_config.metaLabels) if service_config.metaLabels else {}
         # Add service label (dynamic per service)
         labels["service"] = f"sequencer-{service_config.name}"
@@ -48,7 +48,7 @@ class SequencerNodeChart(Chart):
 
         # Create ConfigMap
         self.config_map = ConfigMapConstruct(
-            self, "configmap", service_config, labels, monitoring_endpoint_port, layout, overlay
+            self, "configmap", service_config, labels, monitoring_endpoint_port, layout, overlays
         )
 
         # Create ServiceAccount if enabled
