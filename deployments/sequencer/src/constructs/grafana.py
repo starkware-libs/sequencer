@@ -162,10 +162,15 @@ class GrafanaAlertRuleGroupConstruct(GrafanaBaseConstruct):
 
     def _get_shared_grafana_alert_rule_group_spec(self):
         """Build the spec for the alert rule group."""
-        rules = []
-        for alert_file in self.grafana_alert_files:
-            alert_rule = self.grafana_alert_group.load(str(alert_file))
-            rules.append(self._get_shared_grafana_alert_rule_group_rules(alert_rule))
+        loaded_alert_rules = [
+            self.grafana_alert_group.load(str(alert_file))
+            for alert_file in self.grafana_alert_files
+        ]
+        loaded_alert_rules.sort(key=lambda rule: str(rule.get("title", "")).lower())
+        rules = [
+            self._get_shared_grafana_alert_rule_group_rules(alert_rule)
+            for alert_rule in loaded_alert_rules
+        ]
 
         return SharedGrafanaAlertRuleGroupSpec(
             name=self.custom_name,
