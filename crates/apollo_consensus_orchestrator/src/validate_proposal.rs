@@ -64,6 +64,8 @@ pub(crate) struct ProposalValidateArguments {
     pub content_receiver: mpsc::Receiver<ProposalPart>,
     pub gas_price_params: GasPriceParams,
     pub cancel_token: CancellationToken,
+    #[allow(dead_code)]
+    pub compare_retrospective_block_hash: bool,
 }
 
 // Contains parameters required for validating block info.
