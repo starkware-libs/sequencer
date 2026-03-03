@@ -40,11 +40,17 @@ use tracing::error;
 use crate::errors::VirtualBlockExecutorError;
 use crate::running::serde_utils::deserialize_rpc_initial_reads;
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct RpcVirtualBlockExecutorConfig {
     /// When enabled, prefetches state by simulating transactions before execution, reducing RPC
     /// calls during proving.
     pub(crate) prefetch_state: bool,
+}
+
+impl Default for RpcVirtualBlockExecutorConfig {
+    fn default() -> Self {
+        Self { prefetch_state: true }
+    }
 }
 
 /// Captures execution data for a virtual block (multiple transactions).
