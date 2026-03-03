@@ -458,7 +458,7 @@ class PriorityClass(StrictBaseModel):
 class Config(StrictBaseModel):
     configList: Optional[
         str
-    ] = None  # Path to JSON file containing list of config paths (required for service configs, optional for common)
+    ] = None  # Path to JSON file containing list of config paths (required for service configs, optional for shared config)
     mountPath: Optional[str] = None  # Default: "/config/sequencer/presets/"
     readOnly: Optional[bool] = None  # Whether the config map mount is read-only. Defaults to True.
     sequencerConfig: Optional[
@@ -468,11 +468,11 @@ class Config(StrictBaseModel):
 
 class ServiceConfig(StrictBaseModel):
     _source: str | None = PrivateAttr(default=None)
-    name: Optional[str] = None  # Required for services, optional for common.yaml
-    # Common fields (used in both common.yaml and service.yaml)
-    image: Optional[Image] = Field(default=None)  # Image config (common.yaml)
-    imagePullSecrets: List[str] = Field(default_factory=list)  # Image pull secrets (common.yaml)
-    metaLabels: StrDict = Field(default_factory=dict)  # Base labels for all services (common.yaml)
+    name: Optional[str] = None  # Required for services, optional for shared config
+    # Fields shared across services (used in both shared config and per-service YAML)
+    image: Optional[Image] = Field(default=None)  # Image config
+    imagePullSecrets: List[str] = Field(default_factory=list)  # Image pull secrets
+    metaLabels: StrDict = Field(default_factory=dict)  # Base labels for all services
     # Service-specific fields
     config: Optional[Config] = None
     replicas: int = 1
@@ -521,9 +521,9 @@ class ServiceConfig(StrictBaseModel):
     priorityClass: Optional[PriorityClass] = None
 
 
-# CommonConfig is now just ServiceConfig - common.yaml and service.yaml use the same schema
-# This allows any field in ServiceConfig to be used in common.yaml
-# Defined here after ServiceConfig to avoid forward reference issues
+# CommonConfig is now just ServiceConfig - shared config and service YAML use the same schema.
+# Shared-config YAML may also use an optional "include: <path>" key (path to another YAML file);
+# the loader resolves it and strips it before validation, so it is not a field on ServiceConfig.
 CommonConfig = ServiceConfig
 
 
