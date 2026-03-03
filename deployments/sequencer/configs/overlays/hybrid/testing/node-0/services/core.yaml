@@ -102,6 +102,9 @@ service:
     port: 55012
     targetPort: 55012
     protocol: TCP
+  - name: class-manager-storage-reader
+    port: 55210
+    targetPort: 55210
 
 statefulSet:
   enabled: true
