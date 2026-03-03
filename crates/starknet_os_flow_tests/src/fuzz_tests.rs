@@ -18,10 +18,18 @@ use starknet_api::{calldata, felt, invoke_tx_args};
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_types_core::felt::Felt;
 use strum::{EnumIter, IntoEnumIterator};
+use tokio::task::JoinSet;
 
 use crate::test_manager::{TestBuilder, FUNDED_ACCOUNT_ADDRESS};
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::get_class_hash_of_feature_contract;
+
+/// Maximum length of operation lists to test exhaustively.
+const MAX_EXHAUSTIVE_FUZZ_LENGTH: usize = 3;
+
+/// Number of exhaustive fuzz test tasks to spawn in parallel. As long as this is at least the
+/// number of cores, all cores will be utilized.
+const NUM_EXHAUSTIVE_PARALLEL_FUZZ_TESTS: usize = 100;
 
 /// Contracts.
 const ORCHESTRATOR_CONTRACT: FeatureContract =
@@ -226,7 +234,7 @@ impl FuzzOperationData {
 }
 
 /// Parent frame behavior on failures.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 enum ParentFailureBehavior {
     /// In a cairo0 context, or in a constructor call tree. Failures in this context cannot be
     /// caught by any calling context.
@@ -246,6 +254,7 @@ impl ParentFailureBehavior {
 }
 
 /// Final state of the fuzz test transaction.
+#[derive(Clone)]
 enum FinalizedState {
     Ongoing,
     Reverted,
@@ -263,6 +272,7 @@ impl FinalizedState {
 
 /// Similar to [CallInfo], but for a fuzz test. Represents the information of a single call in the
 /// call tree.
+#[derive(Clone, Debug)]
 struct FuzzCallInfo {
     pub address: ContractAddress,
     pub class_hash: ClassHash,
@@ -335,6 +345,7 @@ impl RevertInfo {
 }
 
 /// Represents the call tree of a fuzz test.
+#[derive(Clone)]
 struct FuzzTestContext {
     /// The call tree of the fuzz test.
     /// The first frame is the frame called by the orchestrator (it's parent frame is the
@@ -773,6 +784,30 @@ impl FuzzTestContext {
         self.operations.iter().flat_map(|op| op.felt_vector()).collect()
     }
 
+    /// Recursive function to generate all possible operation tails of exactly thea given length,
+    /// given the current context.
+    /// WARNING: The number of lists is exponential in the length! Use with small values only.
+    /// A value of 4 can generate over 100K lists!
+    fn get_all_operation_tails(&self, max_length: usize) -> Vec<Vec<FuzzOperationData>> {
+        // Base case.
+        if max_length == 0 {
+            return vec![self.operations.clone()];
+        }
+        // We have not reached the target length, but the context is finalized. Skip this scenario.
+        if self.finalized() {
+            return vec![];
+        }
+        // Add one operation and recurse.
+        self.valid_operations()
+            .into_iter()
+            .flat_map(|operation| {
+                let mut new_context = self.clone();
+                new_context.apply(operation);
+                new_context.get_all_operation_tails(max_length - 1)
+            })
+            .collect()
+    }
+
     /// Pretty print the operations. Example output:
     /// ```ignore
     /// operations = [
@@ -921,6 +956,14 @@ impl FuzzTestManager {
         }
     }
 
+    pub async fn init_explicit_test(operations: Vec<FuzzOperationData>) -> Self {
+        let mut test_manager = Self::init(0).await;
+        for operation in operations {
+            test_manager.context.apply(operation);
+        }
+        test_manager
+    }
+
     /// Initializes the deployment of the fuzz test contracts.
     /// Returns the test builder (after deployment).
     pub async fn init_deployment(assert_expect: bool) -> TestBuilder<DictStateReader> {
@@ -957,6 +1000,14 @@ impl FuzzTestManager {
 
     pub fn add_random_operation(&mut self) -> Result<(), ()> {
         self.context.add_random_operation()
+    }
+
+    /// Exhaustively generate all possible operation lists of exactly the given length.
+    /// WARNING: The number of lists is exponential in the length! Use with small values only.
+    /// A value of 4 can generate over 100K lists!
+    pub async fn get_all_operation_lists(max_length: usize) -> Vec<Vec<FuzzOperationData>> {
+        let initial_state = Self::init(0).await;
+        initial_state.context.get_all_operation_tails(max_length)
     }
 
     #[allow(unused)]
@@ -1077,5 +1128,55 @@ mod long_fuzz_test {
     }
 }
 
-// TODO(Dori): Add an exhaustive fuzz test that covers all possible operations for some small limit
-// n.
+/// Exhaustive test for all scenarios of length `MAX_EXHAUSTIVE_FUZZ_LENGTH` (or less, if state is
+/// finalized before reaching the length).
+/// It is strongly recommended to run this test in release mode only.
+#[rstest]
+#[tokio::test(flavor = "multi_thread")]
+#[cfg_attr(
+    not(feature = "exhaustive_fuzz_test"),
+    ignore = "Skipped - set `exhaustive_fuzz_test` feature to run."
+)]
+async fn test_exhaustive_fuzz() {
+    let operation_lists =
+        FuzzTestManager::get_all_operation_lists(MAX_EXHAUSTIVE_FUZZ_LENGTH).await;
+    let total_scenarios = operation_lists.len();
+
+    macro_rules! push_test_or_break {
+        ($tasks_set:ident, $operations_iter:ident, $total_scenarios:ident) => {
+            let (index, operations) = match $operations_iter.next() {
+                Some(item) => item,
+                None => break,
+            };
+            $tasks_set.spawn(async move {
+                println!("Running test {index}/{}.", $total_scenarios);
+                FuzzTestManager::init_explicit_test(operations).await.run_test().await;
+            });
+        };
+    }
+
+    // Add `NUM_EXHAUSTIVE_PARALLEL_FUZZ_TESTS` initial tasks.
+    let mut operations_iter = operation_lists.into_iter().enumerate();
+    let mut tasks_set = JoinSet::new();
+    for _ in 0..NUM_EXHAUSTIVE_PARALLEL_FUZZ_TESTS {
+        push_test_or_break!(tasks_set, operations_iter, total_scenarios);
+    }
+
+    // Wait for a task to complete and add a new task.
+    while !tasks_set.is_empty() {
+        match tasks_set.join_next().await.unwrap() {
+            Err(error) => {
+                // A test failed - join all remaining tasks and unwrap the error.
+                tasks_set.join_all().await;
+                panic!("Fuzz test failed: {error:?}");
+            }
+            Ok(_) => {
+                // A test completed - add a new task for the next operation list.
+                push_test_or_break!(tasks_set, operations_iter, total_scenarios);
+            }
+        }
+    }
+
+    // Collect all remaining tasks.
+    tasks_set.join_all().await;
+}

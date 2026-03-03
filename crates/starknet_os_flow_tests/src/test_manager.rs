@@ -134,7 +134,7 @@ pub(crate) struct FlowTestTx {
 
 pub(crate) struct EventPredicateExpectation {
     pub(crate) description: String,
-    pub(crate) predicate: Box<dyn Fn(&Event) -> bool>,
+    pub(crate) predicate: Box<dyn Fn(&Event) -> bool + Send + Sync>,
 }
 
 fn is_fee_token_transfer_to_address_event(address_as_felt: Felt) -> impl Fn(&Event) -> bool {
