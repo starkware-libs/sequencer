@@ -2490,7 +2490,7 @@
     "value": 100
   },
   "consensus_manager_config.stream_handler_config.max_streams": {
-    "description": "The maximum number of streams that can be open at the same time.",
+    "description": "The maximum number of streams that can be open at the same time, per peer.",
     "privacy": "Public",
     "value": 100
   },
