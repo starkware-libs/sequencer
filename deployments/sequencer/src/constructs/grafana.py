@@ -72,7 +72,7 @@ class GrafanaDashboardConstruct(GrafanaBaseConstruct):
             collection_name=f"shared-grafana-dashboard",
             dashboard_name=self.custom_name,
             folder_name=self.cluster,
-            dashboard_json=json.dumps(self.grafana_dashboard, indent=4),
+            dashboard_json=json.dumps(self.grafana_dashboard, indent=1),
         )
 
     def _get_shared_grafana_dashboard(self):
