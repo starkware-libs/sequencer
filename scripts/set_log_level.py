@@ -160,7 +160,17 @@ def main():
         if args.method == "get":
             full_url = f"http://localhost:{base_port}/monitoring/logLevel"
             print(f"Fetching current log level from {full_url}")
-            response = requests.get(full_url, timeout=5)
+            try:
+                response = requests.get(full_url, timeout=5)
+            except requests.exceptions.ConnectionError as e:
+                print(f"❌ Connection refused: Could not connect to {full_url}")
+                print(f"\nPossible solutions:")
+                if not setup_port_forwarding:
+                    print(f"  1. Set up port-forwarding using --pod_name option")
+                    print(f"     Example: --pod_name <pod-name> --namespace <namespace>")
+                print(f"  2. Ensure the service is running and accessible on port {base_port}")
+                print(f"  3. Check if the service is running on a different port")
+                sys.exit(1)
 
             if response.status_code != 200:
                 print(f"Failed to fetch log level: {response.status_code} {response.text}")
@@ -178,7 +188,17 @@ def main():
 
             print(f"Setting log level for {args.target} to {args.log_level} at {full_url}")
 
-            response = requests.post(full_url, timeout=5)
+            try:
+                response = requests.post(full_url, timeout=5)
+            except requests.exceptions.ConnectionError as e:
+                print(f"❌ Connection refused: Could not connect to {full_url}")
+                print(f"\nPossible solutions:")
+                if not setup_port_forwarding:
+                    print(f"  1. Set up port-forwarding using --pod_name option")
+                    print(f"     Example: --pod_name <pod-name> --namespace <namespace>")
+                print(f"  2. Ensure the service is running and accessible on port {base_port}")
+                print(f"  3. Check if the service is running on a different port")
+                sys.exit(1)
 
             if response.status_code != 200:
                 print(
