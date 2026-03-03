@@ -129,6 +129,7 @@ fn consensus_config() -> ConsensusConfig {
         ConsensusStaticConfig {
             storage_config: StorageConfig::default(),
             startup_delay: Duration::ZERO,
+            skip_last_voted_height_check: false,
         },
     )
 }
