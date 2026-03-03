@@ -29,11 +29,7 @@ use tracing::{debug, error, trace, warn};
 use self::swarm_trait::SwarmTrait;
 use crate::authentication::composed_noise::ComposedNoise;
 use crate::authentication::direct_signature_manager_client::DirectSignatureManagerClient;
-use crate::authentication::stark_authentication::{
-    ChallengeGenerator,
-    OsRngChallengeGenerator,
-    StarkAuthNegotiator,
-};
+use crate::authentication::stark_authentication::{OsRngChallengeGenerator, StarkAuthNegotiator};
 use crate::gossipsub_impl::Topic;
 use crate::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
 use crate::misconduct_score::MisconductScore;
@@ -1192,8 +1188,7 @@ impl NetworkManager {
         let listen_address = make_multiaddr(Ipv4Addr::UNSPECIFIED, port, None);
         debug!("Creating swarm with listen address: {listen_address:?}");
 
-        // TODO(noam.s): Change this to not use Arc once we have a real challenge generator.
-        let generator: Arc<dyn ChallengeGenerator> = Arc::new(OsRngChallengeGenerator);
+        let generator = Box::new(OsRngChallengeGenerator);
 
         let handshake_negotiator =
             if let Some((signature_manager_client, my_public_key)) = signature_manager_client {

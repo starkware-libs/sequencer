@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use apollo_network_types::network_types::PeerId;
 use apollo_protobuf::authentication::{ChallengeAndIdentity, Signature};
 use apollo_protobuf::converters::ProtobufConversionError;
@@ -25,10 +23,10 @@ pub type StarkAuthNegotiatorResult<T> = Result<T, StarkAuthNegotiatorError>;
 #[async_trait]
 pub trait ChallengeGenerator: Send + Sync {
     async fn generate(&self) -> Challenge;
+    fn clone_box(&self) -> Box<dyn ChallengeGenerator>;
 }
 
-// Default implementation for production use.
-#[allow(dead_code)]
+#[derive(Clone)]
 pub struct OsRngChallengeGenerator;
 
 #[async_trait]
@@ -40,9 +38,11 @@ impl ChallengeGenerator for OsRngChallengeGenerator {
             Challenge(bytes)
         })
     }
-}
 
-type SharedChallengeGenerator = Arc<dyn ChallengeGenerator>;
+    fn clone_box(&self) -> Box<dyn ChallengeGenerator> {
+        Box::new(self.clone())
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum StarkAuthNegotiatorError {
@@ -62,18 +62,27 @@ pub enum StarkAuthNegotiatorError {
     ProtobufConversion(#[from] ProtobufConversionError),
 }
 
-#[derive(Clone)]
 pub struct StarkAuthNegotiator {
     my_public_key: PublicKey,
     signer: SharedSignatureManagerClient,
-    challenge_generator: SharedChallengeGenerator,
+    challenge_generator: Box<dyn ChallengeGenerator>,
+}
+
+impl Clone for StarkAuthNegotiator {
+    fn clone(&self) -> Self {
+        Self {
+            my_public_key: self.my_public_key,
+            signer: self.signer.clone(),
+            challenge_generator: self.challenge_generator.clone_box(),
+        }
+    }
 }
 
 impl StarkAuthNegotiator {
     pub fn new(
         my_public_key: PublicKey,
         signer: SharedSignatureManagerClient,
-        challenge_generator: SharedChallengeGenerator,
+        challenge_generator: Box<dyn ChallengeGenerator>,
     ) -> Self {
         Self { my_public_key, signer, challenge_generator }
     }
