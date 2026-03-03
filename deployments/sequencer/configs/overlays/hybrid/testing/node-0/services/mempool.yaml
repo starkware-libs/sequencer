@@ -18,9 +18,13 @@ config:
     components.proof_manager.url: sequencer-core-service
     mempool_config.dynamic_config.transaction_ttl: 300
     mempool_p2p_config.network_config.advertised_multiaddr.#is_none: true
-    mempool_p2p_config.network_config.advertised_multiaddr: ""
+    mempool_p2p_config.network_config.advertised_multiaddr.domain: ""
+    mempool_p2p_config.network_config.advertised_multiaddr.peer_id: null
+    mempool_p2p_config.network_config.advertised_multiaddr.port: 0
     mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none: true
-    mempool_p2p_config.network_config.bootstrap_peer_multiaddr: ""
+    mempool_p2p_config.network_config.bootstrap_peer_multiaddr.domain: ""
+    mempool_p2p_config.network_config.bootstrap_peer_multiaddr.peer_id: ""
+    mempool_p2p_config.network_config.bootstrap_peer_multiaddr.port: ""
     mempool_p2p_config.network_config.port: 53200
 
 service:

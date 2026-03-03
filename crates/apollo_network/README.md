@@ -262,36 +262,45 @@ fn process_transaction(tx: Transaction) {
 The networking layer can be extensively configured through the `NetworkConfig` struct:
 
 ```rust
-use apollo_network::{NetworkConfig, discovery::DiscoveryConfig, peer_manager::PeerManagerConfig};
+use apollo_network::{
+    MultiaddrConfig, MultiaddrVectorConfig, NetworkConfig,
+    discovery::DiscoveryConfig, peer_manager::PeerManagerConfig,
+};
 use starknet_api::core::ChainId;
 use std::time::Duration;
-use libp2p::Multiaddr;
 
 let config = NetworkConfig {
     // Basic network settings
     port: 10000,
     chain_id: ChainId::Mainnet,
-    
+
     // Timeout configuration
     session_timeout: Duration::from_secs(120),
     idle_connection_timeout: Duration::from_secs(120),
-    
-    // Bootstrap peers for initial connectivity
-    bootstrap_peer_multiaddr: Some(vec![
-        "/ip4/1.2.3.4/tcp/10000/p2p/12D3KooWQYHvEJzuBP...".parse()?,
-        "/ip4/5.6.7.8/tcp/10000/p2p/12D3KooWDifferentPeer...".parse()?,
-    ]),
-    
+
+    // Bootstrap peers for initial connectivity.
+    // Each entry specifies a domain (IPv4, IPv6, or DNS name), TCP port, and peer ID.
+    bootstrap_peer_multiaddr: Some(MultiaddrVectorConfig {
+        domain: vec!["1.2.3.4".to_string(), "5.6.7.8".to_string()],
+        port: vec![10000, 10000],
+        peer_id: vec![peer_id_1, peer_id_2],
+    }),
+
     // Optional: Use a deterministic peer ID
     secret_key: Some(your_32_byte_ed25519_key),
-    
-    // Optional: Advertise a specific external address
-    advertised_multiaddr: Some("/ip4/203.0.113.1/tcp/10000".parse()?),
-    
+
+    // Optional: Advertise a specific external address.
+    // Omit peer_id to let the runtime derive it from secret_key.
+    advertised_multiaddr: Some(MultiaddrConfig {
+        domain: "203.0.113.1".to_string(),
+        port: 10000,
+        peer_id: None,
+    }),
+
     // Discovery and peer management configuration
     discovery_config: DiscoveryConfig::default(),
     peer_manager_config: PeerManagerConfig::default(),
-    
+
     // Buffer sizes for message handling
     broadcasted_message_metadata_buffer_size: 100000,
     reported_peer_ids_buffer_size: 100000,
