@@ -1175,6 +1175,7 @@ dependencies = [
  "mempool_test_utils",
  "rstest",
  "tempfile",
+ "toml 0.8.23",
  "toml_test_utils",
 ]
 

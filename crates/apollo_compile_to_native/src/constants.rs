@@ -1,13 +1,8 @@
 // Note: This module includes constants that are needed during build and run times. It must
 // not contain functionality that is available in only in one of these modes. Specifically, it
 // must avoid relying on env variables such as 'CARGO_*' or 'OUT_DIR'.
+//
+// The cairo-native dependency (version, git URL, branch/tag/rev) is defined only in the workspace
+// Cargo.toml; the build script reads it from there to install the starknet-native-compile binary.
 
 pub(crate) const CAIRO_NATIVE_BINARY_NAME: &str = "starknet-native-compile";
-
-// TODO(Avi): Remove git URL/branch constants once cairo-native publishes a release with blake
-// builtin support, and revert to installing from crates.io.
-pub const CAIRO_NATIVE_GIT_URL: &str = "https://github.com/lambdaclass/cairo_native";
-pub const CAIRO_NATIVE_GIT_BRANCH: &str = "tomer/blake_builtin";
-
-// Kept for the version check on the installed binary (--version output).
-pub const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.9.0-rc.1";
