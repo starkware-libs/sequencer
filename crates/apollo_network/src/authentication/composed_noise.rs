@@ -83,8 +83,6 @@ where
     TNegotiator: Negotiator + Clone + 'static,
     TNegotiator::WireMessage: Send,
 {
-    // TODO(noam.s): Remove this once we use the ComposedNoiseConfig in the network manager.
-    #[allow(dead_code)]
     pub fn new(
         identity: &identity::Keypair,
         negotiator: TNegotiator,
