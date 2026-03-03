@@ -2365,6 +2365,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "unsigned-varint 0.8.0",
+ "zstd",
 ]
 
 [[package]]

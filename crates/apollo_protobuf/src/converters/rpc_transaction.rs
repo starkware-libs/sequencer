@@ -26,6 +26,46 @@ use crate::protobuf::{self};
 use crate::transaction::DeclareTransactionV3Common;
 auto_impl_into_and_try_from_vec_u8!(RpcTransactionBatch, protobuf::MempoolTransactionBatch);
 
+/// The default zstd compression level.
+const ZSTD_COMPRESSION_LEVEL: i32 = zstd::DEFAULT_COMPRESSION_LEVEL;
+
+/// Maximum decompressed proof size (256 MB) to prevent decompression bombs.
+const MAX_PROOF_DECOMPRESSED_SIZE: usize = 1 << 28;
+
+/// Compresses a proof (sequence of u32 values) into zstd-compressed bytes.
+/// Each u32 is serialized as 4 big-endian bytes before compression.
+fn compress_proof(proof_data: &[u32]) -> Vec<u8> {
+    if proof_data.is_empty() {
+        return Vec::new();
+    }
+    let raw_bytes: Vec<u8> = proof_data.iter().flat_map(|n| n.to_be_bytes()).collect();
+    zstd::bulk::compress(&raw_bytes, ZSTD_COMPRESSION_LEVEL)
+        .expect("zstd compression of proof data should not fail")
+}
+
+/// Decompresses zstd-compressed proof bytes back into a `Proof`.
+fn decompress_proof(compressed: &[u8]) -> Result<Proof, ProtobufConversionError> {
+    if compressed.is_empty() {
+        return Ok(Proof::default());
+    }
+    let decompressed =
+        zstd::bulk::decompress(compressed, MAX_PROOF_DECOMPRESSED_SIZE).map_err(|e| {
+            ProtobufConversionError::CompressionError(format!("Failed to decompress proof: {e}"))
+        })?;
+    if decompressed.len() % 4 != 0 {
+        return Err(ProtobufConversionError::BytesDataLengthMismatch {
+            type_description: "Proof",
+            num_expected: 4,
+            value: decompressed,
+        });
+    }
+    let proof_u32s: Vec<u32> = decompressed
+        .chunks_exact(4)
+        .map(|c| u32::from_be_bytes([c[0], c[1], c[2], c[3]]))
+        .collect();
+    Ok(Proof::from(proof_u32s))
+}
+
 const DEPRECATED_RESOURCE_BOUNDS_ERROR: ProtobufConversionError =
     ProtobufConversionError::MissingField { field_description: "ResourceBounds::l1_data_gas" };
 
@@ -114,10 +154,10 @@ impl From<RpcDeployAccountTransactionV3> for protobuf::DeployAccountV3 {
 
 impl TryFrom<protobuf::InvokeV3WithProof> for RpcInvokeTransactionV3 {
     type Error = ProtobufConversionError;
-    fn try_from(mut value: protobuf::InvokeV3WithProof) -> Result<Self, Self::Error> {
+    fn try_from(value: protobuf::InvokeV3WithProof) -> Result<Self, Self::Error> {
         // Extract proof first, since `starknet_api::transaction::InvokeTransactionV3` does not
         // carry a `proof` field.
-        let proof = Proof::from(std::mem::take(&mut value.proof));
+        let proof = decompress_proof(&value.compressed_proof)?;
 
         let snapi_invoke: InvokeTransactionV3 = value
             .invoke
@@ -135,11 +175,13 @@ impl From<RpcInvokeTransactionV3> for protobuf::InvokeV3WithProof {
     fn from(mut value: RpcInvokeTransactionV3) -> Self {
         // Extract proof first, since `starknet_api::transaction::InvokeTransactionV3` does not
         // carry a `proof` field.
-        let proof = Arc::unwrap_or_clone(std::mem::take(&mut value.proof).0);
+        let proof_data = Arc::unwrap_or_clone(std::mem::take(&mut value.proof).0);
 
         let snapi_invoke: InvokeTransactionV3 = value.into();
 
-        Self { invoke: Some(snapi_invoke.into()), proof }
+        let compressed_proof = compress_proof(&proof_data);
+
+        Self { invoke: Some(snapi_invoke.into()), compressed_proof }
     }
 }
 
