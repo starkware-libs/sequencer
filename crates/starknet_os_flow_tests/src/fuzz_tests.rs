@@ -73,6 +73,15 @@ static FUZZ_ADDRESS_CAIRO0_A: LazyLock<ContractAddress> = LazyLock::new(|| {
 static FUZZ_ADDRESS_CAIRO0_B: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress::try_from(felt!(FUZZ_ADDRESS_CAIRO0_B_EXPECT.data())).unwrap()
 });
+static FUZZ_ADDRESS_TO_CLASS_HASH: LazyLock<BTreeMap<ContractAddress, ClassHash>> =
+    LazyLock::new(|| {
+        BTreeMap::from([
+            (*FUZZ_ADDRESS_CAIRO1_A, *CAIRO1_CONTRACT_CLASS_HASH),
+            (*FUZZ_ADDRESS_CAIRO1_B, *CAIRO1_CONTRACT_CLASS_HASH),
+            (*FUZZ_ADDRESS_CAIRO0_A, *CAIRO0_CONTRACT_CLASS_HASH),
+            (*FUZZ_ADDRESS_CAIRO0_B, *CAIRO0_CONTRACT_CLASS_HASH),
+        ])
+    });
 
 /// Storage key that can be written to.
 static VALID_STORAGE_KEYS: LazyLock<Vec<Felt>> =
@@ -300,18 +309,19 @@ struct RevertInfo {
     /// Addresses of deployed contracts that were deployed in the reverted call tree.
     pub deployed_addresses: BTreeSet<ContractAddress>,
 
-    /// If a class was replaced in the reverted call tree, the address and original class hash of
-    /// the replaced class.
-    pub class_replaced_and_original_class_hash: Option<(ContractAddress, ClassHash)>,
+    /// If a class was replaced in the reverted call tree, the original class hash of the replaced
+    /// class.
+    pub class_replaced: Option<ClassHash>,
 }
 
 impl RevertInfo {
     pub fn combine(others: Vec<Self>) -> Self {
         // If there is a replace-class, there should be only one.
-        let mut class_replaced_and_original_class_hash = None;
+        let mut class_replaced = None;
         for other in others.iter() {
-            if let Some(inner_replacement) = other.class_replaced_and_original_class_hash {
-                class_replaced_and_original_class_hash = Some(inner_replacement);
+            if other.class_replaced.is_some() {
+                assert!(class_replaced.is_none());
+                class_replaced = other.class_replaced;
             }
         }
         Self {
@@ -319,7 +329,7 @@ impl RevertInfo {
                 .into_iter()
                 .flat_map(|other| other.deployed_addresses)
                 .collect(),
-            class_replaced_and_original_class_hash,
+            class_replaced,
         }
     }
 }
@@ -341,11 +351,11 @@ struct FuzzTestContext {
     /// List of operations applied to the fuzz test so far.
     pub operations: Vec<FuzzOperationData>,
 
-    /// Map from contract address to class hash.
-    pub deployed_contracts: BTreeMap<ContractAddress, ClassHash>,
+    /// Map from newly deployed contract address to class hash.
+    pub newly_deployed_contracts: BTreeMap<ContractAddress, ClassHash>,
 
-    /// We only allow one replace class per test.
-    pub class_replaced: bool,
+    /// We only allow one replace class per test. Track which contract was replaced.
+    pub replaced_address: Option<ContractAddress>,
 
     /// Next value to write in a storage-write operation.
     pub next_storage_write_value: StarknetStorageValue,
@@ -357,18 +367,14 @@ struct FuzzTestContext {
 }
 
 impl FuzzTestContext {
-    pub fn init(
-        seed: u64,
-        first_call: FuzzCallInfo,
-        deployed_fuzz_contracts: BTreeMap<ContractAddress, ClassHash>,
-    ) -> Self {
+    pub fn init(seed: u64, first_call: FuzzCallInfo) -> Self {
         Self {
             calls: vec![first_call],
             current_call: vec![0],
             final_state: FinalizedState::Ongoing,
             operations: vec![],
-            deployed_contracts: deployed_fuzz_contracts,
-            class_replaced: false,
+            newly_deployed_contracts: BTreeMap::new(),
+            replaced_address: None,
             next_storage_write_value: StarknetStorageValue(Felt::from(1u16 << 12)),
             next_salt: ContractAddressSalt(Felt::from(1u32 << 16)),
             rng: ChaCha8Rng::seed_from_u64(seed),
@@ -391,15 +397,8 @@ impl FuzzTestManager {
         // - two cairo0 fuzz test contracts.
         let mut test_manager = Self::init_deployment(false).await;
 
-        let deployed_fuzz_contracts = BTreeMap::from([
-            (*FUZZ_ADDRESS_CAIRO1_A, *CAIRO1_CONTRACT_CLASS_HASH),
-            (*FUZZ_ADDRESS_CAIRO1_B, *CAIRO1_CONTRACT_CLASS_HASH),
-            (*FUZZ_ADDRESS_CAIRO0_A, *CAIRO0_CONTRACT_CLASS_HASH),
-            (*FUZZ_ADDRESS_CAIRO0_B, *CAIRO0_CONTRACT_CLASS_HASH),
-        ]);
-
         // Initialize the fuzz testing contracts with the orchestrator address.
-        for address in deployed_fuzz_contracts.keys() {
+        for address in FUZZ_ADDRESS_TO_CLASS_HASH.keys() {
             let calldata = create_calldata(*address, "initialize", &[***FUZZ_ADDRESS_ORCHESTRATOR]);
             test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
         }
@@ -413,7 +412,7 @@ impl FuzzTestManager {
             ParentFailureBehavior::Cairo1Catching,
         );
         Self {
-            context: FuzzTestContext::init(seed, first_call, deployed_fuzz_contracts),
+            context: FuzzTestContext::init(seed, first_call),
             test_manager,
             first_called_address,
         }
@@ -494,6 +493,26 @@ impl FuzzTestManager {
         self.is_cairo1_class(&self.current_class_hash())
     }
 
+    pub fn deployed_contracts(&self) -> impl Iterator<Item = &ContractAddress> {
+        self.context.newly_deployed_contracts.keys().chain(FUZZ_ADDRESS_TO_CLASS_HASH.keys())
+    }
+
+    pub fn try_class_hash_of(&self, address: &ContractAddress) -> Option<ClassHash> {
+        match self.context.replaced_address {
+            Some(replaced_address) if &replaced_address == address => {
+                Some(*CAIRO1_REPLACEMENT_CLASS_HASH)
+            }
+            _ => FUZZ_ADDRESS_TO_CLASS_HASH
+                .get(address)
+                .copied()
+                .or_else(|| self.context.newly_deployed_contracts.get(address).copied()),
+        }
+    }
+
+    pub fn class_hash_of(&self, address: &ContractAddress) -> ClassHash {
+        self.try_class_hash_of(address).unwrap()
+    }
+
     /// Returns a vector of operations of the given type that can be applied on the current context.
     pub fn valid_operations_of_type(
         &self,
@@ -510,9 +529,7 @@ impl FuzzTestManager {
                 // There are two Cairo0 contracts and two Cairo1 contracts that can be called.
                 // When calling from a Cairo1 context, the caller can unwrap the call result or not.
                 let current_context_is_cairo1 = self.is_current_context_cairo1();
-                self.context
-                    .deployed_contracts
-                    .keys()
+                self.deployed_contracts()
                     .flat_map(|address| {
                         if current_context_is_cairo1 {
                             [true, false]
@@ -571,7 +588,7 @@ impl FuzzTestManager {
                 .collect(),
             FuzzOperation::ReplaceClass => {
                 // If class was already replaced, no more replacements are allowed.
-                if self.context.class_replaced {
+                if self.context.replaced_address.is_some() {
                     // TODO(Dori): In this case, replace back to original class.
                     return vec![];
                 }
@@ -670,8 +687,8 @@ impl FuzzTestManager {
                     } else {
                         BTreeSet::new()
                     },
-                    class_replaced_and_original_class_hash: if root_call.class_replaced_here {
-                        Some((root_call.address, root_call.class_hash))
+                    class_replaced: if root_call.class_replaced_here {
+                        Some(root_call.class_hash)
                     } else {
                         None
                     },
@@ -683,14 +700,17 @@ impl FuzzTestManager {
     pub fn apply_revert_info(&mut self, revert_info: RevertInfo) {
         // Revert class replacement. Do this before "undeploying" deployed contracts so we don't
         // "redeploy" anything when we only intend to revert the class hash change.
-        if let Some((address, class_hash)) = revert_info.class_replaced_and_original_class_hash {
-            self.context.deployed_contracts.insert(address, class_hash);
+        if let Some(original_class_hash) = revert_info.class_replaced {
+            let replaced_address = self.context.replaced_address.take().unwrap();
+            if self.context.newly_deployed_contracts.contains_key(&replaced_address) {
+                self.context.newly_deployed_contracts.insert(replaced_address, original_class_hash);
+            }
         }
         // "Undeploy" all deployed contracts.
         for address in revert_info.deployed_addresses.iter() {
             // Remove without asserting that the address was actually deployed - the
             // constructor may have reverted before being finalized.
-            self.context.deployed_contracts.remove(address);
+            self.context.newly_deployed_contracts.remove(address);
         }
     }
 
@@ -715,7 +735,7 @@ impl FuzzTestManager {
             }
             FuzzOperationData::Call(call_operation_data) => {
                 let address = *call_operation_data.address();
-                let class_hash = *self.context.deployed_contracts.get(&address).unwrap();
+                let class_hash = self.class_hash_of(&address);
                 self.enter_call(address, class_hash, call_operation_data.parent_failure_behavior());
             }
             FuzzOperationData::LibraryCall(library_call_operation_data) => {
@@ -730,12 +750,10 @@ impl FuzzTestManager {
                 self.context.next_storage_write_value.0 += Felt::ONE;
             }
             FuzzOperationData::ReplaceClass(class_hash) => {
-                assert!(!self.context.class_replaced);
+                assert!(self.context.replaced_address.is_none());
                 assert_eq!(class_hash, *CAIRO1_REPLACEMENT_CLASS_HASH);
-                self.context.class_replaced = true;
-                // Update the mapping from address to class hash, so subsequent calls to this
-                // address will correctly use the new class hash.
-                self.context.deployed_contracts.insert(self.current_address(), class_hash);
+                let current_address = self.current_address();
+                self.context.replaced_address = Some(current_address);
                 // Update the current call to mark that it was replaced at this point, to make it
                 // easy to track if the change must be reverted mid-test.
                 self.current_fuzz_call_info_mut().class_replaced_here = true;
@@ -748,7 +766,7 @@ impl FuzzTestManager {
                 // Increment the salt for the next deploy operation.
                 self.context.next_salt.0 += Felt::ONE;
                 // Update the mapping from address to class hash.
-                self.context.deployed_contracts.insert(deployed_address, class_hash);
+                self.context.newly_deployed_contracts.insert(deployed_address, class_hash);
                 // Enter constructor context.
                 self.enter_deploy(deployed_address, class_hash);
             }
@@ -855,10 +873,10 @@ impl FuzzTestManager {
                 FuzzOperationData::Call(call_operation_data) => {
                     // It's possible that the address is no longer deployed (post-revert).
                     let class_info_string =
-                        match self.context.deployed_contracts.get(call_operation_data.address()) {
+                        match self.try_class_hash_of(call_operation_data.address()) {
                             Some(class_hash) => format!(
                                 "Cairo{} address, class hash: {}",
-                                if self.is_cairo1_class(class_hash) { "1" } else { "0" },
+                                if self.is_cairo1_class(&class_hash) { "1" } else { "0" },
                                 class_hash.0.to_hex_string()
                             ),
                             None => "unknown class hash, deployment reverted".to_string(),
