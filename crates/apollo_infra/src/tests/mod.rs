@@ -19,7 +19,7 @@ use apollo_metrics::metrics::{
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
-use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use tokio::sync::Semaphore;
 
 use crate::component_client::ClientResult;
@@ -194,7 +194,7 @@ fn available_ports_factory(instance_index: u16) -> AvailablePorts {
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(
     name(ComponentARequestLabelValue),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    derive(IntoStaticStr, EnumIter, VariantNames),
     strum(serialize_all = "snake_case")
 )]
 pub enum ComponentARequest {
@@ -218,7 +218,7 @@ pub enum ComponentAResponse {
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(
     name(ComponentBRequestLabelValue),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    derive(IntoStaticStr, EnumIter, VariantNames),
     strum(serialize_all = "snake_case")
 )]
 pub enum ComponentBRequest {

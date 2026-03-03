@@ -30,7 +30,7 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::StarknetApiError;
-use strum::{EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
+use strum::{EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, instrument, warn};
 
@@ -88,7 +88,7 @@ type ValidateProposalResult<T> = Result<T, ValidateProposalError>;
 #[derive(Debug, thiserror::Error, EnumDiscriminants)]
 #[strum_discriminants(
     name(ValidateProposalFailureReasonLabelValue),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    derive(IntoStaticStr, EnumIter, VariantNames),
     strum(serialize_all = "snake_case")
 )]
 pub(crate) enum ValidateProposalError {
