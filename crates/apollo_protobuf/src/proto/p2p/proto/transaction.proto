@@ -68,7 +68,10 @@ message InvokeV3 {
 // Used in consensus and mempool contexts where proof is included.
 message InvokeV3WithProof {
     InvokeV3 invoke = 1;
-    repeated uint32 proof = 2;
+    reserved 2;
+    // zstd-compressed proof bytes. The raw (decompressed) payload is a sequence of
+    // big-endian u32 values (4 bytes each).
+    bytes compressed_proof = 3;
 }
 
 // see https://external.integration.starknet.io/feeder_gateway/get_transaction?transactionHash=0x29fd7881f14380842414cdfdd8d6c0b1f2174f8916edcfeb1ede1eb26ac3ef0

@@ -314,8 +314,10 @@ pub struct InvokeV3 {
 pub struct InvokeV3WithProof {
     #[prost(message, optional, tag = "1")]
     pub invoke: ::core::option::Option<InvokeV3>,
-    #[prost(uint32, repeated, tag = "2")]
-    pub proof: ::prost::alloc::vec::Vec<u32>,
+    /// zstd-compressed proof bytes. The raw (decompressed) payload is a sequence of
+    /// big-endian u32 values (4 bytes each).
+    #[prost(bytes = "vec", tag = "3")]
+    pub compressed_proof: ::prost::alloc::vec::Vec<u8>,
 }
 /// see <https://external.integration.starknet.io/feeder_gateway/get_transaction?transactionHash=0x29fd7881f14380842414cdfdd8d6c0b1f2174f8916edcfeb1ede1eb26ac3ef0>
 #[allow(clippy::derive_partial_eq_without_eq)]
