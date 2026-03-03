@@ -68,6 +68,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "consensus_manager_config.context_config.dynamic_config.override_l1_gas_price_fri",
     "consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri.#is_none",
     "consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri",
+    "consensus_manager_config.context_config.dynamic_config.compare_retrospective_block_hash",
     "consensus_manager_config.network_config.advertised_multiaddr.#is_none",
     "consensus_manager_config.network_config.advertised_multiaddr",
     "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none",
