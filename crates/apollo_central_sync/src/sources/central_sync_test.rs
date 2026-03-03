@@ -105,6 +105,7 @@ fn get_test_sync_config(verify_blocks: bool) -> SyncConfig {
         // TODO(Shahak): Add test where store_sierras_and_casms_block_threshold is disabled, i.e.,
         // setting 0.
         store_sierras_and_casms_block_threshold: u64::MAX,
+        blocks_before_tip_to_disable_batching: None,
     }
 }
 
