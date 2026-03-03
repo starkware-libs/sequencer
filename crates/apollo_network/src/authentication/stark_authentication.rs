@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use apollo_network_types::network_types::PeerId;
 use apollo_protobuf::authentication::{ChallengeAndIdentity, Signature};
 use apollo_protobuf::converters::ProtobufConversionError;
@@ -25,16 +23,18 @@ pub type StarkAuthNegotiatorResult<T> = Result<T, StarkAuthNegotiatorError>;
 #[async_trait]
 pub trait ChallengeGenerator: Send + Sync {
     async fn generate(&self) -> Challenge;
+    fn clone_box(&self) -> Box<dyn ChallengeGenerator>;
 }
 
 #[async_trait]
 pub trait AllowListChecker: Send + Sync {
     async fn is_allowed(&self, public_key: &PublicKey) -> bool;
+    fn clone_box(&self) -> Box<dyn AllowListChecker>;
 }
 
 // TODO(noam.s): Verify with @albert-starkware that OsRng is cryptographically secure enough for
 // challenge generation. Also check which RNG libp2p uses in its default noise implementation.
-#[allow(dead_code)]
+#[derive(Clone)]
 pub struct OsRngChallengeGenerator;
 
 #[async_trait]
@@ -48,10 +48,11 @@ impl ChallengeGenerator for OsRngChallengeGenerator {
         .await
         .expect("spawn_blocking for challenge generation panicked")
     }
-}
 
-type SharedChallengeGenerator = Arc<dyn ChallengeGenerator>;
-type SharedAllowListChecker = Arc<dyn AllowListChecker>;
+    fn clone_box(&self) -> Box<dyn ChallengeGenerator> {
+        Box::new(self.clone())
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum StarkAuthNegotiatorError {
@@ -73,20 +74,30 @@ pub enum StarkAuthNegotiatorError {
     ProtobufConversion(#[from] ProtobufConversionError),
 }
 
-#[derive(Clone)]
 pub struct StarkAuthNegotiator {
     my_public_key: PublicKey,
     signer_client: SharedSignatureManagerClient,
-    challenge_generator: SharedChallengeGenerator,
-    allow_list_checker: SharedAllowListChecker,
+    challenge_generator: Box<dyn ChallengeGenerator>,
+    allow_list_checker: Box<dyn AllowListChecker>,
+}
+
+impl Clone for StarkAuthNegotiator {
+    fn clone(&self) -> Self {
+        Self {
+            my_public_key: self.my_public_key,
+            signer_client: self.signer_client.clone(),
+            challenge_generator: self.challenge_generator.clone_box(),
+            allow_list_checker: self.allow_list_checker.clone_box(),
+        }
+    }
 }
 
 impl StarkAuthNegotiator {
     pub fn new(
         my_public_key: PublicKey,
         signer_client: SharedSignatureManagerClient,
-        challenge_generator: SharedChallengeGenerator,
-        allow_list_checker: SharedAllowListChecker,
+        challenge_generator: Box<dyn ChallengeGenerator>,
+        allow_list_checker: Box<dyn AllowListChecker>,
     ) -> Self {
         Self { my_public_key, signer_client, challenge_generator, allow_list_checker }
     }

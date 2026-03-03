@@ -30,11 +30,7 @@ use self::swarm_trait::SwarmTrait;
 use crate::authentication::allow_all_checker::AllowAllChecker;
 use crate::authentication::composed_noise::ComposedNoise;
 use crate::authentication::direct_signature_manager_client::DirectSignatureManagerClient;
-use crate::authentication::stark_authentication::{
-    ChallengeGenerator,
-    OsRngChallengeGenerator,
-    StarkAuthNegotiator,
-};
+use crate::authentication::stark_authentication::{OsRngChallengeGenerator, StarkAuthNegotiator};
 use crate::gossipsub_impl::Topic;
 use crate::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
 use crate::misconduct_score::MisconductScore;
@@ -1193,17 +1189,13 @@ impl NetworkManager {
         let listen_address = make_multiaddr(Ipv4Addr::UNSPECIFIED, port, None);
         debug!("Creating swarm with listen address: {listen_address:?}");
 
-        // TODO(noam.s): Change this to not use Arc once we have a real challenge generator.
-        let generator: Arc<dyn ChallengeGenerator> = Arc::new(OsRngChallengeGenerator);
-        let allow_list_checker = Arc::new(AllowAllChecker);
-
         let handshake_negotiator =
             if let Some((signature_manager_client, my_public_key)) = signature_manager_client {
                 StarkAuthNegotiator::new(
                     my_public_key,
                     signature_manager_client,
-                    generator,
-                    allow_list_checker,
+                    Box::new(OsRngChallengeGenerator),
+                    Box::new(AllowAllChecker),
                 )
             } else {
                 let local_signer = apollo_signature_manager::LocalKeyStoreSignatureManager::new();
@@ -1213,8 +1205,8 @@ impl NetworkManager {
                 StarkAuthNegotiator::new(
                     my_public_key,
                     signature_manager_client,
-                    generator,
-                    allow_list_checker,
+                    Box::new(OsRngChallengeGenerator),
+                    Box::new(AllowAllChecker),
                 )
             };
 
