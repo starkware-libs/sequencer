@@ -11,7 +11,6 @@ use mempool_test_utils::starknet_api_test_utils::{
     invoke_tx_client_side_proving,
 };
 use mockall::predicate::eq;
-use proving_utils::proof_encoding::ProofBytes;
 use rstest::{fixture, rstest};
 use starknet_api::compiled_class_hash;
 use starknet_api::consensus_transaction::ConsensusTransaction;
@@ -29,17 +28,25 @@ use crate::transaction_converter::{
 };
 
 /// Resource file names for testing.
-const EXAMPLE_PROOF_FILE: &str = "example_proof.bz2";
+const EXAMPLE_PROOF_FILE: &str = "example_proof.bin";
 const EXAMPLE_PROOF_FACTS_FILE: &str = "example_proof_facts.json";
 
-/// Loads the example proof from the resources directory.
-/// Uses `ProofBytes::from_file()` to load the bz2-compressed proof file.
+/// Loads the example proof from the resources directory as raw binary (big-endian u32 words).
 #[fixture]
 fn proof() -> Proof {
     let proof_path = path_in_resources(EXAMPLE_PROOF_FILE);
-    let proof_bytes = ProofBytes::from_file(&proof_path)
-        .expect("Failed to load example_proof.bz2 from resources directory");
-    proof_bytes.into()
+    let raw_bytes =
+        std::fs::read(&proof_path).expect("Failed to read example_proof.bin from resources");
+    assert!(
+        raw_bytes.len().is_multiple_of(4),
+        "Proof file size ({} bytes) is not a multiple of 4",
+        raw_bytes.len()
+    );
+    let data: Vec<u32> = raw_bytes
+        .chunks_exact(4)
+        .map(|chunk| u32::from_be_bytes(chunk.try_into().unwrap()))
+        .collect();
+    Proof::from(data)
 }
 
 /// Loads the example proof facts from the resources directory.
