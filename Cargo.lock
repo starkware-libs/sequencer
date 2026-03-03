@@ -4636,7 +4636,7 @@ dependencies = [
 [[package]]
 name = "cairo-native"
 version = "0.9.0-rc.1"
-source = "git+https://github.com/lambdaclass/cairo_native?branch=tomer%2Fblake_builtin#d1169689106ed7fec9e864ff8172b4dd2bd87c74"
+source = "git+https://github.com/lambdaclass/cairo_native?rev=d1169689106e#d1169689106ed7fec9e864ff8172b4dd2bd87c74"
 dependencies = [
  "aquamarine",
  "ark-ec",
