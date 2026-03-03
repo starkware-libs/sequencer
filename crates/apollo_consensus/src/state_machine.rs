@@ -269,6 +269,7 @@ impl StateMachine {
         *last_self_vote = Some(vote.clone());
         // Returns VecDeque instead of a single SMRequest so callers can chain requests using
         // append().
+        info!("Broadcasting {vote:?}");
         output.push_back(SMRequest::BroadcastVote(vote));
         output
     }

@@ -1462,7 +1462,12 @@ dependencies = [
  "apollo_mempool_p2p",
  "apollo_metrics",
  "apollo_network",
+<<<<<<< HEAD
  "apollo_proof_manager",
+||||||| 8e2855c049
+=======
+ "apollo_staking",
+>>>>>>> origin/main-v0.14.1-committer
  "apollo_state_sync_metrics",
  "apollo_storage",
  "apollo_transaction_converter",
@@ -2542,7 +2547,6 @@ dependencies = [
  "async-trait",
  "blockifier",
  "blockifier_test_utils",
- "metrics",
  "mockall",
  "rstest",
  "sha2 0.10.9",

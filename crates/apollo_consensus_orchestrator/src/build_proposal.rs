@@ -108,7 +108,6 @@ pub(crate) async fn build_proposal(
     mut args: ProposalBuildArguments,
 ) -> BuildProposalResult<ProposalCommitment> {
     let init = initiate_build(&mut args).await?;
-    let height = init.height;
 
     args.stream_sender
         .send(ProposalPart::Init(init.clone()))
@@ -120,6 +119,7 @@ pub(crate) async fn build_proposal(
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
     let mut valid_proposals = args.valid_proposals.lock().expect("Lock was poisoned");
+<<<<<<< HEAD
     valid_proposals.insert_proposal_for_height(
         &height,
         init,
@@ -127,6 +127,17 @@ pub(crate) async fn build_proposal(
         &args.proposal_id,
         finished_info,
     );
+||||||| 8e2855c049
+    valid_proposals.insert_proposal_for_height(
+        &height,
+        &proposal_commitment,
+        init,
+        content,
+        &args.proposal_id,
+    );
+=======
+    valid_proposals.insert_proposal(&proposal_commitment, init, content, &args.proposal_id);
+>>>>>>> origin/main-v0.14.1-committer
     Ok(proposal_commitment)
 }
 
@@ -262,10 +273,20 @@ async fn get_proposal_content(
                         ))
                     })?;
             }
+<<<<<<< HEAD
             GetProposalContent::Finished(info) => {
                 let proposal_commitment =
                     ProposalCommitment(info.proposal_commitment.state_diff_commitment.0.0);
                 content = truncate_to_executed_txs(&mut content, info.final_n_executed_txs);
+||||||| 8e2855c049
+            GetProposalContent::Finished { id, final_n_executed_txs } => {
+                let proposal_commitment = ProposalCommitment(id.state_diff_commitment.0.0);
+                content = truncate_to_executed_txs(&mut content, final_n_executed_txs);
+=======
+            GetProposalContent::Finished { id, final_n_executed_txs } => {
+                let proposal_commitment = ProposalCommitment(id.partial_block_hash.0);
+                content = truncate_to_executed_txs(&mut content, final_n_executed_txs);
+>>>>>>> origin/main-v0.14.1-committer
 
                 info!(
                     ?proposal_commitment,

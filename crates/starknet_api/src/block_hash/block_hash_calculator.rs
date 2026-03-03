@@ -31,6 +31,7 @@ use crate::core::{
 use crate::crypto::utils::HashChain;
 use crate::data_availability::L1DataAvailabilityMode;
 use crate::execution_resources::GasVector;
+use crate::hash::StarkHash;
 use crate::state::ThinStateDiff;
 use crate::transaction::fields::{Fee, TransactionSignature};
 use crate::transaction::{Event, MessageToL1, TransactionExecutionStatus, TransactionHash};
@@ -178,6 +179,30 @@ impl TryFrom<&BlockHeader> for Option<BlockHeaderCommitments> {
                 }
             }
         }
+    }
+}
+
+/// Hash of [`PartialBlockHashComponents`] only (no state root or parent hash).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PartialBlockHash(pub StarkHash);
+
+impl PartialBlockHash {
+    // TODO(Ariel): Use parent_partial_block_hash instead of zero.
+    const GLOBAL_ROOT_FOR_PARTIAL_BLOCK_HASH: GlobalRoot = GlobalRoot(Felt::ZERO);
+    const PARENT_HASH_FOR_PARTIAL_BLOCK_HASH: BlockHash = BlockHash(Felt::ZERO);
+
+    /// Hash of [`PartialBlockHashComponents`].
+    /// Uses the same formula as [`calculate_block_hash`] with the fixed constants above for the
+    /// state root and parent hash.
+    pub fn from_partial_block_hash_components(
+        partial_block_hash_components: &PartialBlockHashComponents,
+    ) -> StarknetApiResult<Self> {
+        let block_hash = calculate_block_hash(
+            partial_block_hash_components,
+            Self::GLOBAL_ROOT_FOR_PARTIAL_BLOCK_HASH,
+            Self::PARENT_HASH_FOR_PARTIAL_BLOCK_HASH,
+        )?;
+        Ok(Self(block_hash.0))
     }
 }
 
@@ -370,6 +395,15 @@ pub fn concat_counts(
 fn to_64_bits(num: usize) -> [u8; 8] {
     let sized_transaction_count: u64 = num.try_into().expect("Expect usize is at most 8 bytes");
     sized_transaction_count.to_be_bytes()
+}
+
+/// Extracts the event count from concatenated_counts.
+pub fn extract_event_count_from_concatenated_counts(concatenated_counts: &Felt) -> usize {
+    let bytes = concatenated_counts.to_bytes_be();
+    // Extract bytes 8-15 (the event_count field)
+    let event_count_bytes: [u8; 8] =
+        bytes[8..16].try_into().expect("Felt should have at least 16 bytes");
+    u64::from_be_bytes(event_count_bytes).try_into().expect("Expected event count to fit in usize")
 }
 
 // For starknet version >= 0.13.3, returns:

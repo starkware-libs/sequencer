@@ -39,10 +39,11 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHashAndNumber, BlockInfo};
+use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
     BlockCommitmentsMeasurements,
+    PartialBlockHash,
     PartialBlockHashComponents,
     TransactionHashingData,
 };
@@ -56,6 +57,7 @@ use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
 use thiserror::Error;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{Mutex, MutexGuard};
+use tokio::task::spawn_blocking;
 use tracing::{debug, error, info, trace, warn};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
@@ -64,14 +66,15 @@ use crate::metrics::{
     record_block_close_reason,
     BlockCloseReason,
     BATCHER_CLASS_CACHE_METRICS,
+    BLOCK_COMMITMENT_MEASUREMENTS_COUNT,
+    EVENT_COMMITMENT_COUNT,
     EVENT_COMMITMENT_LATENCY,
-    EVENT_COMMITMENT_PER_EVENT_LATENCY,
     PROPOSER_DEFERRED_TXS,
     RECEIPT_COMMITMENT_LATENCY,
     STATE_DIFF_COMMITMENT_LATENCY,
-    STATE_DIFF_COMMITMENT_PER_STATE_DIFF_LENGTH_LATENCY,
+    STATE_DIFF_LENGTH,
+    TX_COMMITMENT_COUNT,
     TX_COMMITMENT_LATENCY,
-    TX_COMMITMENT_PER_TX_LATENCY,
     VALIDATOR_WASTED_TXS,
 };
 use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender};
@@ -160,9 +163,35 @@ impl BlockExecutionArtifacts {
             &block_info.starknet_version,
         )
         .await;
+<<<<<<< HEAD
         record_block_commitment_measurements(measurements);
         let partial_block_hash_components =
             PartialBlockHashComponents::new(&block_info, header_commitments);
+||||||| 8e2855c049
+        record_block_commitment_measurements(measurements);
+        let partial_block_hash_components = PartialBlockHashComponents {
+            header_commitments,
+            block_number: block_info.block_number,
+            l1_gas_price: block_info.gas_prices.l1_gas_price_per_token(),
+            l1_data_gas_price: block_info.gas_prices.l1_data_gas_price_per_token(),
+            l2_gas_price: block_info.gas_prices.l2_gas_price_per_token(),
+            sequencer: SequencerContractAddress(block_info.sequencer_address),
+            timestamp: block_info.block_timestamp,
+            starknet_version,
+        };
+=======
+        record_and_log_block_commitment_measurements(block_info.block_number, measurements);
+        let partial_block_hash_components = PartialBlockHashComponents {
+            header_commitments,
+            block_number: block_info.block_number,
+            l1_gas_price: block_info.gas_prices.l1_gas_price_per_token(),
+            l1_data_gas_price: block_info.gas_prices.l1_data_gas_price_per_token(),
+            l2_gas_price: block_info.gas_prices.l2_gas_price_per_token(),
+            sequencer: SequencerContractAddress(block_info.sequencer_address),
+            timestamp: block_info.block_timestamp,
+            starknet_version,
+        };
+>>>>>>> origin/main-v0.14.1-committer
         let l2_gas_used = execution_data.l2_gas_used();
         Self {
             execution_data,
@@ -197,10 +226,10 @@ impl BlockExecutionArtifacts {
 
     pub fn commitment(&self) -> ProposalCommitment {
         ProposalCommitment {
-            state_diff_commitment: self
-                .partial_block_hash_components
-                .header_commitments
-                .state_diff_commitment,
+            partial_block_hash: PartialBlockHash::from_partial_block_hash_components(
+                &self.partial_block_hash_components,
+            )
+            .expect("Unable to calculate the proposal commitment"),
         }
     }
 
@@ -323,7 +352,13 @@ impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let res = self.build_block_inner().await;
         if res.is_err() {
-            self.executor.lock().await.abort_block();
+            let executor = self.executor.clone();
+            spawn_blocking(move || {
+                let mut locked_executor = executor.blocking_lock();
+                locked_executor.abort_block();
+            })
+            .await
+            .expect("Aborting block should succeed.");
         }
         res
     }
@@ -369,7 +404,12 @@ impl BlockBuilder {
             // Check if the block is full. This is only relevant in propose mode.
             // In validate mode, this is ignored and we simply wait for the proposer to send the
             // final number of transactions in the block.
-            if !self.execution_params.is_validator && lock_executor(&self.executor).is_done() {
+            let executor = self.executor.clone();
+            if !self.execution_params.is_validator
+                && spawn_blocking(move || lock_executor(&executor).is_done())
+                    .await
+                    .expect("Checking completion should succeed.")
+            {
                 // Call `handle_executed_txs()` once more to get the last results.
                 self.handle_executed_txs().await?;
                 info!("Block is full.");
@@ -438,7 +478,7 @@ impl BlockBuilder {
 
         // Move a clone of the executor into the lambda function.
         let executor = self.executor.clone();
-        let block_summary = tokio::task::spawn_blocking(move || {
+        let block_summary = spawn_blocking(move || {
             lock_executor(&executor).close_block(final_n_executed_txs_nonopt)
         })
         .await
@@ -525,7 +565,12 @@ impl BlockBuilder {
 
         // Start the execution of the transactions on the worker pool.
         info!("Starting execution of {} transactions.", n_txs);
-        lock_executor(&self.executor).add_txs_to_block(executor_input_chunk.as_slice());
+        let executor = self.executor.clone();
+        spawn_blocking(move || {
+            lock_executor(&executor).add_txs_to_block(executor_input_chunk.as_slice())
+        })
+        .await
+        .expect("Adding txs to block should succeed.");
 
         if let Some(output_content_sender) = &self.output_content_sender {
             // Send the transactions to the validators.
@@ -540,7 +585,10 @@ impl BlockBuilder {
 
     /// Handles the transactions that were executed so far by the executor.
     async fn handle_executed_txs(&mut self) -> BlockBuilderResult<()> {
-        let results = lock_executor(&self.executor).get_new_results();
+        let executor = self.executor.clone();
+        let results = spawn_blocking(move || lock_executor(&executor).get_new_results())
+            .await
+            .expect("Getting new results should succeed.");
 
         if results.is_empty() {
             return Ok(());
@@ -622,6 +670,8 @@ impl BlockBuilder {
     }
 }
 
+// TODO(Tsabary): consider converting this to an async function and calling spawn_blocking
+// internally.
 fn lock_executor(
     executor: &Arc<Mutex<dyn TransactionExecutorTrait>>,
 ) -> MutexGuard<'_, dyn TransactionExecutorTrait> {
@@ -910,27 +960,67 @@ fn remove_last_set(set: &mut IndexSet<TransactionHash>, tx_hash: &TransactionHas
     }
 }
 
-#[allow(clippy::as_conversions)]
-fn record_block_commitment_measurements(measurements: BlockCommitmentsMeasurements) {
-    TX_COMMITMENT_LATENCY.record_lossy(measurements.transaction_commitment_duration.as_secs_f64());
-    if measurements.n_txs > 0 {
-        TX_COMMITMENT_PER_TX_LATENCY.record_lossy(
-            measurements.transaction_commitment_duration.as_secs_f64() / measurements.n_txs as f64,
-        );
-    }
-    EVENT_COMMITMENT_LATENCY.record_lossy(measurements.event_commitment_duration.as_secs_f64());
-    if measurements.n_events > 0 {
-        EVENT_COMMITMENT_PER_EVENT_LATENCY.record_lossy(
-            measurements.event_commitment_duration.as_secs_f64() / measurements.n_events as f64,
-        );
-    }
-    RECEIPT_COMMITMENT_LATENCY.record_lossy(measurements.receipt_commitment_duration.as_secs_f64());
-    STATE_DIFF_COMMITMENT_LATENCY
-        .record_lossy(measurements.state_diff_commitment_duration.as_secs_f64());
-    if measurements.state_diff_length > 0 {
-        STATE_DIFF_COMMITMENT_PER_STATE_DIFF_LENGTH_LATENCY.record_lossy(
-            measurements.state_diff_commitment_duration.as_secs_f64()
-                / measurements.state_diff_length as f64,
-        );
-    }
+fn record_and_log_block_commitment_measurements(
+    height: BlockNumber,
+    measurements: BlockCommitmentsMeasurements,
+) {
+    let usize_to_u64_warn_msg = "Conversion from usize to u64 should not fail.";
+
+    // Record the measurements.
+    BLOCK_COMMITMENT_MEASUREMENTS_COUNT.increment(1);
+
+    let tx_commitment_latency =
+        convert_microseconds_to_u64(measurements.transaction_commitment_duration);
+    let n_txs = u64::try_from(measurements.n_txs).expect(usize_to_u64_warn_msg);
+    TX_COMMITMENT_LATENCY.increment(tx_commitment_latency);
+    TX_COMMITMENT_COUNT.increment(n_txs);
+
+    let event_commitment_latency =
+        convert_microseconds_to_u64(measurements.event_commitment_duration);
+    let n_events = u64::try_from(measurements.n_events).expect(usize_to_u64_warn_msg);
+    EVENT_COMMITMENT_LATENCY.increment(event_commitment_latency);
+    EVENT_COMMITMENT_COUNT.increment(n_events);
+
+    let receipt_commitment_latency =
+        convert_microseconds_to_u64(measurements.receipt_commitment_duration);
+    RECEIPT_COMMITMENT_LATENCY.increment(receipt_commitment_latency);
+
+    let state_diff_commitment_latency =
+        convert_microseconds_to_u64(measurements.state_diff_commitment_duration);
+    let state_diff_length =
+        u64::try_from(measurements.state_diff_length).expect(usize_to_u64_warn_msg);
+    STATE_DIFF_COMMITMENT_LATENCY.increment(state_diff_commitment_latency);
+    STATE_DIFF_LENGTH.increment(state_diff_length);
+
+    // Log the measurements.
+    let height = height.0;
+    let tx_commitment_per_tx_latency_string =
+        if n_txs > 0 { format!("{} µs", tx_commitment_latency / n_txs) } else { "?".to_string() };
+    let event_commitment_per_event_latency_string = if n_events > 0 {
+        format!("{} µs", event_commitment_latency / n_events)
+    } else {
+        "?".to_string()
+    };
+    let state_diff_commitment_per_state_diff_length_latency_string = if state_diff_length > 0 {
+        format!("{} µs", state_diff_commitment_latency / state_diff_length)
+    } else {
+        "?".to_string()
+    };
+
+    debug!(
+        "Block {height} commitments latencies: tx/event/receipt/state_diff in µs: \
+         {tx_commitment_latency}/{event_commitment_latency}/{receipt_commitment_latency}/\
+         {state_diff_commitment_latency},
+        tx commitment per tx: {tx_commitment_per_tx_latency_string},
+        event commitment per event: {event_commitment_per_event_latency_string},
+        state diff commitment per state diff length: \
+         {state_diff_commitment_per_state_diff_length_latency_string}",
+    );
+}
+
+fn convert_microseconds_to_u64(duration: Duration) -> u64 {
+    u64::try_from(duration.as_micros()).unwrap_or_else(|_| {
+        warn!("Failed to convert duration microseconds to u64.");
+        0
+    })
 }

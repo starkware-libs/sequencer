@@ -70,9 +70,21 @@ use futures::FutureExt;
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
+<<<<<<< HEAD
 use starknet_api::block::{BlockHash, BlockNumber, UnixTimestamp};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
+||||||| 8e2855c049
+use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
+=======
+use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::{
+    PartialBlockHash,
+    PartialBlockHashComponents,
+};
+>>>>>>> origin/main-v0.14.1-committer
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, GlobalRoot, Nonce, StateDiffCommitment};
 use starknet_api::state::{StateNumber, ThinStateDiff};
@@ -849,7 +861,25 @@ impl Batcher {
         );
         trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
 
-        let state_diff_commitment = calculate_state_diff_hash(&state_diff);
+        // Proposal commitment is the the partial block hash when it's available, and None
+        // otherwise. The commitment is computed here to set the prev_proposal_commitment cache. As
+        // this cache is only used for blocks obtained through the decision_reached flow, it can
+        // be None for old (pre 0.13.2) blocks.
+        let proposal_commitment = match &storage_commitment_block_hash {
+            StorageCommitmentBlockHash::Partial(components) => Some((
+                height,
+                ProposalCommitment {
+                    partial_block_hash: PartialBlockHash::from_partial_block_hash_components(
+                        components,
+                    )
+                    .map_err(|e| {
+                        error!("Failed to compute partial block hash: {}", e);
+                        BatcherError::InternalError
+                    })?,
+                },
+            )),
+            StorageCommitmentBlockHash::ParentHash(_) => None,
+        };
 
         // Commit the proposal to the storage.
         self.storage_writer
@@ -859,8 +889,8 @@ impl Batcher {
                 BatcherError::InternalError
             })?;
         info!("Successfully committed proposal for block {} to storage.", height);
-        self.prev_proposal_commitment =
-            Some((height, ProposalCommitment { state_diff_commitment }));
+
+        self.prev_proposal_commitment = proposal_commitment;
 
         // Notify the L1 provider of the new block.
         let rejected_l1_handler_tx_hashes = rejected_tx_hashes
@@ -1160,21 +1190,30 @@ impl Batcher {
                 Ok(Some(commitment))
             }
             None => {
-                // Parent proposal commitment is not cached. Compute it from the stored state diff.
-                let state_diff = self
+                // Parent proposal commitment is not cached. Read partial block hash
+                // components from storage and compute the partial block hash.
+                let (_, components) = self
                     .storage_reader
-                    .get_state_diff(prev_height)
+                    .get_parent_hash_and_partial_block_hash_components(prev_height)
                     .map_err(|err| {
                         error!(
-                            "Failed to read state diff for previous height {prev_height}: {}",
+                            "Failed to read partial block hash components for previous height \
+                             {prev_height}: {}",
                             err
                         );
                         BatcherError::InternalError
-                    })?
-                    .expect("Missing state diff for previous height.");
+                    })?;
+                let components =
+                    components.expect("Missing partial block hash components for previous height.");
 
                 Ok(Some(ProposalCommitment {
-                    state_diff_commitment: calculate_state_diff_hash(&state_diff),
+                    partial_block_hash: PartialBlockHash::from_partial_block_hash_components(
+                        &components,
+                    )
+                    .map_err(|e| {
+                        error!("Failed to compute partial block hash: {}", e);
+                        BatcherError::InternalError
+                    })?,
                 }))
             }
         }

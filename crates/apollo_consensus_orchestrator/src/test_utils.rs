@@ -54,15 +54,19 @@ use starknet_api::block::{
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
 };
+<<<<<<< HEAD
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
+||||||| 8e2855c049
+=======
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHash;
+>>>>>>> origin/main-v0.14.1-committer
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
-use starknet_api::core::{ChainId, ContractAddress, Nonce, StateDiffCommitment};
+use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::felt;
-use starknet_api::hash::PoseidonHash;
+use starknet_api::hash::StarkHash;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 
@@ -78,8 +82,7 @@ use crate::utils::{make_gas_price_params, GasPriceParams, PreviousBlockInfo, Str
 
 pub(crate) const TIMEOUT: Duration = Duration::from_millis(1200);
 pub(crate) const CHANNEL_SIZE: usize = 5000;
-pub(crate) const STATE_DIFF_COMMITMENT: StateDiffCommitment =
-    StateDiffCommitment(PoseidonHash(Felt::ZERO));
+pub(crate) const PARTIAL_BLOCK_HASH: PartialBlockHash = PartialBlockHash(StarkHash::ZERO);
 pub(crate) const CHAIN_ID: ChainId = ChainId::Mainnet;
 
 // In order for gas price in ETH to be greater than 0 (required) we must have large enough
@@ -207,10 +210,18 @@ impl TestDeps {
                 .withf(move |input| input.proposal_id == *proposal_id_clone.get().unwrap())
                 .returning(move |_input| {
                     Ok(GetProposalContentResponse {
+<<<<<<< HEAD
                         content: GetProposalContent::Finished(FinishedProposalInfo {
                             proposal_commitment: ProposalCommitment {
                                 state_diff_commitment: STATE_DIFF_COMMITMENT,
                             },
+||||||| 8e2855c049
+                        content: GetProposalContent::Finished {
+                            id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
+=======
+                        content: GetProposalContent::Finished {
+                            id: ProposalCommitment { partial_block_hash: PARTIAL_BLOCK_HASH },
+>>>>>>> origin/main-v0.14.1-committer
                             final_n_executed_txs: args.n_executed_txs_count,
                             block_header_commitments: BlockHeaderCommitments::default(),
                             parent_proposal_commitment: None,
@@ -271,6 +282,7 @@ impl TestDeps {
                         SendProposalContent::Finish(args.n_executed_txs_count)
                     );
                     Ok(SendProposalContentResponse {
+<<<<<<< HEAD
                         response: ProposalStatus::Finished(FinishedProposalInfo {
                             proposal_commitment: ProposalCommitment {
                                 state_diff_commitment: STATE_DIFF_COMMITMENT,
@@ -278,6 +290,13 @@ impl TestDeps {
                             final_n_executed_txs: args.n_executed_txs_count,
                             block_header_commitments: BlockHeaderCommitments::default(),
                             parent_proposal_commitment: None,
+||||||| 8e2855c049
+                        response: ProposalStatus::Finished(ProposalCommitment {
+                            state_diff_commitment: STATE_DIFF_COMMITMENT,
+=======
+                        response: ProposalStatus::Finished(ProposalCommitment {
+                            partial_block_hash: PARTIAL_BLOCK_HASH,
+>>>>>>> origin/main-v0.14.1-committer
                         }),
                     })
                 });
@@ -368,7 +387,7 @@ pub(crate) fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
     }))
 }
 
-pub(crate) fn block_info(height: BlockNumber, round: u32) -> ProposalInit {
+pub(crate) fn proposal_init(height: BlockNumber, round: u32) -> ProposalInit {
     let context_config = ContextConfig::default();
     let l1_gas_price_wei =
         GasPrice(TEMP_ETH_GAS_FEE_IN_WEI + context_config.dynamic_config.l1_gas_tip_wei);
@@ -413,7 +432,7 @@ pub(crate) async fn send_proposal_to_validator_context(
         .unwrap();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: ProtoProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProtoProposalCommitment(PARTIAL_BLOCK_HASH.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
             commitment_parts: None,
         }))

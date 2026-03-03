@@ -202,6 +202,7 @@ pub(crate) async fn validate_proposal(
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
     let mut valid_proposals = args.valid_proposals.lock().unwrap();
+<<<<<<< HEAD
     valid_proposals.insert_proposal_for_height(
         &args.block_info_validation.height,
         args.init,
@@ -209,6 +210,17 @@ pub(crate) async fn validate_proposal(
         &args.proposal_id,
         finished_info,
     );
+||||||| 8e2855c049
+    valid_proposals.insert_proposal_for_height(
+        &args.block_info_validation.height,
+        &built_block,
+        args.init,
+        content,
+        &args.proposal_id,
+    );
+=======
+    valid_proposals.insert_proposal(&built_block, args.init, content, &args.proposal_id);
+>>>>>>> origin/main-v0.14.1-committer
 
     // TODO(matan): Switch to signature validation.
     if built_block != received_fin.proposal_commitment {
@@ -419,8 +431,14 @@ async fn handle_proposal_part(
                     unreachable!("Unexpected batcher status for fin: {status:?}");
                 }
             };
+<<<<<<< HEAD
             let batcher_block_commitment =
                 ProposalCommitment(finished_info.proposal_commitment.state_diff_commitment.0.0);
+||||||| 8e2855c049
+            let batcher_block_id = ProposalCommitment(response_id.state_diff_commitment.0.0);
+=======
+            let batcher_block_id = ProposalCommitment(response_id.partial_block_hash.0);
+>>>>>>> origin/main-v0.14.1-committer
 
             info!(
                 network_block_commitment = ?fin.proposal_commitment,
