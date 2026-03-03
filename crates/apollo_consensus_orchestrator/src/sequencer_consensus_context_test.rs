@@ -190,6 +190,79 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
 }
 
 #[tokio::test]
+async fn validate_then_build_then_decision_reached_round_0_uses_round_0_init() {
+    // Scenario: validate round 0 with init timestamp X, build round 1 with clock returning Y
+    // (different from X), decision_reached(round 0). State sync must receive timestamp
+    // X (from round 0 init), not Y (from round 1 build).
+    let (mut deps, mut network) = create_test_and_network_deps();
+    deps.setup_deps_for_validate(SetupDepsArgs::default());
+    deps.setup_deps_for_build(SetupDepsArgs { expect_start_height: false, ..Default::default() });
+
+    const TIMESTAMP_ROUND_0: u64 = 123456;
+    const TIMESTAMP_ROUND_1: u64 = 789012; // Different from round 0
+
+    let mut clock = MockClock::new();
+    clock.expect_unix_now().return_const(TIMESTAMP_ROUND_1);
+    clock
+        .expect_now()
+        .return_const(Utc.timestamp_opt(TIMESTAMP_ROUND_1.try_into().unwrap(), 0).unwrap());
+    deps.clock = Arc::new(clock);
+
+    deps.batcher
+        .expect_decision_reached()
+        .times(1)
+        .return_once(|_| Ok(DecisionReachedResponse::default()));
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(move |sync_block| {
+        assert_eq!(
+            sync_block.block_header_without_hash.timestamp.0, TIMESTAMP_ROUND_0,
+            "add_new_block should be called with timestamp from round 0 validation (X), not from \
+             round 1 build (Y)"
+        );
+        Ok(())
+    });
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().return_once(|_| Ok(()));
+
+    let mut context = deps.build_context();
+
+    // Round 0: validate with init timestamp TIMESTAMP_ROUND_0
+    context.set_height_and_round(HEIGHT_0, ROUND_0).await.unwrap();
+    let (mut content_sender, content_receiver) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
+    let mut init = proposal_init(HEIGHT_0, ROUND_0);
+    init.timestamp = TIMESTAMP_ROUND_0;
+    let transactions =
+        ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
+    content_sender.send(transactions.clone()).await.unwrap();
+    let fin = ProposalPart::Fin(ProposalFin {
+        proposal_commitment: TEST_PROPOSAL_COMMITMENT,
+        executed_transaction_count: TX_BATCH.len().try_into().unwrap(),
+        fin_payload: None,
+    });
+    content_sender.send(fin.clone()).await.unwrap();
+    let fin_receiver = context.validate_proposal(init, TIMEOUT, content_receiver).await;
+    content_sender.close_channel();
+    assert_eq!(fin_receiver.await.unwrap(), TEST_PROPOSAL_COMMITMENT);
+
+    // Round 1: build - clock returns TIMESTAMP_ROUND_1 (different from TIMESTAMP_ROUND_0)
+    let build_param = BuildParam { round: ROUND_1, ..Default::default() };
+    let fin_receiver = context.build_proposal(build_param, TIMEOUT).await.unwrap();
+
+    // Build sends proposal with TIMESTAMP_ROUND_1 from clock
+    let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
+    let part = receiver.next().await.unwrap();
+    let ProposalPart::Init(build_init) = part else {
+        panic!("Expected Init part");
+    };
+    assert_eq!(build_init.timestamp, TIMESTAMP_ROUND_1);
+    let _txs = receiver.next().await.unwrap();
+    let _fin = receiver.next().await.unwrap();
+    assert_eq!(fin_receiver.await.unwrap(), TEST_PROPOSAL_COMMITMENT);
+
+    // Decision reached for round 0 - state_sync should receive TIMESTAMP_ROUND_0
+    context.decision_reached(HEIGHT_0, ROUND_0, TEST_PROPOSAL_COMMITMENT).await.unwrap();
+}
+
+#[tokio::test]
 async fn proposals_from_different_rounds() {
     let (mut deps, _network) = create_test_and_network_deps();
     deps.setup_deps_for_validate(SetupDepsArgs::default());
