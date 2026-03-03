@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772547325299,
+  "lastUpdate": 1772548770244,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -135,6 +135,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1422.03017815,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noam.s@starkware.co",
+            "name": "noamsp-starkware",
+            "username": "noamsp-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c6382c41291e709337134c17053e6a4b1daa8245",
+          "message": "apollo_network: add composed noise functionality (#11265)\n\n* apollo_network: change interface to have an abstraction\n\n* apollo_network: add composed noise functionality",
+          "timestamp": "2026-03-03T14:13:42Z",
+          "tree_id": "aae6791a4aacb37ae73f9172d354746d3b6e04a7",
+          "url": "https://github.com/starkware-libs/sequencer/commit/c6382c41291e709337134c17053e6a4b1daa8245"
+        },
+        "date": 1772548769871,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 889.6235883400001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1390.05231306,
             "unit": "ms"
           }
         ]
