@@ -2,13 +2,21 @@ use apollo_metrics::metric_definitions::METRIC_LABEL_FILTER;
 use apollo_metrics::metrics::{MetricGauge, MetricScope};
 use rstest::rstest;
 
-use crate::query_builder::{increase, sum_by_label, DisplayMethod};
+use crate::query_builder::{increase, sum_by_label, sum_by_pod, DisplayMethod};
 
 #[test]
 fn increase_formats_correctly() {
     let m = MetricGauge::new(MetricScope::Batcher, "testing", "Fake description");
     let q = increase(&m, "5m");
     let expected = format!("increase(testing{METRIC_LABEL_FILTER}[5m])");
+    assert_eq!(q, expected);
+}
+
+#[test]
+fn sum_by_pod_formats_correctly() {
+    let m = MetricGauge::new(MetricScope::Batcher, "testing", "Fake description");
+    let q = sum_by_pod(&m, DisplayMethod::Raw);
+    let expected = format!("sum by (namespace, pod) (testing{METRIC_LABEL_FILTER})");
     assert_eq!(q, expected);
 }
 
