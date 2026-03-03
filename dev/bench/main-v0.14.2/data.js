@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772439443490,
+  "lastUpdate": 1772527677062,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1597,6 +1597,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1236.26046243,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141231558+meship-starkware@users.noreply.github.com",
+            "name": "Meshi Peled",
+            "username": "meship-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9583219550cdf22935c4f1808cdfa00cac0edcd5",
+          "message": "blockifier: fix cairo native bug (#12990)",
+          "timestamp": "2026-03-03T08:24:39Z",
+          "tree_id": "c9c20031995a8f97c14dab51c355e4776649b609",
+          "url": "https://github.com/starkware-libs/sequencer/commit/9583219550cdf22935c4f1808cdfa00cac0edcd5"
+        },
+        "date": 1772527676711,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 929.1398410099999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1423.68850492,
             "unit": "ms"
           }
         ]
