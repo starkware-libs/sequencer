@@ -1,0 +1,12 @@
+# Fragment: statefulSet + persistentVolume
+statefulSet:
+  enabled: true
+
+persistentVolume:
+  enabled: true
+  volumeMode: Filesystem
+  accessModes:
+  - ReadWriteOnce
+  mountPath: /data
+  size: 2Gi
+  storageClass: ""

@@ -267,6 +267,61 @@ def _merge_nested_dict(
     return merged_dict
 
 
+def _merge_service_ports(
+    base_ports: list[Any],
+    overlay_ports: list[Any],
+) -> list[dict]:
+    """Merge port lists by port name. Overlay wins for same name. Order: base first, then overlay-only. Asserts unique port names."""
+    if not isinstance(base_ports, list):
+        base_ports = []
+    if not isinstance(overlay_ports, list):
+        overlay_ports = []
+    base_list = [p if isinstance(p, dict) else {} for p in base_ports]
+    overlay_list = [p if isinstance(p, dict) else {} for p in overlay_ports]
+    # Build merged by name (overlay overwrites)
+    by_name: dict[str, dict] = {}
+    for p in base_list:
+        name = p.get("name") if isinstance(p.get("name"), str) else None
+        if name:
+            by_name[name] = deepcopy(p)
+    for p in overlay_list:
+        name = p.get("name") if isinstance(p.get("name"), str) else None
+        if name:
+            by_name[name] = deepcopy(p)
+    # Result order: base order (use merged value for same name), then overlay ports not in base
+    result: list[dict] = []
+    base_names_seen: set[str] = set()
+    for p in base_list:
+        name = p.get("name") if isinstance(p.get("name"), str) else None
+        if name:
+            if name not in base_names_seen:
+                base_names_seen.add(name)
+                result.append(deepcopy(by_name[name]))
+        else:
+            result.append(deepcopy(p))
+    for p in overlay_list:
+        name = p.get("name") if isinstance(p.get("name"), str) else None
+        if name and name not in base_names_seen:
+            base_names_seen.add(name)
+            result.append(deepcopy(by_name[name]))
+        elif not name:
+            result.append(deepcopy(p))
+    # Assert unique port names
+    names = [p.get("name") for p in result if isinstance(p.get("name"), str)]
+    if len(names) != len(set(names)):
+        seen: set[str] = set()
+        dups: list[str] = []
+        for n in names:
+            if n in seen:
+                dups.append(n)
+            else:
+                seen.add(n)
+        raise ValueError(
+            f"service.ports must have unique port names; duplicate(s): {sorted(set(dups))}"
+        )
+    return result
+
+
 def _merge_dict_strict(
     layout: dict,
     overlay: dict,
@@ -321,7 +376,15 @@ def _merge_dict_strict(
 
         # Handle merging based on value types
         layout_value = layout_copy.get(key)
-        if isinstance(layout_value, dict) and isinstance(val, dict):
+        # service.ports: merge by port name (overlay wins same name), assert unique names
+        if (
+            key == "ports"
+            and (path == "service" or path.endswith(".service"))
+            and isinstance(layout_value, list)
+            and isinstance(val, list)
+        ):
+            layout_copy[key] = _merge_service_ports(layout_value, val)
+        elif isinstance(layout_value, dict) and isinstance(val, dict):
             if is_dict_field:
                 # Dict field: merge without validation
                 layout_copy[key] = _merge_dict_strict(
