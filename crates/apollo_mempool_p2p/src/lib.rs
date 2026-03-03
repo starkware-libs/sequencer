@@ -82,6 +82,7 @@ pub fn create_p2p_propagator_and_runner(
         mempool_p2p_config.network_config,
         // TODO(Shahak): Consider filling this once the sequencer node has a name.
         None,
+        None,
         network_manager_metrics,
     );
     let BroadcastTopicChannels { broadcasted_messages_receiver, broadcast_topic_client } =
