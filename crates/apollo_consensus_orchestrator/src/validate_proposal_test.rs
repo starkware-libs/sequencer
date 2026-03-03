@@ -61,6 +61,7 @@ struct TestProposalValidateArguments {
     pub content_receiver: mpsc::Receiver<ProposalPart>,
     pub gas_price_params: GasPriceParams,
     pub cancel_token: CancellationToken,
+    pub compare_retrospective_block_hash: bool,
 }
 
 impl From<TestProposalValidateArguments> for ProposalValidateArguments {
@@ -76,6 +77,7 @@ impl From<TestProposalValidateArguments> for ProposalValidateArguments {
             content_receiver: args.content_receiver,
             gas_price_params: args.gas_price_params,
             cancel_token: args.cancel_token,
+            compare_retrospective_block_hash: args.compare_retrospective_block_hash,
         }
     }
 }
@@ -113,6 +115,7 @@ fn create_proposal_validate_arguments()
             content_receiver,
             gas_price_params,
             cancel_token,
+            compare_retrospective_block_hash: true,
         },
         content_sender,
     )
