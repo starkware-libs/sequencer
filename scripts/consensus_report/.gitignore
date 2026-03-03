@@ -1,0 +1,5 @@
+env_map.yaml   # Should be supplied by the user and never committed.
+*.json
+*.txt
+__pycache__/
+*.pyc
