@@ -1,3 +1,7 @@
+include:
+  - configs/layouts/hybrid/common.yaml
+  - configs/overlays/hybrid/testing/node-0/common.yaml
+
 name: sierracompiler
 
 replicas: 1

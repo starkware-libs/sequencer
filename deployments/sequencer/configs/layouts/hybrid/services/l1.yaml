@@ -1,5 +1,6 @@
 # Sequencer Node Configuration
 # For detailed configuration options, see docs/ directory
+include: configs/layouts/hybrid/common.yaml
 
 name: l1
 
