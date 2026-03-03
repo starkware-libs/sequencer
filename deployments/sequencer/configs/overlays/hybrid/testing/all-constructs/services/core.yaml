@@ -1,4 +1,7 @@
 # Core service configuration with all constructs enabled
+include:
+  - configs/overlays/hybrid/testing/all-constructs/common.yaml
+
 name: core
 
 # StatefulSet enabled (core uses StatefulSet)
