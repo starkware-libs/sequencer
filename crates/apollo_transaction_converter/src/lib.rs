@@ -1,5 +1,7 @@
 pub mod metrics;
 pub mod proof_verification;
+#[cfg(test)]
+mod proof_verification_test;
 pub mod transaction_converter;
 
 pub use proof_verification::{ProgramOutput, ProgramOutputError};
