@@ -591,6 +591,7 @@ struct SharedState {
     active_txn: Option<OwnedDbWriteTransaction>,
     commit_counter: usize,
     batch_size: usize,
+    configured_batch_size: usize,
 }
 
 impl SharedState {
@@ -602,6 +603,7 @@ impl SharedState {
             active_txn: None,
             commit_counter: 0,
             batch_size,
+            configured_batch_size: batch_size,
         }))
     }
 
@@ -672,6 +674,33 @@ impl StorageWriter {
             guard.commit_counter = 0;
         }
         Ok(())
+    }
+
+    /// Changes the batch size at runtime. Flushes any pending writes first to avoid
+    /// mid-batch inconsistencies when switching between batch sizes.
+    ///
+    /// No-op if the batch size is already the requested value.
+    pub fn set_batch_size(&mut self, batch_size: usize) -> StorageResult<()> {
+        let mut guard = self.shared_state.lock().unwrap();
+        if guard.batch_size == batch_size {
+            return Ok(());
+        }
+        if guard.commit_counter > 0 {
+            self.file_writers.flush();
+            if let Some(txn) = guard.active_txn.take() {
+                txn.commit()?;
+            }
+            guard.commit_counter = 0;
+        }
+        guard.batch_size = batch_size;
+        Ok(())
+    }
+
+    /// Restores the batch size to the originally configured value.
+    /// Flushes any pending writes first.
+    pub fn restore_configured_batch_size(&mut self) -> StorageResult<()> {
+        let configured = self.shared_state.lock().unwrap().configured_batch_size;
+        self.set_batch_size(configured)
     }
 }
 
