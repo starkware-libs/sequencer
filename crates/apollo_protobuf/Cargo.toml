@@ -36,6 +36,7 @@ thiserror.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, optional = true, features = ["env-filter"] }
 unsigned-varint.workspace = true
+zstd.workspace = true
 
 # Binaries dependencies
 prost-build = { workspace = true, optional = true }
