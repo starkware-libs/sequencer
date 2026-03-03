@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772531606041,
+  "lastUpdate": 1772535440088,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1665,6 +1665,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1239.24245268,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "161198342+idan-starkware@users.noreply.github.com",
+            "name": "Idan Shamam",
+            "username": "idan-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ea59018d5b9cb95fc5ed7b43fc0710b2f2ec7433",
+          "message": "deployment: set fetch-depth 0 to fix graphite issue which is creating temp ref (#12979)",
+          "timestamp": "2026-03-03T10:34:17Z",
+          "tree_id": "fa04acce82cd1a2b22a0566372dd7cfd1e9bee24",
+          "url": "https://github.com/starkware-libs/sequencer/commit/ea59018d5b9cb95fc5ed7b43fc0710b2f2ec7433"
+        },
+        "date": 1772535439743,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 871.94495039,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1345.20350166,
             "unit": "ms"
           }
         ]
