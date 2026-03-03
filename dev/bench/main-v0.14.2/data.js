@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772527677062,
+  "lastUpdate": 1772531606041,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1631,6 +1631,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1423.68850492,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "106665835+Itay-Tsabary-Starkware@users.noreply.github.com",
+            "name": "Itay-Tsabary-Starkware",
+            "username": "Itay-Tsabary-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "669760b07a6a67266f69433265ac80ff5e9d5984",
+          "message": "workspace: bump strum version to 0.27.2 (#12933)",
+          "timestamp": "2026-03-03T09:27:13Z",
+          "tree_id": "8818bc3ad7b6ed53c7c7f707b73407011d980113",
+          "url": "https://github.com/starkware-libs/sequencer/commit/669760b07a6a67266f69433265ac80ff5e9d5984"
+        },
+        "date": 1772531605727,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 800.0473911900001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1239.24245268,
             "unit": "ms"
           }
         ]
