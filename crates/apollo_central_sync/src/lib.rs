@@ -368,6 +368,25 @@ impl<
         unreachable!("Fetching data loop should never return.");
     }
 
+    /// Disables batching (batch_size=1) once the node is within
+    /// `blocks_before_tip_to_disable_batching` blocks of the chain tip.
+    /// This is a one-way transition: once disabled, batching stays off.
+    async fn adjust_batch_size_for_tip_proximity(
+        &self,
+        block_number: BlockNumber,
+    ) -> StateSyncResult {
+        let threshold = self.config.blocks_before_tip_to_disable_batching;
+        let tip = *self.shared_highest_block.read().await;
+        let Some(tip_block) = tip else {
+            return Ok(());
+        };
+        let distance = tip_block.number.0.saturating_sub(block_number.0);
+        if distance <= threshold {
+            self.writer.lock().await.set_batch_size(1);
+        }
+        Ok(())
+    }
+
     // Tries to store the incoming data and updates marker channels.
     async fn process_sync_event(
         &mut self,
@@ -378,6 +397,7 @@ impl<
     ) -> StateSyncResult {
         match sync_event {
             SyncEvent::BlockAvailable { block_number, block, signature } => {
+                self.adjust_batch_size_for_tip_proximity(block_number).await?;
                 self.store_block(block_number, block, signature).await?;
                 // Update header marker channel after successful store.
                 let _ = header_marker_tx.send(block_number.unchecked_next());
