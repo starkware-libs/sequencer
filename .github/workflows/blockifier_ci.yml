@@ -85,8 +85,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
       # cairo_native is not activated by any workspace crate; test the build.
       - run: cargo build -p blockifier --features cairo_native
-      # TODO(Meshi): Uncomment this once the version is stabilized.
-      # - run: cargo test -p blockifier --features cairo_native
+      - run: cargo test -p blockifier --features cairo_native
 
   test-with-tracing-feature:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
