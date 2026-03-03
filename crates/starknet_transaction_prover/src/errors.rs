@@ -2,7 +2,6 @@ use apollo_transaction_converter::ProgramOutputError;
 use blockifier::state::errors::StateError;
 use blockifier_reexecution::errors::ReexecutionError;
 use cairo_vm::types::errors::program_errors::ProgramError;
-use proving_utils::proof_encoding::ProofEncodingError;
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::TransactionHash;
 use starknet_os::errors::StarknetOsError;
@@ -77,39 +76,13 @@ pub enum ClassesProviderError {
 /// Errors that can occur during proving.
 #[derive(Debug, Error)]
 pub enum ProvingError {
-    #[error("Failed to create temporary file: {0}")]
-    CreateTempFile(#[source] std::io::Error),
-
-    #[error("Failed to resolve resource path for {file_name}: {source}")]
-    ResolveResourcePath {
-        file_name: String,
-        #[source]
-        source: std::io::Error,
-    },
-
     #[cfg(feature = "stwo_proving")]
     #[error("Prover execution failed: {0}")]
-    ProverExecution(#[from] StwoRunAndProveError),
+    ProverExecution(String),
 
-    #[error("Failed to read proof file: {0}")]
-    ReadProof(#[source] ProofEncodingError),
-
-    #[error("Failed to read proof facts file: {0}")]
-    ReadProofFacts(#[source] std::io::Error),
-
-    #[error("Failed to parse proof facts: {0}")]
-    ParseProofFacts(#[source] serde_json::Error),
-}
-
-/// Errors from in-memory stwo proving.
-#[cfg(feature = "stwo_proving")]
-#[derive(Debug, Error)]
-pub enum StwoRunAndProveError {
-    #[error("In-memory proving failed: {0}")]
-    Proving(#[from] stwo_run_and_prove_lib::StwoRunAndProveError),
-
+    #[cfg(feature = "stwo_proving")]
     #[error("Proving task failed to join: {0}")]
-    TaskJoin(#[from] tokio::task::JoinError),
+    TaskJoin(#[source] tokio::task::JoinError),
 }
 
 /// Error type for the virtual SNOS prover.

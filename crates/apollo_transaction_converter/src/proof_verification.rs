@@ -1,79 +1,40 @@
-//! In-memory proof verification using cairo-air.
+//! Proof verification using privacy_circuit_verify.
 
 use std::sync::Arc;
 
 use apollo_sizeof::SizeOf;
-use cairo_air::utils::{get_verification_output, VerificationOutput};
-use cairo_air::verifier::verify_cairo_ex;
-use cairo_air::CairoProofForRustVerifier;
-use proving_utils::proof_encoding::{ProofBytes, ProofEncodingError};
 use serde::{Deserialize, Serialize};
-use starknet_api::transaction::fields::{Proof, ProofFacts, PROOF_VERSION};
+use starknet_api::transaction::fields::{ProofFacts, PROOF_VERSION};
 use starknet_types_core::felt::Felt;
-use stwo::core::vcs_lifted::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher};
 use thiserror::Error;
-
-/// Output from verifying a proof using stwo.
-#[derive(Debug, Clone, PartialEq)]
-pub struct StwoVerifyOutput {
-    /// The raw program output extracted from the proof.
-    pub program_output: ProgramOutput,
-    /// The program hash extracted from the proof.
-    pub program_hash: Felt,
-}
 
 #[derive(Error, Debug)]
 pub enum VerifyProofError {
     #[error("Proof is empty.")]
     EmptyProof,
-    #[error("Proof facts do not match proof output.")]
-    ProofFactsMismatch,
     #[error(transparent)]
     ProgramOutputError(#[from] ProgramOutputError),
-    #[error("Bootloader program hash mismatch.")]
-    BootloaderHashMismatch,
     #[error("Invalid proof version: expected {expected}, got {actual}.")]
     InvalidProofVersion { expected: Felt, actual: Felt },
-    #[error(transparent)]
-    StwoVerify(#[from] StwoVerifyError),
+    #[error("Proof facts too short: expected at least 3 elements, got {length}.")]
+    ProofFactsTooShort { length: usize },
+    #[error("Proof verification failed: {0}")]
+    Verification(String),
 }
 
 impl PartialEq for VerifyProofError {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::EmptyProof, Self::EmptyProof) => true,
-            (Self::ProofFactsMismatch, Self::ProofFactsMismatch) => true,
             (Self::ProgramOutputError(lhs), Self::ProgramOutputError(rhs)) => lhs == rhs,
-            (Self::BootloaderHashMismatch, Self::BootloaderHashMismatch) => true,
             (
                 Self::InvalidProofVersion { expected: exp_l, actual: act_l },
                 Self::InvalidProofVersion { expected: exp_r, actual: act_r },
             ) => exp_l == exp_r && act_l == act_r,
-            (Self::StwoVerify(lhs), Self::StwoVerify(rhs)) => lhs == rhs,
-            _ => false,
-        }
-    }
-}
-
-#[derive(Error, Debug)]
-pub enum StwoVerifyError {
-    #[error("Failed to encode proof: {0}")]
-    EncodeProof(#[from] ProofEncodingError),
-    #[error("Failed to deserialize proof: {0}")]
-    DeserializeProof(String),
-    #[error("Proof verification failed: {0}")]
-    Verification(String),
-    #[error("Failed to convert verification output: {0}")]
-    OutputConversion(String),
-}
-
-impl PartialEq for StwoVerifyError {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::EncodeProof(lhs), Self::EncodeProof(rhs)) => lhs.to_string() == rhs.to_string(),
-            (Self::DeserializeProof(lhs), Self::DeserializeProof(rhs)) => lhs == rhs,
             (Self::Verification(lhs), Self::Verification(rhs)) => lhs == rhs,
-            (Self::OutputConversion(lhs), Self::OutputConversion(rhs)) => lhs == rhs,
+            (Self::ProofFactsTooShort { length: l }, Self::ProofFactsTooShort { length: r }) => {
+                l == r
+            }
             _ => false,
         }
     }
@@ -136,44 +97,22 @@ impl From<Vec<Felt>> for ProgramOutput {
     }
 }
 
-pub fn stwo_verify(proof: Proof) -> Result<StwoVerifyOutput, StwoVerifyError> {
-    // Convert proof to raw bytes.
-    let proof_bytes = ProofBytes::try_from(proof)?;
-
-    // Deserialize proof from bincode format (using bincode v1 API).
-    let cairo_proof: CairoProofForRustVerifier<Blake2sMerkleHasher> =
-        bincode::deserialize(&proof_bytes.0)
-            .map_err(|e| StwoVerifyError::DeserializeProof(e.to_string()))?;
-
-    // Extract verification output from the proof's public memory.
-    let verification_output = get_verification_output(&cairo_proof.claim.public_data.public_memory);
-
-    // Verify the proof (include_all_preprocessed_columns must match the prover params).
-    let include_all_preprocessed_columns = true;
-    verify_cairo_ex::<Blake2sMerkleChannel>(cairo_proof, include_all_preprocessed_columns)
-        .map_err(|e| StwoVerifyError::Verification(format!("{e:?}")))?;
-
-    // Convert starknet_ff::FieldElement values to starknet_types_core::felt::Felt.
-    let output = convert_verification_output_to_felts(&verification_output)?;
-    let program_output = ProgramOutput(Arc::new(output));
-    let program_hash = felt_from_starknet_ff(verification_output.program_hash);
-
-    Ok(StwoVerifyOutput { program_output, program_hash })
-}
-
-/// Converts cairo-air VerificationOutput output field to a Vec of Felt.
-fn convert_verification_output_to_felts(
-    output: &VerificationOutput,
-) -> Result<Vec<Felt>, StwoVerifyError> {
-    let mut facts = Vec::new();
-    for fact in &output.output {
-        facts.push(felt_from_starknet_ff(*fact));
+/// Reconstructs the output preimage from proof facts for circuit verification.
+///
+/// Proof facts layout: `[PROOF_VERSION, variant, program_hash, ...task_output]`
+/// Output preimage layout: `[num_tasks=1, output_size, program_hash, ...task_output]`
+/// where `output_size = task_content.len() + 1` (includes itself).
+pub fn reconstruct_output_preimage(
+    proof_facts: &ProofFacts,
+) -> Result<Vec<Felt>, VerifyProofError> {
+    // Proof facts must contain at least [PROOF_VERSION, variant, program_hash].
+    if proof_facts.0.len() < 3 {
+        return Err(VerifyProofError::ProofFactsTooShort { length: proof_facts.0.len() });
     }
-    Ok(facts)
-}
-
-/// Converts a starknet_ff::FieldElement to starknet_types_core::felt::Felt.
-fn felt_from_starknet_ff(fe: starknet_ff::FieldElement) -> Felt {
-    let bytes = fe.to_bytes_be();
-    Felt::from_bytes_be(&bytes)
+    // Skip PROOF_VERSION (index 0) and variant (index 1).
+    let task_content = &proof_facts.0[2..];
+    let output_size = Felt::from(
+        u64::try_from(task_content.len() + 1).expect("task content length exceeds u64::MAX"),
+    );
+    Ok([Felt::ONE, output_size].into_iter().chain(task_content.iter().copied()).collect())
 }
