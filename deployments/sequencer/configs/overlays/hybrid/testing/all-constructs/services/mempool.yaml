@@ -1,4 +1,7 @@
 # Mempool service configuration with all constructs enabled
+include:
+  - configs/overlays/hybrid/testing/all-constructs/common.yaml
+
 name: mempool
 
 # StatefulSet disabled (mempool uses Deployment by default)

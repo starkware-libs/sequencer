@@ -9,7 +9,7 @@ import yaml
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from src.config.schema import CommonConfig, ServiceConfig
+from src.config.schema import ServiceConfig
 
 
 class ConfigValidationError(ValueError):
@@ -76,33 +76,34 @@ class Config(ABC):
 
 
 class DeploymentConfigLoader(Config):
-    """Loads and validates service and common YAML configs."""
+    """Loads and validates service YAML configs and optional shared-config YAML(s)."""
 
-    def __init__(self, configs_dir_path: str, common_config_path: Optional[str] = None):
+    def __init__(
+        self,
+        configs_dir_path: str,
+        config_base_dir: Optional[str] = None,
+    ):
         self.configs_dir_path = Path(configs_dir_path)
-        self.common_config_path = Path(common_config_path) if common_config_path else None
+        self.config_base_dir = Path(config_base_dir) if config_base_dir else None
         self._validate()
 
     def _validate(self):
         """Validate directory existence and file readability."""
         self._validate_directory(self.configs_dir_path)
-        # Note: common_config_path is optional - it may not exist in overlay paths
 
     def _load_service_configs_from_dir(self) -> List[ServiceConfig]:
-        """Load and validate each service YAML file in the directory."""
+        """Load and validate each service YAML file in the directory. Supports optional 'include' in each file."""
         validated_configs = []
         for fname in os.listdir(self.configs_dir_path):
             if not fname.endswith((".yaml", ".yml")):
                 continue
             file_path = self.configs_dir_path / fname
-            raw_config = self._try_load_yaml(str(file_path))
-            validated_config = ServiceConfig.model_validate(raw_config)
-            # Validate that service configs have a name (required for services, optional for common)
+            merged = self._load_one_file_with_includes(file_path, validate_final_as_service=True)
+            if not merged:
+                continue
+            validated_config = ServiceConfig.model_validate(merged)
             if not validated_config.name:
-                raise ValueError(
-                    f"Service config file '{file_path}' is missing required field 'name'. "
-                    f"Service configs must have a name field."
-                )
+                continue  # Fragment file (include-only), not a standalone service
             validated_config._source = str(file_path)
             validated_configs.append(validated_config)
         return validated_configs
@@ -111,25 +112,82 @@ class DeploymentConfigLoader(Config):
         """Wrap the list of services in a 'services' key."""
         return {"services": services}
 
-    def _load_common_config(self) -> Optional[dict]:
-        """Optionally load and validate a common config file."""
-        if not self.common_config_path:
-            return None
-        # Check if file exists - common.yaml is optional
-        if not self.common_config_path.exists():
-            return None
-        raw = self._try_load_yaml(str(self.common_config_path))
-        validated_model = CommonConfig.model_validate(raw)
-        # Use exclude_unset=True to avoid including fields with default_factory that weren't explicitly set
-        validated = validated_model.model_dump(mode="python", exclude_unset=True, exclude_none=True)
-        return validated
+    def _resolve_include_path(self, include_val: str, from_path: Path) -> Path:
+        """Resolve include path: if absolute use as-is, else relative to config_base_dir (same as layout/overlay input)."""
+        raw = include_val.strip()
+        if Path(raw).is_absolute():
+            return Path(raw).resolve()
+        if self.config_base_dir is not None:
+            return (self.config_base_dir / raw).resolve()
+        return (from_path.parent / raw).resolve()
+
+    def _collect_include_order(
+        self,
+        path: Path,
+        seen: set[str],
+        visiting: set[str],
+    ) -> List[Path]:
+        """Recursively traverse includes from path; return ordered list of unique paths (dependencies first). Repeated includes are allowed (e.g. A includes B and C, B includes C); each file appears at most once and is merged once. Raises on cycle."""
+        canonical = str(path.resolve())
+        if canonical in visiting:
+            raise ValueError(f"Cycle in include chain: {path}")
+        if canonical in seen:
+            return []
+        visiting.add(canonical)
+        raw = self._try_load_yaml(str(path))
+        if not isinstance(raw, dict):
+            visiting.discard(canonical)
+            seen.add(canonical)
+            return [path]
+        # include is a list (single path = [path]); normalize string to list for backward compatibility
+        include_val = raw.get("include")
+        if isinstance(include_val, str):
+            file_include_paths = [include_val.strip()] if include_val.strip() else []
+        elif isinstance(include_val, list):
+            file_include_paths = [
+                p.strip() for p in include_val if isinstance(p, str) and p.strip()
+            ]
+        else:
+            file_include_paths = []
+        ordered: List[Path] = []
+        for include_path_str in file_include_paths:
+            included_path = self._resolve_include_path(include_path_str, path)
+            if not included_path.is_file():
+                raise ValueError(f"Include path not found: {included_path} (from {path})")
+            ordered.extend(self._collect_include_order(included_path, seen, visiting))
+        visiting.discard(canonical)
+        seen.add(canonical)
+        ordered.append(path)
+        return ordered
+
+    def _load_one_file_with_includes(
+        self, path: Path, validate_final_as_service: bool = False
+    ) -> dict:
+        """Obtain entry file, recursively traverse included files (repeated includes allowed; each file merged once in dependency order), then merge in that order. Strips 'include' from result. Raises on cycle. If validate_final_as_service is True, the last file is merged with ServiceConfig validation (for service YAMLs that include common files)."""
+        from src.config.overlay import (
+            merge_common_with_overlay_strict,
+            merge_service_overlay,
+        )
+
+        ordered = self._collect_include_order(path, set(), set())
+        merged: dict = {}
+        for i, p in enumerate(ordered):
+            raw = self._try_load_yaml(str(p))
+            if not isinstance(raw, dict):
+                continue
+            current = {k: v for k, v in raw.items() if k != "include"}
+            is_final = i == len(ordered) - 1
+            if is_final and validate_final_as_service:
+                merged = merge_service_overlay(merged, current, path="", source=str(p))
+            else:
+                merged = merge_common_with_overlay_strict(merged, current, source=str(p))
+        return merged or {}
 
     def load(self) -> dict:
-        """Load all service configs and optionally merge with common config."""
+        """Load all service configs."""
         services = self._load_service_configs_from_dir()
         wrapped = self._wrap_services(services)
-        common = self._load_common_config()
-        return {**common, **wrapped} if common else wrapped
+        return wrapped
 
 
 class NodeConfigLoader(Config):
@@ -379,8 +437,8 @@ class NodeConfigLoader(Config):
     def _print_file_paths_section(
         console: Console,
         config_list_path: Optional[str],
+        overlay: List[str],
         layout: Optional[str] = None,
-        overlay: Optional[str] = None,
     ) -> None:
         """Print the file paths section using rich formatting.
 
@@ -388,7 +446,7 @@ class NodeConfigLoader(Config):
             console: Rich Console instance
             config_list_path: Optional path to the config list JSON file
             layout: Optional layout name (e.g., "hybrid")
-            overlay: Optional overlay flag value (e.g., "hybrid.testing.node-0")
+            overlay: Required list of overlay entrypoint(s) (e.g., ["hybrid.testing.node-0"])
         """
         paths_table = Table(show_header=False, box=None, padding=(0, 2))
         paths_table.add_column(style="bold cyan", width=30)
@@ -411,21 +469,19 @@ class NodeConfigLoader(Config):
         else:
             paths_table.add_row("config_layout_path:", "[dim]<unknown>[/dim]")
 
-        # Construct overlay path from overlay flag value
-        if overlay:
-            # Build overlay path: configs/overlays/{layout}/{segment2}/{segment3}/...
-            overlay_path_segments = overlay.split(".")
+        # Construct overlay path(s) from overlay entrypoint(s) (overlay is required)
+        for idx, ov in enumerate(overlay):
+            overlay_path_segments = ov.split(".")
+            label = "config_overlay_path:" if idx == 0 else f"config_overlay_path_{idx + 1}:"
             if overlay_path_segments and overlay_path_segments[0] == layout:
                 overlay_base_path = (
                     Path(NodeConfigLoader.ROOT_DIR) / "configs" / "overlays" / layout
                 ).resolve()
                 for segment in overlay_path_segments[1:]:
                     overlay_base_path = overlay_base_path / segment
-                paths_table.add_row("config_overlay_path:", str(overlay_base_path))
+                paths_table.add_row(label, str(overlay_base_path))
             else:
-                paths_table.add_row("config_overlay_path:", "[dim]<none>[/dim]")
-        else:
-            paths_table.add_row("config_overlay_path:", "[dim]<none>[/dim]")
+                paths_table.add_row(label, "[dim]<invalid>[/dim]")
 
         console.print("\n[bold]File Paths:[/bold]")
         console.print(paths_table)
@@ -499,7 +555,8 @@ class NodeConfigLoader(Config):
         service_name: str = "unknown",
         config_list_path: Optional[str] = None,
         layout: Optional[str] = None,
-        overlay: Optional[str] = None,
+        *,
+        overlay: List[str],
     ) -> dict:
         """Apply sequencerConfig overrides from YAML to merged JSON config.
 
@@ -522,7 +579,7 @@ class NodeConfigLoader(Config):
             service_name: Name of the service (for error messages)
             config_list_path: Optional path to the config list JSON file (for error messages)
             layout: Optional layout name (e.g., "hybrid")
-            overlay: Optional overlay flag value (e.g., "hybrid.testing.node-0")
+            overlay: Required list of overlay entrypoint(s) (e.g., ["hybrid.testing.node-0"])
 
         Returns:
             Updated config dictionary with overrides applied
@@ -598,7 +655,7 @@ class NodeConfigLoader(Config):
                 )
             )
 
-            NodeConfigLoader._print_file_paths_section(console, config_list_path, layout, overlay)
+            NodeConfigLoader._print_file_paths_section(console, config_list_path, overlay, layout)
             NodeConfigLoader._print_missing_placeholders_section(
                 console, remaining_placeholders, result
             )
@@ -686,7 +743,8 @@ class NodeConfigLoader(Config):
         config: dict,
         config_list_path: Optional[str] = None,
         layout: Optional[str] = None,
-        overlay: Optional[str] = None,
+        *,
+        overlay: List[str],
     ) -> None:
         """Validate that no placeholder values remain in the final config.
 
@@ -694,7 +752,7 @@ class NodeConfigLoader(Config):
             config: The final config dictionary after all overrides are applied
             config_list_path: Optional path to the config list JSON file (for error messages)
             layout: Optional layout name (e.g., "hybrid")
-            overlay: Optional overlay flag value (e.g., "hybrid.testing.node-0")
+            overlay: Required list of overlay entrypoint(s) (e.g., ["hybrid.testing.node-0"])
 
         Raises:
             ValueError: If any placeholder values ($$$_..._$$$) are found in the config
@@ -716,7 +774,7 @@ class NodeConfigLoader(Config):
                 )
             )
 
-            NodeConfigLoader._print_file_paths_section(console, config_list_path, layout, overlay)
+            NodeConfigLoader._print_file_paths_section(console, config_list_path, overlay, layout)
             NodeConfigLoader._print_missing_placeholders_section(
                 console, remaining_placeholders, config
             )
