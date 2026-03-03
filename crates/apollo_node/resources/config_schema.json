@@ -3274,6 +3274,16 @@
     "privacy": "Public",
     "value": 10
   },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.blocks_before_tip_to_disable_batching": {
+    "description": "When set, batching is automatically disabled (batch_size=1) once the node is within this many blocks of the chain tip, ensuring low-latency commits near the tip. When None, batching stays at the configured batch_size throughout.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.blocks_before_tip_to_disable_batching.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "state_sync_config.static_config.central_sync_client_config.sync_config.blocks_max_stream_size": {
     "description": "Max amount of blocks to download in a stream.",
     "privacy": "Public",

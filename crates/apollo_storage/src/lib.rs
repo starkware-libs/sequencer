@@ -589,6 +589,7 @@ struct SharedState {
     active_txn: Option<OwnedDbWriteTransaction>,
     commit_counter: usize,
     batch_size: usize,
+    configured_batch_size: usize,
 }
 
 impl SharedState {
@@ -600,6 +601,7 @@ impl SharedState {
             active_txn: None,
             commit_counter: 0,
             batch_size,
+            configured_batch_size: batch_size,
         }))
     }
 
@@ -662,14 +664,42 @@ impl StorageWriter {
     /// This is a no-op if there are no pending writes (commit_counter == 0).
     pub fn flush_pending_writes(&mut self) -> StorageResult<()> {
         let mut guard = self.shared_state.lock().unwrap();
+        Self::flush_pending_locked(&self.file_writers, &mut guard)
+    }
+
+    /// Changes the batch size at runtime. Flushes any pending writes first to avoid
+    /// mid-batch inconsistencies when switching between batch sizes.
+    ///
+    /// No-op if the batch size is already the requested value.
+    pub fn set_batch_size(&mut self, batch_size: usize) -> StorageResult<()> {
+        let mut guard = self.shared_state.lock().unwrap();
+        if guard.batch_size == batch_size {
+            return Ok(());
+        }
+        Self::flush_pending_locked(&self.file_writers, &mut guard)?;
+        guard.batch_size = batch_size;
+        Ok(())
+    }
+
+    fn flush_pending_locked(
+        file_writers: &FileHandlers<RW>,
+        guard: &mut std::sync::MutexGuard<'_, SharedState>,
+    ) -> StorageResult<()> {
         if guard.commit_counter > 0 {
-            self.file_writers.flush();
+            file_writers.flush();
             guard.commit_counter = 0;
             if let Some(txn) = guard.active_txn.take() {
                 txn.commit()?;
             }
         }
         Ok(())
+    }
+
+    /// Restores the batch size to the originally configured value.
+    /// Flushes any pending writes first.
+    pub fn restore_configured_batch_size(&mut self) -> StorageResult<()> {
+        let configured = self.shared_state.lock().unwrap().configured_batch_size;
+        self.set_batch_size(configured)
     }
 }
 

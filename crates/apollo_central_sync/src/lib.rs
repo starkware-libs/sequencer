@@ -368,6 +368,31 @@ impl<
         unreachable!("Fetching data loop should never return.");
     }
 
+    /// Adjusts the batch size based on proximity to the chain tip.
+    /// When the node is within `blocks_before_tip_to_disable_batching` blocks of the tip,
+    /// batching is disabled (batch_size=1) for low-latency commits. When farther away,
+    /// the configured batch size is restored for throughput.
+    async fn adjust_batch_size_for_tip_proximity(
+        &self,
+        block_number: BlockNumber,
+    ) -> StateSyncResult {
+        let Some(threshold) = self.config.blocks_before_tip_to_disable_batching else {
+            return Ok(());
+        };
+        let tip = *self.shared_highest_block.read().await;
+        let Some(tip_block) = tip else {
+            return Ok(());
+        };
+        let distance = tip_block.number.0.saturating_sub(block_number.0);
+        let mut writer = self.writer.lock().await;
+        if distance <= threshold {
+            writer.set_batch_size(1)?;
+        } else {
+            writer.restore_configured_batch_size()?;
+        }
+        Ok(())
+    }
+
     // Tries to store the incoming data and updates marker channels.
     async fn process_sync_event(
         &mut self,
@@ -378,6 +403,7 @@ impl<
     ) -> StateSyncResult {
         match sync_event {
             SyncEvent::BlockAvailable { block_number, block, signature } => {
+                self.adjust_batch_size_for_tip_proximity(block_number).await?;
                 self.store_block(block_number, block, signature).await?;
                 // Update header marker channel after successful store.
                 let _ = header_marker_tx.send(block_number.unchecked_next());
@@ -389,6 +415,7 @@ impl<
                 state_diff,
                 deployed_contract_class_definitions,
             } => {
+                self.adjust_batch_size_for_tip_proximity(block_number).await?;
                 let compiled_classes = extract_compiled_classes_from_state_diff(&state_diff);
                 self.store_state_diff(
                     block_number,

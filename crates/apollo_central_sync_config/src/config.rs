@@ -7,7 +7,12 @@ use apollo_config::converters::{
     deserialize_seconds_to_duration,
     serialize_optional_map,
 };
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_param,
+    ser_param,
+    SerializeConfig,
+};
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_starknet_client::RetryConfig;
@@ -115,11 +120,16 @@ pub struct SyncConfig {
     pub verify_blocks: bool,
     pub collect_pending_data: bool,
     pub store_sierras_and_casms_block_threshold: u64,
+    /// When set, batching is automatically disabled (batch_size set to 1) once
+    /// the node is within this many blocks of the chain tip. This ensures
+    /// low-latency commits near the tip so that readers see new data immediately.
+    #[serde(default)]
+    pub blocks_before_tip_to_disable_batching: Option<u64>,
 }
 
 impl SerializeConfig for SyncConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
+        let mut dump = BTreeMap::from_iter([
             ser_param(
                 "latest_block_poll_interval_millis",
                 &self.latest_block_poll_interval_millis.as_millis(),
@@ -175,7 +185,17 @@ impl SerializeConfig for SyncConfig {
                  blocks, or a large value (e.g. u64::MAX) to store for all.",
                 ParamPrivacyInput::Public,
             ),
-        ])
+        ]);
+        dump.extend(ser_optional_param(
+            &self.blocks_before_tip_to_disable_batching,
+            0u64,
+            "blocks_before_tip_to_disable_batching",
+            "When set, batching is automatically disabled (batch_size=1) once the node is within \
+             this many blocks of the chain tip, ensuring low-latency commits near the tip. When \
+             None, batching stays at the configured batch_size throughout.",
+            ParamPrivacyInput::Public,
+        ));
+        dump
     }
 }
 
@@ -190,6 +210,7 @@ impl Default for SyncConfig {
             verify_blocks: true,
             collect_pending_data: false,
             store_sierras_and_casms_block_threshold: 0,
+            blocks_before_tip_to_disable_batching: None,
         }
     }
 }
