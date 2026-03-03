@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772542692367,
+  "lastUpdate": 1772547325299,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -101,6 +101,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1379.17910536,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noam.s@starkware.co",
+            "name": "noamsp-starkware",
+            "username": "noamsp-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fff985a492fc797ac05a16441a268a41aff1f5a6",
+          "message": "apollo_network: change interface to have an abstraction (#11358)",
+          "timestamp": "2026-03-03T13:48:44Z",
+          "tree_id": "156a9b85a82c60c4e401a59975577947579bebbc",
+          "url": "https://github.com/starkware-libs/sequencer/commit/fff985a492fc797ac05a16441a268a41aff1f5a6"
+        },
+        "date": 1772547324940,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 976.11763512,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1422.03017815,
             "unit": "ms"
           }
         ]
