@@ -19,7 +19,7 @@ def _merge_common_into_service(
 ) -> ServiceConfig:
     """Merge common config fields into service config.
 
-    This automatically merges ANY field from common.yaml that exists in ServiceConfig schema.
+    This automatically merges ANY field from the shared config file that exists in ServiceConfig schema.
     No special code needed per field - just add the field to CommonConfig schema and it works.
 
     Special handling:
@@ -27,7 +27,7 @@ def _merge_common_into_service(
     - All other fields: Deep merge (common first, then service overrides)
 
     Args:
-        common_config: The merged common configuration (dict, CommonConfig, or None if no common.yaml exists)
+        common_config: The merged shared configuration (dict, CommonConfig, or None if no shared config file exists)
         service_config: The service configuration (after overlay merging)
 
     Returns:
@@ -260,27 +260,38 @@ def _merge_common_into_service(
 
 
 def merge_configs(
-    layout_common_config_path: str,
+    layout_shared_config_paths: list[str],
     layout_services_config_dir_path: str,
-    overlay_common_config_path: str | None = None,
-    overlay_services_config_dir_path: str | None = None,
+    overlay_shared_config_paths: list[list[str]] | None = None,
+    overlay_services_config_dir_paths: list[str] | None = None,
+    config_base_dir: str | None = None,
 ) -> DeploymentSchema:
     """
     Merge base (layout) configs with optional overlay configs.
 
+    Overlays are applied in order: layout, then overlay_0, overlay_1, etc. (each element
+    in the overlays list). Later overlays override earlier ones.
+
     Merge pipeline:
-    1. Layout common.yaml + Overlay common.yaml → merged_common
-    2. Layout service.yaml + Overlay service.yaml → merged_service
+    1. Layout shared config (from layout_shared_config_paths) + each overlay's shared config → merged_common
+    2. Layout services + each overlay's service configs → merged_service
     3. merged_common + merged_service → final_service_config (common merged into service)
 
     Uses DeploymentConfigLoader's internal YAML loading and validation logic.
     Returns a validated DeploymentConfig schema object.
     """
+    overlay_shared_paths = overlay_shared_config_paths or []
+    overlay_services_paths = overlay_services_config_dir_paths or []
+    if len(overlay_shared_paths) != len(overlay_services_paths):
+        raise ValueError(
+            "overlay_shared_config_paths and overlay_services_config_dir_paths must have the same length"
+        )
 
     # --- Load layout configs using DeploymentConfigLoader ---
     layout_loader = DeploymentConfigLoader(
         configs_dir_path=layout_services_config_dir_path,
-        common_config_path=layout_common_config_path,
+        shared_config_paths=layout_shared_config_paths or None,
+        config_base_dir=config_base_dir,
     )
 
     layout_common = layout_loader._load_common_config()
@@ -289,28 +300,28 @@ def merge_configs(
     merged_common = layout_common
     merged_services = layout_services
 
-    # --- Load overlay configs (if provided) ---
-    if overlay_services_config_dir_path:
+    # --- Load and apply each overlay in order ---
+    for overlay_paths, overlay_services_path in zip(overlay_shared_paths, overlay_services_paths):
         overlay_loader = DeploymentConfigLoader(
-            configs_dir_path=overlay_services_config_dir_path,
-            common_config_path=overlay_common_config_path,
+            configs_dir_path=overlay_services_path,
+            shared_config_paths=overlay_paths or None,
+            config_base_dir=config_base_dir,
         )
         overlay_common = overlay_loader._load_common_config()
         overlay_services = overlay_loader._load_service_configs_from_dir()
 
-        # Merge services + common parts using strict overlay semantics
-        merged_services = apply_services_overlay_strict(layout_services, overlay_services)
-        merged_common = merge_common_with_overlay_strict(layout_common, overlay_common)
+        merged_services = apply_services_overlay_strict(merged_services, overlay_services)
+        merged_common = merge_common_with_overlay_strict(merged_common, overlay_common)
 
     # --- Merge common config into each service config ---
     # This ensures constructs only need to check service_config, not both
-    # merged_common can be None if no common.yaml exists in layout or overlay
+    # merged_common can be None if no shared config paths are given for layout or any overlay
     final_services = [
         _merge_common_into_service(merged_common, service) for service in merged_services
     ]
 
     # --- Combine into a validated Deployment schema ---
-    # Use default ServiceConfig() if merged_common is None (common.yaml is optional)
+    # Use default ServiceConfig() if merged_common is None (shared config is optional)
     merged = {
         "common": merged_common if merged_common is not None else ServiceConfig(),
         "services": final_services,

@@ -1,0 +1,14 @@
+# Fragment: statefulSet + persistentVolume; includes core-ports (paths relative to deployment base_dir)
+include: configs/overlays/hybrid/testing/node-0/services/core-ports.yaml
+
+statefulSet:
+  enabled: true
+
+persistentVolume:
+  enabled: true
+  volumeMode: Filesystem
+  accessModes:
+  - ReadWriteOnce
+  mountPath: /data
+  size: 2Gi
+  storageClass: ""
