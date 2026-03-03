@@ -35,11 +35,7 @@ use tokio::task::JoinHandle;
 use tracing::info;
 
 use crate::metrics::{CONSENSUS_PROOF_MANAGER_STORE_LATENCY, PROOF_VERIFICATION_LATENCY};
-use crate::proof_verification::{stwo_verify, VerifyProofError};
-
-/// The expected bootloader program hash for proof verification.
-pub const BOOTLOADER_PROGRAM_HASH: Felt =
-    Felt::from_hex_unchecked("0x3faf9fbac01a844107ca8f272e78763d3818ac40ed9107307271b651e7efe0d");
+use crate::proof_verification::{reconstruct_output_preimage, VerifyProofError};
 
 #[cfg(test)]
 #[path = "transaction_converter_test.rs"]
@@ -484,8 +480,7 @@ impl TransactionConverter {
         )?)
     }
 
-    /// Verifies a submitted proof, validating the emitted proof facts, and comparing the bootloader
-    /// program hash to the expected value.
+    /// Verifies a submitted proof against the proof facts using the circuit verifier.
     fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyProofError> {
         // Reject empty proof payloads before running the verifier.
         if proof.is_empty() {
@@ -502,19 +497,14 @@ impl TransactionConverter {
             });
         }
 
-        // Verify proof and extract program output and program hash.
-        let output = stwo_verify(proof)?;
-
-        let program_variant = proof_facts.0.get(1).copied().unwrap_or_default();
-        let expected_proof_facts = output.program_output.try_into_proof_facts(program_variant)?;
-        if expected_proof_facts != proof_facts {
-            return Err(VerifyProofError::ProofFactsMismatch);
-        }
-
-        // Validate the bootloader program hash output against the expected bootloader hash.
-        if output.program_hash != BOOTLOADER_PROGRAM_HASH {
-            return Err(VerifyProofError::BootloaderHashMismatch);
-        }
+        // Reconstruct the output preimage from proof facts and verify the proof.
+        let output_preimage = reconstruct_output_preimage(&proof_facts)?;
+        let proof_output = privacy_circuit_verify::PrivacyProofOutput {
+            proof: proof.0.to_vec(),
+            output_preimage,
+        };
+        privacy_circuit_verify::verify(&proof_output)
+            .map_err(|e| VerifyProofError::Verification(e.to_string()))?;
 
         Ok(())
     }

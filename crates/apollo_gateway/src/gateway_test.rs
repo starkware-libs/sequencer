@@ -305,7 +305,7 @@ fn setup_transaction_converter_mock_with_failed_verification(
             // Create a task that returns a proof verification error.
             let verification_task = tokio::spawn(async {
                 Err(TransactionConverterError::ProofVerificationError(
-                    VerifyProofError::BootloaderHashMismatch,
+                    VerifyProofError::Verification("test error".to_string()),
                 ))
             });
             Some(VerificationHandle {
