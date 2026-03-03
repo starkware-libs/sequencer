@@ -7,9 +7,11 @@ pub mod test_utils;
 use std::collections::{BTreeMap, HashMap};
 use std::net::Ipv4Addr;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use apollo_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
+use apollo_signature_manager_types::SharedSignatureManagerClient;
 use async_trait::async_trait;
 use futures::channel::mpsc::{Receiver, SendError, Sender};
 use futures::channel::oneshot;
@@ -18,12 +20,20 @@ use futures::sink::With;
 use futures::stream::{FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
-use libp2p::identity::Keypair;
+use libp2p::identity::{self, Keypair};
 use libp2p::swarm::SwarmEvent;
-use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
+use libp2p::{yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
+use starknet_api::crypto::utils::PublicKey;
 use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
+use crate::authentication::composed_noise::ComposedNoise;
+use crate::authentication::direct_signature_manager_client::DirectSignatureManagerClient;
+use crate::authentication::stark_authentication::{
+    ChallengeGenerator,
+    OsRngChallengeGenerator,
+    StarkAuthNegotiator,
+};
 use crate::gossipsub_impl::Topic;
 use crate::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
 use crate::misconduct_score::MisconductScore;
@@ -132,7 +142,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let config = NetworkConfig::default();
-    /// let network_manager = NetworkManager::new(config, None, None);
+    /// let network_manager = NetworkManager::new(config, None, None, None);
     ///
     /// // This will run indefinitely, processing network events
     /// network_manager.run().await?;
@@ -284,7 +294,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     /// }
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut network_manager = NetworkManager::new(NetworkConfig::default(), None, None);
+    /// let mut network_manager = NetworkManager::new(NetworkConfig::default(), None, None, None);
     ///
     /// // Register as a server for block requests
     /// let mut server = network_manager.register_sqmr_protocol_server::<BlockQuery, Block>(
@@ -417,7 +427,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     /// }
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut network_manager = NetworkManager::new(NetworkConfig::default(), None, None);
+    /// let mut network_manager = NetworkManager::new(NetworkConfig::default(), None, None, None);
     ///
     /// // Register as a client for block requests
     /// let mut client = network_manager.register_sqmr_protocol_client::<BlockQuery, Block>(
@@ -536,7 +546,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     /// }
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut network_manager = NetworkManager::new(NetworkConfig::default(), None, None);
+    /// let mut network_manager = NetworkManager::new(NetworkConfig::default(), None, None, None);
     ///
     /// // Register for transaction broadcasting
     /// let topic = Topic::new("transactions");
@@ -1132,6 +1142,7 @@ impl NetworkManager {
     /// let network_manager = NetworkManager::new(
     ///     config,
     ///     Some("my-starknet-node/1.0.0".to_string()),
+    ///     None, // signature manager
     ///     None, // metrics
     /// );
     /// ```
@@ -1159,6 +1170,7 @@ impl NetworkManager {
     pub fn new(
         config: NetworkConfig,
         node_version: Option<String>,
+        signature_manager_client: Option<(SharedSignatureManagerClient, PublicKey)>,
         mut metrics: Option<NetworkMetrics>,
     ) -> Self {
         let NetworkConfig {
@@ -1180,6 +1192,23 @@ impl NetworkManager {
         let listen_address = make_multiaddr(Ipv4Addr::UNSPECIFIED, port, None);
         debug!("Creating swarm with listen address: {listen_address:?}");
 
+        // TODO(noam.s): Change this to not use Arc once we have a real challenge generator.
+        let generator: Arc<dyn ChallengeGenerator> = Arc::new(OsRngChallengeGenerator);
+
+        let handshake_negotiator =
+            if let Some((signature_manager_client, my_public_key)) = signature_manager_client {
+                StarkAuthNegotiator::new(my_public_key, signature_manager_client, generator)
+            } else {
+                let local_signer = apollo_signature_manager::LocalKeyStoreSignatureManager::new();
+                let my_public_key = PublicKey(local_signer.0.keystore.public_key.0);
+                let signature_manager_client: SharedSignatureManagerClient =
+                    Arc::new(DirectSignatureManagerClient(local_signer));
+                StarkAuthNegotiator::new(my_public_key, signature_manager_client, generator)
+            };
+
+        let composite_security_upgrade =
+            |identity: &identity::Keypair| ComposedNoise::new(identity, handshake_negotiator);
+
         let key_pair = match secret_key {
             Some(secret_key) => Keypair::ed25519_from_bytes(secret_key.expose_secret())
                 .expect("Error while parsing secret key"),
@@ -1188,7 +1217,7 @@ impl NetworkManager {
         let mut swarm = SwarmBuilder::with_existing_identity(key_pair)
         .with_tokio()
         // TODO(AndrewL): .with_quic()
-        .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
+        .with_tcp(Default::default(), composite_security_upgrade, yamux::Config::default)
         .expect("Error building TCP transport")
         .with_dns()
         .expect("Error building DNS transport")
@@ -1246,7 +1275,7 @@ impl NetworkManager {
     /// use apollo_network::network_manager::NetworkManager;
     /// use apollo_network::NetworkConfig;
     ///
-    /// let network_manager = NetworkManager::new(NetworkConfig::default(), None, None);
+    /// let network_manager = NetworkManager::new(NetworkConfig::default(), None, None, None);
     ///
     /// let peer_id = network_manager.get_local_peer_id();
     /// println!("Local peer ID: {}", peer_id);

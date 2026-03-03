@@ -56,7 +56,7 @@ impl BroadcastNetworkStressTestNode {
         let network_config = Self::create_network_config(&args);
 
         // Create network manager
-        let mut network_manager = NetworkManager::new(network_config, None, None);
+        let mut network_manager = NetworkManager::new(network_config, None, None, None);
 
         // Register protocol channels
         let (message_sender, message_receiver) = register_protocol_channels(
