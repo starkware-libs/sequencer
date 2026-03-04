@@ -20,6 +20,10 @@ const MAX_PEERS: usize = 100;
 const MAX_STREAMS: usize = 10;
 const MAX_MESSAGE_BUFFER_SIZE: usize = 1000;
 
+const ROUND_0: u32 = 0;
+const STREAM_ID_0: u64 = 0;
+const MESSAGE_ID_0: u32 = 0;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct TestStreamId(u64);
 
@@ -326,7 +330,8 @@ async fn lru_cache_for_inbound_streams() {
     }
 
     for i in (0..num_streams).rev() {
-        let message = build_init_message(i.try_into().unwrap(), i.try_into().unwrap(), 0);
+        let message =
+            build_init_message(i.try_into().unwrap(), i.try_into().unwrap(), MESSAGE_ID_0);
         network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
         stream_handler.handle_next_msg().await.unwrap();
     }
@@ -420,7 +425,7 @@ async fn inbound_delayed_first() {
     assert!(streamhandler_to_client_receiver.try_next().is_err());
 
     // Send first message now.
-    let first_message = build_init_message(0, STREAM_ID, 0);
+    let first_message = build_init_message(ROUND_0, STREAM_ID, MESSAGE_ID_0);
     network_to_streamhandler_sender.send((Ok(first_message), metadata.clone())).await.unwrap();
     // Activate the stream handler to ingest this message.
     stream_handler.handle_next_msg().await.unwrap();
@@ -525,7 +530,7 @@ async fn lru_cache_evicts_peers() {
 
     // Send content message 0 for peers B, C, then A.
     for (metadata, address) in zip(&[peer_b, peer_c, peer_a], &[PEER_ID_B, PEER_ID_C, PEER_ID_A]) {
-        let mut message = build_init_message(0, 0, 0);
+        let mut message = build_init_message(ROUND_0, STREAM_ID_0, MESSAGE_ID_0);
         if let StreamMessageBody::Content(ProposalPart::Init(init)) = &mut message.message {
             init.proposer = ContractAddress::from(*address);
         } else {
@@ -612,7 +617,7 @@ async fn per_peer_stream_isolation() {
 
     // Peer B: send content message 0 on stream 0. The buffered fin should still be present
     // (peer A's evictions must not affect peer B).
-    let message = build_init_message(0, 0, 0);
+    let message = build_init_message(ROUND_0, STREAM_ID_0, MESSAGE_ID_0);
     network_to_streamhandler_sender.send((Ok(message), peer_b.clone())).await.unwrap();
     stream_handler.handle_next_msg().await.unwrap();
 
@@ -661,7 +666,7 @@ async fn buffer_limit_drops_stream() {
     assert!(streamhandler_to_client_receiver.try_next().is_err());
 
     // Send message 0. The old stream was dropped, so this starts a fresh stream.
-    let message = build_init_message(0, STREAM_ID, 0);
+    let message = build_init_message(ROUND_0, STREAM_ID, MESSAGE_ID_0);
     network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
     stream_handler.handle_next_msg().await.unwrap();
 
@@ -701,7 +706,7 @@ async fn buffer_at_capacity_drains_on_missing_message() {
     }
 
     // Send message 0. This triggers draining of the buffered messages 1, 2, 3.
-    let message = build_init_message(0, STREAM_ID, 0);
+    let message = build_init_message(ROUND_0, STREAM_ID, MESSAGE_ID_0);
     network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
     stream_handler.handle_next_msg().await.unwrap();
 
@@ -756,7 +761,7 @@ async fn duplicate_at_capacity_does_not_drop_stream() {
     stream_handler.handle_next_msg().await.unwrap();
 
     // Send message 0 to trigger draining of the buffer.
-    let message = build_init_message(0, STREAM_ID, 0);
+    let message = build_init_message(ROUND_0, STREAM_ID, MESSAGE_ID_0);
     network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
     stream_handler.handle_next_msg().await.unwrap();
 
