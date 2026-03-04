@@ -454,8 +454,8 @@
             </thead>
             <tbody>
               {% for row in resync.causes %}
-              <tr data-search="{{ row.tx_hash }} {{ row.block_number }} {{ row.reason }} {{ row.count }}">
-                <td class="mono">{{ row.block_number }}</td>
+              <tr data-search="{{ row.tx_hash }} {{ row.failing_block_number }} {{ row.reason }} {{ row.count }}">
+                <td class="mono">{{ row.failing_block_number }}</td>
                 <td class="mono">{{ row.count }}</td>
                 <td class="mono"><span class="hash" title="{{ row.tx_hash }}">{{ row.tx_hash }}</span></td>
                 <td class="mono">{{ row.reason }}</td>
@@ -467,10 +467,10 @@
                     <a class="btn btnSmall btnLink logsLink" href="#" target="_blank" rel="noopener"
                       data-logs-tx="{{ row.tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
                     <a class="btn btnSmall btnLink"
-                      href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ row.failing_block_number }}&withFeeMarketInfo=true"
                       target="_blank" rel="noopener" title="Open source block JSON (upstream feeder)">Block</a>
                     <a class="btn btnSmall btnLink"
-                      href="{{ feeder_base_url }}/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_state_update?blockNumber={{ row.failing_block_number }}"
                       target="_blank" rel="noopener" title="Open source state update JSON (upstream feeder)">State</a>
                   </div>
                 </td>
@@ -511,9 +511,9 @@
             </thead>
             <tbody>
               {% for row in resync.certain_failures %}
-              <tr data-search="{{ row.tx_hash }} {{ row.block_number }} {{ row.reason }} {{ row.count }}">
+              <tr data-search="{{ row.tx_hash }} {{ row.failing_block_number }} {{ row.reason }} {{ row.count }}">
                 <td class="mono">{{ row.count }}</td>
-                <td class="mono">{{ row.block_number }}</td>
+                <td class="mono">{{ row.failing_block_number }}</td>
                 <td class="mono"><span class="hash" title="{{ row.tx_hash }}">{{ row.tx_hash }}</span></td>
                 <td class="mono">{{ row.reason }}</td>
                 <td class="right">
@@ -524,10 +524,10 @@
                     <a class="btn btnSmall btnLink logsLink" href="#" target="_blank" rel="noopener"
                       data-logs-tx="{{ row.tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
                     <a class="btn btnSmall btnLink"
-                      href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ row.failing_block_number }}&withFeeMarketInfo=true"
                       target="_blank" rel="noopener" title="Open source block JSON (upstream feeder)">Block</a>
                     <a class="btn btnSmall btnLink"
-                      href="{{ feeder_base_url }}/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_state_update?blockNumber={{ row.failing_block_number }}"
                       target="_blank" rel="noopener" title="Open source state update JSON (upstream feeder)">State</a>
                   </div>
                 </td>
