@@ -7,6 +7,7 @@ use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use chrono::{Datelike, Utc};
 use expect_test::{expect, Expect};
+use itertools::Itertools;
 use rand::prelude::IteratorRandom;
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha8Rng;
@@ -14,6 +15,7 @@ use rstest::rstest;
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::ContractAddressSalt;
+use starknet_api::transaction::{L2ToL1Payload, MessageToL1};
 use starknet_api::{calldata, felt, invoke_tx_args};
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_types_core::felt::Felt;
@@ -59,13 +61,13 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 static FUZZ_ADDRESS_ORCHESTRATOR_EXPECT: Expect =
     expect!["0x42a4e070a0336c42c1de292bc3de986ae479bc5187d86a6dca4c52c6e502d6f"];
 static FUZZ_ADDRESS_CAIRO1_A_EXPECT: Expect =
-    expect!["0x7f63a83cf88d243f62bcdbee9bda11efd477e51d8b7a99c7df7fe8279521762"];
+    expect!["0x792a30069e87a591598d0956d339fdda2db5bf0b19310bb8d6855a1bfec754f"];
 static FUZZ_ADDRESS_CAIRO1_B_EXPECT: Expect =
-    expect!["0xbc7ab4c50ef28426d6d8dab72a96752fb5ba2520350e734ede302f1670cf04"];
+    expect!["0x44f076ebcc080040208bc10b1b4880c077e7cbd2a3b48554f4b90a865f349fc"];
 static FUZZ_ADDRESS_CAIRO0_A_EXPECT: Expect =
-    expect!["0x55cbb63291a2089704612cf805dcb95033b22d93569cb661f27afdeefddc0f0"];
+    expect!["0xe62a377eb99ffeaed5ae9c9adb836d5ffee62c39895f735f66d3785249873a"];
 static FUZZ_ADDRESS_CAIRO0_B_EXPECT: Expect =
-    expect!["0x38bc69f21c0c4b7ab51b35648a75f92efd139e8803fba220b9e9dd7ed65985e"];
+    expect!["0x3f54cfdde62c37c4e283926eb4ab2ecfe91be5ee43f1ff122b3fa8746c3ff9"];
 static FUZZ_ADDRESS_ORCHESTRATOR: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress::try_from(felt!(FUZZ_ADDRESS_ORCHESTRATOR_EXPECT.data())).unwrap()
 });
@@ -96,7 +98,6 @@ static VALID_STORAGE_KEYS: LazyLock<Vec<Felt>> =
     LazyLock::new(|| vec![Felt::from(1u16 << 8), Felt::from(1u16 << 9)]);
 
 // TODO(Dori): Operations to add:
-// 2. message to L1
 // 3. events
 // 4. call / libcall non-existing entry points (should panic) (catchable in cairo0 even?)
 // 5. deploy non-existing class hash (should panic, not catchable in cairo0).
@@ -110,6 +111,7 @@ enum FuzzOperation {
     Deploy,
     Panic,
     IncrementCounter,
+    SendMessage,
 }
 
 impl FuzzOperation {
@@ -123,6 +125,7 @@ impl FuzzOperation {
             Self::Deploy => 5u8,
             Self::Panic => 6u8,
             Self::IncrementCounter => 7u8,
+            Self::SendMessage => 8u8,
         })
     }
 }
@@ -204,6 +207,7 @@ enum FuzzOperationData {
     Deploy { class_hash: ClassHash, salt: ContractAddressSalt },
     Panic,
     IncrementCounter,
+    SendMessage(Felt),
 }
 
 impl FuzzOperationData {
@@ -217,6 +221,7 @@ impl FuzzOperationData {
             Self::Deploy { .. } => FuzzOperation::Deploy,
             Self::Panic => FuzzOperation::Panic,
             Self::IncrementCounter => FuzzOperation::IncrementCounter,
+            Self::SendMessage(_) => FuzzOperation::SendMessage,
         }
     }
 
@@ -231,6 +236,7 @@ impl FuzzOperationData {
             Self::Write(storage_key, value) => vec![***storage_key, value.0],
             Self::ReplaceClass(class_hash) => vec![class_hash.0],
             Self::Deploy { class_hash, salt } => vec![class_hash.0, salt.0],
+            Self::SendMessage(message) => vec![*message],
         });
         felt_vector
     }
@@ -286,6 +292,8 @@ struct FuzzCallInfo {
     /// If true, this call is a constructor; the address of this call is not a valid call address
     /// until this call returns.
     pub constructing: bool,
+    /// Payloads of messages sent to L1 in this call.
+    pub messages: Vec<Felt>,
 }
 
 impl FuzzCallInfo {
@@ -301,6 +309,7 @@ impl FuzzCallInfo {
             inner_calls: vec![],
             class_replaced_here: false,
             constructing: false,
+            messages: vec![],
         }
     }
 
@@ -313,6 +322,7 @@ impl FuzzCallInfo {
             inner_calls: vec![],
             class_replaced_here: false,
             constructing: true,
+            messages: vec![],
         }
     }
 }
@@ -374,6 +384,9 @@ struct FuzzTestContext {
     /// Next value to write in a storage-write operation.
     pub next_storage_write_value: StarknetStorageValue,
 
+    /// Contents of the next message to send.
+    pub next_message: Felt,
+
     /// Next salt to use for a deploy operation.
     pub next_salt: ContractAddressSalt,
 
@@ -390,6 +403,7 @@ impl FuzzTestContext {
             newly_deployed_contracts: BTreeMap::new(),
             replaced_address: None,
             next_storage_write_value: StarknetStorageValue(Felt::from(1u16 << 12)),
+            next_message: Felt::from(1u32 << 20),
             next_salt: ContractAddressSalt(Felt::from(1u32 << 16)),
             rng: ChaCha8Rng::seed_from_u64(seed),
         }
@@ -548,6 +562,7 @@ impl FuzzTestContext {
             }
             FuzzOperation::Panic => vec![FuzzOperationData::Panic],
             FuzzOperation::IncrementCounter => vec![FuzzOperationData::IncrementCounter],
+            FuzzOperation::SendMessage => vec![FuzzOperationData::SendMessage(self.next_message)],
         }
     }
 
@@ -767,6 +782,10 @@ impl FuzzTestContext {
                 }
             }
             FuzzOperationData::IncrementCounter => {}
+            FuzzOperationData::SendMessage(message) => {
+                self.current_fuzz_call_info_mut().messages.push(message);
+                self.next_message += Felt::ONE;
+            }
         }
     }
 
@@ -780,6 +799,46 @@ impl FuzzTestContext {
         let operation = *valid_operations.iter().choose(&mut self.rng).unwrap();
         self.apply(operation);
         Ok(())
+    }
+
+    /// Recursive function to generate the expected messages to L1 from a call info.
+    /// Order of returned messages is chronological (X is before Y <==> X is sent before Y).
+    fn expected_messages_to_l1_from_call_info(&self, call_info: &FuzzCallInfo) -> Vec<MessageToL1> {
+        let to_address = if self.is_cairo1_class(&call_info.class_hash) {
+            Felt::from(0xadd1)
+        } else {
+            Felt::from(0xadd0)
+        }
+        .try_into()
+        .unwrap();
+        call_info
+            .messages
+            .iter()
+            .map(|message| MessageToL1 {
+                from_address: call_info.address,
+                to_address,
+                payload: L2ToL1Payload(vec![*message]),
+            })
+            .chain(
+                call_info
+                    .inner_calls
+                    .iter()
+                    .flat_map(|call| self.expected_messages_to_l1_from_call_info(call)),
+            )
+            // Messages are sent in ascending order of payload.
+            .sorted_by(|message_a, message_b| {
+                Ord::cmp(&message_a.payload.0[0], &message_b.payload.0[0])
+            })
+            .collect()
+    }
+
+    /// Traverses all the fuzz call infos from the root call info and returns the expected messages
+    /// to L1.
+    pub fn expected_messages_to_l1(&self) -> Vec<MessageToL1> {
+        match self.calls.first() {
+            Some(call) => self.expected_messages_to_l1_from_call_info(call),
+            None => vec![],
+        }
     }
 
     /// Convert the list of operations to a vector of felt values that can be used as calldata for a
@@ -917,6 +976,12 @@ impl FuzzTestContext {
                 }
                 FuzzOperationData::IncrementCounter => {
                     vec![format!("{} (Increment counter)", operation_felt_hexes[0])]
+                }
+                FuzzOperationData::SendMessage(_) => {
+                    vec![
+                        format!("{} (Send message)", operation_felt_hexes[0]),
+                        format!("{} (message)", operation_felt_hexes[1]),
+                    ]
                 }
             });
         }
@@ -1062,6 +1127,9 @@ impl FuzzTestManager {
             },
             tx_revert_error,
         );
+
+        // Apply expected messages to L1.
+        self.test_manager.messages_to_l1 = self.context.expected_messages_to_l1();
 
         // Run the test.
         let test_output = self.test_manager.build_and_run().await;
