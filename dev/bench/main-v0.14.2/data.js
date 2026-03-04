@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772626812864,
+  "lastUpdate": 1772642021324,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1767,6 +1767,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1329.66207879,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7c5ba3bec2af37453301eb6dc3d28c0619f7f990",
+          "message": "apollo_propeller: add metrics module with shards_received counter (#12038)",
+          "timestamp": "2026-03-04T16:08:46Z",
+          "tree_id": "a3ea9599267bc0db1622303b302a7cd82adc04b5",
+          "url": "https://github.com/starkware-libs/sequencer/commit/7c5ba3bec2af37453301eb6dc3d28c0619f7f990"
+        },
+        "date": 1772642020959,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 902.56497922,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1467.27700972,
             "unit": "ms"
           }
         ]
