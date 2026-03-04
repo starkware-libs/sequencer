@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772543861525,
+  "lastUpdate": 1772626812864,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1733,6 +1733,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1324.92082612,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "138376632+ayeletstarkware@users.noreply.github.com",
+            "name": "Ayelet Zilber",
+            "username": "ayeletstarkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5f97a7392204e603f841f375f1445132daba2153",
+          "message": "apollo_mempool: add deployment mode config (#12670)",
+          "timestamp": "2026-03-04T11:55:52Z",
+          "tree_id": "d93961895b42dccf7275b51a558fc433178f0ab0",
+          "url": "https://github.com/starkware-libs/sequencer/commit/5f97a7392204e603f841f375f1445132daba2153"
+        },
+        "date": 1772626812513,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 828.56137351,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1329.66207879,
             "unit": "ms"
           }
         ]
