@@ -3,9 +3,9 @@ use std::time::Duration;
 
 use apollo_l1_events::l1_events_provider::L1EventsProvider;
 use apollo_l1_events::L1EventsProviderConfig;
-use apollo_l1_provider_types::InvalidValidationStatus::*;
-use apollo_l1_provider_types::ValidationStatus::*;
-use apollo_l1_provider_types::{Event, MockL1EventsProviderClient, SessionState};
+use apollo_l1_events_types::InvalidValidationStatus::*;
+use apollo_l1_events_types::ValidationStatus::*;
+use apollo_l1_events_types::{Event, MockL1EventsProviderClient, SessionState};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::test_utils::FakeClock;
 use apollo_time::time::Clock;

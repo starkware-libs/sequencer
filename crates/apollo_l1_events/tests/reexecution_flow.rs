@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use apollo_l1_events::l1_events_provider::L1EventsProvider;
 use apollo_l1_events::L1EventsProviderConfig;
-use apollo_l1_provider_types::{MockL1EventsProviderClient, ProviderState};
+use apollo_l1_events_types::{MockL1EventsProviderClient, ProviderState};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::test_utils::FakeClock;
 use pretty_assertions::assert_eq;

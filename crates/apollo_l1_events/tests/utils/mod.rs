@@ -22,7 +22,7 @@ use apollo_l1_events::l1_events_provider::L1EventsProvider;
 use apollo_l1_events::l1_scraper::L1EventsScraper;
 use apollo_l1_events::metrics::L1_EVENTS_PROVIDER_INFRA_METRICS;
 use apollo_l1_events::{event_identifiers_to_track, L1EventsProviderConfig};
-use apollo_l1_provider_types::{
+use apollo_l1_events_types::{
     Event,
     L1EventsProviderClient,
     L1EventsProviderRequest,
@@ -227,7 +227,7 @@ pub(crate) async fn send_message_from_l1_to_l2(
 
     // Convert the L1 event to an Apollo event, so we can get the L2 hash.
     let l1_event_converted =
-        apollo_l1_provider_types::Event::from_l1_event(&CHAIN_ID, l1_event, message_timestamp.0)
+        apollo_l1_events_types::Event::from_l1_event(&CHAIN_ID, l1_event, message_timestamp.0)
             .unwrap();
     let Event::L1HandlerTransaction { l1_handler_tx, .. } = l1_event_converted else {
         panic!("L1 event converted is not a L1 handler transaction");
