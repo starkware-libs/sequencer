@@ -90,7 +90,11 @@ use axum::routing::{get, post};
 use axum::{serve, Json, Router};
 #[cfg(feature = "cairo_native")]
 use blockifier::blockifier::config::{CairoNativeMode, CairoNativeRunConfig};
-use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
+use blockifier::blockifier::config::{
+    ContractClassManagerConfig,
+    NativeClassesWhitelist,
+    WorkerPoolConfig,
+};
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};

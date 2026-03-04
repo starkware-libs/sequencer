@@ -2940,8 +2940,8 @@ async fn test_cairo0_proven_revert() {
     let test_contract_cairo1 =
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let test_contract_cairo0 = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let (mut test_manager, [cairo1_contract_address, cairo0_contract_address]) =
-        TestManager::<DictStateReader>::new_with_default_initial_state([
+    let (mut test_builder, [cairo1_contract_address, cairo0_contract_address]) =
+        TestBuilder::<DictStateReader>::create_standard([
             (test_contract_cairo1, calldata![Felt::ZERO, Felt::ZERO]),
             (test_contract_cairo0, calldata![Felt::ZERO, Felt::ZERO]),
         ])
@@ -2956,10 +2956,9 @@ async fn test_cairo0_proven_revert() {
         storage_value,
     );
 
-    test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
 
     // Run the test.
-    let test_output =
-        test_manager.execute_test_with_default_block_contexts(&TestParameters::default()).await;
+    let test_output = test_builder.build_and_run().await;
     test_output.perform_default_validations();
 }
