@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772627787016,
+  "lastUpdate": 1772630287271,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -203,6 +203,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1161.12459868,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "guy.n@starkware.co",
+            "name": "guy-starkware",
+            "username": "guy-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5332f3f3ecb73b7d61558929dea3d69b8599c725",
+          "message": "apollo_l1_events: rename crate apollo_l1_provider->apollo_l1_events (#12746)",
+          "timestamp": "2026-03-04T12:55:01Z",
+          "tree_id": "891ed64ab8f0df1ab34eb01aea4b97755e5d1a6c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/5332f3f3ecb73b7d61558929dea3d69b8599c725"
+        },
+        "date": 1772630286931,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 896.61729205,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1305.75367653,
             "unit": "ms"
           }
         ]
