@@ -14,15 +14,15 @@ use libp2p::noise::{self, Error as NoiseError, Output};
 use libp2p::{identity, PeerId};
 use prost::Message;
 
-use crate::authentication::negotiator::{
-    ConnectionReceiver,
-    ConnectionSender,
-    NegotiationSide,
-    Negotiator,
-};
+use crate::authentication::negotiator::{ConnectionReceiver, ConnectionSender, Negotiator};
 
 // TODO(noam.s): Consider this value again, maybe it should be configurable.
 const MAX_WIRE_MESSAGE_SIZE: usize = 1024;
+
+enum NegotiationSide {
+    Inbound,
+    Outbound,
+}
 
 #[async_trait]
 impl<T, M> ConnectionSender<M> for SplitSink<Framed<T, ProtoCodec<M>>, M>
@@ -123,7 +123,6 @@ where
                     pk,
                     &mut connection_sender,
                     &mut connection_receiver,
-                    side,
                 )
                 .await
                 .map_err(|e| NegotiatorError::CustomNegotiator(Box::new(e)))?;
