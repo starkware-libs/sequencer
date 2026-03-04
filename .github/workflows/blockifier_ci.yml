@@ -113,6 +113,10 @@ jobs:
           echo "PR HEAD SHA: ${{ github.event.pull_request.head.sha }}"
           echo "PR base SHA: ${{ github.event.pull_request.base.sha }}"
           echo "PR base_ref: ${{ github.base_ref }}"
+          echo "github.sha (merge commit): ${{ github.sha }}"
+          echo "PR HEAD SHA: ${{ github.event.pull_request.head.sha }}"
+          echo "PR base SHA: ${{ github.event.pull_request.base.sha }}"
+          echo "PR base_ref: ${{ github.base_ref }}"
 
       # Checkout the base branch to benchmark the old code.
       # Use base.sha (a concrete commit hash from the webhook payload) instead of
