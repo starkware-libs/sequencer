@@ -16,7 +16,6 @@ use tokio::time::timeout;
 use crate::authentication::negotiator::{
     ConnectionReceiver,
     ConnectionSender,
-    NegotiationSide,
     Negotiator,
     NegotiatorOutput,
 };
@@ -128,8 +127,6 @@ impl Negotiator for StakerAuthenticator {
         other_peer_id: PeerId,
         connection_sender: &mut dyn ConnectionSender<Self::WireMessage>,
         connection_receiver: &mut dyn ConnectionReceiver<Self::WireMessage>,
-        // TODO(Andrew): remove the side parameter from the Negotiator trait.
-        _side: NegotiationSide,
     ) -> Result<NegotiatorOutput, Self::Error> {
         // NOTE: Some steps below (e.g. signing then sending, receiving then verifying) could be
         // parallelized with try_join!, but we run them sequentially to prefer readability over

@@ -4,11 +4,6 @@ use async_trait::async_trait;
 use libp2p::PeerId;
 use prost::Message;
 
-pub enum NegotiationSide {
-    Inbound,
-    Outbound,
-}
-
 // TODO(noam.s): Remove this enum if we end up only having the Success case.
 pub enum NegotiatorOutput {
     Success,
@@ -38,7 +33,6 @@ pub trait Negotiator: Send {
         other_peer_id: PeerId,
         connection_sender: &mut dyn ConnectionSender<Self::WireMessage>,
         connection_receiver: &mut dyn ConnectionReceiver<Self::WireMessage>,
-        side: NegotiationSide,
     ) -> Result<NegotiatorOutput, Self::Error>;
 
     /// A unique identified for your authentication protocol. For example: "strk_id" or

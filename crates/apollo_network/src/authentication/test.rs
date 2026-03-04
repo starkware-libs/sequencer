@@ -11,7 +11,7 @@ use libp2p::{identity, PeerId};
 use starknet_api::crypto::utils::{Challenge, PublicKey};
 
 use crate::authentication::composed_noise::{ComposedNoise, NegotiatorError};
-use crate::authentication::negotiator::{NegotiationSide, Negotiator, NegotiatorOutput};
+use crate::authentication::negotiator::{Negotiator, NegotiatorOutput};
 use crate::test_utils::get_connected_streams;
 
 fn stark_auth_with_challenge(n: u8) -> StarkAuthentication {
@@ -52,7 +52,6 @@ impl Negotiator for NoOpNegotiator {
         _other_peer_id: PeerId,
         _connection_sender: &mut dyn super::negotiator::ConnectionSender<Self::WireMessage>,
         _connection_receiver: &mut dyn super::negotiator::ConnectionReceiver<Self::WireMessage>,
-        _side: NegotiationSide,
     ) -> Result<NegotiatorOutput, Self::Error> {
         Ok(NegotiatorOutput::Success)
     }
@@ -76,7 +75,6 @@ impl Negotiator for FailingNegotiator {
         _other_peer_id: PeerId,
         _connection_sender: &mut dyn super::negotiator::ConnectionSender<Self::WireMessage>,
         _connection_receiver: &mut dyn super::negotiator::ConnectionReceiver<Self::WireMessage>,
-        _side: NegotiationSide,
     ) -> Result<NegotiatorOutput, Self::Error> {
         Err(IoError::other("dummy error"))
     }
@@ -103,7 +101,6 @@ impl Negotiator for PeerIdAssertingNegotiator {
         other_peer_id: PeerId,
         _connection_sender: &mut dyn super::negotiator::ConnectionSender<Self::WireMessage>,
         _connection_receiver: &mut dyn super::negotiator::ConnectionReceiver<Self::WireMessage>,
-        _side: NegotiationSide,
     ) -> Result<NegotiatorOutput, Self::Error> {
         assert_eq!(my_peer_id, self.expected_my_peer_id);
         assert_eq!(other_peer_id, self.expected_other_peer_id);
@@ -111,18 +108,19 @@ impl Negotiator for PeerIdAssertingNegotiator {
     }
 }
 
-/// Negotiator that exchanges messages in a ping-pong pattern to verify that the communication
-/// channel works correctly. Inbound sends odd challenges (1, 3) and outbound sends even (2, 4).
+/// Negotiator that exercises bidirectional messaging over two rounds. Both sides simultaneously
+/// send and receive the same fixed value each round, verifying the channel works in both
+/// directions.
 #[derive(Clone)]
-struct EvenOddNegotiator;
+struct EchoNegotiator;
 
 #[async_trait]
-impl Negotiator for EvenOddNegotiator {
+impl Negotiator for EchoNegotiator {
     type WireMessage = StarkAuthentication;
     type Error = std::io::Error;
 
     fn protocol_name(&self) -> &'static str {
-        "even_odd"
+        "echo"
     }
 
     async fn negotiate_connection(
@@ -131,37 +129,14 @@ impl Negotiator for EvenOddNegotiator {
         _other_peer_id: PeerId,
         connection_sender: &mut dyn super::negotiator::ConnectionSender<Self::WireMessage>,
         connection_receiver: &mut dyn super::negotiator::ConnectionReceiver<Self::WireMessage>,
-        side: NegotiationSide,
     ) -> Result<NegotiatorOutput, Self::Error> {
-        match side {
-            NegotiationSide::Inbound => {
-                let (_, res) = tokio::try_join!(
-                    connection_sender.send(stark_auth_with_challenge(1)),
-                    connection_receiver.receive()
-                )
-                .expect("failure");
-                assert_eq!(res, stark_auth_with_challenge(2));
-                let (_, res) = tokio::try_join!(
-                    connection_sender.send(stark_auth_with_challenge(3)),
-                    connection_receiver.receive()
-                )
-                .expect("failure");
-                assert_eq!(res, stark_auth_with_challenge(4));
-            }
-            NegotiationSide::Outbound => {
-                let (_, res) = tokio::try_join!(
-                    connection_sender.send(stark_auth_with_challenge(2)),
-                    connection_receiver.receive()
-                )
-                .expect("failure");
-                assert_eq!(res, stark_auth_with_challenge(1));
-                let (_, res) = tokio::try_join!(
-                    connection_sender.send(stark_auth_with_challenge(4)),
-                    connection_receiver.receive()
-                )
-                .expect("failure");
-                assert_eq!(res, stark_auth_with_challenge(3));
-            }
+        for value in [1u8, 2] {
+            let (_, received) = tokio::try_join!(
+                connection_sender.send(stark_auth_with_challenge(value)),
+                connection_receiver.receive()
+            )
+            .expect("exchange failed");
+            assert_eq!(received, stark_auth_with_challenge(value));
         }
 
         Ok(NegotiatorOutput::Success)
@@ -243,7 +218,7 @@ async fn test_composed_noise_config_returns_failure_when_responder_fails() {
 
 #[tokio::test]
 async fn test_composed_noise_config_transfers_messages_between_peers() {
-    perform_composed_upgrade_with_negotiator(EvenOddNegotiator, EvenOddNegotiator)
+    perform_composed_upgrade_with_negotiator(EchoNegotiator, EchoNegotiator)
         .await
         .expect("Negotiation failed.");
 }
