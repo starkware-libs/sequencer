@@ -59,13 +59,13 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 static FUZZ_ADDRESS_ORCHESTRATOR_EXPECT: Expect =
     expect!["0x42a4e070a0336c42c1de292bc3de986ae479bc5187d86a6dca4c52c6e502d6f"];
 static FUZZ_ADDRESS_CAIRO1_A_EXPECT: Expect =
-    expect!["0x786ad09c9146dc53af532549d8faa060e998b10fd0df482f0c47c118fad8aba"];
+    expect!["0x2ddae333fcbc330d06826f4851d5ed5dcd69542f2ecdb67b69f351cbc6e23d5"];
 static FUZZ_ADDRESS_CAIRO1_B_EXPECT: Expect =
-    expect!["0x2ca332069df9d3c4c3f6fddefd2b693d94897c0e63dd5dc6c32f34f7a7131f6"];
+    expect!["0x56eb4816b3e88bc94d541e8bf0b2ac93bd5473642ba537086d7d1770e6b90a0"];
 static FUZZ_ADDRESS_CAIRO0_A_EXPECT: Expect =
-    expect!["0x64ab77c6fe5fbb6b4e47c13af2eb731f9302d3140e7f4fe7c42f84ed68327be"];
+    expect!["0x55cbb63291a2089704612cf805dcb95033b22d93569cb661f27afdeefddc0f0"];
 static FUZZ_ADDRESS_CAIRO0_B_EXPECT: Expect =
-    expect!["0x230d7401e20368dfd1098aa3c01da16a192350bad43c157da0adc5c4caffdeb"];
+    expect!["0x38bc69f21c0c4b7ab51b35648a75f92efd139e8803fba220b9e9dd7ed65985e"];
 static FUZZ_ADDRESS_ORCHESTRATOR: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress::try_from(felt!(FUZZ_ADDRESS_ORCHESTRATOR_EXPECT.data())).unwrap()
 });
@@ -96,7 +96,6 @@ static VALID_STORAGE_KEYS: LazyLock<Vec<Felt>> =
     LazyLock::new(|| vec![Felt::from(1u16 << 8), Felt::from(1u16 << 9)]);
 
 // TODO(Dori): Operations to add:
-// 1. advance counter (read -> write)
 // 2. message to L1
 // 3. events
 // 4. call / libcall non-existing entry points (should panic) (catchable in cairo0 even?)
@@ -110,6 +109,7 @@ enum FuzzOperation {
     ReplaceClass,
     Deploy,
     Panic,
+    IncrementCounter,
 }
 
 impl FuzzOperation {
@@ -122,6 +122,7 @@ impl FuzzOperation {
             Self::ReplaceClass => 4u8,
             Self::Deploy => 5u8,
             Self::Panic => 6u8,
+            Self::IncrementCounter => 7u8,
         })
     }
 }
@@ -202,6 +203,7 @@ enum FuzzOperationData {
     ReplaceClass(ClassHash),
     Deploy { class_hash: ClassHash, salt: ContractAddressSalt },
     Panic,
+    IncrementCounter,
 }
 
 impl FuzzOperationData {
@@ -214,6 +216,7 @@ impl FuzzOperationData {
             Self::ReplaceClass(_) => FuzzOperation::ReplaceClass,
             Self::Deploy { .. } => FuzzOperation::Deploy,
             Self::Panic => FuzzOperation::Panic,
+            Self::IncrementCounter => FuzzOperation::IncrementCounter,
         }
     }
 
@@ -222,7 +225,7 @@ impl FuzzOperationData {
     pub fn felt_vector(&self) -> Vec<Felt> {
         let mut felt_vector = vec![self.op().identifier()];
         felt_vector.extend(match self {
-            Self::Return | Self::Panic => vec![],
+            Self::Return | Self::Panic | Self::IncrementCounter => vec![],
             Self::Call(op) => op.felt_vector(),
             Self::LibraryCall(op) => op.felt_vector(),
             Self::Write(storage_key, value) => vec![***storage_key, value.0],
@@ -545,6 +548,7 @@ impl FuzzTestContext {
                     .collect()
             }
             FuzzOperation::Panic => vec![FuzzOperationData::Panic],
+            FuzzOperation::IncrementCounter => vec![FuzzOperationData::IncrementCounter],
         }
     }
 
@@ -763,6 +767,7 @@ impl FuzzTestContext {
                     ParentFailureBehavior::Cairo1Propagating => unreachable!(),
                 }
             }
+            FuzzOperationData::IncrementCounter => {}
         }
     }
 
@@ -910,6 +915,9 @@ impl FuzzTestContext {
                 }
                 FuzzOperationData::Panic => {
                     vec![format!("{} (Panic)", operation_felt_hexes[0])]
+                }
+                FuzzOperationData::IncrementCounter => {
+                    vec![format!("{} (Increment counter)", operation_felt_hexes[0])]
                 }
             });
         }
