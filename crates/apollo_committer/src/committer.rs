@@ -129,6 +129,7 @@ where
         &mut self,
         CommitBlockRequest { state_diff, state_diff_commitment, height }: CommitBlockRequest,
     ) -> CommitterResult<CommitBlockResponse> {
+        info!("Remove me");
         let result = self
             .commit_block_inner(CommitBlockRequest { state_diff, state_diff_commitment, height })
             .await;

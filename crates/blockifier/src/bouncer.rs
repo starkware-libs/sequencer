@@ -149,6 +149,7 @@ impl BouncerWeights {
     );
 
     pub fn has_room(&self, other: Self) -> bool {
+        // Remove me
         self.checked_sub(other).is_some()
     }
 
