@@ -179,10 +179,12 @@ class SnapshotTextReport:
             lines.append("(none)")
         else:
             for tx_hash, meta in sorted(
-                s.resync_causes.items(), key=lambda kv: kv[1]["block_number"]
+                s.resync_causes.items(), key=lambda kv: kv[1]["rollback_block_number"]
             ):
                 lines.append(
-                    f"{tx_hash}: bn={meta['block_number']} reason={meta['reason']} count={meta['count']}"
+                    f"{tx_hash}: rollback_bn={meta['rollback_block_number']} "
+                    f"source_bn={meta['source_block_number']} "
+                    f"reason={meta['reason']} count={meta['count']}"
                 )
 
         lines.append("")
@@ -191,10 +193,12 @@ class SnapshotTextReport:
             lines.append("(none)")
         else:
             for tx_hash, meta in sorted(
-                s.certain_failures.items(), key=lambda kv: kv[1]["block_number"]
+                s.certain_failures.items(), key=lambda kv: kv[1]["rollback_block_number"]
             ):
                 lines.append(
-                    f"{tx_hash}: bn={meta['block_number']} reason={meta['reason']} count={meta['count']}"
+                    f"{tx_hash}: rollback_bn={meta['rollback_block_number']} "
+                    f"source_bn={meta['source_block_number']} "
+                    f"reason={meta['reason']} count={meta['count']}"
                 )
 
         lines.append("")
@@ -576,11 +580,11 @@ class _SnapshotReportRollup:
 
         resync_causes_rows = sorted(
             (dict(v) for v in s.resync_causes.values()),
-            key=lambda x: (x["block_number"], x["tx_hash"]),
+            key=lambda x: (x["rollback_block_number"], x["tx_hash"]),
         )
         certain_failures_rows = sorted(
             (dict(v) for v in s.certain_failures.values()),
-            key=lambda x: (-x["count"], x["block_number"]),
+            key=lambda x: (-x["count"], x["rollback_block_number"]),
         )
         l2_gas_mismatches_rows = [dict(v) for v in s.l2_gas_mismatches]
         forward_rate = _format_rate(total_sent, s.uptime_seconds, unit="TPS")
