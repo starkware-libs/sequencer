@@ -365,7 +365,8 @@ pub(crate) fn convert_to_sn_api_block_info(
 /// Get the block hash for the retrospective block.
 /// First try to get the block hash from the batcher. If that fails, fall back to state sync.
 pub(crate) async fn retrospective_block_hash(
-    batcher_client: Arc<dyn BatcherClient>,
+    // TODO: Remove leading underscore.
+    _batcher_client: Arc<dyn BatcherClient>,
     state_sync_client: Arc<dyn StateSyncClient>,
     init: &ProposalInit,
 ) -> RetrospectiveBlockHashResult<Option<BlockHashAndNumber>> {
@@ -380,7 +381,11 @@ pub(crate) async fn retrospective_block_hash(
     };
 
     let block_number = BlockNumber(block_number);
-    let block_hash = match batcher_client.get_block_hash(block_number).await {
+    // TODO: Restore this logic.
+    // let block_hash = match batcher_client.get_block_hash(block_number).await {
+    let block_hash = match Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(
+        block_number,
+    ))) {
         Ok(block_hash) => block_hash,
         Err(batcher_error) => {
             let block_hash = state_sync_client.get_block_hash(block_number).await.map_err(
