@@ -35,8 +35,7 @@ pub trait Negotiator: Send {
         connection_receiver: &mut dyn ConnectionReceiver<Self::WireMessage>,
     ) -> Result<NegotiatorOutput, Self::Error>;
 
-    /// A unique identified for your authentication protocol. For example: "strk_id" or
+    /// A unique identifier for your authentication protocol. For example: "strk_id" or
     /// "strk_id_v2".
-    // TODO(noam.s): Consider making this a const.
     fn protocol_name(&self) -> &'static str;
 }
