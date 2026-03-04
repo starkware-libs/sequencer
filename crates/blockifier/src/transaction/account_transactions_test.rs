@@ -2218,7 +2218,6 @@ fn test_missing_validate_entrypoint_rejects(
         if ret == retdata![Felt::from_hex(ENTRYPOINT_NOT_FOUND_ERROR).unwrap()]
     );
 }
-<<<<<<< HEAD
 
 /// Converts SnosProofFacts to ProofFacts for testing.
 fn snos_to_proof_facts(snos: SnosProofFacts) -> ProofFacts {
@@ -2366,8 +2365,6 @@ fn test_validate_proof_facts(
         }
     }
 }
-||||||| 8e2855c049
-=======
 
 /// Test that changes in a cairo0 call that is part of a cairo1-reverted call tree are indeed
 /// reverted.
@@ -2418,4 +2415,3 @@ fn test_cairo0_proven_revert(
         Felt::ZERO
     );
 }
->>>>>>> origin/main-v0.14.1-committer

@@ -267,21 +267,13 @@ async fn interrupt_active_proposal() {
     deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
         assert!(matches!(input.content, SendProposalContent::Finish(_)));
         Ok(SendProposalContentResponse {
-<<<<<<< HEAD
             response: ProposalStatus::Finished(FinishedProposalInfo {
                 proposal_commitment: BatcherProposalCommitment {
-                    state_diff_commitment: STATE_DIFF_COMMITMENT,
+                    partial_block_hash: PARTIAL_BLOCK_HASH,
                 },
                 final_n_executed_txs: 0,
                 block_header_commitments: BlockHeaderCommitments::default(),
                 parent_proposal_commitment: None,
-||||||| 8e2855c049
-            response: ProposalStatus::Finished(BatcherProposalCommitment {
-                state_diff_commitment: STATE_DIFF_COMMITMENT,
-=======
-            response: ProposalStatus::Finished(BatcherProposalCommitment {
-                partial_block_hash: PARTIAL_BLOCK_HASH,
->>>>>>> origin/main-v0.14.1-committer
             }),
         })
     });

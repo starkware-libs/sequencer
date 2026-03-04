@@ -359,7 +359,6 @@ fn broadcast_vote_before_decision_on_validation_finish() {
         assert!(reqs.is_empty());
     });
 }
-<<<<<<< HEAD
 
 #[test]
 fn observer_does_not_broadcast_on_start_or_votes() {
@@ -388,8 +387,6 @@ fn observer_does_not_broadcast_on_start_or_votes() {
         shc.handle_vote(precommit(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *VALIDATOR_ID_3));
     assert_decision(&mut decision, ROUND_0, BLOCK.id);
 }
-||||||| 8e2855c049
-=======
 
 #[test]
 fn unlock_via_reproposal_with_valid_round() {
@@ -458,4 +455,3 @@ fn unlock_via_reproposal_with_valid_round() {
         assert!(reqs.is_empty());
     });
 }
->>>>>>> origin/main-v0.14.1-committer

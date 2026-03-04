@@ -25,18 +25,8 @@ async fn build_proposal_succeed() {
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     proposal_args.deps.batcher.expect_get_proposal_content().returning(|_| {
         Ok(GetProposalContentResponse {
-<<<<<<< HEAD
             content: GetProposalContent::Finished(FinishedProposalInfo {
-                proposal_commitment: ProposalCommitment {
-                    state_diff_commitment: STATE_DIFF_COMMITMENT,
-                },
-||||||| 8e2855c049
-            content: GetProposalContent::Finished {
-                id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
-=======
-            content: GetProposalContent::Finished {
-                id: ProposalCommitment { partial_block_hash: PARTIAL_BLOCK_HASH },
->>>>>>> origin/main-v0.14.1-committer
+                proposal_commitment: ProposalCommitment { partial_block_hash: PARTIAL_BLOCK_HASH },
                 final_n_executed_txs: 0,
                 block_header_commitments: BlockHeaderCommitments::default(),
                 parent_proposal_commitment: None,
@@ -121,18 +111,8 @@ async fn cende_fail() {
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     proposal_args.deps.batcher.expect_get_proposal_content().times(1).returning(|_| {
         Ok(GetProposalContentResponse {
-<<<<<<< HEAD
             content: GetProposalContent::Finished(FinishedProposalInfo {
-                proposal_commitment: ProposalCommitment {
-                    state_diff_commitment: STATE_DIFF_COMMITMENT,
-                },
-||||||| 8e2855c049
-            content: GetProposalContent::Finished {
-                id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
-=======
-            content: GetProposalContent::Finished {
-                id: ProposalCommitment { partial_block_hash: PARTIAL_BLOCK_HASH },
->>>>>>> origin/main-v0.14.1-committer
+                proposal_commitment: ProposalCommitment { partial_block_hash: PARTIAL_BLOCK_HASH },
                 final_n_executed_txs: 0,
                 block_header_commitments: BlockHeaderCommitments::default(),
                 parent_proposal_commitment: None,

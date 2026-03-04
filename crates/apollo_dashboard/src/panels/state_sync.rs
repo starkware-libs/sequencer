@@ -61,18 +61,9 @@ fn get_panel_time_to_complete_sync() -> Panel {
         "Time to Complete Sync",
         format!(
             "Estimated time to complete syncing to the latest block (based on a {} window \
-<<<<<<< HEAD
-             rate).\nThe value is computed from the sync rate of the `current sync marker` \
-             compared against the `current feeder gateway marker`.",
-||||||| 8e2855c049
-             rate).\nThe value is computed from the sync rate of the `class manager marker` \
-             (which is the last component to finish downloading among all state sync parts), \
-             compared against the `central block marker` (the latest block known to central).",
-=======
              rate).\nThe value is computed from the sync rate of the `committer offset` (the next \
              block to commit, representing the current committed state), compared against the \
              `central block marker` (the latest block known to central).",
->>>>>>> origin/main-v0.14.1-committer
             DEFAULT_DURATION
         ),
         format!(

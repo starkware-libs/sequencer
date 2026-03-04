@@ -508,24 +508,18 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 })?;
                 let partial_block_hash_components = partial_block_hash_components
                     .ok_or(CommitmentManagerError::MissingPartialBlockHashComponents(height))?;
-<<<<<<< HEAD
+                debug!(
+                    "Calculating block hash for block {height} with partial block hash \
+                     components: {partial_block_hash_components:?}"
+                );
+                debug!(
+                    "Global root: {global_root:?}, previous block hash: {previous_block_hash:?}"
+                );
                 let block_hash = calculate_block_hash(
                     &partial_block_hash_components,
                     global_root,
                     previous_block_hash,
                 )?;
-||||||| 8e2855c049
-                let block_hash =
-                    calculate_block_hash(&partial_block_hash_components, global_root, parent_hash)?;
-=======
-                debug!(
-                    "Calculating block hash for block {height} with partial block hash \
-                     components: {partial_block_hash_components:?}"
-                );
-                debug!("Global root: {global_root:?}, parent hash: {parent_hash:?}");
-                let block_hash =
-                    calculate_block_hash(&partial_block_hash_components, global_root, parent_hash)?;
->>>>>>> origin/main-v0.14.1-committer
                 Ok(FinalBlockCommitment { height, block_hash: Some(block_hash), global_root })
             }
         }

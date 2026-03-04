@@ -15,24 +15,8 @@ use apollo_batcher_types::batcher_types::{
     SendProposalContentResponse,
     ValidateBlockInput,
 };
-<<<<<<< HEAD
-use apollo_batcher_types::communication::MockBatcherClient;
-||||||| 8e2855c049
-use apollo_batcher_types::communication::MockBatcherClient;
-use apollo_class_manager_types::transaction_converter::{
-    MockTransactionConverterTrait,
-    TransactionConverter,
-    TransactionConverterTrait,
-};
-=======
 use apollo_batcher_types::communication::{BatcherClientError, MockBatcherClient};
 use apollo_batcher_types::errors::BatcherError;
-use apollo_class_manager_types::transaction_converter::{
-    MockTransactionConverterTrait,
-    TransactionConverter,
-    TransactionConverterTrait,
-};
->>>>>>> origin/main-v0.14.1-committer
 use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_consensus::types::Round;
 use apollo_consensus_orchestrator_config::config::{ContextConfig, ContextStaticConfig};
@@ -71,12 +55,7 @@ use starknet_api::block::{
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
 };
-<<<<<<< HEAD
-use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
-||||||| 8e2855c049
-=======
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHash;
->>>>>>> origin/main-v0.14.1-committer
+use starknet_api::block_hash::block_hash_calculator::{BlockHeaderCommitments, PartialBlockHash};
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -227,18 +206,10 @@ impl TestDeps {
                 .withf(move |input| input.proposal_id == *proposal_id_clone.get().unwrap())
                 .returning(move |_input| {
                     Ok(GetProposalContentResponse {
-<<<<<<< HEAD
                         content: GetProposalContent::Finished(FinishedProposalInfo {
                             proposal_commitment: ProposalCommitment {
-                                state_diff_commitment: STATE_DIFF_COMMITMENT,
+                                partial_block_hash: PARTIAL_BLOCK_HASH,
                             },
-||||||| 8e2855c049
-                        content: GetProposalContent::Finished {
-                            id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
-=======
-                        content: GetProposalContent::Finished {
-                            id: ProposalCommitment { partial_block_hash: PARTIAL_BLOCK_HASH },
->>>>>>> origin/main-v0.14.1-committer
                             final_n_executed_txs: args.n_executed_txs_count,
                             block_header_commitments: BlockHeaderCommitments::default(),
                             parent_proposal_commitment: None,
@@ -300,21 +271,13 @@ impl TestDeps {
                         SendProposalContent::Finish(args.n_executed_txs_count)
                     );
                     Ok(SendProposalContentResponse {
-<<<<<<< HEAD
                         response: ProposalStatus::Finished(FinishedProposalInfo {
                             proposal_commitment: ProposalCommitment {
-                                state_diff_commitment: STATE_DIFF_COMMITMENT,
+                                partial_block_hash: PARTIAL_BLOCK_HASH,
                             },
                             final_n_executed_txs: args.n_executed_txs_count,
                             block_header_commitments: BlockHeaderCommitments::default(),
                             parent_proposal_commitment: None,
-||||||| 8e2855c049
-                        response: ProposalStatus::Finished(ProposalCommitment {
-                            state_diff_commitment: STATE_DIFF_COMMITMENT,
-=======
-                        response: ProposalStatus::Finished(ProposalCommitment {
-                            partial_block_hash: PARTIAL_BLOCK_HASH,
->>>>>>> origin/main-v0.14.1-committer
                         }),
                     })
                 });

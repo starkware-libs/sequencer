@@ -70,21 +70,12 @@ use futures::FutureExt;
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-<<<<<<< HEAD
 use starknet_api::block::{BlockHash, BlockNumber, UnixTimestamp};
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
-use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
-||||||| 8e2855c049
-use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
-use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
-=======
-use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
     PartialBlockHash,
     PartialBlockHashComponents,
 };
->>>>>>> origin/main-v0.14.1-committer
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, GlobalRoot, Nonce, StateDiffCommitment};
 use starknet_api::state::{StateNumber, ThinStateDiff};

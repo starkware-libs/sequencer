@@ -95,12 +95,8 @@ use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
-<<<<<<< HEAD
-use http::StatusCode;
-||||||| 8e2855c049
-=======
 use futures::future::join_all;
->>>>>>> origin/main-v0.14.1-committer
+use http::StatusCode;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
@@ -753,6 +749,7 @@ pub fn create_batcher_config(
             ..Default::default()
         },
         dynamic_config: BatcherDynamicConfig {
+            native_classes_whitelist: NativeClassesWhitelist::All,
             storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig { enable: true },
         },
     }

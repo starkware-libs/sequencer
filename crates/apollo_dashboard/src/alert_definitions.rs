@@ -454,7 +454,6 @@ fn get_class_manager_storage_open_read_transactions_alert() -> Alert {
     )
 }
 
-<<<<<<< HEAD
 fn get_gateway_proof_archive_write_failure() -> Alert {
     Alert::new(
         "gateway_proof_archive_write_failure",
@@ -472,8 +471,6 @@ fn get_gateway_proof_archive_write_failure() -> Alert {
     )
 }
 
-||||||| 8e2855c049
-=======
 /// Alert if different nodes report different epoch IDs, indicating one or more nodes are out of
 /// sync. A 5-minute pending duration accounts for Prometheus scrape latency and brief mismatches
 /// during normal epoch transitions.
@@ -494,7 +491,6 @@ fn get_staking_epoch_id_mismatch_alert() -> Alert {
     )
 }
 
->>>>>>> origin/main-v0.14.1-committer
 pub fn get_apollo_alerts() -> Alerts {
     let mut alerts = vec![
         get_batcher_storage_open_read_transactions_alert(),
