@@ -207,8 +207,7 @@ where
     Request: Serialize + DeserializeOwned + Send + 'static,
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
-    let (reader, writer) =
-        open_storage_internal(storage_config, Some(open_readers_metric)).expect("");
+    let (reader, writer) = open_storage_internal(storage_config, Some(open_readers_metric))?;
     let storage_reader_server =
         create_storage_reader_server(reader.clone(), storage_reader_server_config);
     Ok((reader, writer, storage_reader_server))

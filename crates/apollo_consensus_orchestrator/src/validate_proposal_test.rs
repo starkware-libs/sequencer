@@ -147,7 +147,7 @@ async fn validate_empty_proposal() {
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ConsensusProposalCommitment::default(),
             executed_transaction_count: 0,
-            commitment_parts: None,
+            fin_payload: None,
         }))
         .await
         .unwrap();
@@ -175,7 +175,7 @@ async fn validate_proposal_success() {
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ConsensusProposalCommitment::default(),
             executed_transaction_count: n_executed_txs_count.try_into().unwrap(),
-            commitment_parts: None,
+            fin_payload: None,
         }))
         .await
         .unwrap();
@@ -286,7 +286,7 @@ async fn proposal_fin_mismatch() {
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: received_fin,
             executed_transaction_count: n_executed.try_into().unwrap(),
-            commitment_parts: None,
+            fin_payload: None,
         }))
         .await
         .unwrap();
@@ -319,7 +319,7 @@ async fn batcher_returns_invalid_proposal() {
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ConsensusProposalCommitment::default(),
             executed_transaction_count: n_executed.try_into().unwrap(),
-            commitment_parts: None,
+            fin_payload: None,
         }))
         .await
         .unwrap();

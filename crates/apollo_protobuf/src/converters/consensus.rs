@@ -8,6 +8,7 @@ use apollo_batcher_types::batcher_types::FinishedProposalInfo;
 use prost::Message;
 use starknet_api::block::{BlockNumber, GasPrice, StarknetVersion};
 use starknet_api::consensus_transaction::ConsensusTransaction;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 
 use super::common::{
@@ -18,8 +19,10 @@ use super::common::{
 use crate::consensus::{
     CommitmentParts,
     IntoFromProto,
+    L2GasInfo,
     ProposalCommitment,
     ProposalFin,
+    ProposalFinPayload,
     ProposalInit,
     ProposalPart,
     StreamMessage,
@@ -337,14 +340,52 @@ impl From<&FinishedProposalInfo> for CommitmentParts {
     }
 }
 
+impl TryFrom<protobuf::L2GasInfo> for L2GasInfo {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::L2GasInfo) -> Result<Self, Self::Error> {
+        let next_l2_gas_price_fri =
+            value.next_l2_gas_price_fri.ok_or(missing("next_l2_gas_price_fri"))?.into();
+        let l2_gas_used = GasAmount(value.l2_gas_used);
+        Ok(L2GasInfo { next_l2_gas_price_fri: GasPrice(next_l2_gas_price_fri), l2_gas_used })
+    }
+}
+
+impl From<L2GasInfo> for protobuf::L2GasInfo {
+    fn from(value: L2GasInfo) -> Self {
+        protobuf::L2GasInfo {
+            next_l2_gas_price_fri: Some(value.next_l2_gas_price_fri.0.into()),
+            l2_gas_used: value.l2_gas_used.0,
+        }
+    }
+}
+
+impl TryFrom<protobuf::ProposalFinPayload> for ProposalFinPayload {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::ProposalFinPayload) -> Result<Self, Self::Error> {
+        let commitment_parts =
+            value.commitment_parts.ok_or(missing("commitment_parts"))?.try_into()?;
+        let l2_gas_info = value.l2_gas_info.map(TryInto::try_into).transpose()?;
+        Ok(ProposalFinPayload { commitment_parts, l2_gas_info })
+    }
+}
+
+impl From<ProposalFinPayload> for protobuf::ProposalFinPayload {
+    fn from(value: ProposalFinPayload) -> Self {
+        protobuf::ProposalFinPayload {
+            commitment_parts: Some(value.commitment_parts.into()),
+            l2_gas_info: value.l2_gas_info.map(Into::into),
+        }
+    }
+}
+
 impl TryFrom<protobuf::ProposalFin> for ProposalFin {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ProposalFin) -> Result<Self, Self::Error> {
         let proposal_commitment: ProposalCommitment =
             value.proposal_commitment.ok_or(missing("proposal_commitment"))?.try_into()?;
         let executed_transaction_count = value.executed_transaction_count;
-        let commitment_parts = value.commitment_parts.map(TryInto::try_into).transpose()?;
-        Ok(ProposalFin { proposal_commitment, executed_transaction_count, commitment_parts })
+        let fin_payload = value.fin_payload.map(TryInto::try_into).transpose()?;
+        Ok(ProposalFin { proposal_commitment, executed_transaction_count, fin_payload })
     }
 }
 
@@ -353,7 +394,7 @@ impl From<ProposalFin> for protobuf::ProposalFin {
         protobuf::ProposalFin {
             proposal_commitment: Some(value.proposal_commitment.into()),
             executed_transaction_count: value.executed_transaction_count,
-            commitment_parts: value.commitment_parts.map(Into::into),
+            fin_payload: value.fin_payload.map(Into::into),
         }
     }
 }

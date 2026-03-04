@@ -64,11 +64,10 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
             service_busy(self.max_concurrent_requests)
         })?;
 
-        let output = self
-            .prover
-            .prove_transaction(block_id, transaction)
-            .await
-            .map_err(ErrorObjectOwned::from)?;
+        let output = self.prover.prove_transaction(block_id, transaction).await.map_err(|err| {
+            warn!("prove_transaction failed: {:?}", err);
+            ErrorObjectOwned::from(err)
+        })?;
 
         Ok(output.result)
     }

@@ -422,7 +422,7 @@ pub(crate) async fn send_proposal_to_validator_context(
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProtoProposalCommitment(PARTIAL_BLOCK_HASH.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
-            commitment_parts: None,
+            fin_payload: None,
         }))
         .await
         .unwrap();

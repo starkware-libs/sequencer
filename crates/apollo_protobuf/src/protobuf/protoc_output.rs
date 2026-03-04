@@ -500,6 +500,24 @@ pub struct CommitmentParts {
     #[prost(message, optional, tag = "5")]
     pub receipt_commitment: ::core::option::Option<Hash>,
 }
+/// L2 gas info for the block (next price and gas used).
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct L2GasInfo {
+    #[prost(message, optional, tag = "1")]
+    pub next_l2_gas_price_fri: ::core::option::Option<Uint128>,
+    #[prost(uint64, tag = "2")]
+    pub l2_gas_used: u64,
+}
+/// Optional payload carried in ProposalFin: commitment parts and L2 gas.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ProposalFinPayload {
+    #[prost(message, optional, tag = "1")]
+    pub commitment_parts: ::core::option::Option<CommitmentParts>,
+    #[prost(message, optional, tag = "2")]
+    pub l2_gas_info: ::core::option::Option<L2GasInfo>,
+}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ProposalFin {
@@ -510,7 +528,7 @@ pub struct ProposalFin {
     #[prost(uint64, tag = "2")]
     pub executed_transaction_count: u64,
     #[prost(message, optional, tag = "3")]
-    pub commitment_parts: ::core::option::Option<CommitmentParts>,
+    pub fin_payload: ::core::option::Option<ProposalFinPayload>,
 }
 /// Network format:
 /// 1. First message is ProposalInit (init, includes all block metadata)

@@ -19,6 +19,7 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_batcher_types::errors::BatcherError;
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::{ConsensusContext, ConsensusError, ProposalCommitment, Round};
 use apollo_consensus_orchestrator_config::config::ContextConfig;
@@ -29,6 +30,7 @@ use apollo_protobuf::consensus::{
     CommitmentParts,
     HeightAndRound,
     ProposalFin,
+    ProposalFinPayload,
     ProposalInit,
     ProposalPart,
     TransactionBatch,
@@ -595,7 +597,10 @@ impl ConsensusContext for SequencerConsensusContext {
                 self.config.static_config.build_proposal_time_ratio_for_retrospective_block_hash,
             );
 
-        let override_timestamp = self.config.static_config.deployment_mode.override_timestamp();
+        let override_timestamp = match self.config.static_config.behavior_mode {
+            BehaviorMode::Echonet => true,
+            BehaviorMode::Starknet => false,
+        };
 
         let round = build_param.round;
         let args = ProposalBuildArguments {
@@ -1041,11 +1046,14 @@ async fn send_reproposal(
         .final_n_executed_txs
         .try_into()
         .expect("Number of executed transactions should fit in u64");
-    let commitment_parts = CommitmentParts::from(&finished_info);
+    let fin_payload = ProposalFinPayload {
+        commitment_parts: CommitmentParts::from(&finished_info),
+        l2_gas_info: None,
+    };
     let fin = ProposalFin {
         proposal_commitment,
         executed_transaction_count,
-        commitment_parts: Some(commitment_parts),
+        fin_payload: Some(fin_payload),
     };
     stream_sender.send(ProposalPart::Fin(fin)).await?;
 
