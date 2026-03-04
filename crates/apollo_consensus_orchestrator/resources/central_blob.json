@@ -3857,5 +3857,15 @@
     ]
   ],
   "proposal_commitment": "0x80020000",
-  "parent_proposal_commitment": "0x1000200"
+  "parent_proposal_commitment": "0x1000200",
+  "recent_block_hashes": [
+    {
+      "block_number": 1,
+      "block_hash": "0x1"
+    },
+    {
+      "block_number": 2,
+      "block_hash": "0x2"
+    }
+  ]
 }

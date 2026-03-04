@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "A storage implementation for a Starknet node."
 
 [features]
-testing = ["starknet_api/testing", "tempfile", "tower"]
+testing = ["reqwest", "starknet_api/testing", "tempfile", "tower"]
 storage_cli = ["clap", "reqwest"]
 
 [dependencies]
@@ -63,6 +63,7 @@ pretty_assertions.workspace = true
 prometheus-parse.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
+reqwest.workspace = true
 rstest.workspace = true
 schemars.workspace = true
 simple_logger.workspace = true
@@ -71,7 +72,12 @@ tempfile = { workspace = true }
 test-case.workspace = true
 test-log.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
+<<<<<<< HEAD
 tower = { workspace = true, features = ["util"] }
+||||||| 8e2855c049
+=======
+tower.workspace = true
+>>>>>>> origin/main-v0.14.1-committer
 
 [lints]
 workspace = true

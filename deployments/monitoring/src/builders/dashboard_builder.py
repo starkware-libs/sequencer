@@ -30,6 +30,7 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
     log_query = extra.get("log_query", "")
     log_comment = extra.get("log_comment", "")
     thresholds = extra.get("thresholds", {})
+    legend_values = extra.get("legend_values", [])
     query_parts = [
         f"resource.labels.namespace_name=~%22^%28${{namespace:pipe}}%29$%22",
         quote(log_query),
@@ -106,6 +107,16 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
         grafana_panel["options"] = {
             "textMode": "value_and_name",
             "showPercentChange": show_percent_change,
+        }
+
+    if panel["type"] == "piechart":
+        grafana_panel["options"] = {
+            "legend": {
+                "displayMode": "table",
+                "placement": "right",
+                "showLegend": True,
+                "values": legend_values,
+            }
         }
 
     return grafana_panel

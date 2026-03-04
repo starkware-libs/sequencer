@@ -120,13 +120,23 @@ class TestL1Manager(unittest.TestCase):
         for block_num in [10, 20, 30]:
             self._mock_handle_feeder_tx_and_store_l1_block(block_num)
 
-        # get_block_by_number removed older blocks (< 20).
-        self.manager.get_block_by_number(hex(20))
+        # get_block_by_number with cleanup buffer (2 * finality = 20)
+        # When requesting block 30, it keeps blocks >= (30 - 20) = 10
+        self.manager.get_block_by_number(hex(30))
+
+        # Block 10 should still exist (within buffer of 30)
+        self.assertIn(10, self.manager.blocks, "Block 10 should be kept (within cleanup buffer)")
+        self.assertIn(20, self.manager.blocks, "Block 20 should be kept")
+        self.assertIn(30, self.manager.blocks, "Block 30 should be kept")
+
+        # Now request block 50 - this should clean up block 10 (50 - 20 = 30, so blocks < 30 are removed)
+        self.manager.get_block_by_number(hex(50))
         result = self.manager.get_block_by_number(hex(10))
         # Block 10 was cleaned up, should return default block.
         self.assertEqual(result["result"], L1Manager.default_l1_block(hex(10)))
         result = self.manager.get_block_by_number(hex(20))
-        self.assertEqual(result["result"]["number"], hex(20))
+        # Block 20 was also cleaned up
+        self.assertEqual(result["result"], L1Manager.default_l1_block(hex(20)))
         result = self.manager.get_block_by_number(hex(30))
         self.assertEqual(result["result"]["number"], hex(30))
 

@@ -25,10 +25,15 @@ use futures::channel::mpsc;
 use futures::SinkExt;
 use rstest::rstest;
 use starknet_api::block::{BlockNumber, GasPrice};
+<<<<<<< HEAD
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::StateDiffCommitment;
+||||||| 8e2855c049
+use starknet_api::core::StateDiffCommitment;
+=======
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHash;
+>>>>>>> origin/main-v0.14.1-committer
 use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::hash::PoseidonHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
@@ -36,8 +41,8 @@ use tokio_util::sync::CancellationToken;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::BuiltProposals;
 use crate::test_utils::{
-    block_info,
     create_test_and_network_deps,
+    proposal_init,
     SetupDepsArgs,
     TestDeps,
     CHANNEL_SIZE,
@@ -87,7 +92,7 @@ fn create_proposal_validate_arguments()
 -> (TestProposalValidateArguments, mpsc::Sender<ProposalPart>) {
     let (mut deps, _) = create_test_and_network_deps();
     deps.setup_default_expectations();
-    let init = block_info(BlockNumber(0), 0);
+    let init = proposal_init(BlockNumber(0), 0);
     let block_info_validation = BlockInfoValidation {
         height: BlockNumber(0),
         block_timestamp_window_seconds: 60,
@@ -264,7 +269,7 @@ async fn proposal_fin_mismatch() {
     // Setup batcher to validate the block.
     proposal_args.deps.batcher.expect_validate_block().returning(|_| Ok(()));
     // Batcher returns a different block hash than the one received in Fin.
-    let built_block = StateDiffCommitment(PoseidonHash(Felt::ONE));
+    let built_block = PartialBlockHash(Felt::ONE);
     proposal_args
         .deps
         .batcher
@@ -275,11 +280,19 @@ async fn proposal_fin_mismatch() {
         })
         .returning(move |_| {
             Ok(SendProposalContentResponse {
+<<<<<<< HEAD
                 response: ProposalStatus::Finished(FinishedProposalInfo {
                     proposal_commitment: ProposalCommitment { state_diff_commitment: built_block },
                     final_n_executed_txs: n_executed,
                     block_header_commitments: BlockHeaderCommitments::default(),
                     parent_proposal_commitment: None,
+||||||| 8e2855c049
+                response: ProposalStatus::Finished(ProposalCommitment {
+                    state_diff_commitment: built_block,
+=======
+                response: ProposalStatus::Finished(ProposalCommitment {
+                    partial_block_hash: built_block,
+>>>>>>> origin/main-v0.14.1-committer
                 }),
             })
         });

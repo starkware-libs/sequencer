@@ -64,19 +64,25 @@ use crate::sequencer_consensus_context::{
     SequencerConsensusContextDeps,
 };
 use crate::test_utils::{
-    block_info,
     create_test_and_network_deps,
+    proposal_init,
     send_proposal_to_validator_context,
     SetupDepsArgs,
     CHAIN_ID,
     CHANNEL_SIZE,
     ETH_TO_FRI_RATE,
     INTERNAL_TX_BATCH,
-    STATE_DIFF_COMMITMENT,
+    PARTIAL_BLOCK_HASH,
     TIMEOUT,
     TX_BATCH,
 };
 use crate::utils::{apply_fee_transformations, make_gas_price_params};
+
+const TEST_PROPOSAL_COMMITMENT: ProposalCommitment = ProposalCommitment(PARTIAL_BLOCK_HASH.0);
+const HEIGHT_0: BlockNumber = BlockNumber(0);
+const HEIGHT_1: BlockNumber = BlockNumber(1);
+const ROUND_0: Round = 0;
+const ROUND_1: Round = 1;
 
 #[tokio::test]
 async fn cancelled_proposal_aborts() {
@@ -90,7 +96,7 @@ async fn cancelled_proposal_aborts() {
     let fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
 
     // Now we intrrupt the proposal and verify that the fin_receiever is dropped.
-    context.set_height_and_round(BlockNumber(0), 1).await.unwrap();
+    context.set_height_and_round(HEIGHT_0, ROUND_1).await.unwrap();
 
     assert_eq!(fin_receiver.await, Err(Canceled));
 }
@@ -102,11 +108,12 @@ async fn validate_proposal_success() {
     let mut context = deps.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
-    context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
+    context.set_height_and_round(HEIGHT_0, ROUND_0).await.unwrap();
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
-    let fin_receiver =
-        context.validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT, content_receiver).await;
-    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    let fin_receiver = context
+        .validate_proposal(proposal_init(HEIGHT_0, ROUND_0), TIMEOUT, content_receiver)
+        .await;
+    assert_eq!(fin_receiver.await.unwrap(), TEST_PROPOSAL_COMMITMENT);
 }
 
 #[rstest]
@@ -122,38 +129,64 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     };
     let n_executed_txs_count = executed_transactions.len();
     deps.setup_deps_for_validate(SetupDepsArgs { n_executed_txs_count, ..Default::default() });
+
+    const TIMESTAMP: u64 = 123456;
+    deps.batcher
+        .expect_decision_reached()
+        .times(1)
+        .return_once(|_| Ok(DecisionReachedResponse::default()));
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(move |proposal_init| {
+        assert_eq!(
+            proposal_init.block_header_without_hash.timestamp.0, TIMESTAMP,
+            "add_new_block should be called with timestamp from initial proposal (unchanged \
+             during reproposal for commitment consistency)"
+        );
+        Ok(())
+    });
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().return_once(|_| Ok(()));
+
     let mut context = deps.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
-    context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
+    context.set_height_and_round(HEIGHT_0, ROUND_0).await.unwrap();
 
-    // Receive a valid proposal.
+    // Receive a valid proposal. Use timestamp matching MockClock so validation passes.
     let (mut content_sender, content_receiver) =
         mpsc::channel(context.config.static_config.proposal_buffer_size);
-    let init = block_info(BlockNumber(0), 0);
+    let mut init = proposal_init(HEIGHT_0, ROUND_0);
+    init.timestamp = TIMESTAMP;
     let transactions =
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
     content_sender.send(transactions.clone()).await.unwrap();
     let fin = ProposalPart::Fin(ProposalFin {
-        proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+        proposal_commitment: TEST_PROPOSAL_COMMITMENT,
         executed_transaction_count: n_executed_txs_count.try_into().unwrap(),
         commitment_parts: Some(CommitmentParts::default()),
     });
     content_sender.send(fin.clone()).await.unwrap();
     let fin_receiver = context.validate_proposal(init.clone(), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
-    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver.await.unwrap(), TEST_PROPOSAL_COMMITMENT);
 
-    let build_param = BuildParam { round: 1, ..Default::default() };
-    context.repropose(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0), build_param).await;
+    let build_param =
+        BuildParam { round: ROUND_1, valid_round: Some(ROUND_0), ..Default::default() };
+    context.repropose(TEST_PROPOSAL_COMMITMENT, build_param).await;
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
-    assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(init));
+    // Reproposal sends init with updated round, proposer, valid_round.
+    let mut expected_init = init;
+    expected_init.round = ROUND_1;
+    expected_init.proposer = build_param.proposer;
+    expected_init.valid_round = build_param.valid_round;
+    assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(expected_init));
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Transactions(TransactionBatch { transactions: executed_transactions })
     );
     assert_eq!(receiver.next().await.unwrap(), fin);
     assert!(receiver.next().await.is_none());
+
+    // Verify decision_reached uses the updated init (from reproposal round) for finalize.
+    context.decision_reached(HEIGHT_0, ROUND_1, TEST_PROPOSAL_COMMITMENT).await.unwrap();
 }
 
 #[tokio::test]
@@ -162,14 +195,14 @@ async fn proposals_from_different_rounds() {
     deps.setup_deps_for_validate(SetupDepsArgs::default());
     let mut context = deps.build_context();
     // Initialize the context for a specific height, starting with round 0.
-    context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
-    context.set_height_and_round(BlockNumber(0), 1).await.unwrap();
+    context.set_height_and_round(HEIGHT_0, ROUND_0).await.unwrap();
+    context.set_height_and_round(HEIGHT_0, ROUND_1).await.unwrap();
 
     // Proposal parts sent in the proposals.
     let prop_part_txs =
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
     let prop_part_fin = ProposalPart::Fin(ProposalFin {
-        proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+        proposal_commitment: TEST_PROPOSAL_COMMITMENT,
         executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
         commitment_parts: Some(CommitmentParts::default()),
     });
@@ -179,8 +212,9 @@ async fn proposals_from_different_rounds() {
         mpsc::channel(context.config.static_config.proposal_buffer_size);
     content_sender.send(prop_part_txs.clone()).await.unwrap();
 
-    let fin_receiver_past_round =
-        context.validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT, content_receiver).await;
+    let fin_receiver_past_round = context
+        .validate_proposal(proposal_init(HEIGHT_0, ROUND_0), TIMEOUT, content_receiver)
+        .await;
     // No fin was sent, channel remains open.
     assert!(fin_receiver_past_round.await.is_err());
 
@@ -189,9 +223,10 @@ async fn proposals_from_different_rounds() {
         mpsc::channel(context.config.static_config.proposal_buffer_size);
     content_sender.send(prop_part_txs.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
-    let fin_receiver_curr_round =
-        context.validate_proposal(block_info(BlockNumber(0), 1), TIMEOUT, content_receiver).await;
-    assert_eq!(fin_receiver_curr_round.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    let fin_receiver_curr_round = context
+        .validate_proposal(proposal_init(HEIGHT_0, ROUND_1), TIMEOUT, content_receiver)
+        .await;
+    assert_eq!(fin_receiver_curr_round.await.unwrap(), TEST_PROPOSAL_COMMITMENT);
 
     // The proposal from the future round should not be processed.
     let (mut content_sender, content_receiver) =
@@ -199,7 +234,7 @@ async fn proposals_from_different_rounds() {
     content_sender.send(prop_part_txs.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     let fin_receiver_future_round =
-        context.validate_proposal(block_info(BlockNumber(0), 2), TIMEOUT, content_receiver).await;
+        context.validate_proposal(proposal_init(HEIGHT_0, 2), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
     // Even with sending fin and closing the channel.
     assert!(fin_receiver_future_round.now_or_never().is_none());
@@ -213,10 +248,7 @@ async fn interrupt_active_proposal() {
 
     // Expect 2 validate_block calls (one for each round)
     deps.batcher.expect_validate_block().times(2).returning(|_| Ok(()));
-    deps.batcher
-        .expect_start_height()
-        .withf(|input| input.height == BlockNumber(0))
-        .return_const(Ok(()));
+    deps.batcher.expect_start_height().withf(|input| input.height == HEIGHT_0).return_const(Ok(()));
 
     // Round 0: Will be interrupted and send Abort
     deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
@@ -235,6 +267,7 @@ async fn interrupt_active_proposal() {
     deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
         assert!(matches!(input.content, SendProposalContent::Finish(_)));
         Ok(SendProposalContentResponse {
+<<<<<<< HEAD
             response: ProposalStatus::Finished(FinishedProposalInfo {
                 proposal_commitment: BatcherProposalCommitment {
                     state_diff_commitment: STATE_DIFF_COMMITMENT,
@@ -242,30 +275,39 @@ async fn interrupt_active_proposal() {
                 final_n_executed_txs: 0,
                 block_header_commitments: BlockHeaderCommitments::default(),
                 parent_proposal_commitment: None,
+||||||| 8e2855c049
+            response: ProposalStatus::Finished(BatcherProposalCommitment {
+                state_diff_commitment: STATE_DIFF_COMMITMENT,
+=======
+            response: ProposalStatus::Finished(BatcherProposalCommitment {
+                partial_block_hash: PARTIAL_BLOCK_HASH,
+>>>>>>> origin/main-v0.14.1-committer
             }),
         })
     });
 
     let mut context = deps.build_context();
     // Initialize the context for a specific height, starting with round 0.
-    context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
+    context.set_height_and_round(HEIGHT_0, ROUND_0).await.unwrap();
 
     // Keep the sender open, as closing it or sending Fin would cause the validate to complete
     // without needing interrupt.
     let (mut _content_sender_0, content_receiver) =
         mpsc::channel(context.config.static_config.proposal_buffer_size);
-    let fin_receiver_0 =
-        context.validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT, content_receiver).await;
+    let fin_receiver_0 = context
+        .validate_proposal(proposal_init(HEIGHT_0, ROUND_0), TIMEOUT, content_receiver)
+        .await;
 
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
-    let fin_receiver_1 =
-        context.validate_proposal(block_info(BlockNumber(0), 1), TIMEOUT, content_receiver).await;
+    let fin_receiver_1 = context
+        .validate_proposal(proposal_init(HEIGHT_0, ROUND_1), TIMEOUT, content_receiver)
+        .await;
     // Move the context to the next round.
-    context.set_height_and_round(BlockNumber(0), 1).await.unwrap();
+    context.set_height_and_round(HEIGHT_0, ROUND_1).await.unwrap();
 
     // Interrupt active proposal.
     assert!(fin_receiver_0.await.is_err());
-    assert_eq!(fin_receiver_1.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver_1.await.unwrap(), TEST_PROPOSAL_COMMITMENT);
 }
 
 #[tokio::test]
@@ -292,13 +334,13 @@ async fn build_proposal() {
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {
-            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: TEST_PROPOSAL_COMMITMENT,
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
             commitment_parts: Some(CommitmentParts::default()),
         })
     );
     assert!(receiver.next().await.is_none());
-    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver.await.unwrap(), TEST_PROPOSAL_COMMITMENT);
 }
 
 #[tokio::test]
@@ -316,7 +358,7 @@ async fn build_proposal_skips_write_for_height_0() {
 
     let mut context = deps.build_context();
     let _fin_receiver = context
-        .build_proposal(BuildParam { height: BlockNumber(0), ..Default::default() }, TIMEOUT)
+        .build_proposal(BuildParam { height: HEIGHT_0, ..Default::default() }, TIMEOUT)
         .await;
 }
 
@@ -373,7 +415,7 @@ async fn build_proposal_writes_prev_blob_if_cannot_get_latest_block_number() {
         .await
         .unwrap();
 
-    assert_eq!(fin_receiver.await, Ok(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0)));
+    assert_eq!(fin_receiver.await, Ok(TEST_PROPOSAL_COMMITMENT));
 }
 
 #[tokio::test]
@@ -458,7 +500,7 @@ async fn batcher_not_ready(#[case] proposer: bool) {
             .return_const(Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
     }
     let mut context = deps.build_context();
-    context.set_height_and_round(BlockNumber::default(), Round::default()).await.unwrap();
+    context.set_height_and_round(BlockNumber::default(), ROUND_0).await.unwrap();
 
     if proposer {
         let fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
@@ -468,7 +510,7 @@ async fn batcher_not_ready(#[case] proposer: bool) {
             mpsc::channel(context.config.static_config.proposal_buffer_size);
 
         let fin_receiver = context
-            .validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT, content_receiver)
+            .validate_proposal(proposal_init(HEIGHT_0, ROUND_0), TIMEOUT, content_receiver)
             .await;
         assert_eq!(fin_receiver.await, Err(Canceled));
     }
@@ -488,32 +530,60 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
         n_executed_txs_count: transactions.len(),
         ..Default::default()
     });
+
+    const TIMESTAMP: u64 = 123456;
+    let mut clock = MockClock::new();
+    clock.expect_unix_now().return_const(TIMESTAMP);
+    clock.expect_now().return_const(Utc.timestamp_opt(TIMESTAMP.try_into().unwrap(), 0).unwrap());
+    deps.clock = Arc::new(clock);
+
+    deps.batcher
+        .expect_decision_reached()
+        .times(1)
+        .return_once(|_| Ok(DecisionReachedResponse::default()));
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(move |proposal_init| {
+        assert_eq!(
+            proposal_init.block_header_without_hash.timestamp.0, TIMESTAMP,
+            "add_new_block should be called with timestamp from initial proposal (unchanged \
+             during reproposal for commitment consistency)"
+        );
+        Ok(())
+    });
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().return_once(|_| Ok(()));
+
     let mut context = deps.build_context();
     // Build proposal.
     let fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     // Receive the proposal parts.
-    let part = receiver.next().await.unwrap();
+    let ProposalPart::Init(original_init) = receiver.next().await.unwrap() else {
+        panic!("Expected Init part");
+    };
     let _txs = receiver.next().await.unwrap();
     let fin = receiver.next().await.unwrap();
-    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver.await.unwrap(), TEST_PROPOSAL_COMMITMENT);
 
     // Re-propose.
-    context
-        .repropose(
-            ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
-            BuildParam { round: 1, ..Default::default() },
-        )
-        .await;
-    // Re-propose sends the same proposal.
+    let build_param =
+        BuildParam { round: ROUND_1, valid_round: Some(ROUND_0), ..Default::default() };
+    context.repropose(TEST_PROPOSAL_COMMITMENT, build_param).await;
+    // Re-propose sends the same proposal content but with updated init (round, proposer,
+    // valid_round).
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
-    assert_eq!(receiver.next().await.unwrap(), part);
+    let mut expected_init = original_init;
+    expected_init.round = ROUND_1;
+    expected_init.proposer = build_param.proposer;
+    expected_init.valid_round = build_param.valid_round;
+    assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(expected_init));
 
     let reproposed_txs = ProposalPart::Transactions(TransactionBatch { transactions });
     assert_eq!(receiver.next().await.unwrap(), reproposed_txs);
 
     assert_eq!(receiver.next().await.unwrap(), fin);
     assert!(receiver.next().await.is_none());
+
+    // Verify decision_reached uses the updated init (from reproposal round) for finalize.
+    context.decision_reached(HEIGHT_0, ROUND_1, TEST_PROPOSAL_COMMITMENT).await.unwrap();
 }
 
 #[tokio::test]
@@ -524,14 +594,14 @@ async fn gas_price_fri_out_of_range() {
     deps.batcher
         .expect_start_height()
         .times(1)
-        .withf(|input| input.height == BlockNumber(0))
+        .withf(|input| input.height == HEIGHT_0)
         .return_const(Ok(()));
     let mut context = deps.build_context();
-    context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
+    context.set_height_and_round(HEIGHT_0, ROUND_0).await.unwrap();
     let (_content_sender, content_receiver) =
         mpsc::channel(context.config.static_config.proposal_buffer_size);
     // Receive a block info with l1_gas_price_fri that is outside the margin of error.
-    let mut init_1 = block_info(BlockNumber(0), 0);
+    let mut init_1 = proposal_init(HEIGHT_0, ROUND_0);
     init_1.l1_gas_price_fri = init_1.l1_gas_price_fri.checked_mul_u128(2).unwrap();
     // Use a large enough timeout to ensure fin_receiver was canceled due to invalid init,
     // not due to a timeout.
@@ -541,13 +611,13 @@ async fn gas_price_fri_out_of_range() {
     // Do the same for data gas price.
     let (mut content_sender, content_receiver) =
         mpsc::channel(context.config.static_config.proposal_buffer_size);
-    let mut init_2 = block_info(BlockNumber(0), 0);
+    let mut init_2 = proposal_init(HEIGHT_0, ROUND_0);
     init_2.l1_data_gas_price_fri = init_2.l1_data_gas_price_fri.checked_mul_u128(2).unwrap();
     content_sender.send(ProposalPart::Init(init_2).clone()).await.unwrap();
     // Use a large enough timeout to ensure fin_receiver was canceled due to invalid init,
     // not due to a timeout.
     let fin_receiver = context
-        .validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT * 100, content_receiver)
+        .validate_proposal(proposal_init(HEIGHT_0, ROUND_0), TIMEOUT * 100, content_receiver)
         .await;
     assert_eq!(fin_receiver.await, Err(Canceled));
     // TODO(guyn): How to check that the rejection is due to the l1_gas_price_fri mismatch?
@@ -586,9 +656,9 @@ async fn gas_price_limits(#[case] maximum: bool) {
     deps.l1_gas_price_provider = l1_gas_price_provider;
     let mut context = deps.build_context();
 
-    context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
+    context.set_height_and_round(HEIGHT_0, ROUND_0).await.unwrap();
 
-    let mut init = block_info(BlockNumber(0), 0);
+    let mut init = proposal_init(HEIGHT_0, ROUND_0);
 
     if maximum {
         // Set the gas price to the maximum value.
@@ -612,7 +682,7 @@ async fn gas_price_limits(#[case] maximum: bool) {
     // Even though we used the minimum/maximum gas price, not the values we gave the provider,
     // the proposal should be still be valid due to the clamping of limit prices.
     let fin_receiver = context.validate_proposal(init, TIMEOUT, content_receiver).await;
-    assert_eq!(fin_receiver.await, Ok(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0)));
+    assert_eq!(fin_receiver.await, Ok(TEST_PROPOSAL_COMMITMENT));
 }
 
 #[tokio::test]
@@ -642,8 +712,8 @@ async fn decision_reached_sends_correct_values() {
 
     // This is the actual part of the test that checks the values are correct.
     // TODO(guy.f): Add expectations and validations for all the other values being written.
-    deps.state_sync_client.expect_add_new_block().times(1).return_once(|block_info| {
-        assert_eq!(block_info.block_header_without_hash.timestamp.0, BLOCK_TIME_STAMP_SECONDS);
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(|proposal_init| {
+        assert_eq!(proposal_init.block_header_without_hash.timestamp.0, BLOCK_TIME_STAMP_SECONDS);
         Ok(())
     });
 
@@ -658,10 +728,7 @@ async fn decision_reached_sends_correct_values() {
     let _fin = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
     // At this point we should have a valid proposal in the context which contains the timestamp.
 
-    context
-        .decision_reached(BlockNumber(0), ProposalCommitment(STATE_DIFF_COMMITMENT.0.0))
-        .await
-        .unwrap();
+    context.decision_reached(HEIGHT_0, ROUND_0, TEST_PROPOSAL_COMMITMENT).await.unwrap();
 
     let metrics = recorder.handle().render();
     CONSENSUS_L2_GAS_PRICE
@@ -728,13 +795,13 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {
-            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: TEST_PROPOSAL_COMMITMENT,
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
             commitment_parts: Some(CommitmentParts::default()),
         })
     );
     assert!(receiver.next().await.is_none());
-    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver.await.unwrap(), TEST_PROPOSAL_COMMITMENT);
 }
 
 #[rstest]
@@ -746,10 +813,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     // Validate block number 0, call decision_reached to save the previous block info (block 0), and
     // attempt to build_proposal on block number 1.
     deps.setup_deps_for_validate(SetupDepsArgs::default());
-    deps.setup_deps_for_build(SetupDepsArgs {
-        start_block_number: BlockNumber(1),
-        ..Default::default()
-    });
+    deps.setup_deps_for_build(SetupDepsArgs { start_block_number: HEIGHT_1, ..Default::default() });
 
     // set up batcher decision_reached
     deps.batcher.expect_decision_reached().times(1).return_once(|_| {
@@ -809,20 +873,21 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     // Validate block number 0.
 
     // Initialize the context for a specific height, starting with round 0.
-    context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
+    context.set_height_and_round(HEIGHT_0, ROUND_0).await.unwrap();
 
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
-    let fin_receiver =
-        context.validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT, content_receiver).await;
+    let fin_receiver = context
+        .validate_proposal(proposal_init(HEIGHT_0, ROUND_0), TIMEOUT, content_receiver)
+        .await;
     let proposal_commitment = fin_receiver.await.unwrap();
-    assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(proposal_commitment, TEST_PROPOSAL_COMMITMENT);
 
     // Decision reached
 
-    context.decision_reached(BlockNumber(0), proposal_commitment).await.unwrap();
+    context.decision_reached(HEIGHT_0, ROUND_0, proposal_commitment).await.unwrap();
 
     // Build proposal for block number 1.
-    let build_param = BuildParam { height: BlockNumber(1), ..Default::default() };
+    let build_param = BuildParam { height: HEIGHT_1, ..Default::default() };
 
     let fin_receiver = context.build_proposal(build_param, TIMEOUT).await.unwrap();
 
@@ -832,9 +897,9 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     let ProposalPart::Init(info) = part else {
         panic!("Expected ProposalPart::Init");
     };
-    assert_eq!(info.height, BlockNumber(1));
+    assert_eq!(info.height, HEIGHT_1);
 
-    let previous_init = block_info(BlockNumber(0), 0);
+    let previous_init = proposal_init(HEIGHT_0, ROUND_0);
 
     assert_eq!(info.l1_gas_price_wei, previous_init.l1_gas_price_wei);
     assert_eq!(info.l1_data_gas_price_wei, previous_init.l1_data_gas_price_wei);
@@ -848,13 +913,13 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {
-            proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: TEST_PROPOSAL_COMMITMENT,
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
             commitment_parts: Some(CommitmentParts::default()),
         })
     );
     assert!(receiver.next().await.is_none());
-    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver.await.unwrap(), TEST_PROPOSAL_COMMITMENT);
 }
 
 // L2 gas is a bit above the minimum gas price.
@@ -981,10 +1046,7 @@ async fn override_prices_behavior(
         return;
     }
 
-    context
-        .decision_reached(BlockNumber(0), ProposalCommitment(STATE_DIFF_COMMITMENT.0.0))
-        .await
-        .unwrap();
+    context.decision_reached(HEIGHT_0, ROUND_0, TEST_PROPOSAL_COMMITMENT).await.unwrap();
 
     let actual_l2_gas_price = context.l2_gas_price.0;
 
@@ -1105,16 +1167,17 @@ async fn change_gas_price_overrides() {
     let mut context = deps.build_context();
 
     // Validate block number 0.
-    context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
+    context.set_height_and_round(HEIGHT_0, ROUND_0).await.unwrap();
 
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
-    let fin_receiver =
-        context.validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT, content_receiver).await;
+    let fin_receiver = context
+        .validate_proposal(proposal_init(HEIGHT_0, ROUND_0), TIMEOUT, content_receiver)
+        .await;
 
     let proposal_commitment = fin_receiver.await.unwrap();
-    assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(proposal_commitment, TEST_PROPOSAL_COMMITMENT);
 
-    context.decision_reached(BlockNumber(0), proposal_commitment).await.unwrap();
+    context.decision_reached(HEIGHT_0, ROUND_0, proposal_commitment).await.unwrap();
 
     let new_dynamic_config = ContextDynamicConfig {
         override_l2_gas_price_fri: Some(ODDLY_SPECIFIC_L2_GAS_PRICE),
@@ -1124,23 +1187,24 @@ async fn change_gas_price_overrides() {
     context.deps.config_manager_client = Some(Arc::new(config_manager_client));
 
     // Validate block number 1, round 0.
-    context.set_height_and_round(BlockNumber(1), 0).await.unwrap();
+    context.set_height_and_round(HEIGHT_1, ROUND_0).await.unwrap();
 
     // This should fail, since the gas price is different from the input block info.
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
-    let fin_receiver =
-        context.validate_proposal(block_info(BlockNumber(1), 0), TIMEOUT, content_receiver).await;
+    let fin_receiver = context
+        .validate_proposal(proposal_init(HEIGHT_1, ROUND_0), TIMEOUT, content_receiver)
+        .await;
     let proposal_commitment = fin_receiver.await.unwrap_err();
     assert!(matches!(proposal_commitment, Canceled));
 
     // Modify the incoming init to make sure it matches the overrides. Now it passes.
-    let mut modified_init = block_info(BlockNumber(1), 0);
+    let mut modified_init = proposal_init(HEIGHT_1, ROUND_0);
     modified_init.l2_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L2_GAS_PRICE);
 
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
     let fin_receiver = context.validate_proposal(modified_init, TIMEOUT, content_receiver).await;
     let proposal_commitment = fin_receiver.await.unwrap();
-    assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(proposal_commitment, TEST_PROPOSAL_COMMITMENT);
 
     // Validate block number 1, round 1.
     let new_dynamic_config = ContextDynamicConfig {
@@ -1151,16 +1215,17 @@ async fn change_gas_price_overrides() {
     context.deps.config_manager_client = Some(Arc::new(config_manager_client));
 
     // This should fail, as we have changed the config, without updating the block info.
-    context.set_height_and_round(BlockNumber(1), 1).await.unwrap();
+    context.set_height_and_round(HEIGHT_1, ROUND_1).await.unwrap();
 
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
-    let fin_receiver =
-        context.validate_proposal(block_info(BlockNumber(1), 1), TIMEOUT, content_receiver).await;
+    let fin_receiver = context
+        .validate_proposal(proposal_init(HEIGHT_1, ROUND_1), TIMEOUT, content_receiver)
+        .await;
     let proposal_commitment = fin_receiver.await.unwrap_err();
     assert!(matches!(proposal_commitment, Canceled));
 
     // Add the new overrides so validation passes.
-    let mut modified_init = block_info(BlockNumber(1), 1);
+    let mut modified_init = proposal_init(HEIGHT_1, ROUND_1);
     modified_init.l1_data_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
     // Note that the eth to fri conversion rate by default is 10^18 so we can just replace wei to
     // fri 1:1.
@@ -1169,9 +1234,9 @@ async fn change_gas_price_overrides() {
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
     let fin_receiver = context.validate_proposal(modified_init, TIMEOUT, content_receiver).await;
     let proposal_commitment = fin_receiver.await.unwrap();
-    assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(proposal_commitment, TEST_PROPOSAL_COMMITMENT);
 
-    context.decision_reached(BlockNumber(1), proposal_commitment).await.unwrap();
+    context.decision_reached(HEIGHT_1, ROUND_0, proposal_commitment).await.unwrap();
 
     // Now build a proposal for height 2.
     let new_dynamic_config = ContextDynamicConfig {
@@ -1188,7 +1253,7 @@ async fn change_gas_price_overrides() {
         .await
         .unwrap();
 
-    assert_eq!(fin_receiver.0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver, TEST_PROPOSAL_COMMITMENT);
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
 
     let part = receiver.next().await.unwrap();
@@ -1276,7 +1341,7 @@ async fn test_dynamic_config_updates_min_gas_price() {
 
     // Test at FIRST_TEST_HEIGHT: Should use min price from first config.
     // This calls set_height_and_round which triggers update_dynamic_config() internally
-    context.set_height_and_round(BlockNumber(FIRST_TEST_HEIGHT), 0).await.unwrap();
+    context.set_height_and_round(BlockNumber(FIRST_TEST_HEIGHT), ROUND_0).await.unwrap();
 
     // Verify dynamic config was updated
     assert_eq!(context.config.dynamic_config.min_l2_gas_price_per_height.len(), 1);
@@ -1306,7 +1371,7 @@ async fn test_dynamic_config_updates_min_gas_price() {
     );
 
     // Test at SECOND_TEST_HEIGHT: Should use min price from config2
-    context.set_height_and_round(BlockNumber(SECOND_TEST_HEIGHT), 0).await.unwrap();
+    context.set_height_and_round(BlockNumber(SECOND_TEST_HEIGHT), ROUND_0).await.unwrap();
 
     // Verify dynamic config was updated again
     assert_eq!(context.config.dynamic_config.min_l2_gas_price_per_height.len(), 2);

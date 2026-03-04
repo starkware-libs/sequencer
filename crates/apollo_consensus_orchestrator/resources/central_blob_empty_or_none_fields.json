@@ -72,5 +72,14 @@
   },
   "compiled_class_hashes_for_migration": [],
   "proposal_commitment": "0x80020000",
+<<<<<<< HEAD
   "parent_proposal_commitment": null
 }
+||||||| 8e2855c049
+  "parent_proposal_commitment": null
+}
+=======
+  "parent_proposal_commitment": null,
+  "recent_block_hashes": []
+}
+>>>>>>> origin/main-v0.14.1-committer

@@ -6,6 +6,7 @@ use apollo_state_sync_metrics::metrics::{
     STATE_SYNC_CLASS_MANAGER_MARKER,
 };
 
+use crate::alert_placeholders::SeverityValueOrPlaceholder;
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -19,9 +20,10 @@ use crate::alerts::{
     SECS_IN_MIN,
 };
 
-fn get_state_sync_lag(alert_severity: AlertSeverity) -> Alert {
+pub(crate) fn get_state_sync_lag() -> Alert {
+    const ALERT_NAME: &str = "state_sync_lag";
     Alert::new(
-        "state_sync_lag",
+        ALERT_NAME,
         "State sync lag",
         AlertGroup::StateSync,
         format!(
@@ -32,13 +34,9 @@ fn get_state_sync_lag(alert_severity: AlertSeverity) -> Alert {
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 5.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
-}
-
-pub(crate) fn get_state_sync_lag_vec() -> Vec<Alert> {
-    vec![get_state_sync_lag(AlertSeverity::Regular)]
 }
 
 fn get_state_sync_stuck(

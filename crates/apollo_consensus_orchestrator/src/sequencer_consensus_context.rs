@@ -17,7 +17,22 @@ use apollo_batcher_types::batcher_types::{
     ProposalId,
     StartHeightInput,
 };
+<<<<<<< HEAD
 use apollo_batcher_types::communication::BatcherClient;
+||||||| 8e2855c049
+use apollo_batcher_types::communication::BatcherClient;
+use apollo_class_manager_types::transaction_converter::{
+    TransactionConverterError,
+    TransactionConverterTrait,
+};
+=======
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
+use apollo_batcher_types::errors::BatcherError;
+use apollo_class_manager_types::transaction_converter::{
+    TransactionConverterError,
+    TransactionConverterTrait,
+};
+>>>>>>> origin/main-v0.14.1-committer
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::{ConsensusContext, ConsensusError, ProposalCommitment, Round};
 use apollo_consensus_orchestrator_config::config::ContextConfig;
@@ -47,6 +62,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::future::ready;
 use futures::SinkExt;
 use starknet_api::block::{
+    BlockHashAndNumber,
     BlockHeaderWithoutHash,
     BlockInfo,
     BlockNumber,
@@ -67,7 +83,12 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
-use crate::cende::{BlobParameters, CendeContext, InternalTransactionWithReceipt};
+use crate::cende::{
+    BlobParameters,
+    CendeContext,
+    InternalTransactionWithReceipt,
+    N_BLOCK_HASHES_BACK_IN_BLOB,
+};
 use crate::fee_market::{
     calculate_next_base_gas_price,
     get_min_gas_price_for_height,
@@ -97,6 +118,7 @@ use crate::validate_proposal::{
 
 type ValidationParams = (ProposalInit, Duration, mpsc::Receiver<ProposalPart>);
 
+<<<<<<< HEAD
 type HeightToIdToContent = BTreeMap<
     BlockNumber,
     BTreeMap<
@@ -104,54 +126,144 @@ type HeightToIdToContent = BTreeMap<
         (ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId, FinishedProposalInfo),
     >,
 >;
+||||||| 8e2855c049
+type HeightToIdToContent = BTreeMap<
+    BlockNumber,
+    BTreeMap<
+        ProposalCommitment,
+        (ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId),
+    >,
+>;
+=======
+type ProposalContent = (ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId);
+
+/// Assumption: at most one proposal is tracked per (height, round).
+/// We still keep the `ProposalCommitment` alongside the content for:
+/// - verifying `decision_reached(height, round, commitment)` matches what we stored, and
+/// - supporting `repropose(proposal_commitment, init)` where `init.round` may differ from the round
+///   the proposal was originally built/validated in.
+type HeightToRoundToProposal =
+    BTreeMap<BlockNumber, BTreeMap<Round, (ProposalCommitment, ProposalContent)>>;
+>>>>>>> origin/main-v0.14.1-committer
 
 pub(crate) struct BuiltProposals {
+<<<<<<< HEAD
     // {height: {proposal_commitment: (init, content, [proposal_ids], finished_info)]}}
     // Note that multiple proposals IDs can be associated with the same content, but we only need
     // to store one of them.
+||||||| 8e2855c049
+    // {height: {proposal_commitment: (init, content, [proposal_ids])}}
+    // Note that multiple proposals IDs can be associated with the same content, but we only need
+    // to store one of them.
+=======
+    // {height: {round: (proposal_commitment, (init, content, proposal_id))}}
+>>>>>>> origin/main-v0.14.1-committer
     //
     // The tranasactions are stored as a vector of batches (as returned from the batcher) and not
     // flattened. This is since we might need to repropose, in which case we need to send the
     // transactions in batches.
-    data: HeightToIdToContent,
+    data: HeightToRoundToProposal,
 }
 
 impl BuiltProposals {
     pub fn new() -> Self {
-        Self { data: HeightToIdToContent::default() }
+        Self { data: HeightToRoundToProposal::default() }
     }
 
     fn get_proposal(
         &self,
         height: &BlockNumber,
+        round: &Round,
         commitment: &ProposalCommitment,
+<<<<<<< HEAD
     ) -> &(ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId, FinishedProposalInfo)
     {
         self.data
+||||||| 8e2855c049
+    ) -> &(ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId) {
+        self.data
+=======
+    ) -> &ProposalContent {
+        let by_round = self
+            .data
+>>>>>>> origin/main-v0.14.1-committer
             .get(height)
-            .unwrap_or_else(|| panic!("No proposals found for height {height}"))
-            .get(commitment)
-            .unwrap_or_else(|| panic!("No proposal found for height {height} and id {commitment}"))
+            .unwrap_or_else(|| panic!("No proposals found for height {height}"));
+        let (stored_commitment, stored_content) = by_round
+            .get(round)
+            .unwrap_or_else(|| panic!("No proposal found for height {height} and round {round}"));
+        assert_eq!(
+            stored_commitment, commitment,
+            "Proposal commitment mismatch for height {height} round {round}: \
+             stored={stored_commitment}, requested={commitment}"
+        );
+        stored_content
     }
 
     fn remove_proposals_below_or_at_height(&mut self, height: &BlockNumber) {
         self.data.retain(|&h, _| h > *height);
     }
 
-    pub(crate) fn insert_proposal_for_height(
+    pub(crate) fn insert_proposal(
         &mut self,
+<<<<<<< HEAD
         height: &BlockNumber,
+||||||| 8e2855c049
+        height: &BlockNumber,
+        proposal_commitment: &ProposalCommitment,
+=======
+        proposal_commitment: &ProposalCommitment,
+>>>>>>> origin/main-v0.14.1-committer
         init: ProposalInit,
         transactions: Vec<Vec<InternalConsensusTransaction>>,
         proposal_id: &ProposalId,
         finished_info: FinishedProposalInfo,
     ) {
+<<<<<<< HEAD
         let proposal_commitment =
             ProposalCommitment(finished_info.proposal_commitment.state_diff_commitment.0.0);
         self.data
             .entry(*height)
             .or_default()
             .insert(proposal_commitment, (init, transactions, *proposal_id, finished_info));
+||||||| 8e2855c049
+        self.data
+            .entry(*height)
+            .or_default()
+            .insert(*proposal_commitment, (init, transactions, *proposal_id));
+=======
+        let height = init.height;
+        let round = init.round;
+        let by_round = self.data.entry(height).or_default();
+        let previous =
+            by_round.insert(round, (*proposal_commitment, (init, transactions, *proposal_id)));
+        assert!(
+            previous.is_none(),
+            "Overwriting existing proposal for height {height} round {round}; at most one \
+             proposal per (height, round) is allowed"
+        );
+    }
+
+    /// Gets the proposal from (height, valid_round), creates updated init with build_param for
+    /// reproposal (timestamp remains unchanged since it is part of PartialBlockHashComponents and
+    /// must match the initial proposal for commitment consistency), inserts a new entry at
+    /// (height, build_param.round) so decision_reached can find it, and returns (init,
+    /// transactions) for sending the reproposal.
+    fn update_for_reproposal(
+        &mut self,
+        height: &BlockNumber,
+        proposal_commitment: &ProposalCommitment,
+        build_param: &BuildParam,
+    ) -> (ProposalInit, Vec<Vec<InternalConsensusTransaction>>) {
+        let lookup_round = build_param.valid_round.expect("Valid round must be set for reproposal");
+        let (mut init, transactions, proposal_id) =
+            self.get_proposal(height, &lookup_round, proposal_commitment).clone();
+        init.round = build_param.round;
+        init.proposer = build_param.proposer;
+        init.valid_round = build_param.valid_round;
+        self.insert_proposal(proposal_commitment, init.clone(), transactions.clone(), &proposal_id);
+        (init, transactions)
+>>>>>>> origin/main-v0.14.1-committer
     }
 }
 
@@ -438,7 +550,8 @@ impl SequencerConsensusContext {
                 proposal_commitment: commitment,
                 parent_proposal_commitment: central_objects
                     .parent_proposal_commitment
-                    .map(|commitment| ProposalCommitment(commitment.state_diff_commitment.0.0)),
+                    .map(|commitment| ProposalCommitment(commitment.partial_block_hash.0)),
+                recent_block_hashes: self.collect_recent_block_hashes(height).await,
             })
             .await
         {
@@ -448,6 +561,38 @@ impl SequencerConsensusContext {
 
     pub fn get_config(&self) -> &ContextConfig {
         &self.config
+    }
+
+    /// Collects the recent block hashes from the batcher.
+    /// Returns computed block hashes in range [height - N_RECENT_BLOCK_HASHES_IN_BLOB, height].
+    async fn collect_recent_block_hashes(&self, height: BlockNumber) -> Vec<BlockHashAndNumber> {
+        let mut recent_block_hashes = Vec::with_capacity(
+            usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB)
+                .expect("N_BLOCK_HASHES_BACK_IN_BLOB should fit in usize.")
+                + 1,
+        );
+        let lowest_height = height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
+        for height in lowest_height..=height.0 {
+            let block_number = BlockNumber(height);
+            match self.deps.batcher.get_block_hash(block_number).await {
+                Ok(block_hash) => {
+                    recent_block_hashes
+                        .push(BlockHashAndNumber { number: block_number, hash: block_hash });
+                }
+                Err(err) => {
+                    // This error is expected if the block is not yet committed.
+                    if !matches!(
+                        err,
+                        BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(_))
+                    ) {
+                        // TODO(Nimrod): Consider handle this error differently.
+                        warn!("Failed to get block hash from batcher: {err:?}");
+                    }
+                    break;
+                }
+            }
+        }
+        recent_block_hashes
     }
 }
 
@@ -615,21 +760,31 @@ impl ConsensusContext for SequencerConsensusContext {
         }
     }
 
-    async fn repropose(&mut self, id: ProposalCommitment, build_param: BuildParam) {
-        info!(?id, ?build_param, "Reproposing.");
+    async fn repropose(
+        &mut self,
+        proposal_commitment: ProposalCommitment,
+        build_param: BuildParam,
+    ) {
+        info!(?proposal_commitment, ?build_param, "Reproposing.");
         let height = build_param.height;
+<<<<<<< HEAD
         let (init, txs, _, finished_info) = self
+||||||| 8e2855c049
+        let (init, txs, _) = self
+=======
+        let (init, txs) = self
+>>>>>>> origin/main-v0.14.1-committer
             .valid_proposals
             .lock()
             .expect("Lock on active proposals was poisoned due to a previous panic")
-            .get_proposal(&height, &id)
-            .clone();
+            .update_for_reproposal(&height, &proposal_commitment, &build_param);
 
         let transaction_converter = self.deps.transaction_converter.clone();
         let mut stream_sender =
             self.start_stream(HeightAndRound(height.0, build_param.round)).await;
         let handle = tokio::spawn(
             async move {
+<<<<<<< HEAD
                 let res = send_reproposal(
                     id,
                     init,
@@ -639,9 +794,22 @@ impl ConsensusContext for SequencerConsensusContext {
                     transaction_converter,
                 )
                 .await;
+||||||| 8e2855c049
+                let res =
+                    send_reproposal(id, init, txs, &mut stream_sender, transaction_converter).await;
+=======
+                let res = send_reproposal(
+                    proposal_commitment,
+                    init,
+                    txs,
+                    &mut stream_sender,
+                    transaction_converter,
+                )
+                .await;
+>>>>>>> origin/main-v0.14.1-committer
                 match res {
                     Ok(()) => {
-                        info!(?id, ?build_param, "Reproposal succeeded.");
+                        info!(?proposal_commitment, ?build_param, "Reproposal succeeded.");
                     }
                     Err(e) => {
                         warn!("REPROPOSE_FAILED: Reproposal failed. Error: {e:?}");
@@ -672,6 +840,7 @@ impl ConsensusContext for SequencerConsensusContext {
     async fn decision_reached(
         &mut self,
         height: BlockNumber,
+        round: Round,
         commitment: ProposalCommitment,
     ) -> Result<(), ConsensusError> {
         info!("Finished consensus for height: {height}. Agreed on block: {:#066x}", commitment.0);
@@ -679,8 +848,18 @@ impl ConsensusContext for SequencerConsensusContext {
         self.interrupt_active_proposal().await;
         let (init, transactions, proposal_id, finished_info) = {
             let mut proposals = self.valid_proposals.lock().unwrap();
+<<<<<<< HEAD
             let (init, transactions, proposal_id, finished_info) =
                 proposals.get_proposal(&height, &commitment).clone();
+||||||| 8e2855c049
+            (init, transactions, proposal_id) =
+                proposals.get_proposal(&height, &commitment).clone();
+
+=======
+            (init, transactions, proposal_id) =
+                proposals.get_proposal(&height, &round, &commitment).clone();
+
+>>>>>>> origin/main-v0.14.1-committer
             proposals.remove_proposals_below_or_at_height(&height);
             (init, transactions, proposal_id, finished_info)
         };
@@ -929,7 +1108,7 @@ async fn validate_and_send(
 }
 
 async fn send_reproposal(
-    id: ProposalCommitment,
+    proposal_commitment: ProposalCommitment,
     init: ProposalInit,
     txs: Vec<Vec<InternalConsensusTransaction>>,
     finished_info: FinishedProposalInfo,
@@ -948,6 +1127,7 @@ async fn send_reproposal(
         .collect::<Result<Vec<_>, _>>()?;
         stream_sender.send(ProposalPart::Transactions(TransactionBatch { transactions })).await?;
     }
+<<<<<<< HEAD
     let executed_transaction_count: u64 = finished_info
         .final_n_executed_txs
         .try_into()
@@ -958,6 +1138,17 @@ async fn send_reproposal(
         executed_transaction_count,
         commitment_parts: Some(commitment_parts),
     };
+||||||| 8e2855c049
+    let executed_transaction_count: u64 =
+        n_executed_txs.try_into().expect("Number of executed transactions should fit in u64");
+    let fin =
+        ProposalFin { proposal_commitment: id, executed_transaction_count, commitment_parts: None };
+=======
+    let executed_transaction_count: u64 =
+        n_executed_txs.try_into().expect("Number of executed transactions should fit in u64");
+    let fin =
+        ProposalFin { proposal_commitment, executed_transaction_count, commitment_parts: None };
+>>>>>>> origin/main-v0.14.1-committer
     stream_sender.send(ProposalPart::Fin(fin)).await?;
 
     Ok(())

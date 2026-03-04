@@ -30,6 +30,7 @@
   "consensus_manager_config.consensus_manager_config.static_config.storage_config.mmap_file_config.max_object_size": 1073741824,
   "consensus_manager_config.consensus_manager_config.static_config.storage_config.mmap_file_config.max_size": 1099511627776,
   "consensus_manager_config.consensus_manager_config.static_config.storage_config.scope": "StateOnly",
+  "consensus_manager_config.context_config.dynamic_config.compare_retrospective_block_hash": "$$$_CONSENSUS_MANAGER_CONFIG-CONTEXT_CONFIG-DYNAMIC_CONFIG-COMPARE_RETROSPECTIVE_BLOCK_HASH_$$$",
   "consensus_manager_config.context_config.dynamic_config.l1_data_gas_price_multiplier_ppt": 135,
   "consensus_manager_config.context_config.dynamic_config.l1_gas_tip_wei": 1000000000,
   "consensus_manager_config.context_config.dynamic_config.max_l1_data_gas_price_wei": 1000000000000,

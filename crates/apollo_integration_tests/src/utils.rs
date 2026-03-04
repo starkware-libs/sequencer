@@ -5,7 +5,12 @@ use std::time::Duration;
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_batcher::metrics::REVERTED_TRANSACTIONS;
 use apollo_batcher::pre_confirmed_cende_client::RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH;
-use apollo_batcher_config::config::{BatcherConfig, BatcherStaticConfig, BlockBuilderConfig};
+use apollo_batcher_config::config::{
+    BatcherConfig,
+    BatcherDynamicConfig,
+    BatcherStaticConfig,
+    BlockBuilderConfig,
+};
 use apollo_class_manager_config::config::{
     CachedClassStorageConfig,
     ClassManagerConfig,
@@ -75,6 +80,10 @@ use apollo_state_sync_config::config::{
     StateSyncStaticConfig,
 };
 use apollo_storage::db::DbConfig;
+use apollo_storage::storage_reader_server::{
+    StorageReaderServerDynamicConfig,
+    StorageReaderServerStaticConfig,
+};
 use apollo_storage::StorageConfig;
 use axum::extract::Query;
 use axum::routing::{get, post};
@@ -86,7 +95,12 @@ use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+<<<<<<< HEAD
 use http::StatusCode;
+||||||| 8e2855c049
+=======
+use futures::future::join_all;
+>>>>>>> origin/main-v0.14.1-committer
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
@@ -103,6 +117,7 @@ use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, Transacti
 use starknet_types_core::felt::Felt;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
+use tokio::time::{sleep, timeout};
 use tracing::{debug, info, Instrument};
 use url::Url;
 
@@ -117,6 +132,8 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 // with the set [TimeoutsConfig] .
 pub const TPS: u64 = 3;
 pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
+pub const TEST_SCENARIO_TIMEOUT: Duration = Duration::from_secs(50);
+pub const TIME_BETWEEN_CHECKS: Duration = Duration::from_secs(1);
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type CreateL1ToL2MessagesArgsFn =
@@ -217,10 +234,12 @@ pub fn create_node_config(
 ) -> (SequencerNodeConfig, ConfigPointersMap) {
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
+    let storage_reader_server_port = available_ports.get_next_port();
     let batcher_config = create_batcher_config(
         storage_config.batcher_storage_config,
         chain_info.clone(),
         block_max_capacity_gas,
+        storage_reader_server_port,
     );
     let committer_config = ApolloCommitterConfig {
         db_path: storage_config.committer_db_path.clone(),
@@ -705,6 +724,7 @@ pub fn create_batcher_config(
     batcher_storage_config: StorageConfig,
     chain_info: ChainInfo,
     block_max_capacity_gas: GasAmount,
+    storage_reader_server_port: u16,
 ) -> BatcherConfig {
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
     BatcherConfig {
@@ -724,11 +744,17 @@ pub fn create_batcher_config(
                 n_concurrent_txs: 3,
                 ..Default::default()
             },
+            storage_reader_server_static_config: StorageReaderServerStaticConfig {
+                ip: Ipv4Addr::LOCALHOST.into(),
+                port: storage_reader_server_port,
+            },
             #[cfg(feature = "cairo_native")]
             contract_class_manager_config: cairo_native_class_manager_config(),
             ..Default::default()
         },
-        ..Default::default()
+        dynamic_config: BatcherDynamicConfig {
+            storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig { enable: true },
+        },
     }
 }
 
@@ -927,7 +953,6 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         .install_recorder()
         .expect("Should be able to install global prometheus recorder");
 
-    const TEST_SCENARIO_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(50);
     // Setup.
     let mock_running_system = FlowTestSetup::new_from_tx_generator(
         &tx_generator,
@@ -998,7 +1023,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
                 break;
             }
 
-            tokio::time::sleep(Duration::from_millis(2000)).await;
+            sleep(TIME_BETWEEN_CHECKS).await;
         }
     })
     .await
@@ -1014,6 +1039,53 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     assert_on_number_of_reverted_transactions_flow(
         &global_recorder_handle,
         expecting_reverted_transactions,
+    );
+    verify_block_hash_flow(&sequencers).await;
+}
+
+async fn get_max_batcher_height(sequencers: &[&FlowSequencerSetup]) -> BlockNumber {
+    let batcher_heights =
+        join_all(sequencers.iter().map(|sequencer| sequencer.batcher_height())).await;
+    *batcher_heights.iter().max().unwrap()
+}
+
+async fn get_min_global_root_offset(sequencers: &[&FlowSequencerSetup]) -> BlockNumber {
+    let global_root_offsets =
+        join_all(sequencers.iter().map(|sequencer| sequencer.get_global_root_height())).await;
+    *global_root_offsets.iter().min().unwrap()
+}
+
+/// Verifies that all sequencers agree on the block hash for a recent block.
+async fn verify_block_hash_flow(sequencers: &[&FlowSequencerSetup]) {
+    let target_height = get_max_batcher_height(sequencers).await;
+    let mut min_global_root_offset = get_min_global_root_offset(sequencers).await;
+    timeout(TEST_SCENARIO_TIMEOUT, async {
+        while min_global_root_offset < target_height {
+            info!(
+                "Waiting for min global root offset to reach: {target_height}, actual min global \
+                 root offset: {min_global_root_offset}"
+            );
+            sleep(TIME_BETWEEN_CHECKS).await;
+            min_global_root_offset = get_min_global_root_offset(sequencers).await;
+        }
+    })
+    .await
+    .unwrap_or_else(|_| {
+        panic!(
+            "Expected min global root offset to reach: {target_height}, actual min global root \
+             offset: {min_global_root_offset}"
+        )
+    });
+
+    let block_number = target_height
+        .prev()
+        .unwrap_or_else(|| panic!("At least one block should have been created"));
+    let block_hashes =
+        join_all(sequencers.iter().map(|sequencer| sequencer.get_block_hash(block_number))).await;
+    assert!(block_hashes.len() >= 2, "Expected at least two sequencers.");
+    assert!(
+        block_hashes.windows(2).all(|w| w[0] == w[1]),
+        "Not all sequencers agree on the block hash for height {block_number}: {block_hashes:?}"
     );
 }
 

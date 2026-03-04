@@ -7,7 +7,11 @@ use apollo_infra_utils::template::Template;
 use apollo_mempool::metrics::MEMPOOL_TRANSACTIONS_RECEIVED;
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::alert_placeholders::{format_sampling_window, ExpressionOrExpressionWithPlaceholder};
+use crate::alert_placeholders::{
+    format_sampling_window,
+    ExpressionOrExpressionWithPlaceholder,
+    SeverityValueOrPlaceholder,
+};
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -75,9 +79,10 @@ pub(crate) fn get_mempool_add_tx_idle() -> Alert {
     )
 }
 
-fn get_gateway_low_successful_transaction_rate(alert_severity: AlertSeverity) -> Alert {
+pub(crate) fn get_gateway_low_successful_transaction_rate() -> Alert {
+    const ALERT_NAME: &str = "gateway_low_successful_transaction_rate";
     Alert::new(
-        "gateway_low_successful_transaction_rate",
+        ALERT_NAME,
         "gateway low successful transaction rate",
         AlertGroup::Gateway,
         format!(
@@ -87,11 +92,7 @@ fn get_gateway_low_successful_transaction_rate(alert_severity: AlertSeverity) ->
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 5.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
-}
-
-pub(crate) fn get_gateway_low_successful_transaction_rate_vec() -> Vec<Alert> {
-    vec![get_gateway_low_successful_transaction_rate(AlertSeverity::DayOnly)]
 }

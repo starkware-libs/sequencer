@@ -220,7 +220,7 @@ impl SingleHeightConsensus {
         self.state_machine.handle_event(StateMachineEvent::FinishedValidation(
             proposal_id,
             round,
-            None,
+            valid_round,
         ))
     }
 

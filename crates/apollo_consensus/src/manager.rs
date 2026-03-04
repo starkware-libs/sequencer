@@ -433,8 +433,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let res = match consensus_result {
             Ok(ok) => match ok {
                 RunHeightRes::Decision(decision) => {
+                    let decided_round = decision
+                        .precommits
+                        .first()
+                        .expect("Decision must contain at least one precommit")
+                        .round;
                     // Commit decision to context.
-                    context.decision_reached(height, decision.block).await?;
+                    context.decision_reached(height, decided_round, decision.block).await?;
                     RunHeightRes::Decision(decision)
                 }
                 RunHeightRes::Sync => RunHeightRes::Sync,
@@ -978,7 +983,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     .await
                     .set_prev_voted_height(height)
                     .expect("Failed to write voted height {self.height} to storage");
-                info!("Broadcasting {vote:?}");
                 context.broadcast(vote.clone()).await?;
                 // Schedule a rebroadcast after the appropriate timeout.
                 let duration = match vote.vote_type {
