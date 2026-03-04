@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772639935691,
+  "lastUpdate": 1772644165016,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -271,6 +271,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1303.19369314,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "guy.n@starkware.co",
+            "name": "guy-starkware",
+            "username": "guy-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e16933bce703bea75cd3b52d187fa9e2f79c4cd0",
+          "message": "apollo_l1_provider_config: move scraper config into same crate as provider config (#12798)",
+          "timestamp": "2026-03-04T16:43:04Z",
+          "tree_id": "223447d021df62e43fa599c622a27cce38c60e80",
+          "url": "https://github.com/starkware-libs/sequencer/commit/e16933bce703bea75cd3b52d187fa9e2f79c4cd0"
+        },
+        "date": 1772644164670,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1029.73750934,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1429.04876937,
             "unit": "ms"
           }
         ]
