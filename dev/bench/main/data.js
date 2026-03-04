@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772548770244,
+  "lastUpdate": 1772627787016,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -169,6 +169,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1390.05231306,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "db2b6f44b6bea77d5f0ec683afb3cc14b8511339",
+          "message": "ci: fixed ci checkout fails issue (#13022)",
+          "timestamp": "2026-03-04T12:14:44Z",
+          "tree_id": "241d265ad93e3688b0a2790e30578644670dc142",
+          "url": "https://github.com/starkware-libs/sequencer/commit/db2b6f44b6bea77d5f0ec683afb3cc14b8511339"
+        },
+        "date": 1772627786722,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 801.28004759,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1161.12459868,
             "unit": "ms"
           }
         ]
