@@ -1,14 +1,9 @@
 use std::collections::BTreeMap;
-use std::ops::AddAssign;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::contract_class::compiled_class_hash::HashVersion;
-use starknet_api::execution_resources::GasAmount;
 
-use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
-use crate::bouncer::extended_execution_resources_to_gas;
-use crate::execution::call_info::{ExtendedExecutionResources, OpcodeCounterMap, OpcodeName};
+use crate::execution::call_info::{ExtendedExecutionResources, OpcodeName};
 use crate::execution::contract_class::{
     EntryPointV1,
     EntryPointsByType,
@@ -21,124 +16,6 @@ use crate::execution::execution_utils::poseidon_hash_many_cost;
 #[path = "casm_hash_estimation_test.rs"]
 mod casm_hash_estimation_test;
 
-/// Represents an estimate of VM resources consumed when hashing CASM in the Starknet OS.
-///
-/// The variant indicates the hash function version used:
-/// - V1Hash: Poseidon hash function.
-/// - V2Hash: Blake hash function.
-pub enum EstimatedExecutionResources {
-    /// All execution resources are contained within `resources`.
-    V1Hash { resources: ExecutionResources },
-
-    /// Blake opcodes count is tracked separately, as they are not included in
-    /// `ExecutionResources`.
-    V2Hash { resources: ExecutionResources, blake_count: usize },
-}
-
-impl EstimatedExecutionResources {
-    pub fn new(hash_version: HashVersion) -> Self {
-        match hash_version {
-            HashVersion::V1 => {
-                EstimatedExecutionResources::V1Hash { resources: ExecutionResources::default() }
-            }
-            HashVersion::V2 => EstimatedExecutionResources::V2Hash {
-                resources: ExecutionResources::default(),
-                blake_count: 0,
-            },
-        }
-    }
-
-    pub fn resources_ref(&self) -> &ExecutionResources {
-        match self {
-            EstimatedExecutionResources::V1Hash { resources } => resources,
-            EstimatedExecutionResources::V2Hash { resources, .. } => resources,
-        }
-    }
-
-    pub fn resources(&self) -> ExecutionResources {
-        self.resources_ref().clone()
-    }
-
-    /// Returns the Blake opcode count, for V1Hash, returns 0.
-    pub fn blake_count(&self) -> usize {
-        match self {
-            EstimatedExecutionResources::V2Hash { blake_count, .. } => *blake_count,
-            EstimatedExecutionResources::V1Hash { .. } => 0,
-        }
-    }
-
-    pub fn to_extended_execution_resources(&self) -> ExtendedExecutionResources {
-        let mut opcode_instance_counter = OpcodeCounterMap::default();
-        if let Self::V2Hash { blake_count, .. } = self {
-            if *blake_count > 0 {
-                opcode_instance_counter.insert(OpcodeName::blake, *blake_count);
-            }
-        }
-        ExtendedExecutionResources { vm_resources: self.resources(), opcode_instance_counter }
-    }
-
-    pub fn to_gas(
-        &self,
-        builtin_gas_cost: &BuiltinGasCosts,
-        versioned_constants: &VersionedConstants,
-    ) -> GasAmount {
-        extended_execution_resources_to_gas(
-            &self.to_extended_execution_resources(),
-            builtin_gas_cost,
-            versioned_constants,
-        )
-    }
-}
-
-impl AddAssign<&ExecutionResources> for EstimatedExecutionResources {
-    fn add_assign(&mut self, rhs: &ExecutionResources) {
-        match self {
-            EstimatedExecutionResources::V1Hash { resources } => *resources += rhs,
-            EstimatedExecutionResources::V2Hash { resources, .. } => *resources += rhs,
-        }
-    }
-}
-
-impl AddAssign<&EstimatedExecutionResources> for EstimatedExecutionResources {
-    fn add_assign(&mut self, rhs: &EstimatedExecutionResources) {
-        match (self, rhs) {
-            // V1 + V1: Only add resources
-            (
-                EstimatedExecutionResources::V1Hash { resources: left },
-                EstimatedExecutionResources::V1Hash { resources: right },
-            ) => {
-                *left += right;
-            }
-            // V2 + V2: Add both resources and blake count
-            (
-                EstimatedExecutionResources::V2Hash {
-                    resources: left_resources,
-                    blake_count: left_blake,
-                },
-                EstimatedExecutionResources::V2Hash {
-                    resources: right_resources,
-                    blake_count: right_blake,
-                },
-            ) => {
-                *left_resources += right_resources;
-                *left_blake =
-                    left_blake.checked_add(*right_blake).expect("Overflow in blake_count addition");
-            }
-            // Any mismatched variant
-            _ => panic!("Cannot add EstimatedExecutionResources of different variants"),
-        }
-    }
-}
-
-impl From<(ExecutionResources, HashVersion)> for EstimatedExecutionResources {
-    fn from((resources, hash_version): (ExecutionResources, HashVersion)) -> Self {
-        match hash_version {
-            HashVersion::V1 => EstimatedExecutionResources::V1Hash { resources },
-            HashVersion::V2 => EstimatedExecutionResources::V2Hash { resources, blake_count: 0 },
-        }
-    }
-}
-
 /// Trait for estimating the Cairo execution resources consumed when running the
 /// `compiled_class_hash` function in the Starknet OS.
 ///
@@ -150,22 +27,24 @@ pub trait EstimateCasmHashResources {
     // Estimated fixed Cairo steps for `bytecode_hash_internal_node` leaf case.
     const BASE_BYTECODE_HASH_INTERNAL_NODE_LEAF_STEPS: usize;
 
-    /// Creates an `EstimatedExecutionResources` from a given `ExecutionResources` matching the
-    /// struct's hash function variant.
-    fn from_resources(resources: ExecutionResources) -> EstimatedExecutionResources;
+    /// Creates an `ExtendedExecutionResources` from a given `ExecutionResources`, with an empty
+    /// opcode counter.
+    fn from_resources(resources: ExecutionResources) -> ExtendedExecutionResources {
+        ExtendedExecutionResources { vm_resources: resources, ..Default::default() }
+    }
 
     /// Estimates the Cairo execution resources used when applying the hash function during CASM
     /// hashing.
     fn estimated_resources_of_hash_function(
         felt_size_groups: &FeltSizeCount,
-    ) -> EstimatedExecutionResources;
+    ) -> ExtendedExecutionResources;
 
     /// Estimates the Cairo execution resources for `compiled_class_hash` in the
     /// Starknet OS.
     fn estimated_resources_of_compiled_class_hash(
         bytecode_segment_felt_sizes: &NestedFeltCounts,
         entry_points_by_type: &EntryPointsByType<EntryPointV1>,
-    ) -> EstimatedExecutionResources {
+    ) -> ExtendedExecutionResources {
         // Estimated fixed Cairo steps for `compiled_class_hash` (independent of input):
         // 54 = `call` + `return` + `hash_init` + `alloc_locals` + `assert` +
         // 2*`hash_update_single` + 3*`call_hash_entry_points` + `call_bytecode_hash_node` +
@@ -199,7 +78,7 @@ pub trait EstimateCasmHashResources {
 
     fn estimated_resources_of_bytecode_hash_node(
         bytecode_segment_felt_sizes: &NestedFeltCounts,
-    ) -> EstimatedExecutionResources {
+    ) -> ExtendedExecutionResources {
         // Estimated fixed Cairo steps for `bytecode_hash_node` (independent of input):
         // 4 = `call` + `return` + `alloc_locals`.
         const BASE_BYTECODE_HASH_NODE_STEPS: usize = 4;
@@ -243,7 +122,7 @@ pub trait EstimateCasmHashResources {
     /// `bytecode_hash_internal_node` is applied recursively until all segments are hashed.
     fn estimated_resources_of_bytecode_hash_internal_node_leaf_case(
         bytecode_segment_felt_sizes: &[NestedFeltCounts],
-    ) -> EstimatedExecutionResources {
+    ) -> ExtendedExecutionResources {
         let mut resources = Self::from_resources(ExecutionResources::default());
 
         let bytecode_hash_internal_node_overhead = ExecutionResources {
@@ -276,7 +155,7 @@ pub trait EstimateCasmHashResources {
 
     fn estimated_resources_of_hash_entry_points(
         entry_points: &[EntryPointV1],
-    ) -> EstimatedExecutionResources {
+    ) -> ExtendedExecutionResources {
         // Estimated fixed Cairo steps for `hash_entry_points` (independent of input):
         // 21 = `hash_init` + `call_hash_entry_points_inner` + `call_hash_finalize` +
         // `hash_update_single` + `return`.
@@ -304,7 +183,7 @@ pub trait EstimateCasmHashResources {
 
     fn estimated_resources_of_hash_entry_points_inner(
         entry_point: &EntryPointV1,
-    ) -> EstimatedExecutionResources {
+    ) -> ExtendedExecutionResources {
         // Estimated fixed Cairo steps for `hash_entry_points_inner`:
         // 27 = `if` + 2*`hash_update_single` + `call_hash_update_with_nested_hash` +
         // `call_hash_entry_points_inner`.
@@ -348,15 +227,12 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     // Computed across running multiple contracts with different bytecode segment structures.
     const BASE_BYTECODE_HASH_INTERNAL_NODE_LEAF_STEPS: usize = 18;
 
-    fn from_resources(resources: ExecutionResources) -> EstimatedExecutionResources {
-        EstimatedExecutionResources::V1Hash { resources }
-    }
-
     fn estimated_resources_of_hash_function(
         felt_size_groups: &FeltSizeCount,
-    ) -> EstimatedExecutionResources {
-        EstimatedExecutionResources::V1Hash {
-            resources: poseidon_hash_many_cost(felt_size_groups.n_felts()),
+    ) -> ExtendedExecutionResources {
+        ExtendedExecutionResources {
+            vm_resources: poseidon_hash_many_cost(felt_size_groups.n_felts()),
+            ..Default::default()
         }
     }
 }
@@ -426,23 +302,18 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
     // `call_bytecode_hash_internal_node`. Verified across running multiple contracts.
     const BASE_BYTECODE_HASH_INTERNAL_NODE_LEAF_STEPS: usize = 30;
 
-    fn from_resources(resources: ExecutionResources) -> EstimatedExecutionResources {
-        EstimatedExecutionResources::V2Hash { resources, blake_count: 0 }
-    }
-
     /// Estimates resource usage for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
     ///
     /// # Encoding Details
     /// - Small felts → 2 `u32`s each; Big felts → 8 `u32`s each.
     /// - Each felt requires one `range_check` operation.
     ///
-    /// # Returns:
-    /// - `ExecutionResources`: VM resource usage (e.g., n_steps, range checks).
-    /// - `usize`: number of Blake opcodes used, accounted for separately as those are not reported
-    ///   via `ExecutionResources`.
+    /// # Returns
+    /// `ExtendedExecutionResources` containing VM resource usage (e.g., n_steps, range checks) and
+    /// the number of Blake opcodes used.
     fn estimated_resources_of_hash_function(
         felt_size_groups: &FeltSizeCount,
-    ) -> EstimatedExecutionResources {
+    ) -> ExtendedExecutionResources {
         // One-time additional `range_check` required for `encode_felt252_data_and_calc_blake_hash`
         // execution when the input is non-empty.
         const BASE_RANGE_CHECK_NON_EMPTY: usize = 3;
@@ -460,11 +331,16 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
             )]),
         };
 
-        let resources = ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter };
+        let vm_resources =
+            ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter };
 
-        EstimatedExecutionResources::V2Hash {
-            resources,
-            blake_count: felt_size_groups.blake_opcode_count(),
-        }
+        let blake_count = felt_size_groups.blake_opcode_count();
+        let opcode_instance_counter = if blake_count > 0 {
+            [(OpcodeName::blake, blake_count)].into_iter().collect()
+        } else {
+            Default::default()
+        };
+
+        ExtendedExecutionResources { vm_resources, opcode_instance_counter }
     }
 }

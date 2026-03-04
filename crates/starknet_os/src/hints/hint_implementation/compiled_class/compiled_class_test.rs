@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use blockifier::execution::call_info::OpcodeName;
 use blockifier::execution::casm_hash_estimation::{
     CasmV1HashResourceEstimate,
     CasmV2HashResourceEstimate,
@@ -195,14 +196,14 @@ impl HashVersionTestSpec for HashVersion {
                     bytecode_segment_felt_sizes,
                     entry_points_by_type,
                 )
-                .resources()
+                .vm_resources
             }
             HashVersion::V2 => {
                 CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
                     bytecode_segment_felt_sizes,
                     entry_points_by_type,
                 )
-                .resources()
+                .vm_resources
             }
         }
     }
@@ -214,11 +215,15 @@ impl HashVersionTestSpec for HashVersion {
         match self {
             HashVersion::V1 => 0,
             HashVersion::V2 => {
-                CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
-                    bytecode_segment_felt_sizes,
-                    entry_points_by_type,
-                )
-                .blake_count()
+                let resources =
+                    CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
+                        bytecode_segment_felt_sizes,
+                        entry_points_by_type,
+                    );
+                *resources
+                    .opcode_instance_counter
+                    .get(&OpcodeName::blake)
+                    .unwrap_or(&0)
             }
         }
     }
