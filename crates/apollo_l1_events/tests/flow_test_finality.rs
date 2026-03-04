@@ -1,13 +1,13 @@
 #![cfg(any(test, feature = "testing"))]
 mod utils;
 
+use apollo_l1_events_config::config::L1EventsScraperConfig;
 use apollo_l1_events_types::{
     InvalidValidationStatus,
     L1EventsProviderClient,
     SessionState,
     ValidationStatus,
 };
-use apollo_l1_provider_config::config::L1EventsScraperConfig;
 use starknet_api::block::BlockNumber;
 use utils::{
     send_message_from_l1_to_l2,
