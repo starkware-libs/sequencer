@@ -289,10 +289,15 @@ class TransactionSenderService:
                             shared.record_forwarded_block(block_number, len(valid_txs))
                         shared.set_block_timestamp(timestamp)
 
-                        gw_errors, sent_tx_hashes = shared.get_resync_evaluation_inputs()
+                        (
+                            gw_errors,
+                            sent_tx_hashes,
+                            echonet_only_reverts,
+                        ) = shared.get_resync_evaluation_inputs()
                         resync_trigger = resync_policy.evaluate(
                             gateway_errors=gw_errors,
                             sent_tx_hashes=sent_tx_hashes,
+                            echonet_only_reverts=echonet_only_reverts,
                             current_block=block_number,
                         )
                         if resync_trigger:
@@ -300,8 +305,11 @@ class TransactionSenderService:
                         block_number += 1
                     if not resync_trigger:
                         return
+                    failure_block_number = resync_trigger["failure_block_number"]
+                    revert_target_block_number = resync_trigger["revert_target_block_number"]
                     logger.warning(
-                        f"Resync triggered by tx {resync_trigger['tx_hash']} at block {resync_trigger['block_number']}: "
+                        f"Resync triggered by tx {resync_trigger['tx_hash']}: "
+                        f"failure_block_number={failure_block_number} revert_target_block_number={revert_target_block_number}: "
                         f"{resync_trigger['reason']}"
                     )
                     async with forwarding_lock:
