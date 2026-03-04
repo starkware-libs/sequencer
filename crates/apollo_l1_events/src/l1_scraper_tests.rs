@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use apollo_l1_events_types::errors::L1EventsProviderError;
 use apollo_l1_events_types::MockL1EventsProviderClient;
-use apollo_l1_scraper_config::config::L1EventsScraperConfig;
+use apollo_l1_provider_config::config::L1EventsScraperConfig;
 use assert_matches::assert_matches;
 use papyrus_base_layer::{L1BlockHash, L1BlockReference, MockBaseLayerContract};
 
