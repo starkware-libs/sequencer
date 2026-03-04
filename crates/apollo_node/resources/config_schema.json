@@ -394,6 +394,11 @@
     "privacy": "Public",
     "value": 8091
   },
+  "behavior_mode": {
+    "description": "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
+    "privacy": "TemporaryValue",
+    "value": "starknet"
+  },
   "chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "privacy": "TemporaryValue",
@@ -2299,6 +2304,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "consensus_manager_config.context_config.static_config.behavior_mode": {
+    "description": "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
+    "pointer_target": "behavior_mode",
+    "privacy": "Public"
+  },
   "consensus_manager_config.context_config.static_config.block_timestamp_window_seconds": {
     "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
     "privacy": "Public",
@@ -2323,11 +2333,6 @@
     "description": "The chain id of the Starknet chain.",
     "pointer_target": "chain_id",
     "privacy": "Public"
-  },
-  "consensus_manager_config.context_config.static_config.deployment_mode": {
-    "description": "Deployment mode. 'starknet' for production, 'echonet' when running echonet.",
-    "privacy": "Public",
-    "value": "starknet"
   },
   "consensus_manager_config.context_config.static_config.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
@@ -2923,6 +2928,11 @@
     "description": "Time-to-live for transactions in the mempool, in seconds.",
     "privacy": "Public",
     "value": 60
+  },
+  "mempool_config.static_config.behavior_mode": {
+    "description": "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
+    "pointer_target": "behavior_mode",
+    "privacy": "Public"
   },
   "mempool_config.static_config.capacity_in_bytes": {
     "description": "Maximum size of the mempool, in bytes.",
