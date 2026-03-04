@@ -19,6 +19,7 @@ use apollo_protobuf::consensus::{
     BuildParam,
     CommitmentParts,
     ProposalFin,
+    ProposalFinPayload,
     ProposalInit,
     ProposalPart,
     TransactionBatch,
@@ -311,11 +312,14 @@ async fn get_proposal_content(
                     .final_n_executed_txs
                     .try_into()
                     .expect("Number of executed transactions should fit in u64");
-                let commitment_parts = CommitmentParts::from(&info);
+                let fin_payload = ProposalFinPayload {
+                    commitment_parts: CommitmentParts::from(&info),
+                    l2_gas_info: None,
+                };
                 let fin = ProposalFin {
                     proposal_commitment,
                     executed_transaction_count,
-                    commitment_parts: Some(commitment_parts),
+                    fin_payload: Some(fin_payload),
                 };
                 info!("Sending fin={fin:?}");
                 args.stream_sender.send(ProposalPart::Fin(fin)).await.map_err(|e| {
