@@ -19,7 +19,9 @@ use apollo_node::test_utils::node_runner::{get_node_executable_path, spawn_run_n
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::SequencerNodeConfig;
-use apollo_storage::StorageConfig;
+use apollo_storage::storage_reader_server_test_utils::send_storage_reader_http_request;
+use apollo_storage::storage_reader_types::{StorageReaderRequest, StorageReaderResponse};
+use apollo_storage::{MarkerKind, StorageConfig};
 use apollo_test_utils::send_request;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::context::ChainInfo;
@@ -32,14 +34,14 @@ use mempool_test_utils::starknet_api_test_utils::{
 };
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_base_layer::test_utils::anvil_mine_blocks;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ChainId, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::TransactionHash;
 use tokio::join;
-use tokio::time::{sleep, Instant};
+use tokio::time::{sleep, timeout, Instant};
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{info, instrument};
 
@@ -77,6 +79,8 @@ use crate::utils::{
     DeclareTx,
     DeployAndInvokeTxs,
     TestScenario,
+    TEST_SCENARIO_TIMEOUT,
+    TIME_BETWEEN_CHECKS,
 };
 
 pub const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
@@ -226,6 +230,42 @@ impl NodeSetup {
             &self.executables,
             ComponentConfigInService::ConsensusManager,
         )
+    }
+
+    fn batcher_storage_reader_server_addr(&self) -> SocketAddr {
+        let batcher_config = self
+            .get_batcher()
+            .get_config()
+            .batcher_config
+            .as_ref()
+            .expect("No executable with a set batcher.");
+        let static_config = &batcher_config.static_config.storage_reader_server_static_config;
+        SocketAddr::from((static_config.ip, static_config.port))
+    }
+
+    pub async fn send_batcher_storage_reader_request(
+        &self,
+        request: StorageReaderRequest,
+    ) -> StorageReaderResponse {
+        send_storage_reader_http_request(self.batcher_storage_reader_server_addr(), &request).await
+    }
+
+    pub async fn get_global_root_height(&self) -> BlockNumber {
+        self.get_marker(MarkerKind::GlobalRoot).await
+    }
+
+    pub async fn get_state_marker(&self) -> BlockNumber {
+        self.get_marker(MarkerKind::State).await
+    }
+
+    async fn get_marker(&self, marker_kind: MarkerKind) -> BlockNumber {
+        let response = self
+            .send_batcher_storage_reader_request(StorageReaderRequest::Markers(marker_kind))
+            .await;
+        match response {
+            StorageReaderResponse::Markers(block_number) => block_number,
+            other => panic!("Expected Markers response, got: {other:?}"),
+        }
     }
 
     pub fn run_service(&self, service: NodeService) -> AbortOnDropHandle<()> {
@@ -1071,6 +1111,97 @@ impl IntegrationTestManager {
             timeout.as_secs()
         );
     }
+
+    async fn get_max_state_marker(&self) -> BlockNumber {
+        let state_markers: HashMap<usize, BlockNumber> = self
+            .perform_action_on_all_running_nodes(|running_node| async move {
+                running_node.node_setup.get_state_marker().await
+            })
+            .await;
+        *state_markers.values().max().expect("Should have at least one running node.")
+    }
+
+    /// Verifies the block hash calculation flow across all running nodes.
+    ///
+    /// 1. Determines target block N - uses the provided target block number if provided, otherwise
+    ///    uses the max state marker across all running nodes.
+    /// 2. Waits for the global root marker to reach N on all running nodes.
+    /// 3. Retrieves the block hash of block N-1 from each running node via the storage reader
+    ///    server.
+    /// 4. Asserts that all running nodes agree on the block hash.
+    pub async fn verify_block_hash_across_all_running_nodes(
+        &self,
+        optional_target_block_number: Option<BlockNumber>,
+    ) {
+        info!("Verifying block hash flow across all running nodes.");
+
+        // Step 1: Get the max state marker across all running nodes. If a target block number is
+        // provided, use it instead of the max state marker.
+        let target_block_number = match optional_target_block_number {
+            Some(block_number) => block_number,
+            None => self.get_max_state_marker().await,
+        };
+        info!("Target block number: {target_block_number}.");
+
+        // Step 2: Wait for global root marker to cover up to target_block_number on all nodes.
+        info!(
+            "Waiting for global root marker to reach {target_block_number} on all running nodes."
+        );
+        self.perform_action_on_all_running_nodes(|running_node| async move {
+            let node_index = running_node.get_node_index();
+            let mut global_root_height = running_node.node_setup.get_global_root_height().await;
+            timeout(TEST_SCENARIO_TIMEOUT, async {
+                while global_root_height < target_block_number {
+                    sleep(TIME_BETWEEN_CHECKS).await;
+                    global_root_height = running_node.node_setup.get_global_root_height().await;
+                }
+            })
+            .await
+            .unwrap_or_else(|_| {
+                panic!(
+                    "Timed out waiting for global root marker to reach {target_block_number} on \
+                     sequencer {node_index}. Actual: {global_root_height}."
+                )
+            });
+        })
+        .await;
+
+        // Step 3: Get block hash for target_block_number - 1 from each running node via the
+        // storage reader server.
+        let block_to_check = target_block_number
+            .prev()
+            .unwrap_or_else(|| panic!("At least one block should exist for hash verification."));
+        info!("Verifying block hash for block {block_to_check} across all running nodes.");
+
+        let block_hashes: HashMap<usize, BlockHash> = self
+            .perform_action_on_all_running_nodes(|running_node| async move {
+                let response = running_node
+                    .node_setup
+                    .send_batcher_storage_reader_request(StorageReaderRequest::BlockHash(
+                        block_to_check,
+                    ))
+                    .await;
+                match response {
+                    StorageReaderResponse::BlockHash(block_hash) => block_hash,
+                    other => panic!("Expected BlockHash response, got: {other:?}"),
+                }
+            })
+            .await;
+
+        // Step 4: Assert all block hashes are the same.
+        let hash_values: Vec<&BlockHash> = block_hashes.values().collect();
+        assert!(hash_values.len() >= 2, "Expected at least two nodes.");
+        assert!(
+            hash_values.windows(2).all(|w| w[0] == w[1]),
+            "Not all nodes agree on the block hash for block {block_to_check}: {block_hashes:?}"
+        );
+
+        info!(
+            "Block hash verification passed for block {block_to_check}. All {} running nodes \
+             agree on hash.",
+            block_hashes.len()
+        );
+    }
 }
 
 pub fn nonce_to_usize(nonce: Nonce) -> usize {
@@ -1166,14 +1297,13 @@ async fn get_sequencer_setup_configs(
     let (eth_to_strk_oracle_url, _join_handle_eth_to_strk_oracle) =
         spawn_local_eth_to_strk_oracle(base_layer_ports.get_next_port());
 
-    let mut config_available_ports = available_ports_generator
-        .next()
-        .expect("Failed to get an AvailablePorts instance for node configs");
-
     // Create nodes.
     for (node_index, (node_component_config, node_type)) in
         node_component_configs.into_iter().enumerate()
     {
+        let mut config_available_ports = available_ports_generator
+            .next()
+            .expect("Failed to get an AvailablePorts instance for node configs");
         let mut executables = HashMap::new();
 
         let mut consensus_manager_config = consensus_manager_configs.remove(0);
