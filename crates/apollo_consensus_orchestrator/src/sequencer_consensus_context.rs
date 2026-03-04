@@ -19,10 +19,6 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_batcher_types::errors::BatcherError;
-use apollo_class_manager_types::transaction_converter::{
-    TransactionConverterError,
-    TransactionConverterTrait,
-};
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::{ConsensusContext, ConsensusError, ProposalCommitment, Round};
 use apollo_consensus_orchestrator_config::config::ContextConfig;

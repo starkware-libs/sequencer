@@ -75,7 +75,6 @@ use starknet_api::block_hash::block_hash_calculator::{
     PartialBlockHash,
     PartialBlockHashComponents,
 };
-use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, GlobalRoot, Nonce, StateDiffCommitment};
 use starknet_api::state::{StateNumber, ThinStateDiff};
