@@ -1,0 +1,14 @@
+use async_trait::async_trait;
+use starknet_api::crypto::utils::PublicKey;
+
+use crate::authentication::stark_authentication::AllowListChecker;
+
+// TODO(noam.s): Replace with a real committee-based allow list checker.
+pub struct AllowAllChecker;
+
+#[async_trait]
+impl AllowListChecker for AllowAllChecker {
+    async fn is_allowed(&self, _public_key: &PublicKey) -> bool {
+        true
+    }
+}
