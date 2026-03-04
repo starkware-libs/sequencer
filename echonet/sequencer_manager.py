@@ -8,7 +8,7 @@ import json
 import re
 import time
 from dataclasses import dataclass
-from typing import Callable, Optional, Sequence
+from typing import Callable, Optional
 
 import kubernetes  # pyright: ignore[reportMissingImports]
 from kubernetes.client.rest import ApiException  # pyright: ignore[reportMissingImports]
@@ -18,17 +18,31 @@ from echonet.logger import get_logger
 
 logger = get_logger("sequencer_manager")
 
-REVERT_INACTIVITY_SUBSTRINGS: tuple[str, ...] = (
-    "Reverting Batcher's storage to height marker",
-    "Successfully reverted Batcher's storage to height marker",
-    "Reverting State Sync's storage to height marker",
-    "Successfully reverted State Sync's storage to height marker",
+_BATCHER_REVERT_COMPLETION_MARKER_TEMPLATES: tuple[str, ...] = (
+    "Done reverting Batcher's storage up to height {target_block}!",
+    "Successfully reverted Batcher's storage to height marker {target_block}.",
+)
+_STATE_SYNC_REVERT_COMPLETION_MARKER_TEMPLATES: tuple[str, ...] = (
+    "Successfully reverted State Sync's storage to height marker {target_block}.",
+    "Done reverting State Sync's storage up to height {target_block}!",
 )
 
 _CACHED_NAMESPACE_BY_PATH: dict[str, str] = {}
 
 
 ConfigMutator = Callable[[JsonObject], None]
+
+
+def _revert_completion_markers(target_block: int) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    batcher_markers = tuple(
+        marker.format(target_block=target_block)
+        for marker in _BATCHER_REVERT_COMPLETION_MARKER_TEMPLATES
+    )
+    state_sync_markers = tuple(
+        marker.format(target_block=target_block)
+        for marker in _STATE_SYNC_REVERT_COMPLETION_MARKER_TEMPLATES
+    )
+    return batcher_markers, state_sync_markers
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,7 +59,7 @@ class SequencerTiming:
     """Polling defaults used by the manager."""
 
     poll_interval_seconds: float = 2.0
-    scale_timeout_seconds: float = 3000.0
+    scale_timeout_seconds: float = 10000.0
 
 
 class SequencerManager:
@@ -183,50 +197,57 @@ class SequencerManager:
 
             time.sleep(self._timing.poll_interval_seconds)
 
-    def wait_for_log_inactivity(
+    def wait_for_state_sync_and_batcher_revert_complete(
         self,
-        inactivity_substrings: Sequence[str],
-        inactivity_seconds: float = 15,
-        timeout_seconds: float = 6000.0,
+        target_block: int,
+        timeout_seconds: float = 10000.0,
         poll_interval_seconds: float = 1.0,
-        tail_lines: int = 500,
+        tail_lines: int = 1000,
         pod_name: Optional[str] = None,
     ) -> None:
         """
-        Block until none of `inactivity_substrings` appear in the last `inactivity_seconds` of pod
-        logs.
+        Block until logs indicate the State Sync and Batcher revert have completed to `target_block`.
         """
         pod = pod_name or self.pod_name
         logger.info(
-            f"Waiting for {inactivity_seconds}s of log inactivity in pod '{pod}' (ns={self._namespace})... "
-            f"(substrings: {', '.join(inactivity_substrings)})"
+            f"Waiting for State Sync and Batcher revert completion to height {target_block} in pod '{pod}' "
+            f"(ns={self._namespace})..."
         )
+
+        batcher_markers, state_sync_markers = _revert_completion_markers(target_block)
+
         start = time.time()
+        state_sync_done = False
+        batcher_done = False
 
         while True:
-            logs_recent = self._read_pod_logs(
-                pod_name=pod,
-                tail_lines=tail_lines,
-                # K8s `sinceSeconds` must be an integer; passing a float can yield 400 Bad Request.
-                since_seconds=int(inactivity_seconds),
-            )
-            if not any(s in logs_recent for s in inactivity_substrings):
+            logs_current = self._read_pod_logs(pod_name=pod, tail_lines=tail_lines)
+            logs_previous = self._read_pod_logs(pod_name=pod, tail_lines=tail_lines, previous=True)
+            logs = logs_current + "\n" + logs_previous
+
+            if any(marker in logs for marker in state_sync_markers):
+                state_sync_done = True
+            if any(marker in logs for marker in batcher_markers):
+                batcher_done = True
+
+            if batcher_done and state_sync_done:
                 logger.info(
-                    f"No revert activity logs were seen for the last {inactivity_seconds}s in pod '{pod}'."
+                    "Found State Sync and Batcher revert completion logs "
+                    f"for target height {target_block} in pod '{pod}'."
                 )
                 return
 
             if time.time() - start > timeout_seconds:
                 raise TimeoutError(
-                    f"Timed out after {timeout_seconds}s waiting for {inactivity_seconds}s of log "
-                    f"inactivity in pod '{pod}'."
+                    f"Timed out after {timeout_seconds}s waiting for State Sync and Batcher "
+                    f"revert completion to height {target_block} in pod '{pod}'."
                 )
             time.sleep(poll_interval_seconds)
 
     def wait_for_synced_block_at_least(
         self,
         target_block: int,
-        timeout_seconds: float = 3000.0,
+        timeout_seconds: float = 10000.0,
         poll_interval_seconds: float = 1.0,
         tail_lines: int = 500,
         pod_name: Optional[str] = None,
@@ -291,6 +312,13 @@ class SequencerManager:
         """Scale the sequencer StatefulSet down to 0 replicas and wait until it reaches 0."""
         self.scale(replicas=0)
 
+    def _read_previous_revert_marker(self) -> int:
+        configmap = self._core_v1.read_namespaced_config_map(
+            self._spec.configmap_name, self._namespace
+        )
+        config: JsonObject = json.loads(configmap.data["config"])
+        return int(config.get("revert_config.revert_up_to_and_including"))
+
     def initial_revert_then_restore(self, block_number: int) -> None:
         """
         One-time sequence used at `transaction_sender` startup to the starting block:
@@ -302,9 +330,7 @@ class SequencerManager:
 
         self.configure_stop_sync(block_number=block_number)
         self.restart_node()
-        self.wait_for_log_inactivity(
-            inactivity_substrings=REVERT_INACTIVITY_SUBSTRINGS,
-        )
+        self.wait_for_state_sync_and_batcher_revert_complete(target_block=block_number)
 
         self.configure_revert(should_revert=False)
         self.restart_node()
@@ -323,7 +349,9 @@ class SequencerManager:
 
         self.configure_revert(should_revert=True)
         self.restart_node()
-        self.wait_for_log_inactivity(inactivity_substrings=REVERT_INACTIVITY_SUBSTRINGS)
+        self.wait_for_state_sync_and_batcher_revert_complete(
+            target_block=self._read_previous_revert_marker()
+        )
 
         self.configure_start_sync()
         self.restart_node()
@@ -331,7 +359,7 @@ class SequencerManager:
 
         self.configure_stop_sync(block_number=block_number)
         self.restart_node()
-        self.wait_for_log_inactivity(inactivity_substrings=REVERT_INACTIVITY_SUBSTRINGS)
+        self.wait_for_state_sync_and_batcher_revert_complete(target_block=block_number)
 
         self.configure_revert(should_revert=False)
         self.restart_node()
