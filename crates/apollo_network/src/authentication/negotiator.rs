@@ -2,8 +2,6 @@ use std::io::Error as IoError;
 
 use async_trait::async_trait;
 use libp2p::PeerId;
-#[cfg(test)]
-use mockall::automock;
 use prost::Message;
 
 pub enum NegotiationSide {
@@ -27,13 +25,6 @@ pub trait ConnectionReceiver<M>: Unpin + Send {
 }
 
 #[async_trait]
-#[cfg_attr(
-    test,
-    automock(
-        type Error = std::io::Error;
-        type WireMessage = apollo_protobuf::protobuf::StarkAuthentication;
-    )
-)]
 pub trait Negotiator: Send {
     type WireMessage: Message + Default + Unpin + Send;
     type Error: std::error::Error + Send + Sync;
