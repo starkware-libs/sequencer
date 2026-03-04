@@ -12,13 +12,9 @@ use crate::staking_manager::Epoch;
 #[path = "contract_types_test.rs"]
 mod contract_types_test;
 
-// TODO(Dafna): Remove the dead_code attributes when we have a CairoStakingContract implementation.
-#[allow(dead_code)]
 pub(crate) const GET_STAKERS_ENTRY_POINT: &str = "get_stakers";
-#[allow(dead_code)]
 pub(crate) const GET_CURRENT_EPOCH_DATA_ENTRY_POINT: &str = "get_current_epoch_data";
-#[allow(dead_code)]
-pub(crate) const EPOCH_LENGTH: u64 = 100; // Number of heights in an epoch.
+pub(crate) const GET_PREVIOUS_EPOCH_DATA_ENTRY_POINT: &str = "get_previous_epoch_data";
 
 /// Conversion from an [`Iterator`].
 ///
@@ -35,8 +31,6 @@ pub trait TryFromIterator<Felt>: Sized {
 // Represents a Cairo1 `Array` containing elements that can be deserialized to `T`.
 // `T` must implement `TryFrom<[Felt; N]>`, where `N` is the size of `T`'s Cairo equivalent.
 #[derive(Debug, PartialEq, Eq)]
-// TODO(Dafna): Remove this when we have a CairoStakingContract implementation.
-#[allow(dead_code)]
 struct ArrayRetdata<T>(Vec<T>);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -63,8 +57,6 @@ pub enum RetdataDeserializationError {
 }
 
 impl ContractStaker {
-    // TODO(Dafna): Remove this when we have a CairoStakingContract implementation.
-    #[allow(dead_code)]
     pub fn from_retdata_many(retdata: Retdata) -> Result<Vec<Self>, RetdataDeserializationError> {
         Ok(ArrayRetdata::try_from(retdata)?.0)
     }
@@ -186,6 +178,50 @@ impl TryFrom<Retdata> for Epoch {
         let epoch_length = felt_to_u64(raw_felts[2])?;
 
         Ok(Epoch { epoch_id, start_block, epoch_length })
+    }
+}
+
+/// Deserializes Cairo `Option<(Epoch, BlockNumber, u32)>` Serde encoding from retdata.
+///   Some(epoch_id, start_block, epoch_length) -> [0, epoch_id, start_block, epoch_length]
+///   None -> [1]
+pub(crate) fn optional_epoch_from_retdata(
+    retdata: Retdata,
+) -> Result<Option<Epoch>, RetdataDeserializationError> {
+    let raw_felts = retdata.0;
+    if raw_felts.is_empty() {
+        return Err(RetdataDeserializationError::InvalidObjectLength {
+            message: "Option<Epoch> retdata should not be empty.".to_string(),
+        });
+    }
+
+    let variant = felt_to_u64(raw_felts[0])? as usize;
+    match variant {
+        0 => {
+            if raw_felts.len() != 4 {
+                return Err(RetdataDeserializationError::InvalidObjectLength {
+                    message: format!(
+                        "Option<Epoch>::Some retdata should contain 4 felts, but got {}.",
+                        raw_felts.len()
+                    ),
+                });
+            }
+            let epoch_id = felt_to_u64(raw_felts[1])?;
+            let start_block = BlockNumber(felt_to_u64(raw_felts[2])?);
+            let epoch_length = felt_to_u64(raw_felts[3])?;
+            Ok(Some(Epoch { epoch_id, start_block, epoch_length }))
+        }
+        1 => {
+            if raw_felts.len() != 1 {
+                return Err(RetdataDeserializationError::InvalidObjectLength {
+                    message: format!(
+                        "Option<Epoch>::None retdata should contain 1 felt, but got {}.",
+                        raw_felts.len()
+                    ),
+                });
+            }
+            Ok(None)
+        }
+        _ => Err(RetdataDeserializationError::UnexpectedEnumVariant { variant }),
     }
 }
 
