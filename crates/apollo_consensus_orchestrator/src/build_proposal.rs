@@ -43,7 +43,7 @@ use crate::utils::{
     truncate_to_executed_txs,
     wait_for_retrospective_block_hash,
     GasPriceParams,
-    PreviousBlockInfo,
+    PreviousProposalInitInfo,
     RetrospectiveBlockHashError,
     StreamSender,
 };
@@ -63,7 +63,7 @@ pub(crate) struct ProposalBuildArguments {
     pub l2_gas_price: GasPrice,
     pub builder_address: ContractAddress,
     pub cancel_token: CancellationToken,
-    pub previous_block_info: Option<PreviousBlockInfo>,
+    pub previous_proposal_init: Option<PreviousProposalInitInfo>,
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
@@ -99,8 +99,8 @@ pub(crate) enum BuildProposalError {
     CendeWriteError(String),
     #[error("Failed to convert transactions: {0}")]
     TransactionConverterError(#[from] TransactionConverterError),
-    #[error("Block info conversion error: {0}")]
-    BlockInfoConversion(#[from] StarknetApiError),
+    #[error("ProposalInit conversion error: {0}")]
+    ProposalInitConversion(#[from] StarknetApiError),
 }
 
 // Handles building a new proposal without blocking consensus:
@@ -156,7 +156,7 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
     let (l1_prices_fri, l1_prices_wei) = get_l1_prices_in_fri_and_wei(
         args.deps.l1_gas_price_provider.clone(),
         timestamp,
-        args.previous_block_info.as_ref(),
+        args.previous_proposal_init.as_ref(),
         &args.gas_price_params,
     )
     .await;

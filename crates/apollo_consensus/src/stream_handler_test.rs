@@ -194,8 +194,8 @@ async fn outbound_single() {
 
     // Send the content of the stream.
     for i in 0..num_messages {
-        let block_info = ProposalPart::Init(ProposalInit { round: i, ..Default::default() });
-        sender.send(block_info).await.unwrap();
+        let proposal_init = ProposalPart::Init(ProposalInit { round: i, ..Default::default() });
+        sender.send(proposal_init).await.unwrap();
     }
 
     // Check the content is sent to the network in order.
@@ -242,8 +242,8 @@ async fn outbound_multiple() {
     for stream_id in 0..num_streams {
         let sender = stream_senders.get_mut(as_usize(stream_id)).unwrap();
         for i in 0..num_messages {
-            let block_info = ProposalPart::Init(ProposalInit { round: i, ..Default::default() });
-            sender.send(block_info).await.unwrap();
+            let proposal_init = ProposalPart::Init(ProposalInit { round: i, ..Default::default() });
+            sender.send(proposal_init).await.unwrap();
         }
     }
 

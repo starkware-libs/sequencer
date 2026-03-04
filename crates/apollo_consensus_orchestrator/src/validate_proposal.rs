@@ -47,7 +47,7 @@ use crate::utils::{
     retrospective_block_hash,
     truncate_to_executed_txs,
     GasPriceParams,
-    PreviousBlockInfo,
+    PreviousProposalInitInfo,
     RetrospectiveBlockHashError,
 };
 
@@ -56,7 +56,7 @@ const GAS_PRICE_ABS_DIFF_MARGIN: u128 = 1;
 pub(crate) struct ProposalValidateArguments {
     pub deps: SequencerConsensusContextDeps,
     pub init: ProposalInit,
-    pub block_info_validation: BlockInfoValidation,
+    pub proposal_init_validation: ProposalInitValidation,
     pub proposal_id: ProposalId,
     pub timeout: Duration,
     pub batcher_timeout_margin: Duration,
@@ -66,12 +66,12 @@ pub(crate) struct ProposalValidateArguments {
     pub cancel_token: CancellationToken,
 }
 
-// Contains parameters required for validating block info.
+// Contains parameters required for validating ProposalInit.
 #[derive(Clone, Debug)]
-pub(crate) struct BlockInfoValidation {
+pub(crate) struct ProposalInitValidation {
     pub height: BlockNumber,
     pub block_timestamp_window_seconds: u64,
-    pub previous_block_info: Option<PreviousBlockInfo>,
+    pub previous_proposal_init: Option<PreviousProposalInitInfo>,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub l2_gas_price_fri: GasPrice,
 }
@@ -103,10 +103,10 @@ pub(crate) enum ValidateProposalError {
     EthToStrkOracle(#[from] EthToStrkOracleClientError),
     #[error("L1GasPriceProvider error: {0}")]
     L1GasPriceProvider(#[from] L1GasPriceClientError),
-    #[error("Block info conversion error: {0}")]
-    BlockInfoConversion(#[from] StarknetApiError),
-    #[error("Invalid BlockInfo: {2}. received:{0:?}, validation criteria {1:?}.")]
-    InvalidBlockInfo(ProposalInit, BlockInfoValidation, String),
+    #[error("ProposalInit conversion error: {0}")]
+    ProposalInitConversion(#[from] StarknetApiError),
+    #[error("Invalid ProposalInit: {2}. received:{0:?}, validation criteria {1:?}.")]
+    InvalidProposalInit(ProposalInit, ProposalInitValidation, String),
     #[error("Validation timed out while {0}")]
     ValidationTimeout(String),
     #[error("Proposal interrupted while {0}")]
@@ -133,8 +133,8 @@ pub(crate) async fn validate_proposal(
         return Err(ValidateProposalError::CannotCalculateDeadline { timeout: args.timeout, now });
     };
 
-    is_block_info_valid(
-        &args.block_info_validation,
+    is_proposal_init_valid(
+        &args.proposal_init_validation,
         &args.init,
         args.deps.clock.as_ref(),
         args.deps.l1_gas_price_provider,
@@ -203,7 +203,7 @@ pub(crate) async fn validate_proposal(
     // with `repropose` being called before `valid_proposals` is updated.
     let mut valid_proposals = args.valid_proposals.lock().unwrap();
     valid_proposals.insert_proposal_for_height(
-        &args.block_info_validation.height,
+        &args.proposal_init_validation.height,
         args.init,
         content,
         &args.proposal_id,
@@ -219,9 +219,9 @@ pub(crate) async fn validate_proposal(
     Ok(built_block)
 }
 
-#[instrument(level = "warn", skip_all, fields(?block_info_validation, ?init_proposed))]
-async fn is_block_info_valid(
-    block_info_validation: &BlockInfoValidation,
+#[instrument(level = "warn", skip_all, fields(?proposal_init_validation, ?init_proposed))]
+async fn is_proposal_init_valid(
+    proposal_init_validation: &ProposalInitValidation,
     init_proposed: &ProposalInit,
     clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
@@ -229,42 +229,44 @@ async fn is_block_info_valid(
 ) -> ValidateProposalResult<()> {
     let now: u64 = clock.unix_now();
     let last_block_timestamp =
-        block_info_validation.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
+        proposal_init_validation.previous_proposal_init.as_ref().map_or(0, |info| info.timestamp);
     if init_proposed.timestamp < last_block_timestamp {
-        return Err(ValidateProposalError::InvalidBlockInfo(
+        return Err(ValidateProposalError::InvalidProposalInit(
             init_proposed.clone(),
-            block_info_validation.clone(),
+            proposal_init_validation.clone(),
             format!(
                 "Timestamp is too old: last_block_timestamp={}, proposed={}",
                 last_block_timestamp, init_proposed.timestamp
             ),
         ));
     }
-    if init_proposed.timestamp > now + block_info_validation.block_timestamp_window_seconds {
-        return Err(ValidateProposalError::InvalidBlockInfo(
+    if init_proposed.timestamp > now + proposal_init_validation.block_timestamp_window_seconds {
+        return Err(ValidateProposalError::InvalidProposalInit(
             init_proposed.clone(),
-            block_info_validation.clone(),
+            proposal_init_validation.clone(),
             format!(
                 "Timestamp is in the future: now={}, block_timestamp_window_seconds={}, \
                  proposed={}",
-                now, block_info_validation.block_timestamp_window_seconds, init_proposed.timestamp
+                now,
+                proposal_init_validation.block_timestamp_window_seconds,
+                init_proposed.timestamp
             ),
         ));
     }
-    if !(init_proposed.height == block_info_validation.height
-        && init_proposed.l1_da_mode == block_info_validation.l1_da_mode
-        && init_proposed.l2_gas_price_fri == block_info_validation.l2_gas_price_fri)
+    if !(init_proposed.height == proposal_init_validation.height
+        && init_proposed.l1_da_mode == proposal_init_validation.l1_da_mode
+        && init_proposed.l2_gas_price_fri == proposal_init_validation.l2_gas_price_fri)
     {
-        return Err(ValidateProposalError::InvalidBlockInfo(
+        return Err(ValidateProposalError::InvalidProposalInit(
             init_proposed.clone(),
-            block_info_validation.clone(),
-            "Block info validation failed".to_string(),
+            proposal_init_validation.clone(),
+            "ProposalInit validation failed".to_string(),
         ));
     }
     let (l1_gas_prices_fri, _l1_gas_prices_wei) = get_l1_prices_in_fri_and_wei(
         l1_gas_price_provider,
         init_proposed.timestamp,
-        block_info_validation.previous_block_info.as_ref(),
+        proposal_init_validation.previous_proposal_init.as_ref(),
         gas_price_params,
     )
     .await;
@@ -284,9 +286,9 @@ async fn is_block_info_valid(
             l1_gas_price_margin_percent,
         ))
     {
-        return Err(ValidateProposalError::InvalidBlockInfo(
+        return Err(ValidateProposalError::InvalidProposalInit(
             init_proposed.clone(),
-            block_info_validation.clone(),
+            proposal_init_validation.clone(),
             format!(
                 "L1 gas price mismatch: expected L1 gas price FRI={l1_gas_price_fri}, \
                  proposed={l1_gas_price_fri_proposed}, expected L1 data gas price \
