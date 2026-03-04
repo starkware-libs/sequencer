@@ -49,6 +49,7 @@ class ResyncTriggerPayload(TypedDict):
     tx_hash: str
     block_number: int
     reason: str
+    source_block_number: int
 
 
 class ResyncTrigger(ResyncTriggerPayload):
