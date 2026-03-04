@@ -1228,7 +1228,7 @@ async fn change_gas_price_overrides() {
     let proposal_commitment = fin_receiver.await.unwrap();
     assert_eq!(proposal_commitment, TEST_PROPOSAL_COMMITMENT);
 
-    context.decision_reached(HEIGHT_1, ROUND_0, proposal_commitment).await.unwrap();
+    context.decision_reached(HEIGHT_1, ROUND_1, proposal_commitment).await.unwrap();
 
     // Now build a proposal for height 2.
     let new_dynamic_config = ContextDynamicConfig {
