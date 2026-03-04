@@ -198,8 +198,9 @@ async fn get_committee_equal_weights_address_ordering(
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Arc::new(MockBlockRandomGenerator::new()),
+        Arc::new(make_generator_factory(0)),
         StakingManagerConfig {
             dynamic_config: test_config_with_committee_size(4),
             ..default_config
