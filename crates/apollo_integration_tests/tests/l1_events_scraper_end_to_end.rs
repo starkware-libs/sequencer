@@ -5,9 +5,9 @@ use alloy::primitives::U256;
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_l1_events::event_identifiers_to_track;
-use apollo_l1_events::l1_scraper::L1Scraper;
+use apollo_l1_events::l1_scraper::L1EventsScraper;
 use apollo_l1_provider_types::{Event, MockL1ProviderClient};
-use apollo_l1_scraper_config::config::L1ScraperConfig;
+use apollo_l1_scraper_config::config::L1EventsScraperConfig;
 use mockall::Sequence;
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use papyrus_base_layer::BaseLayerContract;
@@ -111,7 +111,7 @@ async fn scraper_end_to_end() {
             vec![DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, StarkHash::ONE, StarkHash::from(2)].into(),
         ),
     };
-    let default_chain_id = L1ScraperConfig::default().chain_id;
+    let default_chain_id = L1EventsScraperConfig::default().chain_id;
     let tx_hash_first_tx = expected_l1_handler_0
         .calculate_transaction_hash(&default_chain_id, &EXPECTED_VERSION)
         .unwrap();
@@ -170,13 +170,13 @@ async fn scraper_end_to_end() {
         .withf(move |actual| check_events_match(&[], actual))
         .returning(|_| Ok(()));
 
-    let l1_scraper_config = L1ScraperConfig {
+    let l1_events_scraper_config = L1EventsScraperConfig {
         // Start scraping far enough back to capture all of the events created before.
         startup_rewind_time_seconds: Duration::from_secs(100),
         ..Default::default()
     };
-    let mut scraper = L1Scraper::new(
-        l1_scraper_config,
+    let mut scraper = L1EventsScraper::new(
+        l1_events_scraper_config,
         Arc::new(l1_provider_client),
         base_layer.ethereum_base_layer.clone(),
         event_identifiers_to_track(),

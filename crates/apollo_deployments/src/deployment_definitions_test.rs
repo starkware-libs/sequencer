@@ -166,7 +166,8 @@ fn l1_components_state_consistency() {
         let l1_provider_indicator = all_components.contains(&ComponentConfigInService::L1Provider);
         let l1_gas_price_scraper_indicator =
             all_components.contains(&ComponentConfigInService::L1GasPriceScraper);
-        let l1_scraper_indicator = all_components.contains(&ComponentConfigInService::L1Scraper);
+        let l1_scraper_indicator =
+            all_components.contains(&ComponentConfigInService::L1EventsScraper);
 
         assert_eq!(
             l1_gas_price_provider_indicator, l1_gas_price_scraper_indicator,
