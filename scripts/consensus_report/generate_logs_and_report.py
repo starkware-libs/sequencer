@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Tuple
+from typing import List, Tuple
 
 import yaml
 
@@ -49,12 +50,60 @@ def load_env_map() -> dict[str, EnvConfig]:
 
 
 # ------------------------------
+# Subprocess helpers
+# ------------------------------
+
+
+def run_capture(cmd: List[str]) -> str:
+    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if p.returncode != 0:
+        raise RuntimeError(p.stderr.strip() or "<empty stderr>")
+    return p.stdout.strip()
+
+
+# ------------------------------
 # Time utilities
 # ------------------------------
 
 
+def parse_local_timestamp(ts: str) -> datetime:
+    """
+    Parse timestamp in format YYYY-MM-DDTHH:MM:SS and returns datetime in local timezone.
+    """
+    ts = ts.strip()
+    dt_without_tz = datetime.fromisoformat(ts)
+    dt_with_tz = dt_without_tz.astimezone()
+    return dt_with_tz
+
+
+def parse_rfc3339(ts: str) -> datetime:
+    """
+    Parse RFC3339 timestamp string to datetime.
+    """
+    ts = ts.strip()
+
+    # Handle fractional seconds if present
+    if "." in ts and ts.endswith("Z"):
+        head, rest = ts.split(".", 1)
+        # Extract fractional seconds (up to 6 digits for microseconds)
+        frac = rest.rstrip("Z")[:6].ljust(6, "0")
+        ts = f"{head}.{frac}Z"
+
+    # Replace 'Z' with '+00:00' for fromisoformat
+    ts = ts.replace("Z", "+00:00")
+
+    return datetime.fromisoformat(ts)
+
+
 def fmt_utc(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def to_utc(local_time: datetime) -> datetime:
+    """
+    Convert local datetime to UTC.
+    """
+    return local_time.astimezone(timezone.utc)
 
 
 def get_24_hours_window() -> Tuple[datetime, datetime]:
@@ -128,27 +177,71 @@ def add_time_bounds(flt: str, start: datetime, end: datetime) -> str:
 # ------------------------------
 
 
+def retrieve_first_timestamp(project: str, flt: str) -> str:
+    return run_capture(
+        [
+            "gcloud",
+            "logging",
+            "read",
+            flt,
+            "--project",
+            project,
+            "--format=value(timestamp)",
+            "--order=asc",
+            "--limit=1",
+        ]
+    )
+
+
 def determine_search_window(
     args: argparse.Namespace,
-    environment: Optional[EnvConfig] = None,
-    common_filter_prefix: Optional[str] = None,
+    environment: EnvConfig,
+    common_filter_prefix: str,
 ) -> Tuple[datetime, datetime]:
     """Determine the search time window based on provided arguments.
 
     Priority/validation:
-      - --auto, --near, --start/--end, --last-24-hours are mutually exclusive
-      - --start/--end must be provided together
+      - --auto, --near, --range, --last-24-hours are mutually exclusive
+      - --range requires exactly 2 arguments: start and end timestamps
       - --last-24-hours (or no args) uses (current_time - 24 hours) to current_time window
       - --auto requires environment and common_filter_prefix parameters
     """
 
-    # TODO(lev): Implement all the logic for the different time options
+    if args.auto:
+        start_ts = retrieve_first_timestamp(
+            environment.project, consensus_height_filter(common_filter_prefix, args.height)
+        )
+        if not start_ts:
+            raise RuntimeError(
+                f"START_MARKER not found: {RUNNING_CONSENSUS_FOR_HEIGHT} {args.height}"
+            )
+        start_dt = parse_rfc3339(start_ts)
+
+        end_ts = ""
+        try:
+            end_ts = retrieve_first_timestamp(
+                environment.project, consensus_height_filter(common_filter_prefix, args.height + 1)
+            )
+        except Exception:
+            end_ts = ""
+
+        end_dt = parse_rfc3339(end_ts) if end_ts else (start_dt + timedelta(minutes=15))
+        # Add ±30 seconds buffer
+        return start_dt - timedelta(seconds=30), end_dt + timedelta(seconds=30)
+
+    if args.near:
+        near_ts = to_utc(parse_local_timestamp(args.near))
+        return near_ts - timedelta(hours=2), near_ts + timedelta(hours=2)
+
+    if args.range:
+        start_str, end_str = args.range
+        return to_utc(parse_local_timestamp(start_str)), to_utc(parse_local_timestamp(end_str))
 
     # Default: last 24 hours window
     return get_24_hours_window()
 
 
-def prepare_filter(args, environment) -> Tuple[str, str, str]:
+def prepare_filter(args, environment) -> Tuple[str, datetime, datetime]:
     """Prepare log filter and time bounds. Returns (log_filter, start_time, end_time)."""
     common_filter_prefix = common_prefix(environment.namespace_re)
     wide_filter = wide_search_filter(common_filter_prefix, args.height)
@@ -191,22 +284,31 @@ def get_args(env_map: dict[str, EnvConfig]) -> argparse.Namespace:
         "--out_json_path",
         help="Output file path for JSON. Extension .json added if missing. Omit to print to stdout.",
     )
-    ap.add_argument(
+
+    # Create mutually exclusive group for time options
+    time_group = ap.add_mutually_exclusive_group()
+    time_group.add_argument(
         "--auto",
         action="store_true",
         help=f"Auto-detect time window by searching for '{RUNNING_CONSENSUS_FOR_HEIGHT} N' markers",
     )
-    ap.add_argument(
-        "--start",
-        help="TIMESTAMP - time window start, in local time, (requires --end). TIMESTAMP format: YYYY-MM-DDTHH:MM:SS",
+    time_group.add_argument(
+        "--range",
+        nargs=2,
+        metavar=("START", "END"),
+        help="Time window range in local time. Format: YYYY-MM-DDTHH:MM:SS YYYY-MM-DDTHH:MM:SS",
     )
-    ap.add_argument("--end", help="TIMESTAMP - time window end, in local time, (requires --start)")
-    ap.add_argument("--near", help="TIMESTAMP - search near this time, in local time, (±2h window)")
-    ap.add_argument(
+    time_group.add_argument(
+        "--near",
+        metavar="TIMESTAMP",
+        help="Search near this time in local time (±2h window). Format: YYYY-MM-DDTHH:MM:SS",
+    )
+    time_group.add_argument(
         "--last-24-hours",
         action="store_true",
         help="Use last 24 hours time window (default if no time args)",
     )
+
     ap.add_argument(
         "--print-filters",
         action="store_true",
