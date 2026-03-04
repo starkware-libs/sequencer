@@ -12,6 +12,8 @@ use apollo_batcher_types::batcher_types::{
     CentralObjects,
     DecisionReachedInput,
     DecisionReachedResponse,
+    FinishProposalInput,
+    FinishProposalStatus,
     FinishedProposalInfo,
     FinishedProposalInfoWithoutParent,
     GetHeightResponse,
@@ -488,8 +490,18 @@ impl Batcher {
 
         match send_proposal_content_input.content {
             SendProposalContent::Txs(txs) => self.handle_send_txs_request(proposal_id, txs).await,
+            // TODO(Itamar): Remove this arm once all callers migrate to `finish_proposal`.
             SendProposalContent::Finish(final_n_executed_txs) => {
-                self.handle_finish_proposal_request(proposal_id, final_n_executed_txs).await
+                let finish_response = self
+                    .finish_proposal(FinishProposalInput { proposal_id, final_n_executed_txs })
+                    .await?;
+                let response = match finish_response {
+                    FinishProposalStatus::Finished(info) => ProposalStatus::Finished(info),
+                    FinishProposalStatus::InvalidProposal(err) => {
+                        ProposalStatus::InvalidProposal(err)
+                    }
+                };
+                Ok(SendProposalContentResponse { response })
             }
         }
     }
@@ -533,13 +545,17 @@ impl Batcher {
         }
     }
 
-    async fn handle_finish_proposal_request(
+    #[instrument(skip(self), err)]
+    pub async fn finish_proposal(
         &mut self,
-        proposal_id: ProposalId,
-        final_n_executed_txs: usize,
-    ) -> BatcherResult<SendProposalContentResponse> {
+        finish_proposal_input: FinishProposalInput,
+    ) -> BatcherResult<FinishProposalStatus> {
+        let proposal_id = finish_proposal_input.proposal_id;
+        let final_n_executed_txs = finish_proposal_input.final_n_executed_txs;
+        self.ensure_validate_proposal_exists(proposal_id)?;
+
         info!(
-            "BATCHER_FIN_VALIDATOR: Send proposal content done for {}. n_txs: {}",
+            "BATCHER_FIN_VALIDATOR: Finish proposal for {}. n_txs: {}",
             proposal_id, final_n_executed_txs
         );
 
@@ -550,11 +566,17 @@ impl Batcher {
 
         let proposal_result =
             self.get_completed_proposal_result(proposal_id).await.expect("Proposal should exist.");
-        let proposal_status = match proposal_result {
-            Ok(info) => ProposalStatus::Finished(info),
-            Err(err) => proposal_status_from(err)?,
+        let response = match proposal_result {
+            Ok(info) => FinishProposalStatus::Finished(info),
+            Err(err) => match proposal_status_from(err)? {
+                ProposalStatus::InvalidProposal(err) => FinishProposalStatus::InvalidProposal(err),
+                status => {
+                    error!("Unexpected batcher status for finish proposal: {status:?}");
+                    return Err(BatcherError::InternalError);
+                }
+            },
         };
-        Ok(SendProposalContentResponse { response: proposal_status })
+        Ok(response)
     }
 
     #[instrument(skip(self), err)]
