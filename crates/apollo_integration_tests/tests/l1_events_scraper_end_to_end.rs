@@ -6,7 +6,7 @@ use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_l1_events::event_identifiers_to_track;
 use apollo_l1_events::l1_scraper::L1EventsScraper;
-use apollo_l1_provider_types::{Event, MockL1ProviderClient};
+use apollo_l1_provider_types::{Event, MockL1EventsProviderClient};
 use apollo_l1_scraper_config::config::L1EventsScraperConfig;
 use mockall::Sequence;
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
@@ -46,7 +46,7 @@ async fn scraper_end_to_end() {
         .expect("Failed to get an AvailablePorts instance for l1_events_scraper_end_to_end");
     let mut base_layer = AnvilBaseLayer::new(None, Some(available_ports.get_next_port())).await;
     let contract = &base_layer.ethereum_base_layer.contract;
-    let mut l1_provider_client = MockL1ProviderClient::default();
+    let mut l1_events_provider_client = MockL1EventsProviderClient::default();
 
     // Send messages from L1 to L2.
     let l2_contract_address = "0x12";
@@ -155,7 +155,7 @@ async fn scraper_end_to_end() {
     // Expect first call to return all the events defined further down.
     let expected_events_first_call =
         [first_expected_log, second_expected_log, expected_cancel_message];
-    l1_provider_client
+    l1_events_provider_client
         .expect_add_events()
         .once()
         .in_sequence(&mut sequence)
@@ -163,7 +163,7 @@ async fn scraper_end_to_end() {
         .returning(|_| Ok(()));
 
     // Expect second call to return nothing, no events left to scrape.
-    l1_provider_client
+    l1_events_provider_client
         .expect_add_events()
         .once()
         .in_sequence(&mut sequence)
@@ -177,7 +177,7 @@ async fn scraper_end_to_end() {
     };
     let mut scraper = L1EventsScraper::new(
         l1_events_scraper_config,
-        Arc::new(l1_provider_client),
+        Arc::new(l1_events_provider_client),
         base_layer.ethereum_base_layer.clone(),
         event_identifiers_to_track(),
     )
@@ -189,8 +189,8 @@ async fn scraper_end_to_end() {
     scraper.scrape_from_this_l1_block = Some(start_block);
 
     // Test.
-    scraper.send_events_to_l1_provider().await.unwrap();
+    scraper.send_events_to_l1_events_provider().await.unwrap();
 
     // Previous events had been scraped, should no longer appear.
-    scraper.send_events_to_l1_provider().await.unwrap();
+    scraper.send_events_to_l1_events_provider().await.unwrap();
 }

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use apollo_l1_provider_types::{
     InvalidValidationStatus,
-    MockL1ProviderClient,
+    MockL1EventsProviderClient,
     ValidationStatus as L1ValidationStatus,
 };
 use apollo_mempool_types::communication::MockMempoolClient;
@@ -30,7 +30,7 @@ const VALIDATE_BUFFER_SIZE: usize = 30;
 
 struct MockDependencies {
     mempool_client: MockMempoolClient,
-    l1_provider_client: MockL1ProviderClient,
+    l1_events_provider_client: MockL1EventsProviderClient,
     tx_sender: tokio::sync::mpsc::Sender<InternalConsensusTransaction>,
     tx_receiver: tokio::sync::mpsc::Receiver<InternalConsensusTransaction>,
     final_n_executed_txs_sender: tokio::sync::oneshot::Sender<usize>,
@@ -39,7 +39,7 @@ struct MockDependencies {
 
 impl MockDependencies {
     fn expect_get_l1_handler_txs(&mut self, n_to_request: usize, n_to_return: usize) {
-        self.l1_provider_client
+        self.l1_events_provider_client
             .expect_get_txs()
             .with(eq(n_to_request), eq(HEIGHT))
             .returning(move |_, _| Ok(vec![L1HandlerTransaction::default(); n_to_return]));
@@ -52,7 +52,7 @@ impl MockDependencies {
     }
 
     fn expect_validate_l1handler(&mut self, tx: L1HandlerTransaction, result: L1ValidationStatus) {
-        self.l1_provider_client
+        self.l1_events_provider_client
             .expect_validate()
             .withf(move |tx_arg, height| tx_arg == &tx.tx_hash && *height == HEIGHT)
             .returning(move |_, _| Ok(result));
@@ -67,7 +67,7 @@ impl MockDependencies {
     fn propose_tx_provider_with_phase(self, phase: TxProviderPhase) -> ProposeTransactionProvider {
         ProposeTransactionProvider::new(
             Arc::new(self.mempool_client),
-            Arc::new(self.l1_provider_client),
+            Arc::new(self.l1_events_provider_client),
             MAX_L1_HANDLER_TXS_PER_BLOCK,
             HEIGHT,
             phase,
@@ -92,7 +92,7 @@ impl MockDependencies {
         let validate_tx_provider = ValidateTransactionProvider::new(
             self.tx_receiver,
             self.final_n_executed_txs_receiver,
-            Arc::new(self.l1_provider_client),
+            Arc::new(self.l1_events_provider_client),
             HEIGHT,
         );
         (validate_tx_provider, self.final_n_executed_txs_sender)
@@ -114,7 +114,7 @@ fn mock_dependencies(
     let (final_n_executed_txs_sender, final_n_executed_txs_receiver) = final_n_executed_txs_channel;
     MockDependencies {
         mempool_client: MockMempoolClient::new(),
-        l1_provider_client: MockL1ProviderClient::new(),
+        l1_events_provider_client: MockL1EventsProviderClient::new(),
         tx_sender,
         tx_receiver,
         final_n_executed_txs_sender,

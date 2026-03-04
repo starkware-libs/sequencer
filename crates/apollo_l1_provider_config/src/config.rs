@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Validate, PartialEq, Eq)]
-pub struct L1ProviderConfig {
+pub struct L1EventsProviderConfig {
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub startup_sync_sleep_retry_interval_seconds: Duration,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
@@ -21,7 +21,7 @@ pub struct L1ProviderConfig {
     pub dummy_mode: bool,
 }
 
-impl Default for L1ProviderConfig {
+impl Default for L1EventsProviderConfig {
     fn default() -> Self {
         Self {
             startup_sync_sleep_retry_interval_seconds: Duration::from_secs(2),
@@ -33,7 +33,7 @@ impl Default for L1ProviderConfig {
     }
 }
 
-impl SerializeConfig for L1ProviderConfig {
+impl SerializeConfig for L1EventsProviderConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from([
             ser_param(

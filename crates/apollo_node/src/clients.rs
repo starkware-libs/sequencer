@@ -49,12 +49,16 @@ use apollo_gateway_types::communication::{
     SharedGatewayClient,
 };
 use apollo_infra::component_client::{Client, LocalComponentClient};
-use apollo_l1_events::communication::{LocalL1ProviderClient, RemoteL1ProviderClient};
-use apollo_l1_events::metrics::L1_PROVIDER_INFRA_METRICS;
+use apollo_l1_events::communication::{LocalL1EventsProviderClient, RemoteL1EventsProviderClient};
+use apollo_l1_events::metrics::L1_EVENTS_PROVIDER_INFRA_METRICS;
 use apollo_l1_gas_price::communication::{LocalL1GasPriceClient, RemoteL1GasPriceClient};
 use apollo_l1_gas_price::metrics::L1_GAS_PRICE_INFRA_METRICS;
 use apollo_l1_gas_price_types::{L1GasPriceRequest, L1GasPriceResponse, SharedL1GasPriceClient};
-use apollo_l1_provider_types::{L1ProviderRequest, L1ProviderResponse, SharedL1ProviderClient};
+use apollo_l1_provider_types::{
+    L1EventsProviderRequest,
+    L1EventsProviderResponse,
+    SharedL1EventsProviderClient,
+};
 use apollo_mempool::metrics::MEMPOOL_INFRA_METRICS;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_INFRA_METRICS;
 use apollo_mempool_p2p_types::communication::{
@@ -107,7 +111,7 @@ pub struct SequencerNodeClients {
     committer_client: Client<CommitterRequest, CommitterResponse>,
     config_manager_client: Client<ConfigManagerRequest, ConfigManagerResponse>,
     gateway_client: Client<GatewayRequest, GatewayResponse>,
-    l1_provider_client: Client<L1ProviderRequest, L1ProviderResponse>,
+    l1_events_provider_client: Client<L1EventsProviderRequest, L1EventsProviderResponse>,
     l1_gas_price_client: Client<L1GasPriceRequest, L1GasPriceResponse>,
     mempool_client: Client<MempoolRequest, MempoolResponse>,
     mempool_p2p_propagator_client:
@@ -205,10 +209,10 @@ impl SequencerNodeClients {
         get_shared_client!(self, gateway_client)
     }
 
-    pub fn get_l1_provider_local_client(
+    pub fn get_l1_events_provider_local_client(
         &self,
-    ) -> Option<LocalComponentClient<L1ProviderRequest, L1ProviderResponse>> {
-        self.l1_provider_client.get_local_client()
+    ) -> Option<LocalComponentClient<L1EventsProviderRequest, L1EventsProviderResponse>> {
+        self.l1_events_provider_client.get_local_client()
     }
 
     pub fn get_l1_gas_price_provider_local_client(
@@ -217,8 +221,8 @@ impl SequencerNodeClients {
         self.l1_gas_price_client.get_local_client()
     }
 
-    pub fn get_l1_provider_shared_client(&self) -> Option<SharedL1ProviderClient> {
-        get_shared_client!(self, l1_provider_client)
+    pub fn get_l1_events_provider_shared_client(&self) -> Option<SharedL1EventsProviderClient> {
+        get_shared_client!(self, l1_events_provider_client)
     }
 
     pub fn get_l1_gas_price_shared_client(&self) -> Option<SharedL1GasPriceClient> {
@@ -430,16 +434,16 @@ pub fn create_node_clients(
         &GATEWAY_INFRA_METRICS.get_remote_client_metrics()
     );
 
-    let l1_provider_client = create_client!(
-        &config.components.l1_provider.execution_mode,
-        LocalL1ProviderClient,
-        RemoteL1ProviderClient,
-        channels.take_l1_provider_tx(),
-        &config.components.l1_provider.remote_client_config,
-        &config.components.l1_provider.url,
-        config.components.l1_provider.port,
-        &L1_PROVIDER_INFRA_METRICS.get_local_client_metrics(),
-        &L1_PROVIDER_INFRA_METRICS.get_remote_client_metrics()
+    let l1_events_provider_client = create_client!(
+        &config.components.l1_events_provider.execution_mode,
+        LocalL1EventsProviderClient,
+        RemoteL1EventsProviderClient,
+        channels.take_l1_events_provider_tx(),
+        &config.components.l1_events_provider.remote_client_config,
+        &config.components.l1_events_provider.url,
+        config.components.l1_events_provider.port,
+        &L1_EVENTS_PROVIDER_INFRA_METRICS.get_local_client_metrics(),
+        &L1_EVENTS_PROVIDER_INFRA_METRICS.get_remote_client_metrics()
     );
 
     let l1_gas_price_client = create_client!(
@@ -531,7 +535,7 @@ pub fn create_node_clients(
         committer_client,
         config_manager_client,
         gateway_client,
-        l1_provider_client,
+        l1_events_provider_client,
         l1_gas_price_client,
         mempool_client,
         mempool_p2p_propagator_client,

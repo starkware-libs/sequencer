@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::trace_util::{configure_tracing, get_log_directives, set_log_level};
 use apollo_infra_utils::type_name::short_type_name;
-use apollo_l1_provider_types::{L1ProviderSnapshot, SharedL1ProviderClient};
+use apollo_l1_provider_types::{L1EventsProviderSnapshot, SharedL1EventsProviderClient};
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::MempoolSnapshot;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
@@ -29,7 +29,7 @@ pub(crate) const READY: &str = "ready";
 pub(crate) const VERSION: &str = "nodeVersion";
 pub(crate) const METRICS: &str = "metrics";
 pub(crate) const MEMPOOL_SNAPSHOT: &str = "mempoolSnapshot";
-pub(crate) const L1_PROVIDER_SNAPSHOT: &str = "l1ProviderSnapshot";
+pub(crate) const L1_EVENTS_PROVIDER_SNAPSHOT: &str = "l1ProviderSnapshot";
 pub(crate) const SET_LOG_LEVEL: &str = "setLogLevel";
 pub(crate) const LOG_LEVEL: &str = "logLevel";
 
@@ -38,7 +38,7 @@ pub struct MonitoringEndpoint {
     version: &'static str,
     prometheus_handle: Option<PrometheusHandle>,
     mempool_client: Option<SharedMempoolClient>,
-    l1_provider_client: Option<SharedL1ProviderClient>,
+    l1_events_provider_client: Option<SharedL1EventsProviderClient>,
 }
 
 impl MonitoringEndpoint {
@@ -47,14 +47,14 @@ impl MonitoringEndpoint {
         version: &'static str,
         prometheus_handle: Option<PrometheusHandle>,
         mempool_client: Option<SharedMempoolClient>,
-        l1_provider_client: Option<SharedL1ProviderClient>,
+        l1_events_provider_client: Option<SharedL1EventsProviderClient>,
     ) -> Self {
         MonitoringEndpoint {
             config,
             version,
             prometheus_handle,
             mempool_client,
-            l1_provider_client,
+            l1_events_provider_client,
         }
     }
 
@@ -80,7 +80,7 @@ impl MonitoringEndpoint {
         let version = self.version.to_string();
         let prometheus_handle = self.prometheus_handle.clone();
         let mempool_client = self.mempool_client.clone();
-        let l1_provider_client = self.l1_provider_client.clone();
+        let l1_events_provider_client = self.l1_events_provider_client.clone();
 
         Router::new()
             .route(
@@ -104,8 +104,8 @@ impl MonitoringEndpoint {
                 get(move || mempool_snapshot(mempool_client)),
             )
             .route(
-                format!("/{MONITORING_PREFIX}/{L1_PROVIDER_SNAPSHOT}").as_str(),
-                get(move || get_l1_provider_snapshot(l1_provider_client)),
+                format!("/{MONITORING_PREFIX}/{L1_EVENTS_PROVIDER_SNAPSHOT}").as_str(),
+                get(move || get_l1_events_provider_snapshot(l1_events_provider_client)),
             )
             .route(
                 format!("/{MONITORING_PREFIX}/{SET_LOG_LEVEL}/{{crate}}/{{level}}").as_str(),
@@ -123,9 +123,15 @@ pub fn create_monitoring_endpoint(
     version: &'static str,
     prometheus_handle: Option<PrometheusHandle>,
     mempool_client: Option<SharedMempoolClient>,
-    l1_provider_client: Option<SharedL1ProviderClient>,
+    l1_events_provider_client: Option<SharedL1EventsProviderClient>,
 ) -> MonitoringEndpoint {
-    MonitoringEndpoint::new(config, version, prometheus_handle, mempool_client, l1_provider_client)
+    MonitoringEndpoint::new(
+        config,
+        version,
+        prometheus_handle,
+        mempool_client,
+        l1_events_provider_client,
+    )
 }
 
 #[async_trait]
@@ -176,21 +182,21 @@ async fn mempool_snapshot(
 }
 
 // Returns L1 provider snapshot
-#[instrument(level = "debug", skip(l1_provider_client))]
-async fn get_l1_provider_snapshot(
-    l1_provider_client: Option<SharedL1ProviderClient>,
-) -> Result<Json<L1ProviderSnapshot>, StatusCode> {
-    match l1_provider_client {
+#[instrument(level = "debug", skip(l1_events_provider_client))]
+async fn get_l1_events_provider_snapshot(
+    l1_events_provider_client: Option<SharedL1EventsProviderClient>,
+) -> Result<Json<L1EventsProviderSnapshot>, StatusCode> {
+    match l1_events_provider_client {
         Some(client) => {
             // Wrap the l1 client interaction with a tokio::spawn as it is NOT cancel-safe.
             // Even if the current task is cancelled, e.g., when a request is dropped while still
             // being processed, the inner task will continue to run.
-            let l1_provider_snapshot_result =
-                tokio::spawn(async move { client.get_l1_provider_snapshot().await })
+            let l1_events_provider_snapshot_result =
+                tokio::spawn(async move { client.get_l1_events_provider_snapshot().await })
                     .await
                     .expect("Should be able to get l1 provider result");
 
-            match l1_provider_snapshot_result {
+            match l1_events_provider_snapshot_result {
                 Ok(snapshot) => Ok(snapshot.into()),
                 Err(err) => {
                     error!("Failed to get L1 provider snapshot: {:?}", err);
