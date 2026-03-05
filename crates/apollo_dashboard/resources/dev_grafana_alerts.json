@@ -925,6 +925,34 @@
       "observer_applicable": "true"
     },
     {
+      "name": "staking_epoch_id_mismatch",
+      "title": "Staking epoch ID mismatch between nodes",
+      "ruleGroup": "staking",
+      "expr": "max(staking_current_epoch_id{cluster=~\"$cluster\", namespace=~\"$namespace\"}) - min(staking_current_epoch_id{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "5m",
+      "intervalSec": 30,
+      "severity": "p3",
+      "observer_applicable": "false"
+    },
+    {
       "name": "sync_storage_open_read_transactions",
       "title": "sync - High number of open read transactions",
       "ruleGroup": "state_sync",
@@ -1009,7 +1037,7 @@
       "observer_applicable": "false"
     },
     {
-      "name": "get_consensus_block_number_progress_is_slow",
+      "name": "consensus_block_number_progress_is_slow",
       "title": "Consensus block number progress is slow",
       "ruleGroup": "consensus",
       "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) or vector(0)",
@@ -1017,7 +1045,7 @@
         {
           "evaluator": {
             "params": [
-              "$$$get_consensus_block_number_progress_is_slow-comparison_value$$$"
+              "$$$consensus_block_number_progress_is_slow-comparison_value$$$"
             ],
             "type": "lt"
           },
@@ -1033,7 +1061,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2",
+      "severity": "$$$consensus_block_number_progress_is_slow-severity$$$",
       "observer_applicable": "true"
     },
     {
@@ -1061,7 +1089,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3",
+      "severity": "$$$cende_write_blob_failure-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1089,7 +1117,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p1",
+      "severity": "$$$consensus_block_number_stuck-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1145,7 +1173,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p1",
+      "severity": "$$$consensus_p2p_not_enough_peers_for_quorum-severity$$$",
       "observer_applicable": "true"
     },
     {
@@ -1201,7 +1229,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2",
+      "severity": "$$$consensus_p2p_peer_down-severity$$$",
       "observer_applicable": "true"
     },
     {
@@ -1229,7 +1257,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p1",
+      "severity": "$$$consensus_round_above_zero_multiple_times-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1257,7 +1285,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p1",
+      "severity": "$$$consensus_round_high-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1285,7 +1313,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3",
+      "severity": "$$$eth_to_strk_success_count-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1425,7 +1453,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3",
+      "severity": "$$$http_server_avg_add_tx_latency-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1453,7 +1481,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p1",
+      "severity": "$$$http_server_min_add_tx_latency-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1481,7 +1509,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2",
+      "severity": "$$$http_server_internal_error_ratio-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1509,7 +1537,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3",
+      "severity": "$$$gateway_low_successful_transaction_rate-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1549,7 +1577,7 @@
         {
           "evaluator": {
             "params": [
-              0.3
+              "$$$high_empty_blocks_ratio-comparison_value$$$"
             ],
             "type": "gt"
           },
@@ -1565,7 +1593,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p1",
+      "severity": "$$$high_empty_blocks_ratio-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1593,7 +1621,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3",
+      "severity": "$$$l1_gas_price_provider_insufficient_history-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1621,7 +1649,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3",
+      "severity": "$$$l1_gas_price_scraper_success_count-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1649,7 +1677,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p1",
+      "severity": "$$$l1_message_no_successes-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1677,7 +1705,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2",
+      "severity": "$$$mempool_evictions_count-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1705,7 +1733,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2",
+      "severity": "$$$mempool_p2p_peer_down-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1733,7 +1761,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3",
+      "severity": "$$$mempool_pool_size_increase-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1761,7 +1789,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3",
+      "severity": "$$$mempool_transaction_drop_ratio-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1789,7 +1817,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p1",
+      "severity": "$$$preconfirmed_block_not_written-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -1817,7 +1845,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2",
+      "severity": "$$$state_sync_lag-severity$$$",
       "observer_applicable": "false"
     },
     {

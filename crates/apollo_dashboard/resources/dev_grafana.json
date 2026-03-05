@@ -287,6 +287,52 @@
       ],
       "collapsed": true
     },
+    "Staking": {
+      "panels": [
+        {
+          "title": "Epoch Information",
+          "description": "Current epoch ID, current epoch start height, and next epoch start height",
+          "type": "stat",
+          "exprs": [
+            "max(staking_current_epoch_id{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})",
+            "max(staking_current_epoch_start_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})",
+            "max(staking_current_epoch_start_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} + staking_current_epoch_length{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
+          ],
+          "extra_params": {
+            "legends": [
+              "Epoch ID",
+              "Start Height",
+              "Next Epoch Start Height"
+            ]
+          }
+        },
+        {
+          "title": "Stake Distribution by Staker",
+          "description": "The distribution of stake across committee members, showing each staker's address and their staking power",
+          "type": "piechart",
+          "exprs": [
+            "max by (address) (staking_committee_member_weight{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", address!=\"\"}) > 0"
+          ],
+          "extra_params": {
+            "legend_values": [
+              "percent"
+            ]
+          }
+        },
+        {
+          "title": "Eligible Proposers Stake %",
+          "description": "The percentage of total stake held by eligible proposers",
+          "type": "timeseries",
+          "exprs": [
+            "(staking_committee_eligible_proposers_total_weight{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / staking_committee_total_weight{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
+          ],
+          "extra_params": {
+            "unit": "percentunit"
+          }
+        }
+      ],
+      "collapsed": true
+    },
     "Cende": {
       "panels": [
         {
@@ -465,122 +511,119 @@
         },
         {
           "title": "Commit Block Latency",
-          "description": "The latency of commit tasks in the commitment manager",
+          "description": "Average latency of commit tasks in the commitment manager over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_commitment_manager_commit_block_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_commitment_manager_commit_block_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_commitment_manager_commit_block_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000 * clamp_min(increase(batcher_commitment_manager_commit_block_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Commit block latency\""
+            "log_query": "\"Block\" AND \"commitment latencies\""
           }
         },
         {
           "title": "Commitment Manager Results Count",
-          "description": "The number of commit results received from the commitment manager",
+          "description": "The number of commit results received from the commitment manager (1m window)",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_commitment_manager_num_commit_results_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_commitment_manager_num_commit_results_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(batcher_commitment_manager_num_commit_results{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])"
           ],
           "extra_params": {}
         },
         {
           "title": "Revert Block Latency",
-          "description": "The latency of revert tasks in the commitment manager",
+          "description": "Average latency of revert tasks in the commitment manager over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_commitment_manager_revert_block_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_commitment_manager_revert_block_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_commitment_manager_revert_block_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000 * clamp_min(increase(batcher_commitment_manager_revert_block_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Revert block latency\""
+            "log_query": "\"Block\" AND \"commitment latencies\""
           }
         },
         {
           "title": "Transaction Commitment Latency",
-          "description": "Duration of transactions commitment computation",
+          "description": "Average duration of transaction commitment computation per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_tx_commitment_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_tx_commitment_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_tx_commitment_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000000 * clamp_min(increase(batcher_block_commitment_measurements_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
-            "unit": "s"
+            "unit": "s",
+            "log_query": "\"Block\" AND \"commitment latencies\""
           }
         },
         {
           "title": "Transaction Commitment Per Transaction Latency",
-          "description": "Duration of transactions commitment computation per transaction",
+          "description": "Average duration of transaction commitment per transaction over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_tx_commitment_per_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_tx_commitment_per_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_tx_commitment_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000000 * clamp_min(increase(batcher_tx_commitment_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
-            "unit": "s"
+            "unit": "s",
+            "log_query": "\"Block\" AND \"commitment latencies\""
           }
         },
         {
           "title": "Event Commitment Latency",
-          "description": "Duration of event commitment computation",
+          "description": "Average duration of event commitment computation per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_event_commitment_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_event_commitment_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_event_commitment_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000000 * clamp_min(increase(batcher_block_commitment_measurements_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
-            "unit": "s"
+            "unit": "s",
+            "log_query": "\"Block\" AND \"commitment latencies\""
           }
         },
         {
           "title": "Event Commitment Per Event Latency",
-          "description": "Duration of event commitment computation per event",
+          "description": "Average duration of event commitment per event over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_event_commitment_per_event_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_event_commitment_per_event_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_event_commitment_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000000 * clamp_min(increase(batcher_event_commitment_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
-            "unit": "s"
+            "unit": "s",
+            "log_query": "\"Block\" AND \"commitment latencies\""
           }
         },
         {
           "title": "Receipt Commitment Latency",
-          "description": "Duration of receipt commitment computation",
+          "description": "Average duration of receipt commitment computation per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_receipt_commitment_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_receipt_commitment_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_receipt_commitment_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000000 * clamp_min(increase(batcher_block_commitment_measurements_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
-            "unit": "s"
+            "unit": "s",
+            "log_query": "\"Block\" AND \"commitment latencies\""
           }
         },
         {
           "title": "State Diff Commitment Latency",
-          "description": "Duration of state diff commitment computation",
+          "description": "Average duration of state diff commitment computation per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_state_diff_commitment_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_state_diff_commitment_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_state_diff_commitment_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000000 * clamp_min(increase(batcher_block_commitment_measurements_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
-            "unit": "s"
+            "unit": "s",
+            "log_query": "\"Block\" AND \"commitment latencies\""
           }
         },
         {
           "title": "State Diff Commitment Per State Diff Length",
-          "description": "Duration of state diff commitment computation per state diff length",
+          "description": "Average duration of state diff commitment per state diff length over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_state_diff_commitment_per_state_diff_length_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_state_diff_commitment_per_state_diff_length_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_state_diff_commitment_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000000 * clamp_min(increase(batcher_state_diff_length{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
-            "unit": "s"
+            "unit": "s",
+            "log_query": "\"Block\" AND \"commitment latencies\""
           }
         }
       ],
@@ -771,10 +814,10 @@
         },
         {
           "title": "Time to Complete Sync",
-          "description": "Estimated time to complete syncing to the latest block (based on a 10m window rate).\nThe value is computed from the sync rate of the `current sync marker` compared against the `current feeder gateway marker`.",
+          "description": "Estimated time to complete syncing to the latest block (based on a 10m window rate).\nThe value is computed from the sync rate of the `committer offset` (the next block to commit, representing the current committed state), compared against the `central block marker` (the latest block known to central).",
           "type": "timeseries",
           "exprs": [
-            "(apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}) / clamp_min(rate(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) - rate(apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]), 1)"
+            "(apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} - on (namespace) committer_offset{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}) / clamp_min(rate(committer_offset{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) - on (namespace) rate(apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]), 1)"
           ],
           "extra_params": {
             "unit": "s"
@@ -2381,6 +2424,100 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_sierra\"}[5m])), \"label_name\", \"0.95 class_manager_processing_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_sierra\"}[5m])), \"label_name\", \"0.50 class_manager_queueing_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_sierra\"}[5m])), \"label_name\", \"0.95 class_manager_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        }
+      ],
+      "collapsed": true
+    },
+    "Committer Infra": {
+      "panels": [
+        {
+          "title": "Local request receiving rate",
+          "description": "Increase of received local requests (1m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(committer_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Processing queue depths",
+          "description": "The depth of the local priority queues",
+          "type": "timeseries",
+          "exprs": [
+            "committer_local_high_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}",
+            "committer_local_normal_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Remote request receiving rate",
+          "description": "Increase of received remote requests (1m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(committer_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Number of remote connections",
+          "description": "Number of currently-open remote connections",
+          "type": "timeseries",
+          "exprs": [
+            "committer_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "commit_block (client-side)",
+          "description": "client-side infra metrics for request type commit_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 committer_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 committer_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 committer_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 committer_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 committer_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 committer_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "commit_block (server-side)",
+          "description": "server-side infra metrics for request type commit_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 committer_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 committer_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 committer_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 committer_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "revert_block (client-side)",
+          "description": "client-side infra metrics for request type revert_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.50 committer_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.95 committer_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.50 committer_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.95 committer_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.50 committer_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.95 committer_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "revert_block (server-side)",
+          "description": "server-side infra metrics for request type revert_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.50 committer_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.95 committer_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.50 committer_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.95 committer_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         }

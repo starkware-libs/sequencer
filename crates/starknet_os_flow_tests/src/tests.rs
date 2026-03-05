@@ -9,7 +9,7 @@ use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::{get_valid_virtual_os_program_hash, ALIAS_CONTRACT_ADDRESS};
 use blockifier::transaction::test_utils::ExpectedExecutionInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use blockifier_test_utils::calldata::create_calldata;
+use blockifier_test_utils::calldata::{cairo0_proven_revert_scenario_calldata, create_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
 use expect_test::expect;
@@ -2927,6 +2927,35 @@ async fn test_nested_self_revert_storage_order() {
         "catch_write_revert_panic",
         &[**test_contract_address, Felt::THREE],
     );
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Run the test.
+    let test_output = test_builder.build_and_run().await;
+    test_output.perform_default_validations();
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_cairo0_proven_revert() {
+    let test_contract_cairo1 =
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let test_contract_cairo0 = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let (mut test_builder, [cairo1_contract_address, cairo0_contract_address]) =
+        TestBuilder::<DictStateReader>::create_standard([
+            (test_contract_cairo1, calldata![Felt::ZERO, Felt::ZERO]),
+            (test_contract_cairo0, calldata![Felt::ZERO, Felt::ZERO]),
+        ])
+        .await;
+
+    let storage_key = Felt::from(1234u16);
+    let storage_value = Felt::from(1u16);
+    let calldata = cairo0_proven_revert_scenario_calldata(
+        cairo1_contract_address,
+        cairo0_contract_address,
+        storage_key,
+        storage_value,
+    );
+
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
 
     // Run the test.

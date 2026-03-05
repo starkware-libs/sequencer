@@ -22,6 +22,7 @@ pub(crate) enum PanelType {
     TimeSeries,
     #[allow(dead_code)] // TODO(Ron): use BarGauge in panels
     BarGauge,
+    PieChart,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -83,6 +84,7 @@ pub struct ExtraParams {
     pub log_comment: Option<String>,
     pub thresholds: Option<Thresholds>,
     pub legends: Option<Vec<String>>,
+    pub legend_values: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -190,6 +192,27 @@ impl Panel {
             "Number of legends must match number of expressions"
         );
         self.extra.legends = Some(legends);
+        self
+    }
+
+    pub fn with_legend_values<I, S>(mut self, legend_values: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        assert_eq!(
+            self.panel_type,
+            PanelType::PieChart,
+            "legend_values is only supported on PieChart panels; got {:?}",
+            self.panel_type
+        );
+        let values: Vec<String> = legend_values.into_iter().map(|s| s.into()).collect();
+        assert_eq!(
+            values.len(),
+            self.exprs.len(),
+            "Number of legend values must match number of expressions"
+        );
+        self.extra.legend_values = Some(values);
         self
     }
 

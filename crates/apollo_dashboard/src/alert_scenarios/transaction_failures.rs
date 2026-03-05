@@ -7,6 +7,7 @@ use apollo_http_server::metrics::{
 use apollo_mempool::metrics::{MEMPOOL_TRANSACTIONS_DROPPED, MEMPOOL_TRANSACTIONS_RECEIVED};
 use apollo_metrics::metrics::MetricQueryName;
 
+use crate::alert_placeholders::SeverityValueOrPlaceholder;
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -58,9 +59,10 @@ pub(crate) fn get_http_server_high_transaction_failure_ratio() -> Alert {
     )
 }
 
-fn get_http_server_internal_error_ratio(alert_severity: AlertSeverity) -> Alert {
+pub(crate) fn get_http_server_internal_error_ratio() -> Alert {
+    const ALERT_NAME: &str = "http_server_internal_error_ratio";
     Alert::new(
-        "http_server_internal_error_ratio",
+        ALERT_NAME,
         "http server internal error ratio",
         AlertGroup::HttpServer,
         format!(
@@ -71,18 +73,15 @@ fn get_http_server_internal_error_ratio(alert_severity: AlertSeverity) -> Alert 
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.01, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
 }
 
-pub(crate) fn get_http_server_internal_error_ratio_vec() -> Vec<Alert> {
-    vec![get_http_server_internal_error_ratio(AlertSeverity::Regular)]
-}
-
-fn get_mempool_transaction_drop_ratio(alert_severity: AlertSeverity) -> Alert {
+pub(crate) fn get_mempool_transaction_drop_ratio() -> Alert {
+    const ALERT_NAME: &str = "mempool_transaction_drop_ratio";
     Alert::new(
-        "mempool_transaction_drop_ratio",
+        ALERT_NAME,
         "Mempool transaction drop ratio",
         AlertGroup::Mempool,
         format!(
@@ -98,13 +97,9 @@ fn get_mempool_transaction_drop_ratio(alert_severity: AlertSeverity) -> Alert {
         )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
-}
-
-pub(crate) fn get_mempool_transaction_drop_ratio_vec() -> Vec<Alert> {
-    vec![get_mempool_transaction_drop_ratio(AlertSeverity::DayOnly)]
 }
 
 pub(crate) fn get_http_server_internal_error_once() -> Alert {

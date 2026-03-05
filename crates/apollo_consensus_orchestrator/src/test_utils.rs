@@ -15,7 +15,8 @@ use apollo_batcher_types::batcher_types::{
     SendProposalContentResponse,
     ValidateBlockInput,
 };
-use apollo_batcher_types::communication::MockBatcherClient;
+use apollo_batcher_types::communication::{BatcherClientError, MockBatcherClient};
+use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_consensus::types::Round;
 use apollo_consensus_orchestrator_config::config::{ContextConfig, ContextStaticConfig};
@@ -54,15 +55,14 @@ use starknet_api::block::{
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
 };
-use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
+use starknet_api::block_hash::block_hash_calculator::{BlockHeaderCommitments, PartialBlockHash};
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
-use starknet_api::core::{ChainId, ContractAddress, Nonce, StateDiffCommitment};
+use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::felt;
-use starknet_api::hash::PoseidonHash;
+use starknet_api::hash::StarkHash;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 
@@ -78,8 +78,7 @@ use crate::utils::{make_gas_price_params, GasPriceParams, PreviousBlockInfo, Str
 
 pub(crate) const TIMEOUT: Duration = Duration::from_millis(1200);
 pub(crate) const CHANNEL_SIZE: usize = 5000;
-pub(crate) const STATE_DIFF_COMMITMENT: StateDiffCommitment =
-    StateDiffCommitment(PoseidonHash(Felt::ZERO));
+pub(crate) const PARTIAL_BLOCK_HASH: PartialBlockHash = PartialBlockHash(StarkHash::ZERO);
 pub(crate) const CHAIN_ID: ChainId = ChainId::Mainnet;
 
 // In order for gas price in ETH to be greater than 0 (required) we must have large enough
@@ -209,7 +208,7 @@ impl TestDeps {
                     Ok(GetProposalContentResponse {
                         content: GetProposalContent::Finished(FinishedProposalInfo {
                             proposal_commitment: ProposalCommitment {
-                                state_diff_commitment: STATE_DIFF_COMMITMENT,
+                                partial_block_hash: PARTIAL_BLOCK_HASH,
                             },
                             final_n_executed_txs: args.n_executed_txs_count,
                             block_header_commitments: BlockHeaderCommitments::default(),
@@ -219,6 +218,7 @@ impl TestDeps {
                 });
             block_number = block_number.unchecked_next();
         }
+        self.setup_default_batcher_get_block_hash();
     }
 
     pub(crate) fn setup_deps_for_validate(&mut self, args: SetupDepsArgs) {
@@ -273,7 +273,7 @@ impl TestDeps {
                     Ok(SendProposalContentResponse {
                         response: ProposalStatus::Finished(FinishedProposalInfo {
                             proposal_commitment: ProposalCommitment {
-                                state_diff_commitment: STATE_DIFF_COMMITMENT,
+                                partial_block_hash: PARTIAL_BLOCK_HASH,
                             },
                             final_n_executed_txs: args.n_executed_txs_count,
                             block_header_commitments: BlockHeaderCommitments::default(),
@@ -283,6 +283,7 @@ impl TestDeps {
                 });
             block_number = block_number.unchecked_next();
         }
+        self.setup_default_batcher_get_block_hash();
     }
 
     pub(crate) fn setup_default_transaction_converter(&mut self) {
@@ -311,6 +312,12 @@ impl TestDeps {
             blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
         }));
         self.l1_gas_price_provider.expect_get_eth_to_fri_rate().return_const(Ok(ETH_TO_FRI_RATE));
+    }
+
+    pub(crate) fn setup_default_batcher_get_block_hash(&mut self) {
+        self.batcher.expect_get_block_hash().returning(|block_number| {
+            Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(block_number)))
+        });
     }
 
     pub(crate) fn build_context(self) -> SequencerConsensusContext {
@@ -368,7 +375,7 @@ pub(crate) fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
     }))
 }
 
-pub(crate) fn block_info(height: BlockNumber, round: u32) -> ProposalInit {
+pub(crate) fn proposal_init(height: BlockNumber, round: u32) -> ProposalInit {
     let context_config = ContextConfig::default();
     let l1_gas_price_wei =
         GasPrice(TEMP_ETH_GAS_FEE_IN_WEI + context_config.dynamic_config.l1_gas_tip_wei);
@@ -413,7 +420,7 @@ pub(crate) async fn send_proposal_to_validator_context(
         .unwrap();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: ProtoProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProtoProposalCommitment(PARTIAL_BLOCK_HASH.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
             fin_payload: None,
         }))

@@ -6,7 +6,7 @@ use apollo_batcher::metrics::{
     SIERRA_GAS_IN_LAST_BLOCK,
 };
 use apollo_gateway::metrics::GATEWAY_CLASS_CACHE_METRICS;
-use apollo_metrics::metrics::{MetricQueryName, MetricScope};
+use apollo_metrics::metrics::MetricQueryName;
 use blockifier::metrics::{
     CacheMetrics,
     BLOCKIFIER_METRIC_RATE_DURATION,
@@ -25,12 +25,6 @@ fn get_panel_blockifier_state_reader_class_cache_miss_ratio(
     class_cache_metrics: &CacheMetrics,
 ) -> Panel {
     let scope = class_cache_metrics.get_scope();
-    // TODO(Arni): Share this code.
-    let scope = match scope {
-        MetricScope::Batcher => "Batcher",
-        MetricScope::Gateway => "Gateway",
-        _ => unreachable!("Scope of class cache metrics must be Batcher or Gateway. Got {scope:?}"),
-    };
     let name = format!("Class Cache Miss in {scope}");
     let description = format!(
         "The ratio of cache misses when requesting compiled classes from the Blockifier State \

@@ -304,6 +304,7 @@ pub struct ContextDynamicConfig {
         serialize_with = "serialize_price_per_height_as_string"
     )]
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
+    pub compare_retrospective_block_hash: bool,
 }
 
 impl SerializeConfig for ContextDynamicConfig {
@@ -344,6 +345,13 @@ impl SerializeConfig for ContextDynamicConfig {
                 "l1_gas_tip_wei",
                 &self.l1_gas_tip_wei,
                 "This additional gas is added to the L1 gas price.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "compare_retrospective_block_hash",
+                &self.compare_retrospective_block_hash,
+                "Whether to compare the retrospective block hash between the Batcher and the \
+                 State Sync.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -406,6 +414,7 @@ impl Default for ContextDynamicConfig {
             override_l1_data_gas_price_fri: None,
             override_eth_to_fri_rate: None,
             min_l2_gas_price_per_height: vec![],
+            compare_retrospective_block_hash: true,
         }
     }
 }

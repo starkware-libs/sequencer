@@ -69,6 +69,7 @@ use serde::Serialize;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{
     BlockHash,
+    BlockHashAndNumber,
     BlockInfo,
     BlockNumber,
     BlockTimestamp,
@@ -743,6 +744,10 @@ fn central_blob() -> AerospikeBlob {
         compiled_class_hashes_for_migration: central_compiled_class_hashes_for_migration(),
         proposal_commitment: ProposalCommitment(felt!("0x80020000")),
         parent_proposal_commitment: Some(ProposalCommitment(felt!("0x1000200"))),
+        recent_block_hashes: vec![
+            BlockHashAndNumber { number: BlockNumber(1), hash: BlockHash(felt!("0x1")) },
+            BlockHashAndNumber { number: BlockNumber(2), hash: BlockHash(felt!("0x2")) },
+        ],
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the
@@ -770,6 +775,7 @@ fn central_blob_with_empty_or_none_fields() -> AerospikeBlob {
         compiled_class_hashes_for_migration: vec![],
         proposal_commitment: ProposalCommitment(felt!("0x80020000")),
         parent_proposal_commitment: None,
+        recent_block_hashes: vec![],
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the

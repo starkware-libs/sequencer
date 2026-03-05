@@ -202,13 +202,7 @@ pub(crate) async fn validate_proposal(
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
     let mut valid_proposals = args.valid_proposals.lock().unwrap();
-    valid_proposals.insert_proposal_for_height(
-        &args.block_info_validation.height,
-        args.init,
-        content,
-        &args.proposal_id,
-        finished_info,
-    );
+    valid_proposals.insert_proposal(args.init, content, &args.proposal_id, finished_info);
 
     // TODO(matan): Switch to signature validation.
     if built_block != received_fin.proposal_commitment {
@@ -420,7 +414,7 @@ async fn handle_proposal_part(
                 }
             };
             let batcher_block_commitment =
-                ProposalCommitment(finished_info.proposal_commitment.state_diff_commitment.0.0);
+                ProposalCommitment(finished_info.proposal_commitment.partial_block_hash.0);
 
             info!(
                 network_block_commitment = ?fin.proposal_commitment,

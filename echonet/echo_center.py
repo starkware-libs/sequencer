@@ -1,17 +1,28 @@
+import base64
 import json
 import logging
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, List, Literal, Optional, Tuple, Union
 
 import flask  # pyright: ignore[reportMissingImports]
 import requests
 
+from echonet.constants import IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA
 from echonet.echonet_types import CONFIG, BlockDumpKind, JsonObject, TxType
 from echonet.feeder_client import FeederClient
 from echonet.helpers import format_hex
 from echonet.l1_logic.l1_manager import L1Manager
 from echonet.logger import get_logger
+from echonet.reports import (
+    RevertClassifier,
+    RevertComparisonTextReport,
+    SnapshotTextReport,
+    build_report_view_model,
+    filter_mainnet_reverts_for_reporting,
+)
+from echonet.sequencer_manager import _read_namespace_from_serviceaccount
 from echonet.shared_context import SharedContext, l1_manager, shared
 from echonet.transaction_sender import start_background_sender
 
@@ -19,6 +30,27 @@ BlockNumberParam = Union[int, Literal["latest"]]
 
 flask_logger = get_logger("flask")
 logger = get_logger("echo_center")
+
+
+def _static_file_b64(filename: str) -> str:
+    p = Path(__file__).resolve().parent / "static" / filename
+    return base64.b64encode(p.read_bytes()).decode("ascii")
+
+
+def _build_gcp_logs_context() -> dict[str, str]:
+    """Context used by the report UI to build GCP Logs Explorer links."""
+    ns = _read_namespace_from_serviceaccount()
+    return {
+        "gcp_project_id": CONFIG.gcp_logs.project_id,
+        "gcp_location": CONFIG.gcp_logs.location,
+        "gke_cluster_name": CONFIG.gcp_logs.gke_cluster_name,
+        "k8s_namespace": ns,
+        "duration": "PT2H",
+    }
+
+
+def _total_l2_gas_consumed(receipt: JsonObject) -> int:
+    return receipt["execution_resources"]["total_gas_consumed"]["l2_gas"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -175,17 +207,6 @@ class BlobTransformer:
         for entry in txs:
             tx_hashes.append(entry["tx"]["hash_value"])
         return tx_hashes
-
-    @staticmethod
-    def _halve_gas_prices(v: str) -> str:
-        """By shifting the integer value right by 1, the gas prices are halved."""
-        return hex(int(v, 16) >> 1)
-
-    def _with_halved_gas_prices(self, price: JsonObject) -> JsonObject:
-        out = dict(price)
-        out["price_in_wei"] = self._halve_gas_prices(out["price_in_wei"])
-        out["price_in_fri"] = self._halve_gas_prices(out["price_in_fri"])
-        return out
 
     @staticmethod
     @dataclass(slots=True)
@@ -446,11 +467,7 @@ class BlobTransformer:
         )
 
         meta = self._fetch_upstream_block_meta(bn_for_meta)
-        block_document["timestamp"] = meta["timestamp"]
-
-        # The gas prices are halved in order for txs to pass the fee sequencer checks.
-        for price in ("l1_gas_price", "l1_data_gas_price", "l2_gas_price"):
-            block_document[price] = self._with_halved_gas_prices(meta[price])
+        block_document.update(meta)
 
         return block_document
 
@@ -555,6 +572,50 @@ class EchoCenterService:
             logger_obj=self.logger,
         )
 
+    def _check_l2_gas_mismatches(self, stored_block: JsonObject, echo_block_number: int) -> None:
+        txs = stored_block.get("transactions", [])
+        receipts = stored_block.get("transaction_receipts", [])
+        if not txs:
+            return
+
+        fgw_l2_cache: dict[int, dict[str, int]] = {}
+        for tx, receipt in zip(txs, receipts):
+            tx_hash: str = tx["transaction_hash"]
+            if any(
+                str(x) == IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA
+                for x in (tx.get("calldata", []))
+            ):
+                continue
+
+            source_block = self.shared.get_sent_block_number(tx_hash)
+            fgw_l2_by_hash = fgw_l2_cache.get(source_block)
+            if fgw_l2_by_hash is None:
+                fgw_block = self.shared.get_fgw_block(source_block)
+                fgw_l2_by_hash = {
+                    t["transaction_hash"]: _total_l2_gas_consumed(r)
+                    for t, r in zip(fgw_block["transactions"], fgw_block["transaction_receipts"])
+                }
+                fgw_l2_cache[source_block] = fgw_l2_by_hash
+
+            blob_l2_gas: int = _total_l2_gas_consumed(receipt)
+            fgw_l2_gas = fgw_l2_by_hash.get(tx_hash)
+            if blob_l2_gas != fgw_l2_gas:
+                self.logger.warning(
+                    "l2_gas mismatch: "
+                    f"tx={tx_hash} "
+                    f"echo_block={echo_block_number} "
+                    f"source_block={source_block} "
+                    f"blob_total_gas_l2={blob_l2_gas} "
+                    f"fgw_total_gas_consumed_l2={fgw_l2_gas}"
+                )
+                self.shared.record_l2_gas_mismatch(
+                    tx_hash=tx_hash,
+                    echo_block=echo_block_number,
+                    source_block=source_block,
+                    blob_total_gas_l2=blob_l2_gas,
+                    fgw_total_gas_consumed_l2=fgw_l2_gas,
+                )
+
     @staticmethod
     def _json_response(payload: Any, status: int = requests.codes.ok) -> flask.Response:
         raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -600,6 +661,8 @@ class EchoCenterService:
         to_store = self._transformer.transform_block(blob)
         state_update = self._transformer.transform_state_update(blob, block_number)
 
+        self._check_l2_gas_mismatches(to_store, echo_block_number=block_number)
+
         self.shared.store_block(
             block_number, blob=blob, fgw_block=to_store, state_update=state_update
         )
@@ -620,6 +683,79 @@ class EchoCenterService:
         snap = self.shared.get_report_snapshot()
         return self._json_response(snap.to_dict(), requests.codes.ok)
 
+    def handle_report_ui(self) -> flask.Response:
+        """HTML report dashboard."""
+        vm = build_report_view_model(self.shared.get_report_snapshot())
+        return flask.render_template(
+            "report.html",
+            export=False,
+            inline_favicon_b64=_static_file_b64("favicon.svg"),
+            logs=_build_gcp_logs_context(),
+            **vm,
+        )
+
+    def handle_report_ui_download(self) -> flask.Response:
+        """
+        Download a static, self-contained HTML snapshot of the current report.
+        """
+        vm = build_report_view_model(self.shared.get_report_snapshot())
+
+        html = flask.render_template(
+            "report.html",
+            export=True,
+            inline_favicon_b64=_static_file_b64("favicon.svg"),
+            inline_css_b64=_static_file_b64("report.css"),
+            inline_js_b64=_static_file_b64("report.js"),
+            logs=_build_gcp_logs_context(),
+            **vm,
+        )
+        resp = flask.Response(
+            html.encode("utf-8"),
+            status=requests.codes.ok,
+            headers=[
+                ["Content-Type", "text/html; charset=utf-8"],
+                ["Content-Disposition", 'attachment; filename="echonet_report.html"'],
+            ],
+        )
+        return resp
+
+    def handle_report_text(self) -> flask.Response:
+        """
+        Plain-text snapshot report (similar to the old `reports.py` output).
+        """
+        snap = self.shared.get_report_snapshot()
+
+        snapshot_text = SnapshotTextReport(snap).render()
+        reverts_text = RevertComparisonTextReport(
+            classifier=RevertClassifier(),
+        ).render(
+            mainnet_reverts=filter_mainnet_reverts_for_reporting(snap),
+            echonet_reverts=dict(snap.revert_errors_echonet),
+        )
+        out = snapshot_text.rstrip() + "\n\n" + reverts_text
+        return flask.Response(
+            out.encode("utf-8"),
+            status=requests.codes.ok,
+            headers=[["Content-Type", "text/plain; charset=utf-8"]],
+        )
+
+    def handle_get_timestamp(self) -> flask.Response:
+        """
+        GET /echonet/get_timestamp?tx_hash=0x...
+
+        Returns a JSON integer: the source block timestamp (seconds).
+        """
+        args = flask.request.args.to_dict(flat=True)
+        tx_hash = args.get("tx_hash")
+        if not tx_hash:
+            return self._json_response(
+                {"error": "Missing required query param: tx_hash"},
+                requests.codes.bad_request,
+            )
+
+        ts = self.shared.get_sent_tx_timestamp(tx_hash)
+        return self._json_response(ts, requests.codes.ok)
+
     def handle_block_dump(self) -> flask.Response:
         args = flask.request.args.to_dict(flat=True)
         bn = int(args["blockNumber"])
@@ -631,7 +767,7 @@ class EchoCenterService:
                 {"error": f"Invalid kind: {kind_raw}"}, requests.codes.bad_request
             )
 
-        payload = self.shared.get_block_field(bn, kind.value)
+        payload = self.shared.get_block_field_with_disk_fallback(bn, kind.value)
         if payload is None:
             return self._empty_response(requests.codes.not_found)
         return self._json_response(payload, requests.codes.ok)
@@ -743,24 +879,31 @@ class EchoCenterService:
         """
         data = flask.request.get_json()
         method = data["method"]
-        self.logger.info(f"Method: {method}")
-
         raw_params = data.get("params")
-        self.logger.info(f"Raw params: {raw_params}")
         params = raw_params[0] if isinstance(raw_params, list) and raw_params else {}
 
         if method == "eth_blockNumber":
             payload = self.l1_manager.get_block_number()
-            self.logger.info(f"eth_blockNumber payload: {payload}")
+            result = payload.get("result")
+            self.logger.info(f"eth_blockNumber: {result} ({int(result, 16) if result else 'N/A'})")
             return self._json_response(payload, requests.codes.ok)
 
         if method == "eth_getBlockByNumber":
+            self.logger.info(
+                f"eth_getBlockByNumber: {params}"
+                + (f" ({int(params, 16)})" if params.startswith("0x") else "")
+            )
             payload = self.l1_manager.get_block_by_number(params)
             return self._json_response(payload, requests.codes.ok)
 
         if method == "eth_getLogs":
+            from_block = params.get("fromBlock", "0x0")
+            to_block = params.get("toBlock", "0x0")
+            from_dec = f" ({int(from_block, 16)})" if from_block.startswith("0x") else ""
+            to_dec = f" ({int(to_block, 16)})" if to_block.startswith("0x") else ""
+            self.logger.info(f"eth_getLogs: from={from_block}{from_dec}, to={to_block}{to_dec}")
             payload = self.l1_manager.get_logs(params)
-            self.logger.info(f"eth_getLogs payload: {payload}")
+            self.logger.info(f"eth_getLogs: {len(payload.get('result', []))} logs")
             return self._json_response(payload, requests.codes.ok)
 
         if method == "eth_call":
@@ -805,6 +948,11 @@ def report_snapshot() -> flask.Response:
     return service.handle_report_snapshot()
 
 
+@app.route("/echonet/get_timestamp", methods=["GET"])
+def get_timestamp() -> flask.Response:
+    return service.handle_get_timestamp()
+
+
 @app.route("/echonet/block_dump", methods=["GET"])
 def block_dump() -> flask.Response:
     return service.handle_block_dump()
@@ -838,6 +986,21 @@ def get_compiled_class_by_class_hash() -> flask.Response:
 @app.route("/l1", methods=["GET", "POST"])
 def l1() -> flask.Response:
     return service.handle_l1()
+
+
+@app.route("/echonet/report/ui", methods=["GET"])
+def report_ui() -> flask.Response:
+    return service.handle_report_ui()
+
+
+@app.route("/echonet/report/ui/download", methods=["GET"])
+def report_ui_download() -> flask.Response:
+    return service.handle_report_ui_download()
+
+
+@app.route("/echonet/report/text", methods=["GET"])
+def report_text() -> flask.Response:
+    return service.handle_report_text()
 
 
 # Start the transaction sender automatically on startup.

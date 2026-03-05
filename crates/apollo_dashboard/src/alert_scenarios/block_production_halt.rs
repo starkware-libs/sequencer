@@ -26,7 +26,10 @@ use crate::alerts::{
 };
 
 /// Block number is stuck for more than duration minutes.
-fn get_consensus_block_number_stuck(title: &'static str, alert_severity: AlertSeverity) -> Alert {
+fn get_consensus_block_number_stuck(
+    title: &'static str,
+    alert_severity: impl Into<SeverityValueOrPlaceholder>,
+) -> Alert {
     let name = title.to_lowercase().replace(' ', "_");
     let expr_template_string = format!(
         "sum(increase({}[{{}}s])) or vector(0)",
@@ -49,8 +52,12 @@ fn get_consensus_block_number_stuck(title: &'static str, alert_severity: AlertSe
 }
 
 pub(crate) fn get_consensus_block_number_stuck_vec() -> Vec<Alert> {
+    const ALERT_NAME: &str = "consensus_block_number_stuck";
     vec![
-        get_consensus_block_number_stuck("Consensus Block Number Stuck", AlertSeverity::Sos),
+        get_consensus_block_number_stuck(
+            "Consensus Block Number Stuck",
+            SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
+        ),
         get_consensus_block_number_stuck(
             "Consensus Block Number Stuck Long Time",
             AlertSeverity::Regular,
@@ -88,7 +95,7 @@ pub(crate) fn get_batched_transactions_stuck_vec() -> Vec<Alert> {
 fn get_consensus_p2p_not_enough_peers_for_quorum(
     title: &'static str,
     duration: Duration,
-    alert_severity: AlertSeverity,
+    alert_severity: impl Into<SeverityValueOrPlaceholder>,
 ) -> Alert {
     Alert::new(
         title.to_lowercase().replace(' ', "_"),
@@ -118,7 +125,9 @@ pub(crate) fn get_consensus_p2p_not_enough_peers_for_quorum_vec() -> Vec<Alert> 
         get_consensus_p2p_not_enough_peers_for_quorum(
             "Consensus P2P Not Enough Peers For Quorum",
             Duration::from_secs(2 * SECS_IN_MIN),
-            AlertSeverity::Sos,
+            SeverityValueOrPlaceholder::Placeholder(
+                "consensus_p2p_not_enough_peers_for_quorum".to_string(),
+            ),
         ),
         get_consensus_p2p_not_enough_peers_for_quorum(
             "Consensus P2P Not Enough Peers For Quorum Long Time",
@@ -128,7 +137,7 @@ pub(crate) fn get_consensus_p2p_not_enough_peers_for_quorum_vec() -> Vec<Alert> 
     ]
 }
 
-fn get_consensus_round_high(alert_severity: AlertSeverity) -> Alert {
+pub(crate) fn get_consensus_round_high() -> Alert {
     const ALERT_NAME: &str = "consensus_round_high";
     Alert::new(
         ALERT_NAME,
@@ -142,11 +151,7 @@ fn get_consensus_round_high(alert_severity: AlertSeverity) -> Alert {
         )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
-}
-
-pub(crate) fn get_consensus_round_high_vec() -> Vec<Alert> {
-    vec![get_consensus_round_high(AlertSeverity::Sos)]
 }

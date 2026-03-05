@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import glob
 import json
 import shutil
 import threading
@@ -7,7 +8,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import ClassVar, Dict, List, Mapping, Optional, Set
+from typing import ClassVar, Dict, List, Mapping, Optional, Sequence, Set
 
 from echonet.echonet_types import (
     BLOCK_STORE_TUNING,
@@ -25,11 +26,30 @@ from echonet.report_models import SnapshotModel
 logger = get_logger("shared_context")
 
 
+def _find_archived_block_path(*, block_number: int, field: str) -> Optional[Path]:
+    """
+    Find the newest archived `{field}_{block_number}.json` under `CONFIG.paths.log_dir/blocks_*`.
+    """
+    filename = f"{field}_{int(block_number)}.json"
+    root = CONFIG.paths.log_dir
+    if not root.exists():
+        return None
+
+    pattern = str(root / "blocks_*" / filename)
+    matches = [Path(p) for p in glob.glob(pattern)]
+
+    candidates = [p for p in matches if p.is_file()]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda p: p.parent.name)
+
+
 @dataclass(slots=True)
 class _TxTracker:
     """Transaction lifecycle and counters used by reporting."""
 
     currently_pending: Dict[str, int]  # tx_hash -> source block number
+    tx_timestamps: Dict[str, int]  # tx_hash -> source timestamp (seconds); live only
     ever_seen_pending: Set[str]  # cumulative set of tx hashes ever observed pending
     committed: Dict[str, int]  # cumulative map: tx_hash -> commit block number
     total_forwarded_tx_count: int  # count of forwarded txs (counted once per block)
@@ -39,6 +59,7 @@ class _TxTracker:
     def empty(cls) -> "_TxTracker":
         return cls(
             currently_pending={},
+            tx_timestamps={},
             ever_seen_pending=set(),
             committed={},
             total_forwarded_tx_count=0,
@@ -55,6 +76,7 @@ class _TxTracker:
         """Record a transaction as committed - add to the committed set (transactions that have been committed) and remove from the pending set"""
         self.committed[tx_hash] = block_number
         self.currently_pending.pop(tx_hash, None)
+        self.tx_timestamps.pop(tx_hash, None)
 
     def record_forwarded_block(self, block_number: int, tx_count: int) -> None:
         if block_number > self.max_forwarded_block:
@@ -144,6 +166,38 @@ class _ResyncTracker:
 
 
 @dataclass(slots=True)
+class _ReportL2GasMismatchTracker:
+    """Tracks L2 gas mismatch rows for reporting."""
+
+    l2_gas_mismatches: List[JsonObject]
+
+    @classmethod
+    def empty(cls) -> "_ReportL2GasMismatchTracker":
+        return cls(
+            l2_gas_mismatches=[],
+        )
+
+    def record_l2_gas_mismatch(
+        self,
+        *,
+        tx_hash: str,
+        echo_block: int,
+        source_block: int,
+        blob_total_gas_l2: int,
+        fgw_total_gas_consumed_l2: int | None,
+    ) -> None:
+        self.l2_gas_mismatches.append(
+            {
+                "tx_hash": tx_hash,
+                "echo_block": echo_block,
+                "source_block": source_block,
+                "blob_total_gas_l2": blob_total_gas_l2,
+                "fgw_total_gas_consumed_l2": fgw_total_gas_consumed_l2,
+            }
+        )
+
+
+@dataclass(slots=True)
 class _BlockStore:
     """In-memory storage for echo_center outputs and raw feeder blocks."""
 
@@ -187,7 +241,7 @@ class _BlockStore:
 
         root_dir = CONFIG.paths.log_dir
         archives = sorted(
-            (p for p in root_dir.iterdir() if p.is_dir() and p.name.startswith("blocks_")),
+            (p for p in map(Path, glob.glob(str(root_dir / "blocks_*"))) if p.is_dir()),
             key=lambda p: p.name,  # blocks_YYYYmmddTHHMMSSZ sorts oldest->newest
         )
 
@@ -346,16 +400,37 @@ class SharedContext:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
+        self._started_at_monotonic = time.monotonic()
         self._tx = _TxTracker.empty()
         self._errors = _TxErrorTracker.empty()
         self._resync = _ResyncTracker.empty()
+        self._l2_gas_mismatches = _ReportL2GasMismatchTracker.empty()
         self._blocks = _BlockStore.empty()
         self._progress = _ProgressMarkers.empty()
+        self._epoch = 0
+
+    def get_uptime_seconds(self) -> int:
+        return int(time.monotonic() - self._started_at_monotonic)
+
+    def get_epoch(self) -> int:
+        with self._lock:
+            return self._epoch
 
     # --- Tx lifecycle ---
     def record_sent_tx(self, tx_hash: str, source_block_number: int) -> None:
         with self._lock:
             self._tx.record_sent(tx_hash, source_block_number)
+
+    def record_sent_tx_timestamps_for_block(
+        self, txs: Sequence[JsonObject], timestamp: int
+    ) -> None:
+        with self._lock:
+            for tx in txs:
+                self._tx.tx_timestamps[tx["transaction_hash"]] = timestamp
+
+    def get_sent_tx_timestamp(self, tx_hash: str) -> int:
+        with self._lock:
+            return self._tx.tx_timestamps[tx_hash]
 
     def record_forwarded_block(self, block_number: int, tx_count: int) -> None:
         with self._lock:
@@ -416,15 +491,36 @@ class SharedContext:
     def clear_for_resync(self) -> None:
         """Clear live state for a new run while preserving cumulative stats."""
         with self._lock:
+            self._epoch += 1
             snapshot_items = self._blocks.snapshot_items()
             archive_dir = self._blocks._ensure_archive_dir()
             self._tx.currently_pending.clear()
+            self._tx.tx_timestamps.clear()
             self._errors.clear_live()
             self._blocks.clear_live()
             self._progress.last_echo_center_block = None
             self._progress.sender_current_block = None
         _BlockStore.write_snapshot_items_to_disk(snapshot_items, base_dir=archive_dir)
         l1_manager.clear_stored_blocks()
+
+    # --- Report extras (cumulative; preserved across resync) ---
+    def record_l2_gas_mismatch(
+        self,
+        *,
+        tx_hash: str,
+        echo_block: int,
+        source_block: int,
+        blob_total_gas_l2: int,
+        fgw_total_gas_consumed_l2: int | None,
+    ) -> None:
+        with self._lock:
+            self._l2_gas_mismatches.record_l2_gas_mismatch(
+                tx_hash=tx_hash,
+                echo_block=echo_block,
+                source_block=source_block,
+                blob_total_gas_l2=blob_total_gas_l2,
+                fgw_total_gas_consumed_l2=fgw_total_gas_consumed_l2,
+            )
 
     # --- Block storage (echo_center output + raw FGW blocks) ---
     def store_block(
@@ -455,6 +551,23 @@ class SharedContext:
         with self._lock:
             return self._blocks.get_block_field(block_number, field)
 
+    def get_block_field_with_disk_fallback(
+        self, block_number: int, field: str
+    ) -> Optional[JsonObject]:
+        """Return an in-memory stored block payload, falling back to on-disk archives."""
+        in_mem = self.get_block_field(block_number, field)
+        if in_mem:
+            return in_mem
+
+        path = _find_archived_block_path(block_number=block_number, field=field)
+        if not path:
+            return None
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.warning(f"Failed reading archived block dump {path}: {e}")
+            return None
+
     def get_latest_block_number(self) -> Optional[int]:
         with self._lock:
             return self._blocks.get_latest_block_number()
@@ -482,6 +595,7 @@ class SharedContext:
             first_ts = self._progress.first_block_timestamp
             latest_ts = self._progress.latest_block_timestamp
             timestamp_diff_seconds = latest_ts - first_ts if (first_ts and latest_ts) else None
+            uptime_seconds = int(time.monotonic() - self._started_at_monotonic)
 
             return SnapshotModel(
                 start_block=configured_start_block,
@@ -492,6 +606,7 @@ class SharedContext:
                 first_block_timestamp=first_ts,
                 latest_block_timestamp=latest_ts,
                 timestamp_diff_seconds=timestamp_diff_seconds,
+                uptime_seconds=uptime_seconds,
                 total_sent_tx_count=self._tx.total_forwarded_tx_count,
                 committed_count=len(self._tx.committed),
                 pending_total_count=len(self._tx.ever_seen_pending),
@@ -502,6 +617,7 @@ class SharedContext:
                 revert_errors_echonet=dict(self._errors.revert_errors_echonet),
                 resync_causes=dict(self._resync.resync_causes),
                 certain_failures=dict(self._resync.certain_failures),
+                l2_gas_mismatches=list(self._l2_gas_mismatches.l2_gas_mismatches),
             )
 
     # --- Progress markers ---
