@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772698771113,
+  "lastUpdate": 1772700362558,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1835,6 +1835,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1224.94182146,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "348ca2523fff96b7929201731a41edf426b9e5c1",
+          "message": "Merge pull request #13021 from starkware-libs/yonatan/merge-main-v0.14.1-committer-into-main-v0.14.2-1772610549\n\nMerge main-v0.14.1-committer into main-v0.14.2",
+          "timestamp": "2026-03-05T08:24:08Z",
+          "tree_id": "ed93d43deac0e1b43625c7101f1e72459db2853f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/348ca2523fff96b7929201731a41edf426b9e5c1"
+        },
+        "date": 1772700362229,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 797.13816394,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1206.31658958,
             "unit": "ms"
           }
         ]
