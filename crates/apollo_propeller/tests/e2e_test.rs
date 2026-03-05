@@ -8,6 +8,7 @@ use libp2p::swarm::SwarmEvent;
 use libp2p::{PeerId, Swarm};
 use libp2p_swarm_test::SwarmExt;
 use rstest::rstest;
+use starknet_api::staking::StakingWeight;
 use tokio::sync::mpsc;
 use tracing_test::traced_test;
 
@@ -45,8 +46,10 @@ impl TestSetup {
     }
 
     async fn register_committee(&mut self, committee_id: CommitteeId, node_indices: &[NodeIndex]) {
-        let peers: Vec<(PeerId, u64)> =
-            node_indices.iter().map(|&i| (*self.swarms[i].local_peer_id(), 1)).collect();
+        let peers: Vec<(PeerId, StakingWeight)> = node_indices
+            .iter()
+            .map(|&i| (*self.swarms[i].local_peer_id(), StakingWeight(1)))
+            .collect();
         for &i in node_indices {
             self.swarms[i]
                 .behaviour_mut()

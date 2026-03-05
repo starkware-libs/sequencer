@@ -23,13 +23,13 @@ use libp2p::swarm::{
     THandlerOutEvent,
     ToSwarm,
 };
+use starknet_api::staking::StakingWeight;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::config::Config;
 use crate::engine::{Engine, EngineCommand, EngineOutput};
 use crate::handler::Handler;
 use crate::metrics::PropellerMetrics;
-use crate::tree::Stake;
 use crate::types::{CommitteeId, CommitteeSetupError, Event, ShardPublishError};
 
 /// The Propeller network behaviour.
@@ -76,7 +76,7 @@ impl Behaviour {
     pub fn register_committee_peers(
         &self,
         committee_id: CommitteeId,
-        peers: Vec<(PeerId, Stake)>,
+        peers: Vec<(PeerId, StakingWeight)>,
     ) -> oneshot::Receiver<Result<(), CommitteeSetupError>> {
         self.register_committee_peers_and_optional_keys(
             committee_id,
@@ -91,7 +91,7 @@ impl Behaviour {
     pub fn register_committee_peers_and_optional_keys(
         &self,
         committee_id: CommitteeId,
-        peers: Vec<(PeerId, Stake, Option<PublicKey>)>,
+        peers: Vec<(PeerId, StakingWeight, Option<PublicKey>)>,
     ) -> oneshot::Receiver<Result<(), CommitteeSetupError>> {
         let (response_tx, response_rx) = oneshot::channel();
         let command =
