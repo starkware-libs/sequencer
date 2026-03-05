@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772707230508,
+  "lastUpdate": 1772735127220,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1937,6 +1937,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1319.45755351,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5a4b9976c46d1a793575c23497488a4af6c3727b",
+          "message": "starknet_transaction_prover,ci,scripts: rename crate from starknet_os_runner (#12980)",
+          "timestamp": "2026-03-05T17:55:03Z",
+          "tree_id": "cb97e670e988733dc186293309f00362a97df4be",
+          "url": "https://github.com/starkware-libs/sequencer/commit/5a4b9976c46d1a793575c23497488a4af6c3727b"
+        },
+        "date": 1772735126893,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 894.84416063,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1364.02678195,
             "unit": "ms"
           }
         ]
