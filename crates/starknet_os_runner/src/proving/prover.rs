@@ -68,9 +68,17 @@ pub(crate) async fn prove(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingEr
     };
 
     // Run the prover with in-memory CairoPie on a blocking thread.
+    // Suppress verbose stwo tracing output (INFO/DEBUG/TRACE) for privacy; keep WARN and ERROR.
     let output_path = program_output_path.clone();
     tokio::task::spawn_blocking(move || {
-        prove_pie_in_memory(bootloader_path, cairo_pie, Some(output_path), prove_config)
+        use tracing_subscriber::prelude::*;
+
+        let warn_only = tracing_subscriber::registry()
+            .with(tracing_subscriber::fmt::layer())
+            .with(tracing_subscriber::filter::LevelFilter::WARN);
+        tracing::subscriber::with_default(warn_only, || {
+            prove_pie_in_memory(bootloader_path, cairo_pie, Some(output_path), prove_config)
+        })
     })
     .await
     .map_err(StwoRunAndProveError::from)?
