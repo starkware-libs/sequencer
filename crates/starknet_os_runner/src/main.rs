@@ -22,9 +22,14 @@ async fn main() -> anyhow::Result<()> {
     use tracing_subscriber::{fmt, EnvFilter};
 
     // TODO(Avi): Revisit the starknet_os_runner=debug default once the service stabilizes.
-    // Initialize tracing with RUST_LOG (default: info,starknet_os_runner=debug).
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info,starknet_os_runner=debug"));
+    // Initialize tracing with RUST_LOG. By default, keep service logs and lower noisy third-party
+    // proving logs from the stwo stack to warn.
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+        EnvFilter::new(
+            "info,starknet_os_runner=debug,stwo=warn,stwo_cairo_prover=warn,\
+             stwo_run_and_prove=warn,cairo_air=warn",
+        )
+    });
     tracing_subscriber::registry().with(fmt::layer()).with(filter).init();
 
     // Parse CLI args and load config.
