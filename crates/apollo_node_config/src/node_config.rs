@@ -28,10 +28,7 @@ use apollo_gateway_config::config::GatewayConfig;
 use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_events_config::config::{L1EventsProviderConfig, L1EventsScraperConfig};
-use apollo_l1_gas_price_provider_config::config::{
-    L1GasPriceProviderConfig,
-    L1GasPriceScraperConfig,
-};
+use apollo_l1_gas_price_config::config::{L1GasPriceProviderConfig, L1GasPriceScraperConfig};
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
