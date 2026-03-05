@@ -3,12 +3,9 @@ use std::collections::HashMap;
 use blockifier::state::cached_state::StateChangesKeys;
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::hash::{HashOutput, StateRoots};
-use starknet_api::state::StorageKey;
 use starknet_committer::block_committer::input::{
     try_node_index_into_contract_address,
-    try_node_index_into_patricia_key,
     StarknetStorageKey,
-    StarknetStorageValue,
 };
 use starknet_committer::db::facts_db::create_facts_tree::get_leaves;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
@@ -88,33 +85,6 @@ pub async fn create_commitment_infos(
         let address = try_node_index_into_contract_address(&address)
             .map_err(CommitmentInfosError::InvalidNodeIndex)?;
         address_to_previous_storage_root_hash.insert(address, contract_state.storage_root_hash);
-    }
-
-    let mut storage = HashMap::new();
-    for address in &initial_reads_keys.modified_contracts {
-        let mut storage_keys_indices: Vec<NodeIndex> =
-            initial_reads_keys
-                .storage_keys
-                .iter()
-                .filter_map(|(add, key)| {
-                    if add == address { Some(NodeIndex::from_leaf_felt(&key.0)) } else { None }
-                })
-                .collect();
-        let sorted_leaf_indices = SortedLeafIndices::new(&mut storage_keys_indices);
-        let previous_storage_leaves: HashMap<NodeIndex, StarknetStorageValue> = get_leaves(
-            commitments,
-            address_to_previous_storage_root_hash[address],
-            sorted_leaf_indices,
-            address,
-        )
-        .await?;
-        for (idx, v) in previous_storage_leaves {
-            let key = StorageKey(
-                try_node_index_into_patricia_key(&idx)
-                    .map_err(CommitmentInfosError::InvalidNodeIndex)?,
-            );
-            storage.insert((*address, key), v.0);
-        }
     }
 
     let storage_proofs = fetch_storage_proofs_from_state_changes_keys(
