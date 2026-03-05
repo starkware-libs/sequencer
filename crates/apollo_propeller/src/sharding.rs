@@ -35,7 +35,7 @@ pub fn reconstruct_message_from_shards(
         .into_iter()
         .map(|mut msg| {
             (
-                msg.index().0.try_into().expect("failed converting u32 ShardIndex to usize"),
+                msg.index().0.try_into().expect("failed converting u64 ShardIndex to usize"),
                 std::mem::take(msg.shard_mut()),
             )
         })
@@ -115,8 +115,7 @@ pub fn create_units_to_publish(
             publisher,
             message_root,
             signature.clone(),
-            // TODO(AndrewL): Change ShardIndex to u64 so this narrowing conversion is unnecessary.
-            ShardIndex(u32::try_from(index).expect("shard index exceeds u32::MAX")),
+            ShardIndex(u64::try_from(index).expect("shard index exceeds u64::MAX")),
             shard,
             proof,
         );
