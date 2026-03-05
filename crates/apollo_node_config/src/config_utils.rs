@@ -4,6 +4,7 @@ use std::path::Path;
 
 use apollo_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use apollo_config::presentation::get_config_presentation;
+use apollo_config::validators::create_validation_error;
 use apollo_config::{ConfigError, ParamPath, SerializedParam, FIELD_SEPARATOR, IS_NONE_MARK};
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -52,16 +53,6 @@ pub fn private_parameters() -> BTreeSet<ParamPath> {
     private_values
 }
 
-pub fn create_validation_error(
-    error_msg: String,
-    validate_code: &'static str,
-    validate_error_msg: &'static str,
-) -> ValidationError {
-    error!(error_msg);
-    let mut error = ValidationError::new(validate_code);
-    error.message = Some(validate_error_msg.into());
-    error
-}
 /// Transforms a nested JSON dictionary object into a simplified JSON dictionary object by
 /// extracting specific values from the inner dictionaries.
 ///
