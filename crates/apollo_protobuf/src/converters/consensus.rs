@@ -364,7 +364,7 @@ impl TryFrom<protobuf::ProposalFinPayload> for ProposalFinPayload {
     fn try_from(value: protobuf::ProposalFinPayload) -> Result<Self, Self::Error> {
         let commitment_parts =
             value.commitment_parts.ok_or(missing("commitment_parts"))?.try_into()?;
-        let l2_gas_info = value.l2_gas_info.map(TryInto::try_into).transpose()?;
+        let l2_gas_info = value.l2_gas_info.ok_or(missing("l2_gas_info"))?.try_into()?;
         Ok(ProposalFinPayload { commitment_parts, l2_gas_info })
     }
 }
@@ -373,7 +373,7 @@ impl From<ProposalFinPayload> for protobuf::ProposalFinPayload {
     fn from(value: ProposalFinPayload) -> Self {
         protobuf::ProposalFinPayload {
             commitment_parts: Some(value.commitment_parts.into()),
-            l2_gas_info: value.l2_gas_info.map(Into::into),
+            l2_gas_info: Some(value.l2_gas_info.into()),
         }
     }
 }

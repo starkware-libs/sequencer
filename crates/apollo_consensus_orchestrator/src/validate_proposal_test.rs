@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
     FinishedProposalInfo,
+    FinishedProposalInfoWithoutParent,
     ProposalCommitment,
     ProposalId,
     ProposalStatus,
@@ -27,6 +28,7 @@ use rstest::rstest;
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::block_hash::block_hash_calculator::{BlockHeaderCommitments, PartialBlockHash};
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
@@ -134,9 +136,12 @@ async fn validate_empty_proposal() {
         assert!(matches!(input.content, SendProposalContent::Finish(_)));
         Ok(SendProposalContentResponse {
             response: ProposalStatus::Finished(FinishedProposalInfo {
-                proposal_commitment: ProposalCommitment::default(),
-                final_n_executed_txs: 0,
-                block_header_commitments: BlockHeaderCommitments::default(),
+                artifact: FinishedProposalInfoWithoutParent {
+                    proposal_commitment: ProposalCommitment::default(),
+                    final_n_executed_txs: 0,
+                    block_header_commitments: BlockHeaderCommitments::default(),
+                    l2_gas_used: GasAmount::default(),
+                },
                 parent_proposal_commitment: None,
             }),
         })
@@ -274,9 +279,12 @@ async fn proposal_fin_mismatch() {
         .returning(move |_| {
             Ok(SendProposalContentResponse {
                 response: ProposalStatus::Finished(FinishedProposalInfo {
-                    proposal_commitment: ProposalCommitment { partial_block_hash: built_block },
-                    final_n_executed_txs: n_executed,
-                    block_header_commitments: BlockHeaderCommitments::default(),
+                    artifact: FinishedProposalInfoWithoutParent {
+                        proposal_commitment: ProposalCommitment { partial_block_hash: built_block },
+                        final_n_executed_txs: n_executed,
+                        block_header_commitments: BlockHeaderCommitments::default(),
+                        l2_gas_used: GasAmount::default(),
+                    },
                     parent_proposal_commitment: None,
                 }),
             })

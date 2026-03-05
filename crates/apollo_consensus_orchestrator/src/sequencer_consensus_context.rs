@@ -29,6 +29,7 @@ use apollo_protobuf::consensus::{
     BuildParam,
     CommitmentParts,
     HeightAndRound,
+    L2GasInfo,
     ProposalFin,
     ProposalFinPayload,
     ProposalInit,
@@ -77,11 +78,7 @@ use crate::cende::{
     InternalTransactionWithReceipt,
     N_BLOCK_HASHES_BACK_IN_BLOB,
 };
-use crate::fee_market::{
-    calculate_next_base_gas_price,
-    get_min_gas_price_for_height,
-    FeeMarketInfo,
-};
+use crate::fee_market::{calculate_next_l2_gas_price_for_fin, FeeMarketInfo};
 use crate::metrics::{
     record_build_proposal_failure,
     record_validate_proposal_failure,
@@ -372,34 +369,24 @@ impl SequencerConsensusContext {
         self.deps.state_sync_client.add_new_block(sync_block).await
     }
 
+    /// Returns the next L2 gas price without mutating context. Used when building the fin and when
+    /// updating at decision time.
+    fn calculate_next_l2_gas_price(&self, height: BlockNumber, l2_gas_used: GasAmount) -> GasPrice {
+        calculate_next_l2_gas_price_for_fin(
+            self.l2_gas_price,
+            height,
+            l2_gas_used,
+            self.config.dynamic_config.override_l2_gas_price_fri,
+            &self.config.dynamic_config.min_l2_gas_price_per_height,
+        )
+    }
+
     fn update_l2_gas_price(&mut self, height: BlockNumber, l2_gas_used: GasAmount) {
-        if let Some(override_value) = self.config.dynamic_config.override_l2_gas_price_fri {
-            info!(
-                "L2 gas price ({}) is not updated, remains on override value of {override_value} \
-                 fri",
-                self.l2_gas_price.0
-            );
-            self.l2_gas_price = GasPrice(override_value);
-        } else {
-            let versioned_constants = VersionedConstants::latest_constants();
-            let gas_target = versioned_constants.gas_target;
-
-            let min_l2_gas_price_per_height =
-                &self.config.dynamic_config.min_l2_gas_price_per_height;
-
-            let min_gas_price = get_min_gas_price_for_height(height, min_l2_gas_price_per_height);
-            self.l2_gas_price = calculate_next_base_gas_price(
-                self.l2_gas_price,
-                l2_gas_used,
-                gas_target,
-                min_gas_price,
-            );
-        }
-
+        self.l2_gas_price = self.calculate_next_l2_gas_price(height, l2_gas_used);
         let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
         CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
     }
-
+    #[allow(clippy::too_many_arguments)]
     async fn finalize_decision(
         &mut self,
         height: BlockNumber,
@@ -409,9 +396,9 @@ impl SequencerConsensusContext {
         transactions: Vec<Vec<InternalConsensusTransaction>>,
         decision_reached_response: DecisionReachedResponse,
         block_header_commitments: BlockHeaderCommitments,
+        l2_gas_used: GasAmount,
     ) {
-        let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } =
-            decision_reached_response;
+        let DecisionReachedResponse { state_diff, central_objects } = decision_reached_response;
 
         self.update_l2_gas_price(height, l2_gas_used);
 
@@ -625,6 +612,12 @@ impl ConsensusContext for SequencerConsensusContext {
                 .static_config
                 .retrospective_block_hash_retry_interval_millis,
             override_timestamp,
+            override_l2_gas_price_fri: self.config.dynamic_config.override_l2_gas_price_fri,
+            min_l2_gas_price_per_height: self
+                .config
+                .dynamic_config
+                .min_l2_gas_price_per_height
+                .clone(),
         };
 
         let handle = tokio::spawn(
@@ -718,6 +711,8 @@ impl ConsensusContext for SequencerConsensusContext {
             .expect("Lock on active proposals was poisoned due to a previous panic")
             .update_for_reproposal(&height, &proposal_commitment, &build_param);
 
+        let next_l2_gas_price =
+            self.calculate_next_l2_gas_price(init.height, finished_info.l2_gas_used);
         let transaction_converter = self.deps.transaction_converter.clone();
         let mut stream_sender =
             self.start_stream(HeightAndRound(height.0, build_param.round)).await;
@@ -728,6 +723,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     init,
                     txs,
                     finished_info,
+                    next_l2_gas_price,
                     &mut stream_sender,
                     transaction_converter,
                 )
@@ -792,7 +788,8 @@ impl ConsensusContext for SequencerConsensusContext {
             commitment,
             transactions,
             decision_reached_response,
-            finished_info.block_header_commitments,
+            finished_info.block_header_commitments.clone(),
+            finished_info.l2_gas_used,
         )
         .await;
 
@@ -1027,6 +1024,7 @@ async fn send_reproposal(
     init: ProposalInit,
     txs: Vec<Vec<InternalConsensusTransaction>>,
     finished_info: FinishedProposalInfo,
+    next_l2_gas_price: GasPrice,
     stream_sender: &mut StreamSender,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> Result<(), ReproposeError> {
@@ -1048,7 +1046,10 @@ async fn send_reproposal(
         .expect("Number of executed transactions should fit in u64");
     let fin_payload = ProposalFinPayload {
         commitment_parts: CommitmentParts::from(&finished_info),
-        l2_gas_info: None,
+        l2_gas_info: L2GasInfo {
+            next_l2_gas_price_fri: next_l2_gas_price,
+            l2_gas_used: finished_info.l2_gas_used,
+        },
     };
     let fin = ProposalFin {
         proposal_commitment,
