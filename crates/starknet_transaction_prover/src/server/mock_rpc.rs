@@ -59,8 +59,6 @@ impl ProvingRpcServer for MockProvingRpc {
     }
 }
 
-// ── JSON loading helpers ─────────────────────────────────────────────────────
-
 /// Reads and deserializes a JSON file into `T`.
 fn load_json<T: DeserializeOwned>(path: &Path) -> T {
     let content =
