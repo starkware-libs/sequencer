@@ -1,4 +1,6 @@
+use assert_matches::assert_matches;
 use blockifier::blockifier::config::ContractClassManagerConfig;
+use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::utils::get_chain_info;
@@ -11,6 +13,7 @@ use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
 use starknet_api::{calldata, felt, invoke_tx_args};
 
+use crate::errors::VirtualBlockExecutorError;
 use crate::running::virtual_block_executor::{
     RpcVirtualBlockExecutor,
     RpcVirtualBlockExecutorConfig,
@@ -248,7 +251,7 @@ async fn test_execute_with_prefetch() {
             rpc_url,
             chain_info,
             block_id,
-            RpcVirtualBlockExecutorConfig { prefetch_state: true },
+            RpcVirtualBlockExecutorConfig { prefetch_state: true, ..Default::default() },
         );
         executor.validate_txs = false;
 
@@ -273,5 +276,40 @@ async fn test_execute_with_prefetch() {
         !execution_info.is_reverted(),
         "Transaction should not revert. Error: {:?}",
         execution_info.revert_error
+    );
+}
+
+/// Verifies that a transaction is rejected when the bouncer config has tight capacity limits.
+///
+/// Sets `n_txs: 0` so that any transaction exceeds the block capacity, and asserts that
+/// execution returns `TransactionExecutionError` with a "Transaction size exceeds" message.
+#[rstest]
+#[ignore] // Requires RPC access
+fn test_execute_rejected_by_tight_bouncer_limits(
+    rpc_virtual_block_executor: RpcVirtualBlockExecutor,
+) {
+    // Override the bouncer config with zero capacity so any transaction is too large.
+    let mut executor = rpc_virtual_block_executor;
+    executor.config.bouncer_config = BouncerConfig {
+        block_max_capacity: BouncerWeights { n_txs: 0, ..BouncerWeights::max() },
+        ..Default::default()
+    };
+
+    let (tx, tx_hash) = construct_balance_of_invoke();
+    let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig::default());
+
+    let error = match executor.execute(
+        BlockId::Number(BlockNumber(TEST_BLOCK_NUMBER)),
+        contract_class_manager,
+        vec![(tx, tx_hash)],
+    ) {
+        Err(error) => error,
+        Ok(_) => panic!("Execution should fail when bouncer capacity is zero"),
+    };
+
+    assert_matches!(
+        error,
+        VirtualBlockExecutorError::TransactionExecutionError(msg)
+            if msg.contains("Transaction size exceeds the maximum block capacity")
     );
 }

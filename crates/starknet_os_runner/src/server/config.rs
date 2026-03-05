@@ -4,6 +4,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use blockifier::bouncer::BouncerConfig;
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
@@ -246,6 +247,28 @@ impl ServiceConfig {
             }
         }
 
+        if let Some(bouncer_config_path) = args.bouncer_config_override {
+            let bouncer_config_file_content = std::fs::read_to_string(&bouncer_config_path)
+                .map_err(|e| {
+                    ConfigError::ConfigFileError(format!(
+                        "Failed to read bouncer config file {}: {}",
+                        bouncer_config_path.display(),
+                        e
+                    ))
+                })?;
+            let bouncer_config: BouncerConfig = serde_json::from_str(&bouncer_config_file_content)
+                .map_err(|e| {
+                    ConfigError::ConfigFileError(format!(
+                        "Failed to parse bouncer config file {}: {}",
+                        bouncer_config_path.display(),
+                        e
+                    ))
+                })?;
+            info!("CLI override: bouncer_config from {}", bouncer_config_path.display());
+            config.prover_config.runner_config.virtual_block_executor_config.bouncer_config =
+                bouncer_config;
+        }
+
         // Validate required fields.
         if config.prover_config.rpc_node_url.is_empty() {
             return Err(ConfigError::MissingRequiredField(
@@ -329,6 +352,11 @@ pub struct CliArgs {
     /// proving.
     #[arg(long)]
     pub prefetch_state: Option<bool>,
+
+    /// Path to a JSON file with bouncer config overrides (block capacity limits).
+    /// Client-side limits may differ from Starknet network limits.
+    #[arg(long, value_name = "FILE")]
+    pub bouncer_config_override: Option<PathBuf>,
 
     /// Disable CORS (clear any origins set in the config file).
     #[arg(long, conflicts_with = "cors_allow_origin")]
