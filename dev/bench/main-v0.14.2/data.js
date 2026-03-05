@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772642021324,
+  "lastUpdate": 1772698771113,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1801,6 +1801,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1467.27700972,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7abbcbc57e89d280f5b0b4922b324a314157cdd6",
+          "message": "starknet_os_flow_tests: fuzz test return scenario + infra skeleton (#12958)",
+          "timestamp": "2026-03-05T07:57:32Z",
+          "tree_id": "ea5df30196d597ea095a13768a8ce97864abe07e",
+          "url": "https://github.com/starkware-libs/sequencer/commit/7abbcbc57e89d280f5b0b4922b324a314157cdd6"
+        },
+        "date": 1772698770760,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 915.4286553300001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1224.94182146,
             "unit": "ms"
           }
         ]
