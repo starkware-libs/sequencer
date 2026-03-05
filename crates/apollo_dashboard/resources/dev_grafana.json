@@ -1185,7 +1185,7 @@
       ],
       "collapsed": true
     },
-    "L1 Provider": {
+    "L1 Events": {
       "panels": [
         {
           "title": "Seconds since last successful l1 event scrape",
@@ -2886,7 +2886,7 @@
       ],
       "collapsed": true
     },
-    "L1 Provider Infra": {
+    "L1 Events Infra": {
       "panels": [
         {
           "title": "Local request receiving rate",
