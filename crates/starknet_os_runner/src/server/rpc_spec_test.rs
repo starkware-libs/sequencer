@@ -17,7 +17,7 @@ use starknet_api::{felt, invoke_tx_args};
 
 use crate::config::ProverConfig;
 use crate::proving::virtual_snos_prover::{ProveTransactionResult, RpcVirtualSnosProver};
-use crate::server::error;
+use crate::server::error::RpcError;
 use crate::server::rpc_impl::ProvingRpcServerImpl;
 use crate::server::rpc_trait::ProvingRpcServer;
 
@@ -256,24 +256,21 @@ async fn spec_response_schemas_match_rpc_module(rpc_module: RpcModule<ProvingRpc
 
 #[test]
 fn error_responses_match_spec() {
-    let test_cases: Vec<(&str, ErrorObjectOwned)> = vec![
-        ("BLOCK_NOT_FOUND", error::block_not_found()),
-        ("ACCOUNT_VALIDATION_FAILED", error::validation_failure("test".to_string())),
-        ("UNSUPPORTED_TX_VERSION", error::unsupported_tx_version("v99".to_string())),
-        ("SERVICE_BUSY", error::service_busy(2)),
-    ];
+    let spec_variants = RpcError::all_spec_variants();
 
-    // Completeness guard: ensure all spec errors have a test case.
-    let spec_error_keys: HashSet<&str> =
+    // Verify we cover every error in the spec.
+    let spec_error_keys: Vec<&str> =
         SPEC["components"]["errors"].as_object().unwrap().keys().map(|k| k.as_str()).collect();
-    let tested_error_keys: HashSet<&str> =
-        test_cases.iter().map(|(key, _)| *key).collect();
+    let tested_error_keys: Vec<&str> = spec_variants.iter().map(|(key, _)| *key).collect();
     assert_eq!(
-        tested_error_keys, spec_error_keys,
-        "Test cases don't cover all spec errors. Update the test_cases list above."
+        tested_error_keys.len(),
+        spec_error_keys.len(),
+        "RpcError::all_spec_variants() doesn't cover all spec errors. Spec has: \
+         {spec_error_keys:?}, test has: {tested_error_keys:?}"
     );
 
-    for (spec_key, actual) in &test_cases {
-        SpecError::from_spec(&SPEC["components"]["errors"][spec_key]).assert_matches(actual);
+    for (spec_key, rpc_error) in spec_variants {
+        let actual: ErrorObjectOwned = rpc_error.into();
+        SpecError::from_spec(&SPEC["components"]["errors"][spec_key]).assert_matches(&actual);
     }
 }

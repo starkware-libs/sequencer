@@ -12,7 +12,7 @@ use tracing::warn;
 
 use crate::proving::virtual_snos_prover::{ProveTransactionResult, RpcVirtualSnosProver};
 use crate::server::config::ServiceConfig;
-use crate::server::error::service_busy;
+use crate::server::error::RpcError;
 use crate::server::rpc_trait::ProvingRpcServer;
 
 /// Starknet RPC specification version.
@@ -61,7 +61,7 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
                 max_concurrent_requests = self.max_concurrent_requests,
                 "Rejected proving request: service is at capacity"
             );
-            service_busy(self.max_concurrent_requests)
+            ErrorObjectOwned::from(RpcError::ServiceBusy(self.max_concurrent_requests))
         })?;
 
         let output = self.prover.prove_transaction(block_id, transaction).await.map_err(|err| {
