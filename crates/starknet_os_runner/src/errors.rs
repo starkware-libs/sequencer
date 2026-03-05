@@ -1,7 +1,6 @@
 use blockifier::state::errors::StateError;
 use blockifier_reexecution::errors::ReexecutionError;
 use cairo_vm::types::errors::program_errors::ProgramError;
-use proving_utils::proof_encoding::ProofEncodingError;
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::TransactionHash;
 use starknet_os::errors::StarknetOsError;
@@ -78,23 +77,14 @@ pub enum ProvingError {
     #[error("Failed to create temporary file: {0}")]
     CreateTempFile(#[source] std::io::Error),
 
-    #[error("Failed to resolve resource path for {file_name}: {source}")]
-    ResolveResourcePath {
-        file_name: String,
-        #[source]
-        source: std::io::Error,
-    },
+    #[error("Failed to write CairoPie to file: {0}")]
+    WriteCairoPie(#[source] std::io::Error),
 
     #[cfg(feature = "stwo_proving")]
     #[error("Prover execution failed: {0}")]
-    ProverExecution(#[from] crate::proving::error::StwoRunAndProveError),
+    ProverExecution(String),
 
-    #[error("Failed to read proof file: {0}")]
-    ReadProof(#[source] ProofEncodingError),
-
-    #[error("Failed to read proof facts file: {0}")]
-    ReadProofFacts(#[source] std::io::Error),
-
-    #[error("Failed to parse proof facts: {0}")]
-    ParseProofFacts(#[source] serde_json::Error),
+    #[cfg(feature = "stwo_proving")]
+    #[error("Proving task failed to join: {0}")]
+    TaskJoin(#[source] tokio::task::JoinError),
 }
