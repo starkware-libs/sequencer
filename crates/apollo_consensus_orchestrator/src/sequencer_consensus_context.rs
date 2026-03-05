@@ -41,6 +41,7 @@ use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
 use async_trait::async_trait;
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
 use futures::future::ready;
@@ -456,6 +457,17 @@ impl SequencerConsensusContext {
             warn!("Failed to update state sync with new block at height {height}: {e:?}");
         }
 
+        let recent_block_hashes = match self.collect_recent_block_hashes(height).await {
+            Ok(recent_block_hashes) => recent_block_hashes,
+            Err(e) => {
+                error!(
+                    "Failed to collect recent block hashes when preparing blob for next height at \
+                     height {height}: {e:?}"
+                );
+                return;
+            }
+        };
+
         if let Err(e) = self
             .deps
             .cende_ambassador
@@ -479,7 +491,7 @@ impl SequencerConsensusContext {
                 parent_proposal_commitment: central_objects
                     .parent_proposal_commitment
                     .map(|commitment| ProposalCommitment(commitment.partial_block_hash.0)),
-                recent_block_hashes: self.collect_recent_block_hashes(height).await,
+                recent_block_hashes,
             })
             .await
         {
@@ -493,14 +505,19 @@ impl SequencerConsensusContext {
 
     /// Collects the recent block hashes from the batcher.
     /// Returns computed block hashes in range [height - N_RECENT_BLOCK_HASHES_IN_BLOB, height].
-    async fn collect_recent_block_hashes(&self, height: BlockNumber) -> Vec<BlockHashAndNumber> {
+    async fn collect_recent_block_hashes(
+        &self,
+        blob_height: BlockNumber,
+    ) -> Result<Vec<BlockHashAndNumber>, ConsensusError> {
         let mut recent_block_hashes = Vec::with_capacity(
             usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB)
                 .expect("N_BLOCK_HASHES_BACK_IN_BLOB should fit in usize.")
                 + 1,
         );
-        let lowest_height = height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
-        for height in lowest_height..=height.0 {
+        let lowest_height = blob_height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
+        let must_contain_height: Option<u64> =
+            blob_height.0.checked_sub(STORED_BLOCK_HASH_BUFFER).map(|h| h + 1);
+        for height in lowest_height..=blob_height.0 {
             let block_number = BlockNumber(height);
             match self.deps.batcher.get_block_hash(block_number).await {
                 Ok(block_hash) => {
@@ -516,11 +533,19 @@ impl SequencerConsensusContext {
                         // TODO(Nimrod): Consider handle this error differently.
                         warn!("Failed to get block hash from batcher: {err:?}");
                     }
+                    if let Some(must_contain_height) = must_contain_height {
+                        if block_number.0 <= must_contain_height {
+                            return Err(ConsensusError::InternalNetworkError(format!(
+                                "When constructing blob at height {blob_height}, block hash for \
+                                 height {block_number} was not found."
+                            )));
+                        }
+                    }
                     break;
                 }
             }
         }
-        recent_block_hashes
+        Ok(recent_block_hashes)
     }
 }
 
