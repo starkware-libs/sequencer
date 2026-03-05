@@ -30,7 +30,6 @@ static CAIRO0_CONTRACT_CLASS_HASH: LazyLock<ClassHash> =
     LazyLock::new(|| get_class_hash_of_feature_contract(CAIRO0_CONTRACT));
 static CAIRO1_CONTRACT_CLASS_HASH: LazyLock<ClassHash> =
     LazyLock::new(|| get_class_hash_of_feature_contract(CAIRO1_CONTRACT));
-#[allow(dead_code)]
 static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
     BTreeMap::from([(*CAIRO0_CONTRACT_CLASS_HASH, false), (*CAIRO1_CONTRACT_CLASS_HASH, true)])
 });
@@ -38,13 +37,52 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 #[derive(Clone, Copy, EnumIter)]
 enum FuzzOperation {
     Return,
+    Call,
 }
 
 impl FuzzOperation {
     fn identifier(&self) -> Felt {
         Felt::from(match self {
             Self::Return => 0u8,
+            Self::Call => 1u8,
         })
+    }
+}
+
+/// Different variants depending on whether or not the calling context is Cairo0.
+#[derive(Clone, Copy, Debug)]
+enum CallOperationData {
+    Cairo0 { address: ContractAddress },
+    Cairo1 { address: ContractAddress, unwraps_error: bool },
+}
+
+impl CallOperationData {
+    pub fn felt_vector(&self) -> Vec<Felt> {
+        match self {
+            Self::Cairo0 { address } => vec![***address],
+            Self::Cairo1 { address, unwraps_error } => {
+                vec![***address, (*unwraps_error).into()]
+            }
+        }
+    }
+
+    pub fn address(&self) -> &ContractAddress {
+        match self {
+            Self::Cairo0 { address } | Self::Cairo1 { address, .. } => address,
+        }
+    }
+
+    pub fn parent_failure_behavior(&self) -> ParentFailureBehavior {
+        match self {
+            Self::Cairo0 { .. } => ParentFailureBehavior::Uncatchable,
+            Self::Cairo1 { unwraps_error, .. } => {
+                if *unwraps_error {
+                    ParentFailureBehavior::Cairo1Propagating
+                } else {
+                    ParentFailureBehavior::Cairo1Catching
+                }
+            }
+        }
     }
 }
 
@@ -52,12 +90,14 @@ impl FuzzOperation {
 #[derive(Clone, Copy)]
 enum FuzzOperationData {
     Return,
+    Call(CallOperationData),
 }
 
 impl FuzzOperationData {
     pub fn op(&self) -> FuzzOperation {
         match self {
             Self::Return => FuzzOperation::Return,
+            Self::Call(_) => FuzzOperation::Call,
         }
     }
 
@@ -65,8 +105,9 @@ impl FuzzOperationData {
     /// fuzz test.
     pub fn felt_vector(&self) -> Vec<Felt> {
         let mut felt_vector = vec![self.op().identifier()];
-        felt_vector.extend::<Vec<Felt>>(match self {
+        felt_vector.extend(match self {
             Self::Return => vec![],
+            Self::Call(op) => op.felt_vector(),
         });
         felt_vector
     }
@@ -74,8 +115,15 @@ impl FuzzOperationData {
 
 /// Parent frame behavior on failures.
 enum ParentFailureBehavior {
+    /// In a cairo0 context, or in a constructor call tree. Failures in this context cannot be
+    /// caught by any calling context.
+    Uncatchable,
+
     /// In cairo1, and not unwrapping errors from child context.
     Cairo1Catching,
+
+    /// In cairo1, unwrapping errors from next context.
+    Cairo1Propagating,
 }
 
 /// Final state of the fuzz test transaction.
@@ -191,6 +239,30 @@ impl FuzzTestManager {
         self.final_state.finalized()
     }
 
+    pub fn current_fuzz_call_info(&self) -> &FuzzCallInfo {
+        let mut call = &self.calls[self.current_call[0]];
+        for i in 1..self.current_call.len() {
+            call = &call.inner_calls[self.current_call[i]];
+        }
+        call
+    }
+
+    pub fn current_fuzz_call_info_mut(&mut self) -> &mut FuzzCallInfo {
+        let mut call = &mut self.calls[self.current_call[0]];
+        for i in 1..self.current_call.len() {
+            call = &mut call.inner_calls[self.current_call[i]];
+        }
+        call
+    }
+
+    pub fn is_cairo1_class(&self, class_hash: &ClassHash) -> bool {
+        *IS_CAIRO1.get(class_hash).unwrap()
+    }
+
+    pub fn is_current_context_cairo1(&self) -> bool {
+        self.is_cairo1_class(&self.current_fuzz_call_info().class_hash)
+    }
+
     /// Returns a vector of operations of the given type that can be applied on the current context.
     pub fn valid_operations_of_type(
         &self,
@@ -203,6 +275,31 @@ impl FuzzTestManager {
 
         match operation_type {
             FuzzOperation::Return => vec![FuzzOperationData::Return],
+            FuzzOperation::Call => {
+                // There are two Cairo0 contracts and two Cairo1 contracts that can be called.
+                // When calling from a Cairo1 context, the caller can unwrap the call result or not.
+                let current_context_is_cairo1 = self.is_current_context_cairo1();
+                self.deployed_fuzz_contracts
+                    .keys()
+                    .flat_map(|address| {
+                        if current_context_is_cairo1 {
+                            [true, false]
+                                .into_iter()
+                                .map(|unwraps_error| {
+                                    FuzzOperationData::Call(CallOperationData::Cairo1 {
+                                        address: *address,
+                                        unwraps_error,
+                                    })
+                                })
+                                .collect()
+                        } else {
+                            vec![FuzzOperationData::Call(CallOperationData::Cairo0 {
+                                address: *address,
+                            })]
+                        }
+                    })
+                    .collect()
+            }
         }
     }
 
@@ -222,6 +319,17 @@ impl FuzzTestManager {
                 if self.current_call.is_empty() {
                     self.final_state = FinalizedState::Succeeded;
                 }
+            }
+            FuzzOperationData::Call(call_operation_data) => {
+                let address = *call_operation_data.address();
+                let class_hash = *self.deployed_fuzz_contracts.get(&address).unwrap();
+                self.current_fuzz_call_info_mut().inner_calls.push(FuzzCallInfo {
+                    address,
+                    class_hash,
+                    parent_failure_behavior: call_operation_data.parent_failure_behavior(),
+                    inner_calls: vec![],
+                });
+                self.current_call.push(self.current_fuzz_call_info().inner_calls.len() - 1);
             }
         }
     }
