@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use apollo_propeller::types::{Channel, Event};
+use apollo_propeller::types::{CommitteeId, Event};
 use apollo_propeller::{Behaviour, Config};
 use futures::StreamExt;
 use libp2p::swarm::SwarmEvent;
@@ -44,24 +44,28 @@ impl TestSetup {
         self.swarms.len()
     }
 
-    // TODO(AndrewL): rename when Channel is renamed.
-    async fn register_channel(&mut self, channel: Channel, node_indices: &[NodeIndex]) {
+    async fn register_committee(&mut self, committee_id: CommitteeId, node_indices: &[NodeIndex]) {
         let peers: Vec<(PeerId, u64)> =
             node_indices.iter().map(|&i| (*self.swarms[i].local_peer_id(), 1)).collect();
         for &i in node_indices {
             self.swarms[i]
                 .behaviour_mut()
-                .register_channel_peers(channel, peers.clone())
+                .register_committee_peers(committee_id, peers.clone())
                 .await
                 .unwrap()
-                .expect("Failed to register channel");
+                .expect("Failed to register committee");
         }
     }
 
-    async fn broadcast(&mut self, node_idx: NodeIndex, channel: Channel, message: Vec<u8>) {
+    async fn broadcast(
+        &mut self,
+        node_idx: NodeIndex,
+        committee_id: CommitteeId,
+        message: Vec<u8>,
+    ) {
         self.swarms[node_idx]
             .behaviour_mut()
-            .broadcast(channel, message)
+            .broadcast(committee_id, message)
             .await
             .unwrap()
             .expect("Broadcast should succeed");
@@ -142,15 +146,15 @@ async fn e2e_broadcast_single_message(
     #[case] num_publishers: usize,
 ) {
     let mut setup = TestSetup::new(num_nodes).await;
-    let channel = Channel(0);
+    let committee_id = CommitteeId(0);
     let all: Vec<NodeIndex> = (0..num_nodes).collect();
-    setup.register_channel(channel, &all).await;
+    setup.register_committee(committee_id, &all).await;
 
     let mut messages: Vec<Vec<u8>> = Vec::new();
     for pub_idx in 0..num_publishers {
         let msg: Vec<u8> =
             (0..message_size).map(|i| u8::try_from((i + pub_idx) % 256).unwrap()).collect();
-        setup.broadcast(pub_idx, channel, msg.clone()).await;
+        setup.broadcast(pub_idx, committee_id, msg.clone()).await;
         messages.push(msg);
     }
 
@@ -171,24 +175,24 @@ async fn e2e_broadcast_single_message(
     assert!(!logs_contain("ERROR"));
 }
 
-/// 6 nodes (A..F), two overlapping channels:
-///   Channel 0 = {A, B, C, D}
-///   Channel 1 = {C, D, E, F}
-/// C broadcasts a different message on each channel.
-/// Verify each channel's members (minus C) receive the correct message,
-/// and no node receives a message from a channel it is not part of.
+/// 6 nodes (A..F), two overlapping committees:
+///   Committee 0 = {A, B, C, D}
+///   Committee 1 = {C, D, E, F}
+/// C broadcasts a different message on each committee.
+/// Verify each committee's members (minus C) receive the correct message,
+/// and no node receives a message from a committee it is not part of.
 #[traced_test]
 #[tokio::test(flavor = "current_thread")]
-async fn e2e_channel_isolation() {
+async fn e2e_committee_isolation() {
     let mut setup = TestSetup::new(6).await;
-    setup.register_channel(Channel(0), &[0, 1, 2, 3]).await;
-    setup.register_channel(Channel(1), &[2, 3, 4, 5]).await;
+    setup.register_committee(CommitteeId(0), &[0, 1, 2, 3]).await;
+    setup.register_committee(CommitteeId(1), &[2, 3, 4, 5]).await;
 
-    let msg_ch0 = b"message-for-channel-0".to_vec();
-    let msg_ch1 = b"message-for-channel-1".to_vec();
+    let msg_ch0 = b"message-for-committee-0".to_vec();
+    let msg_ch1 = b"message-for-committee-1".to_vec();
 
-    setup.broadcast(2, Channel(0), msg_ch0.clone()).await;
-    setup.broadcast(2, Channel(1), msg_ch1.clone()).await;
+    setup.broadcast(2, CommitteeId(0), msg_ch0.clone()).await;
+    setup.broadcast(2, CommitteeId(1), msg_ch1.clone()).await;
 
     let expected = vec![
         (0, vec![msg_ch0.clone()]),
