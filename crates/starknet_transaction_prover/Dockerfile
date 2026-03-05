@@ -1,14 +1,14 @@
-# crates/starknet_os_runner/Dockerfile
+# crates/starknet_transaction_prover/Dockerfile
 #
-# Self-contained Dockerfile for building the starknet_os_runner service.
-# This Dockerfile is designed for external parties to build and run the OS runner
+# Self-contained Dockerfile for building the starknet_transaction_prover service.
+# This Dockerfile is designed for external parties to build and run the tx prover
 # without requiring the full internal build infrastructure.
 #
 # Build:
-#   docker build -f crates/starknet_os_runner/Dockerfile -t os_runner:latest .
+#   docker build -f crates/starknet_transaction_prover/Dockerfile -t tx_prover:latest .
 #
 # Run:
-#   docker run --rm -p 3000:3000 os_runner:latest
+#   docker run --rm -p 3000:3000 tx_prover:latest
 #
 # Key differences from the internal Dockerfile (deployments/images/sequencer/Dockerfile):
 #   - No dockerfile-x INCLUDE directive
@@ -52,7 +52,7 @@ ENV CARGO_HOME=${RUSTUP_HOME}
 ENV PATH="${RUSTUP_HOME}/bin:${PATH}"
 
 # Use the crate-level rust-toolchain.toml (nightly).
-COPY crates/starknet_os_runner/rust-toolchain.toml rust-toolchain.toml
+COPY crates/starknet_transaction_prover/rust-toolchain.toml rust-toolchain.toml
 
 # --default-toolchain none: skip installing the default stable toolchain, since we only need
 # the nightly defined in rust-toolchain.toml.
@@ -67,7 +67,7 @@ RUN python3 -m venv ${VIRTUAL_ENV}
 ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 
 # Install cairo-lang package for cairo-compile tool.
-# This is the minimum required for building starknet_os_runner.
+# This is the minimum required for building starknet_transaction_prover.
 ARG CAIRO_LANG_VERSION=0.14.1a0
 RUN pip install --no-cache-dir cairo-lang==${CAIRO_LANG_VERSION}
 
@@ -77,7 +77,7 @@ RUN pip install --no-cache-dir cairo-lang==${CAIRO_LANG_VERSION}
 FROM base AS planner
 WORKDIR /app
 COPY . .
-COPY crates/starknet_os_runner/rust-toolchain.toml rust-toolchain.toml
+COPY crates/starknet_transaction_prover/rust-toolchain.toml rust-toolchain.toml
 RUN cargo chef prepare --recipe-path recipe.json
 
 # =============================================================================
@@ -98,17 +98,17 @@ RUN if [ "$BUILD_MODE" != "release" ] && [ "$BUILD_MODE" != "debug" ]; then \
     fi
 
 # Cache dependencies with cargo-chef.
-# Use -p starknet_os_runner to avoid building LLVM-dependent crates (e.g., cairo_native).
+# Use -p starknet_transaction_prover to avoid building LLVM-dependent crates (e.g., cairo_native).
 COPY --from=planner /app/recipe.json recipe.json
-COPY crates/starknet_os_runner/rust-toolchain.toml rust-toolchain.toml
+COPY crates/starknet_transaction_prover/rust-toolchain.toml rust-toolchain.toml
 RUN BUILD_FLAGS=$([ "$BUILD_MODE" = "release" ] && echo "--release" || true); \
-    cargo chef cook $BUILD_FLAGS -p starknet_os_runner --features stwo_proving --recipe-path recipe.json
+    cargo chef cook $BUILD_FLAGS -p starknet_transaction_prover --features stwo_proving --recipe-path recipe.json
 
-# Copy source and build starknet_os_runner (without cairo_native feature).
+# Copy source and build starknet_transaction_prover (without cairo_native feature).
 COPY . .
-COPY crates/starknet_os_runner/rust-toolchain.toml rust-toolchain.toml
+COPY crates/starknet_transaction_prover/rust-toolchain.toml rust-toolchain.toml
 RUN BUILD_FLAGS=$([ "$BUILD_MODE" = "release" ] && echo "--release" || true); \
-    cargo build $BUILD_FLAGS -p starknet_os_runner --features stwo_proving
+    cargo build $BUILD_FLAGS -p starknet_transaction_prover --features stwo_proving
 
 # =============================================================================
 # Stage 4: Final runtime image
@@ -127,10 +127,10 @@ ENV ID=1001
 WORKDIR /app
 
 # Copy the binary.
-COPY --from=builder /app/target/${BUILD_MODE}/starknet_os_runner ./target/${BUILD_MODE}/starknet_os_runner
+COPY --from=builder /app/target/${BUILD_MODE}/starknet_transaction_prover ./target/${BUILD_MODE}/starknet_transaction_prover
 
 # Copy resources needed by the service (includes bootloader).
-COPY --from=builder /app/crates/starknet_os_runner/resources ./crates/starknet_os_runner/resources
+COPY --from=builder /app/crates/starknet_transaction_prover/resources ./crates/starknet_transaction_prover/resources
 
 # Copy starknet-sierra-compile binary required for Sierra to Casm compilation.
 COPY --from=builder /app/target/${BUILD_MODE}/shared_executables/starknet-sierra-compile ./target/${BUILD_MODE}/shared_executables/starknet-sierra-compile
@@ -152,4 +152,4 @@ EXPOSE 3000
 USER ${ID}
 
 # Use tini as the init process.
-ENTRYPOINT ["sh", "-c", "exec tini -- /app/target/$BUILD_MODE/starknet_os_runner \"$@\"", "--"]
+ENTRYPOINT ["sh", "-c", "exec tini -- /app/target/$BUILD_MODE/starknet_transaction_prover \"$@\"", "--"]

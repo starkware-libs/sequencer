@@ -1,4 +1,4 @@
-//! Configuration for the Starknet OS Runner.
+//! Configuration for the Starknet transaction prover.
 
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use serde::{Deserialize, Serialize};

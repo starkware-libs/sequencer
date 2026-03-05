@@ -1,10 +1,10 @@
 [package]
-name = "starknet_os_runner"
+name = "starknet_transaction_prover"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
-description = "Runs transactions through the Starknet OS and returns Cairo PIE and OS output."
+description = "Standalone service that proves individual Starknet transactions using the virtual Starknet OS and Stwo prover."
 
 [features]
 cairo_native = ["blockifier/cairo_native"]
