@@ -283,6 +283,38 @@
             "consensus_l2_gas_price{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
           ],
           "extra_params": {}
+        }
+      ],
+      "collapsed": true
+    },
+    "Consensus Streams": {
+      "panels": [
+        {
+          "title": "Outbound Stream Started Over Finished",
+          "description": "Ratio of started to finished outbound streams (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_outbound_stream_started{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) / increase(consensus_outbound_stream_finished{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Inbound Stream Started Over Finished",
+          "description": "Ratio of started to finished inbound streams (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_inbound_stream_started{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) / increase(consensus_inbound_stream_finished{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Inbound Stream Evicted",
+          "description": "The number of inbound streams evicted due to cache capacity (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_inbound_stream_evicted{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {}
         },
         {
           "title": "Inbound Peer Evicted",

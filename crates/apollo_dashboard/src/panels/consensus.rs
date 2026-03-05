@@ -9,6 +9,11 @@ use apollo_consensus::metrics::{
     CONSENSUS_DECISIONS_REACHED_BY_SYNC,
     CONSENSUS_INBOUND_PEER_EVICTED,
     CONSENSUS_INBOUND_STREAM_BUFFER_FULL,
+    CONSENSUS_INBOUND_STREAM_EVICTED,
+    CONSENSUS_INBOUND_STREAM_FINISHED,
+    CONSENSUS_INBOUND_STREAM_STARTED,
+    CONSENSUS_OUTBOUND_STREAM_FINISHED,
+    CONSENSUS_OUTBOUND_STREAM_STARTED,
     CONSENSUS_PROPOSALS_ACCEPTED_FOR_VALIDATION,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_PROPOSALS_RECEIVED,
@@ -581,6 +586,44 @@ fn get_panel_consensus_inbound_stream_buffer_full() -> Panel {
     )
 }
 
+fn get_panel_consensus_inbound_stream_evicted() -> Panel {
+    Panel::new(
+        "Inbound Stream Evicted",
+        format!(
+            "The number of inbound streams evicted due to cache capacity ({DEFAULT_DURATION} \
+             window)",
+        ),
+        increase(&CONSENSUS_INBOUND_STREAM_EVICTED, DEFAULT_DURATION),
+        PanelType::TimeSeries,
+    )
+}
+
+fn get_panel_consensus_inbound_stream_started_over_finished() -> Panel {
+    Panel::new(
+        "Inbound Stream Started Over Finished",
+        format!("Ratio of started to finished inbound streams ({DEFAULT_DURATION} window)",),
+        format!(
+            "{} / {}",
+            increase(&CONSENSUS_INBOUND_STREAM_STARTED, DEFAULT_DURATION),
+            increase(&CONSENSUS_INBOUND_STREAM_FINISHED, DEFAULT_DURATION),
+        ),
+        PanelType::TimeSeries,
+    )
+}
+
+fn get_panel_consensus_outbound_stream_started_over_finished() -> Panel {
+    Panel::new(
+        "Outbound Stream Started Over Finished",
+        format!("Ratio of started to finished outbound streams ({DEFAULT_DURATION} window)",),
+        format!(
+            "{} / {}",
+            increase(&CONSENSUS_OUTBOUND_STREAM_STARTED, DEFAULT_DURATION),
+            increase(&CONSENSUS_OUTBOUND_STREAM_FINISHED, DEFAULT_DURATION),
+        ),
+        PanelType::TimeSeries,
+    )
+}
+
 pub(crate) fn get_consensus_row() -> Row {
     Row::new(
         "Consensus",
@@ -604,6 +647,17 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_proof_manager_store_latency(),
             get_panel_consensus_timeouts_by_type(),
             get_panel_consensus_l2_gas_price(),
+        ],
+    )
+}
+
+pub(crate) fn get_consensus_streams_row() -> Row {
+    Row::new(
+        "Consensus Streams",
+        vec![
+            get_panel_consensus_outbound_stream_started_over_finished(),
+            get_panel_consensus_inbound_stream_started_over_finished(),
+            get_panel_consensus_inbound_stream_evicted(),
             get_panel_consensus_inbound_peer_evicted(),
             get_panel_consensus_inbound_stream_buffer_full(),
         ],
