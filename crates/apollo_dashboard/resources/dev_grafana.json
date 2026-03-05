@@ -301,6 +301,51 @@
             "increase(consensus_inbound_stream_buffer_full{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Inbound Stream Evicted",
+          "description": "The number of inbound streams evicted due to cache capacity (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_inbound_stream_evicted{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Inbound Stream Started",
+          "description": "The number of inbound streams started (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_inbound_stream_started{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Inbound Stream Finished",
+          "description": "The number of inbound streams finished (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_inbound_stream_finished{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Outbound Stream Started",
+          "description": "The number of outbound streams started (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_outbound_stream_started{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Outbound Stream Finished",
+          "description": "The number of outbound streams finished (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_outbound_stream_finished{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {}
         }
       ],
       "collapsed": true
