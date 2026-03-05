@@ -5,7 +5,7 @@
         "max_n_emitted_events": 1000
     },
     "gateway": {
-        "max_calldata_length": 5000,
+        "max_calldata_length": 600000,
         "max_contract_bytecode_size": 81920,
         "max_proof_size": 600000
     },
