@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772703885551,
+  "lastUpdate": 1772707230508,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1903,6 +1903,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1260.47729895,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "69d1a5aa694a294a93f45adb34d5417f02ec45d3",
+          "message": "starknet_os_runner: add bouncer config to virtual block executor (#12910)",
+          "timestamp": "2026-03-05T10:17:07Z",
+          "tree_id": "ea50b185910bb7e7ffd24ee0b95bc68ddc524d1f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/69d1a5aa694a294a93f45adb34d5417f02ec45d3"
+        },
+        "date": 1772707230124,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 897.6568622899999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1319.45755351,
             "unit": "ms"
           }
         ]
