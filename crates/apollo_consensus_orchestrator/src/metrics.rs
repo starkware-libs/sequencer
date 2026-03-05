@@ -44,6 +44,7 @@ pub(crate) enum CendeWriteFailureReason {
     CendeRecorderError,
     BlobNotAvailable,
     HeightMismatch,
+    BlockHashNotFound,
 }
 
 generate_permutation_labels! {

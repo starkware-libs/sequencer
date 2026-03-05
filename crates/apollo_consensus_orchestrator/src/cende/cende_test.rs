@@ -5,10 +5,10 @@ use apollo_class_manager_types::MockClassManagerClient;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use reqwest::StatusCode;
 use rstest::rstest;
-use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber};
 use url::Url;
 
-use super::{CendeAmbassador, RECORDER_WRITE_BLOB_PATH};
+use super::{check_blob_contains_block_hash, CendeAmbassador, RECORDER_WRITE_BLOB_PATH};
 use crate::cende::{BlobParameters, CendeConfig, CendeContext};
 use crate::metrics::{
     register_metrics,
@@ -178,4 +178,31 @@ async fn prepare_blob_for_next_height() {
     );
 
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.assert_eq(&recorder.handle().render(), HEIGHT_TO_WRITE.0);
+}
+
+fn dummy_block_numbers_and_hashes(block_numbers: &[u64]) -> Vec<BlockHashAndNumber> {
+    block_numbers
+        .iter()
+        .map(|block_number| BlockHashAndNumber {
+            number: BlockNumber(*block_number),
+            hash: BlockHash::default(),
+        })
+        .collect()
+}
+
+#[rstest]
+#[case(8, &[], true)]
+#[case(9, &[], false)]
+#[case(9, &[0], true)]
+#[case(40, &[30, 31, 32], true)]
+fn test_check_blob_contains_block_hash(
+    #[case] blob_block_number: u64,
+    #[case] block_numbers: &[u64],
+    #[case] expected: bool,
+) {
+    let recent_block_hashes = dummy_block_numbers_and_hashes(block_numbers);
+    assert_eq!(
+        check_blob_contains_block_hash(BlockNumber(blob_block_number), &recent_block_hashes),
+        expected
+    );
 }

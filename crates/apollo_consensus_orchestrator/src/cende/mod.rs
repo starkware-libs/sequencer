@@ -170,6 +170,15 @@ impl CendeContext for CendeAmbassador {
                     )
                 }
 
+                if !check_blob_contains_block_hash(blob.block_number, &blob.recent_block_hashes) {
+                    warn!(
+                        "CENDE_FAILURE: Blob does not contain the block hash of \
+                         (blob.block_number - STORED_BLOCK_HASH_BUFFER + 1)."
+                    );
+                    record_write_failure(CendeWriteFailureReason::BlockHashNotFound);
+                    return false;
+                }
+
                 // Can happen in case the consensus got a block from the state sync and due to that
                 // did not update the cende ambassador in `decision_reached` function.
                 if blob.block_number.0 + 1 != current_height.0 {
@@ -252,6 +261,29 @@ async fn print_write_blob_response(response: Response) {
     } else {
         info!("Failed to get response text.");
     }
+}
+
+/// Returns whether the blob contains the block hash of (blob.block_number -
+/// STORED_BLOCK_HASH_BUFFER + 1). Without this check, we might have deadlock in the following
+/// scenario:
+/// 1. When preparing the blob for height N, all nodes didn't send the hash of block (N -
+///    STORED_BLOCK_HASH_BUFFER).
+/// 2. Centralized block hash calculator won't produce the hash of block (N -
+///    STORED_BLOCK_HASH_BUFFER) because he can't compare it to the Apollo computed hash.
+/// 3. State sync won't return the retrospective block hash and batch creation will get stuck.
+fn check_blob_contains_block_hash(
+    blob_block_number: BlockNumber,
+    recent_block_hashes: &[BlockHashAndNumber],
+) -> bool {
+    let Some(must_contain_height) = (blob_block_number.0 + 1).checked_sub(STORED_BLOCK_HASH_BUFFER)
+    else {
+        // Block number is too low - no need to check.
+        return true;
+    };
+
+    let last_block_number =
+        recent_block_hashes.last().map(|block_hash_and_number| block_hash_and_number.number.0);
+    last_block_number.is_some_and(|last_block_number| must_contain_height <= last_block_number)
 }
 
 #[derive(Debug)]
