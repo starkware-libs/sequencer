@@ -97,6 +97,24 @@ static FUZZ_ADDRESS_TO_CLASS_HASH: LazyLock<BTreeMap<ContractAddress, ClassHash>
 static VALID_STORAGE_KEYS: LazyLock<Vec<Felt>> =
     LazyLock::new(|| vec![Felt::from(1u16 << 8), Felt::from(1u16 << 9)]);
 
+/// Filter functions for custom scenario filters.
+type OperationFilter = fn(&FuzzOperationData) -> bool;
+/// All scenarios allowed.
+fn op_filter_all(_: &FuzzOperationData) -> bool {
+    true
+}
+/// Call, write, panic, return scenarios only.
+fn op_filter_call_write_panic_return(op: &FuzzOperationData) -> bool {
+    matches!(
+        op,
+        FuzzOperationData::Call(_)
+            | FuzzOperationData::Return
+            | FuzzOperationData::Write(_, _)
+            | FuzzOperationData::Panic
+    )
+}
+const OP_FILTER_CALL_WRITE_PANIC_RETURN: OperationFilter = op_filter_call_write_panic_return;
+
 // TODO(Dori): Operations to add:
 // 3. events
 // 4. call / libcall non-existing entry points (should panic) (catchable in cairo0 even?)
@@ -582,9 +600,16 @@ impl FuzzTestContext {
         }
     }
 
+    fn valid_filtered_operations(&self, filter: OperationFilter) -> Vec<FuzzOperationData> {
+        FuzzOperation::iter()
+            .flat_map(|op| self.valid_operations_of_type(op))
+            .filter(filter)
+            .collect()
+    }
+
     /// List of all valid single operations that can be applied on the current context.
-    pub fn valid_operations(&self) -> Vec<FuzzOperationData> {
-        FuzzOperation::iter().flat_map(|op| self.valid_operations_of_type(op)).collect()
+    pub fn valid_operations(&self, filter: Option<OperationFilter>) -> Vec<FuzzOperationData> {
+        self.valid_filtered_operations(filter.unwrap_or(op_filter_all))
     }
 
     /// Enter a new call or deploy context.
@@ -812,8 +837,8 @@ impl FuzzTestContext {
 
     /// Add and apply a random operation.
     /// Returns an error if there are no valid operation to add.
-    pub fn add_random_operation(&mut self) -> Result<(), ()> {
-        let valid_operations = self.valid_operations();
+    pub fn add_random_operation(&mut self, filter: Option<OperationFilter>) -> Result<(), ()> {
+        let valid_operations = self.valid_operations(filter);
         if valid_operations.is_empty() {
             return Err(());
         }
@@ -872,7 +897,11 @@ impl FuzzTestContext {
     /// given the current context.
     /// WARNING: The number of lists is exponential in the length! Use with small values only.
     /// A value of 4 can generate over 100K lists!
-    fn get_all_operation_tails(&self, max_length: usize) -> Vec<Vec<FuzzOperationData>> {
+    fn get_all_operation_tails(
+        &self,
+        max_length: usize,
+        filter: Option<OperationFilter>,
+    ) -> Vec<Vec<FuzzOperationData>> {
         // Base case.
         if max_length == 0 {
             return vec![self.operations.clone()];
@@ -882,12 +911,12 @@ impl FuzzTestContext {
             return vec![];
         }
         // Add one operation and recurse.
-        self.valid_operations()
+        self.valid_operations(filter)
             .into_iter()
             .flat_map(|operation| {
                 let mut new_context = self.clone();
                 new_context.apply(operation);
-                new_context.get_all_operation_tails(max_length - 1)
+                new_context.get_all_operation_tails(max_length - 1, filter)
             })
             .collect()
     }
@@ -1097,16 +1126,19 @@ impl FuzzTestManager {
         test_manager
     }
 
-    pub fn add_random_operation(&mut self) -> Result<(), ()> {
-        self.context.add_random_operation()
+    pub fn add_random_operation(&mut self, filter: Option<OperationFilter>) -> Result<(), ()> {
+        self.context.add_random_operation(filter)
     }
 
     /// Exhaustively generate all possible operation lists of exactly the given length.
     /// WARNING: The number of lists is exponential in the length! Use with small values only.
     /// A value of 4 can generate over 100K lists!
-    pub async fn get_all_operation_lists(max_length: usize) -> Vec<Vec<FuzzOperationData>> {
+    pub async fn get_all_operation_lists(
+        max_length: usize,
+        filter: Option<OperationFilter>,
+    ) -> Vec<Vec<FuzzOperationData>> {
         let initial_state = Self::init(0).await;
-        initial_state.context.get_all_operation_tails(max_length)
+        initial_state.context.get_all_operation_tails(max_length, filter)
     }
 
     #[allow(unused)]
@@ -1164,13 +1196,13 @@ impl FuzzTestManager {
     }
 }
 
-async fn fuzz_test_body(seed: u64, max_n_operations: usize) {
+async fn fuzz_test_body(seed: u64, max_n_operations: usize, filter: Option<OperationFilter>) {
     let mut fuzz_tester = FuzzTestManager::init(seed).await;
 
     // Create scenarios.
     for _ in 0..max_n_operations {
         // An error value means the context is finalized - no more operations can be applied.
-        if fuzz_tester.add_random_operation().is_err() {
+        if fuzz_tester.add_random_operation(filter).is_err() {
             break;
         }
     }
@@ -1190,16 +1222,19 @@ async fn test_fuzz_deployment_expect() {
 }
 
 #[rstest]
+#[case::all(None)]
+#[case::call_write_panic_return(Some(OP_FILTER_CALL_WRITE_PANIC_RETURN))]
 #[tokio::test]
 async fn test_daily_fuzz_seed(
-    #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] inner_seed: u64,
+    #[case] filter: Option<OperationFilter>,
+    #[values(0, 1, 2, 3, 4, 5, 6, 7)] inner_seed: u64,
 ) {
     let now = Utc::now();
     let day: u64 = now.day().into();
     let month: u64 = now.month().into();
     let year: u64 = now.year().try_into().unwrap();
     let seed = day * 100000000 + month * 1000000 + year * 100 + inner_seed;
-    fuzz_test_body(seed, 10).await;
+    fuzz_test_body(seed, 10, filter).await;
 }
 
 #[cfg(feature = "long_fuzz_test")]
@@ -1226,7 +1261,7 @@ mod long_fuzz_test {
             + seed1 * seed_base
             + seed2 * seed_base * seed_base
             + seed3 * seed_base * seed_base * seed_base;
-        fuzz_test_body(seed, 10).await;
+        fuzz_test_body(seed, 10, None).await;
     }
 }
 
@@ -1241,7 +1276,7 @@ mod long_fuzz_test {
 )]
 async fn test_exhaustive_fuzz() {
     let operation_lists =
-        FuzzTestManager::get_all_operation_lists(MAX_EXHAUSTIVE_FUZZ_LENGTH).await;
+        FuzzTestManager::get_all_operation_lists(MAX_EXHAUSTIVE_FUZZ_LENGTH, None).await;
     let total_scenarios = operation_lists.len();
 
     macro_rules! push_test_or_break {
