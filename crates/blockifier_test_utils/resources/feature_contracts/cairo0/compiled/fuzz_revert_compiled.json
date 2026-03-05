@@ -38,7 +38,7 @@
         ],
         "EXTERNAL": [
             {
-                "offset": 473,
+                "offset": 493,
                 "selector": "0x8e64dfac867f301a439703710296f437e9f91d1bba17cfea5ad7f137a5acd"
             },
             {
@@ -74,18 +74,18 @@
                     "__main__",
                     "__main__.test_revert_fuzz"
                 ],
-                "end_pc": 469,
+                "end_pc": 489,
                 "flow_tracking_data": {
                     "ap_tracking": {
                         "group": 24,
-                        "offset": 65
+                        "offset": 66
                     },
                     "reference_ids": {
                         "__main__.test_revert_fuzz.scenario": 8
                     }
                 },
                 "name": "error_message",
-                "start_pc": 465,
+                "start_pc": 485,
                 "value": "Unknown scenario: {scenario}."
             }
         ],
@@ -560,20 +560,40 @@
             "0x48127fe37fff8000",
             "0x48127fe37fff8000",
             "0x208b7fff7fff7ffe",
+            "0x4826800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffff7",
+            "0x20680017fff7fff",
+            "0x12",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe2d",
+            "0x48127fed7fff8000",
+            "0x480680017fff8000",
+            "0x11bca11000c0",
+            "0x480680017fff8000",
+            "0x0",
+            "0x480680017fff8000",
+            "0x0",
+            "0x48127ffb7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe34",
+            "0x48127ffd7fff8000",
+            "0x48127fe27fff8000",
+            "0x48127fe27fff8000",
+            "0x208b7fff7fff7ffe",
             "0x480680017fff8000",
             "0x0",
             "0x400680017fff7fff",
             "0x1",
-            "0x48127ff27fff8000",
-            "0x48127ff27fff8000",
-            "0x48127ff27fff8000",
+            "0x48127ff17fff8000",
+            "0x48127ff17fff8000",
+            "0x48127ff17fff8000",
             "0x208b7fff7fff7ffe",
             "0x402b7ffd7ffc7ffd",
             "0x480280007ffb8000",
             "0x480280017ffb8000",
             "0x480280027ffb8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff01",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffeed",
             "0x40780017fff7fff",
             "0x1",
             "0x48127ffc7fff8000",
@@ -766,7 +786,7 @@
                     }
                 }
             ],
-            "479": [
+            "499": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -817,6 +837,10 @@
             "__main__.SCENARIO_LIBRARY_CALL": {
                 "type": "const",
                 "value": 2
+            },
+            "__main__.SCENARIO_LIBRARY_CALL_NON_EXISTING": {
+                "type": "const",
+                "value": 10
             },
             "__main__.SCENARIO_PANIC": {
                 "type": "const",
@@ -1444,7 +1468,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 473,
+                "pc": 493,
                 "type": "function"
             },
             "__wrappers__.test_revert_fuzz.Args": {
