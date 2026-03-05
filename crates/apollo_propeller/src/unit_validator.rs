@@ -96,7 +96,8 @@ impl UnitValidator {
         }
 
         self.schedule_manager.validate_origin(sender, unit.publisher(), unit.index())?;
-        unit.validate_shard_proof(self.schedule_manager.num_shards())?;
+        unit.validate_shard_lengths()?;
+        unit.validate_merkle_proof(self.schedule_manager.num_shards())?;
         self.verify_signature(unit).map_err(ShardValidationError::SignatureVerificationFailed)?;
 
         // add for next time we see this shard

@@ -11,12 +11,12 @@ use libp2p::identity::{Keypair, PeerId};
 use crate::padding::{pad_message, unpad_message};
 use crate::reed_solomon::{combine_data_shards, generate_coding_shards, split_data_into_shards};
 use crate::types::{CommitteeId, ReconstructionError, ShardIndex, ShardPublishError};
-use crate::unit::PropellerUnit;
+use crate::unit::{PropellerUnit, Shard, ShardsOfPeer};
 use crate::{signature, MerkleProof, MerkleTree, MessageRoot};
 
 /// Rebuild a message from received shards using erasure coding.
 ///
-/// Returns the reconstructed message, the caller's shard, and the Merkle proof.
+/// Returns the reconstructed message, the caller's shards, and the Merkle proof.
 // TODO(AndrewL): Use the fact that ECC is systematic (i.e. data shards are embedded verbatim in
 // the encoded output) to avoid re-encoding when all data shards are already present.
 // TODO(AndrewL): Wait for more shards to arrive before triggering reconstruction so we can avoid
@@ -30,14 +30,19 @@ pub fn reconstruct_message_from_shards(
     my_shard_index: usize,
     data_count: usize,
     coding_count: usize,
-) -> Result<(Vec<u8>, Vec<u8>, MerkleProof), ReconstructionError> {
+) -> Result<(Vec<u8>, ShardsOfPeer, MerkleProof), ReconstructionError> {
     let shards_for_reconstruction: Vec<(usize, Vec<u8>)> = received_shards
         .into_iter()
         .map(|mut msg| {
-            (
-                msg.index().0.try_into().expect("failed converting u64 ShardIndex to usize"),
-                std::mem::take(msg.shard_mut()),
-            )
+            let index: usize =
+                msg.index().0.try_into().expect("failed converting u64 ShardIndex to usize");
+            let shards = std::mem::take(&mut msg.shards_mut().0);
+            assert_eq!(
+                shards.len(),
+                1,
+                "expected exactly one shard per unit during reconstruction"
+            );
+            (index, shards.into_iter().next().unwrap().0)
         })
         .collect();
 
@@ -74,9 +79,10 @@ pub fn reconstruct_message_from_shards(
     let message = combine_data_shards(reconstructed_data_shards);
     let un_padded_message =
         unpad_message(message).map_err(ReconstructionError::MessagePaddingError)?;
+    let my_shards = ShardsOfPeer(vec![Shard(std::mem::take(&mut all_shards[my_shard_index]))]);
     Ok((
         un_padded_message,
-        std::mem::take(&mut all_shards[my_shard_index]),
+        my_shards,
         merkle_tree.prove(my_shard_index).expect("my_shard_index was already bounds-checked"),
     ))
 }
@@ -116,7 +122,7 @@ pub fn create_units_to_publish(
             message_root,
             signature.clone(),
             ShardIndex(u64::try_from(index).expect("shard index exceeds u64::MAX")),
-            shard,
+            ShardsOfPeer(vec![Shard(shard)]),
             proof,
         );
         messages.push(message);
@@ -126,6 +132,9 @@ pub fn create_units_to_publish(
 }
 
 /// Generate coding shards and create Merkle tree from all shards.
+///
+/// Each shard is wrapped in a `ShardsOfPeer` proto message and the Merkle leaf is the
+/// proto-encoded bytes of that message, ensuring cross-language determinism.
 fn create_coding_shards_and_merkle(
     data_shards: Vec<Vec<u8>>,
     num_coding_shards: usize,
@@ -134,7 +143,11 @@ fn create_coding_shards_and_merkle(
         .map_err(ReconstructionError::ErasureReconstructionFailed)?;
 
     let all_shards = [data_shards, coding_shards].concat();
-    let merkle_tree = MerkleTree::new(&all_shards);
+    let leaf_data: Vec<Vec<u8>> = all_shards
+        .iter()
+        .map(|shard| ShardsOfPeer(vec![Shard(shard.clone())]).encode_to_proto_bytes())
+        .collect();
+    let merkle_tree = MerkleTree::new(&leaf_data);
     // TODO(AndrewL): Validate that data_shards is non-empty, or add a default root for an empty
     // merkle tree, instead of panicking here.
     let message_root = MessageRoot(merkle_tree.root().expect("empty merkle tree has no root"));
