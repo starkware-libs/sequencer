@@ -216,6 +216,11 @@ impl Engine {
         let claimed_publisher = unit.publisher();
         let claimed_root = unit.root();
 
+        // Track received shard.
+        if let Some(metrics) = &self.metrics {
+            metrics.shards_received.increment(1);
+        }
+
         // Check if channel is registered.
         let Some(channel_data) = self.channels.get(&claimed_channel) else {
             warn!(?claimed_channel, "Received shard for unregistered channel, dropping");
