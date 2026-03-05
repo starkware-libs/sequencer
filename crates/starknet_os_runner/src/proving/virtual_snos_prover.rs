@@ -11,8 +11,6 @@ use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::utils::get_chain_info;
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
-#[cfg(feature = "stwo_proving")]
-use starknet_api::transaction::fields::VIRTUAL_SNOS;
 use starknet_api::transaction::fields::{Proof, ProofFacts};
 use starknet_api::transaction::{InvokeTransaction, MessageToL1};
 use starknet_os::io::os_output::OsOutputError;
@@ -23,11 +21,7 @@ use crate::config::ProverConfig;
 #[cfg(feature = "stwo_proving")]
 use crate::errors::ProvingError;
 use crate::errors::RunnerError;
-#[cfg(feature = "stwo_proving")]
-use crate::proving::prover::prove;
-#[cfg(feature = "stwo_proving")]
-use crate::running::runner::RunnerOutput;
-use crate::running::runner::{RpcRunnerFactory, VirtualSnosRunner};
+use crate::running::runner::{RpcRunnerFactory, RunnerOutput, VirtualSnosRunner};
 
 /// Error type for the virtual SNOS prover.
 #[derive(Debug, thiserror::Error)]
@@ -162,34 +156,19 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
             "OS execution completed"
         );
 
-        #[cfg(not(feature = "stwo_proving"))]
-        {
-            let _ = (runner_output, os_duration, start_time);
-            unimplemented!(
-                "In-memory proving requires the `stwo_proving` feature flag and a nightly Rust \
-                 toolchain."
-            );
-        }
-
         // Run the prover.
-        #[cfg(feature = "stwo_proving")]
-        {
-            let (result, prove_duration) = {
-                let prove_start = Instant::now();
-                let result = prove_virtual_snos_run(runner_output).await?;
-                let prove_duration = prove_start.elapsed();
+        let prove_start = Instant::now();
+        let result = prove_virtual_snos_run(runner_output).await?;
+        let prove_duration = prove_start.elapsed();
 
-                info!(
-                    prove_duration_ms = %prove_duration.as_millis(),
-                    "Proving completed"
-                );
-                (result, prove_duration)
-            };
+        info!(
+            prove_duration_ms = %prove_duration.as_millis(),
+            "Proving completed"
+        );
 
-            let total_duration = start_time.elapsed();
-            info!(total_duration_ms = %total_duration.as_millis(), "prove_transaction completed");
-            Ok(VirtualSnosProverOutput { result, os_duration, prove_duration, total_duration })
-        }
+        let total_duration = start_time.elapsed();
+        info!(total_duration_ms = %total_duration.as_millis(), "prove_transaction completed");
+        Ok(VirtualSnosProverOutput { result, os_duration, prove_duration, total_duration })
     }
 }
 
@@ -197,20 +176,34 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
 ///
 /// Generates a proof from the given [`RunnerOutput`] and converts the program output into proof
 /// facts.
-#[cfg(feature = "stwo_proving")]
 pub async fn prove_virtual_snos_run(
     runner_output: RunnerOutput,
 ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
-    let prover_output = prove(runner_output.cairo_pie).await?;
+    #[cfg(not(feature = "stwo_proving"))]
+    {
+        let _ = runner_output;
+        unimplemented!(
+            "In-memory proving requires the `stwo_proving` feature flag and a nightly Rust \
+             toolchain."
+        );
+    }
 
-    // Convert program output to proof facts using VIRTUAL_SNOS variant marker.
-    let proof_facts = prover_output.program_output.try_into_proof_facts(VIRTUAL_SNOS)?;
+    #[cfg(feature = "stwo_proving")]
+    {
+        use starknet_api::transaction::fields::VIRTUAL_SNOS;
 
-    Ok(ProveTransactionResult {
-        proof: prover_output.proof,
-        proof_facts,
-        l2_to_l1_messages: runner_output.l2_to_l1_messages,
-    })
+        use crate::proving::prover::prove;
+
+        let prover_output = prove(runner_output.cairo_pie).await?;
+        // Convert program output to proof facts using VIRTUAL_SNOS variant marker.
+        let proof_facts = prover_output.program_output.try_into_proof_facts(VIRTUAL_SNOS)?;
+
+        Ok(ProveTransactionResult {
+            proof: prover_output.proof,
+            proof_facts,
+            l2_to_l1_messages: runner_output.l2_to_l1_messages,
+        })
+    }
 }
 
 /// Validates that the transaction is an Invoke transaction and extracts it.
