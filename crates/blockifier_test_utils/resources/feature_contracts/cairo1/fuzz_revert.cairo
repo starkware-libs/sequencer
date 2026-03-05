@@ -29,6 +29,7 @@ mod FuzzRevertContract {
     const SCENARIO_INCREMENT_COUNTER: felt252 = 7;
     const SCENARIO_SEND_MESSAGE: felt252 = 8;
     const SCENARIO_DEPLOY_NON_EXISTING: felt252 = 9;
+    const SCENARIO_LIBRARY_CALL_NON_EXISTING: felt252 = 10;
 
     const FUZZ_TEST_SELECTOR: felt252 = selector!("test_revert_fuzz");
 
@@ -157,6 +158,13 @@ mod FuzzRevertContract {
             // error.
             syscalls::deploy_syscall(class_hash, salt, array![].span(), deploy_from_zero)
                 .unwrap_syscall();
+        }
+
+        if scenario == SCENARIO_LIBRARY_CALL_NON_EXISTING {
+            let class_hash: ClassHash = 0x11bca11000c1.try_into().unwrap();
+            // Unrecoverable error (we do not prove class hashes do not exist), no option to catch
+            // error.
+            syscalls::library_call_syscall(class_hash, 0, array![].span()).unwrap_syscall();
         }
 
         // Unless explicitly stated otherwise, the next operation should be in the current call
