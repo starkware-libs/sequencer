@@ -22,6 +22,7 @@ const SCENARIO_DEPLOY = 5;
 const SCENARIO_PANIC = 6;
 const SCENARIO_INCREMENT_COUNTER = 7;
 const SCENARIO_SEND_MESSAGE = 8;
+const SCENARIO_DEPLOY_NON_EXISTING = 9;
 
 // selector_from_name("pop_front").
 const POP_FRONT_SELECTOR = 0x289c2d7d6351cd03d4f928bde75fa14d5f52e32bdbc750d5296e1b48c12f1c3;
@@ -163,6 +164,20 @@ func test_revert_fuzz{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
         local payload: felt* = new(pop_front(orchestrator));
         send_message_to_l1(to_address=0xadd0, payload_size=1, payload=payload);
         test_revert_fuzz();
+        return ();
+    }
+
+    if (scenario == SCENARIO_DEPLOY_NON_EXISTING) {
+        let class_hash = 0xde6107000c0;
+        let salt = 0;
+        deploy(
+            class_hash=class_hash,
+            contract_address_salt=salt,
+            constructor_calldata_size=0,
+            constructor_calldata=new(),
+            deploy_from_zero=1
+        );
+        // Should always fail anyway, no need to recurse.
         return ();
     }
 
