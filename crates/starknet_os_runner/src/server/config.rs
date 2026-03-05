@@ -1,4 +1,4 @@
-//! Configuration for the HTTP proving service.
+//! Configuration for the proving service.
 
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
@@ -21,12 +21,72 @@ const DEFAULT_PORT: u16 = 3000;
 const DEFAULT_MAX_CONCURRENT_REQUESTS: usize = 2;
 const DEFAULT_MAX_CONNECTIONS: u32 = 10;
 
-/// Configuration for the HTTP proving service.
+/// Transport mode for the JSON-RPC server.
+#[derive(Clone, Debug)]
+pub enum TransportMode {
+    Http,
+    Https { tls_cert_file: PathBuf, tls_key_file: PathBuf },
+}
+
+impl TransportMode {
+    /// Constructs a `TransportMode` from optional cert and key paths.
+    ///
+    /// Returns `Http` when both are `None`, `Https` when both are `Some`, or an error when only
+    /// one is provided.
+    pub fn new(
+        tls_cert_file: Option<PathBuf>,
+        tls_key_file: Option<PathBuf>,
+    ) -> Result<Self, ConfigError> {
+        match (tls_cert_file, tls_key_file) {
+            (None, None) => Ok(Self::Http),
+            (Some(tls_cert_file), Some(tls_key_file)) => {
+                Ok(Self::Https { tls_cert_file, tls_key_file })
+            }
+            (Some(_), None) => Err(ConfigError::IncompleteTlsConfig(
+                "tls_cert_file is set but tls_key_file is missing".to_string(),
+            )),
+            (None, Some(_)) => Err(ConfigError::IncompleteTlsConfig(
+                "tls_key_file is set but tls_cert_file is missing".to_string(),
+            )),
+        }
+    }
+}
+
+/// Raw configuration as deserialized from JSON. TLS fields are optional and validated after CLI
+/// overrides are applied.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
+struct RawServiceConfig {
+    #[serde(flatten)]
+    prover_config: ProverConfig,
+    ip: IpAddr,
+    port: u16,
+    max_concurrent_requests: usize,
+    max_connections: u32,
+    cors_allow_origin: Vec<String>,
+    tls_cert_file: Option<PathBuf>,
+    tls_key_file: Option<PathBuf>,
+}
+
+impl Default for RawServiceConfig {
+    fn default() -> Self {
+        Self {
+            prover_config: ProverConfig::default(),
+            ip: DEFAULT_IP,
+            port: DEFAULT_PORT,
+            max_concurrent_requests: DEFAULT_MAX_CONCURRENT_REQUESTS,
+            max_connections: DEFAULT_MAX_CONNECTIONS,
+            cors_allow_origin: Vec::new(),
+            tls_cert_file: None,
+            tls_key_file: None,
+        }
+    }
+}
+
+/// Configuration for the proving service.
+#[derive(Clone, Debug)]
 pub struct ServiceConfig {
     /// Configuration for the prover.
-    #[serde(flatten)]
     pub prover_config: ProverConfig,
     /// IP address to bind the server to.
     pub ip: IpAddr,
@@ -37,21 +97,11 @@ pub struct ServiceConfig {
     /// Maximum number of simultaneous JSON-RPC connections (safety net).
     pub max_connections: u32,
     /// List of allowed web origins (domains) that may call this HTTP service from a browser
-    /// (CORS). Examples: `http://localhost:5173`, `https://app.example.com`, or `*` to allow any origin.
+    /// (CORS). Examples: `http://localhost:5173`, `https://app.example.com`, or `*` to allow any
+    /// origin.
     pub cors_allow_origin: Vec<String>,
-}
-
-impl Default for ServiceConfig {
-    fn default() -> Self {
-        Self {
-            prover_config: ProverConfig::default(),
-            ip: DEFAULT_IP,
-            port: DEFAULT_PORT,
-            max_concurrent_requests: DEFAULT_MAX_CONCURRENT_REQUESTS,
-            max_connections: DEFAULT_MAX_CONNECTIONS,
-            cors_allow_origin: Vec::new(),
-        }
-    }
+    /// Transport mode (HTTP or HTTPS with TLS).
+    pub transport: TransportMode,
 }
 
 impl ServiceConfig {
@@ -65,7 +115,7 @@ impl ServiceConfig {
                     e
                 ))
             })?;
-            serde_json::from_str(&contents).map_err(|e| {
+            serde_json::from_str::<RawServiceConfig>(&contents).map_err(|e| {
                 ConfigError::ConfigFileError(format!(
                     "Failed to parse config file {}: {}",
                     config_file.display(),
@@ -73,7 +123,7 @@ impl ServiceConfig {
                 ))
             })?
         } else {
-            ServiceConfig::default()
+            RawServiceConfig::default()
         };
 
         // Override with CLI arguments if provided.
@@ -124,6 +174,24 @@ impl ServiceConfig {
             if max != config.max_connections {
                 info!("CLI override: max_connections: {} -> {}", config.max_connections, max);
                 config.max_connections = max;
+            }
+        }
+        if let Some(tls_cert_file) = args.tls_cert_file {
+            if Some(&tls_cert_file) != config.tls_cert_file.as_ref() {
+                info!(
+                    "CLI override: tls_cert_file: {:?} -> {:?}",
+                    config.tls_cert_file, tls_cert_file
+                );
+                config.tls_cert_file = Some(tls_cert_file);
+            }
+        }
+        if let Some(tls_key_file) = args.tls_key_file {
+            if Some(&tls_key_file) != config.tls_key_file.as_ref() {
+                info!(
+                    "CLI override: tls_key_file: {:?} -> {:?}",
+                    config.tls_key_file, tls_key_file
+                );
+                config.tls_key_file = Some(tls_key_file);
             }
         }
 
@@ -194,19 +262,28 @@ impl ServiceConfig {
                 "max_connections must be at least 1".to_string(),
             ));
         }
-        config.cors_allow_origin = normalize_cors_allow_origins(config.cors_allow_origin)?;
-        if config.cors_allow_origin == ["*"] {
+        let transport = TransportMode::new(config.tls_cert_file, config.tls_key_file)?;
+        let cors_allow_origin = normalize_cors_allow_origins(config.cors_allow_origin)?;
+        if cors_allow_origin == ["*"] {
             info!("CORS allow-origin configured as wildcard '*'.");
         }
 
-        Ok(config)
+        Ok(ServiceConfig {
+            prover_config: config.prover_config,
+            ip: config.ip,
+            port: config.port,
+            max_concurrent_requests: config.max_concurrent_requests,
+            max_connections: config.max_connections,
+            cors_allow_origin,
+            transport,
+        })
     }
 }
 
 /// CLI arguments for the proving service.
 #[derive(Parser, Debug)]
 #[command(name = "starknet-os-runner")]
-#[command(about = "HTTP service for generating Starknet OS proofs", long_about = None)]
+#[command(about = "HTTP/HTTPS service for generating Starknet OS proofs", long_about = None)]
 pub struct CliArgs {
     /// Path to JSON configuration file.
     #[arg(long, value_name = "FILE")]
@@ -235,6 +312,14 @@ pub struct CliArgs {
     /// Maximum number of simultaneous JSON-RPC connections (default: 10).
     #[arg(long, value_name = "N")]
     pub max_connections: Option<u32>,
+
+    /// Path to TLS certificate chain PEM file. Requires --tls-key-file.
+    #[arg(long, value_name = "FILE")]
+    pub tls_cert_file: Option<PathBuf>,
+
+    /// Path to TLS private key PEM file. Requires --tls-cert-file.
+    #[arg(long, value_name = "FILE")]
+    pub tls_key_file: Option<PathBuf>,
 
     /// Override STRK fee token address (hex, e.g. for custom environments that share a chain ID).
     #[arg(long, value_name = "ADDRESS")]
@@ -279,4 +364,6 @@ pub enum ConfigError {
     InvalidArgument(String),
     #[error("Missing required field: {0}")]
     MissingRequiredField(String),
+    #[error("Incomplete TLS configuration: {0}")]
+    IncompleteTlsConfig(String),
 }
