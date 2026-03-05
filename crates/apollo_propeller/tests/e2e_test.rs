@@ -146,7 +146,7 @@ async fn e2e_broadcast_single_message(
     #[case] num_publishers: usize,
 ) {
     let mut setup = TestSetup::new(num_nodes).await;
-    let committee_id = CommitteeId(0);
+    let committee_id = CommitteeId([0u8; 32]);
     let all: Vec<NodeIndex> = (0..num_nodes).collect();
     setup.register_committee(committee_id, &all).await;
 
@@ -185,14 +185,14 @@ async fn e2e_broadcast_single_message(
 #[tokio::test(flavor = "current_thread")]
 async fn e2e_committee_isolation() {
     let mut setup = TestSetup::new(6).await;
-    setup.register_committee(CommitteeId(0), &[0, 1, 2, 3]).await;
-    setup.register_committee(CommitteeId(1), &[2, 3, 4, 5]).await;
+    setup.register_committee(CommitteeId([0u8; 32]), &[0, 1, 2, 3]).await;
+    setup.register_committee(CommitteeId([1u8; 32]), &[2, 3, 4, 5]).await;
 
     let msg_ch0 = b"message-for-committee-0".to_vec();
     let msg_ch1 = b"message-for-committee-1".to_vec();
 
-    setup.broadcast(2, CommitteeId(0), msg_ch0.clone()).await;
-    setup.broadcast(2, CommitteeId(1), msg_ch1.clone()).await;
+    setup.broadcast(2, CommitteeId([0u8; 32]), msg_ch0.clone()).await;
+    setup.broadcast(2, CommitteeId([1u8; 32]), msg_ch1.clone()).await;
 
     let expected = vec![
         (0, vec![msg_ch0.clone()]),
