@@ -61,13 +61,13 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 static FUZZ_ADDRESS_ORCHESTRATOR_EXPECT: Expect =
     expect!["0x42a4e070a0336c42c1de292bc3de986ae479bc5187d86a6dca4c52c6e502d6f"];
 static FUZZ_ADDRESS_CAIRO1_A_EXPECT: Expect =
-    expect!["0x792a30069e87a591598d0956d339fdda2db5bf0b19310bb8d6855a1bfec754f"];
+    expect!["0xb69fd3458ee595281d83aa4d57d51c788f6e7bc47c6a4f9f002b0875fa00c0"];
 static FUZZ_ADDRESS_CAIRO1_B_EXPECT: Expect =
-    expect!["0x44f076ebcc080040208bc10b1b4880c077e7cbd2a3b48554f4b90a865f349fc"];
+    expect!["0x57b1450b7196444c1efa2d2d412091fc55542a08cdc0af1da7d44197db613be"];
 static FUZZ_ADDRESS_CAIRO0_A_EXPECT: Expect =
-    expect!["0x534fead64397df2c215854e6c02f6ae928a0c7199dc1dc546ab900a187784c8"];
+    expect!["0x588eedea1cf405a8cc28772fdfff801de6f92bc8efb1ae0ff4ad83ea87cb30f"];
 static FUZZ_ADDRESS_CAIRO0_B_EXPECT: Expect =
-    expect!["0xf0a6f878a4a742cd677a91001da8c0d572dd6bc8f0331bfc5a1d26e1619a88"];
+    expect!["0x7f49904880df39d6e778faf08feecef3a4aa3385a44e5edbcb3dc047258040a"];
 static FUZZ_ADDRESS_ORCHESTRATOR: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress::try_from(felt!(FUZZ_ADDRESS_ORCHESTRATOR_EXPECT.data())).unwrap()
 });
@@ -100,7 +100,6 @@ static VALID_STORAGE_KEYS: LazyLock<Vec<Felt>> =
 // TODO(Dori): Operations to add:
 // 3. events
 // 4. call / libcall non-existing entry points (should panic) (catchable in cairo0 even?)
-// 5. deploy non-existing class hash (should panic, not catchable in cairo0).
 #[derive(Clone, Copy, EnumIter)]
 enum FuzzOperation {
     Return,
@@ -112,6 +111,7 @@ enum FuzzOperation {
     Panic,
     IncrementCounter,
     SendMessage,
+    DeployNonexisting,
 }
 
 impl FuzzOperation {
@@ -126,6 +126,7 @@ impl FuzzOperation {
             Self::Panic => 6u8,
             Self::IncrementCounter => 7u8,
             Self::SendMessage => 8u8,
+            Self::DeployNonexisting => 9u8,
         })
     }
 }
@@ -208,6 +209,7 @@ enum FuzzOperationData {
     Panic,
     IncrementCounter,
     SendMessage(Felt),
+    DeployNonexisting,
 }
 
 impl FuzzOperationData {
@@ -222,6 +224,7 @@ impl FuzzOperationData {
             Self::Panic => FuzzOperation::Panic,
             Self::IncrementCounter => FuzzOperation::IncrementCounter,
             Self::SendMessage(_) => FuzzOperation::SendMessage,
+            Self::DeployNonexisting => FuzzOperation::DeployNonexisting,
         }
     }
 
@@ -230,7 +233,7 @@ impl FuzzOperationData {
     pub fn felt_vector(&self) -> Vec<Felt> {
         let mut felt_vector = vec![self.op().identifier()];
         felt_vector.extend(match self {
-            Self::Return | Self::Panic | Self::IncrementCounter => vec![],
+            Self::Return | Self::Panic | Self::IncrementCounter | Self::DeployNonexisting => vec![],
             Self::Call(op) => op.felt_vector(),
             Self::LibraryCall(op) => op.felt_vector(),
             Self::Write(storage_key, value) => vec![***storage_key, value.0],
@@ -563,6 +566,7 @@ impl FuzzTestContext {
             FuzzOperation::Panic => vec![FuzzOperationData::Panic],
             FuzzOperation::IncrementCounter => vec![FuzzOperationData::IncrementCounter],
             FuzzOperation::SendMessage => vec![FuzzOperationData::SendMessage(self.next_message)],
+            FuzzOperation::DeployNonexisting => vec![FuzzOperationData::DeployNonexisting],
         }
     }
 
@@ -786,6 +790,10 @@ impl FuzzTestContext {
                 self.current_fuzz_call_info_mut().messages.push(message);
                 self.next_message += Felt::ONE;
             }
+            FuzzOperationData::DeployNonexisting => {
+                // Unrecoverable error (we do not prove class hashes do not exist).
+                self.pop_entire_call_tree(false);
+            }
         }
     }
 
@@ -982,6 +990,9 @@ impl FuzzTestContext {
                         format!("{} (Send message)", operation_felt_hexes[0]),
                         format!("{} (message)", operation_felt_hexes[1]),
                     ]
+                }
+                FuzzOperationData::DeployNonexisting => {
+                    vec![format!("{} (Deploy non-existing)", operation_felt_hexes[0])]
                 }
             });
         }
