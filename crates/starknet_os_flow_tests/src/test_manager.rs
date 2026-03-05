@@ -49,7 +49,7 @@ use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::{Calldata, Fee, Tip};
-use starknet_api::transaction::{L1HandlerTransaction, L1ToL2Payload, MessageToL1};
+use starknet_api::transaction::{Event, L1HandlerTransaction, L1ToL2Payload, MessageToL1};
 use starknet_committer::block_committer::input::{
     IsSubset,
     StarknetStorageKey,
@@ -126,6 +126,15 @@ pub(crate) struct TestBuilderConfig {
 pub(crate) struct FlowTestTx {
     tx: BlockifierTransaction,
     expected_revert_reason: Option<String>,
+    #[allow(dead_code)]
+    event_expectations: Vec<EventPredicateExpectation>,
+}
+
+pub(crate) struct EventPredicateExpectation {
+    #[allow(dead_code)]
+    pub(crate) description: String,
+    #[allow(dead_code)]
+    pub(crate) predicate: Box<dyn Fn(&Event) -> bool>,
 }
 
 pub(crate) struct OsTestExpectedValues {
@@ -530,6 +539,7 @@ impl<S: FlowTestState> TestBuilder<S> {
                 AccountTransaction::Declare(tx),
             )),
             expected_revert_reason: None,
+            event_expectations: Vec::new(),
         });
 
         self.execution_contracts
@@ -549,6 +559,7 @@ impl<S: FlowTestState> TestBuilder<S> {
                 AccountTransaction::Invoke(tx),
             )),
             expected_revert_reason,
+            event_expectations: Vec::new(),
         });
     }
 
@@ -599,6 +610,7 @@ impl<S: FlowTestState> TestBuilder<S> {
                 AccountTransaction::Declare(tx),
             )),
             expected_revert_reason: None,
+            event_expectations: Vec::new(),
         });
         self.execution_contracts.executed.deprecated_contracts.insert(class_hash, class);
     }
@@ -609,6 +621,7 @@ impl<S: FlowTestState> TestBuilder<S> {
                 AccountTransaction::DeployAccount(tx),
             )),
             expected_revert_reason: None,
+            event_expectations: Vec::new(),
         });
     }
 
@@ -631,6 +644,7 @@ impl<S: FlowTestState> TestBuilder<S> {
         self.last_block_txs_mut().push(FlowTestTx {
             tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::L1Handler(tx)),
             expected_revert_reason,
+            event_expectations: Vec::new(),
         });
     }
 
