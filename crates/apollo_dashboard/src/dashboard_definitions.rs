@@ -24,6 +24,7 @@ use crate::panels::consensus::{
     get_cende_row,
     get_consensus_p2p_row,
     get_consensus_row,
+    get_consensus_streams_row,
     get_panel_consensus_block_number,
     get_panel_consensus_block_number_diff_from_sync,
     get_panel_consensus_decisions_reached_as_proposer_counter,
@@ -87,6 +88,7 @@ pub fn get_apollo_dashboard() -> Dashboard {
         vec![
             get_overview_row(),
             get_consensus_row(),
+            get_consensus_streams_row(),
             get_staking_row(),
             get_cende_row(),
             get_batcher_row(),
