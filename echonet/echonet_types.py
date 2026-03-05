@@ -47,7 +47,8 @@ class ResyncTriggerPayload(TypedDict):
     """
 
     tx_hash: str
-    block_number: int
+    failure_block_number: int
+    revert_target_block_number: int
     reason: str
 
 
