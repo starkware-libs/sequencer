@@ -61,13 +61,13 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 static FUZZ_ADDRESS_ORCHESTRATOR_EXPECT: Expect =
     expect!["0x42a4e070a0336c42c1de292bc3de986ae479bc5187d86a6dca4c52c6e502d6f"];
 static FUZZ_ADDRESS_CAIRO1_A_EXPECT: Expect =
-    expect!["0xb69fd3458ee595281d83aa4d57d51c788f6e7bc47c6a4f9f002b0875fa00c0"];
+    expect!["0x17a0a62f90b23af7b2f80732443d1c725b204854f442683143fbd00758b8b06"];
 static FUZZ_ADDRESS_CAIRO1_B_EXPECT: Expect =
-    expect!["0x57b1450b7196444c1efa2d2d412091fc55542a08cdc0af1da7d44197db613be"];
+    expect!["0x726173b0a4040b8fc139c98aea0c17688f44ee426a5869f78a967032616a4c5"];
 static FUZZ_ADDRESS_CAIRO0_A_EXPECT: Expect =
-    expect!["0x588eedea1cf405a8cc28772fdfff801de6f92bc8efb1ae0ff4ad83ea87cb30f"];
+    expect!["0x4a5a2243de092bdabad542b2d02d0e31581bf5560306dbd6916f17c70774912"];
 static FUZZ_ADDRESS_CAIRO0_B_EXPECT: Expect =
-    expect!["0x7f49904880df39d6e778faf08feecef3a4aa3385a44e5edbcb3dc047258040a"];
+    expect!["0x629e2600a3300da0a8183dd79df4c50b04c752058d271006cb96a9cce67de22"];
 static FUZZ_ADDRESS_ORCHESTRATOR: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress::try_from(felt!(FUZZ_ADDRESS_ORCHESTRATOR_EXPECT.data())).unwrap()
 });
@@ -112,6 +112,7 @@ enum FuzzOperation {
     IncrementCounter,
     SendMessage,
     DeployNonexisting,
+    LibraryCallNonexistingClass,
 }
 
 impl FuzzOperation {
@@ -127,6 +128,7 @@ impl FuzzOperation {
             Self::IncrementCounter => 7u8,
             Self::SendMessage => 8u8,
             Self::DeployNonexisting => 9u8,
+            Self::LibraryCallNonexistingClass => 10u8,
         })
     }
 }
@@ -210,6 +212,7 @@ enum FuzzOperationData {
     IncrementCounter,
     SendMessage(Felt),
     DeployNonexisting,
+    LibraryCallNonexistingClass,
 }
 
 impl FuzzOperationData {
@@ -225,6 +228,7 @@ impl FuzzOperationData {
             Self::IncrementCounter => FuzzOperation::IncrementCounter,
             Self::SendMessage(_) => FuzzOperation::SendMessage,
             Self::DeployNonexisting => FuzzOperation::DeployNonexisting,
+            Self::LibraryCallNonexistingClass => FuzzOperation::LibraryCallNonexistingClass,
         }
     }
 
@@ -233,7 +237,11 @@ impl FuzzOperationData {
     pub fn felt_vector(&self) -> Vec<Felt> {
         let mut felt_vector = vec![self.op().identifier()];
         felt_vector.extend(match self {
-            Self::Return | Self::Panic | Self::IncrementCounter | Self::DeployNonexisting => vec![],
+            Self::Return
+            | Self::Panic
+            | Self::IncrementCounter
+            | Self::DeployNonexisting
+            | Self::LibraryCallNonexistingClass => vec![],
             Self::Call(op) => op.felt_vector(),
             Self::LibraryCall(op) => op.felt_vector(),
             Self::Write(storage_key, value) => vec![***storage_key, value.0],
@@ -567,6 +575,9 @@ impl FuzzTestContext {
             FuzzOperation::IncrementCounter => vec![FuzzOperationData::IncrementCounter],
             FuzzOperation::SendMessage => vec![FuzzOperationData::SendMessage(self.next_message)],
             FuzzOperation::DeployNonexisting => vec![FuzzOperationData::DeployNonexisting],
+            FuzzOperation::LibraryCallNonexistingClass => {
+                vec![FuzzOperationData::LibraryCallNonexistingClass]
+            }
         }
     }
 
@@ -790,7 +801,8 @@ impl FuzzTestContext {
                 self.current_fuzz_call_info_mut().messages.push(message);
                 self.next_message += Felt::ONE;
             }
-            FuzzOperationData::DeployNonexisting => {
+            FuzzOperationData::DeployNonexisting
+            | FuzzOperationData::LibraryCallNonexistingClass => {
                 // Unrecoverable error (we do not prove class hashes do not exist).
                 self.pop_entire_call_tree(false);
             }
@@ -993,6 +1005,9 @@ impl FuzzTestContext {
                 }
                 FuzzOperationData::DeployNonexisting => {
                     vec![format!("{} (Deploy non-existing)", operation_felt_hexes[0])]
+                }
+                FuzzOperationData::LibraryCallNonexistingClass => {
+                    vec![format!("{} (Library call non-existing class)", operation_felt_hexes[0])]
                 }
             });
         }
