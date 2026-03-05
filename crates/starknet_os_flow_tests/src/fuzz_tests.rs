@@ -61,13 +61,13 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 static FUZZ_ADDRESS_ORCHESTRATOR_EXPECT: Expect =
     expect!["0x42a4e070a0336c42c1de292bc3de986ae479bc5187d86a6dca4c52c6e502d6f"];
 static FUZZ_ADDRESS_CAIRO1_A_EXPECT: Expect =
-    expect!["0x17a0a62f90b23af7b2f80732443d1c725b204854f442683143fbd00758b8b06"];
+    expect!["0x65e6a4c564361e9291a55bdfacd59e1a4f3e8c91a0345a9432de492fbba0f5b"];
 static FUZZ_ADDRESS_CAIRO1_B_EXPECT: Expect =
-    expect!["0x726173b0a4040b8fc139c98aea0c17688f44ee426a5869f78a967032616a4c5"];
+    expect!["0x50db70cc5cc919172762106b8bca08195c43e8c2605ee59068c714bb522b88c"];
 static FUZZ_ADDRESS_CAIRO0_A_EXPECT: Expect =
-    expect!["0x4a5a2243de092bdabad542b2d02d0e31581bf5560306dbd6916f17c70774912"];
+    expect!["0x3614759c651254f33c5545d2912ab6a8c1f57e0f73a081006662a694c317ece"];
 static FUZZ_ADDRESS_CAIRO0_B_EXPECT: Expect =
-    expect!["0x629e2600a3300da0a8183dd79df4c50b04c752058d271006cb96a9cce67de22"];
+    expect!["0x939fc188228c04e10bf5f157b12e5a3161e28336fac063c0e7cb574518a20d"];
 static FUZZ_ADDRESS_ORCHESTRATOR: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress::try_from(felt!(FUZZ_ADDRESS_ORCHESTRATOR_EXPECT.data())).unwrap()
 });
@@ -130,6 +130,8 @@ enum FuzzOperation {
     SendMessage,
     DeployNonexisting,
     LibraryCallNonexistingClass,
+    Sha256,
+    Keccak,
 }
 
 impl FuzzOperation {
@@ -146,6 +148,8 @@ impl FuzzOperation {
             Self::SendMessage => 8u8,
             Self::DeployNonexisting => 9u8,
             Self::LibraryCallNonexistingClass => 10u8,
+            Self::Sha256 => 11u8,
+            Self::Keccak => 12u8,
         })
     }
 }
@@ -230,6 +234,8 @@ enum FuzzOperationData {
     SendMessage(Felt),
     DeployNonexisting,
     LibraryCallNonexistingClass,
+    Sha256(Felt),
+    Keccak(Felt),
 }
 
 impl FuzzOperationData {
@@ -246,6 +252,8 @@ impl FuzzOperationData {
             Self::SendMessage(_) => FuzzOperation::SendMessage,
             Self::DeployNonexisting => FuzzOperation::DeployNonexisting,
             Self::LibraryCallNonexistingClass => FuzzOperation::LibraryCallNonexistingClass,
+            Self::Sha256(_) => FuzzOperation::Sha256,
+            Self::Keccak(_) => FuzzOperation::Keccak,
         }
     }
 
@@ -265,6 +273,7 @@ impl FuzzOperationData {
             Self::ReplaceClass(class_hash) => vec![class_hash.0],
             Self::Deploy { class_hash, salt } => vec![class_hash.0, salt.0],
             Self::SendMessage(message) => vec![*message],
+            Self::Sha256(value) | Self::Keccak(value) => vec![*value],
         });
         felt_vector
     }
@@ -418,6 +427,9 @@ struct FuzzTestContext {
     /// Next salt to use for a deploy operation.
     pub next_salt: ContractAddressSalt,
 
+    /// Next hash preimage to use for a hash operation.
+    pub next_hash_preimage: Felt,
+
     pub rng: ChaCha8Rng,
 }
 
@@ -433,6 +445,7 @@ impl FuzzTestContext {
             next_storage_write_value: StarknetStorageValue(Felt::from(1u16 << 12)),
             next_message: Felt::from(1u32 << 20),
             next_salt: ContractAddressSalt(Felt::from(1u32 << 16)),
+            next_hash_preimage: Felt::ONE,
             rng: ChaCha8Rng::seed_from_u64(seed),
         }
     }
@@ -594,6 +607,22 @@ impl FuzzTestContext {
             FuzzOperation::DeployNonexisting => vec![FuzzOperationData::DeployNonexisting],
             FuzzOperation::LibraryCallNonexistingClass => {
                 vec![FuzzOperationData::LibraryCallNonexistingClass]
+            }
+            FuzzOperation::Sha256 => {
+                // Syscall only exists in Cairo1.
+                if self.is_current_context_cairo1() {
+                    vec![FuzzOperationData::Sha256(self.next_hash_preimage)]
+                } else {
+                    vec![]
+                }
+            }
+            FuzzOperation::Keccak => {
+                // Syscall only exists in Cairo1.
+                if self.is_current_context_cairo1() {
+                    vec![FuzzOperationData::Keccak(self.next_hash_preimage)]
+                } else {
+                    vec![]
+                }
             }
         }
     }
@@ -830,6 +859,9 @@ impl FuzzTestContext {
                 // Unrecoverable error (we do not prove class hashes do not exist).
                 self.pop_entire_call_tree(false);
             }
+            FuzzOperationData::Sha256(_) | FuzzOperationData::Keccak(_) => {
+                self.next_hash_preimage += Felt::ONE;
+            }
         }
     }
 
@@ -1036,6 +1068,18 @@ impl FuzzTestContext {
                 }
                 FuzzOperationData::LibraryCallNonexistingClass => {
                     vec![format!("{} (Library call non-existing class)", operation_felt_hexes[0])]
+                }
+                FuzzOperationData::Sha256(_) => {
+                    vec![
+                        format!("{} (Sha256)", operation_felt_hexes[0]),
+                        format!("{} (preimage)", operation_felt_hexes[1]),
+                    ]
+                }
+                FuzzOperationData::Keccak(_) => {
+                    vec![
+                        format!("{} (Keccak)", operation_felt_hexes[0]),
+                        format!("{} (preimage)", operation_felt_hexes[1]),
+                    ]
                 }
             });
         }
