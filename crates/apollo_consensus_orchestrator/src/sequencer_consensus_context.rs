@@ -41,6 +41,7 @@ use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
 use async_trait::async_trait;
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
 use futures::future::ready;
@@ -456,6 +457,17 @@ impl SequencerConsensusContext {
             warn!("Failed to update state sync with new block at height {height}: {e:?}");
         }
 
+        let recent_block_hashes = match self.collect_recent_block_hashes(height).await {
+            Ok(recent_block_hashes) => recent_block_hashes,
+            Err(e) => {
+                warn!(
+                    "Failed to collect recent block hashes when preparing blob for next height at \
+                     height {height}: {e:?}"
+                );
+                return;
+            }
+        };
+
         if let Err(e) = self
             .deps
             .cende_ambassador
@@ -479,7 +491,7 @@ impl SequencerConsensusContext {
                 parent_proposal_commitment: central_objects
                     .parent_proposal_commitment
                     .map(|commitment| ProposalCommitment(commitment.partial_block_hash.0)),
-                recent_block_hashes: self.collect_recent_block_hashes(height).await,
+                recent_block_hashes,
             })
             .await
         {
@@ -493,14 +505,30 @@ impl SequencerConsensusContext {
 
     /// Collects the recent block hashes from the batcher.
     /// Returns computed block hashes in range [height - N_RECENT_BLOCK_HASHES_IN_BLOB, height].
-    async fn collect_recent_block_hashes(&self, height: BlockNumber) -> Vec<BlockHashAndNumber> {
+    /// Returns an error if the block hash required for (blob_height - STORED_BLOCK_HASH_BUFFER + 1)
+    /// is not found.
+    /// Without this check, we might have deadlock in the following scenario:
+    /// 1. When preparing the blob for height N, all nodes didn't send the hash of block (N -
+    ///    STORED_BLOCK_HASH_BUFFER).
+    /// 2. Centralized block hash calculator won't produce the hash of block (N -
+    ///    STORED_BLOCK_HASH_BUFFER) because he can't compare it to the Apollo computed hash.
+    /// 3. State sync won't return the retrospective block hash and batch creation will get stuck.
+    async fn collect_recent_block_hashes(
+        &self,
+        blob_height: BlockNumber,
+    ) -> Result<Vec<BlockHashAndNumber>, ConsensusError> {
         let mut recent_block_hashes = Vec::with_capacity(
             usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB)
                 .expect("N_BLOCK_HASHES_BACK_IN_BLOB should fit in usize.")
                 + 1,
         );
-        let lowest_height = height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
-        for height in lowest_height..=height.0 {
+        let lowest_height = blob_height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
+
+        // Avoid deadlock - see function's documentation.
+        let must_contain_height: Option<u64> =
+            (blob_height.0 + 1).checked_sub(STORED_BLOCK_HASH_BUFFER);
+
+        for height in lowest_height..=blob_height.0 {
             let block_number = BlockNumber(height);
             match self.deps.batcher.get_block_hash(block_number).await {
                 Ok(block_hash) => {
@@ -508,6 +536,13 @@ impl SequencerConsensusContext {
                         .push(BlockHashAndNumber { number: block_number, hash: block_hash });
                 }
                 Err(err) => {
+                    if must_contain_height.is_some_and(|must_height| block_number.0 <= must_height)
+                    {
+                        return Err(ConsensusError::InternalNetworkError(format!(
+                            "When constructing blob at height {blob_height}, block hash for \
+                             height {block_number} was not found."
+                        )));
+                    }
                     // This error is expected if the block is not yet committed.
                     if !matches!(
                         err,
@@ -520,7 +555,7 @@ impl SequencerConsensusContext {
                 }
             }
         }
-        recent_block_hashes
+        Ok(recent_block_hashes)
     }
 }
 
