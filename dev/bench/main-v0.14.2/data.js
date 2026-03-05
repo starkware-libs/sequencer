@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772700362558,
+  "lastUpdate": 1772703885551,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1869,6 +1869,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1206.31658958,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1935464113c436e8f15334465b50fa25ee1917ac",
+          "message": "starknet_os_runner: add optional TLS termination (#12918)",
+          "timestamp": "2026-03-05T09:20:29Z",
+          "tree_id": "5c693431540bf04e18a253d1ded5bec9a82b315b",
+          "url": "https://github.com/starkware-libs/sequencer/commit/1935464113c436e8f15334465b50fa25ee1917ac"
+        },
+        "date": 1772703885184,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 797.3193156599999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1260.47729895,
             "unit": "ms"
           }
         ]
