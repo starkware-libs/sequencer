@@ -23,7 +23,7 @@ use crate::storage_trait::{
 };
 
 // 1M entries.
-const DEFAULT_CACHE_SIZE: usize = 1000000;
+const DEFAULT_CACHE_SIZE: usize = 10000000;
 
 #[derive(Debug, Default, PartialEq, Serialize)]
 pub struct MapStorage(pub DbHashMap);
