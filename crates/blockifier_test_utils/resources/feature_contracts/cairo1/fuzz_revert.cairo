@@ -9,7 +9,8 @@ trait IOrchestrator<TContractState> {
 mod FuzzRevertContract {
     use super::IOrchestratorDispatcher;
     use super::IOrchestratorDispatcherTrait;
-    use core::panic_with_felt252;
+    use core::{keccak, panic_with_felt252};
+    use core::sha256::compute_sha256_u32_array;
     use starknet::storage::StoragePointerWriteAccess;
     use starknet::{ClassHash, ContractAddress, StorageAddress, SyscallResult, syscalls};
     use starknet::contract_address::ContractAddressZero;
@@ -30,6 +31,8 @@ mod FuzzRevertContract {
     const SCENARIO_SEND_MESSAGE: felt252 = 8;
     const SCENARIO_DEPLOY_NON_EXISTING: felt252 = 9;
     const SCENARIO_LIBRARY_CALL_NON_EXISTING: felt252 = 10;
+    const SCENARIO_SHA256: felt252 = 11;
+    const SCENARIO_KECCAK: felt252 = 12;
 
     const FUZZ_TEST_SELECTOR: felt252 = selector!("test_revert_fuzz");
 
@@ -165,6 +168,18 @@ mod FuzzRevertContract {
             // Unrecoverable error (we do not prove class hashes do not exist), no option to catch
             // error.
             syscalls::library_call_syscall(class_hash, 0, array![].span()).unwrap_syscall();
+        }
+
+        if scenario == SCENARIO_SHA256 {
+            let preimage: u32 = orchestrator.pop_front().try_into().unwrap();
+            compute_sha256_u32_array(array![preimage], 0, 0);
+        }
+
+        if scenario == SCENARIO_KECCAK {
+            let preimage: u128 = orchestrator.pop_front().try_into().unwrap();
+            let mut input: Array::<u256> = Default::default();
+            input.append(u256 { low: preimage, high: preimage });
+            keccak::keccak_u256s_le_inputs(input.span());
         }
 
         // Unless explicitly stated otherwise, the next operation should be in the current call
