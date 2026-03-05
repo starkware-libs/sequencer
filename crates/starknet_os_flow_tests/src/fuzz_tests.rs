@@ -10,7 +10,9 @@ use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use rstest::rstest;
 use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::state::StorageKey;
 use starknet_api::{calldata, invoke_tx_args};
+use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_types_core::felt::Felt;
 use strum::{EnumIter, IntoEnumIterator};
 
@@ -42,11 +44,16 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
     ])
 });
 
+/// Storage key that can be written to.
+static VALID_STORAGE_KEYS: LazyLock<Vec<Felt>> =
+    LazyLock::new(|| vec![Felt::from(1u16 << 8), Felt::from(1u16 << 9)]);
+
 #[derive(Clone, Copy, EnumIter)]
 enum FuzzOperation {
     Return,
     Call,
     LibraryCall,
+    Write,
 }
 
 impl FuzzOperation {
@@ -55,6 +62,7 @@ impl FuzzOperation {
             Self::Return => 0u8,
             Self::Call => 1u8,
             Self::LibraryCall => 2u8,
+            Self::Write => 3u8,
         })
     }
 }
@@ -131,6 +139,7 @@ enum FuzzOperationData {
     Return,
     Call(CallOperationData),
     LibraryCall(LibraryCallOperationData),
+    Write(StorageKey, StarknetStorageValue),
 }
 
 impl FuzzOperationData {
@@ -139,6 +148,7 @@ impl FuzzOperationData {
             Self::Return => FuzzOperation::Return,
             Self::Call(_) => FuzzOperation::Call,
             Self::LibraryCall(_) => FuzzOperation::LibraryCall,
+            Self::Write(_, _) => FuzzOperation::Write,
         }
     }
 
@@ -150,6 +160,7 @@ impl FuzzOperationData {
             Self::Return => vec![],
             Self::Call(op) => op.felt_vector(),
             Self::LibraryCall(op) => op.felt_vector(),
+            Self::Write(storage_key, value) => vec![***storage_key, value.0],
         });
         felt_vector
     }
@@ -230,6 +241,9 @@ struct FuzzTestManager {
     /// Deployed fuzz test contracts.
     pub deployed_fuzz_contracts: BTreeMap<ContractAddress, ClassHash>,
 
+    /// Next value to write in a storage-write operation.
+    pub next_storage_write_value: StarknetStorageValue,
+
     pub test_manager: TestBuilder<DictStateReader>,
     pub orchestrator_contract_address: ContractAddress,
     pub rng: ChaCha8Rng,
@@ -289,6 +303,7 @@ impl FuzzTestManager {
             final_state: FinalizedState::Ongoing,
             operations: vec![],
             deployed_fuzz_contracts,
+            next_storage_write_value: StarknetStorageValue(Felt::from(1u16 << 12)),
             test_manager,
             orchestrator_contract_address,
             rng: ChaCha8Rng::seed_from_u64(seed),
@@ -388,6 +403,15 @@ impl FuzzTestManager {
                     })
                     .collect()
             }
+            FuzzOperation::Write => VALID_STORAGE_KEYS
+                .iter()
+                .map(|storage_key| {
+                    FuzzOperationData::Write(
+                        StorageKey::try_from(*storage_key).unwrap(),
+                        self.next_storage_write_value,
+                    )
+                })
+                .collect(),
         }
     }
 
@@ -426,6 +450,9 @@ impl FuzzTestManager {
                     library_call_operation_data.parent_failure_behavior(),
                 ));
                 self.current_call.push(self.current_fuzz_call_info().inner_calls.len() - 1);
+            }
+            FuzzOperationData::Write(_, _) => {
+                self.next_storage_write_value.0 += Felt::ONE;
             }
         }
     }
