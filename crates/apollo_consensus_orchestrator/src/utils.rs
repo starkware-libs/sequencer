@@ -34,7 +34,10 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::StarknetApiError;
 use tracing::{info, warn};
 
-use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
+use crate::metrics::{
+    CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
+    CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH,
+};
 
 pub(crate) struct StreamSender {
     pub proposal_sender: mpsc::Sender<ProposalPart>,
@@ -361,6 +364,7 @@ pub(crate) async fn retrospective_block_hash(
             "Retrospective block hashes mismatch for block {block_number}: state sync block hash: \
              {state_sync_block_hash:?}, batcher block hash: {batcher_block_hash:?}"
         );
+        CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH.increment(1);
         return Err(RetrospectiveBlockHashError::HashMismatch {
             block_number,
             state_sync_block_hash,

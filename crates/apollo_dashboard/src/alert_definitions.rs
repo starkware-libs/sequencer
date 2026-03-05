@@ -12,7 +12,7 @@ use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
     CONSENSUS_PROPOSAL_FIN_MISMATCH,
-    CONSENSUS_RETROSPECTIVE_BLOCK_HASH_FROM_STATE_SYNC,
+    CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH,
 };
 use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
@@ -252,19 +252,19 @@ fn get_consensus_conflicting_votes() -> Alert {
     )
 }
 
-fn get_consensus_retrospective_block_hash_from_state_sync() -> Alert {
+fn get_consensus_retrospective_block_hash_mismatch() -> Alert {
     Alert::new(
-        "consensus_retrospective_block_hash_from_state_sync",
-        "Consensus retrospective block hash retrieved from State Sync (instead of the Batcher)",
+        "consensus_retrospective_block_hash_mismatch",
+        "Mismatched retrospective block hashes between the state sync and the batcher",
         AlertGroup::Consensus,
         format!(
             "sum(increase({}[5m])) or vector(0)",
-            CONSENSUS_RETROSPECTIVE_BLOCK_HASH_FROM_STATE_SYNC.get_name_with_filter()
+            CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH.get_name_with_filter()
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Informational,
+        AlertSeverity::Sos,
         ObserverApplicability::Applicable,
     )
 }
@@ -485,7 +485,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_consensus_l1_gas_price_provider_failure(),
         get_consensus_l1_gas_price_provider_failure_once(),
         get_consensus_p2p_disconnections(),
-        get_consensus_retrospective_block_hash_from_state_sync(),
+        get_consensus_retrospective_block_hash_mismatch(),
         get_consensus_round_above_zero(),
         get_consensus_votes_num_sent_messages_alert(),
         get_eth_to_strk_error_count_alert(),
