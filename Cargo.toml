@@ -252,7 +252,7 @@ cairo-lang-sierra = "2.16.0"
 cairo-lang-sierra-to-casm = "2.16.0"
 cairo-lang-starknet-classes = "2.16.0"
 cairo-lang-utils = "2.16.0"
-cairo-native = { git = "https://github.com/lambdaclass/cairo_native", rev = "d1169689106e" }
+cairo-native = { git = "https://github.com/lambdaclass/cairo_native", rev = "63a0f3e10c63" }
 cairo-program-runner-lib = "1.1.0"
 cairo-vm = "3.0.1"
 camelpaste = "0.1.0"
