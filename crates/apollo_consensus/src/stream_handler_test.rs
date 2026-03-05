@@ -180,7 +180,7 @@ where
 #[tokio::test]
 async fn outbound_single() {
     let num_messages = 5;
-    let stream_id = 1;
+    const STREAM_ID: u64 = 1;
     let (
         mut stream_handler,
         _network_to_streamhandler_sender,
@@ -191,7 +191,7 @@ async fn outbound_single() {
 
     // Create a new stream to send.
     let (mut sender, stream_receiver) = mpsc::channel(CHANNEL_CAPACITY);
-    client_to_streamhandler_sender.send((TestStreamId(stream_id), stream_receiver)).await.unwrap();
+    client_to_streamhandler_sender.send((TestStreamId(STREAM_ID), stream_receiver)).await.unwrap();
     stream_handler.handle_next_msg().await.unwrap();
 
     // Send the content of the stream.
@@ -204,7 +204,7 @@ async fn outbound_single() {
     for i in 0..num_messages {
         stream_handler.handle_next_msg().await.unwrap();
         let actual = streamhandler_to_network_receiver.next().now_or_never().unwrap().unwrap();
-        assert_eq!(actual, build_init_message(i, stream_id, i));
+        assert_eq!(actual, build_init_message(i, STREAM_ID, i));
     }
 
     // Close the stream and check that a Fin is sent to the network.
@@ -212,7 +212,7 @@ async fn outbound_single() {
     stream_handler.handle_next_msg().await.unwrap();
     assert_eq!(
         streamhandler_to_network_receiver.next().now_or_never().unwrap().unwrap(),
-        build_fin_message(stream_id, num_messages)
+        build_fin_message(STREAM_ID, num_messages)
     );
 }
 
@@ -278,7 +278,7 @@ async fn outbound_multiple() {
 #[tokio::test]
 async fn inbound_in_order() {
     let num_messages = 10;
-    let stream_id = 127;
+    const STREAM_ID: u64 = 127;
     let (
         mut stream_handler,
         mut network_to_streamhandler_sender,
@@ -290,11 +290,11 @@ async fn inbound_in_order() {
 
     // Send all messages in order.
     for i in 0..num_messages {
-        let message = build_init_message(i, stream_id, i);
+        let message = build_init_message(i, STREAM_ID, i);
         network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
         stream_handler.handle_next_msg().await.unwrap();
     }
-    let message = build_fin_message(stream_id, num_messages);
+    let message = build_fin_message(STREAM_ID, num_messages);
     network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
     stream_handler.handle_next_msg().await.unwrap();
     // Fin is communicated by dropping the sender, hence `..num_message` not `..=num_messages`
@@ -396,7 +396,7 @@ async fn inbound_multiple() {
 #[tokio::test]
 async fn inbound_delayed_first() {
     let num_messages = 10;
-    let stream_id = 127;
+    const STREAM_ID: u64 = 127;
     let (
         mut stream_handler,
         mut network_to_streamhandler_sender,
@@ -408,11 +408,11 @@ async fn inbound_delayed_first() {
 
     // Send all messages besides first one.
     for i in 1..num_messages {
-        let message = build_init_message(i, stream_id, i);
+        let message = build_init_message(i, STREAM_ID, i);
         network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
         stream_handler.handle_next_msg().await.unwrap();
     }
-    let message = build_fin_message(stream_id, num_messages);
+    let message = build_fin_message(STREAM_ID, num_messages);
     network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
     stream_handler.handle_next_msg().await.unwrap();
 
@@ -420,7 +420,7 @@ async fn inbound_delayed_first() {
     assert!(streamhandler_to_client_receiver.try_next().is_err());
 
     // Send first message now.
-    let first_message = build_init_message(0, stream_id, 0);
+    let first_message = build_init_message(0, STREAM_ID, 0);
     network_to_streamhandler_sender.send((Ok(first_message), metadata.clone())).await.unwrap();
     // Activate the stream handler to ingest this message.
     stream_handler.handle_next_msg().await.unwrap();
@@ -440,7 +440,7 @@ async fn inbound_delayed_first() {
 async fn inbound_delayed_middle() {
     let num_messages = 10;
     let missing_message_id = 3;
-    let stream_id = 127;
+    const STREAM_ID: u64 = 127;
     let (
         mut stream_handler,
         mut network_to_streamhandler_sender,
@@ -455,11 +455,11 @@ async fn inbound_delayed_middle() {
         if i == missing_message_id {
             continue;
         }
-        let message = build_init_message(i, stream_id, i);
+        let message = build_init_message(i, STREAM_ID, i);
         network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
         stream_handler.handle_next_msg().await.unwrap();
     }
-    let message = build_fin_message(stream_id, num_messages);
+    let message = build_fin_message(STREAM_ID, num_messages);
     network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
     stream_handler.handle_next_msg().await.unwrap();
 
@@ -471,7 +471,7 @@ async fn inbound_delayed_middle() {
     }
 
     // Send the missing message now.
-    let missing_msg = build_init_message(missing_message_id, stream_id, missing_message_id);
+    let missing_msg = build_init_message(missing_message_id, STREAM_ID, missing_message_id);
     network_to_streamhandler_sender.send((Ok(missing_msg), metadata.clone())).await.unwrap();
     // Activate the stream handler to ingest this message.
     stream_handler.handle_next_msg().await.unwrap();
@@ -619,5 +619,158 @@ async fn per_peer_stream_isolation() {
     let mut receiver = streamhandler_to_client_receiver.next().now_or_never().unwrap().unwrap();
     let message = receiver.next().await.unwrap();
     assert_eq!(message, ProposalPart::Init(ProposalInit { round: 0, ..Default::default() }));
+    assert!(matches!(receiver.try_next(), Ok(None)));
+}
+
+#[tokio::test]
+async fn buffer_limit_drops_stream() {
+    let max_message_buffer_size = 3;
+    const STREAM_ID: u64 = 42;
+    let config = StreamHandlerConfig {
+        channel_buffer_capacity: CHANNEL_CAPACITY,
+        max_peers: MAX_PEERS,
+        max_streams: MAX_STREAMS,
+        max_message_buffer_size,
+    };
+    let (
+        mut stream_handler,
+        mut network_to_streamhandler_sender,
+        mut streamhandler_to_client_receiver,
+        _client_to_streamhandler_sender,
+        _streamhandler_to_network_receiver,
+    ) = setup_with_config(config);
+    let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+
+    // Send messages 1..=3 out of order (skipping message 0), filling the buffer to capacity.
+    for i in 1..=u32::try_from(max_message_buffer_size).unwrap() {
+        let message = build_init_message(i, STREAM_ID, i);
+        network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+        stream_handler.handle_next_msg().await.unwrap();
+    }
+
+    // No receiver yet (message 0 hasn't arrived).
+    assert!(streamhandler_to_client_receiver.try_next().is_err());
+
+    // Send one more out-of-order message. Buffer is full, so the stream is dropped.
+    let overflow_id = u32::try_from(max_message_buffer_size + 1).unwrap();
+    let message = build_init_message(overflow_id, STREAM_ID, overflow_id);
+    network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // Still no receiver (stream was dropped before message 0 ever arrived).
+    assert!(streamhandler_to_client_receiver.try_next().is_err());
+
+    // Send message 0. The old stream was dropped, so this starts a fresh stream.
+    let message = build_init_message(0, STREAM_ID, 0);
+    network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // A new receiver is created with just message 0 (the old buffer is gone).
+    let mut receiver = streamhandler_to_client_receiver.next().now_or_never().unwrap().unwrap();
+    let message = receiver.next().await.unwrap();
+    assert_eq!(message, ProposalPart::Init(ProposalInit { round: 0, ..Default::default() }));
+    // Stream remains open (no fin, no other buffered messages on the fresh stream).
+    assert!(receiver.try_next().is_err());
+}
+
+#[tokio::test]
+async fn buffer_at_capacity_drains_on_missing_message() {
+    let max_message_buffer_size = 3;
+    const STREAM_ID: u64 = 42;
+
+    let config = StreamHandlerConfig {
+        channel_buffer_capacity: CHANNEL_CAPACITY,
+        max_peers: MAX_PEERS,
+        max_streams: MAX_STREAMS,
+        max_message_buffer_size,
+    };
+    let (
+        mut stream_handler,
+        mut network_to_streamhandler_sender,
+        mut streamhandler_to_client_receiver,
+        _client_to_streamhandler_sender,
+        _streamhandler_to_network_receiver,
+    ) = setup_with_config(config);
+    let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+
+    // Send messages 1..=3, filling the buffer to exactly its capacity.
+    for i in 1..=u32::try_from(max_message_buffer_size).unwrap() {
+        let message = build_init_message(i, STREAM_ID, i);
+        network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+        stream_handler.handle_next_msg().await.unwrap();
+    }
+
+    // Send message 0. This triggers draining of the buffered messages 1, 2, 3.
+    let message = build_init_message(0, STREAM_ID, 0);
+    network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // Send fin to close the stream (4 content messages: 0, 1, 2, 3).
+    let fin_id = u32::try_from(max_message_buffer_size + 1).unwrap();
+    let message = build_fin_message(STREAM_ID, fin_id);
+    network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // All messages received in order, stream closed.
+    let mut receiver = streamhandler_to_client_receiver.next().now_or_never().unwrap().unwrap();
+    for i in 0..=u32::try_from(max_message_buffer_size).unwrap() {
+        let message = receiver.next().await.unwrap();
+        assert_eq!(message, ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
+    }
+    assert!(matches!(receiver.try_next(), Ok(None)));
+}
+
+/// This test verifies that a duplicate message arriving when the buffer is exactly at capacity
+/// is recognized as a duplicate (and harmlessly ignored) rather than treated as a buffer
+/// overflow that would drop the stream.
+#[tokio::test]
+async fn duplicate_at_capacity_does_not_drop_stream() {
+    let max_message_buffer_size = 3;
+    const STREAM_ID: u64 = 42;
+    let config = StreamHandlerConfig {
+        channel_buffer_capacity: CHANNEL_CAPACITY,
+        max_peers: MAX_PEERS,
+        max_streams: MAX_STREAMS,
+        max_message_buffer_size,
+    };
+    let (
+        mut stream_handler,
+        mut network_to_streamhandler_sender,
+        mut streamhandler_to_client_receiver,
+        _client_to_streamhandler_sender,
+        _streamhandler_to_network_receiver,
+    ) = setup_with_config(config);
+    let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+
+    // Fill the buffer to capacity with messages 1, 2, 3.
+    for i in 1..=u32::try_from(max_message_buffer_size).unwrap() {
+        let message = build_init_message(i, STREAM_ID, i);
+        network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+        stream_handler.handle_next_msg().await.unwrap();
+    }
+
+    // Send a duplicate of message 2. The buffer is at capacity, but this is a duplicate
+    // so the stream should survive (DuplicateMessageId, not TooManyMessages).
+    let message = build_init_message(2, STREAM_ID, 2);
+    network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // Send message 0 to trigger draining of the buffer.
+    let message = build_init_message(0, STREAM_ID, 0);
+    network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // Send fin to close the stream.
+    let fin_id = u32::try_from(max_message_buffer_size + 1).unwrap();
+    let message = build_fin_message(STREAM_ID, fin_id);
+    network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // All messages should arrive in order (the duplicate was ignored, stream survived).
+    let mut receiver = streamhandler_to_client_receiver.next().now_or_never().unwrap().unwrap();
+    for i in 0..=u32::try_from(max_message_buffer_size).unwrap() {
+        let message = receiver.next().await.unwrap();
+        assert_eq!(message, ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
+    }
     assert!(matches!(receiver.try_next(), Ok(None)));
 }
