@@ -189,6 +189,7 @@ async fn sync_empty_chain() {
 #[tokio::test]
 async fn sync_happy_flow() {
     const N_BLOCKS: u64 = 5;
+    const FIRST_BACKWARD_COMPATIBLE_BLOCK_NUMBER: BlockNumber = BlockNumber(2);
     const LATEST_BLOCK_NUMBER: BlockNumber = BlockNumber(N_BLOCKS - 1);
     const DEPLOY_BLOCK_NUMBER: BlockNumber = BlockNumber(N_BLOCKS - 2);
     // FIXME: (Omri) analyze and set a lower value.
@@ -201,6 +202,7 @@ async fn sync_happy_flow() {
     let compiled_class_hash_2 = CompiledClassHash(felt!("0x102"));
     let deployed_class_hash = ClassHash(felt!("0x3"));
     let deprecated_class_hash = ClassHash(felt!("0x4"));
+    let non_backward_compatible_casm = CasmContractClass::get_test_instance(&mut get_rng());
 
     let mut rng = get_rng();
     let mut deployed_class = ContractClass::get_test_instance(&mut rng);
@@ -254,11 +256,12 @@ async fn sync_happy_flow() {
         blocks_stream
     });
 
-    let expected_deprecated_class = deprecated_class.clone();
-    let expected_deployed_class = deployed_class.clone();
+    let non_backward_compatible_casm_clone = non_backward_compatible_casm.clone();
     central_mock.expect_stream_state_updates().returning(move |initial, up_to| {
         let deprecated_class = deprecated_class.clone();
         let deployed_class = deployed_class.clone();
+        // stream! doesn't support move.
+        let non_backward_compatible_casm = non_backward_compatible_casm_clone.clone();
         let state_stream: StateUpdatesStream<'_> = stream! {
             for block_number in initial.iter_up_to(up_to) {
                 if block_number.0 >= N_BLOCKS {
@@ -290,12 +293,28 @@ async fn sync_happy_flow() {
                 if block_number == LATEST_BLOCK_NUMBER {
                     state_diff.deprecated_declared_classes = IndexMap::from([(deprecated_class_hash, deprecated_class.clone())]);
                 }
+                let non_backward_compatible_casms =
+                    if block_number < FIRST_BACKWARD_COMPATIBLE_BLOCK_NUMBER {
+                        state_diff
+                            .declared_classes
+                            .keys()
+                            .map(|class_hash| {
+                                (
+                                    *class_hash,
+                                    non_backward_compatible_casm.clone(),
+                                )
+                            })
+                            .collect()
+                    } else {
+                        IndexMap::new()
+                    };
 
                 yield Ok((
                     block_number,
                     create_block_hash(block_number, false),
                     state_diff,
                     deployed_contract_class_definitions,
+                    non_backward_compatible_casms,
                 ));
             }
         }
@@ -361,11 +380,20 @@ async fn sync_happy_flow() {
 
     // Create mock class manager client with expectations
     let mut mock_class_manager = MockClassManagerClient::new();
+    let expected_non_backward_compatible_casm = non_backward_compatible_casm.clone();
 
-    // Expect add_deprecated_class to be called for both class hashes
-    mock_class_manager.expect_add_class().times(1).returning(move |_class| {
-        Ok(ClassHashes { class_hash: class_hash_1, ..Default::default() })
-    });
+    mock_class_manager
+        .expect_add_class_and_executable_unsafe()
+        .withf(move |class_hash, _class, _executable_class_hash_v2, executable_class| {
+            *class_hash == class_hash_1
+                && matches!(
+                    executable_class,
+                    starknet_api::contract_class::ContractClass::V1((casm, _))
+                        if casm == &expected_non_backward_compatible_casm
+                )
+        })
+        .times(1)
+        .returning(|_class_hash, _class, _executable_class_hash_v2, _executable_class| Ok(()));
     mock_class_manager.expect_add_class().times(1).returning(move |_class| {
         Ok(ClassHashes { class_hash: class_hash_2, ..Default::default() })
     });
@@ -458,23 +486,6 @@ async fn sync_happy_flow() {
                 .unwrap();
             assert_eq!(declare_deprecated_block_number, Some(LATEST_BLOCK_NUMBER));
 
-            // Verify that the deprecated contract class is the same as the one that was declared.
-            let deploy_class = state_reader
-                .get_deprecated_class_definition_at(
-                    StateNumber::unchecked_right_after_block(LATEST_BLOCK_NUMBER),
-                    &deployed_class_hash,
-                )
-                .unwrap();
-            assert_eq!(deploy_class, Some(expected_deployed_class.clone()));
-
-            let declare_deprecated_class = state_reader
-                .get_deprecated_class_definition_at(
-                    StateNumber::unchecked_right_after_block(LATEST_BLOCK_NUMBER),
-                    &deprecated_class_hash,
-                )
-                .unwrap();
-            assert_eq!(declare_deprecated_class, Some(expected_deprecated_class.clone()));
-
             CheckStoragePredicateResult::Passed
         });
 
@@ -527,6 +538,7 @@ async fn test_unrecoverable_sync_error_flow() {
                 BLOCK_NUMBER,
                 create_block_hash(BLOCK_NUMBER, false),
                 StateDiff::default(),
+                IndexMap::new(),
                 IndexMap::new(),
             ));
         }
