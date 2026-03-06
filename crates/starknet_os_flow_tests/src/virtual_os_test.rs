@@ -20,7 +20,12 @@ use starknet_api::transaction::{
 use starknet_api::{calldata, contract_address, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
-use crate::test_manager::{TestBuilder, TestBuilderConfig, FUNDED_ACCOUNT_ADDRESS};
+use crate::test_manager::{
+    EventPredicateExpectation,
+    TestBuilder,
+    TestBuilderConfig,
+    FUNDED_ACCOUNT_ADDRESS,
+};
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 
 #[rstest]
@@ -154,7 +159,15 @@ async fn test_forbidden_syscall(#[case] selector: &str) {
         "test_forbidden_syscall_in_virtual_mode",
         &[selector_felt],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    let mut event_expectations = Vec::new();
+    if selector == "MetaTxV0" {
+        event_expectations.push(EventPredicateExpectation {
+            description: "MetaTxV0 emits a contract event".to_string(),
+            predicate: Box::new(move |event| event.from_address == contract_address),
+        });
+    }
+    test_builder
+        .add_funded_account_invoke_with_events(invoke_tx_args! { calldata }, event_expectations);
 
     let expected_error = format!("Unexpected syscall selector in virtual mode: {selector_felt}.");
     test_builder.build().await.run_virtual_expect_error(&expected_error);
@@ -230,7 +243,7 @@ async fn test_get_execution_info(#[case] virtual_os: bool) {
     let ApiInvokeTransaction::V3(tx_v3) = &mut tx.tx else { unreachable!() };
     tx_v3.signature = TransactionSignature(vec![tx.tx_hash.0].into());
 
-    test_builder.add_invoke_tx(tx, None);
+    test_builder.add_invoke_tx(tx, None, None);
 
     if virtual_os {
         test_builder.build().await.run_virtual_and_validate();
@@ -251,7 +264,7 @@ async fn test_reverted_tx_os_error() {
     // Add a reverting invoke transaction.
     let calldata = create_calldata(contract_address, "write_and_revert", &[Felt::ONE, Felt::TWO]);
     let tx = test_builder.create_funded_account_invoke(invoke_tx_args! { calldata });
-    test_builder.add_invoke_tx(tx, Some("Panic for revert".to_string()));
+    test_builder.add_invoke_tx(tx, Some("Panic for revert".to_string()), None);
 
     test_builder
         .build()

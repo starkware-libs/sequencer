@@ -107,6 +107,7 @@ use crate::special_contracts::{
 };
 use crate::test_manager::{
     block_context_for_flow_tests,
+    EventPredicateExpectation,
     TestBuilder,
     TestBuilderConfig,
     FUNDED_ACCOUNT_ADDRESS,
@@ -531,7 +532,7 @@ async fn test_os_logic(
             contract_address_salt,
         );
         contract_addresses.push(address);
-        test_builder.add_invoke_tx(deploy_tx, None);
+        test_builder.add_invoke_tx(deploy_tx, None, None);
         // Update expected storage diff, if the ctor calldata writes a nonzero value.
         if ctor_calldata[1] != 0 {
             update_expected_storage(
@@ -609,13 +610,26 @@ async fn test_os_logic(
 
     // TODO(Yoni): test the effect of the event emission on the block hash, once calculated in the
     //   OS.
+    let event_key = Felt::from(1991);
+    let event_data = Felt::from(2021);
     let calldata = create_calldata(
         contract_addresses[1],
         "test_emit_events",
         // n_events, keys_len, keys, data_len, data.
-        &[Felt::ONE, Felt::ONE, Felt::from(1991), Felt::ONE, Felt::from(2021)],
+        &[Felt::ONE, Felt::ONE, event_key, Felt::ONE, event_data],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    let emit_events_address = contract_addresses[1];
+    test_builder.add_funded_account_invoke_with_events(
+        invoke_tx_args! { calldata },
+        vec![EventPredicateExpectation {
+            description: "custom test_emit_events".to_string(),
+            predicate: Box::new(move |event| {
+                event.from_address == emit_events_address
+                    && event.content.keys[0].0 == event_key
+                    && event.content.data.0[0] == event_data
+            }),
+        }],
+    );
 
     // Calculate the block number of the next transaction.
     let txs_per_block = n_expected_txs / n_blocks_in_multi_block;
@@ -716,7 +730,7 @@ async fn test_os_logic(
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         contract_address_salt,
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
 
     // Set implementation to the test contract.
     let calldata =
@@ -921,14 +935,24 @@ async fn test_v1_bound_accounts_cairo0() {
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         salt,
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
 
     // Initialize the account.
     let private_key = Felt::ONE;
     let public_key = get_public_key(&private_key);
     let guardian = Felt::ZERO;
     let calldata = create_calldata(v1_bound_account_address, "initialize", &[public_key, guardian]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke_with_events(
+        invoke_tx_args! { calldata },
+        vec![EventPredicateExpectation {
+            description: "v1-bound cairo0 initialize account emits an event".to_string(),
+            predicate: Box::new(move |event| {
+                event.from_address == v1_bound_account_address
+                    && event.content.data.0[1] == public_key
+                    && event.content.data.0[2] == guardian
+            }),
+        }],
+    );
 
     // Create a validate tx and add signature to the transaction. The dummy account used to call
     // `__validate__` does not check the signature, so we can use the signature field for
@@ -1013,7 +1037,18 @@ async fn test_v1_bound_accounts_cairo1() {
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         salt,
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    let owner_added_selector = selector_from_name("OwnerAdded").0;
+    test_builder.add_invoke_tx(
+        deploy_tx,
+        None,
+        Some(vec![EventPredicateExpectation {
+            description: "v1-bound deploy emits OwnerAdded event".to_string(),
+            predicate: Box::new(move |event| {
+                event.from_address != *STRK_FEE_TOKEN_ADDRESS
+                    && event.content.keys[0].0 == owner_added_selector
+            }),
+        }]),
+    );
 
     // Transfer funds to the account.
     let transfer_amount = 2 * NON_TRIVIAL_RESOURCE_BOUNDS.max_possible_fee(max_tip).0;
@@ -1147,7 +1182,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     let mut invoke_tx = test_builder.create_funded_account_invoke(invoke_tx_args);
     let ApiInvokeTransaction::V3(tx_v3) = &mut invoke_tx.tx else { unreachable!() };
     tx_v3.signature = TransactionSignature(Arc::new(vec![invoke_tx.tx_hash.0]));
-    test_builder.add_invoke_tx(invoke_tx, None);
+    test_builder.add_invoke_tx(invoke_tx, None, None);
 
     // Run the test.
     let test_output = test_builder.build_and_run().await;
@@ -1203,7 +1238,7 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         salt,
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
 
     let test_output = test_builder.build_and_run().await;
     test_output.perform_default_validations();
@@ -1282,7 +1317,7 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         salt,
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
 
     // Prepare deploying an instance of the account by precomputing the address and funding it.
     let valid = Felt::ZERO;
@@ -1719,7 +1754,7 @@ async fn test_deprecated_tx_info() {
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
     let invoke_tx = InvokeTransaction::create(invoke_tx(invoke_args), chain_id).unwrap();
-    test_builder.add_invoke_tx(invoke_tx.clone(), None);
+    test_builder.add_invoke_tx(invoke_tx.clone(), None, None);
 
     // Declare.
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
@@ -1886,7 +1921,7 @@ async fn test_deploy_syscall() {
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         salt,
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
     let expected_storage_updates = HashMap::from([(
         deployed_test_address,
         HashMap::from([(
@@ -2376,7 +2411,7 @@ async fn test_resources_type() {
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         ContractAddressSalt(Felt::ZERO),
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
 
     // Test recursive calling.
     let (key, value) = (Felt::from(123), Felt::from(45));
@@ -2457,7 +2492,7 @@ async fn test_data_gas_accounts() {
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         salt,
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
 
     // Create and run an invoke tx.
     let invoke_args = invoke_tx_args! {
@@ -2469,7 +2504,7 @@ async fn test_data_gas_accounts() {
     let tx = InvokeTransaction::create(invoke_tx(invoke_args), chain_id).unwrap();
     assert_eq!(tx.version(), TransactionVersion::THREE);
     assert_matches!(tx.resource_bounds(), ValidResourceBounds::AllResources(_));
-    test_builder.add_invoke_tx(tx, None);
+    test_builder.add_invoke_tx(tx, None, None);
 
     // Run test.
     let test_output = test_builder.build_and_run().await;
@@ -2555,7 +2590,7 @@ async fn test_meta_tx() {
     let tx0_hash = tx0.tx_hash();
     let tx0_nonce = tx0.nonce();
     assert!(tx0_nonce != Nonce(Felt::ZERO));
-    test_builder.add_invoke_tx(tx0, None);
+    test_builder.add_invoke_tx(tx0, None, None);
 
     // Compute the meta-tx hash.
     let meta_tx_hash0 = InvokeTransaction::create(
@@ -2596,7 +2631,7 @@ async fn test_meta_tx() {
     let tx1_hash = tx1.tx_hash();
     let tx1_nonce = tx1.nonce();
     assert!(tx1_nonce != Nonce(Felt::ZERO));
-    test_builder.add_invoke_tx(tx1, None);
+    test_builder.add_invoke_tx(tx1, None, None);
 
     // Compute the meta-tx hash.
     let meta_tx_hash1 = InvokeTransaction::create(
@@ -2635,7 +2670,7 @@ async fn test_meta_tx() {
     assert!(tx2.nonce() != Nonce(Felt::ZERO));
     let tx2_hash = tx2.tx_hash();
     let tx2_nonce = tx2.nonce();
-    test_builder.add_invoke_tx(tx2, None);
+    test_builder.add_invoke_tx(tx2, None, None);
 
     // Construct the expected storage diff for each of the two contracts.
     // All zero-valued keys should be filtered out (as they don't appear in the state diff).
@@ -2760,7 +2795,7 @@ async fn test_declare_and_deploy_in_separate_blocks() {
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         salt,
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
 
     // Run the test and verify the storage changes.
     let test_output = test_builder.build_and_run().await;
@@ -2844,7 +2879,7 @@ async fn test_deploy_no_ctor_contract() {
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         ContractAddressSalt(Felt::ZERO),
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
 
     // Run the test.
     let test_output = test_builder.build_and_run().await;
