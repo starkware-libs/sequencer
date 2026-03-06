@@ -298,10 +298,3 @@ impl Default for CairoNativeMode {
         return Self::Off;
     }
 }
-
-impl From<String> for CairoNativeMode {
-    fn from(cairo_native_mode: String) -> Self {
-        serde_json::from_value(serde_json::Value::String(cairo_native_mode))
-            .unwrap_or_else(|e| panic!("Invalid cairo native mode: {e}"))
-    }
-}

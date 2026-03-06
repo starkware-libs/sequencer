@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use apollo_compile_to_native_types::SierraCompilationConfig;
 use blockifier::abi::constants;
 use blockifier::blockifier::config::{
+    CairoNativeMode,
     CairoNativeRunConfig,
     ConcurrencyConfig,
     ContractClassManagerConfig,
@@ -18,6 +19,8 @@ use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use blockifier::utils::u64_from_usize;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
+use pyo3::types::PyAny;
+use pyo3::{PyErr, PyResult};
 use starknet_api::execution_resources::{Builtin, GasAmount};
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
@@ -258,7 +261,7 @@ impl From<PySierraCompilationConfig> for SierraCompilationConfig {
 
 #[derive(Clone, Debug, FromPyObject)]
 pub struct PyCairoNativeRunConfig {
-    pub cairo_native_mode: String,
+    pub cairo_native_mode: PyCairoNativeMode,
     pub channel_size: usize,
     pub panic_on_compilation_failure: bool,
 }
@@ -266,7 +269,7 @@ pub struct PyCairoNativeRunConfig {
 impl Default for PyCairoNativeRunConfig {
     fn default() -> Self {
         Self {
-            cairo_native_mode: "off".to_string(),
+            cairo_native_mode: PyCairoNativeMode(CairoNativeMode::Off),
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
             panic_on_compilation_failure: false,
         }
@@ -276,11 +279,42 @@ impl Default for PyCairoNativeRunConfig {
 impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
     fn from(py_cairo_native_run_config: PyCairoNativeRunConfig) -> Self {
         CairoNativeRunConfig {
-            cairo_native_mode: py_cairo_native_run_config.cairo_native_mode.into(),
+            cairo_native_mode: py_cairo_native_run_config.cairo_native_mode.0,
             channel_size: py_cairo_native_run_config.channel_size,
             panic_on_compilation_failure: py_cairo_native_run_config.panic_on_compilation_failure,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct PyCairoNativeMode(pub CairoNativeMode);
+
+impl<'py> FromPyObject<'py> for PyCairoNativeMode {
+    fn extract(ob: &'py PyAny) -> PyResult<Self> {
+        // TODO(Arni): We don't need both of the ob.extract/ ob.getattr. Find which one is used and
+        // simplify this extract, or even derive FromPyObject for something directly.
+        if let Ok(mode) = ob.extract::<String>() {
+            return parse_cairo_native_mode(mode).map(Self);
+        }
+
+        if let Ok(mode_value) = ob.getattr("value").and_then(|value| value.extract::<String>()) {
+            return parse_cairo_native_mode(mode_value).map(Self);
+        }
+
+        Err(invalid_cairo_native_mode_error("expected a string or enum value with a string .value"))
+    }
+}
+
+fn parse_cairo_native_mode(mode: String) -> PyResult<CairoNativeMode> {
+    serde_json::from_value(serde_json::Value::String(mode.clone()))
+        .map_err(|_| invalid_cairo_native_mode_error(&mode))
+}
+
+fn invalid_cairo_native_mode_error(input: &str) -> PyErr {
+    pyo3::exceptions::PyValueError::new_err(format!(
+        "Invalid cairo_native_mode: {input}; allowed values: off, wait_on_compilation, \
+         lazy_compilation"
+    ))
 }
 
 #[derive(Debug, Clone, FromPyObject)]
