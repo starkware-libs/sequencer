@@ -7,4 +7,6 @@ pub(crate) mod transaction_queue_trait;
 pub(crate) mod utils;
 
 #[cfg(test)]
+mod recorder_integration_test;
+#[cfg(test)]
 pub mod test_utils;

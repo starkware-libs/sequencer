@@ -25,7 +25,7 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
-use tracing::{debug, info, instrument, trace};
+use tracing::{debug, info, instrument, trace, warn};
 
 use crate::fee_transaction_queue::FeeTransactionQueue;
 use crate::metrics::{
@@ -241,7 +241,7 @@ impl AddTransactionQueue {
 }
 
 pub struct Mempool {
-    config: MempoolConfig,
+    pub(crate) config: MempoolConfig,
     // TODO(AlonH): add docstring explaining visibility and coupling of the fields.
     // Declare transactions that are waiting to be added to the tx pool after a delay.
     delayed_declares: AddTransactionQueue,
@@ -280,13 +280,22 @@ impl Mempool {
         }
     }
 
+    pub(crate) fn is_fifo(&self) -> bool {
+        matches!(self.config.static_config.behavior_mode, BehaviorMode::Echonet)
+    }
+
     pub fn get_timestamp(&self) -> UnixTimestamp {
         self.clock.unix_now()
     }
 
-    pub fn update_timestamps(&mut self, mappings: HashMap<TransactionHash, UnixTimestamp>) {
-        // TODO(Ayelet): Add a warning log when called for fee queue mode.
-        self.tx_queue.update_timestamps(mappings);
+    pub(crate) fn update_timestamp(&mut self, tx_hash: TransactionHash, timestamp: UnixTimestamp) {
+        if !self.is_fifo() {
+            panic!(
+                "Update timestamp called for tx {} in non-echonet mode, this should never happen.",
+                tx_hash
+            );
+        }
+        self.tx_queue.update_timestamp(tx_hash, timestamp);
     }
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
