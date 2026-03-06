@@ -16,8 +16,6 @@ pub type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeError>;
 pub trait OriginalSkeletonTree<'a>: Sized {
     fn get_nodes(&self) -> &OriginalSkeletonNodeMap;
 
-    fn get_nodes_mut(&mut self) -> &mut OriginalSkeletonNodeMap;
-
     #[allow(dead_code)]
     fn get_sorted_leaf_indices(&self) -> SortedLeafIndices<'a>;
 }
@@ -25,17 +23,13 @@ pub trait OriginalSkeletonTree<'a>: Sized {
 // TODO(Dori, 1/7/2024): Make this a tuple struct.
 #[derive(Debug, PartialEq)]
 pub struct OriginalSkeletonTreeImpl<'a> {
-    pub nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
+    pub nodes: OriginalSkeletonNodeMap,
     pub sorted_leaf_indices: SortedLeafIndices<'a>,
 }
 
 impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
     fn get_nodes(&self) -> &OriginalSkeletonNodeMap {
         &self.nodes
-    }
-
-    fn get_nodes_mut(&mut self) -> &mut OriginalSkeletonNodeMap {
-        &mut self.nodes
     }
 
     fn get_sorted_leaf_indices(&self) -> SortedLeafIndices<'a> {
@@ -56,5 +50,28 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
 
     pub fn create_empty(sorted_leaf_indices: SortedLeafIndices<'a>) -> Self {
         Self { nodes: HashMap::new(), sorted_leaf_indices }
+    }
+}
+
+/// Wraps an original skeleton node map and allows inserting additional nodes to the non-mutable
+/// map. Used in the construction of the `UpdatedSkeletonTree`, where it is necessary
+/// to temporarily add "fake" (i.e., placeholder) nodes to the original skeleton nodes
+/// during tree construction.
+pub struct ExtendedOriginalSkeletonNodes<'a> {
+    original_nodes: &'a OriginalSkeletonNodeMap,
+    additional_nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
+}
+
+impl<'a> ExtendedOriginalSkeletonNodes<'a> {
+    pub fn new(tree: &'a impl OriginalSkeletonTree<'a>) -> Self {
+        Self { original_nodes: tree.get_nodes(), additional_nodes: OriginalSkeletonNodeMap::new() }
+    }
+
+    pub fn insert(&mut self, index: NodeIndex, node: OriginalSkeletonNode) {
+        self.additional_nodes.insert(index, node);
+    }
+
+    pub fn get(&self, index: &NodeIndex) -> Option<&OriginalSkeletonNode> {
+        self.additional_nodes.get(index).or_else(|| self.original_nodes.get(index))
     }
 }
