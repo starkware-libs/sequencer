@@ -38,7 +38,7 @@
         ],
         "EXTERNAL": [
             {
-                "offset": 493,
+                "offset": 508,
                 "selector": "0x8e64dfac867f301a439703710296f437e9f91d1bba17cfea5ad7f137a5acd"
             },
             {
@@ -74,18 +74,36 @@
                     "__main__",
                     "__main__.test_revert_fuzz"
                 ],
-                "end_pc": 489,
+                "end_pc": 496,
                 "flow_tracking_data": {
                     "ap_tracking": {
                         "group": 24,
-                        "offset": 66
+                        "offset": 69
+                    },
+                    "reference_ids": {}
+                },
+                "name": "error_message",
+                "start_pc": 492,
+                "value": "new_hash_cairo0"
+            },
+            {
+                "accessible_scopes": [
+                    "__main__",
+                    "__main__",
+                    "__main__.test_revert_fuzz"
+                ],
+                "end_pc": 504,
+                "flow_tracking_data": {
+                    "ap_tracking": {
+                        "group": 24,
+                        "offset": 69
                     },
                     "reference_ids": {
                         "__main__.test_revert_fuzz.scenario": 8
                     }
                 },
                 "name": "error_message",
-                "start_pc": 485,
+                "start_pc": 500,
                 "value": "Unknown scenario: {scenario}."
             }
         ],
@@ -580,20 +598,35 @@
             "0x48127fe27fff8000",
             "0x48127fe27fff8000",
             "0x208b7fff7fff7ffe",
+            "0x4826800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffff6",
+            "0x4826800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffff5",
+            "0x48507fff7ffe8000",
+            "0x20680017fff7fff",
+            "0xa",
+            "0x480680017fff8000",
+            "0x1",
+            "0x400680017fff7fff",
+            "0x0",
+            "0x48127fee7fff8000",
+            "0x48127fee7fff8000",
+            "0x48127fee7fff8000",
+            "0x208b7fff7fff7ffe",
             "0x480680017fff8000",
             "0x0",
             "0x400680017fff7fff",
             "0x1",
-            "0x48127ff17fff8000",
-            "0x48127ff17fff8000",
-            "0x48127ff17fff8000",
+            "0x48127fee7fff8000",
+            "0x48127fee7fff8000",
+            "0x48127fee7fff8000",
             "0x208b7fff7fff7ffe",
             "0x402b7ffd7ffc7ffd",
             "0x480280007ffb8000",
             "0x480280017ffb8000",
             "0x480280027ffb8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffeed",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffede",
             "0x40780017fff7fff",
             "0x1",
             "0x48127ffc7fff8000",
@@ -786,7 +819,7 @@
                     }
                 }
             ],
-            "499": [
+            "514": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -834,6 +867,10 @@
                 "type": "const",
                 "value": 7
             },
+            "__main__.SCENARIO_KECCAK": {
+                "type": "const",
+                "value": 12
+            },
             "__main__.SCENARIO_LIBRARY_CALL": {
                 "type": "const",
                 "value": 2
@@ -857,6 +894,10 @@
             "__main__.SCENARIO_SEND_MESSAGE": {
                 "type": "const",
                 "value": 8
+            },
+            "__main__.SCENARIO_SHA256": {
+                "type": "const",
+                "value": 11
             },
             "__main__.SCENARIO_WRITE": {
                 "type": "const",
@@ -1468,7 +1509,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 493,
+                "pc": 508,
                 "type": "function"
             },
             "__wrappers__.test_revert_fuzz.Args": {

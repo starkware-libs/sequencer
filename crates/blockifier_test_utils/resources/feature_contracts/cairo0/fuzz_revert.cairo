@@ -24,6 +24,8 @@ const SCENARIO_INCREMENT_COUNTER = 7;
 const SCENARIO_SEND_MESSAGE = 8;
 const SCENARIO_DEPLOY_NON_EXISTING = 9;
 const SCENARIO_LIBRARY_CALL_NON_EXISTING = 10;
+const SCENARIO_SHA256 = 11;
+const SCENARIO_KECCAK = 12;
 
 // selector_from_name("pop_front").
 const POP_FRONT_SELECTOR = 0x289c2d7d6351cd03d4f928bde75fa14d5f52e32bdbc750d5296e1b48c12f1c3;
@@ -186,6 +188,14 @@ func test_revert_fuzz{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
         let class_hash = 0x11bca11000c0;
         library_call(class_hash=class_hash, function_selector=0, calldata_size=0, calldata=new());
         // Should always fail anyway, no need to recurse.
+        return ();
+    }
+
+    if ((scenario - SCENARIO_SHA256) * (scenario - SCENARIO_KECCAK) == 0) {
+        // Not supported in Cairo0.
+        with_attr error_message("new_hash_cairo0") {
+            assert 0 = 1;
+        }
         return ();
     }
 
