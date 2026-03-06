@@ -15,6 +15,7 @@ blockifier = { workspace = true, features = ["reexecution", "testing"] }
 blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
+chrono.workspace = true
 expect-test.workspace = true
 itertools.workspace = true
 rand.workspace = true
