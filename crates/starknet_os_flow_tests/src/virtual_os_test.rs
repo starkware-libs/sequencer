@@ -20,7 +20,12 @@ use starknet_api::transaction::{
 use starknet_api::{calldata, contract_address, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
-use crate::test_manager::{TestBuilder, TestBuilderConfig, FUNDED_ACCOUNT_ADDRESS};
+use crate::test_manager::{
+    EventPredicateExpectation,
+    TestBuilder,
+    TestBuilderConfig,
+    FUNDED_ACCOUNT_ADDRESS,
+};
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 
 #[rstest]
@@ -39,7 +44,7 @@ async fn test_basic_happy_flow() {
         "test_send_message_to_l1",
         &[to_address, Felt::from(payload.len()), payload[0], payload[1]],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     test_builder.messages_to_l1.push(MessageToL1 {
         from_address: contract_address,
         to_address: EthAddress::try_from(to_address).unwrap(),
@@ -65,10 +70,10 @@ async fn test_two_txs_os_error() {
 
     // Add first invoke transaction.
     let calldata = create_calldata(contract_address, "test_storage_read", &[Felt::ONE]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata: calldata.clone() });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata: calldata.clone() }, None);
 
     // Add second invoke transaction - this should cause the virtual OS to fail.
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     test_builder.build().await.run_virtual_expect_error("Expected exactly one transaction");
 }
@@ -106,7 +111,7 @@ async fn test_cairo0_contract_os_error() {
     .await;
 
     let calldata = create_calldata(contract_address, "foo", &[]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     let mut test_runner = test_builder.build().await;
     // Patch the tracked resources of the Cairo 0 call to bypass this validation and get the
@@ -154,7 +159,14 @@ async fn test_forbidden_syscall(#[case] selector: &str) {
         "test_forbidden_syscall_in_virtual_mode",
         &[selector_felt],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    let mut event_expectations = Vec::new();
+    if selector == "MetaTxV0" {
+        event_expectations.push(EventPredicateExpectation {
+            description: "MetaTxV0 emits a contract event".to_string(),
+            predicate: Box::new(move |event| event.from_address == contract_address),
+        });
+    }
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, Some(event_expectations));
 
     let expected_error = format!("Unexpected syscall selector in virtual mode: {selector_felt}.");
     test_builder.build().await.run_virtual_expect_error(&expected_error);
@@ -230,7 +242,7 @@ async fn test_get_execution_info(#[case] virtual_os: bool) {
     let ApiInvokeTransaction::V3(tx_v3) = &mut tx.tx else { unreachable!() };
     tx_v3.signature = TransactionSignature(vec![tx.tx_hash.0].into());
 
-    test_builder.add_invoke_tx(tx, None);
+    test_builder.add_invoke_tx(tx, None, None);
 
     if virtual_os {
         test_builder.build().await.run_virtual_and_validate();
@@ -251,7 +263,7 @@ async fn test_reverted_tx_os_error() {
     // Add a reverting invoke transaction.
     let calldata = create_calldata(contract_address, "write_and_revert", &[Felt::ONE, Felt::TWO]);
     let tx = test_builder.create_funded_account_invoke(invoke_tx_args! { calldata });
-    test_builder.add_invoke_tx(tx, Some("Panic for revert".to_string()));
+    test_builder.add_invoke_tx(tx, Some("Panic for revert".to_string()), None);
 
     test_builder
         .build()

@@ -47,7 +47,7 @@ use starknet_api::hash::StateRoots;
 use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
-use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
+use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, TEST_SEQUENCER_ADDRESS};
 use starknet_api::transaction::fields::{Calldata, Fee, Tip};
 use starknet_api::transaction::{Event, L1HandlerTransaction, L1ToL2Payload, MessageToL1};
 use starknet_committer::block_committer::input::{
@@ -103,6 +103,10 @@ pub(crate) const EXPECTED_STRK_FEE_TOKEN_ADDRESS: Expect = expect![
     0x1d9267d6952e9d1fc449d4b2f91b439b65b48365294b9c0731a9faf578e1b14
 "#
 ];
+const TRANSFER_SELECTOR: Felt =
+    Felt::from_hex_unchecked("0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9");
+const SEQUENCER_ADDRESS_FELT: Felt = Felt::from_hex_unchecked(TEST_SEQUENCER_ADDRESS);
+
 pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress(
         PatriciaKey::try_from(Felt::from_hex_unchecked(
@@ -135,6 +139,25 @@ pub(crate) struct EventPredicateExpectation {
     pub(crate) description: String,
     #[allow(dead_code)]
     pub(crate) predicate: Box<dyn Fn(&Event) -> bool>,
+}
+
+fn is_fee_token_transfer_to_address_event(address_as_felt: Felt) -> impl Fn(&Event) -> bool {
+    move |event: &Event| {
+        event.from_address == *STRK_FEE_TOKEN_ADDRESS
+            && event.content.keys[0].0 == TRANSFER_SELECTOR
+            && event.content.data.0[1] == address_as_felt
+    }
+}
+
+fn is_fee_token_transfer_to_sequencer_event(event: &Event) -> bool {
+    is_fee_token_transfer_to_address_event(SEQUENCER_ADDRESS_FELT)(event)
+}
+
+fn expect_fee_token_transfer_to_sequencer_event() -> EventPredicateExpectation {
+    EventPredicateExpectation {
+        description: "fee transfer to sequencer emits a STRK token event".to_string(),
+        predicate: Box::new(is_fee_token_transfer_to_sequencer_event),
+    }
 }
 
 pub(crate) struct OsTestExpectedValues {
@@ -534,12 +557,16 @@ impl<S: FlowTestState> TestBuilder<S> {
         else {
             panic!("Expected a V1 contract class");
         };
+        let mut event_expectations = Vec::new();
+        if tx.sender_address() != DeclareTransaction::bootstrap_address() {
+            event_expectations.push(expect_fee_token_transfer_to_sequencer_event());
+        }
         self.last_block_txs_mut().push(FlowTestTx {
             tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::Account(
                 AccountTransaction::Declare(tx),
             )),
             expected_revert_reason: None,
-            event_expectations: Vec::new(),
+            event_expectations,
         });
 
         self.execution_contracts
@@ -553,13 +580,16 @@ impl<S: FlowTestState> TestBuilder<S> {
         &mut self,
         tx: InvokeTransaction,
         expected_revert_reason: Option<String>,
+        event_expectations: Option<Vec<EventPredicateExpectation>>,
     ) {
+        let mut event_expectations = event_expectations.unwrap_or_default();
+        event_expectations.push(expect_fee_token_transfer_to_sequencer_event());
         self.last_block_txs_mut().push(FlowTestTx {
             tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::Account(
                 AccountTransaction::Invoke(tx),
             )),
             expected_revert_reason,
-            event_expectations: Vec::new(),
+            event_expectations,
         });
     }
 
@@ -571,15 +601,20 @@ impl<S: FlowTestState> TestBuilder<S> {
         self.add_invoke_tx(
             InvokeTransaction::create(invoke_tx(args), &self.chain_id()).unwrap(),
             revert_reason,
+            None,
         );
     }
 
     /// Similar to `add_invoke_tx_from_args`, but with the sender address set to the funded account,
     /// nonce set (and incremented) and resource bounds set to the default (non-trivial).
     /// Assumes the tx should not be reverted.
-    pub(crate) fn add_funded_account_invoke(&mut self, additional_args: InvokeTxArgs) {
+    pub(crate) fn add_funded_account_invoke(
+        &mut self,
+        additional_args: InvokeTxArgs,
+        event_expectations: Option<Vec<EventPredicateExpectation>>,
+    ) {
         let tx = self.create_funded_account_invoke(additional_args);
-        self.add_invoke_tx(tx, None);
+        self.add_invoke_tx(tx, None, event_expectations);
     }
 
     /// Creates an invoke transaction from the funded account, with nonce set (and incremented)
@@ -621,7 +656,7 @@ impl<S: FlowTestState> TestBuilder<S> {
                 AccountTransaction::DeployAccount(tx),
             )),
             expected_revert_reason: None,
-            event_expectations: Vec::new(),
+            event_expectations: vec![expect_fee_token_transfer_to_sequencer_event()],
         });
     }
 
@@ -681,7 +716,13 @@ impl<S: FlowTestState> TestBuilder<S> {
             "transfer",
             &[**address, Felt::from(amount), Felt::ZERO],
         );
-        self.add_funded_account_invoke(invoke_tx_args! { calldata });
+        self.add_funded_account_invoke(
+            invoke_tx_args! { calldata },
+            Some(vec![EventPredicateExpectation {
+                description: "fee transfer to funded address emits a STRK token event".to_string(),
+                predicate: Box::new(is_fee_token_transfer_to_address_event(**address)),
+            }]),
+        );
     }
 
     /// Divides the current transactions into the specified number of blocks.

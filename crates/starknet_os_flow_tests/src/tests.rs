@@ -107,6 +107,7 @@ use crate::special_contracts::{
 };
 use crate::test_manager::{
     block_context_for_flow_tests,
+    EventPredicateExpectation,
     TestBuilder,
     TestBuilderConfig,
     FUNDED_ACCOUNT_ADDRESS,
@@ -219,7 +220,8 @@ async fn declare_deploy_scenario(
         *FUNDED_ACCOUNT_ADDRESS,
     )
     .unwrap();
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata: deploy_contract_calldata });
+    test_builder
+        .add_funded_account_invoke(invoke_tx_args! { calldata: deploy_contract_calldata }, None);
     test_builder.divide_transactions_into_n_blocks(n_blocks);
     let test_output = test_builder.build_and_run().await;
 
@@ -276,12 +278,12 @@ async fn trivial_diff_scenario(
     let function_name = "test_storage_read_write";
     // Invoke a function on the test contract that changes the key to the new value.
     let calldata = create_calldata(test_contract_address, function_name, &[key, value]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Move to next block, and add an invoke that reverts the previous change.
     test_builder.move_to_next_block();
     let calldata = create_calldata(test_contract_address, function_name, &[key, Felt::ZERO]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Execute the test.
     let test_output = test_builder.build_and_run().await;
@@ -369,7 +371,7 @@ async fn test_encrypted_state_diff(
     // Invoke a function on the test contract that changes the storage.
     let (key, value) = (Felt::from(10u8), Felt::from(11u8));
     let calldata = create_calldata(test_contract_address, "test_storage_read_write", &[key, value]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Run the test and assert the diff is as expected.
     let test_output = test_builder.build_and_run().await;
@@ -464,7 +466,7 @@ async fn test_deprecated_call_contract_variants() {
             Felt::from(666),
         ],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     let calldata = create_calldata(
         test_contract_address,
@@ -479,7 +481,7 @@ async fn test_deprecated_call_contract_variants() {
         ],
     );
     let signature = TransactionSignature(Arc::new(vec![Felt::from(100)]));
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata, signature });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata, signature }, None);
 
     // Run the test.
     let test_output = test_builder.build_and_run().await;
@@ -531,7 +533,7 @@ async fn test_os_logic(
             contract_address_salt,
         );
         contract_addresses.push(address);
-        test_builder.add_invoke_tx(deploy_tx, None);
+        test_builder.add_invoke_tx(deploy_tx, None, None);
         // Update expected storage diff, if the ctor calldata writes a nonzero value.
         if ctor_calldata[1] != 0 {
             update_expected_storage(
@@ -547,7 +549,7 @@ async fn test_os_logic(
     // Used to test normal value update and make sure it is written to on-chain data.
     let (key, value) = (Felt::from(85), Felt::from(47));
     let calldata = create_calldata(contract_addresses[0], "test_storage_read_write", &[key, value]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     update_expected_storage(&mut expected_storage_updates, contract_addresses[0], key, value);
 
     // Call set_value(address=81, value=0) on the first contract.
@@ -558,7 +560,7 @@ async fn test_os_logic(
         "test_storage_read_write",
         &[Felt::from(81), Felt::ZERO],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call set_value(address=97, value=0).
     // Used to test redundant value update (0 -> 0) in contract with only redundant updates
@@ -568,10 +570,10 @@ async fn test_os_logic(
         "test_storage_read_write",
         &[Felt::from(97), Felt::ZERO],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     let calldata = create_calldata(contract_addresses[1], "read_write_read", &[]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     update_expected_storage(
         &mut expected_storage_updates,
         contract_addresses[1],
@@ -580,7 +582,7 @@ async fn test_os_logic(
     );
 
     let calldata = create_calldata(contract_addresses[0], "test_builtins", &[]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Invoke with non-empty `proof_fact`; we use an arbitrary read-only entry point since
     // this test only verifies successful execution.
@@ -594,10 +596,13 @@ async fn test_os_logic(
         get_valid_virtual_os_program_hash(),
         config_hash,
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! {
-        calldata,
-        proof_facts,
-    });
+    test_builder.add_funded_account_invoke(
+        invoke_tx_args! {
+            calldata,
+            proof_facts,
+        },
+        None,
+    );
 
     // Call test_get_block_timestamp with the current (testing) block timestamp.
     let calldata = create_calldata(
@@ -605,17 +610,30 @@ async fn test_os_logic(
         "test_get_block_timestamp",
         &[Felt::from(CURRENT_BLOCK_TIMESTAMP)],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // TODO(Yoni): test the effect of the event emission on the block hash, once calculated in the
     //   OS.
+    let event_key = Felt::from(1991);
+    let event_data = Felt::from(2021);
     let calldata = create_calldata(
         contract_addresses[1],
         "test_emit_events",
         // n_events, keys_len, keys, data_len, data.
-        &[Felt::ONE, Felt::ONE, Felt::from(1991), Felt::ONE, Felt::from(2021)],
+        &[Felt::ONE, Felt::ONE, event_key, Felt::ONE, event_data],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    let emit_events_address = contract_addresses[1];
+    test_builder.add_funded_account_invoke(
+        invoke_tx_args! { calldata },
+        Some(vec![EventPredicateExpectation {
+            description: "custom test_emit_events".to_string(),
+            predicate: Box::new(move |event| {
+                event.from_address == emit_events_address
+                    && event.content.keys[0].0 == event_key
+                    && event.content.data.0[0] == event_data
+            }),
+        }]),
+    );
 
     // Calculate the block number of the next transaction.
     let txs_per_block = n_expected_txs / n_blocks_in_multi_block;
@@ -638,7 +656,7 @@ async fn test_os_logic(
         "test_get_block_number",
         &[Felt::from(expected_block_number)],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call contract -> send message to L1.
     let inner_calldata = [Felt::from(85)];
@@ -652,7 +670,7 @@ async fn test_os_logic(
             inner_calldata[0],
         ],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     test_builder.messages_to_l1.push(MessageToL1 {
         from_address: contract_addresses[0],
         to_address: EthAddress::try_from(Felt::from(85)).unwrap(),
@@ -670,14 +688,14 @@ async fn test_os_logic(
             **contract_addresses[0], // Expected caller address.
         ],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     let calldata = create_calldata(
         contract_addresses[0],
         "test_get_contract_address",
         &[**contract_addresses[0]],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Test get_sequencer_address syscall.
     let calldata = create_calldata(
@@ -685,12 +703,12 @@ async fn test_os_logic(
         "test_get_sequencer_address",
         &[Felt::from_hex_unchecked(TEST_SEQUENCER_ADDRESS)],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Test tx_version syscall.
     let calldata =
         create_calldata(contract_addresses[0], "test_tx_version", &[TransactionVersion::THREE.0]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Delegate proxy tests.
 
@@ -716,12 +734,12 @@ async fn test_os_logic(
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         contract_address_salt,
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
 
     // Set implementation to the test contract.
     let calldata =
         create_calldata(delegate_proxy_address, "set_implementation_hash", &[test_class_hash.0]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     update_expected_storage(
         &mut expected_storage_updates,
         delegate_proxy_address,
@@ -736,13 +754,13 @@ async fn test_os_logic(
         "test_get_contract_address",
         &[**delegate_proxy_address],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call set_value(address=123, value=456) through the delegate proxy.
     let (key, value) = (Felt::from(123), Felt::from(456));
     let calldata =
         create_calldata(delegate_proxy_address, "test_storage_read_write", &[key, value]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     update_expected_storage(&mut expected_storage_updates, delegate_proxy_address, key, value);
 
     // Call test_get_caller_address(expected_address=account_address) through the delegate proxy.
@@ -751,7 +769,7 @@ async fn test_os_logic(
         "test_get_caller_address",
         &[***FUNDED_ACCOUNT_ADDRESS],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // call_contract -> get_sequencer_address.
     let calldata = create_calldata(
@@ -764,7 +782,7 @@ async fn test_os_logic(
             Felt::from_hex_unchecked(TEST_SEQUENCER_ADDRESS),
         ],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Invoke the l1_handler deposit(from_address=85, amount=2) through the delegate proxy, and
     // define the expected consumed message.
@@ -789,7 +807,7 @@ async fn test_os_logic(
         "test_library_call_syntactic_sugar",
         &[test_class_hash.0],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     update_expected_storage(
         &mut expected_storage_updates,
         contract_addresses[0],
@@ -801,8 +819,10 @@ async fn test_os_logic(
     let index = Felt::from(2021);
     let calldata = create_calldata(contract_addresses[0], "add_signature_to_counters", &[index]);
     let signature = TransactionSignature(Arc::new(vec![Felt::from(100), Felt::from(200)]));
-    test_builder
-        .add_funded_account_invoke(invoke_tx_args! { calldata, signature: signature.clone() });
+    test_builder.add_funded_account_invoke(
+        invoke_tx_args! { calldata, signature: signature.clone() },
+        None,
+    );
     update_expected_storage(
         &mut expected_storage_updates,
         contract_addresses[0],
@@ -842,7 +862,7 @@ async fn test_os_logic(
             value,
         ],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     update_expected_storage(&mut expected_storage_updates, contract_addresses[1], key, value);
 
     // Use library_call_l1_handler to invoke test_contract2.test_l1_handler_storage_write with
@@ -860,7 +880,7 @@ async fn test_os_logic(
             value,
         ],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     update_expected_storage(&mut expected_storage_updates, contract_addresses[1], key, value);
 
     // Replace the class of contract_addresses[0] to the class of test_contract2.
@@ -869,7 +889,7 @@ async fn test_os_logic(
         "test_replace_class",
         &[test_contract2_class_hash.0],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Expected number of txs.
     assert_eq!(test_builder.total_txs(), n_expected_txs);
@@ -921,14 +941,24 @@ async fn test_v1_bound_accounts_cairo0() {
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         salt,
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
 
     // Initialize the account.
     let private_key = Felt::ONE;
     let public_key = get_public_key(&private_key);
     let guardian = Felt::ZERO;
     let calldata = create_calldata(v1_bound_account_address, "initialize", &[public_key, guardian]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(
+        invoke_tx_args! { calldata },
+        Some(vec![EventPredicateExpectation {
+            description: "v1-bound cairo0 initialize account emits an event".to_string(),
+            predicate: Box::new(move |event| {
+                event.from_address == v1_bound_account_address
+                    && event.content.data.0[1] == public_key
+                    && event.content.data.0[2] == guardian
+            }),
+        }]),
+    );
 
     // Create a validate tx and add signature to the transaction. The dummy account used to call
     // `__validate__` does not check the signature, so we can use the signature field for
@@ -1013,7 +1043,18 @@ async fn test_v1_bound_accounts_cairo1() {
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         salt,
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    let owner_added_selector = selector_from_name("OwnerAdded").0;
+    test_builder.add_invoke_tx(
+        deploy_tx,
+        None,
+        Some(vec![EventPredicateExpectation {
+            description: "v1-bound deploy emits OwnerAdded event".to_string(),
+            predicate: Box::new(move |event| {
+                event.from_address != *STRK_FEE_TOKEN_ADDRESS
+                    && event.content.keys[0].0 == owner_added_selector
+            }),
+        }]),
+    );
 
     // Transfer funds to the account.
     let transfer_amount = 2 * NON_TRIVIAL_RESOURCE_BOUNDS.max_possible_fee(max_tip).0;
@@ -1098,7 +1139,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
             deploy_from_zero,
         ],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata, tip: Tip(1234) });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata, tip: Tip(1234) }, None);
     let contract_address2 = calculate_contract_address(
         ContractAddressSalt(salt),
         test_class_hash,
@@ -1147,7 +1188,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     let mut invoke_tx = test_builder.create_funded_account_invoke(invoke_tx_args);
     let ApiInvokeTransaction::V3(tx_v3) = &mut invoke_tx.tx else { unreachable!() };
     tx_v3.signature = TransactionSignature(Arc::new(vec![invoke_tx.tx_hash.0]));
-    test_builder.add_invoke_tx(invoke_tx, None);
+    test_builder.add_invoke_tx(invoke_tx, None, None);
 
     // Run the test.
     let test_output = test_builder.build_and_run().await;
@@ -1203,7 +1244,7 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         salt,
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
 
     let test_output = test_builder.build_and_run().await;
     test_output.perform_default_validations();
@@ -1282,7 +1323,7 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         salt,
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
 
     // Prepare deploying an instance of the account by precomputing the address and funding it.
     let valid = Felt::ZERO;
@@ -1401,7 +1442,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
             "test_increment",
             &[felt!(5u8), felt!(6u8), felt!(7u8)],
         );
-        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     }
     update_expected_storage(
         &mut expected_storage_updates,
@@ -1426,7 +1467,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
             test_call_contract_value,
         ],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     update_expected_storage(
         &mut expected_storage_updates,
         contract_address2,
@@ -1450,7 +1491,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
             undeployed_address,
         ],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Test send-message-to-L1 syscall.
     let test_send_message_to_l1_to_address = Felt::ZERO;
@@ -1468,7 +1509,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
             test_send_message_to_l1_payload[1],
         ],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     test_builder.messages_to_l1.push(MessageToL1 {
         from_address: contract_address2,
         to_address: EthAddress::try_from(test_send_message_to_l1_to_address).unwrap(),
@@ -1477,15 +1518,15 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
 
     // Call test_poseidon_hades_permutation.
     let calldata = create_calldata(main_contract_address, "test_poseidon_hades_permutation", &[]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call test_keccak.
     let calldata = create_calldata(main_contract_address, "test_keccak", &[]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call test_ec_op.
     let calldata = create_calldata(main_contract_address, "test_ec_op", &[]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Points for keccak / secp tests.
     let x_low = Felt::from(302934307671667531413257853548643485645u128);
@@ -1496,7 +1537,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     // Call test_keccak.
     let calldata =
         create_calldata(main_contract_address, "test_new_point_secp256k1", &[x_low, x_high]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call test_getter_secp256k1.
     let calldata = create_calldata(
@@ -1504,7 +1545,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
         "test_getter_secp256k1",
         &[x_low, x_high, y_low, y_high],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call test_add_secp256k1.
     let calldata = create_calldata(
@@ -1512,7 +1553,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
         "test_add_secp256k1",
         &[x_low, x_high, y_low, y_high],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call test_mul_secp256k1.
     let calldata = create_calldata(
@@ -1520,12 +1561,12 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
         "test_mul_secp256k1",
         &[Felt::from(1991), Felt::from(1996)],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call test_signature_verification_secp256k1.
     let calldata =
         create_calldata(main_contract_address, "test_signature_verification_secp256k1", &[]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Change points for secpR.
     let x_low = Felt::from_hex_unchecked("0x2D483FE223B12B91047D83258A958B0F");
@@ -1536,7 +1577,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     // Call test_new_point_secp256r1.
     let calldata =
         create_calldata(main_contract_address, "test_new_point_secp256r1", &[x_low, x_high]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call test_add_secp256r1.
     let calldata = create_calldata(
@@ -1544,7 +1585,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
         "test_add_secp256r1",
         &[x_low, x_high, y_low, y_high],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call test_getter_secp256r1.
     let calldata = create_calldata(
@@ -1552,7 +1593,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
         "test_getter_secp256r1",
         &[x_low, x_high, y_low, y_high],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call test_mul_secp256r1.
     let calldata = create_calldata(
@@ -1560,24 +1601,24 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
         "test_mul_secp256r1",
         &[Felt::from(1991), Felt::from(1996)],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call test_signature_verification_secp256r1.
     let calldata =
         create_calldata(main_contract_address, "test_signature_verification_secp256r1", &[]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call test_sha256.
     let calldata = create_calldata(main_contract_address, "test_sha256", &[]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call test_circuit.
     let calldata = create_calldata(main_contract_address, "test_circuit", &[]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call test_rc96_holes.
     let calldata = create_calldata(main_contract_address, "test_rc96_holes", &[]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Call test_get_block_hash.
     // Get the block hash at current block number minus STORED_BLOCK_HASH_BUFFER.
@@ -1589,7 +1630,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
         "test_get_block_hash",
         &[Felt::from(queried_block_number.0), old_block_hash.0],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Test library call.
     // TODO(Yoni): test execution info on library call.
@@ -1606,7 +1647,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
             test_library_call_value,
         ],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     update_expected_storage(
         &mut expected_storage_updates,
         // Library call writes to the caller storage.
@@ -1618,7 +1659,7 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     // Test segment_arena.
     for _ in 0..2 {
         let calldata = create_calldata(main_contract_address, "test_segment_arena", &[]);
-        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     }
 
     // Run the test.
@@ -1669,7 +1710,7 @@ async fn test_syscalls_with_alternating_inner_calls() {
 
     let calldata =
         create_calldata(test_contract_address, "test_sha256_with_alternating_inner_calls", &[]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     let test_output = test_builder.build_and_run().await;
     test_output.perform_default_validations();
@@ -1719,7 +1760,7 @@ async fn test_deprecated_tx_info() {
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
     let invoke_tx = InvokeTransaction::create(invoke_tx(invoke_args), chain_id).unwrap();
-    test_builder.add_invoke_tx(invoke_tx.clone(), None);
+    test_builder.add_invoke_tx(invoke_tx.clone(), None, None);
 
     // Declare.
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
@@ -1821,7 +1862,7 @@ async fn test_deprecated_send_to_l1() {
 
     let to_address = Felt::from(85);
     let calldata = create_calldata(test_contract_address, "send_message", &[to_address]);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     test_builder.messages_to_l1.push(MessageToL1 {
         from_address: test_contract_address,
         to_address: to_address.try_into().unwrap(),
@@ -1853,7 +1894,7 @@ async fn test_replace_class() {
 
     for address in [test_contract_address_cairo1, test_contract_address_cairo0] {
         let calldata = create_calldata(address, "test_replace_class", &[empty_class_hash.0]);
-        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     }
 
     let test_output = test_builder.build_and_run().await;
@@ -1886,7 +1927,7 @@ async fn test_deploy_syscall() {
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         salt,
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
     let expected_storage_updates = HashMap::from([(
         deployed_test_address,
         HashMap::from([(
@@ -1901,7 +1942,7 @@ async fn test_deploy_syscall() {
         "deploy_contract",
         &[empty_class_hash.0, salt.0, Felt::ZERO],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Run the test and verify storage changes.
     let test_output = test_builder.build_and_run().await;
@@ -1959,7 +2000,7 @@ async fn test_inner_deploy_failure() {
         "test_get_class_hash_after_failed_deploy",
         &[empty_class_hash.0, **test_contract_address, salt.0, **expected_deploy_address],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Run the test and verify storage changes.
     let test_output = test_builder.build_and_run().await;
@@ -2088,7 +2129,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
         "deploy_contract",
         &[class_hash.0, salt, ctor_calldata.len().into(), ctor_calldata[0]],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Run the test.
     let test_output = test_builder.build_and_run().await;
@@ -2220,7 +2261,7 @@ async fn test_reverted_call() {
                 is_meta_tx.into(),
             ],
         );
-        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     }
 
     // Test call to cairo0 contracts with 0 and more then 0 entry points.
@@ -2240,7 +2281,7 @@ async fn test_reverted_call() {
                 false.into(),
             ],
         );
-        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
         // Test 3:
         // - Contract A calls Contract B.
@@ -2253,7 +2294,7 @@ async fn test_reverted_call() {
             "test_revert_with_inner_call_and_reverted_storage",
             &[**main_contract_address, test_class_hash.0],
         );
-        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     }
 
     // Test 4:
@@ -2289,7 +2330,7 @@ async fn test_reverted_call() {
     // Call contract A.
     let calldata =
         create_calldata(main_contract_address, "test_call_contract_revert", &contract_a_calldata);
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Run the test and assert only the fee token contract and the OS contracts have storage
     // updates.
@@ -2376,7 +2417,7 @@ async fn test_resources_type() {
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         ContractAddressSalt(Felt::ZERO),
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
 
     // Test recursive calling.
     let (key, value) = (Felt::from(123), Felt::from(45));
@@ -2402,7 +2443,7 @@ async fn test_resources_type() {
         "test_call_two_contracts",
         &[calldata_0, calldata_1].concat(),
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Run test and check storage updates.
     let test_output = test_builder.build_and_run().await;
@@ -2457,7 +2498,7 @@ async fn test_data_gas_accounts() {
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         salt,
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
 
     // Create and run an invoke tx.
     let invoke_args = invoke_tx_args! {
@@ -2469,7 +2510,7 @@ async fn test_data_gas_accounts() {
     let tx = InvokeTransaction::create(invoke_tx(invoke_args), chain_id).unwrap();
     assert_eq!(tx.version(), TransactionVersion::THREE);
     assert_matches!(tx.resource_bounds(), ValidResourceBounds::AllResources(_));
-    test_builder.add_invoke_tx(tx, None);
+    test_builder.add_invoke_tx(tx, None, None);
 
     // Run test.
     let test_output = test_builder.build_and_run().await;
@@ -2504,7 +2545,7 @@ async fn test_direct_execute_call() {
             Felt::ONE, // Arg 2.
         ],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Run test.
     let test_output = test_builder.build_and_run().await;
@@ -2555,7 +2596,7 @@ async fn test_meta_tx() {
     let tx0_hash = tx0.tx_hash();
     let tx0_nonce = tx0.nonce();
     assert!(tx0_nonce != Nonce(Felt::ZERO));
-    test_builder.add_invoke_tx(tx0, None);
+    test_builder.add_invoke_tx(tx0, None, None);
 
     // Compute the meta-tx hash.
     let meta_tx_hash0 = InvokeTransaction::create(
@@ -2596,7 +2637,7 @@ async fn test_meta_tx() {
     let tx1_hash = tx1.tx_hash();
     let tx1_nonce = tx1.nonce();
     assert!(tx1_nonce != Nonce(Felt::ZERO));
-    test_builder.add_invoke_tx(tx1, None);
+    test_builder.add_invoke_tx(tx1, None, None);
 
     // Compute the meta-tx hash.
     let meta_tx_hash1 = InvokeTransaction::create(
@@ -2635,7 +2676,7 @@ async fn test_meta_tx() {
     assert!(tx2.nonce() != Nonce(Felt::ZERO));
     let tx2_hash = tx2.tx_hash();
     let tx2_nonce = tx2.nonce();
-    test_builder.add_invoke_tx(tx2, None);
+    test_builder.add_invoke_tx(tx2, None, None);
 
     // Construct the expected storage diff for each of the two contracts.
     // All zero-valued keys should be filtered out (as they don't appear in the state diff).
@@ -2760,7 +2801,7 @@ async fn test_declare_and_deploy_in_separate_blocks() {
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         salt,
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
 
     // Run the test and verify the storage changes.
     let test_output = test_builder.build_and_run().await;
@@ -2844,7 +2885,7 @@ async fn test_deploy_no_ctor_contract() {
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         ContractAddressSalt(Felt::ZERO),
     );
-    test_builder.add_invoke_tx(deploy_tx, None);
+    test_builder.add_invoke_tx(deploy_tx, None, None);
 
     // Run the test.
     let test_output = test_builder.build_and_run().await;
@@ -2867,7 +2908,7 @@ async fn test_load_bottom() {
     {
         let (key, value) = (Felt::from(key), Felt::from(value));
         let calldata = create_calldata(test_contract_address, "set_value", &[key, value]);
-        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
     }
     test_builder.divide_transactions_into_n_blocks(test_builder.total_txs());
 
@@ -2927,7 +2968,7 @@ async fn test_nested_self_revert_storage_order() {
         "catch_write_revert_panic",
         &[**test_contract_address, Felt::THREE],
     );
-    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata }, None);
 
     // Run the test.
     let test_output = test_builder.build_and_run().await;
