@@ -65,8 +65,38 @@ def _get_schema_model_for_path(path: str) -> Optional[type[Any]]:
     return current_model
 
 
+def _key_valid_for_model(model: type[Any], key: str) -> bool:
+    """True if key is a field name or a field alias (e.g. gcpPodMonitoring for podMonitoring)."""
+    if not hasattr(model, "model_fields"):
+        return False
+    if key in model.model_fields:
+        return True
+    for _field_name, field_info in model.model_fields.items():
+        if getattr(field_info, "alias", None) == key:
+            return True
+        v_alias = getattr(field_info, "validation_alias", None)
+        if v_alias == key or (isinstance(v_alias, (list, tuple)) and key in v_alias):
+            return True
+    return False
+
+
+def _resolve_field_name(model: type[Any], key: str) -> Optional[str]:
+    """Return canonical field name for key (field name or alias). None if not found."""
+    if not hasattr(model, "model_fields"):
+        return None
+    if key in model.model_fields:
+        return key
+    for field_name, field_info in model.model_fields.items():
+        if getattr(field_info, "alias", None) == key:
+            return field_name
+        v_alias = getattr(field_info, "validation_alias", None)
+        if v_alias == key or (isinstance(v_alias, (list, tuple)) and key in v_alias):
+            return field_name
+    return None
+
+
 def _key_exists_in_schema(key: str, path: str = "") -> bool:
-    """Check if a key exists in the ServiceConfig schema.
+    """Check if a key exists in the ServiceConfig schema (field name or alias).
 
     Args:
         key: The key to check
@@ -76,18 +106,14 @@ def _key_exists_in_schema(key: str, path: str = "") -> bool:
         True if key exists in schema, False otherwise
     """
     if not path:
-        # Top-level key - check ServiceConfig directly
-        return hasattr(ServiceConfig, "model_fields") and key in ServiceConfig.model_fields
+        return _key_valid_for_model(ServiceConfig, key)
 
     # Nested key - find the parent model
-    # Path format: "persistentVolume.volumeMode" -> parent is "persistentVolume"
     if "." in path:
-        # Full path provided - extract parent path
         parts = path.rsplit(".", 1)
-        parent_path = parts[0]  # e.g., "persistentVolume"
-        key_to_check = parts[1] if len(parts) > 1 else key  # e.g., "volumeMode"
+        parent_path = parts[0]
+        key_to_check = parts[1] if len(parts) > 1 else key
     else:
-        # Only parent path provided - use the key parameter
         parent_path = path
         key_to_check = key
 
@@ -96,7 +122,7 @@ def _key_exists_in_schema(key: str, path: str = "") -> bool:
     if not parent_model:
         return False
 
-    return hasattr(parent_model, "model_fields") and key_to_check in parent_model.model_fields
+    return _key_valid_for_model(parent_model, key_to_check)
 
 
 def validate_key_exists(
@@ -118,8 +144,8 @@ def validate_key_exists(
     if key in layout:
         return
 
-    # If not in layout, check if it's valid in the schema
-    if schema_model and hasattr(schema_model, "model_fields") and key in schema_model.model_fields:
+    # If not in layout, check if it's valid in the schema (field name or alias)
+    if schema_model and _key_valid_for_model(schema_model, key):
         return
 
     # Check against ServiceConfig schema using path
@@ -157,21 +183,18 @@ def _detect_field_type(parent_model: Any, field_name: str) -> tuple[bool, Option
 
     Args:
         parent_model: The Pydantic model containing the field.
-        field_name: Name of the field to check.
+        field_name: Name or alias of the field to check (e.g. gcpPodMonitoring).
 
     Returns:
         Tuple of (is_dict_field, nested_model):
         - is_dict_field: True if field is a dict type (StrDict/AnyDict)
         - nested_model: Pydantic model if field is a model type, None otherwise
     """
-    if not (
-        parent_model
-        and hasattr(parent_model, "model_fields")
-        and field_name in parent_model.model_fields
-    ):
+    canonical = _resolve_field_name(parent_model, field_name) if parent_model else None
+    if not canonical or not hasattr(parent_model, "model_fields"):
         return False, None
 
-    field_info = parent_model.model_fields[field_name]
+    field_info = parent_model.model_fields[canonical]
     annotation, origin = _extract_annotation_type(field_info.annotation)
 
     if origin is dict:
@@ -247,8 +270,18 @@ def _merge_nested_dict(
             elif not _key_exists_in_schema(overlay_key, nested_path):
                 validate_key_exists(merged_dict, overlay_key, nested_path, source)
 
-        # Recursively merge if both are dicts
+        # service.ports: merge by port name (same as in _merge_dict_strict)
         if (
+            overlay_key == "ports"
+            and (current_path == "service" or current_path.endswith(".service"))
+            and isinstance(overlay_val, list)
+        ):
+            layout_port_list = merged_dict.get(overlay_key)
+            if not isinstance(layout_port_list, list):
+                layout_port_list = []
+            merged_dict[overlay_key] = _merge_service_ports(layout_port_list, overlay_val)
+        # Recursively merge if both are dicts
+        elif (
             overlay_key in merged_dict
             and isinstance(merged_dict[overlay_key], dict)
             and isinstance(overlay_val, dict)
@@ -265,6 +298,61 @@ def _merge_nested_dict(
             merged_dict[overlay_key] = overlay_val
 
     return merged_dict
+
+
+def _merge_service_ports(
+    base_ports: list[Any],
+    overlay_ports: list[Any],
+) -> list[dict]:
+    """Merge port lists by port name. Overlay wins for same name. Order: base first, then overlay-only. Asserts unique port names."""
+    if not isinstance(base_ports, list):
+        base_ports = []
+    if not isinstance(overlay_ports, list):
+        overlay_ports = []
+    base_list = [p if isinstance(p, dict) else {} for p in base_ports]
+    overlay_list = [p if isinstance(p, dict) else {} for p in overlay_ports]
+    # Build merged by name (overlay overwrites)
+    by_name: dict[str, dict] = {}
+    for p in base_list:
+        name = p.get("name") if isinstance(p.get("name"), str) else None
+        if name:
+            by_name[name] = deepcopy(p)
+    for p in overlay_list:
+        name = p.get("name") if isinstance(p.get("name"), str) else None
+        if name:
+            by_name[name] = deepcopy(p)
+    # Result order: base order (use merged value for same name), then overlay ports not in base
+    result: list[dict] = []
+    base_names_seen: set[str] = set()
+    for p in base_list:
+        name = p.get("name") if isinstance(p.get("name"), str) else None
+        if name:
+            if name not in base_names_seen:
+                base_names_seen.add(name)
+                result.append(deepcopy(by_name[name]))
+        else:
+            result.append(deepcopy(p))
+    for p in overlay_list:
+        name = p.get("name") if isinstance(p.get("name"), str) else None
+        if name and name not in base_names_seen:
+            base_names_seen.add(name)
+            result.append(deepcopy(by_name[name]))
+        elif not name:
+            result.append(deepcopy(p))
+    # Assert unique port names
+    names = [p.get("name") for p in result if isinstance(p.get("name"), str)]
+    if len(names) != len(set(names)):
+        seen: set[str] = set()
+        dups: list[str] = []
+        for n in names:
+            if n in seen:
+                dups.append(n)
+            else:
+                seen.add(n)
+        raise ValueError(
+            f"service.ports must have unique port names; duplicate(s): {sorted(set(dups))}"
+        )
+    return result
 
 
 def _merge_dict_strict(
@@ -321,7 +409,15 @@ def _merge_dict_strict(
 
         # Handle merging based on value types
         layout_value = layout_copy.get(key)
-        if isinstance(layout_value, dict) and isinstance(val, dict):
+        # service.ports: merge by port name (overlay wins same name), assert unique names
+        if (
+            key == "ports"
+            and (path == "service" or path.endswith(".service"))
+            and isinstance(layout_value, list)
+            and isinstance(val, list)
+        ):
+            layout_copy[key] = _merge_service_ports(layout_value, val)
+        elif isinstance(layout_value, dict) and isinstance(val, dict):
             if is_dict_field:
                 # Dict field: merge without validation
                 layout_copy[key] = _merge_dict_strict(

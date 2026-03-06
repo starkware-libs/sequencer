@@ -4,6 +4,7 @@ Shared module for loading and merging sequencer configuration files.
 This module provides utilities for loading YAML configs, merging layout and overlay
 configurations, and finding workspace roots. Used by system test scripts.
 """
+
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, List, Optional
