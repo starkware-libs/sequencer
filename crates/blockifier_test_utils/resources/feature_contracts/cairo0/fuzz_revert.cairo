@@ -2,6 +2,7 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math import assert_not_zero
+from starkware.starknet.common.messages import send_message_to_l1
 from starkware.starknet.common.syscalls import (
     call_contract,
     deploy,
@@ -20,6 +21,7 @@ const SCENARIO_REPLACE_CLASS = 4;
 const SCENARIO_DEPLOY = 5;
 const SCENARIO_PANIC = 6;
 const SCENARIO_INCREMENT_COUNTER = 7;
+const SCENARIO_SEND_MESSAGE = 8;
 
 // selector_from_name("pop_front").
 const POP_FRONT_SELECTOR = 0x289c2d7d6351cd03d4f928bde75fa14d5f52e32bdbc750d5296e1b48c12f1c3;
@@ -153,6 +155,13 @@ func test_revert_fuzz{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
     if (scenario == SCENARIO_INCREMENT_COUNTER) {
         let (value) = counter.read();
         counter.write(value + 1);
+        test_revert_fuzz();
+        return ();
+    }
+
+    if (scenario == SCENARIO_SEND_MESSAGE) {
+        local payload: felt* = new(pop_front(orchestrator));
+        send_message_to_l1(to_address=0xadd0, payload_size=1, payload=payload);
         test_revert_fuzz();
         return ();
     }
