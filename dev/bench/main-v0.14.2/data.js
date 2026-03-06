@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772735127220,
+  "lastUpdate": 1772797673386,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1971,6 +1971,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1364.02678195,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "138376632+ayeletstarkware@users.noreply.github.com",
+            "name": "Ayelet Zilber",
+            "username": "ayeletstarkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e193b0f8da975f37888e7f5e82371d1cf2932539",
+          "message": "apollo_mempool: fetch timestamps in echonet mode (#12850)",
+          "timestamp": "2026-03-06T11:24:45Z",
+          "tree_id": "de13f44c1cff48d2907edce3f0c0258bc869ee6b",
+          "url": "https://github.com/starkware-libs/sequencer/commit/e193b0f8da975f37888e7f5e82371d1cf2932539"
+        },
+        "date": 1772797673064,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 786.26389,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1216.03722982,
             "unit": "ms"
           }
         ]
