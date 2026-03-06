@@ -19,6 +19,7 @@ const SCENARIO_WRITE = 3;
 const SCENARIO_REPLACE_CLASS = 4;
 const SCENARIO_DEPLOY = 5;
 const SCENARIO_PANIC = 6;
+const SCENARIO_INCREMENT_COUNTER = 7;
 
 // selector_from_name("pop_front").
 const POP_FRONT_SELECTOR = 0x289c2d7d6351cd03d4f928bde75fa14d5f52e32bdbc750d5296e1b48c12f1c3;
@@ -27,6 +28,10 @@ const FUZZ_TEST_SELECTOR = 0x8e64dfac867f301a439703710296f437e9f91d1bba17cfea5ad
 
 @storage_var
 func orchestrator_address() -> (address: felt) {
+}
+
+@storage_var
+func counter() -> (value: felt) {
 }
 
 /// If this contract is deployed as part of the fuzz test "deploy" scenario, the orchestrator
@@ -48,6 +53,7 @@ func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
 func initialize{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     orchestrator_address_input: felt
 ) {
+    counter.write(0xc00);
     orchestrator_address.write(orchestrator_address_input);
     return ();
 }
@@ -140,6 +146,13 @@ func test_revert_fuzz{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
         with_attr error_message("panic_scenario") {
             assert 0 = 1;
         }
+        test_revert_fuzz();
+        return ();
+    }
+
+    if (scenario == SCENARIO_INCREMENT_COUNTER) {
+        let (value) = counter.read();
+        counter.write(value + 1);
         test_revert_fuzz();
         return ();
     }
