@@ -63,6 +63,7 @@
     "min_sierra_version_for_sierra_gas": "100.0.0",
     "os_constants": {
         "allowed_virtual_os_program_hashes": [],
+        "max_proving_blocks_behind": 0,
         "builtin_gas_costs": {
             "add_mod": 0,
             "bitwise": 594,
@@ -73,7 +74,7 @@
             "pedersen": 0,
             "poseidon": 0,
             "range_check": 70,
-            "range_check96": 0, 
+            "range_check96": 0,
             "blake": 0
         },
         "constructor_entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",
