@@ -5,6 +5,9 @@ mod FuzzRevertOrchestratorContract {
         MutableVecTrait, StoragePointerReadAccess, StoragePointerWriteAccess, Vec, VecTrait,
     };
 
+    const OOB_ERROR: felt252 = 'index_OOB';
+    const UNEXPECTED_FAIL_UNDEPLOYED: felt252 = 'should_fail_undeployed';
+
     #[storage]
     struct Storage {
         scenarios: Vec<felt252>,
@@ -38,9 +41,27 @@ mod FuzzRevertOrchestratorContract {
         self.front_index.read().into()
     }
 
+    /// Set the index of the next scenario felt.
+    /// Used when an error is caught from a parent context - the inner call state changes are
+    /// reverted, so to continue the test from the next scenario, the pre-revert index is propagated
+    /// as the error value.
+    /// If this entry point is called with an index greater than the number of scenarios, the test
+    /// will panic (this can happen if an unexpected error occurs and is propagated).
     #[external(v0)]
     fn set_index(ref self: ContractState, index: felt252) {
-        self.front_index.write(index.try_into().unwrap());
+        let index_u64: u64 = match index.try_into() {
+            Option::Some(val) => val,
+            Option::None => panic_with_felt252(OOB_ERROR),
+        };
+        assert(index_u64 <= self.scenarios.len(), OOB_ERROR);
+        self.front_index.write(index_u64);
+    }
+
+    /// Expose the unexpected panic message to the fuzz test contract(s), so they know what to panic
+    /// with in case of unexpected failures.
+    #[external(v0)]
+    fn should_fail_undeployed_panic_message(ref self: ContractState) -> felt252 {
+        UNEXPECTED_FAIL_UNDEPLOYED
     }
 
     /// Start the test. The first address must be an initialized fuzz test contract.
@@ -49,7 +70,15 @@ mod FuzzRevertOrchestratorContract {
         match syscalls::call_contract_syscall(
             first_address, selector!("test_revert_fuzz"), array![].span(),
         ) {
-            Result::Ok(_) | Result::Err(_) => (),
+            Result::Ok(_) => (),
+            Result::Err(mut error) => {
+                // Assert the error is not any unexpected error.
+                let error_value = error.pop_front().unwrap();
+                for unexpected_error in array![OOB_ERROR, UNEXPECTED_FAIL_UNDEPLOYED]
+                    .span() {
+                        assert(error_value != *unexpected_error, *unexpected_error);
+                    }
+            }
         }
     }
 }
