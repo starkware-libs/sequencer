@@ -772,10 +772,9 @@ pub enum StorageError {
 /// A type alias that maps to std::result::Result<T, StorageError>.
 pub type StorageResult<V> = std::result::Result<V, StorageError>;
 
-/// A type alias for the return type of storage operations that include an optional storage reader
-/// server.
+/// A type alias for the return type of storage operations that include a storage reader server.
 pub type StorageWithServer<RequestHandler, Request, Response> =
-    (StorageReader, StorageWriter, Option<StorageReaderServer<RequestHandler, Request, Response>>);
+    (StorageReader, StorageWriter, StorageReaderServer<RequestHandler, Request, Response>);
 
 /// A struct for the configuration of the storage.
 #[allow(missing_docs)]
