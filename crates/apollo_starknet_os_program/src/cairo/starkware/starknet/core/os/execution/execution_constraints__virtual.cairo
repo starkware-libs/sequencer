@@ -17,6 +17,7 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
     current_block_number: felt,
     virtual_os_config_hash: felt,
 ) {
+    // Part of the VIRTUAL_SNOS0 version contract. Changes must trigger a version bump.
     with_attr error_message("Proof facts are not supported in virtual OS mode") {
         assert proof_facts_size = 0;
     }
