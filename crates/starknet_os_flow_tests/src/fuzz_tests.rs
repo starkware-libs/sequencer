@@ -729,6 +729,59 @@ impl FuzzTestContext {
             if succeeded { FinalizedState::Succeeded } else { FinalizedState::Reverted };
     }
 
+    /// Update the context to reflect the effects of a panic in the current call.
+    pub fn apply_panic(&mut self) {
+        // For the current call index until the panic is either caught or an uncatchable frame is
+        // reached (root parent frame - the orchestrator - is cairo1-catching, so one of these two
+        // conditions will be met).
+        // First, check if the current call is in cairo0 context. If so, parent context is
+        // irrelevant - the entire tx will be reverted.
+        if !self.is_cairo1_class(&self.current_class_hash()) {
+            self.pop_entire_call_tree(false);
+            return;
+        }
+        // Otherwise, climb up the call tree until the error is either caught or an
+        // uncatchable frame is reached.
+        while self.current_fuzz_call_info().parent_failure_behavior
+            == ParentFailureBehavior::Cairo1Propagating
+        {
+            // No need to finalize deploys here - we are reverting.
+            self.current_call.pop();
+        }
+        match self.current_fuzz_call_info().parent_failure_behavior {
+            // The simple case is when the parent is "uncatchable"; the entire tx will be
+            // reverted, so no need to update the current context.
+            ParentFailureBehavior::Uncatchable => {
+                self.pop_entire_call_tree(false);
+            }
+            // If the panic is caught, the effects of the entire subtree must be reverted.
+            ParentFailureBehavior::Cairo1Catching => {
+                // Revert the effects of the call tree rooted at the current path.
+                self.apply_revert_info(self.compute_revert_info(self.current_fuzz_call_info()));
+                // Pop the current call index to go back up to the catching context.
+                self.exit_call();
+                // Pop the reverted call frame from the call tree. Example scenario for why
+                // this is needed:
+                // 1. non-unwrapping call
+                // 2. replace class
+                // 3. panic
+                // 4. panic
+                // The first panic is caught and will revert the replace class. Unless the
+                // inner call is popped, the second panic will attempt to revert the replace
+                // class again.
+                if self.current_call.is_empty() {
+                    // We are back at the orchestrator context. Pop the entire call tree.
+                    // Tx should be successful.
+                    self.pop_entire_call_tree(true);
+                } else {
+                    // We are back at a non-orchestrator context. Pop the last inner call.
+                    self.current_fuzz_call_info_mut().inner_calls.pop();
+                }
+            }
+            ParentFailureBehavior::Cairo1Propagating => unreachable!(),
+        }
+    }
+
     /// Applies the operation and updates the context.
     pub fn apply(&mut self, operation: FuzzOperationData) {
         assert!(!self.finalized());
@@ -775,59 +828,7 @@ impl FuzzTestContext {
                 // Enter constructor context.
                 self.enter_deploy(deployed_address, class_hash);
             }
-            FuzzOperationData::Panic => {
-                // For the current call index until the panic is either caught or an uncatchable
-                // frame is reached (root parent frame - the orchestrator - is cairo1-catching, so
-                // one of these two conditions will be met).
-                // First, check if the current call is in cairo0 context. If so, parent context is
-                // irrelevant - the entire tx will be reverted.
-                if !self.is_cairo1_class(&self.current_class_hash()) {
-                    self.pop_entire_call_tree(false);
-                    return;
-                }
-                // Otherwise, climb up the call tree until the error is either caught or an
-                // uncatchable frame is reached.
-                while self.current_fuzz_call_info().parent_failure_behavior
-                    == ParentFailureBehavior::Cairo1Propagating
-                {
-                    // No need to finalize deploys here - we are reverting.
-                    self.current_call.pop();
-                }
-                match self.current_fuzz_call_info().parent_failure_behavior {
-                    // The simple case is when the parent is "uncatchable"; the entire tx will be
-                    // reverted, so no need to update the current context.
-                    ParentFailureBehavior::Uncatchable => {
-                        self.pop_entire_call_tree(false);
-                    }
-                    // If the panic is caught, the effects of the entire subtree must be reverted.
-                    ParentFailureBehavior::Cairo1Catching => {
-                        // Revert the effects of the call tree rooted at the current path.
-                        self.apply_revert_info(
-                            self.compute_revert_info(self.current_fuzz_call_info()),
-                        );
-                        // Pop the current call index to go back up to the catching context.
-                        self.exit_call();
-                        // Pop the reverted call frame from the call tree. Example scenario for why
-                        // this is needed:
-                        // 1. non-unwrapping call
-                        // 2. replace class
-                        // 3. panic
-                        // 4. panic
-                        // The first panic is caught and will revert the replace class. Unless the
-                        // inner call is popped, the second panic will attempt to revert the replace
-                        // class again.
-                        if self.current_call.is_empty() {
-                            // We are back at the orchestrator context. Pop the entire call tree.
-                            // Tx should be successful.
-                            self.pop_entire_call_tree(true);
-                        } else {
-                            // We are back at a non-orchestrator context. Pop the last inner call.
-                            self.current_fuzz_call_info_mut().inner_calls.pop();
-                        }
-                    }
-                    ParentFailureBehavior::Cairo1Propagating => unreachable!(),
-                }
-            }
+            FuzzOperationData::Panic => self.apply_panic(),
             FuzzOperationData::IncrementCounter => {}
             FuzzOperationData::SendMessage(message) => {
                 self.current_fuzz_call_info_mut().messages.push(message);
