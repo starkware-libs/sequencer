@@ -26,6 +26,7 @@ const SCENARIO_DEPLOY_NON_EXISTING = 9;
 const SCENARIO_LIBRARY_CALL_NON_EXISTING = 10;
 const SCENARIO_SHA256 = 11;
 const SCENARIO_KECCAK = 12;
+const SCENARIO_CALL_UNDEPLOYED = 13;
 
 // selector_from_name("pop_front").
 const POP_FRONT_SELECTOR = 0x289c2d7d6351cd03d4f928bde75fa14d5f52e32bdbc750d5296e1b48c12f1c3;
@@ -192,6 +193,20 @@ func test_revert_fuzz{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
     if ((scenario - SCENARIO_SHA256) * (scenario - SCENARIO_KECCAK) == 0) {
         // Not supported in Cairo0.
         with_attr error_message("new_hash_cairo0") {
+            assert 0 = 1;
+        }
+        return ();
+    }
+
+    if (scenario == SCENARIO_CALL_UNDEPLOYED) {
+        let address = pop_front(orchestrator);
+        let selector = pop_front(orchestrator);
+        let _should_unwrap = pop_front(orchestrator);
+        call_contract(
+            contract_address=address, function_selector=selector, calldata_size=0, calldata=new()
+        );
+        // Calling an undeployed contract should be an uncatchable fail.
+        with_attr error_message("should_fail_undeployed") {
             assert 0 = 1;
         }
         return ();
