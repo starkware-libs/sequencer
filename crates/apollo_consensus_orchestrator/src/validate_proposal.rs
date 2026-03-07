@@ -76,6 +76,13 @@ pub(crate) struct BlockInfoValidation {
     pub l2_gas_price_fri: GasPrice,
 }
 
+/// Parameters for deadline and cancellation handling during proposal finalization.
+struct ProposalDeadlineParams {
+    clock: Arc<dyn Clock>,
+    deadline: DateTime,
+    cancel_token: CancellationToken,
+}
+
 enum HandledProposalPart {
     Continue,
     Invalid(String),
@@ -152,6 +159,12 @@ pub(crate) async fn validate_proposal(
     )
     .await?;
 
+    let deadline_params = ProposalDeadlineParams {
+        clock: args.deps.clock.clone(),
+        deadline,
+        cancel_token: args.cancel_token.clone(),
+    };
+
     // Validating the rest of the proposal parts.
     let (built_block, received_fin, finished_info) = loop {
         tokio::select! {
@@ -177,6 +190,7 @@ pub(crate) async fn validate_proposal(
                     &mut content,
                     &mut verify_and_store_proof_tasks,
                     args.deps.transaction_converter.clone(),
+                    &deadline_params,
                 ).await {
                     HandledProposalPart::Finished(built_block, received_fin, finished_info) => {
                         break (built_block, received_fin, finished_info);
@@ -358,6 +372,7 @@ async fn handle_proposal_part(
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
     verify_and_store_proof_tasks: &mut Vec<VerifyAndStoreProofTask>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
+    deadline_params: &ProposalDeadlineParams,
 ) -> HandledProposalPart {
     match proposal_part {
         None => {
@@ -384,10 +399,29 @@ async fn handle_proposal_part(
             // conversion, running concurrently with batcher execution. Since the fin
             // is always the last proposal part, we await all tasks here to ensure every
             // proof is verified and stored before finalizing the proposal.
+            // Tasks are not aborted on timeout/cancellation, so they can finish in the background.
             let start = Instant::now();
             for task in verify_and_store_proof_tasks.drain(..) {
-                if let Err(e) = await_verify_and_store_proof_task(task).await {
-                    return HandledProposalPart::Failed(e);
+                tokio::select! {
+                    _ = deadline_params.cancel_token.cancelled() => {
+                        let duration = start.elapsed();
+                        info!("Verification tasks interrupted after {duration:?}");
+                        return HandledProposalPart::Failed(
+                            "Proposal interrupted while awaiting verification tasks".to_string(),
+                        );
+                    }
+                    _ = deadline_params.clock.sleep_until(deadline_params.deadline) => {
+                        let duration = start.elapsed();
+                        info!("Verification tasks timed out after {duration:?}");
+                        return HandledProposalPart::Failed(
+                            "Validation timed out while awaiting verification tasks".to_string(),
+                        );
+                    }
+                    result = await_verify_and_store_proof_task(task) => {
+                        if let Err(e) = result {
+                            return HandledProposalPart::Failed(e);
+                        }
+                    }
                 }
             }
             let duration = start.elapsed();
