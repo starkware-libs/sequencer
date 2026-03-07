@@ -68,9 +68,6 @@ impl<TStateReaderFactory: StateReaderFactory> StatefulTransactionValidatorFactor
             .state_reader_factory
             .get_blockifier_state_reader_and_gateway_fixed_block_from_latest_block()
             .await
-            .map_err(|err| GatewaySpecError::UnexpectedError {
-                data: format!("Internal server error: {err}"),
-            })
             .map_err(|e| {
                 StarknetError::internal_with_logging(
                     "Failed to get state reader from latest block",
