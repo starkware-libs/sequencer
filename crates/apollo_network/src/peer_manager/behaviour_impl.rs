@@ -194,6 +194,6 @@ impl NetworkBehaviour for PeerManager {
             }
         }
         self.sleep_waiting_for_unblocked_peer = None;
-        self.pending_events.pop().map(Poll::Ready).unwrap_or(Poll::Pending)
+        self.pending_events.pop().map_or(Poll::Pending, Poll::Ready)
     }
 }

@@ -80,9 +80,7 @@ impl MonitoringClient {
                     .request(build_request(&self.socket.ip(), self.socket.port(), METRICS))
                     .await
             },
-            |response_result| {
-                response_result.as_ref().map(|res| res.status().is_success()).unwrap_or(false)
-            },
+            |response_result| response_result.as_ref().is_ok_and(|res| res.status().is_success()),
             Some(logger),
         )
         .await;

@@ -231,7 +231,7 @@ impl StarknetFeederGatewayClient {
         only_header: bool,
     ) -> ReaderClientResult<String> {
         let block_number =
-            block_number.map(|bn| bn.to_string()).unwrap_or(String::from(LATEST_BLOCK_NUMBER));
+            block_number.map_or(String::from(LATEST_BLOCK_NUMBER), |bn| bn.to_string());
 
         let mut get_block_url = self.urls.get_block.clone();
         get_block_url.query_pairs_mut().append_pair(BLOCK_NUMBER_QUERY, block_number.as_str());

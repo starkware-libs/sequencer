@@ -85,8 +85,10 @@ where
             %class_hash,
             compiled_class_hash = %executable_class_hash_v2,
             compilation_elapsed_ms = compilation_start_time.elapsed().as_millis(),
-            class_size_bytes = class.size().map(|size| size.to_string()).unwrap_or("Failed to get class size".to_owned()),
-            casm_size_bytes = raw_executable_class.size().map(|size| size.to_string()).unwrap_or("Failed to get casm size".to_owned()),
+            class_size_bytes =
+                class.size().map_or("Failed to get class size".to_owned(), |size| size.to_string()),
+            casm_size_bytes =
+                raw_executable_class.size().map_or("Failed to get casm size".to_owned(), |size| size.to_string()),
             "Finished compiling class."
         );
 
