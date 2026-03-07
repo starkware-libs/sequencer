@@ -29,8 +29,6 @@ const SCENARIO_KECCAK = 12;
 
 // selector_from_name("pop_front").
 const POP_FRONT_SELECTOR = 0x289c2d7d6351cd03d4f928bde75fa14d5f52e32bdbc750d5296e1b48c12f1c3;
-// selector_from_name("test_revert_fuzz").
-const FUZZ_TEST_SELECTOR = 0x8e64dfac867f301a439703710296f437e9f91d1bba17cfea5ad7f137a5acd;
 
 @storage_var
 func orchestrator_address() -> (address: felt) {
@@ -95,22 +93,22 @@ func test_revert_fuzz{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
     }
 
     if (scenario == SCENARIO_CALL) {
+        let address = pop_front(orchestrator);
+        let selector = pop_front(orchestrator);
+        let _should_unwrap = pop_front(orchestrator);
         call_contract(
-            contract_address=pop_front(orchestrator),
-            function_selector=FUZZ_TEST_SELECTOR,
-            calldata_size=0,
-            calldata=new(),
+            contract_address=address, function_selector=selector, calldata_size=0, calldata=new(),
         );
         test_revert_fuzz();
         return ();
     }
 
     if (scenario == SCENARIO_LIBRARY_CALL) {
+        let class_hash = pop_front(orchestrator);
+        let selector = pop_front(orchestrator);
+        let _should_unwrap = pop_front(orchestrator);
         library_call(
-            class_hash=pop_front(orchestrator),
-            function_selector=FUZZ_TEST_SELECTOR,
-            calldata_size=0,
-            calldata=new(),
+            class_hash=class_hash, function_selector=selector, calldata_size=0, calldata=new(),
         );
         test_revert_fuzz();
         return ();
