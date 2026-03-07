@@ -42,6 +42,9 @@ const NUM_EXHAUSTIVE_PARALLEL_FUZZ_TESTS: usize = 100;
 /// Entry point selector of main (recursive) fuzzing function.
 static FUZZ_ENTRY_POINT: LazyLock<EntryPointSelector> =
     LazyLock::new(|| selector_from_name("test_revert_fuzz"));
+/// Dummy (undeployed) contract address.
+static UNDEPLOYED_CONTRACT_ADDRESS: LazyLock<ContractAddress> =
+    LazyLock::new(|| ContractAddress::try_from(felt!("0xdeedee")).unwrap());
 
 /// Contracts.
 const ORCHESTRATOR_CONTRACT: FeatureContract =
@@ -69,15 +72,15 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 
 /// Initial fuzz contract addresses.
 static FUZZ_ADDRESS_ORCHESTRATOR_EXPECT: Expect =
-    expect!["0x42a4e070a0336c42c1de292bc3de986ae479bc5187d86a6dca4c52c6e502d6f"];
+    expect!["0x1ab0433d022b4d7515b07787c3401c289201f24165012369a3bcec485d7e6a2"];
 static FUZZ_ADDRESS_CAIRO1_A_EXPECT: Expect =
-    expect!["0x16e64f8a922cdc8d5ad1f82e95bc2275edc58df5d5ee0e534aab447416af2dc"];
+    expect!["0x3d96283628498c0bf79a3b46c50fd12c6ca34d6cf0b57ba98155fca6964c6c4"];
 static FUZZ_ADDRESS_CAIRO1_B_EXPECT: Expect =
-    expect!["0x79e5bbf94726e2c61e1e3af00c35bea7677e8ae44e7e924ebc3fcf4344622eb"];
+    expect!["0x5be6ccba1ba05b8ac850cbdd6c2a5cd5d18e4eb88c8b7ed567fe60dfca12666"];
 static FUZZ_ADDRESS_CAIRO0_A_EXPECT: Expect =
-    expect!["0x479702bc960f2f44f7f3e035004b39a3ff75dc20241c125cba6ee7b6219980a"];
+    expect!["0xf3cc0a1de65cca30ee78c95731da73de5db09e1f9877f1a58f2068563252b9"];
 static FUZZ_ADDRESS_CAIRO0_B_EXPECT: Expect =
-    expect!["0x1c66f6247710a781b756f57d771c841c6dedd224eb7c53130656c2f03f8ab48"];
+    expect!["0x3e2e389247af9647bac93f9eb737bc44e63cc6991eaba64e6f4792109b5b4d5"];
 static FUZZ_ADDRESS_ORCHESTRATOR: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress::try_from(felt!(FUZZ_ADDRESS_ORCHESTRATOR_EXPECT.data())).unwrap()
 });
@@ -143,6 +146,7 @@ enum FuzzOperation {
     LibraryCallNonexistingClass,
     Sha256,
     Keccak,
+    CallUndeployed,
 }
 
 impl FuzzOperation {
@@ -161,6 +165,7 @@ impl FuzzOperation {
             Self::LibraryCallNonexistingClass => 10u8,
             Self::Sha256 => 11u8,
             Self::Keccak => 12u8,
+            Self::CallUndeployed => 13u8,
         })
     }
 }
@@ -182,7 +187,7 @@ impl CallOperationData {
         if self.from_cairo1 {
             ParentFailureBehavior::cairo1_behavior(self.unwraps_error)
         } else {
-            ParentFailureBehavior::Uncatchable
+            ParentFailureBehavior::cairo0_behavior(self.unwraps_error)
         }
     }
 }
@@ -204,7 +209,7 @@ impl LibraryCallOperationData {
         if self.from_cairo1 {
             ParentFailureBehavior::cairo1_behavior(self.unwraps_error)
         } else {
-            ParentFailureBehavior::Uncatchable
+            ParentFailureBehavior::cairo0_behavior(self.unwraps_error)
         }
     }
 }
@@ -225,6 +230,7 @@ enum FuzzOperationData {
     LibraryCallNonexistingClass,
     Sha256(Felt),
     Keccak(Felt),
+    CallUndeployed(CallOperationData),
 }
 
 impl FuzzOperationData {
@@ -243,6 +249,7 @@ impl FuzzOperationData {
             Self::LibraryCallNonexistingClass => FuzzOperation::LibraryCallNonexistingClass,
             Self::Sha256(_) => FuzzOperation::Sha256,
             Self::Keccak(_) => FuzzOperation::Keccak,
+            Self::CallUndeployed(_) => FuzzOperation::CallUndeployed,
         }
     }
 
@@ -256,7 +263,7 @@ impl FuzzOperationData {
             | Self::IncrementCounter
             | Self::DeployNonexisting
             | Self::LibraryCallNonexistingClass => vec![],
-            Self::Call(op) => op.felt_vector(),
+            Self::Call(op) | Self::CallUndeployed(op) => op.felt_vector(),
             Self::LibraryCall(op) => op.felt_vector(),
             Self::Write(storage_key, value) => vec![***storage_key, value.0],
             Self::ReplaceClass(class_hash) => vec![class_hash.0],
@@ -275,16 +282,21 @@ enum ParentFailureBehavior {
     /// caught by any calling context.
     Uncatchable,
 
-    /// In cairo1, and not unwrapping errors from child context.
-    Cairo1Catching,
+    /// Not unwrapping errors from child context.
+    Catching,
 
     /// In cairo1, unwrapping errors from next context.
+    /// Propagating errors is only possible from Cairo1 context.
     Cairo1Propagating,
 }
 
 impl ParentFailureBehavior {
     pub fn cairo1_behavior(unwraps_error: bool) -> Self {
-        if unwraps_error { Self::Cairo1Propagating } else { Self::Cairo1Catching }
+        if unwraps_error { Self::Cairo1Propagating } else { Self::Catching }
+    }
+
+    pub fn cairo0_behavior(unwraps_error: bool) -> Self {
+        if unwraps_error { Self::Uncatchable } else { Self::Catching }
     }
 }
 
@@ -603,6 +615,15 @@ impl FuzzTestContext {
                     vec![]
                 }
             }
+            FuzzOperation::CallUndeployed => {
+                // Neither Cairo1 nor Cairo0 contexts can catch an error of this type.
+                vec![FuzzOperationData::CallUndeployed(CallOperationData {
+                    from_cairo1: self.is_current_context_cairo1(),
+                    address: *UNDEPLOYED_CONTRACT_ADDRESS,
+                    selector: *FUZZ_ENTRY_POINT,
+                    unwraps_error: true,
+                })]
+            }
         }
     }
 
@@ -755,7 +776,7 @@ impl FuzzTestContext {
                 self.pop_entire_call_tree(false);
             }
             // If the panic is caught, the effects of the entire subtree must be reverted.
-            ParentFailureBehavior::Cairo1Catching => {
+            ParentFailureBehavior::Catching => {
                 // Revert the effects of the call tree rooted at the current path.
                 self.apply_revert_info(self.compute_revert_info(self.current_fuzz_call_info()));
                 // Pop the current call index to go back up to the catching context.
@@ -841,6 +862,10 @@ impl FuzzTestContext {
             }
             FuzzOperationData::Sha256(_) | FuzzOperationData::Keccak(_) => {
                 self.next_hash_preimage += Felt::ONE;
+            }
+            FuzzOperationData::CallUndeployed(_) => {
+                // Unrecoverable error (we do not prove addresses are not initialized).
+                self.pop_entire_call_tree(false);
             }
         }
     }
@@ -1072,6 +1097,22 @@ impl FuzzTestContext {
                         format!("{} (preimage)", operation_felt_hexes[1]),
                     ]
                 }
+                FuzzOperationData::CallUndeployed(call_operation_data) => {
+                    vec![
+                        format!("{} (Call undeployed)", operation_felt_hexes[0]),
+                        format!("{} (dummy address)", operation_felt_hexes[1]),
+                        format!("{} (selector)", operation_felt_hexes[2]),
+                        format!(
+                            "{} ({} error)",
+                            operation_felt_hexes[3],
+                            if call_operation_data.unwraps_error {
+                                "unwraps"
+                            } else {
+                                "does not unwrap"
+                            }
+                        ),
+                    ]
+                }
             });
         }
         format!(
@@ -1108,7 +1149,7 @@ impl FuzzTestManager {
             first_called_address,
             *CAIRO1_CONTRACT_CLASS_HASH,
             // The orchestrator always starts the test in a catching context.
-            ParentFailureBehavior::Cairo1Catching,
+            ParentFailureBehavior::Catching,
         );
         Self {
             context: FuzzTestContext::init(seed, first_call),
