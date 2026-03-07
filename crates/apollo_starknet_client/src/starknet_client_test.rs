@@ -12,7 +12,7 @@ const URL_SUFFIX: &str = "/query";
 async fn request_with_retry_positive_flow() {
     const BODY: &str = "body";
     let apollo_starknet_client =
-        StarknetClient::new(None, NODE_VERSION, get_test_config()).unwrap();
+        StarknetClient::new(None, NODE_VERSION, get_test_config(), false).unwrap();
     let mut server = mockito::Server::new_async().await;
     let mock = server.mock("GET", URL_SUFFIX).with_status(200).with_body(BODY).create_async().await;
     let url = format!("{}{}", server.url(), URL_SUFFIX);
@@ -27,7 +27,7 @@ async fn request_with_retry_positive_flow() {
 async fn request_with_retry_bad_response_status() {
     let error_code = StatusCode::NOT_FOUND;
     let apollo_starknet_client =
-        StarknetClient::new(None, NODE_VERSION, get_test_config()).unwrap();
+        StarknetClient::new(None, NODE_VERSION, get_test_config(), false).unwrap();
     let mut server = mockito::Server::new_async().await;
     let mock =
         server.mock("GET", URL_SUFFIX).with_status(error_code.as_u16().into()).create_async().await;
@@ -45,7 +45,7 @@ async fn request_with_retry_bad_response_status() {
 #[tokio::test]
 async fn request_with_retry_starknet_error_no_retry() {
     let apollo_starknet_client =
-        StarknetClient::new(None, NODE_VERSION, get_test_config()).unwrap();
+        StarknetClient::new(None, NODE_VERSION, get_test_config(), false).unwrap();
     let expected_starknet_error = StarknetError {
         code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::UndeclaredClass),
         message: "message".to_string(),
@@ -71,7 +71,7 @@ async fn request_with_retry_starknet_error_no_retry() {
 #[tokio::test]
 async fn request_with_retry_serde_error_in_starknet_error() {
     let apollo_starknet_client =
-        StarknetClient::new(None, NODE_VERSION, get_test_config()).unwrap();
+        StarknetClient::new(None, NODE_VERSION, get_test_config(), false).unwrap();
     let mut server = mockito::Server::new_async().await;
     let mock = server
         .mock("GET", URL_SUFFIX)
@@ -90,7 +90,7 @@ async fn request_with_retry_serde_error_in_starknet_error() {
 #[tokio::test]
 async fn request_with_retry_max_retries_reached() {
     let apollo_starknet_client =
-        StarknetClient::new(None, NODE_VERSION, get_test_config()).unwrap();
+        StarknetClient::new(None, NODE_VERSION, get_test_config(), false).unwrap();
     for (status_code, error_code) in [
         (StatusCode::TEMPORARY_REDIRECT, RetryErrorCode::Redirect),
         (StatusCode::REQUEST_TIMEOUT, RetryErrorCode::Timeout),
@@ -121,7 +121,7 @@ async fn request_with_retry_success_on_retry() {
     const BODY: &str = "body";
     assert_ne!(0, MAX_RETRIES);
     let apollo_starknet_client =
-        StarknetClient::new(None, NODE_VERSION, get_test_config()).unwrap();
+        StarknetClient::new(None, NODE_VERSION, get_test_config(), false).unwrap();
     for status_code in [
         StatusCode::TEMPORARY_REDIRECT,
         StatusCode::REQUEST_TIMEOUT,
@@ -151,7 +151,7 @@ async fn request_with_retry_success_on_retry() {
 #[tokio::test]
 async fn request_with_retry_starknet_error_max_retries_reached() {
     let apollo_starknet_client =
-        StarknetClient::new(None, NODE_VERSION, get_test_config()).unwrap();
+        StarknetClient::new(None, NODE_VERSION, get_test_config(), false).unwrap();
     let starknet_error = StarknetError {
         code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::TransactionLimitExceeded),
         message: "message".to_string(),
@@ -181,7 +181,7 @@ async fn request_with_retry_starknet_error_success_on_retry() {
     const BODY: &str = "body";
     assert_ne!(0, MAX_RETRIES);
     let apollo_starknet_client =
-        StarknetClient::new(None, NODE_VERSION, get_test_config()).unwrap();
+        StarknetClient::new(None, NODE_VERSION, get_test_config(), false).unwrap();
     let starknet_error = StarknetError {
         code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::TransactionLimitExceeded),
         message: "message".to_string(),
