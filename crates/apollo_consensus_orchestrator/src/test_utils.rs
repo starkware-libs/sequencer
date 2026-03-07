@@ -10,11 +10,9 @@ use apollo_batcher_types::batcher_types::{
     GetProposalContentResponse,
     ProposalCommitment,
     ProposalId,
-    ProposalStatus,
     ProposeBlockInput,
-    SendProposalContent,
-    SendProposalContentInput,
-    SendProposalContentResponse,
+    SendTxsForProposalInput,
+    SendTxsForProposalStatus,
     ValidateBlockInput,
 };
 use apollo_batcher_types::communication::MockBatcherClient;
@@ -249,14 +247,14 @@ impl TestDeps {
 
             let proposal_id_clone = Arc::clone(&proposal_id);
             self.batcher
-                .expect_send_proposal_content()
+                .expect_send_txs_for_proposal()
                 .times(1)
                 .in_sequence(&mut seq)
                 .withf(move |input| input.proposal_id == *proposal_id_clone.get().unwrap())
-                .returning(move |input: SendProposalContentInput| {
-                    let SendProposalContent::Txs(txs) = input.content;
+                .returning(move |input: SendTxsForProposalInput| {
+                    let txs = input.txs;
                     assert_eq!(txs, INTERNAL_TX_BATCH.clone());
-                    Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
+                    Ok(SendTxsForProposalStatus::Processing)
                 });
             let proposal_id_clone = Arc::clone(&proposal_id);
 
