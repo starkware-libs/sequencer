@@ -12,7 +12,13 @@ use rand::prelude::IteratorRandom;
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use rstest::rstest;
-use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
+use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::core::{
+    calculate_contract_address,
+    ClassHash,
+    ContractAddress,
+    EntryPointSelector,
+};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::{L2ToL1Payload, MessageToL1};
@@ -32,6 +38,10 @@ const MAX_EXHAUSTIVE_FUZZ_LENGTH: usize = 3;
 /// Number of exhaustive fuzz test tasks to spawn in parallel. As long as this is at least the
 /// number of cores, all cores will be utilized.
 const NUM_EXHAUSTIVE_PARALLEL_FUZZ_TESTS: usize = 100;
+
+/// Entry point selector of main (recursive) fuzzing function.
+static FUZZ_ENTRY_POINT: LazyLock<EntryPointSelector> =
+    LazyLock::new(|| selector_from_name("test_revert_fuzz"));
 
 /// Contracts.
 const ORCHESTRATOR_CONTRACT: FeatureContract =
@@ -61,13 +71,13 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 static FUZZ_ADDRESS_ORCHESTRATOR_EXPECT: Expect =
     expect!["0x42a4e070a0336c42c1de292bc3de986ae479bc5187d86a6dca4c52c6e502d6f"];
 static FUZZ_ADDRESS_CAIRO1_A_EXPECT: Expect =
-    expect!["0x677b4ace91242300f64a8267caf44d3261e1fab7e2b4a702a01e5326b5416f9"];
+    expect!["0x16e64f8a922cdc8d5ad1f82e95bc2275edc58df5d5ee0e534aab447416af2dc"];
 static FUZZ_ADDRESS_CAIRO1_B_EXPECT: Expect =
-    expect!["0x697e15c16224ed2c6b7aa5b85b5baaa4e4cb65447342b6ffcd899bb68513fd6"];
+    expect!["0x79e5bbf94726e2c61e1e3af00c35bea7677e8ae44e7e924ebc3fcf4344622eb"];
 static FUZZ_ADDRESS_CAIRO0_A_EXPECT: Expect =
-    expect!["0x3614759c651254f33c5545d2912ab6a8c1f57e0f73a081006662a694c317ece"];
+    expect!["0x479702bc960f2f44f7f3e035004b39a3ff75dc20241c125cba6ee7b6219980a"];
 static FUZZ_ADDRESS_CAIRO0_B_EXPECT: Expect =
-    expect!["0x939fc188228c04e10bf5f157b12e5a3161e28336fac063c0e7cb574518a20d"];
+    expect!["0x1c66f6247710a781b756f57d771c841c6dedd224eb7c53130656c2f03f8ab48"];
 static FUZZ_ADDRESS_ORCHESTRATOR: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress::try_from(felt!(FUZZ_ADDRESS_ORCHESTRATOR_EXPECT.data())).unwrap()
 });
@@ -155,68 +165,46 @@ impl FuzzOperation {
     }
 }
 
-/// Different variants depending on whether or not the calling context is Cairo0.
 #[derive(Clone, Copy, Debug)]
-enum CallOperationData {
-    Cairo0 { address: ContractAddress },
-    Cairo1 { address: ContractAddress, unwraps_error: bool },
+struct CallOperationData {
+    pub from_cairo1: bool,
+    pub address: ContractAddress,
+    pub selector: EntryPointSelector,
+    pub unwraps_error: bool,
 }
 
 impl CallOperationData {
     pub fn felt_vector(&self) -> Vec<Felt> {
-        match self {
-            Self::Cairo0 { address } => vec![***address],
-            Self::Cairo1 { address, unwraps_error } => {
-                vec![***address, (*unwraps_error).into()]
-            }
-        }
-    }
-
-    pub fn address(&self) -> &ContractAddress {
-        match self {
-            Self::Cairo0 { address } | Self::Cairo1 { address, .. } => address,
-        }
+        vec![**self.address, self.selector.0, self.unwraps_error.into()]
     }
 
     pub fn parent_failure_behavior(&self) -> ParentFailureBehavior {
-        match self {
-            Self::Cairo0 { .. } => ParentFailureBehavior::Uncatchable,
-            Self::Cairo1 { unwraps_error, .. } => {
-                ParentFailureBehavior::cairo1_behavior(*unwraps_error)
-            }
+        if self.from_cairo1 {
+            ParentFailureBehavior::cairo1_behavior(self.unwraps_error)
+        } else {
+            ParentFailureBehavior::Uncatchable
         }
     }
 }
 
-/// Different variants depending on whether or not the calling context is Cairo0.
 #[derive(Clone, Copy, Debug)]
-enum LibraryCallOperationData {
-    Cairo0 { class_hash: ClassHash },
-    Cairo1 { class_hash: ClassHash, unwraps_error: bool },
+struct LibraryCallOperationData {
+    pub from_cairo1: bool,
+    pub class_hash: ClassHash,
+    pub selector: EntryPointSelector,
+    pub unwraps_error: bool,
 }
 
 impl LibraryCallOperationData {
     pub fn felt_vector(&self) -> Vec<Felt> {
-        match self {
-            Self::Cairo0 { class_hash, .. } => vec![class_hash.0],
-            Self::Cairo1 { class_hash, unwraps_error, .. } => {
-                vec![class_hash.0, (*unwraps_error).into()]
-            }
-        }
-    }
-
-    pub fn class_hash(&self) -> &ClassHash {
-        match self {
-            Self::Cairo0 { class_hash } | Self::Cairo1 { class_hash, .. } => class_hash,
-        }
+        vec![self.class_hash.0, self.selector.0, self.unwraps_error.into()]
     }
 
     pub fn parent_failure_behavior(&self) -> ParentFailureBehavior {
-        match self {
-            Self::Cairo0 { .. } => ParentFailureBehavior::Uncatchable,
-            Self::Cairo1 { unwraps_error, .. } => {
-                ParentFailureBehavior::cairo1_behavior(*unwraps_error)
-            }
+        if self.from_cairo1 {
+            ParentFailureBehavior::cairo1_behavior(self.unwraps_error)
+        } else {
+            ParentFailureBehavior::Uncatchable
         }
     }
 }
@@ -527,52 +515,41 @@ impl FuzzTestContext {
             FuzzOperation::Call => {
                 // There are two Cairo0 contracts and two Cairo1 contracts that can be called.
                 // When calling from a Cairo1 context, the caller can unwrap the call result or not.
-                let current_context_is_cairo1 = self.is_current_context_cairo1();
+                // Cairo0 always "unwraps" errors.
+                let from_cairo1 = self.is_current_context_cairo1();
+                let possible_unwraps_errors =
+                    if from_cairo1 { vec![true, false] } else { vec![true] };
                 self.deployed_contracts()
                     .flat_map(|address| {
-                        if current_context_is_cairo1 {
-                            [true, false]
-                                .into_iter()
-                                .map(|unwraps_error| {
-                                    FuzzOperationData::Call(CallOperationData::Cairo1 {
-                                        address: *address,
-                                        unwraps_error,
-                                    })
-                                })
-                                .collect()
-                        } else {
-                            vec![FuzzOperationData::Call(CallOperationData::Cairo0 {
+                        possible_unwraps_errors.iter().copied().map(|unwraps_error| {
+                            FuzzOperationData::Call(CallOperationData {
+                                from_cairo1,
                                 address: *address,
-                            })]
-                        }
+                                selector: *FUZZ_ENTRY_POINT,
+                                unwraps_error,
+                            })
+                        })
                     })
                     .collect()
             }
             FuzzOperation::LibraryCall => {
                 // We have one Cairo0 contract and two Cairo1 contracts to choose from.
                 // Similar to calls, when calling from a Cairo1 context, the caller can unwrap the
-                // call result or not.
-                let current_context_is_cairo1 = self.is_current_context_cairo1();
+                // call result or not. Cairo0 always "unwraps" errors.
+                let from_cairo1 = self.is_current_context_cairo1();
+                let possible_unwraps_errors =
+                    if from_cairo1 { vec![true, false] } else { vec![true] };
                 IS_CAIRO1
                     .keys()
                     .flat_map(|class_hash| {
-                        if current_context_is_cairo1 {
-                            [true, false]
-                                .into_iter()
-                                .map(|unwraps_error| {
-                                    FuzzOperationData::LibraryCall(
-                                        LibraryCallOperationData::Cairo1 {
-                                            class_hash: *class_hash,
-                                            unwraps_error,
-                                        },
-                                    )
-                                })
-                                .collect()
-                        } else {
-                            vec![FuzzOperationData::LibraryCall(LibraryCallOperationData::Cairo0 {
+                        possible_unwraps_errors.iter().copied().map(|unwraps_error| {
+                            FuzzOperationData::LibraryCall(LibraryCallOperationData {
+                                from_cairo1,
                                 class_hash: *class_hash,
-                            })]
-                        }
+                                selector: *FUZZ_ENTRY_POINT,
+                                unwraps_error,
+                            })
+                        })
                     })
                     .collect()
             }
@@ -762,7 +739,7 @@ impl FuzzTestContext {
                 self.exit_call()
             }
             FuzzOperationData::Call(call_operation_data) => {
-                let address = *call_operation_data.address();
+                let address = call_operation_data.address;
                 let class_hash = self.class_hash_of(&address);
                 self.enter_call(address, class_hash, call_operation_data.parent_failure_behavior());
             }
@@ -770,7 +747,7 @@ impl FuzzTestContext {
                 let current_address = self.current_address();
                 self.enter_call(
                     current_address,
-                    *library_call_operation_data.class_hash(),
+                    library_call_operation_data.class_hash,
                     library_call_operation_data.parent_failure_behavior(),
                 );
             }
@@ -983,50 +960,61 @@ impl FuzzTestContext {
                 .collect::<Vec<String>>();
             output.extend(match operation {
                 FuzzOperationData::Return => vec![format!("{} (Return)", operation_felt_hexes[0])],
-                FuzzOperationData::Call(call_operation_data) => {
+                FuzzOperationData::Call(CallOperationData {
+                    address,
+                    selector,
+                    unwraps_error,
+                    ..
+                }) => {
                     // It's possible that the address is no longer deployed (post-revert).
-                    let class_info_string =
-                        match self.try_class_hash_of(call_operation_data.address()) {
-                            Some(class_hash) => format!(
-                                "Cairo{} address, class hash: {}",
-                                if self.is_cairo1_class(&class_hash) { "1" } else { "0" },
-                                class_hash.0.to_hex_string()
-                            ),
-                            None => "unknown class hash, deployment reverted".to_string(),
-                        };
-                    let mut call_print = vec![
+                    let class_info_string = match self.try_class_hash_of(address) {
+                        Some(class_hash) => format!(
+                            "Cairo{} address, class hash: {}",
+                            if self.is_cairo1_class(&class_hash) { "1" } else { "0" },
+                            class_hash.0.to_hex_string()
+                        ),
+                        None => "unknown class hash, deployment reverted".to_string(),
+                    };
+                    vec![
                         format!("{} (Call)", operation_felt_hexes[0]),
-                        format!("{} ({class_info_string})", operation_felt_hexes[1],),
-                    ];
-                    if let CallOperationData::Cairo1 { unwraps_error, .. } = call_operation_data {
-                        call_print.push(format!(
-                            "{} ({} error)",
+                        format!("{} ({class_info_string})", operation_felt_hexes[1]),
+                        format!(
+                            "{} (selector, {} function)",
                             operation_felt_hexes[2],
+                            if selector == &*FUZZ_ENTRY_POINT { "fuzz" } else { "non existing" }
+                        ),
+                        format!(
+                            "{} ({} error)",
+                            operation_felt_hexes[3],
                             if *unwraps_error { "unwraps" } else { "does not unwrap" }
-                        ));
-                    }
-                    call_print
+                        ),
+                    ]
                 }
-                FuzzOperationData::LibraryCall(library_call_operation_data) => {
-                    let is_cairo1 = self.is_cairo1_class(library_call_operation_data.class_hash());
-                    let mut library_call_print = vec![
+                FuzzOperationData::LibraryCall(LibraryCallOperationData {
+                    class_hash,
+                    selector,
+                    unwraps_error,
+                    ..
+                }) => {
+                    let is_cairo1 = self.is_cairo1_class(class_hash);
+                    vec![
                         format!("{} (Library call)", operation_felt_hexes[0]),
                         format!(
                             "{} (Cairo{} class hash)",
                             operation_felt_hexes[1],
                             if is_cairo1 { "1" } else { "0" },
                         ),
-                    ];
-                    if let LibraryCallOperationData::Cairo1 { unwraps_error, .. } =
-                        library_call_operation_data
-                    {
-                        library_call_print.push(format!(
-                            "{} ({} error)",
+                        format!(
+                            "{} (selector, {} function)",
                             operation_felt_hexes[2],
+                            if selector == &*FUZZ_ENTRY_POINT { "fuzz" } else { "non existing" }
+                        ),
+                        format!(
+                            "{} ({} error)",
+                            operation_felt_hexes[3],
                             if *unwraps_error { "unwraps" } else { "does not unwrap" }
-                        ));
-                    }
-                    library_call_print
+                        ),
+                    ]
                 }
                 FuzzOperationData::Write(_, _) => {
                     vec![
