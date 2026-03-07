@@ -19,6 +19,9 @@
 #   # Build with default settings
 #   ./scripts/build_starknet_transaction_prover.sh
 #
+#   # Build optimized for AMD EPYC Turin (c4d GKE nodes)
+#   ./scripts/build_starknet_os_runner.sh --rustflags "-C target-cpu=znver5"
+#
 #   # Build debug mode
 #   ./scripts/build_starknet_transaction_prover.sh --build-mode debug
 
@@ -111,6 +114,9 @@ while [[ $# -gt 0 ]]; do
             echo "  # Build with default settings"
             echo "  $0"
             echo ""
+            echo "  # Build optimized for AMD EPYC Turin (c4d GKE nodes)"
+            echo "  $0 --rustflags \"-C target-cpu=znver5\""
+            echo ""
             echo "  # Build debug mode"
             echo "  $0 --build-mode debug"
             exit 0
@@ -127,6 +133,9 @@ done
 build_docker_image() {
     info "Building Docker image: ${IMAGE_TAG}"
     info "Build mode: ${BUILD_MODE}"
+    if [[ -n "${RUSTFLAGS}" ]]; then
+        info "RUSTFLAGS: ${RUSTFLAGS}"
+    fi
 
     # Check if Dockerfile exists.
     if [[ ! -f "${DOCKERFILE_PATH}" ]]; then
