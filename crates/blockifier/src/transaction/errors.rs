@@ -152,6 +152,8 @@ pub enum TransactionPreValidationError {
 pub enum NumericConversionError {
     #[error("Conversion of {0} to u128 unsuccessful.")]
     U128ToUsizeError(u128),
+    #[error("Conversion of {0}: u32 to usize unsuccessful.")]
+    U32ToUsizeError(u32),
     #[error("Conversion of {0} to u64 unsuccessful.")]
     U64ToUsizeError(u64),
 }

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use cairo_vm::hint_processor::hint_processor_definition::HintProcessor;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout::CairoLayoutParams;
@@ -9,11 +11,19 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::builtin_runner::BuiltinRunner;
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner};
 use cairo_vm::vm::security::verify_secure_runner;
+use cairo_vm::vm::vm_core::ExtendedExecutionResourceType;
 use num_traits::{ToPrimitive, Zero};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::GasCosts;
-use crate::execution::call_info::{CallExecution, CallInfo, ExtendedExecutionResources, Retdata};
+use crate::execution::call_info::{
+    CallExecution,
+    CallInfo,
+    ExtendedExecutionResources,
+    OpcodeCounterMap,
+    OpcodeName,
+    Retdata,
+};
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
     EntryPointExecutionContext,
@@ -31,6 +41,7 @@ use crate::execution::execution_utils::{
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;
+use crate::utils::usize_from_u32;
 
 #[cfg(test)]
 #[path = "entry_point_execution_test.rs"]
@@ -215,6 +226,7 @@ pub fn prepare_program_extra_data(
         gas_costs.builtins.poseidon,
         gas_costs.builtins.add_mod,
         gas_costs.builtins.mul_mod,
+        gas_costs.builtins.blake,
     ];
 
     let data = builtin_price_array
@@ -413,10 +425,8 @@ pub fn extract_extended_vm_resources(
 ) -> Result<ExtendedExecutionResources, PostExecutionError> {
     // Take into account the resources of the current call, without inner calls.
     // Has to happen after marking holes in segments as accessed.
-    let mut vm_resources_without_inner_calls = runner
-        .get_execution_resources()
-        .map_err(VirtualMachineError::RunnerError)?
-        .filter_unused_builtins();
+    let mut vm_resources_without_inner_calls =
+        runner.get_execution_resources().map_err(VirtualMachineError::RunnerError)?;
     let versioned_constants = syscall_handler.base.context.versioned_constants();
     if versioned_constants.segment_arena_cells {
         vm_resources_without_inner_calls
@@ -424,14 +434,38 @@ pub fn extract_extended_vm_resources(
             .get_mut(&BuiltinName::segment_arena)
             .map_or_else(|| {}, |val| *val *= SEGMENT_ARENA_BUILTIN_SIZE);
     }
+
+    // Build the opcode counter from the VM's extended resource counter.
+    let opcode_instance_counter =
+        opcode_counter_from_extended_resources(runner.get_extended_execution_resources())?;
+
     // Take into account the syscall resources of the current call.
     vm_resources_without_inner_calls += &versioned_constants
         .get_additional_os_syscall_resources(&syscall_handler.base.syscalls_usage);
-    Ok(ExtendedExecutionResources {
+    let extended = ExtendedExecutionResources {
         vm_resources: vm_resources_without_inner_calls,
-        // TODO(AvivG): Get opcode instance counter from the runner.
-        opcode_instance_counter: Default::default(),
-    })
+        opcode_instance_counter,
+    };
+    Ok(extended.filter_unused_cairo_primitives())
+}
+
+/// Converts the cairo-vm extended resource counter into a blockifier `OpcodeCounterMap`.
+///
+/// Multiple VM resource types may map to the same `OpcodeName`(e.g. `Blake` + `BlakeFinalize` →
+/// `OpcodeName::Blake`).
+fn opcode_counter_from_extended_resources(
+    extended_resources: &HashMap<ExtendedExecutionResourceType, u32>,
+) -> Result<OpcodeCounterMap, PostExecutionError> {
+    let mut counter = OpcodeCounterMap::default();
+    for (resource_type, count) in extended_resources {
+        let opcode = match resource_type {
+            ExtendedExecutionResourceType::Blake | ExtendedExecutionResourceType::BlakeFinalize => {
+                OpcodeName::Blake
+            }
+        };
+        *counter.entry(opcode).or_default() += usize_from_u32(*count)?;
+    }
+    Ok(counter)
 }
 
 pub fn total_vm_resources(
