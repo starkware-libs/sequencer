@@ -159,18 +159,56 @@ service:
 
 ### Command-Line Interface
 
-Use the `--layout` and `--overlay` flags to specify which configurations to use:
+Use the `--layout` and `--overlay` (or `-o`) flags to specify which configurations to use. You can pass **multiple** `-o` flags to stack overlay layers (merged left-to-right; last wins):
 
 ```bash
 # Use layout only (no overlay)
 cdk8s synth --app "pipenv run python -m main --namespace production --layout consolidated"
 
-# Use layout with dev overlay
-cdk8s synth --app "pipenv run python -m main --namespace dev --layout consolidated --overlay dev"
+# Single overlay (backward compatible)
+cdk8s synth --app "pipenv run python -m main --namespace dev --layout hybrid -o hybrid.testing.node-0"
 
-# Use layout with prod overlay
-cdk8s synth --app "pipenv run python -m main --namespace prod --layout consolidated --overlay prod"
+# Multi-layer overlays: env-level shared config + node-specific overrides
+cdk8s synth --app "pipenv run python -m main --namespace mainnet --layout hybrid -o hybrid.mainnet -o hybrid.mainnet.apollo-mainnet-0"
+
+# Three layers
+cdk8s synth --app "pipenv run python -m main --namespace prod --layout hybrid -o hybrid.mainnet -o hybrid.mainnet.path.to.some -o hybrid.mainnet.apollo-mainnet-0"
 ```
+
+### Multi-Layer Overlays
+
+You can specify multiple overlays with repeated `-o` flags. They are merged **left-to-right**: the first overlay is the most general (e.g. environment-level), the last is the most specific (e.g. node-level) and wins on conflicts.
+
+**Merge graph:**
+
+1. **Commons chain**: `layout common.yaml` ← overlay1 `common.yaml` ← overlay2 `common.yaml` → **final_common**
+2. **Services chain**: `layout services/*` ← overlay1 `services/*` ← overlay2 `services/*` → **final_services**
+3. **Final step**: **final_common** is merged into each **final_service** (once).
+
+Each overlay layer's `common.yaml` and `services/` directory are **optional**. If an overlay directory has no `common.yaml` or no `services/` dir, that layer is simply skipped for that chain.
+
+**Example: shared env + per-node overrides**
+
+For a network (e.g. mainnet) with many nodes that share most config, put shared values in an environment-level overlay and only node-specific diffs in each node overlay:
+
+```
+configs/overlays/hybrid/mainnet/
+├── common.yaml              # Shared: chain_id, image tag, probes, gcpPodMonitoring, etc.
+├── services/                # Shared: l1.yaml (identical), most of core/gateway/mempool
+│   ├── core.yaml
+│   ├── gateway.yaml
+│   ├── l1.yaml
+│   └── ...
+├── apollo-mainnet-0/
+│   ├── common.yaml          # Only: externalSecret.data[].remoteRef.key
+│   └── services/
+│       ├── core.yaml        # Only: advertised_multiaddr, hostname, PV size
+│       └── gateway.yaml     # Only: ingress hostnames
+└── apollo-mainnet-1/
+    └── ...
+```
+
+Invocation for node 0: `-o hybrid.mainnet -o hybrid.mainnet.apollo-mainnet-0`
 
 ### Available Layouts
 

@@ -260,60 +260,59 @@ def _merge_common_into_service(
 
 
 def merge_configs(
-    layout_common_config_path: str,
+    layout_common_config_path: str | None,
     layout_services_config_dir_path: str,
-    overlay_common_config_path: str | None = None,
-    overlay_services_config_dir_path: str | None = None,
+    overlay_layers: list[tuple[str | None, str | None]] | None = None,
 ) -> DeploymentSchema:
     """
-    Merge base (layout) configs with optional overlay configs.
+    Merge base (layout) configs with optional overlay layers.
 
     Merge pipeline:
-    1. Layout common.yaml + Overlay common.yaml → merged_common
-    2. Layout service.yaml + Overlay service.yaml → merged_service
-    3. merged_common + merged_service → final_service_config (common merged into service)
+    1. Commons chain: layout_common <- overlay1_common <- overlay2_common -> merged_common
+    2. Services chain: layout_services <- overlay1_services <- overlay2_services -> merged_services
+    3. merged_common merged into each merged_service -> final_services
 
-    Uses DeploymentConfigLoader's internal YAML loading and validation logic.
+    Each overlay layer's common.yaml and services/ are optional; if absent that layer
+    is skipped for that chain. Uses DeploymentConfigLoader for loading and validation.
     Returns a validated DeploymentConfig schema object.
     """
+    overlay_layers = overlay_layers or []
 
-    # --- Load layout configs using DeploymentConfigLoader ---
+    # --- Load layout configs ---
     layout_loader = DeploymentConfigLoader(
         configs_dir_path=layout_services_config_dir_path,
         common_config_path=layout_common_config_path,
     )
-
     layout_common = layout_loader._load_common_config()
     layout_services = layout_loader._load_service_configs_from_dir()
 
     merged_common = layout_common
     merged_services = layout_services
 
-    # --- Load overlay configs (if provided) ---
-    if overlay_services_config_dir_path:
-        overlay_loader = DeploymentConfigLoader(
-            configs_dir_path=overlay_services_config_dir_path,
-            common_config_path=overlay_common_config_path,
-        )
-        overlay_common = overlay_loader._load_common_config()
-        overlay_services = overlay_loader._load_service_configs_from_dir()
+    # --- Apply each overlay layer in order (left-to-right, last wins) ---
+    for overlay_common_path, overlay_services_path in overlay_layers:
+        if overlay_services_path:
+            overlay_loader = DeploymentConfigLoader(
+                configs_dir_path=overlay_services_path,
+                common_config_path=overlay_common_path,
+            )
+            overlay_services = overlay_loader._load_service_configs_from_dir()
+            merged_services = apply_services_overlay_strict(merged_services, overlay_services)
+        if overlay_common_path:
+            overlay_loader = DeploymentConfigLoader(
+                configs_dir_path=overlay_services_path or layout_services_config_dir_path,
+                common_config_path=overlay_common_path,
+            )
+            overlay_common = overlay_loader._load_common_config()
+            merged_common = merge_common_with_overlay_strict(merged_common, overlay_common)
 
-        # Merge services + common parts using strict overlay semantics
-        merged_services = apply_services_overlay_strict(layout_services, overlay_services)
-        merged_common = merge_common_with_overlay_strict(layout_common, overlay_common)
-
-    # --- Merge common config into each service config ---
-    # This ensures constructs only need to check service_config, not both
-    # merged_common can be None if no common.yaml exists in layout or overlay
+    # --- Merge common into each service (once at the end) ---
     final_services = [
         _merge_common_into_service(merged_common, service) for service in merged_services
     ]
 
-    # --- Combine into a validated Deployment schema ---
-    # Use default ServiceConfig() if merged_common is None (common.yaml is optional)
     merged = {
         "common": merged_common if merged_common is not None else ServiceConfig(),
         "services": final_services,
     }
-
     return DeploymentSchema.model_validate(merged)
