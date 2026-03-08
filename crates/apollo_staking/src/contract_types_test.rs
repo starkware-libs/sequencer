@@ -1,3 +1,4 @@
+use apollo_cairo_utils::{CairoOption, RetdataDeserializationError, TryFromIterator};
 use assert_matches::assert_matches;
 use blockifier::execution::call_info::Retdata;
 use rstest::rstest;
@@ -7,12 +8,7 @@ use starknet_api::core::{ContractAddress, PatriciaKey, CONTRACT_ADDRESS_DOMAIN_S
 use starknet_api::staking::StakingWeight;
 use starknet_types_core::felt::Felt;
 
-use crate::contract_types::{
-    CairoOption,
-    ContractStaker,
-    RetdataDeserializationError,
-    TryFromIterator,
-};
+use crate::contract_types::ContractStaker;
 use crate::staking_manager::Epoch;
 
 const STAKER_1: ContractStaker = ContractStaker {

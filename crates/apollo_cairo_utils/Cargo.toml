@@ -1,0 +1,15 @@
+[package]
+name = "apollo_cairo_utils"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Cairo related utilities."
+
+[dependencies]
+blockifier.workspace = true
+starknet-types-core.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
