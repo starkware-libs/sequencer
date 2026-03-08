@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apollo_cairo_utils::CairoOption;
 use async_trait::async_trait;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
@@ -17,7 +18,6 @@ use tracing::info;
 
 use crate::committee_provider::Staker;
 use crate::contract_types::{
-    CairoOption,
     ContractStaker,
     GET_CURRENT_EPOCH_DATA_ENTRY_POINT,
     GET_PREVIOUS_EPOCH_DATA_ENTRY_POINT,

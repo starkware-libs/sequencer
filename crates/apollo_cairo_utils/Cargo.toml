@@ -1,0 +1,15 @@
+[package]
+name = "apollo_cairo_utils"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Utilities for deserializing Cairo contract return data."
+
+[dependencies]
+blockifier.workspace = true
+starknet-types-core.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
