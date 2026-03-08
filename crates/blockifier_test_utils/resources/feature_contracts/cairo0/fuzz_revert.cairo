@@ -148,6 +148,10 @@ func test_revert_fuzz{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 
     if (scenario == SCENARIO_PANIC) {
         // Cairo0 panics cannot be caught, so no need to handle orchestrator index.
+        // Panic message is part of the scenario data; error_message requires a string, so assert
+        // the revert reason is the expected one.
+        let revert_reason = pop_front(orchestrator);
+        assert revert_reason = 'panic_scenario';
         with_attr error_message("panic_scenario") {
             assert 0 = 1;
         }
