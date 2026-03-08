@@ -973,6 +973,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_cairo_utils"
+version = "0.18.0-rc.0"
+dependencies = [
+ "blockifier",
+ "starknet-types-core",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "apollo_central_sync"
 version = "0.0.0"
 dependencies = [
@@ -2565,6 +2574,7 @@ name = "apollo_staking"
 version = "0.0.0"
 dependencies = [
  "apollo_batcher_types",
+ "apollo_cairo_utils",
  "apollo_config_manager_types",
  "apollo_metrics",
  "apollo_protobuf",
