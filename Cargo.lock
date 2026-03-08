@@ -1815,7 +1815,7 @@ dependencies = [
  "papyrus_base_layer",
  "serde",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tracing",
 ]
@@ -1877,148 +1877,6 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
-||||||| c0699b312e
-name = "apollo_l1_provider"
-version = "0.18.0-dev.0"
-dependencies = [
- "alloy",
- "apollo_base_layer_tests",
- "apollo_infra",
- "apollo_infra_utils",
- "apollo_l1_provider_config",
- "apollo_l1_provider_types",
- "apollo_l1_scraper_config",
- "apollo_metrics",
- "apollo_state_sync_types",
- "apollo_time",
- "assert_matches",
- "async-trait",
- "chrono",
- "futures",
- "indexmap 2.12.0",
- "itertools 0.12.1",
- "mockall",
- "papyrus_base_layer",
- "pretty_assertions",
- "rstest",
- "starknet-types-core",
- "starknet_api",
- "static_assertions",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "apollo_l1_provider_config"
-version = "0.18.0-dev.0"
-dependencies = [
- "apollo_config",
- "serde",
- "validator",
-]
-
-[[package]]
-name = "apollo_l1_provider_types"
-version = "0.18.0-dev.0"
-dependencies = [
- "apollo_infra",
- "apollo_metrics",
- "async-trait",
- "indexmap 2.12.0",
- "mockall",
- "papyrus_base_layer",
- "serde",
- "starknet_api",
- "strum 0.25.0",
- "thiserror 1.0.69",
- "tracing",
-]
-
-[[package]]
-name = "apollo_l1_scraper_config"
-version = "0.18.0-dev.0"
-dependencies = [
- "apollo_config",
- "serde",
- "starknet_api",
- "validator",
-]
-
-[[package]]
-=======
-name = "apollo_l1_provider"
-version = "0.18.0-dev.0"
-dependencies = [
- "alloy",
- "apollo_base_layer_tests",
- "apollo_infra",
- "apollo_infra_utils",
- "apollo_l1_provider_config",
- "apollo_l1_provider_types",
- "apollo_l1_scraper_config",
- "apollo_metrics",
- "apollo_state_sync_types",
- "apollo_time",
- "assert_matches",
- "async-trait",
- "chrono",
- "futures",
- "indexmap 2.12.0",
- "itertools 0.12.1",
- "mockall",
- "papyrus_base_layer",
- "pretty_assertions",
- "rstest",
- "starknet-types-core",
- "starknet_api",
- "static_assertions",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "apollo_l1_provider_config"
-version = "0.18.0-dev.0"
-dependencies = [
- "apollo_config",
- "serde",
- "validator",
-]
-
-[[package]]
-name = "apollo_l1_provider_types"
-version = "0.18.0-dev.0"
-dependencies = [
- "apollo_infra",
- "apollo_metrics",
- "async-trait",
- "indexmap 2.12.0",
- "mockall",
- "papyrus_base_layer",
- "serde",
- "starknet_api",
- "strum",
- "thiserror 1.0.69",
- "tracing",
-]
-
-[[package]]
-name = "apollo_l1_scraper_config"
-version = "0.18.0-dev.0"
-dependencies = [
- "apollo_config",
- "serde",
- "starknet_api",
- "validator",
-]
-
-[[package]]
->>>>>>> origin/main-v0.14.2
 name = "apollo_mempool"
 version = "0.0.0"
 dependencies = [
@@ -4777,17 +4635,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-<<<<<<< HEAD
-version = "0.9.0-rc.1"
-source = "git+https://github.com/lambdaclass/cairo_native?branch=tomer%2Fblake_builtin#d1169689106ed7fec9e864ff8172b4dd2bd87c74"
-||||||| c0699b312e
-version = "0.9.0-rc.1"
-source = "git+https://github.com/lambdaclass/cairo_native?branch=tomer%2Fblake_builtin#51c1118340824d7b998da03e94cba061c1cff0f8"
-=======
 version = "0.9.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ece8a402b2f5699cf57c237124d3b9f2eaeea293f690b374828a66a2294d4fbc"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "aquamarine",
  "ark-ec",
@@ -10220,13 +10070,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22505a5c94da8e3b7c2996394d1c933236c4d743e81a410bcca4e6989fc066a4"
 dependencies = [
  "bytes",
-<<<<<<< HEAD
- "heck 0.4.1",
-||||||| c0699b312e
- "heck 0.5.0",
-=======
  "heck",
->>>>>>> origin/main-v0.14.2
  "itertools 0.12.1",
  "log",
  "multimap",
@@ -12603,102 +12447,6 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
-name = "starknet_os_runner"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "apollo_infra_utils",
- "apollo_starknet_os_program",
- "apollo_transaction_converter",
- "async-trait",
- "axum",
- "blockifier",
- "blockifier_reexecution",
- "blockifier_test_utils",
- "cairo-lang-starknet-classes",
- "cairo-lang-utils",
- "cairo-vm",
- "clap",
- "futures",
- "http 1.3.1",
- "indexmap 2.12.0",
- "jsonrpsee",
- "mockito",
- "proving_utils",
- "reqwest 0.12.24",
- "rstest",
- "serde",
- "serde_json",
- "shared_execution_objects",
- "starknet-rust",
- "starknet-rust-core 0.16.0",
- "starknet-types-core",
- "starknet_api",
- "starknet_committer",
- "starknet_os",
- "starknet_patricia",
- "starknet_patricia_storage",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "url",
-]
-
-[[package]]
-||||||| c0699b312e
-name = "starknet_os_runner"
-version = "0.18.0-dev.0"
-dependencies = [
- "anyhow",
- "apollo_infra_utils",
- "apollo_starknet_os_program",
- "apollo_transaction_converter",
- "async-trait",
- "axum",
- "blockifier",
- "blockifier_reexecution",
- "blockifier_test_utils",
- "cairo-lang-starknet-classes",
- "cairo-lang-utils",
- "cairo-vm",
- "clap",
- "futures",
- "http 1.3.1",
- "indexmap 2.12.0",
- "jsonrpsee",
- "mockito",
- "proving_utils",
- "reqwest 0.12.24",
- "rstest",
- "serde",
- "serde_json",
- "shared_execution_objects",
- "starknet-rust",
- "starknet-rust-core 0.16.0",
- "starknet-types-core",
- "starknet_api",
- "starknet_committer",
- "starknet_os",
- "starknet_patricia",
- "starknet_patricia_storage",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "url",
-]
-
-[[package]]
-=======
->>>>>>> origin/main-v0.14.2
 name = "starknet_patricia"
 version = "0.0.0"
 dependencies = [
@@ -12745,7 +12493,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_transaction_prover"
-version = "0.18.0-dev.0"
+version = "0.0.0"
 dependencies = [
  "anyhow",
  "apollo_infra_utils",

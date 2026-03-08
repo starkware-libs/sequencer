@@ -225,16 +225,10 @@ class EchonetConfig:
         feeder_headers = MappingProxyType(
             {"X-Throttling-Bypass": feeder_bypass} if feeder_bypass else {}
         )
-<<<<<<< HEAD
         l1_events_provider_api_key = str(secrets["l1_events_provider_api_key"])
-||||||| c0699b312e
-        l1_provider_api_key = str(secrets["l1_provider_api_key"])
-=======
-        l1_provider_api_key = str(secrets["l1_provider_api_key"])
         gcp_project_id = str(secrets.get("gcp_project_id", ""))
         gcp_location = str(secrets.get("gcp_location", ""))
         gke_cluster_name = str(secrets.get("gke_cluster_name", ""))
->>>>>>> origin/main-v0.14.2
 
         return cls(
             feeder=FeederGatewayConfig(

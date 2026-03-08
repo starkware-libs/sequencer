@@ -87,16 +87,8 @@ fn create_proposal_validate_arguments()
 -> (TestProposalValidateArguments, mpsc::Sender<ProposalPart>) {
     let (mut deps, _) = create_test_and_network_deps();
     deps.setup_default_expectations();
-<<<<<<< HEAD
     let init = proposal_init(BlockNumber(0), 0);
     let proposal_init_validation = ProposalInitValidation {
-||||||| c0699b312e
-    let init = block_info(BlockNumber(0), 0);
-    let block_info_validation = BlockInfoValidation {
-=======
-    let init = proposal_init(BlockNumber(0), 0);
-    let block_info_validation = BlockInfoValidation {
->>>>>>> origin/main-v0.14.2
         height: BlockNumber(0),
         block_timestamp_window_seconds: 60,
         previous_proposal_init: None,
