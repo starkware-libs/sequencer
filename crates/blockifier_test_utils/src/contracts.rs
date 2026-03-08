@@ -162,21 +162,9 @@ const LEGACY_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
     expect!["0x4b5dc7adc1a0d682e41a74ccd34f6eb4c9d25f398fe2fbfe71e111451359bd8"];
 
 const TEST_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-<<<<<<< HEAD
-    expect!["0x71b2d0f1b195e8c507accc592b838820790dae84ae6fbb6bf6a5d0b16f06b5"];
-||||||| f66f23c096
-    expect!["0x5739c61a60b8e74637dd4a4197cd33282b63c5af897af165566b59f6cf0402c"];
-=======
-    expect!["0x317e40fd1b4724ad4eb38b9986776a4aa7f90be406e08edecdc7f9e22358d7c"];
->>>>>>> origin/main-v0.14.1-committer
+    expect!["0x7bd24431961e9e14b62f66d468da98d0b1e215311af5c914fddb79dde11f59e"];
 const TEST_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-<<<<<<< HEAD
-    expect!["0x6b211d8c58fb5b988b82153ae2e37c8ba34ba8d1853cf5ef1b3453ff2c41fff"];
-||||||| f66f23c096
-    expect!["0x48486aa1aba6b121c7b80f6cd9a13607b2d6f4d51b9ea8728424562932977b0"];
-=======
-    expect!["0x61814f8af261c36aa3c9d8f593302bb8aa91a0e767a7153ef5d9710080828bf"];
->>>>>>> origin/main-v0.14.1-committer
+    expect!["0x2d8a7cd4e577d0ebfa84ff5011df4327f21e17a4ccb33491110921254c17e84"];
 
 const SIERRA_EXECUTION_INFO_V1_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
     expect!["0x4d9b6a21d9261ca5f4002ba074925ace389746af0dddc39c91514cced81a5e7"];
