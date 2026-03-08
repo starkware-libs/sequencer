@@ -71,17 +71,12 @@ pub(crate) struct ProposalBuildArguments {
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
-<<<<<<< HEAD
     // If true, for echonet mode, use the timestamp from the original block.
     pub override_timestamp: bool,
     pub override_l2_gas_price_fri: Option<u128>,
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
-||||||| f66f23c096
-    pub use_state_sync_block_timestamp: bool,
-=======
     pub use_state_sync_block_timestamp: bool,
     pub compare_retrospective_block_hash: bool,
->>>>>>> origin/main-v0.14.1-committer
 }
 
 type BuildProposalResult<T> = Result<T, BuildProposalError>;

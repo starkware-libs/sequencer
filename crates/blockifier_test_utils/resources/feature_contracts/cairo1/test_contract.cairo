@@ -275,11 +275,6 @@ mod TestContract {
     }
 
     #[external(v0)]
-<<<<<<< HEAD
-    fn test_get_execution_info_v3(
-||||||| f66f23c096
-    fn test_get_execution_info(
-=======
     fn test_get_block_hash_current_block_number(self: @ContractState) {
         let execution_info = get_execution_info().unbox();
         let block_info = execution_info.block_info.unbox();
@@ -291,8 +286,7 @@ mod TestContract {
     }
 
     #[external(v0)]
-    fn test_get_execution_info(
->>>>>>> origin/main-v0.14.1-committer
+    fn test_get_execution_info_v3(
         self: @ContractState,
         expected_block_info: BlockInfo,
         // Expected call info.

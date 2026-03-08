@@ -611,7 +611,6 @@ impl ConsensusContext for SequencerConsensusContext {
                 .config
                 .static_config
                 .retrospective_block_hash_retry_interval_millis,
-<<<<<<< HEAD
             override_timestamp,
             override_l2_gas_price_fri: self.config.dynamic_config.override_l2_gas_price_fri,
             min_l2_gas_price_per_height: self
@@ -619,15 +618,11 @@ impl ConsensusContext for SequencerConsensusContext {
                 .dynamic_config
                 .min_l2_gas_price_per_height
                 .clone(),
-||||||| f66f23c096
-            use_state_sync_block_timestamp,
-=======
             use_state_sync_block_timestamp,
             compare_retrospective_block_hash: self
                 .config
                 .dynamic_config
                 .compare_retrospective_block_hash,
->>>>>>> origin/main-v0.14.1-committer
         };
 
         let handle = tokio::spawn(
