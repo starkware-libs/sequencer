@@ -5,6 +5,7 @@
 //! and reconstructing them, including Merkle tree generation and unit preparation.
 
 use std::num::NonZeroUsize;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use libp2p::identity::{Keypair, PeerId};
 
@@ -106,6 +107,8 @@ pub fn create_units_to_publish(
     let signature = signature::sign_message_id(&message_root, &keypair)?;
 
     let mut messages = Vec::with_capacity(all_shards.len());
+    let timestamp =
+        SystemTime::now().duration_since(UNIX_EPOCH).expect("system clock is set").as_secs();
     for (index, shard) in all_shards.into_iter().enumerate() {
         let proof = merkle_tree
             .prove(index)
@@ -119,6 +122,7 @@ pub fn create_units_to_publish(
             ShardIndex(u32::try_from(index).expect("shard index exceeds u32::MAX")),
             shard,
             proof,
+            timestamp,
         );
         messages.push(message);
     }
