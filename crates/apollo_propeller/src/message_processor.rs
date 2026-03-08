@@ -1,6 +1,6 @@
 use std::ops::ControlFlow;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use libp2p::identity::{PeerId, PublicKey};
 use rand::seq::SliceRandom;
@@ -324,6 +324,10 @@ impl MessageProcessor {
                     unreachable!("Cannot be PostConstruction before transition")
                 }
             };
+            let timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system clock is set")
+                .as_secs();
             let reconstructed_unit = PropellerUnit::new(
                 self.channel,
                 self.publisher,
@@ -332,6 +336,7 @@ impl MessageProcessor {
                 self.my_shard_index,
                 my_shard,
                 my_shard_proof,
+                timestamp,
             );
             self.broadcast_unit(&reconstructed_unit);
         }
