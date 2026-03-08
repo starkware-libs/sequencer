@@ -202,25 +202,7 @@ pub(crate) async fn validate_proposal(
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
     let mut valid_proposals = args.valid_proposals.lock().unwrap();
-<<<<<<< HEAD
-    valid_proposals.insert_proposal_for_height(
-        &args.proposal_init_validation.height,
-        args.init,
-        content,
-        &args.proposal_id,
-        finished_info,
-    );
-||||||| c0699b312e
-    valid_proposals.insert_proposal_for_height(
-        &args.block_info_validation.height,
-        args.init,
-        content,
-        &args.proposal_id,
-        finished_info,
-    );
-=======
     valid_proposals.insert_proposal(args.init, content, &args.proposal_id, finished_info);
->>>>>>> origin/main-v0.14.2
 
     // TODO(matan): Switch to signature validation.
     if built_block != received_fin.proposal_commitment {
