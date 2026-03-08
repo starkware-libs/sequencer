@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772797673386,
+  "lastUpdate": 1772962128800,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2005,6 +2005,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1216.03722982,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8c4a2b6477f54558e34975fe0b86277072c7f223",
+          "message": "apollo_compile_to_native: update cairo-native to stable version (#13063)",
+          "timestamp": "2026-03-08T09:06:28Z",
+          "tree_id": "89465ff3c1b42680a34d54f7175a92e10eb29c15",
+          "url": "https://github.com/starkware-libs/sequencer/commit/8c4a2b6477f54558e34975fe0b86277072c7f223"
+        },
+        "date": 1772962128501,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 796.64011627,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1260.03497056,
             "unit": "ms"
           }
         ]
