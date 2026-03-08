@@ -3165,10 +3165,12 @@ async fn test_cairo0_proven_revert() {
 #[tokio::test]
 async fn test_get_block_hash_current_block_number() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let (mut test_manager, [test_contract_address]) = TestManager::new_with_default_initial_state(
-        [(test_contract, calldata![Felt::ONE, Felt::TWO])],
-    )
-    .await;
+    let (mut test_manager, [test_contract_address]) =
+        TestManager::<DictStateReader>::new_with_default_initial_state([(
+            test_contract,
+            calldata![Felt::ONE, Felt::TWO],
+        )])
+        .await;
 
     let calldata =
         create_calldata(test_contract_address, "test_get_block_hash_current_block_number", &[]);

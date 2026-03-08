@@ -141,9 +141,7 @@ impl<'state> SyscallHandlerBase<'state> {
         // in any case; it is consistent with the OS implementation and safe (see `Validate` arm).
         let current_block_number = self.context.tx_context.block_context.block_info.block_number.0;
 
-        if current_block_number < constants::STORED_BLOCK_HASH_BUFFER
-            || requested_block_number > current_block_number - constants::STORED_BLOCK_HASH_BUFFER
-        {
+        if !block_number_in_range(requested_block_number, current_block_number) {
             // Requested block is too recent.
             match self.context.execution_mode {
                 ExecutionMode::Execute => {
@@ -512,4 +510,12 @@ pub(crate) fn should_reject_deploy(
     execution_mode: ExecutionMode,
 ) -> bool {
     disable_deploy_in_validation_mode && execution_mode == ExecutionMode::Validate
+}
+
+/// Returns whether the given block number is within the range of stored block hashes
+/// relative to the current block number.
+pub fn block_number_in_range(requested_block_number: u64, current_block_number: u64) -> bool {
+    current_block_number
+        .checked_sub(constants::STORED_BLOCK_HASH_BUFFER)
+        .is_some_and(|oldest_allowed| requested_block_number <= oldest_allowed)
 }

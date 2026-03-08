@@ -1,11 +1,12 @@
-use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::{GasCosts, VersionedConstants};
 use blockifier::execution::execution_utils::ReadOnlySegment;
 use blockifier::execution::syscalls::hint_processor::{
+    BLOCK_NUMBER_OUT_OF_RANGE_ERROR_FELT,
     ENTRYPOINT_FAILED_ERROR_FELT,
     INVALID_ARGUMENT_FELT,
 };
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
+use blockifier::execution::syscalls::syscall_base::block_number_in_range;
 use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
 use blockifier::execution::syscalls::vm_syscall_utils::{
     CallContractRequest,
@@ -229,8 +230,12 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     ) -> Result<GetBlockHashResponse, Self::Error> {
         let block_number = request.block_number;
         let execution_helper = syscall_handler.get_mut_current_execution_helper()?;
-        let diff = execution_helper.os_block_input.block_info.block_number.0 - block_number.0;
-        assert!(diff >= STORED_BLOCK_HASH_BUFFER, "Block number out of range {diff}.");
+        let current_block_number = execution_helper.os_block_input.block_info.block_number.0;
+
+        if !block_number_in_range(block_number.0, current_block_number) {
+            return Err(handle_failure(BLOCK_NUMBER_OUT_OF_RANGE_ERROR_FELT));
+        }
+
         let block_hash = execution_helper
             .tx_execution_iter
             .get_mut_tx_execution_info_ref()?
