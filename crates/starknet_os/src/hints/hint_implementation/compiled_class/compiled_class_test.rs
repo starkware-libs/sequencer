@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use blockifier::execution::call_info::{ExtendedExecutionResources, OpcodeName};
 use blockifier::execution::casm_hash_estimation::{
     CasmV1HashResourceEstimate,
     CasmV2HashResourceEstimate,
@@ -109,13 +110,7 @@ trait HashVersionTestSpec {
         &self,
         bytecode_segment_felt_sizes: &NestedFeltCounts,
         entry_points_by_type: &EntryPointsByType<EntryPointV1>,
-    ) -> ExecutionResources;
-    /// Estimates the number of Blake opcodes used for the compiled class hash function.
-    fn estimated_blake_opcode_count(
-        &self,
-        bytecode_segment_felt_sizes: &NestedFeltCounts,
-        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
-    ) -> usize;
+    ) -> ExtendedExecutionResources;
 }
 
 impl HashVersionTestSpec for HashVersion {
@@ -188,37 +183,19 @@ impl HashVersionTestSpec for HashVersion {
         &self,
         bytecode_segment_felt_sizes: &NestedFeltCounts,
         entry_points_by_type: &EntryPointsByType<EntryPointV1>,
-    ) -> ExecutionResources {
+    ) -> ExtendedExecutionResources {
         match self {
             HashVersion::V1 => {
                 CasmV1HashResourceEstimate::estimated_resources_of_compiled_class_hash(
                     bytecode_segment_felt_sizes,
                     entry_points_by_type,
                 )
-                .resources()
             }
             HashVersion::V2 => {
                 CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
                     bytecode_segment_felt_sizes,
                     entry_points_by_type,
                 )
-                .resources()
-            }
-        }
-    }
-    fn estimated_blake_opcode_count(
-        &self,
-        bytecode_segment_felt_sizes: &NestedFeltCounts,
-        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
-    ) -> usize {
-        match self {
-            HashVersion::V1 => 0,
-            HashVersion::V2 => {
-                CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
-                    bytecode_segment_felt_sizes,
-                    entry_points_by_type,
-                )
-                .blake_count()
             }
         }
     }
@@ -593,14 +570,14 @@ fn compare_estimated_vs_actual_casm_hash_resources(
     );
 
     // Estimate resources.
-    let execution_resources_estimation = hash_version.estimate_execution_resources(
+    let estimated_resources = hash_version.estimate_execution_resources(
         &bytecode_segments,
-        &contract_class.entry_points_by_type.clone().into(),
+        &contract_class.entry_points_by_type.into(),
     );
 
     // Compare n_steps.
     let n_steps_margin =
-        execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
+        estimated_resources.vm_resources.n_steps.abs_diff(actual_execution_resources.n_steps);
     let allowed_n_steps_margin = hash_version.allowed_margin_n_steps();
     assert!(
         n_steps_margin <= allowed_n_steps_margin,
@@ -610,16 +587,14 @@ fn compare_estimated_vs_actual_casm_hash_resources(
 
     // Compare builtins.
     assert_eq!(
-        execution_resources_estimation.builtin_instance_counter,
+        estimated_resources.vm_resources.builtin_instance_counter,
         actual_execution_resources.filter_unused_builtins().builtin_instance_counter,
         "{contract_name}: Estimated builtins do not match actual builtins"
     );
 
     // Compare Blake opcode count.
-    let estimated_blake_opcode_count = hash_version.estimated_blake_opcode_count(
-        &bytecode_segments,
-        &contract_class.entry_points_by_type.into(),
-    );
+    let estimated_blake_opcode_count =
+        estimated_resources.opcode_instance_counter.get(&OpcodeName::blake).copied().unwrap_or(0);
     let blake_opcode_count_margin =
         estimated_blake_opcode_count.abs_diff(actual_opcode_instances.blake_opcode_count);
     let allowed_blake_opcode_count_margin = hash_version.allowed_margin_blake_opcode_count();
