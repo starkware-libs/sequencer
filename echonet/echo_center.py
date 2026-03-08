@@ -739,11 +739,11 @@ class EchoCenterService:
             headers=[["Content-Type", "text/plain; charset=utf-8"]],
         )
 
-    def handle_get_timestamp(self) -> flask.Response:
+    def handle_get_timestamp_and_block_number(self) -> flask.Response:
         """
-        GET /echonet/get_timestamp?tx_hash=0x...
+        GET /echonet/get_timestamp_and_block_number?tx_hash=0x...
 
-        Returns a JSON integer: the source block timestamp (seconds).
+        Returns a JSON object containing source block timestamp and block number.
         """
         args = flask.request.args.to_dict(flat=True)
         tx_hash = args.get("tx_hash")
@@ -753,8 +753,8 @@ class EchoCenterService:
                 requests.codes.bad_request,
             )
 
-        ts = self.shared.get_sent_tx_timestamp(tx_hash)
-        return self._json_response(ts, requests.codes.ok)
+        payload = self.shared.get_sent_tx_timestamp_and_block_number(tx_hash)
+        return self._json_response(payload, requests.codes.ok)
 
     def handle_block_dump(self) -> flask.Response:
         args = flask.request.args.to_dict(flat=True)
@@ -948,9 +948,9 @@ def report_snapshot() -> flask.Response:
     return service.handle_report_snapshot()
 
 
-@app.route("/echonet/get_timestamp", methods=["GET"])
-def get_timestamp() -> flask.Response:
-    return service.handle_get_timestamp()
+@app.route("/echonet/get_timestamp_and_block_number", methods=["GET"])
+def get_timestamp_and_block_number() -> flask.Response:
+    return service.handle_get_timestamp_and_block_number()
 
 
 @app.route("/echonet/block_dump", methods=["GET"])
