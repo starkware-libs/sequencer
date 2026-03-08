@@ -32,7 +32,10 @@ message PropellerUnit {
     // TODO(AndrewL): make it uint64 instead of uint32.
     // Logical channel identifier for multiplexing different message streams.
     uint32 channel = 7;
-    // TODO(AndrewL): CRITICAL: protect against replay attacks (maybe using a timestamp)
+    // A strictly increasing number, to avoid replays. 
+    // Current implementation is nanoseconds since UNIX_EPOCH.
+    // TODO(guyn): CRITICAL: protect against replay attacks using this timestamp
+    uint64 nonce = 8;
 }
 
 // A batch of PropellerUnits for efficient transmission.

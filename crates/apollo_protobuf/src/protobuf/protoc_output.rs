@@ -1066,10 +1066,13 @@ pub struct PropellerUnit {
     /// TODO(AndrewL): consider re-naming channel
     /// TODO(AndrewL): make it uint64 instead of uint32.
     /// Logical channel identifier for multiplexing different message streams.
-    ///
-    /// TODO(AndrewL): CRITICAL: protect against replay attacks (maybe using a timestamp)
     #[prost(uint32, tag = "7")]
     pub channel: u32,
+    /// A strictly increasing number, to avoid replays.
+    /// Current implementation is nanoseconds since UNIX_EPOCH.
+    /// TODO(guyn): CRITICAL: protect against replay attacks using this timestamp
+    #[prost(uint64, tag = "8")]
+    pub nonce: u64,
 }
 /// A batch of PropellerUnits for efficient transmission.
 #[allow(clippy::derive_partial_eq_without_eq)]
