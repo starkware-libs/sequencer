@@ -35,9 +35,6 @@ class BlockStoreTuning:
     max_blocks_to_keep_in_memory: int = 100
 
 
-BLOCK_STORE_TUNING = BlockStoreTuning()
-
-
 class ResyncTriggerPayload(TypedDict):
     """
     Metadata stored when a transaction causes a resync trigger.
@@ -192,6 +189,7 @@ class EchonetConfig:
     blocks: BlockRangeDefaults
     sleep: SleepConfig
     tx_sender: TxSenderTuning
+    block_store: BlockStoreTuning
     severity: SeverityConfig
     paths: PathsConfig
     tx_filter: TxFilterConfig
@@ -241,6 +239,9 @@ class EchonetConfig:
             sleep=SleepConfig(),
             tx_sender=TxSenderTuning(
                 max_pending_txs_before_pausing=max_pending_txs_before_pausing,
+            ),
+            block_store=BlockStoreTuning(
+                max_blocks_to_keep_in_memory=max_pending_txs_before_pausing,
             ),
             severity=SeverityConfig(),
             paths=PathsConfig(),
