@@ -592,7 +592,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<GetBlockHashResponse, Self::Error> {
-        let block_hash = BlockHash(syscall_handler.base.get_block_hash(request.block_number.0)?);
+        let block_hash = BlockHash(syscall_handler.base.get_block_hash(request.block_number)?);
         Ok(GetBlockHashResponse { block_hash })
     }
 
