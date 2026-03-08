@@ -4720,8 +4720,7 @@ dependencies = [
 [[package]]
 name = "cairo-vm"
 version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "182965d2ccbc05674f798b30097854ecf015eed695194a3a5fe9b682c4163b9d"
+source = "git+https://github.com/avivg-starkware/cairo-vm?rev=2ad6d5fba6df67da62309bb64d1482a47ad54132#2ad6d5fba6df67da62309bb64d1482a47ad54132"
 dependencies = [
  "anyhow",
  "bincode 2.0.1",
@@ -5516,7 +5515,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d162beedaa69905488a8da94f5ac3edb4dd4788b732fadb7bd120b2625c1976"
 dependencies = [
  "data-encoding",
- "syn 2.0.110",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -10345,7 +10344,7 @@ dependencies = [
  "once_cell",
  "socket2 0.6.1",
  "tracing",
- "windows-sys 0.60.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

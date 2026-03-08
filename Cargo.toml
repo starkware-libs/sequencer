@@ -254,7 +254,7 @@ cairo-lang-starknet-classes = "2.16.0"
 cairo-lang-utils = "2.16.0"
 cairo-native = "0.9.0-rc.2"
 cairo-program-runner-lib = "1.1.0"
-cairo-vm = "3.0.1"
+cairo-vm = "3.1.0"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
 clap = "4.5.4"
@@ -428,6 +428,9 @@ unexpected_cfgs = { level = "warn", check-cfg = [
   # removed from the workspace.
   'cfg(addr_of)',
 ] }
+
+[patch.crates-io]
+cairo-vm = { git = "https://github.com/avivg-starkware/cairo-vm", rev = "2ad6d5fba6df67da62309bb64d1482a47ad54132" }
 
 [workspace.lints.clippy]
 as_conversions = "warn"
