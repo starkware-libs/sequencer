@@ -1,17 +1,17 @@
 use toml_test_utils::{DependencyValue, ROOT_TOML};
 
-use crate::constants::CAIRO_NATIVE_GIT_REV;
+use crate::constants::REQUIRED_CAIRO_NATIVE_VERSION;
 
-// TODO(Avi): Revert to checking version once cairo-native is pinned to a stable crates.io release.
 #[test]
 fn required_cairo_native_version_test() {
-    let cairo_native_rev = ROOT_TOML
+    let cairo_native_version = ROOT_TOML
         .dependencies()
         .filter_map(|(name, value)| match (name.as_str(), value) {
-            ("cairo-native", DependencyValue::Object { rev, .. }) => rev.as_ref(),
+            ("cairo-native", DependencyValue::String(version)) => Some(version.as_str()),
+            ("cairo-native", DependencyValue::Object { version, .. }) => version.as_deref(),
             _ => None,
         })
         .next()
-        .expect("cairo-native dependency with rev not found in root toml file.");
-    assert_eq!(CAIRO_NATIVE_GIT_REV, cairo_native_rev);
+        .expect("cairo-native dependency not found in root toml file.");
+    assert_eq!(REQUIRED_CAIRO_NATIVE_VERSION, cairo_native_version);
 }
