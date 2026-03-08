@@ -252,6 +252,10 @@ impl Behaviour {
             kad_requesting: KadRequestingBehaviour::new(config.heartbeat_interval),
         }
     }
+
+    pub fn set_target_peers(&mut self, peers: std::collections::HashSet<PeerId>) {
+        self.kad_requesting.set_target_peers(peers);
+    }
 }
 
 impl From<ToOtherBehaviourEvent> for mixed_behaviour::Event {
