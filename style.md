@@ -107,6 +107,20 @@ Use `Result<T, E>` for recoverable errors and `panic!` only for bugs.
 Use `todo!` for to-be-completed code sections.
 Don't use `unreachable!` and `unimplemented!`, as they are very similar in meaning to `panic!` and `todo!` and it's not worth the headache of figuring which one fits better.
 
+### expect message
+
+Write `expect` messages for code readers, not for the program runner. Explain _why_ the error should never happen, not _what_ is the error. State the invariant rather than saying that it broke.
+
+```rust
+// BAD
+// This message is written for the program runner, and explains what is the error.
+std::env::var("IMPORTANT_PATH").expect("Failed to get IMPORTANT_PATH");
+
+// GOOD
+// This message is written for the code reader, and explains why the error should never happen.
+std::env::var("IMPORTANT_PATH").expect("IMPORTANT_PATH is set by wrapper_script.sh at startup");
+```
+
 ### Unnecessary panics
 If possible, avoid using code that can panic, and the only reason it doesn't panic is because of a check done above it. Instead, integrate both the check and the panicking code to one code that does both.
 
@@ -139,18 +153,6 @@ Always _consider_ using `checked_add` or `saturating_add` (depending on usage) i
 ### Assertions
 
 Prefer `expect` with useful information rather than unwrap, and use `unwrap` either in tests, or in absolutely trivial, bulletproof scenarios.
-
-In more detail: use `expect` only if you have additional information that explain why the value is assumed to exist. [Do not use `expect` as a boilerplate replacement for `unwrap`](https://doc.rust-lang.org/std/error/index.html#common-message-styles), this ends up just repeating information already encoded in rust's panic message:
-
-```rust
-// BAD
-// This is equivalent to unwrap, the expect message just repeats what will already be present in the panic message.
-std::env::var("IMPORTANT_PATH").expect("env variable `IMPORTANT_PATH` is not set");
-
-// GOOD
-let path = std::env::var("IMPORTANT_PATH")
-    .expect("env variable `IMPORTANT_PATH` was previously set by `wrapper_script.sh`");
-```
 
 Don't run any non-const code inside `expect`, it is evaluated eagerly which can have unexpected side effects, or unnecessary string allocations. See also [Lazy Gotchas](#lazy-gotchas---foo_or-vs-foo_or_else) section.
 
