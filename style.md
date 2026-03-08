@@ -423,6 +423,23 @@ fn test_get_user_name() {
 }
 ```
 
+### Sleep
+
+Never use `sleep` in tests, even for a few milliseconds. Real sleeping slows down your test suite and introduces flakiness due to timing issues.
+
+If you need to test code that calls `sleep`, use `tokio::time::pause()` and `tokio::time::advance()` to mock time:
+
+```rust
+#[tokio::test]
+async fn test_delayed_operation() {
+    tokio::time::pause(); // Pause real time
+
+    let handle = tokio::spawn(function_with_five_second_sleep());
+    tokio::time::advance(Duration::from_secs(5)).await;
+    assert_eq!(handle.await.unwrap(), "foo");
+}
+```
+
 ## Documentation Standards
 
 Use `///` as doc-strings for all non-trivial structs, functions and methods, and place it before the definition --- these show up on docs.rs and editor tooltips.
