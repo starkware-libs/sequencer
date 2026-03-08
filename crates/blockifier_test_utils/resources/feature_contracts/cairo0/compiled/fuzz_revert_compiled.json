@@ -38,7 +38,7 @@
         ],
         "EXTERNAL": [
             {
-                "offset": 578,
+                "offset": 658,
                 "selector": "0x8e64dfac867f301a439703710296f437e9f91d1bba17cfea5ad7f137a5acd"
             },
             {
@@ -110,18 +110,54 @@
                     "__main__",
                     "__main__.test_revert_fuzz"
                 ],
-                "end_pc": 574,
+                "end_pc": 606,
                 "flow_tracking_data": {
                     "ap_tracking": {
                         "group": 24,
-                        "offset": 70
+                        "offset": 165
+                    },
+                    "reference_ids": {}
+                },
+                "name": "error_message",
+                "start_pc": 602,
+                "value": "should_fail_call_non_existing_entry_point"
+            },
+            {
+                "accessible_scopes": [
+                    "__main__",
+                    "__main__",
+                    "__main__.test_revert_fuzz"
+                ],
+                "end_pc": 646,
+                "flow_tracking_data": {
+                    "ap_tracking": {
+                        "group": 24,
+                        "offset": 166
+                    },
+                    "reference_ids": {}
+                },
+                "name": "error_message",
+                "start_pc": 642,
+                "value": "should_fail_libcall_non_existing_entry_point"
+            },
+            {
+                "accessible_scopes": [
+                    "__main__",
+                    "__main__",
+                    "__main__.test_revert_fuzz"
+                ],
+                "end_pc": 654,
+                "flow_tracking_data": {
+                    "ap_tracking": {
+                        "group": 24,
+                        "offset": 72
                     },
                     "reference_ids": {
                         "__main__.test_revert_fuzz.scenario": 8
                     }
                 },
                 "name": "error_message",
-                "start_pc": 570,
+                "start_pc": 650,
                 "value": "Unknown scenario: {scenario}."
             }
         ],
@@ -701,20 +737,100 @@
             "0x48127feb7fff8000",
             "0x48127feb7fff8000",
             "0x208b7fff7fff7ffe",
+            "0x4826800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffff3",
+            "0x20680017fff7fff",
+            "0x26",
+            "0x48127fed7fff8000",
+            "0x48127fed7fff8000",
+            "0x48127fed7fff8000",
+            "0x480a80007fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe8a",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x480a80007fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe84",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x480a80007fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe7e",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdb2",
+            "0x48127ff77fff8000",
+            "0x48127fc57fff8000",
+            "0x48127fde7fff8000",
+            "0x480680017fff8000",
+            "0x0",
+            "0x48127ffb7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdaf",
+            "0x480680017fff8000",
+            "0x1",
+            "0x400680017fff7fff",
+            "0x0",
+            "0x48127ffc7fff8000",
+            "0x48127feb7fff8000",
+            "0x48127feb7fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x4826800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffff2",
+            "0x20680017fff7fff",
+            "0x26",
+            "0x48127fec7fff8000",
+            "0x48127fec7fff8000",
+            "0x48127fec7fff8000",
+            "0x480a80007fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe62",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x480a80007fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe5c",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x480a80007fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe56",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd8a",
+            "0x48127ff77fff8000",
+            "0x48127fc57fff8000",
+            "0x48127fde7fff8000",
+            "0x480680017fff8000",
+            "0x0",
+            "0x48127ffb7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd93",
+            "0x480680017fff8000",
+            "0x1",
+            "0x400680017fff7fff",
+            "0x0",
+            "0x48127ffc7fff8000",
+            "0x48127feb7fff8000",
+            "0x48127feb7fff8000",
+            "0x208b7fff7fff7ffe",
             "0x480680017fff8000",
             "0x0",
             "0x400680017fff7fff",
             "0x1",
-            "0x48127fed7fff8000",
-            "0x48127fed7fff8000",
-            "0x48127fed7fff8000",
+            "0x48127feb7fff8000",
+            "0x48127feb7fff8000",
+            "0x48127feb7fff8000",
             "0x208b7fff7fff7ffe",
             "0x402b7ffd7ffc7ffd",
             "0x480280007ffb8000",
             "0x480280017ffb8000",
             "0x480280027ffb8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe98",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe48",
             "0x40780017fff7fff",
             "0x1",
             "0x48127ffc7fff8000",
@@ -907,7 +1023,7 @@
                     }
                 }
             ],
-            "584": [
+            "664": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -939,6 +1055,10 @@
                 "type": "const",
                 "value": 1
             },
+            "__main__.SCENARIO_CALL_NON_EXISTING_ENTRY_POINT": {
+                "type": "const",
+                "value": 14
+            },
             "__main__.SCENARIO_CALL_UNDEPLOYED": {
                 "type": "const",
                 "value": 13
@@ -966,6 +1086,10 @@
             "__main__.SCENARIO_LIBRARY_CALL_NON_EXISTING": {
                 "type": "const",
                 "value": 10
+            },
+            "__main__.SCENARIO_LIBRARY_CALL_NON_EXISTING_ENTRY_POINT": {
+                "type": "const",
+                "value": 15
             },
             "__main__.SCENARIO_PANIC": {
                 "type": "const",
@@ -1597,7 +1721,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 578,
+                "pc": 658,
                 "type": "function"
             },
             "__wrappers__.test_revert_fuzz.Args": {

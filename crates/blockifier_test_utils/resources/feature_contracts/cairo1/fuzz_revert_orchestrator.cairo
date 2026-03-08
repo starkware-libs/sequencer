@@ -7,6 +7,8 @@ mod FuzzRevertOrchestratorContract {
 
     const OOB_ERROR: felt252 = 'index_OOB';
     const UNEXPECTED_FAIL_UNDEPLOYED: felt252 = 'should_fail_undeployed';
+    const UNEXPECTED_FAIL_CALL_NO_ENTRYPOINT: felt252 = 'call_no_entrypoint';
+    const UNEXPECTED_FAIL_LIBCALL_NO_ENTRYPOINT: felt252 = 'libcall_no_entrypoint';
 
     #[storage]
     struct Storage {
@@ -57,11 +59,22 @@ mod FuzzRevertOrchestratorContract {
         self.front_index.write(index_u64);
     }
 
-    /// Expose the unexpected panic message to the fuzz test contract(s), so they know what to panic
-    /// with in case of unexpected failures.
+    /// Expose the unexpected panic messages to the fuzz test contract(s), so they know what to
+    /// panic with in case of unexpected failures.
+
     #[external(v0)]
     fn should_fail_undeployed_panic_message(ref self: ContractState) -> felt252 {
         UNEXPECTED_FAIL_UNDEPLOYED
+    }
+
+    #[external(v0)]
+    fn should_fail_call_no_entrypoint_panic_message(ref self: ContractState) -> felt252 {
+        UNEXPECTED_FAIL_CALL_NO_ENTRYPOINT
+    }
+
+    #[external(v0)]
+    fn should_fail_libcall_no_entrypoint_panic_message(ref self: ContractState) -> felt252 {
+        UNEXPECTED_FAIL_LIBCALL_NO_ENTRYPOINT
     }
 
     /// Start the test. The first address must be an initialized fuzz test contract.
@@ -74,7 +87,12 @@ mod FuzzRevertOrchestratorContract {
             Result::Err(mut error) => {
                 // Assert the error is not any unexpected error.
                 let error_value = error.pop_front().unwrap();
-                for unexpected_error in array![OOB_ERROR, UNEXPECTED_FAIL_UNDEPLOYED]
+                for unexpected_error in array![
+                    OOB_ERROR,
+                    UNEXPECTED_FAIL_UNDEPLOYED,
+                    UNEXPECTED_FAIL_CALL_NO_ENTRYPOINT,
+                    UNEXPECTED_FAIL_LIBCALL_NO_ENTRYPOINT
+                ]
                     .span() {
                         assert(error_value != *unexpected_error, *unexpected_error);
                     }

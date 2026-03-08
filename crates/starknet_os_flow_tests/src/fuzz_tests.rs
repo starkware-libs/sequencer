@@ -1,10 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::LazyLock;
 
+use blockifier::execution::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR_FELT;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_lang_runner::short_string::as_cairo_short_string;
 use chrono::{Datelike, Utc};
 use expect_test::{expect, Expect};
 use itertools::Itertools;
@@ -45,6 +47,9 @@ static FUZZ_ENTRY_POINT: LazyLock<EntryPointSelector> =
 /// Dummy (undeployed) contract address.
 static UNDEPLOYED_CONTRACT_ADDRESS: LazyLock<ContractAddress> =
     LazyLock::new(|| ContractAddress::try_from(felt!("0xdeedee")).unwrap());
+/// Dummy (non-existing) entry point selector.
+static NON_EXISTING_ENTRY_POINT_SELECTOR: LazyLock<EntryPointSelector> =
+    LazyLock::new(|| selector_from_name("non_existing_entry_point"));
 
 /// Contracts.
 const ORCHESTRATOR_CONTRACT: FeatureContract =
@@ -72,15 +77,15 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 
 /// Initial fuzz contract addresses.
 static FUZZ_ADDRESS_ORCHESTRATOR_EXPECT: Expect =
-    expect!["0x19f4866af3211922b1f169d754c551042c8840305c62edef20fa1c3925246f4"];
+    expect!["0x48d3011bcdda581fa4955f6f49345624d37f97f8e6704818d24d135723e348"];
 static FUZZ_ADDRESS_CAIRO1_A_EXPECT: Expect =
-    expect!["0x7576e6f9cf24fd82654d988249d5f0d2094a3067839698adef41ea3a4075995"];
+    expect!["0xf7483b470a5d86e955440b0fb39df6bb72d20bb7cc0fee314d65c24821628a"];
 static FUZZ_ADDRESS_CAIRO1_B_EXPECT: Expect =
-    expect!["0x501aa0ef344a396715bf607b5caf8507237f05214feddd93a95fd87be73bc0c"];
+    expect!["0x582e1d41d1a1605fac84505f8bce20c0af27790c4ea04f7439ff06a8f5065ad"];
 static FUZZ_ADDRESS_CAIRO0_A_EXPECT: Expect =
-    expect!["0x1e0bddf921458a62975d980b21199c8a0a354c351e91e981bc7fe40dfe2eddc"];
+    expect!["0x3f28f31bd34948e63360724a4b10a01e2def8cfdd183c8c375c001fa0d196e1"];
 static FUZZ_ADDRESS_CAIRO0_B_EXPECT: Expect =
-    expect!["0x5d350dcca0834ba52301616b2e80cd35435a64881e2597f9b28b8e2b69893f5"];
+    expect!["0x64a59128579f46155e13a8d1628482b4af5ee9d4b540987e23a72c5cf467e30"];
 static FUZZ_ADDRESS_ORCHESTRATOR: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress::try_from(felt!(FUZZ_ADDRESS_ORCHESTRATOR_EXPECT.data())).unwrap()
 });
@@ -112,6 +117,8 @@ static PANIC_SCENARIO_MESSAGE_FELT: LazyLock<Felt> =
     LazyLock::new(|| Felt::from_bytes_be_slice(PANIC_SCENARIO_MESSAGE.as_bytes()));
 const UNDECLARED_SCENARIO_MESSAGE: &str = "is not declared";
 const UNDEPLOYED_SCENARIO_MESSAGE: &str = "is not deployed";
+static NON_EXISTING_ENTRY_POINT_MESSAGE: LazyLock<String> =
+    LazyLock::new(|| as_cairo_short_string(&ENTRYPOINT_NOT_FOUND_ERROR_FELT).unwrap());
 
 /// Storage key that can be written to.
 static VALID_STORAGE_KEYS: LazyLock<Vec<Felt>> =
@@ -137,7 +144,6 @@ const OP_FILTER_CALL_WRITE_PANIC_RETURN: OperationFilter = op_filter_call_write_
 
 // TODO(Dori): Operations to add:
 // 3. events
-// 4. call / libcall non-existing entry points (should panic) (catchable in cairo0 even?)
 #[derive(Clone, Copy, EnumIter)]
 enum FuzzOperation {
     Return,
@@ -154,6 +160,8 @@ enum FuzzOperation {
     Sha256,
     Keccak,
     CallUndeployed,
+    CallNonexistingEntryPoint,
+    LibraryCallNonexistingEntryPoint,
 }
 
 impl FuzzOperation {
@@ -173,6 +181,8 @@ impl FuzzOperation {
             Self::Sha256 => 11u8,
             Self::Keccak => 12u8,
             Self::CallUndeployed => 13u8,
+            Self::CallNonexistingEntryPoint => 14u8,
+            Self::LibraryCallNonexistingEntryPoint => 15u8,
         })
     }
 }
@@ -238,6 +248,8 @@ enum FuzzOperationData {
     Sha256(Felt),
     Keccak(Felt),
     CallUndeployed(CallOperationData),
+    CallNonexistingEntryPoint(CallOperationData),
+    LibraryCallNonexistingEntryPoint(LibraryCallOperationData),
 }
 
 impl FuzzOperationData {
@@ -257,6 +269,10 @@ impl FuzzOperationData {
             Self::Sha256(_) => FuzzOperation::Sha256,
             Self::Keccak(_) => FuzzOperation::Keccak,
             Self::CallUndeployed(_) => FuzzOperation::CallUndeployed,
+            Self::CallNonexistingEntryPoint(_) => FuzzOperation::CallNonexistingEntryPoint,
+            Self::LibraryCallNonexistingEntryPoint(_) => {
+                FuzzOperation::LibraryCallNonexistingEntryPoint
+            }
         }
     }
 
@@ -269,8 +285,10 @@ impl FuzzOperationData {
             | Self::IncrementCounter
             | Self::DeployNonexisting
             | Self::LibraryCallNonexistingClass => vec![],
-            Self::Call(op) | Self::CallUndeployed(op) => op.felt_vector(),
-            Self::LibraryCall(op) => op.felt_vector(),
+            Self::Call(op) | Self::CallUndeployed(op) | Self::CallNonexistingEntryPoint(op) => {
+                op.felt_vector()
+            }
+            Self::LibraryCall(op) | Self::LibraryCallNonexistingEntryPoint(op) => op.felt_vector(),
             Self::Write(storage_key, value) => vec![***storage_key, value.0],
             Self::ReplaceClass(class_hash) => vec![class_hash.0],
             Self::Deploy { class_hash, salt } => vec![class_hash.0, salt.0],
@@ -632,6 +650,54 @@ impl FuzzTestContext {
                     unwraps_error: true,
                 })]
             }
+            FuzzOperation::CallNonexistingEntryPoint => {
+                // Two address options: Cairo0 and Cairo1.
+                // In both cases the error should be able to propagate (even a missing entry point
+                // in a Cairo0 class).
+                let from_cairo1 = self.is_current_context_cairo1();
+                let possible_unwraps_errors =
+                    if from_cairo1 { vec![true, false] } else { vec![true] };
+                possible_unwraps_errors
+                    .into_iter()
+                    .flat_map(|unwraps_error| {
+                        [*FUZZ_ADDRESS_CAIRO0_A, *FUZZ_ADDRESS_CAIRO1_A].into_iter().map(
+                            move |address| {
+                                FuzzOperationData::CallNonexistingEntryPoint(CallOperationData {
+                                    from_cairo1,
+                                    address,
+                                    selector: *NON_EXISTING_ENTRY_POINT_SELECTOR,
+                                    unwraps_error,
+                                })
+                            },
+                        )
+                    })
+                    .collect()
+            }
+            FuzzOperation::LibraryCallNonexistingEntryPoint => {
+                // Two class hash options: Cairo0 and Cairo1.
+                // In both cases the error should be able to propagate (even a missing entry point
+                // in a Cairo0 class).
+                let from_cairo1 = self.is_current_context_cairo1();
+                let possible_unwraps_errors =
+                    if from_cairo1 { vec![true, false] } else { vec![true] };
+                possible_unwraps_errors
+                    .into_iter()
+                    .flat_map(|unwraps_error| {
+                        [*CAIRO0_CONTRACT_CLASS_HASH, *CAIRO1_CONTRACT_CLASS_HASH].into_iter().map(
+                            move |class_hash| {
+                                FuzzOperationData::LibraryCallNonexistingEntryPoint(
+                                    LibraryCallOperationData {
+                                        from_cairo1,
+                                        class_hash,
+                                        selector: *NON_EXISTING_ENTRY_POINT_SELECTOR,
+                                        unwraps_error,
+                                    },
+                                )
+                            },
+                        )
+                    })
+                    .collect()
+            }
         }
     }
 
@@ -880,6 +946,28 @@ impl FuzzTestContext {
                 // Unrecoverable error (we do not prove addresses are not initialized).
                 self.pop_entire_call_tree(Some(UNDEPLOYED_SCENARIO_MESSAGE.to_string()));
             }
+            FuzzOperationData::CallNonexistingEntryPoint(call_operation_data) => {
+                // Push a fake frame to the call tree to utilize the parent-catching behavior when
+                // applying the panic. The fake frame should be a Cairo1 contract, to prevent the
+                // apply_panic logic from reverting the entire tx.
+                self.enter_call(
+                    *FUZZ_ADDRESS_CAIRO1_A,
+                    *CAIRO1_CONTRACT_CLASS_HASH,
+                    call_operation_data.parent_failure_behavior(),
+                );
+                self.apply_panic(NON_EXISTING_ENTRY_POINT_MESSAGE.clone());
+            }
+            FuzzOperationData::LibraryCallNonexistingEntryPoint(library_call_operation_data) => {
+                // Push a fake frame to the call tree to utilize the parent-catching behavior when
+                // applying the panic. The fake frame should be a Cairo1 contract, to prevent the
+                // apply_panic logic from reverting the entire tx.
+                self.enter_call(
+                    *FUZZ_ADDRESS_CAIRO1_A,
+                    *CAIRO1_CONTRACT_CLASS_HASH,
+                    library_call_operation_data.parent_failure_behavior(),
+                );
+                self.apply_panic(NON_EXISTING_ENTRY_POINT_MESSAGE.clone());
+            }
         }
     }
 
@@ -1004,6 +1092,12 @@ impl FuzzTestContext {
                     selector,
                     unwraps_error,
                     ..
+                })
+                | FuzzOperationData::CallNonexistingEntryPoint(CallOperationData {
+                    address,
+                    selector,
+                    unwraps_error,
+                    ..
                 }) => {
                     // It's possible that the address is no longer deployed (post-revert).
                     let class_info_string = match self.try_class_hash_of(address) {
@@ -1030,6 +1124,12 @@ impl FuzzTestContext {
                     ]
                 }
                 FuzzOperationData::LibraryCall(LibraryCallOperationData {
+                    class_hash,
+                    selector,
+                    unwraps_error,
+                    ..
+                })
+                | FuzzOperationData::LibraryCallNonexistingEntryPoint(LibraryCallOperationData {
                     class_hash,
                     selector,
                     unwraps_error,
