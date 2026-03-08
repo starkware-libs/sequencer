@@ -30,7 +30,7 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::StarknetApiError;
-use strum::{EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
+use strum::{EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, instrument, warn};
 
@@ -79,7 +79,7 @@ pub(crate) struct ProposalInitValidation {
 enum HandledProposalPart {
     Continue,
     Invalid(String),
-    Finished(ProposalCommitment, ProposalFin, FinishedProposalInfo),
+    Finished(ProposalCommitment, Box<ProposalFin>, FinishedProposalInfo),
     Failed(String),
 }
 
@@ -88,7 +88,7 @@ type ValidateProposalResult<T> = Result<T, ValidateProposalError>;
 #[derive(Debug, thiserror::Error, EnumDiscriminants)]
 #[strum_discriminants(
     name(ValidateProposalFailureReasonLabelValue),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    derive(IntoStaticStr, EnumIter, VariantNames),
     strum(serialize_all = "snake_case")
 )]
 pub(crate) enum ValidateProposalError {
@@ -202,6 +202,7 @@ pub(crate) async fn validate_proposal(
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
     let mut valid_proposals = args.valid_proposals.lock().unwrap();
+<<<<<<< HEAD
     valid_proposals.insert_proposal_for_height(
         &args.proposal_init_validation.height,
         args.init,
@@ -209,6 +210,17 @@ pub(crate) async fn validate_proposal(
         &args.proposal_id,
         finished_info,
     );
+||||||| c0699b312e
+    valid_proposals.insert_proposal_for_height(
+        &args.block_info_validation.height,
+        args.init,
+        content,
+        &args.proposal_id,
+        finished_info,
+    );
+=======
+    valid_proposals.insert_proposal(args.init, content, &args.proposal_id, finished_info);
+>>>>>>> origin/main-v0.14.2
 
     // TODO(matan): Switch to signature validation.
     if built_block != received_fin.proposal_commitment {
@@ -422,7 +434,7 @@ async fn handle_proposal_part(
                 }
             };
             let batcher_block_commitment =
-                ProposalCommitment(finished_info.proposal_commitment.state_diff_commitment.0.0);
+                ProposalCommitment(finished_info.proposal_commitment.partial_block_hash.0);
 
             info!(
                 network_block_commitment = ?fin.proposal_commitment,
@@ -433,7 +445,7 @@ async fn handle_proposal_part(
             if executed_txs_count == 0 {
                 warn!("Validated an empty proposal.");
             }
-            HandledProposalPart::Finished(batcher_block_commitment, fin, finished_info)
+            HandledProposalPart::Finished(batcher_block_commitment, Box::new(fin), finished_info)
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             // TODO(guyn): check that the length of txs and the number of batches we receive is not

@@ -71,8 +71,10 @@ use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::{BlockHash, BlockNumber, UnixTimestamp};
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
-use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
+use starknet_api::block_hash::block_hash_calculator::{
+    PartialBlockHash,
+    PartialBlockHashComponents,
+};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, GlobalRoot, Nonce, StateDiffCommitment};
 use starknet_api::state::{StateNumber, ThinStateDiff};
@@ -818,7 +820,6 @@ impl Batcher {
 
         Ok(DecisionReachedResponse {
             state_diff,
-            l2_gas_used: block_execution_artifacts.l2_gas_used,
             central_objects: CentralObjects {
                 execution_infos,
                 bouncer_weights: block_execution_artifacts.bouncer_weights,
@@ -849,7 +850,25 @@ impl Batcher {
         );
         trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
 
-        let state_diff_commitment = calculate_state_diff_hash(&state_diff);
+        // Proposal commitment is the the partial block hash when it's available, and None
+        // otherwise. The commitment is computed here to set the prev_proposal_commitment cache. As
+        // this cache is only used for blocks obtained through the decision_reached flow, it can
+        // be None for old (pre 0.13.2) blocks.
+        let proposal_commitment = match &storage_commitment_block_hash {
+            StorageCommitmentBlockHash::Partial(components) => Some((
+                height,
+                ProposalCommitment {
+                    partial_block_hash: PartialBlockHash::from_partial_block_hash_components(
+                        components,
+                    )
+                    .map_err(|e| {
+                        error!("Failed to compute partial block hash: {}", e);
+                        BatcherError::InternalError
+                    })?,
+                },
+            )),
+            StorageCommitmentBlockHash::ParentHash(_) => None,
+        };
 
         // Commit the proposal to the storage.
         self.storage_writer
@@ -859,8 +878,8 @@ impl Batcher {
                 BatcherError::InternalError
             })?;
         info!("Successfully committed proposal for block {} to storage.", height);
-        self.prev_proposal_commitment =
-            Some((height, ProposalCommitment { state_diff_commitment }));
+
+        self.prev_proposal_commitment = proposal_commitment;
 
         // Notify the L1 provider of the new block.
         let rejected_l1_handler_tx_hashes = rejected_tx_hashes
@@ -1019,10 +1038,7 @@ impl Batcher {
         };
         let parent_proposal_commitment =
             self.active_height.and_then(|h| self.get_parent_proposal_commitment(h).ok().flatten());
-        Some(Ok(FinishedProposalInfo::from_artifacts_and_parent(
-            artifact_derived,
-            parent_proposal_commitment,
-        )))
+        Some(Ok(FinishedProposalInfo::new(artifact_derived, parent_proposal_commitment)))
     }
 
     // Ends the current active proposal.
@@ -1159,21 +1175,30 @@ impl Batcher {
                 Ok(Some(commitment))
             }
             None => {
-                // Parent proposal commitment is not cached. Compute it from the stored state diff.
-                let state_diff = self
+                // Parent proposal commitment is not cached. Read partial block hash
+                // components from storage and compute the partial block hash.
+                let (_, components) = self
                     .storage_reader
-                    .get_state_diff(prev_height)
+                    .get_parent_hash_and_partial_block_hash_components(prev_height)
                     .map_err(|err| {
                         error!(
-                            "Failed to read state diff for previous height {prev_height}: {}",
+                            "Failed to read partial block hash components for previous height \
+                             {prev_height}: {}",
                             err
                         );
                         BatcherError::InternalError
-                    })?
-                    .expect("Missing state diff for previous height.");
+                    })?;
+                let components =
+                    components.expect("Missing partial block hash components for previous height.");
 
                 Ok(Some(ProposalCommitment {
-                    state_diff_commitment: calculate_state_diff_hash(&state_diff),
+                    partial_block_hash: PartialBlockHash::from_partial_block_hash_components(
+                        &components,
+                    )
+                    .map_err(|e| {
+                        error!("Failed to compute partial block hash: {}", e);
+                        BatcherError::InternalError
+                    })?,
                 }))
             }
         }
@@ -1248,13 +1273,26 @@ impl Batcher {
 
     pub fn get_block_hash(&mut self, block_number: BlockNumber) -> BatcherResult<BlockHash> {
         self.get_commitment_results_and_write_to_storage()?;
-        self.storage_reader
+        let cache = &mut self.commitment_manager.recent_block_hashes_cache;
+
+        // Try to get the block hash from the cache.
+        if let Some(block_hash) = cache.get(&block_number) {
+            return Ok(*block_hash);
+        }
+
+        // If the block hash is not in the cache, fetch it from storage.
+        info!("Block hash of block {block_number} not found in cache, fetching from storage.");
+        // TODO(Nimrod): Consider adding block-hashes cache misses metric.
+        let block_hash = self
+            .storage_reader
             .get_block_hash(block_number)
             .map_err(|err| {
                 error!("Failed to get block hash from storage: {err}");
                 BatcherError::InternalError
             })?
-            .ok_or(BatcherError::BlockHashNotFound(block_number))
+            .ok_or(BatcherError::BlockHashNotFound(block_number))?;
+        cache.put(block_number, block_hash);
+        Ok(block_hash)
     }
 
     fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
@@ -1641,7 +1679,7 @@ pub enum StorageCommitmentBlockHash {
 }
 
 /// Builds the artifact-derived part of [`FinishedProposalInfo`]. Pass the result to
-/// [`FinishedProposalInfo::from_artifacts_and_parent`] with the parent commitment.
+/// [`FinishedProposalInfo::new`] with the parent commitment.
 pub(crate) fn finished_proposal_info_from_artifacts(
     artifacts: &BlockExecutionArtifacts,
 ) -> FinishedProposalInfoWithoutParent {
@@ -1649,5 +1687,6 @@ pub(crate) fn finished_proposal_info_from_artifacts(
         proposal_commitment: artifacts.commitment(),
         final_n_executed_txs: artifacts.final_n_executed_txs,
         block_header_commitments: artifacts.partial_block_hash_components().header_commitments,
+        l2_gas_used: artifacts.l2_gas_used,
     }
 }

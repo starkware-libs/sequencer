@@ -120,7 +120,14 @@ jobs:
       # are deleted before the runner reaches this step.
       - uses: actions/checkout@v6
         with:
+<<<<<<< HEAD
           ref: ${{ github.event.pull_request.base.sha }}
+||||||| c0699b312e
+          ref: ${{ github.base_ref }}
+=======
+          ref: ${{ github.base_ref }}
+          fetch-depth: 0
+>>>>>>> origin/main-v0.14.2
 
       - uses: ./.github/actions/bootstrap
         with:

@@ -108,10 +108,11 @@ class L1Blocks:
         feeder_tx: dict,
         l2_block_timestamp: int,
         client: L1Client,
-        search_minutes_before: int = 5,
+        search_minutes_before: float = 5.5,
     ) -> Optional[int]:
         """
         Finds the L1 block number that contains the given L1 handler transaction.
+        Searches backwards from l2_block_timestamp by search_minutes_before minutes (default 5.5 minutes).
         """
         if "transaction_hash" not in feeder_tx:
             logger.error("Feeder tx does not contain transaction_hash.")
@@ -121,7 +122,7 @@ class L1Blocks:
         if reference_block is None:
             return None
 
-        search_start_timestamp = l2_block_timestamp - (search_minutes_before * 60)
+        search_start_timestamp = int(l2_block_timestamp - (search_minutes_before * 60))
         search_end_timestamp = l2_block_timestamp
 
         start_block = L1Blocks._find_block_near_timestamp(
@@ -148,7 +149,7 @@ class L1Blocks:
                 return l1_event.block_number
 
         # Not found in this range
-        logger.info(
+        logger.warning(
             f"No matching L1 block found for L2 tx: {feeder_tx['transaction_hash']} "
             f"in the range {timestamp_to_iso(search_start_timestamp)} to {timestamp_to_iso(search_end_timestamp)}"
         )

@@ -158,7 +158,7 @@ checksum = "bfaa9ea039a6f9304b4a593d780b1f23e1ae183acdee938b11b38795acacc9f1"
 dependencies = [
  "alloy-primitives",
  "num_enum",
- "strum 0.27.2",
+ "strum",
 ]
 
 [[package]]
@@ -664,7 +664,7 @@ dependencies = [
  "alloy-json-abi",
  "alloy-sol-macro-input",
  "const-hex",
- "heck 0.5.0",
+ "heck",
  "indexmap 2.12.0",
  "proc-macro-error2",
  "proc-macro2",
@@ -683,7 +683,7 @@ dependencies = [
  "alloy-json-abi",
  "const-hex",
  "dunce",
- "heck 0.5.0",
+ "heck",
  "macro-string",
  "proc-macro2",
  "quote",
@@ -898,6 +898,7 @@ dependencies = [
  "futures",
  "indexmap 2.12.0",
  "itertools 0.12.1",
+ "lru 0.12.5",
  "mempool_test_utils",
  "metrics",
  "metrics-exporter-prometheus",
@@ -909,7 +910,7 @@ dependencies = [
  "serde",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -950,7 +951,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
  "tower",
@@ -1019,7 +1020,7 @@ dependencies = [
  "hex",
  "mockall",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -1053,7 +1054,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -1098,7 +1099,7 @@ dependencies = [
  "serde",
  "starknet_api",
  "starknet_committer",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
 ]
@@ -1158,7 +1159,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -1201,7 +1202,7 @@ dependencies = [
  "lazy_static",
  "serde",
  "serde_json",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "thiserror 1.0.69",
  "tracing",
@@ -1265,7 +1266,7 @@ dependencies = [
  "async-trait",
  "mockall",
  "serde",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -1298,7 +1299,7 @@ dependencies = [
  "serde",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "test-case",
  "thiserror 1.0.69",
@@ -1374,6 +1375,7 @@ dependencies = [
  "apollo_batcher",
  "apollo_batcher_types",
  "apollo_class_manager_types",
+ "apollo_config",
  "apollo_config_manager_types",
  "apollo_consensus",
  "apollo_consensus_orchestrator_config",
@@ -1420,7 +1422,7 @@ dependencies = [
  "shared_execution_objects",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
  "tokio-util",
@@ -1463,6 +1465,7 @@ dependencies = [
  "apollo_metrics",
  "apollo_network",
  "apollo_proof_manager",
+ "apollo_staking",
  "apollo_state_sync_metrics",
  "apollo_storage",
  "apollo_transaction_converter",
@@ -1486,7 +1489,7 @@ dependencies = [
  "serde",
  "serde_json",
  "static_assertions",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "url",
 ]
@@ -1529,7 +1532,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -1566,7 +1569,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tracing",
 ]
@@ -1591,6 +1594,7 @@ dependencies = [
  "blockifier_test_utils",
  "flate2",
  "futures",
+ "http 1.3.1",
  "http-body-util",
  "mempool_test_utils",
  "metrics",
@@ -1644,7 +1648,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "time",
  "tokio",
@@ -1669,7 +1673,7 @@ dependencies = [
  "serde",
  "serde_json",
  "socket2 0.5.10",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -1735,6 +1739,7 @@ dependencies = [
  "clap",
  "futures",
  "hex",
+ "http 1.3.1",
  "indexmap 2.12.0",
  "mempool_test_utils",
  "metrics",
@@ -1748,7 +1753,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "static_assertions",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "tokio",
  "tokio-util",
@@ -1866,15 +1871,158 @@ dependencies = [
  "reqwest 0.12.24",
  "serde",
  "starknet_api",
+ "strum",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
+<<<<<<< HEAD
+||||||| c0699b312e
+name = "apollo_l1_provider"
+version = "0.18.0-dev.0"
+dependencies = [
+ "alloy",
+ "apollo_base_layer_tests",
+ "apollo_infra",
+ "apollo_infra_utils",
+ "apollo_l1_provider_config",
+ "apollo_l1_provider_types",
+ "apollo_l1_scraper_config",
+ "apollo_metrics",
+ "apollo_state_sync_types",
+ "apollo_time",
+ "assert_matches",
+ "async-trait",
+ "chrono",
+ "futures",
+ "indexmap 2.12.0",
+ "itertools 0.12.1",
+ "mockall",
+ "papyrus_base_layer",
+ "pretty_assertions",
+ "rstest",
+ "starknet-types-core",
+ "starknet_api",
+ "static_assertions",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "apollo_l1_provider_config"
+version = "0.18.0-dev.0"
+dependencies = [
+ "apollo_config",
+ "serde",
+ "validator",
+]
+
+[[package]]
+name = "apollo_l1_provider_types"
+version = "0.18.0-dev.0"
+dependencies = [
+ "apollo_infra",
+ "apollo_metrics",
+ "async-trait",
+ "indexmap 2.12.0",
+ "mockall",
+ "papyrus_base_layer",
+ "serde",
+ "starknet_api",
  "strum 0.25.0",
  "thiserror 1.0.69",
  "tracing",
 ]
 
 [[package]]
+name = "apollo_l1_scraper_config"
+version = "0.18.0-dev.0"
+dependencies = [
+ "apollo_config",
+ "serde",
+ "starknet_api",
+ "validator",
+]
+
+[[package]]
+=======
+name = "apollo_l1_provider"
+version = "0.18.0-dev.0"
+dependencies = [
+ "alloy",
+ "apollo_base_layer_tests",
+ "apollo_infra",
+ "apollo_infra_utils",
+ "apollo_l1_provider_config",
+ "apollo_l1_provider_types",
+ "apollo_l1_scraper_config",
+ "apollo_metrics",
+ "apollo_state_sync_types",
+ "apollo_time",
+ "assert_matches",
+ "async-trait",
+ "chrono",
+ "futures",
+ "indexmap 2.12.0",
+ "itertools 0.12.1",
+ "mockall",
+ "papyrus_base_layer",
+ "pretty_assertions",
+ "rstest",
+ "starknet-types-core",
+ "starknet_api",
+ "static_assertions",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "apollo_l1_provider_config"
+version = "0.18.0-dev.0"
+dependencies = [
+ "apollo_config",
+ "serde",
+ "validator",
+]
+
+[[package]]
+name = "apollo_l1_provider_types"
+version = "0.18.0-dev.0"
+dependencies = [
+ "apollo_infra",
+ "apollo_metrics",
+ "async-trait",
+ "indexmap 2.12.0",
+ "mockall",
+ "papyrus_base_layer",
+ "serde",
+ "starknet_api",
+ "strum",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
+name = "apollo_l1_scraper_config"
+version = "0.18.0-dev.0"
+dependencies = [
+ "apollo_config",
+ "serde",
+ "starknet_api",
+ "validator",
+]
+
+[[package]]
+>>>>>>> origin/main-v0.14.2
 name = "apollo_mempool"
 version = "0.0.0"
 dependencies = [
+ "apollo_config",
  "apollo_config_manager_types",
  "apollo_infra",
  "apollo_mempool_config",
@@ -1887,6 +2035,7 @@ dependencies = [
  "apollo_time",
  "assert_matches",
  "async-trait",
+ "axum",
  "blockifier",
  "blockifier_test_utils",
  "criterion",
@@ -1900,10 +2049,14 @@ dependencies = [
  "mockall",
  "pretty_assertions",
  "rand 0.8.5",
+ "reqwest 0.12.24",
+ "reqwest-middleware 0.4.2",
+ "reqwest-retry",
  "rstest",
+ "serde",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "tokio",
  "tracing",
 ]
@@ -1914,6 +2067,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_config",
  "serde",
+ "url",
  "validator",
 ]
 
@@ -1964,7 +2118,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -1980,7 +2134,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -1996,7 +2150,7 @@ dependencies = [
  "paste",
  "regex",
  "rstest",
- "strum 0.25.0",
+ "strum",
  "tracing",
 ]
 
@@ -2063,7 +2217,7 @@ dependencies = [
  "rstest",
  "serde",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
  "tokio-retry",
@@ -2301,7 +2455,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -2310,6 +2464,7 @@ name = "apollo_propeller"
 version = "0.0.0"
 dependencies = [
  "apollo_infra_utils",
+ "apollo_metrics",
  "apollo_protobuf",
  "asynchronous-codec",
  "futures",
@@ -2415,7 +2570,7 @@ dependencies = [
  "starknet-core",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "tokio",
  "tower",
  "tracing",
@@ -2495,7 +2650,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -2530,7 +2685,6 @@ dependencies = [
  "async-trait",
  "blockifier",
  "blockifier_test_utils",
- "metrics",
  "mockall",
  "rstest",
  "sha2 0.10.9",
@@ -2579,7 +2733,7 @@ dependencies = [
  "simple_logger",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
  "tokio-retry",
@@ -2693,7 +2847,7 @@ dependencies = [
  "serde",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -2716,13 +2870,14 @@ dependencies = [
  "camelpaste",
  "clap",
  "futures",
+ "http 1.3.1",
  "http-body-util",
  "human_bytes",
  "indexmap 2.12.0",
  "insta",
  "integer-encoding",
  "libmdbx",
- "memmap2",
+ "memmap2 0.8.0",
  "metrics",
  "metrics-exporter-prometheus",
  "nix 0.20.2",
@@ -3487,8 +3642,18 @@ version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "36eaf5d7b090263e8150820482d5d93cd964a81e4019913c972f4edcc6edb740"
 dependencies = [
+ "bincode_derive",
  "serde",
  "unty",
+]
+
+[[package]]
+name = "bincode_derive"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf95709a440f45e986983918d0e8a1f30a9b1df04918fc828670606804ac3c09"
+dependencies = [
+ "virtue",
 ]
 
 [[package]]
@@ -3723,7 +3888,7 @@ dependencies = [
  "sha2 0.10.9",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "test-case",
  "thiserror 1.0.69",
  "tikv-jemallocator",
@@ -3773,7 +3938,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "tokio",
  "tracing",
@@ -4099,6 +4264,62 @@ checksum = "52ced1b8adfda1b7754180e739d1a5c5a78f82635c01f4aa0a3110b928e6e6ac"
 dependencies = [
  "cairo-lang-utils",
  "good_lp",
+]
+
+[[package]]
+name = "cairo-lang-executable"
+version = "2.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86b9617e7eb91fd18b19d86b6f58ace4c6111b9ac479d114f5f07812a4f81608"
+dependencies = [
+ "anyhow",
+ "cairo-lang-casm",
+ "cairo-lang-compiler",
+ "cairo-lang-debug",
+ "cairo-lang-executable-plugin",
+ "cairo-lang-filesystem",
+ "cairo-lang-lowering",
+ "cairo-lang-runnable-utils",
+ "cairo-lang-semantic",
+ "cairo-lang-sierra-generator",
+ "cairo-lang-sierra-to-casm",
+ "cairo-lang-utils",
+ "cairo-vm",
+ "itertools 0.14.0",
+ "salsa",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "cairo-lang-executable-plugin"
+version = "2.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2dcb7afdeedb4dce0b5009172ec2c477f7e86ee6261812cc14acca1a830e281"
+dependencies = [
+ "cairo-lang-defs",
+ "cairo-lang-filesystem",
+ "cairo-lang-semantic",
+ "cairo-lang-syntax",
+ "indoc 2.0.7",
+ "itertools 0.14.0",
+ "salsa",
+]
+
+[[package]]
+name = "cairo-lang-execute-utils"
+version = "2.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d64c15b3b69010d03df375094afa3bcd7948546b8d85b31177abcfaf5dfaee87"
+dependencies = [
+ "anyhow",
+ "cairo-lang-casm",
+ "cairo-lang-executable",
+ "cairo-lang-runner",
+ "cairo-lang-utils",
+ "cairo-vm",
+ "num-bigint",
+ "serde_json",
 ]
 
 [[package]]
@@ -4556,8 +4777,17 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
+<<<<<<< HEAD
 version = "0.9.0-rc.1"
 source = "git+https://github.com/lambdaclass/cairo_native?branch=tomer%2Fblake_builtin#d1169689106ed7fec9e864ff8172b4dd2bd87c74"
+||||||| c0699b312e
+version = "0.9.0-rc.1"
+source = "git+https://github.com/lambdaclass/cairo_native?branch=tomer%2Fblake_builtin#51c1118340824d7b998da03e94cba061c1cff0f8"
+=======
+version = "0.9.0-rc.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ece8a402b2f5699cf57c237124d3b9f2eaeea293f690b374828a66a2294d4fbc"
+>>>>>>> origin/main-v0.14.2
 dependencies = [
  "aquamarine",
  "ark-ec",
@@ -4601,6 +4831,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "cairo-program-runner-lib"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c12269867ec0f0683b0a77f99965076f940eafad4abc20cbb0beadeb31ea4a2e"
+dependencies = [
+ "anyhow",
+ "bincode 2.0.1",
+ "cairo-lang-casm",
+ "cairo-lang-executable",
+ "cairo-lang-execute-utils",
+ "cairo-lang-runner",
+ "cairo-vm",
+ "clap",
+ "num-bigint",
+ "num-traits",
+ "regex",
+ "serde",
+ "serde_json",
+ "sonic-rs",
+ "starknet-crypto 0.8.1",
+ "starknet-types-core",
+ "thiserror 1.0.69",
+ "thiserror-no-std",
+ "tracing",
+]
+
+[[package]]
 name = "cairo-vm"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4609,6 +4866,7 @@ dependencies = [
  "anyhow",
  "bincode 2.0.1",
  "bitvec",
+ "clap",
  "generic-array",
  "hashbrown 0.15.5",
  "indoc 2.0.7",
@@ -4815,7 +5073,7 @@ version = "4.5.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a0b5487afeab2deb2ff4e03a807ad1a03ac532ff5a2cee5d86884440c7f7671"
 dependencies = [
- "heck 0.5.0",
+ "heck",
  "proc-macro2",
  "quote",
  "syn 2.0.110",
@@ -5732,7 +5990,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1e6a265c649f3f5979b601d26f1d05ada116434c87741c9493cb56218f76cbc"
 dependencies = [
- "heck 0.5.0",
+ "heck",
  "proc-macro2",
  "quote",
  "syn 2.0.110",
@@ -5796,6 +6054,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1bf3c259d255ca70051b30e2e95b5446cdb8949ac4cd22c0d7fd634d89f568e2"
 dependencies = [
  "log",
+ "regex",
 ]
 
 [[package]]
@@ -5807,6 +6066,7 @@ dependencies = [
  "anstream",
  "anstyle",
  "env_filter",
+ "jiff",
  "log",
 ]
 
@@ -6574,12 +6834,6 @@ dependencies = [
 
 [[package]]
 name = "heck"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
-
-[[package]]
-name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
@@ -7167,6 +7421,7 @@ checksum = "6717a8d2a5a929a1a2eb43a12812498ed141a0bcfb7e8f7844fbdbe4303bba9f"
 dependencies = [
  "equivalent",
  "hashbrown 0.16.0",
+ "rayon",
  "serde",
  "serde_core",
 ]
@@ -7360,6 +7615,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
 
 [[package]]
+name = "jiff"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3e3d65f018c6ae946ab16e80944b97096ed73c35b221d1c478a6c81d8f57940"
+dependencies = [
+ "jiff-static",
+ "log",
+ "portable-atomic",
+ "portable-atomic-util",
+ "serde_core",
+]
+
+[[package]]
+name = "jiff-static"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a17c2b211d863c7fde02cbea8a3c1a439b98e109286554f2860bdded7ff83818"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.110",
+]
+
+[[package]]
 name = "jni"
 version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7492,7 +7771,7 @@ version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2da3f8ab5ce1bb124b6d082e62dffe997578ceaf0aeb9f3174a214589dc00f07"
 dependencies = [
- "heck 0.5.0",
+ "heck",
  "proc-macro-crate",
  "proc-macro2",
  "quote",
@@ -8096,7 +8375,7 @@ version = "0.35.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd297cf53f0cb3dee4d2620bb319ae47ef27c702684309f682bdb7e55a18ae9c"
 dependencies = [
- "heck 0.5.0",
+ "heck",
  "quote",
  "syn 2.0.110",
 ]
@@ -8385,6 +8664,15 @@ name = "memmap2"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43a5a03cefb0d953ec0be133036f14e109412fa594edc2f77227249db66cc3ed"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "memmap2"
+version = "0.9.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "714098028fe011992e1c3962653c96b2d578c4b4bce9036e15ff220319b1e0e3"
 dependencies = [
  "libc",
 ]
@@ -9932,7 +10220,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22505a5c94da8e3b7c2996394d1c933236c4d743e81a410bcca4e6989fc066a4"
 dependencies = [
  "bytes",
+<<<<<<< HEAD
  "heck 0.4.1",
+||||||| c0699b312e
+ "heck 0.5.0",
+=======
+ "heck",
+>>>>>>> origin/main-v0.14.2
  "itertools 0.12.1",
  "log",
  "multimap",
@@ -12132,7 +12426,7 @@ dependencies = [
  "starknet-core",
  "starknet-crypto 0.8.1",
  "starknet-types-core",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "time",
  "tokio",
@@ -12161,7 +12455,7 @@ dependencies = [
  "starknet_api",
  "starknet_patricia",
  "starknet_patricia_storage",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -12273,7 +12567,7 @@ dependencies = [
  "starknet_committer",
  "starknet_patricia",
  "starknet_patricia_storage",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -12291,6 +12585,8 @@ dependencies = [
  "cairo-vm",
  "expect-test",
  "itertools 0.12.1",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
  "rstest",
  "serde_json",
  "starknet-core",
@@ -12299,13 +12595,15 @@ dependencies = [
  "starknet_api",
  "starknet_committer",
  "starknet_os",
- "starknet_os_runner",
  "starknet_patricia",
  "starknet_patricia_storage",
+ "starknet_transaction_prover",
+ "strum",
  "tokio",
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "starknet_os_runner"
 version = "0.0.0"
 dependencies = [
@@ -12352,6 +12650,55 @@ dependencies = [
 ]
 
 [[package]]
+||||||| c0699b312e
+name = "starknet_os_runner"
+version = "0.18.0-dev.0"
+dependencies = [
+ "anyhow",
+ "apollo_infra_utils",
+ "apollo_starknet_os_program",
+ "apollo_transaction_converter",
+ "async-trait",
+ "axum",
+ "blockifier",
+ "blockifier_reexecution",
+ "blockifier_test_utils",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "cairo-vm",
+ "clap",
+ "futures",
+ "http 1.3.1",
+ "indexmap 2.12.0",
+ "jsonrpsee",
+ "mockito",
+ "proving_utils",
+ "reqwest 0.12.24",
+ "rstest",
+ "serde",
+ "serde_json",
+ "shared_execution_objects",
+ "starknet-rust",
+ "starknet-rust-core 0.16.0",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_committer",
+ "starknet_os",
+ "starknet_patricia",
+ "starknet_patricia_storage",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+]
+
+[[package]]
+=======
+>>>>>>> origin/main-v0.14.2
 name = "starknet_patricia"
 version = "0.0.0"
 dependencies = [
@@ -12368,7 +12715,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_patricia_storage",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
 ]
@@ -12394,6 +12741,57 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "validator",
+]
+
+[[package]]
+name = "starknet_transaction_prover"
+version = "0.18.0-dev.0"
+dependencies = [
+ "anyhow",
+ "apollo_infra_utils",
+ "apollo_starknet_os_program",
+ "apollo_transaction_converter",
+ "assert_matches",
+ "async-trait",
+ "axum",
+ "blockifier",
+ "blockifier_reexecution",
+ "blockifier_test_utils",
+ "cairo-air",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "cairo-program-runner-lib",
+ "cairo-vm",
+ "clap",
+ "futures",
+ "http 1.3.1",
+ "indexmap 2.12.0",
+ "jsonrpsee",
+ "mockito",
+ "proving_utils",
+ "reqwest 0.12.24",
+ "rstest",
+ "serde",
+ "serde_json",
+ "shared_execution_objects",
+ "starknet-rust",
+ "starknet-rust-core 0.16.0",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_committer",
+ "starknet_os",
+ "starknet_patricia",
+ "starknet_patricia_storage",
+ "stwo-run-and-prove",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-rustls",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "url",
 ]
 
 [[package]]
@@ -12428,33 +12826,11 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "strum"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
-dependencies = [
- "strum_macros 0.25.3",
-]
-
-[[package]]
-name = "strum"
 version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af23d6f6c1a224baef9d3f61e287d2761385a5b88fdab4eb4c6f11aeb54c4bcf"
 dependencies = [
- "strum_macros 0.27.2",
-]
-
-[[package]]
-name = "strum_macros"
-version = "0.25.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23dc1fa9ac9c169a78ba62f0b841814b7abae11bdd047b9c58f893439e309ea0"
-dependencies = [
- "heck 0.4.1",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn 2.0.110",
+ "strum_macros",
 ]
 
 [[package]]
@@ -12463,7 +12839,7 @@ version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7695ce3845ea4b33927c055a39dc438a45b059f7c1b3d91d38d10355fb8cbca7"
 dependencies = [
- "heck 0.5.0",
+ "heck",
  "proc-macro2",
  "quote",
  "syn 2.0.110",
@@ -12488,6 +12864,7 @@ dependencies = [
  "itertools 0.12.1",
  "num-traits",
  "rand 0.8.5",
+ "rayon",
  "serde",
  "starknet-crypto 0.6.2",
  "starknet-ff",
@@ -12495,6 +12872,57 @@ dependencies = [
  "thiserror 2.0.17",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "stwo-air-utils"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69be8dd73bc16fdc13907b979ec865c9bab1ba92dd3c6e393f6720fffe819b74"
+dependencies = [
+ "bytemuck",
+ "itertools 0.12.1",
+ "rayon",
+ "stwo",
+ "stwo-air-utils-derive",
+]
+
+[[package]]
+name = "stwo-air-utils-derive"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e8e5897a5252a0b7ded8817b19d41f9693aa23e048349f627966698f03dc710"
+dependencies = [
+ "itertools 0.13.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.110",
+]
+
+[[package]]
+name = "stwo-cairo-adapter"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5869d320723749c93deed52abb1351c9438406dacc9cfbbfbbf5984177ad0207"
+dependencies = [
+ "anyhow",
+ "bincode 2.0.1",
+ "bytemuck",
+ "cairo-vm",
+ "clap",
+ "crypto-bigint",
+ "dashmap",
+ "indoc 2.0.7",
+ "itertools 0.12.1",
+ "log",
+ "memmap2 0.9.10",
+ "rayon",
+ "serde",
+ "serde_json",
+ "stwo",
+ "stwo-cairo-common",
+ "thiserror 2.0.17",
+ "tracing",
 ]
 
 [[package]]
@@ -12515,6 +12943,40 @@ dependencies = [
  "stwo",
  "stwo-cairo-serialize",
  "stwo-constraint-framework",
+]
+
+[[package]]
+name = "stwo-cairo-prover"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a977d67951c1ea2ec95be14acbacf18531ad23d0054dc36c6f7ca1707d6caf4"
+dependencies = [
+ "anyhow",
+ "bytemuck",
+ "cairo-air",
+ "dashmap",
+ "getrandom 0.2.16",
+ "getrandom 0.3.4",
+ "hex",
+ "indexmap 2.12.0",
+ "itertools 0.12.1",
+ "num-traits",
+ "paste",
+ "rayon",
+ "serde",
+ "serde_json",
+ "sonic-rs",
+ "starknet-curve 0.6.0",
+ "starknet-ff",
+ "starknet-types-core",
+ "stwo",
+ "stwo-air-utils",
+ "stwo-air-utils-derive",
+ "stwo-cairo-adapter",
+ "stwo-cairo-common",
+ "stwo-cairo-serialize",
+ "stwo-constraint-framework",
+ "tracing",
 ]
 
 [[package]]
@@ -12539,6 +13001,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "stwo-cairo-utils"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6313694c96a79a79ea78940f686c00545b650b518ef9990e0664e09edee69d98"
+dependencies = [
+ "env_logger",
+ "log",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "stwo-constraint-framework"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12548,8 +13022,34 @@ dependencies = [
  "itertools 0.12.1",
  "num-traits",
  "rand 0.8.5",
+ "rayon",
  "stwo",
  "stwo-std-shims",
+ "tracing",
+]
+
+[[package]]
+name = "stwo-run-and-prove"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "098589489269d177be18ff13fa3bd03f5e081cdf0e3f374153ef83778529e1ff"
+dependencies = [
+ "anyhow",
+ "cairo-air",
+ "cairo-program-runner-lib",
+ "cairo-vm",
+ "clap",
+ "env_logger",
+ "log",
+ "serde",
+ "serde_json",
+ "sonic-rs",
+ "starknet-ff",
+ "stwo-cairo-adapter",
+ "stwo-cairo-prover",
+ "stwo-cairo-serialize",
+ "stwo-cairo-utils",
+ "thiserror 1.0.69",
  "tracing",
 ]
 
@@ -12824,6 +13324,26 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.110",
+]
+
+[[package]]
+name = "thiserror-impl-no-std"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58e6318948b519ba6dc2b442a6d0b904ebfb8d411a3ad3e07843615a72249758"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "thiserror-no-std"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3ad459d94dd517257cc96add8a43190ee620011bb6e6cdc82dafd97dfafafea"
+dependencies = [
+ "thiserror-impl-no-std",
 ]
 
 [[package]]
@@ -13600,6 +14120,12 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "virtue"
+version = "0.0.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 
 [[package]]
 name = "wait-timeout"

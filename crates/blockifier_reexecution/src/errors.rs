@@ -24,10 +24,12 @@ pub enum RPCStateReaderError {
     InvalidParams(Box<RpcErrorResponse>),
     #[error("RPC error: {0}")]
     RPCError(StatusCode),
+    #[error("Transaction execution error: {0:?}")]
+    TransactionExecutionError(Box<RpcErrorResponse>),
     #[error(transparent)]
     ReqwestError(#[from] reqwest::Error),
-    #[error("Unexpected error code: {0}")]
-    UnexpectedErrorCode(RpcErrorCode),
+    #[error("Unexpected RPC error (code {code}): {message}{}", data.as_ref().map_or(String::new(), |d| format!(", data: {d}")))]
+    UnexpectedErrorCode { code: RpcErrorCode, message: String, data: Option<Value> },
     #[error(transparent)]
     StarknetApi(#[from] StarknetApiError),
     #[error("Internal error: {0}")]

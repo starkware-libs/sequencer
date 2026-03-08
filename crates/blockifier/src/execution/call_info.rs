@@ -358,28 +358,45 @@ const BLAKE_OPCODE_NAME_WITH_SUFFIX: &str = "blake_opcode";
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
+#[allow(non_camel_case_types)]
 pub enum OpcodeName {
-    Blake,
+    // Allows deserialization from the suffixed form used in [`CairoPrimitiveName`].
+    #[serde(alias = "blake_opcode")]
+    blake,
 }
 
 impl OpcodeName {
-    /// Converts an [`OpcodeName`] to its string representation with the "_opcode" suffix.
-    /// This mirrors [`BuiltinName::to_str_with_suffix`] for consistency in resource naming.
+    /// Returns the opcode name with an "_opcode" suffix (e.g. `"blake_opcode"`).
+    /// Mirrors [`BuiltinName::to_str_with_suffix`] for consistent resource naming.
     pub fn to_str_with_suffix(self) -> &'static str {
         match self {
-            OpcodeName::Blake => BLAKE_OPCODE_NAME_WITH_SUFFIX,
+            OpcodeName::blake => BLAKE_OPCODE_NAME_WITH_SUFFIX,
         }
     }
 }
 
+/// Wraps both [`BuiltinName`] and [`OpcodeName`] so they can share a single counter map.
+///
+/// Serialization is untagged for backward compatibility (prior to v0.14.2, only builtins existed).
+/// Opcodes are serialized with an "_opcode" suffix (via [`OpcodeName::to_str_with_suffix`]) so they
+/// are distinguishable from builtins in `builtin_counters`.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
-// Serialize as an untagged enum to avoid a type prefix, for backward compatibility with
-// how `CallInfo` was serialized when only builtins (no opcodes) were included (prior to v0.14.2).
-#[serde(untagged)]
+#[cfg_attr(feature = "transaction_serde", serde(untagged))]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub enum CairoPrimitiveName {
     Builtin(BuiltinName),
     Opcode(OpcodeName),
+}
+
+impl Serialize for CairoPrimitiveName {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            CairoPrimitiveName::Builtin(builtin) => builtin.serialize(serializer),
+            CairoPrimitiveName::Opcode(opcode) => {
+                serializer.serialize_str(opcode.to_str_with_suffix())
+            }
+        }
+    }
 }
 
 impl From<BuiltinName> for CairoPrimitiveName {

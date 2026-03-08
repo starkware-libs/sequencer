@@ -14,6 +14,7 @@ use tracing::{debug, error, trace, warn};
 use crate::config::Config;
 use crate::handler::{HandlerIn, HandlerOut};
 use crate::message_processor::{EventStateManagerToEngine, MessageProcessor, UnitToValidate};
+use crate::metrics::PropellerMetrics;
 use crate::sharding::create_units_to_publish;
 use crate::signature;
 use crate::time_cache::TimeCache;
@@ -93,6 +94,8 @@ pub struct Engine {
     prepared_units_tx: mpsc::UnboundedSender<BroadcastResult>,
     from_behaviour_rx: mpsc::UnboundedReceiver<EngineCommand>,
     to_behaviour_tx: mpsc::UnboundedSender<EngineOutput>,
+    #[allow(dead_code)] // TODO(AndrewL): remove this once metrics are used.
+    metrics: Option<PropellerMetrics>,
 }
 
 impl Engine {
@@ -102,6 +105,7 @@ impl Engine {
         config: Config,
         from_behaviour_rx: mpsc::UnboundedReceiver<EngineCommand>,
         output_tx: mpsc::UnboundedSender<EngineOutput>,
+        metrics: Option<PropellerMetrics>,
     ) -> Self {
         let local_peer_id = PeerId::from(keypair.public());
         let (state_manager_tx, state_manager_rx) = mpsc::unbounded_channel();
@@ -123,6 +127,7 @@ impl Engine {
             prepared_units_tx: broadcaster_results_tx,
             from_behaviour_rx,
             to_behaviour_tx: output_tx,
+            metrics,
         }
     }
 
@@ -210,6 +215,11 @@ impl Engine {
         let claimed_channel = unit.channel();
         let claimed_publisher = unit.publisher();
         let claimed_root = unit.root();
+
+        // Track received shard.
+        if let Some(metrics) = &self.metrics {
+            metrics.shards_received.increment(1);
+        }
 
         // Check if channel is registered.
         let Some(channel_data) = self.channels.get(&claimed_channel) else {

@@ -71,6 +71,7 @@ use crate::state_reader::rpc_objects::{
     RPC_ERROR_BLOCK_NOT_FOUND,
     RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
     RPC_ERROR_INVALID_PARAMS,
+    RPC_TRANSACTION_EXECUTION_ERROR,
 };
 use crate::utils::{
     disjoint_hashmap_union,
@@ -221,10 +222,17 @@ impl RpcStateReader {
                 RPC_CLASS_HASH_NOT_FOUND => {
                     Err(RPCStateReaderError::ClassHashNotFound(request_body))
                 }
+                RPC_TRANSACTION_EXECUTION_ERROR => Err(
+                    RPCStateReaderError::TransactionExecutionError(Box::new(rpc_error_response)),
+                ),
                 RPC_ERROR_INVALID_PARAMS => {
                     Err(RPCStateReaderError::InvalidParams(Box::new(rpc_error_response)))
                 }
-                _ => Err(RPCStateReaderError::UnexpectedErrorCode(rpc_error_response.error.code)),
+                _ => Err(RPCStateReaderError::UnexpectedErrorCode {
+                    code: rpc_error_response.error.code,
+                    message: rpc_error_response.error.message,
+                    data: rpc_error_response.error.data,
+                }),
             },
         }
     }
@@ -469,7 +477,9 @@ impl StateReader for RpcStateReader {
     }
 
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        unimplemented!("The rpc state reader does not support get_compiled_class_hash.")
+        Err(StateError::StateReadError(
+            "The rpc state reader does not support get_compiled_class_hash.".to_string(),
+        ))
     }
 
     fn get_compiled_class_hash_v2(

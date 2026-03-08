@@ -1,32 +1,29 @@
 use apollo_l1_events::metrics::L1_MESSAGE_SCRAPER_SUCCESS_COUNT;
 use apollo_metrics::metrics::MetricQueryName;
 
+use crate::alert_placeholders::SeverityValueOrPlaceholder;
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
     AlertGroup,
     AlertLogicalOp,
-    AlertSeverity,
     ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
 
-fn get_l1_message_scraper_no_successes_alert(alert_severity: AlertSeverity) -> Alert {
+pub(crate) fn get_l1_message_scraper_no_successes_alert() -> Alert {
+    const ALERT_NAME: &str = "l1_message_no_successes";
     Alert::new(
-        "l1_message_no_successes",
+        ALERT_NAME,
         "L1 message no successes",
         AlertGroup::L1GasPrice,
         format!("increase({}[5m])", L1_MESSAGE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
-}
-
-pub(crate) fn get_l1_message_scraper_no_successes_alert_vec() -> Vec<Alert> {
-    vec![get_l1_message_scraper_no_successes_alert(AlertSeverity::Sos)]
 }

@@ -48,9 +48,7 @@ jobs:
 
       # Check Cargo.lock is up to date.
       - name: "Check Cargo.lock"
-        run: |
-          cargo update -w --locked
-          git diff --exit-code Cargo.lock
+        run: cargo metadata --locked --format-version=1 > /dev/null
 
       # Run code style checks.
       - name: "Run TODO style"

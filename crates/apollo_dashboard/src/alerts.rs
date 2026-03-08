@@ -163,6 +163,7 @@ pub(crate) enum AlertGroup {
     L1GasPrice,
     L1Messages,
     Mempool,
+    Staking,
     StateSync,
 }
 

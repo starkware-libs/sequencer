@@ -28,6 +28,7 @@ function install_essential_deps_linux() {
             libssl-dev \
             lsb-release \
             pkg-config \
+            protobuf-compiler \
             ripgrep \
             software-properties-common \
             zstd \

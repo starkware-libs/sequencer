@@ -14,11 +14,14 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_consensus::types::{ProposalCommitment, Round};
+use apollo_consensus_orchestrator_config::config::PricePerHeight;
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_protobuf::consensus::{
     BuildParam,
     CommitmentParts,
+    L2GasInfo,
     ProposalFin,
+    ProposalFinPayload,
     ProposalInit,
     ProposalPart,
     TransactionBatch,
@@ -31,11 +34,12 @@ use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::StarknetApiError;
-use strum::{EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
+use strum::{EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, info, trace, warn};
 
+use crate::fee_market::calculate_next_l2_gas_price_for_fin;
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
     convert_to_sn_api_block_info,
@@ -69,6 +73,8 @@ pub(crate) struct ProposalBuildArguments {
     pub retrospective_block_hash_retry_interval_millis: Duration,
     // If true, for echonet mode, use the timestamp from the original block.
     pub override_timestamp: bool,
+    pub override_l2_gas_price_fri: Option<u128>,
+    pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
 }
 
 type BuildProposalResult<T> = Result<T, BuildProposalError>;
@@ -76,7 +82,7 @@ type BuildProposalResult<T> = Result<T, BuildProposalError>;
 #[derive(Debug, thiserror::Error, EnumDiscriminants)]
 #[strum_discriminants(
     name(BuildProposalFailureReasonLabelValue),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    derive(IntoStaticStr, EnumIter, VariantNames),
     strum(serialize_all = "snake_case")
 )]
 pub(crate) enum BuildProposalError {
@@ -108,7 +114,6 @@ pub(crate) async fn build_proposal(
     mut args: ProposalBuildArguments,
 ) -> BuildProposalResult<ProposalCommitment> {
     let init = initiate_build(&mut args).await?;
-    let height = init.height;
 
     args.stream_sender
         .send(ProposalPart::Init(init.clone()))
@@ -120,13 +125,7 @@ pub(crate) async fn build_proposal(
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
     let mut valid_proposals = args.valid_proposals.lock().expect("Lock was poisoned");
-    valid_proposals.insert_proposal_for_height(
-        &height,
-        init,
-        content,
-        &args.proposal_id,
-        finished_info,
-    );
+    valid_proposals.insert_proposal(init, content, &args.proposal_id, finished_info);
     Ok(proposal_commitment)
 }
 
@@ -264,7 +263,7 @@ async fn get_proposal_content(
             }
             GetProposalContent::Finished(info) => {
                 let proposal_commitment =
-                    ProposalCommitment(info.proposal_commitment.state_diff_commitment.0.0);
+                    ProposalCommitment(info.proposal_commitment.partial_block_hash.0);
                 content = truncate_to_executed_txs(&mut content, info.final_n_executed_txs);
 
                 info!(
@@ -311,11 +310,24 @@ async fn get_proposal_content(
                     .final_n_executed_txs
                     .try_into()
                     .expect("Number of executed transactions should fit in u64");
-                let commitment_parts = CommitmentParts::from(&info);
+                let next_l2_gas_price = calculate_next_l2_gas_price_for_fin(
+                    args.l2_gas_price,
+                    args.build_param.height,
+                    info.l2_gas_used,
+                    args.override_l2_gas_price_fri,
+                    &args.min_l2_gas_price_per_height,
+                );
+                let fin_payload = ProposalFinPayload {
+                    commitment_parts: CommitmentParts::from(&info),
+                    l2_gas_info: L2GasInfo {
+                        next_l2_gas_price_fri: next_l2_gas_price,
+                        l2_gas_used: info.l2_gas_used,
+                    },
+                };
                 let fin = ProposalFin {
                     proposal_commitment,
                     executed_transaction_count,
-                    commitment_parts: Some(commitment_parts),
+                    fin_payload: Some(fin_payload),
                 };
                 info!("Sending fin={fin:?}");
                 args.stream_sender.send(ProposalPart::Fin(fin)).await.map_err(|e| {

@@ -20,14 +20,7 @@ use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
 use phf::phf_set;
 use serde::{Serialize, Serializer};
 use serde_json::{from_str, json, Map, Value};
-use strum::{
-    Display,
-    EnumDiscriminants,
-    EnumIter,
-    EnumVariantNames,
-    IntoEnumIterator,
-    IntoStaticStr,
-};
+use strum::{Display, EnumDiscriminants, EnumIter, IntoEnumIterator, IntoStaticStr, VariantNames};
 
 use crate::deployment_definitions::{ComponentConfigInService, CONFIG_BASE_DIR};
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
@@ -73,6 +66,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "consensus_manager_config.context_config.dynamic_config.override_l1_gas_price_fri",
     "consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri.#is_none",
     "consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri",
+    "consensus_manager_config.context_config.dynamic_config.compare_retrospective_block_hash",
     "consensus_manager_config.network_config.advertised_multiaddr.#is_none",
     "consensus_manager_config.network_config.advertised_multiaddr",
     "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none",
@@ -114,7 +108,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumDiscriminants)]
 #[strum_discriminants(
     name(NodeType),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames, Serialize, Display),
+    derive(IntoStaticStr, EnumIter, VariantNames, Serialize, Display),
     strum(serialize_all = "snake_case")
 )]
 pub enum NodeService {

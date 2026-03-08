@@ -8,6 +8,7 @@
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::ops::Range;
+use std::time::{Duration, Instant};
 
 use apollo_consensus_config::config::TimeoutsConfig;
 use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
@@ -60,6 +61,9 @@ const TIMEOUT_PROPOSE_DELAY_RANGE: Range<u64> = 15..30; // Timeout for propose s
 const TIMEOUT_PREVOTE_DELAY_RANGE: Range<u64> = 5..10; // Timeout for prevote step
 const TIMEOUT_PRECOMMIT_DELAY_RANGE: Range<u64> = 5..10; // Timeout for precommit step
 
+const NUM_SIMULATION_RUNS: usize = 50;
+const SIMULATION_TIMEOUT: Duration = Duration::from_millis(500);
+
 lazy_static! {
     static ref NODE_0: ValidatorId = ValidatorId::from(u64::try_from(NODE_UNDER_TEST).unwrap());
 }
@@ -88,6 +92,13 @@ enum InputEvent {
     Proposal(ProposalInit),
     /// An internal event.
     Internal(StateMachineEvent),
+}
+
+/// Outcome of handling a batch of state machine requests.
+enum HandleRequestsOutcome {
+    Continue,
+    Decision(Decision),
+    RoundLimitReached,
 }
 
 /// A timed event in the discrete event simulation.
@@ -485,8 +496,10 @@ impl DiscreteEventSimulation {
         // Create two separate closures with the same logic (for proposer and virtual_proposer)
         // Start the single height consensus
         let requests = self.shc.start();
-        if let Some(decision) = self.handle_requests(requests) {
-            return Some(decision);
+        match self.handle_requests(requests) {
+            HandleRequestsOutcome::Decision(decision) => return Some(decision),
+            HandleRequestsOutcome::RoundLimitReached => return None,
+            HandleRequestsOutcome::Continue => {}
         }
 
         // Main event loop
@@ -522,8 +535,10 @@ impl DiscreteEventSimulation {
                 InputEvent::Internal(e) => self.shc.handle_event(e),
             };
 
-            if let Some(decision) = self.handle_requests(requests) {
-                return Some(decision);
+            match self.handle_requests(requests) {
+                HandleRequestsOutcome::Decision(decision) => return Some(decision),
+                HandleRequestsOutcome::RoundLimitReached => return None,
+                HandleRequestsOutcome::Continue => {}
             }
         }
 
@@ -535,8 +550,21 @@ impl DiscreteEventSimulation {
     /// This simulates the manager's role in handling consensus requests,
     /// such as validation results, proposal building, and timeouts.
     /// Also tracks BroadcastVote requests to know what the node actually voted for.
-    fn handle_requests(&mut self, reqs: VecDeque<SMRequest>) -> Option<Decision> {
+    /// Stops the run when a request references round >= num_rounds.
+    fn handle_requests(&mut self, reqs: VecDeque<SMRequest>) -> HandleRequestsOutcome {
+        let num_rounds_u64 = u64::try_from(self.num_rounds).unwrap();
         for req in reqs {
+            let round_exceeds_limit = match &req {
+                SMRequest::StartBuildProposal(round)
+                | SMRequest::ScheduleTimeout(Step::Propose, round) => {
+                    u64::from(*round) >= num_rounds_u64
+                }
+                _ => false,
+            };
+            if round_exceeds_limit {
+                return HandleRequestsOutcome::RoundLimitReached;
+            }
+
             match req {
                 SMRequest::StartValidateProposal(init) => {
                     let delay = self.rng.gen_range(VALIDATION_DELAY_RANGE);
@@ -557,7 +585,7 @@ impl DiscreteEventSimulation {
                     let result = StateMachineEvent::FinishedBuilding(proposal_commitment, round);
                     self.schedule_at_tick(build_finish_tick, InputEvent::Internal(result));
 
-                    // Schedule peer votes after build finish
+                    // Schedule peer votes after build finish (only for pre-generated rounds).
                     assert!(self.node_0_proposer_rounds.contains(&round));
                     self.schedule_peer_votes(round, build_finish_tick);
                 }
@@ -583,14 +611,14 @@ impl DiscreteEventSimulation {
                     self.node_votes.insert(vote.round, vote);
                 }
                 SMRequest::DecisionReached(decision) => {
-                    return Some(decision);
+                    return HandleRequestsOutcome::Decision(decision);
                 }
                 _ => {
                     // Ignore other request types
                 }
             }
         }
-        None
+        HandleRequestsOutcome::Continue
     }
 }
 
@@ -710,19 +738,24 @@ fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
 #[test_case(1.0, 80; "keep_all_80_honest")]
 #[test_case(0.9, 80; "keep_90%_80_honest")]
 fn test_consensus_simulation(keep_ratio: f64, honest_nodes: usize) {
-    let seed = rand::thread_rng().gen();
     let num_rounds = 5; // Number of rounds to pre-generate
     let total_nodes = 100;
-    println!(
-        "Running consensus simulation with total nodes {total_nodes}, {num_rounds} rounds, keep \
-         ratio {keep_ratio}, honest nodes {honest_nodes} and seed: {seed}"
-    );
-
-    let mut sim =
-        DiscreteEventSimulation::new(total_nodes, honest_nodes, seed, num_rounds, keep_ratio);
-
     let deadline_ticks = u64::try_from(num_rounds).unwrap() * ROUND_DURATION;
-    let result = sim.run(deadline_ticks);
+    let timeout = SIMULATION_TIMEOUT;
+    let start = Instant::now();
 
-    verify_result(&sim, result.as_ref());
+    for _run in 0..NUM_SIMULATION_RUNS {
+        if start.elapsed() >= timeout {
+            break;
+        }
+        let seed = rand::thread_rng().gen();
+        println!(
+            "run: keep_ratio={keep_ratio}, honest_nodes={honest_nodes}, \
+             total_nodes={total_nodes}, num_rounds={num_rounds}, seed={seed}"
+        );
+        let mut sim =
+            DiscreteEventSimulation::new(total_nodes, honest_nodes, seed, num_rounds, keep_ratio);
+        let result = sim.run(deadline_ticks);
+        verify_result(&sim, result.as_ref());
+    }
 }

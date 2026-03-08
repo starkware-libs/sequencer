@@ -85,9 +85,9 @@ pub trait ConsensusContext {
     /// validated proposal. It broadcasts the proposal to the network.
     ///
     /// Params:
-    /// - `id`: The `ProposalCommitment` associated with the block's content.
+    /// - `proposal_commitment`: The `ProposalCommitment` associated with the block's content.
     /// - `build_param`: The consensus metadata for reproposing.
-    async fn repropose(&mut self, id: ProposalCommitment, build_param: BuildParam);
+    async fn repropose(&mut self, proposal_commitment: ProposalCommitment, build_param: BuildParam);
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError>;
 
@@ -96,6 +96,7 @@ pub trait ConsensusContext {
     async fn decision_reached(
         &mut self,
         height: BlockNumber,
+        round: Round,
         commitment: ProposalCommitment,
     ) -> Result<(), ConsensusError>;
 

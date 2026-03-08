@@ -1,0 +1,124 @@
+use std::collections::HashSet;
+
+use blockifier::context::BlockContext;
+use blockifier::state::cached_state::StateMaps;
+use rstest::rstest;
+use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
+use starknet_api::core::ContractAddress;
+use starknet_api::state::StorageKey;
+use starknet_rust::providers::Provider;
+use starknet_types_core::felt::Felt;
+
+use crate::running::storage_proofs::{
+    RpcStorageProofsProvider,
+    StorageProofConfig,
+    StorageProofProvider,
+};
+use crate::running::virtual_block_executor::{BaseBlockInfo, VirtualBlockExecutionData};
+use crate::test_utils::{rpc_provider, STRK_TOKEN_ADDRESS};
+
+/// Fixture: Creates initial reads with the STRK contract and storage slot 0.
+#[rstest::fixture]
+fn initial_reads() -> (StateMaps, ContractAddress, StorageKey) {
+    let mut state_maps = StateMaps::default();
+    let contract_address = ContractAddress::try_from(STRK_TOKEN_ADDRESS).unwrap();
+
+    // Add a storage read for slot 0 (commonly used for total_supply or similar).
+    let storage_key = StorageKey::from(0u32);
+    state_maps.storage.insert((contract_address, storage_key), Felt::ZERO);
+
+    (state_maps, contract_address, storage_key)
+}
+
+/// Sanity test that verifies storage proof fetching works with a real RPC endpoint.
+///
+/// This test is ignored by default because it requires a running RPC node.
+/// Run with: `NODE_URL=<your_rpc_url> cargo test -p starknet_transaction_prover -- --ignored`
+#[rstest]
+#[ignore]
+fn test_get_storage_proofs_from_rpc(
+    rpc_provider: RpcStorageProofsProvider,
+    initial_reads: (StateMaps, ContractAddress, StorageKey),
+) {
+    let (state_maps, contract_address, storage_key) = initial_reads;
+
+    // Fetch latest block number.
+    let runtime = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+    let block_number = runtime.block_on(async { rpc_provider.0.block_number().await }).unwrap();
+
+    let execution_data = VirtualBlockExecutionData {
+        execution_outputs: vec![],
+        l2_to_l1_messages: Vec::new(),
+        base_block_info: BaseBlockInfo {
+            block_context: BlockContext::create_for_account_testing(),
+            base_block_hash: BlockHash::default(),
+            prev_base_block_hash: BlockHash::default(),
+            base_block_header_commitments: BlockHeaderCommitments::default(),
+        },
+        initial_reads: state_maps,
+        state_diff: StateMaps::default(),
+        executed_class_hashes: HashSet::new(),
+    };
+
+    let config = StorageProofConfig::default();
+    let result = runtime.block_on(async {
+        rpc_provider.get_storage_proofs(BlockNumber(block_number), &execution_data, &config).await
+    });
+    assert!(result.is_ok(), "Failed to get storage proofs: {:?}", result.err());
+
+    let storage_proofs = result.unwrap();
+
+    // Verify contracts tree root is non-zero.
+    assert!(
+        storage_proofs.commitment_infos.contracts_trie_commitment_info.previous_root.0
+            != Felt::ZERO,
+        "Expected non-zero contracts tree root"
+    );
+
+    // Verify contracts tree commitment facts are not empty.
+    assert!(
+        !storage_proofs.commitment_infos.contracts_trie_commitment_info.commitment_facts.is_empty(),
+        "Expected non-empty contracts tree commitment facts"
+    );
+
+    // Verify the queried contract is in contract_leaf_state.
+    assert!(
+        storage_proofs.extended_initial_reads.class_hashes.contains_key(&contract_address),
+        "Expected contract address {contract_address:?} in class_hashes",
+    );
+    assert!(
+        storage_proofs.extended_initial_reads.nonces.contains_key(&contract_address),
+        "Expected contract address {contract_address:?} in nonces",
+    );
+
+    // Verify the queried storage is in the original execution_data (not contract_leaf_state,
+    // which only has nonces/hashes)
+    assert!(
+        execution_data.initial_reads.storage.contains_key(&(contract_address, storage_key)),
+        "Expected storage key {storage_key:?} in contract's storage",
+    );
+
+    // Verify the contract has a storage trie commitment info.
+    assert!(
+        storage_proofs
+            .commitment_infos
+            .storage_tries_commitment_infos
+            .contains_key(&contract_address),
+        "Expected contract address {contract_address:?} in storage_tries_commitment_infos",
+    );
+
+    // Verify the storage trie commitment facts are not empty.
+    let storage_commitment =
+        &storage_proofs.commitment_infos.storage_tries_commitment_infos[&contract_address];
+    assert!(
+        !storage_commitment.commitment_facts.is_empty(),
+        "Expected non-empty storage trie commitment facts for contract {contract_address:?}",
+    );
+
+    // Verify the storage root is non-zero.
+    assert!(
+        storage_commitment.previous_root.0 != Felt::ZERO,
+        "Expected non-zero storage root for contract {contract_address:?}",
+    );
+}
