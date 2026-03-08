@@ -15,18 +15,8 @@ use async_trait::async_trait;
 use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHash;
-<<<<<<< HEAD
 use starknet_api::crypto::utils::{Challenge, PrivateKey, RawSignature, SignatureConversionError};
-use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
-||||||| c0699b312e
-use starknet_api::core::Nonce;
-use starknet_api::crypto::utils::{PrivateKey, RawSignature, SignatureConversionError};
-use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
-=======
-use starknet_api::core::Nonce;
-use starknet_api::crypto::utils::{PrivateKey, RawSignature, SignatureConversionError};
 use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
->>>>>>> origin/main-v0.14.2
 use thiserror::Error;
 
 pub type KeyStoreResult<T> = Result<T, KeyStoreError>;

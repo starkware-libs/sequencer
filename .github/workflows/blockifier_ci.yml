@@ -85,8 +85,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
       # cairo_native is not activated by any workspace crate; test the build.
       - run: cargo build -p blockifier --features cairo_native
-      # TODO(Meshi): Uncomment this once the version is stabilized.
-      # - run: cargo test -p blockifier --features cairo_native
+      - run: cargo test -p blockifier --features cairo_native
 
   test-with-tracing-feature:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
@@ -120,14 +119,7 @@ jobs:
       # are deleted before the runner reaches this step.
       - uses: actions/checkout@v6
         with:
-<<<<<<< HEAD
           ref: ${{ github.event.pull_request.base.sha }}
-||||||| c0699b312e
-          ref: ${{ github.base_ref }}
-=======
-          ref: ${{ github.base_ref }}
-          fetch-depth: 0
->>>>>>> origin/main-v0.14.2
 
       - uses: ./.github/actions/bootstrap
         with:

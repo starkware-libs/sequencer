@@ -129,14 +129,7 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: actions/checkout@v6
         with:
-<<<<<<< HEAD
           ref: ${{ github.event.pull_request.base.sha }}
-||||||| c0699b312e
-          ref: ${{ github.base_ref }}
-=======
-          ref: ${{ github.base_ref }}
-          fetch-depth: 0
->>>>>>> origin/main-v0.14.2
 
       # Push/dispatch: Checkout the specified or current branch.
       - name: Checkout repository (push/dispatch)
