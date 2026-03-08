@@ -1,6 +1,6 @@
 use std::ops::ControlFlow;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use libp2p::identity::{PeerId, PublicKey};
 use rand::seq::SliceRandom;
@@ -319,6 +319,9 @@ impl MessageProcessor {
                     unreachable!("Cannot be PostConstruction before transition")
                 }
             };
+            // TODO(guyn): remove this placeholder and use the nonce from the unit itself.
+            let nonce = u64::try_from(0)
+                .expect("timestamp in nanos since UNIX_EPOCH should fit in u64, until year 2554");
             let reconstructed_unit = PropellerUnit::new(
                 self.committee_id,
                 self.publisher,
@@ -327,6 +330,7 @@ impl MessageProcessor {
                 self.my_shard_index,
                 my_shard,
                 my_shard_proof,
+                nonce,
             );
             self.broadcast_unit(&reconstructed_unit);
         }
