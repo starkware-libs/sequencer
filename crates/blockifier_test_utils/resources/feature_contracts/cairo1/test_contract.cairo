@@ -275,7 +275,24 @@ mod TestContract {
     }
 
     #[external(v0)]
+<<<<<<< HEAD
     fn test_get_execution_info_v3(
+||||||| f66f23c096
+    fn test_get_execution_info(
+=======
+    fn test_get_block_hash_current_block_number(self: @ContractState) {
+        let execution_info = get_execution_info().unbox();
+        let block_info = execution_info.block_info.unbox();
+        let current_block_number = block_info.block_number;
+        match syscalls::get_block_hash_syscall(current_block_number) {
+            Result::Ok(_) => panic_with_felt252('should_fail'),
+            Result::Err(_) => {},
+        }
+    }
+
+    #[external(v0)]
+    fn test_get_execution_info(
+>>>>>>> origin/main-v0.14.1-committer
         self: @ContractState,
         expected_block_info: BlockInfo,
         // Expected call info.

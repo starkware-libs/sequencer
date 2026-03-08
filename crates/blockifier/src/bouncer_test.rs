@@ -783,11 +783,23 @@ fn class_hash_migration_data_from_state(
 
     if should_migrate {
         expect![[r#"
+<<<<<<< HEAD
             109866079
+||||||| f66f23c096
+            102995620
+=======
+            103499422
+>>>>>>> origin/main-v0.14.1-committer
         "#]]
         .assert_debug_eq(&migration_sierra_gas.0);
         expect![[r#"
+<<<<<<< HEAD
             266185200
+||||||| f66f23c096
+            248629270
+=======
+            249782484
+>>>>>>> origin/main-v0.14.1-committer
         "#]]
         .assert_debug_eq(&migration_proving_gas.0);
     } else {

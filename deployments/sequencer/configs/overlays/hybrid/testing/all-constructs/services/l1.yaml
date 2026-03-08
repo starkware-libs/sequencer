@@ -1,4 +1,7 @@
 # L1 service configuration with all constructs enabled
+include:
+  - configs/overlays/hybrid/testing/all-constructs/common.yaml
+
 name: l1
 
 # StatefulSet disabled (l1 uses Deployment by default)

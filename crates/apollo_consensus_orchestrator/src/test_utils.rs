@@ -468,9 +468,16 @@ pub(crate) struct TestProposalBuildArguments {
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
+<<<<<<< HEAD
     pub override_timestamp: bool,
     pub override_l2_gas_price_fri: Option<u128>,
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
+||||||| f66f23c096
+    pub use_state_sync_block_timestamp: bool,
+=======
+    pub use_state_sync_block_timestamp: bool,
+    pub compare_retrospective_block_hash: bool,
+>>>>>>> origin/main-v0.14.1-committer
 }
 
 impl From<TestProposalBuildArguments> for ProposalBuildArguments {
@@ -493,9 +500,16 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
             retrospective_block_hash_deadline: args.retrospective_block_hash_deadline,
             retrospective_block_hash_retry_interval_millis: args
                 .retrospective_block_hash_retry_interval_millis,
+<<<<<<< HEAD
             override_timestamp: args.override_timestamp,
             override_l2_gas_price_fri: args.override_l2_gas_price_fri,
             min_l2_gas_price_per_height: args.min_l2_gas_price_per_height,
+||||||| f66f23c096
+            use_state_sync_block_timestamp: args.use_state_sync_block_timestamp,
+=======
+            use_state_sync_block_timestamp: args.use_state_sync_block_timestamp,
+            compare_retrospective_block_hash: args.compare_retrospective_block_hash,
+>>>>>>> origin/main-v0.14.1-committer
         }
     }
 }
@@ -543,9 +557,16 @@ pub(crate) fn create_proposal_build_arguments()
             proposal_round,
             retrospective_block_hash_deadline,
             retrospective_block_hash_retry_interval_millis,
+<<<<<<< HEAD
             override_timestamp,
             override_l2_gas_price_fri: None,
             min_l2_gas_price_per_height: vec![],
+||||||| f66f23c096
+            use_state_sync_block_timestamp,
+=======
+            use_state_sync_block_timestamp,
+            compare_retrospective_block_hash: true,
+>>>>>>> origin/main-v0.14.1-committer
         },
         proposal_receiver,
     )

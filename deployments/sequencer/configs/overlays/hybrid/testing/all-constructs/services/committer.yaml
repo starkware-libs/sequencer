@@ -1,4 +1,7 @@
 # Committer service configuration with all constructs enabled
+include:
+  - configs/overlays/hybrid/testing/all-constructs/common.yaml
+
 name: committer
 
 # StatefulSet enabled (committer uses StatefulSet)
