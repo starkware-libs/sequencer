@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772962128800,
+  "lastUpdate": 1772986487788,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2039,6 +2039,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1260.03497056,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aviv.g@starkware.co",
+            "name": "avivg-starkware",
+            "username": "avivg-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a5cbd5360136a52a6097a17fabd9882a9433f7c8",
+          "message": "blockfier: update cairo vm dep: blake counting (#12943)",
+          "timestamp": "2026-03-08T15:52:32Z",
+          "tree_id": "011b45de34875c315b603eed7b1df7081356eb7d",
+          "url": "https://github.com/starkware-libs/sequencer/commit/a5cbd5360136a52a6097a17fabd9882a9433f7c8"
+        },
+        "date": 1772986487507,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 821.15340884,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1248.96343932,
             "unit": "ms"
           }
         ]
