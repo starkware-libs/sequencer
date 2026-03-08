@@ -129,14 +129,11 @@ pub(crate) struct TestBuilderConfig {
 pub(crate) struct FlowTestTx {
     tx: BlockifierTransaction,
     expected_revert_reason: Option<String>,
-    #[allow(dead_code)]
     event_expectations: Vec<EventPredicateExpectation>,
 }
 
 pub(crate) struct EventPredicateExpectation {
-    #[allow(dead_code)]
     pub(crate) description: String,
-    #[allow(dead_code)]
     pub(crate) predicate: Box<dyn Fn(&Event) -> bool>,
 }
 
@@ -745,9 +742,11 @@ impl<S: FlowTestState> TestBuilder<S> {
     fn verify_execution_outputs(
         block_index: usize,
         revert_reasons: &[Option<String>],
+        event_expectations_per_tx: &[Vec<EventPredicateExpectation>],
         execution_outputs: &[(TransactionExecutionInfo, StateMaps)],
     ) {
         assert_eq!(revert_reasons.len(), execution_outputs.len());
+        assert_eq!(event_expectations_per_tx.len(), execution_outputs.len());
         for ((i, revert_reason), (execution_info, _)) in
             revert_reasons.iter().enumerate().zip(execution_outputs.iter())
         {
@@ -765,6 +764,26 @@ impl<S: FlowTestState> TestBuilder<S> {
                     execution_info.revert_error.is_none(),
                     "{preamble} Expected no revert error, got: {}.",
                     execution_info.revert_error.as_ref().unwrap()
+                );
+            }
+
+            let event_expectations = &event_expectations_per_tx[i];
+            let actual_events = execution_info.accumulated_sorted_events();
+            assert_eq!(
+                event_expectations.len(),
+                actual_events.len(),
+                "{preamble} Expected {} events for predicate checks, got {}.",
+                event_expectations.len(),
+                actual_events.len()
+            );
+            for (event_index, (event_expectation, actual_event)) in
+                event_expectations.iter().zip(actual_events.iter()).enumerate()
+            {
+                assert!(
+                    (event_expectation.predicate)(actual_event),
+                    "{preamble} Event {event_index} failed predicate '{}'. Event: {:?}",
+                    event_expectation.description,
+                    actual_event
                 );
             }
         }
@@ -829,10 +848,17 @@ impl<S: FlowTestState> TestBuilder<S> {
                 BlockContext::from_base_context(&base_block_context, block_index, use_kzg_da)
             };
 
-            let (block_txs, revert_reasons): (Vec<_>, Vec<_>) = block_txs_with_reason
-                .into_iter()
-                .map(|flow_test_tx| (flow_test_tx.tx, flow_test_tx.expected_revert_reason))
-                .unzip();
+            let (block_txs, revert_reasons, event_expectations_per_tx): (Vec<_>, Vec<_>, Vec<_>) =
+                block_txs_with_reason
+                    .into_iter()
+                    .map(|flow_test_tx| {
+                        (
+                            flow_test_tx.tx,
+                            flow_test_tx.expected_revert_reason,
+                            flow_test_tx.event_expectations,
+                        )
+                    })
+                    .multiunzip();
             // Clone the block info for later use.
             let block_info = block_context.block_info().clone();
             // Execute the transactions.
@@ -843,7 +869,12 @@ impl<S: FlowTestState> TestBuilder<S> {
                     block_context,
                     self.virtual_os,
                 );
-            Self::verify_execution_outputs(block_index, &revert_reasons, &execution_outputs);
+            Self::verify_execution_outputs(
+                block_index,
+                &revert_reasons,
+                &event_expectations_per_tx,
+                &execution_outputs,
+            );
             let initial_reads = get_extended_initial_reads(&final_state);
             // Update the wrapped state.
             let state_diff = final_state.to_state_diff().unwrap().state_maps;
