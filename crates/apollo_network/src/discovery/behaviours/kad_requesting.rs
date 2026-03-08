@@ -1,11 +1,14 @@
+use std::collections::{HashSet, VecDeque};
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use libp2p::core::transport::PortUse;
 use libp2p::core::Endpoint;
+use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::{
     dummy,
+    ConnectionClosed,
     ConnectionDenied,
     ConnectionHandler,
     ConnectionId,
@@ -22,6 +25,13 @@ pub struct KadRequestingBehaviour {
     heartbeat_interval: Duration,
     time_for_next_kad_query: Instant,
     sleeper: Option<Pin<Box<Sleep>>>,
+    /// Peers we want to be connected to (for fast membership checks).
+    peers_to_request: HashSet<PeerId>,
+    /// Round-robin queue of peers to query. Peers are moved to the back after being queried,
+    /// and removed when a connection is established.
+    unconnected_peers: VecDeque<PeerId>,
+    /// Buffer of queries to emit for the current heartbeat, drained one per poll call.
+    pending_queries: VecDeque<PeerId>,
 }
 
 impl NetworkBehaviour for KadRequestingBehaviour {
@@ -49,7 +59,23 @@ impl NetworkBehaviour for KadRequestingBehaviour {
         Ok(dummy::ConnectionHandler)
     }
 
-    fn on_swarm_event(&mut self, _: FromSwarm<'_>) {}
+    fn on_swarm_event(&mut self, event: FromSwarm<'_>) {
+        match event {
+            FromSwarm::ConnectionEstablished(ConnectionEstablished { peer_id, .. }) => {
+                self.unconnected_peers.retain(|p| *p != peer_id);
+            }
+            FromSwarm::ConnectionClosed(ConnectionClosed {
+                peer_id,
+                remaining_established: 0,
+                ..
+            }) => {
+                if self.peers_to_request.contains(&peer_id) {
+                    self.unconnected_peers.push_back(peer_id);
+                }
+            }
+            _ => {}
+        }
+    }
 
     fn on_connection_handler_event(
         &mut self,
@@ -64,10 +90,16 @@ impl NetworkBehaviour for KadRequestingBehaviour {
         cx: &mut Context<'_>,
     ) -> Poll<ToSwarm<Self::ToSwarm, <Self::ConnectionHandler as ConnectionHandler>::FromBehaviour>>
     {
+        // Drain pending queries from the current heartbeat, one per poll call.
+        if let Some(peer_id) = self.pending_queries.pop_front() {
+            return Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(
+                peer_id,
+            )));
+        }
+
         let now = Instant::now();
         if now >= self.time_for_next_kad_query {
-            // No need to deal with sleep.
-            return self.set_for_next_kad_query(now);
+            return self.emit_heartbeat_queries(now);
         }
         if self.sleeper.is_none() {
             self.sleeper = Some(Box::pin(tokio::time::sleep_until(self.time_for_next_kad_query)));
@@ -76,7 +108,7 @@ impl NetworkBehaviour for KadRequestingBehaviour {
             self.sleeper.as_mut().expect("Sleeper cannot be None after being created above.");
 
         match sleeper.as_mut().poll(cx) {
-            Poll::Ready(()) => self.set_for_next_kad_query(now),
+            Poll::Ready(()) => self.emit_heartbeat_queries(now),
             Poll::Pending => Poll::Pending,
         }
     }
@@ -84,10 +116,22 @@ impl NetworkBehaviour for KadRequestingBehaviour {
 
 impl KadRequestingBehaviour {
     pub fn new(heartbeat_interval: Duration) -> Self {
-        Self { heartbeat_interval, time_for_next_kad_query: Instant::now(), sleeper: None }
+        Self {
+            heartbeat_interval,
+            time_for_next_kad_query: Instant::now(),
+            sleeper: None,
+            peers_to_request: HashSet::new(),
+            unconnected_peers: VecDeque::new(),
+            pending_queries: VecDeque::new(),
+        }
     }
 
-    fn set_for_next_kad_query(
+    pub fn set_peers_to_request(&mut self, peers: HashSet<PeerId>) {
+        self.unconnected_peers = peers.iter().copied().collect();
+        self.peers_to_request = peers;
+    }
+
+    fn emit_heartbeat_queries(
         &mut self,
         now: Instant,
     ) -> Poll<
@@ -98,8 +142,17 @@ impl KadRequestingBehaviour {
     > {
         self.time_for_next_kad_query = now + self.heartbeat_interval;
         self.sleeper = Some(Box::pin(tokio::time::sleep_until(self.time_for_next_kad_query)));
-        Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(
-            libp2p::identity::PeerId::random(),
-        )))
+        // Query one unconnected peer, rotating through the queue.
+        if let Some(peer_id) = self.unconnected_peers.pop_front() {
+            self.unconnected_peers.push_back(peer_id);
+            self.pending_queries.push_back(peer_id);
+        }
+        self.pending_queries.push_back(PeerId::random());
+        match self.pending_queries.pop_front() {
+            Some(peer_id) => {
+                Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(peer_id)))
+            }
+            None => Poll::Pending,
+        }
     }
 }
