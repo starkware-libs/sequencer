@@ -24,6 +24,7 @@ use tokio::time::sleep;
 
 use super::swarm_trait::{Event, SwarmTrait};
 use super::{BroadcastTopicChannels, GenericNetworkManager};
+use crate::active_committees::store::ActiveCommittees;
 use crate::gossipsub_impl::{self, Topic};
 use crate::misconduct_score::MisconductScore;
 use crate::network_manager::{BroadcastTopicClientTrait, ServerQueryManager};
@@ -230,6 +231,7 @@ async fn register_sqmr_protocol_client_and_use_channels() {
         None,
         MESSAGE_METADATA_BUFFER_SIZE,
         MESSAGE_METADATA_BUFFER_SIZE,
+        ActiveCommittees::new(3),
     );
 
     // register subscriber and send payload
@@ -298,6 +300,7 @@ async fn process_incoming_query() {
         None,
         MESSAGE_METADATA_BUFFER_SIZE,
         MESSAGE_METADATA_BUFFER_SIZE,
+        ActiveCommittees::new(3),
     );
 
     let mut inbound_payload_receiver = network_manager
@@ -340,6 +343,7 @@ async fn broadcast_message() {
         None,
         MESSAGE_METADATA_BUFFER_SIZE,
         MESSAGE_METADATA_BUFFER_SIZE,
+        ActiveCommittees::new(3),
     );
 
     let mut broadcast_topic_client = network_manager
@@ -382,6 +386,7 @@ async fn receive_broadcasted_message_and_report_it() {
         None,
         MESSAGE_METADATA_BUFFER_SIZE,
         MESSAGE_METADATA_BUFFER_SIZE,
+        ActiveCommittees::new(3),
     );
 
     let BroadcastTopicChannels {

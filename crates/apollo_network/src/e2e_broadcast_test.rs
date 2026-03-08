@@ -7,6 +7,7 @@ use libp2p::{Multiaddr, Swarm};
 use libp2p_swarm_test::SwarmExt;
 use starknet_api::core::ChainId;
 
+use crate::active_committees::store::ActiveCommittees;
 use crate::discovery::DiscoveryConfig;
 use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour::MixedBehaviour;
@@ -61,6 +62,7 @@ fn create_network_manager(
         None,
         MESSAGE_METADATA_BUFFER_SIZE,
         MESSAGE_METADATA_BUFFER_SIZE,
+        ActiveCommittees::new(3),
     )
 }
 

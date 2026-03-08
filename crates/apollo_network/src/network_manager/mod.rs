@@ -24,6 +24,8 @@ use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilde
 use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
+use crate::active_committees::store::ActiveCommittees;
+use crate::active_committees::types::{CommitteeMember, EpochId};
 use crate::gossipsub_impl::Topic;
 use crate::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
 use crate::misconduct_score::MisconductScore;
@@ -103,6 +105,7 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
     continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
     metrics: Option<NetworkMetrics>,
+    committee_store: ActiveCommittees,
 }
 
 impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
@@ -173,6 +176,11 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
     }
 
+    pub fn add_epoch(&mut self, epoch_id: EpochId, members: Vec<CommitteeMember>) {
+        let _result = self.committee_store.register_epoch(epoch_id, members);
+        todo!("Wire RegisterEpochResult to behaviours");
+    }
+
     // TODO(shahak): remove the advertised_multiaddr arg once we manage external addresses
     // in a behaviour.
     pub(crate) fn generic_new(
@@ -181,6 +189,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         metrics: Option<NetworkMetrics>,
         broadcasted_message_metadata_buffer_size: usize,
         reported_peer_ids_buffer_size: usize,
+        committee_store: ActiveCommittees,
     ) -> Self {
         let reported_peer_receivers = FuturesUnordered::new();
         reported_peer_receivers.push(futures::future::pending().boxed());
@@ -208,6 +217,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             continue_propagation_sender,
             continue_propagation_receiver,
             metrics,
+            committee_store,
         }
     }
 
@@ -1220,12 +1230,15 @@ impl NetworkManager {
                 .with_p2p(*swarm.local_peer_id())
                 .expect("advertised_multiaddr has a peer id different than the local peer id")
         });
+        // TODO(noam.s): make capacity configurable via NetworkConfig.
+        let committee_store = ActiveCommittees::new(3);
         Self::generic_new(
             swarm,
             advertised_multiaddr,
             metrics,
             broadcasted_message_metadata_buffer_size,
             reported_peer_ids_buffer_size,
+            committee_store,
         )
     }
 

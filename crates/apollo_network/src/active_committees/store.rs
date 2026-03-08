@@ -28,6 +28,7 @@ fn compute_committee_id(sorted_members: &[CommitteeMember]) -> CommitteeId {
 }
 
 /// Result of registering a new epoch in the store.
+#[derive(Debug)]
 pub struct RegisterEpochResult {
     /// All peer IDs that are part of any active committee.
     pub allowed_peers: HashSet<PeerId>,
