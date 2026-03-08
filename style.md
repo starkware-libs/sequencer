@@ -376,6 +376,47 @@ Put integration tests inside `tests/` at the crate root if they don't depend on 
 
 To test binary crates, either add a `lib.rs` and call its main from `main.rs` and from the test, or use integration tests that spawn the binary as a subprocess (See `CARGO_BIN_EXE_<binary_name>`).
 
+### Dependency Injection
+
+Dependency injection allows you to test a component in isolation by mocking its dependencies. This focuses the test on a single unit of code without relying on external services or complex setup.
+
+Use trait-based dependency injection with `#[automock]` from the `mockall` crate:
+
+```rust
+#[cfg_attr(test, mockall::automock)]
+trait Database {
+    fn get_user(&self, id: u64) -> Result<User, Error>;
+}
+
+struct UserService<D: Database> {
+    db: D,
+}
+
+impl<D: Database> UserService<D> {
+    fn get_user_name(&self, id: u64) -> Result<String, Error> {
+        self.db.get_user(id).map(|user| user.name)
+    }
+}
+```
+
+In your test file:
+
+```rust
+use mockall::predicate::eq;
+
+#[test]
+fn test_get_user_name() {
+    let mut mock_db = MockDatabase::new();
+    mock_db
+        .expect_get_user()
+        .with(eq(1))
+        .returning(|_| Ok(User { id: 1, name: "Alice".to_string() }));
+
+    let service = UserService { db: mock_db };
+    assert_eq!(service.get_user_name(1).unwrap(), "Alice");
+}
+```
+
 ## Documentation Standards
 
 Use `///` as doc-strings for all non-trivial structs, functions and methods, and place it before the definition --- these show up on docs.rs and editor tooltips.
