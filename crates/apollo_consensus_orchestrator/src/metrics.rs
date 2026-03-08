@@ -1,6 +1,6 @@
 use apollo_metrics::{define_metrics, generate_permutation_labels};
 use apollo_transaction_converter::metrics::CONSENSUS_PROOF_MANAGER_STORE_LATENCY;
-use strum::{EnumIter, EnumVariantNames, IntoStaticStr};
+use strum::{EnumIter, IntoStaticStr, VariantNames};
 
 use crate::build_proposal::BuildProposalFailureReasonLabelValue;
 use crate::validate_proposal::ValidateProposalFailureReasonLabelValue;
@@ -37,7 +37,7 @@ define_metrics!(
 
 pub const LABEL_CENDE_FAILURE_REASON: &str = "cende_write_failure_reason";
 
-#[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
+#[derive(IntoStaticStr, EnumIter, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub(crate) enum CendeWriteFailureReason {
     CommunicationError,

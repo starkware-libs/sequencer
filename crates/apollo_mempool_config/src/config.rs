@@ -1,10 +1,12 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config::converters::deserialize_seconds_to_duration;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use url::Url;
 use validator::Validate;
 
 /// Configuration for consensus containing both static and dynamic configs.
@@ -70,6 +72,10 @@ pub struct MempoolStaticConfig {
     pub committed_nonce_retention_block_count: usize,
     // The maximum size of the mempool, in bytes.
     pub capacity_in_bytes: u64,
+    // Determines queue type and other behavior.
+    pub behavior_mode: BehaviorMode,
+    // The URL of the recorder service (used for FIFO queue timestamp fetching).
+    pub recorder_url: Url,
 }
 
 impl Default for MempoolStaticConfig {
@@ -81,6 +87,10 @@ impl Default for MempoolStaticConfig {
             declare_delay: Duration::from_secs(1),
             committed_nonce_retention_block_count: 100,
             capacity_in_bytes: 1 << 30, // 1GB.
+            behavior_mode: BehaviorMode::Starknet,
+            recorder_url: "https://recorder_url"
+                .parse::<Url>()
+                .expect("recorder_url must be a valid Recorder URL"),
         }
     }
 }
@@ -125,6 +135,18 @@ impl SerializeConfig for MempoolStaticConfig {
                 "capacity_in_bytes",
                 &self.capacity_in_bytes,
                 "Maximum size of the mempool, in bytes.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "behavior_mode",
+                &self.behavior_mode,
+                "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "recorder_url",
+                &self.recorder_url,
+                "The URL of the recorder service (used for FIFO queue timestamp fetching).",
                 ParamPrivacyInput::Public,
             ),
         ])

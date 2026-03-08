@@ -71,7 +71,7 @@ impl EstimatedExecutionResources {
         let mut opcode_instance_counter = OpcodeCounterMap::default();
         if let Self::V2Hash { blake_count, .. } = self {
             if *blake_count > 0 {
-                opcode_instance_counter.insert(OpcodeName::Blake, *blake_count);
+                opcode_instance_counter.insert(OpcodeName::blake, *blake_count);
             }
         }
         ExtendedExecutionResources { vm_resources: self.resources(), opcode_instance_counter }

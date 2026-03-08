@@ -16,7 +16,7 @@ use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use blockifier::metrics::CacheMetrics;
 use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
-use strum::{EnumVariantNames, IntoStaticStr};
+use strum::{IntoStaticStr, VariantNames};
 
 use crate::communication::GATEWAY_REQUEST_LABELS;
 
@@ -54,14 +54,14 @@ define_metrics!(
     },
 );
 
-#[derive(Clone, Copy, Debug, IntoStaticStr, EnumVariantNames)]
+#[derive(Clone, Copy, Debug, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub enum SourceLabelValue {
     Http,
     P2p,
 }
 
-#[derive(Clone, Copy, Debug, IntoStaticStr, EnumVariantNames)]
+#[derive(Clone, Copy, Debug, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub enum GatewayAddTxFailureReason {
     // Starknet errors (1:1 with KnownStarknetErrorCode)

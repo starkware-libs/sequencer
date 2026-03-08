@@ -1,4 +1,5 @@
 {
+  "behavior_mode": "starknet",
   "chain_id": "",
   "eth_fee_token_address": "",
   "native_classes_whitelist": "[]",

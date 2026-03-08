@@ -14,6 +14,8 @@ cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 expect-test.workspace = true
 itertools.workspace = true
+rand.workspace = true
+rand_chacha.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
 starknet-core.workspace = true
@@ -22,9 +24,10 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_committer = { workspace = true, features = ["testing"] }
 starknet_os = { workspace = true, features = ["include_program_output", "testing"] }
-starknet_os_runner.workspace = true
 starknet_patricia = { workspace = true, features = ["testing"] }
 starknet_patricia_storage = { workspace = true, features = ["testing"] }
+starknet_transaction_prover.workspace = true
+strum.workspace = true
 tokio.workspace = true
 
 [lints]

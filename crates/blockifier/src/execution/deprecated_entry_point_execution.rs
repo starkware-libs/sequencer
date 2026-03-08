@@ -229,7 +229,7 @@ pub fn run_entry_point(
 
 pub fn finalize_execution(
     mut runner: CairoRunner,
-    syscall_handler: DeprecatedSyscallHintProcessor<'_>,
+    mut syscall_handler: DeprecatedSyscallHintProcessor<'_>,
     call: ExecutableCallEntryPoint,
     implicit_args: Vec<MaybeRelocatable>,
     n_total_args: usize,
@@ -273,6 +273,9 @@ pub fn finalize_execution(
     };
     let resources = &extended_resources_without_inner_calls
         + &CallInfo::summarize_vm_resources(syscall_handler.inner_calls.iter());
+
+    // Move original storage values back to revert_infos for potential revert.
+    syscall_handler.finalize();
 
     Ok(CallInfo {
         call: call.into(),

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use apollo_sizeof::SizeOf;
 use cairo_air::utils::{get_verification_output, VerificationOutput};
-use cairo_air::verifier::verify_cairo;
+use cairo_air::verifier::verify_cairo_ex;
 use cairo_air::CairoProofForRustVerifier;
 use proving_utils::proof_encoding::{ProofBytes, ProofEncodingError};
 use serde::{Deserialize, Serialize};
@@ -148,8 +148,9 @@ pub fn stwo_verify(proof: Proof) -> Result<StwoVerifyOutput, StwoVerifyError> {
     // Extract verification output from the proof's public memory.
     let verification_output = get_verification_output(&cairo_proof.claim.public_data.public_memory);
 
-    // Verify the proof.
-    verify_cairo::<Blake2sMerkleChannel>(cairo_proof)
+    // Verify the proof (include_all_preprocessed_columns must match the prover params).
+    let include_all_preprocessed_columns = true;
+    verify_cairo_ex::<Blake2sMerkleChannel>(cairo_proof, include_all_preprocessed_columns)
         .map_err(|e| StwoVerifyError::Verification(format!("{e:?}")))?;
 
     // Convert starknet_ff::FieldElement values to starknet_types_core::felt::Felt.

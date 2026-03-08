@@ -9,12 +9,12 @@ use apollo_metrics::metrics::{
     MetricHistogram,
 };
 use libp2p::gossipsub::{PublishError, TopicHash};
-use strum::{EnumVariantNames, IntoStaticStr};
+use strum::{IntoStaticStr, VariantNames};
 
 // Labels used for broadcast drop metrics
 pub const LABEL_NAME_BROADCAST_DROP_REASON: &str = "drop_reason";
 
-#[derive(IntoStaticStr, EnumVariantNames)]
+#[derive(IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub enum BroadcastPublishDropReason {
     Duplicate,
@@ -60,7 +60,7 @@ impl SqmrNetworkMetrics {
 
 pub const LABEL_NAME_EVENT_TYPE: &str = "event_type";
 
-#[derive(IntoStaticStr, EnumVariantNames)]
+#[derive(IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub enum EventType {
     ConnectionsEstablished,

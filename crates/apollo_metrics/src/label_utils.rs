@@ -4,20 +4,20 @@
 /// This macro:
 /// - Accepts a list of tuples (`($name, $enum)`) where:
 ///   - `$name` is a string representing the key for the enum.
-///   - `$enum` is an enum type that implements `strum::EnumVariantNames`.
+///   - `$enum` is an enum type that implements `strum::VariantNames`.
 /// - Computes **all possible permutations** of the provided enums at **compile-time**.
 /// - Generates a uniquely named constant in the format `<ENUM1_ENUM2_PERMUTATIONS>`.
 ///
 /// # Example
 /// ```rust, ignore
-/// #[derive(strum::EnumVariantNames)]
+/// #[derive(strum::VariantNames)]
 /// enum Color {
 ///     Red,
 ///     Green,
 ///     Blue,
 /// }
 ///
-/// #[derive(strum::EnumVariantNames)]
+/// #[derive(strum::VariantNames)]
 /// enum Size {
 ///     Small,
 ///     Medium,

@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::ops::Deref;
 
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
@@ -8,9 +9,8 @@ use chrono::prelude::*;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
-use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
+use starknet_api::block_hash::block_hash_calculator::{BlockHeaderCommitments, PartialBlockHash};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::StateDiffCommitment;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
@@ -36,9 +36,10 @@ pub struct ProposalId(pub u64);
 
 pub type Round = u32;
 
-#[derive(Clone, Debug, Copy, Default, Eq, PartialEq, Serialize, Deserialize)]
+/// Commitment identifying a proposed block (its partial block hash).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ProposalCommitment {
-    pub state_diff_commitment: StateDiffCommitment,
+    pub partial_block_hash: PartialBlockHash,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -67,36 +68,39 @@ pub struct GetProposalContentResponse {
 }
 
 /// Artifact-derived fields for a finished proposal. Use with
-/// [`FinishedProposalInfo::from_artifacts_and_parent`] to build the full info.
+/// [`FinishedProposalInfo::new`] to build the full info.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FinishedProposalInfoWithoutParent {
     pub proposal_commitment: ProposalCommitment,
     pub final_n_executed_txs: usize,
     pub block_header_commitments: BlockHeaderCommitments,
+    pub l2_gas_used: GasAmount,
 }
 
 /// Information returned when block building has finished (proposer or validator).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FinishedProposalInfo {
-    pub proposal_commitment: ProposalCommitment,
-    pub final_n_executed_txs: usize,
-    pub block_header_commitments: BlockHeaderCommitments,
+    #[serde(flatten)]
+    pub artifact: FinishedProposalInfoWithoutParent,
     // None for the first block
     pub parent_proposal_commitment: Option<ProposalCommitment>,
 }
 
+impl Deref for FinishedProposalInfo {
+    type Target = FinishedProposalInfoWithoutParent;
+
+    fn deref(&self) -> &Self::Target {
+        &self.artifact
+    }
+}
+
 impl FinishedProposalInfo {
     /// Builds [`FinishedProposalInfo`] from artifact-derived fields and the parent commitment.
-    pub fn from_artifacts_and_parent(
+    pub fn new(
         artifact_derived: FinishedProposalInfoWithoutParent,
         parent_proposal_commitment: Option<ProposalCommitment>,
     ) -> Self {
-        Self {
-            proposal_commitment: artifact_derived.proposal_commitment,
-            final_n_executed_txs: artifact_derived.final_n_executed_txs,
-            block_header_commitments: artifact_derived.block_header_commitments,
-            parent_proposal_commitment,
-        }
+        Self { artifact: artifact_derived, parent_proposal_commitment }
     }
 }
 
@@ -152,7 +156,6 @@ pub struct DecisionReachedResponse {
     // TODO(Yael): Consider passing the state_diff as CommitmentStateDiff inside CentralObjects.
     // Today the ThinStateDiff is used for the state sync but it may not be needed in the future.
     pub state_diff: ThinStateDiff,
-    pub l2_gas_used: GasAmount,
     pub central_objects: CentralObjects,
 }
 

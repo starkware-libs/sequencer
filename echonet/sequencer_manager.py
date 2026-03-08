@@ -25,6 +25,8 @@ REVERT_INACTIVITY_SUBSTRINGS: tuple[str, ...] = (
     "Successfully reverted State Sync's storage to height marker",
 )
 
+_CACHED_NAMESPACE_BY_PATH: dict[str, str] = {}
+
 
 ConfigMutator = Callable[[JsonObject], None]
 
@@ -337,8 +339,13 @@ class SequencerManager:
         logger.info("Resync workflow complete.")
 
 
-def _read_namespace_from_serviceaccount(namespace_path: str) -> str:
-    with open(namespace_path, "r") as f:
+def _read_namespace_from_serviceaccount(namespace_path: Optional[str] = None) -> str:
+    resolved_path = namespace_path or SequencerKubeSpec().serviceaccount_namespace_path
+    cached = _CACHED_NAMESPACE_BY_PATH.get(resolved_path)
+    if cached is not None:
+        return cached
+    with open(resolved_path, "r") as f:
         namespace = f.read().strip()
     logger.info(f"Auto-detected namespace: {namespace}")
+    _CACHED_NAMESPACE_BY_PATH[resolved_path] = namespace
     return namespace

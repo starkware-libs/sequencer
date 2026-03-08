@@ -18,7 +18,7 @@ use mockall::automock;
 use papyrus_base_layer::L1BlockNumber;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockTimestamp, GasPrice};
-use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use tracing::instrument;
 
 pub const DEFAULT_ETH_TO_FRI_RATE: u128 = 10_u128.pow(21);
@@ -63,7 +63,7 @@ impl<'a> Sum<&'a Self> for PriceInfo {
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(
     name(L1GasPriceRequestLabelValue),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    derive(IntoStaticStr, EnumIter, VariantNames),
     strum(serialize_all = "snake_case")
 )]
 pub enum L1GasPriceRequest {

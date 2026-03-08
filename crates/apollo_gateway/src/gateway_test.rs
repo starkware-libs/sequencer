@@ -33,6 +33,7 @@ use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs, Vali
 use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_transaction_converter::proof_verification::VerifyProofError;
 use apollo_transaction_converter::{
     MockTransactionConverterTrait,
     TransactionConverterError,
@@ -264,22 +265,20 @@ fn setup_transaction_converter_mock(
     let internal_tx = tx_args.get_internal_tx();
 
     // Create verification handle if the transaction has proof facts.
-    let verification_handle =
-        if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref invoke_tx)) = rpc_tx {
-            if !invoke_tx.proof_facts.is_empty() {
-                // Create a simple task that just returns Ok (verification is mocked).
-                let verification_task = tokio::spawn(async { Ok(()) });
-                Some(VerificationHandle {
-                    proof_facts: invoke_tx.proof_facts.clone(),
-                    proof: invoke_tx.proof.clone(),
-                    verification_task,
-                })
-            } else {
-                None
-            }
-        } else {
-            None
-        };
+    let verification_handle = match rpc_tx {
+        RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref invoke_tx))
+            if !invoke_tx.proof_facts.is_empty() =>
+        {
+            // Create a simple task that just returns Ok (verification is mocked).
+            let verification_task = tokio::spawn(async { Ok(()) });
+            Some(VerificationHandle {
+                proof_facts: invoke_tx.proof_facts.clone(),
+                proof: invoke_tx.proof.clone(),
+                verification_task,
+            })
+        }
+        _ => None,
+    };
 
     mock_transaction_converter
         .expect_convert_rpc_tx_to_internal_rpc_tx()
@@ -294,6 +293,44 @@ fn setup_transaction_converter_mock(
         .once()
         .with(eq(internal_tx))
         .return_once(move |_| Ok(executable_tx));
+}
+
+fn setup_transaction_converter_mock_with_failed_verification(
+    mock_transaction_converter: &mut MockTransactionConverterTrait,
+    tx_args: &impl TestingTxArgs,
+) {
+    let rpc_tx = tx_args.get_rpc_tx();
+    let internal_tx = tx_args.get_internal_tx();
+
+    // Create verification handle if the transaction has proof facts.
+    let verification_handle = match rpc_tx {
+        RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref invoke_tx))
+            if !invoke_tx.proof_facts.is_empty() =>
+        {
+            // Create a task that returns a proof verification error.
+            let verification_task = tokio::spawn(async {
+                Err(TransactionConverterError::ProofVerificationError(
+                    VerifyProofError::BootloaderHashMismatch,
+                ))
+            });
+            Some(VerificationHandle {
+                proof_facts: invoke_tx.proof_facts.clone(),
+                proof: invoke_tx.proof.clone(),
+                verification_task,
+            })
+        }
+        _ => None,
+    };
+
+    mock_transaction_converter
+        .expect_convert_rpc_tx_to_internal_rpc_tx()
+        .once()
+        .with(eq(rpc_tx))
+        .return_once(move |_| Ok((internal_tx, verification_handle)));
+
+    // Note: Unlike in the successful case, we don't set up
+    // expect_convert_internal_rpc_tx_to_executable_tx because the verification failure will
+    // cause an early return before that conversion happens.
 }
 
 fn check_positive_add_tx_result(tx_args: impl TestingTxArgs, result: GatewayOutput) {
@@ -467,6 +504,51 @@ async fn test_add_tx_positive(
         1
     );
     check_positive_add_tx_result(tx_args, result.unwrap());
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_add_tx_fails_when_proof_verification_fails(mut mock_dependencies: MockDependencies) {
+    let tx_args = invoke_args_with_client_side_proving();
+
+    // Setup transaction converter mock that returns a failing verification task.
+    setup_transaction_converter_mock_with_failed_verification(
+        &mut mock_dependencies.mock_transaction_converter,
+        &tx_args,
+    );
+
+    // Setup state: fund account and store proof block hash.
+    let state_reader =
+        &mut mock_dependencies.state_reader_factory.state_reader.blockifier_state_reader;
+    let address = tx_args.get_internal_tx().contract_address();
+    fund_account(
+        &mock_dependencies.config.static_config.chain_info,
+        address,
+        VALID_ACCOUNT_BALANCE,
+        state_reader,
+    );
+
+    let block_hash_state_maps = generate_block_hash_storage_updates();
+    state_reader.storage_view.extend(block_hash_state_maps.storage);
+
+    // Run add_tx and verify it fails.
+    let AddTxResults { result, metric_handle_for_queries, metrics } =
+        run_add_tx_and_extract_metrics(mock_dependencies, &tx_args).await;
+
+    // Assert the transaction was received but failed.
+    assert_eq!(
+        metric_handle_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_RECEIVED, &metrics),
+        1
+    );
+    assert_eq!(
+        metric_handle_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_FAILED, &metrics),
+        1
+    );
+
+    // Assert the error is an internal error due to proof verification failure.
+    let error = result.unwrap_err();
+    assert_eq!(error.code, StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidProof));
+    assert_eq!(error.message, "Proof verification error: Bootloader program hash mismatch.");
 }
 
 #[rstest]

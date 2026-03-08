@@ -3,9 +3,9 @@ use std::net::{IpAddr, Ipv4Addr};
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_proc_macros::unique_u16;
 use apollo_test_utils::get_test_block;
-use axum::http::StatusCode;
 use axum::Router;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use http::StatusCode;
 use indexmap::IndexMap;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -19,12 +19,14 @@ use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, nonc
 use tempfile::TempDir;
 
 use crate::base_layer::BaseLayerStorageReader;
+use crate::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
 use crate::body::{BodyStorageReader, BodyStorageWriter, TransactionIndex};
 use crate::class::{ClassStorageReader, ClassStorageWriter};
 use crate::class_hash::ClassHashStorageWriter;
 use crate::class_manager::ClassManagerStorageReader;
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::consensus::{ConsensusStorageWriter, LastVotedMarker};
+use crate::global_root_marker::GlobalRootMarkerStorageReader;
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
 use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::storage_reader_server::ServerConfig;
@@ -131,6 +133,8 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         .append_casm(&casm_class_hash, &expected_casm)
         .unwrap()
         .append_header(block_number, &block.header)
+        .unwrap()
+        .set_block_hash(&block_number, block.header.block_hash)
         .unwrap()
         .append_block_signature(block_number, &block_signature)
         .unwrap()
@@ -363,8 +367,7 @@ async fn markers_request() {
 
     let txn = setup.reader.begin_ro_txn().unwrap();
 
-    // Test all implemented markers
-    // TODO(Nadin): Add tests for GlobalRoot once it is implemented.
+    // Test all implemented markers.
     let marker_tests = vec![
         (MarkerKind::State, txn.get_state_marker().unwrap()),
         (MarkerKind::Header, txn.get_header_marker().unwrap()),
@@ -378,6 +381,7 @@ async fn markers_request() {
             MarkerKind::CompilerBackwardCompatibility,
             txn.get_compiler_backward_compatibility_marker().unwrap(),
         ),
+        (MarkerKind::GlobalRoot, txn.get_global_root_marker().unwrap()),
     ];
 
     for (marker_kind, expected_marker) in marker_tests {
@@ -550,6 +554,24 @@ async fn headers_request() {
     let response: StorageReaderResponse = setup.get_success_response(&request).await;
 
     assert_eq!(response, StorageReaderResponse::Headers(expected_header));
+}
+
+#[tokio::test]
+async fn block_hash_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let expected_block_hash = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_hash(&TEST_BLOCK_NUMBER)
+        .unwrap()
+        .expect("Block hash should exist");
+
+    let request = StorageReaderRequest::BlockHash(TEST_BLOCK_NUMBER);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::BlockHash(expected_block_hash));
 }
 
 #[tokio::test]

@@ -30,6 +30,7 @@ pub type RpcErrorCode = i32;
 pub const RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND: RpcErrorCode = 20;
 pub const RPC_ERROR_BLOCK_NOT_FOUND: RpcErrorCode = 24;
 pub const RPC_CLASS_HASH_NOT_FOUND: RpcErrorCode = 28;
+pub const RPC_TRANSACTION_EXECUTION_ERROR: RpcErrorCode = 41;
 pub const RPC_ERROR_INVALID_PARAMS: RpcErrorCode = -32602;
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize)]

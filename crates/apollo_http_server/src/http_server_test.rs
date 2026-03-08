@@ -14,9 +14,9 @@ use apollo_gateway_types::gateway_types::{
 use apollo_infra::component_client::ClientError;
 use apollo_proc_macros::unique_u16;
 use axum::body::Bytes;
-use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
+use http::StatusCode;
 use http_body_util::BodyExt;
 use rstest::rstest;
 use serde_json::Value;
@@ -92,10 +92,6 @@ async fn to_bytes(res: Response) -> Bytes {
     res.into_body().collect().await.unwrap().to_bytes()
 }
 
-// TODO(Tsabary): there's a discrepancy with the used `StatusCode` crates: reqwest and axum. Some
-// tests expect the former and some the other, based on the used test utils. Better sort this out
-// and make consistent across.
-
 /// Test that an HTTP server with a `allow_new_txs = false` config rejects new transactions.
 #[rstest]
 #[tokio::test]
@@ -110,7 +106,7 @@ async fn allow_new_txs() {
     // Send a transaction to the server.
     let response = http_client.add_tx(tx.clone()).await;
     let status = response.status();
-    assert_eq!(status, reqwest::StatusCode::SERVICE_UNAVAILABLE, "{status:?}");
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{status:?}");
 }
 
 #[tokio::test]
@@ -253,13 +249,11 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     assert_eq!(tx_hash, EXPECTED_TX_HASH);
 
     // Test a failed bad request response.
-    let error_str =
-        http_client.assert_add_tx_error(tx.clone(), reqwest::StatusCode::BAD_REQUEST).await;
+    let error_str = http_client.assert_add_tx_error(tx.clone(), StatusCode::BAD_REQUEST).await;
     assert_eq!(error_str, expected_err_str);
 
     // Test a failed internal server error response.
-    let error_str =
-        http_client.assert_add_tx_error(tx, reqwest::StatusCode::INTERNAL_SERVER_ERROR).await;
+    let error_str = http_client.assert_add_tx_error(tx, StatusCode::INTERNAL_SERVER_ERROR).await;
     assert_eq!(error_str, expected_gateway_client_err_str);
 }
 
@@ -319,8 +313,7 @@ async fn test_unsupported_tx_version(
 
     let http_client = HttpClientServerSetupBuilder::new(index).build().await;
 
-    let serialized_err =
-        http_client.assert_add_tx_error(tx_json, reqwest::StatusCode::BAD_REQUEST).await;
+    let serialized_err = http_client.assert_add_tx_error(tx_json, StatusCode::BAD_REQUEST).await;
     let starknet_error = serde_json::from_str::<StarknetError>(&serialized_err).unwrap();
     assert_eq!(starknet_error, expected_err);
 }
@@ -337,8 +330,7 @@ async fn sanitizing_error_message() {
 
     let http_client = HttpClientServerSetupBuilder::new(unique_u16!()).build().await;
 
-    let serialized_err =
-        http_client.assert_add_tx_error(tx_json, reqwest::StatusCode::BAD_REQUEST).await;
+    let serialized_err = http_client.assert_add_tx_error(tx_json, StatusCode::BAD_REQUEST).await;
     let starknet_error: StarknetError =
         serde_json::from_str(&serialized_err).expect("Expected valid StarknetError JSON");
 
@@ -363,26 +355,26 @@ async fn sanitizing_error_message() {
 
 #[rstest]
 #[case::add_deprecated_gateway_tx_happy_flow(
-    unique_u16!(), deprecated_gateway_invoke_tx(), 1024, reqwest::StatusCode::OK
+    unique_u16!(), deprecated_gateway_invoke_tx(), 1024, StatusCode::OK
 )]
 #[case::add_rpc_tx_happy_flow(
-    unique_u16!(), rpc_invoke_tx(), 1024, reqwest::StatusCode::OK
+    unique_u16!(), rpc_invoke_tx(), 1024, StatusCode::OK
 )]
 #[case::add_deprecated_gateway_tx_too_large(
-    unique_u16!(), deprecated_gateway_invoke_tx(), 16, reqwest::StatusCode::PAYLOAD_TOO_LARGE
+    unique_u16!(), deprecated_gateway_invoke_tx(), 16, StatusCode::PAYLOAD_TOO_LARGE
 )]
 #[case::add_rpc_tx_too_large(
-    unique_u16!(), rpc_invoke_tx(), 16, reqwest::StatusCode::PAYLOAD_TOO_LARGE
+    unique_u16!(), rpc_invoke_tx(), 16, StatusCode::PAYLOAD_TOO_LARGE
 )]
 #[tokio::test]
 async fn request_body_size_limit_enforced(
     #[case] index: u16,
     #[case] tx: impl GatewayTransaction,
     #[case] max_request_body_size: usize,
-    #[case] expected_status: reqwest::StatusCode,
+    #[case] expected_status: StatusCode,
 ) {
     let mut mock_gateway_client = MockGatewayClient::new();
-    if expected_status == reqwest::StatusCode::OK {
+    if expected_status == StatusCode::OK {
         mock_gateway_client.expect_add_tx().times(1).return_const(Ok(default_gateway_output()));
     }
     let http_client = HttpClientServerSetupBuilder::new(index)

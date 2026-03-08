@@ -17,7 +17,9 @@ use apollo_batcher_types::batcher_types::{
     ProposalId,
     StartHeightInput,
 };
-use apollo_batcher_types::communication::BatcherClient;
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
+use apollo_batcher_types::errors::BatcherError;
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::{ConsensusContext, ConsensusError, ProposalCommitment, Round};
 use apollo_consensus_orchestrator_config::config::ContextConfig;
@@ -27,7 +29,9 @@ use apollo_protobuf::consensus::{
     BuildParam,
     CommitmentParts,
     HeightAndRound,
+    L2GasInfo,
     ProposalFin,
+    ProposalFinPayload,
     ProposalInit,
     ProposalPart,
     TransactionBatch,
@@ -47,6 +51,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::future::ready;
 use futures::SinkExt;
 use starknet_api::block::{
+    BlockHashAndNumber,
     BlockHeaderWithoutHash,
     BlockInfo,
     BlockNumber,
@@ -67,12 +72,13 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
-use crate::cende::{BlobParameters, CendeContext, InternalTransactionWithReceipt};
-use crate::fee_market::{
-    calculate_next_base_gas_price,
-    get_min_gas_price_for_height,
-    FeeMarketInfo,
+use crate::cende::{
+    BlobParameters,
+    CendeContext,
+    InternalTransactionWithReceipt,
+    N_BLOCK_HASHES_BACK_IN_BLOB,
 };
+use crate::fee_market::{calculate_next_l2_gas_price_for_fin, FeeMarketInfo};
 use crate::metrics::{
     record_build_proposal_failure,
     record_validate_proposal_failure,
@@ -97,61 +103,106 @@ use crate::validate_proposal::{
 
 type ValidationParams = (ProposalInit, Duration, mpsc::Receiver<ProposalPart>);
 
-type HeightToIdToContent = BTreeMap<
-    BlockNumber,
-    BTreeMap<
-        ProposalCommitment,
-        (ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId, FinishedProposalInfo),
-    >,
->;
+type ProposalContent =
+    (ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId, FinishedProposalInfo);
+
+/// Assumption: at most one proposal is tracked per (height, round).
+/// We still keep the `ProposalCommitment` alongside the content for:
+/// - verifying `decision_reached(height, round, commitment)` matches what we stored, and
+/// - supporting `repropose(proposal_commitment, init)` where `init.round` may differ from the round
+///   the proposal was originally built/validated in.
+type HeightToRoundToProposal =
+    BTreeMap<BlockNumber, BTreeMap<Round, (ProposalCommitment, ProposalContent)>>;
 
 pub(crate) struct BuiltProposals {
-    // {height: {proposal_commitment: (init, content, [proposal_ids], finished_info)]}}
+    // {height: {proposal_commitment: (init, content, proposal_id, finished_info)}}
     // Note that multiple proposals IDs can be associated with the same content, but we only need
     // to store one of them.
     //
     // The tranasactions are stored as a vector of batches (as returned from the batcher) and not
     // flattened. This is since we might need to repropose, in which case we need to send the
     // transactions in batches.
-    data: HeightToIdToContent,
+    data: HeightToRoundToProposal,
 }
 
 impl BuiltProposals {
     pub fn new() -> Self {
-        Self { data: HeightToIdToContent::default() }
+        Self { data: HeightToRoundToProposal::default() }
     }
 
     fn get_proposal(
         &self,
         height: &BlockNumber,
+        round: &Round,
         commitment: &ProposalCommitment,
-    ) -> &(ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId, FinishedProposalInfo)
-    {
-        self.data
+    ) -> &ProposalContent {
+        let by_round = self
+            .data
             .get(height)
-            .unwrap_or_else(|| panic!("No proposals found for height {height}"))
-            .get(commitment)
-            .unwrap_or_else(|| panic!("No proposal found for height {height} and id {commitment}"))
+            .unwrap_or_else(|| panic!("No proposals found for height {height}"));
+        let (stored_commitment, stored_content) = by_round
+            .get(round)
+            .unwrap_or_else(|| panic!("No proposal found for height {height} and round {round}"));
+        assert_eq!(
+            stored_commitment, commitment,
+            "Proposal commitment mismatch for height {height} round {round}: \
+             stored={stored_commitment}, requested={commitment}"
+        );
+        stored_content
     }
 
     fn remove_proposals_below_or_at_height(&mut self, height: &BlockNumber) {
         self.data.retain(|&h, _| h > *height);
     }
 
-    pub(crate) fn insert_proposal_for_height(
+    pub(crate) fn insert_proposal(
         &mut self,
-        height: &BlockNumber,
         init: ProposalInit,
         transactions: Vec<Vec<InternalConsensusTransaction>>,
         proposal_id: &ProposalId,
         finished_info: FinishedProposalInfo,
     ) {
         let proposal_commitment =
-            ProposalCommitment(finished_info.proposal_commitment.state_diff_commitment.0.0);
-        self.data
-            .entry(*height)
-            .or_default()
-            .insert(proposal_commitment, (init, transactions, *proposal_id, finished_info));
+            ProposalCommitment(finished_info.proposal_commitment.partial_block_hash.0);
+
+        let height = init.height;
+        let round = init.round;
+        let by_round = self.data.entry(height).or_default();
+        let previous = by_round.insert(
+            round,
+            (proposal_commitment, (init, transactions, *proposal_id, finished_info)),
+        );
+        assert!(
+            previous.is_none(),
+            "Overwriting existing proposal for height {height} round {round}; at most one \
+             proposal per (height, round) is allowed"
+        );
+    }
+
+    /// Gets the proposal from (height, valid_round), creates updated init with build_param for
+    /// reproposal (timestamp remains unchanged since it is part of PartialBlockHashComponents and
+    /// must match the initial proposal for commitment consistency), inserts a new entry at
+    /// (height, build_param.round) so decision_reached can find it, and returns (init,
+    /// transactions) for sending the reproposal.
+    fn update_for_reproposal(
+        &mut self,
+        height: &BlockNumber,
+        proposal_commitment: &ProposalCommitment,
+        build_param: &BuildParam,
+    ) -> (ProposalInit, Vec<Vec<InternalConsensusTransaction>>, FinishedProposalInfo) {
+        let lookup_round = build_param.valid_round.expect("Valid round must be set for reproposal");
+        let (mut init, transactions, proposal_id, finished_info) =
+            self.get_proposal(height, &lookup_round, proposal_commitment).clone();
+        init.round = build_param.round;
+        init.proposer = build_param.proposer;
+        init.valid_round = build_param.valid_round;
+        self.insert_proposal(
+            init.clone(),
+            transactions.clone(),
+            &proposal_id,
+            finished_info.clone(),
+        );
+        (init, transactions, finished_info)
     }
 }
 
@@ -318,34 +369,24 @@ impl SequencerConsensusContext {
         self.deps.state_sync_client.add_new_block(sync_block).await
     }
 
+    /// Returns the next L2 gas price without mutating context. Used when building the fin and when
+    /// updating at decision time.
+    fn calculate_next_l2_gas_price(&self, height: BlockNumber, l2_gas_used: GasAmount) -> GasPrice {
+        calculate_next_l2_gas_price_for_fin(
+            self.l2_gas_price,
+            height,
+            l2_gas_used,
+            self.config.dynamic_config.override_l2_gas_price_fri,
+            &self.config.dynamic_config.min_l2_gas_price_per_height,
+        )
+    }
+
     fn update_l2_gas_price(&mut self, height: BlockNumber, l2_gas_used: GasAmount) {
-        if let Some(override_value) = self.config.dynamic_config.override_l2_gas_price_fri {
-            info!(
-                "L2 gas price ({}) is not updated, remains on override value of {override_value} \
-                 fri",
-                self.l2_gas_price.0
-            );
-            self.l2_gas_price = GasPrice(override_value);
-        } else {
-            let versioned_constants = VersionedConstants::latest_constants();
-            let gas_target = versioned_constants.gas_target;
-
-            let min_l2_gas_price_per_height =
-                &self.config.dynamic_config.min_l2_gas_price_per_height;
-
-            let min_gas_price = get_min_gas_price_for_height(height, min_l2_gas_price_per_height);
-            self.l2_gas_price = calculate_next_base_gas_price(
-                self.l2_gas_price,
-                l2_gas_used,
-                gas_target,
-                min_gas_price,
-            );
-        }
-
+        self.l2_gas_price = self.calculate_next_l2_gas_price(height, l2_gas_used);
         let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
         CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
     }
-
+    #[allow(clippy::too_many_arguments)]
     async fn finalize_decision(
         &mut self,
         height: BlockNumber,
@@ -355,9 +396,9 @@ impl SequencerConsensusContext {
         transactions: Vec<Vec<InternalConsensusTransaction>>,
         decision_reached_response: DecisionReachedResponse,
         block_header_commitments: BlockHeaderCommitments,
+        l2_gas_used: GasAmount,
     ) {
-        let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } =
-            decision_reached_response;
+        let DecisionReachedResponse { state_diff, central_objects } = decision_reached_response;
 
         self.update_l2_gas_price(height, l2_gas_used);
 
@@ -438,7 +479,8 @@ impl SequencerConsensusContext {
                 proposal_commitment: commitment,
                 parent_proposal_commitment: central_objects
                     .parent_proposal_commitment
-                    .map(|commitment| ProposalCommitment(commitment.state_diff_commitment.0.0)),
+                    .map(|commitment| ProposalCommitment(commitment.partial_block_hash.0)),
+                recent_block_hashes: self.collect_recent_block_hashes(height).await,
             })
             .await
         {
@@ -448,6 +490,38 @@ impl SequencerConsensusContext {
 
     pub fn get_config(&self) -> &ContextConfig {
         &self.config
+    }
+
+    /// Collects the recent block hashes from the batcher.
+    /// Returns computed block hashes in range [height - N_RECENT_BLOCK_HASHES_IN_BLOB, height].
+    async fn collect_recent_block_hashes(&self, height: BlockNumber) -> Vec<BlockHashAndNumber> {
+        let mut recent_block_hashes = Vec::with_capacity(
+            usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB)
+                .expect("N_BLOCK_HASHES_BACK_IN_BLOB should fit in usize.")
+                + 1,
+        );
+        let lowest_height = height.0.saturating_sub(N_BLOCK_HASHES_BACK_IN_BLOB);
+        for height in lowest_height..=height.0 {
+            let block_number = BlockNumber(height);
+            match self.deps.batcher.get_block_hash(block_number).await {
+                Ok(block_hash) => {
+                    recent_block_hashes
+                        .push(BlockHashAndNumber { number: block_number, hash: block_hash });
+                }
+                Err(err) => {
+                    // This error is expected if the block is not yet committed.
+                    if !matches!(
+                        err,
+                        BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(_))
+                    ) {
+                        // TODO(Nimrod): Consider handle this error differently.
+                        warn!("Failed to get block hash from batcher: {err:?}");
+                    }
+                    break;
+                }
+            }
+        }
+        recent_block_hashes
     }
 }
 
@@ -510,7 +584,10 @@ impl ConsensusContext for SequencerConsensusContext {
                 self.config.static_config.build_proposal_time_ratio_for_retrospective_block_hash,
             );
 
-        let override_timestamp = self.config.static_config.deployment_mode.override_timestamp();
+        let override_timestamp = match self.config.static_config.behavior_mode {
+            BehaviorMode::Echonet => true,
+            BehaviorMode::Starknet => false,
+        };
 
         let round = build_param.round;
         let args = ProposalBuildArguments {
@@ -535,6 +612,12 @@ impl ConsensusContext for SequencerConsensusContext {
                 .static_config
                 .retrospective_block_hash_retry_interval_millis,
             override_timestamp,
+            override_l2_gas_price_fri: self.config.dynamic_config.override_l2_gas_price_fri,
+            min_l2_gas_price_per_height: self
+                .config
+                .dynamic_config
+                .min_l2_gas_price_per_height
+                .clone(),
         };
 
         let handle = tokio::spawn(
@@ -615,33 +698,39 @@ impl ConsensusContext for SequencerConsensusContext {
         }
     }
 
-    async fn repropose(&mut self, id: ProposalCommitment, build_param: BuildParam) {
-        info!(?id, ?build_param, "Reproposing.");
+    async fn repropose(
+        &mut self,
+        proposal_commitment: ProposalCommitment,
+        build_param: BuildParam,
+    ) {
+        info!(?proposal_commitment, ?build_param, "Reproposing.");
         let height = build_param.height;
-        let (init, txs, _, finished_info) = self
+        let (init, txs, finished_info) = self
             .valid_proposals
             .lock()
             .expect("Lock on active proposals was poisoned due to a previous panic")
-            .get_proposal(&height, &id)
-            .clone();
+            .update_for_reproposal(&height, &proposal_commitment, &build_param);
 
+        let next_l2_gas_price =
+            self.calculate_next_l2_gas_price(init.height, finished_info.l2_gas_used);
         let transaction_converter = self.deps.transaction_converter.clone();
         let mut stream_sender =
             self.start_stream(HeightAndRound(height.0, build_param.round)).await;
         let handle = tokio::spawn(
             async move {
                 let res = send_reproposal(
-                    id,
+                    proposal_commitment,
                     init,
                     txs,
                     finished_info,
+                    next_l2_gas_price,
                     &mut stream_sender,
                     transaction_converter,
                 )
                 .await;
                 match res {
                     Ok(()) => {
-                        info!(?id, ?build_param, "Reproposal succeeded.");
+                        info!(?proposal_commitment, ?build_param, "Reproposal succeeded.");
                     }
                     Err(e) => {
                         warn!("REPROPOSE_FAILED: Reproposal failed. Error: {e:?}");
@@ -672,6 +761,7 @@ impl ConsensusContext for SequencerConsensusContext {
     async fn decision_reached(
         &mut self,
         height: BlockNumber,
+        round: Round,
         commitment: ProposalCommitment,
     ) -> Result<(), ConsensusError> {
         info!("Finished consensus for height: {height}. Agreed on block: {:#066x}", commitment.0);
@@ -680,7 +770,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let (init, transactions, proposal_id, finished_info) = {
             let mut proposals = self.valid_proposals.lock().unwrap();
             let (init, transactions, proposal_id, finished_info) =
-                proposals.get_proposal(&height, &commitment).clone();
+                proposals.get_proposal(&height, &round, &commitment).clone();
             proposals.remove_proposals_below_or_at_height(&height);
             (init, transactions, proposal_id, finished_info)
         };
@@ -698,7 +788,8 @@ impl ConsensusContext for SequencerConsensusContext {
             commitment,
             transactions,
             decision_reached_response,
-            finished_info.block_header_commitments,
+            finished_info.block_header_commitments.clone(),
+            finished_info.l2_gas_used,
         )
         .await;
 
@@ -929,10 +1020,11 @@ async fn validate_and_send(
 }
 
 async fn send_reproposal(
-    id: ProposalCommitment,
+    proposal_commitment: ProposalCommitment,
     init: ProposalInit,
     txs: Vec<Vec<InternalConsensusTransaction>>,
     finished_info: FinishedProposalInfo,
+    next_l2_gas_price: GasPrice,
     stream_sender: &mut StreamSender,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> Result<(), ReproposeError> {
@@ -952,11 +1044,17 @@ async fn send_reproposal(
         .final_n_executed_txs
         .try_into()
         .expect("Number of executed transactions should fit in u64");
-    let commitment_parts = CommitmentParts::from(&finished_info);
+    let fin_payload = ProposalFinPayload {
+        commitment_parts: CommitmentParts::from(&finished_info),
+        l2_gas_info: L2GasInfo {
+            next_l2_gas_price_fri: next_l2_gas_price,
+            l2_gas_used: finished_info.l2_gas_used,
+        },
+    };
     let fin = ProposalFin {
-        proposal_commitment: id,
+        proposal_commitment,
         executed_transaction_count,
-        commitment_parts: Some(commitment_parts),
+        fin_payload: Some(fin_payload),
     };
     stream_sender.send(ProposalPart::Fin(fin)).await?;
 

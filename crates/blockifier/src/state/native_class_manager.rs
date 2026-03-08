@@ -66,14 +66,14 @@ impl NativeClassManager {
     /// Returns the contract class manager.
     /// NOTE: the compilation worker is not spawned if one of the following conditions is met:
     /// 1. The feature `cairo_native` is not enabled.
-    /// 2. `config.cairo_native_run_mode` is `Off`.
-    /// 3. `config.cairo_native_run_mode` is `WaitOnCompilation`.
+    /// 2. `config.cairo_native_mode` is `Off`.
+    /// 3. `config.cairo_native_mode` is `WaitOnCompilation`.
     pub fn start(config: ContractClassManagerConfig) -> NativeClassManager {
         // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
         let class_cache = RawClassCache::new(config.contract_cache_size);
         let compiled_class_hash_v2_cache = GlobalContractCache::new(config.contract_cache_size);
         let cairo_native_run_config = config.cairo_native_run_config;
-        if cairo_native_run_config.cairo_native_run_mode == CairoNativeMode::Off {
+        if cairo_native_run_config.cairo_native_mode == CairoNativeMode::Off {
             // Native compilation is disabled - no need to start the compilation worker.
             return NativeClassManager {
                 cairo_native_run_config,
@@ -86,7 +86,7 @@ impl NativeClassManager {
 
         let compiler_config = config.native_compiler_config.clone();
         let compiler = Arc::new(SierraToNativeCompiler::new(compiler_config));
-        if cairo_native_run_config.cairo_native_run_mode == CairoNativeMode::WaitOnCompilation {
+        if cairo_native_run_config.cairo_native_mode == CairoNativeMode::WaitOnCompilation {
             // Compilation requests are processed synchronously. No need to start the worker.
             return NativeClassManager {
                 cairo_native_run_config,
@@ -132,7 +132,7 @@ impl NativeClassManager {
             // When native mode is WaitOnCompilation, all V1 classes should have been
             // compiled to native synchronously. A V1 cache entry indicates a pipeline bug.
             assert_ne!(
-                self.cairo_native_run_mode(),
+                self.cairo_native_mode(),
                 CairoNativeMode::WaitOnCompilation,
                 "Manager did not wait on native compilation."
             );
@@ -160,7 +160,7 @@ impl NativeClassManager {
         match compiled_class {
             CompiledClasses::V0(_) => self.class_cache.set(class_hash, compiled_class),
             CompiledClasses::V1(compiled_class_v1, sierra_contract_class) => {
-                if self.cairo_native_run_mode() == CairoNativeMode::WaitOnCompilation {
+                if self.cairo_native_mode() == CairoNativeMode::WaitOnCompilation {
                     let compiler = self.compiler.as_ref().expect("Compiler not available.");
                     // After this point, the Native class should be cached and available through
                     // `get_runnable` access.
@@ -181,7 +181,7 @@ impl NativeClassManager {
                     CompiledClasses::V1(compiled_class_v1.clone(), sierra_contract_class.clone()),
                 );
 
-                if self.cairo_native_run_mode() == CairoNativeMode::LazyCompilation {
+                if self.cairo_native_mode() == CairoNativeMode::LazyCompilation {
                     // Send a non-blocking compilation request.
                     // Ignore compilation errors for now.
                     self.send_compilation_request((
@@ -221,8 +221,8 @@ impl NativeClassManager {
         })
     }
 
-    fn cairo_native_run_mode(&self) -> CairoNativeMode {
-        self.cairo_native_run_config.cairo_native_run_mode
+    fn cairo_native_mode(&self) -> CairoNativeMode {
+        self.cairo_native_run_config.cairo_native_mode
     }
 
     /// Clears the contract class_cache.

@@ -72,12 +72,12 @@
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.proving_gas": {
     "description": "An upper bound on the total builtins and steps gas usage used in a block.",
     "privacy": "Public",
-    "value": 6000000000
+    "value": 5000000000
   },
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
     "description": "An upper bound on the total sierra_gas used in a block.",
     "privacy": "Public",
-    "value": 6000000000
+    "value": 5000000000
   },
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size": {
     "description": "An upper bound on the total state diff size in a block.",
@@ -229,7 +229,7 @@
     "privacy": "Public",
     "value": false
   },
-  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_run_mode": {
+  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode": {
     "description": "Cairo native execution mode. 'off' disables native execution, 'wait_on_compilation' compiles synchronously, and 'lazy_compilation' compiles asynchronously.",
     "privacy": "Public",
     "value": "off"
@@ -393,6 +393,11 @@
     "description": "The port for the storage reader HTTP server.",
     "privacy": "Public",
     "value": 8091
+  },
+  "behavior_mode": {
+    "description": "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
+    "privacy": "TemporaryValue",
+    "value": "starknet"
   },
   "chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
@@ -2164,6 +2169,11 @@
     "privacy": "Public",
     "value": 5
   },
+  "consensus_manager_config.consensus_manager_config.static_config.skip_last_voted_height_check": {
+    "description": "If true, skips check that we didn't vote on this height.",
+    "privacy": "Public",
+    "value": false
+  },
   "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
@@ -2218,6 +2228,11 @@
     "description": "The categories of data saved in storage.",
     "privacy": "Public",
     "value": "StateOnly"
+  },
+  "consensus_manager_config.context_config.dynamic_config.compare_retrospective_block_hash": {
+    "description": "Whether to compare the retrospective block hash between the Batcher and the State Sync.",
+    "privacy": "Public",
+    "value": true
   },
   "consensus_manager_config.context_config.dynamic_config.l1_data_gas_price_multiplier_ppt": {
     "description": "Part per thousand of multiplicative factor to apply to the data gas price, to enable fine-tuning of the price charged to end users.",
@@ -2294,6 +2309,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "consensus_manager_config.context_config.static_config.behavior_mode": {
+    "description": "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
+    "pointer_target": "behavior_mode",
+    "privacy": "Public"
+  },
   "consensus_manager_config.context_config.static_config.block_timestamp_window_seconds": {
     "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
     "privacy": "Public",
@@ -2318,11 +2338,6 @@
     "description": "The chain id of the Starknet chain.",
     "pointer_target": "chain_id",
     "privacy": "Public"
-  },
-  "consensus_manager_config.context_config.static_config.deployment_mode": {
-    "description": "Deployment mode. 'starknet' for production, 'echonet' when running echonet.",
-    "privacy": "Public",
-    "value": "starknet"
   },
   "consensus_manager_config.context_config.static_config.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
@@ -2549,7 +2564,7 @@
     "privacy": "Public",
     "value": false
   },
-  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_run_mode": {
+  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode": {
     "description": "Cairo native execution mode. 'off' disables native execution, 'wait_on_compilation' compiles synchronously, and 'lazy_compilation' compiles asynchronously.",
     "privacy": "Public",
     "value": "off"
@@ -2919,6 +2934,11 @@
     "privacy": "Public",
     "value": 60
   },
+  "mempool_config.static_config.behavior_mode": {
+    "description": "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
+    "pointer_target": "behavior_mode",
+    "privacy": "Public"
+  },
   "mempool_config.static_config.capacity_in_bytes": {
     "description": "Maximum size of the mempool, in bytes.",
     "privacy": "Public",
@@ -2943,6 +2963,11 @@
     "description": "Percentage increase for tip and max gas price to enable transaction replacement.",
     "privacy": "Public",
     "value": 10
+  },
+  "mempool_config.static_config.recorder_url": {
+    "description": "The URL of the recorder service (used for FIFO queue timestamp fetching).",
+    "pointer_target": "recorder_url",
+    "privacy": "Public"
   },
   "mempool_config.static_config.validate_resource_bounds": {
     "description": "If true, only transactions with max L2 gas price per unit bound that are above the threshold are inserted into the priority queue. If false, all transactions are inserted into the priority queue.",

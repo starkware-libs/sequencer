@@ -67,6 +67,24 @@ impl MetricGauge {
         gauge!(self.get_name()).set(value.into_f64());
     }
 
+    pub fn set_with_labels<T: IntoF64>(
+        &self,
+        value: T,
+        label_key: &'static str,
+        label_value: String,
+    ) {
+        gauge!(self.get_name(), label_key => label_value).set(value.into_f64());
+    }
+
+    pub fn set_lossy_with_labels<T: LossyIntoF64>(
+        &self,
+        value: T,
+        label_key: &'static str,
+        label_value: String,
+    ) {
+        gauge!(self.get_name(), label_key => label_value).set(value.into_f64());
+    }
+
     #[cfg(any(feature = "testing", test))]
     #[track_caller]
     pub fn assert_eq<T: Num + FromStr + Debug>(&self, metrics_as_string: &str, expected_value: T) {

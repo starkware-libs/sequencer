@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::time::Duration;
 
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
     deserialize_seconds_to_duration,
@@ -19,22 +20,6 @@ use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
 use url::Url;
 use validator::Validate;
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum DeploymentMode {
-    // Production mode.
-    #[default]
-    Starknet,
-    // Echonet mode.
-    Echonet,
-}
-
-impl DeploymentMode {
-    pub fn override_timestamp(&self) -> bool {
-        matches!(self, DeploymentMode::Echonet)
-    }
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CendeConfig {
@@ -191,7 +176,7 @@ pub struct ContextStaticConfig {
     /// The interval between retrospective block hash retries.
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub retrospective_block_hash_retry_interval_millis: Duration,
-    pub deployment_mode: DeploymentMode,
+    pub behavior_mode: BehaviorMode,
 }
 
 impl SerializeConfig for ContextStaticConfig {
@@ -258,9 +243,9 @@ impl SerializeConfig for ContextStaticConfig {
             ),
         ]);
         dump.extend([ser_param(
-            "deployment_mode",
-            &format!("{:?}", self.deployment_mode).to_lowercase(),
-            "Deployment mode. 'starknet' for production, 'echonet' when running echonet.",
+            "behavior_mode",
+            &self.behavior_mode,
+            "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
             ParamPrivacyInput::Public,
         )]);
         dump
@@ -279,7 +264,7 @@ impl Default for ContextStaticConfig {
             validate_proposal_margin_millis: Duration::from_millis(10_000),
             build_proposal_time_ratio_for_retrospective_block_hash: 0.7,
             retrospective_block_hash_retry_interval_millis: Duration::from_millis(500),
-            deployment_mode: DeploymentMode::default(),
+            behavior_mode: BehaviorMode::default(),
         }
     }
 }
@@ -319,6 +304,7 @@ pub struct ContextDynamicConfig {
         serialize_with = "serialize_price_per_height_as_string"
     )]
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
+    pub compare_retrospective_block_hash: bool,
 }
 
 impl SerializeConfig for ContextDynamicConfig {
@@ -359,6 +345,13 @@ impl SerializeConfig for ContextDynamicConfig {
                 "l1_gas_tip_wei",
                 &self.l1_gas_tip_wei,
                 "This additional gas is added to the L1 gas price.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "compare_retrospective_block_hash",
+                &self.compare_retrospective_block_hash,
+                "Whether to compare the retrospective block hash between the Batcher and the \
+                 State Sync.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -421,6 +414,7 @@ impl Default for ContextDynamicConfig {
             override_l1_data_gas_price_fri: None,
             override_eth_to_fri_rate: None,
             min_l2_gas_price_per_height: vec![],
+            compare_retrospective_block_hash: true,
         }
     }
 }
