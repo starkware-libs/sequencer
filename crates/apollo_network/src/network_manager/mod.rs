@@ -177,8 +177,11 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     pub fn add_epoch(&mut self, epoch_id: EpochId, members: Vec<CommitteeMember>) {
-        let _result = self.committee_store.register_epoch(epoch_id, members);
-        todo!("Wire RegisterEpochResult to behaviours");
+        let result = self.committee_store.register_epoch(epoch_id, members);
+        if let Some(discovery) = self.swarm.behaviour_mut().discovery.as_mut() {
+            discovery.set_peers_to_request(result.allowed_peers);
+        }
+        todo!("Wire remaining RegisterEpochResult fields to behaviours");
     }
 
     // TODO(shahak): remove the advertised_multiaddr arg once we manage external addresses

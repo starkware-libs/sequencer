@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -22,6 +23,8 @@ pub struct KadRequestingBehaviour {
     heartbeat_interval: Duration,
     time_for_next_kad_query: Instant,
     sleeper: Option<Pin<Box<Sleep>>>,
+    /// Peers to include in Kademlia queries. Drained one at a time during polling.
+    peers_to_request: HashSet<PeerId>,
 }
 
 impl NetworkBehaviour for KadRequestingBehaviour {
@@ -64,6 +67,14 @@ impl NetworkBehaviour for KadRequestingBehaviour {
         cx: &mut Context<'_>,
     ) -> Poll<ToSwarm<Self::ToSwarm, <Self::ConnectionHandler as ConnectionHandler>::FromBehaviour>>
     {
+        // Drain pending peer requests first, one per poll call.
+        if let Some(peer_id) = self.peers_to_request.iter().next().copied() {
+            self.peers_to_request.remove(&peer_id);
+            return Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(
+                peer_id,
+            )));
+        }
+
         let now = Instant::now();
         if now >= self.time_for_next_kad_query {
             // No need to deal with sleep.
@@ -84,7 +95,16 @@ impl NetworkBehaviour for KadRequestingBehaviour {
 
 impl KadRequestingBehaviour {
     pub fn new(heartbeat_interval: Duration) -> Self {
-        Self { heartbeat_interval, time_for_next_kad_query: Instant::now(), sleeper: None }
+        Self {
+            heartbeat_interval,
+            time_for_next_kad_query: Instant::now(),
+            sleeper: None,
+            peers_to_request: HashSet::new(),
+        }
+    }
+
+    pub fn set_peers_to_request(&mut self, peers: HashSet<PeerId>) {
+        self.peers_to_request = peers;
     }
 
     fn set_for_next_kad_query(
