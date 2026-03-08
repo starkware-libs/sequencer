@@ -24,6 +24,8 @@ use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilde
 use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
+use crate::active_committees::store::ActiveCommittees;
+use crate::active_committees::types::{CommitteeMember, EpochId};
 use crate::gossipsub_impl::Topic;
 use crate::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
 use crate::misconduct_score::MisconductScore;
@@ -32,6 +34,8 @@ use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
 use crate::utils::{is_localhost, make_multiaddr, StreamMap};
 use crate::{gossipsub_impl, Bytes, NetworkConfig};
+
+const DEFAULT_ACTIVE_COMMITTEES_CAPACITY: usize = 2;
 
 /// Errors that can occur during network operations.
 ///
@@ -103,6 +107,7 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
     continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
     metrics: Option<NetworkMetrics>,
+    committee_store: ActiveCommittees,
 }
 
 impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
@@ -173,6 +178,13 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
     }
 
+    // TODO(AndrewL): return a channel from the constructor for adding epochs.
+    #[allow(dead_code)]
+    fn add_epoch(&mut self, epoch_id: EpochId, members: Vec<CommitteeMember>) {
+        let _output = self.committee_store.add_epoch(epoch_id, members);
+        todo!("Wire AddEpochOutput to behaviours");
+    }
+
     // TODO(shahak): remove the advertised_multiaddr arg once we manage external addresses
     // in a behaviour.
     pub(crate) fn generic_new(
@@ -182,6 +194,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         broadcasted_message_metadata_buffer_size: usize,
         reported_peer_ids_buffer_size: usize,
     ) -> Self {
+        let committee_store = ActiveCommittees::new(DEFAULT_ACTIVE_COMMITTEES_CAPACITY);
         let reported_peer_receivers = FuturesUnordered::new();
         reported_peer_receivers.push(futures::future::pending().boxed());
         if let Some(address) = advertised_multiaddr.clone() {
@@ -208,6 +221,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             continue_propagation_sender,
             continue_propagation_receiver,
             metrics,
+            committee_store,
         }
     }
 
