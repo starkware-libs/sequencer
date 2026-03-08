@@ -80,7 +80,7 @@ func process_os_output{
     alloc_locals;
     assert n_public_keys = 0;
 
-    // Restrict the virtual OS to process a single block.
+    // Part of the VIRTUAL_SNOS0 version contract. Changes must trigger a version bump.
     assert n_blocks = 1;
     let os_output = os_outputs[0];
 
