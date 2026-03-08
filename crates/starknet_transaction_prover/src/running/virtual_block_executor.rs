@@ -11,7 +11,6 @@ use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::{CachedState, StateMaps};
 use blockifier::state::contract_class_manager::ContractClassManager;
-use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::{
@@ -35,7 +34,7 @@ use starknet_api::transaction::{InvokeTransaction, MessageToL1, Transaction, Tra
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
-use tracing::error;
+use tracing::{error, warn};
 
 use crate::errors::VirtualBlockExecutorError;
 use crate::running::serde_utils::deserialize_rpc_initial_reads;
@@ -155,7 +154,9 @@ pub(crate) struct VirtualBlockExecutionData {
 /// # Note
 ///
 /// - Currently only Invoke transactions are supported.
-/// - fee charging and nonce check are always skipped (useful for simulation/proving).
+/// - Strict nonce check is always skipped.
+/// - Fee charging is enabled when the transaction has non-zero resource bounds.
+/// - Transaction validation is enabled by default.
 ///
 /// # Examples
 ///
@@ -335,6 +336,8 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
 /// State reader backed by prefetched `StateMaps` from simulate.
 ///
 /// Serves storage, nonce, class hash, and declared contract reads from the prefetched state.
+/// Falls back to the inner `RpcStateReader` when a key is missing from the prefetched state
+/// (e.g., when simulate uses different flags than execution).
 /// Delegates compiled class lookups to the inner `RpcStateReader` since simulate responses
 /// do not include classes.
 #[allow(dead_code)]
@@ -349,33 +352,42 @@ impl StateReader for SimulatedStateReader {
         contract_address: ContractAddress,
         key: StorageKey,
     ) -> StateResult<Felt> {
-        Ok(*self.state_maps.storage.get(&(contract_address, key)).ok_or(
-            StateError::StateReadError(format!(
-                "Storage key not found in prefetched state (contract_address: {contract_address}, \
-                 key: {key:?}). This is unexpected: simulate should have returned all accessed \
-                 storage keys in initial_reads."
-            )),
-        )?)
+        match self.state_maps.storage.get(&(contract_address, key)) {
+            Some(value) => Ok(*value),
+            None => {
+                warn!(
+                    "Storage key not found in prefetched state, falling back to RPC \
+                     (contract_address: {contract_address}, key: {key:?})."
+                );
+                self.rpc_state_reader.get_storage_at(contract_address, key)
+            }
+        }
     }
 
     fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
-        Ok(*self.state_maps.nonces.get(&contract_address).ok_or(StateError::StateReadError(
-            format!(
-                "Nonce not found in prefetched state (contract_address: {contract_address}). This \
-                 is unexpected: simulate should have returned all accessed nonces in \
-                 initial_reads."
-            ),
-        ))?)
+        match self.state_maps.nonces.get(&contract_address) {
+            Some(value) => Ok(*value),
+            None => {
+                warn!(
+                    "Nonce not found in prefetched state, falling back to RPC (contract_address: \
+                     {contract_address})."
+                );
+                self.rpc_state_reader.get_nonce_at(contract_address)
+            }
+        }
     }
 
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
-        Ok(*self.state_maps.class_hashes.get(&contract_address).ok_or(
-            StateError::StateReadError(format!(
-                "Class hash not found in prefetched state (contract_address: {contract_address}). \
-                 This is unexpected: simulate should have returned all accessed class hashes in \
-                 initial_reads."
-            )),
-        )?)
+        match self.state_maps.class_hashes.get(&contract_address) {
+            Some(value) => Ok(*value),
+            None => {
+                warn!(
+                    "Class hash not found in prefetched state, falling back to RPC \
+                     (contract_address: {contract_address})."
+                );
+                self.rpc_state_reader.get_class_hash_at(contract_address)
+            }
+        }
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
@@ -401,13 +413,16 @@ impl FetchCompiledClasses for SimulatedStateReader {
     }
 
     fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
-        Ok(*self.state_maps.declared_contracts.get(&class_hash).ok_or(
-            StateError::StateReadError(format!(
-                "Declared contract not found in prefetched state (class_hash: {class_hash}). This \
-                 is unexpected: simulate should have returned all declared contracts in \
-                 initial_reads."
-            )),
-        )?)
+        match self.state_maps.declared_contracts.get(&class_hash) {
+            Some(value) => Ok(*value),
+            None => {
+                warn!(
+                    "Declared contract not found in prefetched state, falling back to RPC \
+                     (class_hash: {class_hash})."
+                );
+                self.rpc_state_reader.is_declared(class_hash)
+            }
+        }
     }
 }
 
@@ -461,10 +476,22 @@ impl RpcVirtualBlockExecutor {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
+        // Build simulation flags that match execution behavior as closely as possible.
+        // Mismatches cause prefetch cache misses (handled by RPC fallback) but hurt
+        // performance.
+        let mut simulation_flags = vec!["RETURN_INITIAL_READS"];
+        if !self.validate_txs {
+            simulation_flags.push("SKIP_VALIDATE");
+        }
+        // Fee charging during simulate can fail if the account lacks balance at the base
+        // block. Skip it in simulate — fee-related storage keys will be fetched via RPC
+        // fallback when needed.
+        simulation_flags.push("SKIP_FEE_CHARGE");
+
         let params = json!({
             "block_id": block_id,
             "transactions": rpc_txs,
-            "simulation_flags": ["SKIP_VALIDATE", "SKIP_FEE_CHARGE", "RETURN_INITIAL_READS"]
+            "simulation_flags": simulation_flags
         });
 
         let result = self
