@@ -57,16 +57,8 @@ pub enum InvalidValidationStatus {
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(
-<<<<<<< HEAD:crates/apollo_l1_events_types/src/lib.rs
     name(L1EventsProviderRequestLabelValue),
     derive(IntoStaticStr, EnumIter, EnumVariantNames),
-||||||| c0699b312e:crates/apollo_l1_provider_types/src/lib.rs
-    name(L1ProviderRequestLabelValue),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames),
-=======
-    name(L1ProviderRequestLabelValue),
-    derive(IntoStaticStr, EnumIter, VariantNames),
->>>>>>> origin/main-v0.14.2:crates/apollo_l1_provider_types/src/lib.rs
     strum(serialize_all = "snake_case")
 )]
 pub enum L1EventsProviderRequest {
