@@ -749,6 +749,7 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
         candidate_tx_sender: Option<CandidateTxSender>,
         pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
         runtime: tokio::runtime::Handle,
+        pool_index: usize,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
 }
 
@@ -758,20 +759,26 @@ pub struct BlockBuilderFactory {
     pub contract_class_manager: ContractClassManager,
     pub class_manager_client: SharedClassManagerClient,
     pub proof_manager_client: SharedProofManagerClient,
-    pub worker_pool: BatcherWorkerPool,
+    pub worker_pools: Vec<BatcherWorkerPool>,
 }
 
 impl BlockBuilderFactory {
+    fn select_worker_pool(&self, pool_index: usize) -> &BatcherWorkerPool {
+        &self.worker_pools[pool_index % self.worker_pools.len()]
+    }
+
     // TODO(noamsp): Investigate and remove this clippy warning.
     fn preprocess_and_create_transaction_executor(
         &self,
         block_metadata: BlockMetadata,
         runtime: tokio::runtime::Handle,
+        pool_index: usize,
     ) -> BlockBuilderResult<ConcurrentTransactionExecutor<ApolloStateReaderAndContractManager>>
     {
         info!(
-            "preprocess and create transaction executor for block {}",
-            block_metadata.block_info.block_number
+            "preprocess and create transaction executor for block {} using worker pool {}",
+            block_metadata.block_info.block_number,
+            pool_index % self.worker_pools.len()
         );
         let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
@@ -798,7 +805,7 @@ impl BlockBuilderFactory {
             state_reader,
             block_context,
             block_metadata.retrospective_block_hash,
-            self.worker_pool.clone(),
+            self.select_worker_pool(pool_index).clone(),
             None,
         )?;
 
@@ -818,8 +825,10 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         candidate_tx_sender: Option<CandidateTxSender>,
         pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
         runtime: tokio::runtime::Handle,
+        pool_index: usize,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
-        let executor = self.preprocess_and_create_transaction_executor(block_metadata, runtime)?;
+        let executor =
+            self.preprocess_and_create_transaction_executor(block_metadata, runtime, pool_index)?;
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
         let transaction_converter = TransactionConverter::new(
             self.class_manager_client.clone(),

@@ -339,6 +339,7 @@ impl Batcher {
                 Some(candidate_tx_sender),
                 Some(pre_confirmed_tx_sender),
                 tokio::runtime::Handle::current(),
+                propose_block_input.proposal_id.0 as usize,
             )
             .map_err(|err| {
                 error!("Failed to get block builder: {}", err);
@@ -426,6 +427,7 @@ impl Batcher {
                 None,
                 None,
                 tokio::runtime::Handle::current(),
+                validate_block_input.proposal_id.0 as usize,
             )
             .map_err(|err| {
                 error!("Failed to get block builder: {}", err);
@@ -1287,7 +1289,9 @@ pub async fn create_batcher(
         GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
 
     let execute_config = &config.block_builder_config.execute_config;
-    let worker_pool = Arc::new(WorkerPool::start(execute_config));
+    let n_worker_pools = config.block_builder_config.n_worker_pools;
+    let worker_pools: Vec<_> =
+        (0..n_worker_pools).map(|_| Arc::new(WorkerPool::start(execute_config))).collect();
     let pre_confirmed_block_writer_factory = Box::new(PreconfirmedBlockWriterFactory {
         config: config.pre_confirmed_block_writer_config,
         cende_client: pre_confirmed_cende_client,
@@ -1300,7 +1304,7 @@ pub async fn create_batcher(
         ),
         class_manager_client,
         proof_manager_client,
-        worker_pool,
+        worker_pools,
     });
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);

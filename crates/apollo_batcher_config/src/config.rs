@@ -36,6 +36,7 @@ pub struct BlockBuilderConfig {
     // TODO(dan): add validation for this field. Probably should be bounded.
     pub proposer_idle_detection_delay_millis: Duration,
     pub versioned_constants_overrides: Option<VersionedConstantsOverrides>,
+    pub n_worker_pools: usize,
 }
 
 impl Default for BlockBuilderConfig {
@@ -49,6 +50,7 @@ impl Default for BlockBuilderConfig {
             tx_polling_interval_millis: 10,
             proposer_idle_detection_delay_millis: Duration::from_millis(2000),
             versioned_constants_overrides: None,
+            n_worker_pools: 2,
         }
     }
 }
@@ -83,6 +85,13 @@ impl SerializeConfig for BlockBuilderConfig {
             &self.versioned_constants_overrides,
             "versioned_constants_overrides",
         ));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "n_worker_pools",
+            &self.n_worker_pools,
+            "Number of worker pools to create. Pools are alternated between proposals so that \
+             straggler workers from one block do not delay the next.",
+            ParamPrivacyInput::Public,
+        )]));
         dump
     }
 }
