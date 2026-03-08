@@ -74,13 +74,13 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 static FUZZ_ADDRESS_ORCHESTRATOR_EXPECT: Expect =
     expect!["0x1ab0433d022b4d7515b07787c3401c289201f24165012369a3bcec485d7e6a2"];
 static FUZZ_ADDRESS_CAIRO1_A_EXPECT: Expect =
-    expect!["0x3d96283628498c0bf79a3b46c50fd12c6ca34d6cf0b57ba98155fca6964c6c4"];
+    expect!["0x6c35d5e7b92a6702781bf26d89967e172372956baa817aa80e0a2db5ac79c12"];
 static FUZZ_ADDRESS_CAIRO1_B_EXPECT: Expect =
-    expect!["0x5be6ccba1ba05b8ac850cbdd6c2a5cd5d18e4eb88c8b7ed567fe60dfca12666"];
+    expect!["0x3f06eaa8fe190f8da2f7613ad634b7c6cc2615445bb13a48b8973fdd9b31331"];
 static FUZZ_ADDRESS_CAIRO0_A_EXPECT: Expect =
-    expect!["0xf3cc0a1de65cca30ee78c95731da73de5db09e1f9877f1a58f2068563252b9"];
+    expect!["0x284eb6ed28f10e824f4047a4261968346eec103139650eb7b21ef7866815b5b"];
 static FUZZ_ADDRESS_CAIRO0_B_EXPECT: Expect =
-    expect!["0x3e2e389247af9647bac93f9eb737bc44e63cc6991eaba64e6f4792109b5b4d5"];
+    expect!["0x67ed05609bb49840703d4fd5e596c5135761fb10ea0d9754c2464c4c7777464"];
 static FUZZ_ADDRESS_ORCHESTRATOR: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress::try_from(felt!(FUZZ_ADDRESS_ORCHESTRATOR_EXPECT.data())).unwrap()
 });
@@ -105,6 +105,13 @@ static FUZZ_ADDRESS_TO_CLASS_HASH: LazyLock<BTreeMap<ContractAddress, ClassHash>
             (*FUZZ_ADDRESS_CAIRO0_B, *CAIRO0_CONTRACT_CLASS_HASH),
         ])
     });
+
+/// Panic messages.
+const PANIC_SCENARIO_MESSAGE: &str = "panic_scenario";
+static PANIC_SCENARIO_MESSAGE_FELT: LazyLock<Felt> =
+    LazyLock::new(|| Felt::from_bytes_be_slice(PANIC_SCENARIO_MESSAGE.as_bytes()));
+const UNDECLARED_SCENARIO_MESSAGE: &str = "is not declared";
+const UNDEPLOYED_SCENARIO_MESSAGE: &str = "is not deployed";
 
 /// Storage key that can be written to.
 static VALID_STORAGE_KEYS: LazyLock<Vec<Felt>> =
@@ -259,7 +266,6 @@ impl FuzzOperationData {
         let mut felt_vector = vec![self.op().identifier()];
         felt_vector.extend(match self {
             Self::Return
-            | Self::Panic
             | Self::IncrementCounter
             | Self::DeployNonexisting
             | Self::LibraryCallNonexistingClass => vec![],
@@ -268,6 +274,7 @@ impl FuzzOperationData {
             Self::Write(storage_key, value) => vec![***storage_key, value.0],
             Self::ReplaceClass(class_hash) => vec![class_hash.0],
             Self::Deploy { class_hash, salt } => vec![class_hash.0, salt.0],
+            Self::Panic => vec![*PANIC_SCENARIO_MESSAGE_FELT],
             Self::SendMessage(message) => vec![*message],
             Self::Sha256(value) | Self::Keccak(value) => vec![*value],
         });
@@ -301,10 +308,11 @@ impl ParentFailureBehavior {
 }
 
 /// Final state of the fuzz test transaction.
+/// If the transaction is reverted, a substring of the revert reason is provided.
 #[derive(Clone)]
 enum FinalizedState {
     Ongoing,
-    Reverted,
+    Reverted(String),
     Succeeded,
 }
 
@@ -312,7 +320,7 @@ impl FinalizedState {
     pub fn finalized(&self) -> bool {
         match self {
             Self::Ongoing => false,
-            Self::Reverted | Self::Succeeded => true,
+            Self::Reverted(_) | Self::Succeeded => true,
         }
     }
 }
@@ -742,23 +750,28 @@ impl FuzzTestContext {
 
     /// Remove the entire call tree. Used when an uncatchable error occurs, or we cleanly return
     /// to the orchestrator context.
-    /// State should always be finalized after this.
-    pub fn pop_entire_call_tree(&mut self, succeeded: bool) {
+    /// State should always be finalized after this. Success / revert is indicated by the
+    /// revert_reason.
+    pub fn pop_entire_call_tree(&mut self, revert_reason: Option<String>) {
         self.calls.clear();
         self.current_call.clear();
-        self.final_state =
-            if succeeded { FinalizedState::Succeeded } else { FinalizedState::Reverted };
+        self.final_state = match revert_reason {
+            None => FinalizedState::Succeeded,
+            Some(reason) => FinalizedState::Reverted(reason),
+        };
     }
 
     /// Update the context to reflect the effects of a panic in the current call.
-    pub fn apply_panic(&mut self) {
+    /// It is always possible that this panic will cause the tx to revert, so a revert reason is
+    /// required.
+    pub fn apply_panic(&mut self, reason: String) {
         // For the current call index until the panic is either caught or an uncatchable frame is
         // reached (root parent frame - the orchestrator - is cairo1-catching, so one of these two
         // conditions will be met).
         // First, check if the current call is in cairo0 context. If so, parent context is
         // irrelevant - the entire tx will be reverted.
         if !self.is_cairo1_class(&self.current_class_hash()) {
-            self.pop_entire_call_tree(false);
+            self.pop_entire_call_tree(Some(reason));
             return;
         }
         // Otherwise, climb up the call tree until the error is either caught or an
@@ -773,7 +786,7 @@ impl FuzzTestContext {
             // The simple case is when the parent is "uncatchable"; the entire tx will be
             // reverted, so no need to update the current context.
             ParentFailureBehavior::Uncatchable => {
-                self.pop_entire_call_tree(false);
+                self.pop_entire_call_tree(Some(reason));
             }
             // If the panic is caught, the effects of the entire subtree must be reverted.
             ParentFailureBehavior::Catching => {
@@ -793,7 +806,7 @@ impl FuzzTestContext {
                 if self.current_call.is_empty() {
                     // We are back at the orchestrator context. Pop the entire call tree.
                     // Tx should be successful.
-                    self.pop_entire_call_tree(true);
+                    self.pop_entire_call_tree(None);
                 } else {
                     // We are back at a non-orchestrator context. Pop the last inner call.
                     self.current_fuzz_call_info_mut().inner_calls.pop();
@@ -849,7 +862,7 @@ impl FuzzTestContext {
                 // Enter constructor context.
                 self.enter_deploy(deployed_address, class_hash);
             }
-            FuzzOperationData::Panic => self.apply_panic(),
+            FuzzOperationData::Panic => self.apply_panic(PANIC_SCENARIO_MESSAGE.to_string()),
             FuzzOperationData::IncrementCounter => {}
             FuzzOperationData::SendMessage(message) => {
                 self.current_fuzz_call_info_mut().messages.push(message);
@@ -858,14 +871,14 @@ impl FuzzTestContext {
             FuzzOperationData::DeployNonexisting
             | FuzzOperationData::LibraryCallNonexistingClass => {
                 // Unrecoverable error (we do not prove class hashes do not exist).
-                self.pop_entire_call_tree(false);
+                self.pop_entire_call_tree(Some(UNDECLARED_SCENARIO_MESSAGE.to_string()));
             }
             FuzzOperationData::Sha256(_) | FuzzOperationData::Keccak(_) => {
                 self.next_hash_preimage += Felt::ONE;
             }
             FuzzOperationData::CallUndeployed(_) => {
                 // Unrecoverable error (we do not prove addresses are not initialized).
-                self.pop_entire_call_tree(false);
+                self.pop_entire_call_tree(Some(UNDEPLOYED_SCENARIO_MESSAGE.to_string()));
             }
         }
     }
@@ -1068,7 +1081,10 @@ impl FuzzTestContext {
                     ]
                 }
                 FuzzOperationData::Panic => {
-                    vec![format!("{} (Panic)", operation_felt_hexes[0])]
+                    vec![
+                        format!("{} (Panic)", operation_felt_hexes[0]),
+                        format!("{} (panic message)", operation_felt_hexes[1]),
+                    ]
                 }
                 FuzzOperationData::IncrementCounter => {
                     vec![format!("{} (Increment counter)", operation_felt_hexes[0])]
@@ -1247,7 +1263,7 @@ impl FuzzTestManager {
         // Whether or not a revert is expected depends on context.
         let tx_revert_error = match self.context.final_state {
             FinalizedState::Succeeded => None,
-            FinalizedState::Reverted => Some("".to_string()),
+            FinalizedState::Reverted(ref reason) => Some(reason.clone()),
             FinalizedState::Ongoing => unreachable!(),
         };
         let nonce = self.test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS);

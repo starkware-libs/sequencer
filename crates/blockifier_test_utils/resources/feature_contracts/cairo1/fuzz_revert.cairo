@@ -138,7 +138,8 @@ mod FuzzRevertContract {
         }
 
         if scenario == SCENARIO_PANIC {
-            panic_with_felt252(orchestrator.get_index());
+            // Panic message is part of the scenario data.
+            panic(array![orchestrator.get_index(), orchestrator.pop_front()]);
         }
 
         if scenario == SCENARIO_INCREMENT_COUNTER {
