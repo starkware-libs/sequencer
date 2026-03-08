@@ -5,6 +5,7 @@
 //! and reconstructing them, including Merkle tree generation and unit preparation.
 
 use std::num::NonZeroUsize;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use libp2p::identity::{Keypair, PeerId};
 
@@ -110,6 +111,8 @@ pub fn create_units_to_publish(
         let proof = merkle_tree
             .prove(index)
             .expect("index is within bounds of all_shards from which merkle_tree was built");
+        let timestamp =
+            SystemTime::now().duration_since(UNIX_EPOCH).expect("system clock is set").as_secs();
         let message = PropellerUnit::new(
             channel,
             publisher,
@@ -119,6 +122,7 @@ pub fn create_units_to_publish(
             ShardIndex(u32::try_from(index).expect("shard index exceeds u32::MAX")),
             shard,
             proof,
+            timestamp,
         );
         messages.push(message);
     }

@@ -28,6 +28,7 @@ pub struct PropellerUnit {
     index: ShardIndex,
     shard: Vec<u8>,
     proof: MerkleProof,
+    timestamp: u64,
 }
 
 impl PropellerUnit {
@@ -39,8 +40,9 @@ impl PropellerUnit {
         index: ShardIndex,
         shard: Vec<u8>,
         proof: MerkleProof,
+        timestamp: u64,
     ) -> Self {
-        Self { channel, root, publisher, signature, index, shard, proof }
+        Self { channel, root, publisher, signature, index, shard, proof, timestamp }
     }
 
     pub fn channel(&self) -> Channel {
@@ -73,6 +75,10 @@ impl PropellerUnit {
 
     pub fn root(&self) -> MessageRoot {
         self.root
+    }
+
+    pub fn timestamp(&self) -> u64 {
+        self.timestamp
     }
 
     pub fn validate_shard_proof(&self, num_shards: usize) -> Result<(), ShardValidationError> {
@@ -125,6 +131,7 @@ impl TryFrom<ProtoPropellerUnit> for PropellerUnit {
             index: ShardIndex(index),
             shard: msg.shard,
             proof: merkle_proof.try_into()?,
+            timestamp: msg.timestamp,
         })
     }
 }
@@ -139,6 +146,7 @@ impl From<PropellerUnit> for ProtoPropellerUnit {
             publisher: Some(ProtoPeerId { id: msg.publisher.to_bytes() }),
             signature: msg.signature,
             channel: msg.channel.0,
+            timestamp: msg.timestamp,
         }
     }
 }
