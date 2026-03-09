@@ -8,7 +8,7 @@ use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_infra::metrics::{metrics_recorder, MetricsConfig};
 use apollo_infra_utils::test_utils::AvailablePorts;
-use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
+use apollo_l1_gas_price_config::config::EthToStrkOracleConfig;
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;

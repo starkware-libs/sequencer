@@ -48,7 +48,7 @@ use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_l1_events_config::config::{L1EventsProviderConfig, L1EventsScraperConfig};
 use apollo_l1_gas_price::eth_to_strk_oracle::ETH_TO_STRK_QUANTIZATION;
-use apollo_l1_gas_price_provider_config::config::{
+use apollo_l1_gas_price_config::config::{
     EthToStrkOracleConfig,
     L1GasPriceProviderConfig,
     L1GasPriceScraperConfig,
