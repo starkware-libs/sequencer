@@ -44,6 +44,14 @@ pub struct ShardIndex(pub u64);
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
 pub struct MessageRoot(pub MerkleHash);
 
+// TODO(Shahak): consider renaming this or refactoring the protobuf so this struct is not needed or
+// so it includes all the fields that go into the signature.
+#[derive(Debug, Clone)]
+pub struct VerifiedFields {
+    pub signature: Vec<u8>,
+    pub nonce: u64,
+}
+
 /// Errors that can occur when verifying a shard signature.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ShardSignatureVerificationError {

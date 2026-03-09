@@ -30,6 +30,7 @@ struct TestEnv {
 }
 
 const SHARD_DATA: [u8; 3] = [1, 2, 3];
+const TEST_NONCE: u64 = 1_700_000_000_000_000_000;
 
 #[fixture]
 fn env() -> TestEnv {
@@ -60,7 +61,8 @@ fn env() -> TestEnv {
 
     let validator =
         UnitValidator::new(COMMITTEE, publisher, keypair.public(), message_root, schedule_manager);
-    let signature = crate::signature::sign_message_id(&message_root, &keypair).unwrap();
+    let signature =
+        crate::signature::sign_message_id(&message_root, COMMITTEE, TEST_NONCE, &keypair).unwrap();
 
     TestEnv {
         committee_id: COMMITTEE,
@@ -92,7 +94,7 @@ fn custom_unit(env: &TestEnv, owner: PeerId, tampered_signature: bool) -> Propel
         index,
         SHARD_DATA.to_vec(),
         env.merkle_tree.prove(index.0.try_into().unwrap()).unwrap(),
-        0,
+        TEST_NONCE,
     )
 }
 
