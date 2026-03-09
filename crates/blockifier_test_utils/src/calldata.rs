@@ -49,3 +49,48 @@ pub fn create_trivial_calldata(test_contract_address: ContractAddress) -> Callda
         &[felt!(2_u8)], // Calldata: num.
     )
 }
+
+/// Calldata for the reverted inner Cairo0 execution scenario:
+/// C1 (A) calls B.
+/// C1 (B) calls C.
+/// C0 (C) sets key->value, returns to B.
+/// C1 (B) panics.
+/// C1 (A) catches the panic and completes execution (ignores the error).
+pub fn cairo0_proven_revert_scenario_calldata(
+    cairo1_contract_address: ContractAddress,
+    cairo0_contract_address: ContractAddress,
+    key: Felt,
+    value: Felt,
+) -> Calldata {
+    // Contract C (Cairo 0): test_storage_write(address, value).
+    let contract_c_calldata = [key, value];
+
+    // Contract B (Cairo 1): middle_revert_contract(contract_address, entry_point_selector,
+    // calldata).
+    // Calls contract C's test_storage_write, then panics.
+    let contract_b_calldata = [
+        vec![
+            **cairo0_contract_address,
+            selector_from_name("test_storage_read_write").0,
+            contract_c_calldata.len().into(),
+        ],
+        contract_c_calldata.to_vec(),
+    ]
+    .concat();
+
+    // Contract A (Cairo 1): test_call_contract_revert(contract_address, entry_point_selector,
+    // calldata, is_meta_tx).
+    // Calls contract B's middle_revert_contract and catches the panic.
+    let contract_a_calldata = [
+        vec![
+            **cairo1_contract_address,
+            selector_from_name("middle_revert_contract").0,
+            contract_b_calldata.len().into(),
+        ],
+        contract_b_calldata,
+        vec![false.into()], // is_meta_tx.
+    ]
+    .concat();
+
+    create_calldata(cairo1_contract_address, "test_call_contract_revert", &contract_a_calldata)
+}

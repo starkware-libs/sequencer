@@ -101,7 +101,7 @@ mock! {
 
         async fn repropose(
             &mut self,
-            id: ProposalCommitment,
+            proposal_commitment: ProposalCommitment,
             build_param: BuildParam,
         );
 
@@ -110,6 +110,7 @@ mock! {
         async fn decision_reached(
             &mut self,
             height: BlockNumber,
+            round: Round,
             commitment: ProposalCommitment,
         ) -> Result<(), ConsensusError>;
 

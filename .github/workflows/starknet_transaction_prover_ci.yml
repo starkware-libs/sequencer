@@ -1,0 +1,116 @@
+name: Starknet-Transaction-Prover-CI
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - ".github/actions/bootstrap/action.yml"
+      - ".github/workflows/starknet_transaction_prover_ci.yml"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/blockifier/**"
+      - "crates/blockifier_reexecution/**"
+      - "crates/proving_utils/**"
+      - "crates/starknet_committer/**"
+      - "crates/starknet_os/**"
+      - "crates/starknet_patricia/**"
+      - "crates/starknet_transaction_prover/**"
+      - "scripts/build_starknet_transaction_prover.sh"
+      - "scripts/dependencies.sh"
+      - "scripts/requirements.txt"
+
+env:
+  RUSTFLAGS: "-D warnings"
+
+# On PR events, cancel existing CI runs on this same PR for this workflow.
+concurrency:
+  group: >
+    ${{ github.workflow }}-
+    ${{ github.ref }}-
+    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  starknet_transaction_prover_ci:
+    runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Setup pypy and link to the location expected by .cargo/config.toml.
+      # Python + requirements are needed to compile the OS (apollo_starknet_os_program).
+      - uses: actions/setup-python@v5
+        id: setup-pypy
+        with:
+          python-version: "pypy3.9"
+      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+      - env:
+          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
+        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+      - run: pip install -r scripts/requirements.txt
+
+      # Cache the rustup directory so the nightly toolchain isn't re-downloaded every run.
+      - name: Cache rustup toolchains
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          path: /home/runner/.rustup
+
+      # Bootstrap installs the repo-wide stable toolchain (from root rust-toolchain.toml).
+      # starknet_transaction_prover has its own rust-toolchain.toml specifying nightly, required by stwo
+      # (unstable Rust features).
+      - name: Ensure nightly toolchain is installed
+        working-directory: crates/starknet_transaction_prover
+        run: rustup show
+
+      - name: Run clippy with all features
+        working-directory: crates/starknet_transaction_prover
+        run: cargo clippy -p starknet_transaction_prover --no-deps --all-targets --all-features
+
+      # Running tests in release mode since stwo significantly slower in debug mode.
+      - name: Run tests in release mode
+        working-directory: crates/starknet_transaction_prover
+        run: cargo test -p starknet_transaction_prover --features stwo_proving --release
+
+      # Download RPC record fixtures from GCS for ignored integration tests.
+      - id: auth
+        uses: "google-github-actions/auth@v2"
+        with:
+          credentials_json: ${{ secrets.SA_STARKNET_OS_RUNNER_ARTIFACTS }}
+      - uses: "google-github-actions/setup-gcloud@v2"
+      - run: mkdir -p ./crates/starknet_transaction_prover/resources/rpc_records
+      - run: gcloud storage cp -r gs://starknet-os-runner-artifacts/rpc_records/* ./crates/starknet_transaction_prover/resources/rpc_records/
+
+      # Run tests sequentially (no parallelism) since proving is a heavy CPU and memory intensive task
+      - name: Run proving integration tests
+        working-directory: crates/starknet_transaction_prover
+        run: cargo test --release -p starknet_transaction_prover --features stwo_proving virtual_snos_prover_test -- --ignored --test-threads=1
+
+  # Test that the starknet_transaction_prover Docker image builds successfully.
+  docker-build:
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build starknet_transaction_prover Docker image
+        uses: docker/build-push-action@v6.13.0
+        with:
+          context: .
+          file: crates/starknet_transaction_prover/Dockerfile
+          # Uses debug mode for faster compilation.
+          build-args: BUILD_MODE=debug
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

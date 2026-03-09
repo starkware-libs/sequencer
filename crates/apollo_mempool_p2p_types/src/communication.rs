@@ -13,7 +13,7 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::InternalRpcTransaction;
-use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use thiserror::Error;
 
 use crate::errors::MempoolP2pPropagatorError;
@@ -52,7 +52,7 @@ pub type MempoolP2pPropagatorRequestWrapper =
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(
     name(MempoolP2pPropagatorRequestLabelValue),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    derive(IntoStaticStr, EnumIter, VariantNames),
     strum(serialize_all = "snake_case")
 )]
 pub enum MempoolP2pPropagatorRequest {

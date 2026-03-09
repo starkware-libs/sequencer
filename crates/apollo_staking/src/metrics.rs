@@ -1,8 +1,6 @@
 use std::collections::HashSet;
 
 use apollo_metrics::define_metrics;
-use apollo_metrics::metrics::LossyIntoF64;
-use metrics::gauge;
 
 use crate::committee_provider::StakerSet;
 
@@ -16,6 +14,7 @@ define_metrics!(
         // Committee composition.
         MetricGauge { STAKING_COMMITTEE_TOTAL_WEIGHT, "staking_committee_total_weight", "Total voting weight of committee" },
         MetricGauge { STAKING_COMMITTEE_ELIGIBLE_PROPOSERS_TOTAL_WEIGHT, "staking_committee_eligible_proposers_total_weight", "Total weight of eligible proposers" },
+        MetricGauge { STAKING_COMMITTEE_MEMBER_WEIGHT, "staking_committee_member_weight", "Voting weight of individual committee members by address" },
     },
 );
 
@@ -25,6 +24,7 @@ pub fn register_metrics() {
     STAKING_CURRENT_EPOCH_LENGTH.register();
     STAKING_COMMITTEE_TOTAL_WEIGHT.register();
     STAKING_COMMITTEE_ELIGIBLE_PROPOSERS_TOTAL_WEIGHT.register();
+    STAKING_COMMITTEE_MEMBER_WEIGHT.register();
 }
 
 /// Manages per-staker weight metrics for the committee.
@@ -48,14 +48,17 @@ impl CommitteeMemberMetrics {
         // Set gauge for each current member.
         for staker in members {
             let address = format!("{:#x}", staker.address.0.key());
-            gauge!("staking_committee_member_weight", "address" => address.clone())
-                .set(staker.weight.0.into_f64());
+            STAKING_COMMITTEE_MEMBER_WEIGHT.set_lossy_with_labels(
+                staker.weight.0,
+                "address",
+                address.clone(),
+            );
             new_addresses.insert(address);
         }
 
         // Clear metrics for addresses no longer in the committee.
         for old_address in self.active_addresses.difference(&new_addresses) {
-            gauge!("staking_committee_member_weight", "address" => old_address.clone()).set(0.0);
+            STAKING_COMMITTEE_MEMBER_WEIGHT.set_with_labels(0.0, "address", old_address.clone());
         }
 
         self.active_addresses = new_addresses;

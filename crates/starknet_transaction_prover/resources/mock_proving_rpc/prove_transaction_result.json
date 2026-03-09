@@ -1,0 +1,24 @@
+{
+  "proof": "AAAAAQAAAAIAAAADAAAABAAAAAUAAAAGAAAABwAAAAgAAAAJAAAACg==",
+  "proof_facts": [
+    "0x50524f4f4630",
+    "0x5649525455414c5f534e4f53",
+    "0x602b02cff498684fae3d66016137978fdad45a5036878a57257689d4f3f6ccb",
+    "0x5649525455414c5f534e4f5330",
+    "0x4e20",
+    "0x1234",
+    "0xabcdef",
+    "0x0"
+  ],
+  "l2_to_l1_messages": [
+    {
+      "from_address": "0x123",
+      "to_address": "0xdeadbeef",
+      "payload": [
+        "0x1",
+        "0x2",
+        "0x3"
+      ]
+    }
+  ]
+}

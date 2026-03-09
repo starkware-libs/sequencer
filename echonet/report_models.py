@@ -27,6 +27,7 @@ class SnapshotModel:
     first_block_timestamp: int | None
     latest_block_timestamp: int | None
     timestamp_diff_seconds: int | None
+    uptime_seconds: int | None
 
     # Counters
     total_sent_tx_count: int
@@ -41,6 +42,7 @@ class SnapshotModel:
     revert_errors_echonet: Mapping[str, RevertErrorInfo]
     resync_causes: ResyncTriggerMap
     certain_failures: ResyncTriggerMap
+    l2_gas_mismatches: list[JsonObject]
 
     def to_dict(self) -> JsonObject:
         """
@@ -68,6 +70,8 @@ class SnapshotModel:
             "first_block_timestamp": self.first_block_timestamp,
             "latest_block_timestamp": self.latest_block_timestamp,
             "timestamp_diff_seconds": self.timestamp_diff_seconds,
+            "uptime_seconds": self.uptime_seconds,
+            "l2_gas_mismatches": self.l2_gas_mismatches,
         }
 
     @classmethod
@@ -81,6 +85,7 @@ class SnapshotModel:
             first_block_timestamp=data["first_block_timestamp"],
             latest_block_timestamp=data["latest_block_timestamp"],
             timestamp_diff_seconds=data["timestamp_diff_seconds"],
+            uptime_seconds=data["uptime_seconds"],
             total_sent_tx_count=data["total_sent_tx_count"],
             committed_count=data["committed_count"],
             pending_total_count=data["pending_total_count"],
@@ -91,4 +96,5 @@ class SnapshotModel:
             revert_errors_echonet=data["revert_errors_echonet"],
             resync_causes=data["resync_causes"],
             certain_failures=data["certain_failures"],
+            l2_gas_mismatches=data["l2_gas_mismatches"],
         )

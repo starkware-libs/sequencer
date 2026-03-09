@@ -12,6 +12,7 @@ use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::crypto::utils::RawSignature;
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_types_core::felt::Felt;
 
@@ -167,7 +168,6 @@ pub struct TransactionBatch {
 }
 
 /// Optional parts of a commitment carried in ProposalFin.
-// TODO(Asmaa): Send next_l2_gas_price_fri and l2_gas_used in a separate optional message.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CommitmentParts {
     pub concatenated_counts: Felt,
@@ -178,6 +178,20 @@ pub struct CommitmentParts {
     pub receipt_commitment: StarkHash,
 }
 
+/// L2 gas info for the block (next price and gas used).
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct L2GasInfo {
+    pub next_l2_gas_price_fri: GasPrice,
+    pub l2_gas_used: GasAmount,
+}
+
+/// Optional payload carried in ProposalFin: commitment parts and L2 gas.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ProposalFinPayload {
+    pub commitment_parts: CommitmentParts,
+    pub l2_gas_info: L2GasInfo,
+}
+
 /// The proposal is done when receiving this fin message, which contains the proposal commitment.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProposalFin {
@@ -186,8 +200,8 @@ pub struct ProposalFin {
     pub proposal_commitment: ProposalCommitment,
     /// Number of executed transactions in the proposal.
     pub executed_transaction_count: u64,
-    /// Optional commitment parts.
-    pub commitment_parts: Option<CommitmentParts>,
+    /// Optional fin payload (commitment parts and optional L2 gas info).
+    pub fin_payload: Option<ProposalFinPayload>,
 }
 
 /// A part of the proposal.

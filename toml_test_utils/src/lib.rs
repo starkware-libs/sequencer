@@ -15,7 +15,13 @@ pub enum LintValue {
 #[serde(untagged)]
 pub enum DependencyValue {
     String(String),
-    Object { version: Option<String>, path: Option<String>, features: Option<Vec<String>> },
+    Object {
+        version: Option<String>,
+        path: Option<String>,
+        features: Option<Vec<String>>,
+        git: Option<String>,
+        rev: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -16,6 +16,7 @@ func execute_transactions_inner{
     contract_class_changes: DictAccess*,
     outputs: OsCarriedOutputs*,
 }(block_context: BlockContext*, n_txs) {
+    // Part of the VIRTUAL_SNOS0 version contract. Changes must trigger a version bump.
     with_attr error_message("Expected exactly one transaction") {
         assert n_txs = 1;
     }

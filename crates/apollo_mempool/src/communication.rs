@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
@@ -20,9 +21,14 @@ use apollo_mempool_types::mempool_types::{
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_time::time::DefaultClock;
 use async_trait::async_trait;
+use reqwest::Client;
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_retry::policies::ExponentialBackoff;
+use reqwest_retry::{Jitter, RetryTransientMiddleware};
 use starknet_api::block::{GasPrice, UnixTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
+use starknet_api::transaction::TransactionHash;
 use tracing::warn;
 
 use crate::mempool::Mempool;
@@ -49,6 +55,7 @@ pub struct MempoolCommunicationWrapper {
     mempool: Mempool,
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
     config_manager_client: SharedConfigManagerClient,
+    echonet_client: ClientWithMiddleware,
 }
 
 impl MempoolCommunicationWrapper {
@@ -57,10 +64,24 @@ impl MempoolCommunicationWrapper {
         mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
         config_manager_client: SharedConfigManagerClient,
     ) -> Self {
+        const MIN_RETRY_INTERVAL: Duration = Duration::from_millis(50);
+        const MAX_RETRY_INTERVAL: Duration = Duration::from_millis(500);
+        const MAX_RETRY_DURATION: Duration = Duration::from_secs(10);
+
+        let retry_policy = ExponentialBackoff::builder()
+            .retry_bounds(MIN_RETRY_INTERVAL, MAX_RETRY_INTERVAL)
+            .jitter(Jitter::None)
+            .build_with_total_retry_duration(MAX_RETRY_DURATION);
+
+        let client = ClientBuilder::new(Client::new())
+            .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+            .build();
+
         MempoolCommunicationWrapper {
             mempool,
             mempool_p2p_propagator_client,
             config_manager_client,
+            echonet_client: client,
         }
     }
 
@@ -99,13 +120,23 @@ impl MempoolCommunicationWrapper {
         &mut self,
         args_wrapper: AddTransactionArgsWrapper,
     ) -> MempoolResult<()> {
+        if self.mempool.is_fifo() {
+            let tx_hash = args_wrapper.args.tx.tx_hash();
+            if !self.fetch_and_update_timestamp(tx_hash).await {
+                warn!("Failed to fetch timestamp for tx {}, skipping transaction", tx_hash);
+                return Ok(());
+            }
+        }
+
         self.mempool.add_tx(args_wrapper.args.clone())?;
+
         // TODO(AlonH): Verify that only transactions that were added to the mempool are sent.
         if let Err(p2p_client_err) =
             self.send_tx_to_p2p(args_wrapper.p2p_message_metadata, args_wrapper.args.tx).await
         {
             warn!("Failed to send transaction to P2P: {:?}", p2p_client_err);
         }
+
         Ok(())
     }
 
@@ -141,6 +172,50 @@ impl MempoolCommunicationWrapper {
 
     fn get_timestamp(&self) -> MempoolResult<UnixTimestamp> {
         Ok(self.mempool.get_timestamp())
+    }
+
+    // Fetches timestamp from recorder and updates mempool.
+    // Returns true if successful, false if failed after all retries.
+    pub(crate) async fn fetch_and_update_timestamp(&mut self, tx_hash: TransactionHash) -> bool {
+        // In Echonet mode we replay mainnet data. Some transactions require the original mainnet
+        // block timestamp to pass. We fetch this timestamp from the recorder, which points
+        // to Echonet.
+        let recorder_url = &self.mempool.config.static_config.recorder_url;
+        let url = match recorder_url.join(&format!("echonet/get_timestamp?tx_hash={}", tx_hash)) {
+            Ok(url) => url,
+            Err(e) => {
+                warn!("Invalid recorder URL for tx {}: {}", tx_hash, e);
+                return false;
+            }
+        };
+
+        match self.try_fetch_timestamp(&url).await {
+            Ok(timestamp) => {
+                self.mempool.update_timestamp(tx_hash, timestamp);
+                true
+            }
+            Err(e) => {
+                warn!("Failed to fetch timestamp for tx {}: {}", tx_hash, e);
+                false
+            }
+        }
+    }
+
+    async fn try_fetch_timestamp(&self, url: &reqwest::Url) -> Result<UnixTimestamp, String> {
+        const REQUEST_TIMEOUT_SECS: u64 = 2;
+        let response = self
+            .echonet_client
+            .get(url.as_str())
+            .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
+            .send()
+            .await
+            .map_err(|e| format!("request failed: {}", e))?;
+
+        if !response.status().is_success() {
+            return Err(format!("HTTP {}", response.status()));
+        }
+
+        response.json::<UnixTimestamp>().await.map_err(|e| format!("invalid response: {}", e))
     }
 }
 

@@ -39,12 +39,16 @@ pub trait HeightVotedStorageTrait: Debug + Send + Sync {
 struct HeightVotedStorage {
     storage_reader: StorageReader,
     storage_writer: StorageWriter,
+    skip_last_voted_height_check: bool,
 }
 
 /// Returns a new concrete implementation of HeightVotedStorageTrait based on the configuration.
-pub fn get_voted_height_storage(config: StorageConfig) -> impl HeightVotedStorageTrait {
+pub fn get_voted_height_storage(
+    config: StorageConfig,
+    skip_last_voted_height_check: bool,
+) -> impl HeightVotedStorageTrait {
     let (storage_reader, storage_writer) = open_storage(config).expect("Failed to open storage");
-    HeightVotedStorage { storage_reader, storage_writer }
+    HeightVotedStorage { storage_reader, storage_writer, skip_last_voted_height_check }
 }
 
 impl HeightVotedStorageTrait for HeightVotedStorage {
@@ -65,7 +69,8 @@ impl HeightVotedStorageTrait for HeightVotedStorage {
         let last_voted_marker_to_write = LastVotedMarker { height };
         match last_voted_marker_from_storage {
             Some(last_voted_marker_from_storage)
-                if last_voted_marker_to_write < last_voted_marker_from_storage =>
+                if !self.skip_last_voted_height_check
+                    && last_voted_marker_to_write < last_voted_marker_from_storage =>
             {
                 Err(HeightVotedStorageError::InconsistentStorageState {
                     error_msg: format!(

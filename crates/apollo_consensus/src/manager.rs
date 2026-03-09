@@ -462,8 +462,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let res = match consensus_result {
             Ok(ok) => match ok {
                 RunHeightRes::Decision(decision) => {
+                    let decided_round = decision
+                        .precommits
+                        .first()
+                        .expect("Decision must contain at least one precommit")
+                        .round;
                     // Commit decision to context.
-                    context.decision_reached(height, decision.block).await?;
+                    context.decision_reached(height, decided_round, decision.block).await?;
                     RunHeightRes::Decision(decision)
                 }
                 RunHeightRes::Sync => RunHeightRes::Sync,
@@ -553,9 +558,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         // If we already voted for this height, do not proceed until we sync to this height.
         // Otherwise, just check if we can sync to this height, immediately. If not, proceed with
         // consensus.
-        if self
-            .last_voted_height_at_initialization
-            .is_some_and(|last_voted_height| last_voted_height >= height)
+        if !self.consensus_config.static_config.skip_last_voted_height_check
+            && self
+                .last_voted_height_at_initialization
+                .is_some_and(|last_voted_height| last_voted_height >= height)
         {
             // TODO(guy.f): Add this as a proposal failure with the reason in the prposal failure
             // metrics.
@@ -1020,7 +1026,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     .await
                     .set_prev_voted_height(height)
                     .expect("Failed to write voted height {self.height} to storage");
-                info!("Broadcasting {vote:?}");
                 context.broadcast(vote.clone()).await?;
                 // Schedule a rebroadcast after the appropriate timeout.
                 let duration = match vote.vote_type {

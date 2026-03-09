@@ -30,7 +30,7 @@ pub fn execute_single_transaction(
     // Initialize the contract class manager.
     let mut contract_class_manager_config = ContractClassManagerConfig::default();
     if cfg!(feature = "cairo_native") {
-        contract_class_manager_config.cairo_native_run_config.cairo_native_run_mode =
+        contract_class_manager_config.cairo_native_run_config.cairo_native_mode =
             CairoNativeMode::WaitOnCompilation;
     }
     let contract_class_manager = ContractClassManager::start(contract_class_manager_config);

@@ -19,7 +19,7 @@ use apollo_staking_config::config::StakingManagerDynamicConfig;
 use apollo_state_sync_config::config::StateSyncDynamicConfig;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use thiserror::Error;
 
 use crate::config_manager_types::ConfigManagerResult;
@@ -67,7 +67,7 @@ pub trait ConfigManagerClient: Send + Sync {
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(
     name(ConfigManagerRequestLabelValue),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    derive(IntoStaticStr, EnumIter, VariantNames),
     strum(serialize_all = "snake_case")
 )]
 pub enum ConfigManagerRequest {

@@ -28,7 +28,7 @@ pub mod trivial_class_manager {
     impl TrivialClassManager {
         pub fn start(config: ContractClassManagerConfig) -> Self {
             assert_eq!(
-                config.cairo_native_run_config.cairo_native_run_mode,
+                config.cairo_native_run_config.cairo_native_mode,
                 CairoNativeMode::Off,
                 "Trivial class manager does not support native compilation."
             );

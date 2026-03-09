@@ -1,5 +1,5 @@
 use apollo_metrics::{define_metrics, generate_permutation_labels};
-use strum::{EnumIter, EnumVariantNames, IntoStaticStr};
+use strum::{EnumIter, IntoStaticStr, VariantNames};
 
 define_metrics!(
     Consensus => {
@@ -36,7 +36,7 @@ define_metrics!(
 
 pub const LABEL_NAME_TIMEOUT_TYPE: &str = "timeout_type";
 
-#[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
+#[derive(IntoStaticStr, EnumIter, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub(crate) enum TimeoutType {
     Propose,

@@ -50,7 +50,7 @@ mod staking_manager_test;
 // CONSTRAINT: Must be ≥ `STORED_BLOCK_HASH_BUFFER` - the maximum StateSync lag.
 // A smaller value could cause the consensus tip to advance beyond our knowledge of the next epoch,
 // resulting in a failure to retrieve the committee.
-const MIN_EPOCH_LENGTH: u64 = 10;
+const MIN_EPOCH_LENGTH: u64 = 30;
 const_assert!(MIN_EPOCH_LENGTH >= STORED_BLOCK_HASH_BUFFER);
 
 struct Committee {
@@ -362,10 +362,10 @@ impl StakingManager {
         // Ensure a consistent and deterministic committee ordering.
         // This is important for proposer selection logic to be deterministic and consistent across
         // all nodes.
-        stakers.sort_by_key(|staker| (staker.weight, staker.address));
+        stakers.sort_by_key(|staker| (std::cmp::Reverse(staker.weight), staker.address));
 
         // Take the top `committee_size` stakers by weight.
-        stakers.into_iter().rev().take(committee_size).collect()
+        stakers.into_iter().take(committee_size).collect()
     }
 
     /// Fetches a block hash, trying batcher first and falling back to state_sync.

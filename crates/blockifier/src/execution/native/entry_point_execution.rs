@@ -138,12 +138,16 @@ fn builtin_stats_to_primitive_counters(stats: BuiltinStats) -> CairoPrimitiveCou
         (BuiltinName::add_mod, stats.add_mod),
         (BuiltinName::mul_mod, stats.mul_mod),
     ];
-    let opcodes = [(OpcodeName::Blake, stats.blake)];
+    let opcodes = [(OpcodeName::blake, stats.blake)];
 
     builtins
         .into_iter()
         .map(|(builtin_name, count)| (builtin_name.into(), count))
-        .chain(opcodes.into_iter().map(|(opcode_name, count)| (opcode_name.into(), count)))
+        .chain(
+            opcodes
+                .into_iter()
+                .map(|(opcode_name, count): (OpcodeName, _)| (opcode_name.into(), count)),
+        )
         .filter(|(_, count)| *count > 0)
         .collect()
 }

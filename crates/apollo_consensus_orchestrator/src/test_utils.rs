@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
     FinishedProposalInfo,
+    FinishedProposalInfoWithoutParent,
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
@@ -15,10 +16,15 @@ use apollo_batcher_types::batcher_types::{
     SendProposalContentResponse,
     ValidateBlockInput,
 };
-use apollo_batcher_types::communication::MockBatcherClient;
+use apollo_batcher_types::communication::{BatcherClientError, MockBatcherClient};
+use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_consensus::types::Round;
-use apollo_consensus_orchestrator_config::config::{ContextConfig, ContextStaticConfig};
+use apollo_consensus_orchestrator_config::config::{
+    ContextConfig,
+    ContextStaticConfig,
+    PricePerHeight,
+};
 use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
 use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
@@ -54,15 +60,15 @@ use starknet_api::block::{
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
 };
-use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
+use starknet_api::block_hash::block_hash_calculator::{BlockHeaderCommitments, PartialBlockHash};
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
-use starknet_api::core::{ChainId, ContractAddress, Nonce, StateDiffCommitment};
+use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::felt;
-use starknet_api::hash::PoseidonHash;
+use starknet_api::hash::StarkHash;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 
@@ -78,8 +84,7 @@ use crate::utils::{make_gas_price_params, GasPriceParams, PreviousProposalInitIn
 
 pub(crate) const TIMEOUT: Duration = Duration::from_millis(1200);
 pub(crate) const CHANNEL_SIZE: usize = 5000;
-pub(crate) const STATE_DIFF_COMMITMENT: StateDiffCommitment =
-    StateDiffCommitment(PoseidonHash(Felt::ZERO));
+pub(crate) const PARTIAL_BLOCK_HASH: PartialBlockHash = PartialBlockHash(StarkHash::ZERO);
 pub(crate) const CHAIN_ID: ChainId = ChainId::Mainnet;
 
 // In order for gas price in ETH to be greater than 0 (required) we must have large enough
@@ -145,6 +150,7 @@ pub struct SetupDepsArgs {
     pub n_executed_txs_count: usize,
     pub number_of_times: usize,
     pub expect_start_height: bool,
+    pub l2_gas_used: Option<GasAmount>,
 }
 
 impl Default for SetupDepsArgs {
@@ -154,6 +160,7 @@ impl Default for SetupDepsArgs {
             n_executed_txs_count: INTERNAL_TX_BATCH.len(),
             number_of_times: 1,
             expect_start_height: true,
+            l2_gas_used: None,
         }
     }
 }
@@ -208,17 +215,21 @@ impl TestDeps {
                 .returning(move |_input| {
                     Ok(GetProposalContentResponse {
                         content: GetProposalContent::Finished(FinishedProposalInfo {
-                            proposal_commitment: ProposalCommitment {
-                                state_diff_commitment: STATE_DIFF_COMMITMENT,
+                            artifact: FinishedProposalInfoWithoutParent {
+                                proposal_commitment: ProposalCommitment {
+                                    partial_block_hash: PARTIAL_BLOCK_HASH,
+                                },
+                                final_n_executed_txs: args.n_executed_txs_count,
+                                block_header_commitments: BlockHeaderCommitments::default(),
+                                l2_gas_used: args.l2_gas_used.unwrap_or_default(),
                             },
-                            final_n_executed_txs: args.n_executed_txs_count,
-                            block_header_commitments: BlockHeaderCommitments::default(),
                             parent_proposal_commitment: None,
                         }),
                     })
                 });
             block_number = block_number.unchecked_next();
         }
+        self.setup_default_batcher_get_block_hash();
     }
 
     pub(crate) fn setup_deps_for_validate(&mut self, args: SetupDepsArgs) {
@@ -272,17 +283,21 @@ impl TestDeps {
                     );
                     Ok(SendProposalContentResponse {
                         response: ProposalStatus::Finished(FinishedProposalInfo {
-                            proposal_commitment: ProposalCommitment {
-                                state_diff_commitment: STATE_DIFF_COMMITMENT,
+                            artifact: FinishedProposalInfoWithoutParent {
+                                proposal_commitment: ProposalCommitment {
+                                    partial_block_hash: PARTIAL_BLOCK_HASH,
+                                },
+                                final_n_executed_txs: args.n_executed_txs_count,
+                                block_header_commitments: BlockHeaderCommitments::default(),
+                                l2_gas_used: GasAmount::default(),
                             },
-                            final_n_executed_txs: args.n_executed_txs_count,
-                            block_header_commitments: BlockHeaderCommitments::default(),
                             parent_proposal_commitment: None,
                         }),
                     })
                 });
             block_number = block_number.unchecked_next();
         }
+        self.setup_default_batcher_get_block_hash();
     }
 
     pub(crate) fn setup_default_transaction_converter(&mut self) {
@@ -311,6 +326,12 @@ impl TestDeps {
             blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
         }));
         self.l1_gas_price_provider.expect_get_eth_to_fri_rate().return_const(Ok(ETH_TO_FRI_RATE));
+    }
+
+    pub(crate) fn setup_default_batcher_get_block_hash(&mut self) {
+        self.batcher.expect_get_block_hash().returning(|block_number| {
+            Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(block_number)))
+        });
     }
 
     pub(crate) fn build_context(self) -> SequencerConsensusContext {
@@ -413,9 +434,9 @@ pub(crate) async fn send_proposal_to_validator_context(
         .unwrap();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: ProtoProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProtoProposalCommitment(PARTIAL_BLOCK_HASH.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
-            commitment_parts: None,
+            fin_payload: None,
         }))
         .await
         .unwrap();
@@ -448,6 +469,8 @@ pub(crate) struct TestProposalBuildArguments {
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
     pub override_timestamp: bool,
+    pub override_l2_gas_price_fri: Option<u128>,
+    pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
 }
 
 impl From<TestProposalBuildArguments> for ProposalBuildArguments {
@@ -471,6 +494,8 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
             retrospective_block_hash_retry_interval_millis: args
                 .retrospective_block_hash_retry_interval_millis,
             override_timestamp: args.override_timestamp,
+            override_l2_gas_price_fri: args.override_l2_gas_price_fri,
+            min_l2_gas_price_per_height: args.min_l2_gas_price_per_height,
         }
     }
 }
@@ -519,6 +544,8 @@ pub(crate) fn create_proposal_build_arguments()
             retrospective_block_hash_deadline,
             retrospective_block_hash_retry_interval_millis,
             override_timestamp,
+            override_l2_gas_price_fri: None,
+            min_l2_gas_price_per_height: vec![],
         },
         proposal_receiver,
     )
