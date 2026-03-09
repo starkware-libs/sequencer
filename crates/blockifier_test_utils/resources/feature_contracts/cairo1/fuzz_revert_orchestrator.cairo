@@ -10,6 +10,8 @@ mod FuzzRevertOrchestratorContract {
     const UNEXPECTED_FAIL_UNDEPLOYED: felt252 = 'should_fail_undeployed';
     const UNEXPECTED_FAIL_CALL_NO_ENTRYPOINT: felt252 = 'call_no_entrypoint';
     const UNEXPECTED_FAIL_LIBCALL_NO_ENTRYPOINT: felt252 = 'libcall_no_entrypoint';
+    const UNEXPECTED_SUCCESS_GET_BLOCK_HASH: felt252 = 'get_block_hash_success';
+    const UNEXPECTED_FAIL_GET_BLOCK_HASH: felt252 = 'get_block_hash_fail';
 
     #[storage]
     struct Storage {
@@ -52,11 +54,14 @@ mod FuzzRevertOrchestratorContract {
     /// will panic (this can happen if an unexpected error occurs and is propagated).
     #[external(v0)]
     fn set_index(ref self: ContractState, index: felt252) {
+        let error = array![OOB_ERROR, index];
         let index_u64: u64 = match index.try_into() {
             Option::Some(val) => val,
-            Option::None => panic_with_felt252(OOB_ERROR),
+            Option::None => panic(error),
         };
-        assert(index_u64 <= self.scenarios.len(), OOB_ERROR);
+        if index_u64 > self.scenarios.len() {
+            panic(error);
+        }
         self.front_index.write(index_u64);
     }
 
@@ -83,6 +88,16 @@ mod FuzzRevertOrchestratorContract {
         UNEXPECTED_FAIL_LIBCALL_NO_ENTRYPOINT
     }
 
+    #[external(v0)]
+    fn should_fail_get_block_hash_panic_message(ref self: ContractState) -> felt252 {
+        UNEXPECTED_SUCCESS_GET_BLOCK_HASH
+    }
+
+    #[external(v0)]
+    fn should_succeed_get_block_hash_panic_message(ref self: ContractState) -> felt252 {
+        UNEXPECTED_FAIL_GET_BLOCK_HASH
+    }
+
     /// Start the test. The first address must be an initialized fuzz test contract.
     #[external(v0)]
     fn start_test(ref self: ContractState, first_address: ContractAddress) {
@@ -90,19 +105,32 @@ mod FuzzRevertOrchestratorContract {
             first_address, selector!("test_revert_fuzz"), array![].span(),
         ) {
             Result::Ok(_) => (),
-            Result::Err(mut error) => {
-                // Assert the error is not any unexpected error.
-                let error_value = error.pop_front().unwrap();
-                for unexpected_error in array![
+            Result::Err(error) => {
+                // Assert the error does not contain any unexpected error.
+                let unexpected_errors = array![
                     UNEXPECTED_FAIL_INVALID_SCENARIO,
                     OOB_ERROR,
                     UNEXPECTED_FAIL_UNDEPLOYED,
                     UNEXPECTED_FAIL_CALL_NO_ENTRYPOINT,
-                    UNEXPECTED_FAIL_LIBCALL_NO_ENTRYPOINT
+                    UNEXPECTED_FAIL_LIBCALL_NO_ENTRYPOINT,
+                    UNEXPECTED_SUCCESS_GET_BLOCK_HASH,
+                    UNEXPECTED_FAIL_GET_BLOCK_HASH
                 ]
+                    .span();
+                let mut contains_unexpected_error = false;
+                for error_value in error
                     .span() {
-                        assert(error_value != *unexpected_error, *unexpected_error);
+                        for unexpected_error in unexpected_errors {
+                            if error_value == unexpected_error {
+                                contains_unexpected_error = true;
+                                break;
+                            }
+                        }
                     }
+
+                if contains_unexpected_error {
+                    panic(error);
+                }
             }
         }
     }
