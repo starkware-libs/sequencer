@@ -35,6 +35,8 @@ pub struct KadRequestingBehaviour {
     unconnected_peers: VecDeque<PeerId>,
     /// Buffer of queries to emit for the current heartbeat, drained one per poll call.
     pending_queries: VecDeque<PeerId>,
+    /// Peers to dial after a successful DHT lookup matched a requested peer.
+    pending_dials: VecDeque<PeerId>,
 }
 
 impl NetworkBehaviour for KadRequestingBehaviour {
@@ -93,6 +95,11 @@ impl NetworkBehaviour for KadRequestingBehaviour {
         cx: &mut Context<'_>,
     ) -> Poll<ToSwarm<Self::ToSwarm, <Self::ConnectionHandler as ConnectionHandler>::FromBehaviour>>
     {
+        // Drain pending dials first (from DHT lookup results).
+        if let Some(peer_id) = self.pending_dials.pop_front() {
+            return Poll::Ready(ToSwarm::Dial { opts: peer_id.into() });
+        }
+
         // Drain pending queries from the current heartbeat, one per poll call.
         if let Some(peer_id) = self.pending_queries.pop_front() {
             return Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(
@@ -131,12 +138,22 @@ impl KadRequestingBehaviour {
             peers_to_request: HashSet::new(),
             unconnected_peers: VecDeque::new(),
             pending_queries: VecDeque::new(),
+            pending_dials: VecDeque::new(),
         }
     }
 
     pub fn set_peers_to_request(&mut self, peers: HashSet<PeerId>) {
         self.unconnected_peers = peers.iter().copied().collect();
         self.peers_to_request = peers;
+    }
+
+    pub fn enqueue_dials_for_matching_peers(&mut self, peers: &[PeerId]) {
+        self.pending_dials.extend(
+            peers
+                .iter()
+                .filter(|p| self.peers_to_request.contains(p))
+                .filter(|p| self.unconnected_peers.contains(p)),
+        );
     }
 
     fn emit_heartbeat_queries(

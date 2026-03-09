@@ -1,4 +1,4 @@
-use libp2p::kad;
+use libp2p::{kad, PeerId};
 use tracing::info;
 
 use super::identify_impl::IdentifyToOtherBehaviourEvent;
@@ -6,11 +6,28 @@ use crate::mixed_behaviour::BridgedBehaviour;
 use crate::{mixed_behaviour, peer_manager};
 
 #[derive(Debug)]
-pub enum KadToOtherBehaviourEvent {}
+pub enum KadToOtherBehaviourEvent {
+    FoundPeers(Vec<PeerId>),
+}
 
 impl From<kad::Event> for mixed_behaviour::Event {
-    fn from(_event: kad::Event) -> Self {
-        mixed_behaviour::Event::ToOtherBehaviourEvent(mixed_behaviour::ToOtherBehaviourEvent::NoOp)
+    fn from(event: kad::Event) -> Self {
+        match event {
+            kad::Event::OutboundQueryProgressed {
+                result: kad::QueryResult::GetClosestPeers(Ok(ok)),
+                ..
+            } => {
+                let peers = ok.peers.into_iter().map(|p| p.peer_id).collect();
+                mixed_behaviour::Event::ToOtherBehaviourEvent(
+                    mixed_behaviour::ToOtherBehaviourEvent::Kad(
+                        KadToOtherBehaviourEvent::FoundPeers(peers),
+                    ),
+                )
+            }
+            _ => mixed_behaviour::Event::ToOtherBehaviourEvent(
+                mixed_behaviour::ToOtherBehaviourEvent::NoOp,
+            ),
+        }
     }
 }
 
