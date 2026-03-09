@@ -8,6 +8,7 @@ use crate::block_hash::block_hash_calculator::{
     calculate_block_hash,
     BlockHashVersion,
     BlockHeaderCommitments,
+    PartialBlockHash,
     PartialBlockHashComponents,
     TransactionHashingData,
 };
@@ -249,4 +250,38 @@ fn change_field_of_hash_input() {
         previous_block_hash: BlockHash(Felt::ONE)
     )
     // TODO(Aviv, 10/06/2024): add tests that changes the first hash input, and the const zero.
+}
+
+#[test]
+fn partial_block_hash_changes_with_parent_partial_block_hash() {
+    let partial_block_hash_components = PartialBlockHashComponents {
+        starknet_version: BlockHashVersion::V0_13_4.into(),
+        header_commitments: BlockHeaderCommitments {
+            transaction_commitment: TransactionCommitment(Felt::ONE),
+            event_commitment: EventCommitment(Felt::ONE),
+            receipt_commitment: ReceiptCommitment(Felt::ONE),
+            state_diff_commitment: StateDiffCommitment(PoseidonHash(Felt::ONE)),
+            concatenated_counts: Felt::ONE,
+        },
+        block_number: BlockNumber(1),
+        l1_gas_price: GasPricePerToken { price_in_fri: 1_u8.into(), price_in_wei: 1_u8.into() },
+        l1_data_gas_price: GasPricePerToken {
+            price_in_fri: 1_u8.into(),
+            price_in_wei: 1_u8.into(),
+        },
+        l2_gas_price: GasPricePerToken { price_in_fri: 1_u8.into(), price_in_wei: 1_u8.into() },
+        sequencer: SequencerContractAddress(ContractAddress::from(1_u128)),
+        timestamp: BlockTimestamp(1),
+    };
+
+    let default_parent =
+        PartialBlockHash::from_partial_block_hash_components(&partial_block_hash_components)
+            .unwrap();
+    let chained_parent = PartialBlockHash::from_partial_block_hash_components_and_parent(
+        &partial_block_hash_components,
+        Some(PartialBlockHash(Felt::TWO)),
+    )
+    .unwrap();
+
+    assert_ne!(default_parent, chained_parent);
 }
