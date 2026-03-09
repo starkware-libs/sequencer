@@ -38,6 +38,7 @@ mod FuzzRevertContract {
         CallUndeployed,
         CallNonExistingEntryPoint,
         LibraryCallNonExistingEntryPoint,
+        EmitEvent,
     }
 
     impl FeltTryIntoScenario of TryInto<felt252, Scenario> {
@@ -62,6 +63,7 @@ mod FuzzRevertContract {
                 13 => Some(Scenario::CallUndeployed),
                 14 => Some(Scenario::CallNonExistingEntryPoint),
                 15 => Some(Scenario::LibraryCallNonExistingEntryPoint),
+                16 => Some(Scenario::EmitEvent),
                 _ => None,
             }
         }
@@ -71,6 +73,17 @@ mod FuzzRevertContract {
     struct Storage {
         counter: felt252,
         orchestrator_address: ContractAddress,
+    }
+
+    #[event]
+    #[derive(Drop, starknet::Event)]
+    enum Event {
+        FuzzEvent: FuzzEvent,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct FuzzEvent {
+        data: felt252,
     }
 
     #[generate_trait]
@@ -142,7 +155,6 @@ mod FuzzRevertContract {
         self.counter.write(0xc10);
         self.orchestrator_address.write(orchestrator_address);
     }
-
 
     #[external(v0)]
     fn test_revert_fuzz(ref self: ContractState) {
@@ -259,6 +271,7 @@ mod FuzzRevertContract {
                         should_unwrap
                     );
             },
+            Scenario::EmitEvent => { self.emit(FuzzEvent { data: orchestrator.pop_front() }); },
         }
 
         // Unless explicitly stated otherwise, the next operation should be in the current call

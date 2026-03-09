@@ -1,6 +1,17 @@
 {
     "abi": [
         {
+            "data": [
+                {
+                    "name": "value",
+                    "type": "felt"
+                }
+            ],
+            "keys": [],
+            "name": "FuzzEvent",
+            "type": "event"
+        },
+        {
             "inputs": [
                 {
                     "name": "maybe_orchestrator_address",
@@ -32,17 +43,17 @@
     "entry_points_by_type": {
         "CONSTRUCTOR": [
             {
-                "offset": 156,
+                "offset": 193,
                 "selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194"
             }
         ],
         "EXTERNAL": [
             {
-                "offset": 658,
+                "offset": 716,
                 "selector": "0x8e64dfac867f301a439703710296f437e9f91d1bba17cfea5ad7f137a5acd"
             },
             {
-                "offset": 185,
+                "offset": 222,
                 "selector": "0x79dc0da7c54b95f10aa182ad0a46400db63156920adb65eca2654c0945a463"
             }
         ],
@@ -56,16 +67,16 @@
                     "__main__",
                     "__main__.test_revert_fuzz"
                 ],
-                "end_pc": 420,
+                "end_pc": 457,
                 "flow_tracking_data": {
                     "ap_tracking": {
-                        "group": 24,
+                        "group": 27,
                         "offset": 88
                     },
                     "reference_ids": {}
                 },
                 "name": "error_message",
-                "start_pc": 416,
+                "start_pc": 453,
                 "value": "panic_scenario"
             },
             {
@@ -74,16 +85,16 @@
                     "__main__",
                     "__main__.test_revert_fuzz"
                 ],
-                "end_pc": 526,
+                "end_pc": 563,
                 "flow_tracking_data": {
                     "ap_tracking": {
-                        "group": 24,
+                        "group": 27,
                         "offset": 69
                     },
                     "reference_ids": {}
                 },
                 "name": "error_message",
-                "start_pc": 522,
+                "start_pc": 559,
                 "value": "new_hash_cairo0"
             },
             {
@@ -92,16 +103,16 @@
                     "__main__",
                     "__main__.test_revert_fuzz"
                 ],
-                "end_pc": 566,
+                "end_pc": 603,
                 "flow_tracking_data": {
                     "ap_tracking": {
-                        "group": 24,
+                        "group": 27,
                         "offset": 164
                     },
                     "reference_ids": {}
                 },
                 "name": "error_message",
-                "start_pc": 562,
+                "start_pc": 599,
                 "value": "should_fail_undeployed"
             },
             {
@@ -110,16 +121,16 @@
                     "__main__",
                     "__main__.test_revert_fuzz"
                 ],
-                "end_pc": 606,
+                "end_pc": 643,
                 "flow_tracking_data": {
                     "ap_tracking": {
-                        "group": 24,
+                        "group": 27,
                         "offset": 165
                     },
                     "reference_ids": {}
                 },
                 "name": "error_message",
-                "start_pc": 602,
+                "start_pc": 639,
                 "value": "should_fail_call_non_existing_entry_point"
             },
             {
@@ -128,16 +139,16 @@
                     "__main__",
                     "__main__.test_revert_fuzz"
                 ],
-                "end_pc": 646,
+                "end_pc": 683,
                 "flow_tracking_data": {
                     "ap_tracking": {
-                        "group": 24,
+                        "group": 27,
                         "offset": 166
                     },
                     "reference_ids": {}
                 },
                 "name": "error_message",
-                "start_pc": 642,
+                "start_pc": 679,
                 "value": "should_fail_libcall_non_existing_entry_point"
             },
             {
@@ -146,18 +157,18 @@
                     "__main__",
                     "__main__.test_revert_fuzz"
                 ],
-                "end_pc": 654,
+                "end_pc": 712,
                 "flow_tracking_data": {
                     "ap_tracking": {
-                        "group": 24,
-                        "offset": 72
+                        "group": 27,
+                        "offset": 73
                     },
                     "reference_ids": {
-                        "__main__.test_revert_fuzz.scenario": 8
+                        "__main__.test_revert_fuzz.scenario": 9
                     }
                 },
                 "name": "error_message",
-                "start_pc": 650,
+                "start_pc": 708,
                 "value": "Unknown scenario: {scenario}."
             }
         ],
@@ -167,6 +178,9 @@
         ],
         "compiler_version": "0.14.0.1",
         "data": [
+            "0x40780017fff7fff",
+            "0x1",
+            "0x208b7fff7fff7ffe",
             "0x208b7fff7fff7ffe",
             "0x1104800180018000",
             "0x800000000000011000000000000000000000000000000000000000000000000",
@@ -226,6 +240,16 @@
             "0x3",
             "0x208b7fff7fff7ffe",
             "0x480680017fff8000",
+            "0x456d69744576656e74",
+            "0x400280007ff97fff",
+            "0x400380017ff97ffa",
+            "0x400380027ff97ffb",
+            "0x400380037ff97ffc",
+            "0x400380047ff97ffd",
+            "0x482680017ff98000",
+            "0x5",
+            "0x208b7fff7fff7ffe",
+            "0x480680017fff8000",
             "0x5265706c616365436c617373",
             "0x400280007ffc7fff",
             "0x400380017ffc7ffd",
@@ -258,7 +282,7 @@
             "0x480a7ffb7fff8000",
             "0x48127ffe7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffd1",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffc7",
             "0x48127ffe7fff8000",
             "0x48127ff57fff8000",
             "0x48127ff57fff8000",
@@ -272,7 +296,7 @@
             "0x48127ffe7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffcb",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffc1",
             "0x48127ff67fff8000",
             "0x48127ff67fff8000",
             "0x208b7fff7fff7ffe",
@@ -288,7 +312,7 @@
             "0x480a7ffb7fff8000",
             "0x48127ffe7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffb3",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffa9",
             "0x48127ffe7fff8000",
             "0x48127ff57fff8000",
             "0x48127ff57fff8000",
@@ -302,9 +326,33 @@
             "0x48127ffe7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffad",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffa3",
             "0x48127ff67fff8000",
             "0x48127ff67fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x40780017fff7fff",
+            "0x2",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff67",
+            "0x40137fff7fff8000",
+            "0x480680017fff8000",
+            "0x273c3fb060354f632f93a5d6e1762268d6cc73361172eb2584d5cb9c85987f",
+            "0x4002800080007fff",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff61",
+            "0x40137fff7fff8001",
+            "0x4003800080017ffd",
+            "0x4826800180018000",
+            "0x1",
+            "0x480a7ffb7fff8000",
+            "0x480680017fff8000",
+            "0x1",
+            "0x480a80007fff8000",
+            "0x4828800180007ffc",
+            "0x480a80017fff8000",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff92",
+            "0x480a7ffc7fff8000",
             "0x208b7fff7fff7ffe",
             "0x20780017fff7ffd",
             "0x4",
@@ -347,10 +395,10 @@
             "0x480680017fff8000",
             "0xc00",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffcd",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffb5",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffac",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff94",
             "0x208b7fff7fff7ffe",
             "0x482680017ffd8000",
             "0x1",
@@ -371,7 +419,7 @@
             "0x48127ffb7fff8000",
             "0x208b7fff7fff7ffe",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff37",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff15",
             "0x480a7ffa7fff8000",
             "0x480a7ffd7fff8000",
             "0x480680017fff8000",
@@ -380,7 +428,7 @@
             "0x0",
             "0x48127ffb7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff33",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff11",
             "0x400680017fff7ffe",
             "0x1",
             "0x48127ffd7fff8000",
@@ -394,11 +442,11 @@
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff73",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff5b",
             "0x40137fff7fff8000",
             "0x480a80007fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff5c",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff44",
             "0x48127ff97fff8000",
             "0x48127ff97fff8000",
             "0x48127ff97fff8000",
@@ -435,7 +483,7 @@
             "0x1104800180018000",
             "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffc3",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffef7",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffed5",
             "0x48127ff77fff8000",
             "0x48127fc57fff8000",
             "0x48127fde7fff8000",
@@ -443,7 +491,7 @@
             "0x0",
             "0x48127ffb7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffef4",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffed2",
             "0x48127ffd7fff8000",
             "0x48127fec7fff8000",
             "0x48127fec7fff8000",
@@ -473,7 +521,7 @@
             "0x1104800180018000",
             "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff9d",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffed1",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffeaf",
             "0x48127ff77fff8000",
             "0x48127fc57fff8000",
             "0x48127fde7fff8000",
@@ -481,7 +529,7 @@
             "0x0",
             "0x48127ffb7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffeda",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffeb8",
             "0x48127ffd7fff8000",
             "0x48127fec7fff8000",
             "0x48127fec7fff8000",
@@ -508,7 +556,7 @@
             "0x48127fe47fff8000",
             "0x48127ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffedf",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffebd",
             "0x48127ff67fff8000",
             "0x48127ff67fff8000",
             "0x1104800180018000",
@@ -527,7 +575,7 @@
             "0x48127ffc7fff8000",
             "0x48127ffe7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffed4",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffebc",
             "0x48127ff77fff8000",
             "0x48127ff77fff8000",
             "0x1104800180018000",
@@ -551,7 +599,7 @@
             "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff50",
             "0x480a80007fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe83",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe61",
             "0x482480017fff8000",
             "0x800000000000011000000000000000000000000000000000000000000000000",
             "0x40137fff7fff8002",
@@ -564,7 +612,7 @@
             "0x480680017fff8000",
             "0x1",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe93",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe71",
             "0x48127ffe7fff8000",
             "0x48127fea7fff8000",
             "0x48127fea7fff8000",
@@ -601,14 +649,14 @@
             "0x48127ff57fff8000",
             "0x48127ff57fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffec2",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffeaa",
             "0x48127ffc7fff8000",
             "0x48127ffc7fff8000",
             "0x48127ffc7fff8000",
             "0x482480017ffc8000",
             "0x1",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffec8",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffeb0",
             "0x1104800180018000",
             "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff24",
             "0x208b7fff7fff7ffe",
@@ -623,7 +671,7 @@
             "0x1104800180018000",
             "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff07",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe3b",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe19",
             "0x482480017fff8000",
             "0x800000000000011000000000000000000000000000000000000000000000000",
             "0x40137fff7fff8003",
@@ -634,7 +682,7 @@
             "0x1",
             "0x480a80037fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe75",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe5d",
             "0x48127fef7fff8000",
             "0x48127fef7fff8000",
             "0x1104800180018000",
@@ -645,7 +693,7 @@
             "0x20680017fff7fff",
             "0x14",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe25",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe03",
             "0x48127fee7fff8000",
             "0x480680017fff8000",
             "0xde6107000c0",
@@ -657,7 +705,7 @@
             "0x480680017fff8000",
             "0x1",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe36",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe14",
             "0x48127ffe7fff8000",
             "0x48127fe37fff8000",
             "0x48127fe37fff8000",
@@ -667,7 +715,7 @@
             "0x20680017fff7fff",
             "0x12",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe0f",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffded",
             "0x48127fed7fff8000",
             "0x480680017fff8000",
             "0x11bca11000c0",
@@ -677,7 +725,7 @@
             "0x0",
             "0x48127ffb7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe16",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdf4",
             "0x48127ffd7fff8000",
             "0x48127fe27fff8000",
             "0x48127fe27fff8000",
@@ -720,7 +768,7 @@
             "0x1104800180018000",
             "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffea6",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdda",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdb8",
             "0x48127ff77fff8000",
             "0x48127fc57fff8000",
             "0x48127fde7fff8000",
@@ -728,7 +776,7 @@
             "0x0",
             "0x48127ffb7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdd7",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdb5",
             "0x480680017fff8000",
             "0x1",
             "0x400680017fff7fff",
@@ -760,7 +808,7 @@
             "0x1104800180018000",
             "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe7e",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdb2",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd90",
             "0x48127ff77fff8000",
             "0x48127fc57fff8000",
             "0x48127fde7fff8000",
@@ -768,7 +816,7 @@
             "0x0",
             "0x48127ffb7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffdaf",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd8d",
             "0x480680017fff8000",
             "0x1",
             "0x400680017fff7fff",
@@ -800,7 +848,7 @@
             "0x1104800180018000",
             "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe56",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd8a",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd68",
             "0x48127ff77fff8000",
             "0x48127fc57fff8000",
             "0x48127fde7fff8000",
@@ -808,7 +856,7 @@
             "0x0",
             "0x48127ffb7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd93",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffd71",
             "0x480680017fff8000",
             "0x1",
             "0x400680017fff7fff",
@@ -817,20 +865,41 @@
             "0x48127feb7fff8000",
             "0x48127feb7fff8000",
             "0x208b7fff7fff7ffe",
+            "0x4826800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffff1",
+            "0x20680017fff7fff",
+            "0x13",
+            "0x48127feb7fff8000",
+            "0x48127feb7fff8000",
+            "0x48127feb7fff8000",
+            "0x480a80007fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe3a",
+            "0x48127ffc7fff8000",
+            "0x48127ffd7fff8000",
+            "0x48127ffd7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffddd",
+            "0x48127ffe7fff8000",
+            "0x48127fe37fff8000",
+            "0x48127ffd7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe42",
+            "0x208b7fff7fff7ffe",
             "0x480680017fff8000",
             "0x0",
             "0x400680017fff7fff",
             "0x1",
-            "0x48127feb7fff8000",
-            "0x48127feb7fff8000",
-            "0x48127feb7fff8000",
+            "0x48127fea7fff8000",
+            "0x48127fea7fff8000",
+            "0x48127fea7fff8000",
             "0x208b7fff7fff7ffe",
             "0x402b7ffd7ffc7ffd",
             "0x480280007ffb8000",
             "0x480280017ffb8000",
             "0x480280027ffb8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe48",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe33",
             "0x40780017fff7fff",
             "0x1",
             "0x48127ffc7fff8000",
@@ -843,7 +912,23 @@
         ],
         "debug_info": null,
         "hints": {
-            "13": [
+            "0": [
+                {
+                    "accessible_scopes": [
+                        "starkware.cairo.common.alloc",
+                        "starkware.cairo.common.alloc.alloc"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 0,
+                            "offset": 0
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "16": [
                 {
                     "accessible_scopes": [
                         "starkware.starknet.common.syscalls",
@@ -852,7 +937,7 @@
                     "code": "syscall_handler.call_contract(segments=segments, syscall_ptr=ids.syscall_ptr)",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 2,
+                            "group": 3,
                             "offset": 1
                         },
                         "reference_ids": {
@@ -861,7 +946,7 @@
                     }
                 }
             ],
-            "25": [
+            "28": [
                 {
                     "accessible_scopes": [
                         "starkware.starknet.common.syscalls",
@@ -870,7 +955,7 @@
                     "code": "syscall_handler.library_call(segments=segments, syscall_ptr=ids.syscall_ptr)",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 3,
+                            "group": 4,
                             "offset": 1
                         },
                         "reference_ids": {
@@ -879,7 +964,7 @@
                     }
                 }
             ],
-            "38": [
+            "41": [
                 {
                     "accessible_scopes": [
                         "starkware.starknet.common.syscalls",
@@ -888,7 +973,7 @@
                     "code": "syscall_handler.deploy(segments=segments, syscall_ptr=ids.syscall_ptr)",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 4,
+                            "group": 5,
                             "offset": 1
                         },
                         "reference_ids": {
@@ -897,7 +982,7 @@
                     }
                 }
             ],
-            "46": [
+            "49": [
                 {
                     "accessible_scopes": [
                         "starkware.starknet.common.syscalls",
@@ -906,7 +991,7 @@
                     "code": "syscall_handler.storage_read(segments=segments, syscall_ptr=ids.syscall_ptr)",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 5,
+                            "group": 6,
                             "offset": 1
                         },
                         "reference_ids": {
@@ -915,7 +1000,7 @@
                     }
                 }
             ],
-            "55": [
+            "58": [
                 {
                     "accessible_scopes": [
                         "starkware.starknet.common.syscalls",
@@ -924,7 +1009,7 @@
                     "code": "syscall_handler.storage_write(segments=segments, syscall_ptr=ids.syscall_ptr)",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 6,
+                            "group": 7,
                             "offset": 1
                         },
                         "reference_ids": {
@@ -933,7 +1018,25 @@
                     }
                 }
             ],
-            "62": [
+            "68": [
+                {
+                    "accessible_scopes": [
+                        "starkware.starknet.common.syscalls",
+                        "starkware.starknet.common.syscalls.emit_event"
+                    ],
+                    "code": "syscall_handler.emit_event(segments=segments, syscall_ptr=ids.syscall_ptr)",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 8,
+                            "offset": 1
+                        },
+                        "reference_ids": {
+                            "starkware.starknet.common.syscalls.emit_event.syscall_ptr": 5
+                        }
+                    }
+                }
+            ],
+            "75": [
                 {
                     "accessible_scopes": [
                         "starkware.starknet.common.syscalls",
@@ -942,16 +1045,16 @@
                     "code": "syscall_handler.replace_class(segments=segments, syscall_ptr=ids.syscall_ptr)",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 7,
+                            "group": 9,
                             "offset": 1
                         },
                         "reference_ids": {
-                            "starkware.starknet.common.syscalls.replace_class.syscall_ptr": 5
+                            "starkware.starknet.common.syscalls.replace_class.syscall_ptr": 6
                         }
                     }
                 }
             ],
-            "65": [
+            "78": [
                 {
                     "accessible_scopes": [
                         "starkware.cairo.common.math",
@@ -960,16 +1063,16 @@
                     "code": "from starkware.cairo.common.math_utils import assert_integer\nassert_integer(ids.value)\nassert ids.value % PRIME != 0, f'assert_not_zero failed: {ids.value} = 0.'",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 8,
+                            "group": 10,
                             "offset": 0
                         },
                         "reference_ids": {
-                            "starkware.cairo.common.math.assert_not_zero.value": 6
+                            "starkware.cairo.common.math.assert_not_zero.value": 7
                         }
                     }
                 }
             ],
-            "76": [
+            "89": [
                 {
                     "accessible_scopes": [
                         "starkware.starknet.common.messages",
@@ -978,16 +1081,16 @@
                     "code": "syscall_handler.send_message_to_l1(segments=segments, syscall_ptr=ids.syscall_ptr)",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 9,
+                            "group": 11,
                             "offset": 1
                         },
                         "reference_ids": {
-                            "starkware.starknet.common.messages.send_message_to_l1.syscall_ptr": 7
+                            "starkware.starknet.common.messages.send_message_to_l1.syscall_ptr": 8
                         }
                     }
                 }
             ],
-            "165": [
+            "202": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -998,14 +1101,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 20,
+                            "group": 23,
                             "offset": 0
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "194": [
+            "231": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -1016,14 +1119,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 22,
+                            "group": 25,
                             "offset": 48
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "664": [
+            "722": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -1034,7 +1137,7 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 34,
+                            "group": 38,
                             "offset": 0
                         },
                         "reference_ids": {}
@@ -1043,6 +1146,84 @@
             ]
         },
         "identifiers": {
+            "__main__.FuzzEvent": {
+                "type": "namespace"
+            },
+            "__main__.FuzzEvent.Args": {
+                "full_name": "__main__.FuzzEvent.Args",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__main__.FuzzEvent.ImplicitArgs": {
+                "full_name": "__main__.FuzzEvent.ImplicitArgs",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__main__.FuzzEvent.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "__main__.FuzzEvent.SELECTOR": {
+                "type": "const",
+                "value": 69322857358345562252488261767336805490097554241886148928387498194319546495
+            },
+            "__main__.FuzzEvent.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "__main__.FuzzEvent.alloc": {
+                "destination": "starkware.cairo.common.alloc.alloc",
+                "type": "alias"
+            },
+            "__main__.FuzzEvent.emit": {
+                "decorators": [],
+                "pc": 152,
+                "type": "function"
+            },
+            "__main__.FuzzEvent.emit.Args": {
+                "full_name": "__main__.FuzzEvent.emit.Args",
+                "members": {
+                    "value": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    }
+                },
+                "size": 1,
+                "type": "struct"
+            },
+            "__main__.FuzzEvent.emit.ImplicitArgs": {
+                "full_name": "__main__.FuzzEvent.emit.ImplicitArgs",
+                "members": {
+                    "range_check_ptr": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "__main__.FuzzEvent.emit.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "__main__.FuzzEvent.emit.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 2
+            },
+            "__main__.FuzzEvent.emit_event": {
+                "destination": "starkware.starknet.common.syscalls.emit_event",
+                "type": "alias"
+            },
+            "__main__.FuzzEvent.memcpy": {
+                "destination": "starkware.cairo.common.memcpy.memcpy",
+                "type": "alias"
+            },
             "__main__.HashBuiltin": {
                 "destination": "starkware.cairo.common.cairo_builtins.HashBuiltin",
                 "type": "alias"
@@ -1070,6 +1251,10 @@
             "__main__.SCENARIO_DEPLOY_NON_EXISTING": {
                 "type": "const",
                 "value": 9
+            },
+            "__main__.SCENARIO_EMIT_EVENT": {
+                "type": "const",
+                "value": 16
             },
             "__main__.SCENARIO_INCREMENT_COUNTER": {
                 "type": "const",
@@ -1127,7 +1312,7 @@
                 "decorators": [
                     "constructor"
                 ],
-                "pc": 139,
+                "pc": 176,
                 "type": "function"
             },
             "__main__.constructor.Args": {
@@ -1197,7 +1382,7 @@
             },
             "__main__.counter.addr": {
                 "decorators": [],
-                "pc": 109,
+                "pc": 122,
                 "type": "function"
             },
             "__main__.counter.addr.Args": {
@@ -1239,7 +1424,7 @@
             },
             "__main__.counter.read": {
                 "decorators": [],
-                "pc": 114,
+                "pc": 127,
                 "type": "function"
             },
             "__main__.counter.read.Args": {
@@ -1285,7 +1470,7 @@
             },
             "__main__.counter.write": {
                 "decorators": [],
-                "pc": 127,
+                "pc": 140,
                 "type": "function"
             },
             "__main__.counter.write.Args": {
@@ -1334,7 +1519,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 174,
+                "pc": 211,
                 "type": "function"
             },
             "__main__.initialize.Args": {
@@ -1408,7 +1593,7 @@
             },
             "__main__.orchestrator_address.addr": {
                 "decorators": [],
-                "pc": 79,
+                "pc": 92,
                 "type": "function"
             },
             "__main__.orchestrator_address.addr.Args": {
@@ -1450,7 +1635,7 @@
             },
             "__main__.orchestrator_address.read": {
                 "decorators": [],
-                "pc": 84,
+                "pc": 97,
                 "type": "function"
             },
             "__main__.orchestrator_address.read.Args": {
@@ -1496,7 +1681,7 @@
             },
             "__main__.orchestrator_address.write": {
                 "decorators": [],
-                "pc": 97,
+                "pc": 110,
                 "type": "function"
             },
             "__main__.orchestrator_address.write.Args": {
@@ -1539,7 +1724,7 @@
             },
             "__main__.pop_front": {
                 "decorators": [],
-                "pc": 203,
+                "pc": 240,
                 "type": "function"
             },
             "__main__.pop_front.Args": {
@@ -1596,7 +1781,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 221,
+                "pc": 258,
                 "type": "function"
             },
             "__main__.test_revert_fuzz.Args": {
@@ -1638,10 +1823,10 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 24,
+                            "group": 27,
                             "offset": 56
                         },
-                        "pc": 239,
+                        "pc": 276,
                         "value": "[cast(fp + 1, felt*)]"
                     }
                 ],
@@ -1651,7 +1836,7 @@
                 "decorators": [
                     "constructor"
                 ],
-                "pc": 156,
+                "pc": 193,
                 "type": "function"
             },
             "__wrappers__.constructor.Args": {
@@ -1686,7 +1871,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 185,
+                "pc": 222,
                 "type": "function"
             },
             "__wrappers__.initialize.Args": {
@@ -1721,7 +1906,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 658,
+                "pc": 716,
                 "type": "function"
             },
             "__wrappers__.test_revert_fuzz.Args": {
@@ -1751,6 +1936,31 @@
             "__wrappers__.test_revert_fuzz_encode_return.memcpy": {
                 "destination": "starkware.cairo.common.memcpy.memcpy",
                 "type": "alias"
+            },
+            "starkware.cairo.common.alloc.alloc": {
+                "decorators": [],
+                "pc": 0,
+                "type": "function"
+            },
+            "starkware.cairo.common.alloc.alloc.Args": {
+                "full_name": "starkware.cairo.common.alloc.alloc.Args",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "starkware.cairo.common.alloc.alloc.ImplicitArgs": {
+                "full_name": "starkware.cairo.common.alloc.alloc.ImplicitArgs",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "starkware.cairo.common.alloc.alloc.Return": {
+                "cairo_type": "(ptr: felt*)",
+                "type": "type_definition"
+            },
+            "starkware.cairo.common.alloc.alloc.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
             },
             "starkware.cairo.common.bool.FALSE": {
                 "type": "const",
@@ -2019,7 +2229,7 @@
             },
             "starkware.cairo.common.math.assert_not_zero": {
                 "decorators": [],
-                "pc": 65,
+                "pc": 78,
                 "type": "function"
             },
             "starkware.cairo.common.math.assert_not_zero.Args": {
@@ -2053,10 +2263,10 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 8,
+                            "group": 10,
                             "offset": 0
                         },
-                        "pc": 65,
+                        "pc": 78,
                         "value": "[cast(fp + (-3), felt*)]"
                     }
                 ],
@@ -2085,7 +2295,7 @@
                 "decorators": [
                     "known_ap_change"
                 ],
-                "pc": 1,
+                "pc": 4,
                 "type": "function"
             },
             "starkware.cairo.lang.compiler.lib.registers.get_ap.Args": {
@@ -2110,7 +2320,7 @@
             },
             "starkware.cairo.lang.compiler.lib.registers.get_fp_and_pc": {
                 "decorators": [],
-                "pc": 0,
+                "pc": 3,
                 "type": "function"
             },
             "starkware.cairo.lang.compiler.lib.registers.get_fp_and_pc.Args": {
@@ -2143,7 +2353,7 @@
             },
             "starkware.starknet.common.messages.send_message_to_l1": {
                 "decorators": [],
-                "pc": 70,
+                "pc": 83,
                 "type": "function"
             },
             "starkware.starknet.common.messages.send_message_to_l1.Args": {
@@ -2190,18 +2400,18 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 9,
+                            "group": 11,
                             "offset": 0
                         },
-                        "pc": 70,
+                        "pc": 83,
                         "value": "[cast(fp + (-6), felt**)]"
                     },
                     {
                         "ap_tracking_data": {
-                            "group": 9,
+                            "group": 11,
                             "offset": 1
                         },
-                        "pc": 76,
+                        "pc": 89,
                         "value": "cast([fp + (-6)] + 4, felt*)"
                     }
                 ],
@@ -2888,7 +3098,7 @@
             },
             "starkware.starknet.common.syscalls.call_contract": {
                 "decorators": [],
-                "pc": 6,
+                "pc": 9,
                 "type": "function"
             },
             "starkware.starknet.common.syscalls.call_contract.Args": {
@@ -2939,18 +3149,18 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 2,
+                            "group": 3,
                             "offset": 0
                         },
-                        "pc": 6,
+                        "pc": 9,
                         "value": "[cast(fp + (-7), felt**)]"
                     },
                     {
                         "ap_tracking_data": {
-                            "group": 2,
+                            "group": 3,
                             "offset": 1
                         },
-                        "pc": 13,
+                        "pc": 16,
                         "value": "cast([fp + (-7)] + 7, felt*)"
                     }
                 ],
@@ -2958,7 +3168,7 @@
             },
             "starkware.starknet.common.syscalls.deploy": {
                 "decorators": [],
-                "pc": 30,
+                "pc": 33,
                 "type": "function"
             },
             "starkware.starknet.common.syscalls.deploy.Args": {
@@ -3013,26 +3223,96 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 4,
+                            "group": 5,
                             "offset": 0
                         },
-                        "pc": 30,
+                        "pc": 33,
                         "value": "[cast(fp + (-8), felt**)]"
                     },
                     {
                         "ap_tracking_data": {
-                            "group": 4,
+                            "group": 5,
                             "offset": 1
                         },
-                        "pc": 38,
+                        "pc": 41,
                         "value": "cast([fp + (-8)] + 9, felt*)"
+                    }
+                ],
+                "type": "reference"
+            },
+            "starkware.starknet.common.syscalls.emit_event": {
+                "decorators": [],
+                "pc": 61,
+                "type": "function"
+            },
+            "starkware.starknet.common.syscalls.emit_event.Args": {
+                "full_name": "starkware.starknet.common.syscalls.emit_event.Args",
+                "members": {
+                    "data": {
+                        "cairo_type": "felt*",
+                        "offset": 3
+                    },
+                    "data_len": {
+                        "cairo_type": "felt",
+                        "offset": 2
+                    },
+                    "keys": {
+                        "cairo_type": "felt*",
+                        "offset": 1
+                    },
+                    "keys_len": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    }
+                },
+                "size": 4,
+                "type": "struct"
+            },
+            "starkware.starknet.common.syscalls.emit_event.ImplicitArgs": {
+                "full_name": "starkware.starknet.common.syscalls.emit_event.ImplicitArgs",
+                "members": {
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 1,
+                "type": "struct"
+            },
+            "starkware.starknet.common.syscalls.emit_event.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "starkware.starknet.common.syscalls.emit_event.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "starkware.starknet.common.syscalls.emit_event.syscall_ptr": {
+                "cairo_type": "felt*",
+                "full_name": "starkware.starknet.common.syscalls.emit_event.syscall_ptr",
+                "references": [
+                    {
+                        "ap_tracking_data": {
+                            "group": 8,
+                            "offset": 0
+                        },
+                        "pc": 61,
+                        "value": "[cast(fp + (-7), felt**)]"
+                    },
+                    {
+                        "ap_tracking_data": {
+                            "group": 8,
+                            "offset": 1
+                        },
+                        "pc": 68,
+                        "value": "cast([fp + (-7)] + 5, felt*)"
                     }
                 ],
                 "type": "reference"
             },
             "starkware.starknet.common.syscalls.library_call": {
                 "decorators": [],
-                "pc": 18,
+                "pc": 21,
                 "type": "function"
             },
             "starkware.starknet.common.syscalls.library_call.Args": {
@@ -3083,18 +3363,18 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 3,
+                            "group": 4,
                             "offset": 0
                         },
-                        "pc": 18,
+                        "pc": 21,
                         "value": "[cast(fp + (-7), felt**)]"
                     },
                     {
                         "ap_tracking_data": {
-                            "group": 3,
+                            "group": 4,
                             "offset": 1
                         },
-                        "pc": 25,
+                        "pc": 28,
                         "value": "cast([fp + (-7)] + 7, felt*)"
                     }
                 ],
@@ -3102,7 +3382,7 @@
             },
             "starkware.starknet.common.syscalls.replace_class": {
                 "decorators": [],
-                "pc": 58,
+                "pc": 71,
                 "type": "function"
             },
             "starkware.starknet.common.syscalls.replace_class.Args": {
@@ -3141,18 +3421,18 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 7,
+                            "group": 9,
                             "offset": 0
                         },
-                        "pc": 58,
+                        "pc": 71,
                         "value": "[cast(fp + (-4), felt**)]"
                     },
                     {
                         "ap_tracking_data": {
-                            "group": 7,
+                            "group": 9,
                             "offset": 1
                         },
-                        "pc": 62,
+                        "pc": 75,
                         "value": "cast([fp + (-4)] + 2, felt*)"
                     }
                 ],
@@ -3160,7 +3440,7 @@
             },
             "starkware.starknet.common.syscalls.storage_read": {
                 "decorators": [],
-                "pc": 42,
+                "pc": 45,
                 "type": "function"
             },
             "starkware.starknet.common.syscalls.storage_read.Args": {
@@ -3199,18 +3479,18 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 5,
+                            "group": 6,
                             "offset": 0
                         },
-                        "pc": 42,
+                        "pc": 45,
                         "value": "[cast(fp + (-4), felt**)]"
                     },
                     {
                         "ap_tracking_data": {
-                            "group": 5,
+                            "group": 6,
                             "offset": 1
                         },
-                        "pc": 46,
+                        "pc": 49,
                         "value": "cast([fp + (-4)] + 3, felt*)"
                     }
                 ],
@@ -3218,7 +3498,7 @@
             },
             "starkware.starknet.common.syscalls.storage_write": {
                 "decorators": [],
-                "pc": 50,
+                "pc": 53,
                 "type": "function"
             },
             "starkware.starknet.common.syscalls.storage_write.Args": {
@@ -3261,18 +3541,18 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 6,
+                            "group": 7,
                             "offset": 0
                         },
-                        "pc": 50,
+                        "pc": 53,
                         "value": "[cast(fp + (-5), felt**)]"
                     },
                     {
                         "ap_tracking_data": {
-                            "group": 6,
+                            "group": 7,
                             "offset": 1
                         },
-                        "pc": 55,
+                        "pc": 58,
                         "value": "cast([fp + (-5)] + 3, felt*)"
                     }
                 ],
@@ -3285,18 +3565,10 @@
             "references": [
                 {
                     "ap_tracking_data": {
-                        "group": 2,
-                        "offset": 0
-                    },
-                    "pc": 6,
-                    "value": "[cast(fp + (-7), felt**)]"
-                },
-                {
-                    "ap_tracking_data": {
                         "group": 3,
                         "offset": 0
                     },
-                    "pc": 18,
+                    "pc": 9,
                     "value": "[cast(fp + (-7), felt**)]"
                 },
                 {
@@ -3304,55 +3576,71 @@
                         "group": 4,
                         "offset": 0
                     },
-                    "pc": 30,
-                    "value": "[cast(fp + (-8), felt**)]"
+                    "pc": 21,
+                    "value": "[cast(fp + (-7), felt**)]"
                 },
                 {
                     "ap_tracking_data": {
                         "group": 5,
                         "offset": 0
                     },
-                    "pc": 42,
-                    "value": "[cast(fp + (-4), felt**)]"
+                    "pc": 33,
+                    "value": "[cast(fp + (-8), felt**)]"
                 },
                 {
                     "ap_tracking_data": {
                         "group": 6,
                         "offset": 0
                     },
-                    "pc": 50,
-                    "value": "[cast(fp + (-5), felt**)]"
+                    "pc": 45,
+                    "value": "[cast(fp + (-4), felt**)]"
                 },
                 {
                     "ap_tracking_data": {
                         "group": 7,
                         "offset": 0
                     },
-                    "pc": 58,
-                    "value": "[cast(fp + (-4), felt**)]"
+                    "pc": 53,
+                    "value": "[cast(fp + (-5), felt**)]"
                 },
                 {
                     "ap_tracking_data": {
                         "group": 8,
                         "offset": 0
                     },
-                    "pc": 65,
-                    "value": "[cast(fp + (-3), felt*)]"
+                    "pc": 61,
+                    "value": "[cast(fp + (-7), felt**)]"
                 },
                 {
                     "ap_tracking_data": {
                         "group": 9,
                         "offset": 0
                     },
-                    "pc": 70,
+                    "pc": 71,
+                    "value": "[cast(fp + (-4), felt**)]"
+                },
+                {
+                    "ap_tracking_data": {
+                        "group": 10,
+                        "offset": 0
+                    },
+                    "pc": 78,
+                    "value": "[cast(fp + (-3), felt*)]"
+                },
+                {
+                    "ap_tracking_data": {
+                        "group": 11,
+                        "offset": 0
+                    },
+                    "pc": 83,
                     "value": "[cast(fp + (-6), felt**)]"
                 },
                 {
                     "ap_tracking_data": {
-                        "group": 24,
+                        "group": 27,
                         "offset": 56
                     },
-                    "pc": 239,
+                    "pc": 276,
                     "value": "[cast(fp + 1, felt*)]"
                 }
             ]
