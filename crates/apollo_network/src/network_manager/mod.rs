@@ -1,3 +1,6 @@
+#[cfg(test)]
+pub(crate) mod swarm_trait;
+#[cfg(not(test))]
 mod swarm_trait;
 #[cfg(test)]
 mod test;
