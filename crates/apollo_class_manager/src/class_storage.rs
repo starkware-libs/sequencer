@@ -8,9 +8,11 @@ use apollo_class_manager_types::{CachedClassStorageError, ClassId, ExecutableCla
 use apollo_compile_to_casm_types::{RawClass, RawClassError, RawExecutableClass};
 use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
+#[cfg(any(feature = "testing", test))]
+use apollo_storage::open_storage;
 use apollo_storage::storage_reader_server::{ServerConfig, StorageReaderServerDynamicConfig};
 use apollo_storage::storage_reader_types::GenericStorageReaderServer;
-use apollo_storage::{open_storage, StorageConfig};
+use apollo_storage::StorageConfig;
 use starknet_api::class_cache::GlobalContractCache;
 use thiserror::Error;
 use tokio::task::AbortHandle;
@@ -272,6 +274,7 @@ impl ClassHashStorage {
     }
 
     /// Opens the storage without a storage reader server or metrics.
+    #[cfg(any(feature = "testing", test))]
     pub(crate) fn new_plain(storage_config: StorageConfig) -> ClassHashStorageResult<Self> {
         let (reader, writer) = open_storage(storage_config)?;
         Ok(Self {
