@@ -5,6 +5,7 @@ mod FuzzRevertOrchestratorContract {
         MutableVecTrait, StoragePointerReadAccess, StoragePointerWriteAccess, Vec, VecTrait,
     };
 
+    const UNEXPECTED_FAIL_INVALID_SCENARIO: felt252 = 'invalid_scenario';
     const OOB_ERROR: felt252 = 'index_OOB';
     const UNEXPECTED_FAIL_UNDEPLOYED: felt252 = 'should_fail_undeployed';
     const UNEXPECTED_FAIL_CALL_NO_ENTRYPOINT: felt252 = 'call_no_entrypoint';
@@ -63,6 +64,11 @@ mod FuzzRevertOrchestratorContract {
     /// panic with in case of unexpected failures.
 
     #[external(v0)]
+    fn should_fail_invalid_scenario_panic_message(ref self: ContractState) -> felt252 {
+        UNEXPECTED_FAIL_INVALID_SCENARIO
+    }
+
+    #[external(v0)]
     fn should_fail_undeployed_panic_message(ref self: ContractState) -> felt252 {
         UNEXPECTED_FAIL_UNDEPLOYED
     }
@@ -88,6 +94,7 @@ mod FuzzRevertOrchestratorContract {
                 // Assert the error is not any unexpected error.
                 let error_value = error.pop_front().unwrap();
                 for unexpected_error in array![
+                    UNEXPECTED_FAIL_INVALID_SCENARIO,
                     OOB_ERROR,
                     UNEXPECTED_FAIL_UNDEPLOYED,
                     UNEXPECTED_FAIL_CALL_NO_ENTRYPOINT,
