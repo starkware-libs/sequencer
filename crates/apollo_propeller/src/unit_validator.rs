@@ -4,7 +4,7 @@ use std::sync::Arc;
 use libp2p::identity::PublicKey;
 use libp2p::PeerId;
 
-use crate::types::{Channel, ShardSignatureVerificationError};
+use crate::types::{Channel, ShardSignatureVerificationError, SignatureParts};
 use crate::{
     signature,
     MessageRoot,
@@ -24,8 +24,8 @@ pub struct UnitValidator {
     publisher_public_key: PublicKey,
     /// The root of the message.
     message_root: MessageRoot,
-    /// The signature of the message.
-    verified_signature: Option<Vec<u8>>,
+    /// Cached signature and timestamp after first successful verification.
+    verified_signature_parts: Option<SignatureParts>,
     /// The tree manager to use.
     schedule_manager: Arc<PropellerScheduleManager>,
     /// The indices of the received shards.
@@ -46,7 +46,7 @@ impl UnitValidator {
             message_root,
             schedule_manager,
             publisher_public_key,
-            verified_signature: None,
+            verified_signature_parts: None,
             received_indices: HashSet::new(),
         }
     }
@@ -60,23 +60,28 @@ impl UnitValidator {
         &mut self,
         unit: &PropellerUnit,
     ) -> Result<(), ShardSignatureVerificationError> {
-        if let Some(signature) = &self.verified_signature {
-            return if signature == unit.signature() {
+        if let Some(signature_parts) = &self.verified_signature_parts {
+            let SignatureParts { signature, timestamp_ns } = signature_parts;
+            return if signature == unit.signature() && *timestamp_ns == unit.timestamp_ns() {
                 Ok(())
             } else {
                 Err(ShardSignatureVerificationError::VerificationFailed)
             };
         }
 
-        // TODO(guyn): check the timestamp as well.
         let result = signature::verify_message_id_signature(
             &unit.root(),
+            self.channel,
+            unit.timestamp_ns(),
             unit.signature(),
             &self.publisher_public_key,
         );
 
         if let Ok(()) = &result {
-            self.verified_signature = Some(unit.signature().to_vec());
+            self.verified_signature_parts = Some(SignatureParts {
+                signature: unit.signature().to_vec(),
+                timestamp_ns: unit.timestamp_ns(),
+            });
         }
 
         result
