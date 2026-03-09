@@ -110,6 +110,28 @@ pub async fn verify_cairo1_package(version: &String) {
     assert!(cairo1_package_exists(version));
 }
 
+/// Blocking variant of [`verify_cairo1_package`] for use outside async contexts.
+/// If a tokio runtime is active, uses it; otherwise creates a temporary one.
+pub fn verify_cairo1_package_blocking(version: &String) {
+    if cairo1_package_exists(version) {
+        return;
+    }
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => {
+            std::thread::scope(|s| {
+                s.spawn(|| {
+                    handle.block_on(download_cairo_package(version));
+                });
+            });
+        }
+        Err(_) => {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(download_cairo_package(version));
+        }
+    }
+    assert!(cairo1_package_exists(version));
+}
+
 /// Runs a command. If it has succeeded, it returns the command's output; otherwise, it panics with
 /// stderr output.
 fn run_and_verify_output(command: &mut Command) -> Output {
