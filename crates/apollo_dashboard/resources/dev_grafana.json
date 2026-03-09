@@ -1996,6 +1996,32 @@
           "extra_params": {}
         },
         {
+          "title": "get_batch_timestamp (client-side)",
+          "description": "client-side infra metrics for request type get_batch_timestamp",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_batch_timestamp\"}[5m])), \"label_name\", \"0.50 batcher_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_batch_timestamp\"}[5m])), \"label_name\", \"0.95 batcher_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_batch_timestamp\"}[5m])), \"label_name\", \"0.50 batcher_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_batch_timestamp\"}[5m])), \"label_name\", \"0.95 batcher_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_batch_timestamp\"}[5m])), \"label_name\", \"0.50 batcher_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_batch_timestamp\"}[5m])), \"label_name\", \"0.95 batcher_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_batch_timestamp (server-side)",
+          "description": "server-side infra metrics for request type get_batch_timestamp",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_batch_timestamp\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_batch_timestamp\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_batch_timestamp\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_batch_timestamp\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "get_block_hash (client-side)",
           "description": "client-side infra metrics for request type get_block_hash",
           "type": "timeseries",
@@ -2070,32 +2096,6 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_proposal_content\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_proposal_content\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_proposal_content\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_timestamp (client-side)",
-          "description": "client-side infra metrics for request type get_timestamp",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.50 batcher_local_response_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.95 batcher_local_response_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.50 batcher_remote_response_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.95 batcher_remote_response_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.50 batcher_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.95 batcher_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_timestamp (server-side)",
-          "description": "server-side infra metrics for request type get_timestamp",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.50 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.95 batcher_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.50 batcher_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.95 batcher_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -3408,32 +3408,6 @@
           "extra_params": {}
         },
         {
-          "title": "get_timestamp (client-side)",
-          "description": "client-side infra metrics for request type get_timestamp",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.50 mempool_local_response_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.95 mempool_local_response_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.50 mempool_remote_response_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.95 mempool_remote_response_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.50 mempool_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.95 mempool_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "get_timestamp (server-side)",
-          "description": "server-side infra metrics for request type get_timestamp",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.50 mempool_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.95 mempool_processing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.50 mempool_queueing_times_secs\", \"le\", \".*\"))",
-            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_timestamp\"}[5m])), \"label_name\", \"0.95 mempool_queueing_times_secs\", \"le\", \".*\"))"
-          ],
-          "extra_params": {}
-        },
-        {
           "title": "get_transactions (client-side)",
           "description": "client-side infra metrics for request type get_transactions",
           "type": "timeseries",
@@ -3456,6 +3430,32 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.95 mempool_processing_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.50 mempool_queueing_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_transactions\"}[5m])), \"label_name\", \"0.95 mempool_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "resolve_batch_timestamp (client-side)",
+          "description": "client-side infra metrics for request type resolve_batch_timestamp",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"resolve_batch_timestamp\"}[5m])), \"label_name\", \"0.50 mempool_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"resolve_batch_timestamp\"}[5m])), \"label_name\", \"0.95 mempool_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"resolve_batch_timestamp\"}[5m])), \"label_name\", \"0.50 mempool_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"resolve_batch_timestamp\"}[5m])), \"label_name\", \"0.95 mempool_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"resolve_batch_timestamp\"}[5m])), \"label_name\", \"0.50 mempool_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"resolve_batch_timestamp\"}[5m])), \"label_name\", \"0.95 mempool_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "resolve_batch_timestamp (server-side)",
+          "description": "server-side infra metrics for request type resolve_batch_timestamp",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"resolve_batch_timestamp\"}[5m])), \"label_name\", \"0.50 mempool_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"resolve_batch_timestamp\"}[5m])), \"label_name\", \"0.95 mempool_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"resolve_batch_timestamp\"}[5m])), \"label_name\", \"0.50 mempool_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"resolve_batch_timestamp\"}[5m])), \"label_name\", \"0.95 mempool_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },

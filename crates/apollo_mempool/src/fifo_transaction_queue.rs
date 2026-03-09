@@ -41,7 +41,7 @@ pub struct FifoTransactionQueue {
     // Temporary map from transaction hash to timestamp before the transaction is inserted to
     // queue.
     pending_timestamps: HashMap<TransactionHash, UnixTimestamp>,
-    // Last timestamp returned by get_timestamp_for_batch() - used to filter transactions in
+    // Last timestamp returned by resolve_timestamp() - used to filter transactions in
     // pop_ready_chunk.
     last_returned_timestamp: Option<UnixTimestamp>,
 }
@@ -141,7 +141,7 @@ impl TransactionQueueTrait for FifoTransactionQueue {
     }
 
     fn pop_ready_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
-        // If get_timestamp() hasn't been called, return empty vec
+        // If resolve_timestamp() hasn't been called, return empty vec
         let Some(timestamp_threshold) = self.last_returned_timestamp else {
             return Vec::new();
         };
@@ -205,7 +205,7 @@ impl TransactionQueueTrait for FifoTransactionQueue {
     }
 
     fn has_ready_txs(&self) -> bool {
-        // If get_timestamp() hasn't been called yet, no txs are ready
+        // If resolve_timestamp() hasn't been called yet, no txs are ready
         let Some(timestamp_threshold) = self.last_returned_timestamp else {
             return false;
         };

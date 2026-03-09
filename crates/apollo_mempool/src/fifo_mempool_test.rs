@@ -246,7 +246,7 @@ fn test_declare_txs_preserve_fifo_order(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_get_timestamp_persists_after_queue_emptied(mut mempool: Mempool) {
+fn test_resolve_batch_timestamp_persists_after_queue_emptied(mut mempool: Mempool) {
     let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
     let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
 
@@ -257,15 +257,16 @@ fn test_get_timestamp_persists_after_queue_emptied(mut mempool: Mempool) {
     add_tx(&mut mempool, &input2);
 
     // First call returns timestamp of first tx in queue.
-    let first_timestamp = mempool.get_timestamp();
+    let first_timestamp = mempool.resolve_batch_timestamp();
     assert_eq!(first_timestamp, 1000);
 
     // Consume all txs, emptying the queue.
     get_txs_and_assert_expected(&mut mempool, 2, &[input1.tx, input2.tx]);
 
-    // After queue is empty, get_timestamp() should persist and return the last timestamp (1000).
+    // After queue is empty, resolve_batch_timestamp() should persist and return the last timestamp
+    // (1000).
     // This ensures consistency - we don't suddenly return 0 or a different value.
-    let second_timestamp = mempool.get_timestamp();
+    let second_timestamp = mempool.resolve_batch_timestamp();
     assert_eq!(second_timestamp, 1000, "Timestamp should persist after queue is emptied");
 }
 
@@ -288,8 +289,8 @@ fn test_get_txs_does_not_return_txs_with_different_timestamp(mut mempool: Mempoo
     add_tx(&mut mempool, &input3);
     add_tx(&mut mempool, &input4);
 
-    // First get_timestamp() should return 1000 (first tx timestamp)
-    let first_timestamp = mempool.get_timestamp();
+    // First resolve_batch_timestamp() should return 1000 (first tx timestamp)
+    let first_timestamp = mempool.resolve_batch_timestamp();
     assert_eq!(first_timestamp, 1000);
 
     // Request one transaction from the first timestamp batch.
@@ -299,13 +300,13 @@ fn test_get_txs_does_not_return_txs_with_different_timestamp(mut mempool: Mempoo
     // get_txs should pause at the timestamp boundary and return only txs with timestamp 1000.
     get_txs_and_assert_expected(&mut mempool, 10, &[input2.tx]);
 
-    // Without calling get_timestamp() again, get_txs should return empty
+    // Without resolving batch timestamp again, get_txs should return empty
     // because the next txs have a different timestamp (2000 != 1000)
     let txs = mempool.get_txs(10).unwrap();
     assert_eq!(txs, &[], "get_txs should return empty when next tx has different timestamp");
 
-    // Now call get_timestamp() again to update threshold to 2000
-    let second_timestamp = mempool.get_timestamp();
+    // Now resolve batch timestamp again to update threshold to 2000
+    let second_timestamp = mempool.resolve_batch_timestamp();
     assert_eq!(second_timestamp, 2000);
 
     // Now get_txs should return the remaining txs with timestamp 2000
@@ -335,7 +336,7 @@ fn test_rewind_preserves_timestamp_order(mut mempool: Mempool) {
     add_tx(&mut mempool, &input3);
 
     // Get timestamp and fetch only tx1 and tx2 (leave tx3 in queue)
-    let first_timestamp = mempool.get_timestamp();
+    let first_timestamp = mempool.resolve_batch_timestamp();
     assert_eq!(first_timestamp, 1000);
     get_txs_and_assert_expected(&mut mempool, 2, &[input1.tx.clone(), input2.tx.clone()]);
 
@@ -347,20 +348,20 @@ fn test_rewind_preserves_timestamp_order(mut mempool: Mempool) {
     // NOW add tx4 with timestamp 2000
     add_tx(&mut mempool, &input4);
 
-    // get_timestamp() should return 1000 (from rewound tx2 at front)
+    // resolve_batch_timestamp() should return 1000 (from rewound tx2 at front)
     // NOT 2000 (from new tx4 at back)
-    let second_timestamp = mempool.get_timestamp();
+    let second_timestamp = mempool.resolve_batch_timestamp();
     assert_eq!(
         second_timestamp, 1000,
-        "get_timestamp() should return timestamp of rewound tx (1000), not new tx (2000)"
+        "resolve_batch_timestamp() should return timestamp of rewound tx (1000), not new tx (2000)"
     );
 
     // get_txs should return tx2 and tx3 (both timestamp 1000), not tx4 (timestamp 2000)
     // The order should be tx2 (rewound, should be first), then tx3
     get_txs_and_assert_expected(&mut mempool, 10, &[input2.tx, input3.tx]);
 
-    // Now get_timestamp() should return 2000 for the next batch
-    let third_timestamp = mempool.get_timestamp();
+    // Now resolve_batch_timestamp() should return 2000 for the next batch
+    let third_timestamp = mempool.resolve_batch_timestamp();
     assert_eq!(third_timestamp, 2000);
 
     // And get_txs should return tx4
@@ -390,7 +391,7 @@ fn test_rewind_maintains_fifo_order_with_mixed_results(mut mempool: Mempool) {
     add_tx(&mut mempool, &input3);
     add_tx(&mut mempool, &input4);
 
-    let ts1 = mempool.get_timestamp();
+    let ts1 = mempool.resolve_batch_timestamp();
     assert_eq!(ts1, 1000);
 
     // Retrieve first batch (timestamp 1000)
@@ -404,21 +405,24 @@ fn test_rewind_maintains_fifo_order_with_mixed_results(mut mempool: Mempool) {
     commit_block(&mut mempool, [("0x1", 1)], [tx_hash!(3)]);
 
     // Rewound txs (tx2, tx3) should maintain original order and have timestamp 1000
-    let ts2 = mempool.get_timestamp();
+    let ts2 = mempool.resolve_batch_timestamp();
     assert_eq!(ts2, 1000);
     get_txs_and_assert_expected(&mut mempool, 3, &[input2.tx, input3.tx]);
 
     // Next batch has timestamp 2000
-    let ts3 = mempool.get_timestamp();
+    let ts3 = mempool.resolve_batch_timestamp();
     assert_eq!(ts3, 2000);
     get_txs_and_assert_expected(&mut mempool, 1, &[input4.tx]);
 }
 
 #[rstest]
-fn test_get_timestamp_returns_zero_when_never_had_transactions(mut mempool: Mempool) {
-    // When mempool has never had any transactions, get_timestamp() should return 0.
-    let timestamp = mempool.get_timestamp();
-    assert_eq!(timestamp, 0, "get_timestamp() should return 0 when queue has never had txs");
+fn test_resolve_batch_timestamp_returns_zero_when_never_had_transactions(mut mempool: Mempool) {
+    // When mempool has never had any transactions, resolve_batch_timestamp() should return 0.
+    let timestamp = mempool.resolve_batch_timestamp();
+    assert_eq!(
+        timestamp, 0,
+        "resolve_batch_timestamp() should return 0 when queue has never had txs"
+    );
 }
 
 #[rstest]
@@ -441,12 +445,12 @@ fn test_timestamp_order_matches_insertion_order(mut mempool: Mempool) {
     add_tx(&mut mempool, &input4);
 
     // First batch: timestamp 1000 should return tx1, tx3 (in insertion order)
-    let ts1 = mempool.get_timestamp();
+    let ts1 = mempool.resolve_batch_timestamp();
     assert_eq!(ts1, 1000);
     get_txs_and_assert_expected(&mut mempool, 10, &[input1.tx, input3.tx]);
 
     // Second batch: timestamp 2000 should return tx2, tx4 (in insertion order)
-    let ts2 = mempool.get_timestamp();
+    let ts2 = mempool.resolve_batch_timestamp();
     assert_eq!(ts2, 2000);
     get_txs_and_assert_expected(&mut mempool, 10, &[input2.tx, input4.tx]);
 }
@@ -480,7 +484,7 @@ fn test_rewind_many_transactions_from_same_address(mut mempool: Mempool) {
     let tx4 = input4.tx.clone();
 
     // Get all 5 transactions (staging them)
-    let ts = mempool.get_timestamp();
+    let ts = mempool.resolve_batch_timestamp();
     assert_eq!(ts, 1000);
     get_txs_and_assert_expected(
         &mut mempool,
@@ -493,7 +497,7 @@ fn test_rewind_many_transactions_from_same_address(mut mempool: Mempool) {
     commit_block(&mut mempool, [("0x1", 2)], []);
 
     // Verify that the 3 non-committed transactions are rewound and can be retrieved again
-    let ts2 = mempool.get_timestamp();
+    let ts2 = mempool.resolve_batch_timestamp();
     assert_eq!(ts2, 1000, "Rewound transactions should keep their original timestamp");
     get_txs_and_assert_expected(&mut mempool, 10, &[tx2, tx3, tx4]);
 
@@ -501,7 +505,7 @@ fn test_rewind_many_transactions_from_same_address(mut mempool: Mempool) {
     commit_block(&mut mempool, [("0x1", 5)], []);
 
     // Queue should now be empty
-    let ts3 = mempool.get_timestamp();
+    let ts3 = mempool.resolve_batch_timestamp();
     assert_eq!(ts3, 1000, "No new timestamp since no new transactions");
     get_txs_and_assert_expected(&mut mempool, 10, &[]);
 }
@@ -532,7 +536,7 @@ fn test_expired_popped_txs_are_not_rewound() {
     fake_clock.advance(Duration::from_secs(65));
 
     // Both txs are popped then pruned as expired, so no tx should be returned.
-    assert_eq!(mempool.get_timestamp(), 1000);
+    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
     assert_eq!(mempool.get_txs(10).unwrap(), vec![]);
 
     // Commit should not rewind expired popped txs back into queue.
@@ -556,7 +560,7 @@ fn test_rejected_tx_removes_same_address_from_fifo_queue(mut mempool: Mempool) {
     }
 
     // Stage only the first tx (timestamp 1000).
-    assert_eq!(mempool.get_timestamp(), 1000);
+    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
     let expected_rejected = vec![rejected_tx.tx.clone()];
     get_txs_and_assert_expected(&mut mempool, 10, &expected_rejected);
 
@@ -564,7 +568,7 @@ fn test_rejected_tx_removes_same_address_from_fifo_queue(mut mempool: Mempool) {
     commit_block(&mut mempool, [], [rejected_tx.tx.tx_hash]);
 
     // Next timestamp batch should include only the other address tx.
-    assert_eq!(mempool.get_timestamp(), 2000);
+    assert_eq!(mempool.resolve_batch_timestamp(), 2000);
     let expected_other = vec![other_address_tx.tx.clone()];
     get_txs_and_assert_expected(&mut mempool, 10, &expected_other);
 }
