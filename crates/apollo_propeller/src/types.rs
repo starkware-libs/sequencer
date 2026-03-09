@@ -49,6 +49,12 @@ pub struct ShardIndex(pub u32);
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
 pub struct MessageRoot(pub MerkleHash);
 
+#[derive(Debug, Clone)]
+pub struct SignatureParts {
+    pub signature: Vec<u8>,
+    pub timestamp_ns: u64,
+}
+
 /// Errors that can occur when verifying a shard signature.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ShardSignatureVerificationError {
