@@ -8,6 +8,7 @@ description = "Integration tests for Starknet OS execution and state commitment 
 
 [features]
 fuzz_test_debug = []
+long_fuzz_test = []
 
 [dev-dependencies]
 assert_matches.workspace = true
