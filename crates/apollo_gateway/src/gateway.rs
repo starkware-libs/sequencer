@@ -227,7 +227,7 @@ impl<
 
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory
-            .instantiate_validator()
+            .instantiate_validator(self.config.dynamic_config.native_classes_whitelist.clone())
             .await
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 

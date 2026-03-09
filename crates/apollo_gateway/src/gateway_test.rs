@@ -730,7 +730,7 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
 
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
-        .return_once(|| Ok(Box::new(mock_stateful_transaction_validator)));
+        .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
 
     let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
@@ -787,7 +787,7 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
     };
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
-        .return_once(|| Err(expected_error));
+        .return_once(|_| Err(expected_error));
 
     let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
