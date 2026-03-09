@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use apollo_mempool_types::mempool_types::TransactionQueueSnapshot;
 use indexmap::IndexSet;
-use starknet_api::block::{GasPrice, UnixTimestamp};
+use starknet_api::block::{BlockNumber, GasPrice, UnixTimestamp};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::TransactionHash;
 use tracing::debug;
@@ -16,6 +16,13 @@ use crate::transaction_queue_trait::{RewindData, TransactionQueueTrait};
 struct FifoTransaction {
     tx_reference: TransactionReference,
     timestamp: UnixTimestamp,
+    block_number: BlockNumber,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct PendingTxMetadata {
+    timestamp: UnixTimestamp,
+    block_number: BlockNumber,
 }
 
 enum InsertionSide {
@@ -38,9 +45,9 @@ pub struct FifoTransactionQueue {
     queue: VecDeque<FifoTransaction>,
     // Transactions that were returned by get_txs and may need rewind during commit.
     staged_txs: Vec<FifoTransaction>,
-    // Temporary map from transaction hash to timestamp before the transaction is inserted to
+    // Temporary map from transaction hash to metadata before the transaction is inserted to
     // queue.
-    pending_timestamps: HashMap<TransactionHash, UnixTimestamp>,
+    pending_metadata: HashMap<TransactionHash, PendingTxMetadata>,
     // Last timestamp returned by resolve_timestamp() - used to filter transactions in
     // pop_ready_chunk.
     last_returned_timestamp: Option<UnixTimestamp>,
@@ -51,7 +58,7 @@ impl FifoTransactionQueue {
         Self {
             queue: VecDeque::new(),
             staged_txs: Vec::new(),
-            pending_timestamps: HashMap::new(),
+            pending_metadata: HashMap::new(),
             last_returned_timestamp: None,
         }
     }
@@ -127,15 +134,19 @@ impl FifoTransactionQueue {
 
 impl TransactionQueueTrait for FifoTransactionQueue {
     fn insert(&mut self, tx_reference: TransactionReference, _validate_resource_bounds: bool) {
-        let timestamp = self
-            .pending_timestamps
+        let metadata = self
+            .pending_metadata
             .remove(&tx_reference.tx_hash)
-            .expect("FIFO insert: transaction must have timestamp set before insertion");
+            .expect("FIFO insert: transaction must have metadata set before insertion");
         // Add transaction to BACK of queue in FIFO order.
-        let tx = FifoTransaction { tx_reference, timestamp };
+        let tx = FifoTransaction {
+            tx_reference,
+            timestamp: metadata.timestamp,
+            block_number: metadata.block_number,
+        };
         debug!(
-            "FIFO insert: tx_hash={}, timestamp={}, queue_before={:?}",
-            tx.tx_reference.tx_hash, tx.timestamp, self.queue
+            "FIFO insert: tx_hash={}, timestamp={}, block_number={}, queue_before={:?}",
+            tx.tx_reference.tx_hash, tx.timestamp, tx.block_number, self.queue
         );
         InsertionSide::Back.push(&mut self.queue, tx);
     }
@@ -247,8 +258,8 @@ impl TransactionQueueTrait for FifoTransactionQueue {
             .rev()
             .map(|tx| {
                 debug!(
-                    "FIFO rewind: tx_hash={}, timestamp={}, queue_before={:?}",
-                    tx.tx_reference.tx_hash, tx.timestamp, self.queue
+                    "FIFO rewind: tx_hash={}, timestamp={}, block_number={}, queue_before={:?}",
+                    tx.tx_reference.tx_hash, tx.timestamp, tx.block_number, self.queue
                 );
                 InsertionSide::Front.push(&mut self.queue, tx);
                 tx.tx_reference.tx_hash
@@ -279,13 +290,18 @@ impl TransactionQueueTrait for FifoTransactionQueue {
         self.last_returned_timestamp.unwrap_or(0)
     }
 
-    fn update_timestamp(&mut self, tx_hash: TransactionHash, timestamp: UnixTimestamp) {
-        self.pending_timestamps.insert(tx_hash, timestamp);
+    fn update_tx_block_metadata(
+        &mut self,
+        tx_hash: TransactionHash,
+        timestamp: UnixTimestamp,
+        block_number: BlockNumber,
+    ) {
+        self.pending_metadata.insert(tx_hash, PendingTxMetadata { timestamp, block_number });
         assert!(
-            self.pending_timestamps.len() <= 1000,
-            "FIFO pending_timestamps unexpectedly large: {}. Timestamps should be removed once \
-             the tx is added to the queue.",
-            self.pending_timestamps.len()
+            self.pending_metadata.len() <= 1000,
+            "FIFO pending_metadata unexpectedly large: {}. Metadata should be removed once the tx \
+             is added to the queue.",
+            self.pending_metadata.len()
         );
     }
 }
