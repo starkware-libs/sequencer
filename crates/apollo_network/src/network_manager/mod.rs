@@ -1,4 +1,4 @@
-mod swarm_trait;
+pub(crate) mod swarm_trait;
 #[cfg(test)]
 mod test;
 #[cfg(any(test, feature = "testing"))]
