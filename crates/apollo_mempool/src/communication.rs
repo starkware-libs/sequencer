@@ -25,7 +25,8 @@ use reqwest::Client;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
-use starknet_api::block::{GasPrice, UnixTimestamp};
+use serde::Deserialize;
+use starknet_api::block::{BlockNumber, GasPrice, UnixTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -37,6 +38,12 @@ use crate::metrics::register_metrics;
 pub type LocalMempoolServer =
     LocalComponentServer<MempoolCommunicationWrapper, MempoolRequest, MempoolResponse>;
 pub type RemoteMempoolServer = RemoteComponentServer<MempoolRequest, MempoolResponse>;
+
+#[derive(Clone, Copy, Deserialize)]
+pub(crate) struct TxBlockMetadataResponse {
+    pub(crate) timestamp: UnixTimestamp,
+    pub(crate) block_number: BlockNumber,
+}
 
 pub fn create_mempool(
     config: MempoolConfig,
@@ -122,8 +129,8 @@ impl MempoolCommunicationWrapper {
     ) -> MempoolResult<()> {
         if self.mempool.is_fifo() {
             let tx_hash = args_wrapper.args.tx.tx_hash();
-            if !self.fetch_and_update_timestamp(tx_hash).await {
-                warn!("Failed to fetch timestamp for tx {}, skipping transaction", tx_hash);
+            if !self.fetch_and_update_tx_block_metadata(tx_hash).await {
+                warn!("Failed to fetch tx block metadata for tx {}, skipping transaction", tx_hash);
                 return Ok(());
             }
         }
@@ -174,14 +181,18 @@ impl MempoolCommunicationWrapper {
         Ok(self.mempool.resolve_batch_timestamp())
     }
 
-    // Fetches timestamp from recorder and updates mempool.
+    // Fetches tx block metadata from recorder and updates mempool.
     // Returns true if successful, false if failed after all retries.
-    pub(crate) async fn fetch_and_update_timestamp(&mut self, tx_hash: TransactionHash) -> bool {
+    pub(crate) async fn fetch_and_update_tx_block_metadata(
+        &mut self,
+        tx_hash: TransactionHash,
+    ) -> bool {
         // In Echonet mode we replay mainnet data. Some transactions require the original mainnet
-        // block timestamp to pass. We fetch this timestamp from the recorder, which points
-        // to Echonet.
+        // metadata to pass. We fetch it from the recorder, which points to Echonet.
         let recorder_url = &self.mempool.config.static_config.recorder_url;
-        let url = match recorder_url.join(&format!("echonet/get_timestamp?tx_hash={}", tx_hash)) {
+        let url = match recorder_url
+            .join(&format!("echonet/get_tx_block_metadata?tx_hash={}", tx_hash))
+        {
             Ok(url) => url,
             Err(e) => {
                 warn!("Invalid recorder URL for tx {}: {}", tx_hash, e);
@@ -189,19 +200,26 @@ impl MempoolCommunicationWrapper {
             }
         };
 
-        match self.try_fetch_timestamp(&url).await {
-            Ok(timestamp) => {
-                self.mempool.update_timestamp(tx_hash, timestamp);
+        match self.try_fetch_tx_block_metadata(&url).await {
+            Ok(tx_block_metadata) => {
+                self.mempool.update_tx_block_metadata(
+                    tx_hash,
+                    tx_block_metadata.timestamp,
+                    tx_block_metadata.block_number,
+                );
                 true
             }
             Err(e) => {
-                warn!("Failed to fetch timestamp for tx {}: {}", tx_hash, e);
+                warn!("Failed to fetch tx block metadata for tx {}: {}", tx_hash, e);
                 false
             }
         }
     }
 
-    async fn try_fetch_timestamp(&self, url: &reqwest::Url) -> Result<UnixTimestamp, String> {
+    async fn try_fetch_tx_block_metadata(
+        &self,
+        url: &reqwest::Url,
+    ) -> Result<TxBlockMetadataResponse, String> {
         const REQUEST_TIMEOUT_SECS: u64 = 2;
         let response = self
             .echonet_client
@@ -215,7 +233,10 @@ impl MempoolCommunicationWrapper {
             return Err(format!("HTTP {}", response.status()));
         }
 
-        response.json::<UnixTimestamp>().await.map_err(|e| format!("invalid response: {}", e))
+        response
+            .json::<TxBlockMetadataResponse>()
+            .await
+            .map_err(|e| format!("invalid response: {}", e))
     }
 }
 

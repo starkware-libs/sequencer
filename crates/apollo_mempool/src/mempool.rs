@@ -16,7 +16,7 @@ use apollo_mempool_types::mempool_types::{
 use apollo_time::time::{Clock, DateTime};
 use indexmap::IndexSet;
 use rand::{thread_rng, Rng};
-use starknet_api::block::{GasPrice, UnixTimestamp};
+use starknet_api::block::{BlockNumber, GasPrice, UnixTimestamp};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
@@ -291,14 +291,20 @@ impl Mempool {
         self.tx_queue.resolve_timestamp()
     }
 
-    pub(crate) fn update_timestamp(&mut self, tx_hash: TransactionHash, timestamp: UnixTimestamp) {
+    pub(crate) fn update_tx_block_metadata(
+        &mut self,
+        tx_hash: TransactionHash,
+        timestamp: UnixTimestamp,
+        block_number: BlockNumber,
+    ) {
         if !self.is_fifo() {
             panic!(
-                "Update timestamp called for tx {} in non-echonet mode, this should never happen.",
+                "Update tx block metadata called for tx {} in non-echonet mode, this should never \
+                 happen.",
                 tx_hash
             );
         }
-        self.tx_queue.update_timestamp(tx_hash, timestamp);
+        self.tx_queue.update_tx_block_metadata(tx_hash, timestamp, block_number);
     }
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
