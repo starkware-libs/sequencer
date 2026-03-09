@@ -61,8 +61,25 @@ const CLIENT_REGION_HEADER: &str = "X-Client-Region";
 pub struct HttpServer {
     config: HttpServerConfig,
     app_state: AppState,
+    dynamic_config_updater: HttpServerDynamicConfigUpdater,
+}
+
+// TODO(Tsabary): update the http server struct to hold optional fields of the
+// dynamic_config_tx, config_manager_client, and a JoinHandle for the polling task.
+// Then, use `set` and `take` to move these around as needed.
+struct HttpServerDynamicConfigUpdater {
     config_manager_client: SharedConfigManagerClient,
     dynamic_config_tx: Sender<HttpServerDynamicConfig>,
+}
+
+impl HttpServerDynamicConfigUpdater {
+    fn spawn_poll_task(&self, poll_interval: Duration) {
+        tokio::spawn(dynamic_config_poll(
+            self.dynamic_config_tx.clone(),
+            self.config_manager_client.clone(),
+            poll_interval,
+        ));
+    }
 }
 
 #[derive(Clone)]
@@ -91,7 +108,9 @@ impl HttpServer {
         let (dynamic_config_tx, dynamic_config_rx) =
             channel::<HttpServerDynamicConfig>(config.dynamic_config.clone());
         let app_state = AppState { gateway_client, dynamic_config_rx };
-        HttpServer { config, app_state, config_manager_client, dynamic_config_tx }
+        let dynamic_config_updater =
+            HttpServerDynamicConfigUpdater { config_manager_client, dynamic_config_tx };
+        HttpServer { config, app_state, dynamic_config_updater }
     }
 
     pub async fn run(&mut self) -> Result<(), HttpServerRunError> {
@@ -103,15 +122,8 @@ impl HttpServer {
         let app = self.app();
         info!("HttpServer running using socket: {}", addr);
 
-        tokio::spawn(dynamic_config_poll(
-            self.dynamic_config_tx.clone(),
-            self.config_manager_client.clone(),
-            self.config.static_config.dynamic_config_poll_interval,
-        ));
-
-        // TODO(Tsabary): update the http server struct to hold optional fields of the
-        // dynamic_config_tx, config_manager_client, and a JoinHandle for the polling task.
-        // Then, use `set` and `take` to move these around as needed.
+        self.dynamic_config_updater
+            .spawn_poll_task(self.config.static_config.dynamic_config_poll_interval);
 
         // Create a server that runs forever.
         let listener = TcpListener::bind(&addr).await?;
