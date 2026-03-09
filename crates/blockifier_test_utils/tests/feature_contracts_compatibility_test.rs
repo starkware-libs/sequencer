@@ -75,12 +75,23 @@ pub struct Cairo1FeatureContractMetadata {
 // `COMPILED_CONTRACTS_SUBDIR`.
 // 2. for each `X.cairo` file in `TEST_CONTRACTS` there exists an `X_compiled.json` file in
 // `COMPILED_CONTRACTS_SUBDIR` which equals `starknet-compile-deprecated X.cairo --no_debug_info`.
-async fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoVersion) {
+async fn verify_feature_contracts_compatibility(
+    fix: bool,
+    cairo_version: CairoVersion,
+    contract_filter: Option<String>,
+) {
+    let matches_filter = |contract: &FeatureContract| -> bool {
+        contract_filter
+            .as_deref()
+            .map_or(true, |filter| format!("{contract:?}").contains(filter))
+    };
+
     match cairo_version {
         // TODO(Dori, 1/10/2024): Parallelize Cairo0 recompilation.
         CairoVersion::Cairo0 => {
             for contract in FeatureContract::all_feature_contracts()
                 .filter(|contract| contract.cairo_version() == cairo_version)
+                .filter(|contract| matches_filter(contract))
             {
                 verify_feature_contracts_compatibility_logic(&contract, fix);
             }
@@ -99,7 +110,9 @@ async fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoV
             info!("Cairo1 packages verified.");
             // Verify feature contracts.
             let mut task_set = tokio::task::JoinSet::new();
-            for contract in FeatureContract::all_cairo1_casm_feature_contracts() {
+            for contract in FeatureContract::all_cairo1_casm_feature_contracts()
+                .filter(|contract| matches_filter(contract))
+            {
                 info!("Spawning task for {contract:?}.");
                 task_set.spawn(verify_feature_contracts_compatibility_logic_async(contract, fix));
             }
@@ -320,9 +333,12 @@ fn verify_feature_contracts_match_enum(
     assert_eq!(compiled_paths_from_enum, compiled_paths_on_filesystem);
 }
 
-async fn verify_feature_contracts_test_body(cairo_version: CairoVersion) {
+async fn verify_feature_contracts_test_body(
+    cairo_version: CairoVersion,
+    contract_filter: Option<String>,
+) {
     let fix_features = std::env::var("FIX_FEATURE_TEST").is_ok();
-    verify_feature_contracts_compatibility(fix_features, cairo_version).await;
+    verify_feature_contracts_compatibility(fix_features, cairo_version, contract_filter).await;
 }
 
 // Verified that the constant casm hashes V1 an V2 in the FeatureContract enum are correct.
@@ -346,14 +362,17 @@ fn verify_contract_casm_hashes(contract: &FeatureContract, casm_json: Option<&st
 #[traced_test]
 #[tokio::test(flavor = "multi_thread")]
 async fn verify_feature_contracts_cairo0() {
-    verify_feature_contracts_test_body(CairoVersion::Cairo0).await;
+    let contract_filter = std::env::var("CONTRACT_FILTER").ok();
+    verify_feature_contracts_test_body(CairoVersion::Cairo0, contract_filter).await;
 }
 
 #[ignore]
 #[traced_test]
 #[tokio::test(flavor = "multi_thread")]
 async fn verify_feature_contracts_cairo1() {
-    verify_feature_contracts_test_body(CairoVersion::Cairo1(RunnableCairo1::Casm)).await;
+    let contract_filter = std::env::var("CONTRACT_FILTER").ok();
+    verify_feature_contracts_test_body(CairoVersion::Cairo1(RunnableCairo1::Casm), contract_filter)
+        .await;
     verify_contract_casm_hashes(
         &FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm)),
         None,
