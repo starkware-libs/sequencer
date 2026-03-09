@@ -24,6 +24,7 @@ use crate::execution::call_info::{
 };
 use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
 use crate::fee::gas_usage::get_onchain_data_segment_length;
+use crate::metrics::record_exceeded_bouncer_resources;
 use crate::fee::resources::TransactionResources;
 use crate::state::cached_state::{StateChangesKeys, StorageEntry};
 use crate::state::state_api::StateReader;
@@ -603,14 +604,17 @@ impl Bouncer {
         let next_accumulated_weights =
             self.get_bouncer_weights().checked_add(tx_bouncer_weights).expect(&err_msg);
         if !self.bouncer_config.has_room(next_accumulated_weights) {
+            let exceeded_weights =
+                self.bouncer_config.get_exceeded_weights(next_accumulated_weights);
             log::debug!(
                 "Transaction cannot be added to the current block, block capacity reached; \
                  transaction weights: {:?}, block weights: {:?}. Block max capacity reached on \
                  fields: {}",
                 tx_weights.bouncer_weights,
                 self.get_bouncer_weights(),
-                self.bouncer_config.get_exceeded_weights(next_accumulated_weights)
+                exceeded_weights
             );
+            record_exceeded_bouncer_resources(&exceeded_weights);
             Err(TransactionExecutorError::BlockFull)?
         }
 

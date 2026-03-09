@@ -1,5 +1,6 @@
-use apollo_metrics::define_metrics;
+use apollo_metrics::{define_metrics, generate_permutation_labels};
 use apollo_metrics::metrics::{MetricCounter, MetricDetails, MetricScope};
+use strum::{EnumVariantNames, IntoStaticStr};
 
 define_metrics!(
     Blockifier => {
@@ -23,9 +24,55 @@ define_metrics!(
             "number_of_total_calls",
             "Counter of the total number of calls",
             init=0
+        },
+        LabeledMetricCounter {
+            BLOCKS_FULL_BY_RESOURCE,
+            "blockifier_blocks_full_by_resource",
+            "Number of blocks closed on each bouncer resource",
+            init = 0,
+            labels = BLOCKS_FULL_BY_RESOURCE_LABELS
         }
     }
 );
+
+pub const LABEL_NAME_BLOCK_FULL_RESOURCE: &str = "resource";
+
+#[derive(Clone, Copy, Debug, IntoStaticStr, EnumVariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub enum BlockFullResource {
+    L1Gas,
+    MessageSegmentLength,
+    NEvents,
+    StateDiffSize,
+    SierraGas,
+    NTxs,
+    ProvingGas,
+}
+
+generate_permutation_labels! {
+    BLOCKS_FULL_BY_RESOURCE_LABELS,
+    (LABEL_NAME_BLOCK_FULL_RESOURCE, BlockFullResource),
+}
+
+fn record_block_full_by_resource(resource: BlockFullResource) {
+    BLOCKS_FULL_BY_RESOURCE.increment(1, &[(LABEL_NAME_BLOCK_FULL_RESOURCE, resource.into())]);
+}
+
+pub fn record_exceeded_bouncer_resources(exceeded_weights: &str) {
+    for field in exceeded_weights.split(", ") {
+        let resource = match field {
+            "l1_gas" => BlockFullResource::L1Gas,
+            "message_segment_length" => BlockFullResource::MessageSegmentLength,
+            "n_events" => BlockFullResource::NEvents,
+            "state_diff_size" => BlockFullResource::StateDiffSize,
+            "sierra_gas" => BlockFullResource::SierraGas,
+            "n_txs" => BlockFullResource::NTxs,
+            "proving_gas" => BlockFullResource::ProvingGas,
+            _ => continue,
+        };
+        record_block_full_by_resource(resource);
+    }
+}
 
 pub const BLOCKIFIER_METRIC_RATE_DURATION: &str = "5m";
 
