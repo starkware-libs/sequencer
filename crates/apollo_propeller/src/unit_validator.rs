@@ -70,6 +70,8 @@ impl UnitValidator {
 
         let result = signature::verify_message_id_signature(
             &unit.root(),
+            self.channel,
+            unit.timestamp(),
             unit.signature(),
             &self.publisher_public_key,
         );
