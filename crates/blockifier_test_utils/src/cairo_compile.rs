@@ -192,6 +192,14 @@ impl LibfuncArg {
             Self::ListFile(file) => command.args(["--allowed-libfuncs-list-file", file]),
         }
     }
+
+    /// Returns the file path if this is a `ListFile` variant.
+    pub fn file_path(&self) -> &str {
+        match self {
+            Self::ListFile(path) => path,
+            Self::ListName(_) => panic!("LibfuncArg::ListName has no file path"),
+        }
+    }
 }
 
 /// Compiles a Cairo1 program using the compiler version set in the Cargo.toml.
