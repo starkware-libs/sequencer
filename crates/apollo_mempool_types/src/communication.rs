@@ -61,7 +61,7 @@ pub trait MempoolClient: Send + Sync {
     ) -> MempoolClientResult<bool>;
     async fn update_gas_price(&self, gas_price: GasPrice) -> MempoolClientResult<()>;
     async fn get_mempool_snapshot(&self) -> MempoolClientResult<MempoolSnapshot>;
-    async fn get_timestamp(&self) -> MempoolClientResult<UnixTimestamp>;
+    async fn resolve_batch_timestamp(&self) -> MempoolClientResult<UnixTimestamp>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -79,7 +79,7 @@ pub enum MempoolRequest {
     // TODO(yair): Rename to `StartBlock` and add cleanup of staged txs.
     UpdateGasPrice(GasPrice),
     GetMempoolSnapshot(),
-    GetTimestamp,
+    ResolveBatchTimestamp,
 }
 impl_debug_for_infra_requests_and_responses!(MempoolRequest);
 impl_labeled_request!(MempoolRequest, MempoolRequestLabelValue);
@@ -94,7 +94,7 @@ impl PrioritizedRequest for MempoolRequest {
             | MempoolRequest::AccountTxInPoolOrRecentBlock(_)
             | MempoolRequest::UpdateGasPrice(_)
             | MempoolRequest::GetMempoolSnapshot()
-            | MempoolRequest::GetTimestamp => RequestPriority::Normal,
+            | MempoolRequest::ResolveBatchTimestamp => RequestPriority::Normal,
         }
     }
 }
@@ -108,7 +108,7 @@ pub enum MempoolResponse {
     AccountTxInPoolOrRecentBlock(MempoolResult<bool>),
     UpdateGasPrice(MempoolResult<()>),
     GetMempoolSnapshot(MempoolResult<MempoolSnapshot>),
-    GetTimestamp(MempoolResult<UnixTimestamp>),
+    ResolveBatchTimestamp(MempoolResult<UnixTimestamp>),
 }
 impl_debug_for_infra_requests_and_responses!(MempoolResponse);
 
@@ -219,13 +219,13 @@ where
         )
     }
 
-    async fn get_timestamp(&self) -> MempoolClientResult<UnixTimestamp> {
-        let request = MempoolRequest::GetTimestamp;
+    async fn resolve_batch_timestamp(&self) -> MempoolClientResult<UnixTimestamp> {
+        let request = MempoolRequest::ResolveBatchTimestamp;
         handle_all_response_variants!(
             self,
             request,
             MempoolResponse,
-            GetTimestamp,
+            ResolveBatchTimestamp,
             MempoolClientError,
             MempoolError,
             Direct
