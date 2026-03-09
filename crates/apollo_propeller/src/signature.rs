@@ -5,7 +5,7 @@
 
 use libp2p::identity::{Keypair, PeerId, PublicKey};
 
-use crate::types::{MessageRoot, ShardPublishError, ShardSignatureVerificationError};
+use crate::types::{Channel, MessageRoot, ShardPublishError, ShardSignatureVerificationError};
 
 // TODO(AndrewL): Consider removing these (consult gossipsub code )
 pub const SIGNING_PREFIX: &[u8] = b"<propeller>";
@@ -14,24 +14,39 @@ pub const SIGNING_POSTFIX: &[u8] = b"</propeller>";
 /// Multihash code for identity hash (inline key in PeerId)
 const IDENTITY_MULTIHASH_CODE: u64 = 0x00;
 
+fn build_signed_payload(message_id: &MessageRoot, channel: Channel, timestamp: u64) -> Vec<u8> {
+    [
+        SIGNING_PREFIX,
+        &message_id.0,
+        &channel.0.to_be_bytes(),
+        &timestamp.to_be_bytes(),
+        SIGNING_POSTFIX,
+    ]
+    .concat()
+}
+
 pub fn sign_message_id(
     message_id: &MessageRoot,
+    channel: Channel,
+    timestamp: u64,
     keypair: &Keypair,
 ) -> Result<Vec<u8>, ShardPublishError> {
-    let msg = [SIGNING_PREFIX, &message_id.0, SIGNING_POSTFIX].concat();
+    let msg = build_signed_payload(message_id, channel, timestamp);
     // TODO(AndrewL): Use a transparent error type for this.
     keypair.sign(&msg).map_err(|e| ShardPublishError::SigningFailed(e.to_string()))
 }
 
 pub fn verify_message_id_signature(
     message_id: &MessageRoot,
+    channel: Channel,
+    timestamp: u64,
     signature: &[u8],
     public_key: &PublicKey,
 ) -> Result<(), ShardSignatureVerificationError> {
     if signature.is_empty() {
         return Err(ShardSignatureVerificationError::VerificationFailed);
     }
-    let msg = [SIGNING_PREFIX, &message_id.0, SIGNING_POSTFIX].concat();
+    let msg = build_signed_payload(message_id, channel, timestamp);
     let signature_valid = public_key.verify(&msg, signature);
     if signature_valid { Ok(()) } else { Err(ShardSignatureVerificationError::VerificationFailed) }
 }

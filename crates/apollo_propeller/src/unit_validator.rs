@@ -24,8 +24,9 @@ pub struct UnitValidator {
     publisher_public_key: PublicKey,
     /// The root of the message.
     message_root: MessageRoot,
-    /// The signature of the message.
+    /// Cached signature and timestamp after first successful verification.
     verified_signature: Option<Vec<u8>>,
+    verified_timestamp: Option<u64>,
     /// The tree manager to use.
     schedule_manager: Arc<PropellerScheduleManager>,
     /// The indices of the received shards.
@@ -47,6 +48,7 @@ impl UnitValidator {
             schedule_manager,
             publisher_public_key,
             verified_signature: None,
+            verified_timestamp: None,
             received_indices: HashSet::new(),
         }
     }
@@ -60,8 +62,10 @@ impl UnitValidator {
         &mut self,
         unit: &PropellerUnit,
     ) -> Result<(), ShardSignatureVerificationError> {
-        if let Some(signature) = &self.verified_signature {
-            return if signature == unit.signature() {
+        if let (Some(signature), Some(timestamp)) =
+            (&self.verified_signature, self.verified_timestamp)
+        {
+            return if signature == unit.signature() && timestamp == unit.timestamp() {
                 Ok(())
             } else {
                 Err(ShardSignatureVerificationError::VerificationFailed)
@@ -70,12 +74,15 @@ impl UnitValidator {
 
         let result = signature::verify_message_id_signature(
             &unit.root(),
+            self.channel,
+            unit.timestamp(),
             unit.signature(),
             &self.publisher_public_key,
         );
 
         if let Ok(()) = &result {
             self.verified_signature = Some(unit.signature().to_vec());
+            self.verified_timestamp = Some(unit.timestamp());
         }
 
         result

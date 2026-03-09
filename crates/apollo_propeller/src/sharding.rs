@@ -104,11 +104,11 @@ pub fn create_units_to_publish(
         create_coding_shards_and_merkle(data_shards, num_coding_shards)
             .expect("encoding my own data shards should always succeed");
 
-    let signature = signature::sign_message_id(&message_root, &keypair)?;
-
-    let mut messages = Vec::with_capacity(all_shards.len());
     let timestamp =
         SystemTime::now().duration_since(UNIX_EPOCH).expect("system clock is set").as_secs();
+    let signature = signature::sign_message_id(&message_root, channel, timestamp, &keypair)?;
+
+    let mut messages = Vec::with_capacity(all_shards.len());
     for (index, shard) in all_shards.into_iter().enumerate() {
         let proof = merkle_tree
             .prove(index)
