@@ -1,7 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 use std::future::Future;
 use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::task::{Context, Poll, Waker};
 
 use libp2p::core::transport::PortUse;
 use libp2p::core::Endpoint;
@@ -34,6 +34,8 @@ pub struct KadRequestingBehaviour {
     peers_pending_connection: VecDeque<PeerId>,
     /// Buffer of queries to emit for the current heartbeat, drained one per poll call.
     pending_queries: VecDeque<PeerId>,
+    /// Stored waker to re-poll when new peers are added via `set_peers_to_request`.
+    waker: Option<Waker>,
 }
 
 impl NetworkBehaviour for KadRequestingBehaviour {
@@ -103,6 +105,11 @@ impl NetworkBehaviour for KadRequestingBehaviour {
             )));
         }
 
+        if self.peers_pending_connection.is_empty() {
+            self.waker = Some(cx.waker().clone());
+            return Poll::Pending;
+        }
+
         let now = Instant::now();
         if now >= self.time_for_next_kad_query {
             return self.emit_heartbeat_queries(now);
@@ -130,6 +137,7 @@ impl KadRequestingBehaviour {
             connected_peers: HashSet::new(),
             peers_pending_connection: VecDeque::new(),
             pending_queries: VecDeque::new(),
+            waker: None,
         }
     }
 
@@ -138,6 +146,11 @@ impl KadRequestingBehaviour {
         self.peers_pending_connection =
             peers.iter().filter(|p| !self.connected_peers.contains(p)).copied().collect();
         self.peers_to_request = peers;
+        if !self.peers_pending_connection.is_empty() {
+            if let Some(waker) = self.waker.take() {
+                waker.wake();
+            }
+        }
     }
 
     fn emit_heartbeat_queries(
@@ -156,11 +169,11 @@ impl KadRequestingBehaviour {
             self.peers_pending_connection.push_back(peer_id);
             self.pending_queries.push_back(peer_id);
         }
-        self.pending_queries.push_back(PeerId::random());
-        let peer_id = self
-            .pending_queries
-            .pop_front()
-            .expect("pending_queries is non-empty; a random peer was just pushed");
-        Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(peer_id)))
+        match self.pending_queries.pop_front() {
+            Some(peer_id) => {
+                Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(peer_id)))
+            }
+            None => Poll::Pending,
+        }
     }
 }
