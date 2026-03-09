@@ -25,6 +25,9 @@ pub struct KadRequestingBehaviour {
     heartbeat_interval: Duration,
     time_for_next_kad_query: Instant,
     sleeper: Option<Pin<Box<Sleep>>>,
+    /// When true, periodic Kademlia queries for random peers are emitted on each heartbeat.
+    /// When false, only explicitly requested peers (via `set_peers_to_request`) are queried.
+    random_peer_request_enabled: bool,
     /// Peers we want to be connected to (for fast membership checks).
     peers_to_request: HashSet<PeerId>,
     /// Round-robin queue of peers to query. Peers are moved to the back after being queried,
@@ -97,6 +100,10 @@ impl NetworkBehaviour for KadRequestingBehaviour {
             )));
         }
 
+        if !self.random_peer_request_enabled && self.unconnected_peers.is_empty() {
+            return Poll::Pending;
+        }
+
         let now = Instant::now();
         if now >= self.time_for_next_kad_query {
             return self.emit_heartbeat_queries(now);
@@ -115,11 +122,12 @@ impl NetworkBehaviour for KadRequestingBehaviour {
 }
 
 impl KadRequestingBehaviour {
-    pub fn new(heartbeat_interval: Duration) -> Self {
+    pub fn new(heartbeat_interval: Duration, random_peer_request_enabled: bool) -> Self {
         Self {
             heartbeat_interval,
             time_for_next_kad_query: Instant::now(),
             sleeper: None,
+            random_peer_request_enabled,
             peers_to_request: HashSet::new(),
             unconnected_peers: VecDeque::new(),
             pending_queries: VecDeque::new(),
@@ -147,7 +155,9 @@ impl KadRequestingBehaviour {
             self.unconnected_peers.push_back(peer_id);
             self.pending_queries.push_back(peer_id);
         }
-        self.pending_queries.push_back(PeerId::random());
+        if self.random_peer_request_enabled {
+            self.pending_queries.push_back(PeerId::random());
+        }
         match self.pending_queries.pop_front() {
             Some(peer_id) => {
                 Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(peer_id)))

@@ -114,6 +114,7 @@ pub struct Behaviour {
 ///         factor: 2,
 ///     },
 ///     heartbeat_interval: Duration::from_millis(500),
+///     random_peer_request_enabled: true,
 /// };
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -124,6 +125,10 @@ pub struct DiscoveryConfig {
     /// Interval between periodic discovery operations.
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub heartbeat_interval: Duration,
+
+    /// When true, periodic Kademlia queries for random peers are emitted on each heartbeat.
+    /// When false, only explicitly requested peers (via `set_peers_to_request`) are queried.
+    pub random_peer_request_enabled: bool,
 }
 
 impl Default for DiscoveryConfig {
@@ -131,18 +136,28 @@ impl Default for DiscoveryConfig {
         Self {
             bootstrap_dial_retry_config: RetryConfig::default(),
             heartbeat_interval: Duration::from_millis(100),
+            random_peer_request_enabled: true,
         }
     }
 }
 
 impl SerializeConfig for DiscoveryConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([ser_param(
-            "heartbeat_interval",
-            &self.heartbeat_interval.as_millis(),
-            "The interval between each discovery (Kademlia) query in milliseconds.",
-            ParamPrivacyInput::Public,
-        )]);
+        let mut dump = BTreeMap::from([
+            ser_param(
+                "heartbeat_interval",
+                &self.heartbeat_interval.as_millis(),
+                "The interval between each discovery (Kademlia) query in milliseconds.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "random_peer_request_enabled",
+                &self.random_peer_request_enabled,
+                "If true, periodic Kademlia queries for random peers are emitted on each \
+                 heartbeat. If false, only explicitly requested peers are queried.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
         dump.append(&mut prepend_sub_config_name(
             self.bootstrap_dial_retry_config.dump(),
             "bootstrap_dial_retry_config",
@@ -249,7 +264,10 @@ impl Behaviour {
                 config.bootstrap_dial_retry_config,
                 bootstrap_peers,
             ),
-            kad_requesting: KadRequestingBehaviour::new(config.heartbeat_interval),
+            kad_requesting: KadRequestingBehaviour::new(
+                config.heartbeat_interval,
+                config.random_peer_request_enabled,
+            ),
         }
     }
 
