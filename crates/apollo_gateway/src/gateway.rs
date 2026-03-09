@@ -172,7 +172,6 @@ impl<
     TStatefulValidatorFactory: StatefulTransactionValidatorFactoryTrait,
 > GatewayAppState<TStatelessValidator, TTransactionConverter, TStatefulValidatorFactory>
 {
-    #[allow(dead_code)]
     fn get_dynamic_config(&self) -> GatewayDynamicConfig {
         // `borrow()` returns a reference to a value owned by the channel, so clone it.
         let config = {
@@ -311,7 +310,7 @@ impl<
 
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory
-            .instantiate_validator()
+            .instantiate_validator(self.get_dynamic_config().native_classes_whitelist)
             .await
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
