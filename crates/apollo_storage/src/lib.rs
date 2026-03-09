@@ -89,6 +89,7 @@ pub mod global_root_marker;
 #[allow(missing_docs)]
 pub mod metrics;
 pub mod partial_block_hash;
+pub mod proposal_commitment;
 pub mod storage_metrics;
 // TODO(yair): Make the compression_utils module pub(crate) or extract it from the crate.
 #[doc(hidden)]
@@ -144,7 +145,10 @@ use mmap_file::{
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
+use starknet_api::block_hash::block_hash_calculator::{
+    PartialBlockHash,
+    PartialBlockHashComponents,
+};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, GlobalRoot, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
@@ -186,7 +190,7 @@ use crate::version::{VersionStorageReader, VersionStorageWriter};
 /// The current version of the storage state code.
 pub const STORAGE_VERSION_STATE: Version = Version { major: 6, minor: 0 };
 /// The current version of the storage blocks code.
-pub const STORAGE_VERSION_BLOCKS: Version = Version { major: 6, minor: 0 };
+pub const STORAGE_VERSION_BLOCKS: Version = Version { major: 6, minor: 1 };
 
 /// Opens a storage and returns a [`StorageReader`] and a [`StorageWriter`].
 pub fn open_storage(
@@ -252,6 +256,7 @@ fn open_storage_internal(
         global_root: db_writer.create_simple_table("global_root")?,
         partial_block_hashes_components: db_writer
             .create_simple_table("partial_block_hashes_components")?,
+        proposal_commitments: db_writer.create_simple_table("proposal_commitments")?,
 
         // Version tables.
         starknet_version: db_writer.create_simple_table("starknet_version")?,
@@ -678,6 +683,7 @@ struct_field_names! {
         markers: TableIdentifier<MarkerKind, VersionZeroWrapper<BlockNumber>, SimpleTable>,
         nonces: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<Nonce>, CommonPrefix>,
         partial_block_hashes_components: TableIdentifier<BlockNumber, VersionZeroWrapper<PartialBlockHashComponents>, SimpleTable>,
+        proposal_commitments: TableIdentifier<BlockNumber, VersionZeroWrapper<PartialBlockHash>, SimpleTable>,
         file_offsets: TableIdentifier<OffsetKind, NoVersionValueWrapper<usize>, SimpleTable>,
         state_diffs: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>,
         transaction_hash_to_idx: TableIdentifier<TransactionHash, NoVersionValueWrapper<TransactionIndex>, SimpleTable>,
