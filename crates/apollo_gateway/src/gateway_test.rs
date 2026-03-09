@@ -140,6 +140,7 @@ fn mock_dependencies() -> MockDependencies {
             authorized_declarer_accounts: None,
             proof_archive_writer_config: ProofArchiveWriterConfig::default(),
         },
+        ..Default::default()
     };
     let state_reader_factory =
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), true);
@@ -679,6 +680,7 @@ fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
 ) {
     let original_config = GatewayConfig {
         static_config: GatewayStaticConfig { authorized_declarer_accounts, ..Default::default() },
+        ..Default::default()
     };
 
     // Create a temporary file to dump the config.
