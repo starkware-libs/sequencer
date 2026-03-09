@@ -7,6 +7,8 @@ trait IOrchestrator<TContractState> {
     fn should_fail_undeployed_panic_message(ref self: TContractState) -> felt252;
     fn should_fail_call_no_entrypoint_panic_message(ref self: TContractState) -> felt252;
     fn should_fail_libcall_no_entrypoint_panic_message(ref self: TContractState) -> felt252;
+    fn should_fail_get_block_hash_panic_message(ref self: TContractState) -> felt252;
+    fn should_succeed_get_block_hash_panic_message(ref self: TContractState) -> felt252;
 }
 
 #[starknet::contract]
@@ -39,6 +41,7 @@ mod FuzzRevertContract {
         CallNonExistingEntryPoint,
         LibraryCallNonExistingEntryPoint,
         EmitEvent,
+        GetBlockHash,
     }
 
     impl FeltTryIntoScenario of TryInto<felt252, Scenario> {
@@ -64,6 +67,7 @@ mod FuzzRevertContract {
                 14 => Some(Scenario::CallNonExistingEntryPoint),
                 15 => Some(Scenario::LibraryCallNonExistingEntryPoint),
                 16 => Some(Scenario::EmitEvent),
+                17 => Some(Scenario::GetBlockHash),
                 _ => None,
             }
         }
@@ -112,6 +116,19 @@ mod FuzzRevertContract {
             }
         }
 
+        /// If should_unwrap is true, prepends the orchestrator index to the error and panics.
+        fn maybe_unwrap_error(ref self: ContractState, error: Array<felt252>, should_unwrap: bool) {
+            if should_unwrap {
+                // The inner error does not contain the orchestrator index, so to propagate
+                // the error the index must be prepended.
+                let mut new_error: Array<felt252> = array![self.orchestrator().get_index()];
+                for elem in error {
+                    new_error.append(elem);
+                }
+                panic(new_error);
+            }
+        }
+
         /// Handle a syscall that immediately fails (e.g. calling a non-existing entry point).
         fn handle_syscall_immediate_failure(
             ref self: ContractState,
@@ -121,20 +138,7 @@ mod FuzzRevertContract {
         ) {
             match result {
                 Result::Ok(_) => panic_with_felt252(panic_message_if_ok),
-                Result::Err(mut error) => {
-                    // Syscall failed immediately, so no inner calls could have modified the
-                    // orchestrator index. No need to handle index propagation (the !should_unwrap
-                    // case).
-                    if should_unwrap {
-                        // The inner error does not contain the orchestrator index, so to propagate
-                        // the error the index must be prepended.
-                        let mut new_error: Array<felt252> = array![self.orchestrator().get_index()];
-                        for elem in error {
-                            new_error.append(elem);
-                        }
-                        panic(new_error);
-                    }
-                }
+                Result::Err(error) => self.maybe_unwrap_error(error, should_unwrap),
             }
         }
     }
@@ -272,6 +276,22 @@ mod FuzzRevertContract {
                     );
             },
             Scenario::EmitEvent => { self.emit(FuzzEvent { data: orchestrator.pop_front() }); },
+            Scenario::GetBlockHash => {
+                let block_number: u64 = orchestrator.pop_front().try_into().unwrap();
+                let expect_panic: bool = orchestrator.pop_front() != 0;
+                let should_unwrap = true;
+                match syscalls::get_block_hash_syscall(block_number) {
+                    Result::Ok(_) => assert(
+                        !expect_panic, orchestrator.should_fail_get_block_hash_panic_message()
+                    ),
+                    Result::Err(error) => {
+                        assert(
+                            expect_panic, orchestrator.should_succeed_get_block_hash_panic_message()
+                        );
+                        self.maybe_unwrap_error(error, should_unwrap);
+                    }
+                }
+            },
         }
 
         // Unless explicitly stated otherwise, the next operation should be in the current call
