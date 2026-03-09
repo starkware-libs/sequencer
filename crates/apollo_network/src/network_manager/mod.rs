@@ -29,11 +29,10 @@ use crate::active_committees::types::{CommitteeMember, EpochId};
 use crate::gossipsub_impl::Topic;
 use crate::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
 use crate::misconduct_score::MisconductScore;
-use crate::mixed_behaviour::{self, BridgedBehaviour};
 use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
 use crate::utils::{is_localhost, make_multiaddr, StreamMap};
-use crate::{gossipsub_impl, Bytes, NetworkConfig};
+use crate::{gossipsub_impl, mixed_behaviour, Bytes, NetworkConfig};
 
 /// Errors that can occur during network operations.
 ///
@@ -781,19 +780,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         Ok(())
     }
 
-    // TODO(shahak): Move this logic to mixed_behaviour.
     fn handle_to_other_behaviour_event(&mut self, event: mixed_behaviour::ToOtherBehaviourEvent) {
-        if let mixed_behaviour::ToOtherBehaviourEvent::NoOp = event {
-            return;
-        }
-        self.swarm.behaviour_mut().identify.on_other_behaviour_event(&event);
-        self.swarm.behaviour_mut().kademlia.on_other_behaviour_event(&event);
-        if let Some(discovery) = self.swarm.behaviour_mut().discovery.as_mut() {
-            discovery.on_other_behaviour_event(&event);
-        }
-        self.swarm.behaviour_mut().sqmr.on_other_behaviour_event(&event);
-        self.swarm.behaviour_mut().peer_manager.on_other_behaviour_event(&event);
-        self.swarm.behaviour_mut().gossipsub.on_other_behaviour_event(&event);
+        self.swarm.behaviour_mut().route_to_other_behaviour_event(event);
     }
 
     fn handle_sqmr_event(&mut self, event: sqmr::behaviour::ExternalEvent) {
