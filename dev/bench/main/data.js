@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772662589441,
+  "lastUpdate": 1773046694536,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -339,6 +339,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1339.8562423800001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141231558+meship-starkware@users.noreply.github.com",
+            "name": "Meshi Peled",
+            "username": "meship-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8be7429cc26a3079891e8cabc1609465c0efdeb9",
+          "message": "Merge pull request #13069 from starkware-libs/meshi/merge-main-v0.14.2-into-main-1772975882\n\nMerge main-v0.14.2 into main",
+          "timestamp": "2026-03-09T08:36:00Z",
+          "tree_id": "ab9dfbf43df2e29ee0c25d23586e0c4590adab67",
+          "url": "https://github.com/starkware-libs/sequencer/commit/8be7429cc26a3079891e8cabc1609465c0efdeb9"
+        },
+        "date": 1773046694201,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 834.0286958500001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1323.35692693,
             "unit": "ms"
           }
         ]
