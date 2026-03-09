@@ -272,6 +272,7 @@ impl ClassHashStorage {
     }
 
     /// Opens the storage without a storage reader server or metrics.
+    #[allow(dead_code)]
     pub(crate) fn new_plain(storage_config: StorageConfig) -> ClassHashStorageResult<Self> {
         let (reader, writer) = open_storage(storage_config)?;
         Ok(Self {
