@@ -1,10 +1,11 @@
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll, Waker};
 
 use futures::StreamExt;
 use libp2p::swarm::SwarmEvent;
-use libp2p::Swarm;
+use libp2p::{PeerId, Swarm};
 use libp2p_swarm_test::SwarmExt;
 use tokio::time::Duration;
 use waker_fn::waker_fn;
@@ -56,11 +57,21 @@ pub fn create_kad_requesting_swarm(heartbeat_interval: Duration) -> Swarm<KadReq
 const HEARBEAT_INTERVAL: Duration = Duration::from_secs(5);
 
 #[tokio::test(start_paused = true)]
-async fn sends_query_immediately_on_creation() {
+async fn pending_when_no_peers_to_request() {
     let mut swarm = create_kad_requesting_swarm(HEARBEAT_INTERVAL);
 
+    let (poll_res, _waker) = poll_swarm(&mut swarm);
+    assert!(matches!(poll_res, Poll::Pending));
+}
+
+#[tokio::test(start_paused = true)]
+async fn sends_query_immediately_when_peers_set() {
+    let mut swarm = create_kad_requesting_swarm(HEARBEAT_INTERVAL);
+
+    swarm.behaviour_mut().set_peers_to_request(HashSet::from([PeerId::random()]));
+
     // Time is stopped, we haven't advanced it at all since creating the behavior still we expect a
-    // query event.
+    // query event because time_for_next_kad_query starts at now.
     let (poll_res, waker) = poll_swarm(&mut swarm);
     assert!(matches!(
         poll_res,
@@ -75,8 +86,9 @@ async fn awakes_waker_when_time_to_query() {
 
     let mut swarm = create_kad_requesting_swarm(HEARBEAT_INTERVAL);
 
-    // Kad requesting sends the *first* request immediately when called.
-    // This behaviour is verified in its own test so we don't check the returned values here.
+    swarm.behaviour_mut().set_peers_to_request(HashSet::from([PeerId::random()]));
+
+    // First heartbeat fires immediately since time_for_next_kad_query starts at now.
     let _ = poll_swarm(&mut swarm);
 
     // Next poll should occur at `now` + `HEARBEAT_INTERVAL`. We advance the time to not reach it
@@ -104,4 +116,18 @@ async fn awakes_waker_when_time_to_query() {
         Poll::Ready(Some(SwarmEvent::Behaviour(ToOtherBehaviourEvent::RequestKadQuery(_))))
     ));
     assert_eq!(waker.times_woken(), 0);
+}
+
+#[tokio::test(start_paused = true)]
+async fn set_peers_to_request_wakes_stored_waker() {
+    let mut swarm = create_kad_requesting_swarm(HEARBEAT_INTERVAL);
+
+    // First poll with no peers stores the waker and returns Pending.
+    let (poll_res, waker) = poll_swarm(&mut swarm);
+    assert!(matches!(poll_res, Poll::Pending));
+    assert_eq!(waker.times_woken(), 0);
+
+    // Setting peers should wake the stored waker.
+    swarm.behaviour_mut().set_peers_to_request(HashSet::from([PeerId::random()]));
+    assert_eq!(waker.times_woken(), 1);
 }
