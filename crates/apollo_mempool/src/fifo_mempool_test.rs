@@ -3,14 +3,21 @@ use std::time::Duration;
 
 use apollo_config::behavior_mode::BehaviorMode;
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig, MempoolStaticConfig};
+use apollo_mempool_types::mempool_types::TxBlockMetadata;
 use apollo_time::test_utils::FakeClock;
 use rstest::{fixture, rstest};
+use starknet_api::block::BlockNumber;
 use starknet_api::test_utils::valid_resource_bounds_for_testing;
 use starknet_api::{contract_address, declare_tx_args, tx_hash};
 
 use crate::add_tx_input;
 use crate::mempool::Mempool;
 use crate::test_utils::{add_tx, commit_block, declare_add_tx_input, get_txs_and_assert_expected};
+
+const TX_METADATA_TS_1000_BN_100: TxBlockMetadata =
+    TxBlockMetadata { timestamp: 1000, block_number: BlockNumber(100) };
+const TX_METADATA_TS_2000_BN_200: TxBlockMetadata =
+    TxBlockMetadata { timestamp: 2000, block_number: BlockNumber(200) };
 
 #[fixture]
 fn mempool() -> Mempool {
@@ -34,9 +41,9 @@ fn test_get_txs_returns_in_fifo_order(mut mempool: Mempool) {
     let input4 = add_tx_input!(tx_hash: 4, address: "0x3", tx_nonce: 0, account_nonce: 0, tip: 999);
     let input5 = add_tx_input!(tx_hash: 5, address: "0x2", tx_nonce: 1, account_nonce: 0, tip: 2);
 
-    // Set timestamps for all transactions
+    // Set tx block metadata for all transactions.
     for i in 1..=5 {
-        mempool.update_timestamp(tx_hash!(i), 1000);
+        mempool.update_tx_block_metadata(tx_hash!(i), TX_METADATA_TS_1000_BN_100);
     }
 
     for input in [&input1, &input2, &input3, &input4, &input5] {
@@ -56,8 +63,8 @@ fn test_get_txs_more_than_all_eligible_txs(mut mempool: Mempool) {
     let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
     let input2 = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
 
-    mempool.update_timestamp(tx_hash!(1), 1000);
-    mempool.update_timestamp(tx_hash!(2), 1000);
+    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
 
     for input in [&input1, &input2] {
         add_tx(&mut mempool, input);
@@ -77,8 +84,8 @@ fn test_get_txs_consumes_transactions_from_queue(mut mempool: Mempool) {
     let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
     let input2 = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
 
-    mempool.update_timestamp(tx_hash!(1), 1000);
-    mempool.update_timestamp(tx_hash!(2), 1000);
+    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
 
     for input in [&input1, &input2] {
         add_tx(&mut mempool, input);
@@ -95,8 +102,8 @@ fn test_committed_txs_removed_from_mempool(mut mempool: Mempool) {
     let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
     let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
 
-    mempool.update_timestamp(tx_hash!(1), 1000);
-    mempool.update_timestamp(tx_hash!(2), 1000);
+    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
 
     for input in [&input1, &input2] {
         add_tx(&mut mempool, input);
@@ -117,9 +124,9 @@ fn test_commit_block_rewinds_non_committed_transactions(mut mempool: Mempool) {
     let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
     let input3 = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 2, account_nonce: 0);
 
-    mempool.update_timestamp(tx_hash!(1), 1000);
-    mempool.update_timestamp(tx_hash!(2), 1000);
-    mempool.update_timestamp(tx_hash!(3), 1000);
+    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(3), TX_METADATA_TS_1000_BN_100);
 
     for input in [&input1, &input2, &input3] {
         add_tx(&mut mempool, input);
@@ -138,7 +145,7 @@ fn test_commit_block_rewinds_non_committed_transactions(mut mempool: Mempool) {
 fn test_commit_block_removes_rejected_transactions(mut mempool: Mempool) {
     let input = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
 
-    mempool.update_timestamp(tx_hash!(1), 1000);
+    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
 
     add_tx(&mut mempool, &input);
 
@@ -157,9 +164,9 @@ fn test_commit_block_committed_and_rejected_no_rewind(mut mempool: Mempool) {
     let input2 = add_tx_input!(tx_hash: 22, address: "0x1", tx_nonce: 1, account_nonce: 0);
     let input3 = add_tx_input!(tx_hash: 33, address: "0x1", tx_nonce: 2, account_nonce: 0);
 
-    mempool.update_timestamp(tx_hash!(11), 1000);
-    mempool.update_timestamp(tx_hash!(22), 1000);
-    mempool.update_timestamp(tx_hash!(33), 1000);
+    mempool.update_tx_block_metadata(tx_hash!(11), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(22), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(33), TX_METADATA_TS_1000_BN_100);
 
     for input in [&input1, &input2, &input3] {
         add_tx(&mut mempool, input);
@@ -180,9 +187,9 @@ fn test_commit_block_future_rejected_tx_should_rewind(mut mempool: Mempool) {
     let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
     let input3 = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 2, account_nonce: 0);
 
-    mempool.update_timestamp(tx_hash!(1), 1000);
-    mempool.update_timestamp(tx_hash!(2), 1000);
-    mempool.update_timestamp(tx_hash!(3), 1000);
+    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(3), TX_METADATA_TS_1000_BN_100);
 
     for input in [&input1, &input2, &input3] {
         add_tx(&mut mempool, input);
@@ -217,7 +224,7 @@ fn test_declare_txs_preserve_fifo_order(mut mempool: Mempool) {
         add_tx_input!(tx_hash: 5, address: "0x5", tx_nonce: 0, account_nonce: 0);
 
     for i in 1..=5 {
-        mempool.update_timestamp(tx_hash!(i), 1000);
+        mempool.update_tx_block_metadata(tx_hash!(i), TX_METADATA_TS_1000_BN_100);
     }
 
     for input in [
@@ -250,8 +257,8 @@ fn test_resolve_batch_timestamp_persists_after_queue_emptied(mut mempool: Mempoo
     let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
     let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
 
-    mempool.update_timestamp(tx_hash!(1), 1000);
-    mempool.update_timestamp(tx_hash!(2), 1000);
+    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
 
     add_tx(&mut mempool, &input1);
     add_tx(&mut mempool, &input2);
@@ -278,10 +285,10 @@ fn test_get_txs_does_not_return_txs_with_different_timestamp(mut mempool: Mempoo
     let input4 = add_tx_input!(tx_hash: 4, address: "0x4", tx_nonce: 0, account_nonce: 0);
 
     // Pre-populate timestamps: first two txs have timestamp 1000, next two have 2000
-    mempool.update_timestamp(tx_hash!(1), 1000);
-    mempool.update_timestamp(tx_hash!(2), 1000);
-    mempool.update_timestamp(tx_hash!(3), 2000);
-    mempool.update_timestamp(tx_hash!(4), 2000);
+    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(3), TX_METADATA_TS_2000_BN_200);
+    mempool.update_tx_block_metadata(tx_hash!(4), TX_METADATA_TS_2000_BN_200);
 
     // Add all transactions
     add_tx(&mut mempool, &input1);
@@ -324,11 +331,11 @@ fn test_rewind_preserves_timestamp_order(mut mempool: Mempool) {
     let input3 = add_tx_input!(tx_hash: 3, address: "0x2", tx_nonce: 0, account_nonce: 0);
     let input4 = add_tx_input!(tx_hash: 4, address: "0x3", tx_nonce: 0, account_nonce: 0);
 
-    // Set timestamps for all transactions
-    mempool.update_timestamp(tx_hash!(1), 1000);
-    mempool.update_timestamp(tx_hash!(2), 1000);
-    mempool.update_timestamp(tx_hash!(3), 1000); // tx3 also has timestamp 1000
-    mempool.update_timestamp(tx_hash!(4), 2000); // tx4 has timestamp 2000
+    // Set metadata for all transactions (timestamp controls ordering in these tests).
+    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(3), TX_METADATA_TS_1000_BN_100); // tx3 also has timestamp 1000
+    mempool.update_tx_block_metadata(tx_hash!(4), TX_METADATA_TS_2000_BN_200); // tx4 has timestamp 2000
 
     // Add tx1, tx2, tx3 (all with timestamp 1000)
     add_tx(&mut mempool, &input1);
@@ -380,11 +387,11 @@ fn test_rewind_maintains_fifo_order_with_mixed_results(mut mempool: Mempool) {
     let input3 = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 2, account_nonce: 0);
     let input4 = add_tx_input!(tx_hash: 4, address: "0x2", tx_nonce: 0, account_nonce: 0);
 
-    // Set timestamps: tx1,2,3 -> 1000, tx4 -> 2000
-    mempool.update_timestamp(tx_hash!(1), 1000);
-    mempool.update_timestamp(tx_hash!(2), 1000);
-    mempool.update_timestamp(tx_hash!(3), 1000);
-    mempool.update_timestamp(tx_hash!(4), 2000);
+    // Set metadata: tx1,2,3 -> timestamp 1000, tx4 -> timestamp 2000
+    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(3), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(4), TX_METADATA_TS_2000_BN_200);
 
     add_tx(&mut mempool, &input1);
     add_tx(&mut mempool, &input2);
@@ -433,10 +440,10 @@ fn test_timestamp_order_matches_insertion_order(mut mempool: Mempool) {
     let input4 = add_tx_input!(tx_hash: 4, address: "0x2", tx_nonce: 1, account_nonce: 0);
 
     // Set timestamps matching insertion order
-    mempool.update_timestamp(tx_hash!(1), 1000);
-    mempool.update_timestamp(tx_hash!(2), 2000);
-    mempool.update_timestamp(tx_hash!(3), 1000);
-    mempool.update_timestamp(tx_hash!(4), 2000);
+    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_2000_BN_200);
+    mempool.update_tx_block_metadata(tx_hash!(3), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(4), TX_METADATA_TS_2000_BN_200);
 
     // Add in specific interleaved order: tx1(1000), tx3(1000), tx2(2000), tx4(2000)
     add_tx(&mut mempool, &input1);
@@ -466,7 +473,7 @@ fn test_rewind_many_transactions_from_same_address(mut mempool: Mempool) {
 
     // Set timestamps for all transactions
     for i in 0..=4 {
-        mempool.update_timestamp(tx_hash!(10 + i), 1000);
+        mempool.update_tx_block_metadata(tx_hash!(10 + i), TX_METADATA_TS_1000_BN_100);
     }
 
     // Add all 5 transactions
@@ -527,8 +534,8 @@ fn test_expired_popped_txs_are_not_rewound() {
     let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
     let input2 = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
 
-    mempool.update_timestamp(tx_hash!(1), 1000);
-    mempool.update_timestamp(tx_hash!(2), 1000);
+    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
     add_tx(&mut mempool, &input1);
     add_tx(&mut mempool, &input2);
 
@@ -551,9 +558,9 @@ fn test_rejected_tx_removes_same_address_from_fifo_queue(mut mempool: Mempool) {
         add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
     let other_address_tx = add_tx_input!(tx_hash: 3, address: "0x2", tx_nonce: 0, account_nonce: 0);
 
-    mempool.update_timestamp(tx_hash!(1), 1000);
-    mempool.update_timestamp(tx_hash!(2), 2000);
-    mempool.update_timestamp(tx_hash!(3), 2000);
+    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_2000_BN_200);
+    mempool.update_tx_block_metadata(tx_hash!(3), TX_METADATA_TS_2000_BN_200);
 
     for input in [&rejected_tx, &future_same_address_tx, &other_address_tx] {
         add_tx(&mut mempool, input);

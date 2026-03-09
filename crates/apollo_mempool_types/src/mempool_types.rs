@@ -4,7 +4,7 @@ use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_metrics::generate_permutation_labels;
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::GasPrice;
+use starknet_api::block::{BlockNumber, GasPrice, UnixTimestamp};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
@@ -25,6 +25,12 @@ impl std::fmt::Display for AccountState {
         let AccountState { address, nonce } = self;
         write!(f, "AccountState {{ address: {address}, nonce: {nonce} }}")
     }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct TxBlockMetadata {
+    pub timestamp: UnixTimestamp,
+    pub block_number: BlockNumber,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
