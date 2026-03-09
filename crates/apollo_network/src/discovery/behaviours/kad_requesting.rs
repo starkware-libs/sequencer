@@ -34,6 +34,8 @@ pub struct KadRequestingBehaviour {
     peers_pending_connection: VecDeque<PeerId>,
     /// Stored waker to re-poll when new peers are added via `set_target_peers`.
     waker: Option<Waker>,
+    /// Peers to dial after a successful DHT lookup matched a requested peer.
+    pending_dials: VecDeque<PeerId>,
 }
 
 impl NetworkBehaviour for KadRequestingBehaviour {
@@ -94,6 +96,11 @@ impl NetworkBehaviour for KadRequestingBehaviour {
         cx: &mut Context<'_>,
     ) -> Poll<ToSwarm<Self::ToSwarm, <Self::ConnectionHandler as ConnectionHandler>::FromBehaviour>>
     {
+        // Drain pending dials first (from DHT lookup results).
+        if let Some(peer_id) = self.pending_dials.pop_front() {
+            return Poll::Ready(ToSwarm::Dial { opts: peer_id.into() });
+        }
+
         if self.peers_pending_connection.is_empty() {
             self.waker = Some(cx.waker().clone());
             return Poll::Pending;
@@ -126,6 +133,7 @@ impl KadRequestingBehaviour {
             connected_peers: HashSet::new(),
             peers_pending_connection: VecDeque::new(),
             waker: None,
+            pending_dials: VecDeque::new(),
         }
     }
 
@@ -133,11 +141,24 @@ impl KadRequestingBehaviour {
         self.peers_pending_connection =
             peers.iter().filter(|p| !self.connected_peers.contains(p)).copied().collect();
         self.target_peers = peers;
+        self.pending_dials.clear();
         if !self.peers_pending_connection.is_empty() {
             if let Some(waker) = self.waker.take() {
                 waker.wake();
             }
         }
+    }
+
+    pub fn enqueue_dials_for_matching_peers(&mut self, peers: &[PeerId]) {
+        let new_dials: Vec<PeerId> = peers
+            .iter()
+            .copied()
+            .filter(|p| self.target_peers.contains(p))
+            .filter(|p| !self.connected_peers.contains(p))
+            .filter(|p| !self.peers_pending_connection.contains(p))
+            .filter(|p| !self.pending_dials.contains(p))
+            .collect();
+        self.pending_dials.extend(new_dials);
     }
 
     fn emit_heartbeat_query(
