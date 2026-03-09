@@ -36,6 +36,7 @@ const CONFIG_WITH_ZERO_HEARTBEAT_AND_SMALL_BOOTSTRAP_DIAL: DiscoveryConfig = Dis
         factor: 1,
     },
     heartbeat_interval: Duration::ZERO,
+    random_peer_request_enabled: true,
 };
 const CONFIG_WITH_SMALL_HEARTBEAT_AND_BOOTSTRAP_SLEEP: DiscoveryConfig = DiscoveryConfig {
     heartbeat_interval: Duration::from_millis(SMALL_SLEEP_MILLIS),
