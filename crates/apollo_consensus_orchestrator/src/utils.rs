@@ -335,14 +335,22 @@ pub(crate) fn convert_to_sn_api_block_info(
 
 /// Get the block hash for the retrospective block from the batcher and state sync, and return a
 /// valid result only if the values are equal.
+/// Also verifies that the batcher is done calculating the block hash of the block after the
+/// retrospective to avoid a deadlock that can happen if all nodes only report the retrospective
+/// block hash and not the block hashes of more advanced blocks.
 pub(crate) async fn retrospective_block_hash(
     batcher_client: Arc<dyn BatcherClient>,
     state_sync_client: Arc<dyn StateSyncClient>,
     init: &ProposalInit,
     compare_retrospective_block_hash: bool,
 ) -> RetrospectiveBlockHashResult<Option<BlockHashAndNumber>> {
-    let retrospective_block_number = init.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
+    let must_have_block_hash_for = (init.height.0 + 1).checked_sub(STORED_BLOCK_HASH_BUFFER);
+    if let Some(must_have_block_hash_for) = must_have_block_hash_for {
+        // Just verify that the batcher has done calculating it.
+        let _ = batcher_client.get_block_hash(BlockNumber(must_have_block_hash_for)).await?;
+    }
 
+    let retrospective_block_number = init.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
     let Some(block_number) = retrospective_block_number else {
         info!(
             "Retrospective block number is less than {STORED_BLOCK_HASH_BUFFER}, setting None as \
