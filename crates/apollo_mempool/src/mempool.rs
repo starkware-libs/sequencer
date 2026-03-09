@@ -11,6 +11,7 @@ use apollo_mempool_types::mempool_types::{
     MempoolResult,
     MempoolSnapshot,
     MempoolStateSnapshot,
+    TxBlockMetadata,
     ValidationArgs,
 };
 use apollo_time::time::{Clock, DateTime};
@@ -291,14 +292,19 @@ impl Mempool {
         self.tx_queue.resolve_timestamp()
     }
 
-    pub(crate) fn update_timestamp(&mut self, tx_hash: TransactionHash, timestamp: UnixTimestamp) {
+    pub(crate) fn update_tx_block_metadata(
+        &mut self,
+        tx_hash: TransactionHash,
+        metadata: TxBlockMetadata,
+    ) {
         if !self.is_fifo() {
             panic!(
-                "Update timestamp called for tx {} in non-echonet mode, this should never happen.",
+                "Update tx block metadata called for tx {} in non-echonet mode, this should never \
+                 happen.",
                 tx_hash
             );
         }
-        self.tx_queue.update_timestamp(tx_hash, timestamp);
+        self.tx_queue.update_tx_block_metadata(tx_hash, metadata);
     }
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
