@@ -47,6 +47,7 @@ use crate::block_builder::{
     BlockBuilderExecutionParams,
     BlockBuilderResult,
     BlockBuilderTrait,
+    BlockCommitmentContext,
     BlockExecutionArtifacts,
     BlockTransactionExecutionData,
     FailOnErrorCause,
@@ -108,7 +109,13 @@ async fn block_execution_artifacts(
         execution_data.l2_gas_used().0,
         u64::try_from(execution_data.execution_infos_and_signatures.len()).unwrap()
     );
-    BlockExecutionArtifacts::new(block_summary, execution_data, final_n_executed_txs).await
+    BlockExecutionArtifacts::new(
+        block_summary,
+        execution_data,
+        final_n_executed_txs,
+        BlockCommitmentContext { parent_partial_block_hash: None },
+    )
+    .await
 }
 
 // Filling the execution_info with some non-default values to make sure the block_builder uses them.
@@ -720,6 +727,7 @@ async fn run_build_block(
             is_validator,
             proposer_idle_detection_delay: idle_timeout_duration,
         },
+        BlockCommitmentContext { parent_partial_block_hash: None },
     );
 
     block_builder.build_block().await

@@ -164,12 +164,19 @@ fn get_overlapping_state_diffs(n_state_diffs: u64) -> Vec<ThinStateDiff> {
 }
 
 fn write_state_diff(batcher: &mut Batcher, height: BlockNumber, state_diff: &ThinStateDiff) {
+    let proposal_commitment = ProposalCommitment {
+        partial_block_hash: PartialBlockHash::from_partial_block_hash_components(
+            &PartialBlockHashComponents::default(),
+        )
+        .expect("default partial block hash components are valid"),
+    };
     batcher
         .storage_writer
         .commit_proposal(
             height,
             state_diff.clone(),
             StorageCommitmentBlockHash::Partial(PartialBlockHashComponents::default()),
+            Some(proposal_commitment),
         )
         .expect("set_state_diff failed");
 }
@@ -1048,19 +1055,33 @@ async fn add_sync_block(
                 StorageCommitmentBlockHash::ParentHash(BlockHash::default()),
             )
         };
+    let proposal_commitment =
+        partial_block_hash_components.as_ref().map(|components| ProposalCommitment {
+            partial_block_hash: PartialBlockHash::from_partial_block_hash_components(components)
+                .expect("default partial block hash components are valid"),
+        });
 
     let mut mock_clients = MockClients::default();
 
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_state_diff_height().returning(move || Ok(block_number));
     storage_reader.expect_global_root_height().returning(move || Ok(block_number));
+    storage_reader.expect_get_proposal_commitment().returning(|_| Ok(None));
+    storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .returning(|_| Ok((Some(BlockHash::default()), None)));
 
     let mut storage_writer = MockBatcherStorageWriter::new();
     storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(block_number), eq(test_state_diff()), eq(storage_commitment_block_hash))
-        .returning(|_, _, _| Ok(()));
+        .with(
+            eq(block_number),
+            eq(test_state_diff()),
+            eq(storage_commitment_block_hash),
+            eq(proposal_commitment),
+        )
+        .returning(|_, _, _, _| Ok(()));
 
     mock_clients
         .mempool_client
@@ -1204,6 +1225,14 @@ async fn add_sync_block_for_first_new_block() {
     storage_reader
         .expect_global_root_height()
         .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
+    storage_reader
+        .expect_get_proposal_commitment()
+        .with(eq(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.prev().unwrap()))
+        .returning(|_| Ok(None));
+    storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH.prev().unwrap()))
+        .returning(|_| Ok((Some(DUMMY_BLOCK_HASH), None)));
     let mut mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
 
     // Expect setting the block hash for the last old block (i.e the parent of the first new block).
@@ -1224,8 +1253,17 @@ async fn add_sync_block_for_first_new_block() {
                 block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
                 ..Default::default()
             })),
+            eq(Some(ProposalCommitment {
+                partial_block_hash: PartialBlockHash::from_partial_block_hash_components(
+                    &PartialBlockHashComponents {
+                        block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+                        ..Default::default()
+                    },
+                )
+                .expect("default partial block hash components are valid"),
+            })),
         )
-        .returning(|_, _, _| Ok(()));
+        .returning(|_, _, _, _| Ok(()));
 
     mock_dependencies
         .clients
@@ -1423,8 +1461,9 @@ async fn decision_reached() {
             eq(INITIAL_HEIGHT),
             eq(expected_artifacts.thin_state_diff()),
             eq(StorageCommitmentBlockHash::Partial(expected_partial_block_hash)),
+            eq(Some(expected_artifacts.commitment())),
         )
-        .returning(|_, _, _| Ok(()));
+        .returning(|_, _, _, _| Ok(()));
 
     mock_dependencies
         .storage_reader
@@ -1494,7 +1533,7 @@ async fn test_execution_info_order_is_kept() {
     mock_dependencies.clients.l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
     mock_dependencies.clients.mempool_client.expect_commit_block().returning(|_| Ok(()));
     mock_dependencies.clients.l1_provider_client.expect_commit_block().returning(|_, _, _| Ok(()));
-    mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _, _| Ok(()));
+    mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _, _, _| Ok(()));
 
     let block_builder_result = BlockExecutionArtifacts::create_for_testing().await;
     // Check that the execution_infos were initiated properly for this test.
@@ -1595,7 +1634,7 @@ async fn decision_reached_return_success_when_l1_commit_block_fails(
         .times(1)
         .returning(move |_, _, _| Err(l1_error.clone()));
 
-    mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _, _| Ok(()));
+    mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _, _, _| Ok(()));
 
     mock_dependencies.clients.mempool_client.expect_commit_block().returning(|_| Ok(()));
 

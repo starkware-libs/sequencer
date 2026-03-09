@@ -41,6 +41,7 @@ use crate::block_builder::{
     BlockBuilderError,
     BlockBuilderResult,
     BlockBuilderTrait,
+    BlockCommitmentContext,
     BlockExecutionArtifacts,
     BlockTransactionExecutionData,
     FailOnErrorCause,
@@ -200,7 +201,13 @@ impl BlockExecutionArtifacts {
             compiled_class_hashes_for_migration: vec![],
             block_info: BlockInfo::create_for_testing(),
         };
-        Self::new(block_execution_summary, execution_data, DUMMY_FINAL_N_EXECUTED_TXS).await
+        Self::new(
+            block_execution_summary,
+            execution_data,
+            DUMMY_FINAL_N_EXECUTED_TXS,
+            BlockCommitmentContext { parent_partial_block_hash: None },
+        )
+        .await
     }
 }
 
@@ -299,6 +306,7 @@ impl Default for MockDependencies {
         storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
         storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
         storage_reader.expect_get_state_diff().returning(|_| Ok(Some(test_state_diff())));
+        storage_reader.expect_get_proposal_commitment().returning(|_| Ok(None));
         storage_reader
             .expect_get_parent_hash_and_partial_block_hash_components()
             .with(eq(INITIAL_HEIGHT.prev().unwrap()))
