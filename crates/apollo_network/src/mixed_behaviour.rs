@@ -149,6 +149,21 @@ impl MixedBehaviour {
             event_tracker_metrics: event_metrics.map(EventMetricsTracker::new).into(),
         }
     }
+
+    /// Routes an internal event to all sub-behaviours that implement `BridgedBehaviour`.
+    pub fn route_to_other_behaviour_event(&mut self, event: ToOtherBehaviourEvent) {
+        if let ToOtherBehaviourEvent::NoOp = event {
+            return;
+        }
+        self.identify.on_other_behaviour_event(&event);
+        self.kademlia.on_other_behaviour_event(&event);
+        if let Some(discovery) = self.discovery.as_mut() {
+            discovery.on_other_behaviour_event(&event);
+        }
+        self.sqmr.on_other_behaviour_event(&event);
+        self.peer_manager.on_other_behaviour_event(&event);
+        self.gossipsub.on_other_behaviour_event(&event);
+    }
 }
 
 impl From<Infallible> for Event {
