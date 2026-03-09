@@ -3800,11 +3800,13 @@ version = "0.18.0-dev.0"
 dependencies = [
  "apollo_infra_utils",
  "cairo-lang-starknet-classes",
+ "digest 0.10.7",
  "expect-test",
  "fs2",
  "pretty_assertions",
  "rstest",
  "serde_json",
+ "sha2 0.10.9",
  "starknet-types-core",
  "starknet_api",
  "strum",
