@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773046694536,
+  "lastUpdate": 1773061995588,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -373,6 +373,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1323.35692693,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "guy.n@starkware.co",
+            "name": "guy-starkware",
+            "username": "guy-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0421581f74f93d594427065250da0ceaeffa1d7a",
+          "message": "apollo_l1_gas_price_config: rename crate from apollo_l1_gas_price_provider_config (#12825)\n\n* apollo_l1_events: TransactionManager constructor uses config\n\n* apollo_l1_gas_price_config: rename crate from apollo_l1_gas_price_provider_config",
+          "timestamp": "2026-03-09T12:50:51Z",
+          "tree_id": "3e992ef13bd7d39be3d4b1322c2c6f7e207c94a0",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0421581f74f93d594427065250da0ceaeffa1d7a"
+        },
+        "date": 1773061995217,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 828.84066126,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1230.66902473,
             "unit": "ms"
           }
         ]
