@@ -281,10 +281,10 @@ impl Mempool {
         matches!(self.config.static_config.behavior_mode, BehaviorMode::Echonet)
     }
 
-    pub fn get_timestamp(&mut self) -> UnixTimestamp {
+    pub fn resolve_batch_timestamp(&mut self) -> UnixTimestamp {
         if !self.is_fifo() {
             let timestamp = self.clock.unix_now();
-            debug!("Mempool get_timestamp (Fee): timestamp={}", timestamp);
+            debug!("Mempool resolve_batch_timestamp (Fee): timestamp={}", timestamp);
             return timestamp;
         }
 

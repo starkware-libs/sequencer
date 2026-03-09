@@ -617,8 +617,8 @@ impl Batcher {
     }
 
     #[instrument(skip(self), err)]
-    pub async fn get_timestamp(&self) -> BatcherResult<UnixTimestamp> {
-        self.mempool_client.get_timestamp().await.map_err(|err| {
+    pub async fn get_batch_timestamp(&self) -> BatcherResult<UnixTimestamp> {
+        self.mempool_client.resolve_batch_timestamp().await.map_err(|err| {
             error!("Failed to get timestamp from mempool: {err}");
             BatcherError::InternalError
         })

@@ -170,8 +170,8 @@ impl MempoolCommunicationWrapper {
         self.mempool.mempool_snapshot()
     }
 
-    fn get_timestamp(&mut self) -> MempoolResult<UnixTimestamp> {
-        Ok(self.mempool.get_timestamp())
+    fn resolve_batch_timestamp(&mut self) -> MempoolResult<UnixTimestamp> {
+        Ok(self.mempool.resolve_batch_timestamp())
     }
 
     // Fetches timestamp from recorder and updates mempool.
@@ -248,7 +248,9 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
             MempoolRequest::GetMempoolSnapshot() => {
                 MempoolResponse::GetMempoolSnapshot(self.mempool_snapshot())
             }
-            MempoolRequest::GetTimestamp => MempoolResponse::GetTimestamp(self.get_timestamp()),
+            MempoolRequest::ResolveBatchTimestamp => {
+                MempoolResponse::ResolveBatchTimestamp(self.resolve_batch_timestamp())
+            }
         }
     }
 }
