@@ -21,16 +21,25 @@ use starknet_api::core::{
     ContractAddress,
     EntryPointSelector,
 };
+use starknet_api::executable_transaction::InvokeTransaction;
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::transaction::fields::ContractAddressSalt;
-use starknet_api::transaction::{L2ToL1Payload, MessageToL1};
+use starknet_api::transaction::{
+    Event,
+    EventContent,
+    EventData,
+    EventKey,
+    L2ToL1Payload,
+    MessageToL1,
+};
 use starknet_api::{calldata, felt, invoke_tx_args};
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_types_core::felt::Felt;
 use strum::{EnumIter, IntoEnumIterator};
 use tokio::task::JoinSet;
 
-use crate::test_manager::{TestBuilder, FUNDED_ACCOUNT_ADDRESS};
+use crate::test_manager::{EventPredicateExpectation, TestBuilder, FUNDED_ACCOUNT_ADDRESS};
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::get_class_hash_of_feature_contract;
 
@@ -79,13 +88,13 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 static FUZZ_ADDRESS_ORCHESTRATOR_EXPECT: Expect =
     expect!["0x6b10f630978a4071bb62858d7b11905943415c4047839bafde9be7347107535"];
 static FUZZ_ADDRESS_CAIRO1_A_EXPECT: Expect =
-    expect!["0x757f822a9ea5e481431f09876dbc44c733b260412c7636cc4fb83f3e8b2cd61"];
+    expect!["0x17110f97e6ec0d08c92699433e780b7b3520ef4047eba1514857a65c9b27877"];
 static FUZZ_ADDRESS_CAIRO1_B_EXPECT: Expect =
-    expect!["0x155dcdef2c9261e318e184a2f7c9dc2945bec54b8a7857b53a789ab76abcc09"];
+    expect!["0x3b1b76276234e11f2620622b62fd47f4ddf42433546914f38034ae80b689f81"];
 static FUZZ_ADDRESS_CAIRO0_A_EXPECT: Expect =
-    expect!["0x2a1188238efd3406659ee4fdba9cfb11225792705fbcdf452b531c109d481e4"];
+    expect!["0x1c55b1a99e578e4676b6b367797b77e02193b671e5a225d2ede5bf81cedf319"];
 static FUZZ_ADDRESS_CAIRO0_B_EXPECT: Expect =
-    expect!["0x5b315b0684579629cc681c33bd0b817ef515e8abc2788d9cba9654ea11177d5"];
+    expect!["0x6b57a2c90a7d631ef4cde4a4a11993cbd8f1334f28813396bb8da7de627f5a"];
 static FUZZ_ADDRESS_ORCHESTRATOR: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress::try_from(felt!(FUZZ_ADDRESS_ORCHESTRATOR_EXPECT.data())).unwrap()
 });
@@ -124,6 +133,9 @@ const NON_EXISTING_ENTRY_POINT_MESSAGE: LazyLock<String> =
 static VALID_STORAGE_KEYS: LazyLock<Vec<Felt>> =
     LazyLock::new(|| vec![Felt::from(1u16 << 8), Felt::from(1u16 << 9)]);
 
+/// Event key of emitted events.
+static EVENT_KEY: LazyLock<Felt> = LazyLock::new(|| selector_from_name("FuzzEvent").0);
+
 /// Filter functions for custom scenario filters.
 type OperationFilter = fn(&FuzzOperationData) -> bool;
 /// All scenarios allowed.
@@ -142,8 +154,6 @@ fn op_filter_call_write_panic_return(op: &FuzzOperationData) -> bool {
 }
 const OP_FILTER_CALL_WRITE_PANIC_RETURN: OperationFilter = op_filter_call_write_panic_return;
 
-// TODO(Dori): Operations to add:
-// 3. events
 #[derive(Clone, Copy, EnumIter)]
 enum FuzzOperation {
     Return,
@@ -162,6 +172,7 @@ enum FuzzOperation {
     CallUndeployed,
     CallNonexistingEntryPoint,
     LibraryCallNonexistingEntryPoint,
+    EmitEvent,
 }
 
 impl FuzzOperation {
@@ -183,6 +194,7 @@ impl FuzzOperation {
             Self::CallUndeployed => 13u8,
             Self::CallNonexistingEntryPoint => 14u8,
             Self::LibraryCallNonexistingEntryPoint => 15u8,
+            Self::EmitEvent => 16u8,
         })
     }
 }
@@ -250,6 +262,7 @@ enum FuzzOperationData {
     CallUndeployed(CallOperationData),
     CallNonexistingEntryPoint(CallOperationData),
     LibraryCallNonexistingEntryPoint(LibraryCallOperationData),
+    EmitEvent(Felt),
 }
 
 impl FuzzOperationData {
@@ -273,6 +286,7 @@ impl FuzzOperationData {
             Self::LibraryCallNonexistingEntryPoint(_) => {
                 FuzzOperation::LibraryCallNonexistingEntryPoint
             }
+            Self::EmitEvent(_) => FuzzOperation::EmitEvent,
         }
     }
 
@@ -293,8 +307,10 @@ impl FuzzOperationData {
             Self::ReplaceClass(class_hash) => vec![class_hash.0],
             Self::Deploy { class_hash, salt } => vec![class_hash.0, salt.0],
             Self::Panic => vec![*PANIC_SCENARIO_MESSAGE_FELT],
-            Self::SendMessage(message) => vec![*message],
-            Self::Sha256(value) | Self::Keccak(value) => vec![*value],
+            Self::SendMessage(value)
+            | Self::Sha256(value)
+            | Self::Keccak(value)
+            | Self::EmitEvent(value) => vec![*value],
         });
         felt_vector
     }
@@ -358,6 +374,8 @@ struct FuzzCallInfo {
     pub constructing: bool,
     /// Payloads of messages sent to L1 in this call.
     pub messages: Vec<Felt>,
+    /// Payloads of events emitted in this call.
+    pub events: Vec<Felt>,
 }
 
 impl FuzzCallInfo {
@@ -374,6 +392,7 @@ impl FuzzCallInfo {
             class_replaced_here: false,
             constructing: false,
             messages: vec![],
+            events: vec![],
         }
     }
 
@@ -387,6 +406,7 @@ impl FuzzCallInfo {
             class_replaced_here: false,
             constructing: true,
             messages: vec![],
+            events: vec![],
         }
     }
 }
@@ -451,6 +471,9 @@ struct FuzzTestContext {
     /// Contents of the next message to send.
     pub next_message: Felt,
 
+    /// Contents of the next event to emit.
+    pub next_event: Felt,
+
     /// Next salt to use for a deploy operation.
     pub next_salt: ContractAddressSalt,
 
@@ -471,6 +494,7 @@ impl FuzzTestContext {
             replaced_address: None,
             next_storage_write_value: StarknetStorageValue(Felt::from(1u16 << 12)),
             next_message: Felt::from(1u32 << 20),
+            next_event: Felt::from(1u32 << 24),
             next_salt: ContractAddressSalt(Felt::from(1u32 << 16)),
             next_hash_preimage: Felt::ONE,
             rng: ChaCha8Rng::seed_from_u64(seed),
@@ -698,6 +722,7 @@ impl FuzzTestContext {
                     })
                     .collect()
             }
+            FuzzOperation::EmitEvent => vec![FuzzOperationData::EmitEvent(self.next_event)],
         }
     }
 
@@ -968,6 +993,10 @@ impl FuzzTestContext {
                 );
                 self.apply_panic(NON_EXISTING_ENTRY_POINT_MESSAGE.clone());
             }
+            FuzzOperationData::EmitEvent(event) => {
+                self.current_fuzz_call_info_mut().events.push(event);
+                self.next_event += Felt::ONE;
+            }
         }
     }
 
@@ -1024,6 +1053,52 @@ impl FuzzTestContext {
                     })
                     .collect()
             }
+            None => vec![],
+        }
+    }
+
+    /// Recursive function to generate the expected events emitted from a call info.
+    /// Order of returned events is chronological (X is before Y <==> X is sent before Y).
+    fn expected_events_from_call_info(&self, call_info: &FuzzCallInfo) -> Vec<Event> {
+        call_info
+            .events
+            .iter()
+            .map(|event_data| Event {
+                from_address: call_info.address,
+                content: EventContent {
+                    keys: vec![EventKey(*EVENT_KEY)],
+                    data: EventData(vec![*event_data])
+                },
+            })
+            .chain(
+                call_info
+                    .inner_calls
+                    .iter()
+                    .flat_map(|call| self.expected_events_from_call_info(call)),
+            )
+            // Events are emitted in ascending order of payload.
+            .sorted_by(|event_a, event_b| {
+                Ord::cmp(&event_a.content.data.0[0], &event_b.content.data.0[0])
+            })
+            .collect()
+    }
+
+    /// Traverses all the fuzz call infos from the root call info and returns the expected events
+    /// emitted.
+    pub fn expected_events(&self) -> Vec<EventPredicateExpectation> {
+        match self.calls.first() {
+            Some(call) => self
+                .expected_events_from_call_info(call)
+                .into_iter()
+                .map(|event| EventPredicateExpectation {
+                    description: format!("Fuzz event {}", event.content.data.0[0]),
+                    predicate: Box::new(move |tested_event: &Event| {
+                        event.from_address == tested_event.from_address
+                            && event.content.data == tested_event.content.data
+                            && event.content.keys == tested_event.content.keys
+                    }),
+                })
+                .collect(),
             None => vec![],
         }
     }
@@ -1234,6 +1309,12 @@ impl FuzzTestContext {
                         ),
                     ]
                 }
+                FuzzOperationData::EmitEvent(_) => {
+                    vec![
+                        format!("{} (Emit event)", operation_felt_hexes[0]),
+                        format!("{} (event data)", operation_felt_hexes[1]),
+                    ]
+                }
             });
         }
         format!(
@@ -1372,14 +1453,19 @@ impl FuzzTestManager {
             FinalizedState::Ongoing => unreachable!(),
         };
         let nonce = self.test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS);
-        self.test_manager.add_invoke_tx_from_args(
-            invoke_tx_args! {
-                sender_address: *FUNDED_ACCOUNT_ADDRESS,
-                nonce,
-                resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-                calldata: start_test_calldata,
-            },
+        self.test_manager.add_invoke_tx(
+            InvokeTransaction::create(
+                invoke_tx(invoke_tx_args! {
+                    sender_address: *FUNDED_ACCOUNT_ADDRESS,
+                    nonce,
+                    resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+                    calldata: start_test_calldata,
+                }),
+                &self.test_manager.chain_id(),
+            )
+            .unwrap(),
             tx_revert_error,
+            Some(self.context.expected_events()),
         );
 
         // Apply expected messages to L1.
