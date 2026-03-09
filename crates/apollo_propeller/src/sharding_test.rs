@@ -107,8 +107,11 @@ fn test_verify_message_id_signature_rejects_wrong_signature() {
     tampered_signature[0] ^= 0xFF;
 
     let public_key = keypair_publisher.public();
+    let nonce = units[0].nonce();
     let result = crate::signature::verify_message_id_signature(
         &message_root,
+        COMMITTEE_ID,
+        nonce,
         &tampered_signature,
         &public_key,
     );
