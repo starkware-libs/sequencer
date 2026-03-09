@@ -1,0 +1,32 @@
+---
+description: Commit message and PR title conventions for this repository
+alwaysApply: true
+---
+
+# Commit Message & PR Title Style
+
+This repo uses a specific commitlint-compatible format. Do NOT use conventional commit types like `feat()`, `fix()`, `refactor()`, `chore()`.
+
+## Format
+
+```
+<scope>: <lowercase description>
+```
+
+- **scope**: the crate name (e.g., `blockifier`, `blockifier_test_utils`, `apollo_infra_utils`, `starknet_os_flow_tests`) or a general category (`ci`, `chore`)
+- **description**: lowercase, imperative mood, concise
+- **Max length**: 100 characters for the first line
+
+## Examples
+
+```
+blockifier_test_utils: make cairo package download synchronous
+apollo_infra_utils: sort files in cairo0_format_batch for deterministic ordering
+starknet_os_flow_tests: fuzz test deploy scenario
+ci: fixed ci checkout fails issue
+chore: resolve conflicts
+```
+
+## PR titles follow the same format
+
+PR titles should match the commit message style exactly, since squash merges use the PR title as the commit message.
