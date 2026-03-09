@@ -1,6 +1,6 @@
 use std::ops::ControlFlow;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use libp2p::identity::{PeerId, PublicKey};
 use rand::seq::SliceRandom;
@@ -44,6 +44,7 @@ enum ReconstructionState {
         received_shards: Vec<PropellerUnit>,
         did_broadcast_my_shard: bool,
         signature: Option<Vec<u8>>,
+        timestamp_ns: Option<u64>,
     },
     /// Message was reconstructed but not yet delivered to the application. We keep collecting
     /// shards until the emit threshold is reached, then emit the message.
@@ -57,6 +58,7 @@ impl ReconstructionState {
             received_shards: Vec::new(),
             did_broadcast_my_shard: false,
             signature: None,
+            timestamp_ns: None,
         }
     }
 
@@ -77,12 +79,18 @@ impl ReconstructionState {
         let is_my_shard = unit.index() == my_shard_index;
 
         match self {
-            Self::PreConstruction { received_shards, did_broadcast_my_shard, signature } => {
+            Self::PreConstruction {
+                received_shards,
+                did_broadcast_my_shard,
+                signature,
+                timestamp_ns,
+            } => {
                 if is_my_shard {
                     *did_broadcast_my_shard = true;
                 }
                 if signature.is_none() {
                     *signature = Some(unit.signature().to_vec());
+                    *timestamp_ns = Some(unit.timestamp_ns());
                 }
                 received_shards.push(unit);
                 if tree_manager.should_build(received_shards.len()) {
@@ -316,21 +324,15 @@ impl MessageProcessor {
 
         let should_broadcast = !state.did_broadcast_my_shard();
         if should_broadcast {
-            let signature = match state {
-                ReconstructionState::PreConstruction { signature, .. } => {
-                    signature.clone().expect("Signature must exist")
-                }
+            let (signature, timestamp_ns) = match state {
+                ReconstructionState::PreConstruction { signature, timestamp_ns, .. } => (
+                    signature.clone().expect("Signature must exist"),
+                    timestamp_ns.expect("Timestamp must exist"),
+                ),
                 ReconstructionState::PostConstruction { .. } => {
                     unreachable!("Cannot be PostConstruction before transition")
                 }
             };
-            // TODO(guyn): remove this and use the timestamp from the unit itself.
-            let timestamp_ns = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("system clock is set")
-                .as_nanos();
-            let timestamp_ns = u64::try_from(timestamp_ns)
-                .expect("timestamp in nanos since UNIX_EPOCH should fit in u64, until year 2554");
             let reconstructed_unit = PropellerUnit::new(
                 self.channel,
                 self.publisher,
