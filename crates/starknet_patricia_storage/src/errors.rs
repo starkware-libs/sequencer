@@ -42,6 +42,15 @@ pub enum DeserializationError {
     StarknetApiError(#[from] StarknetApiError),
     #[error(transparent)]
     StringConversionError(#[from] std::str::Utf8Error),
+    #[error(
+        "Unexpected inner node storage value length {actual}, expected to be {expected_edge} or \
+         {expected_binary}."
+    )]
+    UnexpectedInnerNodeStorageValueLength {
+        actual: usize,
+        expected_edge: usize,
+        expected_binary: usize,
+    },
     // TODO(Ariel): This is only used for EdgeNode construction failures (path length etc.), add
     // error types here and use them instead of the general ValueError.
     #[error("Invalid value for deserialization: {0}.")]
