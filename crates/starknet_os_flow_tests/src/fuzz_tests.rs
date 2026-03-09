@@ -77,11 +77,11 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 
 /// Initial fuzz contract addresses.
 static FUZZ_ADDRESS_ORCHESTRATOR_EXPECT: Expect =
-    expect!["0x3459b6243d0555307d7fc98c00edde60959aeae3626e82ccf01deceab80c1aa"];
+    expect!["0x6b10f630978a4071bb62858d7b11905943415c4047839bafde9be7347107535"];
 static FUZZ_ADDRESS_CAIRO1_A_EXPECT: Expect =
-    expect!["0x4b8b78a5bbce56e5f84d7cb8477f3a223d3d15977f2b0d3519c60968962ecaf"];
+    expect!["0x757f822a9ea5e481431f09876dbc44c733b260412c7636cc4fb83f3e8b2cd61"];
 static FUZZ_ADDRESS_CAIRO1_B_EXPECT: Expect =
-    expect!["0x6c47a95de8f7bc291f2377c1d11f6766f5b57b41a0ab511178147712678c13b"];
+    expect!["0x155dcdef2c9261e318e184a2f7c9dc2945bec54b8a7857b53a789ab76abcc09"];
 static FUZZ_ADDRESS_CAIRO0_A_EXPECT: Expect =
     expect!["0x2a1188238efd3406659ee4fdba9cfb11225792705fbcdf452b531c109d481e4"];
 static FUZZ_ADDRESS_CAIRO0_B_EXPECT: Expect =

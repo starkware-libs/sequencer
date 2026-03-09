@@ -182,19 +182,19 @@ const MOCK_STAKING_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
     expect!["0x2be4fef438465da9b0ecce49eaf352381a427d3cd1cf3368be29de71a5f7e6e"];
 
 const FUZZ_TEST_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x64b397300106b2b77ee7c043bd92ce4a2cc49980ffa948f092b3a69cb02dc"];
+    expect!["0x532374c4ea0bc009cff411730285f63164f29314f09877178c14d4ec441300d"];
 const FUZZ_TEST_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x3fd19761cd9741daeeab02253f5641313a014ed8817b0bb6e615829c6f0a139"];
+    expect!["0x5abc7453d22cb421aa28e5ab16c632292d77a4481b86f8c9d5e817f62cc82b"];
 
 const FUZZ_TEST2_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0xb040cebd0f9c4af3b2866caf47edef200e3fc595a28012f747da8e24e352d4"];
+    expect!["0x6c9d0f7a82c07b887928fba97688eee9f2c2871c661c20d093cd6842c50a156"];
 const FUZZ_TEST2_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x494259d6ef1a137bdfd052a4cbe964a29575d9824042e9eba4d5340c6710ba2"];
+    expect!["0x329a54a8211a5402b90d5d1e9deaa2573d3a4d9b3c193af7786f1050b57f2e2"];
 
 const FUZZ_TEST_ORCHESTRATOR_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x4b0f503d8e58a6cb71286342920ef8b8a1c39afebff6980e6369bc614e68a4d"];
+    expect!["0x343a4a4d5eb17655119256b2ea63cd254c95f53525805dc71fbb6c6b53c102a"];
 const FUZZ_TEST_ORCHESTRATOR_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x77ba2a3cdc9c36d1e506c3b3681e9dd9e6d1346d860fd6b0ba348c16d1c2385"];
+    expect!["0x4e6c1e3738fa0918eb31d7f5270095a84731d81ffab24f11c9037e23b18a743"];
 
 pub type CairoVersionString = String;
 
