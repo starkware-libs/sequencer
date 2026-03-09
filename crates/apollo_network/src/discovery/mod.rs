@@ -267,5 +267,12 @@ impl From<ToOtherBehaviourEvent> for mixed_behaviour::Event {
 }
 
 impl BridgedBehaviour for Behaviour {
-    fn on_other_behaviour_event(&mut self, _event: &mixed_behaviour::ToOtherBehaviourEvent) {}
+    fn on_other_behaviour_event(&mut self, event: &mixed_behaviour::ToOtherBehaviourEvent) {
+        if let mixed_behaviour::ToOtherBehaviourEvent::Kad(
+            kad_impl::KadToOtherBehaviourEvent::FoundPeers(peers),
+        ) = event
+        {
+            self.kad_requesting.handle_kad_response(peers);
+        }
+    }
 }
