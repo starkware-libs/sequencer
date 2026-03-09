@@ -36,6 +36,8 @@ pub struct KadRequestingBehaviour {
     pending_queries: VecDeque<PeerId>,
     /// Stored waker to re-poll when new peers are added via `set_peers_to_request`.
     waker: Option<Waker>,
+    /// Peers to dial after a successful DHT lookup matched a requested peer.
+    pending_dials: VecDeque<PeerId>,
 }
 
 impl NetworkBehaviour for KadRequestingBehaviour {
@@ -98,6 +100,11 @@ impl NetworkBehaviour for KadRequestingBehaviour {
         cx: &mut Context<'_>,
     ) -> Poll<ToSwarm<Self::ToSwarm, <Self::ConnectionHandler as ConnectionHandler>::FromBehaviour>>
     {
+        // Drain pending dials first (from DHT lookup results).
+        if let Some(peer_id) = self.pending_dials.pop_front() {
+            return Poll::Ready(ToSwarm::Dial { opts: peer_id.into() });
+        }
+
         // Drain pending queries from the current heartbeat, one per poll call.
         if let Some(peer_id) = self.pending_queries.pop_front() {
             return Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(
@@ -138,6 +145,7 @@ impl KadRequestingBehaviour {
             peers_pending_connection: VecDeque::new(),
             pending_queries: VecDeque::new(),
             waker: None,
+            pending_dials: VecDeque::new(),
         }
     }
 
@@ -147,11 +155,24 @@ impl KadRequestingBehaviour {
             peers.iter().filter(|p| !self.connected_peers.contains(p)).copied().collect();
         self.peers_to_request = peers;
         self.pending_queries.clear();
+        self.pending_dials.clear();
         if !self.peers_pending_connection.is_empty() {
             if let Some(waker) = self.waker.take() {
                 waker.wake();
             }
         }
+    }
+
+    pub fn enqueue_dials_for_matching_peers(&mut self, peers: &[PeerId]) {
+        let new_dials: Vec<PeerId> = peers
+            .iter()
+            .copied()
+            .filter(|p| self.peers_to_request.contains(p))
+            .filter(|p| !self.connected_peers.contains(p))
+            .filter(|p| !self.peers_pending_connection.contains(p))
+            .filter(|p| !self.pending_dials.contains(p))
+            .collect();
+        self.pending_dials.extend(new_dials);
     }
 
     fn emit_heartbeat_queries(
@@ -170,10 +191,9 @@ impl KadRequestingBehaviour {
             self.peers_pending_connection.push_back(peer_id);
             self.pending_queries.push_back(peer_id);
         }
-        let peer_id = self
-            .pending_queries
-            .pop_front()
-            .expect("pending_queries is non-empty; a peer was just pushed from peers_pending_connection");
+        let peer_id = self.pending_queries.pop_front().expect(
+            "pending_queries is non-empty; a peer was just pushed from peers_pending_connection",
+        );
         Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(peer_id)))
     }
 }
