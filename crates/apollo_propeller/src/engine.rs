@@ -6,6 +6,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use libp2p::identity::{Keypair, PeerId, PublicKey};
 use tokio::sync::{mpsc, oneshot};
@@ -21,6 +22,10 @@ use crate::time_cache::TimeCache;
 use crate::tree::{PropellerScheduleManager, Stake};
 use crate::types::{Channel, Event, MessageRoot, PeerSetError, ShardPublishError};
 use crate::unit::PropellerUnit;
+
+#[cfg(test)]
+#[path = "engine_test.rs"]
+mod engine_test;
 
 type BroadcastResponseTx = oneshot::Sender<Result<(), ShardPublishError>>;
 type BroadcastResult = (Result<Vec<PropellerUnit>, ShardPublishError>, BroadcastResponseTx);
@@ -221,6 +226,29 @@ impl Engine {
             metrics.shards_received.increment(1);
         }
 
+        // Drop units with stale timestamps.
+        let now =
+            SystemTime::now().duration_since(UNIX_EPOCH).expect("system clock is set").as_nanos();
+        let now = u64::try_from(now)
+            .expect("timestamp in nanos since UNIX_EPOCH should fit in u64, until year 2554");
+        let unit_age_nanos = now.saturating_sub(unit.timestamp_ns());
+        let stale_threshold_ns = self
+            .config
+            .stale_message_timeout
+            .as_nanos()
+            .try_into()
+            .expect("stale threshold in nanos should fit in u64");
+        if unit_age_nanos > stale_threshold_ns {
+            debug!(
+                ?claimed_channel,
+                ?claimed_publisher,
+                timestamp = unit.timestamp_ns(),
+                age_secs = unit_age_nanos / 1_000_000_000,
+                "Dropping unit with stale timestamp"
+            );
+            return;
+        }
+
         // Check if channel is registered.
         let Some(channel_data) = self.channels.get(&claimed_channel) else {
             warn!(?claimed_channel, "Received shard for unregistered channel, dropping");
@@ -234,8 +262,6 @@ impl Engine {
             root: claimed_root,
         };
 
-        // TODO(guyn): Add timestamps to message key to avoid replay attacks or issues with very
-        // late shards.
         if self.finalized_messages.contains(&message_key) {
             trace!("Message already finalized, dropping unit");
             return;
