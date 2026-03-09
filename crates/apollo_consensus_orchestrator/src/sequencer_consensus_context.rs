@@ -588,7 +588,6 @@ impl ConsensusContext for SequencerConsensusContext {
             BehaviorMode::Echonet => true,
             BehaviorMode::Starknet => false,
         };
-
         let round = build_param.round;
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),
@@ -618,6 +617,10 @@ impl ConsensusContext for SequencerConsensusContext {
                 .dynamic_config
                 .min_l2_gas_price_per_height
                 .clone(),
+            compare_retrospective_block_hash: self
+                .config
+                .dynamic_config
+                .compare_retrospective_block_hash,
         };
 
         let handle = tokio::spawn(
@@ -960,6 +963,10 @@ impl SequencerConsensusContext {
             content_receiver,
             gas_price_params,
             cancel_token: cancel_token_clone,
+            compare_retrospective_block_hash: self
+                .config
+                .dynamic_config
+                .compare_retrospective_block_hash,
         };
 
         let handle = tokio::spawn(

@@ -1,3 +1,6 @@
+include:
+  - configs/overlays/hybrid/testing/node-0/common.yaml
+
 name: committer
 
 replicas: 1

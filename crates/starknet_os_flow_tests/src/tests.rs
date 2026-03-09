@@ -2997,3 +2997,20 @@ async fn test_cairo0_proven_revert() {
     let test_output = test_builder.build_and_run().await;
     test_output.perform_default_validations();
 }
+
+/// Tests that `get_block_hash` with the current block number fails (block is too recent) and the
+/// error is caught without propagating.
+#[rstest]
+#[tokio::test]
+async fn test_get_block_hash_current_block_number() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_builder, [test_contract_address]) =
+        TestBuilder::create_standard([(test_contract, calldata![Felt::ONE, Felt::TWO])]).await;
+
+    let calldata =
+        create_calldata(test_contract_address, "test_get_block_hash_current_block_number", &[]);
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    let test_output = test_builder.build_and_run().await;
+    test_output.perform_default_validations();
+}

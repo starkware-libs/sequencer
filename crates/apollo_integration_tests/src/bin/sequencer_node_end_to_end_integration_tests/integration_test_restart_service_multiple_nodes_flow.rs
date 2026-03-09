@@ -46,6 +46,7 @@ async fn main() {
     integration_test_manager.send_deploy_and_invoke_txs_and_verify().await;
 
     integration_test_manager.send_declare_txs_and_verify().await;
+    let mut block_to_wait_for = INITIAL_BLOCK_TO_WAIT_FOR;
     for (i, hybrid_node_service) in HybridNodeServiceName::iter().enumerate() {
         // TODO(noamsp): Remove this once the equivocaton feature is merged.
         if hybrid_node_service == HybridNodeServiceName::Core {
@@ -62,19 +63,25 @@ async fn main() {
         info!("Running service {hybrid_node_service:?} for all nodes.");
         integration_test_manager.run_node_services(node_services_to_shutdown).await;
 
-        let block_to_wait_for = BlockNumber(
-            (INITIAL_BLOCK_TO_WAIT_FOR + i * BLOCK_TO_WAIT_FOR_INCREMENT)
-                .try_into()
-                .expect("Failed to convert to u64"),
-        );
+        block_to_wait_for = INITIAL_BLOCK_TO_WAIT_FOR + i * BLOCK_TO_WAIT_FOR_INCREMENT;
         info!(
             "Sending txs and verifying after restarting service {hybrid_node_service:?} for all \
              nodes."
         );
         integration_test_manager
-            .send_txs_and_verify(N_INVOKE_TXS, N_L1_HANDLER_TXS, block_to_wait_for)
+            .send_txs_and_verify(
+                N_INVOKE_TXS,
+                N_L1_HANDLER_TXS,
+                BlockNumber(block_to_wait_for.try_into().expect("Failed to convert to u64")),
+            )
             .await;
     }
+
+    integration_test_manager
+        .verify_block_hash_across_all_running_nodes(Some(BlockNumber(
+            (block_to_wait_for + 1).try_into().expect("Failed to convert to u64"),
+        )))
+        .await;
 
     info!("Shutting down nodes.");
     integration_test_manager.shutdown_nodes(node_indices);
