@@ -175,6 +175,10 @@ impl<
     TStatefulValidatorFactory: StatefulTransactionValidatorFactoryTrait,
 > GenericGateway<TStatelessValidator, TTransactionConverter, TStatefulValidatorFactory>
 {
+    pub async fn start(&self) {
+        self.proof_archive_writer.connect().await;
+    }
+
     #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]
     pub async fn add_tx(
         &self,
@@ -467,7 +471,7 @@ pub fn create_gateway(
 impl ComponentStarter for Gateway {
     async fn start(&mut self) {
         register_metrics();
-        self.0.proof_archive_writer.connect().await;
+        self.0.start().await;
     }
 }
 
