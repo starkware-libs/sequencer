@@ -4,73 +4,26 @@
 
 ### Main Principle
 
-The prime guideline for the ordering of items anywhere (files/modules/structs/traits), is by _importance_: move things further up if you think the likely reader will be looking for them when viewing the file.
-
-Almost all other layout guidelines derive from this guideline, and it should be the default sort order if cases not denoted below.
+The prime guideline for ordering items in a file is by _importance_: move things further up if you think the likely reader will be looking for them when viewing the file.
 
 **Rationale**: this reduces the amount of time a reader has to spend reading the file to find what they want, and enables short-circuiting from reading the whole file.
 
-### High-level Layout
+### Top-down Ordering
 
-Should be applied transitively inside inner items as much as possible (see inside `impl Foo` for an example)
+Module definitions and imports always come first.
 
-```rust
-// Module definitions (mod foo)
+After that, structure the file top-down: start with the public API, then the functions the public API calls directly, then the functions _those_ functions call, and so on. This lets a reader understand the file by reading it from top to bottom without having to jump around, and allows the reader to read only the API if they just want to use the code.
 
-// Imports
+For tests, the public API is the tests themselves. Put the tests above and helper functions at the bottom of the file.
 
-// All typedefs (type Bar = ...)
+This rule is a guideline, not a strict law. If breaking it helps readability, use your discretion. One of the main reasons to do so is to preserve continuity. Some examples:
+1. You may want all methods of a struct, both public and private, in the same `impl` block even if
+below it there are public structs/functions/methods.
+2. You may want functions with similar semantic meaning to sit together.
+3. Usually, if a struct `Foo` includes `Bar` as a field, `Foo` should appear first.
+However, if `Foo` is hard to understand without understanding `Bar`, you may put `Bar` first.
 
-// All consts
-
-// Types/free-functions, order by importance, one blank line between any two items (note that rustfmt cannot enforce blank lines properly).
-
-pub struct Foo {}
-// Blank line here.
-// Directly after type definition.
-impl Foo {
-    /// Same layout here as in the file.
-
-    pub type X = ...
-    type Y = ...
-
-    pub const STONKOS = ...
-    const NOT_STONKOS = ...
-
-    pub fn foo() {}
-
-    fn bar() {}
-}
-// Blank line here.
-// Directly after impl block, if exists
-impl Fooable for Foo {}
-
-// Foo is more important than Bar, so the `impl` appears after Foo's impl block, rather than after `Bar`s.
-impl From<Foo> for Bar {}
-
-// Free-functions can appear between struct/enum definitions if they are more important than them.
-pub fn important_function() {}
-
-pub struct Bar {}
-
-// The less public an items is, the further down it appears.
-struct Baz {}
-
-fn not_important_func() {}
-
-#[cfg(any(test,feature=testing))]
-pub fn make_foo() {}
-```
-
-### Ordering Q/A
-
-**a. If `Foo` includes `Bar` as a field, should `Bar` appear before `Foo`?**
-
-Depends. if `Foo` can be reasoned about without having to read `Bar`, and `Foo` is deemed more important, it's perfectly fine for it to appear arbitrarily above `Bar`. Conversely, if `Foo` cannot be understood without reading `Bar`, then `Bar` is deemed more _important_ than `Foo`.
-
-**b. If a const/typedef is only used inside one of the items (structs/functions), should it still be at the top of the file?**
-
-Consider pushing the const inside the impl block/function if it makes sense, otherwise keep it at the top of the file.
+In these cases, splitting the file into submodules can help achieve both top-down ordering and continuity.
 
 ## Directory Layout
 
