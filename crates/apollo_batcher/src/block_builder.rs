@@ -120,6 +120,11 @@ enum AddTxsToExecutorResult {
     NewTxs,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct BlockCommitmentContext {
+    pub parent_partial_block_hash: Option<PartialBlockHash>,
+}
+
 #[cfg_attr(test, derive(Clone))]
 #[derive(Debug, PartialEq)]
 pub struct BlockExecutionArtifacts {
@@ -136,6 +141,7 @@ pub struct BlockExecutionArtifacts {
     // The number of transactions executed by the proposer out of the transactions that were sent.
     // This value includes rejected transactions.
     pub final_n_executed_txs: usize,
+    block_commitment_context: BlockCommitmentContext,
     partial_block_hash_components: PartialBlockHashComponents,
 }
 
@@ -152,6 +158,7 @@ impl BlockExecutionArtifacts {
         }: BlockExecutionSummary,
         execution_data: BlockTransactionExecutionData,
         final_n_executed_txs: usize,
+        block_commitment_context: BlockCommitmentContext,
     ) -> Self {
         let l1_da_mode = L1DataAvailabilityMode::from_use_kzg_da(block_info.use_kzg_da);
         let transactions_data =
@@ -177,6 +184,7 @@ impl BlockExecutionArtifacts {
             casm_hash_computation_data_proving_gas,
             compiled_class_hashes_for_migration,
             final_n_executed_txs,
+            block_commitment_context,
             partial_block_hash_components,
         }
     }
@@ -200,8 +208,9 @@ impl BlockExecutionArtifacts {
 
     pub fn commitment(&self) -> ProposalCommitment {
         ProposalCommitment {
-            partial_block_hash: PartialBlockHash::from_partial_block_hash_components(
+            partial_block_hash: PartialBlockHash::from_partial_block_hash_components_and_parent(
                 &self.partial_block_hash_components,
+                self.block_commitment_context.parent_partial_block_hash,
             )
             .expect("Unable to calculate the proposal commitment"),
         }
@@ -280,6 +289,7 @@ pub struct BlockBuilder {
     n_concurrent_txs: usize,
     tx_polling_interval_millis: u64,
     execution_params: BlockBuilderExecutionParams,
+    block_commitment_context: BlockCommitmentContext,
 
     /// Timestamp when block building started.
     block_building_start: tokio::time::Instant,
@@ -300,6 +310,7 @@ impl BlockBuilder {
         n_concurrent_txs: usize,
         tx_polling_interval_millis: u64,
         execution_params: BlockBuilderExecutionParams,
+        block_commitment_context: BlockCommitmentContext,
     ) -> Self {
         let executor = Arc::new(Mutex::new(executor));
         Self {
@@ -316,6 +327,7 @@ impl BlockBuilder {
             n_concurrent_txs,
             tx_polling_interval_millis,
             execution_params,
+            block_commitment_context,
             block_building_start: tokio::time::Instant::now(),
         }
     }
@@ -467,8 +479,13 @@ impl BlockBuilder {
                 self.block_txs[final_n_executed_txs..].iter().map(|tx| tx.tx_hash()).collect();
             execution_data.remove_last_txs(&remove_tx_hashes);
         }
-        Ok(BlockExecutionArtifacts::new(block_summary, execution_data, final_n_executed_txs_nonopt)
-            .await)
+        Ok(BlockExecutionArtifacts::new(
+            block_summary,
+            execution_data,
+            final_n_executed_txs_nonopt,
+            self.block_commitment_context.clone(),
+        )
+        .await)
     }
 
     /// Returns the number of transactions that are currently being executed by the executor.
@@ -760,6 +777,7 @@ async fn collect_execution_results_and_stream_txs(
 pub struct BlockMetadata {
     pub block_info: BlockInfo,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
+    pub parent_partial_block_hash: Option<PartialBlockHash>,
 }
 
 // Type definitions for the abort channel required to abort the block builder.
@@ -857,6 +875,9 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
+        let block_commitment_context = BlockCommitmentContext {
+            parent_partial_block_hash: block_metadata.parent_partial_block_hash,
+        };
         let executor = self.preprocess_and_create_transaction_executor(
             block_metadata,
             native_classes_whitelist,
@@ -879,6 +900,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             self.block_builder_config.n_concurrent_txs,
             self.block_builder_config.tx_polling_interval_millis,
             execution_params,
+            block_commitment_context,
         ));
         Ok((block_builder, abort_signal_sender))
     }

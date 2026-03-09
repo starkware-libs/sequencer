@@ -738,6 +738,16 @@ impl StorageSerde for StarkHash {
     }
 }
 
+impl StorageSerde for starknet_api::block_hash::block_hash_calculator::PartialBlockHash {
+    fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
+        self.0.serialize_into(res)
+    }
+
+    fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
+        Some(Self(StarkHash::deserialize_from(bytes)?))
+    }
+}
+
 impl StorageSerde for StorageKey {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
         self.0.serialize_into(res)
