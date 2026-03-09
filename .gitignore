@@ -55,6 +55,10 @@ deployments/papyrus/helm/config/*
 
 integration_test_temporary_logs
 
+# Cairo 1 compiled artifacts (generated on-demand, cached in target/).
+crates/blockifier_test_utils/resources/feature_contracts/cairo1/compiled/*.json
+crates/blockifier_test_utils/resources/feature_contracts/cairo1/sierra/*.json
+
 # Claude Code local config
 .claude*.local*
 .claude/*.local*
