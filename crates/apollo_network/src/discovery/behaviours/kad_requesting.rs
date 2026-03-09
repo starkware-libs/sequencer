@@ -23,6 +23,9 @@ pub struct KadRequestingBehaviour {
     heartbeat_interval: Duration,
     time_for_next_kad_query: Instant,
     sleeper: Option<Pin<Box<Sleep>>>,
+    /// When true, periodic Kademlia queries for random peers are emitted on each heartbeat.
+    /// When false, only explicitly requested peers (via `set_peers_to_request`) are queried.
+    random_peer_request_enabled: bool,
     /// Peers to include in Kademlia queries. Drained one at a time during polling.
     peers_to_request: HashSet<PeerId>,
 }
@@ -75,6 +78,10 @@ impl NetworkBehaviour for KadRequestingBehaviour {
             )));
         }
 
+        if !self.random_peer_request_enabled {
+            return Poll::Pending;
+        }
+
         let now = Instant::now();
         if now >= self.time_for_next_kad_query {
             // No need to deal with sleep.
@@ -94,11 +101,12 @@ impl NetworkBehaviour for KadRequestingBehaviour {
 }
 
 impl KadRequestingBehaviour {
-    pub fn new(heartbeat_interval: Duration) -> Self {
+    pub fn new(heartbeat_interval: Duration, random_peer_request_enabled: bool) -> Self {
         Self {
             heartbeat_interval,
             time_for_next_kad_query: Instant::now(),
             sleeper: None,
+            random_peer_request_enabled,
             peers_to_request: HashSet::new(),
         }
     }
