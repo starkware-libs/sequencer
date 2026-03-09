@@ -83,7 +83,6 @@ jobs:
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
 
-
       - id: auth
         uses: "google-github-actions/auth@v2"
         with:
@@ -112,13 +111,24 @@ jobs:
     permissions:
       contents: write # Required for pushing to gh-pages on push events.
     steps:
+      # TODO(AndrewL): Remove this after a while in CI (March 4 2026)
+      - name: Print PR and base SHAs
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "github.sha (merge commit): ${{ github.sha }}"
+          echo "PR HEAD SHA: ${{ github.event.pull_request.head.sha }}"
+          echo "PR base SHA: ${{ github.event.pull_request.base.sha }}"
+          echo "PR base_ref: ${{ github.base_ref }}"
+
       # PR-only: Checkout the base branch to benchmark the old code.
+      # Use base.sha (a concrete commit hash from the webhook payload) instead of
+      # base_ref (a branch name) to avoid failures when Graphite's temporary refs
+      # are deleted before the runner reaches this step.
       - name: Checkout base branch (PR only)
         if: github.event_name == 'pull_request'
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.base_ref }}
-          fetch-depth: 0
+          ref: ${{ github.event.pull_request.base.sha }}
 
       # Push/dispatch: Checkout the specified or current branch.
       - name: Checkout repository (push/dispatch)
