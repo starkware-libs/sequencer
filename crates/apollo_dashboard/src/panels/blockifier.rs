@@ -10,7 +10,9 @@ use apollo_metrics::metrics::MetricQueryName;
 use blockifier::metrics::{
     CacheMetrics,
     BLOCKIFIER_METRIC_RATE_DURATION,
+    BLOCKS_FULL_BY_RESOURCE,
     CALLS_RUNNING_NATIVE,
+    LABEL_NAME_BLOCK_FULL_RESOURCE,
     NATIVE_CLASS_RETURNED,
     NATIVE_COMPILATION_ERROR,
     TOTAL_CALLS,
@@ -18,6 +20,7 @@ use blockifier::metrics::{
 
 use crate::dashboard::Row;
 use crate::panel::{Panel, PanelType};
+use crate::query_builder::{sum_by_label, DisplayMethod, DEFAULT_DURATION};
 
 const DENOMINATOR_DIVISOR_FOR_READABILITY: f64 = 1_000_000_000.0;
 
@@ -69,6 +72,20 @@ fn get_panel_native_execution_ratio() -> Panel {
         &CALLS_RUNNING_NATIVE,
         &[&TOTAL_CALLS],
         BLOCKIFIER_METRIC_RATE_DURATION,
+    )
+}
+
+fn get_panel_blocks_full_by_resource() -> Panel {
+    Panel::new(
+        "Blocks Full By Resource",
+        format!("Number of blocks closed on each bouncer resource ({} window)", DEFAULT_DURATION),
+        sum_by_label(
+            &BLOCKS_FULL_BY_RESOURCE,
+            LABEL_NAME_BLOCK_FULL_RESOURCE,
+            DisplayMethod::Increase(DEFAULT_DURATION),
+            false,
+        ),
+        PanelType::Stat,
     )
 }
 
@@ -129,6 +146,7 @@ pub(crate) fn get_blockifier_row() -> Row {
             get_panel_blockifier_state_reader_class_cache_miss_ratio(&GATEWAY_CLASS_CACHE_METRICS),
             get_panel_native_compilation_error(),
             get_panel_native_execution_ratio(),
+            get_panel_blocks_full_by_resource(),
             get_panel_transactions_per_block(),
             get_panel_sierra_gas_in_last_block(),
             get_panel_proving_gas_in_last_block(),

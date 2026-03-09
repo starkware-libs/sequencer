@@ -1480,6 +1480,15 @@
           }
         },
         {
+          "title": "Blocks Full By Resource",
+          "description": "Number of blocks closed on each bouncer resource (10m window)",
+          "type": "stat",
+          "exprs": [
+            "sum by (resource) (increase(blockifier_blocks_full_by_resource{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "Transactions Per Block",
           "description": "The number of transactions per block",
           "type": "timeseries",
