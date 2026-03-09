@@ -76,11 +76,7 @@ impl L1EventsProvider {
             config,
             catchupper,
             current_height: BlockNumber(0),
-            tx_manager: TransactionManager::new(
-                config.l1_handler_proposal_cooldown_seconds,
-                config.l1_handler_cancellation_timelock_seconds,
-                config.l1_handler_consumption_timelock_seconds,
-            ),
+            tx_manager: TransactionManager::new(config.into()),
             state: ProviderState::Uninitialized,
             clock: clock.unwrap_or_else(|| Arc::new(DefaultClock)),
             start_height: None,
