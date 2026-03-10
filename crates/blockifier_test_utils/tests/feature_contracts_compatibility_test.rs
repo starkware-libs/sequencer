@@ -23,7 +23,7 @@ const CAIRO0_FEATURE_CONTRACTS_DIR: &str = "resources/feature_contracts/cairo0";
 const COMPILED_CONTRACTS_SUBDIR: &str = "compiled";
 const CAIRO0_FIX_COMMAND: &str =
     "env UPDATE_EXPECT=1 FIX_FEATURE_TEST=1 cargo test -p blockifier_test_utils --test \
-     feature_contracts_compatibility_test -- --include-ignored verify_feature_contracts_cairo0";
+     feature_contracts_compatibility_test verify_feature_contracts_cairo0 -- --include-ignored";
 
 // ======================== Cairo 0 compatibility (committed artifacts) ========================
 
@@ -42,6 +42,7 @@ fn check_cairo0_compilation(
 }
 
 fn verify_cairo0_contract(contract: &FeatureContract, fix: bool) {
+    assert!(contract.cairo_version().is_cairo0(), "Expected Cairo 0 contract, got {contract:?}");
     info!("Compiling {contract:?}...");
     let CompilationArtifacts::Cairo0 { casm } = contract.compile() else {
         unreachable!();
@@ -116,9 +117,10 @@ fn verify_feature_contracts_match_enum(
 
     // For Cairo 0, also verify that committed compiled files exist for each source.
     if cairo_version == CairoVersion::Cairo0 {
-        for basename in &source_basenames_on_filesystem {
-            let compiled_path =
-                format!("{directory}/{COMPILED_CONTRACTS_SUBDIR}/{basename}_compiled.json");
+        for contract in
+            FeatureContract::all_feature_contracts().filter(|c| c.cairo_version() == cairo_version)
+        {
+            let compiled_path = contract.get_compiled_path();
             assert!(
                 std::path::Path::new(&compiled_path).exists(),
                 "Missing compiled artifact: {compiled_path}"
@@ -162,7 +164,8 @@ async fn verify_feature_contracts_cairo0() {
 /// Verifies that all Cairo 1 feature contracts compile successfully (via the on-demand cache)
 /// and that their compiled class hashes match the constants in the FeatureContract enum.
 /// On mismatch, run: `env UPDATE_EXPECT=1 cargo test -p blockifier_test_utils --test
-/// feature_contracts_compatibility_test -- verify_feature_contracts_cairo1`
+/// feature_contracts_compatibility_test verify_feature_contracts_cairo1 -- --include-ignored`
+#[ignore]
 #[test]
 fn verify_feature_contracts_cairo1() {
     let contract_filter = std::env::var("CONTRACT_FILTER").ok();

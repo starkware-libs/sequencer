@@ -9,7 +9,11 @@ on:
     paths:
       - ".github/workflows/blockifier_compiled_cairo.yml"
       - "crates/apollo_infra_utils/src/cairo0_compiler.rs" # Contains the Cairo0 compiler version.
+      - "crates/apollo_infra_utils/src/cairo_compiler_version.rs" # Contains the Cairo1 compiler version.
       - "crates/blockifier_test_utils/resources/feature_contracts/cairo0/**"
+      - "crates/blockifier_test_utils/resources/feature_contracts/cairo1/*.cairo"
+      - "crates/blockifier_test_utils/src/cairo_compile.rs"
+      - "crates/blockifier_test_utils/src/compile_cache.rs"
       - "scripts/dependencies.sh"
 
 env:
@@ -59,4 +63,7 @@ jobs:
       - run: pip install -r crates/blockifier_test_utils/resources/blockifier-test-utils-requirements.txt
 
       - name: Verify Cairo 0 compiled artifacts match recompilation.
-        run: cargo test -p blockifier_test_utils --test feature_contracts_compatibility_test -- --include-ignored verify_feature_contracts_cairo0 --nocapture
+        run: cargo test -p blockifier_test_utils --test feature_contracts_compatibility_test verify_feature_contracts_cairo0 -- --include-ignored --nocapture
+
+      - name: Verify Cairo 1 feature contracts compile and hash correctly.
+        run: cargo test -p blockifier_test_utils --test feature_contracts_compatibility_test verify_feature_contracts_cairo1 -- --include-ignored --nocapture
