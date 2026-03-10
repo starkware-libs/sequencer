@@ -26,16 +26,16 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::state::SierraContractClass;
-use starknet_api::transaction::fields::{Fee, Proof, ProofFacts, PROOF_VERSION};
+use starknet_api::transaction::fields::{Fee, Proof, ProofFacts};
 use starknet_api::transaction::CalculateContractAddress;
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
+use starknet_proof_verifier::VerifyProofError;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 use tokio::task::JoinHandle;
 use tracing::info;
 
 use crate::metrics::{CONSENSUS_PROOF_MANAGER_STORE_LATENCY, PROOF_VERIFICATION_LATENCY};
-use crate::proof_verification::{reconstruct_output_preimage, VerifyProofError};
 
 #[cfg(test)]
 #[path = "transaction_converter_test.rs"]
@@ -408,9 +408,11 @@ impl TransactionConverter {
 
         let proof_facts_hash = proof_facts.hash();
         let verify_start = Instant::now();
-        tokio::task::spawn_blocking(move || Self::verify_proof(proof_facts, proof))
-            .await
-            .expect("proof verification task panicked")?;
+        tokio::task::spawn_blocking(move || {
+            starknet_proof_verifier::verify_proof(proof_facts, proof)
+        })
+        .await
+        .expect("proof verification task panicked")?;
         let verify_duration = verify_start.elapsed();
         PROOF_VERIFICATION_LATENCY.record(verify_duration.as_secs_f64());
         info!(
@@ -478,32 +480,5 @@ impl TransactionConverter {
             // TODO(Gilad): Change this once we put real value in paid_fee_on_l1.
             Fee(1),
         )?)
-    }
-
-    /// Verifies a submitted proof against the proof facts using the circuit verifier.
-    fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyProofError> {
-        // Reject empty proof payloads before running the verifier.
-        if proof.is_empty() {
-            return Err(VerifyProofError::EmptyProof);
-        }
-
-        // Validate that the first element of proof facts is PROOF_VERSION.
-        let expected_proof_version = PROOF_VERSION;
-        let actual_first = proof_facts.0.first().copied().unwrap_or_default();
-        if actual_first != expected_proof_version {
-            return Err(VerifyProofError::InvalidProofVersion {
-                expected: expected_proof_version,
-                actual: actual_first,
-            });
-        }
-
-        // Reconstruct the output preimage from proof facts and verify the proof.
-        let output_preimage = reconstruct_output_preimage(&proof_facts)?;
-        let proof_output =
-            privacy_circuit_verify::PrivacyProofOutput { proof: proof.0.to_vec(), output_preimage };
-        privacy_circuit_verify::verify(&proof_output)
-            .map_err(|e| VerifyProofError::Verification(e.to_string()))?;
-
-        Ok(())
     }
 }
