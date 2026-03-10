@@ -10,7 +10,7 @@ use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::utils::get_chain_info;
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
-use starknet_api::transaction::fields::{Proof, ProofFacts, Tip};
+use starknet_api::transaction::fields::{Fee, Proof, ProofFacts, ValidResourceBounds};
 use starknet_api::transaction::{InvokeTransaction, MessageToL1};
 use tracing::{info, instrument};
 use url::Url;
@@ -190,8 +190,7 @@ fn extract_rpc_invoke_tx(
 ///
 /// Rejects transactions where:
 /// - `proof` or `proof_facts` are non-empty (these are output-only fields).
-/// - Fee-related fields are non-zero (when `validate_zero_fee_fields` is enabled): resource bounds
-///   and tip.
+/// - Max possible fee is non-zero (when `validate_zero_fee_fields` is enabled).
 fn validate_transaction_input(
     tx: &RpcInvokeTransactionV3,
     validate_zero_fee_fields: bool,
@@ -207,16 +206,11 @@ fn validate_transaction_input(
         ));
     }
     if validate_zero_fee_fields {
-        let bounds = &tx.resource_bounds;
-        if !bounds.l1_gas.is_zero() || !bounds.l2_gas.is_zero() || !bounds.l1_data_gas.is_zero() {
+        let resource_bounds = ValidResourceBounds::AllResources(tx.resource_bounds);
+        let max_fee = resource_bounds.max_possible_fee(tx.tip);
+        if max_fee != Fee(0) {
             return Err(VirtualSnosProverError::InvalidTransactionInput(format!(
-                "All resource bounds must be zero, got: {bounds}."
-            )));
-        }
-        if tx.tip != Tip::ZERO {
-            let tip_value = tx.tip.0;
-            return Err(VirtualSnosProverError::InvalidTransactionInput(format!(
-                "Tip must be zero, got: {tip_value}."
+                "Max possible fee must be zero, got: {max_fee}."
             )));
         }
     }
