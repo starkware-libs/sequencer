@@ -205,13 +205,24 @@ Don't run any non-const code inside `expect`, it is evaluated eagerly which can 
 
 Always check return values from functions/methods, especially when modifying collections, which typically return an `Option` or a `bool`.
 
+In addition, when doing a mutable action on a collection that returns a result, prefer splitting
+calling the action and checking the result into 2 different lines, as the action might be missed
+inside the condition
+
 ```rust
-// BAD
+// BAD - we don't check the result
 map.insert(foo);
 
+// BAD - it's easy to miss that an insert happened here
+if map.insert(foo) {
+    handle_duplicate();
+}
+
 // GOOD
-let result = map.insert(foo);
-assert!(result, "dup-check was done previously in ...")
+let is_duplicate = map.insert(foo);
+if is_duplicate {
+    handle_duplicate();
+}
 ```
 
 ## APIs
