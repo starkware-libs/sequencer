@@ -207,8 +207,14 @@ pub fn cairo0_format_batch<S: AsRef<str>>(files: HashMap<String, S>) -> HashMap<
     let mut file_paths: Vec<PathBuf> = Vec::with_capacity(files.len());
     let mut filenames: Vec<String> = Vec::with_capacity(files.len());
 
+    // Sort files by name for deterministic processing order.
+    // HashMap iteration order is randomized, which can cause non-deterministic behavior in
+    // external tools (cairo-format, isort) that process files sequentially.
+    let mut sorted_files: Vec<_> = files.into_iter().collect();
+    sorted_files.sort_by(|(a, _), (b, _)| a.cmp(b));
+
     // First stage: remove unused imports before writing to temp files.
-    for (filename, content) in files {
+    for (filename, content) in sorted_files {
         let without_unused = remove_unused_cairo0_imports(content.as_ref());
         let file_path = temp_dir.path().join(&filename);
         // Create parent directories if needed.

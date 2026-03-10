@@ -75,6 +75,7 @@ pub(crate) struct ProposalBuildArguments {
     pub override_timestamp: bool,
     pub override_l2_gas_price_fri: Option<u128>,
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
+    pub compare_retrospective_block_hash: bool,
 }
 
 type BuildProposalResult<T> = Result<T, BuildProposalError>;
@@ -184,6 +185,7 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
         args.deps.clock.as_ref(),
         args.retrospective_block_hash_deadline,
         args.retrospective_block_hash_retry_interval_millis,
+        args.compare_retrospective_block_hash,
     )
     .await?;
 

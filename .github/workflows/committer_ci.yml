@@ -83,7 +83,6 @@ jobs:
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
 
-
       - id: auth
         uses: "google-github-actions/auth@v2"
         with:

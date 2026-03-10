@@ -11,6 +11,7 @@ use starknet_api::core::{ChainId, ContractAddress};
 use tracing::info;
 
 use crate::config::ProverConfig;
+use crate::errors::ConfigError;
 use crate::server::cors::normalize_cors_allow_origins;
 
 #[cfg(test)]
@@ -309,53 +310,53 @@ impl ServiceConfig {
 #[command(about = "HTTP/HTTPS service for generating Starknet OS proofs", long_about = None)]
 pub struct CliArgs {
     /// Path to JSON configuration file.
-    #[arg(long, value_name = "FILE")]
+    #[arg(long, value_name = "FILE", env = "CONFIG_FILE")]
     pub config_file: Option<PathBuf>,
 
     /// RPC node URL for fetching state.
-    #[arg(long, value_name = "URL")]
+    #[arg(long, value_name = "URL", env = "RPC_URL")]
     pub rpc_url: Option<String>,
 
     /// Chain ID (mainnet, sepolia, integration-sepolia, or custom).
-    #[arg(long, value_name = "CHAIN_ID")]
+    #[arg(long, value_name = "CHAIN_ID", env = "CHAIN_ID")]
     pub chain_id: Option<String>,
 
     /// Port to bind the server to.
-    #[arg(long, value_name = "PORT")]
+    #[arg(long, value_name = "PORT", env = "PROVER_PORT")]
     pub port: Option<u16>,
 
     /// IP address to bind the server to.
-    #[arg(long, value_name = "IP")]
+    #[arg(long, value_name = "IP", env = "PROVER_IP")]
     pub ip: Option<String>,
 
     /// Maximum number of concurrent proving requests (default: 1).
-    #[arg(long, value_name = "N")]
+    #[arg(long, value_name = "N", env = "MAX_CONCURRENT_REQUESTS")]
     pub max_concurrent_requests: Option<usize>,
 
     /// Maximum number of simultaneous JSON-RPC connections (default: 10).
-    #[arg(long, value_name = "N")]
+    #[arg(long, value_name = "N", env = "MAX_CONNECTIONS")]
     pub max_connections: Option<u32>,
 
     /// Path to TLS certificate chain PEM file. Requires --tls-key-file.
-    #[arg(long, value_name = "FILE")]
+    #[arg(long, value_name = "FILE", env = "TLS_CERT_FILE")]
     pub tls_cert_file: Option<PathBuf>,
 
     /// Path to TLS private key PEM file. Requires --tls-cert-file.
-    #[arg(long, value_name = "FILE")]
+    #[arg(long, value_name = "FILE", env = "TLS_KEY_FILE")]
     pub tls_key_file: Option<PathBuf>,
 
     /// Override STRK fee token address (hex, e.g. for custom environments that share a chain ID).
-    #[arg(long, value_name = "ADDRESS")]
+    #[arg(long, value_name = "ADDRESS", env = "STRK_FEE_TOKEN_ADDRESS")]
     pub strk_fee_token_address: Option<String>,
 
     /// Prefetch state by simulating transactions before execution, reducing RPC calls during
     /// proving.
-    #[arg(long)]
+    #[arg(long, env = "PREFETCH_STATE")]
     pub prefetch_state: Option<bool>,
 
     /// Path to a JSON file with bouncer config overrides (block capacity limits).
     /// Client-side limits may differ from Starknet network limits.
-    #[arg(long, value_name = "FILE")]
+    #[arg(long, value_name = "FILE", env = "BOUNCER_CONFIG_OVERRIDE")]
     pub bouncer_config_override: Option<PathBuf>,
 
     /// Disable CORS (clear any origins set in the config file).
@@ -366,6 +367,8 @@ pub struct CliArgs {
     #[arg(
         long,
         value_name = "ORIGIN",
+        env = "CORS_ALLOW_ORIGIN",
+        value_delimiter = ',',
         long_help = "CORS allow-origin values ('*' or one or more origins).\n\n\
             Repeat the flag for multiple origins:\n  \
             --cors-allow-origin http://localhost:5173 \\\n  \
@@ -381,17 +384,4 @@ pub struct CliArgs {
             Use --no-cors to explicitly disable CORS when a config file sets origins."
     )]
     pub cors_allow_origin: Vec<String>,
-}
-
-/// Errors that can occur during configuration.
-#[derive(Debug, thiserror::Error)]
-pub enum ConfigError {
-    #[error("Configuration file error: {0}")]
-    ConfigFileError(String),
-    #[error("Invalid argument: {0}")]
-    InvalidArgument(String),
-    #[error("Missing required field: {0}")]
-    MissingRequiredField(String),
-    #[error("Incomplete TLS configuration: {0}")]
-    IncompleteTlsConfig(String),
 }

@@ -6,8 +6,7 @@
         "block_id": "latest",
         "simulation_flags": [
           "RETURN_INITIAL_READS",
-          "SKIP_FEE_CHARGE",
-          "SKIP_VALIDATE"
+          "SKIP_FEE_CHARGE"
         ],
         "transactions": [
           {

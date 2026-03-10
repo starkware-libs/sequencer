@@ -336,8 +336,9 @@ impl FlowSequencerSetup {
 
     fn batcher_storage_reader_server_addr(&self) -> SocketAddr {
         let batcher_config = self.node_config.batcher_config.as_ref().unwrap();
-        let static_config = &batcher_config.static_config.storage_reader_server_static_config;
-        SocketAddr::from((static_config.ip, static_config.port))
+        let storage_reader_static_config =
+            &batcher_config.static_config.storage_reader_server_static_config;
+        SocketAddr::from((storage_reader_static_config.ip, storage_reader_static_config.port))
     }
 
     pub async fn send_batcher_storage_reader_request(

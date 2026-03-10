@@ -25,8 +25,8 @@ use serde::de::DeserializeOwned;
 use starknet_api::rpc_transaction::RpcTransaction;
 
 use crate::proving::virtual_snos_prover::ProveTransactionResult;
+use crate::server::rpc_api::ProvingRpcServer;
 use crate::server::rpc_impl::SPEC_VERSION;
-use crate::server::rpc_trait::ProvingRpcServer;
 
 /// Mock of `prove_transaction` that returns a pre-loaded [`ProveTransactionResult`]
 /// loaded from `resources/mock_proving_rpc/prove_transaction_result.json`.
@@ -58,8 +58,6 @@ impl ProvingRpcServer for MockProvingRpc {
         Ok(self.response.clone())
     }
 }
-
-// ── JSON loading helpers ─────────────────────────────────────────────────────
 
 /// Reads and deserializes a JSON file into `T`.
 fn load_json<T: DeserializeOwned>(path: &Path) -> T {

@@ -471,6 +471,7 @@ pub(crate) struct TestProposalBuildArguments {
     pub override_timestamp: bool,
     pub override_l2_gas_price_fri: Option<u128>,
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
+    pub compare_retrospective_block_hash: bool,
 }
 
 impl From<TestProposalBuildArguments> for ProposalBuildArguments {
@@ -496,6 +497,7 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
             override_timestamp: args.override_timestamp,
             override_l2_gas_price_fri: args.override_l2_gas_price_fri,
             min_l2_gas_price_per_height: args.min_l2_gas_price_per_height,
+            compare_retrospective_block_hash: args.compare_retrospective_block_hash,
         }
     }
 }
@@ -546,6 +548,7 @@ pub(crate) fn create_proposal_build_arguments()
             override_timestamp,
             override_l2_gas_price_fri: None,
             min_l2_gas_price_per_height: vec![],
+            compare_retrospective_block_hash: true,
         },
         proposal_receiver,
     )

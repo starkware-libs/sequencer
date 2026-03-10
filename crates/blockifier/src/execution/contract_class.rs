@@ -44,11 +44,11 @@ use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Blake2Felt252;
 
 use crate::abi::constants::{self};
+use crate::execution::call_info::ExtendedExecutionResources;
 use crate::execution::casm_hash_estimation::{
     CasmV1HashResourceEstimate,
     CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
-    EstimatedExecutionResources,
 };
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
@@ -247,7 +247,7 @@ impl RunnableCompiledClass {
         }
     }
 
-    pub fn estimate_casm_hash_computation_resources(&self) -> EstimatedExecutionResources {
+    pub fn estimate_casm_hash_computation_resources(&self) -> ExtendedExecutionResources {
         match self {
             Self::V0(class) => CasmV2HashResourceEstimate::from_resources(
                 class.estimate_casm_hash_computation_resources(),
@@ -259,7 +259,7 @@ impl RunnableCompiledClass {
     }
 
     /// Estimate the VM gas required to migrate a CompiledClassHash from Poseidon hashing to Blake.
-    pub fn estimate_compiled_class_hash_migration_resources(&self) -> EstimatedExecutionResources {
+    pub fn estimate_compiled_class_hash_migration_resources(&self) -> ExtendedExecutionResources {
         match self {
             Self::V0(_) => panic!(
                 "v0 contracts do not have a Compiled Class Hash and therefore shouldn't be \
@@ -446,7 +446,7 @@ impl CompiledClassV1 {
     /// Returns the estimated VM resources required for computing Casm hash.
     /// This is an empiric measurement of several bytecode lengths, which constitutes as the
     /// dominant factor in it.
-    fn estimate_casm_hash_computation_resources(&self) -> EstimatedExecutionResources {
+    fn estimate_casm_hash_computation_resources(&self) -> ExtendedExecutionResources {
         CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
             &self.bytecode_segment_felt_sizes,
             &self.entry_points_by_type,
@@ -464,7 +464,7 @@ impl CompiledClassV1 {
     /// Returns:
     /// - Total gas amount.
     /// - The builtins used in the Poseidon hash.
-    fn estimate_compiled_class_hash_migration_resources(&self) -> EstimatedExecutionResources {
+    fn estimate_compiled_class_hash_migration_resources(&self) -> ExtendedExecutionResources {
         let blake_hash_resources =
             CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
                 &self.bytecode_segment_felt_sizes,
@@ -477,15 +477,8 @@ impl CompiledClassV1 {
                 &self.entry_points_by_type,
             );
 
-        let migration_resources = EstimatedExecutionResources::V2Hash {
-            // Can't use `+` operator on `EstimatedExecutionResources` because the resources are of
-            // different enum variants.
-            resources: blake_hash_resources.resources_ref()
-                + poseidon_hash_resources.resources_ref(),
-            blake_count: blake_hash_resources.blake_count(),
-        };
-
-        migration_resources
+        // Combine VM resources from both hash variants and keep blake opcodes from the V2 hash.
+        &blake_hash_resources + &poseidon_hash_resources
     }
 
     // Returns the set of segments that were visited according to the given visited PCs.

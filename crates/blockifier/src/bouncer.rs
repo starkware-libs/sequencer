@@ -5,7 +5,6 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::{Deserialize, Serialize};
-use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
 
@@ -22,7 +21,6 @@ use crate::execution::call_info::{
     ExecutionSummary,
     ExtendedExecutionResources,
 };
-use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
 use crate::fee::gas_usage::get_onchain_data_segment_length;
 use crate::fee::resources::TransactionResources;
 use crate::state::cached_state::{StateChangesKeys, StorageEntry};
@@ -280,12 +278,12 @@ impl CasmHashComputationData {
     /// Creates CasmHashComputationData by mapping resources to gas using a provided function.
     /// This method encapsulates the pattern used for both Sierra gas and proving gas computation.
     pub fn from_resources<F>(
-        class_hash_to_resources: &HashMap<ClassHash, EstimatedExecutionResources>,
+        class_hash_to_resources: &HashMap<ClassHash, ExtendedExecutionResources>,
         gas_without_casm_hash_computation: GasAmount,
         resources_to_gas_fn: F,
     ) -> Self
     where
-        F: Fn(&EstimatedExecutionResources) -> GasAmount,
+        F: Fn(&ExtendedExecutionResources) -> GasAmount,
     {
         Self {
             class_hash_to_casm_hash_computation_gas: class_hash_to_resources
@@ -314,14 +312,14 @@ impl CasmHashComputationData {
 /// accumulates the estimated execution resources required to perform the migration.
 struct CasmHashMigrationData {
     pub(crate) class_hashes_to_migrate: HashMap<ClassHash, CompiledClassHashV2ToV1>,
-    resources: EstimatedExecutionResources,
+    resources: ExtendedExecutionResources,
 }
 
 impl CasmHashMigrationData {
     fn empty() -> Self {
         Self {
             class_hashes_to_migrate: HashMap::new(),
-            resources: EstimatedExecutionResources::new(HashVersion::V2),
+            resources: ExtendedExecutionResources::default(),
         }
     }
 
@@ -361,7 +359,7 @@ impl CasmHashMigrationData {
         builtin_gas_costs: &BuiltinGasCosts,
         versioned_constants: &VersionedConstants,
     ) -> GasAmount {
-        self.resources.to_gas(builtin_gas_costs, versioned_constants)
+        extended_execution_resources_to_gas(&self.resources, builtin_gas_costs, versioned_constants)
     }
 }
 
@@ -760,7 +758,7 @@ pub fn cairo_primitives_to_gas(
 }
 
 fn add_casm_hash_computation_gas_cost(
-    class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, EstimatedExecutionResources>,
+    class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, ExtendedExecutionResources>,
     gas_without_casm_hash_computation: GasAmount,
     builtin_gas_cost: &BuiltinGasCosts,
     versioned_constants: &VersionedConstants,
@@ -768,7 +766,9 @@ fn add_casm_hash_computation_gas_cost(
     let casm_hash_computation_data_gas = CasmHashComputationData::from_resources(
         class_hash_to_casm_hash_computation_resources,
         gas_without_casm_hash_computation,
-        |resources| resources.to_gas(builtin_gas_cost, versioned_constants),
+        |resources| {
+            extended_execution_resources_to_gas(resources, builtin_gas_cost, versioned_constants)
+        },
     );
     (casm_hash_computation_data_gas.total_gas(), casm_hash_computation_data_gas)
 }
@@ -779,7 +779,7 @@ fn compute_sierra_gas(
     versioned_constants: &VersionedConstants,
     tx_resources: &TransactionResources,
     migration_gas: GasAmount,
-    class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, EstimatedExecutionResources>,
+    class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, ExtendedExecutionResources>,
 ) -> (GasAmount, CasmHashComputationData, GasAmount) {
     let mut vm_resources_sierra_gas = extended_execution_resources_to_gas(
         vm_resources,
@@ -810,7 +810,7 @@ fn compute_proving_gas(
     proving_builtin_gas_costs: &BuiltinGasCosts,
     sierra_builtin_gas_costs: &BuiltinGasCosts,
     migration_gas: GasAmount,
-    class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, EstimatedExecutionResources>,
+    class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, ExtendedExecutionResources>,
 ) -> (GasAmount, CasmHashComputationData) {
     let vm_resources_proving_gas = proving_gas_from_cairo_primitives_and_sierra_gas(
         vm_resources_sierra_gas,
@@ -950,7 +950,7 @@ fn get_cairo_primitives_for_proving_gas_computation(
 pub fn map_class_hash_to_casm_hash_computation_resources<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
-) -> TransactionExecutionResult<HashMap<ClassHash, EstimatedExecutionResources>> {
+) -> TransactionExecutionResult<HashMap<ClassHash, ExtendedExecutionResources>> {
     executed_class_hashes
         .iter()
         .map(|class_hash| {

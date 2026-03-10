@@ -16,7 +16,7 @@ define_metrics!(
         MetricCounter { CONSENSUS_L1_DATA_GAS_MISMATCH, "consensus_l1_data_gas_mismatch", "The number of times the L1 data gas in a proposal does not match the value expected by this validator", init = 0 },
         MetricGauge { CONSENSUS_L2_GAS_PRICE, "consensus_l2_gas_price", "The L2 gas price calculated in an accepted proposal" },
         MetricCounter { CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR, "consensus_l1_gas_price_provider_error", "Number of times the context got an error when querying the L1 gas price provider", init=0},
-        MetricCounter { CONSENSUS_RETROSPECTIVE_BLOCK_HASH_FROM_STATE_SYNC, "consensus_retrospective_block_hash_from_state_sync", "Number of times the retrospective block hash was retrieved from the State Sync (instead of the Batcher)", init=0},
+        MetricCounter { CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH, "consensus_retrospective_block_hash_mismatch", "Number of times the retrospective block hashes of the state sync and the batcher mismatched", init=0},
 
 
         // Cende metrics
@@ -90,7 +90,7 @@ pub(crate) fn register_metrics() {
     CONSENSUS_L1_DATA_GAS_MISMATCH.register();
     CONSENSUS_L2_GAS_PRICE.register();
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.register();
-    CONSENSUS_RETROSPECTIVE_BLOCK_HASH_FROM_STATE_SYNC.register();
+    CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH.register();
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.register();
     CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.register();
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.register();

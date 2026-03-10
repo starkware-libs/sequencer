@@ -63,6 +63,11 @@ pub fn usize_from_u64(val: u64) -> Result<usize, NumericConversionError> {
     val.try_into().map_err(|_| NumericConversionError::U64ToUsizeError(val))
 }
 
+/// Conversion from u32 to usize. May fail on architectures with less than 32 bits of address space.
+pub fn usize_from_u32(val: u32) -> Result<usize, NumericConversionError> {
+    val.try_into().map_err(|_| NumericConversionError::U32ToUsizeError(val))
+}
+
 /// Conversion from usize to u64. May fail on architectures with over 64 bits
 /// of address space.
 pub fn u64_from_usize(val: usize) -> u64 {

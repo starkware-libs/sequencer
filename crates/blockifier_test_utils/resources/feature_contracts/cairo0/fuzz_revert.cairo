@@ -2,7 +2,13 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math import assert_not_zero
-from starkware.starknet.common.syscalls import call_contract, library_call, storage_write
+from starkware.starknet.common.syscalls import (
+    call_contract,
+    deploy,
+    library_call,
+    replace_class,
+    storage_write,
+)
 
 // Scenarios.
 // The RETURN scenario *must* be zero, as the zero value also indicates end of scenario stream.
@@ -10,6 +16,9 @@ const SCENARIO_RETURN = 0;
 const SCENARIO_CALL = 1;
 const SCENARIO_LIBRARY_CALL = 2;
 const SCENARIO_WRITE = 3;
+const SCENARIO_REPLACE_CLASS = 4;
+const SCENARIO_DEPLOY = 5;
+const SCENARIO_PANIC = 6;
 
 // selector_from_name("pop_front").
 const POP_FRONT_SELECTOR = 0x289c2d7d6351cd03d4f928bde75fa14d5f52e32bdbc750d5296e1b48c12f1c3;
@@ -99,6 +108,38 @@ func test_revert_fuzz{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
         let key = pop_front(orchestrator);
         let value = pop_front(orchestrator);
         storage_write(address=key, value=value);
+        test_revert_fuzz();
+        return ();
+    }
+
+    if (scenario == SCENARIO_REPLACE_CLASS) {
+        replace_class(class_hash=pop_front(orchestrator));
+        test_revert_fuzz();
+        return ();
+    }
+
+    if (scenario == SCENARIO_DEPLOY) {
+        // The class hash is assumed to be a fuzz test class hash.
+        // Deploy it with a non-trivial orchestrator address.
+        let class_hash = pop_front(orchestrator);
+        let salt = pop_front(orchestrator);
+        local ctor_calldata: felt* = new(orchestrator);
+        deploy(
+            class_hash=class_hash,
+            contract_address_salt=salt,
+            constructor_calldata_size=1,
+            constructor_calldata=ctor_calldata,
+            deploy_from_zero=1,
+        );
+        test_revert_fuzz();
+        return ();
+    }
+
+    if (scenario == SCENARIO_PANIC) {
+        // Cairo0 panics cannot be caught, so no need to handle orchestrator index.
+        with_attr error_message("panic_scenario") {
+            assert 0 = 1;
+        }
         test_revert_fuzz();
         return ();
     }
