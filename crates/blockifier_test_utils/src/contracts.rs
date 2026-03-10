@@ -177,9 +177,9 @@ const META_TX_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
     expect!["0x4b91d6596ac9fbf96ee16d7dec998fc3f3581ee6d57b5569dba61fd1f28a9ca"];
 
 const MOCK_STAKING_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x648d5b4784023a78f1fde45f86659ad73d690d2823eb8698ad6530cbad75bb5"];
+    expect!["0x3267913eb7c8baa6b592cedfc85a1536ecf1805c3d7bdb98be95865cbc5673f"];
 const MOCK_STAKING_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x7fcb24cf8760f48805f01ef929c878a9d780cfb16cd04d8cd45e7d643d14b06"];
+    expect!["0x2be4fef438465da9b0ecce49eaf352381a427d3cd1cf3368be29de71a5f7e6e"];
 
 const FUZZ_TEST_COMPILED_CLASS_HASH_V1: expect_test::Expect =
     expect!["0x214d0482956094a542fbc55e7ac85387ca21eec49fc2779df7c28a9558b35bb"];
