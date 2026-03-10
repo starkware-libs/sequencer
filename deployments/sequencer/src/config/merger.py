@@ -11,6 +11,21 @@ from src.config.overlay import (
 from src.config.schema import CommonConfig
 from src.config.schema import DeploymentConfig as DeploymentSchema
 from src.config.schema import ServiceConfig
+from src.logging_config import get_logger
+
+logger = get_logger(__name__)
+
+
+def _flatten_dict_to_paths(d: dict, prefix: str = "") -> set[str]:
+    """Flatten a dict to dot-separated key paths (leaf keys only)."""
+    out: set[str] = set()
+    for k, v in d.items():
+        path = f"{prefix}.{k}" if prefix else k
+        if isinstance(v, dict) and v:
+            out |= _flatten_dict_to_paths(v, path)
+        else:
+            out.add(path)
+    return out
 
 
 def _load_common_yaml(path: str) -> dict | None:
@@ -103,10 +118,13 @@ def merge_configs(
     config_base_dir: str,
     layout_common_config_path: str | None,
     layout_services_config_dir_path: str,
-    overlay_layers: list[tuple[str | None, str | None]] | None = None,
+    overlay_layers: list[tuple[str, str | None, str | None]] | None = None,
 ) -> DeploymentSchema:
     """
     Merge base (layout) configs with optional overlay layers.
+
+    overlay_layers: list of (overlay_name, common_path, services_path). overlay_name is used
+    for duplicate-key warning logs.
 
     Merge pipeline:
     1. Commons chain: layout_common <- overlay1_common <- overlay2_common -> merged_common
@@ -115,12 +133,19 @@ def merge_configs(
 
     Each overlay layer's common.yaml and services/ are optional; if absent that layer
     is skipped for that chain. Uses DeploymentConfigLoader for loading and validation.
+    Logs a warning when a key is defined in more than one overlay (redundancy).
     Returns a validated DeploymentConfig schema object.
 
     config_base_dir: Root directory for resolving relative include paths in configs
         (e.g. paths like "configs/layouts/hybrid/common.yaml" are resolved relative to this).
     """
     overlay_layers = overlay_layers or []
+
+    # Track which overlay(s) define each key for duplicate warnings
+    common_path_to_overlays: dict[str, list[str]] = {}
+    service_path_to_overlays: dict[
+        tuple[str, str], list[str]
+    ] = {}  # (service_name, path) -> overlays
 
     # --- Load layout configs ---
     layout_common = (
@@ -136,20 +161,57 @@ def merge_configs(
     merged_services = layout_services
 
     # --- Apply each overlay layer in order (left-to-right, last wins) ---
-    for overlay_common_path, overlay_services_path in overlay_layers:
+    for overlay_name, overlay_common_path, overlay_services_path in overlay_layers:
         if overlay_services_path:
             overlay_loader = DeploymentConfigLoader(
                 configs_dir_path=overlay_services_path,
                 config_base_dir=config_base_dir,
             )
             overlay_services = overlay_loader._load_service_configs_from_dir()
+            for svc in overlay_services:
+                svc_dict = svc.model_dump(mode="python", exclude_unset=True, exclude_none=True)
+                for key_path in _flatten_dict_to_paths(svc_dict):
+                    # Skip "name" — it's the service identifier and is always present in every
+                    # overlay that defines the service; warning on it would be spurious.
+                    if key_path == "name":
+                        continue
+                    key = (svc.name, key_path)
+                    if key not in service_path_to_overlays:
+                        service_path_to_overlays[key] = []
+                    service_path_to_overlays[key].append(overlay_name)
             merged_services = apply_services_overlay_strict(merged_services, overlay_services)
         if overlay_common_path:
             overlay_common = _load_common_yaml(overlay_common_path)
             if overlay_common is not None:
+                for key_path in _flatten_dict_to_paths(overlay_common):
+                    if key_path not in common_path_to_overlays:
+                        common_path_to_overlays[key_path] = []
+                    common_path_to_overlays[key_path].append(overlay_name)
                 merged_common = merge_common_with_overlay_strict(
                     merged_common, overlay_common, source=overlay_common_path
                 )
+
+    # --- Log duplicate-key warnings (non-redundant config: key in multiple overlays) ---
+    def _format_overlays(overlay_names: list[str]) -> str:
+        return ", ".join(f"[bold white]{o}[/]" for o in overlay_names)
+
+    for key_path, overlays in common_path_to_overlays.items():
+        if len(overlays) > 1:
+            logger.warning(
+                "Config key %r is defined in multiple overlays: %s. "
+                "Prefer defining it in a single overlay (e.g. env) unless an override is intended.",
+                key_path,
+                _format_overlays(overlays),
+            )
+    for (svc_name, key_path), overlays in service_path_to_overlays.items():
+        if len(overlays) > 1:
+            logger.warning(
+                "Service %r key %r is defined in multiple overlays: %s. "
+                "Prefer defining it in a single overlay (e.g. env) unless an override is intended.",
+                svc_name,
+                key_path,
+                _format_overlays(overlays),
+            )
 
     # --- Merge common into each service (once at the end) ---
     final_services = [
