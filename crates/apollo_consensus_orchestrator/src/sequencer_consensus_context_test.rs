@@ -39,6 +39,8 @@ use apollo_protobuf::consensus::{
     TransactionBatch,
 };
 use apollo_state_sync_types::communication::{MockStateSyncClient, StateSyncClientError};
+use apollo_state_sync_types::errors::StateSyncError;
+use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::MockClock;
 use chrono::{TimeZone, Utc};
 use futures::channel::mpsc;
@@ -1360,6 +1362,11 @@ fn make_config_manager_client(provider_config: ContextDynamicConfig) -> MockConf
     config_manager_client
 }
 
+// Flow: dynamic config changes while the node is already handling heights.
+// At node start, gas price begins from `VersionedConstants::latest_constants().min_gas_price` and
+// is aligned to configured min-by-height for the first processed height.
+// Later config updates do not immediately overwrite current gas price; they take effect on the
+// next block gas-price calculation, which updates gradually (for example +price/333 below min).
 #[tokio::test]
 async fn test_dynamic_config_updates_min_gas_price() {
     // Test constants
@@ -1428,8 +1435,9 @@ async fn test_dynamic_config_updates_min_gas_price() {
     // Set initial L2 gas price below minimum
     context.l2_gas_price = GasPrice(INITIAL_GAS_PRICE);
 
-    // Test at FIRST_TEST_HEIGHT: Should use min price from first config.
-    // This calls set_height_and_round which triggers update_dynamic_config() internally
+    // Simulate the first height the node processes after the context is created.
+    // This step loads dynamic config and aligns gas price to the configured minimum for that
+    // height.
     context.set_height_and_round(BlockNumber(FIRST_TEST_HEIGHT), ROUND_0).await.unwrap();
 
     // Verify dynamic config was updated
@@ -1442,20 +1450,15 @@ async fn test_dynamic_config_updates_min_gas_price() {
     // Simulate gas price update - this calls the fee market logic with min_l2_gas_price_per_height
     context.update_l2_gas_price(BlockNumber(FIRST_TEST_HEIGHT), GasAmount(1000));
 
-    // Gas price should have increased towards minimum (gradual adjustment)
-    // Formula: new_price = min(price + price/333, min_gas_price)
-    // Starting at INITIAL_GAS_PRICE (8 Gwei), with MIN_GAS_PRICE_INCREASE_DENOMINATOR = 333
-    // max_increase = 8_000_000_000 / 333 = 24_024_024
-    // expected = 8_000_000_000 + 24_024_024 = 8_024_024_024
+    // On first height handled by this context instance, l2_gas_price is initialized to the
+    // configured minimum for that height.
     const MIN_GAS_PRICE_INCREASE_DENOMINATOR: u128 = 333;
-    let expected_price_after_first =
-        INITIAL_GAS_PRICE + (INITIAL_GAS_PRICE / MIN_GAS_PRICE_INCREASE_DENOMINATOR);
-    let expected_price_after_first = expected_price_after_first.min(FIRST_CONFIG_MIN_PRICE);
+    let expected_price_after_first = FIRST_CONFIG_MIN_PRICE;
 
     let price_after_first_update = context.l2_gas_price.0;
     assert_eq!(
         price_after_first_update, expected_price_after_first,
-        "Gas price should be exactly {} (8 Gwei + 8/333), got {}",
+        "Gas price should be exactly {} (configured minimum at first handled height), got {}",
         expected_price_after_first, price_after_first_update
     );
 
@@ -1490,4 +1493,96 @@ async fn test_dynamic_config_updates_min_gas_price() {
         "Gas price should be exactly {} (15 Gwei + 15/333), got {}",
         expected_price_after_second, price_after_second_update
     );
+}
+
+// Flow: node starts from versioned-constants fallback, and config defines a higher min for the
+// current height range. Verifies processing starts with that configured minimum.
+#[tokio::test]
+async fn test_first_height_uses_configured_min_l2_gas_price_for_height() {
+    const CONFIG_HEIGHT_1: u64 = 100;
+    const CONFIG_PRICE_1: u128 = 10_000_000_000;
+    const CONFIG_HEIGHT_2: u64 = 200;
+    const CONFIG_PRICE_2: u128 = 20_000_000_000;
+    const STARTUP_HEIGHT: u64 = 250;
+    const LOW_STARTUP_PRICE: u128 = 8_000_000_000;
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    deps.batcher.expect_start_height().times(1).returning(|_| Ok(()));
+
+    let mut context = deps.build_context();
+    context.l2_gas_price = GasPrice(LOW_STARTUP_PRICE);
+    context.config.dynamic_config.min_l2_gas_price_per_height = vec![
+        PricePerHeight { height: CONFIG_HEIGHT_1, price: CONFIG_PRICE_1 },
+        PricePerHeight { height: CONFIG_HEIGHT_2, price: CONFIG_PRICE_2 },
+    ];
+
+    // First set_height_and_round call on this new context instance.
+    context.set_height_and_round(BlockNumber(STARTUP_HEIGHT), ROUND_0).await.unwrap();
+
+    // Height 250 is after config height 200, so gas price should initialize to CONFIG_PRICE_2.
+    assert_eq!(context.l2_gas_price, GasPrice(CONFIG_PRICE_2));
+}
+
+// Flow: gas price from sync is not always available before processing starts (for example,
+// reverts). In this case, processing starts from fallback and then applies the configured minimum
+// for height.
+#[tokio::test]
+async fn test_first_height_uses_configured_min_when_sync_value_unavailable() {
+    const STARTUP_HEIGHT: BlockNumber = BlockNumber(250);
+    const CONFIG_MIN_PRICE: u128 = 20_000_000_000;
+    const FALLBACK_MIN_PRICE: u128 = 8_000_000_000;
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    deps.batcher.expect_start_height().times(1).returning(|_| Ok(()));
+    deps.state_sync_client.expect_get_block().times(1).return_once(|height| {
+        Err(StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(height)))
+    });
+
+    let mut context = deps.build_context();
+    context.config.dynamic_config.min_l2_gas_price_per_height =
+        vec![PricePerHeight { height: 200, price: CONFIG_MIN_PRICE }];
+
+    // Before first height initialization, sync can fail (block not found), so l2_gas_price remains
+    // fallback.
+    assert!(!context.try_sync(STARTUP_HEIGHT).await);
+    assert_eq!(context.l2_gas_price, GasPrice(FALLBACK_MIN_PRICE));
+
+    // First height initialization applies dynamic-config minimum.
+    context.set_height_and_round(STARTUP_HEIGHT, ROUND_0).await.unwrap();
+    assert_eq!(context.l2_gas_price, GasPrice(CONFIG_MIN_PRICE));
+}
+
+// Flow: sync provides next_l2_gas_price before node processing starts.
+// Verifies startup uses the sync-provided value as baseline; configured minimum is still enforced
+// as a floor, and later blocks continue with the regular gradual updates.
+#[tokio::test]
+async fn test_first_height_keeps_sync_provided_l2_gas_price() {
+    const STARTUP_HEIGHT: BlockNumber = BlockNumber(250);
+    const SYNCED_NEXT_L2_GAS_PRICE: u128 = 23_000_000_000;
+    const CONFIG_MIN_PRICE: u128 = 8_000_000_000;
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    deps.batcher.expect_add_sync_block().times(1).return_once(|_| Ok(()));
+    deps.batcher.expect_start_height().times(1).returning(|_| Ok(()));
+    deps.state_sync_client.expect_get_block().times(1).return_once(|height| {
+        let mut sync_block = SyncBlock::default();
+        sync_block.block_header_without_hash.block_number = height;
+        sync_block.block_header_without_hash.next_l2_gas_price = GasPrice(SYNCED_NEXT_L2_GAS_PRICE);
+        Ok(sync_block)
+    });
+
+    let mut context = deps.build_context();
+    context.config.dynamic_config.min_l2_gas_price_per_height =
+        vec![PricePerHeight { height: 200, price: CONFIG_MIN_PRICE }];
+
+    // If sync succeeds first, l2_gas_price is taken from synced next_l2_gas_price.
+    assert!(context.try_sync(STARTUP_HEIGHT).await);
+    assert_eq!(context.l2_gas_price, GasPrice(SYNCED_NEXT_L2_GAS_PRICE));
+
+    // First height initialization should not lower it (max with configured minimum).
+    context.set_height_and_round(STARTUP_HEIGHT, ROUND_0).await.unwrap();
+    assert_eq!(context.l2_gas_price, GasPrice(SYNCED_NEXT_L2_GAS_PRICE));
 }
