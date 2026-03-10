@@ -4,6 +4,7 @@ from pathlib import Path
 import yaml
 from src.config.loaders import DeploymentConfigLoader
 from src.config.overlay import (
+    _merge_service_ports,
     apply_services_overlay_strict,
     merge_common_with_overlay_strict,
 )
@@ -50,25 +51,6 @@ def _merge_common_into_service(
                 result[key] = deepcopy(value)
         return result
 
-    def merge_ports_by_name(common_ports: list, service_ports: list) -> list:
-        if not common_ports:
-            return service_ports
-        if not service_ports:
-            return common_ports
-        common_by_name = {
-            p["name"]: p for p in common_ports if isinstance(p, dict) and p.get("name")
-        }
-        merged = []
-        seen = set()
-        for p in service_ports:
-            if isinstance(p, dict) and p.get("name"):
-                seen.add(p["name"])
-            merged.append(p)
-        for name, p in common_by_name.items():
-            if name not in seen:
-                merged.append(p)
-        return merged
-
     for field_name in common_fields:
         if field_name not in common_dict:
             continue
@@ -79,7 +61,9 @@ def _merge_common_into_service(
             if "service" not in service_dict:
                 service_dict["service"] = {}
             svc_ports = service_dict["service"].get("ports", [])
-            service_dict["service"]["ports"] = merge_ports_by_name(common_val["ports"], svc_ports)
+            service_dict["service"]["ports"] = _merge_service_ports(
+                common_val["ports"], svc_ports
+            )
             if service_val:
                 rest = deep_merge(service_val, common_val)
                 rest["ports"] = service_dict["service"]["ports"]
