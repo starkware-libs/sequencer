@@ -12670,6 +12670,7 @@ dependencies = [
  "mockito",
  "privacy-circuit-verify",
  "privacy-prove",
+ "rcgen",
  "reqwest 0.12.24",
  "rstest",
  "serde",
