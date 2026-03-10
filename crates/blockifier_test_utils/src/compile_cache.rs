@@ -16,6 +16,7 @@ use crate::cairo_compile::{
     verify_cairo1_package,
     with_file_lock,
     CompilationArtifacts,
+    LibfuncArg,
 };
 use crate::contracts::FeatureContract;
 
@@ -153,10 +154,10 @@ pub fn ensure_cairo1_compiled(contract: &FeatureContract) {
     let sierra_path = cached_sierra_path(contract);
     let version = contract.fixed_version();
     let source_path = resolve_crate_relative(&contract.get_source_path());
-    let libfunc_arg = contract.libfunc_arg();
-    let libfunc_file = resolve_crate_relative(libfunc_arg.file_path());
+    let libfunc_arg =
+        LibfuncArg::ListFile(resolve_crate_relative(contract.libfunc_arg().file_path()));
 
-    let cache_key = compute_cache_key(&source_path, &version, &libfunc_file);
+    let cache_key = compute_cache_key(&source_path, &version, libfunc_arg.file_path());
 
     let compiled_class_hash_v1_path = cached_compiled_class_hash_path(contract, &HashVersion::V1);
     let compiled_class_hash_v2_path = cached_compiled_class_hash_path(contract, &HashVersion::V2);
