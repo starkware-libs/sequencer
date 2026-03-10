@@ -46,22 +46,8 @@ env:
   RUSTFLAGS: "-D warnings"
 
 jobs:
-  # https://graphite.com/docs/stacking-and-ci
-  optimize_ci:
-    runs-on: ubuntu-24.04
-    outputs:
-      skip: ${{ steps.check_skip.outputs.skip }}
-    steps:
-      - name: Optimize CI
-        id: check_skip
-        uses: withgraphite/graphite-ci-action@v0.0.9
-        with:
-          graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
-
   native-blockifier-artifacts-push:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
-    needs: optimize_ci
-    if: github.event_name != 'pull_request' || needs.optimize_ci.outputs.skip == 'false'
     steps:
       - uses: actions/checkout@v6
 

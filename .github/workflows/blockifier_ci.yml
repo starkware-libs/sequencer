@@ -36,22 +36,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # https://graphite.com/docs/stacking-and-ci
-  optimize_ci:
-    runs-on: ubuntu-24.04
-    outputs:
-      skip: ${{ steps.check_skip.outputs.skip }}
-    steps:
-      - name: Optimize CI
-        id: check_skip
-        uses: withgraphite/graphite-ci-action@v0.0.9
-        with:
-          graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
-
   test-without-features:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
-    needs: optimize_ci
-    if: needs.optimize_ci.outputs.skip == 'false'
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
@@ -63,8 +49,6 @@ jobs:
 
   test-with-transaction-serde-feature:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
-    needs: optimize_ci
-    if: needs.optimize_ci.outputs.skip == 'false'
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
@@ -76,8 +60,6 @@ jobs:
 
   test-with-cairo-native-feature:
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
-    needs: optimize_ci
-    if: needs.optimize_ci.outputs.skip == 'false'
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
@@ -89,8 +71,6 @@ jobs:
 
   test-with-tracing-feature:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
-    needs: optimize_ci
-    if: needs.optimize_ci.outputs.skip == 'false'
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
@@ -102,8 +82,7 @@ jobs:
 
   benchmarking:
     runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
-    if: ${{ github.event_name == 'pull_request' && needs.optimize_ci.outputs.skip == 'false' }}
-    needs: optimize_ci
+    if: ${{ github.event_name == 'pull_request' }}
     steps:
       # TODO(AndrewL): Remove this after a while in CI (March 4 2026)
       - name: Print PR and base SHAs
