@@ -66,17 +66,22 @@ Take extra care when reviewing ai-generated code for these issues:
 
 ## Testing
 
-Use unit tests for short (< 1 sec) and threadsafe tests, otherwise use cargo integration tests.
-
 A failure in a unit test should immediately point to the source of the issue, and the clearly display the error encountered. Moreover, it should be possible to debug a test even if the test writer is not available, for example:
 
 -   add `#[track_caller]` on test-utils which include a critical assert, so that the trace will be the callsite in the test
--   use `assert_eq(result, Ok(<Value>))` over `assert!(result.is_ok())` --- the former will display the error, and the latter will simply say `expected True, got False`.
+-   use `assert_eq(result, Ok(<Value>))` over `assert!(result.is_ok())` ---
+the former will display the error, and the latter will simply say `expected True, got False`.
+    -    If you're not interested in the value, or if error type doesn't implement `PartialEq`, simply call `result.unwrap()`
 -   Avoid doing too many things in one test with a single assert at the end, unless other tests exist that cover enough parts of the test separately so that finding the source will be simple.
 
-Put integration tests inside `tests/` at the crate root if they don't depend on features of their crate (this constraint is valid until [this cargo issue](https://github.com/rust-lang/cargo/issues/2911#issuecomment-1739880593) or [this cargo bug](https://github.com/rust-lang/cargo/issues/15151) get resolved), otherwise put them in a dedicated integration-test crate for the whole package (mostly relevant for multi-crate packages). Cargo integration test files are not parallelized, and are run in an anonymous crate without `cfg(test)`, which allows the test writer to simulate real UX.
+### Integration and Flow Tests
+Use unit tests for short (< 1 sec) and threadsafe tests, otherwise use cargo integration tests:
 
-To test binary crates, either add a `lib.rs` and call its main from `main.rs` and from the test, or use integration tests that spawn the binary as a subprocess (See `CARGO_BIN_EXE_<binary_name>`).
+Put flow tests and integration tests inside `tests/` at the crate root if they don't depend on features of their crate (this constraint is valid until [this cargo issue](https://github.com/rust-lang/cargo/issues/2911#issuecomment-1739880593) or [this cargo bug](https://github.com/rust-lang/cargo/issues/15151) get resolved), otherwise put them in a dedicated integration-test crate for the whole package (mostly relevant for multi-crate packages). Cargo integration test files are not parallelized, and are run in an anonymous crate without `cfg(test)`, which allows the test writer to simulate real UX.
+
+### Binary Tests
+
+To test binary crates, add a `lib.rs` and call its main from `main.rs` and from the test.
 
 ### Dependency Injection
 
