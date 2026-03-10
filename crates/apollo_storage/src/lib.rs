@@ -284,7 +284,7 @@ fn open_storage_internal(
     let reader = StorageReader {
         db_reader,
         scope: storage_config.scope,
-        file_readers,
+        file_readers: Arc::new(file_readers),
         tables,
         open_readers_metric,
     };
@@ -488,7 +488,7 @@ pub enum StorageScope {
 #[derive(Clone)]
 pub struct StorageReader {
     db_reader: DbReader,
-    file_readers: FileHandlers<RO>,
+    file_readers: Arc<FileHandlers<RO>>,
     tables: Arc<Tables>,
     scope: StorageScope,
     open_readers_metric: Option<&'static MetricGauge>,
@@ -552,8 +552,7 @@ impl StorageReader {
     pub fn begin_ro_txn(&self) -> StorageResult<StorageTxn<'_, RO>> {
         Ok(StorageTxn {
             txn: self.db_reader.begin_ro_txn()?,
-            // TODO(Dean): Wrap FileHandlers with an Arc to avoid cloning.
-            file_handlers: self.file_readers.clone(),
+            file_handlers: Arc::clone(&self.file_readers),
             tables: self.tables.clone(),
             scope: self.scope,
             _metric_updater: MetricsHandler::new(self.open_readers_metric),
@@ -619,7 +618,7 @@ type SharedStorageState = Arc<Mutex<SharedState>>;
 /// There is a single non-clonable writer instance, to make sure there is only one write transaction
 /// at any given moment.
 pub struct StorageWriter {
-    file_writers: FileHandlers<RW>,
+    file_writers: Arc<FileHandlers<RW>>,
     scope: StorageScope,
     /// Shared state containing db_writer, tables, and batching information.
     shared_state: SharedStorageState,
@@ -632,7 +631,7 @@ impl StorageWriter {
         scope: StorageScope,
         shared_state: SharedStorageState,
     ) -> Self {
-        Self { file_writers, scope, shared_state }
+        Self { file_writers: Arc::new(file_writers), scope, shared_state }
     }
 
     /// Returns a [`StorageTxnRW`] for reading and modifying data in the storage.
@@ -646,7 +645,7 @@ impl StorageWriter {
         guard.ensure_active_txn()?;
         Ok(StorageTxnRW {
             guard,
-            file_handlers: self.file_writers.clone(),
+            file_handlers: Arc::clone(&self.file_writers),
             scope: self.scope,
             _metric_updater: MetricsHandler::new(None),
         })
@@ -788,7 +787,7 @@ pub(crate) trait StorageTransaction: Sized {
 /// The actual functionality is implemented on the transaction in multiple traits.
 pub struct StorageTxn<'env, Mode: TransactionKind + 'static> {
     txn: DbTransaction<'env, Mode>,
-    file_handlers: FileHandlers<Mode>,
+    file_handlers: Arc<FileHandlers<Mode>>,
     tables: Arc<Tables>,
     scope: StorageScope,
     // Do not remove this. It is used to automatically update metrics on create/drop.
@@ -800,7 +799,7 @@ pub struct StorageTxn<'env, Mode: TransactionKind + 'static> {
 /// to the transaction.
 pub struct StorageTxnRW<'a> {
     guard: MutexGuard<'a, SharedState>,
-    file_handlers: FileHandlers<RW>,
+    file_handlers: Arc<FileHandlers<RW>>,
     scope: StorageScope,
     _metric_updater: MetricsHandler,
 }
