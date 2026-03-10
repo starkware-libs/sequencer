@@ -7,7 +7,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetErrorCode,
 };
 use apollo_mempool_types::communication::MockMempoolClient;
-use blockifier::blockifier::config::ContractClassManagerConfig;
+use blockifier::blockifier::config::{ContractClassManagerConfig, NativeClassesWhitelist};
 use blockifier::context::ChainInfo;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::test_utils::contracts::FeatureContractTrait;
@@ -140,8 +140,11 @@ async fn test_instantiate_validator() {
         state_reader_factory: Arc::new(state_reader_factory),
         contract_class_manager: ContractClassManager::start(ContractClassManagerConfig::default()),
     };
+    // The whitelist is irrelevant for the test.
+    let native_classes_whitelist = NativeClassesWhitelist::All;
 
-    let validator = stateful_validator_factory.instantiate_validator().await;
+    let validator =
+        stateful_validator_factory.instantiate_validator(native_classes_whitelist).await;
     assert!(validator.is_ok());
 }
 
