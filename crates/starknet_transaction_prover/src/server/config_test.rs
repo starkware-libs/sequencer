@@ -2,6 +2,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
 
+use assert_matches::assert_matches;
 use clap::Parser;
 use rstest::rstest;
 use tempfile::NamedTempFile;
@@ -290,4 +291,131 @@ fn env_var_sets_tls_key_file() {
     let args = CliArgs::parse_from(["starknet-transaction-prover"]);
 
     assert_eq!(args.tls_key_file, Some(PathBuf::from("/etc/ssl/key.pem")));
+}
+
+#[test]
+fn test_missing_rpc_url_rejected() {
+    let mut args = base_args();
+    args.rpc_url = None; // No CLI arg, and no config file, so default empty rpc_node_url is used.
+
+    let error = ServiceConfig::from_args(args).unwrap_err();
+
+    assert_matches!(error, ConfigError::MissingRequiredField(_));
+}
+
+#[test]
+fn test_max_concurrent_requests_zero_rejected() {
+    let mut args = base_args();
+    args.max_concurrent_requests = Some(0);
+
+    let error = ServiceConfig::from_args(args).unwrap_err();
+
+    assert_matches!(error, ConfigError::InvalidArgument(_));
+}
+
+#[test]
+fn test_max_connections_zero_rejected() {
+    let mut args = base_args();
+    args.max_connections = Some(0);
+
+    let error = ServiceConfig::from_args(args).unwrap_err();
+
+    assert_matches!(error, ConfigError::InvalidArgument(_));
+}
+
+#[test]
+fn test_no_cors_with_cors_allow_origin_rejected() {
+    let mut args = base_args();
+    args.no_cors = true;
+    args.cors_allow_origin = vec!["http://localhost:5173".to_string()];
+
+    let error = ServiceConfig::from_args(args).unwrap_err();
+
+    let ConfigError::InvalidArgument(message) = error else {
+        panic!("Expected ConfigError::InvalidArgument, got {error:?}");
+    };
+    assert!(message.contains("mutually exclusive"), "expected 'mutually exclusive' in: {message}");
+}
+
+#[test]
+fn test_skip_fee_field_validation_disables_validation() {
+    let mut args = base_args();
+    args.skip_fee_field_validation = true;
+
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    assert!(!config.prover_config.validate_zero_fee_fields);
+}
+
+#[test]
+fn test_no_cors_clears_config_file_origins() {
+    let mut config_file = NamedTempFile::new().unwrap();
+    write!(
+        config_file,
+        r#"{{"rpc_node_url":"http://localhost:9545","cors_allow_origin":["http://localhost:5173"]}}"#,
+    )
+    .unwrap();
+
+    let mut args = base_args();
+    args.config_file = Some(config_file.path().to_path_buf());
+    args.rpc_url = None;
+    args.no_cors = true;
+
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    assert!(config.cors_allow_origin.is_empty());
+}
+
+#[test]
+fn test_config_file_values_used_when_no_cli_overrides() {
+    let mut config_file = NamedTempFile::new().unwrap();
+    write!(
+        config_file,
+        r#"{{"rpc_node_url":"http://localhost:9545","port":8080,"ip":"127.0.0.1"}}"#,
+    )
+    .unwrap();
+
+    let mut args = base_args();
+    args.config_file = Some(config_file.path().to_path_buf());
+    args.rpc_url = None;
+
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    assert_eq!(config.port, 8080);
+    assert_eq!(config.ip, "127.0.0.1".parse::<std::net::IpAddr>().unwrap());
+}
+
+#[test]
+fn test_cli_overrides_config_file_values() {
+    let mut config_file = NamedTempFile::new().unwrap();
+    write!(config_file, r#"{{"rpc_node_url":"http://localhost:9545","port":8080}}"#,).unwrap();
+
+    let mut args = base_args();
+    args.config_file = Some(config_file.path().to_path_buf());
+    args.rpc_url = None;
+    args.port = Some(9090);
+
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    assert_eq!(config.port, 9090);
+}
+
+#[test]
+fn test_cors_rejects_non_http_scheme() {
+    let mut args = base_args();
+    args.cors_allow_origin = vec!["ftp://example.com".to_string()];
+
+    let error = ServiceConfig::from_args(args).unwrap_err();
+
+    assert_matches!(error, ConfigError::InvalidArgument(_));
+}
+
+#[test]
+fn test_cors_rejects_origin_with_userinfo() {
+    let mut args = base_args();
+    args.cors_allow_origin = vec!["http://user@example.com".to_string()];
+
+    let error = ServiceConfig::from_args(args).unwrap_err();
+
+    assert_matches!(error, ConfigError::InvalidArgument(_));
 }
