@@ -197,6 +197,13 @@ impl ServiceConfig {
             }
         }
 
+        if args.skip_resource_bounds_validation
+            && config.prover_config.validate_zero_resource_bounds
+        {
+            info!("CLI override: validate_zero_resource_bounds: true -> false");
+            config.prover_config.validate_zero_resource_bounds = false;
+        }
+
         if args.no_cors && !args.cors_allow_origin.is_empty() {
             return Err(ConfigError::InvalidArgument(
                 "--no-cors and --cors-allow-origin are mutually exclusive".to_string(),
@@ -358,6 +365,10 @@ pub struct CliArgs {
     /// Client-side limits may differ from Starknet network limits.
     #[arg(long, value_name = "FILE", env = "BOUNCER_CONFIG_OVERRIDE")]
     pub bouncer_config_override: Option<PathBuf>,
+
+    /// Skip validation that all resource bounds in the transaction are zero.
+    #[arg(long, env = "SKIP_RESOURCE_BOUNDS_VALIDATION")]
+    pub skip_resource_bounds_validation: bool,
 
     /// Disable CORS (clear any origins set in the config file).
     #[arg(long, conflicts_with = "cors_allow_origin")]

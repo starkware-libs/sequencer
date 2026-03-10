@@ -29,6 +29,11 @@ pub fn unsupported_tx_version(data: String) -> ErrorObjectOwned {
     ErrorObjectOwned::owned(61, "The transaction version is not supported", Some(data))
 }
 
+/// Invalid transaction input (code 1000).
+pub fn invalid_transaction_input(data: String) -> ErrorObjectOwned {
+    ErrorObjectOwned::owned(1000, "Invalid transaction input", Some(data))
+}
+
 /// Service is busy — too many concurrent proving requests (code -32005).
 pub fn service_busy(max_concurrent: usize) -> ErrorObjectOwned {
     ErrorObjectOwned::owned(
@@ -51,6 +56,9 @@ impl From<VirtualSnosProverError> for ErrorObjectOwned {
         match &err {
             VirtualSnosProverError::InvalidTransactionType(msg) => {
                 unsupported_tx_version(msg.clone())
+            }
+            VirtualSnosProverError::InvalidTransactionInput(msg) => {
+                invalid_transaction_input(msg.clone())
             }
             VirtualSnosProverError::ValidationError(msg) => {
                 // Check if it's a pending block error.

@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use jsonrpsee::server::RpcModule;
@@ -11,6 +11,13 @@ use serde_json::Value;
 use starknet_api::invoke_tx_args;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::test_utils::read_json_file;
+use starknet_api::transaction::fields::{
+    AllResourceBounds,
+    Proof,
+    ProofFacts,
+    ValidResourceBounds,
+};
+use starknet_types_core::felt::Felt;
 
 use crate::config::ProverConfig;
 use crate::proving::virtual_snos_prover::RpcVirtualSnosProver;
@@ -285,6 +292,10 @@ fn test_error_responses_match_spec() {
         ("ACCOUNT_VALIDATION_FAILED", errors::validation_failure("test".to_string())),
         ("UNSUPPORTED_TX_VERSION", errors::unsupported_tx_version("v99".to_string())),
         ("SERVICE_BUSY", errors::service_busy(2)),
+        (
+            "INVALID_TRANSACTION_INPUT",
+            errors::invalid_transaction_input("test field invalid".to_string()),
+        ),
     ];
 
     // Completeness guard: ensure all spec errors have a test case.
@@ -299,4 +310,63 @@ fn test_error_responses_match_spec() {
     for (spec_key, actual) in &test_cases {
         SpecError::from_spec(&SPEC["components"]["errors"][spec_key]).assert_matches(actual);
     }
+}
+
+/// Helper: sends a prove_transaction request and asserts it returns the expected error.
+async fn assert_prove_transaction_error(
+    rpc_module: &RpcModule<ProvingRpcServerImpl>,
+    transaction: starknet_api::rpc_transaction::RpcTransaction,
+    expected_spec_error_key: &str,
+) {
+    let sample_values = vec![
+        serde_json::to_value(BlockId::Latest).unwrap(),
+        serde_json::to_value(transaction).unwrap(),
+    ];
+    let params_str = format_params(&sample_values);
+    let request = format_rpc_request(PROVE_TRANSACTION_METHOD, &params_str);
+
+    let (response, _) =
+        rpc_module.raw_json_request(&request, RPC_RESPONSE_BUFFER_SIZE).await.unwrap();
+    let json_response: Value = serde_json::from_str(response.get()).unwrap();
+    let error_value = json_response.get("error").unwrap_or_else(|| {
+        panic!("Expected error response for {expected_spec_error_key}. Got: {json_response}")
+    });
+    let actual_error: ErrorObjectOwned = serde_json::from_value(error_value.clone()).unwrap();
+
+    SpecError::from_spec(&SPEC["components"]["errors"][expected_spec_error_key])
+        .assert_matches(&actual_error);
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_prove_transaction_rejects_non_empty_proof(
+    rpc_module: RpcModule<ProvingRpcServerImpl>,
+) {
+    let transaction = rpc_invoke_tx(invoke_tx_args!(
+        resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds::default()),
+        proof: Proof::from(vec![1u32])
+    ));
+    assert_prove_transaction_error(&rpc_module, transaction, "INVALID_TRANSACTION_INPUT").await;
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_prove_transaction_rejects_non_empty_proof_facts(
+    rpc_module: RpcModule<ProvingRpcServerImpl>,
+) {
+    let transaction = rpc_invoke_tx(invoke_tx_args!(
+        resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds::default()),
+        proof_facts: ProofFacts(Arc::new(vec![Felt::ONE]))
+    ));
+    assert_prove_transaction_error(&rpc_module, transaction, "INVALID_TRANSACTION_INPUT").await;
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_prove_transaction_rejects_non_zero_resource_bounds(
+    rpc_module: RpcModule<ProvingRpcServerImpl>,
+) {
+    // Default invoke_tx_args!() has non-zero resource bounds (GasPrice(1)).
+    let transaction = rpc_invoke_tx(invoke_tx_args!());
+    assert_prove_transaction_error(&rpc_module, transaction, "INVALID_TRANSACTION_INPUT").await;
 }
