@@ -1,11 +1,38 @@
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::{Mutex, MutexGuard};
 
 use clap::Parser;
 use rstest::rstest;
 use tempfile::NamedTempFile;
 
-use crate::server::config::{CliArgs, ConfigError, ServiceConfig, TransportMode};
+use crate::errors::ConfigError;
+use crate::server::config::{CliArgs, ServiceConfig, TransportMode};
+
+/// Mutex that serializes tests which modify environment variables.
+static ENV_MUTEX: Mutex<()> = Mutex::new(());
+
+/// RAII guard that holds the env mutex and removes the environment variable on drop.
+struct EnvGuard {
+    key: &'static str,
+    _lock: MutexGuard<'static, ()>,
+}
+
+impl EnvGuard {
+    fn set(key: &'static str, value: &str) -> Self {
+        let lock = ENV_MUTEX.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        // SAFETY: we hold ENV_MUTEX, so no other env-mutating test runs concurrently.
+        unsafe { std::env::set_var(key, value) };
+        Self { key, _lock: lock }
+    }
+}
+
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        // SAFETY: we still hold ENV_MUTEX (dropped after this field).
+        unsafe { std::env::remove_var(self.key) };
+    }
+}
 
 fn base_args() -> CliArgs {
     CliArgs {
@@ -221,4 +248,49 @@ fn config_file_tls_key_completed_by_cli_cert() {
         }
         TransportMode::Http => panic!("Expected Https transport mode"),
     }
+}
+
+#[test]
+fn env_var_sets_rpc_url() {
+    let _guard = EnvGuard::set("RPC_URL", "http://env-provided:9545");
+
+    let args = CliArgs::parse_from(["starknet-transaction-prover"]);
+
+    assert_eq!(args.rpc_url, Some("http://env-provided:9545".to_string()));
+}
+
+#[test]
+fn cli_flag_overrides_env_var() {
+    let _guard = EnvGuard::set("PROVER_PORT", "5000");
+
+    let args = CliArgs::parse_from(["starknet-transaction-prover", "--port", "6000"]);
+
+    assert_eq!(args.port, Some(6000));
+}
+
+#[test]
+fn env_var_sets_tls_cert_file() {
+    let _guard = EnvGuard::set("TLS_CERT_FILE", "/etc/ssl/cert.pem");
+
+    let args = CliArgs::parse_from(["starknet-transaction-prover"]);
+
+    assert_eq!(args.tls_cert_file, Some(PathBuf::from("/etc/ssl/cert.pem")));
+}
+
+#[test]
+fn env_var_sets_tls_key_file() {
+    let _guard = EnvGuard::set("TLS_KEY_FILE", "/etc/ssl/key.pem");
+
+    let args = CliArgs::parse_from(["starknet-transaction-prover"]);
+
+    assert_eq!(args.tls_key_file, Some(PathBuf::from("/etc/ssl/key.pem")));
+}
+
+#[test]
+fn env_var_sets_bouncer_config_override() {
+    let _guard = EnvGuard::set("BOUNCER_CONFIG_OVERRIDE", "/tmp/bouncer.json");
+
+    let args = CliArgs::parse_from(["starknet-transaction-prover"]);
+
+    assert_eq!(args.bouncer_config_override, Some(PathBuf::from("/tmp/bouncer.json")));
 }

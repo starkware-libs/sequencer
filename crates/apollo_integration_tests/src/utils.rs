@@ -34,6 +34,7 @@ use apollo_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
 use apollo_consensus_orchestrator_config::config::{
     CendeConfig,
     ContextConfig,
+    ContextDynamicConfig,
     ContextStaticConfig,
 };
 use apollo_gateway_config::config::{
@@ -132,7 +133,7 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 pub const TPS: u64 = 3;
 pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
 pub const TEST_SCENARIO_TIMEOUT: Duration = Duration::from_secs(50);
-pub const TIME_BETWEEN_CHECKS: Duration = Duration::from_secs(1);
+pub const TIME_BETWEEN_CHECKS: Duration = Duration::from_millis(500);
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type CreateL1ToL2MessagesArgsFn =
@@ -447,7 +448,10 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                     builder_address: ContractAddress::from(4_u128),
                     ..Default::default()
                 },
-                ..Default::default()
+                dynamic_config: ContextDynamicConfig {
+                    compare_retrospective_block_hash: false,
+                    ..Default::default()
+                },
             },
             cende_config: CendeConfig {
                 ..Default::default()

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use blockifier::execution::call_info::{ExtendedExecutionResources, OpcodeName};
 use blockifier::execution::casm_hash_estimation::{
     CasmV1HashResourceEstimate,
     CasmV2HashResourceEstimate,
@@ -52,30 +53,30 @@ use crate::vm_utils::{get_address_of_nested_fields_from_base_address, LoadCairoO
 // V1 (Poseidon) HASH CONSTS
 /// Expected Poseidon hash for the test contract.
 const EXPECTED_V1_HASH: expect_test::Expect =
-    expect!["200887862291909680601256918795078269670276662554898030440792065716467467957"];
+    expect!["3500374307183977124283371347040805966374333171884755205503203310896946476446"];
 // Expected execution resources for loading full contract.
 const EXPECTED_BUILTIN_USAGE_FULL_CONTRACT_V1_HASH: expect_test::Expect =
-    expect!["poseidon_builtin: 15829"];
-const EXPECTED_N_STEPS_FULL_CONTRACT_V1_HASH: Expect = expect!["188248"];
+    expect!["poseidon_builtin: 15897"];
+const EXPECTED_N_STEPS_FULL_CONTRACT_V1_HASH: Expect = expect!["189154"];
 // Expected execution resources for loading partial contract.
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V1_HASH: expect_test::Expect =
-    expect!["poseidon_builtin: 457, range_check_builtin: 229"];
-const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["13669"];
+    expect!["poseidon_builtin: 462, range_check_builtin: 231"];
+const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["13823"];
 // Allowed margin between estimated and actual execution resources.
 const ALLOWED_MARGIN_N_STEPS: usize = 127;
 
 //  V2 (Blake) HASH CONSTS
 /// Expected Blake hash for the test contract
 const EXPECTED_V2_HASH: expect_test::Expect =
-    expect!["3028499042872166552060531239179980883994351689713812652359725785650380939263"];
+    expect!["1287422789837994016073881046109027655176925039944732462697022981400223121028"];
 // Expected execution resources for loading full contract.
 const EXPECTED_BUILTIN_USAGE_FULL_CONTRACT_V2_HASH: expect_test::Expect =
-    expect!["range_check_builtin: 32199"];
-const EXPECTED_N_STEPS_FULL_CONTRACT_V2_HASH: Expect = expect!["608690"];
+    expect!["range_check_builtin: 32339"];
+const EXPECTED_N_STEPS_FULL_CONTRACT_V2_HASH: Expect = expect!["611685"];
 // Expected execution resources for loading partial contract.
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V2_HASH: expect_test::Expect =
-    expect!["range_check_builtin: 1299"];
-const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["55365"];
+    expect!["range_check_builtin: 1312"];
+const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["55955"];
 // Allowed margin between estimated and actual execution resources.
 const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 267;
 const ALLOWED_MARGIN_BLAKE_OPCODE_COUNT: usize = 4;
@@ -109,13 +110,7 @@ trait HashVersionTestSpec {
         &self,
         bytecode_segment_felt_sizes: &NestedFeltCounts,
         entry_points_by_type: &EntryPointsByType<EntryPointV1>,
-    ) -> ExecutionResources;
-    /// Estimates the number of Blake opcodes used for the compiled class hash function.
-    fn estimated_blake_opcode_count(
-        &self,
-        bytecode_segment_felt_sizes: &NestedFeltCounts,
-        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
-    ) -> usize;
+    ) -> ExtendedExecutionResources;
 }
 
 impl HashVersionTestSpec for HashVersion {
@@ -188,37 +183,19 @@ impl HashVersionTestSpec for HashVersion {
         &self,
         bytecode_segment_felt_sizes: &NestedFeltCounts,
         entry_points_by_type: &EntryPointsByType<EntryPointV1>,
-    ) -> ExecutionResources {
+    ) -> ExtendedExecutionResources {
         match self {
             HashVersion::V1 => {
                 CasmV1HashResourceEstimate::estimated_resources_of_compiled_class_hash(
                     bytecode_segment_felt_sizes,
                     entry_points_by_type,
                 )
-                .resources()
             }
             HashVersion::V2 => {
                 CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
                     bytecode_segment_felt_sizes,
                     entry_points_by_type,
                 )
-                .resources()
-            }
-        }
-    }
-    fn estimated_blake_opcode_count(
-        &self,
-        bytecode_segment_felt_sizes: &NestedFeltCounts,
-        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
-    ) -> usize {
-        match self {
-            HashVersion::V1 => 0,
-            HashVersion::V2 => {
-                CasmV2HashResourceEstimate::estimated_resources_of_compiled_class_hash(
-                    bytecode_segment_felt_sizes,
-                    entry_points_by_type,
-                )
-                .blake_count()
             }
         }
     }
@@ -593,14 +570,14 @@ fn compare_estimated_vs_actual_casm_hash_resources(
     );
 
     // Estimate resources.
-    let execution_resources_estimation = hash_version.estimate_execution_resources(
+    let estimated_resources = hash_version.estimate_execution_resources(
         &bytecode_segments,
-        &contract_class.entry_points_by_type.clone().into(),
+        &contract_class.entry_points_by_type.into(),
     );
 
     // Compare n_steps.
     let n_steps_margin =
-        execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
+        estimated_resources.vm_resources.n_steps.abs_diff(actual_execution_resources.n_steps);
     let allowed_n_steps_margin = hash_version.allowed_margin_n_steps();
     assert!(
         n_steps_margin <= allowed_n_steps_margin,
@@ -610,16 +587,14 @@ fn compare_estimated_vs_actual_casm_hash_resources(
 
     // Compare builtins.
     assert_eq!(
-        execution_resources_estimation.builtin_instance_counter,
+        estimated_resources.vm_resources.builtin_instance_counter,
         actual_execution_resources.filter_unused_builtins().builtin_instance_counter,
         "{contract_name}: Estimated builtins do not match actual builtins"
     );
 
     // Compare Blake opcode count.
-    let estimated_blake_opcode_count = hash_version.estimated_blake_opcode_count(
-        &bytecode_segments,
-        &contract_class.entry_points_by_type.into(),
-    );
+    let estimated_blake_opcode_count =
+        estimated_resources.opcode_instance_counter.get(&OpcodeName::blake).copied().unwrap_or(0);
     let blake_opcode_count_margin =
         estimated_blake_opcode_count.abs_diff(actual_opcode_instances.blake_opcode_count);
     let allowed_blake_opcode_count_margin = hash_version.allowed_margin_blake_opcode_count();

@@ -17,7 +17,9 @@ def argument_parser():
         "-o",
         "--overlay",
         type=str,
-        help="Optional overlay path to apply. Must start with layout name and use dot notation for nested paths (e.g., 'hybrid.sepolia-integration.node-01').",
+        required=True,
+        dest="overlay",
+        help="Overlay entrypoint. Must start with layout name and use dot notation (e.g., 'hybrid.testing.node-0').",
     )
     parser.add_argument(
         "--monitoring-dashboard-file",

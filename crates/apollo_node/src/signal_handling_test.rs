@@ -1,3 +1,4 @@
+use std::result::Result::Ok;
 use std::sync::OnceLock;
 
 use nix::sys::signal;
@@ -7,7 +8,7 @@ use tokio::sync::Mutex;
 use tokio::task::yield_now;
 use tracing_test::traced_test;
 
-use crate::signal_handling::handle_signals;
+use crate::signal_handling::{handle_signals, GracefulShutdownBehavior};
 
 // Mutex to ensure tests run one at a time
 static TEST_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
@@ -23,10 +24,13 @@ static TEST_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
 #[tokio::test]
 async fn test_signal_handling(#[case] sig: signal::Signal, #[case] expected_message: &str) {
     // Lock the mutex to ensure only one test runs at a time.
+
     let _guard = TEST_MUTEX.get_or_init(|| Mutex::new(())).lock().await;
 
+    let graceful_shutdown = GracefulShutdownBehavior::new();
+
     // Spawn the signal handler.
-    let signal_handler_handle = tokio::spawn(handle_signals());
+    let signal_handler_handle = tokio::spawn(handle_signals(graceful_shutdown));
 
     // Let the signal handler run.
     yield_now().await;

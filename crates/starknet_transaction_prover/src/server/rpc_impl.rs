@@ -12,8 +12,8 @@ use tracing::warn;
 
 use crate::proving::virtual_snos_prover::{ProveTransactionResult, RpcVirtualSnosProver};
 use crate::server::config::ServiceConfig;
-use crate::server::error::service_busy;
-use crate::server::rpc_trait::ProvingRpcServer;
+use crate::server::errors::service_busy;
+use crate::server::rpc_api::ProvingRpcServer;
 
 /// Starknet RPC specification version.
 pub(crate) const SPEC_VERSION: &str = "0.10.0";
@@ -64,11 +64,9 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
             service_busy(self.max_concurrent_requests)
         })?;
 
-        let output = self.prover.prove_transaction(block_id, transaction).await.map_err(|err| {
+        self.prover.prove_transaction(block_id, transaction).await.map_err(|err| {
             warn!("prove_transaction failed: {:?}", err);
             ErrorObjectOwned::from(err)
-        })?;
-
-        Ok(output.result)
+        })
     }
 }

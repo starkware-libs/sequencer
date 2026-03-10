@@ -1,16 +1,18 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::LazyLock;
 
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use chrono::{Datelike, Utc};
 use rand::prelude::IteratorRandom;
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use rstest::rstest;
-use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::{calldata, invoke_tx_args};
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_types_core::felt::Felt;
@@ -48,12 +50,21 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 static VALID_STORAGE_KEYS: LazyLock<Vec<Felt>> =
     LazyLock::new(|| vec![Felt::from(1u16 << 8), Felt::from(1u16 << 9)]);
 
+// TODO(Dori): Operations to add:
+// 1. advance counter (read -> write)
+// 2. message to L1
+// 3. events
+// 4. call / libcall non-existing entry points (should panic) (catchable in cairo0 even?)
+// 5. deploy non-existing class hash (should panic, not catchable in cairo0).
 #[derive(Clone, Copy, EnumIter)]
 enum FuzzOperation {
     Return,
     Call,
     LibraryCall,
     Write,
+    ReplaceClass,
+    Deploy,
+    Panic,
 }
 
 impl FuzzOperation {
@@ -63,6 +74,9 @@ impl FuzzOperation {
             Self::Call => 1u8,
             Self::LibraryCall => 2u8,
             Self::Write => 3u8,
+            Self::ReplaceClass => 4u8,
+            Self::Deploy => 5u8,
+            Self::Panic => 6u8,
         })
     }
 }
@@ -134,12 +148,15 @@ impl LibraryCallOperationData {
 }
 
 /// Data associated with a fuzz operation.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum FuzzOperationData {
     Return,
     Call(CallOperationData),
     LibraryCall(LibraryCallOperationData),
     Write(StorageKey, StarknetStorageValue),
+    ReplaceClass(ClassHash),
+    Deploy { class_hash: ClassHash, salt: ContractAddressSalt },
+    Panic,
 }
 
 impl FuzzOperationData {
@@ -149,6 +166,9 @@ impl FuzzOperationData {
             Self::Call(_) => FuzzOperation::Call,
             Self::LibraryCall(_) => FuzzOperation::LibraryCall,
             Self::Write(_, _) => FuzzOperation::Write,
+            Self::ReplaceClass(_) => FuzzOperation::ReplaceClass,
+            Self::Deploy { .. } => FuzzOperation::Deploy,
+            Self::Panic => FuzzOperation::Panic,
         }
     }
 
@@ -157,16 +177,19 @@ impl FuzzOperationData {
     pub fn felt_vector(&self) -> Vec<Felt> {
         let mut felt_vector = vec![self.op().identifier()];
         felt_vector.extend(match self {
-            Self::Return => vec![],
+            Self::Return | Self::Panic => vec![],
             Self::Call(op) => op.felt_vector(),
             Self::LibraryCall(op) => op.felt_vector(),
             Self::Write(storage_key, value) => vec![***storage_key, value.0],
+            Self::ReplaceClass(class_hash) => vec![class_hash.0],
+            Self::Deploy { class_hash, salt } => vec![class_hash.0, salt.0],
         });
         felt_vector
     }
 }
 
 /// Parent frame behavior on failures.
+#[derive(Debug, PartialEq)]
 enum ParentFailureBehavior {
     /// In a cairo0 context, or in a constructor call tree. Failures in this context cannot be
     /// caught by any calling context.
@@ -188,6 +211,7 @@ impl ParentFailureBehavior {
 /// Final state of the fuzz test transaction.
 enum FinalizedState {
     Ongoing,
+    Reverted,
     Succeeded,
 }
 
@@ -195,19 +219,23 @@ impl FinalizedState {
     pub fn finalized(&self) -> bool {
         match self {
             Self::Ongoing => false,
-            Self::Succeeded => true,
+            Self::Reverted | Self::Succeeded => true,
         }
     }
 }
 
 /// Similar to [CallInfo], but for a fuzz test. Represents the information of a single call in the
 /// call tree.
-#[allow(dead_code)]
 struct FuzzCallInfo {
     pub address: ContractAddress,
     pub class_hash: ClassHash,
     pub parent_failure_behavior: ParentFailureBehavior,
     pub inner_calls: Vec<FuzzCallInfo>,
+    /// If this is true, then the class was replaced in this frame.
+    pub class_replaced_here: bool,
+    /// If true, this call is a constructor; the address of this call is not a valid call address
+    /// until this call returns.
+    pub constructing: bool,
 }
 
 impl FuzzCallInfo {
@@ -216,13 +244,60 @@ impl FuzzCallInfo {
         class_hash: ClassHash,
         parent_failure_behavior: ParentFailureBehavior,
     ) -> Self {
-        Self { address, class_hash, parent_failure_behavior, inner_calls: vec![] }
+        Self {
+            address,
+            class_hash,
+            parent_failure_behavior,
+            inner_calls: vec![],
+            class_replaced_here: false,
+            constructing: false,
+        }
+    }
+
+    pub fn new_deploy(address: ContractAddress, class_hash: ClassHash) -> Self {
+        Self {
+            address,
+            class_hash,
+            // Failures in constructors cannot be caught.
+            parent_failure_behavior: ParentFailureBehavior::Uncatchable,
+            inner_calls: vec![],
+            class_replaced_here: false,
+            constructing: true,
+        }
+    }
+}
+
+/// Data associated with a revert operation.
+struct RevertInfo {
+    /// Addresses of deployed contracts that were deployed in the reverted call tree.
+    pub deployed_addresses: BTreeSet<ContractAddress>,
+
+    /// If a class was replaced in the reverted call tree, the address and original class hash of
+    /// the replaced class.
+    pub class_replaced_and_original_class_hash: Option<(ContractAddress, ClassHash)>,
+}
+
+impl RevertInfo {
+    pub fn combine(others: Vec<Self>) -> Self {
+        // If there is a replace-class, there should be only one.
+        let mut class_replaced_and_original_class_hash = None;
+        for other in others.iter() {
+            if let Some(inner_replacement) = other.class_replaced_and_original_class_hash {
+                class_replaced_and_original_class_hash = Some(inner_replacement);
+            }
+        }
+        Self {
+            deployed_addresses: others
+                .into_iter()
+                .flat_map(|other| other.deployed_addresses)
+                .collect(),
+            class_replaced_and_original_class_hash,
+        }
     }
 }
 
 /// Represents the call tree of a fuzz test.
-#[allow(dead_code)]
-struct FuzzTestManager {
+struct FuzzTestContext {
     /// The call tree of the fuzz test.
     /// The first frame is the frame called by the orchestrator (it's parent frame is the
     /// orchestrator).
@@ -238,15 +313,49 @@ struct FuzzTestManager {
     /// List of operations applied to the fuzz test so far.
     pub operations: Vec<FuzzOperationData>,
 
-    /// Deployed fuzz test contracts.
-    pub deployed_fuzz_contracts: BTreeMap<ContractAddress, ClassHash>,
+    /// Map from contract address to class hash.
+    pub deployed_contracts: BTreeMap<ContractAddress, ClassHash>,
+
+    /// We only allow one replace class per test.
+    pub class_replaced: bool,
 
     /// Next value to write in a storage-write operation.
     pub next_storage_write_value: StarknetStorageValue,
 
-    pub test_manager: TestBuilder<DictStateReader>,
+    /// Next salt to use for a deploy operation.
+    pub next_salt: ContractAddressSalt,
+
     pub orchestrator_contract_address: ContractAddress,
     pub rng: ChaCha8Rng,
+}
+
+impl FuzzTestContext {
+    pub fn init(
+        seed: u64,
+        orchestrator_contract_address: ContractAddress,
+        first_call: FuzzCallInfo,
+        deployed_fuzz_contracts: BTreeMap<ContractAddress, ClassHash>,
+    ) -> Self {
+        Self {
+            calls: vec![first_call],
+            current_call: vec![0],
+            final_state: FinalizedState::Ongoing,
+            operations: vec![],
+            deployed_contracts: deployed_fuzz_contracts,
+            class_replaced: false,
+            next_storage_write_value: StarknetStorageValue(Felt::from(1u16 << 12)),
+            next_salt: ContractAddressSalt(Felt::from(1u32 << 16)),
+            orchestrator_contract_address,
+            rng: ChaCha8Rng::seed_from_u64(seed),
+        }
+    }
+}
+
+/// Manages the fuzz flow test, with the underlying flow test state.
+struct FuzzTestManager {
+    pub context: FuzzTestContext,
+    pub test_manager: TestBuilder<DictStateReader>,
+    pub first_called_address: ContractAddress,
 }
 
 impl FuzzTestManager {
@@ -291,43 +400,52 @@ impl FuzzTestManager {
         }
 
         // First call is the orchestrator calling the first fuzz test contract.
+        let first_called_address = cairo1_contract_address_a;
         let first_call = FuzzCallInfo::new_call(
-            cairo1_contract_address_a,
+            first_called_address,
             *CAIRO1_CONTRACT_CLASS_HASH,
             // The orchestrator always starts the test in a catching context.
             ParentFailureBehavior::Cairo1Catching,
         );
         Self {
-            calls: vec![first_call],
-            current_call: vec![0],
-            final_state: FinalizedState::Ongoing,
-            operations: vec![],
-            deployed_fuzz_contracts,
-            next_storage_write_value: StarknetStorageValue(Felt::from(1u16 << 12)),
+            context: FuzzTestContext::init(
+                seed,
+                orchestrator_contract_address,
+                first_call,
+                deployed_fuzz_contracts,
+            ),
             test_manager,
-            orchestrator_contract_address,
-            rng: ChaCha8Rng::seed_from_u64(seed),
+            first_called_address,
         }
     }
 
     pub fn finalized(&self) -> bool {
-        self.final_state.finalized()
+        self.context.final_state.finalized()
     }
 
     pub fn current_fuzz_call_info(&self) -> &FuzzCallInfo {
-        let mut call = &self.calls[self.current_call[0]];
-        for i in 1..self.current_call.len() {
-            call = &call.inner_calls[self.current_call[i]];
+        let mut call = &self.context.calls[self.context.current_call[0]];
+        for index in self.context.current_call.iter().skip(1) {
+            call = &call.inner_calls[*index];
         }
         call
     }
 
     pub fn current_fuzz_call_info_mut(&mut self) -> &mut FuzzCallInfo {
-        let mut call = &mut self.calls[self.current_call[0]];
-        for i in 1..self.current_call.len() {
-            call = &mut call.inner_calls[self.current_call[i]];
+        let current_call = self.context.current_call.clone();
+        self.fuzz_call_info_mut(&current_call)
+    }
+
+    pub fn fuzz_call_info_mut(&mut self, call_path: &[usize]) -> &mut FuzzCallInfo {
+        let mut call = &mut self.context.calls[call_path[0]];
+        for index in call_path.iter().skip(1) {
+            call = &mut call.inner_calls[*index];
         }
         call
+    }
+
+    pub fn current_address(&self) -> ContractAddress {
+        self.current_fuzz_call_info().address
     }
 
     pub fn current_class_hash(&self) -> ClassHash {
@@ -358,7 +476,8 @@ impl FuzzTestManager {
                 // There are two Cairo0 contracts and two Cairo1 contracts that can be called.
                 // When calling from a Cairo1 context, the caller can unwrap the call result or not.
                 let current_context_is_cairo1 = self.is_current_context_cairo1();
-                self.deployed_fuzz_contracts
+                self.context
+                    .deployed_contracts
                     .keys()
                     .flat_map(|address| {
                         if current_context_is_cairo1 {
@@ -412,10 +531,29 @@ impl FuzzTestManager {
                 .map(|storage_key| {
                     FuzzOperationData::Write(
                         StorageKey::try_from(*storage_key).unwrap(),
-                        self.next_storage_write_value,
+                        self.context.next_storage_write_value,
                     )
                 })
                 .collect(),
+            FuzzOperation::ReplaceClass => {
+                // If class was already replaced, no more replacements are allowed.
+                if self.context.class_replaced {
+                    // TODO(Dori): In this case, replace back to original class.
+                    return vec![];
+                }
+                vec![FuzzOperationData::ReplaceClass(*CAIRO1_REPLACEMENT_CLASS_HASH)]
+            }
+            FuzzOperation::Deploy => {
+                // Three class hashes to choose from.
+                IS_CAIRO1
+                    .keys()
+                    .map(|class_hash| FuzzOperationData::Deploy {
+                        class_hash: *class_hash,
+                        salt: self.context.next_salt,
+                    })
+                    .collect()
+            }
+            FuzzOperation::Panic => vec![FuzzOperationData::Panic],
         }
     }
 
@@ -424,39 +562,218 @@ impl FuzzTestManager {
         FuzzOperation::iter().flat_map(|op| self.valid_operations_of_type(op)).collect()
     }
 
+    /// Enter a new call or deploy context.
+    fn enter(
+        &mut self,
+        address: ContractAddress,
+        class_hash: ClassHash,
+        parent_failure_behavior: ParentFailureBehavior,
+        constructor: bool,
+    ) {
+        let current_call = self.current_fuzz_call_info_mut();
+        let next_call_index = current_call.inner_calls.len();
+        if constructor {
+            assert_eq!(parent_failure_behavior, ParentFailureBehavior::Uncatchable);
+            current_call.inner_calls.push(FuzzCallInfo::new_deploy(address, class_hash));
+        } else {
+            current_call.inner_calls.push(FuzzCallInfo::new_call(
+                address,
+                class_hash,
+                parent_failure_behavior,
+            ));
+        }
+        self.context.current_call.push(next_call_index);
+    }
+
+    /// Enter a new call context.
+    pub fn enter_call(
+        &mut self,
+        address: ContractAddress,
+        class_hash: ClassHash,
+        parent_failure_behavior: ParentFailureBehavior,
+    ) {
+        self.enter(address, class_hash, parent_failure_behavior, false);
+    }
+
+    /// Enter a new deploy (constructor) context.
+    pub fn enter_deploy(&mut self, address: ContractAddress, class_hash: ClassHash) {
+        self.enter(address, class_hash, ParentFailureBehavior::Uncatchable, true);
+    }
+
+    /// Exit the current call context.
+    pub fn exit_call(&mut self) {
+        self.context.current_call.pop();
+        // If we returned to orchestrator context, no more operations can be applied.
+        if self.context.current_call.is_empty() {
+            self.context.final_state = FinalizedState::Succeeded;
+        }
+    }
+
+    /// Expected address of a deploy operation.
+    pub fn address_of_deploy(
+        &self,
+        class_hash: ClassHash,
+        salt: ContractAddressSalt,
+    ) -> ContractAddress {
+        // Deployer address is always zero (for simplicity).
+        calculate_contract_address(
+            salt,
+            class_hash,
+            &calldata![**self.context.orchestrator_contract_address],
+            ContractAddress::default(),
+        )
+        .unwrap()
+    }
+
+    /// Given a call path, revert all the context changes induced by it and it's child calls.
+    pub fn compute_revert_info(&self, root_call: &FuzzCallInfo) -> RevertInfo {
+        RevertInfo::combine(
+            root_call
+                // Start with inner calls.
+                .inner_calls
+                .iter()
+                .map(|call| self.compute_revert_info(call))
+                // Add the root call.
+                .chain(vec![RevertInfo {
+                    deployed_addresses: if root_call.constructing {
+                        BTreeSet::from([root_call.address])
+                    } else {
+                        BTreeSet::new()
+                    },
+                    class_replaced_and_original_class_hash: if root_call.class_replaced_here {
+                        Some((root_call.address, root_call.class_hash))
+                    } else {
+                        None
+                    },
+                }])
+                .collect::<Vec<_>>(),
+        )
+    }
+
+    pub fn apply_revert_info(&mut self, revert_info: RevertInfo) {
+        // Revert class replacement. Do this before "undeploying" deployed contracts so we don't
+        // "redeploy" anything when we only intend to revert the class hash change.
+        if let Some((address, class_hash)) = revert_info.class_replaced_and_original_class_hash {
+            self.context.deployed_contracts.insert(address, class_hash);
+        }
+        // "Undeploy" all deployed contracts.
+        for address in revert_info.deployed_addresses.iter() {
+            // Remove without asserting that the address was actually deployed - the
+            // constructor may have reverted before being finalized.
+            self.context.deployed_contracts.remove(address);
+        }
+    }
+
+    /// Remove the entire call tree. Used when an uncatchable error occurs, or we cleanly return
+    /// to the orchestrator context.
+    /// State should always be finalized after this.
+    pub fn pop_entire_call_tree(&mut self, succeeded: bool) {
+        self.context.calls.clear();
+        self.context.current_call.clear();
+        self.context.final_state =
+            if succeeded { FinalizedState::Succeeded } else { FinalizedState::Reverted };
+    }
+
     /// Applies the operation and updates the context.
     pub fn apply(&mut self, operation: FuzzOperationData) {
         assert!(!self.finalized());
-        self.operations.push(operation);
+        self.context.operations.push(operation);
         match operation {
             FuzzOperationData::Return => {
-                self.current_call.pop();
-                // If we returned to orchestrator context, no more operations can be applied.
-                if self.current_call.is_empty() {
-                    self.final_state = FinalizedState::Succeeded;
-                }
+                // Go up the call tree.
+                self.exit_call()
             }
             FuzzOperationData::Call(call_operation_data) => {
                 let address = *call_operation_data.address();
-                let class_hash = *self.deployed_fuzz_contracts.get(&address).unwrap();
-                self.current_fuzz_call_info_mut().inner_calls.push(FuzzCallInfo::new_call(
-                    address,
-                    class_hash,
-                    call_operation_data.parent_failure_behavior(),
-                ));
-                self.current_call.push(self.current_fuzz_call_info().inner_calls.len() - 1);
+                let class_hash = *self.context.deployed_contracts.get(&address).unwrap();
+                self.enter_call(address, class_hash, call_operation_data.parent_failure_behavior());
             }
             FuzzOperationData::LibraryCall(library_call_operation_data) => {
-                let current_address = self.current_fuzz_call_info().address;
-                self.current_fuzz_call_info_mut().inner_calls.push(FuzzCallInfo::new_call(
+                let current_address = self.current_address();
+                self.enter_call(
                     current_address,
                     *library_call_operation_data.class_hash(),
                     library_call_operation_data.parent_failure_behavior(),
-                ));
-                self.current_call.push(self.current_fuzz_call_info().inner_calls.len() - 1);
+                );
             }
             FuzzOperationData::Write(_, _) => {
-                self.next_storage_write_value.0 += Felt::ONE;
+                self.context.next_storage_write_value.0 += Felt::ONE;
+            }
+            FuzzOperationData::ReplaceClass(class_hash) => {
+                assert!(!self.context.class_replaced);
+                assert_eq!(class_hash, *CAIRO1_REPLACEMENT_CLASS_HASH);
+                self.context.class_replaced = true;
+                // Update the mapping from address to class hash, so subsequent calls to this
+                // address will correctly use the new class hash.
+                self.context.deployed_contracts.insert(self.current_address(), class_hash);
+                // Update the current call to mark that it was replaced at this point, to make it
+                // easy to track if the change must be reverted mid-test.
+                self.current_fuzz_call_info_mut().class_replaced_here = true;
+                // Note: we do not mutate the class hash of this call, because in the current call
+                // context the original class code is run. Only if this address is called again (via
+                // call-contract) should the code change be reflected.
+            }
+            FuzzOperationData::Deploy { class_hash, salt } => {
+                let deployed_address = self.address_of_deploy(class_hash, salt);
+                // Increment the salt for the next deploy operation.
+                self.context.next_salt.0 += Felt::ONE;
+                // Update the mapping from address to class hash.
+                self.context.deployed_contracts.insert(deployed_address, class_hash);
+                // Enter constructor context.
+                self.enter_deploy(deployed_address, class_hash);
+            }
+            FuzzOperationData::Panic => {
+                // For the current call index until the panic is either caught or an uncatchable
+                // frame is reached (root parent frame - the orchestrator - is cairo1-catching, so
+                // one of these two conditions will be met).
+                // First, check if the current call is in cairo0 context. If so, parent context is
+                // irrelevant - the entire tx will be reverted.
+                if !self.is_cairo1_class(&self.current_class_hash()) {
+                    self.pop_entire_call_tree(false);
+                    return;
+                }
+                // Otherwise, climb up the call tree until the error is either caught or an
+                // uncatchable frame is reached.
+                while self.current_fuzz_call_info().parent_failure_behavior
+                    == ParentFailureBehavior::Cairo1Propagating
+                {
+                    // No need to finalize deploys here - we are reverting.
+                    self.context.current_call.pop();
+                }
+                match self.current_fuzz_call_info().parent_failure_behavior {
+                    // The simple case is when the parent is "uncatchable"; the entire tx will be
+                    // reverted, so no need to update the current context.
+                    ParentFailureBehavior::Uncatchable => {
+                        self.pop_entire_call_tree(false);
+                    }
+                    // If the panic is caught, the effects of the entire subtree must be reverted.
+                    ParentFailureBehavior::Cairo1Catching => {
+                        // Revert the effects of the call tree rooted at the current path.
+                        self.apply_revert_info(
+                            self.compute_revert_info(self.current_fuzz_call_info()),
+                        );
+                        // Pop the current call index to go back up to the catching context.
+                        self.exit_call();
+                        // Pop the reverted call frame from the call tree. Example scenario for why
+                        // this is needed:
+                        // 1. non-unwrapping call
+                        // 2. replace class
+                        // 3. panic
+                        // 4. panic
+                        // The first panic is caught and will revert the replace class. Unless the
+                        // inner call is popped, the second panic will attempt to revert the replace
+                        // class again.
+                        if self.context.current_call.is_empty() {
+                            // We are back at the orchestrator context. Pop the entire call tree.
+                            // Tx should be successful.
+                            self.pop_entire_call_tree(true);
+                        } else {
+                            // We are back at a non-orchestrator context. Pop the last inner call.
+                            self.current_fuzz_call_info_mut().inner_calls.pop();
+                        }
+                    }
+                    ParentFailureBehavior::Cairo1Propagating => unreachable!(),
+                }
             }
         }
     }
@@ -468,7 +785,7 @@ impl FuzzTestManager {
         if valid_operations.is_empty() {
             return Err(());
         }
-        let operation = *valid_operations.iter().choose(&mut self.rng).unwrap();
+        let operation = *valid_operations.iter().choose(&mut self.context.rng).unwrap();
         self.apply(operation);
         Ok(())
     }
@@ -479,20 +796,129 @@ impl FuzzTestManager {
         operations.iter().flat_map(|op| op.felt_vector()).collect()
     }
 
+    /// Pretty print the operations. Example output:
+    /// ```ignore
+    /// operations = [
+    ///     0x1 (Call),
+    ///     0xdeadbeef (Cairo1 address, class hash: 0xbeef),
+    ///     0x1 (unwraps error),
+    ///     0x2 (Library call),
+    ///     0xbee (Cairo0 class hash),
+    ///     0x0 (does not unwrap error),
+    ///     0x1 (Call),
+    ///     0xdeadbeef (Cairo1 address, class hash: 0xbeef),
+    ///     0x0 (Return),
+    ///     0x6 (Panic),
+    /// ]
+    /// ```
+    #[allow(unused)]
+    pub fn prettify_operations(&self) -> String {
+        let mut output = vec![];
+        for operation in self.context.operations.iter() {
+            let operation_felt_hexes = operation
+                .felt_vector()
+                .iter()
+                .map(|felt| felt.to_hex_string())
+                .collect::<Vec<String>>();
+            output.extend(match operation {
+                FuzzOperationData::Return => vec![format!("{} (Return)", operation_felt_hexes[0])],
+                FuzzOperationData::Call(call_operation_data) => {
+                    // It's possible that the address is no longer deployed (post-revert).
+                    let class_info_string =
+                        match self.context.deployed_contracts.get(call_operation_data.address()) {
+                            Some(class_hash) => format!(
+                                "Cairo{} address, class hash: {}",
+                                if self.is_cairo1_class(class_hash) { "1" } else { "0" },
+                                class_hash.0.to_hex_string()
+                            ),
+                            None => "unknown class hash, deployment reverted".to_string(),
+                        };
+                    let mut call_print = vec![
+                        format!("{} (Call)", operation_felt_hexes[0]),
+                        format!("{} ({class_info_string})", operation_felt_hexes[1],),
+                    ];
+                    if let CallOperationData::Cairo1 { unwraps_error, .. } = call_operation_data {
+                        call_print.push(format!(
+                            "{} ({} error)",
+                            operation_felt_hexes[2],
+                            if *unwraps_error { "unwraps" } else { "does not unwrap" }
+                        ));
+                    }
+                    call_print
+                }
+                FuzzOperationData::LibraryCall(library_call_operation_data) => {
+                    let is_cairo1 = self.is_cairo1_class(library_call_operation_data.class_hash());
+                    let mut library_call_print = vec![
+                        format!("{} (Library call)", operation_felt_hexes[0]),
+                        format!(
+                            "{} (Cairo{} class hash)",
+                            operation_felt_hexes[1],
+                            if is_cairo1 { "1" } else { "0" },
+                        ),
+                    ];
+                    if let LibraryCallOperationData::Cairo1 { unwraps_error, .. } =
+                        library_call_operation_data
+                    {
+                        library_call_print.push(format!(
+                            "{} ({} error)",
+                            operation_felt_hexes[2],
+                            if *unwraps_error { "unwraps" } else { "does not unwrap" }
+                        ));
+                    }
+                    library_call_print
+                }
+                FuzzOperationData::Write(_, _) => {
+                    vec![
+                        format!("{} (Write)", operation_felt_hexes[0]),
+                        format!("{} (key)", operation_felt_hexes[1]),
+                        format!("{} (value)", operation_felt_hexes[2]),
+                    ]
+                }
+                FuzzOperationData::ReplaceClass(_) => {
+                    vec![
+                        format!("{} (Replace class)", operation_felt_hexes[0]),
+                        format!("{} (new class hash)", operation_felt_hexes[1]),
+                    ]
+                }
+                FuzzOperationData::Deploy { class_hash, salt } => {
+                    let deployed_address = self.address_of_deploy(*class_hash, *salt);
+                    let is_cairo1 = self.is_cairo1_class(class_hash);
+                    vec![
+                        format!(
+                            "{} (Deploy, new address: {})",
+                            operation_felt_hexes[0],
+                            deployed_address.to_hex_string()
+                        ),
+                        format!(
+                            "{} (Cairo{} class hash)",
+                            operation_felt_hexes[1],
+                            if is_cairo1 { "1" } else { "0" }
+                        ),
+                        format!("{} (salt)", operation_felt_hexes[2]),
+                    ]
+                }
+                FuzzOperationData::Panic => {
+                    vec![format!("{} (Panic)", operation_felt_hexes[0])]
+                }
+            });
+        }
+        format!(
+            "operations = [\n{}\n]",
+            output.iter().map(|line| format!("    {line}")).collect::<Vec<_>>().join(",\n")
+        )
+    }
+
     /// Run the fuzz test. Should be called after the operations list is final (no need to finalize
     /// the context - if the finalized state is Ongoing it will be converted to Succeeded).
     pub async fn run_test(mut self) {
         if !self.finalized() {
-            self.final_state = FinalizedState::Succeeded;
+            self.context.final_state = FinalizedState::Succeeded;
         }
 
-        // Check the intended starting point by inspecting the first call.
-        let first_called_address = self.calls[0].address;
-
         // Initialize the orchestrator contract with the scenario data.
-        let scenario_data = Self::operations_to_scenario_data(&self.operations);
+        let scenario_data = Self::operations_to_scenario_data(&self.context.operations);
         let orchestrator_calldata = create_calldata(
-            self.orchestrator_contract_address,
+            self.context.orchestrator_contract_address,
             "initialize",
             &[vec![Felt::from(scenario_data.len())], scenario_data].concat(),
         );
@@ -501,14 +927,15 @@ impl FuzzTestManager {
 
         // Invoke the test.
         let start_test_calldata = create_calldata(
-            self.orchestrator_contract_address,
+            self.context.orchestrator_contract_address,
             "start_test",
-            &[**first_called_address],
+            &[**self.first_called_address],
         );
 
         // Whether or not a revert is expected depends on context.
-        let tx_revert_error = match self.final_state {
+        let tx_revert_error = match self.context.final_state {
             FinalizedState::Succeeded => None,
+            FinalizedState::Reverted => Some("".to_string()),
             FinalizedState::Ongoing => unreachable!(),
         };
         let nonce = self.test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS);
@@ -528,26 +955,64 @@ impl FuzzTestManager {
     }
 }
 
+async fn fuzz_test_body(seed: u64, max_n_operations: usize) {
+    let mut fuzz_tester = FuzzTestManager::init(seed).await;
+
+    // Create scenarios.
+    for _ in 0..max_n_operations {
+        // An error value means the context is finalized - no more operations can be applied.
+        if fuzz_tester.add_random_operation().is_err() {
+            break;
+        }
+    }
+
+    println!("Seed: {seed}.");
+    #[cfg(feature = "fuzz_test_debug")]
+    println!("{}", fuzz_tester.prettify_operations());
+
+    fuzz_tester.run_test().await;
+}
+
 #[rstest]
 #[tokio::test]
-async fn test_cairo1_revert_fuzz(
-    #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] seed: u64,
-    #[values(1)] iterations: u64, // Easy way to multiply the number of test seeds.
+async fn test_daily_fuzz_seed(
+    #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)] inner_seed: u64,
 ) {
-    for i in 0..iterations {
-        let iteration_seed = seed + i * 16;
-        let mut fuzz_tester = FuzzTestManager::init(iteration_seed).await;
+    let now = Utc::now();
+    let day: u64 = now.day().into();
+    let month: u64 = now.month().into();
+    let year: u64 = now.year().try_into().unwrap();
+    let seed = day * 100000000 + month * 1000000 + year * 100 + inner_seed;
+    fuzz_test_body(seed, 10).await;
+}
 
-        let max_n_operations = 10;
+#[cfg(feature = "long_fuzz_test")]
+mod long_fuzz_test {
+    use super::*;
 
-        // Create scenarios.
-        for _ in 0..max_n_operations {
-            // An error value means the context is finalized - no more operations can be applied.
-            if fuzz_tester.add_random_operation().is_err() {
-                break;
-            }
-        }
-
-        fuzz_tester.run_test().await;
+    /// Long fuzz test. This generates a lot of code, so instead of `#[cfg_attr(.., ignore)]`, we
+    /// gate the actual module.
+    /// It is strongly recommended to run this test in release mode only.
+    #[rstest]
+    #[tokio::test]
+    async fn test_fuzz(
+        #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)] seed0: u64,
+        #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)] seed1: u64,
+        #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)] seed2: u64,
+        #[values(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)] seed3: u64,
+    ) {
+        let seed_base = 10;
+        assert!(seed0 < seed_base);
+        assert!(seed1 < seed_base);
+        assert!(seed2 < seed_base);
+        assert!(seed3 < seed_base);
+        let seed = seed0
+            + seed1 * seed_base
+            + seed2 * seed_base * seed_base
+            + seed3 * seed_base * seed_base * seed_base;
+        fuzz_test_body(seed, 10).await;
     }
 }
+
+// TODO(Dori): Add an exhaustive fuzz test that covers all possible operations for some small limit
+// n.

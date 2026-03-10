@@ -47,9 +47,10 @@ use starknet_api::hash::StateRoots;
 use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
-use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
+use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, TEST_SEQUENCER_ADDRESS};
+use starknet_api::transaction::constants::TRANSFER_EVENT_NAME;
 use starknet_api::transaction::fields::{Calldata, Fee, Tip};
-use starknet_api::transaction::{L1HandlerTransaction, L1ToL2Payload, MessageToL1};
+use starknet_api::transaction::{Event, L1HandlerTransaction, L1ToL2Payload, MessageToL1};
 use starknet_committer::block_committer::input::{
     IsSubset,
     StarknetStorageKey,
@@ -103,6 +104,8 @@ pub(crate) const EXPECTED_STRK_FEE_TOKEN_ADDRESS: Expect = expect![
     0x1d9267d6952e9d1fc449d4b2f91b439b65b48365294b9c0731a9faf578e1b14
 "#
 ];
+const SEQUENCER_ADDRESS_FELT: Felt = Felt::from_hex_unchecked(TEST_SEQUENCER_ADDRESS);
+
 pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress(
         PatriciaKey::try_from(Felt::from_hex_unchecked(
@@ -126,6 +129,31 @@ pub(crate) struct TestBuilderConfig {
 pub(crate) struct FlowTestTx {
     tx: BlockifierTransaction,
     expected_revert_reason: Option<String>,
+    event_expectations: Vec<EventPredicateExpectation>,
+}
+
+pub(crate) struct EventPredicateExpectation {
+    pub(crate) description: String,
+    pub(crate) predicate: Box<dyn Fn(&Event) -> bool>,
+}
+
+fn is_fee_token_transfer_to_address_event(address_as_felt: Felt) -> impl Fn(&Event) -> bool {
+    move |event: &Event| {
+        event.from_address == *STRK_FEE_TOKEN_ADDRESS
+            && event.content.keys[0].0 == selector_from_name(TRANSFER_EVENT_NAME).0
+            && event.content.data.0[1] == address_as_felt
+    }
+}
+
+fn is_fee_token_transfer_to_sequencer_event(event: &Event) -> bool {
+    is_fee_token_transfer_to_address_event(SEQUENCER_ADDRESS_FELT)(event)
+}
+
+fn expect_fee_token_transfer_to_sequencer_event() -> EventPredicateExpectation {
+    EventPredicateExpectation {
+        description: "fee transfer to sequencer emits a STRK token event".to_string(),
+        predicate: Box::new(is_fee_token_transfer_to_sequencer_event),
+    }
 }
 
 pub(crate) struct OsTestExpectedValues {
@@ -525,11 +553,16 @@ impl<S: FlowTestState> TestBuilder<S> {
         else {
             panic!("Expected a V1 contract class");
         };
+        let mut event_expectations = Vec::new();
+        if tx.sender_address() != DeclareTransaction::bootstrap_address() {
+            event_expectations.push(expect_fee_token_transfer_to_sequencer_event());
+        }
         self.last_block_txs_mut().push(FlowTestTx {
             tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::Account(
                 AccountTransaction::Declare(tx),
             )),
             expected_revert_reason: None,
+            event_expectations,
         });
 
         self.execution_contracts
@@ -543,12 +576,16 @@ impl<S: FlowTestState> TestBuilder<S> {
         &mut self,
         tx: InvokeTransaction,
         expected_revert_reason: Option<String>,
+        event_expectations: Option<Vec<EventPredicateExpectation>>,
     ) {
+        let mut event_expectations = event_expectations.unwrap_or_default();
+        event_expectations.push(expect_fee_token_transfer_to_sequencer_event());
         self.last_block_txs_mut().push(FlowTestTx {
             tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::Account(
                 AccountTransaction::Invoke(tx),
             )),
             expected_revert_reason,
+            event_expectations,
         });
     }
 
@@ -560,6 +597,7 @@ impl<S: FlowTestState> TestBuilder<S> {
         self.add_invoke_tx(
             InvokeTransaction::create(invoke_tx(args), &self.chain_id()).unwrap(),
             revert_reason,
+            None,
         );
     }
 
@@ -568,7 +606,17 @@ impl<S: FlowTestState> TestBuilder<S> {
     /// Assumes the tx should not be reverted.
     pub(crate) fn add_funded_account_invoke(&mut self, additional_args: InvokeTxArgs) {
         let tx = self.create_funded_account_invoke(additional_args);
-        self.add_invoke_tx(tx, None);
+        self.add_invoke_tx(tx, None, None);
+    }
+
+    /// Similar to `add_funded_account_invoke`, but with event expectations.
+    pub(crate) fn add_funded_account_invoke_with_events(
+        &mut self,
+        additional_args: InvokeTxArgs,
+        event_expectations: Vec<EventPredicateExpectation>,
+    ) {
+        let tx = self.create_funded_account_invoke(additional_args);
+        self.add_invoke_tx(tx, None, Some(event_expectations));
     }
 
     /// Creates an invoke transaction from the funded account, with nonce set (and incremented)
@@ -599,6 +647,7 @@ impl<S: FlowTestState> TestBuilder<S> {
                 AccountTransaction::Declare(tx),
             )),
             expected_revert_reason: None,
+            event_expectations: Vec::new(),
         });
         self.execution_contracts.executed.deprecated_contracts.insert(class_hash, class);
     }
@@ -609,6 +658,7 @@ impl<S: FlowTestState> TestBuilder<S> {
                 AccountTransaction::DeployAccount(tx),
             )),
             expected_revert_reason: None,
+            event_expectations: vec![expect_fee_token_transfer_to_sequencer_event()],
         });
     }
 
@@ -631,6 +681,7 @@ impl<S: FlowTestState> TestBuilder<S> {
         self.last_block_txs_mut().push(FlowTestTx {
             tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::L1Handler(tx)),
             expected_revert_reason,
+            event_expectations: Vec::new(),
         });
     }
 
@@ -667,7 +718,13 @@ impl<S: FlowTestState> TestBuilder<S> {
             "transfer",
             &[**address, Felt::from(amount), Felt::ZERO],
         );
-        self.add_funded_account_invoke(invoke_tx_args! { calldata });
+        self.add_funded_account_invoke_with_events(
+            invoke_tx_args! { calldata },
+            vec![EventPredicateExpectation {
+                description: "fee transfer to funded address emits a STRK token event".to_string(),
+                predicate: Box::new(is_fee_token_transfer_to_address_event(**address)),
+            }],
+        );
     }
 
     /// Divides the current transactions into the specified number of blocks.
@@ -685,9 +742,11 @@ impl<S: FlowTestState> TestBuilder<S> {
     fn verify_execution_outputs(
         block_index: usize,
         revert_reasons: &[Option<String>],
+        event_expectations_per_tx: &[Vec<EventPredicateExpectation>],
         execution_outputs: &[(TransactionExecutionInfo, StateMaps)],
     ) {
         assert_eq!(revert_reasons.len(), execution_outputs.len());
+        assert_eq!(event_expectations_per_tx.len(), execution_outputs.len());
         for ((i, revert_reason), (execution_info, _)) in
             revert_reasons.iter().enumerate().zip(execution_outputs.iter())
         {
@@ -705,6 +764,26 @@ impl<S: FlowTestState> TestBuilder<S> {
                     execution_info.revert_error.is_none(),
                     "{preamble} Expected no revert error, got: {}.",
                     execution_info.revert_error.as_ref().unwrap()
+                );
+            }
+
+            let event_expectations = &event_expectations_per_tx[i];
+            let actual_events = execution_info.accumulated_sorted_events();
+            assert_eq!(
+                event_expectations.len(),
+                actual_events.len(),
+                "{preamble} Expected {} events for predicate checks, got {}.",
+                event_expectations.len(),
+                actual_events.len()
+            );
+            for (event_index, (event_expectation, actual_event)) in
+                event_expectations.iter().zip(actual_events.iter()).enumerate()
+            {
+                assert!(
+                    (event_expectation.predicate)(actual_event),
+                    "{preamble} Event {event_index} failed predicate '{}'. Event: {:?}",
+                    event_expectation.description,
+                    actual_event
                 );
             }
         }
@@ -769,10 +848,17 @@ impl<S: FlowTestState> TestBuilder<S> {
                 BlockContext::from_base_context(&base_block_context, block_index, use_kzg_da)
             };
 
-            let (block_txs, revert_reasons): (Vec<_>, Vec<_>) = block_txs_with_reason
-                .into_iter()
-                .map(|flow_test_tx| (flow_test_tx.tx, flow_test_tx.expected_revert_reason))
-                .unzip();
+            let (block_txs, revert_reasons, event_expectations_per_tx): (Vec<_>, Vec<_>, Vec<_>) =
+                block_txs_with_reason
+                    .into_iter()
+                    .map(|flow_test_tx| {
+                        (
+                            flow_test_tx.tx,
+                            flow_test_tx.expected_revert_reason,
+                            flow_test_tx.event_expectations,
+                        )
+                    })
+                    .multiunzip();
             // Clone the block info for later use.
             let block_info = block_context.block_info().clone();
             // Execute the transactions.
@@ -783,7 +869,12 @@ impl<S: FlowTestState> TestBuilder<S> {
                     block_context,
                     self.virtual_os,
                 );
-            Self::verify_execution_outputs(block_index, &revert_reasons, &execution_outputs);
+            Self::verify_execution_outputs(
+                block_index,
+                &revert_reasons,
+                &event_expectations_per_tx,
+                &execution_outputs,
+            );
             let initial_reads = get_extended_initial_reads(&final_state);
             // Update the wrapped state.
             let state_diff = final_state.to_state_diff().unwrap().state_maps;

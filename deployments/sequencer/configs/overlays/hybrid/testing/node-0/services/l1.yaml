@@ -1,3 +1,6 @@
+include:
+  - configs/overlays/hybrid/testing/node-0/common.yaml
+
 name: l1
 
 replicas: 1

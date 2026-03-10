@@ -19,6 +19,7 @@ use crate::execution::stack_trace::Cairo1RevertSummary;
 #[cfg(feature = "cairo_native")]
 use crate::execution::syscalls::hint_processor::SyscallExecutionError;
 use crate::state::errors::StateError;
+use crate::transaction::errors::NumericConversionError;
 
 // TODO(AlonH, 21/12/2022): Implement Display for all types that appear in errors.
 
@@ -77,6 +78,8 @@ pub enum PostExecutionError {
     VirtualMachineError(#[from] VirtualMachineError),
     #[error("Malformed return data : {error_message}.")]
     MalformedReturnData { error_message: String },
+    #[error(transparent)]
+    NumericConversionError(#[from] NumericConversionError),
 }
 
 impl From<RunnerError> for PostExecutionError {

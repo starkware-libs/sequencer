@@ -70,61 +70,42 @@ def _get_base_dir() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def _get_config_paths(
-    base_dir: Path, layout: str, overlay: str | None
-) -> tuple[Path, Path, Path | None, Path | None]:
-    """Get layout and overlay config paths.
+def _get_config_paths(base_dir: Path, layout: str, overlay: str) -> tuple[Path, list[Path]]:
+    """Get layout and overlay service directory paths.
 
-    Overlay path must start with the layout name and use dot notation for nested paths:
-    - 'hybrid.sepolia-integration.node-01' -> configs/overlays/hybrid/sepolia-integration/node-01/
-    - 'hybrid.sepolia-integration.node-02' -> configs/overlays/hybrid/sepolia-integration/node-02/
+    Overlay must start with the layout name and use dot notation:
+    - 'hybrid.testing.node-0' -> configs/overlays/hybrid/testing/node-0/
+
+    Returns:
+        (layout_services, overlay_services_list) where overlay_services_list has exactly
+        one services directory path.
     """
-    layout_services = base_dir / "configs" / "layouts" / layout / "services"
+    layout_node_dir = base_dir / "configs" / "layouts" / layout
+    layout_services = layout_node_dir / "services"
 
-    # common.yaml is optional in layout paths
-    layout_common_path = base_dir / "configs" / "layouts" / layout / "common.yaml"
-    layout_common = layout_common_path if layout_common_path.exists() else None
+    overlay_path_segments = overlay.split(".")
+    if not overlay_path_segments or overlay_path_segments[0] != layout:
+        raise ValueError(
+            f"Overlay path '{overlay}' must start with the layout name '{layout}'. "
+            f"Example: '{layout}.testing.node-0'"
+        )
 
-    overlay_common = None
-    overlay_services = None
-    if overlay:
-        # Split dot-separated path into segments
-        # e.g., "hybrid.sepolia-integration.node-01" -> ["hybrid", "sepolia-integration", "node-01"]
-        overlay_path_segments = overlay.split(".")
+    overlay_base_path = base_dir / "configs" / "overlays" / layout
+    for segment in overlay_path_segments[1:]:
+        overlay_base_path = overlay_base_path / segment
 
-        # First segment must be the layout name
-        if not overlay_path_segments or overlay_path_segments[0] != layout:
-            raise ValueError(
-                f"Overlay path '{overlay}' must start with the layout name '{layout}'. "
-                f"Example: '{layout}.sepolia-integration.node-01'"
-            )
-
-        # Build overlay path: configs/overlays/{layout}/{segment2}/{segment3}/...
-        # Skip first segment (layout) since it's already in the path
-        overlay_base_path = base_dir / "configs" / "overlays" / layout
-        for segment in overlay_path_segments[1:]:
-            overlay_base_path = overlay_base_path / segment
-
-        overlay_services = overlay_base_path / "services"
-
-        # common.yaml is optional in overlay paths
-        overlay_common_path = overlay_base_path / "common.yaml"
-        overlay_common = overlay_common_path if overlay_common_path.exists() else None
-
-    return (layout_common, layout_services, overlay_common, overlay_services)
+    overlay_services = overlay_base_path / "services"
+    return (layout_services, [overlay_services])
 
 
-def _load_deployment_config(base_dir: Path, layout: str, overlay: str | None) -> DeploymentSchema:
+def _load_deployment_config(base_dir: Path, layout: str, overlay: str) -> DeploymentSchema:
     """Load and merge deployment configuration."""
-    layout_common, layout_services, overlay_common, overlay_services = _get_config_paths(
-        base_dir, layout, overlay
-    )
+    layout_services, overlay_services_list = _get_config_paths(base_dir, layout, overlay)
 
     return merge_configs(
-        layout_common_config_path=str(layout_common),
         layout_services_config_dir_path=str(layout_services),
-        overlay_common_config_path=str(overlay_common) if overlay_common else None,
-        overlay_services_config_dir_path=str(overlay_services) if overlay_services else None,
+        overlay_services_config_dir_paths=[str(p) for p in overlay_services_list],
+        config_base_dir=str(base_dir),
     )
 
 
@@ -187,7 +168,7 @@ def _create_service_charts(
     namespace: str,
     monitoring_enabled: bool,
     layout: str,
-    overlay: str | None,
+    overlay: str,  # overlay entrypoint, e.g. "hybrid.testing.node-0"
 ):
     """Create SequencerNodeChart for each service."""
     for service_cfg in deployment_config.services:

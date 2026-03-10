@@ -19,6 +19,7 @@ use cairo_native::starknet::{
     U256,
 };
 use num_bigint::BigUint;
+use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, L1Address};
 use starknet_api::execution_resources::GasAmount;
@@ -279,7 +280,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             SyscallSelector::GetBlockHash,
         )?;
 
-        match self.base.get_block_hash(block_number) {
+        match self.base.get_block_hash(BlockNumber(block_number)) {
             Ok(value) => Ok(value),
             Err(e) => Err(self.handle_error(remaining_gas, e)),
         }

@@ -1,4 +1,7 @@
 # Gateway service configuration with all constructs enabled
+include:
+  - configs/overlays/hybrid/testing/all-constructs/common.yaml
+
 name: gateway
 
 # StatefulSet disabled (gateway uses Deployment by default)

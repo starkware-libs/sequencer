@@ -1,3 +1,8 @@
+//! JSON-RPC server exposing the proving pipeline.
+//!
+//! Provides the HTTP entry point, concurrency limiting, CORS configuration, and error mapping
+//! from internal prover errors to JSON-RPC error codes.
+
 use std::net::SocketAddr;
 
 use anyhow::Context;
@@ -9,11 +14,14 @@ use self::config::TransportMode;
 
 pub mod config;
 pub mod cors;
-pub mod error;
+pub mod errors;
 pub mod mock_rpc;
+pub mod rpc_api;
 pub mod rpc_impl;
-pub mod rpc_trait;
 pub mod tls;
+
+#[cfg(test)]
+mod rpc_spec_test;
 
 /// Starts the JSON-RPC server in either HTTP or HTTPS mode depending on the transport.
 pub async fn start_server(

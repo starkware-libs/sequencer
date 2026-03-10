@@ -361,12 +361,10 @@ fn replace_pred(key: &str, value: &Value) -> bool {
     let invalid_port: u64 = DEFAULT_INVALID_PORT.into();
 
     // Condition 1: ports set by the infra: ".port" suffix and a non-zero integer value
-    let port_cond =
-        key.ends_with(".port") && value.as_u64().map(|n| n != invalid_port).unwrap_or(false);
+    let port_cond = key.ends_with(".port") && value.as_u64().is_some_and(|n| n != invalid_port);
 
     // Condition 2: service urls: ".url" suffix and a non-localhost string value
-    let url_cond =
-        key.ends_with(".url") && value.as_str().map(|s| s != DEFAULT_URL).unwrap_or(false);
+    let url_cond = key.ends_with(".url") && value.as_str().is_some_and(|s| s != DEFAULT_URL);
 
     port_cond || url_cond
 }

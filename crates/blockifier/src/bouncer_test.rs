@@ -650,7 +650,7 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
             .unwrap()
             .iter()
             .fold(ExecutionResources::default(), |acc, (_class_hash, estimated_resources)| {
-                &acc + estimated_resources.resources_ref()
+                &acc + &estimated_resources.vm_resources
             })
             .prover_builtins()
     };
@@ -783,11 +783,11 @@ fn class_hash_migration_data_from_state(
 
     if should_migrate {
         expect![[r#"
-            109866079
+            110366381
         "#]]
         .assert_debug_eq(&migration_sierra_gas.0);
         expect![[r#"
-            266185200
+            267334914
         "#]]
         .assert_debug_eq(&migration_proving_gas.0);
     } else {

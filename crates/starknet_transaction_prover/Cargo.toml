@@ -24,7 +24,7 @@ cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-program-runner-lib = { workspace = true, optional = true }
 cairo-vm.workspace = true
-clap = { workspace = true, features = ["derive"] }
+clap = { workspace = true, features = ["derive", "env"] }
 futures.workspace = true
 http.workspace = true
 indexmap.workspace = true
@@ -58,6 +58,7 @@ assert_matches.workspace = true
 axum.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
+jsonschema.workspace = true
 mockito.workspace = true
 reqwest.workspace = true
 rstest.workspace = true

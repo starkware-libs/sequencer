@@ -1,4 +1,7 @@
 # Sierra Compiler service configuration with all constructs enabled
+include:
+  - configs/overlays/hybrid/testing/all-constructs/common.yaml
+
 name: sierracompiler
 
 # StatefulSet disabled (sierra-compiler uses Deployment by default)
