@@ -34,8 +34,8 @@ def argument_parser():
         type=str,
         action=UniqueStoreAction,
         choices=["consolidated", "hybrid", "distributed"],
-        default="consolidated",
-        help="Layout name to use. Default: consolidated",
+        default="hybrid",
+        help="Layout name to use. Default: hybrid",
     )
     parser.add_argument(
         "-o",
