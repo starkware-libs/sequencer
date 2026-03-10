@@ -1,9 +1,9 @@
 use std::fs;
 
 use apollo_infra_utils::path::resolve_project_relative_path;
-use apollo_transaction_converter::ProgramOutput;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use starknet_api::transaction::fields::VIRTUAL_SNOS;
+use starknet_proof_verifier::ProgramOutput;
 
 use crate::proving::prover::prove;
 

@@ -1,7 +1,7 @@
 use starknet_api::transaction::fields::PROOF_VERSION;
 use starknet_types_core::felt::Felt;
 
-use crate::proof_verification::{reconstruct_output_preimage, ProgramOutput};
+use crate::{reconstruct_output_preimage, ProgramOutput};
 
 /// Verifies that converting ProgramOutput -> ProofFacts -> output preimage produces the
 /// original program output.

@@ -33,7 +33,6 @@ use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs, Vali
 use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
-use apollo_transaction_converter::proof_verification::VerifyProofError;
 use apollo_transaction_converter::{
     MockTransactionConverterTrait,
     TransactionConverterError,
@@ -85,6 +84,7 @@ use starknet_api::{
     invoke_tx_args,
     nonce,
 };
+use starknet_proof_verifier::VerifyProofError;
 use starknet_types_core::felt::Felt;
 use strum::VariantNames;
 use tempfile::TempDir;

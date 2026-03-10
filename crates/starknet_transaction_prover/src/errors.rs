@@ -1,4 +1,3 @@
-use apollo_transaction_converter::ProgramOutputError;
 use blockifier::state::errors::StateError;
 use blockifier_reexecution::errors::ReexecutionError;
 use cairo_vm::types::errors::program_errors::ProgramError;
@@ -7,6 +6,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_os::errors::StarknetOsError;
 use starknet_os::io::os_output::OsOutputError;
 use starknet_patricia_storage::errors::SerializationError;
+use starknet_proof_verifier::ProgramOutputError;
 use starknet_rust::providers::ProviderError;
 use thiserror::Error;
 
