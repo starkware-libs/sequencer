@@ -76,8 +76,15 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
     ///
     /// This constructor allows using any runner implementation.
     #[allow(dead_code)]
-    pub(crate) fn from_runner(runner: R, validate_zero_fee_fields: bool) -> Self {
-        Self { runner, validate_zero_fee_fields }
+    pub(crate) fn from_runner(runner: R) -> Self {
+        Self { runner, validate_zero_fee_fields: true }
+    }
+
+    /// Disables fee-field validation (resource bounds, tip).
+    #[allow(dead_code)]
+    pub(crate) fn disable_fee_validation(mut self) -> Self {
+        self.validate_zero_fee_fields = false;
+        self
     }
 
     /// Proves a transaction on top of the specified block.
