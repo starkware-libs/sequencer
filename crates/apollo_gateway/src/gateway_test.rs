@@ -4,6 +4,7 @@ use std::sync::{Arc, LazyLock};
 
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_gateway_config::config::{
     GatewayConfig,
     GatewayStaticConfig,
@@ -88,7 +89,9 @@ use starknet_api::{
 use starknet_types_core::felt::Felt;
 use strum::VariantNames;
 use tempfile::TempDir;
+use tokio::sync::watch::channel;
 
+use super::{GatewayAppState, GatewayDynamicConfigUpdater};
 use crate::errors::{GatewayResult, StatelessTransactionValidatorError};
 use crate::gateway::GenericGateway;
 use crate::metrics::{
@@ -137,6 +140,7 @@ fn mock_dependencies() -> MockDependencies {
             contract_class_manager_config: ContractClassManagerConfig::default(),
             chain_info: ChainInfo::create_for_testing(),
             block_declare: false,
+            dynamic_config_poll_interval: std::time::Duration::from_secs(1),
             authorized_declarer_accounts: None,
             proof_archive_writer_config: ProofArchiveWriterConfig::default(),
         },
@@ -176,7 +180,7 @@ impl MockDependencies {
         StatefulTransactionValidatorFactory<TestStateReaderFactory>,
     > {
         register_metrics();
-        GenericGateway::new(
+        GenericGateway::new_for_testing(
             self.config,
             Arc::new(self.state_reader_factory),
             Arc::new(self.mock_mempool_client),
@@ -734,20 +738,33 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
 
     let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
+    let (dynamic_config_tx, dynamic_config_rx) =
+        channel(mock_dependencies.config.dynamic_config.clone());
+    let config = Arc::new(mock_dependencies.config);
     let gateway = GenericGateway::<
         MockStatelessTransactionValidatorTrait,
         MockTransactionConverterTrait,
         MockStatefulTransactionValidatorFactoryTrait,
     > {
-        config: Arc::new(mock_dependencies.config),
-        stateless_tx_validator: Arc::new(mock_dependencies.mock_stateless_transaction_validator),
-        stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
-        mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
-        transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
-        proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
+        config: config.clone(),
+        gateway_app_state: GatewayAppState {
+            config,
+            stateless_tx_validator: Arc::new(
+                mock_dependencies.mock_stateless_transaction_validator,
+            ),
+            stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
+            mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
+            transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
+            proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
+            dynamic_config_rx,
+        },
+        gateway_dynamic_config_updater: GatewayDynamicConfigUpdater {
+            config_manager_client: Arc::new(MockConfigManagerClient::new()),
+            dynamic_config_tx,
+        },
     };
 
-    let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
+    let result = gateway.gateway_app_state.add_tx(tx_args.get_rpc_tx(), None).await;
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().code, error_code);
@@ -791,20 +808,33 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
 
     let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
+    let (dynamic_config_tx, dynamic_config_rx) =
+        channel(mock_dependencies.config.dynamic_config.clone());
+    let config = Arc::new(mock_dependencies.config);
     let gateway = GenericGateway::<
         MockStatelessTransactionValidatorTrait,
         MockTransactionConverterTrait,
         MockStatefulTransactionValidatorFactoryTrait,
     > {
-        config: Arc::new(mock_dependencies.config),
-        stateless_tx_validator: Arc::new(mock_dependencies.mock_stateless_transaction_validator),
-        stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
-        mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
-        transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
-        proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
+        config: config.clone(),
+        gateway_app_state: GatewayAppState {
+            config,
+            stateless_tx_validator: Arc::new(
+                mock_dependencies.mock_stateless_transaction_validator,
+            ),
+            stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
+            mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
+            transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
+            proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
+            dynamic_config_rx,
+        },
+        gateway_dynamic_config_updater: GatewayDynamicConfigUpdater {
+            config_manager_client: Arc::new(MockConfigManagerClient::new()),
+            dynamic_config_tx,
+        },
     };
 
-    let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
+    let result = gateway.gateway_app_state.add_tx(tx_args.get_rpc_tx(), None).await;
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().code, error_code);
