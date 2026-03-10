@@ -1,14 +1,22 @@
 import argparse
 
+# Attribute on the namespace used to track which dests have been set by UniqueStoreAction.
+_UNIQUE_STORE_SEEN = "_UniqueStoreAction_seen"
+
 
 class UniqueStoreAction(argparse.Action):
-    """Allows an option to be specified at most once. Uses default-based check so arguments
-    with a default (e.g. --layout default=consolidated) are not treated as already set."""
+    """Allows an option to be specified at most once. Tracks whether the option was already
+    specified on the command line, so uniqueness is enforced even when the first value
+    equals the argument default (e.g. --layout hybrid --layout distributed)."""
 
     def __call__(self, parser, namespace, values, option_string=None):
-        current = getattr(namespace, self.dest, self.default)
-        if current != self.default:
-            raise argparse.ArgumentError(self, f"argument can only be specified once")
+        seen = getattr(namespace, _UNIQUE_STORE_SEEN, None)
+        if seen is None:
+            seen = set()
+            setattr(namespace, _UNIQUE_STORE_SEEN, seen)
+        if self.dest in seen:
+            raise argparse.ArgumentError(self, "argument can only be specified once")
+        seen.add(self.dest)
         setattr(namespace, self.dest, values)
 
 
@@ -34,8 +42,8 @@ def argument_parser():
         type=str,
         action=UniqueStoreAction,
         choices=["consolidated", "hybrid", "distributed"],
-        default="consolidated",
-        help="Layout name to use. Default: consolidated",
+        default="hybrid",
+        help="Layout name to use. Default: hybrid",
     )
     parser.add_argument(
         "-o",
