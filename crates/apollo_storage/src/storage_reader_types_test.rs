@@ -38,7 +38,7 @@ use crate::storage_reader_types::{
 };
 use crate::test_utils::get_test_storage;
 use crate::version::VersionStorageReader;
-use crate::{MarkerKind, OffsetKind, StorageReader};
+use crate::{MarkerKind, OffsetKind, StorageReader, StorageTransaction};
 
 const TEST_BLOCK_NUMBER: BlockNumber = BlockNumber(0);
 
