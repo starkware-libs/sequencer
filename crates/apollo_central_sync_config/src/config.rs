@@ -115,6 +115,10 @@ pub struct SyncConfig {
     pub verify_blocks: bool,
     pub collect_pending_data: bool,
     pub store_sierras_and_casms_block_threshold: u64,
+    /// Batching is automatically disabled (batch_size set to 1) once the node is
+    /// within this many blocks of the chain tip. This ensures low-latency commits
+    /// near the tip so that readers see new data immediately.
+    pub blocks_before_tip_to_disable_batching: u64,
 }
 
 impl SerializeConfig for SyncConfig {
@@ -175,6 +179,13 @@ impl SerializeConfig for SyncConfig {
                  blocks, or a large value (e.g. u64::MAX) to store for all.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "blocks_before_tip_to_disable_batching",
+                &self.blocks_before_tip_to_disable_batching,
+                "Batching is automatically disabled (batch_size=1) once the node is within this \
+                 many blocks of the chain tip, ensuring low-latency commits near the tip.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -190,6 +201,7 @@ impl Default for SyncConfig {
             verify_blocks: true,
             collect_pending_data: false,
             store_sierras_and_casms_block_threshold: 0,
+            blocks_before_tip_to_disable_batching: 100,
         }
     }
 }
