@@ -214,8 +214,9 @@ fn validate_transaction_input(
             )));
         }
         if tx.tip != Tip::ZERO {
+            let tip_value = tx.tip.0;
             return Err(VirtualSnosProverError::InvalidTransactionInput(format!(
-                "Tip must be zero, got: {tx.tip.0}."
+                "Tip must be zero, got: {tip_value}."
             )));
         }
     }
