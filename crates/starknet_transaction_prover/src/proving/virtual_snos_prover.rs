@@ -80,6 +80,13 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
         Self { runner, validate_zero_fee_fields: false }
     }
 
+    /// Sets the fee validation flag (test-only).
+    #[cfg(test)]
+    pub(crate) fn with_fee_validation(mut self, validate_zero_fee_fields: bool) -> Self {
+        self.validate_zero_fee_fields = validate_zero_fee_fields;
+        self
+    }
+
     /// Proves a transaction on top of the specified block.
     ///
     /// This method:
