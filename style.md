@@ -531,10 +531,10 @@ Using the non-pure `for_each` combinator is also fine but only for one-liners.
 ```rust
 // BAD
 // Even if rust allows the closure to mutate self, it's surprising to do this inside a transformer like `map`.
-let new_vec = old_vec.map(|num| self.mutate_self(num))
+let new_vec = old_vec.map(|num| self.mutate_self(num)).collect();
 
 // GOOD
-let new_vec = Vec::with_capacity(old_vec.len());
+let mut new_vec = Vec::with_capacity(old_vec.len());
 for num in old_vec {
     let new_num = self.mutate_self(num);
     new_vec.push(new_num);
