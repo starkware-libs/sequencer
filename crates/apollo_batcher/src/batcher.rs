@@ -490,16 +490,18 @@ impl Batcher {
         send_proposal_content_input: SendProposalContentInput,
     ) -> BatcherResult<SendProposalContentResponse> {
         let proposal_id = send_proposal_content_input.proposal_id;
-        if !self.validate_tx_streams.contains_key(&proposal_id) {
-            return Err(BatcherError::ProposalNotFound { proposal_id });
-        }
+        self.ensure_validate_proposal_exists(proposal_id)?;
 
         match send_proposal_content_input.content {
             SendProposalContent::Txs(txs) => self.handle_send_txs_request(proposal_id, txs).await,
             SendProposalContent::Finish(final_n_executed_txs) => {
                 self.handle_finish_proposal_request(proposal_id, final_n_executed_txs).await
             }
-            SendProposalContent::Abort => self.handle_abort_proposal_request(proposal_id).await,
+            // TODO(Itamar): Remove this arm once all callers migrate to `abort_proposal`.
+            SendProposalContent::Abort => match self.abort_proposal(proposal_id).await {
+                Ok(()) => Ok(SendProposalContentResponse { response: ProposalStatus::Aborted }),
+                Err(err) => Err(err),
+            },
         }
     }
 
@@ -566,10 +568,10 @@ impl Batcher {
         Ok(SendProposalContentResponse { response: proposal_status })
     }
 
-    async fn handle_abort_proposal_request(
-        &mut self,
-        proposal_id: ProposalId,
-    ) -> BatcherResult<SendProposalContentResponse> {
+    #[instrument(skip(self), err)]
+    pub async fn abort_proposal(&mut self, proposal_id: ProposalId) -> BatcherResult<()> {
+        self.ensure_validate_proposal_exists(proposal_id)?;
+
         if self.is_active(proposal_id).await {
             self.abort_active_proposal().await;
 
@@ -581,7 +583,15 @@ impl Batcher {
             assert!(proposal_already_exists.is_none(), "Duplicate proposal: {proposal_id}.");
         }
         self.validate_tx_streams.remove(&proposal_id);
-        Ok(SendProposalContentResponse { response: ProposalStatus::Aborted })
+        Ok(())
+    }
+
+    fn ensure_validate_proposal_exists(&self, proposal_id: ProposalId) -> BatcherResult<()> {
+        if self.validate_tx_streams.contains_key(&proposal_id) {
+            Ok(())
+        } else {
+            Err(BatcherError::ProposalNotFound { proposal_id })
+        }
     }
 
     fn get_height_from_storage(&self) -> BatcherResult<BlockNumber> {
