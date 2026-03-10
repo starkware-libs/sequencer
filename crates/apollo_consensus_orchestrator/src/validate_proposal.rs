@@ -494,16 +494,12 @@ async fn handle_proposal_part(
     }
 }
 
-// TODO(Itamar): Migrate to use `batcher.abort_proposal(proposal_id) instead of
-// send_proposal_content`.
 async fn batcher_abort_proposal(
     batcher: &dyn BatcherClient,
     proposal_id: ProposalId,
 ) -> Result<(), ValidateProposalError> {
-    let input = SendProposalContentInput { proposal_id, content: SendProposalContent::Abort };
-
-    match batcher.send_proposal_content(input.clone()).await {
-        Ok(_) => Ok(()),
+    match batcher.abort_proposal(proposal_id).await {
+        Ok(()) => Ok(()),
         Err(BatcherClientError::BatcherError(BatcherError::ProposalAborted)) => {
             warn!("Proposal {proposal_id:?} was already aborted by batcher");
             Ok(())
