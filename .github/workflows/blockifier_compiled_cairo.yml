@@ -8,8 +8,10 @@ on:
       - synchronize
     paths:
       - ".github/workflows/blockifier_compiled_cairo.yml"
+      - "crates/apollo_compile_to_casm/src/constants.rs" # Contains the Cairo1 compiler version.
+      - "crates/apollo_compile_to_casm/src/allowed_libfuncs.json"
       - "crates/apollo_infra_utils/src/cairo0_compiler.rs" # Contains the Cairo0 compiler version.
-      - "crates/blockifier_test_utils/resources/feature_contracts/cairo0/**"
+      - "crates/blockifier_test_utils/**"
       - "scripts/dependencies.sh"
 
 env:
@@ -25,22 +27,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # https://graphite.com/docs/stacking-and-ci
-  optimize_ci:
-    runs-on: ubuntu-24.04
-    outputs:
-      skip: ${{ steps.check_skip.outputs.skip }}
-    steps:
-      - name: Optimize CI
-        id: check_skip
-        uses: withgraphite/graphite-ci-action@v0.0.9
-        with:
-          graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
-
-  verify_cairo0_compiled_artifacts:
+  verify_cairo_file_dependencies:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
-    needs: optimize_ci
-    if: needs.optimize_ci.outputs.skip == 'false'
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
@@ -58,5 +46,5 @@ jobs:
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r crates/blockifier_test_utils/resources/blockifier-test-utils-requirements.txt
 
-      - name: Verify Cairo 0 compiled artifacts match recompilation.
-        run: cargo test -p blockifier_test_utils --test feature_contracts_compatibility_test -- --include-ignored verify_feature_contracts_cairo0 --nocapture
+      - name: Verify cairo contract recompilation (both cairo versions).
+        run: cargo test -p blockifier_test_utils --test feature_contracts_compatibility_test -- --include-ignored --nocapture

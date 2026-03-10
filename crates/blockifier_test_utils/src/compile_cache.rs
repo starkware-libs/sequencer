@@ -13,6 +13,7 @@ use crate::cairo_compile::{
     verify_cairo1_package,
     with_file_lock,
     CompilationArtifacts,
+    LibfuncArg,
 };
 use crate::contracts::FeatureContract;
 
@@ -88,8 +89,7 @@ pub fn ensure_cairo1_compiled(contract: &FeatureContract) {
     let version = contract.fixed_version();
     let crate_root = PathBuf::from(compile_time_cargo_manifest_dir!());
     let source_path = crate_root.join(contract.get_source_path());
-    let libfunc_arg = contract.libfunc_arg();
-    let libfunc_file = crate_root.join(libfunc_arg.file_path());
+    let libfunc_file = crate_root.join(contract.libfunc_arg().file_path());
 
     let cache_key = compute_cache_key(&source_path, &version, &libfunc_file);
 
@@ -103,6 +103,7 @@ pub fn ensure_cairo1_compiled(contract: &FeatureContract) {
         );
         verify_cairo1_package(&version);
 
+        let libfunc_arg = LibfuncArg::ListFile(libfunc_file.to_string_lossy().to_string());
         let CompilationArtifacts::Cairo1 { casm, sierra } =
             cairo1_compile(source_path.to_string_lossy().to_string(), version, libfunc_arg)
         else {
