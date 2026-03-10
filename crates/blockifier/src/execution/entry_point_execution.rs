@@ -453,7 +453,7 @@ pub fn extract_extended_vm_resources(
 ///
 /// Multiple VM resource types may map to the same `OpcodeName`(e.g. `Blake` + `BlakeFinalize` →
 /// `OpcodeName::Blake`).
-fn opcode_counter_from_extended_resources(
+pub fn opcode_counter_from_extended_resources(
     extended_resources: &HashMap<ExtendedExecutionResourceType, u32>,
 ) -> Result<OpcodeCounterMap, PostExecutionError> {
     let mut counter = OpcodeCounterMap::default();
