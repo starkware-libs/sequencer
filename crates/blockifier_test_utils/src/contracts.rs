@@ -704,6 +704,9 @@ impl FeatureContract {
     }
 }
 
+/// Reads the raw JSON content of a contract class from disk.
+/// Accepts both absolute paths (e.g. from the compilation cache) and crate-relative paths
+/// (e.g. `resources/feature_contracts/...` resolved against the crate's manifest directory).
 pub fn get_raw_contract_class(contract_path: &str) -> String {
     let path: PathBuf = if std::path::Path::new(contract_path).is_absolute() {
         PathBuf::from(contract_path)
