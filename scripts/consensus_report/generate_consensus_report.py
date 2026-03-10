@@ -42,7 +42,10 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+import ascii_tables
 
 ROUND_RE = re.compile(r"\bround[=: ]\s*(\d+)\b")
 PROPOSAL_ROUND_RE = re.compile(r"\bproposal_round[=: ]\s*(\d+)\b")
@@ -641,7 +644,7 @@ def render_validator_nodes_summary_section(
     section_lines.append("-----")
     section_lines.append("")
     section_lines.append(
-        ascii_table(
+        ascii_tables.ascii_table(
             ["Namespace", "ID"],
             [
                 [namespace_by_validator_id.get(validator_id, ""), short_id(validator_id)]
@@ -701,7 +704,7 @@ def render_round_header(round_number: int) -> List[str]:
 def render_round_summary_table(metadata: RoundMetadata) -> List[str]:
     """Render the round summary table with timing and metadata."""
     return [
-        ascii_table(
+        ascii_tables.ascii_table(
             ["Start (UTC)", "End (UTC)", "Proposer", "N_txs", "Block closing reason"],
             [
                 [
@@ -789,9 +792,169 @@ def build_node_details_row(
     return row, vote_no
 
 
+def build_node_details_table(
+    round_number: int,
+    metadata: RoundMetadata,
+    consensus_data: ConsensusData,
+    vote_analysis: VoteAnalysisResult,
+    validation_analysis: ValidationAnalysisResult,
+) -> Tuple[List[str], List[Tuple[int, str]]]:
+    """Build the complete node details table with all validators."""
+    vote_notes: List[Tuple[int, str]] = []
+    vote_no = 1
+
+    left_headers = [
+        "Node ID",
+        "Role",
+        "Proposal Start",
+        "Duration",
+        "Validation",
+        "Prevote",
+        "Precommit",
+    ]
+    aligns = ["l", "l", "l", "r", "l", "l", "l"]
+    right_headers = ["l1_gas", "state_diff_size", "sierra_gas", "n_txs", "proving_gas"]
+    aligns += ["r"] * len(right_headers)
+    rows: List[List[str]] = []
+
+    for validator_id in consensus_data.validator_ids:
+        row, vote_no = build_node_details_row(
+            validator_id,
+            round_number,
+            metadata,
+            consensus_data,
+            vote_analysis,
+            validation_analysis,
+            vote_notes,
+            vote_no,
+        )
+        rows.append(row)
+
+    table_lines = [
+        ascii_tables.ascii_table_with_spanner(
+            "Resources used:", left_headers, right_headers, rows, aligns
+        )
+    ]
+
+    return table_lines, vote_notes
+
+
+def render_evidence_sections(
+    round_number: int,
+    vote_notes: List[Tuple[int, str]],
+    validation_analysis: ValidationAnalysisResult,
+) -> List[str]:
+    """Render vote and validation evidence sections."""
+    lines = []
+
+    if vote_notes:
+        lines.append("")
+        lines.append("VOTE EVIDENCE")
+        lines.append("~~~~~~~~~~~~~")
+        lines.append("")
+        for num, msg in vote_notes:
+            lines.append(f"[{num}] - {msg}")
+
+    if validation_analysis.validation_evidence_by_round.get(round_number, []):
+        lines.append("")
+        lines.append("VALIDATION EVIDENCE")
+        lines.append("~~~~~~~~~~~~~~~~~~~")
+        lines.append("")
+        for num, msg in validation_analysis.validation_evidence_by_round[round_number]:
+            lines.append(f"[{num}] - {msg}")
+
+    return lines
+
+
+def render_single_round_section(
+    round_index: int,
+    consensus_data: ConsensusData,
+    vote_analysis: VoteAnalysisResult,
+    validation_analysis: ValidationAnalysisResult,
+) -> List[str]:
+    """Render a complete round section with header, summary, node details, and evidence."""
+    section_lines = []
+
+    metadata = collect_round_metadata(round_index, consensus_data)
+
+    round_number = consensus_data.consensus_rounds[round_index]
+    section_lines.extend(render_round_header(round_number))
+    section_lines.extend(render_round_summary_table(metadata))
+
+    table_lines, vote_notes = build_node_details_table(
+        round_number, metadata, consensus_data, vote_analysis, validation_analysis
+    )
+    section_lines.extend(table_lines)
+
+    section_lines.extend(render_evidence_sections(round_number, vote_notes, validation_analysis))
+
+    section_lines.append("")
+
+    return section_lines
+
+
+def generate_full_consensus_report(
+    consensus_data: ConsensusData,
+    vote_analysis: VoteAnalysisResult,
+    validation_analysis: ValidationAnalysisResult,
+) -> str:
+    """Orchestrate full report generation: title, nodes section, all rounds sections, footer."""
+    report_lines = []
+
+    report_lines.append(f"CONSENSUS REPORT — BLOCK HEIGHT {consensus_data.block_height}")
+    report_lines.append("=" * len(report_lines[-1]))
+    report_lines.append("")
+
+    report_lines.extend(
+        render_validator_nodes_summary_section(
+            consensus_data.validator_ids, consensus_data.namespace_by_validator_id
+        )
+    )
+
+    for round_index in range(len(consensus_data.consensus_rounds)):
+        report_lines.extend(
+            render_single_round_section(
+                round_index, consensus_data, vote_analysis, validation_analysis
+            )
+        )
+
+    report_lines.append("END OF REPORT")
+
+    return "\n".join(report_lines)
+
+
 def main() -> int:
-    print("not implemented", file=sys.stderr)
-    return 2
+    if len(sys.argv) != 4:
+        print(
+            "Usage: python3 generate_canonical_report.py <logs.json> <height> <output.txt>\n"
+            "  <logs.json>  is a GCP Logs Explorer JSON export (JSON array of entries)\n"
+            "  <height>     is the block height to generate the report for\n"
+            "  <output.txt> is the path to the output file\n",
+            file=sys.stderr,
+        )
+        return 2
+
+    logs_file_path, block_height, output_file_path = sys.argv[1], sys.argv[2], sys.argv[3]
+
+    filtered_log_entries = load_and_filter_log_entries_for_height(logs_file_path, block_height)
+
+    if not filtered_log_entries:
+        Path(output_file_path).write_text(
+            f"No log entries found for height {block_height}\n", encoding="utf-8"
+        )
+        return 0
+
+    consensus_data = build_indexed_consensus_data(filtered_log_entries, block_height)
+
+    vote_analysis_result = extract_vote_messages_for_all_rounds(consensus_data)
+    validation_analysis_result = collect_validation_evidence_for_all_rounds(consensus_data)
+
+    consensus_report_text = generate_full_consensus_report(
+        consensus_data, vote_analysis_result, validation_analysis_result
+    )
+
+    Path(output_file_path).write_text(consensus_report_text, encoding="utf-8")
+    return 0
 
 
 if __name__ == "__main__":
