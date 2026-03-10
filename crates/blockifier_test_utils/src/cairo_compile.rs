@@ -132,7 +132,8 @@ pub(crate) fn with_file_lock(lock_path: &Path, is_done: impl Fn() -> bool, actio
 /// Attempts to download it if not. Uses a per-version file lock so concurrent callers (threads
 /// or processes) never download the same package redundantly.
 pub fn verify_cairo1_package(version: &String) {
-    let lock_path = cairo1_package_dir(version).with_extension("lock");
+    let dir = cairo1_package_dir(version);
+    let lock_path = PathBuf::from(format!("{}.lock", dir.display()));
     with_file_lock(
         &lock_path,
         || cairo1_package_exists(version),
