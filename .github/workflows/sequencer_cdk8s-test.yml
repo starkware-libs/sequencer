@@ -7,9 +7,6 @@ on:
       - opened
       - reopened
       - synchronize
-    branches:
-      - main
-      - main-v[0-9].**
     paths:
       - ".github/workflows/sequencer_cdk8s-test.yml"
       - "crates/apollo_deployments/**"
