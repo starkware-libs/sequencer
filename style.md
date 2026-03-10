@@ -420,7 +420,7 @@ Mostly avoid `select!` unless you are certain the tasks are cancel-safe, this ca
 When spawning a task, you _must_ maintain the handle returned from the executor and make sure it completes successfully --- otherwise the task will _detach_ from the process.
 ### Macros
 
-The general rule for metaprogramming and language "power features" applies: only use macros if non-macro alternatives are not feasible and when _really_ necessary (like when writing a domain-specific language).
+Only use macros if non-macro alternatives are not feasible and when _really_ necessary (like when writing a domain-specific language).
 
 **Rationale**: [the more expressive the macro is, the less it can be reasoned about](https://matklad.github.io/2021/02/14/for-the-love-of-macros.html); well-structured non-macro code doesn't suffer from this.
 
