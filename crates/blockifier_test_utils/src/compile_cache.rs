@@ -4,8 +4,12 @@ use std::sync::LazyLock;
 
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use apollo_infra_utils::path::project_path;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use digest::Digest;
 use sha2::Sha256;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::core::CompiledClassHash;
+use starknet_api::felt;
 
 use crate::cairo_compile::{
     cairo1_compile,
@@ -31,6 +35,48 @@ pub fn cached_compiled_path(contract: &FeatureContract) -> PathBuf {
 /// Returns the cached Sierra path for a Cairo 1 feature contract.
 pub fn cached_sierra_path(contract: &FeatureContract) -> PathBuf {
     cache_dir().join(format!("cairo1/sierra/{}.sierra.json", contract.get_non_erc20_base_name()))
+}
+
+/// Returns the base name used for cache files. Works for all contracts including ERC20.
+fn cache_base_name(contract: &FeatureContract) -> &str {
+    if matches!(contract, FeatureContract::ERC20(_)) {
+        "erc20"
+    } else {
+        contract.get_non_erc20_base_name()
+    }
+}
+
+/// Returns the cached compiled class hash path for a given contract and hash version.
+fn cached_compiled_class_hash_path(
+    contract: &FeatureContract,
+    hash_version: &HashVersion,
+) -> PathBuf {
+    let suffix = match hash_version {
+        HashVersion::V1 => "v1",
+        HashVersion::V2 => "v2",
+    };
+    cache_dir().join(format!("cairo1/compiled_class_hashes/{}.{suffix}", cache_base_name(contract)))
+}
+
+/// Computes compiled class hashes (V1 and V2) from raw CASM JSON and writes them to cache files.
+fn compute_and_write_compiled_class_hashes(contract: &FeatureContract, casm_json: &[u8]) {
+    let casm: CasmContractClass = serde_json::from_slice(casm_json)
+        .unwrap_or_else(|e| panic!("Failed to deserialize CASM for {contract:?}: {e}"));
+    for version in [HashVersion::V1, HashVersion::V2] {
+        let hash_hex = format!("0x{:x}", casm.hash(&version).0);
+        atomic_write(&cached_compiled_class_hash_path(contract, &version), hash_hex.as_bytes());
+    }
+}
+
+/// Reads a cached compiled class hash for a given contract and hash version.
+pub fn read_cached_compiled_class_hash(
+    contract: &FeatureContract,
+    hash_version: &HashVersion,
+) -> CompiledClassHash {
+    let path = cached_compiled_class_hash_path(contract, hash_version);
+    let hex = fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Failed to read cached class hash from {path:?}: {e}"));
+    CompiledClassHash(felt!(hex.trim()))
 }
 
 fn hash_sidecar_path(artifact_path: &Path) -> PathBuf {
@@ -112,8 +158,15 @@ pub fn ensure_cairo1_compiled(contract: &FeatureContract) {
 
     let cache_key = compute_cache_key(&source_path, &version, &libfunc_file);
 
-    let is_fresh =
-        || is_cache_fresh(&casm_path, &cache_key) && is_cache_fresh(&sierra_path, &cache_key);
+    let compiled_class_hash_v1_path = cached_compiled_class_hash_path(contract, &HashVersion::V1);
+    let compiled_class_hash_v2_path = cached_compiled_class_hash_path(contract, &HashVersion::V2);
+
+    let is_fresh = || {
+        is_cache_fresh(&casm_path, &cache_key)
+            && is_cache_fresh(&sierra_path, &cache_key)
+            && compiled_class_hash_v1_path.exists()
+            && compiled_class_hash_v2_path.exists()
+    };
 
     with_file_lock(&lock_file_path(contract), is_fresh, || {
         let start = std::time::Instant::now();
@@ -133,10 +186,42 @@ pub fn ensure_cairo1_compiled(contract: &FeatureContract) {
         atomic_write(&hash_sidecar_path(&casm_path), cache_key.as_bytes());
         atomic_write(&sierra_path, &sierra);
         atomic_write(&hash_sidecar_path(&sierra_path), cache_key.as_bytes());
+        compute_and_write_compiled_class_hashes(contract, &casm);
 
         eprintln!(
             "[compile_cache] Compiled and cached {contract:?} in {:.1}s",
             start.elapsed().as_secs_f64()
         );
+    });
+}
+
+/// Ensures compiled class hashes are cached for ERC20 (which uses committed CASM artifacts).
+/// Uses the CASM file content hash as cache key so that the hashes are recomputed only when
+/// the committed artifact changes.
+pub fn ensure_erc20_compiled_class_hashes(contract: &FeatureContract, casm_path: &str) {
+    assert!(matches!(contract, FeatureContract::ERC20(_)));
+
+    let casm_abs = resolve_crate_relative(casm_path);
+    let casm_content = fs::read_to_string(&casm_abs)
+        .unwrap_or_else(|e| panic!("Cannot read ERC20 CASM at {casm_abs}: {e}"));
+
+    let mut hasher = Sha256::new();
+    hasher.update(casm_content.as_bytes());
+    let content_hash = format!("{:x}", hasher.finalize());
+
+    let compiled_class_hash_v1_path = cached_compiled_class_hash_path(contract, &HashVersion::V1);
+    let compiled_class_hash_v2_path = cached_compiled_class_hash_path(contract, &HashVersion::V2);
+    let key_path = cache_dir().join("cairo1/compiled_class_hashes/erc20.cache_key");
+
+    let is_fresh = || {
+        compiled_class_hash_v1_path.exists()
+            && compiled_class_hash_v2_path.exists()
+            && fs::read_to_string(&key_path).is_ok_and(|k| k.trim() == content_hash)
+    };
+
+    let lock = cache_dir().join("erc20_compiled_class_hash.lock");
+    with_file_lock(&lock, is_fresh, || {
+        compute_and_write_compiled_class_hashes(contract, casm_content.as_bytes());
+        atomic_write(&key_path, content_hash.as_bytes());
     });
 }
