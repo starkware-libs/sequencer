@@ -125,6 +125,7 @@ def _load_deployment_config(base_dir: Path, layout: str, overlays: list[str]) ->
         for common, services in overlay_layers
     ]
     return merge_configs(
+        config_base_dir=str(base_dir),
         layout_common_config_path=str(layout_common) if layout_common else None,
         layout_services_config_dir_path=str(layout_services),
         overlay_layers=overlay_layers_str,
