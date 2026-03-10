@@ -67,6 +67,9 @@
                 },
                 {
                     "$ref": "#/components/errors/SERVICE_BUSY"
+                },
+                {
+                    "$ref": "#/components/errors/INVALID_TRANSACTION_INPUT"
                 }
             ]
         }
@@ -404,6 +407,14 @@
                 "data": {
                     "type": "string",
                     "description": "Details about capacity and retry advice."
+                }
+            },
+            "INVALID_TRANSACTION_INPUT": {
+                "code": 1000,
+                "message": "Invalid transaction input",
+                "data": {
+                    "type": "string",
+                    "description": "Details about which input field is invalid."
                 }
             }
         }
