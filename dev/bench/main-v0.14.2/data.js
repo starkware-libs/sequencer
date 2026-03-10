@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773133360465,
+  "lastUpdate": 1773151768292,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2175,6 +2175,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1358.66127856,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7828a222992b0a3494c0a549642ded3204059033",
+          "message": "apollo_transaction_converter,starknet_os_runner: integrate privacy_prove/privacy_circuit_verify and delete proving_utils (#13016)\n\nReplace the proving_utils crate with direct usage of privacy_prove and\nprivacy_circuit_verify from the proving-utils repo. Switch proof fixtures\nfrom bz2-compressed JSON to raw binary format (big-endian u32 words).\nTests requiring regenerated fixtures are marked #[ignore] until the new\nprover generates them.\n\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-03-10T13:43:49Z",
+          "tree_id": "d5c76e178a5937048686afb3f929b166a71f2d57",
+          "url": "https://github.com/starkware-libs/sequencer/commit/7828a222992b0a3494c0a549642ded3204059033"
+        },
+        "date": 1773151767940,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 920.8259823200001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1379.0093978099999,
             "unit": "ms"
           }
         ]
