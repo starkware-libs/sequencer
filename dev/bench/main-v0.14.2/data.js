@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773079735319,
+  "lastUpdate": 1773133360465,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2141,6 +2141,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1348.9332503199998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c6c1c8b94c185c6bedb28c1d44b7865a317425be",
+          "message": "starknet_transaction_prover: add OpenRPC spec and spec validation (#12879)",
+          "timestamp": "2026-03-10T08:40:21Z",
+          "tree_id": "58bd9aabd61458569054dcc5f05125f98de8d319",
+          "url": "https://github.com/starkware-libs/sequencer/commit/c6c1c8b94c185c6bedb28c1d44b7865a317425be"
+        },
+        "date": 1773133360123,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 868.25439066,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1358.66127856,
             "unit": "ms"
           }
         ]
