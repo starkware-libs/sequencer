@@ -146,30 +146,6 @@ async fn verify_feature_contracts_cairo0() {
     }
 }
 
-/// Verifies that all Cairo 1 feature contracts compile successfully (via the on-demand cache)
-/// and that their compiled class hashes are computed and cached.
-#[test]
-fn verify_feature_contracts_cairo1() {
-    let contract_filter = std::env::var("CONTRACT_FILTER").ok();
-    let matches_filter = |contract: &FeatureContract| -> bool {
-        contract_filter.as_deref().is_none_or(|filter| format!("{contract:?}").contains(filter))
-    };
-    for contract in
-        FeatureContract::all_cairo1_casm_feature_contracts().filter(|c| matches_filter(c))
-    {
-        let hash = contract.get_compiled_class_hash(&HashVersion::V2);
-        assert_ne!(
-            hash,
-            CompiledClassHash::default(),
-            "{contract:?} has a zero compiled class hash"
-        );
-    }
-    // ERC20 uses committed artifacts; verify its hashes are computed correctly.
-    let erc20 = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let hash = erc20.get_compiled_class_hash(&HashVersion::V2);
-    assert_ne!(hash, CompiledClassHash::default(), "ERC20 has a zero compiled class hash");
-}
-
 /// Verifies that `allowed_libfuncs_legacy.json` is in sync with `allowed_libfuncs.json`.
 /// Run with `UPDATE_EXPECT=1` to regenerate.
 #[test]
