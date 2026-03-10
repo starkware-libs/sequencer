@@ -219,6 +219,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode": {
+    "description": "Cairo native execution mode. 'off' disables native execution, 'wait_on_compilation' compiles synchronously, and 'lazy_compilation' compiles asynchronously.",
+    "privacy": "Public",
+    "value": "off"
+  },
   "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
     "description": "The size of the compilation request channel.",
     "privacy": "Public",
@@ -228,11 +233,6 @@
     "description": "Whether to panic on compilation failure.",
     "privacy": "Public",
     "value": false
-  },
-  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode": {
-    "description": "Cairo native execution mode. 'off' disables native execution, 'wait_on_compilation' compiles synchronously, and 'lazy_compilation' compiles asynchronously.",
-    "privacy": "Public",
-    "value": "off"
   },
   "batcher_config.static_config.contract_class_manager_config.contract_cache_size": {
     "description": "The size of the global contract cache.",
@@ -328,6 +328,16 @@
     "description": "Only propose L1 transactions every N proposals.",
     "privacy": "Public",
     "value": 1
+  },
+  "batcher_config.static_config.storage.batch_config.batch_size": {
+    "description": "Number of logical commits before actual MDBX commit.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "batcher_config.static_config.storage.batch_config.enabled": {
+    "description": "Whether transaction batching is enabled.",
+    "privacy": "Public",
+    "value": false
   },
   "batcher_config.static_config.storage.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
@@ -428,6 +438,16 @@
     "description": "Limitation of compiled contract class object size.",
     "privacy": "Public",
     "value": 4089446
+  },
+  "class_manager_config.static_config.class_storage_config.class_hash_storage_config.batch_config.batch_size": {
+    "description": "Number of logical commits before actual MDBX commit.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "class_manager_config.static_config.class_storage_config.class_hash_storage_config.batch_config.enabled": {
+    "description": "Whether transaction batching is enabled.",
+    "privacy": "Public",
+    "value": false
   },
   "class_manager_config.static_config.class_storage_config.class_hash_storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
@@ -2164,13 +2184,23 @@
     "pointer_target": "validator_id",
     "privacy": "Public"
   },
+  "consensus_manager_config.consensus_manager_config.static_config.skip_last_voted_height_check": {
+    "description": "If true, skips check that we didn't vote on this height.",
+    "privacy": "Public",
+    "value": false
+  },
   "consensus_manager_config.consensus_manager_config.static_config.startup_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "privacy": "Public",
     "value": 5
   },
-  "consensus_manager_config.consensus_manager_config.static_config.skip_last_voted_height_check": {
-    "description": "If true, skips check that we didn't vote on this height.",
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.batch_config.batch_size": {
+    "description": "Number of logical commits before actual MDBX commit.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.storage_config.batch_config.enabled": {
+    "description": "Whether transaction batching is enabled.",
     "privacy": "Public",
     "value": false
   },
@@ -2554,6 +2584,11 @@
     "pointer_target": "strk_fee_token_address",
     "privacy": "Public"
   },
+  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode": {
+    "description": "Cairo native execution mode. 'off' disables native execution, 'wait_on_compilation' compiles synchronously, and 'lazy_compilation' compiles asynchronously.",
+    "privacy": "Public",
+    "value": "off"
+  },
   "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
     "description": "The size of the compilation request channel.",
     "privacy": "Public",
@@ -2563,11 +2598,6 @@
     "description": "Whether to panic on compilation failure.",
     "privacy": "Public",
     "value": false
-  },
-  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode": {
-    "description": "Cairo native execution mode. 'off' disables native execution, 'wait_on_compilation' compiles synchronously, and 'lazy_compilation' compiles asynchronously.",
-    "privacy": "Public",
-    "value": "off"
   },
   "gateway_config.static_config.contract_class_manager_config.contract_cache_size": {
     "description": "The size of the global contract cache.",
@@ -3503,6 +3533,16 @@
     "description": "URL for communicating with Starknet in write_api methods.",
     "pointer_target": "starknet_url",
     "privacy": "Public"
+  },
+  "state_sync_config.static_config.storage_config.batch_config.batch_size": {
+    "description": "Number of logical commits before actual MDBX commit.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.static_config.storage_config.batch_config.enabled": {
+    "description": "Whether transaction batching is enabled.",
+    "privacy": "Public",
+    "value": false
   },
   "state_sync_config.static_config.storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
