@@ -863,8 +863,11 @@ impl ConsensusContext for SequencerConsensusContext {
         height: BlockNumber,
         round: Round,
     ) -> Result<(), ConsensusError> {
-        if self.current_height.map(|h| height > h).unwrap_or(true) {
+        // First height or a new (higher) height.
+        if self.current_height.is_none_or(|h| height > h) {
             self.update_dynamic_config().await;
+            // On first height: initialize l2_gas_price to the configured minimum for this height,
+            // ensuring correct startup after restart/revert.
             if self.current_height.is_none() {
                 let min_gas_price_for_height = get_min_gas_price_for_height(
                     height,
