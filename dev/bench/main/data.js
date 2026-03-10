@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773154945217,
+  "lastUpdate": 1773161702981,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -475,6 +475,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1490.69875902,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "161198342+idan-starkware@users.noreply.github.com",
+            "name": "Idan Shamam",
+            "username": "idan-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "77a3d7f652fbc0548fbd83473d47716f6f2730ea",
+          "message": "deployment: revert graphite optimize-ci (#13142)",
+          "timestamp": "2026-03-10T16:29:11Z",
+          "tree_id": "d072aae39a4f584a1b45a518396c956ae8a5d9fb",
+          "url": "https://github.com/starkware-libs/sequencer/commit/77a3d7f652fbc0548fbd83473d47716f6f2730ea"
+        },
+        "date": 1773161702611,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 979.6318352100001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1360.4353266800001,
             "unit": "ms"
           }
         ]
