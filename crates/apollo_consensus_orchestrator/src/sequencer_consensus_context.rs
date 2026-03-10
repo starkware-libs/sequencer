@@ -77,7 +77,11 @@ use crate::cende::{
     InternalTransactionWithReceipt,
     N_BLOCK_HASHES_BACK_IN_BLOB,
 };
-use crate::fee_market::{calculate_next_l2_gas_price_for_fin, FeeMarketInfo};
+use crate::fee_market::{
+    calculate_next_l2_gas_price_for_fin,
+    get_min_gas_price_for_height,
+    FeeMarketInfo,
+};
 use crate::metrics::{
     record_build_proposal_failure,
     record_validate_proposal_failure,
@@ -362,6 +366,7 @@ impl SequencerConsensusContext {
         let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
         CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
     }
+
     #[allow(clippy::too_many_arguments)]
     async fn finalize_decision(
         &mut self,
@@ -826,9 +831,20 @@ impl ConsensusContext for SequencerConsensusContext {
         height: BlockNumber,
         round: Round,
     ) -> Result<(), ConsensusError> {
-        // First or a new (higher) height.
+        // First height or a new (higher) height.
         if self.current_height.is_none_or(|h| height > h) {
             self.update_dynamic_config().await;
+            // On first height: initialize l2_gas_price to the configured minimum for this height,
+            // ensuring correct startup after restart/revert.
+            if self.current_height.is_none() {
+                let min_gas_price_for_height = get_min_gas_price_for_height(
+                    height,
+                    &self.config.dynamic_config.min_l2_gas_price_per_height,
+                );
+                self.l2_gas_price = max(self.l2_gas_price, min_gas_price_for_height);
+                let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
+                CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
+            }
             self.current_height = Some(height);
             self.current_round = round;
             self.queued_proposals.clear();
