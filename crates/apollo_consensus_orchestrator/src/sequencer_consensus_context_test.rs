@@ -1483,3 +1483,31 @@ async fn test_dynamic_config_updates_min_gas_price() {
         expected_price_after_second, price_after_second_update
     );
 }
+
+
+#[tokio::test]
+async fn test_restart_initializes_l2_gas_price_from_height_config() {
+    const CONFIG_HEIGHT_1: u64 = 100;
+    const CONFIG_PRICE_1: u128 = 10_000_000_000;
+    const CONFIG_HEIGHT_2: u64 = 200;
+    const CONFIG_PRICE_2: u128 = 20_000_000_000;
+    const STARTUP_HEIGHT: u64 = 250;
+    const LOW_STARTUP_PRICE: u128 = 8_000_000_000;
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    deps.batcher.expect_start_height().times(1).returning(|_| Ok(()));
+
+    let mut context = deps.build_context();
+    context.l2_gas_price = GasPrice(LOW_STARTUP_PRICE);
+    context.config.dynamic_config.min_l2_gas_price_per_height = vec![
+        PricePerHeight { height: CONFIG_HEIGHT_1, price: CONFIG_PRICE_1 },
+        PricePerHeight { height: CONFIG_HEIGHT_2, price: CONFIG_PRICE_2 },
+    ];
+
+    // Simulate first height after process startup (restart path).
+    context.set_height_and_round(BlockNumber(STARTUP_HEIGHT), ROUND_0).await.unwrap();
+
+    // Height 250 is after config height 200, so gas price should initialize to CONFIG_PRICE_2.
+    assert_eq!(context.l2_gas_price, GasPrice(CONFIG_PRICE_2));
+}
