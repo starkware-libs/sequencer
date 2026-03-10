@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use apollo_sizeof::SizeOf;
 use serde::{Deserialize, Serialize};
-use starknet_api::transaction::fields::{ProofFacts, PROOF_VERSION};
+use starknet_api::transaction::fields::{Proof, ProofFacts, PROOF_VERSION};
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
@@ -115,4 +115,31 @@ pub fn reconstruct_output_preimage(
         u64::try_from(task_content.len() + 1).expect("task content length exceeds u64::MAX"),
     );
     Ok([Felt::ONE, output_size].into_iter().chain(task_content.iter().copied()).collect())
+}
+
+/// Verifies a submitted proof against the proof facts using the circuit verifier.
+pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyProofError> {
+    // Reject empty proof payloads before running the verifier.
+    if proof.is_empty() {
+        return Err(VerifyProofError::EmptyProof);
+    }
+
+    // Validate that the first element of proof facts is PROOF_VERSION.
+    let expected_proof_version = PROOF_VERSION;
+    let actual_first = proof_facts.0.first().copied().unwrap_or_default();
+    if actual_first != expected_proof_version {
+        return Err(VerifyProofError::InvalidProofVersion {
+            expected: expected_proof_version,
+            actual: actual_first,
+        });
+    }
+
+    // Reconstruct the output preimage from proof facts and verify the proof.
+    let output_preimage = reconstruct_output_preimage(&proof_facts)?;
+    let proof_output =
+        privacy_circuit_verify::PrivacyProofOutput { proof: proof.0.to_vec(), output_preimage };
+    privacy_circuit_verify::verify(&proof_output)
+        .map_err(|e| VerifyProofError::Verification(e.to_string()))?;
+
+    Ok(())
 }

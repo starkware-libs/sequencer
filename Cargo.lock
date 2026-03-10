@@ -1532,6 +1532,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "starknet_proof_verifier",
  "strum",
  "tempfile",
  "thiserror 1.0.69",
@@ -2826,19 +2827,18 @@ dependencies = [
  "apollo_class_manager_types",
  "apollo_metrics",
  "apollo_proof_manager_types",
- "apollo_sizeof",
  "assert_matches",
  "async-trait",
  "blockifier",
  "blockifier_test_utils",
  "mempool_test_utils",
  "mockall",
- "privacy-circuit-verify",
  "rstest",
  "serde",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "starknet_proof_verifier",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -12568,6 +12568,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_proof_verifier"
+version = "0.18.0-dev.0"
+dependencies = [
+ "apollo_sizeof",
+ "privacy-circuit-verify",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "starknet_transaction_prover"
 version = "0.18.0-dev.0"
 dependencies = [
@@ -12606,6 +12618,7 @@ dependencies = [
  "starknet_os",
  "starknet_patricia",
  "starknet_patricia_storage",
+ "starknet_proof_verifier",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",

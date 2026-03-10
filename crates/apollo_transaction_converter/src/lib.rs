@@ -1,10 +1,7 @@
 pub mod metrics;
-pub mod proof_verification;
-#[cfg(test)]
-mod proof_verification_test;
 pub mod transaction_converter;
 
-pub use proof_verification::{ProgramOutput, ProgramOutputError};
+pub use starknet_proof_verifier::{ProgramOutput, ProgramOutputError};
 #[cfg(any(feature = "testing", test))]
 pub use transaction_converter::MockTransactionConverterTrait;
 pub use transaction_converter::{

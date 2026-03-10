@@ -35,6 +35,7 @@ starknet-rust.workspace = true
 starknet-rust-core.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+starknet_proof_verifier.workspace = true
 starknet_committer.workspace = true
 starknet_os.workspace = true
 starknet_patricia.workspace = true

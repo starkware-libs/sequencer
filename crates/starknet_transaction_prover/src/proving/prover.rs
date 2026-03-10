@@ -2,10 +2,10 @@
 //!
 //! Provides functionality to generate zero-knowledge proofs from Cairo PIE files.
 
-use apollo_transaction_converter::ProgramOutput;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use privacy_prove::privacy_prove;
 use starknet_api::transaction::fields::Proof;
+use starknet_proof_verifier::ProgramOutput;
 
 use crate::errors::ProvingError;
 
