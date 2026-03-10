@@ -5,7 +5,7 @@ pub(crate) mod committer;
 pub(crate) mod consensus;
 pub(crate) mod gateway;
 pub(crate) mod http_server;
-pub(crate) mod l1_events_provider;
+pub(crate) mod l1_events;
 pub(crate) mod l1_gas_price;
 pub(crate) mod mempool;
 pub(crate) mod mempool_p2p;
