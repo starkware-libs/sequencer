@@ -34,19 +34,10 @@ pub fn cached_sierra_path(contract: &FeatureContract) -> PathBuf {
     CACHE_DIR.join(format!("cairo1/sierra/{}.sierra.json", contract.get_non_erc20_base_name()))
 }
 
-/// Returns the base name used for cache files. Works for all contracts including ERC20.
-fn cache_base_name(contract: &FeatureContract) -> &str {
-    if matches!(contract, FeatureContract::ERC20(_)) {
-        "erc20"
-    } else {
-        contract.get_non_erc20_base_name()
-    }
-}
-
 /// Single cache key file per contract — both CASM and Sierra are produced by the same
 /// compilation, so one key covers both.
 fn cache_key_path(contract: &FeatureContract) -> PathBuf {
-    CACHE_DIR.join(format!("{}.hash", contract.get_non_erc20_base_name()))
+    CACHE_DIR.join(format!("{}.hash", contract.get_base_name()))
 }
 
 /// Returns the cached compiled class hash path for a given contract and hash version.
@@ -58,7 +49,7 @@ fn cached_compiled_class_hash_path(
         HashVersion::V1 => "v1",
         HashVersion::V2 => "v2",
     };
-    CACHE_DIR.join(format!("cairo1/compiled_class_hashes/{}.{suffix}", cache_base_name(contract)))
+    CACHE_DIR.join(format!("cairo1/compiled_class_hashes/{}.{suffix}", contract.get_base_name()))
 }
 
 /// Computes compiled class hashes (V1 and V2) from raw CASM JSON and writes them to cache files.
@@ -99,8 +90,10 @@ fn compute_cache_key(source_path: &Path, compiler_version: &str, libfunc_file: &
 }
 
 fn is_cache_fresh(contract: &FeatureContract, expected_hash: &str) -> bool {
-    fs::read_to_string(cache_key_path(contract))
-        .is_ok_and(|stored_hash| stored_hash.trim() == expected_hash)
+    cached_compiled_class_hash_path(contract, &HashVersion::V1).exists()
+        && cached_compiled_class_hash_path(contract, &HashVersion::V2).exists()
+        && fs::read_to_string(cache_key_path(contract))
+            .is_ok_and(|stored_hash| stored_hash.trim() == expected_hash)
 }
 
 fn write_artifact(path: &Path, content: &[u8]) {
@@ -114,7 +107,7 @@ fn write_artifact(path: &Path, content: &[u8]) {
 /// Per-contract lock file for serializing compilation (distinct from the per-version compiler
 /// download lock in `cairo_compile::verify_cairo1_package`).
 fn lock_file_path(contract: &FeatureContract) -> PathBuf {
-    lock_path_for(&CACHE_DIR.join(contract.get_non_erc20_base_name()))
+    lock_path_for(&CACHE_DIR.join(contract.get_base_name()))
 }
 
 /// Ensures a Cairo 1 feature contract is compiled and cached. Returns immediately if the cache
@@ -172,11 +165,11 @@ pub fn ensure_cairo1_compiled(contract: &FeatureContract) {
 /// Ensures compiled class hashes are cached for ERC20 (which uses committed CASM artifacts).
 /// Uses the CASM file content hash as cache key so that the hashes are recomputed only when
 /// the committed artifact changes.
-pub fn ensure_erc20_compiled_class_hashes(contract: &FeatureContract, casm_path: &str) {
+pub fn ensure_erc20_compiled_class_hashes(contract: &FeatureContract) {
     assert!(matches!(contract, FeatureContract::ERC20(_)));
 
     let crate_root = PathBuf::from(compile_time_cargo_manifest_dir!());
-    let casm_abs = crate_root.join(casm_path);
+    let casm_abs = crate_root.join(contract.get_compiled_path());
     let casm_content = fs::read_to_string(&casm_abs)
         .unwrap_or_else(|e| panic!("Cannot read ERC20 CASM at {casm_abs:?}: {e}"));
 
@@ -184,17 +177,12 @@ pub fn ensure_erc20_compiled_class_hashes(contract: &FeatureContract, casm_path:
     hasher.update(casm_content.as_bytes());
     let content_hash = format!("{:x}", hasher.finalize());
 
-    let key_path = CACHE_DIR.join("cairo1/compiled_class_hashes/erc20.cache_key");
-
-    let is_fresh = || {
-        cached_compiled_class_hash_path(contract, &HashVersion::V1).exists()
-            && cached_compiled_class_hash_path(contract, &HashVersion::V2).exists()
-            && fs::read_to_string(&key_path).is_ok_and(|k| k.trim() == content_hash)
-    };
-
-    let lock = lock_path_for(&CACHE_DIR.join("erc20_compiled_class_hash"));
-    with_file_lock(&lock, is_fresh, || {
-        compute_and_write_compiled_class_hashes(contract, casm_content.as_bytes());
-        write_artifact(&key_path, content_hash.as_bytes());
-    });
+    with_file_lock(
+        &lock_file_path(contract),
+        || is_cache_fresh(contract, &content_hash),
+        || {
+            compute_and_write_compiled_class_hashes(contract, casm_content.as_bytes());
+            write_artifact(&cache_key_path(contract), content_hash.as_bytes());
+        },
+    );
 }

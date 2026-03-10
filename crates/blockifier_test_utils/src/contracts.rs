@@ -269,7 +269,7 @@ impl FeatureContract {
     /// For ERC20 this computes hashes from the committed CASM artifact.
     fn ensure_compiled_class_hashes_cached(&self) {
         if matches!(self, Self::ERC20(CairoVersion::Cairo1(_))) {
-            compile_cache::ensure_erc20_compiled_class_hashes(self, ERC20_CAIRO1_CONTRACT_PATH);
+            compile_cache::ensure_erc20_compiled_class_hashes(self);
         } else {
             self.ensure_compiled();
         }
@@ -326,6 +326,14 @@ impl FeatureContract {
                 Self::FuzzTest2(_) => FUZZ_TEST2_BASE,
                 Self::FuzzTestOrchestrator(_) => FUZZ_TEST_ORCHESTRATOR_BASE,
             }
+    }
+
+    /// Returns a base name for this contract, usable for cache file naming.
+    pub fn get_base_name(&self) -> &str {
+        match self {
+            Self::ERC20(_) => "erc20",
+            other => other.get_non_erc20_base_name(),
+        }
     }
 
     pub fn get_non_erc20_base_name(&self) -> &str {
