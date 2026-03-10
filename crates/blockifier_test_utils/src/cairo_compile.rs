@@ -1,3 +1,4 @@
+use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
@@ -6,6 +7,7 @@ use apollo_infra_utils::cairo0_compiler::Cairo0Script;
 use apollo_infra_utils::cairo0_compiler_test_utils::verify_cairo0_compiler_deps;
 use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 use apollo_infra_utils::path::{project_path, resolve_project_relative_path};
+use fs2::FileExt;
 use tempfile::NamedTempFile;
 use tracing::info;
 
@@ -70,7 +72,7 @@ pub fn generate_allowed_libfuncs_legacy_json() -> String {
 
 /// Downloads the cairo package to the local directory.
 /// Creates the directory if it does not exist.
-async fn download_cairo_package(version: &String) {
+fn download_cairo_package(version: &String) {
     let directory = cairo1_package_dir(version);
     info!("Downloading Cairo package to {directory:?}.");
     std::fs::create_dir_all(&directory).unwrap();
@@ -102,11 +104,31 @@ fn cairo1_package_exists(version: &String) -> bool {
 }
 
 /// Verifies that the Cairo1 package (of the given version) is available.
-/// Attempts to download it if not.
-pub async fn verify_cairo1_package(version: &String) {
-    if !cairo1_package_exists(version) {
-        download_cairo_package(version).await;
+/// Attempts to download it if not. Uses a per-version file lock so concurrent callers (threads
+/// or processes) never download the same package redundantly.
+pub fn verify_cairo1_package(version: &String) {
+    if cairo1_package_exists(version) {
+        return;
     }
+
+    let lock_path = cairo1_package_dir(version).with_extension("lock");
+    std::fs::create_dir_all(lock_path.parent().unwrap()).unwrap_or_else(|e| {
+        panic!("Failed to create directory for lock file: {e}");
+    });
+    let lock_file = File::create(&lock_path)
+        .unwrap_or_else(|e| panic!("Failed to create lock file {lock_path:?}: {e}"));
+    lock_file
+        .lock_exclusive()
+        .unwrap_or_else(|e| panic!("Failed to acquire lock on {lock_path:?}: {e}"));
+
+    // Re-check after acquiring the lock: another caller may have finished the download.
+    if cairo1_package_exists(version) {
+        return;
+    }
+
+    eprintln!("[cairo_compile] Cairo 1 compiler v{version} not found locally, downloading...");
+    download_cairo_package(version);
+    eprintln!("[cairo_compile] Cairo 1 compiler v{version} downloaded successfully.");
     assert!(cairo1_package_exists(version));
 }
 
