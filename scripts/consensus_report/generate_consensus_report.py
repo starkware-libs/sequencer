@@ -40,7 +40,7 @@ import json
 import re
 import sys
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 ROUND_RE = re.compile(r"\bround[=: ]\s*(\d+)\b")
 PATRICIA_KEY_RE = re.compile(r"PatriciaKey\((0x[0-9a-fA-F]+)\)")
@@ -150,6 +150,108 @@ def get_round(entry: Dict[str, Any]) -> Optional[int]:
     if match is not None:
         return int(match.group(1))
     return None
+
+
+def grab(msg: str, name: str) -> str:
+    match = re.search(rf"{name}:\s*([^,}}]+)", msg)
+    return match.group(1).strip() if match is not None else ""
+
+
+def parse_weights(msg: str) -> Dict[str, str]:
+    l1_gas = grab(msg, "l1_gas")
+    state_diff_size = grab(msg, "state_diff_size")
+    sierra_gas = re.sub(r"GasAmount\((\d+)\)", r"\1", grab(msg, "sierra_gas"))
+    n_txs = grab(msg, "n_txs")
+    proving_gas = re.sub(r"GasAmount\((\d+)\)", r"\1", grab(msg, "proving_gas"))
+    return dict(
+        l1_gas=l1_gas,
+        state_diff_size=state_diff_size,
+        sierra_gas=sierra_gas,
+        n_txs=n_txs,
+        proving_gas=proving_gas,
+    )
+
+
+def vote_state(vote_msg: Optional[str]) -> str:
+    if vote_msg is None:
+        return "missed"
+    if "proposal_commitment: Some" in vote_msg or "proposal_commitment=Some" in vote_msg:
+        return "yes"
+    if "proposal_commitment: None" in vote_msg or "proposal_commitment=None" in vote_msg:
+        return "nil"
+    return "missed"
+
+
+def round_start(entries: List[Dict[str, Any]], round_num: int) -> Optional[datetime]:
+    timestamps = []
+    for entry in entries:
+        if get_round(entry) == round_num:
+            msg = get_message(entry)
+            if "Starting round" in msg:
+                timestamp = parse_timestamp(entry)
+                if timestamp is not None:
+                    timestamps.append(timestamp)
+    return min(timestamps) if len(timestamps) > 0 else None
+
+
+def get_round_proposer_id(entries: List[Dict[str, Any]], round_num: int) -> Optional[str]:
+    for entry in entries:
+        if get_round(entry) == round_num:
+            msg = get_message(entry)
+            if "Starting round" in msg and "as Proposer" in msg:
+                return get_validator_id(entry)
+    return None
+
+
+def get_round_proposer_namespace(
+    entries: List[Dict[str, Any]], ns_by_id: Dict[str, str], round_num: int
+) -> Optional[str]:
+    for entry in entries:
+        if get_round(entry) == round_num:
+            msg = get_message(entry)
+            if "Starting round" in msg and "as Proposer" in msg:
+                ns = get_namespace(entry)
+                if ns is not None:
+                    return ns
+                proposer_id = get_validator_id(entry)
+                if proposer_id is not None and proposer_id in ns_by_id:
+                    return ns_by_id.get(proposer_id)
+                break
+    return None
+
+
+def round_end(entries: List[Dict[str, Any]], round_num: int) -> Optional[datetime]:
+    timestamps = []
+    for entry in entries:
+        if get_round(entry) == round_num:
+            msg = get_message(entry)
+            if (
+                ("DECISION_REACHED" in msg)
+                or ("Decision reached" in msg)
+                or ("PROPOSAL_FAILED" in msg)
+            ):
+                timestamp = parse_timestamp(entry)
+                if timestamp is not None:
+                    timestamps.append(timestamp)
+    if len(timestamps) > 0:
+        return min(timestamps)
+    timestamps = [parse_timestamp(entry) for entry in entries if get_round(entry) == round_num]
+    return max(timestamps) if len(timestamps) > 0 else None
+
+
+def proposal_start(
+    entries_by_round_and_vid: Dict[Tuple[int, str], List[Dict[str, Any]]],
+    validator_id: str,
+    round_num: int,
+) -> Optional[datetime]:
+    timestamps = []
+    for entry in entries_by_round_and_vid.get((round_num, validator_id), []):
+        msg = get_message(entry)
+        if "Accepting ProposalInit" in msg or "Received ProposalInit" in msg:
+            timestamp = parse_timestamp(entry)
+            if timestamp is not None:
+                timestamps.append(timestamp)
+    return min(timestamps) if timestamps else None
 
 
 def main() -> int:
