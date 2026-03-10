@@ -2056,6 +2056,7 @@ dependencies = [
  "apollo_config",
  "apollo_metrics",
  "apollo_network_types",
+ "apollo_propeller",
  "apollo_protobuf",
  "assert_matches",
  "async-stream",
