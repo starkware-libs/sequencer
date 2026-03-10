@@ -140,7 +140,7 @@ async fn retrospective_block_hash_batcher_error() {
         });
 
     let proposal_args: ProposalBuildArguments = test_proposal_args.into();
-    let init = get_block_info(&proposal_args).await;
+    let init = get_proposal_init(&proposal_args).await;
     let res = retrospective_block_hash(
         proposal_args.deps.batcher,
         proposal_args.deps.state_sync_client,
@@ -173,7 +173,7 @@ async fn retrospective_block_hash_mismatch() {
         .returning(|_| Ok(BlockHash(Felt::ZERO)));
 
     let proposal_args: ProposalBuildArguments = test_proposal_args.into();
-    let init = get_block_info(&proposal_args).await;
+    let init = get_proposal_init(&proposal_args).await;
     let res = retrospective_block_hash(
         proposal_args.deps.batcher,
         proposal_args.deps.state_sync_client,

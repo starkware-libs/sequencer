@@ -56,18 +56,8 @@ pub(crate) enum RetrospectiveBlockHashError {
     #[error(transparent)]
     BatcherError(#[from] BatcherClientError),
     #[error(
-<<<<<<< HEAD
-        "Failed retrieving block hash for block {block_number:?}, because both Batcher and
-    State Sync returned errors, and both errors weren't caused from simply not being ready.
-    Batcher error: {batcher_error:?}, State sync error: {state_sync_error:?}"
-||||||| aa8ff67d02
-        "Failed retrieving block hash for block {block_number:?}, because both Batcher and 
-    State Sync returned errors, and both errors weren't caused from simply not being ready.
-    Batcher error: {batcher_error:?}, State sync error: {state_sync_error:?}"
-=======
         "Block hash mismatch for block {block_number}. State sync block hash: \
          {state_sync_block_hash:?}, batcher block hash: {batcher_block_hash:?}"
->>>>>>> origin/main-v0.14.2
     )]
     HashMismatch {
         block_number: BlockNumber,
