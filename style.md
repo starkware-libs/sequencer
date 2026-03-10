@@ -53,6 +53,93 @@ They should end with a `_test` suffix.
 For single-file modules, they should also start with a `foo_` prefix
 (e.g. `foo_flow_test.rs`, `foo_regression_test.rs`).
 
+## AI-Generated Code Guidelines
+
+Take extra care when reviewing ai-generated code for these issues:
+
+-   Using deprecated/dead crates (!): for example `lazy_static` often appears in ai-code (see [lazy static section](#lazy_static-crate)).
+-   Using "toy" crates (low github-starred, pet‑project crates not intended for production): just because a crate out there can fulfil a given set of requirements doesn't mean it's production-ready, see also [External Dependencies](#external-dependencies) section.
+-   Excessive code-comment bloat: see [Textual Content Quality](#textual-content-quality) section.
+-   Hygiene issues: leaks and races are common, since chatbots rarely take a step back and analyze the surrounding conditions in which a code is being run; always analyze flows affected by your change as the AI will not do so.
+-   Excessive allocations/clones.
+
+## Testing
+
+Use unit tests for short (< 1 sec) and threadsafe tests, otherwise use cargo integration tests.
+
+A failure in a unit test should immediately point to the source of the issue, and the clearly display the error encountered. Moreover, it should be possible to debug a test even if the test writer is not available, for example:
+
+-   add `#[track_caller]` on test-utils which include a critical assert, so that the trace will be the callsite in the test
+-   use `assert_eq(result, Ok(<Value>))` over `assert!(result.is_ok())` --- the former will display the error, and the latter will simply say `expected True, got False`.
+-   Avoid doing too many things in one test with a single assert at the end, unless other tests exist that cover enough parts of the test separately so that finding the source will be simple.
+
+Put integration tests inside `tests/` at the crate root if they don't depend on features of their crate (this constraint is valid until [this cargo issue](https://github.com/rust-lang/cargo/issues/2911#issuecomment-1739880593) or [this cargo bug](https://github.com/rust-lang/cargo/issues/15151) get resolved), otherwise put them in a dedicated integration-test crate for the whole package (mostly relevant for multi-crate packages). Cargo integration test files are not parallelized, and are run in an anonymous crate without `cfg(test)`, which allows the test writer to simulate real UX.
+
+To test binary crates, either add a `lib.rs` and call its main from `main.rs` and from the test, or use integration tests that spawn the binary as a subprocess (See `CARGO_BIN_EXE_<binary_name>`).
+
+### Dependency Injection
+
+Dependency injection allows you to test a component in isolation by mocking its dependencies. This focuses the test on a single unit of code without relying on external services or complex setup.
+
+Use trait-based dependency injection with `#[automock]` from the `mockall` crate:
+
+```rust
+// In test builds, `automock` generates a `MockDatabase` struct that implements
+// `Database` with configurable behavior for each method.
+#[cfg_attr(test, mockall::automock)]
+trait Database {
+    fn get_user(&self, id: u64) -> Result<User, Error>;
+}
+
+// The generic parameter lets us inject either a real database or a mock.
+struct UserService<D: Database> {
+    db: D,
+}
+
+impl<D: Database> UserService<D> {
+    fn get_user_name(&self, id: u64) -> Result<String, Error> {
+        self.db.get_user(id).map(|user| user.name)
+    }
+}
+```
+
+In your test file:
+
+```rust
+use mockall::predicate::eq;
+
+#[test]
+fn test_get_user_name() {
+    let mut mock_db = MockDatabase::new();
+    // Configure the mock: It will allow exactly one call to `get_user` with id=1, returning a fake user.
+    mock_db
+        .expect_get_user()
+        .with(eq(1))
+        .return_once(|_| Ok(User { id: 1, name: "Alice".to_string() }));
+
+    // Inject the mock instead of a real database.
+    let service = UserService { db: mock_db };
+    assert_eq!(service.get_user_name(1).unwrap(), "Alice");
+}
+```
+
+### Sleep
+
+Never use `sleep` in tests, even for a few milliseconds. Real sleeping slows down your test suite and introduces flakiness due to timing issues.
+
+If you need to test code that calls `sleep`, use `tokio::time::pause()` and `tokio::time::advance()` to mock time:
+
+```rust
+#[tokio::test]
+async fn test_delayed_operation() {
+    tokio::time::pause(); // Pause real time
+
+    let handle = tokio::spawn(function_with_five_second_sleep());
+    tokio::time::advance(Duration::from_secs(5)).await;
+    assert_eq!(handle.await.unwrap(), "foo");
+}
+```
+
 ## Error Handling & Safety
 
 Use `Result<T, E>` for recoverable errors and `panic!` only for bugs.
@@ -282,83 +369,6 @@ impl DerefMut for Foo {
 if *foo > 0 {...}
 ```
 
-## Testing
-
-Use unit tests for short (< 1 sec) and threadsafe tests, otherwise use cargo integration tests.
-
-A failure in a unit test should immediately point to the source of the issue, and the clearly display the error encountered. Moreover, it should be possible to debug a test even if the test writer is not available, for example:
-
--   add `#[track_caller]` on test-utils which include a critical assert, so that the trace will be the callsite in the test
--   use `assert_eq(result, Ok(<Value>))` over `assert!(result.is_ok())` --- the former will display the error, and the latter will simply say `expected True, got False`.
--   Avoid doing too many things in one test with a single assert at the end, unless other tests exist that cover enough parts of the test separately so that finding the source will be simple.
-
-Put integration tests inside `tests/` at the crate root if they don't depend on features of their crate (this constraint is valid until [this cargo issue](https://github.com/rust-lang/cargo/issues/2911#issuecomment-1739880593) or [this cargo bug](https://github.com/rust-lang/cargo/issues/15151) get resolved), otherwise put them in a dedicated integration-test crate for the whole package (mostly relevant for multi-crate packages). Cargo integration test files are not parallelized, and are run in an anonymous crate without `cfg(test)`, which allows the test writer to simulate real UX.
-
-To test binary crates, either add a `lib.rs` and call its main from `main.rs` and from the test, or use integration tests that spawn the binary as a subprocess (See `CARGO_BIN_EXE_<binary_name>`).
-
-### Dependency Injection
-
-Dependency injection allows you to test a component in isolation by mocking its dependencies. This focuses the test on a single unit of code without relying on external services or complex setup.
-
-Use trait-based dependency injection with `#[automock]` from the `mockall` crate:
-
-```rust
-// In test builds, `automock` generates a `MockDatabase` struct that implements
-// `Database` with configurable behavior for each method.
-#[cfg_attr(test, mockall::automock)]
-trait Database {
-    fn get_user(&self, id: u64) -> Result<User, Error>;
-}
-
-// The generic parameter lets us inject either a real database or a mock.
-struct UserService<D: Database> {
-    db: D,
-}
-
-impl<D: Database> UserService<D> {
-    fn get_user_name(&self, id: u64) -> Result<String, Error> {
-        self.db.get_user(id).map(|user| user.name)
-    }
-}
-```
-
-In your test file:
-
-```rust
-use mockall::predicate::eq;
-
-#[test]
-fn test_get_user_name() {
-    let mut mock_db = MockDatabase::new();
-    // Configure the mock: It will allow exactly one call to `get_user` with id=1, returning a fake user.
-    mock_db
-        .expect_get_user()
-        .with(eq(1))
-        .return_once(|_| Ok(User { id: 1, name: "Alice".to_string() }));
-
-    // Inject the mock instead of a real database.
-    let service = UserService { db: mock_db };
-    assert_eq!(service.get_user_name(1).unwrap(), "Alice");
-}
-```
-
-### Sleep
-
-Never use `sleep` in tests, even for a few milliseconds. Real sleeping slows down your test suite and introduces flakiness due to timing issues.
-
-If you need to test code that calls `sleep`, use `tokio::time::pause()` and `tokio::time::advance()` to mock time:
-
-```rust
-#[tokio::test]
-async fn test_delayed_operation() {
-    tokio::time::pause(); // Pause real time
-
-    let handle = tokio::spawn(function_with_five_second_sleep());
-    tokio::time::advance(Duration::from_secs(5)).await;
-    assert_eq!(handle.await.unwrap(), "foo");
-}
-```
-
 ## Documentation Standards
 
 Use `///` as doc-strings for all non-trivial structs, functions and methods, and place it before the definition --- these show up on docs.rs and editor tooltips.
@@ -399,16 +409,6 @@ Recommended checklist before adding a new dependency:
 -   If there are indications for the crate no longer being maintained, search for "maintained" or "dead" in the crate's issues. Or see if recent pull-requests received any attention from the maintainers.
 -   Some crates were integrated into std and are now dead. Use the std version instead. e.g: `lazy_static`, `async_trait`. If you see usages of those crates, help us improve the codebase and replace those crates with the std equivalent.
 
-
-## AI-Generated Code Guidelines
-
-Take extra care when reviewing ai-generated code for these issues:
-
--   Using deprecated/dead crates (!): for example `lazy_static` often appears in ai-code (see [lazy static section](#lazy_static-crate)).
--   Using "toy" crates (low github-starred, pet‑project crates not intended for production): just because a crate out there can fulfil a given set of requirements doesn't mean it's production-ready, see also [External Dependencies](#external-dependencies) section.
--   Excessive code-comment bloat: see [Textual Content Quality](#textual-content-quality) section.
--   Hygiene issues: leaks and races are common, since chatbots rarely take a step back and analyze the surrounding conditions in which a code is being run; always analyze flows affected by your change as the AI will not do so.
--   Excessive allocations/clones.
 
 ## Miscellaneous
 ### Async
