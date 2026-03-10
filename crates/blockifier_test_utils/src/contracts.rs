@@ -5,12 +5,11 @@ use std::path::PathBuf;
 use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
-use expect_test::expect;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::state::SierraContractClass;
-use starknet_api::{class_hash, contract_address, felt};
+use starknet_api::{class_hash, contract_address};
 use strum::{EnumIter, IntoEnumIterator};
 
 use crate::cairo_compile::{
@@ -112,91 +111,6 @@ const ERC20_CAIRO1_CONTRACT_PATH: &str = "./resources/ERC20/ERC20_Cairo1/erc20.c
 const LEGACY_CONTRACT_COMPILER_VERSION: &str = "2.1.0";
 const CAIRO_STEPS_TEST_CONTRACT_COMPILER_VERSION: &str = "2.7.0";
 
-const ACCOUNT_LONG_VALIDATE_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x3b95a890b6ec1c7360dae74c79bd3c6c8702b615c0959857263f1012ee8fd95"];
-const ACCOUNT_LONG_VALIDATE_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x14403806028aca329d0b0688e7657c20fababbbf84c943c2d3f7a5826efdeb3"];
-
-const ACCOUNT_WITHOUT_VALIDATIONS_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x4709fae1451c5a159b880f568d01ca623ce96e8943c7df91cf696940692b58"];
-const ACCOUNT_WITHOUT_VALIDATIONS_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x2fa9a4b44d4c9c0b5522b50fd0ec55fb78f1db356837e33f6ddda1cfe6e1b71"];
-
-const CAIRO_STEPS_TEST_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x2224e95c2b03a6abb4b38abde3ae2288363ca49667c0b177d79991e48f01cd7"];
-const CAIRO_STEPS_TEST_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x227ad31d8f8e64fa9fb25a5463f5010e384f3ce26214ba932807c8cf0a0ee0e"];
-
-const EMPTY_ACCOUNT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x580eedf2308fdcd855257c118ad55a115ba2c13a04deefa9a5b39290a88f65b"];
-const EMPTY_ACCOUNT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x63508c449d5e584fb0e4fac90e3cc6c46fbfbe8a7215e7f74b13391ab3a3071"];
-
-const BLOCK_INFO_TEST_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x5a89da92ac02d9c20b36b04230733af6f433d5951643287192b8e50fbbcd085"];
-const BLOCK_INFO_TEST_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x384e53233b1e2c3e5434e8bc863239d01158e5e7311ad6c3c993105f8b88905"];
-
-const ERC20_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x266f53b3f6cc2367c334b75ea86aff748ca27aa321019778af81be69d549159"];
-const ERC20_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x75a59a0cd1985dd66a3fd9d634f0e0287916cd8e0fff3f2bd80d69498b09367"];
-
-const EMPTY_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x317d3ac2cf840e487b6d0014a75f0cf507dff0bc143c710388e323487089bfa"];
-const EMPTY_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x6ee46561691e785d643a8296b9bf08008e432df405a1a4beb6ed784541b571c"];
-
-const EXPERIMENTAL_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x3e72aadba820fb1ec7cf27240d4b4279a9e7e947d6f387d44b5688599bd6988"];
-const EXPERIMENTAL_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x50902d0815548ad1af6b4d95908f822b634f731ca28f5f436f8a03d3324749e"];
-
-const FAULTY_ACCOUNT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x66128249de909088d8a1826f9f8a250843b7ac5f76ed14b179255cf0385bc36"];
-const FAULTY_ACCOUNT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x19faeef03ae8855f401c441166218ebf68b600244021b611a11a349839ce628"];
-
-const LEGACY_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x487f75f1dffb55763c65598e8634a2ee7390e8620f9d65a25ed1c9653c3c6a7"];
-const LEGACY_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x4b5dc7adc1a0d682e41a74ccd34f6eb4c9d25f398fe2fbfe71e111451359bd8"];
-
-const TEST_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x39c41a3c4375dbd2126c42204c1771f64a0c7e52e15b15666dfd9e20c07a569"];
-const TEST_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x346ad372af7100e79f54e867d868646436b4a9512ffcabd7fdd5ed79f798a97"];
-
-const SIERRA_EXECUTION_INFO_V1_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x4d9b6a21d9261ca5f4002ba074925ace389746af0dddc39c91514cced81a5e7"];
-const SIERRA_EXECUTION_INFO_V1_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x44c61c85341534073411829164da68bad0d636fe926f38b27a4c9a608d65c45"];
-
-const META_TX_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0xea6d8f6599e07407e315407831e347a101a9b25324695167326890121cb401"];
-const META_TX_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x4b91d6596ac9fbf96ee16d7dec998fc3f3581ee6d57b5569dba61fd1f28a9ca"];
-
-const MOCK_STAKING_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x3267913eb7c8baa6b592cedfc85a1536ecf1805c3d7bdb98be95865cbc5673f"];
-const MOCK_STAKING_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x2be4fef438465da9b0ecce49eaf352381a427d3cd1cf3368be29de71a5f7e6e"];
-
-const FUZZ_TEST_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x2274759833e1b5eda7fe7090031daf2e7f7017fedeb8a4b5bb80913bf034a82"];
-const FUZZ_TEST_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x75df945bd14b4cc5408312c4bb901a0b3abb6ae0ae26e4d766649a534244368"];
-
-const FUZZ_TEST2_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x2dd7e9f1b55b7c9786832d5481d0e03449581a7d83932d2ae03a735a1ca74"];
-const FUZZ_TEST2_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x4a55facc10d59d02e96ec90612d3d920f172b9c640cd10054e8dfef88ae402d"];
-
-const FUZZ_TEST_ORCHESTRATOR_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x3488a0e58b766d90112ae53d5c99b3b1706bbf38d6f8365cb2e59fefdce4c00"];
-const FUZZ_TEST_ORCHESTRATOR_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0xe4cca0f01f938881a48d8b6e9742dfa1a4c8a0271199479cf23a09ea6a11e4"];
-
 pub type CairoVersionString = String;
 
 /// Enum representing all feature contracts.
@@ -290,85 +204,15 @@ impl FeatureContract {
         class_hash!(self.get_integer_base())
     }
 
-    // Returns (compiled_class_hash_v1, compiled_class_hash_v2)
-    /// as consts Expect strings.
-    pub fn get_compiled_class_hashes_constants(
-        &self,
-    ) -> (expect_test::Expect, expect_test::Expect) {
-        match self {
-            Self::AccountWithLongValidate(_) => (
-                ACCOUNT_LONG_VALIDATE_COMPILED_CLASS_HASH_V1,
-                ACCOUNT_LONG_VALIDATE_COMPILED_CLASS_HASH_V2,
-            ),
-            Self::AccountWithoutValidations(_) => (
-                ACCOUNT_WITHOUT_VALIDATIONS_COMPILED_CLASS_HASH_V1,
-                ACCOUNT_WITHOUT_VALIDATIONS_COMPILED_CLASS_HASH_V2,
-            ),
-            Self::BlockInfoTestContract(_) => (
-                BLOCK_INFO_TEST_CONTRACT_COMPILED_CLASS_HASH_V1,
-                BLOCK_INFO_TEST_CONTRACT_COMPILED_CLASS_HASH_V2,
-            ),
-            Self::Empty(_) => (EMPTY_COMPILED_CLASS_HASH_V1, EMPTY_COMPILED_CLASS_HASH_V2),
-            Self::Experimental => {
-                (EXPERIMENTAL_COMPILED_CLASS_HASH_V1, EXPERIMENTAL_COMPILED_CLASS_HASH_V2)
-            }
-            Self::FaultyAccount(_) => {
-                (FAULTY_ACCOUNT_COMPILED_CLASS_HASH_V1, FAULTY_ACCOUNT_COMPILED_CLASS_HASH_V2)
-            }
-            Self::LegacyTestContract => {
-                (LEGACY_CONTRACT_COMPILED_CLASS_HASH_V1, LEGACY_CONTRACT_COMPILED_CLASS_HASH_V2)
-            }
-            Self::DelegateProxy
-            | Self::SecurityTests
-            | Self::TestContract2
-            | Self::TxInfoWriter => {
-                panic!("{self:?} has no compiled class hash.")
-            }
-            Self::TestContract(_) => {
-                (TEST_CONTRACT_COMPILED_CLASS_HASH_V1, TEST_CONTRACT_COMPILED_CLASS_HASH_V2)
-            }
-            Self::CairoStepsTestContract => (
-                CAIRO_STEPS_TEST_CONTRACT_COMPILED_CLASS_HASH_V1,
-                CAIRO_STEPS_TEST_CONTRACT_COMPILED_CLASS_HASH_V2,
-            ),
-            Self::SierraExecutionInfoV1Contract(_) => (
-                SIERRA_EXECUTION_INFO_V1_CONTRACT_COMPILED_CLASS_HASH_V1,
-                SIERRA_EXECUTION_INFO_V1_CONTRACT_COMPILED_CLASS_HASH_V2,
-            ),
-            Self::EmptyAccount(_) => {
-                (EMPTY_ACCOUNT_COMPILED_CLASS_HASH_V1, EMPTY_ACCOUNT_COMPILED_CLASS_HASH_V2)
-            }
-            Self::MetaTx(_) => {
-                (META_TX_CONTRACT_COMPILED_CLASS_HASH_V1, META_TX_CONTRACT_COMPILED_CLASS_HASH_V2)
-            }
-            Self::MockStakingContract(_) => (
-                MOCK_STAKING_CONTRACT_COMPILED_CLASS_HASH_V1,
-                MOCK_STAKING_CONTRACT_COMPILED_CLASS_HASH_V2,
-            ),
-            Self::FuzzTest(_) => {
-                (FUZZ_TEST_COMPILED_CLASS_HASH_V1, FUZZ_TEST_COMPILED_CLASS_HASH_V2)
-            }
-            Self::FuzzTest2(_) => {
-                (FUZZ_TEST2_COMPILED_CLASS_HASH_V1, FUZZ_TEST2_COMPILED_CLASS_HASH_V2)
-            }
-            Self::FuzzTestOrchestrator(_) => (
-                FUZZ_TEST_ORCHESTRATOR_COMPILED_CLASS_HASH_V1,
-                FUZZ_TEST_ORCHESTRATOR_COMPILED_CLASS_HASH_V2,
-            ),
-            Self::ERC20(_) => (ERC20_COMPILED_CLASS_HASH_V1, ERC20_COMPILED_CLASS_HASH_V2),
-        }
-    }
-
-    // Returns the contracts compiled class hash for the given hash version.
+    /// Returns the compiled class hash for the given hash version.
+    /// For Cairo 1 contracts the hash is computed from the CASM artifact and cached on disk;
+    /// for Cairo 0 contracts it is always the default (zero) hash.
     pub fn get_compiled_class_hash(&self, hash_version: &HashVersion) -> CompiledClassHash {
         match self.cairo_version() {
             CairoVersion::Cairo0 => CompiledClassHash::default(),
             CairoVersion::Cairo1(_) => {
-                let (casm_hash_v1, casm_hash_v2) = self.get_compiled_class_hashes_constants();
-                match hash_version {
-                    HashVersion::V1 => CompiledClassHash(felt!(casm_hash_v1.data)),
-                    HashVersion::V2 => CompiledClassHash(felt!(casm_hash_v2.data)),
-                }
+                self.ensure_compiled_class_hashes_cached();
+                compile_cache::read_cached_compiled_class_hash(self, hash_version)
             }
         }
     }
@@ -418,6 +262,17 @@ impl FeatureContract {
             return;
         }
         compile_cache::ensure_cairo1_compiled(self);
+    }
+
+    /// Ensures that compiled class hash files are cached for this contract.
+    /// For non-ERC20 Cairo 1 contracts this is part of `ensure_compiled`.
+    /// For ERC20 this computes hashes from the committed CASM artifact.
+    fn ensure_compiled_class_hashes_cached(&self) {
+        if matches!(self, Self::ERC20(CairoVersion::Cairo1(_))) {
+            compile_cache::ensure_erc20_compiled_class_hashes(self, ERC20_CAIRO1_CONTRACT_PATH);
+        } else {
+            self.ensure_compiled();
+        }
     }
 
     fn get_cairo_version_bit(&self) -> u32 {
