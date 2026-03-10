@@ -39,6 +39,8 @@ from __future__ import annotations
 import json
 import re
 import sys
+from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -48,10 +50,65 @@ HEIGHT_BLOCK_RE_TEMPLATE = (
     r"\b(?:block[\s_]?number|block|height)\b\s*(?::|=|\bis\b)?\s*\(?['\"]?\b{}\b['\"]?\)?"
 )
 ADVANCING_STEP_RE = re.compile(r"Advancing step:\s*from\s*(\w+)\s*to\s*(\w+)", re.I)
+BROADCAST_PREVOTE_RE = re.compile(r"Broadcasting Vote\s*\{[^}]*vote_type:\s*Prevote\b", re.I)
+BROADCAST_PRECOMMIT_RE = re.compile(r"Broadcasting Vote\s*\{[^}]*vote_type:\s*Precommit\b", re.I)
+BROADCAST_VOTE_PATTERNS = {
+    "prevote": BROADCAST_PREVOTE_RE,
+    "precommit": BROADCAST_PRECOMMIT_RE,
+}
 N_TXS_RE = re.compile(
     r"Finished building block as proposer\..*?Final number of transactions \(as set by the proposer\):\s*(\d+)\.",
     re.I | re.S,
 )
+
+
+@dataclass
+class ConsensusData:
+    """Holds all parsed and indexed consensus log data."""
+
+    # All filtered log entries for the height
+    all_log_entries: List[Dict[str, Any]]
+
+    # Indexed by namespace for weights lookup
+    log_entries_by_namespace: Dict[str, List[Dict[str, Any]]]
+
+    # Indexed by (round, validator_id)
+    log_entries_by_round_and_validator: Dict[Tuple[int, str], List[Dict[str, Any]]]
+
+    # Maps validator ID to its namespace
+    namespace_by_validator_id: Dict[str, str]
+
+    # All validator IDs participating in consensus
+    validator_ids: List[str]
+
+    # All rounds found in the logs
+    consensus_rounds: List[int]
+
+    # The block height being analyzed
+    block_height: str
+
+
+@dataclass
+class VoteAnalysisResult:
+    """Results from analyzing votes across all rounds and validators."""
+
+    # Key: (round, validator_id, vote_type), Value: vote message
+    vote_messages_by_round_validator_type: Dict[Tuple[int, str, str], str]
+
+
+@dataclass
+class ValidationAnalysisResult:
+    """Results from analyzing proposal validation across rounds."""
+
+    # Nested: round -> validator_id -> status ("Passed" or "Failed [N]")
+    validation_status_by_round_validator: Dict[int, Dict[str, str]]
+
+    # Evidence number and message for failed proposals
+    validation_evidence_by_round: Dict[int, List[Tuple[int, str]]]
+
+
+def final_weights_marker(height_str: str) -> str:
+    return f"Block {height_str} final weights"
 
 
 def parse_timestamp(entry: Dict[str, Any]) -> Optional[datetime]:
@@ -339,7 +396,7 @@ def weights_for_node_round(
     if advance_timestamp is None:
         return empty_resources
 
-    marker = f"Block {height_str} final weights"
+    marker = final_weights_marker(height_str)
     candidates = []
     for entry in entries_by_ns.get(ns, []):
         timestamp = parse_timestamp(entry)
@@ -374,6 +431,128 @@ def proposal_failed_msg(
             if timestamp is not None:
                 return msg
     return None
+
+
+def load_and_filter_log_entries_for_height(
+    logs_file_path: str, block_height: str
+) -> List[Dict[str, Any]]:
+    """Load JSON log file, filter entries matching the block height, and sort by timestamp."""
+    with open(logs_file_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    filtered_entries = [
+        entry
+        for entry in data
+        if height_match(entry, block_height) and parse_timestamp(entry) is not None
+    ]
+    filtered_entries.sort(key=lambda entry: parse_timestamp(entry))
+
+    return filtered_entries
+
+
+def build_indexed_consensus_data(
+    filtered_log_entries: List[Dict[str, Any]], block_height: str
+) -> ConsensusData:
+    log_entries_by_namespace: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    namespace_by_validator_id: Dict[str, str] = {}
+    validator_ids_set: set = set()
+    consensus_rounds: set = set()
+    log_entries_by_round_and_validator: Dict[Tuple[int, str], List[Dict[str, Any]]] = defaultdict(
+        list
+    )
+
+    for entry in filtered_log_entries:
+        ns = get_namespace(entry)
+        validator_id = get_validator_id(entry)
+        round_num = get_round(entry)
+
+        if ns is not None:
+            log_entries_by_namespace[ns].append(entry)
+        if validator_id is not None:
+            validator_ids_set.add(validator_id)
+            if ns is not None and validator_id not in namespace_by_validator_id:
+                namespace_by_validator_id[validator_id] = ns
+        if round_num is not None:
+            consensus_rounds.add(round_num)
+            if validator_id is not None:
+                log_entries_by_round_and_validator[(round_num, validator_id)].append(entry)
+
+    return ConsensusData(
+        all_log_entries=filtered_log_entries,
+        log_entries_by_namespace=log_entries_by_namespace,
+        log_entries_by_round_and_validator=log_entries_by_round_and_validator,
+        namespace_by_validator_id=namespace_by_validator_id,
+        validator_ids=sorted(validator_ids_set, key=short_id),
+        consensus_rounds=sorted(consensus_rounds),
+        block_height=block_height,
+    )
+
+
+def extract_vote_messages_for_all_rounds(consensus_data: ConsensusData) -> VoteAnalysisResult:
+    """Find the first prevote/precommit broadcast after each advancing step transition."""
+    vote_messages_by_round_validator_type: Dict[Tuple[int, str, str], str] = {}
+
+    for (
+        round_num,
+        validator_id,
+    ), entries_list in consensus_data.log_entries_by_round_and_validator.items():
+        for i, entry in enumerate(entries_list):
+            msg = get_message(entry)
+            advancing_step = find_advancing_step(msg)
+            if advancing_step is None:
+                continue
+            after_timestamp = parse_timestamp(entry)
+            if after_timestamp is None:
+                continue
+            from_stage, to_stage = advancing_step[0].lower(), advancing_step[1].lower()
+
+            if (from_stage == "propose" and to_stage == "prevote") or (
+                from_stage == "prevote" and to_stage == "precommit"
+            ):
+                for entry2 in entries_list[i + 1 :]:
+                    entry2_timestamp = parse_timestamp(entry2)
+                    msg2 = get_message(entry2)
+                    if (
+                        entry2_timestamp is not None
+                        and entry2_timestamp >= after_timestamp
+                        and BROADCAST_VOTE_PATTERNS[to_stage].search(msg2)
+                    ):
+                        vote_messages_by_round_validator_type[
+                            (round_num, validator_id, to_stage.capitalize())
+                        ] = msg2
+                        break
+
+    return VoteAnalysisResult(
+        vote_messages_by_round_validator_type=vote_messages_by_round_validator_type
+    )
+
+
+def collect_validation_evidence_for_all_rounds(
+    consensus_data: ConsensusData,
+) -> ValidationAnalysisResult:
+    """Check each validator's proposal validation status per round and collect evidence."""
+    validation_status_by_round_validator = defaultdict(dict)
+    validation_evidence_by_round = defaultdict(list)
+
+    for round_num in consensus_data.consensus_rounds:
+        evidence_number = 1
+        for validator_id in consensus_data.validator_ids:
+            proposal_failed = proposal_failed_msg(
+                consensus_data.log_entries_by_round_and_validator, validator_id, round_num
+            )
+            if proposal_failed is not None:
+                validation_status_by_round_validator[round_num][
+                    validator_id
+                ] = f"Failed [{evidence_number}]"
+                validation_evidence_by_round[round_num].append((evidence_number, proposal_failed))
+                evidence_number += 1
+            else:
+                validation_status_by_round_validator[round_num][validator_id] = "Passed"
+
+    return ValidationAnalysisResult(
+        validation_status_by_round_validator=validation_status_by_round_validator,
+        validation_evidence_by_round=validation_evidence_by_round,
+    )
 
 
 def main() -> int:
