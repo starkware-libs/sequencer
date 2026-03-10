@@ -436,11 +436,7 @@ class NodeConfigLoader(Config):
     def _path_relative_to_root(absolute_path: Path) -> str:
         """Return path relative to ROOT_DIR if under it, otherwise the path as-is."""
         root = Path(NodeConfigLoader.ROOT_DIR).resolve()
-        path = (
-            absolute_path.resolve()
-            if isinstance(absolute_path, Path)
-            else Path(absolute_path).resolve()
-        )
+        path = absolute_path.resolve()
         try:
             return str(path.relative_to(root))
         except ValueError:
