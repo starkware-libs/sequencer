@@ -102,6 +102,11 @@ fn cairo1_package_exists(version: &String) -> bool {
     cairo_compiler_path.exists() && sierra_compiler_path.exists()
 }
 
+/// Appends `.lock` to a path, used by `with_file_lock` callers to derive a lock file path.
+pub(crate) fn lock_path_for(path: &Path) -> PathBuf {
+    PathBuf::from(format!("{}.lock", path.display()))
+}
+
 /// Executes `action` at most once, guarded by a file lock at `lock_path`.
 ///
 /// Uses double-checked locking: if `is_done()` returns `true` before acquiring the lock the
@@ -130,9 +135,8 @@ pub(crate) fn with_file_lock(lock_path: &Path, is_done: impl Fn() -> bool, actio
 /// or processes) never download the same package redundantly.
 pub fn verify_cairo1_package(version: &String) {
     let dir = cairo1_package_dir(version);
-    let lock_path = PathBuf::from(format!("{}.lock", dir.display()));
     with_file_lock(
-        &lock_path,
+        &lock_path_for(&dir),
         || cairo1_package_exists(version),
         || {
             eprintln!(
