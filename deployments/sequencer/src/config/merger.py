@@ -61,9 +61,7 @@ def _merge_common_into_service(
             if "service" not in service_dict:
                 service_dict["service"] = {}
             svc_ports = service_dict["service"].get("ports", [])
-            service_dict["service"]["ports"] = _merge_service_ports(
-                common_val["ports"], svc_ports
-            )
+            service_dict["service"]["ports"] = _merge_service_ports(common_val["ports"], svc_ports)
             if service_val:
                 rest = deep_merge(service_val, common_val)
                 rest["ports"] = service_dict["service"]["ports"]
@@ -102,6 +100,7 @@ def _merge_common_into_service(
 
 
 def merge_configs(
+    config_base_dir: str,
     layout_common_config_path: str | None,
     layout_services_config_dir_path: str,
     overlay_layers: list[tuple[str | None, str | None]] | None = None,
@@ -117,11 +116,11 @@ def merge_configs(
     Each overlay layer's common.yaml and services/ are optional; if absent that layer
     is skipped for that chain. Uses DeploymentConfigLoader for loading and validation.
     Returns a validated DeploymentConfig schema object.
+
+    config_base_dir: Root directory for resolving relative include paths in configs
+        (e.g. paths like "configs/layouts/hybrid/common.yaml" are resolved relative to this).
     """
     overlay_layers = overlay_layers or []
-    # Resolve config_base_dir so includes like "configs/layouts/hybrid/common.yaml" work (relative to app root)
-    layout_services_path = Path(layout_services_config_dir_path)
-    config_base_dir = str(layout_services_path.parent.parent.parent.parent)
 
     # --- Load layout configs ---
     layout_common = (
