@@ -280,7 +280,7 @@ def _merge_nested_dict(
             layout_port_list = merged_dict.get(overlay_key)
             if not isinstance(layout_port_list, list):
                 layout_port_list = []
-            merged_dict[overlay_key] = _merge_service_ports(layout_port_list, overlay_val)
+            merged_dict[overlay_key] = merge_service_ports(layout_port_list, overlay_val)
         # Recursively merge if both are dicts
         elif (
             overlay_key in merged_dict
@@ -301,7 +301,7 @@ def _merge_nested_dict(
     return merged_dict
 
 
-def _merge_service_ports(
+def merge_service_ports(
     base_ports: list[Any],
     overlay_ports: list[Any],
 ) -> list[dict]:
@@ -417,7 +417,7 @@ def _merge_dict_strict(
             and isinstance(layout_value, list)
             and isinstance(val, list)
         ):
-            layout_copy[key] = _merge_service_ports(layout_value, val)
+            layout_copy[key] = merge_service_ports(layout_value, val)
         elif isinstance(layout_value, dict) and isinstance(val, dict):
             if is_dict_field:
                 # Dict field: merge without validation
