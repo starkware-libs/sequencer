@@ -8,11 +8,11 @@ use jsonrpsee::types::ErrorObjectOwned;
 use jsonschema::JSONSchema;
 use rstest::{fixture, rstest};
 use serde_json::Value;
+use starknet_api::block::GasPrice;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::invoke_tx_args;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::test_utils::read_json_file;
-use starknet_api::block::GasPrice;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     Proof,
@@ -366,9 +366,7 @@ async fn test_prove_transaction_rejects_non_empty_proof_facts(
 
 #[rstest]
 #[tokio::test]
-async fn test_prove_transaction_rejects_non_zero_fee(
-    rpc_module: RpcModule<ProvingRpcServerImpl>,
-) {
+async fn test_prove_transaction_rejects_non_zero_fee(rpc_module: RpcModule<ProvingRpcServerImpl>) {
     // Non-zero gas amount * non-zero gas price → non-zero max possible fee.
     let non_zero_fee_bounds = AllResourceBounds {
         l2_gas: ResourceBounds { max_amount: GasAmount(1), max_price_per_unit: GasPrice(1) },
