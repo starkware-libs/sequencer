@@ -24,7 +24,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::config::ProverConfig;
 use crate::proving::virtual_snos_prover::RpcVirtualSnosProver;
-use crate::server::errors;
 use crate::server::mock_rpc::MockProvingRpc;
 use crate::server::rpc_api::ProvingRpcServer;
 use crate::server::rpc_impl::ProvingRpcServerImpl;
@@ -288,18 +287,11 @@ async fn test_prove_transaction_rejects_pending_block_id(
 }
 
 #[test]
-// TODO(Avi): Add an error enum to make this test exhastive.
 fn test_error_responses_match_spec() {
-    let test_cases: Vec<(&str, ErrorObjectOwned)> = vec![
-        ("BLOCK_NOT_FOUND", errors::block_not_found()),
-        ("ACCOUNT_VALIDATION_FAILED", errors::validation_failure("test".to_string())),
-        ("UNSUPPORTED_TX_VERSION", errors::unsupported_tx_version("v99".to_string())),
-        ("SERVICE_BUSY", errors::service_busy(2)),
-        (
-            "INVALID_TRANSACTION_INPUT",
-            errors::invalid_transaction_input("test field invalid".to_string()),
-        ),
-    ];
+    use crate::server::errors::SpecErrorKind;
+
+    let test_cases: Vec<(&str, ErrorObjectOwned)> =
+        SpecErrorKind::ALL.iter().map(|kind| (kind.spec_key(), kind.example_error())).collect();
 
     // Completeness guard: ensure all spec errors have a test case.
     let spec_error_keys: HashSet<&str> =
@@ -307,7 +299,7 @@ fn test_error_responses_match_spec() {
     let tested_error_keys: HashSet<&str> = test_cases.iter().map(|(key, _)| *key).collect();
     assert_eq!(
         tested_error_keys, spec_error_keys,
-        "Test cases don't cover all spec errors. Update the test_cases list above."
+        "Test cases don't cover all spec errors. Add a variant to SpecErrorKind."
     );
 
     for (spec_key, actual) in &test_cases {
