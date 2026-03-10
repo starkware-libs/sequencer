@@ -6,11 +6,15 @@
 //! - The OpenRPC spec: `resources/proving_api_openrpc.json` (under `components/errors`)
 //! - The spec validation test: `server/rpc_spec_test.rs` (`test_error_responses_match_spec`)
 
+#[cfg(test)]
+#[path = "errors_test.rs"]
+mod errors_test;
+
 use jsonrpsee::types::error::ErrorCode::InternalError;
 use jsonrpsee::types::error::INTERNAL_ERROR_MSG;
 use jsonrpsee::types::ErrorObjectOwned;
 
-use crate::errors::VirtualSnosProverError;
+use crate::errors::{RunnerError, VirtualBlockExecutorError, VirtualSnosProverError};
 
 // Starknet RPC v0.10 error codes.
 
@@ -53,26 +57,58 @@ pub fn internal_server_error(err: impl std::fmt::Display) -> ErrorObjectOwned {
 
 impl From<VirtualSnosProverError> for ErrorObjectOwned {
     fn from(err: VirtualSnosProverError) -> Self {
-        match &err {
-            VirtualSnosProverError::InvalidTransactionType(msg) => {
-                unsupported_tx_version(msg.clone())
-            }
-            VirtualSnosProverError::InvalidTransactionInput(msg) => {
-                invalid_transaction_input(msg.clone())
-            }
+        match err {
+            VirtualSnosProverError::InvalidTransactionType(msg) => unsupported_tx_version(msg),
+            VirtualSnosProverError::InvalidTransactionInput(msg) => invalid_transaction_input(msg),
             VirtualSnosProverError::ValidationError(msg) => {
                 // Check if it's a pending block error.
-                if msg.contains("Pending") {
-                    block_not_found()
-                } else {
-                    validation_failure(msg.clone())
-                }
+                if msg.contains("Pending") { block_not_found() } else { validation_failure(msg) }
             }
-            VirtualSnosProverError::RunnerError(e) => internal_server_error(e),
+            VirtualSnosProverError::RunnerError(e) => runner_error_to_rpc(*e),
             #[cfg(feature = "stwo_proving")]
-            VirtualSnosProverError::ProvingError(e) => internal_server_error(e),
-            VirtualSnosProverError::OutputParseError(e) => internal_server_error(e),
-            VirtualSnosProverError::ProgramOutputError(e) => internal_server_error(e),
+            VirtualSnosProverError::ProvingError(_) => {
+                internal_server_error("Proof generation failed.")
+            }
+            VirtualSnosProverError::OutputParseError(_) => {
+                internal_server_error("Internal proving error.")
+            }
+            VirtualSnosProverError::ProgramOutputError(_) => {
+                internal_server_error("Internal proving error.")
+            }
+        }
+    }
+}
+
+fn runner_error_to_rpc(err: RunnerError) -> ErrorObjectOwned {
+    match err {
+        RunnerError::VirtualBlockExecutor(e) => virtual_block_executor_error_to_rpc(e),
+        RunnerError::ClassesProvider(_) => {
+            internal_server_error("Failed to fetch contract classes from RPC node.")
+        }
+        RunnerError::ProofProvider(_) => {
+            internal_server_error("Failed to fetch storage proofs from RPC node.")
+        }
+        RunnerError::TransactionHashError(_) => {
+            internal_server_error("Failed to compute transaction hash.")
+        }
+        RunnerError::OsExecution(_)
+        | RunnerError::InputGenerationError(_)
+        | RunnerError::TaskJoin(_) => internal_server_error("Internal proving error."),
+    }
+}
+
+fn virtual_block_executor_error_to_rpc(err: VirtualBlockExecutorError) -> ErrorObjectOwned {
+    match err {
+        VirtualBlockExecutorError::TransactionReverted(_, reason) => {
+            internal_server_error(format!("Transaction reverted: {reason}"))
+        }
+        VirtualBlockExecutorError::TransactionExecutionError(_) => {
+            internal_server_error("Transaction execution failed.")
+        }
+        VirtualBlockExecutorError::ReexecutionError(_)
+        | VirtualBlockExecutorError::StateUnavailable
+        | VirtualBlockExecutorError::BouncerLockError(_) => {
+            internal_server_error("Failed to read block state from RPC node.")
         }
     }
 }
