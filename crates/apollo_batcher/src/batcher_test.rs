@@ -280,7 +280,7 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
         Box::new(clients.block_builder_factory),
         Box::new(clients.pre_confirmed_block_writer_factory),
         commitment_manager,
-        None,
+        tokio::spawn(async {}).abort_handle(),
     );
     // Call post-creation functionality (e.g., metrics registration).
     batcher.start().await;

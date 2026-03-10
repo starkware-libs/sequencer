@@ -123,6 +123,7 @@ impl FlowTestSetup {
                 StorageConfig::default(),
                 available_ports.get_next_ports(NUM_OF_SEQUENCERS),
                 available_ports.get_next_ports(NUM_OF_SEQUENCERS),
+                available_ports.get_next_ports(NUM_OF_SEQUENCERS),
             )
             .try_into()
             .unwrap();

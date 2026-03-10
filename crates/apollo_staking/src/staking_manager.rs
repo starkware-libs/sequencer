@@ -78,7 +78,8 @@ struct CommitteeCache {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Epoch {
-    // TODO(Dafna): Define an EpochId type.
+    // TODO(Dafna): Use `starknet_api::staking::EpochId` throughout locations that expect an
+    // epoch number.
     pub(crate) epoch_id: u64,
     pub(crate) start_block: BlockNumber,
     pub(crate) epoch_length: u64,
