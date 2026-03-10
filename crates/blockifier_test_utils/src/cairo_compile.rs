@@ -70,7 +70,7 @@ pub fn generate_allowed_libfuncs_legacy_json() -> String {
 
 /// Downloads the cairo package to the local directory.
 /// Creates the directory if it does not exist.
-async fn download_cairo_package(version: &String) {
+fn download_cairo_package(version: &String) {
     let directory = cairo1_package_dir(version);
     info!("Downloading Cairo package to {directory:?}.");
     std::fs::create_dir_all(&directory).unwrap();
@@ -103,9 +103,9 @@ fn cairo1_package_exists(version: &String) -> bool {
 
 /// Verifies that the Cairo1 package (of the given version) is available.
 /// Attempts to download it if not.
-pub async fn verify_cairo1_package(version: &String) {
+pub fn verify_cairo1_package(version: &String) {
     if !cairo1_package_exists(version) {
-        download_cairo_package(version).await;
+        download_cairo_package(version);
     }
     assert!(cairo1_package_exists(version));
 }

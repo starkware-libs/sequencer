@@ -96,15 +96,13 @@ async fn verify_feature_contracts_compatibility(
         }
         CairoVersion::Cairo1(RunnableCairo1::Casm) => {
             // Prepare cairo packages.
-            let mut download_task_set = tokio::task::JoinSet::new();
-            for version in FeatureContract::all_cairo1_casm_compiler_versions() {
-                download_task_set.spawn(async move { verify_cairo1_package(&version).await });
-            }
             info!(
                 "Verifying Cairo1 packages for versions {:?}.",
                 FeatureContract::all_cairo1_casm_compiler_versions()
             );
-            download_task_set.join_all().await;
+            for version in FeatureContract::all_cairo1_casm_compiler_versions() {
+                verify_cairo1_package(&version);
+            }
             info!("Cairo1 packages verified.");
             // Verify feature contracts.
             let mut task_set = tokio::task::JoinSet::new();
