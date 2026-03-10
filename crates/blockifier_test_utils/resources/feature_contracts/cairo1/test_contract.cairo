@@ -1343,7 +1343,7 @@ mod TestContract {
         test_keccak(ref self);
         // Test add_mod, mul_mod and range_check96.
         test_circuit(ref self);
-        //TODO(AvivG): add blake test once blake gas cost is passed to the VM.
+        test_blake(ref self);
     }
 
 
