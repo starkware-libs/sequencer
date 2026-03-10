@@ -62,17 +62,6 @@ fn verify_cairo0_contract(contract: &FeatureContract, fix: bool) {
     assert_eq!(contract.get_compiled_class_hash(&HashVersion::V2), CompiledClassHash::default());
 }
 
-// ======================== Cairo 1 compilation & hash verification ========================
-
-fn verify_contract_casm_hashes(contract: &FeatureContract) {
-    let casm_json = contract.get_raw_class();
-    let casm: CasmContractClass =
-        serde_json::from_str(&casm_json).expect("Failed to deserialize CASM contract class");
-    let (casm_hash_v1, casm_hash_v2) = contract.get_compiled_class_hashes_constants();
-    casm_hash_v1.assert_eq(&format!("0x{:x}", casm.hash(&HashVersion::V1).0));
-    casm_hash_v2.assert_eq(&format!("0x{:x}", casm.hash(&HashVersion::V2).0));
-}
-
 // ======================== Enum <-> filesystem consistency ========================
 
 /// For Cairo 0: verifies that each .cairo file has a matching _compiled.json and a matching
@@ -138,6 +127,18 @@ fn verify_feature_contracts_match_enum(
     }
 }
 
+// Verified that the constant casm hashes V1 and V2 in the FeatureContract enum are correct.
+// In case of a mismatch, run: `env UPDATE_EXPECT=1 cargo test -p blockifier_test_utils --test
+// feature_contracts_compatibility_test -- verify_feature_contracts_cairo1`
+fn verify_contract_casm_hashes(contract: &FeatureContract) {
+    let casm_json = contract.get_raw_class();
+    let casm: CasmContractClass =
+        serde_json::from_str(&casm_json).expect("Failed to deserialize CASM contract class");
+    let (casm_hash_v1, casm_hash_v2) = contract.get_compiled_class_hashes_constants();
+    casm_hash_v1.assert_eq(&format!("0x{:x}", casm.hash(&HashVersion::V1).0));
+    casm_hash_v2.assert_eq(&format!("0x{:x}", casm.hash(&HashVersion::V2).0));
+}
+
 // ======================== Test entrypoints ========================
 
 #[ignore]
@@ -145,8 +146,14 @@ fn verify_feature_contracts_match_enum(
 #[tokio::test(flavor = "multi_thread")]
 async fn verify_feature_contracts_cairo0() {
     let fix = std::env::var("FIX_FEATURE_TEST").is_ok();
+    let contract_filter = std::env::var("CONTRACT_FILTER").ok();
+    let matches_filter = |contract: &FeatureContract| -> bool {
+        contract_filter.as_deref().is_none_or(|filter| format!("{contract:?}").contains(filter))
+    };
+    // TODO(Dori, 1/10/2024): Parallelize Cairo0 recompilation.
     for contract in FeatureContract::all_feature_contracts()
         .filter(|c| c.cairo_version() == CairoVersion::Cairo0)
+        .filter(|c| matches_filter(c))
     {
         verify_cairo0_contract(&contract, fix);
     }
@@ -158,7 +165,13 @@ async fn verify_feature_contracts_cairo0() {
 /// feature_contracts_compatibility_test -- verify_feature_contracts_cairo1`
 #[test]
 fn verify_feature_contracts_cairo1() {
-    for contract in FeatureContract::all_cairo1_casm_feature_contracts() {
+    let contract_filter = std::env::var("CONTRACT_FILTER").ok();
+    let matches_filter = |contract: &FeatureContract| -> bool {
+        contract_filter.as_deref().is_none_or(|filter| format!("{contract:?}").contains(filter))
+    };
+    for contract in
+        FeatureContract::all_cairo1_casm_feature_contracts().filter(|c| matches_filter(c))
+    {
         verify_contract_casm_hashes(&contract);
     }
     // ERC20 uses committed artifacts; just verify its hashes.
