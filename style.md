@@ -386,9 +386,9 @@ my_vec.push(foo)
 
 ## External Dependencies
 
-Be conservative with helper crates, and especially avoid single-use crates --- external deps increase our compilation time, and increase potential of version clashes and sudden breaking changes (not all crates adhere to Semver properly).
+If you want to use a crate your repo doesn't currently use, you need an approval from your group manager. This is true even if the repo transitively depends on this crate already.
 
-If a crate has a viable use-case that doesn't require some heavy-dependency, [feature-gate](https://doc.rust-lang.org/cargo/reference/features.html#the-features-section) the dependency, this helps reduce compilation time.
+Be conservative with helper crates, and especially avoid single-use crates --- external deps increase our compilation time, and increase potential of version clashes and sudden breaking changes (not all crates adhere to Semver properly).
 
 ### Unmaintained Dependencies
 
@@ -398,12 +398,8 @@ Recommended checklist before adding a new dependency:
 -   Small crates should have at least ~100 github stars, large ones should have ~1000.
 -   Skim through the README for important notes, ESPECIALLY look for "no longer maintained" or "archived" notices.
 -   If there are indications for the crate no longer being maintained, search for "maintained" or "dead" in the crate's issues. Or see if recent pull-requests received any attention from the maintainers.
+-   Some crates were integrated into std and are now dead. Use the std version instead. e.g: `lazy_static`, `async_trait`. If you see usages of those crates, help us improve the codebase and replace those crates with the std equivalent.
 
-### `lazy_static` crate
-
-Do not use `lazy_static`.
-This functionality [is part of `std` now](https://github.com/rust-lang-nursery/lazy-static.rs?tab=readme-ov-file#standard-library) and the crate is dead.
-If you're working around code that uses lazy_static, remove it in favor of the `std` type and help us close in on removing the extra dependency from the project.
 
 ## AI-Generated Code Guidelines
 
