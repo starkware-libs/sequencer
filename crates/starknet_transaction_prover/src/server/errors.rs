@@ -6,11 +6,67 @@
 //! - The OpenRPC spec: `resources/proving_api_openrpc.json` (under `components/errors`)
 //! - The spec validation test: `server/rpc_spec_test.rs` (`test_error_responses_match_spec`)
 
+#[cfg(test)]
+#[path = "errors_test.rs"]
+mod errors_test;
+
 use jsonrpsee::types::error::ErrorCode::InternalError;
 use jsonrpsee::types::error::INTERNAL_ERROR_MSG;
 use jsonrpsee::types::ErrorObjectOwned;
 
-use crate::errors::VirtualSnosProverError;
+use crate::errors::{RunnerError, VirtualBlockExecutorError, VirtualSnosProverError};
+
+// --- Test-only: exhaustive spec error enum ---
+
+/// Every error defined in the OpenRPC spec (`components/errors`).
+///
+/// Adding a new error to the spec requires adding a variant here; the compiler enforces
+/// exhaustive coverage via `SpecErrorKind::ALL` in the spec test.
+#[cfg(test)]
+#[derive(Clone, Copy)]
+pub(crate) enum SpecErrorKind {
+    BlockNotFound,
+    AccountValidationFailed,
+    UnsupportedTxVersion,
+    ServiceBusy,
+    InvalidTransactionInput,
+}
+
+#[cfg(test)]
+impl SpecErrorKind {
+    /// All variants — used by the spec completeness test.
+    pub(crate) const ALL: &[Self] = &[
+        Self::BlockNotFound,
+        Self::AccountValidationFailed,
+        Self::UnsupportedTxVersion,
+        Self::ServiceBusy,
+        Self::InvalidTransactionInput,
+    ];
+
+    /// The key in `components/errors` of the OpenRPC spec.
+    pub(crate) fn spec_key(self) -> &'static str {
+        match self {
+            Self::BlockNotFound => "BLOCK_NOT_FOUND",
+            Self::AccountValidationFailed => "ACCOUNT_VALIDATION_FAILED",
+            Self::UnsupportedTxVersion => "UNSUPPORTED_TX_VERSION",
+            Self::ServiceBusy => "SERVICE_BUSY",
+            Self::InvalidTransactionInput => "INVALID_TRANSACTION_INPUT",
+        }
+    }
+
+    /// A representative `ErrorObjectOwned` for this error kind.
+    pub(crate) fn example_error(self) -> jsonrpsee::types::ErrorObjectOwned {
+        match self {
+            Self::BlockNotFound => block_not_found(),
+            Self::AccountValidationFailed => validation_failure("test".to_string()),
+            Self::UnsupportedTxVersion => unsupported_tx_version("v99".to_string()),
+            Self::ServiceBusy => service_busy(2),
+            Self::InvalidTransactionInput => {
+                invalid_transaction_input("test field invalid".to_string())
+            }
+        }
+    }
+}
 
 // Starknet RPC v0.10 error codes.
 
@@ -53,26 +109,58 @@ pub fn internal_server_error(err: impl std::fmt::Display) -> ErrorObjectOwned {
 
 impl From<VirtualSnosProverError> for ErrorObjectOwned {
     fn from(err: VirtualSnosProverError) -> Self {
-        match &err {
-            VirtualSnosProverError::InvalidTransactionType(msg) => {
-                unsupported_tx_version(msg.clone())
-            }
-            VirtualSnosProverError::InvalidTransactionInput(msg) => {
-                invalid_transaction_input(msg.clone())
-            }
+        match err {
+            VirtualSnosProverError::InvalidTransactionType(msg) => unsupported_tx_version(msg),
+            VirtualSnosProverError::InvalidTransactionInput(msg) => invalid_transaction_input(msg),
             VirtualSnosProverError::ValidationError(msg) => {
                 // Check if it's a pending block error.
-                if msg.contains("Pending") {
-                    block_not_found()
-                } else {
-                    validation_failure(msg.clone())
-                }
+                if msg.contains("Pending") { block_not_found() } else { validation_failure(msg) }
             }
-            VirtualSnosProverError::RunnerError(e) => internal_server_error(e),
+            VirtualSnosProverError::RunnerError(e) => runner_error_to_rpc(*e),
             #[cfg(feature = "stwo_proving")]
-            VirtualSnosProverError::ProvingError(e) => internal_server_error(e),
-            VirtualSnosProverError::OutputParseError(e) => internal_server_error(e),
-            VirtualSnosProverError::ProgramOutputError(e) => internal_server_error(e),
+            VirtualSnosProverError::ProvingError(_) => {
+                internal_server_error("Proof generation failed.")
+            }
+            VirtualSnosProverError::OutputParseError(_) => {
+                internal_server_error("Internal proving error.")
+            }
+            VirtualSnosProverError::ProgramOutputError(_) => {
+                internal_server_error("Internal proving error.")
+            }
+        }
+    }
+}
+
+fn runner_error_to_rpc(err: RunnerError) -> ErrorObjectOwned {
+    match err {
+        RunnerError::VirtualBlockExecutor(e) => virtual_block_executor_error_to_rpc(e),
+        RunnerError::ClassesProvider(_) => {
+            internal_server_error("Failed to fetch contract classes from RPC node.")
+        }
+        RunnerError::ProofProvider(_) => {
+            internal_server_error("Failed to fetch storage proofs from RPC node.")
+        }
+        RunnerError::TransactionHashError(_) => {
+            internal_server_error("Failed to compute transaction hash.")
+        }
+        RunnerError::OsExecution(_)
+        | RunnerError::InputGenerationError(_)
+        | RunnerError::TaskJoin(_) => internal_server_error("Internal proving error."),
+    }
+}
+
+fn virtual_block_executor_error_to_rpc(err: VirtualBlockExecutorError) -> ErrorObjectOwned {
+    match err {
+        VirtualBlockExecutorError::TransactionReverted(_, reason) => {
+            internal_server_error(format!("Transaction reverted: {reason}"))
+        }
+        VirtualBlockExecutorError::TransactionExecutionError(_) => {
+            internal_server_error("Transaction execution failed.")
+        }
+        VirtualBlockExecutorError::ReexecutionError(_)
+        | VirtualBlockExecutorError::StateUnavailable
+        | VirtualBlockExecutorError::BouncerLockError(_) => {
+            internal_server_error("Failed to read block state from RPC node.")
         }
     }
 }
