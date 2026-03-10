@@ -97,16 +97,11 @@ Whenever possible, implement `PartialEq` on error enums, otherwise it's not poss
 
 **Error messages formatting**: [use _lowercase_ sentences, _without_ punctuation](https://doc.rust-lang.org/stable/std/error/trait.Error.html): nested errors typically string-interpolate the inner error.
 
-### Arithmetic
-
-Always _consider_ using `checked_add` or `saturating_add` (depending on usage) instead of raw arithmetic operations like `+`.
-**Rationale**: On debug builds, overflows and underflows panic, but in production they saturate, which might not be the intended behavior!
-
 ### Assertions
 
 Prefer `expect` with useful information rather than unwrap, and use `unwrap` either in tests, or in absolutely trivial, bulletproof scenarios.
 
-Don't run any non-const code inside `expect`, it is evaluated eagerly which can have unexpected side effects, or unnecessary string allocations. See also [Lazy Gotchas](#lazy-gotchas---foo_or-vs-foo_or_else) section.
+Don't run any non-const code inside `expect`, it is evaluated eagerly which can have unexpected side effects, or unnecessary string allocations. See also [or vs or else](#foo_or-vs-foo_or_else) section.
 
 ### Return Values
 
@@ -287,34 +282,6 @@ impl DerefMut for Foo {
 if *foo > 0 {...}
 ```
 
-## Performance
-
-### Allocations
-
-Use `Vec::with_capacity()` when size is known to avoid reallocations.
-
-### Lazy Gotchas - `foo_or` vs `foo_or_else`
-
-Methods that end with `_or`, like `unwrap_or`, are typically eagerly evaluated, meaning `foo.unwrap_or(expensive_calculation_of_foo())` will always be evaluated, even if the original value is unwrapped --- use `_or_else` methods for lazy evaluations, which is typically what you want.
-The same also holds for `expect`, and in general for all methods that take a non-closure parameter.
-
-```rust
-// BAD
-// always panics!
-map.get(key).expect(panic!("{key} should exist because of <reason>"));
-
-// BAD
-// Inefficient: this always allocates a String on the heap.
-map.get(key).expect(format!("{key} should exist because of <reason>"));
-
-// GOOD
-map.get(key).unwrap_or_else(|| panic!("{key} should exist because of <reason>"))
-```
-
-### Maps/Sets
-
-Avoid iterating `HashSet` and `HashMap`, this is not deterministic in rust. Either use `BTree{Map,Set}` or `Index{Map,Set}`, and prefer `BTree` when you can, as the `Index` version has O(n) removals (it uses a `Vec` for storage).
-
 ## Testing
 
 Use unit tests for short (< 1 sec) and threadsafe tests, otherwise use cargo integration tests.
@@ -416,7 +383,85 @@ All textual content, including code-comments, commit messages, `expect` messages
 my_vec.push(foo)
 ```
 
-## Style Conventions
+## Github Smell-Testing
+
+If you have a oneliner you suspect is a bad practice, when applicable, try searching for it in the global search bar in `github.com`, if you don't see any production-grade crates doing it consider changing it.
+
+## External Dependencies
+
+Be conservative with helper crates, and especially avoid single-use crates --- external deps increase our compilation time, and increase potential of version clashes and sudden breaking changes (not all crates adhere to Semver properly).
+
+If a crate has a viable use-case that doesn't require some heavy-dependency, [feature-gate](https://doc.rust-lang.org/cargo/reference/features.html#the-features-section) the dependency, this helps reduce compilation time.
+
+### Unmaintained Dependencies
+
+Recommended checklist before adding a new dependency:
+
+-   Last commit should be less than a month ago
+-   Small crates should have at least ~100 github stars, large ones should have ~1000.
+-   Skim through the README for important notes, ESPECIALLY look for "no longer maintained" or "archived" notices.
+-   If there are indications for the crate no longer being maintained, search for "maintained" or "dead" in the crate's issues. Or see if recent pull-requests received any attention from the maintainers.
+
+### `lazy_static` crate
+
+Do not use `lazy_static`.
+This functionality [is part of `std` now](https://github.com/rust-lang-nursery/lazy-static.rs?tab=readme-ov-file#standard-library) and the crate is dead.
+If you're working around code that uses lazy_static, remove it in favor of the `std` type and help us close in on removing the extra dependency from the project.
+
+## AI-Generated Code Guidelines
+
+Take extra care when reviewing ai-generated code for these issues:
+
+-   Using deprecated/dead crates (!): for example `lazy_static` often appears in ai-code (see [lazy static section](#lazy_static-crate)).
+-   Using "toy" crates (low github-starred, pet‑project crates not intended for production): just because a crate out there can fulfil a given set of requirements doesn't mean it's production-ready, see also [External Dependencies](#external-dependencies) section.
+-   Excessive code-comment bloat: see [Textual Content Quality](#textual-content-quality) section.
+-   Hygiene issues: leaks and races are common, since chatbots rarely take a step back and analyze the surrounding conditions in which a code is being run; always analyze flows affected by your change as the AI will not do so.
+-   Excessive allocations/clones.
+
+## Open issues
+
+-   Derive ordering: rustfmt can't enforce alphabetization, and there isn't a clear standard in the community for this anyway. Alternative orderings include ordering the builtin derives first (Debug/Clone), then third-party dep's derives (Serialize), then custom derives, all in order of commonality (the more common the derive is, the more "to the left" it appears).
+
+## Miscellaneous
+### Async
+
+Mostly avoid `join!`, as it doesn't short-circuit on errors in one of the tasks: use safe alternatives like `try_join!` (there are others that are also fine).
+
+Mostly avoid `select!` unless you are certain the tasks are cancel-safe, this can lead to leaks and deadlocks: either spawn the tasks separately (`JoinHandle` is cancel-safe) or use safe alternatives like `FuturesUnordered` or `JoinSet`.
+
+When spawning a task, you _must_ maintain the handle returned from the executor and make sure it completes successfully --- otherwise the task will _detach_ from the process.
+### Macros
+
+The general rule for metaprogramming and language "power features" applies: only use macros if non-macro alternatives are not feasible and when _really_ necessary (like when writing a domain-specific language).
+
+**Rationale**: [the more expressive the macro is, the less it can be reasoned about](https://matklad.github.io/2021/02/14/for-the-love-of-macros.html); well-structured non-macro code doesn't suffer from this.
+
+For example: using parametrization in a test (using rstest) can make tests harder to reason about and debug in some cases, when the parametrization is very complicated and involves complex types. In those cases one should consider a free-function that performs the test, and several one-line tests that call it with different args, rather than forcing a parameterized solution.
+
+### If-let-else Pattern
+
+Prefer `let-else` or `match` patterns, they are always more concise and incur less cognitive load
+
+```rust
+// BAD
+if let Some(num) = foo {
+    derp(num)
+} else {
+    not_derp()
+}
+
+// GOOD
+match foo {
+    Some(num) => derp(num)
+    None => not_derp()
+}
+
+// GOOD for short-circuits
+let Some(num) = foo else {
+    return not_derp()
+}
+derp(num)
+```
 
 ### Associated Functions
 
@@ -433,6 +478,37 @@ Avoid using `as` casts unless there is no other choice --- they are banned by th
 // BAD
 let x = u128::MAX as u64; // This doesn't panic, it saturates and simply sets `x` as u64::MAX.
 ```
+
+### `foo_or` vs `foo_or_else`
+
+Methods that end with `_or`, like `unwrap_or`, are typically eagerly evaluated, meaning `foo.unwrap_or(expensive_calculation_of_foo())` will always be evaluated, even if the original value is unwrapped --- use `_or_else` methods for lazy evaluations, which is typically what you want.
+The same also holds for `expect`, and in general for all methods that take a non-closure parameter.
+
+```rust
+// BAD
+// always panics!
+map.get(key).expect(panic!("{key} should exist because of <reason>"));
+
+// BAD
+// Inefficient: this always allocates a String on the heap.
+map.get(key).expect(format!("{key} should exist because of <reason>"));
+
+// GOOD
+map.get(key).unwrap_or_else(|| panic!("{key} should exist because of <reason>"))
+```
+
+### Maps/Sets
+
+Avoid iterating `HashSet` and `HashMap`, this is not deterministic in rust. Either use `BTree{Map,Set}` or `Index{Map,Set}`, and prefer `BTree` when you can, as the `Index` version has O(n) removals (it uses a `Vec` for storage).
+
+### Allocations
+
+Use `Vec::with_capacity()` when size is known to avoid reallocations.
+
+### Arithmetic
+
+Always _consider_ using `checked_add` or `saturating_add` (depending on usage) instead of raw arithmetic operations like `+`.
+**Rationale**: On debug builds, overflows and underflows panic, but in production they saturate, which might not be the intended behavior!
 
 ### Match Ergonomics
 
@@ -501,84 +577,3 @@ for num in old_vec {
 }
 ```
 
-### If-let-else Pattern
-
-Prefer `let-else` or `match` patterns, they are always more concise and incur less cognitive load
-
-```rust
-// BAD
-if let Some(num) = foo {
-    derp(num)
-} else {
-    not_derp()
-}
-
-// GOOD
-match foo {
-    Some(num) => derp(num)
-    None => not_derp()
-}
-
-// GOOD for short-circuits
-let Some(num) = foo else {
-    return not_derp()
-}
-derp(num)
-```
-
-## Github Smell-Testing
-
-If you have a oneliner you suspect is a bad practice, when applicable, try searching for it in the global search bar in `github.com`, if you don't see any production-grade crates doing it consider changing it.
-
-## External Dependencies
-
-Be conservative with helper crates, and especially avoid single-use crates --- external deps increase our compilation time, and increase potential of version clashes and sudden breaking changes (not all crates adhere to Semver properly).
-
-If a crate has a viable use-case that doesn't require some heavy-dependency, [feature-gate](https://doc.rust-lang.org/cargo/reference/features.html#the-features-section) the dependency, this helps reduce compilation time.
-
-### Unmaintained Dependencies
-
-Recommended checklist before adding a new dependency:
-
--   Last commit should be less than a month ago
--   Small crates should have at least ~100 github stars, large ones should have ~1000.
--   Skim through the README for important notes, ESPECIALLY look for "no longer maintained" or "archived" notices.
--   If there are indications for the crate no longer being maintained, search for "maintained" or "dead" in the crate's issues. Or see if recent pull-requests received any attention from the maintainers.
-
-### `lazy_static` crate
-
-Do not use `lazy_static`.
-This functionality [is part of `std` now](https://github.com/rust-lang-nursery/lazy-static.rs?tab=readme-ov-file#standard-library) and the crate is dead.
-If you're working around code that uses lazy_static, remove it in favor of the `std` type and help us close in on removing the extra dependency from the project.
-
-## Advanced Patterns
-
-### Macros
-
-The general rule for metaprogramming and language "power features" applies: only use macros if non-macro alternatives are not feasible and when _really_ necessary (like when writing a domain-specific language).
-
-**Rationale**: [the more expressive the macro is, the less it can be reasoned about](https://matklad.github.io/2021/02/14/for-the-love-of-macros.html); well-structured non-macro code doesn't suffer from this.
-
-For example: using parametrization in a test (using rstest) can make tests harder to reason about and debug in some cases, when the parametrization is very complicated and involves complex types. In those cases one should consider a free-function that performs the test, and several one-line tests that call it with different args, rather than forcing a parameterized solution.
-
-### Async
-
-Mostly avoid `join!`, as it doesn't short-circuit on errors in one of the tasks: use safe alternatives like `try_join!` (there are others that are also fine).
-
-Mostly avoid `select!` unless you are certain the tasks are cancel-safe, this can lead to leaks and deadlocks: either spawn the tasks separately (`JoinHandle` is cancel-safe) or use safe alternatives like `FuturesUnordered` or `JoinSet`.
-
-When spawning a task, you _must_ maintain the handle returned from the executor and make sure it completes successfully --- otherwise the task will _detach_ from the process.
-
-## AI-Generated Code Guidelines
-
-Take extra care when reviewing ai-generated code for these issues:
-
--   Using deprecated/dead crates (!): for example `lazy_static` often appears in ai-code (see [lazy static section](#lazy_static-crate)).
--   Using "toy" crates (low github-starred, pet‑project crates not intended for production): just because a crate out there can fulfil a given set of requirements doesn't mean it's production-ready, see also [External Dependencies](#external-dependencies) section.
--   Excessive code-comment bloat: see [Textual Content Quality](#textual-content-quality) section.
--   Hygiene issues: leaks and races are common, since chatbots rarely take a step back and analyze the surrounding conditions in which a code is being run; always analyze flows affected by your change as the AI will not do so.
--   Excessive allocations/clones.
-
-## Open issues
-
--   Derive ordering: rustfmt can't enforce alphabetization, and there isn't a clear standard in the community for this anyway. Alternative orderings include ordering the builtin derives first (Debug/Clone), then third-party dep's derives (Serialize), then custom derives, all in order of commonality (the more common the derive is, the more "to the left" it appears).
