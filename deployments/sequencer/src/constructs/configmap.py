@@ -69,6 +69,7 @@ class ConfigMapConstruct(BaseConstruct):
                 config_list_path=self.service_config.config.configList,
                 layout=self.layout,
                 overlays=self.overlays,
+                service_name=self.service_config.name,
             )
 
         config_data = json.dumps(node_config, indent=2)
