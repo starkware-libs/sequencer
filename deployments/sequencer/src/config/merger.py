@@ -2,6 +2,7 @@ from copy import deepcopy
 from pathlib import Path
 
 import yaml
+from rich.markup import escape as escape_markup
 from src.config.loaders import DeploymentConfigLoader
 from src.config.overlay import (
     apply_services_overlay_strict,
@@ -193,24 +194,26 @@ def merge_configs(
 
     # --- Log duplicate-key warnings (non-redundant config: key in multiple overlays) ---
     def _format_overlays(overlay_names: list[str]) -> str:
-        return ", ".join(f"[bold white]{o}[/]" for o in overlay_names)
+        return ", ".join(f"[bold white]{escape_markup(o)}[/]" for o in overlay_names)
 
     for key_path, overlays in common_path_to_overlays.items():
         if len(overlays) > 1:
             logger.warning(
-                "Config key %r is defined in multiple overlays: %s. "
+                "Config key %s is defined in multiple overlays: %s. "
                 "Prefer defining it in a single overlay (e.g. env) unless an override is intended.",
-                key_path,
+                escape_markup(repr(key_path)),
                 _format_overlays(overlays),
+                extra={"markup": True},
             )
     for (svc_name, key_path), overlays in service_path_to_overlays.items():
         if len(overlays) > 1:
             logger.warning(
-                "Service %r key %r is defined in multiple overlays: %s. "
+                "Service %s key %s is defined in multiple overlays: %s. "
                 "Prefer defining it in a single overlay (e.g. env) unless an override is intended.",
-                svc_name,
-                key_path,
+                escape_markup(repr(svc_name)),
+                escape_markup(repr(key_path)),
                 _format_overlays(overlays),
+                extra={"markup": True},
             )
 
     # --- Merge common into each service (once at the end) ---

@@ -29,6 +29,8 @@ def configure_logging(
         if isinstance(h, RichHandler):
             root.removeHandler(h)
     console = Console(file=sys.stderr, force_terminal=True)
+    # markup=False by default so third-party log messages with literal "[]" don't trigger
+    # MarkupError. Use extra={"markup": True} on specific log calls that need Rich markup.
     handler = RichHandler(
         console=console,
         show_time=True,
@@ -36,7 +38,7 @@ def configure_logging(
         show_level=True,
         show_path=show_path,
         log_time_format=log_time_format,
-        markup=True,
+        markup=False,
     )
     handler.setLevel(level)
     root.addHandler(handler)
