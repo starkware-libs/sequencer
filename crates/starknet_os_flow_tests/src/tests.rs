@@ -890,7 +890,7 @@ async fn test_os_logic(
 
     // Run the test.
     test_builder.divide_transactions_into_n_blocks(n_blocks_in_multi_block);
-    let n_private_keys = private_keys.map(|keys| keys.len()).unwrap_or(0);
+    let n_private_keys = private_keys.map_or(0, |keys| keys.len());
     let test_output = test_builder.build_and_run().await;
 
     // Perform validations.

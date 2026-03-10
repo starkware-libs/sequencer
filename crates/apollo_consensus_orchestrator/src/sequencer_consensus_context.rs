@@ -859,7 +859,8 @@ impl ConsensusContext for SequencerConsensusContext {
         height: BlockNumber,
         round: Round,
     ) -> Result<(), ConsensusError> {
-        if self.current_height.map(|h| height > h).unwrap_or(true) {
+        // First or a new (higher) height.
+        if self.current_height.is_none_or(|h| height > h) {
             self.update_dynamic_config().await;
             self.current_height = Some(height);
             self.current_round = round;

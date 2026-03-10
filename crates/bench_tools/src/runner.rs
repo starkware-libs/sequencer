@@ -136,7 +136,7 @@ fn write_github_action_benchmark_json(benchmarks: &[&BenchmarkConfig], output_fi
 
     for bench in benchmarks {
         let benchmark_names: Vec<&str> =
-            bench.criterion_benchmark_names.map(|names| names.to_vec()).unwrap_or(vec![bench.name]);
+            bench.criterion_benchmark_names.map_or(vec![bench.name], |names| names.to_vec());
 
         for bench_name in benchmark_names {
             let estimates_path = criterion_base.join(bench_name).join(CRITERION_ESTIMATES_PATH);

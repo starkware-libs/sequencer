@@ -92,7 +92,7 @@ impl MerkleTree {
 
     /// Get the number of leaves in the tree.
     pub fn leaf_count(&self) -> usize {
-        self.nodes_by_level.first().map(|level| level.len()).unwrap_or(0)
+        self.nodes_by_level.first().map_or(0, |level| level.len())
     }
 
     /// Get the leaves of the tree.
