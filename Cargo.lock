@@ -10344,7 +10344,7 @@ dependencies = [
  "once_cell",
  "socket2 0.6.1",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -12528,6 +12528,7 @@ dependencies = [
  "jsonschema",
  "mockito",
  "proving_utils",
+ "rcgen",
  "reqwest 0.12.24",
  "rstest",
  "serde",
