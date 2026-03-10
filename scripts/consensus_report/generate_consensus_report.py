@@ -43,11 +43,23 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 ROUND_RE = re.compile(r"\bround[=: ]\s*(\d+)\b")
+PROPOSAL_ROUND_RE = re.compile(r"\bproposal_round[=: ]\s*(\d+)\b")
 PATRICIA_KEY_RE = re.compile(r"PatriciaKey\((0x[0-9a-fA-F]+)\)")
-
 HEIGHT_BLOCK_RE_TEMPLATE = (
     r"\b(?:block[\s_]?number|block|height)\b\s*(?::|=|\bis\b)?\s*\(?['\"]?\b{}\b['\"]?\)?"
 )
+ADVANCING_STEP_RE = re.compile(r"Advancing step:\s*from\s*(\w+)\s*to\s*(\w+)", re.I)
+N_TXS_RE = re.compile(
+    r"Finished building block as proposer\..*?Final number of transactions \(as set by the proposer\):\s*(\d+)\.",
+    re.I | re.S,
+)
+BLOCK_CLOSED_BY_TIMEOUT_RE = re.compile(
+    r"^no transactions are being executed.*?finishing block building", re.IGNORECASE
+)
+
+
+def print_error(message: str):
+    print(f"Error: {message}", file=sys.stderr)
 
 
 def parse_timestamp(entry: Dict[str, Any]) -> Optional[datetime]:
@@ -138,14 +150,21 @@ def height_match(entry: Dict[str, Any], height_str: str) -> bool:
 
 
 def get_round(entry: Dict[str, Any]) -> Optional[int]:
-    round, message = get_spans_value_or_message_field(
-        entry=entry, span_name=None, field_name="round"
-    )
+    round, _ = get_spans_value_or_message_field(entry=entry, span_name=None, field_name="round")
     if round is not None:
         try:
             return int(round)
         except Exception:
-            message = get_message(entry)
+            pass
+
+    propose_block_input, message = get_spans_value_or_message_field(
+        entry=entry, span_name="propose_block", field_name="propose_block_input"
+    )
+    if propose_block_input is not None:
+        match = PROPOSAL_ROUND_RE.search(propose_block_input)
+        if match is not None:
+            return int(match.group(1))
+
     match = ROUND_RE.search(message)
     if match is not None:
         return int(match.group(1))
@@ -264,6 +283,154 @@ def proposal_start(
             if timestamp is not None:
                 timestamps.append(timestamp)
     return min(timestamps) if timestamps else None
+
+
+def n_txs_for_round(
+    entries_by_ns: Dict[str, List[Dict[str, Any]]],
+    entries: List[Dict[str, Any]],
+    ns_by_id: Dict[str, str],
+    round_num: int,
+    next_round_num: Optional[int],  # None in case the round_num is the last round
+) -> str:
+    """Round N_txs via proposer namespace within round window."""
+    proposer_ns = get_round_proposer_namespace(entries, ns_by_id, round_num)
+    if proposer_ns is None:
+        print_error(f"Round {round_num} proposer namespace not found")
+        return ""
+
+    round_start_ts = round_start(entries, round_num)
+    if round_start_ts is None:
+        print_error(f"Round {round_num} start timestamp not found")
+        return ""
+
+    round_end_ts = round_end(entries, round_num)
+    if round_end_ts is None:
+        if next_round_num is not None:
+            round_end_ts = round_start(entries, next_round_num)
+    if round_end_ts is None:
+        print_error(f"Round {round_num} end timestamp not found")
+        return ""
+
+    for entry in entries_by_ns.get(proposer_ns, []):
+        timestamp = parse_timestamp(entry)
+        if timestamp is None or timestamp < round_start_ts or timestamp > round_end_ts:
+            continue
+        msg = get_message(entry)
+        match = N_TXS_RE.search(msg)
+        if match is not None:
+            return match.group(1)
+    print_error(f"Round {round_num} final number of transactions not found")
+    return ""
+
+
+def block_closing_reason(entries: List[Dict[str, Any]], round_num: int) -> str:
+    round_start_ts = round_start(entries, round_num)
+    if round_start_ts is None:
+        print_error(f"Round {round_num} start timestamp not found")
+        return ""
+
+    round_end_ts = round_end(entries, round_num)
+    if round_end_ts is None:
+        print_error(f"Round {round_num} end timestamp not found")
+        return ""
+
+    for entry in entries:
+        if get_round(entry) != round_num:
+            continue
+        if (
+            (timestamp := parse_timestamp(entry)) is None
+            or timestamp < round_start_ts
+            or timestamp > round_end_ts
+        ):
+            continue
+        msg = get_message(entry).lower()
+        if "block builder deadline reached" in msg:
+            return "Deadline"
+        elif "block is full" in msg:
+            return "FullBlock"
+        elif BLOCK_CLOSED_BY_TIMEOUT_RE.search(msg) is not None:
+            return "TimeOut"
+    print_error(f"Block closing reason not found for round {round_num}")
+    return ""
+
+
+def find_advancing_step(msg: str) -> Optional[Tuple[str, str]]:
+    """
+    Extract (from_stage, to_stage) from 'Advancing step: from X_STAGE to Y_STAGE' messages.
+    Possible values ("Propose", "Prevote") and ("Prevote", "Precommit").
+    """
+    match = ADVANCING_STEP_RE.search(msg)
+    if match is None:
+        return None
+    return match.group(1), match.group(2)
+
+
+def weights_for_node_round(
+    entries_by_round_and_validator: Dict[Tuple[int, str], List[Dict[str, Any]]],
+    entries_by_ns: Dict[str, List[Dict[str, Any]]],
+    ns_by_id: Dict[str, str],
+    height_str: str,
+    round_num: int,
+    validator_id: str,
+) -> Dict[str, str]:
+    """Resources used: namespace-scoped weights before Advancing Propose->Prevote."""
+    all_entries = entries_by_round_and_validator.get((round_num, validator_id), [])
+    entries_list = [entry for entry in all_entries if parse_timestamp(entry) is not None]
+    empty_resources = dict(l1_gas="", state_diff_size="", sierra_gas="", n_txs="", proving_gas="")
+    if len(entries_list) == 0:
+        return empty_resources
+    ns = get_namespace(entries_list[0]) or (
+        ns_by_id.get(validator_id) if validator_id in ns_by_id else None
+    )
+    if ns is None:
+        print_error(f"Round {round_num} namespace not found for validator {validator_id}")
+        return empty_resources
+
+    # Looking for the "Advancing step: from Propose to Prevote".
+    advance_timestamp = None
+    for entry in entries_list:
+        advancing_step = find_advancing_step(get_message(entry))
+        if (
+            advancing_step is not None
+            and advancing_step[0].lower() == "propose"
+            and advancing_step[1].lower() == "prevote"
+        ):
+            advance_timestamp = parse_timestamp(entry)
+            break
+    if advance_timestamp is not None:
+        marker = f"Block {height_str} final weights"
+        # Weights log has no round identifier. We collect all matching logs of
+        # possibly previous rounds, and return the last one.
+        candidates = []
+        for entry in entries_by_ns.get(ns, []):
+            timestamp = parse_timestamp(entry)
+            if timestamp is None:
+                continue
+            if timestamp >= advance_timestamp:
+                break
+            msg = get_message(entry)
+            if marker in msg:
+                candidates.append(msg)
+        if len(candidates) > 0:
+            return parse_weights(candidates[-1])
+
+    print_error(
+        f"Round {round_num} 'Advancing step: from Propose to Prevote' log entry"
+        f" not found for the {validator_id=}"
+    )
+    return empty_resources
+
+
+def proposal_failed_msg(
+    entries_by_round_and_validator: Dict[Tuple[int, str], List[Dict[str, Any]]],
+    validator_id: str,
+    round_num: int,
+) -> Optional[str]:
+    for entry in entries_by_round_and_validator.get((round_num, validator_id), []):
+        msg = get_message(entry)
+        if "PROPOSAL_FAILED" in msg:
+            return msg
+    return None
 
 
 def main() -> int:
