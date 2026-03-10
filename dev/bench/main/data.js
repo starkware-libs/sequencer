@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773061995588,
+  "lastUpdate": 1773151583106,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -407,6 +407,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1230.66902473,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noam.s@starkware.co",
+            "name": "noamsp-starkware",
+            "username": "noamsp-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9a0ff77506d5224675c6cb0a52707942b13bb289",
+          "message": "apollo_network: add committee_manager module with core types (#12381)\n\nIntroduce the committee_manager module with foundational types\n(EpochId, CommitteeId, StakerId, CommitteeMember) that will be\nused for managing committee state shared across network behaviours.\n\nCo-authored-by: Cursor <cursoragent@cursor.com>",
+          "timestamp": "2026-03-10T13:40:44Z",
+          "tree_id": "07ccc50ba4e07842f9fb8b91434ca30db43518eb",
+          "url": "https://github.com/starkware-libs/sequencer/commit/9a0ff77506d5224675c6cb0a52707942b13bb289"
+        },
+        "date": 1773151582687,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 922.42332574,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1422.97315386,
             "unit": "ms"
           }
         ]
