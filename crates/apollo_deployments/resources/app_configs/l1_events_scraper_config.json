@@ -1,5 +1,7 @@
 {
   "l1_events_scraper_config.finality": 10,
+  "l1_events_scraper_config.l1_block_time_seconds": 12.0,
   "l1_events_scraper_config.polling_interval_seconds": 30,
+  "l1_events_scraper_config.set_provider_historic_height_to_l2_genesis": false,
   "l1_events_scraper_config.startup_rewind_time_seconds": 3600
 }
