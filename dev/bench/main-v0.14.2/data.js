@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773153334709,
+  "lastUpdate": 1773157829987,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2243,6 +2243,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1329.32823555,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4ca1c132543c56dbea549ab85fc9d821703bc1f8",
+          "message": "blockifier_test_utils: add Cairo 1 compilation cache infrastructure (#13110)\n\n* blockifier_test_utils: add Cairo 1 compilation cache infrastructure\n\nMade-with: Cursor\n\n* blockifier_test_utils: address review feedback on compile_cache\n\n- Remove `cache_dir()` wrapper, use `CACHE_DIR` directly.\n- Simplify `is_cache_fresh` with `is_ok_and`.\n- Document why `atomic_write` is needed (concurrent readers).\n- Clarify `resolve_crate_relative` vs `resolve_project_relative_path`.\n- Clarify per-contract lock vs compiler download lock.\n- Move `verify_cairo1_package` before the per-contract compilation lock.\n\nMade-with: Cursor",
+          "timestamp": "2026-03-10T15:23:39Z",
+          "tree_id": "08a4408bb10bd788a43a5dedf14deabed534da7b",
+          "url": "https://github.com/starkware-libs/sequencer/commit/4ca1c132543c56dbea549ab85fc9d821703bc1f8"
+        },
+        "date": 1773157829603,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 891.84077667,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1285.63943899,
             "unit": "ms"
           }
         ]
