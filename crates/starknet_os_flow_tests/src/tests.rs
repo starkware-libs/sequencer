@@ -4,6 +4,7 @@ use std::sync::{Arc, LazyLock};
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::execution::call_info::OpcodeName;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::{get_valid_virtual_os_program_hash, ALIAS_CONTRACT_ADDRESS};
@@ -1258,7 +1259,13 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
     }
 
     // Validate blake usage.
-    let blakes = test_output.runner_output.metrics.opcode_instances.blake_opcode_count;
+    let blakes = test_output
+        .runner_output
+        .metrics
+        .opcode_instances
+        .get(&OpcodeName::blake)
+        .copied()
+        .unwrap_or(0);
     expect![[r#"
         564
     "#]]
