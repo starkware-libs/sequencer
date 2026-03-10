@@ -7,7 +7,6 @@ use apollo_infra_utils::cairo0_compiler::Cairo0Script;
 use apollo_infra_utils::cairo0_compiler_test_utils::verify_cairo0_compiler_deps;
 use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 use apollo_infra_utils::path::{project_path, resolve_project_relative_path};
-use fs2::FileExt;
 use tempfile::NamedTempFile;
 use tracing::info;
 
@@ -117,9 +116,7 @@ pub(crate) fn with_file_lock(lock_path: &Path, is_done: impl Fn() -> bool, actio
         .unwrap_or_else(|e| panic!("Failed to create directory for lock file: {e}"));
     let lock_file = File::create(lock_path)
         .unwrap_or_else(|e| panic!("Failed to create lock file {lock_path:?}: {e}"));
-    lock_file
-        .lock_exclusive()
-        .unwrap_or_else(|e| panic!("Failed to acquire lock on {lock_path:?}: {e}"));
+    lock_file.lock().unwrap_or_else(|e| panic!("Failed to acquire lock on {lock_path:?}: {e}"));
 
     if is_done() {
         return;
