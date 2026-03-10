@@ -28,11 +28,13 @@ mod FuzzRevertContract {
     const SCENARIO_REPLACE_CLASS: felt252 = 4;
     const SCENARIO_DEPLOY: felt252 = 5;
     const SCENARIO_PANIC: felt252 = 6;
+    const SCENARIO_INCREMENT_COUNTER: felt252 = 7;
 
     const FUZZ_TEST_SELECTOR: felt252 = selector!("test_revert_fuzz");
 
     #[storage]
     struct Storage {
+        counter: felt252,
         orchestrator_address: ContractAddress,
     }
 
@@ -76,6 +78,7 @@ mod FuzzRevertContract {
 
     #[external(v0)]
     fn initialize(ref self: ContractState, orchestrator_address: ContractAddress) {
+        self.counter.write(0xc10);
         self.orchestrator_address.write(orchestrator_address);
     }
 
@@ -134,6 +137,11 @@ mod FuzzRevertContract {
 
         if scenario == SCENARIO_PANIC {
             panic_with_felt252(orchestrator.get_index());
+        }
+
+        if scenario == SCENARIO_INCREMENT_COUNTER {
+            let value = self.counter.read();
+            self.counter.write(value + 1);
         }
 
         // Unless explicitly stated otherwise, the next operation should be in the current call
