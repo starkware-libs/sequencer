@@ -20,6 +20,8 @@ pub struct ProverConfig {
     pub runner_config: RunnerConfig,
     /// Optional override for the STRK fee token address (e.g., for custom environments).
     pub strk_fee_token_address: Option<ContractAddress>,
+    /// Whether to validate that all resource bounds in the request are zero (default: true).
+    pub validate_zero_resource_bounds: bool,
 }
 
 impl Default for ProverConfig {
@@ -30,6 +32,7 @@ impl Default for ProverConfig {
             rpc_node_url: String::new(),
             runner_config: RunnerConfig::default(),
             strk_fee_token_address: None,
+            validate_zero_resource_bounds: true,
         }
     }
 }
