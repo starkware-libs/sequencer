@@ -14,10 +14,8 @@ from src.config.loaders import (
 from src.config.merger import merge_configs
 from src.config.schema import DeploymentConfig as DeploymentSchema
 from src.config.schema import Image
-from src.logging_config import configure_logging, get_logger
+from src.logging_config import configure_logging
 from src.utils import sanitize_name
-
-logger = get_logger(__name__)
 
 
 def main():
