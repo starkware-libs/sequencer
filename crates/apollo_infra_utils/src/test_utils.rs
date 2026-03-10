@@ -8,7 +8,7 @@ use strum::EnumCount;
 use tracing::instrument;
 
 const PORTS_PER_INSTANCE: u16 = 80;
-pub const MAX_NUMBER_OF_INSTANCES_PER_TEST: u16 = 28;
+pub const MAX_NUMBER_OF_INSTANCES_PER_TEST: u16 = 25;
 #[allow(clippy::as_conversions)]
 const MAX_NUMBER_OF_TESTS: u16 = TestIdentifier::COUNT as u16;
 const BASE_PORT: u16 = 11000;
@@ -48,6 +48,7 @@ pub enum TestIdentifier {
     EventsFromOtherContractsTest,
     L1EventsProviderUnitTests,
     AnvilStartsWithNoContractTest,
+    ClassManagerUnitTests,
 }
 
 #[derive(Debug)]
