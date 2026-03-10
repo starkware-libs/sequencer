@@ -410,10 +410,6 @@ Take extra care when reviewing ai-generated code for these issues:
 -   Hygiene issues: leaks and races are common, since chatbots rarely take a step back and analyze the surrounding conditions in which a code is being run; always analyze flows affected by your change as the AI will not do so.
 -   Excessive allocations/clones.
 
-## Open issues
-
--   Derive ordering: rustfmt can't enforce alphabetization, and there isn't a clear standard in the community for this anyway. Alternative orderings include ordering the builtin derives first (Debug/Clone), then third-party dep's derives (Serialize), then custom derives, all in order of commonality (the more common the derive is, the more "to the left" it appears).
-
 ## Miscellaneous
 ### Async
 
