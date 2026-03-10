@@ -28,7 +28,8 @@ const HIGH_SINGLE_PRIMITIVE_GAS_COST: u64 = u64::pow(10, 7);
 #[case::poseidon("test_poseidon")]
 // This test case tests the add_mod and mul_mod builtins.
 #[case::add_and_mul_mod("test_circuit")]
-#[case::blake("test_blake")]
+#[case::blake_compress("test_blake_compress")]
+#[case::blake_finalize("test_blake_finalize")]
 fn cairo_primitive_gas_test(runnable_version: RunnableCairo1, #[case] selector_name: &str) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let chain_info = &ChainInfo::create_for_testing();
@@ -83,7 +84,9 @@ fn isolate_primitive_gas_cost(block_context: &mut BlockContext, selector_name: &
             cairo_primitive.add_mod = HIGH_SINGLE_PRIMITIVE_GAS_COST;
             cairo_primitive.mul_mod = HIGH_SINGLE_PRIMITIVE_GAS_COST;
         }
-        "test_blake" => cairo_primitive.blake = HIGH_SINGLE_PRIMITIVE_GAS_COST,
+        "test_blake_compress" | "test_blake_finalize" => {
+            cairo_primitive.blake = HIGH_SINGLE_PRIMITIVE_GAS_COST
+        }
         _ => panic!("Unknown selector name: {selector_name}"),
     }
 }
