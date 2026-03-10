@@ -433,6 +433,20 @@ class NodeConfigLoader(Config):
         return yaml_key
 
     @staticmethod
+    def _path_relative_to_root(absolute_path: Path) -> str:
+        """Return path relative to ROOT_DIR if under it, otherwise the path as-is."""
+        root = Path(NodeConfigLoader.ROOT_DIR).resolve()
+        path = (
+            absolute_path.resolve()
+            if isinstance(absolute_path, Path)
+            else Path(absolute_path).resolve()
+        )
+        try:
+            return str(path.relative_to(root))
+        except ValueError:
+            return str(path)
+
+    @staticmethod
     def _print_file_paths_section(
         console: Console,
         config_list_path: Optional[str],
@@ -440,7 +454,7 @@ class NodeConfigLoader(Config):
         overlays: Optional[List[str]] = None,
         service_name: Optional[str] = None,
     ) -> None:
-        """Print the file paths section (one line per path so full paths are never truncated).
+        """Print the file paths section (relative to repo root so paths stay short and visible).
 
         Args:
             console: Rich Console instance
@@ -452,10 +466,13 @@ class NodeConfigLoader(Config):
         lines: List[tuple[str, str]] = []
 
         if config_list_path:
-            full_config_path = os.path.abspath(
-                os.path.join(NodeConfigLoader.ROOT_DIR, config_list_path)
+            full_config_path = Path(NodeConfigLoader.ROOT_DIR) / config_list_path
+            lines.append(
+                (
+                    "application_config_json_path:",
+                    NodeConfigLoader._path_relative_to_root(full_config_path),
+                )
             )
-            lines.append(("application_config_json_path:", full_config_path))
         else:
             lines.append(("application_config_json_path:", "[dim]<unknown>[/dim]"))
 
@@ -463,7 +480,9 @@ class NodeConfigLoader(Config):
             layout_path = (
                 Path(NodeConfigLoader.ROOT_DIR) / "configs" / "layouts" / layout
             ).resolve()
-            lines.append(("config_layout_path:", str(layout_path)))
+            lines.append(
+                ("config_layout_path:", NodeConfigLoader._path_relative_to_root(layout_path))
+            )
         else:
             lines.append(("config_layout_path:", "[dim]<unknown>[/dim]"))
 
@@ -479,7 +498,9 @@ class NodeConfigLoader(Config):
                     label = (
                         "config_overlay_path:" if idx == 0 else f"config_overlay_path_{idx + 1}:"
                     )
-                    lines.append((label, str(overlay_base_path)))
+                    lines.append(
+                        (label, NodeConfigLoader._path_relative_to_root(overlay_base_path))
+                    )
                     if service_name:
                         service_yaml_path = overlay_base_path / "services" / f"{service_name}.yaml"
                         svc_label = (
@@ -487,7 +508,9 @@ class NodeConfigLoader(Config):
                             if idx == 0
                             else f"config_overlay_service_yaml_path_{idx + 1}:"
                         )
-                        lines.append((svc_label, str(service_yaml_path)))
+                        lines.append(
+                            (svc_label, NodeConfigLoader._path_relative_to_root(service_yaml_path))
+                        )
                 else:
                     label = (
                         "config_overlay_path:" if idx == 0 else f"config_overlay_path_{idx + 1}:"
@@ -497,8 +520,9 @@ class NodeConfigLoader(Config):
             lines.append(("config_overlay_path:", "[dim]<none>[/dim]"))
 
         console.print("\n[bold]File Paths:[/bold]")
+        # Use plain print so paths are never wrapped or cropped by Rich's terminal width
         for label, value in lines:
-            console.print(f"  [bold cyan]{label}[/] {value}")
+            print(f"  {label} {value}", file=console.file)
 
     @staticmethod
     def _print_unused_config_keys_section(
