@@ -555,6 +555,19 @@ impl FeatureContract {
         }
     }
 
+    /// Returns the libfunc list argument for compiling this Cairo 1 contract.
+    pub fn libfunc_arg(&self) -> LibfuncArg {
+        match self {
+            Self::Experimental => {
+                LibfuncArg::ListFile("./resources/experimental_libfuncs.json".to_string())
+            }
+            Self::LegacyTestContract | Self::CairoStepsTestContract => {
+                LibfuncArg::ListFile(allowed_libfuncs_legacy_json_path())
+            }
+            _ => LibfuncArg::ListFile(allowed_libfuncs_json_path()),
+        }
+    }
+
     /// Compiles the feature contract and returns the compiled contract as a byte vector.
     /// Panics if the contract is ERC20, as ERC20 contract recompilation is not supported.
     pub fn compile(&self) -> CompilationArtifacts {
@@ -589,16 +602,7 @@ impl FeatureContract {
                 cairo0_compile(self.get_source_path(), extra_arg, false)
             }
             CairoVersion::Cairo1(_) => {
-                let libfunc_list_arg = match self {
-                    Self::Experimental => {
-                        LibfuncArg::ListFile("./resources/experimental_libfuncs.json".to_string())
-                    }
-                    Self::LegacyTestContract | Self::CairoStepsTestContract => {
-                        LibfuncArg::ListFile(allowed_libfuncs_legacy_json_path())
-                    }
-                    _ => LibfuncArg::ListFile(allowed_libfuncs_json_path()),
-                };
-                cairo1_compile(self.get_source_path(), self.fixed_version(), libfunc_list_arg)
+                cairo1_compile(self.get_source_path(), self.fixed_version(), self.libfunc_arg())
             }
         }
     }
