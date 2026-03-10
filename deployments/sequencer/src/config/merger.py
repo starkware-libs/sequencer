@@ -90,7 +90,7 @@ def _merge_common_into_service(
                     merged_cfg[k] = deep_merge(merged_cfg[k], v)
             service_dict["config"] = merged_cfg
         elif service_val is None:
-            service_dict[field_name] = common_val
+            service_dict[field_name] = deepcopy(common_val)
         elif isinstance(common_val, dict) and isinstance(service_val, dict):
             service_dict[field_name] = deep_merge(service_val, common_val)
         else:
