@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773151768292,
+  "lastUpdate": 1773153334709,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2209,6 +2209,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1379.0093978099999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "fb9ba934367357ec7ec25dfa65caad7f8d546570",
+          "message": "blockifier_test_utils: make cairo package download synchronous (#13109)\n\n* blockifier_test_utils: make cairo package download synchronous\n\nRemove spurious `async` from `download_cairo_package` and\n`verify_cairo1_package` -- both perform only synchronous operations\n(subprocess spawning, filesystem I/O). Simplify the compatibility test\ncaller to a plain loop instead of a `JoinSet`.\n\nAdd a per-version file lock to `verify_cairo1_package` so concurrent\ncallers never download the same compiler package redundantly.\n\nMade-with: Cursor\n\n* fix(blockifier_test_utils): preserve full version in lock file path\n\nPath::with_extension replaces after the last dot, truncating the patch\nversion (e.g. 2.16.0 -> 2.16.lock). Use format! to append .lock instead.\n\nMade-with: Cursor\n\n* fix(blockifier_test_utils): sort dependencies alphabetically in Cargo.toml\n\nMade-with: Cursor\n\n* blockifier_test_utils: replace fs2 with std::fs::File::lock\n\nFile advisory locking is available in std since Rust 1.87; drop the\nthird-party fs2 dependency.\n\nMade-with: Cursor",
+          "timestamp": "2026-03-10T14:09:18Z",
+          "tree_id": "daccdbccf2fa37dcad8adff10ad54bc395e22d0a",
+          "url": "https://github.com/starkware-libs/sequencer/commit/fb9ba934367357ec7ec25dfa65caad7f8d546570"
+        },
+        "date": 1773153334382,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 915.63383897,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1329.32823555,
             "unit": "ms"
           }
         ]
