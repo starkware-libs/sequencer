@@ -44,9 +44,13 @@ from typing import Any, Dict, List, Optional, Tuple
 
 ROUND_RE = re.compile(r"\bround[=: ]\s*(\d+)\b")
 PATRICIA_KEY_RE = re.compile(r"PatriciaKey\((0x[0-9a-fA-F]+)\)")
-
 HEIGHT_BLOCK_RE_TEMPLATE = (
     r"\b(?:block[\s_]?number|block|height)\b\s*(?::|=|\bis\b)?\s*\(?['\"]?\b{}\b['\"]?\)?"
+)
+ADVANCING_STEP_RE = re.compile(r"Advancing step:\s*from\s*(\w+)\s*to\s*(\w+)", re.I)
+N_TXS_RE = re.compile(
+    r"Finished building block as proposer\..*?Final number of transactions \(as set by the proposer\):\s*(\d+)\.",
+    re.I | re.S,
 )
 
 
@@ -264,6 +268,129 @@ def proposal_start(
             if timestamp is not None:
                 timestamps.append(timestamp)
     return min(timestamps) if timestamps else None
+
+
+def n_txs_for_round(
+    entries_by_ns: Dict[str, List[Dict[str, Any]]],
+    entries: List[Dict[str, Any]],
+    rounds: List[int],
+    ns_by_id: Dict[str, str],
+    round_num: int,
+) -> str:
+    """Round N_txs via proposer namespace within round window."""
+    proposer_ns = get_round_proposer_namespace(entries, ns_by_id, round_num)
+    if proposer_ns is None:
+        return ""
+    round_start_ts = round_start(entries, round_num)
+    if round_start_ts is None:
+        return ""
+    round_end_ts = round_end(entries, round_num)
+    if round_end_ts is None:
+        later = [round for round in rounds if round > round_num]
+        if len(later) > 0:
+            round_end_ts = round_start(entries, later[0])
+    for entry in entries_by_ns.get(proposer_ns, []):
+        timestamp = parse_timestamp(entry)
+        if (
+            timestamp is None
+            or timestamp < round_start_ts
+            or (round_end_ts is not None and timestamp > round_end_ts)
+        ):
+            continue
+        msg = get_message(entry)
+        match = N_TXS_RE.search(msg)
+        if match is not None:
+            return match.group(1)
+    return ""
+
+
+def block_closing_reason(entries: List[Dict[str, Any]], round_num: int) -> str:
+    # TODO(lev): Improve block closing reason determination logic in this function.
+    round_start_ts = round_start(entries, round_num)
+    round_end_ts = round_end(entries, round_num)
+    for entry in entries:
+        if get_round(entry) != round_num:
+            continue
+        msg = get_message(entry).lower()
+        if "timeout" in msg and "block" in msg:
+            timestamp = parse_timestamp(entry)
+            if round_start_ts is not None and timestamp is not None and timestamp < round_start_ts:
+                continue
+            if round_end_ts is not None and timestamp is not None and timestamp > round_end_ts:
+                continue
+            return "TimeOut"
+    return "Bounds"
+
+
+def find_advancing_step(msg: str) -> Optional[Tuple[str, str]]:
+    match = ADVANCING_STEP_RE.search(msg)
+    if match is None:
+        return None
+    return match.group(1), match.group(2)
+
+
+def weights_for_node_round(
+    entries_by_round_and_validator: Dict[Tuple[int, str], List[Dict[str, Any]]],
+    entries_by_ns: Dict[str, List[Dict[str, Any]]],
+    ns_by_id: Dict[str, str],
+    height_str: str,
+    round_num: int,
+    validator_id: str,
+) -> Dict[str, str]:
+    """Resources used: namespace-scoped weights before Advancing Propose->Prevote."""
+    all_entries = entries_by_round_and_validator.get((round_num, validator_id), [])
+    entries_list = [entry for entry in all_entries if parse_timestamp(entry) is not None]
+    empty_resources = dict(l1_gas="", state_diff_size="", sierra_gas="", n_txs="", proving_gas="")
+    if len(entries_list) == 0:
+        return empty_resources
+    ns = get_namespace(entries_list[0]) or (
+        ns_by_id.get(validator_id) if validator_id in ns_by_id else None
+    )
+    if ns is None:
+        return empty_resources
+
+    # Looking for the "Advancing step: from Propose to Prevote".
+    advance_timestamp = None
+    for entry in entries_list:
+        advancing_step = find_advancing_step(get_message(entry))
+        if (
+            advancing_step is not None
+            and advancing_step[0].lower() == "propose"
+            and advancing_step[1].lower() == "prevote"
+        ):
+            advance_timestamp = parse_timestamp(entry)
+            break
+    if advance_timestamp is None:
+        return empty_resources
+
+    marker = f"Block {height_str} final weights"
+    candidates = []
+    for entry in entries_by_ns.get(ns, []):
+        timestamp = parse_timestamp(entry)
+        if timestamp is None:
+            continue
+        if timestamp >= advance_timestamp:
+            break
+        msg = get_message(entry)
+        if marker in msg:
+            candidates.append((timestamp, msg))
+    if len(candidates) == 0:
+        return empty_resources
+    return parse_weights(candidates[-1][1])
+
+
+def proposal_failed_msg(
+    entries_by_round_and_validator: Dict[Tuple[int, str], List[Dict[str, Any]]],
+    validator_id: str,
+    round_num: int,
+) -> Optional[str]:
+    for entry in entries_by_round_and_validator.get((round_num, validator_id), []):
+        msg = get_message(entry)
+        if "PROPOSAL_FAILED" in msg:
+            timestamp = parse_timestamp(entry)
+            if timestamp is not None:
+                return msg
+    return None
 
 
 def main() -> int:
