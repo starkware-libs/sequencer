@@ -42,7 +42,11 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from enum import Enum
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+import ascii_tables
 
 ROUND_RE = re.compile(r"\bround[=: ]\s*(\d+)\b")
 PROPOSAL_ROUND_RE = re.compile(r"\bproposal_round[=: ]\s*(\d+)\b")
@@ -124,6 +128,78 @@ class RoundMetadata:
     proposer: Optional[str]
     round_n_txs: str
     closing_reason: str
+
+
+class BaseHeader:
+    """Base class providing shared methods for header enums."""
+
+    def alignment(self) -> str:
+        return "r" if self.is_number() else "l"
+
+    @classmethod
+    def to_headers_list(cls) -> List[str]:
+        return [header.value for header in cls]
+
+    @classmethod
+    def to_alignments_list(cls) -> List[str]:
+        return [header.alignment() for header in cls]
+
+
+class NodesSummaryHeader(BaseHeader, Enum):
+    """Headers for the nodes summary table."""
+
+    NAMESPACE = "Namespace"
+    ID = "ID"
+
+    def is_number(self) -> bool:
+        return False
+
+
+class RoundSummaryHeader(BaseHeader, Enum):
+    """Headers for the round summary table."""
+
+    START = "Start (UTC)"
+    END = "End (UTC)"
+    PROPOSER = "Proposer"
+    N_TXS = "N_txs"
+    BLOCK_CLOSING_REASON = "Block closing reason"
+
+    def is_number(self) -> bool:
+        return self in [self.N_TXS]
+
+
+class RoundDetailsMainHeader(BaseHeader, Enum):
+    """Headers for the round details table - non spanner part."""
+
+    NODE_ID = "Node ID"
+    ROLE = "Role"
+    PROPOSAL_START = "Proposal Start"
+    DURATION = "Duration"
+    VALIDATION = "Validation"
+    PREVOTE = "Prevote"
+    PRECOMMIT = "Precommit"
+
+    def is_number(self) -> bool:
+        return self in [self.DURATION]
+
+
+class RoundDetailsRightHeaders(BaseHeader, Enum):
+    """Headers for the round details table - spanner part."""
+
+    L1_GAS = "l1_gas"
+    STATE_DIFF_SIZE = "state_diff_size"
+    SIERRA_GAS = "sierra_gas"
+    N_TXS = "n_txs"
+    PROVING_GAS = "proving_gas"
+
+    def is_number(self) -> bool:
+        return self in [
+            self.L1_GAS,
+            self.STATE_DIFF_SIZE,
+            self.SIERRA_GAS,
+            self.N_TXS,
+            self.PROVING_GAS,
+        ]
 
 
 def final_weights_marker(height_str: str) -> str:
@@ -451,7 +527,7 @@ def weights_for_node_round(
         ns_by_id.get(validator_id) if validator_id in ns_by_id else None
     )
     if ns is None:
-        print_error(f"Round {round_num} namespace not found for validator {validator_id}")
+        print_error(f"Round {round_num} namespace not found for validator {short_id(validator_id)}")
         return empty_resources
 
     # Looking for the "Advancing step: from Propose to Prevote".
@@ -468,7 +544,7 @@ def weights_for_node_round(
     if advance_timestamp is None:
         print_error(
             f"Round {round_num} 'Advancing step: from Propose to Prevote' log entry"
-            f" not found for validator {validator_id}"
+            f" not found for validator {short_id(validator_id)}"
         )
         return empty_resources
 
@@ -490,7 +566,7 @@ def weights_for_node_round(
 
     print_error(
         f"Round {round_num} 'Block {height_str} final weights' log entry"
-        f" not found for validator {validator_id}"
+        f" not found for validator {short_id(validator_id)}"
     )
     return empty_resources
 
@@ -514,15 +590,37 @@ def load_and_filter_log_entries_for_height(
     with open(logs_file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    entries_with_timestamps = [
-        (timestamp, entry)
-        for entry in data
-        if height_match(entry, block_height) and (timestamp := parse_timestamp(entry)) is not None
-    ]
+    entries_with_timestamps = []
+    entries_without_timestamps = False
+
+    for entry in data:
+        if height_match(entry, block_height):
+            timestamp = parse_timestamp(entry)
+            if timestamp is not None:
+                entries_with_timestamps.append((timestamp, entry))
+            else:
+                entries_without_timestamps = True
+
+    if entries_without_timestamps:
+        print_error("There are log entries without timestamp")
 
     entries_with_timestamps.sort(key=lambda item: item[0])
 
     return [entry for _, entry in entries_with_timestamps]
+
+
+def check_consensus_rounds(consensus_rounds: set):
+    if len(consensus_rounds) == 0:
+        print_error("No logs for any consensus rounds found")
+
+    max_round_num = max(consensus_rounds)
+    missing_rounds = []
+    # Check that the round numbers are consecutive and start from 0.
+    for round_num in range(max_round_num + 1):
+        if round_num not in consensus_rounds:
+            missing_rounds.append(round_num)
+    if len(missing_rounds) > 0:
+        print_error(f"Logs for consensus rounds {missing_rounds} are missing")
 
 
 def build_indexed_consensus_data(
@@ -551,6 +649,8 @@ def build_indexed_consensus_data(
             consensus_rounds.add(round_num)
             if validator_id is not None:
                 log_entries_by_round_and_validator[(round_num, validator_id)].append(entry)
+
+    check_consensus_rounds(consensus_rounds)
 
     return ConsensusData(
         all_log_entries=filtered_log_entries,
@@ -642,13 +742,13 @@ def render_validator_nodes_summary_section(
     section_lines.append("-----")
     section_lines.append("")
     section_lines.append(
-        ascii_table(
-            ["Namespace", "ID"],
-            [
+        ascii_tables.ascii_table(
+            headers=NodesSummaryHeader.to_headers_list(),
+            rows=[
                 [namespace_by_validator_id.get(validator_id, ""), short_id(validator_id)]
                 for validator_id in validator_ids
             ],
-            aligns=["l", "l"],
+            aligns=NodesSummaryHeader.to_alignments_list(),
         )
     )
     section_lines.append("")
@@ -695,9 +795,9 @@ def render_round_header(round_number: int) -> List[str]:
 def render_round_summary_table(metadata: RoundMetadata) -> List[str]:
     """Render the round summary table with timing and metadata."""
     return [
-        ascii_table(
-            ["Start (UTC)", "End (UTC)", "Proposer", "N_txs", "Block closing reason"],
-            [
+        ascii_tables.ascii_table(
+            headers=RoundSummaryHeader.to_headers_list(),
+            rows=[
                 [
                     fmt_timestamp(metadata.round_start_time),
                     fmt_timestamp(metadata.round_end_time),
@@ -706,25 +806,24 @@ def render_round_summary_table(metadata: RoundMetadata) -> List[str]:
                     metadata.closing_reason,
                 ]
             ],
-            aligns=["l", "l", "l", "r", "l"],
+            aligns=RoundSummaryHeader.to_alignments_list(),
         ),
         "",
     ]
 
 
-def format_vote_cell(
-    vote_msg: Optional[str], vote_notes: List[Tuple[int, str]], vote_no: int
-) -> Tuple[str, int]:
+def format_vote_cell(vote_msg: Optional[str], vote_notes: List[Tuple[int, str]]) -> str:
     """Format a vote cell and update vote notes if needed."""
     vote = vote_state(vote_msg)
     if vote == "yes":
+        vote_no = len(vote_notes) + 1
         cell = f"yes [{vote_no}]"
         vote_notes.append((vote_no, vote_msg or ""))
-        return cell, vote_no + 1
-    return vote, vote_no
+        return cell
+    return vote
 
 
-def build_node_details_row(
+def build_round_details_row(
     validator_id: str,
     round_number: int,
     metadata: RoundMetadata,
@@ -732,8 +831,7 @@ def build_node_details_row(
     vote_analysis: VoteAnalysisResult,
     validation_analysis: ValidationAnalysisResult,
     vote_notes: List[Tuple[int, str]],
-    vote_no: int,
-) -> Tuple[List[str], int]:
+) -> List[str]:
     """Build a single row for node details table."""
     role = "Proposer" if metadata.proposer and validator_id == metadata.proposer else "Validator"
     proposal_start_ts = proposal_start(
@@ -741,7 +839,7 @@ def build_node_details_row(
     )
     if proposal_start_ts is None:
         print_error(
-            f"Round {round_number} 'Accepting/Received ProposalInit' log entry not found for validator {validator_id},"
+            f"Round {round_number} 'Accepting/Received ProposalInit' log entry not found for validator {short_id(validator_id)},"
             f" using round start time instead."
         )
         proposal_start_ts = metadata.round_start_time
@@ -755,8 +853,8 @@ def build_node_details_row(
         (round_number, validator_id, "Precommit")
     )
 
-    prevote_cell, vote_no = format_vote_cell(prevote_msg, vote_notes, vote_no)
-    precommit_cell, vote_no = format_vote_cell(precommit_msg, vote_notes, vote_no)
+    prevote_cell = format_vote_cell(prevote_msg, vote_notes)
+    precommit_cell = format_vote_cell(precommit_msg, vote_notes)
 
     weights = weights_for_node_round(
         consensus_data.log_entries_by_round_and_validator,
@@ -784,12 +882,172 @@ def build_node_details_row(
         weights.get("proving_gas", ""),
     ]
 
-    return row, vote_no
+    return row
+
+
+def build_round_details_table(
+    round_number: int,
+    metadata: RoundMetadata,
+    consensus_data: ConsensusData,
+    vote_analysis: VoteAnalysisResult,
+    validation_analysis: ValidationAnalysisResult,
+) -> Tuple[List[str], List[Tuple[int, str]]]:
+    """Build the complete node details table with all validators."""
+    vote_notes: List[Tuple[int, str]] = []
+
+    left_headers = RoundDetailsMainHeader.to_headers_list()
+    right_headers = RoundDetailsRightHeaders.to_headers_list()
+    aligns = (
+        RoundDetailsMainHeader.to_alignments_list() + RoundDetailsRightHeaders.to_alignments_list()
+    )
+    rows: List[List[str]] = []
+
+    for validator_id in consensus_data.validator_ids:
+        row = build_round_details_row(
+            validator_id,
+            round_number,
+            metadata,
+            consensus_data,
+            vote_analysis,
+            validation_analysis,
+            vote_notes,
+        )
+        rows.append(row)
+
+    table_lines = [
+        ascii_tables.ascii_table_with_spanner(
+            "Resources used:", left_headers, right_headers, rows, aligns
+        )
+    ]
+
+    return table_lines, vote_notes
+
+
+def render_evidence_sections(
+    round_number: int,
+    vote_notes: List[Tuple[int, str]],
+    validation_analysis: ValidationAnalysisResult,
+) -> List[str]:
+    """Render vote and validation evidence sections."""
+    lines = []
+
+    if vote_notes:
+        lines.append("")
+        lines.append("VOTE EVIDENCE")
+        lines.append("~~~~~~~~~~~~~")
+        lines.append("")
+        for num, msg in vote_notes:
+            lines.append(f"[{num}] - {msg}")
+
+    if validation_analysis.validation_evidence_by_round.get(round_number, []):
+        lines.append("")
+        lines.append("VALIDATION EVIDENCE")
+        lines.append("~~~~~~~~~~~~~~~~~~~")
+        lines.append("")
+        for num, msg in validation_analysis.validation_evidence_by_round[round_number]:
+            lines.append(f"[{num}] - {msg}")
+
+    return lines
+
+
+def render_single_round_section(
+    round_index: int,
+    consensus_data: ConsensusData,
+    vote_analysis: VoteAnalysisResult,
+    validation_analysis: ValidationAnalysisResult,
+) -> List[str]:
+    """Render a complete round section with header, summary, node details, and evidence."""
+    section_lines = []
+
+    metadata = collect_round_metadata(round_index, consensus_data)
+
+    round_number = consensus_data.consensus_rounds[round_index]
+    section_lines.extend(render_round_header(round_number))
+    section_lines.extend(render_round_summary_table(metadata))
+
+    table_lines, vote_notes = build_round_details_table(
+        round_number, metadata, consensus_data, vote_analysis, validation_analysis
+    )
+    section_lines.extend(table_lines)
+
+    section_lines.extend(render_evidence_sections(round_number, vote_notes, validation_analysis))
+
+    section_lines.append("")
+
+    return section_lines
+
+
+def render_consensus_report(
+    consensus_data: ConsensusData,
+    vote_analysis: VoteAnalysisResult,
+    validation_analysis: ValidationAnalysisResult,
+) -> str:
+    """Orchestrate full report generation: title, nodes section, all rounds sections, footer."""
+    report_lines = []
+
+    report_lines.append(f"CONSENSUS REPORT — BLOCK HEIGHT {consensus_data.block_height}")
+    report_lines.append("=" * len(report_lines[-1]))
+    report_lines.append("")
+
+    report_lines.extend(
+        render_validator_nodes_summary_section(
+            consensus_data.validator_ids, consensus_data.namespace_by_validator_id
+        )
+    )
+
+    for round_index in range(len(consensus_data.consensus_rounds)):
+        report_lines.extend(
+            render_single_round_section(
+                round_index, consensus_data, vote_analysis, validation_analysis
+            )
+        )
+
+    report_lines.append("END OF REPORT")
+
+    return "\n".join(report_lines)
+
+
+def generate_consensus_report(
+    logs_file_path: str,
+    block_height: str,
+    output_file_path: str,
+) -> int:
+    filtered_log_entries = load_and_filter_log_entries_for_height(logs_file_path, block_height)
+
+    if not filtered_log_entries:
+        Path(output_file_path).write_text(
+            f"No log entries found for height {block_height}\n", encoding="utf-8"
+        )
+        return 0
+
+    consensus_data = build_indexed_consensus_data(filtered_log_entries, block_height)
+
+    vote_analysis_result = extract_vote_messages_for_all_rounds(consensus_data)
+    validation_analysis_result = collect_validation_evidence_for_all_rounds(consensus_data)
+
+    consensus_report_text = render_consensus_report(
+        consensus_data, vote_analysis_result, validation_analysis_result
+    )
+
+    Path(output_file_path).write_text(consensus_report_text, encoding="utf-8")
+    return 0
 
 
 def main() -> int:
-    print("not implemented", file=sys.stderr)
-    return 2
+    if len(sys.argv) != 4:
+        script_name = Path(sys.argv[0]).name
+        print(
+            f"Usage: python3 {script_name} <logs.json> <height> <output.txt>\n"
+            "  <logs.json>  is a GCP Logs Explorer JSON export (JSON array of entries)\n"
+            "  <height>     is the block height to generate the report for\n"
+            "  <output.txt> is the path to the output file\n",
+            file=sys.stderr,
+        )
+        return 2
+
+    logs_file_path, block_height, output_file_path = sys.argv[1], sys.argv[2], sys.argv[3]
+
+    return generate_consensus_report(logs_file_path, block_height, output_file_path)
 
 
 if __name__ == "__main__":
