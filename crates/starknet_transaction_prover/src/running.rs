@@ -16,6 +16,8 @@ pub mod virtual_block_executor;
 #[cfg(test)]
 mod classes_provider_test;
 #[cfg(test)]
+mod committer_utils_test;
+#[cfg(test)]
 pub mod rpc_records;
 #[cfg(test)]
 mod rpc_records_test;
