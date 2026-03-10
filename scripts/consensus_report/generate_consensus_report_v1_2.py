@@ -33,8 +33,6 @@ Notes:
 - All timestamps are rendered in UTC.
 """
 
-from __future__ import annotations
-
 import json
 import re
 import sys
@@ -43,6 +41,13 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 ROUND_RE = re.compile(r"\bround[=: ]\s*(\d+)\b")
+
+ADV_RE = re.compile(r"Advancing step:\s*from\s*(\w+)\s*to\s*(\w+)", re.I)
+
+NTXS_RE = re.compile(
+    r"Finished building block as proposer\..*?Final number of transactions \(as set by the proposer\):\s*(\d+)\.",
+    re.I | re.S,
+)
 
 
 @dataclass
@@ -358,6 +363,119 @@ def proposal_start(
         if len(timestamps) > 0:
             best = min(timestamps) if best is None else min(best, min(timestamps))
     return best
+
+
+def ntxs_for_round(
+    entries_by_ns: Dict[str, List[Dict[str, Any]]],
+    entries: List[Dict[str, Any]],
+    rounds: List[int],
+    ns_by_id: Dict[str, str],
+    round_num: int,
+) -> str:
+    """Round N_txs via proposer namespace within round window."""
+    pns = get_round_proposer_ns(entries, ns_by_id, round_num)
+    if pns is None:
+        return ""
+    round_start_ts = round_start(entries, round_num)
+    if round_start_ts is None:
+        return ""
+    round_end_ts = round_end(entries, round_num)
+    if round_end_ts is None:
+        later = [rn for rn in rounds if rn > round_num]
+        if len(later) > 0:
+            round_end_ts = round_start(entries, later[0])
+    for e in entries_by_ns.get(pns, []):
+        timestamp = parse_timestamp(e)
+        if timestamp is None:
+            continue
+        if timestamp < round_start_ts:
+            continue
+        if round_end_ts is not None and timestamp > round_end_ts:
+            continue
+        msg = (e.get("jsonPayload") or {}).get("message") or ""
+        match = NTXS_RE.search(msg)
+        if match is not None:
+            return match.group(1)
+    return ""
+
+
+def block_closing_reason(entries: List[Dict[str, Any]], round_num: int) -> str:
+    round_start_ts = round_start(entries, round_num)
+    round_end_ts = round_end(entries, round_num)
+    for e in entries:
+        if get_round(e) != round_num:
+            continue
+        msg = ((e.get("jsonPayload") or {}).get("message") or "").lower()
+        if "timeout" in msg and "block" in msg:
+            timestamp = parse_timestamp(e)
+            if round_start_ts is not None and timestamp is not None and timestamp < round_start_ts:
+                continue
+            if round_end_ts is not None and timestamp is not None and timestamp > round_end_ts:
+                continue
+            return "TimeOut"
+    return "Bounds"
+
+
+def weights_for_node_round(
+    entries_by_rv: Dict[Tuple[int, str], List[Dict[str, Any]]],
+    entries_by_ns: Dict[str, List[Dict[str, Any]]],
+    ns_by_id: Dict[str, str],
+    height_str: str,
+    round_num: int,
+    validator_id: str,
+) -> Dict[str, str]:
+    """Resources used: namespace-scoped weights before Advancing Propose->Prevote."""
+    entries_list = sorted(
+        entries_by_rv.get((round_num, validator_id), []), key=lambda e: parse_timestamp(e)
+    )
+    if len(entries_list) == 0:
+        return dict(l1_gas="", state_diff_size="", sierra_gas="", n_txs="", proving_gas="")
+    ns = get_namespace(entries_list[0]) or (
+        ns_by_id.get(validator_id) if validator_id in ns_by_id else None
+    )
+    if ns is None:
+        return dict(l1_gas="", state_diff_size="", sierra_gas="", n_txs="", proving_gas="")
+
+    advance_timestamp = None
+    for e in entries_list:
+        msg = (e.get("jsonPayload") or {}).get("message") or ""
+        if "Advancing step: from Propose to Prevote" in msg:
+            advance_timestamp = parse_timestamp(e)
+            break
+    if advance_timestamp is None:
+        return dict(l1_gas="", state_diff_size="", sierra_gas="", n_txs="", proving_gas="")
+
+    marker = f"Block {height_str} final weights"
+    candidates = []
+    for e in entries_by_ns.get(ns, []):
+        timestamp = parse_timestamp(e)
+        if timestamp is None or timestamp >= advance_timestamp:
+            break
+        msg = (e.get("jsonPayload") or {}).get("message") or ""
+        if marker in msg:
+            candidates.append((timestamp, msg))
+    if len(candidates) == 0:
+        return dict(l1_gas="", state_diff_size="", sierra_gas="", n_txs="", proving_gas="")
+    return parse_weights(candidates[-1][1])
+
+
+def adv_step(msg: str) -> Optional[Tuple[str, str]]:
+    match = ADV_RE.search(msg)
+    if match is None:
+        return None
+    return match.group(1), match.group(2)
+
+
+def proposal_failed_msg(
+    entries_by_rv: Dict[Tuple[int, str], List[Dict[str, Any]]], vid: str, round_num: int
+) -> Optional[str]:
+    cand = []
+    for e in entries_by_rv.get((round_num, vid), []):
+        msg = (e.get("jsonPayload") or {}).get("message") or ""
+        if "PROPOSAL_FAILED" in msg:
+            cand.append((parse_timestamp(e), msg))
+    cand.sort(key=lambda x: x[0])
+    return cand[0][1] if len(cand) > 0 else None
 
 
 def main() -> int:
