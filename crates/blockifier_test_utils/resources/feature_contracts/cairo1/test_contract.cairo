@@ -3,7 +3,7 @@ mod TestContract {
     use array::ArrayTrait;
     use box::BoxTrait;
     use clone::Clone;
-    use core::blake::blake2s_finalize;
+    use core::blake::{blake2s_compress, blake2s_finalize};
     use core::bytes_31::POW_2_128;
     use core::circuit::{
         AddInputResultTrait, CircuitElement, CircuitInput, CircuitInputs, CircuitModulus,
@@ -1319,7 +1319,22 @@ mod TestContract {
     }
 
     #[external(v0)]
-    fn test_blake(ref self: ContractState) {
+    fn test_blake_compress(ref self: ContractState) {
+        // Blake2s IV (standard initialization vector for 32-byte digest).
+        let iv: [u32; 8] = [
+            0x6B08C647, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB,
+            0x5BE0CD19,
+        ];
+        let state = BoxTrait::new(iv);
+        // A single 64-byte block of zeros.
+        let msg: [u32; 16] = [0; 16];
+        let input = BoxTrait::new(msg);
+        let byte_count: u32 = 64;
+        let _result = blake2s_compress(state, byte_count, input);
+    }
+
+    #[external(v0)]
+    fn test_blake_finalize(ref self: ContractState) {
         // Blake2s IV (standard initialization vector for 32-byte digest).
         let iv: [u32; 8] = [
             0x6B08C647, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB,
@@ -1343,7 +1358,8 @@ mod TestContract {
         test_keccak(ref self);
         // Test add_mod, mul_mod and range_check96.
         test_circuit(ref self);
-        //TODO(AvivG): add blake test once blake gas cost is passed to the VM.
+        test_blake_compress(ref self);
+        test_blake_finalize(ref self);
     }
 
 
