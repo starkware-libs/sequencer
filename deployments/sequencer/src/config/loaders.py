@@ -474,7 +474,7 @@ class NodeConfigLoader(Config):
                 )
             )
         else:
-            lines.append(("application_config_json_path:", "[dim]<unknown>[/dim]"))
+            lines.append(("application_config_json_path:", "<unknown>"))
 
         if layout:
             layout_path = (
@@ -484,7 +484,7 @@ class NodeConfigLoader(Config):
                 ("config_layout_path:", NodeConfigLoader._path_relative_to_root(layout_path))
             )
         else:
-            lines.append(("config_layout_path:", "[dim]<unknown>[/dim]"))
+            lines.append(("config_layout_path:", "<unknown>"))
 
         if overlays:
             for idx, overlay in enumerate(overlays):
@@ -515,9 +515,9 @@ class NodeConfigLoader(Config):
                     label = (
                         "config_overlay_path:" if idx == 0 else f"config_overlay_path_{idx + 1}:"
                     )
-                    lines.append((label, "[dim]<none>[/dim]"))
+                    lines.append((label, "<none>"))
         else:
-            lines.append(("config_overlay_path:", "[dim]<none>[/dim]"))
+            lines.append(("config_overlay_path:", "<none>"))
 
         console.print("\n[bold]File Paths:[/bold]")
         # Use plain print so paths are never wrapped or cropped by Rich's terminal width
