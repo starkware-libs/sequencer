@@ -477,19 +477,6 @@ let x = u128::MAX as u64; // This doesn't panic, it saturates and simply sets `x
 Methods that end with `_or`, like `unwrap_or`, are typically eagerly evaluated, meaning `foo.unwrap_or(expensive_calculation_of_foo())` will always be evaluated, even if the original value is unwrapped --- use `_or_else` methods for lazy evaluations, which is typically what you want.
 The same also holds for `expect`, and in general for all methods that take a non-closure parameter.
 
-```rust
-// BAD
-// always panics!
-map.get(key).expect(panic!("{key} should exist because of <reason>"));
-
-// BAD
-// Inefficient: this always allocates a String on the heap.
-map.get(key).expect(format!("{key} should exist because of <reason>"));
-
-// GOOD
-map.get(key).unwrap_or_else(|| panic!("{key} should exist because of <reason>"))
-```
-
 ### Maps/Sets
 
 Avoid iterating `HashSet` and `HashMap`, this is not deterministic in rust. Either use `BTree{Map,Set}` or `Index{Map,Set}`, and prefer `BTree` when you can, as the `Index` version has O(n) removals (it uses a `Vec` for storage).
