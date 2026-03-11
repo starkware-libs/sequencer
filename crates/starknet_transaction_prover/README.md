@@ -216,6 +216,54 @@ docker run -e RUST_LOG=warn ... <IMAGE>
 - One transaction per request — batch proving is not available.
 - Nightly Rust required for the Stwo prover — this is handled automatically in the Docker image.
 
+## Full configuration reference
+
+The `--config-file` / `CONFIG_FILE` option accepts a JSON file whose structure maps directly to
+the service's Rust config types. All nested fields use `#[serde(default)]`, so you can omit any
+section to use its defaults. See `resources/example-config.json` for the complete structure.
+
+### Nested config fields
+
+| JSON path | Type | Default | Description |
+| --------- | ---- | ------- | ----------- |
+| `runner_config.storage_proof_config.include_state_changes` | `bool` | `true` | Include storage-change proofs in the output. |
+| `runner_config.virtual_block_executor_config.prefetch_state` | `bool` | `false` | Simulate the transaction before proving to prefetch state (reduces RPC calls). Same as `PREFETCH_STATE` env var. |
+| `runner_config.virtual_block_executor_config.bouncer_config` | object | _(see below)_ | Block capacity limits used during execution. |
+| `contract_class_manager_config.contract_cache_size` | `usize` | `600` | Number of compiled contract classes to cache in memory. |
+
+### Bouncer config
+
+The `bouncer_config` object controls block capacity limits used when executing the transaction.
+These are **client-side limits** that may differ from the actual Starknet network limits. The
+defaults are generous for single-transaction proving; override them only if you need to match
+specific network parameters.
+
+Structure:
+
+```json
+{
+  "bouncer_config": {
+    "block_max_capacity": {
+      "l1_gas": 2500000,
+      "message_segment_length": 3700,
+      "n_events": 5000,
+      "state_diff_size": 4000,
+      "sierra_gas": 5000000000,
+      "n_txs": 600,
+      "proving_gas": 5000000000
+    },
+    "builtin_weights": {
+      "gas_costs": {
+        "pedersen": 3000,
+        "range_check": 90,
+        "ecdsa": 2000000,
+        "...": "see example-config.json for all fields"
+      }
+    }
+  }
+}
+```
+
 ## Building the Docker image
 
 ```bash
@@ -245,3 +293,67 @@ A convenience script is available for parameterized builds:
 ```bash
 ./scripts/build_starknet_transaction_prover.sh --rustflags "-C target-cpu=znver5"
 ```
+
+## Kubernetes deployment
+
+To deploy the prover in Kubernetes, create a ConfigMap with the JSON config inline and mount it
+into the Pod.
+
+### 1. ConfigMap
+
+```bash
+kubectl create configmap transaction-prover-config --from-file=config=prover-config.json
+```
+
+### 2. Deployment
+
+Mount the ConfigMap at `/config/prover/presets/` and pass the path via container args:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transaction-prover
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: transaction-prover
+  template:
+    metadata:
+      labels:
+        app: transaction-prover
+    spec:
+      containers:
+        - name: transaction-prover
+          image: <IMAGE>
+          args:
+            - --config-file
+            - /config/prover/presets/config
+          env:
+            - name: RPC_URL
+              value: https://your-node.com/rpc/v0_10
+          ports:
+            - containerPort: 3000
+          volumeMounts:
+            - mountPath: /config/prover/presets/
+              name: transaction-prover-config
+              readOnly: true
+      volumes:
+        - configMap:
+            name: transaction-prover-config
+          name: transaction-prover-config
+```
+
+### Configuration precedence
+
+Values are resolved in this order (highest priority first):
+
+1. CLI flags / container args (`--rpc-url`, `--port`, etc.)
+2. Environment variables (`RPC_URL`, `PROVER_PORT`, etc.)
+3. JSON config file (`--config-file`)
+4. Built-in defaults
+
+This means you can set baseline configuration in the ConfigMap and override individual values
+with environment variables in the Deployment spec — for example, setting `RPC_URL` as an env var
+while keeping capacity and bouncer settings in the config file.
