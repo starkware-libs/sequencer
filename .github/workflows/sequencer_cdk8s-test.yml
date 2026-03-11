@@ -20,6 +20,7 @@ jobs:
   # https://graphite.com/docs/stacking-and-ci
   optimize_ci:
     runs-on: ubuntu-24.04
+    if: github.event.action != 'edited' || github.event.changes.base.ref != null
     outputs:
       skip: ${{ steps.check_skip.outputs.skip }}
     steps:
