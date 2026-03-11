@@ -121,6 +121,8 @@ pub struct RawOsConstants {
     pub validated: String,
 
     // Execution limits.
+    // Maximum gas for a single execute entry point call. The full transaction gas budget also
+    // includes validation and fee transfer, but this is the dominant component.
     pub execute_max_sierra_gas: GasAmount,
     pub validate_max_sierra_gas: GasAmount,
 
