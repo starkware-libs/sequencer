@@ -72,6 +72,7 @@ use indexmap::{IndexMap, IndexSet};
 use mockall::automock;
 use starknet_api::block::{BlockHash, BlockNumber, UnixTimestamp};
 use starknet_api::block_hash::block_hash_calculator::{
+    calculate_block_hash,
     PartialBlockHash,
     PartialBlockHashComponents,
 };
@@ -737,13 +738,9 @@ impl Batcher {
             storage_commitment_block_hash,
         )
         .await?;
-        // TODO(Einat): Uncomment when the committer should be enabled.
-        // self.write_commitment_results_and_add_new_task(
-        //     height,
-        //     state_diff,
-        //     optional_state_diff_commitment,
-        // )
-        // .await?;
+        // TODO(Einat): Replace with write_commitment_results_and_add_new_task when the committer
+        // should be enabled.
+        self.write_default_commitment_to_storage(height).await?;
 
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
         SYNCED_TRANSACTIONS.increment(
@@ -799,13 +796,9 @@ impl Batcher {
         )
         .await?;
 
-        // TODO(Einat): Uncomment when the committer should be enabled.
-        // self.write_commitment_results_and_add_new_task(
-        //     height,
-        //     state_diff.clone(), // TODO(Nimrod): Remove the clone here.
-        //     Some(state_diff_commitment),
-        // )
-        // .await?;
+        // TODO(Einat): Replace with write_commitment_results_and_add_new_task when the committer
+        // should be enabled.
+        self.write_default_commitment_to_storage(height).await?;
 
         let execution_infos = block_execution_artifacts
             .execution_data
@@ -1317,6 +1310,42 @@ impl Batcher {
             })?;
         Ok(())
     }
+    // TODO(Einat): Remove when the committer should be enabled.
+    async fn write_default_commitment_to_storage(
+        &mut self,
+        height: BlockNumber,
+    ) -> BatcherResult<()> {
+        let default_global_root = GlobalRoot::default();
+        let (previous_block_hash, partial_components) = self
+            .storage_reader
+            .get_parent_hash_and_partial_block_hash_components(height)
+            .map_err(|err| {
+                error!("Failed to get parent hash and partial components: {err}");
+                BatcherError::InternalError
+            })?;
+
+        let block_hash = match (previous_block_hash, partial_components) {
+            (Some(prev_hash), Some(components)) => {
+                Some(calculate_block_hash(&components, default_global_root, prev_hash).map_err(
+                    |err| {
+                        error!("Failed to calculate block hash: {err}");
+                        BatcherError::InternalError
+                    },
+                )?)
+            }
+            _ => None,
+        };
+
+        self.storage_writer
+            .set_global_root_and_block_hash(height, default_global_root, block_hash)
+            .map_err(|err| {
+                error!("Failed to set global root and block hash: {err}");
+                BatcherError::InternalError
+            })?;
+        GLOBAL_ROOT_HEIGHT.increment(1);
+        Ok(())
+    }
+
     // TODO(Einat): Remove the allow(dead_code) when the committer should be enabled.
     #[allow(dead_code)]
     async fn write_commitment_results_and_add_new_task(
