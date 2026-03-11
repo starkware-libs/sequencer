@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # CDK8S Deployment Project Setup Script
-# This script only handles project setup (pipenv install, cdk8s import)
+# This script only handles project setup (poetry install, cdk8s import)
 # System dependencies should be installed via Dockerfile
 
 # Colors for output
@@ -37,22 +37,22 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Setup project (pipenv install + cdk8s import)
+# Setup project (poetry install + cdk8s import)
 setup_project() {
     info "Setting up project..."
     
-    # Use SCRIPT_DIR if it's a valid project directory (has Pipfile), otherwise use current directory
-    if [ -f "$SCRIPT_DIR/Pipfile" ]; then
+    # Use SCRIPT_DIR if it's a valid project directory (has pyproject.toml), otherwise use current directory
+    if [ -f "$SCRIPT_DIR/pyproject.toml" ]; then
         cd "$SCRIPT_DIR"
-    elif [ -f "./Pipfile" ]; then
+    elif [ -f "./pyproject.toml" ]; then
         # Already in the right directory
         :
     else
         # Try to find the project directory
-        if [ -f "/workspace/deployments/sequencer/Pipfile" ]; then
+        if [ -f "/workspace/deployments/sequencer/pyproject.toml" ]; then
             cd /workspace/deployments/sequencer
         else
-            error "Could not find Pipfile. Please run this script from the project directory."
+            error "Could not find pyproject.toml. Please run this script from the project directory."
             return 1
         fi
     fi
@@ -64,33 +64,21 @@ setup_project() {
         success "Removed existing virtual environment"
     fi
     
-    # Ensure ~/.local/bin is in PATH (pipenv might be installed there)
+    # Ensure ~/.local/bin is in PATH (poetry might be installed there)
     if [[ -d "$HOME/.local/bin" ]] && [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
         export PATH="$HOME/.local/bin:$PATH"
     fi
     
     # Install Python dependencies
-    info "Installing Python dependencies with pipenv..."
-    if ! command_exists pipenv; then
-        error "pipenv not found. Please ensure pipenv is installed."
-        error "If pipenv was just installed, you may need to run: export PATH=\"\$HOME/.local/bin:\$PATH\""
+    info "Installing Python dependencies with poetry..."
+    if ! command_exists poetry; then
+        error "poetry not found. Please ensure poetry is installed."
+        error "If poetry was just installed, you may need to run: export PATH=\"\$HOME/.local/bin:\$PATH\""
         return 1
     fi
     
-    # Use the current Python version (pipenv may complain about version mismatch in Pipfile)
-    # This allows the script to work even if Pipfile specifies a different version
-    local python_cmd
-    if command_exists python3; then
-        python_cmd="python3"
-    else
-        error "python3 not found"
-        return 1
-    fi
-    
-    info "Using $python_cmd ($($python_cmd --version 2>&1)) for pipenv virtual environment"
-    # Ensure PATH is exported so subprocesses can find pipenv
     export PATH
-    pipenv install --python "$python_cmd"
+    poetry install
     success "Python dependencies installed"
     
     # Initialize cdk8s imports
@@ -110,7 +98,7 @@ main() {
     setup_project
     success "Project setup complete!"
     info "You can now use the project:"
-    echo "  cdk8s synth --app \"pipenv run python -m main --namespace <namespace>\" -l <layout> -o <overlay>"
+    echo "  cdk8s synth --app \"poetry run python -m main --namespace <namespace>\" -l <layout> -o <overlay>"
 }
 
 # Run main function

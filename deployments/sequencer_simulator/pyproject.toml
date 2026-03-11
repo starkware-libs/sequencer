@@ -1,0 +1,12 @@
+[tool.poetry]
+name = "sequencer-simulator-cdk8s"
+version = "0.1.0"
+description = "CDK8s deployment for Sequencer Simulator"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+constructs = "*"
+cdk8s = "*"
+
+[tool.poetry.group.dev.dependencies]

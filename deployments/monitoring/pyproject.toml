@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "sequencer-monitoring"
+version = "0.1.0"
+description = "Monitoring dashboards and alerts (Grafana)"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+grafana-client = "4.3.2"
+requests = "2.32.3"
+tenacity = "9.1.2"
+pyyaml = ">=6.0"
+rich = ">=13.0.0"
+
+[tool.poetry.group.dev.dependencies]
