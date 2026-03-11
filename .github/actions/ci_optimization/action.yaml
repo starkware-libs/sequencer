@@ -1,0 +1,35 @@
+name: CI Optimization
+description: Combines Graphite skip result with PR-description-edited skip. Run Graphite in the workflow first, then pass its output here.
+
+inputs:
+  graphite_skip:
+    description: "Skip output from the Graphite step run earlier in the job (empty when that step was skipped)."
+    required: false
+
+outputs:
+  skip:
+    description: "Whether to skip downstream jobs (Graphite or PR description edited)"
+    value: ${{ steps.set_skip.outputs.skip }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set skip output
+      id: set_skip
+      env:
+        DESC_EDITED: ${{ github.event_name == 'pull_request' && github.event.action == 'edited' && github.event.changes.body != null && !github.event.changes.base }}
+        GRAPHITE_SKIP: ${{ inputs.graphite_skip }}
+      run: |
+        if [ "$DESC_EDITED" = "true" ]; then
+          echo "::notice title=CI Optimization::Skipping CI: PR description was edited only (no code change)."
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+        else
+          SKIP="${GRAPHITE_SKIP:-false}"
+          if [ "$SKIP" = "true" ]; then
+            echo "::notice title=CI Optimization::Skipping CI: Graphite said skip (stack optimization)."
+          else
+            echo "::notice title=CI Optimization::Running CI: Graphite did not skip; tests will run."
+          fi
+          echo "skip=$SKIP" >> "$GITHUB_OUTPUT"
+        fi
+      shell: bash
