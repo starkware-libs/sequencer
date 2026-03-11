@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773165617314,
+  "lastUpdate": 1773230653089,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -543,6 +543,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1290.5311702899999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noam.s@starkware.co",
+            "name": "noamsp-starkware",
+            "username": "noamsp-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e63eff09226fe504cdbdd788349692b1ef804461",
+          "message": "apollo_network: add CommitteeStore with read/write API (#12382)",
+          "timestamp": "2026-03-11T11:40:49Z",
+          "tree_id": "fc4cfea9ad2347f648503927117a6204a3271482",
+          "url": "https://github.com/starkware-libs/sequencer/commit/e63eff09226fe504cdbdd788349692b1ef804461"
+        },
+        "date": 1773230652550,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 855.76131821,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1296.21931645,
             "unit": "ms"
           }
         ]
