@@ -230,11 +230,9 @@ A getter for the field `foo` should be `fn foo`, rather than `fn get_foo`
 
 The same is also encouraged for non-field getters, except for in cases where `get*` really improves readability.
 
-### `self` Mutability in Getters
+Instead of defining a setter, define a function that returns `&mut` to the field and name it `fn foo_mut`.
 
-Getter methods should always be `&self`, never `&mut self` --- use interior mutability if mutating self is necessary for maintenance like caching.
-
-**Rationale**: aligning to user's expectation for getters, preventing borrow-checker surprises.
+If the struct is not a pure data structure, prefer avoiding setters altogether. Instead, define methods for the specific mutating actions you need.
 
 ### Types in API
 
