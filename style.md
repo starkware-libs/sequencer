@@ -456,6 +456,14 @@ Only use macros if non-macro alternatives are not feasible and when _really_ nec
 
 For example: using parametrization in a test (using rstest) can make tests harder to reason about and debug in some cases, when the parametrization is very complicated and involves complex types. In those cases one should consider a free-function that performs the test, and several one-line tests that call it with different args, rather than forcing a parameterized solution.
 
+#### Formatting Macros
+
+`rustfmt` does not format code inside macro invocations.
+This applies to any macro that contains Rust code, such as `stream!`, `indexmap!`.
+Make sure the code inside the macro is formatted correctly.
+
+**Tip**: Temporarily copy the code outside of the macro, run `rustfmt`, and then copy it back.
+
 ### If-let-else Pattern
 
 Prefer `let-else` or `match` patterns, they are always more concise and incur less cognitive load
