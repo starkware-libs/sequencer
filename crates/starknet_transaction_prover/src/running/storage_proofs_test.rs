@@ -8,13 +8,23 @@ use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_rust::providers::Provider;
-use starknet_rust_core::types::ContractStorageKeys;
+use starknet_rust_core::types::{
+    BinaryNode,
+    ContractLeafData,
+    ContractStorageKeys,
+    ContractsProof,
+    GlobalRoots,
+    MerkleNode,
+    StorageProof as RpcStorageProof,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::running::storage_proofs::{
     collect_query,
     count_total_keys,
     flatten_query,
+    merge_storage_proofs,
+    split_query,
     RpcStorageProofsProvider,
     RpcStorageProofsQuery,
     StorageProofConfig,
@@ -148,6 +158,50 @@ pub(crate) fn make_query(
     RpcStorageProofsQuery { class_hashes, contract_addresses, contract_storage_keys }
 }
 
+/// Builds a deterministic `RpcStorageProof` purely from the query content.
+/// Using the actual key values as IndexMap keys means split+merge must reproduce the same result.
+fn make_dummy_proof(query: &RpcStorageProofsQuery) -> RpcStorageProof {
+    let node =
+        MerkleNode::BinaryNode(BinaryNode { left: Felt::from(0u64), right: Felt::from(1u64) });
+
+    let classes_proof = query.class_hashes.iter().map(|h| (*h, node.clone())).collect();
+    let contracts_nodes =
+        query.contract_addresses.iter().map(|a| (*a.0.key(), node.clone())).collect();
+    let contract_leaves_data = query
+        .contract_addresses
+        .iter()
+        .map(|addr| ContractLeafData {
+            nonce: *addr.0.key(),
+            class_hash: Felt::from(42u64),
+            storage_root: Some(Felt::from(99u64)),
+        })
+        .collect();
+    let contracts_storage_proofs = query
+        .contract_storage_keys
+        .iter()
+        .map(|csk| csk.storage_keys.iter().map(|k| (*k, node.clone())).collect())
+        .collect();
+
+    RpcStorageProof {
+        classes_proof,
+        contracts_proof: ContractsProof { nodes: contracts_nodes, contract_leaves_data },
+        contracts_storage_proofs,
+        global_roots: GlobalRoots {
+            contracts_tree_root: Felt::from(100u64),
+            classes_tree_root: Felt::from(200u64),
+            block_hash: Felt::from(300u64),
+        },
+    }
+}
+
+fn assert_split_merge_identity(query: &RpcStorageProofsQuery, max_keys: usize) {
+    let expected = make_dummy_proof(query);
+    let chunks = split_query(query, max_keys);
+    let proofs: Vec<_> = chunks.iter().map(make_dummy_proof).collect();
+    let merged = merge_storage_proofs(proofs, &chunks, query);
+    assert_eq!(merged, expected);
+}
+
 #[test]
 fn test_flatten_collect_roundtrip() {
     let query = make_query(3, 5, &[10, 7]);
@@ -155,4 +209,30 @@ fn test_flatten_collect_roundtrip() {
     assert_eq!(items.len(), count_total_keys(&query));
     let reconstructed = collect_query(&items);
     assert_eq!(reconstructed, query);
+}
+
+#[test]
+fn test_split_query() {
+    // 3 class_hashes + 2 addresses + [4, 3] storage keys = 12 total, max=5.
+    let query = make_query(3, 2, &[4, 3]);
+    let chunks = split_query(&query, 5);
+    assert_eq!(chunks.len(), 3);
+    assert_eq!(count_total_keys(&chunks[0]), 5); // 3ch + 2addr
+    assert_eq!(count_total_keys(&chunks[1]), 5); // 4sk + 1sk
+    assert_eq!(count_total_keys(&chunks[2]), 2); // 2sk
+    assert_eq!(chunks.iter().map(count_total_keys).sum::<usize>(), 12);
+}
+
+#[test]
+fn test_split_merge_roundtrip() {
+    // Exceeds Pathfinder's 100-key limit: mixed class hashes, addresses, and storage keys.
+    assert_split_merge_identity(&make_query(5, 15, &[30, 25, 20, 10, 5, 4]), 100);
+    // Single contract's keys split across many chunks.
+    assert_split_merge_identity(&make_query(0, 0, &[50]), 7);
+    // Everything fits in one chunk (identity case).
+    assert_split_merge_identity(&make_query(2, 3, &[4, 5]), 100);
+    // Only class hashes and addresses, no storage keys.
+    assert_split_merge_identity(&make_query(10, 20, &[]), 15);
+    // Tight limit forces many small chunks.
+    assert_split_merge_identity(&make_query(3, 4, &[8, 6, 3]), 3);
 }
