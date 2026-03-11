@@ -105,8 +105,7 @@ const ERC20_CAIRO0_CONTRACT_PATH: &str = "./resources/ERC20/ERC20_Cairo0/\
                                           erc20_contract_without_some_syscalls_compiled.json";
 const ERC20_CAIRO1_CONTRACT_SOURCE_PATH: &str = "./resources/ERC20/ERC20_Cairo1/ERC20.cairo";
 const ERC20_SIERRA_CONTRACT_PATH: &str = "./resources/ERC20/ERC20_Cairo1/erc20.sierra.json";
-pub(crate) const ERC20_CAIRO1_CONTRACT_PATH: &str =
-    "./resources/ERC20/ERC20_Cairo1/erc20.casm.json";
+const ERC20_CAIRO1_CONTRACT_PATH: &str = "./resources/ERC20/ERC20_Cairo1/erc20.casm.json";
 
 // The following contracts are compiled with a fixed version of the compiler.
 const LEGACY_CONTRACT_COMPILER_VERSION: &str = "2.1.0";
@@ -270,7 +269,7 @@ impl FeatureContract {
     /// For ERC20 this computes hashes from the committed CASM artifact.
     fn ensure_compiled_class_hashes_cached(&self) {
         if matches!(self, Self::ERC20(CairoVersion::Cairo1(_))) {
-            compile_cache::ensure_erc20_compiled_class_hashes(self);
+            compile_cache::ensure_erc20_compiled_class_hashes();
         } else {
             self.ensure_compiled();
         }
