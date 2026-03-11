@@ -35,7 +35,9 @@ pub struct KadRequestingBehaviour {
     /// Stored waker to re-poll when new peers are added via `set_target_peers`.
     waker: Option<Waker>,
     /// Peers to dial after a successful DHT lookup matched a requested peer.
-    pending_dials: VecDeque<PeerId>,
+    pending_dials: VecDeque<(PeerId, Vec<Multiaddr>)>,
+    /// Peers already dispatched to DiallingBehaviour (awaiting connection).
+    dialling_peers: HashSet<PeerId>,
 }
 
 impl NetworkBehaviour for KadRequestingBehaviour {
@@ -68,6 +70,8 @@ impl NetworkBehaviour for KadRequestingBehaviour {
             FromSwarm::ConnectionEstablished(ConnectionEstablished { peer_id, .. }) => {
                 self.connected_peers.insert(peer_id);
                 self.peers_pending_connection.retain(|p| *p != peer_id);
+                self.pending_dials.retain(|(p, _)| *p != peer_id);
+                self.dialling_peers.remove(&peer_id);
             }
             FromSwarm::ConnectionClosed(ConnectionClosed {
                 peer_id,
@@ -97,8 +101,12 @@ impl NetworkBehaviour for KadRequestingBehaviour {
     ) -> Poll<ToSwarm<Self::ToSwarm, <Self::ConnectionHandler as ConnectionHandler>::FromBehaviour>>
     {
         // Drain pending dials first (from DHT lookup results).
-        if let Some(peer_id) = self.pending_dials.pop_front() {
-            return Poll::Ready(ToSwarm::Dial { opts: peer_id.into() });
+        if let Some((peer_id, addresses)) = self.pending_dials.pop_front() {
+            self.dialling_peers.insert(peer_id);
+            return Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestDial {
+                peer_id,
+                addresses,
+            }));
         }
 
         if self.peers_pending_connection.is_empty() {
@@ -134,15 +142,18 @@ impl KadRequestingBehaviour {
             peers_pending_connection: VecDeque::new(),
             waker: None,
             pending_dials: VecDeque::new(),
+            dialling_peers: HashSet::new(),
         }
     }
 
-    // TODO(AndrewL): In a future PR, clean connected_peers on disconnect event.
+    // TODO(AndrewL): When target peers change, cancel DialPeerStreams in DiallingBehaviour
+    // for peers no longer in the target set. Currently those streams retry indefinitely.
     pub fn set_target_peers(&mut self, peers: HashSet<PeerId>) {
         self.peers_pending_connection =
             peers.iter().filter(|p| !self.connected_peers.contains(p)).copied().collect();
         self.target_peers = peers;
         self.pending_dials.clear();
+        self.dialling_peers.clear();
         if !self.peers_pending_connection.is_empty() {
             if let Some(waker) = self.waker.take() {
                 waker.wake();
@@ -150,14 +161,16 @@ impl KadRequestingBehaviour {
         }
     }
 
-    pub fn handle_kad_response(&mut self, peers: &[PeerId]) {
-        let new_dials: Vec<PeerId> = peers
+    pub fn handle_kad_response(&mut self, peers: &[(PeerId, Vec<Multiaddr>)]) {
+        let new_dials: Vec<(PeerId, Vec<Multiaddr>)> = peers
             .iter()
-            .copied()
-            .filter(|p| self.target_peers.contains(p))
-            .filter(|p| !self.connected_peers.contains(p))
-            .filter(|p| !self.peers_pending_connection.contains(p))
-            .filter(|p| !self.pending_dials.contains(p))
+            .filter(|(peer_id, _)| self.target_peers.contains(peer_id))
+            .filter(|(peer_id, _)| !self.connected_peers.contains(peer_id))
+            .filter(|(peer_id, _)| !self.dialling_peers.contains(peer_id))
+            .filter(|(peer_id, _)| {
+                !self.pending_dials.iter().any(|(pending_id, _)| pending_id == peer_id)
+            })
+            .cloned()
             .collect();
         self.pending_dials.extend(new_dials);
     }
