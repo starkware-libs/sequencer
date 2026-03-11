@@ -1,0 +1,13 @@
+[tool.poetry]
+description = "Python deps for scripts/system_tests (readiness, liveness, etc.)"
+name = "sequencer-system-tests"
+package-mode = false
+version = "0.1.0"
+
+[tool.poetry.dependencies]
+kubernetes = "*"
+python = "^3.10"
+pyyaml = "*"
+requests = "*"
+
+[tool.poetry.group.dev.dependencies]

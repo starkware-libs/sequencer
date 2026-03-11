@@ -1,8 +1,11 @@
 import logging
+import os
 import sys
 from pathlib import Path
 
 from cdk8s import App, YamlOutputType
+from rich.console import Console
+from rich.panel import Panel
 from src.charts.monitoring import MonitoringChart
 from src.charts.node import SequencerNodeChart
 from src.cli import argument_parser
@@ -17,9 +20,24 @@ from src.config.schema import Image
 from src.logging_config import configure_logging
 from src.utils import sanitize_name
 
+_POETRY_INSTALL_URL = "https://python-poetry.org/docs/#installation"
+
 
 def main():
     """Main entry point for CDK8s application."""
+    if os.environ.get("PIPENV_ACTIVE"):
+        console = Console(file=sys.stderr, force_terminal=True)
+        console.print(
+            Panel(
+                "[yellow]Pipenv is deprecated for this project.[/]\n\n"
+                "Use [bold]Poetry[/] instead:\n"
+                "  [cyan]poetry install[/]\n"
+                "  [cyan]poetry run python -m main ...[/]\n\n"
+                f"Install Poetry: [link={_POETRY_INSTALL_URL}]{_POETRY_INSTALL_URL}[/]",
+                title="[bold]Deprecation warning[/]",
+                border_style="yellow",
+            )
+        )
     args = argument_parser()
     configure_logging(
         level=logging.DEBUG if args.verbose else logging.INFO,

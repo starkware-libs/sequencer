@@ -180,16 +180,15 @@ jobs:
           kubectl get storageclass
 
       - name: Setup python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.10"
-          cache: pipenv
 
-      - name: Setup pipenv
-        run: python3 -m pip install pipenv
+      - name: Install Poetry
+        run: pip install poetry
 
-      - name: Install dependencies with pipenv
-        run: pipenv install kubernetes
+      - name: Install system test script dependencies
+        run: poetry install --directory scripts/system_tests
 
       - name: Setup cdk8s-cli
         run: npm install -g cdk8s-cli
@@ -200,9 +199,9 @@ jobs:
         working-directory: deployments/dummy_recorder
         run: |
           echo "Deploying Dummy Recorder..."
-          pipenv install
+          poetry install
           cdk8s import
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_recorder_namespace }} --image ${{ env.NSC_CONTAINER_REGISTRY }}/dummy_recorder:${{ github.sha }}"
+          cdk8s synth --app "poetry run python main.py --namespace ${{ env.dummy_recorder_namespace }} --image ${{ env.NSC_CONTAINER_REGISTRY }}/dummy_recorder:${{ github.sha }}"
           kubectl create namespace ${{ env.dummy_recorder_namespace }}
           kubectl apply -R -f ./dist
           echo "⏳ Waiting for Dummy Recorder to become ready..."
@@ -218,9 +217,9 @@ jobs:
         working-directory: deployments/dummy_eth2strk_oracle
         run: |
           echo "Deploying Dummy Eth2Strk Oracle..."
-          pipenv install
+          poetry install
           cdk8s import
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_eth_to_strk_namespace }} --image ${{ env.NSC_CONTAINER_REGISTRY }}/dummy_eth_to_strk_oracle:${{ github.sha }}"
+          cdk8s synth --app "poetry run python main.py --namespace ${{ env.dummy_eth_to_strk_namespace }} --image ${{ env.NSC_CONTAINER_REGISTRY }}/dummy_eth_to_strk_oracle:${{ github.sha }}"
           kubectl create namespace ${{ env.dummy_eth_to_strk_namespace }}
           kubectl apply -R -f ./dist
           echo "⏳ Waiting for Dummy Eth2Strk Oracle to become ready..."
@@ -241,9 +240,9 @@ jobs:
             while kubectl get namespace "${{ env.namespace }}" &> /dev/null; do sleep 2; done
             echo "✅ Namespace '${{ env.namespace }}' deleted."
           fi
-          pipenv install
+          poetry install
           cdk8s import
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }}"
+          cdk8s synth --app "poetry run python main.py --namespace ${{ env.namespace }}"
           kubectl create namespace ${{ env.namespace }}
           kubectl apply -R -f ./dist
           echo "⏳ Waiting for Anvil to become ready..."
@@ -282,10 +281,10 @@ jobs:
       - name: Generate k8s manifests
         working-directory: deployments/sequencer
         run: |
-          pipenv install
+          poetry install
           cdk8s import
           echo "Generating Kubernetes manifests using hybrid layout"
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} -l ${{ env.layout }} -o ${{ env.overlay }} --image ${{ env.NSC_CONTAINER_REGISTRY }}/sequencer:${{ github.sha }}"
+          cdk8s synth --app "poetry run python -m main --namespace ${{ env.namespace }} -l ${{ env.layout }} -o ${{ env.overlay }} --image ${{ env.NSC_CONTAINER_REGISTRY }}/sequencer:${{ github.sha }}"
 
       - name: Deploy Sequencer
         working-directory: deployments/sequencer
@@ -299,7 +298,7 @@ jobs:
 
       - name: Run readiness check
         run: |
-          pipenv run python ./scripts/system_tests/readiness_check.py \
+          poetry run --directory scripts/system_tests python ./scripts/system_tests/readiness_check.py \
             --layout ${{ env.layout }} \
             --overlay ${{ env.overlay }} \
             --namespace ${{ env.namespace }} \
@@ -311,7 +310,7 @@ jobs:
           check_interval_sec: 2
           check_timeout_sec: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.liveness_test_duration_sec || 10 }}
         run: |
-          pipenv run python ./scripts/system_tests/liveness_check.py \
+          poetry run --directory scripts/system_tests python ./scripts/system_tests/liveness_check.py \
             --layout ${{ env.layout }} \
             --overlay ${{ env.overlay }} \
             --namespace ${{ env.namespace }} \
@@ -322,7 +321,7 @@ jobs:
 
       - name: Copy state and restart pod
         run: |
-          pipenv run python ./scripts/system_tests/copy_state_and_restart.py \
+          poetry run --directory scripts/system_tests python ./scripts/system_tests/copy_state_and_restart.py \
             --layout ${{ env.layout }} \
             --overlay ${{ env.overlay }} \
             --namespace ${{ env.namespace }} \
@@ -331,7 +330,7 @@ jobs:
 
       - name: Run readiness check
         run: |
-          pipenv run python ./scripts/system_tests/readiness_check.py \
+          poetry run --directory scripts/system_tests python ./scripts/system_tests/readiness_check.py \
             --layout ${{ env.layout }} \
             --overlay ${{ env.overlay }} \
             --namespace ${{ env.namespace }} \
@@ -359,7 +358,7 @@ jobs:
         env:
           RUST_LOG: debug
           RUST_BACKTRACE: full
-        run: pipenv run python ./scripts/system_tests/sequencer_simulator.py --state_sync_monitoring_endpoint_port 8082 --http_server_port 8080 --node_type "hybrid" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
+        run: poetry run --directory scripts/system_tests python ./scripts/system_tests/sequencer_simulator.py --state_sync_monitoring_endpoint_port 8082 --http_server_port 8080 --node_type "hybrid" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
 
       - name: List all pods in namespace ${{ env.namespace }}
         if: always()

@@ -1,10 +1,40 @@
+[tool.poetry]
+description = "CDK8s deployment configuration for the Sequencer"
+name = "sequencer-cdk8s"
+package-mode = false
+readme = "README.md"
+version = "0.1.0"
+
+[tool.poetry.dependencies]
+cdk8s = "~2.66.2"
+constructs = "~10.2.70"
+exceptiongroup = "~1.2.2"
+jsonschema = "~4.23.0"
+mypy = "*"
+python = "^3.10"
+types-jsonschema = "*"
+# Code style versions aligned with scripts/py_code_style.py (scripts/requirements.txt)
+autoflake = "2.3.1"
+black = "23.1a1"
+isort = "6.1.0"
+pydantic = "*"
+pyyaml = "*"
+rich = "*"
+types-pyyaml = "*"
+
+[tool.poetry.group.dev.dependencies]
+# Dev deps are in main dependencies above (autoflake, black, isort, mypy)
+
 [tool.black]
-exclude = '(/|\\)imports'
 line-length = 100
-target-version = ['py37']
+target-version = ["py37"]
 
 [tool.isort]
-known_third_party = ["cdk8s", "constructs"]
 line_length = 100
 profile = "black"
-skip = ["imports"]
+
+[tool.mypy]
+ignore_missing_imports = true
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
