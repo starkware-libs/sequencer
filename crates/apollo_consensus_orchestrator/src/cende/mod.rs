@@ -2,31 +2,6 @@
 mod cende_test;
 mod central_objects;
 
-pub use central_objects::{
-    CentralBlockInfo,
-    CentralBouncerWeights,
-    CentralCasmContractClass,
-    CentralCasmContractClassEntry,
-    CentralCasmHashComputationData,
-    CentralCompiledClassHashesForMigration,
-    CentralCompressedStateDiff,
-    CentralDeployAccountTransaction,
-    CentralDeployAccountTransactionV3,
-    CentralDeclareTransaction,
-    CentralDeclareTransactionV3,
-    CentralFeeMarketInfo,
-    CentralInvokeTransaction,
-    CentralInvokeTransactionV3,
-    CentralL1HandlerTransaction,
-    CentralResourceBounds,
-    CentralResourcePrice,
-    CentralSierraContractClass,
-    CentralSierraContractClassEntry,
-    CentralStateDiff,
-    CentralTransaction,
-    CentralTransactionWritten,
-};
-
 use std::sync::Arc;
 
 use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
@@ -40,6 +15,30 @@ use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use central_objects::process_transactions;
+pub use central_objects::{
+    CentralBlockInfo,
+    CentralBouncerWeights,
+    CentralCasmContractClass,
+    CentralCasmContractClassEntry,
+    CentralCasmHashComputationData,
+    CentralCompiledClassHashesForMigration,
+    CentralCompressedStateDiff,
+    CentralDeclareTransaction,
+    CentralDeclareTransactionV3,
+    CentralDeployAccountTransaction,
+    CentralDeployAccountTransactionV3,
+    CentralFeeMarketInfo,
+    CentralInvokeTransaction,
+    CentralInvokeTransactionV3,
+    CentralL1HandlerTransaction,
+    CentralResourceBounds,
+    CentralResourcePrice,
+    CentralSierraContractClass,
+    CentralSierraContractClassEntry,
+    CentralStateDiff,
+    CentralTransaction,
+    CentralTransactionWritten,
+};
 #[cfg(test)]
 use mockall::automock;
 use reqwest::Response;

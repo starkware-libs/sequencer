@@ -4,9 +4,9 @@ use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
-use serde::Serialize;
 #[cfg(any(feature = "testing", test))]
 use serde::Deserialize;
+use serde::Serialize;
 use starknet_api::block::{
     BlockInfo,
     BlockNumber,
