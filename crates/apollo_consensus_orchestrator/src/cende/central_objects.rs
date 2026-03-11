@@ -5,6 +5,8 @@ use blockifier::state::cached_state::CommitmentStateDiff;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
 use serde::Serialize;
+#[cfg(any(feature = "testing", test))]
+use serde::Deserialize;
 use starknet_api::block::{
     BlockInfo,
     BlockNumber,
@@ -57,30 +59,32 @@ use crate::fee_market::FeeMarketInfo;
 #[path = "central_objects_test.rs"]
 mod central_objects_test;
 
-pub(crate) type CentralBouncerWeights = BouncerWeights;
-pub(crate) type CentralFeeMarketInfo = FeeMarketInfo;
-pub(crate) type CentralCompressedStateDiff = CentralStateDiff;
-pub(crate) type CentralSierraContractClassEntry = (ClassHash, CentralSierraContractClass);
-pub(crate) type CentralCasmContractClassEntry = (CompiledClassHash, CentralCasmContractClass);
-pub(crate) type CentralCasmHashComputationData = CasmHashComputationData;
-pub(crate) type CentralCompiledClassHashesForMigration = CompiledClassHashesForMigration;
+pub type CentralBouncerWeights = BouncerWeights;
+pub type CentralFeeMarketInfo = FeeMarketInfo;
+pub type CentralCompressedStateDiff = CentralStateDiff;
+pub type CentralSierraContractClassEntry = (ClassHash, CentralSierraContractClass);
+pub type CentralCasmContractClassEntry = (CompiledClassHash, CentralCasmContractClass);
+pub type CentralCasmHashComputationData = CasmHashComputationData;
+pub type CentralCompiledClassHashesForMigration = CompiledClassHashesForMigration;
 
+#[cfg_attr(any(feature = "testing", test), derive(Deserialize))]
 #[derive(Clone, Debug, PartialEq, Serialize)]
-struct CentralResourcePrice {
-    price_in_wei: NonzeroGasPrice,
-    price_in_fri: NonzeroGasPrice,
+pub struct CentralResourcePrice {
+    pub price_in_wei: NonzeroGasPrice,
+    pub price_in_fri: NonzeroGasPrice,
 }
 
+#[cfg_attr(any(feature = "testing", test), derive(Deserialize))]
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub(crate) struct CentralBlockInfo {
-    block_number: BlockNumber,
-    block_timestamp: BlockTimestamp,
-    sequencer_address: ContractAddress,
-    l1_gas_price: CentralResourcePrice,
-    l1_data_gas_price: CentralResourcePrice,
-    l2_gas_price: CentralResourcePrice,
-    use_kzg_da: bool,
-    starknet_version: Option<StarknetVersion>,
+pub struct CentralBlockInfo {
+    pub block_number: BlockNumber,
+    pub block_timestamp: BlockTimestamp,
+    pub sequencer_address: ContractAddress,
+    pub l1_gas_price: CentralResourcePrice,
+    pub l1_data_gas_price: CentralResourcePrice,
+    pub l2_gas_price: CentralResourcePrice,
+    pub use_kzg_da: bool,
+    pub starknet_version: Option<StarknetVersion>,
 }
 
 impl From<(BlockInfo, StarknetVersion)> for CentralBlockInfo {
@@ -107,14 +111,15 @@ impl From<(BlockInfo, StarknetVersion)> for CentralBlockInfo {
     }
 }
 
+#[cfg_attr(any(feature = "testing", test), derive(Deserialize))]
 #[derive(Debug, PartialEq, Serialize)]
-pub(crate) struct CentralStateDiff {
-    address_to_class_hash: IndexMap<ContractAddress, ClassHash>,
-    nonces: IndexMap<DataAvailabilityMode, IndexMap<ContractAddress, Nonce>>,
-    storage_updates:
+pub struct CentralStateDiff {
+    pub address_to_class_hash: IndexMap<ContractAddress, ClassHash>,
+    pub nonces: IndexMap<DataAvailabilityMode, IndexMap<ContractAddress, Nonce>>,
+    pub storage_updates:
         IndexMap<DataAvailabilityMode, IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>>,
-    class_hash_to_compiled_class_hash: IndexMap<ClassHash, CompiledClassHash>,
-    block_info: CentralBlockInfo,
+    pub class_hash_to_compiled_class_hash: IndexMap<ClassHash, CompiledClassHash>,
+    pub block_info: CentralBlockInfo,
 }
 
 // We convert to CentralStateDiff from ThinStateDiff since this object is already sent to consensus
@@ -152,8 +157,9 @@ impl From<(CommitmentStateDiff, CentralBlockInfo)> for CentralStateDiff {
     }
 }
 
+#[cfg_attr(any(feature = "testing", test), derive(Deserialize))]
 #[derive(Debug, PartialEq, Serialize)]
-struct CentralResourceBounds {
+pub struct CentralResourceBounds {
     #[serde(rename = "L1_GAS")]
     l1_gas: ResourceBounds,
     #[serde(rename = "L2_GAS")]
@@ -172,21 +178,22 @@ impl From<AllResourceBounds> for CentralResourceBounds {
     }
 }
 
+#[cfg_attr(any(feature = "testing", test), derive(Deserialize))]
 #[derive(Debug, PartialEq, Serialize)]
-struct CentralInvokeTransactionV3 {
-    resource_bounds: CentralResourceBounds,
-    tip: Tip,
-    signature: TransactionSignature,
-    nonce: Nonce,
-    sender_address: ContractAddress,
-    calldata: Calldata,
-    nonce_data_availability_mode: u32,
-    fee_data_availability_mode: u32,
-    paymaster_data: PaymasterData,
-    account_deployment_data: AccountDeploymentData,
+pub struct CentralInvokeTransactionV3 {
+    pub resource_bounds: CentralResourceBounds,
+    pub tip: Tip,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub sender_address: ContractAddress,
+    pub calldata: Calldata,
+    pub nonce_data_availability_mode: u32,
+    pub fee_data_availability_mode: u32,
+    pub paymaster_data: PaymasterData,
+    pub account_deployment_data: AccountDeploymentData,
     #[serde(default, skip_serializing_if = "ProofFacts::is_empty")]
-    proof_facts: ProofFacts,
-    hash_value: TransactionHash,
+    pub proof_facts: ProofFacts,
+    pub hash_value: TransactionHash,
 }
 
 impl From<(InternalRpcInvokeTransactionV3, TransactionHash)> for CentralInvokeTransactionV3 {
@@ -210,27 +217,29 @@ impl From<(InternalRpcInvokeTransactionV3, TransactionHash)> for CentralInvokeTr
     }
 }
 
+#[cfg_attr(any(feature = "testing", test), derive(Deserialize))]
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "version")]
-enum CentralInvokeTransaction {
+pub enum CentralInvokeTransaction {
     #[serde(rename = "0x3")]
     V3(CentralInvokeTransactionV3),
 }
 
+#[cfg_attr(any(feature = "testing", test), derive(Deserialize))]
 #[derive(Debug, PartialEq, Serialize)]
-struct CentralDeployAccountTransactionV3 {
-    resource_bounds: CentralResourceBounds,
-    tip: Tip,
-    signature: TransactionSignature,
-    nonce: Nonce,
-    class_hash: ClassHash,
-    contract_address_salt: ContractAddressSalt,
-    sender_address: ContractAddress,
-    constructor_calldata: Calldata,
-    nonce_data_availability_mode: u32,
-    fee_data_availability_mode: u32,
-    paymaster_data: PaymasterData,
-    hash_value: TransactionHash,
+pub struct CentralDeployAccountTransactionV3 {
+    pub resource_bounds: CentralResourceBounds,
+    pub tip: Tip,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub class_hash: ClassHash,
+    pub contract_address_salt: ContractAddressSalt,
+    pub sender_address: ContractAddress,
+    pub constructor_calldata: Calldata,
+    pub nonce_data_availability_mode: u32,
+    pub fee_data_availability_mode: u32,
+    pub paymaster_data: PaymasterData,
+    pub hash_value: TransactionHash,
 }
 
 impl From<(InternalRpcDeployAccountTransaction, TransactionHash)>
@@ -259,9 +268,10 @@ impl From<(InternalRpcDeployAccountTransaction, TransactionHash)>
     }
 }
 
+#[cfg_attr(any(feature = "testing", test), derive(Deserialize))]
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "version")]
-enum CentralDeployAccountTransaction {
+pub enum CentralDeployAccountTransaction {
     #[serde(rename = "0x3")]
     V3(CentralDeployAccountTransactionV3),
 }
@@ -270,23 +280,24 @@ fn into_string_tuple(val: SierraVersion) -> (String, String, String) {
     (format!("0x{:x}", val.major), format!("0x{:x}", val.minor), format!("0x{:x}", val.patch))
 }
 
+#[cfg_attr(any(feature = "testing", test), derive(Deserialize))]
 #[derive(Debug, PartialEq, Serialize)]
-struct CentralDeclareTransactionV3 {
-    resource_bounds: CentralResourceBounds,
-    tip: Tip,
-    signature: TransactionSignature,
-    nonce: Nonce,
-    class_hash: ClassHash,
-    compiled_class_hash: CompiledClassHash,
-    sender_address: ContractAddress,
-    nonce_data_availability_mode: u32,
-    fee_data_availability_mode: u32,
-    paymaster_data: PaymasterData,
-    account_deployment_data: AccountDeploymentData,
-    sierra_program_size: usize,
-    abi_size: usize,
-    sierra_version: (String, String, String),
-    hash_value: TransactionHash,
+pub struct CentralDeclareTransactionV3 {
+    pub resource_bounds: CentralResourceBounds,
+    pub tip: Tip,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub class_hash: ClassHash,
+    pub compiled_class_hash: CompiledClassHash,
+    pub sender_address: ContractAddress,
+    pub nonce_data_availability_mode: u32,
+    pub fee_data_availability_mode: u32,
+    pub paymaster_data: PaymasterData,
+    pub account_deployment_data: AccountDeploymentData,
+    pub sierra_program_size: usize,
+    pub abi_size: usize,
+    pub sierra_version: (String, String, String),
+    pub hash_value: TransactionHash,
 }
 
 impl TryFrom<(InternalRpcDeclareTransactionV3, &SierraContractClass, TransactionHash)>
@@ -323,21 +334,23 @@ impl TryFrom<(InternalRpcDeclareTransactionV3, &SierraContractClass, Transaction
     }
 }
 
+#[cfg_attr(any(feature = "testing", test), derive(Deserialize))]
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "version")]
-enum CentralDeclareTransaction {
+pub enum CentralDeclareTransaction {
     #[serde(rename = "0x3")]
     V3(CentralDeclareTransactionV3),
 }
 
+#[cfg_attr(any(feature = "testing", test), derive(Deserialize))]
 #[derive(Debug, PartialEq, Serialize)]
-struct CentralL1HandlerTransaction {
-    contract_address: ContractAddress,
-    entry_point_selector: EntryPointSelector,
-    calldata: Calldata,
-    nonce: Nonce,
-    paid_fee_on_l1: Fee,
-    hash_value: TransactionHash,
+pub struct CentralL1HandlerTransaction {
+    pub contract_address: ContractAddress,
+    pub entry_point_selector: EntryPointSelector,
+    pub calldata: Calldata,
+    pub nonce: Nonce,
+    pub paid_fee_on_l1: Fee,
+    pub hash_value: TransactionHash,
 }
 
 impl From<L1HandlerTransaction> for CentralL1HandlerTransaction {
@@ -353,9 +366,10 @@ impl From<L1HandlerTransaction> for CentralL1HandlerTransaction {
     }
 }
 
+#[cfg_attr(any(feature = "testing", test), derive(Deserialize))]
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "type")]
-enum CentralTransaction {
+pub enum CentralTransaction {
     #[serde(rename = "INVOKE_FUNCTION")]
     Invoke(CentralInvokeTransaction),
     #[serde(rename = "DEPLOY_ACCOUNT")]
@@ -401,11 +415,12 @@ impl TryFrom<(InternalConsensusTransaction, Option<&SierraContractClass>)> for C
     }
 }
 
+#[cfg_attr(any(feature = "testing", test), derive(Deserialize))]
 #[derive(Debug, PartialEq, Serialize)]
-pub(crate) struct CentralTransactionWritten {
-    tx: CentralTransaction,
+pub struct CentralTransactionWritten {
+    pub tx: CentralTransaction,
     // The timestamp is required for monitoring data, we use the block timestamp for this.
-    time_created: u64,
+    pub time_created: u64,
 }
 
 // This function gets SierraContractClass only for declare_tx, otherwise use None.
@@ -423,14 +438,16 @@ impl TryFrom<(InternalConsensusTransaction, Option<&SierraContractClass>, u64)>
         })
     }
 }
+#[cfg_attr(any(feature = "testing", test), derive(Deserialize))]
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub(crate) struct CentralSierraContractClass {
-    contract_class: SierraContractClass,
+pub struct CentralSierraContractClass {
+    pub contract_class: SierraContractClass,
 }
 
+#[cfg_attr(any(feature = "testing", test), derive(Deserialize))]
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub(crate) struct CentralCasmContractClass {
-    compiled_class: CasmContractClass,
+pub struct CentralCasmContractClass {
+    pub compiled_class: CasmContractClass,
 }
 
 impl From<CasmContractClass> for CentralCasmContractClass {

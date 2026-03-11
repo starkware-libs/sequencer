@@ -23,6 +23,7 @@ mod test;
 const MIN_GAS_PRICE_INCREASE_DENOMINATOR: u128 = 333;
 
 /// Fee market information for the next block.
+#[cfg_attr(any(feature = "testing", test), derive(serde::Deserialize))]
 #[derive(Debug, Default, Serialize)]
 pub struct FeeMarketInfo {
     /// Total gas consumed in the current block.

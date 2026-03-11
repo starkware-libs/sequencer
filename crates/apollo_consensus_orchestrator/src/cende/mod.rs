@@ -2,6 +2,31 @@
 mod cende_test;
 mod central_objects;
 
+pub use central_objects::{
+    CentralBlockInfo,
+    CentralBouncerWeights,
+    CentralCasmContractClass,
+    CentralCasmContractClassEntry,
+    CentralCasmHashComputationData,
+    CentralCompiledClassHashesForMigration,
+    CentralCompressedStateDiff,
+    CentralDeployAccountTransaction,
+    CentralDeployAccountTransactionV3,
+    CentralDeclareTransaction,
+    CentralDeclareTransactionV3,
+    CentralFeeMarketInfo,
+    CentralInvokeTransaction,
+    CentralInvokeTransactionV3,
+    CentralL1HandlerTransaction,
+    CentralResourceBounds,
+    CentralResourcePrice,
+    CentralSierraContractClass,
+    CentralSierraContractClassEntry,
+    CentralStateDiff,
+    CentralTransaction,
+    CentralTransactionWritten,
+};
+
 use std::sync::Arc;
 
 use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
@@ -14,19 +39,7 @@ use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigratio
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
-use central_objects::{
-    process_transactions,
-    CentralBlockInfo,
-    CentralBouncerWeights,
-    CentralCasmContractClassEntry,
-    CentralCasmHashComputationData,
-    CentralCompiledClassHashesForMigration,
-    CentralCompressedStateDiff,
-    CentralFeeMarketInfo,
-    CentralSierraContractClassEntry,
-    CentralStateDiff,
-    CentralTransactionWritten,
-};
+use central_objects::process_transactions;
 #[cfg(test)]
 use mockall::automock;
 use reqwest::Response;
@@ -70,25 +83,27 @@ pub(crate) const N_BLOCK_HASHES_BACK_IN_BLOB: u64 = STORED_BLOCK_HASH_BUFFER;
 pub type CendeAmbassadorResult<T> = Result<T, CendeAmbassadorError>;
 
 /// A chunk of all the data to write to Aersopike.
+#[cfg_attr(any(feature = "testing", test), derive(serde::Deserialize))]
 #[derive(Debug, Serialize)]
-pub(crate) struct AerospikeBlob {
-    block_number: BlockNumber,
-    state_diff: CentralStateDiff,
+pub struct AerospikeBlob {
+    pub block_number: BlockNumber,
+    pub state_diff: CentralStateDiff,
     // The batcher may return a `None` compressed state diff if it is disabled in the
     // configuration.
-    compressed_state_diff: Option<CentralCompressedStateDiff>,
-    bouncer_weights: CentralBouncerWeights,
-    fee_market_info: CentralFeeMarketInfo,
-    transactions: Vec<CentralTransactionWritten>,
-    execution_infos: Vec<CentralTransactionExecutionInfo>,
-    contract_classes: Vec<CentralSierraContractClassEntry>,
-    compiled_classes: Vec<CentralCasmContractClassEntry>,
-    casm_hash_computation_data_sierra_gas: CentralCasmHashComputationData,
-    casm_hash_computation_data_proving_gas: CentralCasmHashComputationData,
-    compiled_class_hashes_for_migration: CentralCompiledClassHashesForMigration,
-    proposal_commitment: ProposalCommitment,
-    parent_proposal_commitment: Option<ProposalCommitment>,
-    recent_block_hashes: Vec<BlockHashAndNumber>,
+    pub compressed_state_diff: Option<CentralCompressedStateDiff>,
+    pub bouncer_weights: CentralBouncerWeights,
+    pub fee_market_info: CentralFeeMarketInfo,
+    pub transactions: Vec<CentralTransactionWritten>,
+    #[cfg_attr(any(feature = "testing", test), serde(skip_deserializing, default))]
+    pub execution_infos: Vec<CentralTransactionExecutionInfo>,
+    pub contract_classes: Vec<CentralSierraContractClassEntry>,
+    pub compiled_classes: Vec<CentralCasmContractClassEntry>,
+    pub casm_hash_computation_data_sierra_gas: CentralCasmHashComputationData,
+    pub casm_hash_computation_data_proving_gas: CentralCasmHashComputationData,
+    pub compiled_class_hashes_for_migration: CentralCompiledClassHashesForMigration,
+    pub proposal_commitment: ProposalCommitment,
+    pub parent_proposal_commitment: Option<ProposalCommitment>,
+    pub recent_block_hashes: Vec<BlockHashAndNumber>,
 }
 
 #[cfg_attr(test, automock)]
