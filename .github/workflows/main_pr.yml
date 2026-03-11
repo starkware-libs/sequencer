@@ -48,7 +48,7 @@ jobs:
     steps:
       - name: Run Merge Gatekeeper on pull request
         if: github.event_name == 'pull_request'
-        uses: upsidr/merge-gatekeeper@v1
+        uses: starkware-libs/merge-gatekeeper@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           timeout: 3600
@@ -57,7 +57,7 @@ jobs:
 
       - name: Run Merge Gatekeeper on Merge Queue || push
         if: github.event_name == 'merge_group' || github.event_name == 'push'
-        uses: upsidr/merge-gatekeeper@v1
+        uses: starkware-libs/merge-gatekeeper@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{github.ref}}
