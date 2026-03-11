@@ -35,9 +35,14 @@ Notes:
 
 from __future__ import annotations
 
+import json
+import re
 import sys
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
+
+ROUND_RE = re.compile(r"\bround[=: ]\s*(\d+)\b")
 
 
 @dataclass
@@ -83,6 +88,86 @@ class ValidationAnalysisResult:
 
     # Evidence number and message for failed proposals
     validation_evidence_by_round: Dict[int, List[Tuple[int, str]]]
+
+
+def parse_timestamp(entry: Dict[str, Any]) -> Optional[datetime]:
+    timestamp_str = (
+        entry.get("timestamp")
+        or (entry.get("jsonPayload") or {}).get("timestamp")
+        or entry.get("receiveTimestamp")
+    )
+    if timestamp_str is None:
+        return None
+    return datetime.fromisoformat(timestamp_str.replace("Z", "+00:00")).astimezone(timezone.utc)
+
+
+def short_id(full_hex: Optional[str]) -> str:
+    if full_hex is None or not isinstance(full_hex, str) or not full_hex.startswith("0x"):
+        return full_hex or ""
+    hex_digits = full_hex[2:].lstrip("0") or "0"
+    if len(hex_digits) > 4:
+        hex_digits = hex_digits[-4:]
+    return "0x" + hex_digits.lower()
+
+
+def fmt_timestamp(dt: Optional[datetime]) -> str:
+    if dt is None:
+        return ""
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+
+def fmt_duration_seconds(dt_end: Optional[datetime], dt_start: Optional[datetime]) -> str:
+    if dt_end is None or dt_start is None:
+        return ""
+    sec = (dt_end - dt_start).total_seconds()
+    return f"{sec:.3f}"
+
+
+def get_namespace(entry: Dict[str, Any]) -> Optional[str]:
+    return ((entry.get("resource") or {}).get("labels") or {}).get("namespace_name")
+
+
+def get_validator_id(entry: Dict[str, Any]) -> Optional[str]:
+    jp = entry.get("jsonPayload") or {}
+    for sp in jp.get("spans") or []:
+        if sp.get("name") == "run_consensus" and "validator_id" in sp:
+            return sp["validator_id"]
+    msg = jp.get("message") or ""
+    match = re.search(r"PatriciaKey\((0x[0-9a-fA-F]+)\)", msg)
+    return match.group(1) if match is not None else None
+
+
+def height_match(entry: Dict[str, Any], height_str: str) -> bool:
+    jp = entry.get("jsonPayload") or {}
+
+    for sp in jp.get("spans") or []:
+        if sp.get("name") == "run_height" and "height" in sp:
+            return str(sp["height"]) == height_str
+
+    blob = json.dumps(jp, ensure_ascii=False)
+    if f"BlockNumber({height_str})" in blob:
+        return True
+    if f'"height": "{height_str}"' in blob:
+        return True
+
+    # Use word boundary regex to match height as complete number, not part of another number
+    pattern = rf"\b{re.escape(height_str)}\b"
+    return bool(re.search(pattern, jp.get("message") or ""))
+
+
+def get_round(entry: Dict[str, Any]) -> Optional[int]:
+    jp = entry.get("jsonPayload") or {}
+    for sp in jp.get("spans") or []:
+        if "round" in sp:
+            try:
+                return int(sp["round"])
+            except Exception:
+                pass
+    msg = jp.get("message") or ""
+    match = ROUND_RE.search(msg)
+    if match is not None:
+        return int(match.group(1))
+    return None
 
 
 def main() -> int:
