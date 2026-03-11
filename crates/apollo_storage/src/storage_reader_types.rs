@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
@@ -24,6 +25,7 @@ use crate::consensus::{ConsensusStorageReader, LastVotedMarker};
 use crate::global_root_marker::GlobalRootMarkerStorageReader;
 use crate::header::{HeaderStorageReader, StorageBlockHeader};
 use crate::mmap_file::LocationInFile;
+use crate::partial_block_hash::PartialBlockHashComponentsStorageReader;
 use crate::state::StateStorageReader;
 use crate::storage_reader_server::{StorageReaderServer, StorageReaderServerHandler};
 use crate::version::{Version, VersionStorageReader};
@@ -86,6 +88,8 @@ pub enum StorageReaderRequest {
     BlockHashToNumber(BlockHash),
     /// Block signature by block number.
     BlockSignatures(BlockNumber),
+    /// Partial block hash components by block number.
+    PartialBlockHashComponents(BlockNumber),
 
     // ============ Transaction-Related Requests ============
     /// Transaction metadata by transaction index.
@@ -156,6 +160,8 @@ pub enum StorageReaderResponse {
     BlockHashToNumber(BlockNumber),
     /// A block signature.
     BlockSignatures(BlockSignature),
+    /// Partial block hash components.
+    PartialBlockHashComponents(PartialBlockHashComponents),
 
     // ============ Transaction-Related Responses ============
     /// Transaction metadata.
@@ -360,6 +366,15 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                         resource_id: format!("block: {}", block_number),
                     })?;
                 Ok(StorageReaderResponse::BlockSignatures(block_signature))
+            }
+            StorageReaderRequest::PartialBlockHashComponents(block_number) => {
+                let partial_block_hash_components = txn
+                    .get_partial_block_hash_components(&block_number)?
+                    .ok_or(StorageError::NotFound {
+                        resource_type: "Partial block hash components".to_string(),
+                        resource_id: format!("block: {}", block_number),
+                    })?;
+                Ok(StorageReaderResponse::PartialBlockHashComponents(partial_block_hash_components))
             }
 
             // ============ Transaction-Related Requests ============
