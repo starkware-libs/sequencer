@@ -7,7 +7,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, GlobalRoot, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
@@ -22,6 +22,7 @@ use crate::class_hash::ClassHashStorageReader;
 use crate::class_manager::ClassManagerStorageReader;
 use crate::compiled_class::CasmStorageReader;
 use crate::consensus::{ConsensusStorageReader, LastVotedMarker};
+use crate::global_root::GlobalRootStorageReader;
 use crate::global_root_marker::GlobalRootMarkerStorageReader;
 use crate::header::{HeaderStorageReader, StorageBlockHeader};
 use crate::mmap_file::LocationInFile;
@@ -90,6 +91,8 @@ pub enum StorageReaderRequest {
     BlockSignatures(BlockNumber),
     /// Partial block hash components by block number.
     PartialBlockHashComponents(BlockNumber),
+    /// Global root by block number.
+    GlobalRoot(BlockNumber),
 
     // ============ Transaction-Related Requests ============
     /// Transaction metadata by transaction index.
@@ -162,6 +165,8 @@ pub enum StorageReaderResponse {
     BlockSignatures(BlockSignature),
     /// Partial block hash components.
     PartialBlockHashComponents(PartialBlockHashComponents),
+    /// A global root.
+    GlobalRoot(GlobalRoot),
 
     // ============ Transaction-Related Responses ============
     /// Transaction metadata.
@@ -375,6 +380,14 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                         resource_id: format!("block: {}", block_number),
                     })?;
                 Ok(StorageReaderResponse::PartialBlockHashComponents(partial_block_hash_components))
+            }
+            StorageReaderRequest::GlobalRoot(block_number) => {
+                let global_root =
+                    txn.get_global_root(&block_number)?.ok_or(StorageError::NotFound {
+                        resource_type: "Global root".to_string(),
+                        resource_id: format!("block: {}", block_number),
+                    })?;
+                Ok(StorageReaderResponse::GlobalRoot(global_root))
             }
 
             // ============ Transaction-Related Requests ============
