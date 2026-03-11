@@ -441,7 +441,7 @@ fn expected_fee_transfer_call_info(
     };
     let expected_gas_consumed = match cairo_version {
         CairoVersion::Cairo0 => 0_u64,
-        CairoVersion::Cairo1(_) => 158310_u64,
+        CairoVersion::Cairo1(_) => 330470_u64,
     };
     let expected_resources = match cairo_version {
         CairoVersion::Cairo0 => Prices::FeeTransfer(account_address, *fee_type).into(),
@@ -2834,7 +2834,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
 
     // Regression-test the gas consumed, and then set to zero to compare the rest of the resources.
     let expected_gas = expect![[r#"
-        15550
+        50520
     "#]];
     expected_gas.assert_debug_eq(&actual_execution_info.receipt.resources.computation.sierra_gas.0);
     actual_execution_info.receipt.resources.computation.sierra_gas.0 = 0;
@@ -2850,7 +2850,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     160,
                 ),
                 l2_gas: GasAmount(
-                    200575,
+                    235545,
                 ),
             }
         "#]]
@@ -2864,7 +2864,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     0,
                 ),
                 l2_gas: GasAmount(
-                    149675,
+                    184645,
                 ),
             }
         "#]]
