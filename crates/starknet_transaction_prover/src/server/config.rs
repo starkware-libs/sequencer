@@ -4,6 +4,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::bouncer::BouncerConfig;
 use clap::Parser;
 use serde::{Deserialize, Serialize};
@@ -12,6 +13,9 @@ use tracing::info;
 
 use crate::config::ProverConfig;
 use crate::errors::ConfigError;
+use crate::running::runner::RunnerConfig;
+use crate::running::storage_proofs::StorageProofConfig;
+use crate::running::virtual_block_executor::RpcVirtualBlockExecutorConfig;
 use crate::server::cors::normalize_cors_allow_origins;
 
 #[cfg(test)]
@@ -22,6 +26,7 @@ const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 const DEFAULT_PORT: u16 = 3000;
 const DEFAULT_MAX_CONCURRENT_REQUESTS: usize = 2;
 const DEFAULT_MAX_CONNECTIONS: u32 = 10;
+const DEFAULT_COMPILED_CLASS_CACHE_SIZE: usize = 600;
 
 /// Transport mode for the JSON-RPC server.
 #[derive(Clone, Debug)]
@@ -54,13 +59,17 @@ impl TransportMode {
     }
 }
 
-/// Raw configuration as deserialized from JSON. TLS fields are optional and validated after CLI
-/// overrides are applied.
+/// Raw configuration as deserialized from JSON. Flat structure that maps to user-facing config.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 struct RawServiceConfig {
-    #[serde(flatten)]
-    prover_config: ProverConfig,
+    rpc_node_url: String,
+    chain_id: ChainId,
+    validate_zero_fee_fields: bool,
+    strk_fee_token_address: Option<ContractAddress>,
+    compiled_class_cache_size: usize,
+    prefetch_state: bool,
+    use_latest_versioned_constants: bool,
     ip: IpAddr,
     port: u16,
     max_concurrent_requests: usize,
@@ -73,7 +82,13 @@ struct RawServiceConfig {
 impl Default for RawServiceConfig {
     fn default() -> Self {
         Self {
-            prover_config: ProverConfig::default(),
+            rpc_node_url: String::new(),
+            chain_id: ChainId::Mainnet,
+            validate_zero_fee_fields: true,
+            strk_fee_token_address: None,
+            compiled_class_cache_size: DEFAULT_COMPILED_CLASS_CACHE_SIZE,
+            prefetch_state: false,
+            use_latest_versioned_constants: true,
             ip: DEFAULT_IP,
             port: DEFAULT_PORT,
             max_concurrent_requests: DEFAULT_MAX_CONCURRENT_REQUESTS,
@@ -130,22 +145,16 @@ impl ServiceConfig {
 
         // Override with CLI arguments if provided.
         if let Some(rpc_url) = args.rpc_url {
-            if rpc_url != config.prover_config.rpc_node_url {
-                info!(
-                    "CLI override: rpc_node_url: {} -> {}",
-                    config.prover_config.rpc_node_url, rpc_url
-                );
-                config.prover_config.rpc_node_url = rpc_url;
+            if rpc_url != config.rpc_node_url {
+                info!("CLI override: rpc_node_url: {} -> {}", config.rpc_node_url, rpc_url);
+                config.rpc_node_url = rpc_url;
             }
         }
         if let Some(chain_id) = args.chain_id {
             let new_chain_id = ChainId::from(chain_id.clone());
-            if new_chain_id != config.prover_config.chain_id {
-                info!(
-                    "CLI override: chain_id: {} -> {}",
-                    config.prover_config.chain_id, new_chain_id
-                );
-                config.prover_config.chain_id = new_chain_id;
+            if new_chain_id != config.chain_id {
+                info!("CLI override: chain_id: {} -> {}", config.chain_id, new_chain_id);
+                config.chain_id = new_chain_id;
             }
         }
         if let Some(port) = args.port {
@@ -197,9 +206,9 @@ impl ServiceConfig {
             }
         }
 
-        if args.skip_fee_field_validation && config.prover_config.validate_zero_fee_fields {
+        if args.skip_fee_field_validation && config.validate_zero_fee_fields {
             info!("CLI override: validate_zero_fee_fields: true -> false");
-            config.prover_config.validate_zero_fee_fields = false;
+            config.validate_zero_fee_fields = false;
         }
 
         if args.no_cors && !args.cors_allow_origin.is_empty() {
@@ -230,78 +239,47 @@ impl ServiceConfig {
             let strk_fee_token_address = ContractAddress::from_str(&hex_str).map_err(|e| {
                 ConfigError::InvalidArgument(format!("Invalid strk_fee_token_address: {e}"))
             })?;
-            if Some(strk_fee_token_address) != config.prover_config.strk_fee_token_address {
+            if Some(strk_fee_token_address) != config.strk_fee_token_address {
                 info!(
                     "CLI override: strk_fee_token_address: {:?} -> {:?}",
-                    config.prover_config.strk_fee_token_address, strk_fee_token_address
+                    config.strk_fee_token_address, strk_fee_token_address
                 );
-                config.prover_config.strk_fee_token_address = Some(strk_fee_token_address);
+                config.strk_fee_token_address = Some(strk_fee_token_address);
             }
         }
 
         if let Some(prefetch_state) = args.prefetch_state {
-            if prefetch_state
-                != config.prover_config.runner_config.virtual_block_executor_config.prefetch_state
-            {
+            if prefetch_state != config.prefetch_state {
                 info!(
                     "CLI override: prefetch_state: {} -> {}",
-                    config.prover_config.runner_config.virtual_block_executor_config.prefetch_state,
-                    prefetch_state
+                    config.prefetch_state, prefetch_state
                 );
-                config.prover_config.runner_config.virtual_block_executor_config.prefetch_state =
-                    prefetch_state;
+                config.prefetch_state = prefetch_state;
             }
         }
 
         if let Some(use_latest) = args.use_latest_versioned_constants {
-            if use_latest
-                != config
-                    .prover_config
-                    .runner_config
-                    .virtual_block_executor_config
-                    .use_latest_versioned_constants
-            {
+            if use_latest != config.use_latest_versioned_constants {
                 info!(
                     "CLI override: use_latest_versioned_constants: {} -> {}",
-                    config
-                        .prover_config
-                        .runner_config
-                        .virtual_block_executor_config
-                        .use_latest_versioned_constants,
-                    use_latest
+                    config.use_latest_versioned_constants, use_latest
                 );
-                config
-                    .prover_config
-                    .runner_config
-                    .virtual_block_executor_config
-                    .use_latest_versioned_constants = use_latest;
+                config.use_latest_versioned_constants = use_latest;
             }
         }
 
-        if let Some(bouncer_config_path) = args.bouncer_config_override {
-            let bouncer_config_file_content = std::fs::read_to_string(&bouncer_config_path)
-                .map_err(|e| {
-                    ConfigError::ConfigFileError(format!(
-                        "Failed to read bouncer config file {}: {}",
-                        bouncer_config_path.display(),
-                        e
-                    ))
-                })?;
-            let bouncer_config: BouncerConfig = serde_json::from_str(&bouncer_config_file_content)
-                .map_err(|e| {
-                    ConfigError::ConfigFileError(format!(
-                        "Failed to parse bouncer config file {}: {}",
-                        bouncer_config_path.display(),
-                        e
-                    ))
-                })?;
-            info!("CLI override: bouncer_config from {}", bouncer_config_path.display());
-            config.prover_config.runner_config.virtual_block_executor_config.bouncer_config =
-                bouncer_config;
+        if let Some(compiled_class_cache_size) = args.compiled_class_cache_size {
+            if compiled_class_cache_size != config.compiled_class_cache_size {
+                info!(
+                    "CLI override: compiled_class_cache_size: {} -> {}",
+                    config.compiled_class_cache_size, compiled_class_cache_size
+                );
+                config.compiled_class_cache_size = compiled_class_cache_size;
+            }
         }
 
         // Validate required fields.
-        if config.prover_config.rpc_node_url.is_empty() {
+        if config.rpc_node_url.is_empty() {
             return Err(ConfigError::MissingRequiredField(
                 "rpc_node_url is required (provide via --rpc-url or config file)".to_string(),
             ));
@@ -322,8 +300,50 @@ impl ServiceConfig {
             info!("CORS allow-origin configured as wildcard '*'.");
         }
 
+        // Load bouncer config from CLI-specified file or fall back to embedded resource.
+        let bouncer_config: BouncerConfig = if let Some(path) = args.bouncer_config_override {
+            let contents = std::fs::read_to_string(&path).map_err(|e| {
+                ConfigError::ConfigFileError(format!(
+                    "Failed to read bouncer config file {}: {}",
+                    path.display(),
+                    e
+                ))
+            })?;
+            info!("Loading bouncer config from {}", path.display());
+            serde_json::from_str(&contents).map_err(|e| {
+                ConfigError::ConfigFileError(format!(
+                    "Failed to parse bouncer config file {}: {}",
+                    path.display(),
+                    e
+                ))
+            })?
+        } else {
+            serde_json::from_str(include_str!("../../resources/bouncer_config.json"))
+                .expect("embedded bouncer_config.json is invalid")
+        };
+
+        // Build nested structs from flat config.
+        let prover_config = ProverConfig {
+            contract_class_manager_config: ContractClassManagerConfig {
+                contract_cache_size: config.compiled_class_cache_size,
+                ..ContractClassManagerConfig::default()
+            },
+            chain_id: config.chain_id,
+            rpc_node_url: config.rpc_node_url,
+            runner_config: RunnerConfig {
+                storage_proof_config: StorageProofConfig::default(),
+                virtual_block_executor_config: RpcVirtualBlockExecutorConfig {
+                    prefetch_state: config.prefetch_state,
+                    bouncer_config,
+                    use_latest_versioned_constants: config.use_latest_versioned_constants,
+                },
+            },
+            strk_fee_token_address: config.strk_fee_token_address,
+            validate_zero_fee_fields: config.validate_zero_fee_fields,
+        };
+
         Ok(ServiceConfig {
-            prover_config: config.prover_config,
+            prover_config,
             ip: config.ip,
             port: config.port,
             max_concurrent_requests: config.max_concurrent_requests,
@@ -384,11 +404,6 @@ pub struct CliArgs {
     #[arg(long, env = "PREFETCH_STATE")]
     pub prefetch_state: Option<bool>,
 
-    /// Path to a JSON file with bouncer config overrides (block capacity limits).
-    /// Client-side limits may differ from Starknet network limits.
-    #[arg(long, value_name = "FILE", env = "BOUNCER_CONFIG_OVERRIDE")]
-    pub bouncer_config_override: Option<PathBuf>,
-
     /// Use the latest versioned constants instead of the ones matching the block's version.
     /// The OS always runs with the latest constants, so this should match (default: true).
     #[arg(long, env = "USE_LATEST_VERSIONED_CONSTANTS")]
@@ -423,4 +438,15 @@ pub struct CliArgs {
             Use --no-cors to explicitly disable CORS when a config file sets origins."
     )]
     pub cors_allow_origin: Vec<String>,
+
+    /// Number of compiled contract classes to cache in memory.
+    #[arg(long, value_name = "N", env = "COMPILED_CLASS_CACHE_SIZE")]
+    pub compiled_class_cache_size: Option<usize>,
+
+    /// Hidden escape hatch: override the embedded bouncer config (block capacity limits) with a
+    /// custom JSON file. Not advertised because the embedded defaults are tuned to match the
+    /// hardcoded Stwo prover for this version. Exposed only for debugging and testing scenarios
+    /// where the limits need temporary adjustment without rebuilding the binary.
+    #[arg(long, value_name = "FILE", env = "BOUNCER_CONFIG_OVERRIDE", hide = true)]
+    pub bouncer_config_override: Option<PathBuf>,
 }

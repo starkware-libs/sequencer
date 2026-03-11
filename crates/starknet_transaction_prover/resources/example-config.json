@@ -7,9 +7,7 @@
   "max_connections": 10,
   "cors_allow_origin": [],
   "validate_zero_fee_fields": true,
-  "runner_config": {
-    "virtual_block_executor_config": {
-      "use_latest_versioned_constants": true
-    }
-  }
+  "prefetch_state": true,
+  "use_latest_versioned_constants": true,
+  "compiled_class_cache_size": 600
 }
