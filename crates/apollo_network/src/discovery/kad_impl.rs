@@ -1,4 +1,4 @@
-use libp2p::{kad, PeerId};
+use libp2p::{kad, Multiaddr, PeerId};
 use tracing::info;
 
 use super::identify_impl::IdentifyToOtherBehaviourEvent;
@@ -7,7 +7,7 @@ use crate::{mixed_behaviour, peer_manager};
 
 #[derive(Debug)]
 pub enum KadToOtherBehaviourEvent {
-    FoundPeers(Vec<PeerId>),
+    FoundPeers(Vec<(PeerId, Vec<Multiaddr>)>),
 }
 
 impl From<kad::Event> for mixed_behaviour::Event {
@@ -17,7 +17,7 @@ impl From<kad::Event> for mixed_behaviour::Event {
                 result: kad::QueryResult::GetClosestPeers(Ok(ok)),
                 ..
             } => {
-                let peers = ok.peers.into_iter().map(|p| p.peer_id).collect();
+                let peers = ok.peers.into_iter().map(|p| (p.peer_id, p.addrs)).collect();
                 mixed_behaviour::Event::ToOtherBehaviourEvent(
                     mixed_behaviour::ToOtherBehaviourEvent::Kad(
                         KadToOtherBehaviourEvent::FoundPeers(peers),

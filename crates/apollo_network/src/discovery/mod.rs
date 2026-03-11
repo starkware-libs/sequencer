@@ -272,7 +272,8 @@ impl BridgedBehaviour for Behaviour {
             kad_impl::KadToOtherBehaviourEvent::FoundPeers(peers),
         ) = event
         {
-            self.kad_requesting.handle_kad_response(peers);
+            let peer_ids: Vec<_> = peers.iter().map(|(peer_id, _)| *peer_id).collect();
+            self.kad_requesting.handle_kad_response(&peer_ids);
         }
     }
 }
