@@ -13,10 +13,7 @@ use rstest::rstest;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Blake2Felt252;
 
-use crate::hints::hint_implementation::state_diff_encryption::utils::{
-    blake2s_to_felt,
-    naive_encode_felts_to_u32s,
-};
+use crate::hints::hint_implementation::state_diff_encryption::utils::calc_blake_hash;
 use crate::test_utils::cairo_runner::{
     initialize_and_run_cairo_0_entry_point,
     EndpointArg,
@@ -115,13 +112,6 @@ fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
     }
 }
 
-/// Compute the Rust-side naive Blake2s hash: encode felts to u32 LE limbs, then Blake2s-256.
-fn rust_naive_blake_hash(data: &[Felt]) -> Felt {
-    let u32_words = naive_encode_felts_to_u32s(data.to_vec());
-    let bytes: Vec<u8> = u32_words.iter().flat_map(|w| w.to_le_bytes()).collect();
-    blake2s_to_felt(&bytes)
-}
-
 /// Test that compares the Cairo0 `calc_naive_blake_hash` with its Rust equivalent.
 #[rstest]
 #[case::single_zero(vec![Felt::ZERO])]
@@ -145,43 +135,27 @@ fn test_calc_naive_blake_hash(#[case] test_data: Vec<Felt>) {
         add_main_prefix_to_entrypoint: false,
     };
 
-    let rust_hash = rust_naive_blake_hash(&test_data);
-
-    let explicit_args = vec![
-        EndpointArg::from(Felt::from(test_data.len())),
-        EndpointArg::Pointer(PointerArg::Array(
-            test_data.iter().map(|felt| MaybeRelocatable::Int(*felt)).collect(),
-        )),
-    ];
-    let implicit_args = vec![ImplicitArg::Builtin(BuiltinName::range_check)];
-    let expected_return_values = vec![EndpointArg::from(Felt::ZERO)];
-
-    let result = initialize_and_run_cairo_0_entry_point(
+    let (_, return_values, _) = initialize_and_run_cairo_0_entry_point(
         &runner_config,
-        apollo_starknet_os_program::VIRTUAL_OS_PROGRAM_BYTES,
+        apollo_starknet_os_program::test_programs::NAIVE_BLAKE_TEST_BYTES,
         "starkware.starknet.core.os.naive_blake.calc_naive_blake_hash",
-        &explicit_args,
-        &implicit_args,
-        &expected_return_values,
+        &[
+            EndpointArg::from(Felt::from(test_data.len())),
+            EndpointArg::Pointer(PointerArg::Array(
+                test_data.iter().map(|felt| MaybeRelocatable::Int(*felt)).collect(),
+            )),
+        ],
+        &[ImplicitArg::Builtin(BuiltinName::range_check)],
+        &[EndpointArg::from(Felt::ZERO)],
         HashMap::new(),
         None,
-    );
+    )
+    .unwrap();
 
-    match result {
-        Ok((_, explicit_return_values, _)) => {
-            assert_eq!(explicit_return_values.len(), 1, "Expected exactly one return value");
-            let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(cairo_hash))) =
-                &explicit_return_values[0]
-            else {
-                panic!("Expected a single felt return value");
-            };
-            assert_eq!(
-                rust_hash, *cairo_hash,
-                "Naive Blake hash mismatch: Rust={rust_hash}, Cairo={cairo_hash}",
-            );
-        }
-        Err(e) => {
-            panic!("Failed to run Cairo calc_naive_blake_hash: {e:?}");
-        }
-    }
+    let [EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(cairo_hash)))] =
+        return_values.as_slice()
+    else {
+        panic!("Expected a single felt return value");
+    };
+    assert_eq!(calc_blake_hash(&test_data), *cairo_hash);
 }

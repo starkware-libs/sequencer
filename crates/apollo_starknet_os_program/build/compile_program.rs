@@ -46,6 +46,12 @@ pub async fn compile_test_contracts(out_dir: PathBuf) {
         "aliases_test",
         None,
     ));
+    task_set.spawn(compile_and_output_program(
+        out_dir.clone(),
+        "starkware/starknet/core/os/naive_blake_test.cairo",
+        "naive_blake_test",
+        None,
+    ));
     task_set.join_all().await;
 }
 

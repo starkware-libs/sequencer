@@ -83,20 +83,22 @@ func calc_blake_hash_single{range_check_ptr: felt}(item: felt) -> (hash: felt) {
 
 // Encodes `n_felts` felt252 values (starting at `data`) into 8 u32 LE limbs each,
 // then hashes the resulting byte stream with Blake2s-256.
-func calc_naive_blake_hash{range_check_ptr: felt}(n_felts: felt, data: felt*) -> (hash: felt) {
+func calc_naive_blake_hash{range_check_ptr: felt}(n_felts: felt, data: felt*) -> felt {
     alloc_locals;
     let (local encoded_data: felt*) = alloc();
-    _encode_felts_loop(n_felts=n_felts, data=data, encoded_data=encoded_data);
+    naive_encode_felt252s_to_u32s(n_felts=n_felts, data=data, encoded_data=encoded_data);
     let (local blake_output: felt*) = alloc();
     blake_with_opcode(len=n_felts * 8, data=encoded_data, out=blake_output);
     let hash = felt_from_le_u32s(u32s=blake_output);
-    return (hash=hash);
+    return hash;
 }
 
-func _encode_felts_loop(n_felts: felt, data: felt*, encoded_data: felt*) {
+func naive_encode_felt252s_to_u32s(n_felts: felt, data: felt*, encoded_data: felt*) {
     if (n_felts == 0) {
         return ();
     }
     naive_encode_felt252_to_u32s(packed_value=[data], unpacked_u32s=encoded_data);
-    return _encode_felts_loop(n_felts=n_felts - 1, data=data + 1, encoded_data=encoded_data + 8);
+    return naive_encode_felt252s_to_u32s(
+        n_felts=n_felts - 1, data=data + 1, encoded_data=encoded_data + 8
+    );
 }

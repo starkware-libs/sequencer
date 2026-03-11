@@ -24,7 +24,7 @@ func output_message_to_l1_hashes{output_ptr: felt*, range_check_ptr}(
 
     // Hash the message (header + payload) with Blake2s (naive felt-to-u32 encoding).
     let message_size = MessageToL1Header.SIZE + message_header.payload_size;
-    let (message_hash) = calc_naive_blake_hash(n_felts=message_size, data=messages_ptr_start);
+    let message_hash = calc_naive_blake_hash(n_felts=message_size, data=messages_ptr_start);
 
     // Store the hash and advance output_ptr.
     assert output_ptr[0] = message_hash;
