@@ -101,7 +101,7 @@ impl DialPeerStream {
     fn emit_dial<T, W>(&mut self) -> ToSwarm<T, W> {
         self.sleeper = None;
         self.state = DialState::Dialing;
-        debug!(?self.peer_id, addresses = ?self.addresses, "Dialling peer");
+        debug!(?self.peer_id, addresses = ?self.addresses, "Dialing peer");
         ToSwarm::Dial {
             opts: DialOpts::peer_id(self.peer_id)
                 .addresses(self.addresses.clone())
