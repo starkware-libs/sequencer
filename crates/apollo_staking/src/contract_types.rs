@@ -28,6 +28,44 @@ pub trait TryFromIterator<Felt>: Sized {
     fn try_from_iter<T: Iterator<Item = Felt>>(iter: &mut T) -> Result<Self, Self::Error>;
 }
 
+// Represents a Cairo1 `Array` containing elements that can be deserialized to `T`.
+// `T` must implement `TryFrom<[Felt; N]>`, where `N` is the size of `T`'s Cairo equivalent.
+#[derive(Debug, PartialEq, Eq)]
+struct CairoArray<T>(Vec<T>);
+
+// Represents a Cairo1 `Option` containing an element that can be deserialized to `T`.
+#[derive(Debug)]
+pub(crate) struct CairoOption<T>(pub(crate) Option<T>);
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub(crate) struct ContractStaker {
+    pub(crate) contract_address: ContractAddress,
+    pub(crate) staking_power: StakingWeight,
+    pub(crate) public_key: Option<Felt>,
+}
+
+#[derive(Debug, Error)]
+pub enum RetdataDeserializationError {
+    #[error("Failed to convert Felt to ContractAddress: {address}")]
+    ContractAddressConversionError { address: Felt },
+    #[error("Failed to convert Felt to u128: {felt}")]
+    U128ConversionError { felt: Felt },
+    #[error("Failed to convert Felt to usize: {felt}")]
+    USizeConversionError { felt: Felt },
+    #[error("Failed to convert Felt to u64: {felt}")]
+    U64ConversionError { felt: Felt },
+    #[error("Invalid object length: {message}.")]
+    InvalidObjectLength { message: String },
+    #[error("Unexpected enum variant: {variant}")]
+    UnexpectedEnumVariant { variant: usize },
+}
+
+fn felt_to_u64(felt: Felt) -> Result<u64, RetdataDeserializationError> {
+    u64::try_from(felt).map_err(|_| RetdataDeserializationError::U64ConversionError { felt })
+}
+
+// --- TryFromIterator implementations ---
+
 impl TryFromIterator<Felt> for Felt {
     type Error = RetdataDeserializationError;
 
@@ -64,40 +102,6 @@ where
     }
 }
 
-// Represents a Cairo1 `Array` containing elements that can be deserialized to `T`.
-// `T` must implement `TryFrom<[Felt; N]>`, where `N` is the size of `T`'s Cairo equivalent.
-#[derive(Debug, PartialEq, Eq)]
-struct CairoArray<T>(Vec<T>);
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub(crate) struct ContractStaker {
-    pub(crate) contract_address: ContractAddress,
-    pub(crate) staking_power: StakingWeight,
-    pub(crate) public_key: Option<Felt>,
-}
-
-#[derive(Debug, Error)]
-pub enum RetdataDeserializationError {
-    #[error("Failed to convert Felt to ContractAddress: {address}")]
-    ContractAddressConversionError { address: Felt },
-    #[error("Failed to convert Felt to u128: {felt}")]
-    U128ConversionError { felt: Felt },
-    #[error("Failed to convert Felt to usize: {felt}")]
-    USizeConversionError { felt: Felt },
-    #[error("Failed to convert Felt to u64: {felt}")]
-    U64ConversionError { felt: Felt },
-    #[error("Invalid object length: {message}.")]
-    InvalidObjectLength { message: String },
-    #[error("Unexpected enum variant: {variant}")]
-    UnexpectedEnumVariant { variant: usize },
-}
-
-impl ContractStaker {
-    pub fn from_retdata_many(retdata: Retdata) -> Result<Vec<Self>, RetdataDeserializationError> {
-        Ok(CairoArray::try_from(retdata)?.0)
-    }
-}
-
 impl TryFromIterator<Felt> for ContractStaker {
     type Error = RetdataDeserializationError;
 
@@ -127,6 +131,31 @@ impl TryFromIterator<Felt> for ContractStaker {
         let public_key = Option::<Felt>::try_from_iter(iter)?;
 
         Ok(Self { contract_address, staking_power, public_key })
+    }
+}
+
+impl TryFromIterator<Felt> for Epoch {
+    type Error = RetdataDeserializationError;
+
+    // Parses a single `Epoch` from a stream of Felts.
+    //
+    // The iterator is expected to yield the following values, in order:
+    // 1. Epoch ID (1 Felt)
+    // 2. Start Block (1 Felt)
+    // 3. Epoch Length (1 Felt)
+    fn try_from_iter<T: Iterator<Item = Felt>>(iter: &mut T) -> Result<Self, Self::Error> {
+        let epoch_id = felt_to_u64(Felt::try_from_iter(iter)?)?;
+        let start_block = BlockNumber(felt_to_u64(Felt::try_from_iter(iter)?)?);
+        let epoch_length = felt_to_u64(Felt::try_from_iter(iter)?)?;
+        Ok(Epoch { epoch_id, start_block, epoch_length })
+    }
+}
+
+// --- TryFrom<Retdata> implementations ---
+
+impl ContractStaker {
+    pub fn from_retdata_many(retdata: Retdata) -> Result<Vec<Self>, RetdataDeserializationError> {
+        Ok(CairoArray::try_from(retdata)?.0)
     }
 }
 
@@ -162,23 +191,6 @@ where
     }
 }
 
-impl TryFromIterator<Felt> for Epoch {
-    type Error = RetdataDeserializationError;
-
-    // Parses a single `Epoch` from a stream of Felts.
-    //
-    // The iterator is expected to yield the following values, in order:
-    // 1. Epoch ID (1 Felt)
-    // 2. Start Block (1 Felt)
-    // 3. Epoch Length (1 Felt)
-    fn try_from_iter<T: Iterator<Item = Felt>>(iter: &mut T) -> Result<Self, Self::Error> {
-        let epoch_id = felt_to_u64(Felt::try_from_iter(iter)?)?;
-        let start_block = BlockNumber(felt_to_u64(Felt::try_from_iter(iter)?)?);
-        let epoch_length = felt_to_u64(Felt::try_from_iter(iter)?)?;
-        Ok(Epoch { epoch_id, start_block, epoch_length })
-    }
-}
-
 impl TryFrom<Retdata> for Epoch {
     type Error = RetdataDeserializationError;
 
@@ -193,10 +205,6 @@ impl TryFrom<Retdata> for Epoch {
         Ok(epoch)
     }
 }
-
-// Represents a Cairo1 `Option` containing an element that can be deserialized to `T`.
-#[derive(Debug)]
-pub(crate) struct CairoOption<T>(pub(crate) Option<T>);
 
 impl<T> TryFrom<Retdata> for CairoOption<T>
 where
@@ -228,10 +236,6 @@ impl From<&ContractStaker> for Staker {
             public_key: contract_staker.public_key.expect("public key is required."),
         }
     }
-}
-
-fn felt_to_u64(felt: Felt) -> Result<u64, RetdataDeserializationError> {
-    u64::try_from(felt).map_err(|_| RetdataDeserializationError::U64ConversionError { felt })
 }
 
 #[cfg(test)]
