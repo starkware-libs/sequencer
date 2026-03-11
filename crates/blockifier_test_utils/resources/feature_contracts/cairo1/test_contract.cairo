@@ -3,7 +3,7 @@ mod TestContract {
     use array::ArrayTrait;
     use box::BoxTrait;
     use clone::Clone;
-    use core::blake::blake2s_finalize;
+    use core::blake::{blake2s_compress, blake2s_finalize};
     use core::bytes_31::POW_2_128;
     use core::circuit::{
         AddInputResultTrait, CircuitElement, CircuitInput, CircuitInputs, CircuitModulus,
@@ -1428,5 +1428,135 @@ mod TestContract {
         } else {
             panic!("Unexpected syscall selector");
         }
+    }
+
+    // Verifies that a Blake2s message hash from virtual OS proof facts matches
+    // an independently computed Blake2s hash of the supplied message data.
+    #[external(v0)]
+    fn test_verify_virtual_os_message_hash(
+        self: @ContractState, message_data: Span<felt252>,
+    ) {
+        let execution_info = starknet::syscalls::get_execution_info_v3_syscall()
+            .unwrap_syscall()
+            .unbox();
+        let tx_info = execution_info.tx_info.unbox();
+        let proof_facts: Span<felt252> = tx_info.proof_facts;
+
+        // Proof facts layout: [ProofHeader(3 felts), VirtualOsOutputHeader(5 felts), hashes...]
+        let proof_header_size: usize = 3;
+        let virtual_os_header_size: usize = 5;
+        let message_hash_from_proof = *proof_facts[proof_header_size + virtual_os_header_size];
+
+        let computed_hash = naive_blake_hash(message_data);
+        assert(computed_hash == message_hash_from_proof, 'BLAKE_HASH_MISMATCH');
+    }
+
+    fn encode_felt_to_u32_le(ref words: Array<u32>, value: felt252) {
+        let v: u256 = value.into();
+        let low: u128 = v.low;
+        let high: u128 = v.high;
+        let mask: u128 = 0xFFFFFFFF;
+        let shift32: u128 = 0x100000000;
+        let shift64: u128 = 0x10000000000000000;
+        let shift96: u128 = 0x1000000000000000000000000;
+        words.append((low & mask).try_into().unwrap());
+        words.append(((low / shift32) & mask).try_into().unwrap());
+        words.append(((low / shift64) & mask).try_into().unwrap());
+        words.append((low / shift96).try_into().unwrap());
+        words.append((high & mask).try_into().unwrap());
+        words.append(((high / shift32) & mask).try_into().unwrap());
+        words.append(((high / shift64) & mask).try_into().unwrap());
+        words.append((high / shift96).try_into().unwrap());
+    }
+
+    fn get_u32_word(span: Span<u32>, idx: usize) -> u32 {
+        if idx < span.len() {
+            *span[idx]
+        } else {
+            0_u32
+        }
+    }
+
+    fn read_blake_block(span: Span<u32>, offset: usize) -> [u32; 16] {
+        [
+            get_u32_word(span, offset),
+            get_u32_word(span, offset + 1),
+            get_u32_word(span, offset + 2),
+            get_u32_word(span, offset + 3),
+            get_u32_word(span, offset + 4),
+            get_u32_word(span, offset + 5),
+            get_u32_word(span, offset + 6),
+            get_u32_word(span, offset + 7),
+            get_u32_word(span, offset + 8),
+            get_u32_word(span, offset + 9),
+            get_u32_word(span, offset + 10),
+            get_u32_word(span, offset + 11),
+            get_u32_word(span, offset + 12),
+            get_u32_word(span, offset + 13),
+            get_u32_word(span, offset + 14),
+            get_u32_word(span, offset + 15),
+        ]
+    }
+
+    fn u32_le_array_to_felt(result: [u32; 8]) -> felt252 {
+        let [r0, r1, r2, r3, r4, r5, r6, r7] = result;
+        let r0: felt252 = r0.into();
+        let r1: felt252 = r1.into();
+        let r2: felt252 = r2.into();
+        let r3: felt252 = r3.into();
+        let r4: felt252 = r4.into();
+        let r5: felt252 = r5.into();
+        let r6: felt252 = r6.into();
+        let r7: felt252 = r7.into();
+        r0 + r1 * 0x100000000
+            + r2 * 0x10000000000000000
+            + r3 * 0x1000000000000000000000000
+            + r4 * 0x100000000000000000000000000000000
+            + r5 * 0x10000000000000000000000000000000000000000
+            + r6 * 0x1000000000000000000000000000000000000000000000000
+            + r7 * 0x100000000000000000000000000000000000000000000000000000000
+    }
+
+    fn naive_blake_hash(data: Span<felt252>) -> felt252 {
+        let mut u32_words: Array<u32> = array![];
+        let mut i: usize = 0;
+        loop {
+            if i >= data.len() {
+                break;
+            }
+            encode_felt_to_u32_le(ref u32_words, *data[i]);
+            i += 1;
+        };
+
+        let total_words = u32_words.len();
+        let total_bytes: u32 = (total_words * 4).try_into().unwrap();
+        let n_blocks = (total_words + 15) / 16;
+        let u32_span = u32_words.span();
+
+        // Blake2s-256 IV with parameter block XOR: IV[0] ^ 0x01010020.
+        let iv: [u32; 8] = [
+            0x6B08E647, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB,
+            0x5BE0CD19,
+        ];
+        let mut state = BoxTrait::new(iv);
+
+        // Process all intermediate (non-last) blocks with compress.
+        let mut block_idx: usize = 0;
+        loop {
+            if block_idx + 1 >= n_blocks {
+                break;
+            }
+            let offset = block_idx * 16;
+            let byte_count: u32 = ((offset + 16) * 4).try_into().unwrap();
+            let msg = read_blake_block(u32_span, offset);
+            state = blake2s_compress(state, byte_count, BoxTrait::new(msg));
+            block_idx += 1;
+        };
+
+        // Finalize with the last block (zero-padded if partial).
+        let last_offset = block_idx * 16;
+        let last_msg = read_blake_block(u32_span, last_offset);
+        let result = blake2s_finalize(state, total_bytes, BoxTrait::new(last_msg));
+        u32_le_array_to_felt(result.unbox())
     }
 }

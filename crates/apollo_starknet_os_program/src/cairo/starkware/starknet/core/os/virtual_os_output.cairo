@@ -20,7 +20,8 @@ const PROOF_VERSION = 'PROOF0';
 //      computed (proven) by the OS from the block info and the initial state root.
 //    - starknet_os_config_hash: Poseidon hash of the Starknet OS config.
 //    - n_l2_to_l1_messages: count of L2-to-L1 message hashes that follow.
-//    - Each message hash is Poseidon([from_address, to_address, payload_size, ...payload]).
+//    - Each message hash is Blake2s over the naive encoding (8 u32 LE limbs per felt) of
+//      [from_address, to_address, payload_size, ...payload].
 //    No state diff, data availability, or state roots are included.
 //
 // 2. Single block, single transaction:

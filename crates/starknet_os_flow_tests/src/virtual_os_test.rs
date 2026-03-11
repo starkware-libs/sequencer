@@ -9,15 +9,27 @@ use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::BlockTimestamp;
 use starknet_api::core::EthAddress;
-use starknet_api::test_utils::{CURRENT_BLOCK_TIMESTAMP, TEST_SEQUENCER_ADDRESS};
-use starknet_api::transaction::fields::{ProofFacts, TransactionSignature};
+use starknet_api::test_utils::{
+    test_block_hash,
+    BLOCK_HASH_HISTORY_RANGE,
+    CURRENT_BLOCK_NUMBER,
+    CURRENT_BLOCK_TIMESTAMP,
+    TEST_SEQUENCER_ADDRESS,
+};
+use starknet_api::transaction::fields::{
+    ProofFacts,
+    TransactionSignature,
+    PROOF_VERSION,
+    VIRTUAL_OS_OUTPUT_VERSION,
+    VIRTUAL_SNOS,
+};
 use starknet_api::transaction::{
     InvokeTransaction as ApiInvokeTransaction,
     L2ToL1Payload,
     MessageToL1,
     TransactionVersion,
 };
-use starknet_api::{calldata, contract_address, invoke_tx_args};
+use starknet_api::{calldata, contract_address, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
 use crate::test_manager::{
@@ -270,4 +282,91 @@ async fn test_reverted_tx_os_error() {
         .build()
         .await
         .run_virtual_expect_error("Reverted transactions are not supported in virtual OS mode");
+}
+
+/// End-to-end test: virtual OS produces a Blake2s message hash, then a regular OS transaction
+/// independently computes the same hash in Cairo1 and verifies it matches the proof facts.
+#[tokio::test]
+async fn test_blake_message_hash_virtual_to_regular_os() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+
+    // --- Step 1: Run the virtual OS with a transaction that sends an L2-to-L1 message ---
+    let (mut virtual_builder, [virtual_contract_address]) =
+        TestBuilder::create_standard_virtual([(test_contract, calldata![Felt::ONE, Felt::TWO])])
+            .await;
+
+    let to_address = Felt::from(85);
+    let payload = vec![Felt::from(12), Felt::from(34)];
+    let calldata = create_calldata(
+        virtual_contract_address,
+        "test_send_message_to_l1",
+        &[to_address, Felt::from(payload.len()), payload[0], payload[1]],
+    );
+    virtual_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    virtual_builder.messages_to_l1.push(MessageToL1 {
+        from_address: virtual_contract_address,
+        to_address: EthAddress::try_from(to_address).unwrap(),
+        payload: L2ToL1Payload(payload.clone()),
+    });
+
+    let virtual_output = virtual_builder.build().await.run_virtual();
+    virtual_output.validate();
+
+    // Extract the Blake message hash produced by the virtual OS.
+    let virtual_os_output = starknet_os::io::virtual_os_output::VirtualOsOutput::from_raw_output(
+        &virtual_output.runner_output.raw_output,
+    )
+    .expect("Parsing virtual OS output should not fail.");
+    assert_eq!(virtual_os_output.messages_to_l1_hashes.len(), 1);
+    let blake_message_hash = virtual_os_output.messages_to_l1_hashes[0];
+
+    // --- Step 2: Construct proof facts with valid test block numbers and the real hash ---
+    let program_hash = get_valid_virtual_os_program_hash();
+    let (mut regular_builder, [regular_contract_address]) =
+        TestBuilder::create_standard([(test_contract, calldata![Felt::ONE, Felt::TWO])]).await;
+    let config_hash = regular_builder.compute_virtual_os_config_hash();
+
+    let block_hash_history_start = CURRENT_BLOCK_NUMBER - BLOCK_HASH_HISTORY_RANGE;
+    let block_number_u64 = block_hash_history_start + 2;
+    let block_number = felt!(block_number_u64);
+    let block_hash = test_block_hash(block_number_u64).0;
+    let n_messages = Felt::ONE;
+
+    let proof_facts = ProofFacts(
+        vec![
+            PROOF_VERSION,
+            VIRTUAL_SNOS,
+            program_hash,
+            VIRTUAL_OS_OUTPUT_VERSION,
+            block_number,
+            block_hash,
+            config_hash,
+            n_messages,
+            blake_message_hash,
+        ]
+        .into(),
+    );
+
+    // --- Step 3: Regular OS run that verifies the hash in Cairo1 ---
+    // The message data as the contract would see it: [from_address, to_address, payload_size,
+    // ...payload].
+    let message_data: Vec<Felt> = vec![
+        *virtual_contract_address.0.key(),
+        to_address,
+        Felt::from(payload.len()),
+        payload[0],
+        payload[1],
+    ];
+    // ABI-encode the Span<felt252> parameter: [length, elements...].
+    let mut entry_point_args: Vec<Felt> = vec![Felt::from(message_data.len())];
+    entry_point_args.extend_from_slice(&message_data);
+    let calldata = create_calldata(
+        regular_contract_address,
+        "test_verify_virtual_os_message_hash",
+        &entry_point_args,
+    );
+
+    regular_builder.add_funded_account_invoke(invoke_tx_args! { calldata, proof_facts });
+
+    regular_builder.build().await.run().perform_default_validations();
 }
