@@ -1,0 +1,35 @@
+name: CI Optimization
+description: Gateway which decides whether to skip downstream jobs based on Graphite or PR description edited.
+
+inputs:
+  graphite_token:
+    description: "Graphite CI optimizer token"
+    required: true
+
+outputs:
+  skip:
+    description: "Whether to skip downstream jobs (Graphite or PR description edited)"
+    value: ${{ steps.set_skip.outputs.skip }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Graphite - Optimize CI
+      id: check_skip
+      if: github.event_name != 'pull_request' || github.event.action != 'edited' || !github.event.changes.body || github.event.changes.base
+      uses: withgraphite/graphite-ci-action@v0.0.9
+      with:
+        graphite_token: ${{ inputs.graphite_token }}
+
+    - name: PR description edited - Set skip output
+      id: set_skip
+      if: always()
+      env:
+        DESC_EDITED: ${{ github.event_name == 'pull_request' && github.event.action == 'edited' && github.event.changes.body != null && !github.event.changes.base }}
+      run: |
+        if [ "$DESC_EDITED" = "true" ]; then
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "skip=${{ steps.check_skip.outputs.skip }}" >> "$GITHUB_OUTPUT"
+        fi
+      shell: bash
