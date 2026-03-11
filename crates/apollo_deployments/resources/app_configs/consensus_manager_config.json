@@ -80,5 +80,6 @@
   "consensus_manager_config.stream_handler_config.channel_buffer_capacity": 1000,
   "consensus_manager_config.stream_handler_config.max_streams": 100,
   "consensus_manager_config.stream_handler_config.max_peers": 100,
+  "consensus_manager_config.stream_handler_config.max_message_buffer_size": 1000,
   "consensus_manager_config.votes_topic": "consensus_votes"
 }
