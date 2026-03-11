@@ -36,19 +36,33 @@ fn cache_key_path(contract: &FeatureContract) -> PathBuf {
     CACHE_DIR.join(format!("{}.hash", contract.get_non_erc20_base_name()))
 }
 
-/// Computes a cache key from the source content, compiler version, and libfunc list file content.
-fn compute_cache_key(source_path: &Path, compiler_version: &str, libfunc_file: &Path) -> String {
+/// Computes a cache key from the source content, compiler version, and libfunc argument.
+fn compute_cache_key(
+    source_path: &Path,
+    compiler_version: &str,
+    crate_root: &Path,
+    libfunc_arg: &LibfuncArg,
+) -> String {
     let source_content = fs::read_to_string(source_path)
         .unwrap_or_else(|e| panic!("Cannot read {source_path:?}: {e}"));
-    let libfunc_content = fs::read_to_string(libfunc_file)
-        .unwrap_or_else(|e| panic!("Cannot read libfunc file {libfunc_file:?}: {e}"));
 
     let mut hasher = Sha256::new();
     hasher.update(source_content.as_bytes());
     hasher.update(b"\x00");
     hasher.update(compiler_version.as_bytes());
     hasher.update(b"\x00");
-    hasher.update(libfunc_content.as_bytes());
+    match libfunc_arg {
+        LibfuncArg::ListFile(file) => {
+            let abs = crate_root.join(file);
+            let content = fs::read_to_string(&abs)
+                .unwrap_or_else(|e| panic!("Cannot read libfunc file {abs:?}: {e}"));
+            hasher.update(content.as_bytes());
+        }
+        LibfuncArg::ListName(name) => {
+            hasher.update(b"list-name:");
+            hasher.update(name.as_bytes());
+        }
+    }
     format!("{:x}", hasher.finalize())
 }
 
@@ -89,9 +103,15 @@ pub fn ensure_cairo1_compiled(contract: &FeatureContract) {
     let version = contract.fixed_version();
     let crate_root = PathBuf::from(compile_time_cargo_manifest_dir!());
     let source_path = crate_root.join(contract.get_source_path());
-    let libfunc_file = crate_root.join(contract.libfunc_arg().file_path());
+    let libfunc_arg = contract.libfunc_arg();
+    let abs_libfunc_arg = match &libfunc_arg {
+        LibfuncArg::ListFile(file) => {
+            LibfuncArg::ListFile(crate_root.join(file).to_string_lossy().to_string())
+        }
+        LibfuncArg::ListName(name) => LibfuncArg::ListName(name.clone()),
+    };
 
-    let cache_key = compute_cache_key(&source_path, &version, &libfunc_file);
+    let cache_key = compute_cache_key(&source_path, &version, &crate_root, &libfunc_arg);
 
     let is_fresh = || is_cache_fresh(contract, &cache_key);
 
@@ -103,9 +123,8 @@ pub fn ensure_cairo1_compiled(contract: &FeatureContract) {
         );
         verify_cairo1_package(&version);
 
-        let libfunc_arg = LibfuncArg::ListFile(libfunc_file.to_string_lossy().to_string());
         let CompilationArtifacts::Cairo1 { casm, sierra } =
-            cairo1_compile(source_path.to_string_lossy().to_string(), version, libfunc_arg)
+            cairo1_compile(source_path.to_string_lossy().to_string(), version, abs_libfunc_arg)
         else {
             unreachable!("cairo1_compile always returns Cairo1 variant");
         };
