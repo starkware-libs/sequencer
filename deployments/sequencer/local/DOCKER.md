@@ -43,10 +43,10 @@ docker run -it --rm \
 The Docker image includes:
 - **Python 3.10+** (installed via setup script)
 - **Node.js 22.x** (installed via setup script)
-- **pipenv** (Python package manager)
+- **Poetry** (Python package manager)
 - **cdk8s-cli** (CDK8S command-line tool)
 - **kubectl** (Kubernetes CLI)
-- **All project dependencies** (installed via `pipenv install`)
+- **All project dependencies** (installed via `poetry install`)
 - **CDK8S imports** (initialized via `cdk8s import`)
 
 ## Usage
@@ -57,7 +57,7 @@ Once inside the container, you can use all the tools:
 # Check installed tools
 python3 --version
 node --version
-pipenv --version
+poetry --version
 cdk8s --version
 kubectl version --client
 
@@ -65,13 +65,13 @@ kubectl version --client
 ./local/setup.sh
 
 # Generate Kubernetes manifests
-cdk8s synth --app "pipenv run python -m main --namespace test"
+cdk8s synth --app "poetry run python -m main --namespace test"
 
 # Install additional Python packages
-pipenv install <package-name>
+poetry add <package-name>
 
 # Run Python scripts
-pipenv run python -m main --namespace test --layout hybrid
+poetry run python -m main --namespace test --layout hybrid
 ```
 
 ## Development Workflow
@@ -88,4 +88,4 @@ The wrapper script automatically mounts your current directory to `/workspace`, 
 - All tools are installed system-wide during build
 - The working directory is `/workspace` (mounted from your current directory)
 - kubectl config is mounted read-only from `~/.kube`
-- The project setup (`pipenv install` and `cdk8s import`) runs automatically when you first enter the container
+- The project setup (`poetry install` and `cdk8s import`) runs automatically when you first enter the container

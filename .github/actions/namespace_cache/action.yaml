@@ -13,3 +13,8 @@ runs:
       uses: namespacelabs/nscloud-cache-action@v1
       with:
         cache: python
+
+    - name: Mount namespace cache volume for poetry
+      uses: namespacelabs/nscloud-cache-action@v1
+      with:
+        path: /home/runner/.cache/pypoetry

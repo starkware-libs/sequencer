@@ -52,8 +52,8 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install pip dependencies
-        run: python3 -m pip install black pipenv
+      - name: Install Poetry
+        run: pip install poetry
 
       - name: Install cdk8s-cli
         run: npm install -g cdk8s-cli@2.198.334
@@ -64,12 +64,12 @@ jobs:
         run: |
           echo "Importing CDK8s Sequencer app..."
           cdk8s import
-          echo "Installing pip dependencies..."
-          pipenv install
+          echo "Installing Python dependencies..."
+          poetry install
           echo "Synthesizing CDK8s Sequencer app with overlay ${{ env.overlay }}..."
-          cdk8s synth --app "pipenv run python -m main --namespace ${{ env.namespace }} -l ${{ env.layout }} -o ${{ env.overlay }} --monitoring-dashboard-file ${{ env.monitoring_dashboard_file }} --cluster ${{ env.cluster }}" --output dist1
+          cdk8s synth --app "poetry run python -m main --namespace ${{ env.namespace }} -l ${{ env.layout }} -o ${{ env.overlay }} --monitoring-dashboard-file ${{ env.monitoring_dashboard_file }} --cluster ${{ env.cluster }}" --output dist1
           echo "Synthesizing CDK8s Sequencer app with overlay ${{ env.overlay2 }}..."
-          cdk8s synth --app "pipenv run python -m main --namespace ${{ env.namespace }} -l ${{ env.layout }} -o ${{ env.overlay2 }} --monitoring-dashboard-file ${{ env.monitoring_dashboard_file }} --cluster ${{ env.cluster }}" --output dist2
+          cdk8s synth --app "poetry run python -m main --namespace ${{ env.namespace }} -l ${{ env.layout }} -o ${{ env.overlay2 }} --monitoring-dashboard-file ${{ env.monitoring_dashboard_file }} --cluster ${{ env.cluster }}" --output dist2
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
