@@ -1,0 +1,14 @@
+[tool.poetry]
+description = "CDK8s deployment for Dummy Eth2Strk Oracle"
+name = "dummy-eth2strk-oracle-cdk8s"
+package-mode = false
+readme = "README.md"
+version = "0.1.0"
+
+[tool.poetry.dependencies]
+cdk8s = "~2.69.17"
+cdk8s-plus-28 = "~2.5.6"
+constructs = "~10.4.2"
+python = "^3.10"
+
+[tool.poetry.group.dev.dependencies]

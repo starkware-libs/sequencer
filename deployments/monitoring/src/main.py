@@ -1,3 +1,13 @@
+import os
+import sys
+
+if os.environ.get("PIPENV_ACTIVE"):
+    print(
+        "DeprecationWarning: Pipenv is deprecated for this project. "
+        "Use Poetry: poetry install && poetry run python -m src.main ...",
+        file=sys.stderr,
+    )
+
 from builders.alert_builder import alert_builder
 from builders.dashboard_builder import dashboard_builder
 from common.cli import arg_parser

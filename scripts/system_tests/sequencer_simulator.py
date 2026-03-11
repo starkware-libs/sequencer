@@ -1,8 +1,19 @@
 import argparse
+import os
 import socket
 import subprocess
 import time
 from enum import Enum
+
+
+def _repo_root() -> str:
+    """Return the repository root (directory containing Cargo.toml)."""
+    path = os.path.abspath(os.path.dirname(__file__))
+    while path != os.path.dirname(path):
+        if os.path.isfile(os.path.join(path, "Cargo.toml")):
+            return path
+        path = os.path.dirname(path)
+    return os.path.abspath(os.curdir)
 
 
 class NodeType(Enum):
@@ -194,8 +205,10 @@ def port_forward(
 
 
 def run_simulator(http_port: int, monitoring_port: int, sender_address: str, receiver_address: str):
+    root = _repo_root()
+    simulator_bin = os.path.join(root, "target", "debug", "sequencer_simulator")
     cmd = [
-        "./target/debug/sequencer_simulator",
+        simulator_bin,
         "--http-port",
         str(http_port),
         "--monitoring-port",

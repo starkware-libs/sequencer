@@ -8,12 +8,12 @@ USER_ID="${USER_ID:-1000}"
 GROUP_ID="${GROUP_ID:-1000}"
 USER_NAME="${USER_NAME:-user}"
 
-# Set locale so pipenv and other tools don't warn (e.g. "LANG is not set")
+# Set locale so poetry and other tools don't warn (e.g. "LANG is not set")
 export LANG="${LANG:-C.UTF-8}"
 export LC_ALL="${LC_ALL:-C.UTF-8}"
 
-# Pipenv: create venv in project (.venv) so we don't need ~/.local
-export PIPENV_VENV_IN_PROJECT=1
+# Poetry: create venv in project (.venv) by default
+export POETRY_VIRTUALENVS_IN_PROJECT=1
 
 # Create group entry if it doesn't exist
 if ! getent group "$GROUP_ID" &>/dev/null; then

@@ -37,7 +37,9 @@ deployments/sequencer/
 ├── src/                        # CDK8s app (charts, constructs, config loaders)
 ├── main.py                     # Entry point for cdk8s synth
 ├── cdk8s.yaml
-├── Pipfile
+├── Pipfile                     # Pipenv dependencies (optional)
+├── pyproject.toml              # Poetry dependencies (optional)
+├── poetry.lock                 # Poetry lockfile (optional)
 └── dist/                       # Generated manifests (created by cdk8s synth)
 ```
 
@@ -55,7 +57,7 @@ You can install the required tools however you prefer; the instructions below ar
 
 - Curl
 - Python 3.10
-- Pipenv (Python package manager)
+- **Pipenv or Poetry** (Python package manager — use one of them)
 - Node.js + npm
 - cdk8s-cli
 - kubectl
@@ -83,7 +85,11 @@ sudo apt update
 sudo apt install python3.10-full python3.10-venv
 ```
 
-#### 3. Install Pipenv
+#### 3. Install Pipenv or Poetry
+
+**Option A — Pipenv** *(deprecated; prefer Poetry)*
+
+> **Note:** Pipenv is deprecated for this project. Use Poetry (Option B) for new setups.
 
 ```shell
 ## Ubuntu 22.04 ##
@@ -97,6 +103,19 @@ sudo apt install pipenv
 
 # verify
 pipenv --version
+```
+
+**Option B — Poetry**
+
+```shell
+# Install Poetry (see https://python-poetry.org/docs/#installation)
+curl -sSL https://install.python-poetry.org | python3 -
+
+# Add to PATH (e.g. in ~/.bashrc or ~/.zshrc)
+export PATH="$HOME/.local/bin:$PATH"
+
+# verify
+poetry --version
 ```
 
 #### 4. Install Node
@@ -153,9 +172,19 @@ git clone https://github.com/starkware-libs/sequencer.git
 
 #### 2. Init cdk8s project
 
+**With Pipenv:** *(deprecated; prefer Poetry)*
+
 ```shell
 cd deployments/sequencer
 pipenv install
+cdk8s import
+```
+
+**With Poetry:**
+
+```shell
+cd deployments/sequencer
+poetry install
 cdk8s import
 ```
 
@@ -168,11 +197,17 @@ cdk8s import
 - **Overlay:** The Sequencer deployment config overlay – overrides the layout configuration (like in kustomize or helm values-dev.yaml)
 - **Image** (Optional): Overrides the sequencer Docker image. If not provided the image in the deployment config will be used
 
+Use `pipenv run` or `poetry run` before `python -m main` as appropriate:
+
 ```shell
+# Pipenv
 cdk8s synth --app "pipenv run python -m main --namespace <namespace> -l <layout> -o <overlay> --image <image:tag>"
+
+# Poetry
+cdk8s synth --app "poetry run python -m main --namespace <namespace> -l <layout> -o <overlay> --image <image:tag>"
 ```
 
-Or use our testing overlay:
+Or use our testing overlay (replace `pipenv run` with `poetry run` if using Poetry):
 
 ```shell
 cdk8s synth --app "pipenv run python -m main --namespace <namespace> -l hybrid -o hybrid.testing.node-0"
@@ -336,7 +371,7 @@ kubectl apply -R -f ./dist
 
 ## Usage examples
 
-All commands assume you are in `deployments/sequencer` (or inside the Docker container at `/workspace/deployments/sequencer`).
+All commands assume you are in `deployments/sequencer` (or inside the Docker container at `/workspace/deployments/sequencer`). If you use Poetry instead of Pipenv, replace `pipenv run` with `poetry run` in the commands below.
 
 **Consolidated layout (default, no overlay):**
 

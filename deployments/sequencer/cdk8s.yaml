@@ -1,5 +1,5 @@
 language: python
-app: pipenv install && pipenv run python ./main.py
+app: poetry install && poetry run python ./main.py
 imports:
   - k8s@1.26.0
   - resources/crds/backendconfigs_cloud_google_com.yaml
