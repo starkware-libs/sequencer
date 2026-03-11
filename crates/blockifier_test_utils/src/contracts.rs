@@ -182,14 +182,14 @@ const MOCK_STAKING_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
     expect!["0x2be4fef438465da9b0ecce49eaf352381a427d3cd1cf3368be29de71a5f7e6e"];
 
 const FUZZ_TEST_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x51283ca930ffdaaf4d9cd15a2f9c8dba2821e64bedc46f7aa0a18c826f7b967"];
+    expect!["0x161e31e7b9e1f69730f59fc2bb8f000f52e1f708441771b98dcf1d1159841e8"];
 const FUZZ_TEST_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x17f50f4ed72318cb244cc2a314150e65b5452c763e5c552f6f5ddf81f8b512"];
+    expect!["0x57bc9d89bc5c683e488f59af009dbb9b655c990fcd8a23f31c5a179fd934424"];
 
 const FUZZ_TEST2_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x1fb72d8022a2cc762ae1cbc1c048d1faafcd0e6cf018841479590b7698b6801"];
+    expect!["0xa787e49384f4bdd7cee821ae02c9dcbb5fb52a129ace1d833f61f0c8252190"];
 const FUZZ_TEST2_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x259c2dd7e0e3e96ae1e2cf713179e0d2dbda76f9e07559af524e3e425c4c149"];
+    expect!["0x669515fc7a18729e0c1be9ed078dfa19d3117066c6d9f3ff5b07e68820681de"];
 
 const FUZZ_TEST_ORCHESTRATOR_COMPILED_CLASS_HASH_V1: expect_test::Expect =
     expect!["0x3488a0e58b766d90112ae53d5c99b3b1706bbf38d6f8365cb2e59fefdce4c00"];
