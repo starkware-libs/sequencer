@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773161687198,
+  "lastUpdate": 1773206280379,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2311,6 +2311,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1229.05899023,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c377608164e80c1e710551776959da116cf90724",
+          "message": "starknet_proof_verifier,apollo_transaction_converter: extract proof verification into dedicated crate (#13157)\n\nMove VerifyProofError, ProgramOutputError, ProgramOutput,\nreconstruct_output_preimage and verify_proof out of\napollo_transaction_converter into the new starknet_proof_verifier crate\nso that proof verification logic is decoupled from transaction\nconversion. The new crate is independently publishable and added to\nROOT_CRATES_FOR_PUBLISH.\n\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-03-11T04:54:21Z",
+          "tree_id": "e08e696c42b16dfad0b194223aa5a30b594b67e8",
+          "url": "https://github.com/starkware-libs/sequencer/commit/c377608164e80c1e710551776959da116cf90724"
+        },
+        "date": 1773206280063,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 873.3354913400001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1286.49598537,
             "unit": "ms"
           }
         ]
