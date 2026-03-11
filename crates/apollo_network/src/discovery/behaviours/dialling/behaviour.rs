@@ -1,6 +1,7 @@
-use std::collections::HashMap;
-use std::task::{Context, Poll};
+use std::task::{Context, Poll, Waker};
 
+use futures::stream::SelectAll;
+use futures::StreamExt;
 use libp2p::core::transport::PortUse;
 use libp2p::core::Endpoint;
 use libp2p::swarm::{
@@ -14,38 +15,52 @@ use libp2p::swarm::{
 };
 use libp2p::{Multiaddr, PeerId};
 
+use super::dial_peer::DialPeerStream;
 use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 
 /// Manages dialling to a dynamic set of peers using explicit multiaddresses,
 /// with exponential backoff on failure.
 ///
-/// Does not re-dial peers after disconnection — callers must re-request if
-/// reconnection is desired.
+/// Each peer gets its own [`DialPeerStream`] that drives the dial lifecycle.
+/// Streams terminate once a connection is established. This behaviour does not
+/// re-dial peers after disconnection — callers must call
+/// [`request_dial`](Self::request_dial) again if reconnection is desired.
 // TODO(AndrewL): remove this once the behaviour is added
 #[allow(dead_code)]
 pub struct DiallingBehaviour {
     retry_config: RetryConfig,
-    peers: HashMap<PeerId, Vec<Multiaddr>>,
+    peers: SelectAll<DialPeerStream>,
+    waker: Option<Waker>,
 }
 
 // TODO(AndrewL): remove this once the behaviour is added
 #[allow(dead_code)]
 impl DiallingBehaviour {
     pub fn new(retry_config: RetryConfig) -> Self {
-        Self { retry_config, peers: HashMap::new() }
+        Self { retry_config, peers: SelectAll::new(), waker: None }
     }
 
     /// Request dialling a peer at the given addresses.
     ///
-    /// If the peer is already connected or being dialled, the addresses are updated but no
-    /// new dial is initiated.
-    pub fn request_dial(&mut self, _peer_id: PeerId, _addresses: Vec<Multiaddr>) {
-        todo!()
+    /// Creates a new [`DialPeerStream`] for the peer. If a stream for this peer already
+    /// exists (pending or in-progress), it is cancelled and replaced.
+    pub fn request_dial(&mut self, peer_id: PeerId, addresses: Vec<Multiaddr>) {
+        self.cancel_dial(&peer_id);
+        self.peers.push(DialPeerStream::new(&self.retry_config, peer_id, addresses));
+        if let Some(waker) = self.waker.take() {
+            waker.wake();
+        }
     }
 
-    /// Cancel any pending or in-progress dial for a peer and stop tracking it.
-    pub fn cancel_dial(&mut self, _peer_id: &PeerId) {
-        todo!()
+    /// Cancel any pending or in-progress dial for a peer.
+    ///
+    /// No waker wake is needed here because cancellation does not produce any events to poll.
+    pub fn cancel_dial(&mut self, peer_id: &PeerId) {
+        for stream in self.peers.iter_mut() {
+            if stream.peer_id() == peer_id {
+                stream.cancel();
+            }
+        }
     }
 }
 
@@ -74,8 +89,10 @@ impl NetworkBehaviour for DiallingBehaviour {
         Ok(dummy::ConnectionHandler)
     }
 
-    fn on_swarm_event(&mut self, _event: FromSwarm<'_>) {
-        todo!()
+    fn on_swarm_event(&mut self, event: FromSwarm<'_>) {
+        for stream in self.peers.iter_mut() {
+            stream.on_swarm_event(event);
+        }
     }
 
     fn on_connection_handler_event(
@@ -88,9 +105,13 @@ impl NetworkBehaviour for DiallingBehaviour {
 
     fn poll(
         &mut self,
-        _cx: &mut Context<'_>,
+        cx: &mut Context<'_>,
     ) -> Poll<ToSwarm<Self::ToSwarm, <Self::ConnectionHandler as ConnectionHandler>::FromBehaviour>>
     {
-        todo!()
+        self.waker = Some(cx.waker().clone());
+        match self.peers.poll_next_unpin(cx) {
+            Poll::Ready(Some(event)) => Poll::Ready(event),
+            Poll::Ready(None) | Poll::Pending => Poll::Pending,
+        }
     }
 }

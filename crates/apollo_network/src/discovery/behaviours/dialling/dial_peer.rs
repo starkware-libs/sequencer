@@ -20,8 +20,6 @@ use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 ///
 /// The stream emits `ToSwarm::Dial` events and terminates (`None`) once a
 /// connection is established or the dial is cancelled.
-// TODO(AndrewL): remove this once the behaviour is added
-#[allow(dead_code)]
 pub struct DialPeerStream {
     peer_id: PeerId,
     addresses: Vec<Multiaddr>,
@@ -43,8 +41,6 @@ enum DialState {
     Done,
 }
 
-// TODO(AndrewL): remove this once the behaviour is added
-#[allow(dead_code)]
 impl DialPeerStream {
     pub fn new(retry_config: &RetryConfig, peer_id: PeerId, addresses: Vec<Multiaddr>) -> Self {
         Self {
