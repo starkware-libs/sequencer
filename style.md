@@ -281,14 +281,6 @@ let is_executable = false;
 create_transaction(is_dry_run, is_executable)
 ```
 
-### Private Functions and Private Fields
-
-Struct fields should be `pub` by default, unless changing them could break invariants, e.g. a field that contains a vector that must be kept sorted.
-
-If a struct field is private, document the invariant next to the field, and don't create setters for the field.
-
-Note: This rule is not strict, use discretion. For example, types that are included in a crate's API have other considerations, like making a field private so it won't be included in the crate's docs.rs entry or to prevent future breaking changes if that field is likely to change in some way.
-
 ### Re-exports - For Internal Items.
 
 Avoid re-exporting internal items of the crate.
