@@ -104,6 +104,12 @@ pub fn ensure_cairo1_compiled(contract: &FeatureContract) {
     let crate_root = PathBuf::from(compile_time_cargo_manifest_dir!());
     let source_path = crate_root.join(contract.get_source_path());
     let libfunc_arg = contract.libfunc_arg();
+    let abs_libfunc_arg = match &libfunc_arg {
+        LibfuncArg::ListFile(file) => {
+            LibfuncArg::ListFile(crate_root.join(file).to_string_lossy().to_string())
+        }
+        LibfuncArg::ListName(name) => LibfuncArg::ListName(name.clone()),
+    };
 
     let cache_key = compute_cache_key(&source_path, &version, &crate_root, &libfunc_arg);
 
@@ -118,7 +124,7 @@ pub fn ensure_cairo1_compiled(contract: &FeatureContract) {
         verify_cairo1_package(&version);
 
         let CompilationArtifacts::Cairo1 { casm, sierra } =
-            cairo1_compile(source_path.to_string_lossy().to_string(), version, libfunc_arg)
+            cairo1_compile(source_path.to_string_lossy().to_string(), version, abs_libfunc_arg)
         else {
             unreachable!("cairo1_compile always returns Cairo1 variant");
         };
