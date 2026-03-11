@@ -23,6 +23,7 @@ use starknet_api::core::{
 };
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::L1HandlerTransaction;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{
     InternalRpcDeclareTransactionV3,
     InternalRpcDeployAccountTransaction,
@@ -57,7 +58,32 @@ use crate::fee_market::FeeMarketInfo;
 #[path = "central_objects_test.rs"]
 mod central_objects_test;
 
-pub(crate) type CentralBouncerWeights = BouncerWeights;
+/// Subset of BouncerWeights sent to the centralized pipeline.
+/// Excludes `receipt_l2_gas` which is only used internally by the decentralized sequencer.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub(crate) struct CentralBouncerWeights {
+    pub l1_gas: usize,
+    pub message_segment_length: usize,
+    pub n_events: usize,
+    pub state_diff_size: usize,
+    pub sierra_gas: GasAmount,
+    pub n_txs: usize,
+    pub proving_gas: GasAmount,
+}
+
+impl From<BouncerWeights> for CentralBouncerWeights {
+    fn from(weights: BouncerWeights) -> Self {
+        Self {
+            l1_gas: weights.l1_gas,
+            message_segment_length: weights.message_segment_length,
+            n_events: weights.n_events,
+            state_diff_size: weights.state_diff_size,
+            sierra_gas: weights.sierra_gas,
+            n_txs: weights.n_txs,
+            proving_gas: weights.proving_gas,
+        }
+    }
+}
 pub(crate) type CentralFeeMarketInfo = FeeMarketInfo;
 pub(crate) type CentralCompressedStateDiff = CentralStateDiff;
 pub(crate) type CentralSierraContractClassEntry = (ClassHash, CentralSierraContractClass);

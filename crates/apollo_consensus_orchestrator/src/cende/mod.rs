@@ -315,7 +315,7 @@ impl AerospikeBlob {
             block_number,
             state_diff,
             compressed_state_diff,
-            bouncer_weights: blob_parameters.bouncer_weights,
+            bouncer_weights: blob_parameters.bouncer_weights.into(),
             fee_market_info: blob_parameters.fee_market_info,
             transactions: central_transactions,
             execution_infos,
