@@ -113,6 +113,7 @@ const AllowedScopes = ['apollo_base_layer_tests',
     'time',
     'workspace',
     'workspace_tests',
+    'z'
 ];
 
 const Configuration = {
