@@ -381,6 +381,9 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         }
     };
 
+    let combined_cases_state_gas_vector = combined_cases_starknet_resources
+        .state
+        .to_gas_vector(use_kzg_da, &versioned_constants.allocation_cost);
     let expected_gas_vector = GasVector {
         l1_gas: l1_handler_gas_usage_vector.l1_gas
         + l2_to_l1_messages_gas_usage_vector.l1_gas
@@ -388,12 +391,8 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         // l2_to_l1_messages_gas_usage and storage_writings_gas_usage got a discount each, while
         // the combined calculation got it once.
         + u64_from_usize(fee_balance_discount).into(),
-        // Expected blob gas usage is from data availability only.
-        l1_data_gas: combined_cases_starknet_resources
-            .state
-            .to_gas_vector(use_kzg_da, &versioned_constants.allocation_cost)
-            .l1_data_gas,
-        l2_gas: l1_handler_gas_usage_vector.l2_gas,
+        l1_data_gas: combined_cases_state_gas_vector.l1_data_gas,
+        l2_gas: l1_handler_gas_usage_vector.l2_gas + combined_cases_state_gas_vector.l2_gas,
     };
 
     assert_eq!(expected_gas_vector, gas_usage_vector);
