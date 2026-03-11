@@ -230,9 +230,69 @@ if is_duplicate {
 
 ## APIs
 
+### Getter Names
+
+A getter for the field `foo` should be `fn foo`, rather than `fn get_foo`
+
+The same is also encouraged for non-field getters, except for in cases where `get*` really improves readability.
+
+### `self` Mutability in Getters
+
+Getter methods should always be `&self`, never `&mut self` --- use interior mutability if mutating self is necessary for maintenance like caching.
+
+**Rationale**: aligning to user's expectation for getters, preventing borrow-checker surprises.
+
+### Types in API
+
 Types appearing _in the API_ should strongly prefer `std` types, primitives, or types exposed by the crate for external use.
 
 Rationale: Using 3rd-party-types (types not defined inside the crate, `std` or rust builtints) _in the API_ forces users to use the _exact_ version of the dependency, it won't do Cargo's regular trick of fetching multiple versions of the same dependency, because a single type is passed from one crate to another.
+
+### Wide Parameter Type
+
+Function parameters should use the most general type that satisfies the function's needs — the type that accepts the widest set of callers without requiring them to convert. In particular:
+
+- `&[T]` over `Vec<T>`
+- `&str` over `String`
+- `Option<&T>` over `&Option<T>` (callers holding `&Option<T>` can pass `.as_ref()`, but not the reverse)
+
+### Unnamed Function Parameters
+
+Make an API that enforces the call-site parameter values to appear with meaningful names, unless the meaning of the values is trivial.
+
+```rust
+// GOOD - The meaning of `true` is clear enough on its own
+set_operation_success_status(true)
+
+// BAD - What do the values of the parameters mean?
+create_transaction(true, false)
+find_prime_numbers(None)
+```
+
+The tools you have at your disposal are:
+1. Define enum for each parameter
+```rust
+create_transaction(DryRunStatus::Enabled, ExecutionStatus::Disabled)
+find_prime_numbers(Logging::Disabled)
+```
+2. Define a struct for all the function parameters
+```rust
+create_transaction(CreateTransactionArgs { is_dry_run: true, is_executable: false })
+```
+3. If you prefer not to change the API or can't, add names at the callsite by defining variables. Note that the compiler won't enforce adjusting the callsite when the API changes.
+```rust
+let is_dry_run = true;
+let is_executable = false;
+create_transaction(is_dry_run, is_executable)
+```
+
+### Private Functions and Private Fields
+
+Struct fields should be `pub` by default, unless changing them could break invariants, e.g. a field that contains a vector that must be kept sorted.
+
+If a struct field is private, document the invariant next to the field, and don't create setters for the field.
+
+Note: This rule is not strict, use discretion. For example, types that are included in a crate's API have other considerations, like making a field private so it won't be included in the crate's docs.rs entry or to prevent future breaking changes if that field is likely to change in some way.
 
 ### Re-exports - For Internal Items.
 
@@ -270,64 +330,6 @@ pub use <some_3rd_party_crate>::some::type::Bar;
 ```
 
 The above internalizes `Bar` as an inner type of the re-exporting crate. This by-itself can be nice-to-have sometimes due to [APIs](#APIs), however this will also internalize all `impl trait for Bar` into the current crate, which almost always isn't what we want.
-
-### Unnamed Function Parameters
-
-Make an API that enforces the call-site parameter values to appear with meaningful names, unless the meaning of the values is trivial.
-
-```rust
-// GOOD - The meaning of `true` is clear enough on its own
-set_operation_success_status(true)
-
-// BAD - What do the values of the parameters mean?
-create_transaction(true, false)
-find_prime_numbers(None)
-```
-
-The tools you have at your disposal are:
-1. Define enum for each parameter
-```rust
-create_transaction(DryRunStatus::Enabled, ExecutionStatus::Disabled)
-find_prime_numbers(Logging::Disabled)
-```
-2. Define a struct for all the function parameters
-```rust
-create_transaction(CreateTransactionArgs { is_dry_run: true, is_executable: false })
-```
-3. If you prefer not to change the API or can't, add names at the callsite by defining variables. Note that the compiler won't enforce adjusting the callsite when the API changes.
-```rust
-let is_dry_run = true;
-let is_executable = false;
-create_transaction(is_dry_run, is_executable)
-```
-
-### Wide Parameter Type
-
-Function parameters should use the most general type that satisfies the function's needs — the type that accepts the widest set of callers without requiring them to convert. In particular:
-
-- `&[T]` over `Vec<T>`
-- `&str` over `String`
-- `Option<&T>` over `&Option<T>` (callers holding `&Option<T>` can pass `.as_ref()`, but not the reverse)
-
-### Getter Names
-
-A getter for the field `foo` should be `fn foo`, rather than `fn get_foo`
-
-The same is also encouraged for non-field getters, except for in cases where `get*` really improves readability.
-
-### `self` Mutability in Getters
-
-Getter methods should always be `&self`, never `&mut self` --- use interior mutability if mutating self is necessary for maintenance like caching.
-
-**Rationale**: aligning to user's expectation for getters, preventing borrow-checker surprises.
-
-### Private Functions and Private Fields
-
-Struct fields should be `pub` by default, unless changing them could break invariants, e.g. a field that contains a vector that must be kept sorted.
-
-If a struct field is private, document the invariant next to the field, and don't create setters for the field.
-
-Note: This rule is not strict, use discretion. For example, types that are included in a crate's API have other considerations, like making a field private so it won't be included in the crate's docs.rs entry or to prevent future breaking changes if that field is likely to change in some way.
 
 ## Types
 
