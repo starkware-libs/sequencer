@@ -6,8 +6,8 @@ on:
     types:
       - opened
       - reopened
-      - synchronize
       - edited
+      - synchronize
 
 env:
   RUSTFLAGS: "-D warnings"

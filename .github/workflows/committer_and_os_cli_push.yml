@@ -12,6 +12,7 @@ on:
     types:
       - opened
       - reopened
+      - edited
       - synchronize
     paths:
       - ".github/workflows/committer_and_os_cli_push.yml"
