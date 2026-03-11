@@ -432,11 +432,16 @@ Recommended checklist before adding a new dependency:
 ## Miscellaneous
 ### Async
 
-Mostly avoid `join!`, as it doesn't short-circuit on errors in one of the tasks: use safe alternatives like `try_join!` (there are others that are also fine).
+- Mostly avoid `join!`, as it doesn't short-circuit on errors in one of the tasks: use safe alternatives like `try_join!` (there are others that are also fine).
 
-Mostly avoid `select!` unless you are certain the tasks are cancel-safe, this can lead to leaks and deadlocks: either spawn the tasks separately (`JoinHandle` is cancel-safe) or use safe alternatives like `FuturesUnordered` or `JoinSet`.
+- Mostly avoid `select!` unless you are certain the tasks are cancel-safe, this can lead to leaks and deadlocks: either spawn the tasks separately (`JoinHandle` is cancel-safe) or use safe alternatives like `FuturesUnordered` or `JoinSet`.
 
-When spawning a task, you _must_ maintain the handle returned from the executor and make sure it completes successfully --- otherwise the task will _detach_ from the process.
+- When spawning a task, you _must_ maintain the handle returned from the executor and make sure it
+completes successfully --- otherwise the task will _detach_ from the process.
+
+- When implementing a future, if you return `Poll::Pending`, you _must_ store the context somewhere
+and wake it when the future stops being pending. Otherwise, the future will be forever stuck
+
 ### Macros
 
 Only use macros if non-macro alternatives are not feasible and when _really_ necessary (like when writing a domain-specific language).
