@@ -355,6 +355,7 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
         &cairo_primitive_counter_map(builtin_counters),
         &tx_resources,
         &block_context.versioned_constants,
+        GasAmount::ZERO,
     );
 
     match scenario {
@@ -391,6 +392,7 @@ fn test_transaction_too_large_sierra_gas_based(block_context: BlockContext) {
         &tx_state_changes_keys,
         &bouncer_config,
         &block_context.versioned_constants,
+        GasAmount::ZERO,
     )
     .map_err(TransactionExecutorError::TransactionExecutionError);
 
@@ -454,6 +456,7 @@ fn test_bouncer_try_update_n_txs(
         &CairoPrimitiveCounterMap::default(),
         &TransactionResources::default(),
         &block_context.versioned_constants,
+        GasAmount::ZERO,
     );
     assert_matches!(result, Ok(()));
 
@@ -491,6 +494,7 @@ fn test_bouncer_try_update_n_txs(
         &CairoPrimitiveCounterMap::default(),
         &TransactionResources::default(),
         &block_context.versioned_constants,
+        GasAmount::ZERO,
     );
 
     assert_matches!(result, Err(TransactionExecutorError::BlockFull));
@@ -522,6 +526,7 @@ fn test_get_tx_weights_with_casm_hash_computation(block_context: BlockContext) {
         &block_context.versioned_constants,
         &CairoPrimitiveCounterMap::default(),
         &BouncerConfig::default(),
+        GasAmount::ZERO,
     );
 
     let tx_weights = result.unwrap();
@@ -686,6 +691,7 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
         &block_context.versioned_constants,
         &cairo_primitive_counter_map(tx_builtin_counters.clone()),
         &block_context.bouncer_config,
+        GasAmount::ZERO,
     )
     .unwrap();
 
@@ -874,6 +880,7 @@ fn get_tx_weights_applies_migration_gas_delta(
         &vc_migration_disabled,
         &CairoPrimitiveCounterMap::default(),
         &bc_migration_enabled.bouncer_config,
+        GasAmount::ZERO,
     )
     .unwrap();
 
@@ -890,6 +897,7 @@ fn get_tx_weights_applies_migration_gas_delta(
         &bc_migration_enabled.versioned_constants,
         &CairoPrimitiveCounterMap::default(),
         &bc_migration_enabled.bouncer_config,
+        GasAmount::ZERO,
     )
     .unwrap();
 
