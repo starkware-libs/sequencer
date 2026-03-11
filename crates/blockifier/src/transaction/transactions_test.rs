@@ -492,19 +492,20 @@ fn expected_fee_transfer_call_info(
     })
 }
 
-// TODO(AvivG): update to return ExtendedExecutionResources.
+/// Returns the expected tx and OS execution resources, matching the types in
+/// [`ComputationResources`].
 fn get_expected_cairo_resources(
     versioned_constants: &VersionedConstants,
     tx_type: TransactionType,
     starknet_resources: &StarknetResources,
     call_infos: Vec<&Option<CallInfo>>,
-) -> (ExecutionResources, ExecutionResources) {
+) -> (ExtendedExecutionResources, ExecutionResources) {
     let expected_os_cairo_resources =
         versioned_constants.get_additional_os_tx_resources(tx_type, starknet_resources, false);
-    let mut expected_tx_cairo_resources = ExecutionResources::default();
+    let mut expected_tx_cairo_resources = ExtendedExecutionResources::default();
     for call_info in call_infos {
         if let Some(call_info) = &call_info {
-            expected_tx_cairo_resources += &call_info.resources.vm_resources
+            expected_tx_cairo_resources += &call_info.resources
         };
     }
 
@@ -805,7 +806,7 @@ fn test_invoke_tx(
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            tx_extended_vm_resources: expected_tx_cairo_resources.into(),
+            tx_extended_vm_resources: expected_tx_cairo_resources,
             os_vm_resources: expected_os_cairo_resources,
             sierra_gas: expected_validate_gas_for_fee + expected_execute_gas_for_fee,
             ..Default::default()
@@ -1996,7 +1997,7 @@ fn test_declare_tx(
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            tx_extended_vm_resources: expected_tx_cairo_resources.into(),
+            tx_extended_vm_resources: expected_tx_cairo_resources,
             os_vm_resources: expected_os_cairo_resources,
             sierra_gas: expected_gas_consumed,
             ..Default::default()
@@ -2253,7 +2254,7 @@ fn test_deploy_account_tx(
     let mut actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            tx_extended_vm_resources: expected_tx_cairo_resources.into(),
+            tx_extended_vm_resources: expected_tx_cairo_resources,
             os_vm_resources: expected_os_cairo_resources,
             sierra_gas: expected_gas_consumed.into(),
             ..Default::default()
