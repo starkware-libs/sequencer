@@ -1087,6 +1087,10 @@ impl GasCosts {
         })
     }
 
+    // The n_steps values in os_resources.execute_syscalls are a cost model, not literal
+    // execution step counts. For StorageRead/Write, they include the averaged cost of Patricia
+    // Merkle tree path verification during block proving. The actual syscall handler executes
+    // fewer steps, but the proving overhead is amortized into the step count.
     fn new_syscall_gas_cost_summary(
         base_costs: &BaseGasCosts,
         selector: SyscallSelector,
