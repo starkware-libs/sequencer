@@ -181,8 +181,15 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     // TODO(AndrewL): return a channel from the constructor for adding epochs.
     #[allow(dead_code)]
     fn add_epoch(&mut self, epoch_id: EpochId, members: Vec<CommitteeMember>) {
-        let _output = self.committee_store.add_epoch(epoch_id, members);
-        todo!("Wire AddEpochOutput to behaviours");
+        // TODO(AndrewL): propagate this error instead of panicking.
+        let output = self
+            .committee_store
+            .add_epoch(epoch_id, members)
+            .expect("Committee members contain duplicate peer IDs");
+        if let Some(discovery) = self.swarm.behaviour_mut().discovery.as_mut() {
+            discovery.set_target_peers(output.allowed_peers.into_iter().collect());
+        }
+        todo!("Wire remaining AddEpochOutput fields to behaviours");
     }
 
     // TODO(shahak): remove the advertised_multiaddr arg once we manage external addresses
