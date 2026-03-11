@@ -169,18 +169,16 @@ impl StarknetUrls {
         let base_url = Url::parse(url_str)?;
         Ok(StarknetUrls {
             get_block: base_url.join(GET_BLOCK_URL)?,
-            // Query the pending block since the feeder-gateway uses the `latest` block by default.
             get_contract_by_hash: base_url
                 .join(GET_CONTRACT_BY_HASH_URL)?
                 .query_pairs_mut()
-                .append_pair(BLOCK_NUMBER_QUERY, PENDING_BLOCK_ID)
+                .append_pair(BLOCK_NUMBER_QUERY, LATEST_BLOCK_NUMBER)
                 .finish()
                 .clone(),
-            // Query the pending block since the feeder-gateway uses the `latest` block by default.
             get_compiled_class_by_class_hash: base_url
                 .join(GET_COMPILED_CLASS_BY_CLASS_HASH_URL)?
                 .query_pairs_mut()
-                .append_pair(BLOCK_NUMBER_QUERY, PENDING_BLOCK_ID)
+                .append_pair(BLOCK_NUMBER_QUERY, LATEST_BLOCK_NUMBER)
                 .finish()
                 .clone(),
             get_state_update: base_url.join(GET_STATE_UPDATE_URL)?,
