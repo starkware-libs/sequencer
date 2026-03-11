@@ -15,7 +15,6 @@ stwo_proving = ["dep:privacy-prove"]
 [dependencies]
 anyhow.workspace = true
 apollo_infra_utils.workspace = true
-apollo_transaction_converter.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 blockifier_reexecution.workspace = true
@@ -39,6 +38,7 @@ starknet_committer.workspace = true
 starknet_os.workspace = true
 starknet_patricia.workspace = true
 starknet_patricia_storage.workspace = true
+starknet_proof_verifier.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "process", "rt-multi-thread", "time"] }

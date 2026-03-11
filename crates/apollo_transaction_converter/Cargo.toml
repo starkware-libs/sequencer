@@ -16,13 +16,11 @@ workspace = true
 apollo_class_manager_types.workspace = true
 apollo_metrics.workspace = true
 apollo_proof_manager_types.workspace = true
-apollo_sizeof.workspace = true
 async-trait.workspace = true
 mockall = { workspace = true, optional = true }
-privacy-circuit-verify.workspace = true
-serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+starknet_proof_verifier.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true

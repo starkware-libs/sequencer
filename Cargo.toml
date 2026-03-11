@@ -110,6 +110,7 @@ members = [
   "crates/starknet_os_flow_tests",
   "crates/starknet_patricia",
   "crates/starknet_patricia_storage",
+  "crates/starknet_proof_verifier",
   "crates/starknet_transaction_prover",
   "toml_test_utils",
   "workspace_tests",
@@ -374,6 +375,7 @@ starknet_os.path = "crates/starknet_os"
 starknet_os_flow_tests.path = "crates/starknet_os_flow_tests"
 starknet_patricia.path = "crates/starknet_patricia"
 starknet_patricia_storage.path = "crates/starknet_patricia_storage"
+starknet_proof_verifier = { path = "crates/starknet_proof_verifier", version = "0.18.0-dev.0" }
 starknet_transaction_prover.path = "crates/starknet_transaction_prover"
 static_assertions = "1.1.0"
 strum = "0.27.2"
