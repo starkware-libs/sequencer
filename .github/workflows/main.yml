@@ -21,6 +21,7 @@ concurrency:
 jobs:
   code_style:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    if: github.event.action != 'edited' || github.event.changes.base.ref != null
     timeout-minutes: 30
     steps:
       # Environment setup.
@@ -71,6 +72,7 @@ jobs:
 
   run-workspace-tests:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    if: github.event.action != 'edited' || github.event.changes.base.ref != null
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
@@ -81,6 +83,7 @@ jobs:
 
   run-tests:
     runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
+    if: github.event.action != 'edited' || github.event.changes.base.ref != null
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
@@ -110,6 +113,7 @@ jobs:
 
   run-integration-tests:
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    if: github.event.action != 'edited' || github.event.changes.base.ref != null
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
@@ -140,6 +144,7 @@ jobs:
   # TODO(dan): Once all cargo-deny issues are resolved, consider merging this into code_style job.
   cargo-deny:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    if: github.event.action != 'edited' || github.event.changes.base.ref != null
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6

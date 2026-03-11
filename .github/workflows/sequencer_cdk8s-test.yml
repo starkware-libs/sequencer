@@ -19,6 +19,7 @@ on:
 jobs:
   prepare:
     runs-on: ubuntu-24.04
+    if: github.event.action != 'edited' || github.event.changes.base.ref != null
     env:
       cluster: test
       namespace: test
@@ -74,6 +75,7 @@ jobs:
   validate:
     runs-on: ubuntu-24.04
     needs: prepare
+    if: github.event.action != 'edited' || github.event.changes.base.ref != null
     env:
       dist1_path: ./cdk8s-artifacts/dist1
       dist2_path: ./cdk8s-artifacts/dist2

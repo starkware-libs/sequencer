@@ -44,6 +44,7 @@ concurrency:
 jobs:
   gcs-push:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    if: github.event.action != 'edited' || github.event.changes.base.ref != null
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
