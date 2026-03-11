@@ -172,6 +172,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
             &tx_state_changes_keys,
             &block_context.bouncer_config,
             &block_context.versioned_constants,
+            tx_execution_info.receipt.gas.l2_gas,
         )?;
 
         Ok(tx_execution_info)
