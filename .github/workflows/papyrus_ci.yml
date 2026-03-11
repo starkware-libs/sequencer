@@ -24,7 +24,8 @@ concurrency:
   group: >
     ${{ github.workflow }}-
     ${{ github.ref }}-
-    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}-
+    ${{ github.event.action == 'edited' && github.event.changes.base.ref == null && github.run_id || 'run' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

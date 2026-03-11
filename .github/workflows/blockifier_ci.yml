@@ -33,12 +33,14 @@ concurrency:
   group: >
     ${{ github.workflow }}-
     ${{ github.ref }}-
-    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}-
+    ${{ github.event.action == 'edited' && github.event.changes.base.ref == null && github.run_id || 'run' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test-without-features:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    if: github.event.action != 'edited' || github.event.changes.base.ref != null
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
@@ -50,6 +52,7 @@ jobs:
 
   test-with-transaction-serde-feature:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    if: github.event.action != 'edited' || github.event.changes.base.ref != null
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
@@ -61,6 +64,7 @@ jobs:
 
   test-with-cairo-native-feature:
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    if: github.event.action != 'edited' || github.event.changes.base.ref != null
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
@@ -72,6 +76,7 @@ jobs:
 
   test-with-tracing-feature:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    if: github.event.action != 'edited' || github.event.changes.base.ref != null
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
@@ -83,7 +88,7 @@ jobs:
 
   benchmarking:
     runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
-    if: ${{ github.event_name == 'pull_request' }}
+    if: github.event_name == 'pull_request' && (github.event.action != 'edited' || github.event.changes.base.ref != null)
     steps:
       # TODO(AndrewL): Remove this after a while in CI (March 4 2026)
       - name: Print PR and base SHAs

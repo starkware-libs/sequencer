@@ -31,7 +31,8 @@ concurrency:
   group: >
     ${{ github.workflow }}-
     ${{ github.ref }}-
-    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}-
+    ${{ github.event.action == 'edited' && github.event.changes.base.ref == null && github.run_id || 'run' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -40,6 +41,7 @@ permissions:
 jobs:
   starknet_transaction_prover_ci:
     runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
+    if: github.event.action != 'edited' || github.event.changes.base.ref != null
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
@@ -98,6 +100,7 @@ jobs:
   # Test that the starknet_transaction_prover Docker image builds successfully.
   docker-build:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    if: github.event.action != 'edited' || github.event.changes.base.ref != null
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
