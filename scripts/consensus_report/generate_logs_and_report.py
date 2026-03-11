@@ -348,9 +348,20 @@ def download_logs(environment, log_filter: str, output_path: Optional[str]) -> i
 
 def generate_report(logs_path: str, height: int, report_output: str) -> int:
     """Generate consensus report from logs. Returns exit code."""
-    # TODO(lev): Implement report generation
-    print("Report generation not yet implemented")
-    return 0
+    report_path = report_output
+    if os.path.splitext(report_path)[1] == "":
+        report_path = report_path + ".txt"
+
+    print("Generating report...")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    report_script = os.path.join(script_dir, "generate_consensus_report_v1_2.py")
+    report_cmd = [sys.executable, report_script, logs_path, str(height), report_path]
+    rc = subprocess.run(report_cmd).returncode
+
+    if rc == 0:
+        print(f"Report {report_path} generated")
+
+    return rc
 
 
 # ------------------------------
