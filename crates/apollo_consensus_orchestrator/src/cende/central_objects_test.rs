@@ -404,6 +404,7 @@ fn central_bouncer_weights() -> CentralBouncerWeights {
         sierra_gas: GasAmount(10),
         n_txs: 2,
         proving_gas: GasAmount(11),
+        receipt_l2_gas: GasAmount(7),
     }
 }
 
