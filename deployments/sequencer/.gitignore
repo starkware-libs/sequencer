@@ -2,4 +2,5 @@ __pycache__/
 .idea/
 dist/
 imports/
+.venv/
 configs/overlays/hybrid/env-testing
