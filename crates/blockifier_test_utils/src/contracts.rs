@@ -22,6 +22,7 @@ use crate::cairo_compile::{
     LibfuncArg,
 };
 use crate::cairo_versions::{CairoVersion, RunnableCairo1};
+use crate::compile_cache;
 
 #[cfg(test)]
 #[path = "contracts_test.rs"]
@@ -409,6 +410,16 @@ impl FeatureContract {
         get_raw_contract_class(&self.get_compiled_path())
     }
 
+    /// Ensures that compiled artifacts are available for this contract.
+    /// For Cairo 1 non-ERC20 contracts, this triggers on-demand compilation with caching.
+    /// For Cairo 0 and ERC20 contracts (which use committed artifacts), this is a no-op.
+    fn ensure_compiled(&self) {
+        if matches!(self, Self::ERC20(_)) || self.cairo_version().is_cairo0() {
+            return;
+        }
+        compile_cache::ensure_cairo1_compiled(self);
+    }
+
     fn get_cairo_version_bit(&self) -> u32 {
         match self.cairo_version() {
             CairoVersion::Cairo0 => 0,
@@ -514,17 +525,16 @@ impl FeatureContract {
 
     pub fn get_sierra_path(&self) -> String {
         assert_ne!(self.cairo_version(), CairoVersion::Cairo0);
+        self.ensure_compiled();
         if matches!(self, &Self::ERC20(CairoVersion::Cairo1(_))) {
             return ERC20_SIERRA_CONTRACT_PATH.to_string();
         }
 
-        format!(
-            "{CAIRO1_FEATURE_CONTRACTS_DIR}/{SIERRA_CONTRACTS_SUBDIR}/{}.sierra.json",
-            self.get_non_erc20_base_name()
-        )
+        compile_cache::cached_sierra_path(self).to_string_lossy().to_string()
     }
 
     pub fn get_compiled_path(&self) -> String {
+        self.ensure_compiled();
         // ERC20 is a special case - not in the feature_contracts directory.
         if let Self::ERC20(cairo_version) = self {
             match cairo_version {
@@ -535,23 +545,21 @@ impl FeatureContract {
             }
             .into()
         } else {
-            let cairo_version = self.cairo_version();
-            format!(
-                "resources/feature_contracts/cairo{}/{}{}.json",
-                match cairo_version {
-                    CairoVersion::Cairo0 => "0/compiled",
-                    CairoVersion::Cairo1(RunnableCairo1::Casm) => "1/compiled",
-                    #[cfg(feature = "cairo_native")]
-                    CairoVersion::Cairo1(RunnableCairo1::Native) => "1/sierra",
-                },
-                self.get_non_erc20_base_name(),
-                match cairo_version {
-                    CairoVersion::Cairo0 => "_compiled",
-                    CairoVersion::Cairo1(RunnableCairo1::Casm) => ".casm",
-                    #[cfg(feature = "cairo_native")]
-                    CairoVersion::Cairo1(RunnableCairo1::Native) => ".sierra",
+            match self.cairo_version() {
+                CairoVersion::Cairo0 => {
+                    format!(
+                        "resources/feature_contracts/cairo0/compiled/{}_compiled.json",
+                        self.get_non_erc20_base_name()
+                    )
                 }
-            )
+                CairoVersion::Cairo1(RunnableCairo1::Casm) => {
+                    compile_cache::cached_compiled_path(self).to_string_lossy().to_string()
+                }
+                #[cfg(feature = "cairo_native")]
+                CairoVersion::Cairo1(RunnableCairo1::Native) => {
+                    compile_cache::cached_sierra_path(self).to_string_lossy().to_string()
+                }
+            }
         }
     }
 
@@ -699,8 +707,15 @@ impl FeatureContract {
     }
 }
 
+/// Reads the raw JSON content of a contract class from disk.
+/// Accepts both absolute paths (e.g. from the compilation cache) and crate-relative paths
+/// (e.g. `resources/feature_contracts/...` resolved against the crate's manifest directory).
 pub fn get_raw_contract_class(contract_path: &str) -> String {
-    let path: PathBuf = [compile_time_cargo_manifest_dir!(), contract_path].iter().collect();
+    let path: PathBuf = if std::path::Path::new(contract_path).is_absolute() {
+        PathBuf::from(contract_path)
+    } else {
+        [compile_time_cargo_manifest_dir!(), contract_path].iter().collect()
+    };
     fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("Failed to read contract from {path:?}: {e}"))
 }
