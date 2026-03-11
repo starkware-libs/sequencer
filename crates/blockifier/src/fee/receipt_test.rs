@@ -393,7 +393,11 @@ fn test_calculate_tx_gas_usage_basic<'a>(
             .state
             .to_gas_vector(use_kzg_da, &versioned_constants.allocation_cost)
             .l1_data_gas,
-        l2_gas: l1_handler_gas_usage_vector.l2_gas,
+        l2_gas: l1_handler_gas_usage_vector.l2_gas
+            + combined_cases_starknet_resources
+                .state
+                .to_gas_vector(use_kzg_da, &versioned_constants.allocation_cost)
+                .l2_gas,
     };
 
     assert_eq!(expected_gas_vector, gas_usage_vector);
