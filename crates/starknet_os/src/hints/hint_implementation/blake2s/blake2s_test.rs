@@ -13,6 +13,7 @@ use rstest::rstest;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Blake2Felt252;
 
+use crate::hints::hint_implementation::state_diff_encryption::utils::calc_blake_hash;
 use crate::test_utils::cairo_runner::{
     initialize_and_run_cairo_0_entry_point,
     EndpointArg,
@@ -109,4 +110,52 @@ fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
             panic!("Failed to run Cairo blake2s function: {e:?}");
         }
     }
+}
+
+/// Test that compares the Cairo0 `calc_naive_blake_hash` with its Rust equivalent.
+#[rstest]
+#[case::single_zero(vec![Felt::ZERO])]
+#[case::single_one(vec![Felt::ONE])]
+#[case::boundary_at_2_63(vec![Felt::from(1u64 << 63)])]
+#[case::two_felts(vec![Felt::from(12), Felt::from(34)])]
+#[case::typical_message(vec![
+    Felt::from(0x1234u64),
+    Felt::from(85u64),
+    Felt::from(2u64),
+    Felt::from(12u64),
+    Felt::from(34u64),
+])]
+#[case::many_felts(vec![Felt::from(7u64); 20])]
+fn test_calc_naive_blake_hash(#[case] test_data: Vec<Felt>) {
+    let runner_config = EntryPointRunnerConfig {
+        layout: LayoutName::all_cairo,
+        trace_enabled: false,
+        verify_secure: false,
+        proof_mode: false,
+        add_main_prefix_to_entrypoint: false,
+    };
+
+    let (_, return_values, _) = initialize_and_run_cairo_0_entry_point(
+        &runner_config,
+        apollo_starknet_os_program::test_programs::NAIVE_BLAKE_TEST_BYTES,
+        "starkware.starknet.core.os.naive_blake.calc_naive_blake_hash",
+        &[
+            EndpointArg::from(Felt::from(test_data.len())),
+            EndpointArg::Pointer(PointerArg::Array(
+                test_data.iter().map(|felt| MaybeRelocatable::Int(*felt)).collect(),
+            )),
+        ],
+        &[ImplicitArg::Builtin(BuiltinName::range_check)],
+        &[EndpointArg::from(Felt::ZERO)],
+        HashMap::new(),
+        None,
+    )
+    .unwrap();
+
+    let [EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(cairo_hash)))] =
+        return_values.as_slice()
+    else {
+        panic!("Expected a single felt return value");
+    };
+    assert_eq!(calc_blake_hash(&test_data), *cairo_hash);
 }
