@@ -18,29 +18,25 @@ use libp2p::{Multiaddr, PeerId};
 use super::dial_peer::DialPeerStream;
 use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 
-/// Manages dialling to a dynamic set of peers using explicit multiaddresses,
+/// Manages dialing to a dynamic set of peers using explicit multiaddresses,
 /// with exponential backoff on failure.
 ///
 /// Each peer gets its own [`DialPeerStream`] that drives the dial lifecycle.
 /// Streams terminate once a connection is established. This behaviour does not
 /// re-dial peers after disconnection — callers must call
 /// [`request_dial`](Self::request_dial) again if reconnection is desired.
-// TODO(AndrewL): remove this once the behaviour is added
-#[allow(dead_code)]
-pub struct DiallingBehaviour {
+pub struct DialingBehaviour {
     retry_config: RetryConfig,
     peers: SelectAll<DialPeerStream>,
     waker: Option<Waker>,
 }
 
-// TODO(AndrewL): remove this once the behaviour is added
-#[allow(dead_code)]
-impl DiallingBehaviour {
+impl DialingBehaviour {
     pub fn new(retry_config: RetryConfig) -> Self {
         Self { retry_config, peers: SelectAll::new(), waker: None }
     }
 
-    /// Request dialling a peer at the given addresses.
+    /// Request dialing a peer at the given addresses.
     ///
     /// Creates a new [`DialPeerStream`] for the peer. If a stream for this peer already
     /// exists (pending or in-progress), it is cancelled and replaced.
@@ -64,7 +60,7 @@ impl DiallingBehaviour {
     }
 }
 
-impl NetworkBehaviour for DiallingBehaviour {
+impl NetworkBehaviour for DialingBehaviour {
     type ConnectionHandler = dummy::ConnectionHandler;
     type ToSwarm = ToOtherBehaviourEvent;
 
