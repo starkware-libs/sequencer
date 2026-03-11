@@ -232,7 +232,7 @@ async fn contract_class() {
         .mock(
             "GET",
             &format!(
-            "/feeder_gateway/get_class_by_hash?blockNumber=pending&\
+            "/feeder_gateway/get_class_by_hash?blockNumber=latest&\
              {CLASS_HASH_QUERY}=0x4e70b19333ae94bd958625f7b61ce9eec631653597e68645e13780061b2136c"
         )[..],
         )
@@ -315,7 +315,7 @@ async fn deprecated_contract_class() {
         .mock(
             "GET",
             &format!(
-            "/feeder_gateway/get_class_by_hash?blockNumber=pending&\
+            "/feeder_gateway/get_class_by_hash?blockNumber=latest&\
              {CLASS_HASH_QUERY}=0x7af612493193c771c1b12f511a8b4d3b0c6d0648242af4680c7cd0d06186f17"
         )[..],
         )
@@ -343,7 +343,7 @@ async fn deprecated_contract_class() {
         .mock(
             "GET",
             &format!(
-                "/feeder_gateway/get_class_by_hash?blockNumber=pending&{CLASS_HASH_QUERY}=0x7"
+                "/feeder_gateway/get_class_by_hash?blockNumber=latest&{CLASS_HASH_QUERY}=0x7"
             )[..],
         )
         .with_status(400)
@@ -450,7 +450,7 @@ async fn compiled_class_by_hash() {
         .mock(
             "GET",
             &format!(
-                "/feeder_gateway/get_compiled_class_by_class_hash?blockNumber=pending&\
+                "/feeder_gateway/get_compiled_class_by_class_hash?blockNumber=latest&\
                  {CLASS_HASH_QUERY}=0x7"
             )[..],
         )
@@ -470,7 +470,7 @@ async fn compiled_class_by_hash() {
         .mock(
             "GET",
             &format!(
-                "/feeder_gateway/get_compiled_class_by_class_hash?blockNumber=pending&\
+                "/feeder_gateway/get_compiled_class_by_class_hash?blockNumber=latest&\
                  {CLASS_HASH_QUERY}=0x0"
             )[..],
         )
@@ -563,7 +563,7 @@ async fn class_by_hash_unserializable() {
     let mut server = mockito::Server::new_async().await;
     test_unserializable(
         &mut server,
-        &format!("/feeder_gateway/get_class_by_hash?blockNumber=pending&{CLASS_HASH_QUERY}=0x1")[..],
+        &format!("/feeder_gateway/get_class_by_hash?blockNumber=latest&{CLASS_HASH_QUERY}=0x1")[..],
         |apollo_starknet_client| async move {
             apollo_starknet_client.class_by_hash(class_hash!("0x1")).await
         },
@@ -590,7 +590,7 @@ async fn compiled_class_by_hash_unserializable() {
     test_unserializable(
         &mut server,
         &format!(
-            "/feeder_gateway/get_compiled_class_by_class_hash?blockNumber=pending&\
+            "/feeder_gateway/get_compiled_class_by_class_hash?blockNumber=latest&\
              {CLASS_HASH_QUERY}=0x7"
         )[..],
         |apollo_starknet_client| async move {
