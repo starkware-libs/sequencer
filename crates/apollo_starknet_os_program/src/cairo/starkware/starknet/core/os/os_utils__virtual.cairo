@@ -1,9 +1,9 @@
 from starkware.cairo.common.bool import FALSE, TRUE
-from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash_many
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.starknet.core.os.block_context import BlockContext, OsGlobalContext
 from starkware.starknet.core.os.block_hash import get_block_hashes
+from starkware.starknet.core.os.naive_blake import calc_naive_blake_hash
 from starkware.starknet.core.os.output import MessageToL1Header, OsOutput, OsOutputHeader
 from starkware.starknet.core.os.state.commitment import CommitmentUpdate
 from starkware.starknet.core.os.virtual_os_output import (
@@ -11,8 +11,8 @@ from starkware.starknet.core.os.virtual_os_output import (
     VirtualOsOutputHeader,
 )
 
-// Hashes each L2-to-L1 message separately and writes the hash to the output.
-func output_message_to_l1_hashes{output_ptr: felt*, poseidon_ptr: PoseidonBuiltin*}(
+// Hashes each L2-to-L1 message separately using Blake2s and writes the hash to the output.
+func output_message_to_l1_hashes{output_ptr: felt*, range_check_ptr}(
     messages_ptr_start: felt*, messages_ptr_end: felt*
 ) {
     if (messages_ptr_start == messages_ptr_end) {
@@ -22,9 +22,9 @@ func output_message_to_l1_hashes{output_ptr: felt*, poseidon_ptr: PoseidonBuilti
     // Read the message header.
     let message_header = cast(messages_ptr_start, MessageToL1Header*);
 
-    // Hash the message (header + payload).
+    // Hash the message (header + payload) with Blake2s (naive felt-to-u32 encoding).
     let message_size = MessageToL1Header.SIZE + message_header.payload_size;
-    let (message_hash) = poseidon_hash_many(n=message_size, elements=messages_ptr_start);
+    let message_hash = calc_naive_blake_hash(n_felts=message_size, data=messages_ptr_start);
 
     // Store the hash and advance output_ptr.
     assert output_ptr[0] = message_hash;

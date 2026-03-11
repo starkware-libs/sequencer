@@ -1458,6 +1458,27 @@ mod TestContract {
         assert(computed_hash == expected_hash, 'BLAKE_HASH_MISMATCH');
     }
 
+    // Verifies that a Blake2s message hash from virtual OS proof facts matches
+    // an independently computed Blake2s hash of the supplied message data.
+    #[external(v0)]
+    fn test_verify_virtual_os_message_hash(
+        self: @ContractState, message_data: Span<felt252>,
+    ) {
+        let execution_info = starknet::syscalls::get_execution_info_v3_syscall()
+            .unwrap_syscall()
+            .unbox();
+        let tx_info = execution_info.tx_info.unbox();
+        let proof_facts = tx_info.proof_facts;
+
+        // Proof facts layout: [ProofHeader(3 felts), VirtualOsOutputHeader(5 felts), hashes...]
+        let proof_header_size = 3;
+        let virtual_os_header_size = 5;
+        let message_hash_from_proof = *proof_facts[proof_header_size + virtual_os_header_size];
+
+        let computed_hash = naive_blake_hash(message_data);
+        assert(computed_hash == message_hash_from_proof, 'BLAKE_HASH_MISMATCH');
+    }
+
     type U32Limb = BoundedInt<0, 0xFFFFFFFF>;
     type U64Limb = BoundedInt<0, 0xFFFFFFFFFFFFFFFF>;
     type U96Limb = BoundedInt<0, 0xFFFFFFFFFFFFFFFFFFFFFFFF>;
