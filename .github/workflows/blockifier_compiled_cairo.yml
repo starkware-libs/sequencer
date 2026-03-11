@@ -5,6 +5,7 @@ on:
     types:
       - opened
       - reopened
+      - edited
       - synchronize
     paths:
       - ".github/workflows/blockifier_compiled_cairo.yml"
