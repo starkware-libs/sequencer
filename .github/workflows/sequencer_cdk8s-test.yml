@@ -17,8 +17,22 @@ on:
       - "deployments/sequencer/**"
 
 jobs:
+  # https://graphite.com/docs/stacking-and-ci
+  optimize_ci:
+    runs-on: ubuntu-24.04
+    outputs:
+      skip: ${{ steps.check_skip.outputs.skip }}
+    steps:
+      - name: Optimize CI
+        id: check_skip
+        uses: withgraphite/graphite-ci-action@v0.0.9
+        with:
+          graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
+
   prepare:
     runs-on: ubuntu-24.04
+    needs: optimize_ci
+    if: github.event_name != 'pull_request' || needs.optimize_ci.outputs.skip == 'false'
     env:
       cluster: test
       namespace: test
@@ -73,7 +87,8 @@ jobs:
 
   validate:
     runs-on: ubuntu-24.04
-    needs: prepare
+    needs: [prepare, optimize_ci]
+    if: github.event_name != 'pull_request' || needs.optimize_ci.outputs.skip == 'false'
     env:
       dist1_path: ./cdk8s-artifacts/dist1
       dist2_path: ./cdk8s-artifacts/dist2

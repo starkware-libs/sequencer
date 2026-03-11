@@ -19,8 +19,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # https://graphite.com/docs/stacking-and-ci
+  optimize_ci:
+    runs-on: ubuntu-24.04
+    outputs:
+      skip: ${{ steps.check_skip.outputs.skip }}
+    steps:
+      - name: Optimize CI
+        id: check_skip
+        uses: withgraphite/graphite-ci-action@v0.0.9
+        with:
+          graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
+
   code_style:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    needs: optimize_ci
+    if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 30
     steps:
       # Environment setup.
@@ -71,6 +85,8 @@ jobs:
 
   run-workspace-tests:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    needs: optimize_ci
+    if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
@@ -81,6 +97,8 @@ jobs:
 
   run-tests:
     runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
+    needs: optimize_ci
+    if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
@@ -110,6 +128,8 @@ jobs:
 
   run-integration-tests:
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    needs: optimize_ci
+    if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
@@ -140,6 +160,8 @@ jobs:
   # TODO(dan): Once all cargo-deny issues are resolved, consider merging this into code_style job.
   cargo-deny:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    needs: optimize_ci
+    if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
