@@ -97,7 +97,7 @@ func naive_encode_felt252s_to_u32s(n_felts: felt, data: felt*, encoded_data: fel
     if (n_felts == 0) {
         return ();
     }
-    naive_encode_felt252_to_u32s(packed_value=[data], unpacked_u32s=encoded_data);
+    naive_encode_felt252_to_u32s(packed_value=data[0], unpacked_u32s=encoded_data);
     return naive_encode_felt252s_to_u32s(
         n_felts=n_felts - 1, data=&data[1], encoded_data=&encoded_data[8]
     );

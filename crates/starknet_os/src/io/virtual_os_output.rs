@@ -4,8 +4,11 @@ use starknet_api::hash::StarkHash;
 use starknet_api::transaction::fields::VIRTUAL_OS_OUTPUT_VERSION;
 use starknet_api::transaction::MessageToL1;
 use starknet_types_core::felt::Felt;
-use starknet_types_core::hash::{Poseidon, StarkHash as StarkHashTrait};
 
+use crate::hints::hint_implementation::state_diff_encryption::utils::{
+    blake2s_to_felt,
+    naive_encode_felts_to_u32s,
+};
 use crate::io::os_output::{wrap_missing, wrap_missing_as, OsOutputError};
 
 #[cfg(test)]
@@ -15,7 +18,7 @@ mod virtual_os_output_test;
 /// The parsed output of the virtual OS.
 #[derive(Debug, PartialEq)]
 pub struct VirtualOsOutput {
-    /// The output version (should be `VIRTUAL_SNOS0`).
+    /// The output version (should be `VIRTUAL_SNOS1`).
     pub version: Felt,
     /// The base block number.
     pub base_block_number: BlockNumber,
@@ -68,9 +71,10 @@ impl VirtualOsOutput {
     }
 }
 
-/// Computes the hash of each message to L1 separately.
-/// Each message is serialized as: [from_address, to_address, payload_size, ...payload]
-/// Returns an array of hashes, one per message.
+/// Computes the Blake2s hash of each message to L1 separately.
+/// Each message is serialized as: [from_address, to_address, payload_size, ...payload],
+/// then each felt is naively encoded into 8 u32 LE limbs, and the resulting byte stream
+/// is hashed with Blake2s-256.
 pub fn compute_messages_to_l1_hashes(messages: &[MessageToL1]) -> Vec<StarkHash> {
     let mut hashes = Vec::with_capacity(messages.len());
     for message in messages {
@@ -79,7 +83,10 @@ pub fn compute_messages_to_l1_hashes(messages: &[MessageToL1]) -> Vec<StarkHash>
         serialized.push(message.to_address.into());
         serialized.push(Felt::from(message.payload.0.len()));
         serialized.extend_from_slice(&message.payload.0);
-        hashes.push(Poseidon::hash_array(&serialized));
+
+        let u32_words = naive_encode_felts_to_u32s(serialized);
+        let byte_stream: Vec<u8> = u32_words.iter().flat_map(|w| w.to_le_bytes()).collect();
+        hashes.push(blake2s_to_felt(&byte_stream));
     }
     hashes
 }
