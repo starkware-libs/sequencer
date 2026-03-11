@@ -6,6 +6,7 @@ on:
       - opened
       - reopened
       - synchronize
+      - edited
     paths:
       - ".github/workflows/blockifier_compiled_cairo.yml"
       - "crates/apollo_compile_to_casm/src/constants.rs" # Contains the Cairo1 compiler version.

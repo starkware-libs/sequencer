@@ -6,6 +6,7 @@ on:
       - opened
       - reopened
       - synchronize
+      - edited
     paths:
       - ".github/workflows/papyrus_ci.yml"
       - "deployments/images/base/Dockerfile"

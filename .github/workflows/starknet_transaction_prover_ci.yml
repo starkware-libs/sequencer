@@ -6,6 +6,7 @@ on:
       - opened
       - reopened
       - synchronize
+      - edited
     paths:
       - ".github/actions/bootstrap/action.yml"
       - ".github/workflows/starknet_transaction_prover_ci.yml"
