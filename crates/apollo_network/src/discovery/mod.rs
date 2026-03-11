@@ -279,8 +279,7 @@ impl BridgedBehaviour for Behaviour {
             mixed_behaviour::ToOtherBehaviourEvent::Kad(
                 kad_impl::KadToOtherBehaviourEvent::FoundPeers(peers),
             ) => {
-                let peer_ids: Vec<_> = peers.iter().map(|(peer_id, _)| *peer_id).collect();
-                self.kad_requesting.handle_kad_response(&peer_ids);
+                self.kad_requesting.handle_kad_response(peers);
             }
             mixed_behaviour::ToOtherBehaviourEvent::Discovery(
                 ToOtherBehaviourEvent::RequestDial { peer_id, addresses },
