@@ -163,6 +163,10 @@ pub fn maybe_decrypt_iter<'a, It: Iterator<Item = Felt> + 'a>(
     Box::new(decrypt_iter(iter, decrypted_symmetric_key))
 }
 
+// TODO(Yonatan): move naive-blake helpers (`calc_blake_hash`, `naive_encode_felts_to_u32s`,
+// `blake2s_to_felt`) out of the state-diff-encryption module into a shared blake utilities
+// module.
+
 /// Encodes a slice of `Felt` values into 32-bit words exactly as Cairo’s
 /// `naive_encode_felt252_to_u32` hint does, then hashes the resulting byte stream
 /// with Blake2s-256 and returns the 256-bit digest to a
