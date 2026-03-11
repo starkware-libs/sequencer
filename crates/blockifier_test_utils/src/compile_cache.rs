@@ -19,7 +19,8 @@ use crate::cairo_compile::{
     CompilationArtifacts,
     LibfuncArg,
 };
-use crate::contracts::{FeatureContract, ERC20_CAIRO1_CONTRACT_PATH};
+use crate::cairo_versions::{CairoVersion, RunnableCairo1};
+use crate::contracts::FeatureContract;
 
 static CACHE_DIR: LazyLock<PathBuf> =
     LazyLock::new(|| project_path().unwrap().join("target/blockifier_test_artifacts"));
@@ -184,11 +185,11 @@ pub fn ensure_cairo1_compiled(contract: &FeatureContract) {
 /// Ensures compiled class hashes are cached for ERC20 (which uses committed CASM artifacts).
 /// Uses the CASM file content hash as cache key so that the hashes are recomputed only when
 /// the committed artifact changes.
-pub fn ensure_erc20_compiled_class_hashes(contract: &FeatureContract) {
-    assert!(matches!(contract, FeatureContract::ERC20(_)));
+pub fn ensure_erc20_compiled_class_hashes() {
+    let contract = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
     let crate_root = PathBuf::from(compile_time_cargo_manifest_dir!());
-    let casm_abs = crate_root.join(ERC20_CAIRO1_CONTRACT_PATH);
+    let casm_abs = crate_root.join(contract.get_compiled_path());
     let casm_content = fs::read_to_string(&casm_abs)
         .unwrap_or_else(|e| panic!("Cannot read ERC20 CASM at {casm_abs:?}: {e}"));
 
@@ -197,11 +198,11 @@ pub fn ensure_erc20_compiled_class_hashes(contract: &FeatureContract) {
     let content_hash = format!("{:x}", hasher.finalize());
 
     with_file_lock(
-        &lock_file_path(contract),
-        || is_cache_fresh(contract, &content_hash),
+        &lock_file_path(&contract),
+        || is_cache_fresh(&contract, &content_hash),
         || {
-            compute_and_write_compiled_class_hashes(contract, casm_content.as_bytes());
-            write_artifact(&cache_key_path(contract), content_hash.as_bytes());
+            compute_and_write_compiled_class_hashes(&contract, casm_content.as_bytes());
+            write_artifact(&cache_key_path(&contract), content_hash.as_bytes());
         },
     );
 }
