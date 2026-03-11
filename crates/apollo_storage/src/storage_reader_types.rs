@@ -23,7 +23,6 @@ use crate::class_manager::ClassManagerStorageReader;
 use crate::compiled_class::CasmStorageReader;
 use crate::consensus::{ConsensusStorageReader, LastVotedMarker};
 use crate::global_root::GlobalRootStorageReader;
-use crate::global_root_marker::GlobalRootMarkerStorageReader;
 use crate::header::{HeaderStorageReader, StorageBlockHeader};
 use crate::mmap_file::LocationInFile;
 use crate::partial_block_hash::PartialBlockHashComponentsStorageReader;
