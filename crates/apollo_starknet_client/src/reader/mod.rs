@@ -157,7 +157,6 @@ const HEADER_ONLY_QUERY: &str = "headerOnly";
 const FEE_MARKET_INFO_QUERY: &str = "withFeeMarketInfo";
 const LATEST_BLOCK_NUMBER: &str = "latest";
 const CLASS_HASH_QUERY: &str = "classHash";
-const PENDING_BLOCK_ID: &str = "pending";
 const INCLUDE_BLOCK: &str = "includeBlock";
 const FEEDER_GATEWAY_IS_ALIVE: &str = "feeder_gateway/is_alive";
 const FEEDER_GATEWAY_ALIVE_RESPONSE: &str = "FeederGateway is alive!";
@@ -173,21 +172,21 @@ impl StarknetUrls {
             get_contract_by_hash: base_url
                 .join(GET_CONTRACT_BY_HASH_URL)?
                 .query_pairs_mut()
-                .append_pair(BLOCK_NUMBER_QUERY, PENDING_BLOCK_ID)
+                .append_pair(BLOCK_NUMBER_QUERY, LATEST_BLOCK_NUMBER)
                 .finish()
                 .clone(),
             // Query the pending block since the feeder-gateway uses the `latest` block by default.
             get_compiled_class_by_class_hash: base_url
                 .join(GET_COMPILED_CLASS_BY_CLASS_HASH_URL)?
                 .query_pairs_mut()
-                .append_pair(BLOCK_NUMBER_QUERY, PENDING_BLOCK_ID)
+                .append_pair(BLOCK_NUMBER_QUERY, LATEST_BLOCK_NUMBER)
                 .finish()
                 .clone(),
             get_state_update: base_url.join(GET_STATE_UPDATE_URL)?,
             get_pending_data: base_url
                 .join(GET_STATE_UPDATE_URL)?
                 .query_pairs_mut()
-                .append_pair(BLOCK_NUMBER_QUERY, PENDING_BLOCK_ID)
+                .append_pair(BLOCK_NUMBER_QUERY, LATEST_BLOCK_NUMBER)
                 .append_pair(INCLUDE_BLOCK, "true")
                 .finish()
                 .clone(),
