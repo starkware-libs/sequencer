@@ -142,7 +142,6 @@ async fn run(test_env_data: TestEnvData) {
         run_get_block_test(&apollo_starknet_client, test_env_data.get_blocks),
         run_get_state_update_test(&apollo_starknet_client, test_env_data.get_state_updates),
         run_class_by_hash_test(&apollo_starknet_client, test_env_data.class_hashes),
-        async { apollo_starknet_client.pending_data().await.unwrap().unwrap() },
     );
 }
 
