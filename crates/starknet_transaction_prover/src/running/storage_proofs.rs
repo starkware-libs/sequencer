@@ -36,6 +36,56 @@ use crate::running::committer_utils::{
 };
 use crate::running::virtual_block_executor::VirtualBlockExecutionData;
 
+/// Counts total keys in a query, mirroring Pathfinder's counting logic.
+pub(crate) fn count_total_keys(query: &RpcStorageProofsQuery) -> usize {
+    query.class_hashes.len()
+        + query.contract_addresses.len()
+        + query.contract_storage_keys.iter().map(|csk| csk.storage_keys.len()).sum::<usize>()
+}
+
+/// A single "key" item from a flattened query — each variant counts as 1 toward the RPC limit.
+pub(crate) enum QueryItem {
+    ClassHash(Felt),
+    ContractAddress(ContractAddress),
+    StorageKey { contract_address: Felt, key: Felt },
+}
+
+pub(crate) fn flatten_query(query: &RpcStorageProofsQuery) -> Vec<QueryItem> {
+    let mut items = Vec::with_capacity(count_total_keys(query));
+    items.extend(query.class_hashes.iter().copied().map(QueryItem::ClassHash));
+    items.extend(query.contract_addresses.iter().copied().map(QueryItem::ContractAddress));
+    for contract in &query.contract_storage_keys {
+        for &key in &contract.storage_keys {
+            items.push(QueryItem::StorageKey { contract_address: contract.contract_address, key });
+        }
+    }
+    items
+}
+
+pub(crate) fn collect_query(items: &[QueryItem]) -> RpcStorageProofsQuery {
+    let mut query = RpcStorageProofsQuery::default();
+    for item in items {
+        match item {
+            QueryItem::ClassHash(h) => query.class_hashes.push(*h),
+            QueryItem::ContractAddress(a) => query.contract_addresses.push(*a),
+            QueryItem::StorageKey { contract_address, key } => {
+                match query.contract_storage_keys.last_mut() {
+                    Some(last) if last.contract_address == *contract_address => {
+                        last.storage_keys.push(*key);
+                    }
+                    _ => {
+                        query.contract_storage_keys.push(ContractStorageKeys {
+                            contract_address: *contract_address,
+                            storage_keys: vec![*key],
+                        });
+                    }
+                }
+            }
+        }
+    }
+    query
+}
+
 /// Configuration for storage proof provider behavior.
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct StorageProofConfig {
@@ -77,6 +127,7 @@ pub(crate) trait StorageProofProvider {
 }
 
 /// Query parameters for fetching storage proofs from RPC.
+#[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct RpcStorageProofsQuery {
     pub(crate) class_hashes: Vec<Felt>,
     pub(crate) contract_addresses: Vec<ContractAddress>,
