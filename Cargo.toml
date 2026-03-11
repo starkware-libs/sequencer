@@ -324,8 +324,8 @@ paste = "1.0.15"
 phf = "0.11"
 pretty_assertions = "1.4.0"
 primitive-types = "0.12.1"
-privacy-circuit-verify = { git = "https://github.com/starkware-libs/proving-utils", rev = "b20cff5" }
-privacy-prove = { git = "https://github.com/starkware-libs/proving-utils", rev = "b20cff5" }
+privacy-circuit-verify = { git = "https://github.com/starkware-libs/proving-utils", rev = "5c930499f7ebb45aaa3ceff50c6ad6bf2d952104" }
+privacy-prove = { git = "https://github.com/starkware-libs/proving-utils", rev = "5c930499f7ebb45aaa3ceff50c6ad6bf2d952104" }
 proc-macro2 = "1.0"
 prometheus-parse = "0.2.4"
 prost = "0.12.1"
