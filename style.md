@@ -219,46 +219,31 @@ if is_duplicate {
 
 ## APIs
 
+### Getter Names
+
+A getter for the field `foo` should be `fn foo`, rather than `fn get_foo`
+
+The same is also encouraged for non-field getters, except for in cases where `get*` really improves readability.
+
+### `self` Mutability in Getters
+
+Getter methods should always be `&self`, never `&mut self` --- use interior mutability if mutating self is necessary for maintenance like caching.
+
+**Rationale**: aligning to user's expectation for getters, preventing borrow-checker surprises.
+
+### Types in API
+
 Types appearing _in the API_ should strongly prefer `std` types, primitives, or types exposed by the crate for external use.
 
 Rationale: Using 3rd-party-types (types not defined inside the crate, `std` or rust builtints) _in the API_ forces users to use the _exact_ version of the dependency, it won't do Cargo's regular trick of fetching multiple versions of the same dependency, because a single type is passed from one crate to another.
 
-### Re-exports - For Internal Items.
+### Wide Parameter Type
 
-Avoid re-exporting internal items of the crate.
+Function parameters should use the most general type that satisfies the function's needs — the type that accepts the widest set of callers without requiring them to convert. In particular:
 
-Rationale: two import paths for a single item create needless choice.
-
-Example: an internal re-export is typically made in `lib.rs`:
-
-```rust
-// BAD
-// Filename: lib.rs
-pub use crate::some::type::Foo;
-```
-
-This re-export makes both of these import paths work and point to the same Foo:
-
-```rust
-use crate::Foo;
-use crate::some::type::Foo;
-```
-
-Alternative: none, avoid internal re-exports completely.
-
-### Re-exports - For External Items
-
-Avoid re-exporting external items in most cases.
-
-Rationale: this is usually done to avoid exposing inner types (see [APIs](#APIs)), but it also pulls in trait-impls of the type and adds them to the crate's namespace, polluting the namespace.
-
-Example: a re-export for an external type is:
-
-```rust
-pub use <some_3rd_party_crate>::some::type::Bar;
-```
-
-The above internalizes `Bar` as an inner type of the re-exporting crate. This by-itself can be nice-to-have sometimes due to [APIs](#APIs), however this will also internalize all `impl trait for Bar` into the current crate, which almost always isn't what we want.
+- `&[T]` over `Vec<T>`
+- `&str` over `String`
+- `Option<&T>` over `&Option<T>` (callers holding `&Option<T>` can pass `.as_ref()`, but not the reverse)
 
 ### Unnamed Function Parameters
 
@@ -300,26 +285,6 @@ let is_executable = false;
 create_transaction(is_dry_run, is_executable)
 ```
 
-### Wide Parameter Type
-
-Function parameters should use the most general type that satisfies the function's needs — the type that accepts the widest set of callers without requiring them to convert. In particular:
-
-- `&[T]` over `Vec<T>`
-- `&str` over `String`
-- `Option<&T>` over `&Option<T>` (callers holding `&Option<T>` can pass `.as_ref()`, but not the reverse)
-
-### Getter Names
-
-A getter for the field `foo` should be `fn foo`, rather than `fn get_foo`
-
-The same is also encouraged for non-field getters, except for in cases where `get*` really improves readability.
-
-### `self` Mutability in Getters
-
-Getter methods should always be `&self`, never `&mut self` --- use interior mutability if mutating self is necessary for maintenance like caching.
-
-**Rationale**: aligning to user's expectation for getters, preventing borrow-checker surprises.
-
 ### Private Functions and Private Fields
 
 Struct fields should be `pub` by default, unless changing them could break invariants, e.g. a field that contains a vector that must be kept sorted.
@@ -327,6 +292,43 @@ Struct fields should be `pub` by default, unless changing them could break invar
 If a struct field is private, document the invariant next to the field, and don't create setters for the field.
 
 Note: This rule is not strict, use discretion. For example, types that are included in a crate's API have other considerations, like making a field private so it won't be included in the crate's docs.rs entry or to prevent future breaking changes if that field is likely to change in some way.
+
+### Re-exports - For Internal Items.
+
+Avoid re-exporting internal items of the crate.
+
+Rationale: two import paths for a single item create needless choice.
+
+Example: an internal re-export is typically made in `lib.rs`:
+
+```rust
+// BAD
+// Filename: lib.rs
+pub use crate::some::type::Foo;
+```
+
+This re-export makes both of these import paths work and point to the same Foo:
+
+```rust
+use crate::Foo;
+use crate::some::type::Foo;
+```
+
+Alternative: none, avoid internal re-exports completely.
+
+### Re-exports - For External Items
+
+Avoid re-exporting external items in most cases.
+
+Rationale: this is usually done to avoid exposing inner types (see [APIs](#APIs)), but it also pulls in trait-impls of the type and adds them to the crate's namespace, polluting the namespace.
+
+Example: a re-export for an external type is:
+
+```rust
+pub use <some_3rd_party_crate>::some::type::Bar;
+```
+
+The above internalizes `Bar` as an inner type of the re-exporting crate. This by-itself can be nice-to-have sometimes due to [APIs](#APIs), however this will also internalize all `impl trait for Bar` into the current crate, which almost always isn't what we want.
 
 ## Types
 
