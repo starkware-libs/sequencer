@@ -7,9 +7,6 @@ on:
       - opened
       - reopened
       - synchronize
-    branches:
-      - main
-      - main-v[0-9].**
     paths:
       - ".github/workflows/sequencer_cdk8s-test.yml"
       - "crates/apollo_deployments/**"
@@ -93,30 +90,10 @@ jobs:
           path: cdk8s-artifacts
           merge-multiple: true
 
-      - name: kubectl validation test for version 1.27
-        run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.27
-        continue-on-error: true
-
-      - name: kubectl validation test for version 1.28
-        run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.28
-        continue-on-error: true
-
-      - name: kubectl validation test for version 1.29
-        run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.29
-        continue-on-error: false
-
-      - name: kubectl validation test for version 1.30
-        run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.30
-        continue-on-error: false
-
-      - name: kubectl validation test for version 1.31
-        run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.31
-        continue-on-error: false
-
-      - name: kubectl validation test for version 1.32
-        run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.32
-        continue-on-error: false
-
       - name: kubectl validation test for version 1.33
         run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.33
+        continue-on-error: false
+
+      - name: kubectl validation test for version 1.34
+        run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.34
         continue-on-error: false
