@@ -1,5 +1,9 @@
 //! CORS configuration utilities for the JSON-RPC server.
 
+#[cfg(test)]
+#[path = "cors_test.rs"]
+mod cors_test;
+
 use anyhow::Context;
 use http::{header, HeaderValue, Method};
 use tower_http::cors::{AllowOrigin, CorsLayer};
