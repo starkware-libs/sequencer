@@ -28,6 +28,7 @@ use crate::storage_trait::{
     DbValue,
     PatriciaStorageError,
     PatriciaStorageResult,
+    ReadOnlyStorage,
     Storage,
     StorageConfigTrait,
     StorageStats,
@@ -275,16 +276,9 @@ impl StorageStats for RocksDbStats {
     }
 }
 
-impl Storage for RocksDbStorage {
-    type Stats = RocksDbStats;
-    type Config = RocksDbStorageConfig;
-
+impl ReadOnlyStorage for RocksDbStorage {
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(self.db.get(&key.0)?.map(DbValue))
-    }
-
-    async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
-        Ok(self.db.put_opt(&key.0, &value.0, &self.options.write_options)?)
     }
 
     async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
@@ -296,6 +290,15 @@ impl Storage for RocksDbStorage {
             .map(|r| r.map(|opt| opt.map(DbValue)))
             .collect::<Result<_, _>>()?;
         Ok(res)
+    }
+}
+
+impl Storage for RocksDbStorage {
+    type Stats = RocksDbStats;
+    type Config = RocksDbStorageConfig;
+
+    async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+        Ok(self.db.put_opt(&key.0, &value.0, &self.options.write_options)?)
     }
 
     async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {

@@ -19,6 +19,7 @@ use crate::storage_trait::{
     NoStats,
     NullStorage,
     PatriciaStorageResult,
+    ReadOnlyStorage,
     Storage,
     StorageConfigTrait,
     StorageStats,
@@ -33,6 +34,16 @@ pub struct MapStorage(pub DbHashMap);
 #[derive(Serialize, Debug)]
 pub struct BorrowedStorage<'a, S: Storage> {
     pub storage: &'a mut S,
+}
+
+impl ReadOnlyStorage for MapStorage {
+    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+        Ok(self.0.get(key).cloned())
+    }
+
+    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        Ok(keys.iter().map(|key| self.0.get(key).cloned()).collect())
+    }
 }
 
 impl Storage for MapStorage {
@@ -65,14 +76,6 @@ impl Storage for MapStorage {
             };
         }
         Ok(())
-    }
-
-    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        Ok(self.0.get(key).cloned())
-    }
-
-    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
-        Ok(keys.iter().map(|key| self.0.get(key).cloned()).collect())
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
@@ -251,10 +254,7 @@ impl<S: Storage> CachedStorage<S> {
     }
 }
 
-impl<S: Storage> Storage for CachedStorage<S> {
-    type Stats = CachedStorageStats<S::Stats>;
-    type Config = CachedStorageConfig<S::Config>;
-
+impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads += 1;
         if let Some(cached_value) = self.cache.get(key) {
@@ -265,13 +265,6 @@ impl<S: Storage> Storage for CachedStorage<S> {
         let storage_value = self.storage.get(key).await?;
         self.cache.put(key.clone(), storage_value.clone());
         Ok(storage_value)
-    }
-
-    async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
-        self.writes += 1;
-        self.storage.set(key.clone(), value.clone()).await?;
-        self.update_cached_value(&key, &value);
-        Ok(())
     }
 
     async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
@@ -301,6 +294,18 @@ impl<S: Storage> Storage for CachedStorage<S> {
         );
 
         Ok(values)
+    }
+}
+
+impl<S: Storage> Storage for CachedStorage<S> {
+    type Stats = CachedStorageStats<S::Stats>;
+    type Config = CachedStorageConfig<S::Config>;
+
+    async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+        self.writes += 1;
+        self.storage.set(key.clone(), value.clone()).await?;
+        self.update_cached_value(&key, &value);
+        Ok(())
     }
 
     async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
