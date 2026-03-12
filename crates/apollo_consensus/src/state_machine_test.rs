@@ -10,7 +10,7 @@ use test_case::test_case;
 
 use super::Round;
 use crate::state_machine::{SMRequest, StateMachine, StateMachineEvent, Step};
-use crate::test_utils::test_committee;
+use crate::test_utils::test_committee_with_weights;
 use crate::types::{ProposalCommitment, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
@@ -19,11 +19,30 @@ lazy_static! {
     static ref VALIDATOR_ID: ValidatorId = (DEFAULT_VALIDATOR_ID + 1).into();
     static ref VALIDATOR_ID_2: ValidatorId = (DEFAULT_VALIDATOR_ID + 2).into();
     static ref VALIDATOR_ID_3: ValidatorId = (DEFAULT_VALIDATOR_ID + 3).into();
+    /// Four validators each with weight 1. Used in tests focused on state-machine behavior
+    /// unrelated to vote weights (rounds, timeouts, observer logic, virtual proposer, locked
+    /// values, buffering). Weight-dependent quorum behavior is covered by `weighted_quorum_*`.
+    static ref UNIT_VALIDATOR_WEIGHTS: Vec<(ValidatorId, u128)> = vec![
+        (*PROPOSER_ID, 1),
+        (*VALIDATOR_ID, 1),
+        (*VALIDATOR_ID_2, 1),
+        (*VALIDATOR_ID_3, 1),
+    ];
+    /// Four validators with uneven weights (total 7, Byzantine quorum ≥ 5). Used by tests that
+    /// exercise weighted-quorum math without specialized weight distributions.
+    static ref WEIGHTED_VALIDATORS: Vec<(ValidatorId, u128)> = vec![
+        (*PROPOSER_ID, 1),
+        (*VALIDATOR_ID, 2),
+        (*VALIDATOR_ID_2, 3),
+        (*VALIDATOR_ID_3, 1),
+    ];
 }
 
 const PROPOSAL_ID: Option<ProposalCommitment> = Some(ProposalCommitment(Felt::ONE));
 const ROUND: Round = 0;
 const HEIGHT: BlockNumber = BlockNumber(0);
+const IS_OBSERVER: bool = true;
+const NOT_OBSERVER: bool = false;
 
 /// Actual proposer: returns the leader address (no failure in tests).
 type ActualProposerFn = fn(Round) -> ValidatorId;
@@ -143,17 +162,19 @@ struct TestWrapper {
 impl TestWrapper {
     pub fn new(
         id: ValidatorId,
-        total_weight: u64,
+        weights: Vec<(ValidatorId, u128)>,
         proposer: ActualProposerFn,
         virtual_proposer: VirtualProposerFn,
-        is_observer: bool,
         quorum_type: QuorumType,
+        is_observer: bool,
     ) -> Self {
-        let validators = vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2, *VALIDATOR_ID_3];
+        let validators: Vec<ValidatorId> = weights.iter().map(|(v, _)| *v).collect();
         let mut peer_voters = validators.iter().filter(|v| **v != id).copied().collect::<Vec<_>>();
         // Ensure deterministic order.
         peer_voters.sort();
-        let committee = test_committee(validators, Box::new(proposer), Box::new(virtual_proposer));
+        let total_weight: u128 = weights.iter().map(|(_, w)| w).sum();
+        let committee =
+            test_committee_with_weights(weights, Box::new(proposer), Box::new(virtual_proposer));
         Self {
             state_machine: StateMachine::new(
                 HEIGHT,
@@ -263,6 +284,10 @@ impl TestWrapper {
     fn send_event(&mut self, event: StateMachineEvent) {
         self.requests.append(&mut self.state_machine.handle_event(event));
     }
+
+    pub fn round(&self) -> Round {
+        self.state_machine.round()
+    }
 }
 
 #[track_caller]
@@ -333,11 +358,11 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
     let id = if is_proposer { *PROPOSER_ID } else { *VALIDATOR_ID };
     let mut wrapper = TestWrapper::new(
         id,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
-        false,
         QuorumType::Byzantine,
+        NOT_OBSERVER,
     );
 
     if is_proposer {
@@ -354,11 +379,11 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
 fn validator_receives_votes_first() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
-        false,
         QuorumType::Byzantine,
+        NOT_OBSERVER,
     );
 
     advance_validator_after_start(&mut wrapper);
@@ -385,11 +410,11 @@ fn validator_receives_votes_first() {
 fn buffer_events_during_get_proposal(vote: Option<ProposalCommitment>) {
     let mut wrapper = TestWrapper::new(
         *PROPOSER_ID,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
-        false,
         QuorumType::Byzantine,
+        NOT_OBSERVER,
     );
 
     advance_proposer_after_start(&mut wrapper);
@@ -408,11 +433,11 @@ fn buffer_events_during_get_proposal(vote: Option<ProposalCommitment>) {
 fn only_send_precommit_with_prevote_quorum_and_proposal() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
-        false,
         QuorumType::Byzantine,
+        NOT_OBSERVER,
     );
 
     advance_validator_after_start(&mut wrapper);
@@ -433,11 +458,11 @@ fn only_send_precommit_with_prevote_quorum_and_proposal() {
 fn only_decide_with_prcommit_quorum_and_proposal() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
-        false,
         QuorumType::Byzantine,
+        NOT_OBSERVER,
     );
 
     advance_validator_after_start(&mut wrapper);
@@ -462,11 +487,11 @@ fn only_decide_with_prcommit_quorum_and_proposal() {
 fn advance_to_the_next_round() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
-        false,
         QuorumType::Byzantine,
+        NOT_OBSERVER,
     );
 
     advance_validator_to_prevote_broadcast(&mut wrapper);
@@ -496,11 +521,11 @@ fn advance_to_the_next_round() {
 fn prevote_when_receiving_proposal_in_current_round() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
-        false,
         QuorumType::Byzantine,
+        NOT_OBSERVER,
     );
 
     advance_validator_after_start(&mut wrapper);
@@ -527,11 +552,11 @@ fn prevote_when_receiving_proposal_in_current_round() {
 fn mixed_quorum(send_proposal: bool) {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
-        false,
         QuorumType::Byzantine,
+        NOT_OBSERVER,
     );
 
     if send_proposal {
@@ -558,11 +583,11 @@ fn mixed_quorum(send_proposal: bool) {
 fn dont_handle_enqueued_while_awaiting_get_proposal() {
     let mut wrapper = TestWrapper::new(
         *PROPOSER_ID,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
-        false,
         QuorumType::Byzantine,
+        NOT_OBSERVER,
     );
 
     advance_proposer_after_start(&mut wrapper);
@@ -597,11 +622,11 @@ fn dont_handle_enqueued_while_awaiting_get_proposal() {
 fn return_proposal_if_locked_value_is_set() {
     let mut wrapper = TestWrapper::new(
         *PROPOSER_ID,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
-        false,
         QuorumType::Byzantine,
+        NOT_OBSERVER,
     );
 
     advance_proposer_to_prevote_broadcast(&mut wrapper);
@@ -632,11 +657,11 @@ fn observer_node_reaches_decision() {
     let id = *VALIDATOR_ID;
     let mut wrapper = TestWrapper::new(
         id,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
-        true,
         QuorumType::Byzantine,
+        IS_OBSERVER,
     );
 
     advance_validator_after_start(&mut wrapper);
@@ -654,11 +679,11 @@ fn observer_node_reaches_decision() {
 fn number_of_required_votes(quorum_type: QuorumType) {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
-        3,
+        vec![(*PROPOSER_ID, 1), (*VALIDATOR_ID, 1), (*VALIDATOR_ID_2, 1)],
         |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
-        false,
         quorum_type,
+        NOT_OBSERVER,
     );
 
     advance_validator_to_prevote_broadcast(&mut wrapper);
@@ -704,11 +729,11 @@ fn observer_does_not_record_self_votes() {
     let id = *VALIDATOR_ID;
     let mut wrapper = TestWrapper::new(
         id,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
-        true,
         QuorumType::Byzantine,
+        IS_OBSERVER,
     );
 
     advance_validator_after_start(&mut wrapper);
@@ -744,11 +769,11 @@ fn quorums_require_virtual_proposer_in_favor_for_value() {
     // a value to reach decision.
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*VALIDATOR_ID_3),
-        false,
         QuorumType::Byzantine,
+        NOT_OBSERVER,
     );
 
     advance_validator_to_prevote_broadcast(&mut wrapper);
@@ -792,11 +817,11 @@ fn advance_to_round_when_proposer_function_fails() {
     let round_1: Round = 1;
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         actual_proposer_fn,
         virtual_proposer_fn,
-        false, // not observer
         QuorumType::Byzantine,
+        NOT_OBSERVER,
     );
 
     advance_validator_after_start(&mut wrapper);
@@ -833,11 +858,11 @@ fn timeout_prevote_ignored_when_wrong_step() {
     }
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         actual_proposer_fn,
         virtual_proposer_fn,
-        false,
         QuorumType::Byzantine,
+        NOT_OBSERVER,
     );
     advance_validator_to_prevote_broadcast(&mut wrapper);
     advance_to_prevote_quorum_and_precommit(&mut wrapper, *VALIDATOR_ID);
@@ -856,11 +881,11 @@ fn no_repropose_when_virtual_proposer_fails_for_new_round() {
     }
     let mut wrapper = TestWrapper::new(
         *PROPOSER_ID,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         actual_proposer_fn,
         virtual_proposer_fn,
-        false,
         QuorumType::Byzantine,
+        NOT_OBSERVER,
     );
     advance_proposer_to_prevote_broadcast(&mut wrapper);
     advance_to_prevote_quorum_and_precommit(&mut wrapper, *PROPOSER_ID);
@@ -882,11 +907,11 @@ fn prevote_nil_when_new_proposal_differs_from_locked_value() {
     let round_1: Round = 1;
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
-        4,
+        UNIT_VALIDATOR_WEIGHTS.clone(),
         actual_proposer_fn,
         virtual_proposer_fn,
-        false,
         QuorumType::Byzantine,
+        NOT_OBSERVER,
     );
     advance_validator_to_prevote_broadcast(&mut wrapper);
     advance_to_prevote_quorum_and_precommit(&mut wrapper, *VALIDATOR_ID);
@@ -897,3 +922,146 @@ fn prevote_nil_when_new_proposal_differs_from_locked_value() {
     // Should prevote nil (None) because proposal differs from locked value.
     assert_broadcast_prevote(&mut wrapper, round_1, None, *VALIDATOR_ID);
 }
+
+#[test]
+fn weighted_quorum_counts_staker_weights() {
+    // Committee: PROPOSER=1, VALIDATOR=2, VALIDATOR_2=3, VALIDATOR_3=1. Total=7.
+    // 2/3 quorum needs weight > 7*2/3 = 14/3 ≈ 4.67, so weight 5 reaches quorum.
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        WEIGHTED_VALIDATORS.clone(),
+        |_| *PROPOSER_ID,
+        |_| Ok(*PROPOSER_ID),
+        QuorumType::Byzantine,
+        NOT_OBSERVER,
+    );
+    advance_validator_after_start(&mut wrapper);
+    // TimeoutPropose -> record our nil prevote (weight 2), advance to Prevote step.
+    wrapper.send_timeout_propose(ROUND);
+    assert_broadcast_prevote(&mut wrapper, ROUND, None, *VALIDATOR_ID);
+    // Nil prevote from VALIDATOR_ID_2 (weight 3): total 2+3=5 >= 5 (2/3 of 7), nil prevote quorum.
+    wrapper.send_prevote_from(None, ROUND, *VALIDATOR_ID_2);
+    assert_schedule_timeout(&mut wrapper, Step::Prevote, ROUND);
+    assert_broadcast_precommit(&mut wrapper, ROUND, None, *VALIDATOR_ID);
+}
+
+#[test]
+fn weighted_quorum_just_under_threshold_does_not_trigger() {
+    // Total 7, 2/3 quorum needs weight >= 5. Weight 4 should NOT trigger.
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        WEIGHTED_VALIDATORS.clone(),
+        |_| *PROPOSER_ID,
+        |_| Ok(*PROPOSER_ID),
+        QuorumType::Byzantine,
+        NOT_OBSERVER,
+    );
+    advance_validator_after_start(&mut wrapper);
+    // TimeoutPropose: our nil prevote (weight 1) alone does not reach quorum.
+    wrapper.send_timeout_propose(ROUND);
+    assert_broadcast_prevote(&mut wrapper, ROUND, None, *VALIDATOR_ID);
+    // Nil prevotes: PROPOSER (1) + VALIDATOR_ID_3 (1) = 2 more, total 2+1+1=4. 4 < 5.
+    wrapper.send_prevote_from(None, ROUND, *PROPOSER_ID);
+    wrapper.send_prevote_from(None, ROUND, *VALIDATOR_ID_3);
+    assert_no_more_requests(&mut wrapper);
+    // Add VALIDATOR_ID_2 (3): total 5, now nil prevote quorum.
+    wrapper.send_prevote_from(None, ROUND, *VALIDATOR_ID_2);
+    assert_schedule_timeout(&mut wrapper, Step::Prevote, ROUND);
+    assert_broadcast_precommit(&mut wrapper, ROUND, None, *VALIDATOR_ID);
+}
+
+#[test]
+fn weighted_quorum_single_heavy_staker_reaches_quorum() {
+    // Weights 10,1,1,1. Total 13. 2/3 = 8.67. Heavy staker (10) alone reaches quorum.
+    let validator_weights = vec![
+        (*PROPOSER_ID, 1),
+        (*VALIDATOR_ID, 10), // We are the heavy staker
+        (*VALIDATOR_ID_2, 1),
+        (*VALIDATOR_ID_3, 1),
+    ];
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        validator_weights,
+        |_| *PROPOSER_ID,
+        |_| Ok(*PROPOSER_ID),
+        QuorumType::Byzantine,
+        NOT_OBSERVER,
+    );
+    advance_validator_after_start(&mut wrapper);
+    // TimeoutPropose: our nil prevote (weight 10) alone reaches quorum.
+    wrapper.send_timeout_propose(ROUND);
+    assert_broadcast_prevote(&mut wrapper, ROUND, None, *VALIDATOR_ID);
+    assert_schedule_timeout(&mut wrapper, Step::Prevote, ROUND);
+    assert_broadcast_precommit(&mut wrapper, ROUND, None, *VALIDATOR_ID);
+    assert_schedule_timeout(&mut wrapper, Step::Precommit, ROUND);
+    assert_no_more_requests(&mut wrapper);
+}
+
+#[test]
+fn weighted_quorum_prevote_quorum_for_proposal() {
+    // Upon prevote quorum for a proposal (not nil): we lock and precommit for the value.
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        WEIGHTED_VALIDATORS.clone(),
+        |_| *PROPOSER_ID,
+        |_| Ok(*PROPOSER_ID),
+        QuorumType::Byzantine,
+        NOT_OBSERVER,
+    );
+    // Receive proposal -> we prevote for it (weight 2)
+    advance_validator_to_prevote_broadcast(&mut wrapper);
+    // Prevote from VALIDATOR_ID_2 (weight 3) for proposal: total 2+3=5, prevote quorum.
+    wrapper.send_prevote_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_2);
+    assert_schedule_timeout(&mut wrapper, Step::Prevote, ROUND);
+    assert_broadcast_precommit(&mut wrapper, ROUND, PROPOSAL_ID, *VALIDATOR_ID);
+    assert_no_more_requests(&mut wrapper);
+}
+
+#[test]
+fn weighted_quorum_round_skip_threshold() {
+    // Round skip needs > 1/3 of total. Total 7, need > 7/3. VALIDATOR_ID_2 (weight 3) suffices.
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        WEIGHTED_VALIDATORS.clone(),
+        |_| *PROPOSER_ID,
+        |_| Ok(*PROPOSER_ID),
+        QuorumType::Byzantine,
+        NOT_OBSERVER,
+    );
+    advance_validator_after_start(&mut wrapper);
+    wrapper.send_timeout_propose(ROUND);
+    assert_broadcast_prevote(&mut wrapper, ROUND, None, *VALIDATOR_ID);
+    // Prevote for round 1 from VALIDATOR_ID_2 (weight 3): 3 > 7/3, should advance to round 1.
+    wrapper.send_prevote_from(None, 1, *VALIDATOR_ID_2);
+    assert_schedule_timeout(&mut wrapper, Step::Propose, 1);
+    assert_no_more_requests(&mut wrapper);
+    assert_eq!(wrapper.round(), 1);
+}
+
+#[test]
+fn weighted_quorum_decision_with_weighted_precommits() {
+    // Decision requires precommit quorum (2/3). Total 7, need 5. We need virtual proposer in favor.
+    // Proposer=3, self=2, others=1 each. Total 7, quorum 5.
+    let validator_weights =
+        vec![(*PROPOSER_ID, 3), (*VALIDATOR_ID, 2), (*VALIDATOR_ID_2, 1), (*VALIDATOR_ID_3, 1)];
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        validator_weights,
+        |_| *PROPOSER_ID,
+        |_| Ok(*PROPOSER_ID),
+        QuorumType::Byzantine,
+        NOT_OBSERVER,
+    );
+    // Receive proposal -> we prevote for it (weight 2)
+    advance_validator_to_prevote_broadcast(&mut wrapper);
+    // Prevote from PROPOSER (weight 3): self 2 + 3 = 5, prevote quorum -> precommit
+    wrapper.send_prevote_from(PROPOSAL_ID, ROUND, *PROPOSER_ID);
+    assert_schedule_timeout(&mut wrapper, Step::Prevote, ROUND);
+    assert_broadcast_precommit(&mut wrapper, ROUND, PROPOSAL_ID, *VALIDATOR_ID);
+    assert_no_more_requests(&mut wrapper);
+    // Precommit from PROPOSER (weight 3): total 2+3=5, quorum + virtual proposer in favor
+    wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *PROPOSER_ID);
+    assert_schedule_timeout(&mut wrapper, Step::Precommit, ROUND);
+    assert_decision_reached(&mut wrapper, PROPOSAL_ID);
+}
+
