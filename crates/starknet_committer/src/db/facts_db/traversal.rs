@@ -10,7 +10,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::traversal::{SubTreeTrait, TraversalResult};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::db_object::HasStaticPrefix;
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia_storage::storage_trait::ReadOnlyStorage;
 
 use crate::db::facts_db::types::FactsSubTree;
 use crate::db::facts_db::FactsNodeLayout;
@@ -25,7 +25,7 @@ pub mod traversal_test;
 /// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
 /// provided map.
 pub async fn fetch_patricia_paths<L: Leaf>(
-    storage: &mut impl Storage,
+    storage: &mut impl ReadOnlyStorage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'_>,
     leaves: Option<&mut HashMap<NodeIndex, L>>,
@@ -60,7 +60,7 @@ pub async fn fetch_patricia_paths<L: Leaf>(
 /// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
 /// provided map.
 pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf>(
-    storage: &mut impl Storage,
+    storage: &mut impl ReadOnlyStorage,
     subtrees: Vec<FactsSubTree<'a>>,
     witnesses: &mut PreimageMap,
     mut leaves: Option<&mut HashMap<NodeIndex, L>>,
