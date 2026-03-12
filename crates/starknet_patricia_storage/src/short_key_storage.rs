@@ -10,6 +10,7 @@ use crate::storage_trait::{
     DbValue,
     EmptyStorageConfig,
     ImmutableReadOnlyStorage,
+    NullStorage,
     PatriciaStorageResult,
     ReadOnlyStorage,
     Storage,
@@ -73,6 +74,10 @@ macro_rules! define_short_key_storage {
                     .map(|key| Self::small_key(key))
                     .collect::<Vec<_>>();
                 self.storage.mget(small_keys.iter().collect::<Vec<&DbKey>>().as_slice()).await
+            }
+
+            fn get_immutable_read_only_self(&self) -> Option<&impl ImmutableReadOnlyStorage> {
+                None::<&NullStorage>
             }
         }
 
