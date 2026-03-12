@@ -33,6 +33,7 @@ use crate::storage_trait::{
     DbOperationMap,
     DbValue,
     EmptyStorageConfig,
+    ImmutableReadOnlyStorage,
     NoStats,
     PatriciaStorageResult,
     ReadOnlyStorage,
@@ -129,8 +130,8 @@ impl AerospikeStorage {
     }
 }
 
-impl ReadOnlyStorage for AerospikeStorage {
-    async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+impl ImmutableReadOnlyStorage for AerospikeStorage {
+    async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let record = self
             .client
             .get(&self.config.read_policy, &self.get_key(key.clone())?, Bins::All)
@@ -138,7 +139,7 @@ impl ReadOnlyStorage for AerospikeStorage {
         self.extract_value(&record)
     }
 
-    async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let mut ops = Vec::new();
         for key in keys.iter() {
             ops.push(BatchOperation::read(
@@ -160,6 +161,16 @@ impl ReadOnlyStorage for AerospikeStorage {
                 },
             })
             .collect::<Result<_, _>>()
+    }
+}
+
+impl ReadOnlyStorage for AerospikeStorage {
+    async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+        ImmutableReadOnlyStorage::get(self, key).await
+    }
+
+    async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        ImmutableReadOnlyStorage::mget(self, keys).await
     }
 }
 
