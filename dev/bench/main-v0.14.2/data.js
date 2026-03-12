@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773316756191,
+  "lastUpdate": 1773317689859,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2379,6 +2379,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1172.50946014,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "44e696a71496e32a6b4f2c7bd86b56be9f4644c0",
+          "message": "starknet_transaction_prover: update prover/verifier dep revision (#13199)",
+          "timestamp": "2026-03-12T11:51:30Z",
+          "tree_id": "c22842ae6fdb26ed5b541187088d877bdc764ee5",
+          "url": "https://github.com/starkware-libs/sequencer/commit/44e696a71496e32a6b4f2c7bd86b56be9f4644c0"
+        },
+        "date": 1773317689532,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 876.30736337,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1284.62876497,
             "unit": "ms"
           }
         ]
