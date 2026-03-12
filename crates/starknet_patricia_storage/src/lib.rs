@@ -7,6 +7,7 @@ pub mod map_storage;
 pub mod map_storage_test;
 #[cfg(any(test, feature = "mdbx_storage"))]
 pub mod mdbx_storage;
+pub mod reads_collector_storage;
 #[cfg(any(test, feature = "rocksdb_storage"))]
 pub mod rocksdb_storage;
 #[cfg(feature = "short_key_storage")]
