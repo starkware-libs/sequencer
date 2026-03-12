@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## Security Warnings
 
 **CRITICAL**: Never read, modify, or expose secret/credential files:
@@ -24,11 +26,16 @@ Starknet sequencer (Apollo) - modular blockchain sequencer in Rust. Components a
 
 ```bash
 cargo build -p <package>
-SEED=0 cargo test -p <package>
-unset CI && scripts/rust_fmt.sh
+SEED=0 cargo test -p <package>                            # run all tests in a crate
+SEED=0 cargo test -p <package> -- <test_name>             # run a single test
+unset CI && scripts/rust_fmt.sh                           # Rust formatting
+scripts/taplo.sh                                          # TOML formatting
+scripts/local_presubmit.sh                                # full local pre-submission check
 python scripts/run_tests.py --command clippy --changes_only --commit_id HEAD
 python scripts/run_tests.py --command integration --changes_only --include_dependencies --commit_id HEAD
 ```
+
+CI uses `cargo nextest` (via `run_tests.py`); plain `cargo test` works locally.
 
 ## Git Workflow
 
@@ -54,6 +61,9 @@ ci: update rust toolchain
 - Test-only code gated with `#[cfg(any(feature = "testing", test))]`
 - Mock traits use `mockall` with `#[cfg(feature = "testing")]`
 - Metrics use `apollo_metrics` framework
+
+### Comment Style
+Every sentence in `//`, `///`, and `/* */` comments must start with a capital letter and end with a period.
 
 ## Common Gotchas
 
