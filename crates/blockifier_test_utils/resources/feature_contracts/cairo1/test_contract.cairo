@@ -3,7 +3,7 @@ mod TestContract {
     use array::ArrayTrait;
     use box::BoxTrait;
     use clone::Clone;
-    use core::blake::blake2s_finalize;
+    use core::blake::{blake2s_compress, blake2s_finalize};
     use core::bytes_31::POW_2_128;
     use core::circuit::{
         AddInputResultTrait, CircuitElement, CircuitInput, CircuitInputs, CircuitModulus,
@@ -1428,5 +1428,88 @@ mod TestContract {
         } else {
             panic!("Unexpected syscall selector");
         }
+    }
+
+    // Computes the naive Blake2s hash of the given felts and asserts it matches expected_hash.
+    #[external(v0)]
+    fn test_naive_blake_hash(
+        self: @ContractState, expected_hash: felt252, data: Span<felt252>,
+    ) {
+        let computed_hash = naive_blake_hash(data);
+        assert(computed_hash == expected_hash, 'BLAKE_HASH_MISMATCH');
+    }
+
+    // Adapted from https://github.com/starkware-libs/stwo-cairo/blob/b3244cf/stwo_cairo_verifier/crates/verifier_utils/src/lib.cairo.
+    fn deconstruct_f252(x: felt252, ref output: Array<u32>) {
+        let u256 { low, high } = x.into();
+        let nz_shift: NonZero<u128> = 0x100000000;
+        let (q, r0) = DivRem::div_rem(low, nz_shift);
+        let (q, r1) = DivRem::div_rem(q, nz_shift);
+        let (r3, r2) = DivRem::div_rem(q, nz_shift);
+        let (q, r4) = DivRem::div_rem(high, nz_shift);
+        let (q, r5) = DivRem::div_rem(q, nz_shift);
+        let (r7, r6) = DivRem::div_rem(q, nz_shift);
+        output.append(r0.try_into().unwrap());
+        output.append(r1.try_into().unwrap());
+        output.append(r2.try_into().unwrap());
+        output.append(r3.try_into().unwrap());
+        output.append(r4.try_into().unwrap());
+        output.append(r5.try_into().unwrap());
+        output.append(r6.try_into().unwrap());
+        output.append(r7.try_into().unwrap());
+    }
+
+    // Adapted from https://github.com/starkware-libs/stwo-cairo/blob/b3244cf/stwo_cairo_verifier/crates/verifier_utils/src/lib.cairo.
+    fn construct_f252(x: [u32; 8]) -> felt252 {
+        let [l0, l1, l2, l3, l4, l5, l6, l7] = x;
+        let offset = 0x100000000;
+        let result: felt252 = l7.into();
+        let result = result * offset + l6.into();
+        let result = result * offset + l5.into();
+        let result = result * offset + l4.into();
+        let result = result * offset + l3.into();
+        let result = result * offset + l2.into();
+        let result = result * offset + l1.into();
+        result * offset + l0.into()
+    }
+
+    // Adapted from https://github.com/starkware-libs/stwo-cairo/blob/edfe75c/stwo_cairo_verifier/crates/verifier_utils/src/blake2s.cairo.
+    fn hash_u32s(mut values: Span<u32>) -> Box<[u32; 8]> {
+        let mut state = BoxTrait::new([
+            0x6B08E647, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A,
+            0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19,
+        ]);
+        let mut byte_count: u32 = 0;
+        if let Some(mut msg) = values.multi_pop_front::<16>() {
+            byte_count += 64;
+            while let Some(head) = values.multi_pop_front::<16>() {
+                state = blake2s_compress(state, byte_count, *msg);
+                msg = head;
+                byte_count += 64;
+            };
+
+            if values.is_empty() {
+                return blake2s_finalize(state, byte_count, *msg);
+            }
+
+            state = blake2s_compress(state, byte_count, *msg);
+        }
+
+        let mut msg = array![];
+        let i = values.len();
+        msg.append_span(values);
+        for _ in i..16 {
+            msg.append(0);
+        };
+        byte_count += i * 4;
+        blake2s_finalize(state, byte_count, *msg.span().try_into().unwrap())
+    }
+
+    fn naive_blake_hash(data: Span<felt252>) -> felt252 {
+        let mut u32_words: Array<u32> = array![];
+        for felt in data {
+            deconstruct_f252(*felt, ref u32_words);
+        };
+        construct_f252(hash_u32s(u32_words.span()).unbox())
     }
 }
