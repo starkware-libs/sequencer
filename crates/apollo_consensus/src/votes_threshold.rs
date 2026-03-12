@@ -10,8 +10,8 @@ mod votes_threshold_test;
 /// If the total number of votes is zero, the threshold is not met.
 #[derive(Serialize, Deserialize)]
 pub struct VotesThreshold {
-    numerator: u64,
-    denominator: u64,
+    numerator: u128,
+    denominator: u128,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -29,7 +29,7 @@ pub const ROUND_SKIP_THRESHOLD: VotesThreshold = VotesThreshold::new(1, 3);
 pub const HONEST_QUORUM: VotesThreshold = VotesThreshold::new(1, 2);
 
 impl VotesThreshold {
-    const fn new(numerator: u64, denominator: u64) -> Self {
+    const fn new(numerator: u128, denominator: u128) -> Self {
         assert!(denominator > 0, "Denominator must be greater than zero");
         assert!(denominator >= numerator, "Denominator must be greater than or equal to numerator");
         Self { numerator, denominator }
@@ -42,7 +42,7 @@ impl VotesThreshold {
         }
     }
 
-    pub fn is_met(&self, amount: u64, total: u64) -> bool {
+    pub fn is_met(&self, amount: u128, total: u128) -> bool {
         amount.checked_mul(self.denominator).expect("Numeric overflow")
             > total.checked_mul(self.numerator).expect("Numeric overflow")
     }
