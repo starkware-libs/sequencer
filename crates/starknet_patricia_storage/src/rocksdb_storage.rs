@@ -26,6 +26,7 @@ use crate::storage_trait::{
     DbOperation,
     DbOperationMap,
     DbValue,
+    ImmutableReadOnlyStorage,
     PatriciaStorageError,
     PatriciaStorageResult,
     ReadOnlyStorage,
@@ -276,12 +277,12 @@ impl StorageStats for RocksDbStats {
     }
 }
 
-impl ReadOnlyStorage for RocksDbStorage {
-    async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+impl ImmutableReadOnlyStorage for RocksDbStorage {
+    async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(self.db.get(&key.0)?.map(DbValue))
     }
 
-    async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let raw_keys = keys.iter().map(|k| &k.0);
         let res = self
             .db
@@ -290,6 +291,16 @@ impl ReadOnlyStorage for RocksDbStorage {
             .map(|r| r.map(|opt| opt.map(DbValue)))
             .collect::<Result<_, _>>()?;
         Ok(res)
+    }
+}
+
+impl ReadOnlyStorage for RocksDbStorage {
+    async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+        ImmutableReadOnlyStorage::get(self, key).await
+    }
+
+    async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        ImmutableReadOnlyStorage::mget(self, keys).await
     }
 }
 

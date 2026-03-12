@@ -10,6 +10,7 @@ use crate::storage_trait::{
     DbOperationMap,
     DbValue,
     EmptyStorageConfig,
+    ImmutableReadOnlyStorage,
     PatriciaStorageResult,
     ReadOnlyStorage,
     Storage,
@@ -48,17 +49,36 @@ macro_rules! define_short_key_storage {
             }
         }
 
+        impl<S: Storage + ImmutableReadOnlyStorage> ImmutableReadOnlyStorage for $name<S> {
+            async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+                self.storage.get(&Self::small_key(key)).await
+            }
+
+            async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+                let small_keys = keys
+                    .iter()
+                    .map(|key| Self::small_key(key))
+                    .collect::<Vec<_>>();
+                self.storage.mget(small_keys.iter().collect::<Vec<&DbKey>>().as_slice()).await
+            }
+        }
+
         impl<S: Storage> ReadOnlyStorage for $name<S> {
             async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
                 self.storage.get_mut(&Self::small_key(key)).await
             }
 
-            async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+            async fn mget_mut(
+                &mut self,
+                keys: &[&DbKey],
+            ) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
                 let small_keys = keys
                     .iter()
                     .map(|key| Self::small_key(key))
                     .collect::<Vec<_>>();
-                self.storage.mget_mut(small_keys.iter().collect::<Vec<&DbKey>>().as_slice()).await
+                self.storage
+                    .mget_mut(small_keys.iter().collect::<Vec<&DbKey>>().as_slice())
+                    .await
             }
         }
 
