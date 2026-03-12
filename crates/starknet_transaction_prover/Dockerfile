@@ -145,6 +145,14 @@ RUN set -ex; \
     mkdir -p /data; \
     chown -R sequencer:sequencer /app /data
 
+# OCI metadata labels.
+# source: links the GHCR package to the repository (inherits visibility settings).
+# description: short summary shown on the package page.
+# documentation: links to the crate README.
+LABEL org.opencontainers.image.source="https://github.com/starkware-libs/sequencer"
+LABEL org.opencontainers.image.description="A standalone JSON-RPC service that generates STARK proofs for individual Starknet transactions"
+LABEL org.opencontainers.image.documentation="https://github.com/starkware-libs/sequencer/blob/main/crates/starknet_transaction_prover/README.md"
+
 # Expose the JSON-RPC server port.
 EXPOSE 3000
 
