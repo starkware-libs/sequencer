@@ -11,12 +11,11 @@ use indexmap::map::Entry;
 use indexmap::IndexMap;
 #[cfg(test)]
 use mockall::automock;
-use reqwest::StatusCode;
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 use crate::cende_client_types::{
     CendeBlockMetadata,
@@ -137,6 +136,8 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
             ),
         > = IndexMap::new();
 
+        // TODO(Arni): Replace `pending_tasks` with a single-task type since we only allow one
+        // in-flight write task at a time.
         let mut pending_tasks = FuturesUnordered::new();
         let mut write_pre_confirmed_txs_timer =
             tokio::time::interval(Duration::from_millis(self.write_block_interval_millis));
@@ -168,12 +169,9 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
                 }
 
                 Some(result) = pending_tasks.next() => {
-                    if let Err(error) = result {
-                        if is_round_mismatch_error(&error, next_write_iteration) {
-                            // TODO(noamsp): Remove this since we only have one ongoing write task.
-                            pending_tasks.clear();
-                            return Err(error.into());
-                        }
+                    if result.is_err() {
+                        // Intentionally ignore write-task errors (including recorder BAD_REQUEST)
+                        // to preserve current best-effort pre-confirmed block writer behavior.
                     }
                 }
                 msg = self.pre_confirmed_tx_receiver.recv() => {
@@ -217,12 +215,9 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
         // Wait for all pending tasks to complete gracefully.
         // TODO(noamsp): Add timeout.
         while let Some(result) = pending_tasks.next().await {
-            if let Err(error) = result {
-                if is_round_mismatch_error(&error, next_write_iteration) {
-                    // TODO(noamsp): Remove this since we only have one ongoing write task.
-                    pending_tasks.clear();
-                    return Err(error.into());
-                }
+            if result.is_err() {
+                // Intentionally ignore write-task errors (including recorder BAD_REQUEST)
+                // to preserve current best-effort pre-confirmed block writer behavior.
             }
         }
 
@@ -235,34 +230,6 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
 
         Ok(())
     }
-}
-
-// TODO(noamsp): Remove this since we only have one ongoing write task.
-fn is_round_mismatch_error(
-    error: &PreconfirmedCendeClientError,
-    next_write_iteration: u64,
-) -> bool {
-    let PreconfirmedCendeClientError::CendeRecorderError {
-        block_number,
-        round,
-        write_iteration,
-        status_code,
-    } = error
-    else {
-        return false;
-    };
-
-    // A bad request status indicates a round or write iteration mismatch. The latest request can
-    // receive a bad request status only if it is due to a round mismatch.
-    if *status_code == StatusCode::BAD_REQUEST && *write_iteration == next_write_iteration - 1 {
-        error!(
-            "A higher round was detected for block_number: {}. rejected round: {}. Stopping \
-             pre-confirmed block writer.",
-            block_number, round,
-        );
-        return true;
-    }
-    false
 }
 
 #[cfg_attr(test, automock)]
