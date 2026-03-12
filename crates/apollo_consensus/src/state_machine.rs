@@ -193,6 +193,10 @@ impl StateMachine {
         self.last_self_precommit.clone()
     }
 
+    pub(crate) fn is_awaiting_finished_building(&self) -> bool {
+        self.awaiting_finished_building
+    }
+
     /// Check if a vote has already been received (either in the vote maps or queued).
     /// Returns the status of the vote: NotReceived, Duplicate, or Conflict.
     pub(crate) fn received_vote(&self, vote: &Vote) -> VoteStatus {
@@ -295,6 +299,9 @@ impl StateMachine {
                 StateMachineEvent::FinishedBuilding(_, round) if round == self.round => {
                     self.events_queue.push_front(event);
                 }
+                StateMachineEvent::TimeoutPropose(round) if round == self.round => {
+                    self.events_queue.push_front(event);
+                }
                 _ => {
                     self.events_queue.push_back(event);
                     return VecDeque::new();
@@ -341,7 +348,11 @@ impl StateMachine {
     fn handle_event_internal(&mut self, event: StateMachineEvent) -> VecDeque<SMRequest> {
         trace!("Processing event: {:?}", event);
         if self.awaiting_finished_building {
-            assert!(matches!(event, StateMachineEvent::FinishedBuilding(_, _)), "{event:?}");
+            assert!(
+                matches!(event, StateMachineEvent::FinishedBuilding(_, r) if r == self.round)
+                    || matches!(event, StateMachineEvent::TimeoutPropose(r) if r == self.round),
+                "{event:?}"
+            );
         }
 
         match event {
@@ -367,8 +378,21 @@ impl StateMachine {
         proposal_id: Option<ProposalCommitment>,
         round: u32,
     ) -> VecDeque<SMRequest> {
-        assert!(self.awaiting_finished_building);
-        assert_eq!(round, self.round);
+        if round != self.round {
+            // Defensive: SHC should have filtered this.
+            warn!(
+                "FinishedBuilding for stale round={round}; current round={}. Ignoring.",
+                self.round
+            );
+            return VecDeque::new();
+        }
+        if !self.awaiting_finished_building {
+            // Defensive: SHC should have filtered this.
+            warn!(
+                "FinishedBuilding for round={round} after TimeoutPropose already fired. Ignoring."
+            );
+            return VecDeque::new();
+        }
         self.awaiting_finished_building = false;
         let old = self.proposals.insert(round, (proposal_id, None));
         assert!(old.is_none(), "Proposal built when one already exists for this round.");
@@ -391,9 +415,11 @@ impl StateMachine {
         if self.step != Step::Propose || round != self.round {
             return VecDeque::new();
         };
+        let was_build_timeout = self.awaiting_finished_building;
+        self.awaiting_finished_building = false;
         warn!(
-            "PROPOSAL_FAILED: Proposal failed as validator. Applying TimeoutPropose for \
-             round={round}."
+            "PROPOSAL_FAILED: Proposal failed as {}. Applying TimeoutPropose for round={round}.",
+            if was_build_timeout { "proposer (build timeout)" } else { "validator" }
         );
         CONSENSUS_TIMEOUTS.increment(1, &[(LABEL_NAME_TIMEOUT_TYPE, TimeoutType::Propose.into())]);
         let mut output = self.make_self_vote(VoteType::Prevote, None);
@@ -510,7 +536,10 @@ impl StateMachine {
             None => {
                 self.awaiting_finished_building = true;
                 // Upon conditions are not checked while awaiting a new proposal.
-                VecDeque::from([SMRequest::StartBuildProposal(self.round)])
+                VecDeque::from([
+                    SMRequest::ScheduleTimeout(Step::Propose, self.round),
+                    SMRequest::StartBuildProposal(self.round),
+                ])
             }
         }
     }
