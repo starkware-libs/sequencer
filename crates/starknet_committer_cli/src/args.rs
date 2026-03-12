@@ -14,7 +14,11 @@ use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig,
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use starknet_patricia_storage::rocksdb_storage::{RocksDbStorage, RocksDbStorageConfig};
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
-use starknet_patricia_storage::storage_trait::{EmptyStorageConfig, Storage};
+use starknet_patricia_storage::storage_trait::{
+    EmptyStorageConfig,
+    ImmutableReadOnlyStorage,
+    Storage,
+};
 
 use crate::commands::run_storage_benchmark_wrapper;
 
@@ -225,6 +229,8 @@ pub struct CachedStorageArgs<InnerStorageArgs: StorageFromArgs> {
 #[async_trait]
 impl<InnerStorageArgs: StorageFromArgs + Sync> StorageFromArgs
     for CachedStorageArgs<InnerStorageArgs>
+where
+    InnerStorageArgs::Storage: ImmutableReadOnlyStorage,
 {
     type Storage = CachedStorage<InnerStorageArgs::Storage>;
 
