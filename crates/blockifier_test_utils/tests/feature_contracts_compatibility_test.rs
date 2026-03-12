@@ -2,7 +2,6 @@ use std::fs;
 
 use blockifier_test_utils::cairo_compile::{
     generate_allowed_libfuncs_legacy_json,
-    verify_cairo1_package,
     CompilationArtifacts,
 };
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -11,125 +10,23 @@ use blockifier_test_utils::contracts::{
     CAIRO1_FEATURE_CONTRACTS_DIR,
     SIERRA_CONTRACTS_SUBDIR,
 };
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use expect_test::expect_file;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::CompiledClassHash;
 use tracing::info;
 use tracing_test::traced_test;
 
 const CAIRO0_FEATURE_CONTRACTS_DIR: &str = "resources/feature_contracts/cairo0";
 const COMPILED_CONTRACTS_SUBDIR: &str = "compiled";
-const FIX_COMMAND: &str = "env UPDATE_EXPECT=1 FIX_FEATURE_TEST=1 cargo test -p \
-                           blockifier_test_utils --test feature_contracts_compatibility_test -- \
-                           --include-ignored";
+const CAIRO0_FIX_COMMAND: &str =
+    "env UPDATE_EXPECT=1 FIX_FEATURE_TEST=1 cargo test -p blockifier_test_utils --test \
+     feature_contracts_compatibility_test verify_feature_contracts_cairo0 -- --include-ignored";
 
-pub enum FeatureContractMetadata {
-    Cairo0(Cairo0FeatureContractMetadata),
-    Cairo1(Cairo1FeatureContractMetadata),
-}
+// ======================== Cairo 0 compatibility (committed artifacts) ========================
 
-impl FeatureContractMetadata {
-    pub fn compiled_path(&self) -> String {
-        match self {
-            FeatureContractMetadata::Cairo0(data) => data.compiled_path.clone(),
-            FeatureContractMetadata::Cairo1(data) => data.compiled_path.clone(),
-        }
-    }
-
-    pub fn sierra_path(&self) -> String {
-        match self {
-            FeatureContractMetadata::Cairo0(_) => panic!("No sierra path for Cairo0 contracts."),
-            FeatureContractMetadata::Cairo1(data) => data.sierra_path.clone(),
-        }
-    }
-}
-
-pub struct Cairo0FeatureContractMetadata {
-    pub source_path: String,
-    pub base_filename: String,
-    pub compiled_path: String,
-}
-
-pub struct Cairo1FeatureContractMetadata {
-    pub source_path: String,
-    pub base_filename: String,
-    pub compiled_path: String,
-    pub sierra_path: String,
-}
-
-// To fix Cairo0 feature contracts, first enter a python venv and install the requirements (see
-// `enter_venv_instructions` for how to do this). Then, run the FIX_COMMAND above.
-
-// To fix Cairo1 feature contracts, first clone the Cairo repo and checkout the required tag.
-// The repo should be located next to the sequencer repo:
-// <WORKSPACE_DIR>/
-// - sequencer/
-// - cairo/
-// Then, run the FIX_COMMAND above.
-
-// Checks that:
-// 1. `TEST_CONTRACTS` dir exists and contains only `.cairo` files and the subdirectory
-// `COMPILED_CONTRACTS_SUBDIR`.
-// 2. for each `X.cairo` file in `TEST_CONTRACTS` there exists an `X_compiled.json` file in
-// `COMPILED_CONTRACTS_SUBDIR` which equals `starknet-compile-deprecated X.cairo --no_debug_info`.
-async fn verify_feature_contracts_compatibility(
-    fix: bool,
-    cairo_version: CairoVersion,
-    contract_filter: Option<String>,
-) {
-    let matches_filter = |contract: &FeatureContract| -> bool {
-        contract_filter.as_deref().is_none_or(|filter| format!("{contract:?}").contains(filter))
-    };
-
-    match cairo_version {
-        // TODO(Dori, 1/10/2024): Parallelize Cairo0 recompilation.
-        CairoVersion::Cairo0 => {
-            for contract in FeatureContract::all_feature_contracts()
-                .filter(|contract| contract.cairo_version() == cairo_version)
-                .filter(|contract| matches_filter(contract))
-            {
-                verify_feature_contracts_compatibility_logic(&contract, fix);
-            }
-        }
-        CairoVersion::Cairo1(RunnableCairo1::Casm) => {
-            // Prepare cairo packages.
-            let mut download_task_set = tokio::task::JoinSet::new();
-            for version in FeatureContract::all_cairo1_casm_compiler_versions() {
-                download_task_set.spawn(async move { verify_cairo1_package(&version).await });
-            }
-            info!(
-                "Verifying Cairo1 packages for versions {:?}.",
-                FeatureContract::all_cairo1_casm_compiler_versions()
-            );
-            download_task_set.join_all().await;
-            info!("Cairo1 packages verified.");
-            // Verify feature contracts.
-            let mut task_set = tokio::task::JoinSet::new();
-            for contract in FeatureContract::all_cairo1_casm_feature_contracts()
-                .filter(|contract| matches_filter(contract))
-            {
-                info!("Spawning task for {contract:?}.");
-                task_set.spawn(verify_feature_contracts_compatibility_logic_async(contract, fix));
-            }
-            info!("Done spawning tasks for contract compilation. Awaiting them...");
-            task_set.join_all().await;
-            info!("Done awaiting tasks for contract compilation.");
-        }
-        #[cfg(feature = "cairo_native")]
-        CairoVersion::Cairo1(RunnableCairo1::Native) => {
-            panic!("This test does not support native CairoVersion.")
-        }
-    }
-}
-
-async fn verify_feature_contracts_compatibility_logic_async(contract: FeatureContract, fix: bool) {
-    verify_feature_contracts_compatibility_logic(&contract, fix);
-}
-
-fn check_compilation(
+fn check_cairo0_compilation(
     actual_content: Vec<u8>,
     existing_contents: &str,
     path: &str,
@@ -137,82 +34,44 @@ fn check_compilation(
 ) {
     if String::from_utf8(actual_content).unwrap() != existing_contents {
         panic!(
-            "{source_path} does not compile to {path}.\nRun `{FIX_COMMAND}` to fix the existing \
-             file according to locally installed `starknet-compile-deprecated`.\n"
+            "{source_path} does not compile to {path}.\nRun `{CAIRO0_FIX_COMMAND}` to fix the \
+             existing file according to locally installed `starknet-compile-deprecated`.\n"
         );
     }
 }
 
-fn compare_compilation_data(contract: &FeatureContract) {
-    let expected_compiled_raw_output = contract.compile();
-    let existing_compiled_path = contract.get_compiled_path();
-    let existing_compiled_contents = fs::read_to_string(&existing_compiled_path)
-        .unwrap_or_else(|_| panic!("Cannot read {existing_compiled_path}."));
-
-    match expected_compiled_raw_output {
-        CompilationArtifacts::Cairo0 { casm } => {
-            check_compilation(
-                casm,
-                &existing_compiled_contents,
-                &existing_compiled_path,
-                contract.get_source_path(),
-            );
-            // Compiled class hash of cairo 0 contract is defined as CompiledClassHash::default()
-            assert_eq!(
-                contract.get_compiled_class_hash(&HashVersion::V2),
-                CompiledClassHash::default()
-            );
-        }
-        CompilationArtifacts::Cairo1 { casm, sierra } => {
-            // TODO(Aviv): Remove this if after fixing sierra file of cairo steps contract.
-            if !matches!(contract, FeatureContract::CairoStepsTestContract) {
-                check_compilation(
-                    casm,
-                    &existing_compiled_contents,
-                    &existing_compiled_path,
-                    contract.get_source_path(),
-                );
-
-                let sierra_compiled_path = contract.get_sierra_path();
-                let existing_sierra_contents = fs::read_to_string(&sierra_compiled_path)
-                    .unwrap_or_else(|_| panic!("Cannot read {sierra_compiled_path}."));
-                check_compilation(
-                    sierra,
-                    &existing_sierra_contents,
-                    &sierra_compiled_path,
-                    contract.get_source_path(),
-                );
-            }
-            verify_contract_casm_hashes(contract, Some(&existing_compiled_contents));
-        }
-    }
-}
-
-fn verify_feature_contracts_compatibility_logic(contract: &FeatureContract, fix: bool) {
-    // Compare output of cairo-file on file with existing compiled file.
+fn verify_cairo0_contract(contract: &FeatureContract, fix: bool) {
+    assert!(contract.cairo_version().is_cairo0(), "Expected Cairo 0 contract, got {contract:?}");
     info!("Compiling {contract:?}...");
-    let expected_compiled_raw_output = contract.compile();
+    let CompilationArtifacts::Cairo0 { casm } = contract.compile() else {
+        unreachable!();
+    };
     info!("Done compiling {contract:?}.");
     let existing_compiled_path = contract.get_compiled_path();
     if fix {
-        match expected_compiled_raw_output {
-            CompilationArtifacts::Cairo0 { ref casm } => {
-                fs::write(&existing_compiled_path, casm).unwrap();
-            }
-            CompilationArtifacts::Cairo1 { ref casm, ref sierra } => {
-                fs::write(&existing_compiled_path, casm).unwrap();
-                fs::write(contract.get_sierra_path(), sierra).unwrap();
-            }
-        }
+        fs::write(&existing_compiled_path, &casm).unwrap();
     }
-
-    compare_compilation_data(contract);
+    let existing_compiled_contents = fs::read_to_string(&existing_compiled_path)
+        .unwrap_or_else(|_| panic!("Cannot read {existing_compiled_path}."));
+    check_cairo0_compilation(
+        casm,
+        &existing_compiled_contents,
+        &existing_compiled_path,
+        contract.get_source_path(),
+    );
+    assert_eq!(contract.get_compiled_class_hash(&HashVersion::V2), CompiledClassHash::default());
 }
 
-/// Verifies that the feature contracts directory contains the expected contents, and returns
-/// the feature contracts metadata.
-fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<FeatureContractMetadata> {
-    let mut paths = vec![];
+// ======================== Enum <-> filesystem consistency ========================
+
+/// For Cairo 0: verifies that each .cairo file has a matching _compiled.json and a matching
+/// FeatureContract enum variant. For Cairo 1: verifies that each .cairo source file has a
+/// matching FeatureContract enum variant (compiled artifacts are generated on demand).
+#[rstest]
+fn verify_feature_contracts_match_enum(
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
+    cairo_version: CairoVersion,
+) {
     let directory = match cairo_version {
         CairoVersion::Cairo0 => CAIRO0_FEATURE_CONTRACTS_DIR,
         CairoVersion::Cairo1(RunnableCairo1::Casm) => CAIRO1_FEATURE_CONTRACTS_DIR,
@@ -221,18 +80,10 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<FeatureContractMetad
             panic!("This test does not support native CairoVersion.")
         }
     };
-    let compiled_extension = match cairo_version {
-        CairoVersion::Cairo0 => "_compiled.json",
-        CairoVersion::Cairo1(RunnableCairo1::Casm) => ".casm.json",
-        #[cfg(feature = "cairo_native")]
-        CairoVersion::Cairo1(RunnableCairo1::Native) => {
-            panic!("This test does not support native CairoVersion.")
-        }
-    };
+
+    let mut source_basenames_on_filesystem: Vec<String> = vec![];
     for file in fs::read_dir(directory).unwrap() {
         let path = file.unwrap().path();
-
-        // Verify `TEST_CONTRACTS` file and directory structure.
         if !path.is_file() {
             if let Some(dir_name) = path.file_name() {
                 assert!(
@@ -250,131 +101,51 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<FeatureContractMetad
             "cairo",
             "Found a non-Cairo file '{path_str}' in `{directory}`"
         );
-
-        let file_name = path.file_stem().unwrap().to_string_lossy();
-        let existing_compiled_path =
-            format!("{directory}/{COMPILED_CONTRACTS_SUBDIR}/{file_name}{compiled_extension}");
-
-        match cairo_version {
-            CairoVersion::Cairo0 => {
-                paths.push(FeatureContractMetadata::Cairo0(Cairo0FeatureContractMetadata {
-                    source_path: path_str.to_string(),
-                    base_filename: file_name.to_string(),
-                    compiled_path: existing_compiled_path,
-                }))
-            }
-
-            CairoVersion::Cairo1(RunnableCairo1::Casm) => {
-                let existing_sierra_path =
-                    format!("{directory}/{SIERRA_CONTRACTS_SUBDIR}/{file_name}.sierra.json");
-                paths.push(FeatureContractMetadata::Cairo1(Cairo1FeatureContractMetadata {
-                    source_path: path_str.to_string(),
-                    base_filename: file_name.to_string(),
-                    compiled_path: existing_compiled_path,
-                    sierra_path: existing_sierra_path,
-                }));
-            }
-            #[cfg(feature = "cairo_native")]
-            CairoVersion::Cairo1(RunnableCairo1::Native) => {
-                panic!("This test does not support native CairoVersion.")
-            }
-        }
+        source_basenames_on_filesystem
+            .push(path.file_stem().unwrap().to_string_lossy().to_string());
     }
 
-    paths
-}
-
-// Native and Casm have the same contracts, therefore should have the same enum, so we exclude
-// Native CairoVersion from this test.
-#[rstest]
-fn verify_feature_contracts_match_enum(
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    cairo_version: CairoVersion,
-) {
-    let mut compiled_paths_from_enum: Vec<String> = FeatureContract::all_feature_contracts()
+    let mut source_basenames_from_enum: Vec<String> = FeatureContract::all_feature_contracts()
         .filter(|contract| contract.cairo_version() == cairo_version)
-        .map(|contract| contract.get_compiled_path())
+        .map(|contract| contract.get_non_erc20_base_name().to_string())
         .collect();
 
-    let mut compiled_paths_on_filesystem = match cairo_version {
-        CairoVersion::Cairo0 => verify_and_get_files(cairo_version)
-            .into_iter()
-            .map(|metadata| metadata.compiled_path().to_string())
-            .collect(),
-        CairoVersion::Cairo1(RunnableCairo1::Casm) => {
-            let (compiled_paths_on_filesystem, mut sierra_paths_on_filesystem): (
-                Vec<String>,
-                Vec<String>,
-            ) = verify_and_get_files(cairo_version)
-                .into_iter()
-                .map(|metadata| (metadata.compiled_path(), metadata.sierra_path()))
-                .collect();
+    source_basenames_from_enum.sort();
+    source_basenames_on_filesystem.sort();
+    assert_eq!(source_basenames_from_enum, source_basenames_on_filesystem);
 
-            let mut sierra_paths_from_enum: Vec<String> = FeatureContract::all_feature_contracts()
-                .filter(|contract| contract.cairo_version() == cairo_version)
-                .map(|contract| contract.get_sierra_path())
-                .collect();
-
-            sierra_paths_from_enum.sort();
-            sierra_paths_on_filesystem.sort();
-            assert_eq!(sierra_paths_from_enum, sierra_paths_on_filesystem);
-            compiled_paths_on_filesystem
+    // For Cairo 0, also verify that committed compiled files exist for each source.
+    if cairo_version == CairoVersion::Cairo0 {
+        for contract in
+            FeatureContract::all_feature_contracts().filter(|c| c.cairo_version() == cairo_version)
+        {
+            let compiled_path = contract.get_compiled_path();
+            assert!(
+                std::path::Path::new(&compiled_path).exists(),
+                "Missing compiled artifact: {compiled_path}"
+            );
         }
-
-        #[cfg(feature = "cairo_native")]
-        CairoVersion::Cairo1(RunnableCairo1::Native) => {
-            panic!("This test does not support native CairoVersion.")
-        }
-    };
-    compiled_paths_from_enum.sort();
-    compiled_paths_on_filesystem.sort();
-    assert_eq!(compiled_paths_from_enum, compiled_paths_on_filesystem);
+    }
 }
 
-async fn verify_feature_contracts_test_body(
-    cairo_version: CairoVersion,
-    contract_filter: Option<String>,
-) {
-    let fix_features = std::env::var("FIX_FEATURE_TEST").is_ok();
-    verify_feature_contracts_compatibility(fix_features, cairo_version, contract_filter).await;
-}
+// ======================== Test entrypoints ========================
 
-// Verified that the constant casm hashes V1 an V2 in the FeatureContract enum are correct.
-// In case of a mismatch, run the FIX_COMMAND above to fix the constant values.
-fn verify_contract_casm_hashes(contract: &FeatureContract, casm_json: Option<&str>) {
-    let casm_json = match casm_json {
-        Some(casm_json) => casm_json,
-        None => &std::fs::read_to_string(contract.get_compiled_path())
-            .expect("Failed to read CASM contract file"),
-    };
-    let casm: CasmContractClass =
-        serde_json::from_str(casm_json).expect("Failed to deserialize CASM contract class");
-    let (casm_hash_v1, casm_hash_v2) = contract.get_compiled_class_hashes_constants();
-    casm_hash_v1.assert_eq(&format!("0x{:x}", casm.hash(&HashVersion::V1).0));
-    casm_hash_v2.assert_eq(&format!("0x{:x}", casm.hash(&HashVersion::V2).0));
-}
-
-// Native and Casm have the same contracts and compiled files, as we only save the sierra for
-// Native, so we exclude Native CairoVersion from these tests.
 #[ignore]
 #[traced_test]
 #[tokio::test(flavor = "multi_thread")]
 async fn verify_feature_contracts_cairo0() {
+    let fix = std::env::var("FIX_FEATURE_TEST").is_ok();
     let contract_filter = std::env::var("CONTRACT_FILTER").ok();
-    verify_feature_contracts_test_body(CairoVersion::Cairo0, contract_filter).await;
-}
-
-#[ignore]
-#[traced_test]
-#[tokio::test(flavor = "multi_thread")]
-async fn verify_feature_contracts_cairo1() {
-    let contract_filter = std::env::var("CONTRACT_FILTER").ok();
-    verify_feature_contracts_test_body(CairoVersion::Cairo1(RunnableCairo1::Casm), contract_filter)
-        .await;
-    verify_contract_casm_hashes(
-        &FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-        None,
-    );
+    let matches_filter = |contract: &FeatureContract| -> bool {
+        contract_filter.as_deref().is_none_or(|filter| format!("{contract:?}").contains(filter))
+    };
+    // TODO(Dori, 1/10/2024): Parallelize Cairo0 recompilation.
+    for contract in FeatureContract::all_feature_contracts()
+        .filter(|c| c.cairo_version() == CairoVersion::Cairo0)
+        .filter(|c| matches_filter(c))
+    {
+        verify_cairo0_contract(&contract, fix);
+    }
 }
 
 /// Verifies that `allowed_libfuncs_legacy.json` is in sync with `allowed_libfuncs.json`.

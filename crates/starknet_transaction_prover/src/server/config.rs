@@ -197,6 +197,11 @@ impl ServiceConfig {
             }
         }
 
+        if args.skip_fee_field_validation && config.prover_config.validate_zero_fee_fields {
+            info!("CLI override: validate_zero_fee_fields: true -> false");
+            config.prover_config.validate_zero_fee_fields = false;
+        }
+
         if args.no_cors && !args.cors_allow_origin.is_empty() {
             return Err(ConfigError::InvalidArgument(
                 "--no-cors and --cors-allow-origin are mutually exclusive".to_string(),
@@ -358,6 +363,10 @@ pub struct CliArgs {
     /// Client-side limits may differ from Starknet network limits.
     #[arg(long, value_name = "FILE", env = "BOUNCER_CONFIG_OVERRIDE")]
     pub bouncer_config_override: Option<PathBuf>,
+
+    /// Skip validation that fee-related fields (resource bounds, tip) are zero.
+    #[arg(long, env = "SKIP_FEE_FIELD_VALIDATION")]
+    pub skip_fee_field_validation: bool,
 
     /// Disable CORS (clear any origins set in the config file).
     #[arg(long, conflicts_with = "cors_allow_origin")]

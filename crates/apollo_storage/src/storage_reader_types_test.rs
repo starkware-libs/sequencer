@@ -12,7 +12,8 @@ use indexmap::IndexMap;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use starknet_api::block::{BlockNumber, BlockSignature};
-use starknet_api::core::{ClassHash, CompiledClassHash};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
+use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
@@ -28,8 +29,10 @@ use crate::class_hash::ClassHashStorageWriter;
 use crate::class_manager::ClassManagerStorageReader;
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::consensus::{ConsensusStorageWriter, LastVotedMarker};
+use crate::global_root::GlobalRootStorageWriter;
 use crate::global_root_marker::GlobalRootMarkerStorageReader;
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
+use crate::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::storage_reader_server::{
     DynamicConfigError,
@@ -83,6 +86,8 @@ struct TestServerSetup {
     executable_class_hash_v2: CompiledClassHash,
     last_voted_marker: LastVotedMarker,
     block_signature: BlockSignature,
+    partial_block_hash_components: PartialBlockHashComponents,
+    global_root: GlobalRoot,
 }
 
 impl TestServerSetup {
@@ -127,6 +132,9 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
     let casm_class_hash = ClassHash(felt!("0x2"));
     let executable_class_hash_v2 = compiled_class_hash!(2_u8);
     let last_voted_marker = LastVotedMarker { height: block_number };
+    let partial_block_hash_components =
+        PartialBlockHashComponents { block_number, ..Default::default() };
+    let global_root = GlobalRoot::default();
 
     let state_diff = ThinStateDiff {
         deployed_contracts: IndexMap::from([(deployed_contract_address, deployed_class_hash)]),
@@ -169,6 +177,10 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         .unwrap()
         .set_last_voted_marker(&last_voted_marker)
         .unwrap()
+        .set_partial_block_hash_components(&block_number, &partial_block_hash_components)
+        .unwrap()
+        .set_global_root(&block_number, global_root)
+        .unwrap()
         .commit()
         .unwrap();
 
@@ -195,6 +207,8 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         executable_class_hash_v2,
         last_voted_marker,
         block_signature,
+        partial_block_hash_components,
+        global_root,
     }
 }
 
@@ -678,4 +692,29 @@ async fn compiled_class_hash_request() {
     let response: StorageReaderResponse = setup.get_success_response(&request).await;
 
     assert_eq!(response, StorageReaderResponse::CompiledClassHash(expected_compiled_class_hash));
+}
+
+#[tokio::test]
+async fn partial_block_hash_components_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let request = StorageReaderRequest::PartialBlockHashComponents(TEST_BLOCK_NUMBER);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(
+        response,
+        StorageReaderResponse::PartialBlockHashComponents(
+            setup.partial_block_hash_components.clone()
+        )
+    );
+}
+
+#[tokio::test]
+async fn global_root_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let request = StorageReaderRequest::GlobalRoot(TEST_BLOCK_NUMBER);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::GlobalRoot(setup.global_root));
 }

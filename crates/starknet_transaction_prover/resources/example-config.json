@@ -1,0 +1,10 @@
+{
+  "rpc_node_url": "https://your-starknet-rpc-node.com/rpc/v0_10",
+  "chain_id": "SN_MAIN",
+  "ip": "0.0.0.0",
+  "port": 3000,
+  "max_concurrent_requests": 2,
+  "max_connections": 10,
+  "cors_allow_origin": [],
+  "validate_zero_fee_fields": true
+}

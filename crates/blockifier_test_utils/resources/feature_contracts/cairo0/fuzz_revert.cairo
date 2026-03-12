@@ -2,6 +2,7 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math import assert_not_zero
+from starkware.starknet.common.messages import send_message_to_l1
 from starkware.starknet.common.syscalls import (
     call_contract,
     deploy,
@@ -19,6 +20,10 @@ const SCENARIO_WRITE = 3;
 const SCENARIO_REPLACE_CLASS = 4;
 const SCENARIO_DEPLOY = 5;
 const SCENARIO_PANIC = 6;
+const SCENARIO_INCREMENT_COUNTER = 7;
+const SCENARIO_SEND_MESSAGE = 8;
+const SCENARIO_DEPLOY_NON_EXISTING = 9;
+const SCENARIO_LIBRARY_CALL_NON_EXISTING = 10;
 
 // selector_from_name("pop_front").
 const POP_FRONT_SELECTOR = 0x289c2d7d6351cd03d4f928bde75fa14d5f52e32bdbc750d5296e1b48c12f1c3;
@@ -27,6 +32,10 @@ const FUZZ_TEST_SELECTOR = 0x8e64dfac867f301a439703710296f437e9f91d1bba17cfea5ad
 
 @storage_var
 func orchestrator_address() -> (address: felt) {
+}
+
+@storage_var
+func counter() -> (value: felt) {
 }
 
 /// If this contract is deployed as part of the fuzz test "deploy" scenario, the orchestrator
@@ -48,6 +57,7 @@ func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
 func initialize{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     orchestrator_address_input: felt
 ) {
+    counter.write(0xc00);
     orchestrator_address.write(orchestrator_address_input);
     return ();
 }
@@ -141,6 +151,41 @@ func test_revert_fuzz{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
             assert 0 = 1;
         }
         test_revert_fuzz();
+        return ();
+    }
+
+    if (scenario == SCENARIO_INCREMENT_COUNTER) {
+        let (value) = counter.read();
+        counter.write(value + 1);
+        test_revert_fuzz();
+        return ();
+    }
+
+    if (scenario == SCENARIO_SEND_MESSAGE) {
+        local payload: felt* = new(pop_front(orchestrator));
+        send_message_to_l1(to_address=0xadd0, payload_size=1, payload=payload);
+        test_revert_fuzz();
+        return ();
+    }
+
+    if (scenario == SCENARIO_DEPLOY_NON_EXISTING) {
+        let class_hash = 0xde6107000c0;
+        let salt = 0;
+        deploy(
+            class_hash=class_hash,
+            contract_address_salt=salt,
+            constructor_calldata_size=0,
+            constructor_calldata=new(),
+            deploy_from_zero=1
+        );
+        // Should always fail anyway, no need to recurse.
+        return ();
+    }
+
+    if (scenario == SCENARIO_LIBRARY_CALL_NON_EXISTING) {
+        let class_hash = 0x11bca11000c0;
+        library_call(class_hash=class_hash, function_selector=0, calldata_size=0, calldata=new());
+        // Should always fail anyway, no need to recurse.
         return ();
     }
 

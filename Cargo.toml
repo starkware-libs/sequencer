@@ -100,7 +100,6 @@ members = [
   "crates/native_blockifier",
   "crates/papyrus_base_layer",
   "crates/papyrus_common",
-  "crates/proving_utils",
   "crates/shared_execution_objects",
   "crates/starknet_api",
   "crates/starknet_committer",
@@ -110,6 +109,7 @@ members = [
   "crates/starknet_os_flow_tests",
   "crates/starknet_patricia",
   "crates/starknet_patricia_storage",
+  "crates/starknet_proof_verifier",
   "crates/starknet_transaction_prover",
   "toml_test_utils",
   "workspace_tests",
@@ -271,7 +271,6 @@ enum-iterator = "2.3.0"
 ethnum = "1.5.0"
 expect-test = "1.5.1"
 flate2 = "1.0.24"
-fs2 = "0.4"
 futures = "0.3.21"
 futures-channel = "0.3.21"
 futures-util = "0.3.21"
@@ -323,13 +322,14 @@ paste = "1.0.15"
 phf = "0.11"
 pretty_assertions = "1.4.0"
 primitive-types = "0.12.1"
+privacy-circuit-verify = { git = "https://github.com/starkware-libs/proving-utils", rev = "5c930499f7ebb45aaa3ceff50c6ad6bf2d952104" }
+privacy-prove = { git = "https://github.com/starkware-libs/proving-utils", rev = "5c930499f7ebb45aaa3ceff50c6ad6bf2d952104" }
 proc-macro2 = "1.0"
 prometheus-parse = "0.2.4"
 prost = "0.12.1"
 prost-build = "0.12.1"
 prost-types = "0.12.1"
 protoc-prebuilt = "0.3.0"
-proving_utils.path = "crates/proving_utils"
 pyo3 = "0.19.1"
 pyo3-log = "0.8.1"
 quote = "1.0.26"
@@ -373,13 +373,10 @@ starknet_os.path = "crates/starknet_os"
 starknet_os_flow_tests.path = "crates/starknet_os_flow_tests"
 starknet_patricia.path = "crates/starknet_patricia"
 starknet_patricia_storage.path = "crates/starknet_patricia_storage"
+starknet_proof_verifier = { path = "crates/starknet_proof_verifier", version = "0.18.0-dev.0" }
 starknet_transaction_prover.path = "crates/starknet_transaction_prover"
 static_assertions = "1.1.0"
 strum = "0.27.2"
-stwo = "2.1.0"
-stwo-cairo-adapter = "1.1.0"
-stwo-cairo-prover = "1.1.0"
-stwo_run_and_prove_lib = { package = "stwo-run-and-prove", version = "1.1.0" }
 syn = "2.0.39"
 tempfile = "3.7.0"
 test-case = "3.2.1"

@@ -1,3 +1,5 @@
+use blockifier::execution::call_info::OpcodeCounterMap;
+use blockifier::execution::entry_point_execution::opcode_counter_from_extended_resources;
 use blockifier::execution::syscalls::vm_syscall_utils::SyscallUsageMap;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::MaybeRelocatable;
@@ -6,7 +8,6 @@ use cairo_vm::vm::runners::cairo_runner::{CairoRunner, ExecutionResources};
 use serde::Serialize;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
-use crate::opcode_instances::{get_opcode_instances, OpcodeInstanceCounts};
 
 #[derive(Debug, Serialize)]
 pub struct ProgramRunInfo {
@@ -33,7 +34,7 @@ pub struct OsMetrics {
     pub deprecated_syscall_usages: Vec<SyscallUsageMap>,
     pub run_info: ProgramRunInfo,
     pub execution_resources: ExecutionResources,
-    pub opcode_instances: OpcodeInstanceCounts,
+    pub opcode_instances: OpcodeCounterMap,
 }
 
 #[derive(Debug, Serialize)]
@@ -54,7 +55,10 @@ impl OsMetrics {
                 .get_deprecated_syscall_usages(),
             run_info: ProgramRunInfo::new(runner),
             execution_resources: runner.get_execution_resources()?,
-            opcode_instances: get_opcode_instances(runner),
+            opcode_instances: opcode_counter_from_extended_resources(
+                runner.get_extended_execution_resources(),
+            )
+            .expect("Failed to convert extended resources to opcode counter"),
         })
     }
 }

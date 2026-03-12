@@ -12,16 +12,20 @@ cairo_native = []
 [dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
-expect-test.workspace = true
-pretty_assertions.workspace = true
-rstest.workspace = true
+digest.workspace = true
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
+sha2.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 strum = { workspace = true, features = ["derive"] }
 tempfile.workspace = true
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing.workspace = true
+
+[dev-dependencies]
+expect-test.workspace = true
+pretty_assertions.workspace = true
+rstest.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing-test.workspace = true
 
 [lints]
