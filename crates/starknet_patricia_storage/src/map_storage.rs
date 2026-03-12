@@ -367,6 +367,17 @@ impl<S: Storage + ImmutableReadOnlyStorage> Storage for CachedStorage<S> {
         // Need a concrete Option type.
         None::<NullStorage>
     }
+
+    fn handle_collected_reads(&mut self, reads: StorageReads) {
+        // TODO(Nimrod): Consider gate this under a configuration flag.
+        // Allow internal storage to handle the reads.
+        self.storage.handle_collected_reads(reads.clone());
+
+        // Update the internal cache with the reads.
+        reads.into_inner().into_iter().for_each(|(key, value)| {
+            self.cache.put(key, Some(value));
+        });
+    }
 }
 
 /// Wraps an [ImmutableReadOnlyStorage] reference and collects all reads performed through it.

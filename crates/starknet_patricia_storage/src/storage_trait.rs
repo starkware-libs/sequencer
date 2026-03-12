@@ -26,12 +26,12 @@ impl Debug for DbValue {
 
 pub type DbHashMap = HashMap<DbKey, DbValue>;
 
-// TODO(Nimrod): Explain more about the dangerous API it's merged.
 /// A collection of key-value pairs read from storage.
 /// Used to accumulate reads across concurrent tasks and merge them back into a single storage.
-/// It's important that it's impossible to modify the inner map via public methods, otherwise the
-/// storage trait can expose dangerous API.
-#[derive(Default)]
+/// It's important that it's impossible to modify the inner map via public methods, otherwise
+/// [Storage::handle_collected_reads] can be dangerous and allow setting arbitrary data in the
+/// storage.
+#[derive(Clone, Default)]
 pub struct StorageReads(DbHashMap);
 
 impl StorageReads {
@@ -46,6 +46,10 @@ impl StorageReads {
 
     pub fn extend(&mut self, other: StorageReads) {
         self.0.extend(other.0);
+    }
+
+    pub fn into_inner(self) -> DbHashMap {
+        self.0
     }
 }
 
@@ -202,6 +206,14 @@ pub trait Storage: ReadOnlyStorage + Sync {
 
     /// If the storage is async, returns an instance of the async storage.
     fn get_async_self(&self) -> Option<impl AsyncStorage>;
+
+    /// Handles the reads that were collected by a [`crate::map_storage::ReadsCollectorStorage`].
+    /// Typically, the storage will update its internal cache with the reads.
+    /// This method is considered safe as it's impossible to populate the reads map with arbitrary
+    /// data.
+    fn handle_collected_reads(&mut self, _reads: StorageReads) {
+        // By default, do nothing.
+    }
 }
 
 /// A trait wrapper for [Storage] that supports concurrency.
