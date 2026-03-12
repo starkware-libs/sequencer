@@ -194,6 +194,7 @@ pub fn get_new_storage_config() -> StorageConfig {
     }
 }
 
+/// Committee with uniform weight 1 for each validator.
 pub fn test_committee(
     validators: Vec<ValidatorId>,
     get_actual_proposer_fn: Box<dyn Fn(Round) -> ContractAddress + Send + Sync>,
@@ -201,9 +202,29 @@ pub fn test_committee(
         dyn Fn(Round) -> Result<ContractAddress, CommitteeError> + Send + Sync,
     >,
 ) -> Arc<dyn CommitteeTrait> {
-    let stakers = validators
+    test_committee_with_weights(
+        validators.into_iter().map(|address| (address, 1_u128)).collect(),
+        get_actual_proposer_fn,
+        get_virtual_proposer_fn,
+    )
+}
+
+/// Committee with custom staking weights for each validator. Weights are used when
+/// use_committee_weight is true in the state machine.
+pub fn test_committee_with_weights(
+    validators_with_weights: Vec<(ValidatorId, u128)>,
+    get_actual_proposer_fn: Box<dyn Fn(Round) -> ContractAddress + Send + Sync>,
+    get_virtual_proposer_fn: Box<
+        dyn Fn(Round) -> Result<ContractAddress, CommitteeError> + Send + Sync,
+    >,
+) -> Arc<dyn CommitteeTrait> {
+    let stakers = validators_with_weights
         .into_iter()
-        .map(|address| Staker { address, weight: StakingWeight(1), public_key: Felt::ZERO })
+        .map(|(address, weight)| Staker {
+            address,
+            weight: StakingWeight(weight),
+            public_key: Felt::ZERO,
+        })
         .collect();
 
     let get_actual = Arc::new(get_actual_proposer_fn);
