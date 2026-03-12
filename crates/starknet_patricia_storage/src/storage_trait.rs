@@ -11,6 +11,7 @@ use tokio::task::JoinError;
 use validator::Validate;
 
 use crate::errors::DeserializationError;
+use crate::reads_collector_storage::StorageReads;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DbKey(pub Vec<u8>);
@@ -179,6 +180,14 @@ pub trait Storage: ReadOnlyStorage + Sync {
 
     /// If the storage is async, returns an instance of the async storage.
     fn get_async_self(&self) -> Option<impl AsyncStorage>;
+
+    /// Handles the reads that were collected by a [`crate::map_storage::ReadsCollectorStorage`].
+    /// Typically, the storage will update its internal cache with the reads.
+    /// This method is considered safe as it's impossible to populate the reads map with arbitrary
+    /// data.
+    fn handle_collected_reads(&mut self, _reads: StorageReads) {
+        // By default, do nothing.
+    }
 }
 
 /// A trait wrapper for [Storage] that supports concurrency.

@@ -14,7 +14,6 @@ use starknet_patricia_storage::storage_trait::{
     DbKey,
     DbValue,
     PatriciaStorageResult,
-    ReadOnlyStorage,
     Storage,
 };
 
@@ -95,7 +94,7 @@ pub(crate) async fn read_forest<'a, S, Layout>(
     config: ReaderConfig,
 ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>
 where
-    S: ReadOnlyStorage,
+    S: Storage,
     Layout: DbLayout,
 {
     let (contracts_trie, original_contracts_trie_leaves) =

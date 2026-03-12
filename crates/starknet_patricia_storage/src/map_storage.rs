@@ -9,6 +9,7 @@ use lru::LruCache;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationErrors};
 
+use crate::reads_collector_storage::StorageReads;
 use crate::storage_trait::{
     AsyncStorage,
     DbHashMap,
@@ -365,5 +366,16 @@ impl<S: Storage + ImmutableReadOnlyStorage> Storage for CachedStorage<S> {
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
         // Need a concrete Option type.
         None::<NullStorage>
+    }
+
+    fn handle_collected_reads(&mut self, reads: StorageReads) {
+        // TODO(Nimrod): Consider gate this under a configuration flag.
+        // Allow internal storage to handle the reads.
+        self.storage.handle_collected_reads(reads.clone());
+
+        // Update the internal cache with the reads.
+        reads.into_inner().into_iter().for_each(|(key, value)| {
+            self.cache.put(key, Some(value));
+        });
     }
 }

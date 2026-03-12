@@ -8,12 +8,12 @@ use crate::storage_trait::{
     ReadOnlyStorage,
 };
 
-// TODO(Nimrod): Explain more about the dangerous API once it's merged.
 /// A collection of key-value pairs read from storage.
 /// Used to accumulate reads across concurrent tasks and merge them back into a single storage.
 /// It's important that the inner map can only be modified via private methods in this module,
-/// otherwise the storage trait can expose dangerous API.
-#[derive(Default)]
+/// otherwise, [Storage::handle_collected_reads] can be dangerous and allow setting arbitrary data
+/// in the storage.
+#[derive(Clone, Default)]
 pub struct StorageReads(DbHashMap);
 
 impl StorageReads {
@@ -28,6 +28,10 @@ impl StorageReads {
 
     pub fn extend(&mut self, other: StorageReads) {
         self.0.extend(other.0);
+    }
+
+    pub fn into_inner(self) -> DbHashMap {
+        self.0
     }
 }
 
