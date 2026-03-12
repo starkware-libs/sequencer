@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773206280379,
+  "lastUpdate": 1773316756191,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2345,6 +2345,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1286.49598537,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aviv.g@starkware.co",
+            "name": "avivg-starkware",
+            "username": "avivg-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4479e9bc3bfecb60c9bd68c49d30f8b79222f510",
+          "message": "starknet_os: remove redundent get_opcode_instances (#13143)",
+          "timestamp": "2026-03-12T11:36:39Z",
+          "tree_id": "fcbd29f87ac52ed4e1da3b06235224536579a69c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/4479e9bc3bfecb60c9bd68c49d30f8b79222f510"
+        },
+        "date": 1773316755881,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 763.71071914,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1172.50946014,
             "unit": "ms"
           }
         ]
