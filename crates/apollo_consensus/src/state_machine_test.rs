@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 
 use apollo_protobuf::consensus::{Vote, VoteType, DEFAULT_VALIDATOR_ID};
 use apollo_staking::committee_provider::CommitteeError;
+use assert_matches::assert_matches;
 use lazy_static::lazy_static;
 use starknet_api::block::BlockNumber;
 use starknet_api::crypto::utils::RawSignature;
@@ -10,7 +11,7 @@ use test_case::test_case;
 
 use super::Round;
 use crate::state_machine::{SMRequest, StateMachine, StateMachineEvent, Step};
-use crate::test_utils::test_committee;
+use crate::test_utils::{test_committee, test_committee_with_weights};
 use crate::types::{ProposalCommitment, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
@@ -163,6 +164,7 @@ impl TestWrapper {
                 quorum_type,
                 committee,
                 true,
+                false,
             ),
             requests: VecDeque::new(),
             peer_voters,
@@ -896,4 +898,316 @@ fn prevote_nil_when_new_proposal_differs_from_locked_value() {
     wrapper.send_finished_validation(OTHER_PROPOSAL, round_1);
     // Should prevote nil (None) because proposal differs from locked value.
     assert_broadcast_prevote(&mut wrapper, round_1, None, *VALIDATOR_ID);
+}
+
+#[test]
+fn use_committee_weight_counts_staker_weights() {
+    // Committee: PROPOSER=1, VALIDATOR=2, VALIDATOR_2=3, VALIDATOR_3=1. Total=7.
+    // 2/3 quorum needs weight > 7*2/3 = 14/3 ≈ 4.67, so weight 5 reaches quorum.
+    fn actual_proposer_fn(_round: Round) -> ValidatorId {
+        *PROPOSER_ID
+    }
+    fn virtual_proposer_fn(_round: Round) -> Result<ValidatorId, CommitteeError> {
+        Ok(*PROPOSER_ID)
+    }
+    let validator_weights =
+        vec![(*PROPOSER_ID, 1), (*VALIDATOR_ID, 2), (*VALIDATOR_ID_2, 3), (*VALIDATOR_ID_3, 1)];
+    let total_weight: u64 = 7;
+    let committee = test_committee_with_weights(
+        validator_weights,
+        Box::new(actual_proposer_fn),
+        Box::new(virtual_proposer_fn),
+    );
+    let mut state_machine = StateMachine::new(
+        HEIGHT,
+        *VALIDATOR_ID,
+        total_weight,
+        false,
+        QuorumType::Byzantine,
+        committee,
+        true,
+        true, // use_committee_weight
+    );
+    state_machine.start();
+    // TimeoutPropose -> record our nil prevote (weight 2), advance to Prevote step.
+    state_machine.handle_event(StateMachineEvent::TimeoutPropose(ROUND));
+    // Nil prevote from VALIDATOR_ID_2 (weight 3): total 2+3=5 >= 5 (2/3 of 7), nil prevote quorum.
+    let mut requests = state_machine.handle_event(StateMachineEvent::Prevote(mk_vote(
+        VoteType::Prevote,
+        ROUND,
+        None,
+        *VALIDATOR_ID_2,
+    )));
+    assert_matches!(
+        requests.pop_front(),
+        Some(SMRequest::ScheduleTimeout(Step::Prevote, r)) if r == ROUND
+    );
+    assert_matches!(
+        requests.pop_front(),
+        Some(SMRequest::BroadcastVote(v))
+            if v.vote_type == VoteType::Precommit && v.proposal_commitment.is_none()
+    );
+}
+
+#[test]
+fn use_committee_weight_just_under_quorum_does_not_trigger() {
+    // Total 7, 2/3 quorum needs weight >= 5. Weight 4 should NOT trigger.
+    fn actual_proposer_fn(_round: Round) -> ValidatorId {
+        *PROPOSER_ID
+    }
+    fn virtual_proposer_fn(_round: Round) -> Result<ValidatorId, CommitteeError> {
+        Ok(*PROPOSER_ID)
+    }
+    let validator_weights =
+        vec![(*PROPOSER_ID, 1), (*VALIDATOR_ID, 2), (*VALIDATOR_ID_2, 3), (*VALIDATOR_ID_3, 1)];
+    let committee = test_committee_with_weights(
+        validator_weights,
+        Box::new(actual_proposer_fn),
+        Box::new(virtual_proposer_fn),
+    );
+    let mut state_machine = StateMachine::new(
+        HEIGHT,
+        *VALIDATOR_ID,
+        7,
+        false,
+        QuorumType::Byzantine,
+        committee,
+        true,
+        true,
+    );
+    state_machine.start();
+    // TimeoutPropose: our nil prevote (weight 1) alone does not reach quorum.
+    state_machine.handle_event(StateMachineEvent::TimeoutPropose(ROUND));
+    // Nil prevotes: PROPOSER (1) + VALIDATOR_ID_3 (1) = 2 more, total 2+1+1=4. 4 < 5.
+    state_machine.handle_event(StateMachineEvent::Prevote(mk_vote(
+        VoteType::Prevote,
+        ROUND,
+        None,
+        *PROPOSER_ID,
+    )));
+    let mut requests = state_machine.handle_event(StateMachineEvent::Prevote(mk_vote(
+        VoteType::Prevote,
+        ROUND,
+        None,
+        *VALIDATOR_ID_3,
+    )));
+    assert!(
+        requests.is_empty(),
+        "Weight 4 should not reach quorum (no precommit), got {:?}",
+        requests
+    );
+    // Add VALIDATOR_ID_2 (3): total 5, now nil prevote quorum.
+    requests = state_machine.handle_event(StateMachineEvent::Prevote(mk_vote(
+        VoteType::Prevote,
+        ROUND,
+        None,
+        *VALIDATOR_ID_2,
+    )));
+    assert_matches!(
+        requests.pop_front(),
+        Some(SMRequest::ScheduleTimeout(Step::Prevote, r)) if r == ROUND
+    );
+    assert_matches!(
+        requests.pop_front(),
+        Some(SMRequest::BroadcastVote(v))
+            if v.vote_type == VoteType::Precommit && v.proposal_commitment.is_none()
+    );
+}
+
+#[test]
+fn use_committee_weight_single_heavy_staker_reaches_quorum() {
+    // Weights 10,1,1,1. Total 13. 2/3 = 8.67. Heavy staker (10) alone reaches quorum.
+    fn actual_proposer_fn(_round: Round) -> ValidatorId {
+        *PROPOSER_ID
+    }
+    fn virtual_proposer_fn(_round: Round) -> Result<ValidatorId, CommitteeError> {
+        Ok(*PROPOSER_ID)
+    }
+    let validator_weights = vec![
+        (*PROPOSER_ID, 1),
+        (*VALIDATOR_ID, 10), // We are the heavy staker
+        (*VALIDATOR_ID_2, 1),
+        (*VALIDATOR_ID_3, 1),
+    ];
+    let committee = test_committee_with_weights(
+        validator_weights,
+        Box::new(actual_proposer_fn),
+        Box::new(virtual_proposer_fn),
+    );
+    let mut state_machine = StateMachine::new(
+        HEIGHT,
+        *VALIDATOR_ID,
+        13,
+        false,
+        QuorumType::Byzantine,
+        committee,
+        true,
+        true,
+    );
+    state_machine.start();
+    // TimeoutPropose: our nil prevote (weight 10) alone reaches quorum.
+    let mut requests = state_machine.handle_event(StateMachineEvent::TimeoutPropose(ROUND));
+    assert_matches!(
+        requests.pop_front(),
+        Some(SMRequest::BroadcastVote(v))
+            if v.vote_type == VoteType::Prevote && v.proposal_commitment.is_none()
+    );
+    assert_matches!(
+        requests.pop_front(),
+        Some(SMRequest::ScheduleTimeout(Step::Prevote, r)) if r == ROUND
+    );
+    assert_matches!(
+        requests.pop_front(),
+        Some(SMRequest::BroadcastVote(v))
+            if v.vote_type == VoteType::Precommit && v.proposal_commitment.is_none()
+    );
+    assert_matches!(
+        requests.pop_front(),
+        Some(SMRequest::ScheduleTimeout(Step::Precommit, r)) if r == ROUND
+    );
+    assert!(requests.is_empty(), "Expected no more requests, got {:?}", requests);
+}
+
+#[test]
+fn use_committee_weight_prevote_quorum_for_proposal() {
+    // Upon prevote quorum for a proposal (not nil): we lock and precommit for the value.
+    fn actual_proposer_fn(_round: Round) -> ValidatorId {
+        *PROPOSER_ID
+    }
+    fn virtual_proposer_fn(_round: Round) -> Result<ValidatorId, CommitteeError> {
+        Ok(*PROPOSER_ID)
+    }
+    let validator_weights =
+        vec![(*PROPOSER_ID, 1), (*VALIDATOR_ID, 2), (*VALIDATOR_ID_2, 3), (*VALIDATOR_ID_3, 1)];
+    let committee = test_committee_with_weights(
+        validator_weights,
+        Box::new(actual_proposer_fn),
+        Box::new(virtual_proposer_fn),
+    );
+    let mut state_machine = StateMachine::new(
+        HEIGHT,
+        *VALIDATOR_ID,
+        7,
+        false,
+        QuorumType::Byzantine,
+        committee,
+        true,
+        true,
+    );
+    state_machine.start();
+    // Receive proposal -> we prevote for it (weight 2)
+    state_machine.handle_event(StateMachineEvent::FinishedValidation(PROPOSAL_ID, ROUND, None));
+    // Prevote from VALIDATOR_ID_2 (weight 3) for proposal: total 2+3=5, prevote quorum.
+    let mut requests = state_machine.handle_event(StateMachineEvent::Prevote(mk_vote(
+        VoteType::Prevote,
+        ROUND,
+        PROPOSAL_ID,
+        *VALIDATOR_ID_2,
+    )));
+    assert_matches!(
+        requests.pop_front(),
+        Some(SMRequest::ScheduleTimeout(Step::Prevote, r)) if r == ROUND
+    );
+    assert_matches!(
+        requests.pop_front(),
+        Some(SMRequest::BroadcastVote(v))
+            if v.vote_type == VoteType::Precommit && v.proposal_commitment == PROPOSAL_ID
+    );
+    assert!(requests.is_empty(), "Expected no more requests, got {:?}", requests);
+}
+
+#[test]
+fn use_committee_weight_round_skip_threshold() {
+    // Round skip needs > 1/3 of total. Total 7, need > 7/3. VALIDATOR_ID_2 (weight 3) suffices.
+    fn actual_proposer_fn(_round: Round) -> ValidatorId {
+        *PROPOSER_ID
+    }
+    fn virtual_proposer_fn(_round: Round) -> Result<ValidatorId, CommitteeError> {
+        Ok(*PROPOSER_ID)
+    }
+    let validator_weights =
+        vec![(*PROPOSER_ID, 1), (*VALIDATOR_ID, 2), (*VALIDATOR_ID_2, 3), (*VALIDATOR_ID_3, 1)];
+    let committee = test_committee_with_weights(
+        validator_weights,
+        Box::new(actual_proposer_fn),
+        Box::new(virtual_proposer_fn),
+    );
+    let mut state_machine = StateMachine::new(
+        HEIGHT,
+        *VALIDATOR_ID,
+        7,
+        false,
+        QuorumType::Byzantine,
+        committee,
+        true,
+        true,
+    );
+    state_machine.start();
+    state_machine.handle_event(StateMachineEvent::TimeoutPropose(ROUND));
+    // Prevote for round 1 from VALIDATOR_ID_2 (weight 3): 3 > 7/3, should advance to round 1.
+    let mut requests = state_machine.handle_event(StateMachineEvent::Prevote(mk_vote(
+        VoteType::Prevote,
+        1, // round 1
+        None,
+        *VALIDATOR_ID_2,
+    )));
+    assert_matches!(
+        requests.pop_front(),
+        Some(SMRequest::ScheduleTimeout(Step::Propose, r)) if r == 1
+    );
+    assert_eq!(state_machine.round(), 1);
+}
+
+#[test]
+fn use_committee_weight_decision_with_weighted_precommits() {
+    // Decision requires precommit quorum (2/3). Total 7, need 5. We need virtual proposer in favor.
+    fn actual_proposer_fn(_round: Round) -> ValidatorId {
+        *PROPOSER_ID
+    }
+    fn virtual_proposer_fn(_round: Round) -> Result<ValidatorId, CommitteeError> {
+        Ok(*PROPOSER_ID)
+    }
+    // Proposer=3, self=2, others=1 each. Total 7, quorum 5.
+    let validator_weights =
+        vec![(*PROPOSER_ID, 3), (*VALIDATOR_ID, 2), (*VALIDATOR_ID_2, 1), (*VALIDATOR_ID_3, 1)];
+    let committee = test_committee_with_weights(
+        validator_weights,
+        Box::new(actual_proposer_fn),
+        Box::new(virtual_proposer_fn),
+    );
+    let mut state_machine = StateMachine::new(
+        HEIGHT,
+        *VALIDATOR_ID,
+        7,
+        false,
+        QuorumType::Byzantine,
+        committee,
+        true,
+        true,
+    );
+    state_machine.start();
+    state_machine.handle_event(StateMachineEvent::FinishedValidation(PROPOSAL_ID, ROUND, None));
+    // Prevote from PROPOSER (weight 3): self 2 + 3 = 5, prevote quorum -> precommit
+    state_machine.handle_event(StateMachineEvent::Prevote(mk_vote(
+        VoteType::Prevote,
+        ROUND,
+        PROPOSAL_ID,
+        *PROPOSER_ID,
+    )));
+    // Precommit from PROPOSER (weight 3): total 2+3=5, quorum + virtual proposer in favor
+    let mut requests = state_machine.handle_event(StateMachineEvent::Precommit(mk_vote(
+        VoteType::Precommit,
+        ROUND,
+        PROPOSAL_ID,
+        *PROPOSER_ID,
+    )));
+    assert_matches!(
+        requests.pop_front(),
+        Some(SMRequest::ScheduleTimeout(Step::Precommit, r)) if r == ROUND
+    );
+    assert_matches!(
+        requests.pop_front(),
+        Some(SMRequest::DecisionReached(dec)) if dec.block == PROPOSAL_ID.unwrap()
+    );
+    assert!(requests.is_empty(), "Expected no more requests, got {:?}", requests);
 }

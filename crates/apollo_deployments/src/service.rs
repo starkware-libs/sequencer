@@ -54,6 +54,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "committer_config.storage_config.cache_size",
     "committer_config.verify_state_diff_hash",
     "consensus_manager_config.consensus_manager_config.dynamic_config.require_virtual_proposer_vote",
+    "consensus_manager_config.consensus_manager_config.dynamic_config.use_committee_weight",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max",
     "consensus_manager_config.context_config.static_config.build_proposal_margin_millis",

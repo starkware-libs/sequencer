@@ -125,6 +125,7 @@ fn consensus_config() -> ConsensusConfig {
             sync_retry_interval: SYNC_RETRY_INTERVAL,
             future_msg_limit: FutureMsgLimitsConfig::default(),
             require_virtual_proposer_vote: true,
+            use_committee_weight: false,
         },
         ConsensusStaticConfig {
             storage_config: StorageConfig::default(),

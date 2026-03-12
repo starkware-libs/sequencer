@@ -56,6 +56,7 @@ fn new_shc(id: ValidatorId, is_observer: bool) -> SingleHeightConsensus {
             Box::new(|_round| *PROPOSER_ID),
         ),
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
+        false,
     )
 }
 

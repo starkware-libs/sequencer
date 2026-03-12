@@ -76,18 +76,23 @@ impl SingleHeightConsensus {
         timeouts: TimeoutsConfig,
         committee: Arc<dyn CommitteeTrait>,
         require_virtual_proposer_vote: bool,
+        use_committee_weight: bool,
     ) -> Self {
-        // TODO(matan): Use actual weights, not just `len`.
-        let n_validators =
-            u64::try_from(validators.len()).expect("Should have way less than u64::MAX validators");
+        let total_weight = if use_committee_weight {
+            let sum: u128 = committee.members().iter().map(|s| s.weight.0).sum();
+            u64::try_from(sum).expect("Total weight should fit in u64")
+        } else {
+            u64::try_from(validators.len()).expect("Should have way less than u64::MAX validators")
+        };
         let state_machine = StateMachine::new(
             height,
             id,
-            n_validators,
+            total_weight,
             is_observer,
             quorum_type,
             committee.clone(),
             require_virtual_proposer_vote,
+            use_committee_weight,
         );
         Self {
             validators,
