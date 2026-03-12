@@ -258,6 +258,50 @@ impl<S: Storage> CachedStorage<S> {
     }
 }
 
+/// [ImmutableReadOnlyStorage] implementation for [CachedStorage].
+/// Uses [LruCache::peek] to fetch the value from the immutable cache, this doesn't update the cache
+/// internal state.
+/// Stats are being updated using atomic counters.
+impl<S: Storage + ImmutableReadOnlyStorage> ImmutableReadOnlyStorage for CachedStorage<S> {
+    async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+        self.reads.fetch_add(1, Ordering::Relaxed);
+        if let Some(cached_value) = self.cache.peek(key) {
+            self.cached_reads.fetch_add(1, Ordering::Relaxed);
+            return Ok(cached_value.clone());
+        }
+        self.storage.get(key).await
+    }
+
+    async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        let mut values = vec![None; keys.len()];
+        let mut keys_to_fetch = Vec::new();
+        let mut indices_to_fetch = Vec::new();
+
+        for (index, key) in keys.iter().enumerate() {
+            if let Some(cached_value) = self.cache.peek(key) {
+                values[index] = cached_value.clone();
+            } else {
+                keys_to_fetch.push(*key);
+                indices_to_fetch.push(index);
+            }
+        }
+
+        let n_keys = u64::try_from(keys.len()).expect("keys length should fit in u64");
+        let cached_reads =
+            u64::try_from(keys.len() - keys_to_fetch.len()).expect("usize should fit in u64");
+        self.reads.fetch_add(n_keys, Ordering::Relaxed);
+        self.cached_reads.fetch_add(cached_reads, Ordering::Relaxed);
+
+        let fetched_values = self.storage.mget(keys_to_fetch.as_slice()).await?;
+        indices_to_fetch.iter().zip(fetched_values).for_each(|(index, value)| {
+            values[*index] = value;
+        });
+
+        Ok(values)
+    }
+}
+
+// TODO(Nimrod): Find a way to share the implementation with `ImmutableReadOnlyStorage`.
 impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
     async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads.fetch_add(1, Ordering::Relaxed);
