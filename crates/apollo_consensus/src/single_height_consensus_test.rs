@@ -48,7 +48,6 @@ fn new_shc(id: ValidatorId, is_observer: bool) -> SingleHeightConsensus {
         HEIGHT_0,
         is_observer,
         id,
-        VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         mock_committee_virtual_equal_to_actual(

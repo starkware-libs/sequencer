@@ -57,7 +57,6 @@ pub(crate) type Requests = VecDeque<SMRequest>;
 /// SHC has no timers and does not perform IO; the manager executes requests and returns
 /// `StateMachineEvent`s back to SHC.
 pub(crate) struct SingleHeightConsensus {
-    validators: Vec<ValidatorId>,
     timeouts: TimeoutsConfig,
     state_machine: StateMachine,
     committee: Arc<dyn CommitteeTrait>,
@@ -66,31 +65,26 @@ pub(crate) struct SingleHeightConsensus {
 }
 
 impl SingleHeightConsensus {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         height: BlockNumber,
         is_observer: bool,
         id: ValidatorId,
-        validators: Vec<ValidatorId>,
         quorum_type: QuorumType,
         timeouts: TimeoutsConfig,
         committee: Arc<dyn CommitteeTrait>,
         require_virtual_proposer_vote: bool,
     ) -> Self {
-        // TODO(matan): Use actual weights, not just `len`.
-        let n_validators =
-            u64::try_from(validators.len()).expect("Should have way less than u64::MAX validators");
+        let total_weight: u128 = committee.members().iter().map(|s| s.weight.0).sum();
         let state_machine = StateMachine::new(
             height,
             id,
-            n_validators,
+            total_weight,
             is_observer,
             quorum_type,
             committee.clone(),
             require_virtual_proposer_vote,
         );
         Self {
-            validators,
             timeouts,
             state_machine,
             committee,
@@ -257,7 +251,7 @@ impl SingleHeightConsensus {
             warn!("Invalid vote height: expected {:?}, got {:?}", height, vote.height);
             return VecDeque::new();
         }
-        if !self.validators.contains(&vote.voter) {
+        if !self.committee.members().iter().any(|s| s.address == vote.voter) {
             debug!("Ignoring vote from non validator: vote={:?}", vote);
             return VecDeque::new();
         }
