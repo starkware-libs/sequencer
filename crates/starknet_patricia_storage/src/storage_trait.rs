@@ -25,6 +25,30 @@ impl Debug for DbValue {
 
 pub type DbHashMap = HashMap<DbKey, DbValue>;
 
+// TODO(Nimrod): Explain more about the dangerous API it's merged.
+/// A collection of key-value pairs read from storage.
+/// Used to accumulate reads across concurrent tasks and merge them back into a single storage.
+/// It's important that it's impossible to modify the inner map via public methods, otherwise the
+/// storage trait can expose dangerous API.
+#[derive(Default)]
+pub struct StorageReads(DbHashMap);
+
+impl StorageReads {
+    pub fn new() -> Self {
+        Self(DbHashMap::new())
+    }
+
+    #[allow(dead_code)]
+    // This method cannot be public, see struct documentation.
+    pub(crate) fn insert(&mut self, key: DbKey, value: DbValue) {
+        self.0.insert(key, value);
+    }
+
+    pub fn extend(&mut self, other: StorageReads) {
+        self.0.extend(other.0);
+    }
+}
+
 /// An error that can occur when interacting with the database.
 #[derive(thiserror::Error, Debug)]
 pub enum PatriciaStorageError {
