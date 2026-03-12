@@ -28,7 +28,13 @@ use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndice
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::StorageError;
 use starknet_patricia_storage::map_storage::ReadsCollectorStorage;
-use starknet_patricia_storage::storage_trait::{DbKey, ImmutableReadOnlyStorage, ReadOnlyStorage};
+use starknet_patricia_storage::storage_trait::{
+    DbKey,
+    ImmutableReadOnlyStorage,
+    ReadOnlyStorage,
+    Storage,
+    StorageReads,
+};
 use tracing::warn;
 
 use crate::block_committer::input::{
@@ -343,7 +349,7 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf, Layout: NodeLayout<'a, L
 /// If [ReaderConfig::build_storage_tries_concurrently] is true, the tries are created concurrently.
 /// Otherwise, they are created sequentially.
 pub async fn create_storage_tries<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
-    storage: &mut impl ReadOnlyStorage,
+    storage: &mut impl Storage,
     actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
@@ -355,14 +361,16 @@ where
 {
     if config.build_storage_tries_concurrently() {
         if let Some(immutable_read_only_storage) = storage.get_immutable_read_only_self() {
-            return create_storage_tries_concurrently::<Layout>(
+            let (storage_tries, storage_reads) = create_storage_tries_concurrently::<Layout>(
                 immutable_read_only_storage,
                 actual_storage_updates,
                 original_contracts_trie_leaves,
                 config,
                 storage_tries_sorted_indices,
             )
-            .await;
+            .await?;
+            storage.handle_collected_reads(storage_reads);
+            return Ok(storage_tries);
         } else {
             warn!(
                 "Concurrent storage tries creation is enabled in config but the storage layer \
@@ -476,13 +484,14 @@ async fn create_storage_tries_concurrently<'a, Layout: NodeLayoutFor<StarknetSto
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
     storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
-) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>>
+) -> ForestResult<(HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>, StorageReads)>
 where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
 {
     let mut futures = FuturesUnordered::new();
     let mut storage_tries = HashMap::new();
+    let mut all_reads = StorageReads::new();
 
     for (address, updates) in actual_storage_updates {
         // Create the future - tokio will poll all futures concurrently.
@@ -507,11 +516,12 @@ where
 
     // Collect all results as they complete.
     while let Some(result) = futures.next().await {
-        let (address, original_skeleton, _storage_reads) = result?;
+        let (address, original_skeleton, storage_reads) = result?;
+        all_reads.extend(storage_reads);
         storage_tries.insert(address, original_skeleton);
     }
 
-    Ok(storage_tries)
+    Ok((storage_tries, all_reads))
 }
 
 /// Helper function to create a storage trie for a single contract.
