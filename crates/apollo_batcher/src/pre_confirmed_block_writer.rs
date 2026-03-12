@@ -11,12 +11,10 @@ use indexmap::map::Entry;
 use indexmap::IndexMap;
 #[cfg(test)]
 use mockall::automock;
-use reqwest::StatusCode;
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
-use thiserror::Error;
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 use crate::cende_client_types::{
     CendeBlockMetadata,
@@ -26,17 +24,9 @@ use crate::cende_client_types::{
 };
 use crate::pre_confirmed_cende_client::{
     CendeWritePreconfirmedBlock,
-    PreconfirmedCendeClientError,
+    PreconfirmedCendeClientResult,
     PreconfirmedCendeClientTrait,
 };
-
-#[derive(Debug, Error)]
-pub enum BlockWriterError {
-    #[error(transparent)]
-    PreconfirmedCendeClientError(#[from] PreconfirmedCendeClientError),
-}
-
-pub type BlockWriterResult<T> = Result<T, BlockWriterError>;
 
 pub type CandidateTxReceiver = tokio::sync::mpsc::Receiver<Vec<InternalConsensusTransaction>>;
 pub type CandidateTxSender = tokio::sync::mpsc::Sender<Vec<InternalConsensusTransaction>>;
@@ -59,7 +49,7 @@ pub type PreconfirmedTxSender = tokio::sync::mpsc::Sender<(
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait PreconfirmedBlockWriterTrait: Send {
-    async fn run(&mut self) -> BlockWriterResult<()>;
+    async fn run(&mut self);
 }
 
 pub struct PreconfirmedBlockWriter {
@@ -123,11 +113,20 @@ impl PreconfirmedBlockWriter {
             pre_confirmed_block,
         }
     }
+
+    // TODO(Arni): handle this error. Make sure it is logged, and that there is a metric for the
+    // failure.
+    fn handle_pre_confirmed_cende_client_result(result: PreconfirmedCendeClientResult<()>) {
+        if result.is_err() {
+            // Intentionally ignore write-task errors (including recorder BAD_REQUEST)
+            // to preserve current best-effort pre-confirmed block writer behavior.
+        }
+    }
 }
 
 #[async_trait]
 impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
-    async fn run(&mut self) -> BlockWriterResult<()> {
+    async fn run(&mut self) {
         let mut transactions_map: IndexMap<
             TransactionHash,
             (
@@ -137,6 +136,8 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
             ),
         > = IndexMap::new();
 
+        // TODO(Arni): Replace `pending_tasks` with a single-task type since we only allow one
+        // in-flight write task at a time.
         let mut pending_tasks = FuturesUnordered::new();
         let mut write_pre_confirmed_txs_timer =
             tokio::time::interval(Duration::from_millis(self.write_block_interval_millis));
@@ -168,13 +169,7 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
                 }
 
                 Some(result) = pending_tasks.next() => {
-                    if let Err(error) = result {
-                        if is_round_mismatch_error(&error, next_write_iteration) {
-                            // TODO(noamsp): Remove this since we only have one ongoing write task.
-                            pending_tasks.clear();
-                            return Err(error.into());
-                        }
-                    }
+                    Self::handle_pre_confirmed_cende_client_result(result);
                 }
                 msg = self.pre_confirmed_tx_receiver.recv() => {
                     match msg {
@@ -217,52 +212,17 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
         // Wait for all pending tasks to complete gracefully.
         // TODO(noamsp): Add timeout.
         while let Some(result) = pending_tasks.next().await {
-            if let Err(error) = result {
-                if is_round_mismatch_error(&error, next_write_iteration) {
-                    // TODO(noamsp): Remove this since we only have one ongoing write task.
-                    pending_tasks.clear();
-                    return Err(error.into());
-                }
-            }
+            Self::handle_pre_confirmed_cende_client_result(result);
         }
 
         if pending_changes {
             let pre_confirmed_block =
                 self.create_pre_confirmed_block(&transactions_map, next_write_iteration);
-            self.cende_client.write_pre_confirmed_block(pre_confirmed_block).await?
+            let result = self.cende_client.write_pre_confirmed_block(pre_confirmed_block).await;
+            Self::handle_pre_confirmed_cende_client_result(result);
         }
         info!("Pre confirmed block writer finished");
-
-        Ok(())
     }
-}
-
-// TODO(noamsp): Remove this since we only have one ongoing write task.
-fn is_round_mismatch_error(
-    error: &PreconfirmedCendeClientError,
-    next_write_iteration: u64,
-) -> bool {
-    let PreconfirmedCendeClientError::CendeRecorderError {
-        block_number,
-        round,
-        write_iteration,
-        status_code,
-    } = error
-    else {
-        return false;
-    };
-
-    // A bad request status indicates a round or write iteration mismatch. The latest request can
-    // receive a bad request status only if it is due to a round mismatch.
-    if *status_code == StatusCode::BAD_REQUEST && *write_iteration == next_write_iteration - 1 {
-        error!(
-            "A higher round was detected for block_number: {}. rejected round: {}. Stopping \
-             pre-confirmed block writer.",
-            block_number, round,
-        );
-        return true;
-    }
-    false
 }
 
 #[cfg_attr(test, automock)]

@@ -106,6 +106,7 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
             PRECONFIRMED_BLOCK_WRITTEN.increment(1);
             Ok(())
         } else {
+            // TODO(Arni): Add metric for failure.
             warn!(
                 "write_pre_confirmed_block request failed. block_number={block_number}, \
                  round={round}, write_iteration={write_iteration}, status={response_status}",
