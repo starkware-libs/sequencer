@@ -60,6 +60,7 @@ fn assert_decision_reached(wrapper: &mut TestWrapper, expected_block: Option<Pro
 
 #[track_caller]
 fn assert_start_build_proposal(wrapper: &mut TestWrapper, round: Round) {
+    assert_schedule_timeout(wrapper, Step::Propose, round);
     match wrapper.next_request() {
         Some(SMRequest::StartBuildProposal(r)) if r == round => {}
         other => panic!("expected StartBuildProposal({}), got {:?}", round, other),
@@ -896,4 +897,62 @@ fn prevote_nil_when_new_proposal_differs_from_locked_value() {
     wrapper.send_finished_validation(OTHER_PROPOSAL, round_1);
     // Should prevote nil (None) because proposal differs from locked value.
     assert_broadcast_prevote(&mut wrapper, round_1, None, *VALIDATOR_ID);
+}
+
+#[test]
+fn timeout_propose_unblocks_proposer_while_awaiting_finished_building() {
+    // Proposer in awaiting_finished_building receives TimeoutPropose; must advance to Prevote
+    // and broadcast nil, same as validator timeout. Build never returned.
+    let mut wrapper = TestWrapper::new(
+        *PROPOSER_ID,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        false,
+        QuorumType::Byzantine,
+    );
+    wrapper.start();
+    assert_start_build_proposal(&mut wrapper, ROUND);
+    assert_no_more_requests(&mut wrapper);
+
+    // Simulate build timeout: TimeoutPropose fires while still awaiting FinishedBuilding.
+    wrapper.send_timeout_propose(ROUND);
+    // Proposer advances to Prevote with nil, like a validator.
+    assert_broadcast_prevote(&mut wrapper, ROUND, None, *PROPOSER_ID);
+    assert_no_more_requests(&mut wrapper);
+
+    // awaiting_finished_building should be changed to false, so we can handle the received
+    // prevotes.
+    wrapper.send_prevote(None, ROUND);
+    wrapper.send_prevote(None, ROUND);
+    // Nil prevote quorum triggers ScheduleTimeout(Prevote) and nil precommit broadcast.
+    assert_schedule_timeout(&mut wrapper, Step::Prevote, ROUND);
+    assert_broadcast_precommit(&mut wrapper, ROUND, None, *PROPOSER_ID);
+    assert_no_more_requests(&mut wrapper);
+}
+
+#[test]
+fn timeout_propose_then_build_finishes() {
+    // TimeoutPropose fires first (build appeared to hang), then FinishedBuilding arrives late.
+    // Both must be processed; the late FinishedBuilding inserts the proposal without panic.
+    let mut wrapper = TestWrapper::new(
+        *PROPOSER_ID,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        false,
+        QuorumType::Byzantine,
+    );
+    wrapper.start();
+    assert_start_build_proposal(&mut wrapper, ROUND);
+    assert_no_more_requests(&mut wrapper);
+
+    // TimeoutPropose fires first (build timed out at consensus level).
+    wrapper.send_timeout_propose(ROUND);
+    assert_broadcast_prevote(&mut wrapper, ROUND, None, *PROPOSER_ID);
+    assert_no_more_requests(&mut wrapper);
+
+    // Build finishes late; must be processed without panic. Proposal is ignored.
+    wrapper.send_finished_building(PROPOSAL_ID, ROUND);
+    assert_no_more_requests(&mut wrapper);
 }
