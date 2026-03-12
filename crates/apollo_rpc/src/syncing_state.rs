@@ -1,5 +1,5 @@
-use apollo_storage::compiled_class::CasmStorageReader;
 use apollo_storage::header::HeaderStorageReader;
+use apollo_storage::state::StateStorageReader;
 use apollo_storage::{StorageReader, StorageResult};
 use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
@@ -49,7 +49,7 @@ pub(crate) fn get_last_synced_block(
     storage_reader: StorageReader,
 ) -> StorageResult<BlockHashAndNumber> {
     let txn = storage_reader.begin_ro_txn()?;
-    let Some(block_number) = txn.get_compiled_class_marker()?.prev() else {
+    let Some(block_number) = txn.get_state_marker()?.prev() else {
         return Ok(BlockHashAndNumber::default());
     };
     let block_hash =
