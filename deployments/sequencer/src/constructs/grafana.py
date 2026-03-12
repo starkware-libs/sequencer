@@ -20,6 +20,8 @@ from imports.dashboards.co.starkware.grafana import (
 from src.config.loaders import GrafanaAlertRuleGroupConfigLoader, GrafanaDashboardConfigLoader
 from src.utils import generate_random_hash
 
+MAX_ALLOWED_DASHBOARD_JSON_SIZE = 3 * 1024 * 1024  # 3MB
+
 
 class GrafanaBaseConstruct(Construct):
     """Base construct for Grafana resources with shared functionality."""
@@ -68,11 +70,16 @@ class GrafanaDashboardConstruct(GrafanaBaseConstruct):
         self._get_shared_grafana_dashboard()
 
     def _get_shared_grafana_dashboard_spec(self):
+        dashboard_json = json.dumps(self.grafana_dashboard, indent=1)
+        assert (
+            len(dashboard_json.encode("utf-8")) < MAX_ALLOWED_DASHBOARD_JSON_SIZE
+        ), "Grafana dashboard JSON is too large"
+
         return SharedGrafanaDashboardSpec(
             collection_name=f"shared-grafana-dashboard",
             dashboard_name=self.custom_name,
             folder_name=self.cluster,
-            dashboard_json=json.dumps(self.grafana_dashboard, indent=1),
+            dashboard_json=dashboard_json,
         )
 
     def _get_shared_grafana_dashboard(self):
