@@ -171,9 +171,6 @@ pub fn maybe_decrypt_iter<'a, It: Iterator<Item = Felt> + 'a>(
 /// `naive_encode_felt252_to_u32` hint does, then hashes the resulting byte stream
 /// with Blake2s-256 and returns the 256-bit digest to a
 /// 252-bit field element `Felt`.
-// TODO(Yonatan): move naive-blake helpers (`calc_blake_hash`, `naive_encode_felts_to_u32s`,
-// `blake2s_to_felt`) out of the state-diff-encryption module into a shared blake utilities
-// module.
 pub fn calc_blake_hash(data: &[Felt]) -> Felt {
     // 1) Unpack each Felt into 8 u32 limbs.
     let u32_words = naive_encode_felts_to_u32s(data.to_vec());
