@@ -2336,6 +2336,8 @@ dependencies = [
  "apollo_protobuf",
  "asynchronous-codec",
  "futures",
+ "hex",
+ "insta",
  "libp2p",
  "prost",
  "rand 0.8.5",
