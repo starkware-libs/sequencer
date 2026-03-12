@@ -164,6 +164,10 @@ impl ReadOnlyStorage for AerospikeStorage {
     async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         ImmutableReadOnlyStorage::mget(self, keys).await
     }
+
+    fn get_immutable_read_only_self(&self) -> Option<&impl ImmutableReadOnlyStorage> {
+        Some(self)
+    }
 }
 
 impl Storage for AerospikeStorage {
