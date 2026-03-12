@@ -231,7 +231,7 @@ impl DiscreteEventSimulation {
             QuorumType::Byzantine,
             TimeoutsConfig::default(),
             committee,
-            true,
+            true, // require_virtual_proposer_vote
         );
 
         let quorum_threshold = (2 * total_nodes / 3) + 1;
