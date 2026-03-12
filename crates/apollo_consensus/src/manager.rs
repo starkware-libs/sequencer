@@ -627,7 +627,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             height,
             is_observer,
             self.consensus_config.dynamic_config.validator_id,
-            validators,
             self.quorum_type,
             self.consensus_config.dynamic_config.timeouts.clone(),
             committee,
