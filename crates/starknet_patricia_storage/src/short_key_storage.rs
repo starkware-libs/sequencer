@@ -11,6 +11,7 @@ use crate::storage_trait::{
     DbValue,
     EmptyStorageConfig,
     PatriciaStorageResult,
+    ReadOnlyStorage,
     Storage,
 };
 
@@ -47,16 +48,9 @@ macro_rules! define_short_key_storage {
             }
         }
 
-        impl<S: Storage> Storage for $name<S> {
-            type Stats = S::Stats;
-            type Config = EmptyStorageConfig;
-
+        impl<S: Storage> ReadOnlyStorage for $name<S> {
             async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
                 self.storage.get(&Self::small_key(key)).await
-            }
-
-            async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
-                self.storage.set(Self::small_key(&key), value).await
             }
 
             async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
@@ -65,6 +59,15 @@ macro_rules! define_short_key_storage {
                     .map(|key| Self::small_key(key))
                     .collect::<Vec<_>>();
                 self.storage.mget(small_keys.iter().collect::<Vec<&DbKey>>().as_slice()).await
+            }
+        }
+
+        impl<S: Storage> Storage for $name<S> {
+            type Stats = S::Stats;
+            type Config = EmptyStorageConfig;
+
+            async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+                self.storage.set(Self::small_key(&key), value).await
             }
 
             async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
