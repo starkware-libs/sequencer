@@ -35,6 +35,7 @@ use crate::storage_trait::{
     EmptyStorageConfig,
     NoStats,
     PatriciaStorageResult,
+    ReadOnlyStorage,
     Storage,
 };
 
@@ -128,27 +129,13 @@ impl AerospikeStorage {
     }
 }
 
-impl Storage for AerospikeStorage {
-    type Stats = NoStats;
-    type Config = EmptyStorageConfig;
-
+impl ReadOnlyStorage for AerospikeStorage {
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let record = self
             .client
             .get(&self.config.read_policy, &self.get_key(key.clone())?, Bins::All)
             .await?;
         self.extract_value(&record)
-    }
-
-    async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
-        Ok(self
-            .client
-            .put(
-                &self.config.write_policy,
-                &self.get_key(key)?,
-                &[as_bin!(&self.config.bin_name, value.0)],
-            )
-            .await?)
     }
 
     async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
@@ -173,6 +160,22 @@ impl Storage for AerospikeStorage {
                 },
             })
             .collect::<Result<_, _>>()
+    }
+}
+
+impl Storage for AerospikeStorage {
+    type Stats = NoStats;
+    type Config = EmptyStorageConfig;
+
+    async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+        Ok(self
+            .client
+            .put(
+                &self.config.write_policy,
+                &self.get_key(key)?,
+                &[as_bin!(&self.config.bin_name, value.0)],
+            )
+            .await?)
     }
 
     async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
