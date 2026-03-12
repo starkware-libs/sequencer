@@ -13,7 +13,7 @@ use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndice
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{DbHashMap, DbValue, Storage};
+use starknet_patricia_storage::storage_trait::{DbHashMap, DbValue, ReadOnlyStorage, Storage};
 
 use crate::block_committer::input::try_node_index_into_contract_address;
 use crate::db::db_layout::DbLayout;

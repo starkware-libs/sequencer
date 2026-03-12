@@ -99,13 +99,11 @@ pub trait StorageConfigTrait:
     Clone + Debug + Serialize + PartialEq + Validate + SerializeConfig + Default + Send + Sync
 {
 }
-/// A trait for the storage. Does not assume concurrent access is possible - see [AsyncStorage].
-pub trait Storage: Send + Sync {
-    type Stats: StorageStats;
-    type Config: StorageConfigTrait;
 
+/// A read-only view of a storage. Does not assume concurrent access is possible.
+pub trait ReadOnlyStorage: Send + Sync {
     /// Returns value from storage, if it exists.
-    /// Uses a mutable &self to allow changes in the internal state of the storage (e.g.,
+    /// Uses a mutable `&self` to allow changes in the internal state of the storage (e.g.,
     /// for caching).
     // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
     // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
@@ -114,16 +112,6 @@ pub trait Storage: Send + Sync {
         &mut self,
         key: &DbKey,
     ) -> impl Future<Output = PatriciaStorageResult<Option<DbValue>>> + Send;
-
-    /// Sets value in storage. If key already exists, its value is overwritten.
-    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
-    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
-    // for details.
-    fn set(
-        &mut self,
-        key: DbKey,
-        value: DbValue,
-    ) -> impl Future<Output = PatriciaStorageResult<()>> + Send;
 
     /// Returns values from storage in same order of given keys. Value is None for keys that do not
     /// exist.
@@ -134,6 +122,22 @@ pub trait Storage: Send + Sync {
         &mut self,
         keys: &[&DbKey],
     ) -> impl Future<Output = PatriciaStorageResult<Vec<Option<DbValue>>>> + Send;
+}
+
+/// A trait for the storage. Extends [ReadOnlyStorage] with write operations.
+pub trait Storage: ReadOnlyStorage {
+    type Stats: StorageStats;
+    type Config: StorageConfigTrait;
+
+    /// Sets value in storage. If key already exists, its value is overwritten.
+    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
+    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
+    // for details.
+    fn set(
+        &mut self,
+        key: DbKey,
+        value: DbValue,
+    ) -> impl Future<Output = PatriciaStorageResult<()>> + Send;
 
     /// Sets values in storage.
     // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
@@ -198,20 +202,22 @@ impl StorageConfigTrait for EmptyStorageConfig {}
 #[derive(Clone)]
 pub struct NullStorage;
 
-impl Storage for NullStorage {
-    type Stats = NoStats;
-    type Config = EmptyStorageConfig;
-
+impl ReadOnlyStorage for NullStorage {
     async fn get(&mut self, _key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(None)
     }
 
-    async fn set(&mut self, _key: DbKey, _value: DbValue) -> PatriciaStorageResult<()> {
-        Ok(())
-    }
-
     async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         Ok(vec![None; keys.len()])
+    }
+}
+
+impl Storage for NullStorage {
+    type Stats = NoStats;
+    type Config = EmptyStorageConfig;
+
+    async fn set(&mut self, _key: DbKey, _value: DbValue) -> PatriciaStorageResult<()> {
+        Ok(())
     }
 
     async fn mset(&mut self, _key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
