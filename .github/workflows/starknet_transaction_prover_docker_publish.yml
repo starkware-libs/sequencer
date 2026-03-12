@@ -1,0 +1,73 @@
+name: Starknet-Transaction-Prover-Docker-Publish
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+      - "APOLLO-*"
+      - "PRIVACY-*"
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/starkware-libs/starknet-privacy/transaction-prover
+
+jobs:
+  docker-build-push:
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Login to ghcr.io
+        uses: docker/login-action@v2.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          logout: true
+
+      - name: Build Docker image
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          ./scripts/build_starknet_transaction_prover.sh \
+            --image-tag "$IMAGE_NAME:$TAG" \
+            --target-cpu "znver5"
+
+      - name: Push Docker image
+        env:
+          TAG: ${{ github.ref_name }}
+        run: docker push "$IMAGE_NAME:$TAG"
+
+  docker-build-push-arm64:
+    runs-on: namespace-profile-medium-ubuntu-24-04-arm64
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Login to ghcr.io
+        uses: docker/login-action@v2.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          logout: true
+
+      - name: Build Docker image
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          ./scripts/build_starknet_transaction_prover.sh \
+            --image-tag "$IMAGE_NAME:$TAG-arm64" \
+            --target-cpu "neoverse-v2"
+
+      - name: Push Docker image
+        env:
+          TAG: ${{ github.ref_name }}
+        run: docker push "$IMAGE_NAME:$TAG-arm64"
