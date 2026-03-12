@@ -162,6 +162,7 @@ and environment variables override values from the config file. See
 | `SKIP_FEE_FIELD_VALIDATION` | `--skip-fee-field-validation` | `false`            | Allow non-zero gas prices and tip in requests.                                               |
 | `STRK_FEE_TOKEN_ADDRESS`    | `--strk-fee-token-address`    | _(auto per chain)_ | Override STRK fee token address (hex). Useful for custom environments that share a chain ID. |
 | `PREFETCH_STATE`            | `--prefetch-state`            | `false`            | Simulate transactions before proving to prefetch state and reduce RPC calls.                 |
+| `USE_LATEST_VERSIONED_CONSTANTS` | `--use-latest-versioned-constants` | `true`      | Use latest versioned constants instead of block-version constants. Must match the OS.        |
 | `CONFIG_FILE`               | `--config-file`               | —                  | Path to JSON config file. See `resources/example-config.json`.                               |
 
 ### TLS / HTTPS

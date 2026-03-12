@@ -253,6 +253,31 @@ impl ServiceConfig {
             }
         }
 
+        if let Some(use_latest) = args.use_latest_versioned_constants {
+            if use_latest
+                != config
+                    .prover_config
+                    .runner_config
+                    .virtual_block_executor_config
+                    .use_latest_versioned_constants
+            {
+                info!(
+                    "CLI override: use_latest_versioned_constants: {} -> {}",
+                    config
+                        .prover_config
+                        .runner_config
+                        .virtual_block_executor_config
+                        .use_latest_versioned_constants,
+                    use_latest
+                );
+                config
+                    .prover_config
+                    .runner_config
+                    .virtual_block_executor_config
+                    .use_latest_versioned_constants = use_latest;
+            }
+        }
+
         if let Some(bouncer_config_path) = args.bouncer_config_override {
             let bouncer_config_file_content = std::fs::read_to_string(&bouncer_config_path)
                 .map_err(|e| {
@@ -363,6 +388,11 @@ pub struct CliArgs {
     /// Client-side limits may differ from Starknet network limits.
     #[arg(long, value_name = "FILE", env = "BOUNCER_CONFIG_OVERRIDE")]
     pub bouncer_config_override: Option<PathBuf>,
+
+    /// Use the latest versioned constants instead of the ones matching the block's version.
+    /// The OS always runs with the latest constants, so this should match (default: true).
+    #[arg(long, env = "USE_LATEST_VERSIONED_CONSTANTS")]
+    pub use_latest_versioned_constants: Option<bool>,
 
     /// Skip validation that fee-related fields (resource bounds, tip) are zero.
     #[arg(long, env = "SKIP_FEE_FIELD_VALIDATION")]
