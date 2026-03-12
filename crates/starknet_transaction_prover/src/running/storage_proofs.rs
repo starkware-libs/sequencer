@@ -52,6 +52,10 @@ pub(crate) enum QueryItem {
     StorageKey { contract_address: Felt, key: Felt },
 }
 
+/// Flattens a query into individual key items for chunking.
+///
+/// Contract storage entries with no keys are intentionally dropped — they contribute nothing to
+/// the RPC key count and do not affect the storage proof result.
 #[allow(dead_code)] // Used in follow-up PR for request chunking.
 pub(crate) fn flatten_query(query: &RpcStorageProofsQuery) -> Vec<QueryItem> {
     let mut items = Vec::with_capacity(count_total_keys(query));

@@ -156,3 +156,19 @@ fn test_flatten_collect_roundtrip() {
     let reconstructed = collect_query(&items);
     assert_eq!(reconstructed, query);
 }
+
+#[test]
+fn test_flatten_collect_drops_empty_storage_entries() {
+    let mut query = make_query(1, 1, &[3]);
+    // Add a contract storage entry with no keys (e.g. from `unwrap_or_default` in prepare_query).
+    query
+        .contract_storage_keys
+        .push(ContractStorageKeys { contract_address: Felt::from(9999_u64), storage_keys: vec![] });
+
+    let items = flatten_query(&query);
+    let reconstructed = collect_query(&items);
+
+    // The empty-key entry is intentionally dropped: it has no effect on the proof result.
+    assert_eq!(reconstructed.contract_storage_keys.len(), 1);
+    assert_eq!(reconstructed, make_query(1, 1, &[3]));
+}
