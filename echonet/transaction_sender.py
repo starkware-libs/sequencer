@@ -100,12 +100,13 @@ class SenderConfig:
     end_block: Optional[int] = CONFIG.blocks.end_block
 
     request_timeout_seconds: float = 15.0
-    attempts: int = 3
+    access_fgw_attempts: int = 3
     retry_backoff_seconds: float = 0.5
     max_retry_sleep_seconds: float = 30.0
+    sequencer_not_ready_retry_attempts: int = 70
 
     queue_size: int = 30
-    blocks_to_wait_before_failing_tx: int = 50
+    blocks_to_wait_before_failing_tx: int = CONFIG.tx_sender.max_pending_txs_before_pausing * 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,10 +163,17 @@ class TxTransformer:
 class HttpForwarder:
     """Forward prepared txs into the local node and update `shared` bookkeeping."""
 
-    def __init__(self, session: aiohttp.ClientSession, sequencer_url: str, attempts: int) -> None:
+    def __init__(
+        self,
+        session: aiohttp.ClientSession,
+        sequencer_url: str,
+        retry_attempts: int,
+        retry_sleep_seconds: float,
+    ) -> None:
         self._session = session
         self._sequencer_url = sequencer_url.rstrip("/")
-        self._attempts = attempts
+        self._retry_attempts = retry_attempts
+        self._retry_sleep_seconds = retry_sleep_seconds
 
     async def forward(self, tx: JsonObject, source_block_number: int) -> None:
         url = f"{self._sequencer_url}{CONFIG.sequencer.endpoints.add_transaction}"
@@ -173,30 +181,57 @@ class HttpForwarder:
         tx_hash = tx["transaction_hash"]
         tx_type = tx.get("type")
 
-        for attempt in range(self._attempts):
-            async with self._session.post(url, json=tx, headers=headers) as response:
-                text = await response.text()
-                if response.status == requests.codes.ok:
-                    logger.info(f"Forwarded tx: {tx_hash}")
-                    shared.record_sent_tx(tx_hash, source_block_number)
-                    return
+        last_status: int = 0
+        last_response: str = ""
 
+        for attempt in range(self._retry_attempts):
+            try:
+                async with self._session.post(url, json=tx, headers=headers) as response:
+                    text = await response.text()
+                    last_status = int(response.status)
+                    last_response = text
+
+                    if response.status == requests.codes.ok:
+                        logger.info(f"Forwarded tx: {tx_hash}")
+                        shared.record_sent_tx(tx_hash, source_block_number)
+                        return
+
+                    if response.status == requests.codes.bad_request:
+                        try:
+                            code = json.loads(text).get("code")
+                        except (TypeError, ValueError):
+                            code = None
+                        if code == "StarknetErrorCode.DUPLICATED_TRANSACTION":
+                            logger.info(
+                                f"Forwarded tx already accepted (duplicate): tx={tx_hash} "
+                                f"type={tx_type} src_bn={source_block_number}"
+                            )
+                            shared.record_sent_tx(tx_hash, source_block_number)
+                            return
+
+                    logger.warning(
+                        "Forward failed: "
+                        f"tx={tx_hash} type={tx_type} src_bn={source_block_number} "
+                        f"attempt={attempt + 1}/{self._retry_attempts} "
+                        f"status={response.status} response={text}"
+                    )
+            except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+                last_status = 0
+                last_response = str(err)
                 logger.warning(
-                    "Forward failed: "
+                    "Forward failed (exception): "
                     f"tx={tx_hash} type={tx_type} src_bn={source_block_number} "
-                    f"attempt={attempt + 1}/{self._attempts} "
-                    f"status={response.status} response={text}"
+                    f"attempt={attempt + 1}/{self._retry_attempts} "
+                    f"err_type={type(err).__name__} err={err!r}"
                 )
 
-                if attempt < self._attempts - 1:
-                    # TODO(Ron): Consider adding 'partial gateway errors' to the reports
-                    await asyncio.sleep(CONFIG.sleep.gateway_error_retry_interval_seconds)
-                    continue
+            # TODO(Ron): Consider adding 'partial gateway errors' to the reports
+            if attempt < self._retry_attempts - 1:
+                await asyncio.sleep(self._retry_sleep_seconds)
 
-                shared.record_gateway_error(
-                    tx_hash, response.status, text, block_number=source_block_number
-                )
-                return
+        shared.record_gateway_error(
+            tx_hash, last_status, last_response, block_number=source_block_number
+        )
 
 
 class TransactionSenderService:
@@ -220,7 +255,10 @@ class TransactionSenderService:
 
             transformer = TxTransformer(feeder)
             forwarder = HttpForwarder(
-                session, sequencer_url=config.sequencer_url, attempts=config.attempts
+                session,
+                sequencer_url=config.sequencer_url,
+                retry_attempts=config.sequencer_not_ready_retry_attempts,
+                retry_sleep_seconds=config.retry_backoff_seconds,
             )
             resync_policy = ResyncPolicy(
                 blocks_to_wait_before_failing_tx=config.blocks_to_wait_before_failing_tx
@@ -243,7 +281,6 @@ class TransactionSenderService:
                 block_number = config.start_block
                 while not self._stop_event.is_set():
                     resync_trigger: Optional[ResyncTriggerPayload] = None
-                    await asyncio.sleep(CONFIG.sleep.producer_startup_sleep_seconds)
 
                     while not self._stop_event.is_set():
                         if config.end_block and block_number > config.end_block:
@@ -254,7 +291,7 @@ class TransactionSenderService:
                         block = await fetch_block_transactions(
                             feeder,
                             block_number,
-                            attempts=config.attempts,
+                            attempts=config.access_fgw_attempts,
                             retry_backoff_seconds=config.retry_backoff_seconds,
                             max_retry_sleep_seconds=config.max_retry_sleep_seconds,
                         )
@@ -325,8 +362,6 @@ class TransactionSenderService:
 
                         prepared = transformer.prepare_for_forwarding(item)
                         if prepared is None:  # L1_HANDLER
-                            while shared.is_pending_tx(item.tx["transaction_hash"]):
-                                await asyncio.sleep(CONFIG.tx_sender.poll_interval_seconds)
                             continue
 
                         while (
@@ -406,7 +441,7 @@ class TransactionSenderRunner:
                     f"TransactionSenderRunner starting: feeder_url={config.feeder_url} "
                     f"sequencer_url={config.sequencer_url} start_block={config.start_block} "
                     f"end_block={config.end_block} timeout={config.request_timeout_seconds} "
-                    f"attempts={config.attempts} backoff={config.retry_backoff_seconds}"
+                    f"attempts={config.access_fgw_attempts} backoff={config.retry_backoff_seconds}"
                 )
                 asyncio.run(self._service.run(config))
             finally:
@@ -446,7 +481,7 @@ def start_background_sender(
     start_block: int = CONFIG.blocks.start_block,
     end_block: int = CONFIG.blocks.end_block,
     request_timeout_seconds: float = 15.0,
-    attempts: int = 3,
+    access_fgw_attempts: int = 3,
     retry_backoff_seconds: float = 0.5,
 ) -> bool:
     """
@@ -458,7 +493,7 @@ def start_background_sender(
         start_block=start_block,
         end_block=end_block,
         request_timeout_seconds=request_timeout_seconds,
-        attempts=attempts,
+        access_fgw_attempts=access_fgw_attempts,
         retry_backoff_seconds=retry_backoff_seconds,
     )
     return TransactionSenderRunner.background().start(config=cfg)
