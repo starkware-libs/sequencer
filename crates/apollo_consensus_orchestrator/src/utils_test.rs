@@ -19,6 +19,7 @@ use crate::utils::{
 
 const CURRENT_BLOCK_NUMBER: BlockNumber = BlockNumber(STORED_BLOCK_HASH_BUFFER);
 const RETRO_BLOCK_NUMBER: BlockNumber = BlockNumber(0);
+const MUST_HAVE_BLOCK_HASH_FOR: BlockNumber = BlockNumber(1);
 const RETRO_BLOCK_HASH: BlockHash = BlockHash(Felt::from_hex_unchecked("0x1234567890abcdef"));
 
 async fn get_block_info(args: &ProposalBuildArguments) -> ProposalInit {
@@ -58,6 +59,13 @@ async fn retrospective_block_hash_happy_flow() {
         .deps
         .batcher
         .expect_get_block_hash()
+        .withf(|block_number| *block_number == MUST_HAVE_BLOCK_HASH_FOR)
+        .times(1)
+        .returning(move |_| Ok(RETRO_BLOCK_HASH));
+    test_proposal_args
+        .deps
+        .batcher
+        .expect_get_block_hash()
         .withf(|block_number| *block_number == RETRO_BLOCK_NUMBER)
         .times(1)
         .returning(move |_| Ok(RETRO_BLOCK_HASH));
@@ -90,6 +98,14 @@ async fn retrospective_block_hash_happy_flow() {
 async fn retrospective_block_hash_state_sync_error() {
     let (mut test_proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     test_proposal_args.build_param.height = CURRENT_BLOCK_NUMBER;
+    // Setup batcher client to pass the must-have check.
+    test_proposal_args
+        .deps
+        .batcher
+        .expect_get_block_hash()
+        .withf(|block_number| *block_number == MUST_HAVE_BLOCK_HASH_FOR)
+        .times(1)
+        .returning(move |_| Ok(RETRO_BLOCK_HASH));
     // Setup state sync client to return an error.
     test_proposal_args
         .deps
@@ -127,7 +143,14 @@ async fn retrospective_block_hash_batcher_error() {
         .expect_get_block_hash()
         .withf(|block_number| *block_number == RETRO_BLOCK_NUMBER)
         .returning(move |_| Ok(RETRO_BLOCK_HASH));
-    // Setup batcher client to return an error.
+    // Setup batcher client to pass the must-have check, then return an error for the retro block.
+    test_proposal_args
+        .deps
+        .batcher
+        .expect_get_block_hash()
+        .withf(|block_number| *block_number == MUST_HAVE_BLOCK_HASH_FOR)
+        .times(1)
+        .returning(move |_| Ok(RETRO_BLOCK_HASH));
     test_proposal_args
         .deps
         .batcher
@@ -164,7 +187,14 @@ async fn retrospective_block_hash_mismatch() {
         .expect_get_block_hash()
         .withf(|block_number| *block_number == RETRO_BLOCK_NUMBER)
         .returning(|_| Ok(RETRO_BLOCK_HASH));
-    // Setup batcher client to return block hash.
+    // Setup batcher client to pass the must-have check, then return a mismatched hash.
+    test_proposal_args
+        .deps
+        .batcher
+        .expect_get_block_hash()
+        .withf(|block_number| *block_number == MUST_HAVE_BLOCK_HASH_FOR)
+        .times(1)
+        .returning(|_| Ok(RETRO_BLOCK_HASH));
     test_proposal_args
         .deps
         .batcher
@@ -190,7 +220,15 @@ async fn retrospective_block_hash_mismatch() {
 async fn wait_for_retrospective_block_hash_state_sync_ready_after_a_while() {
     let (mut test_proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     test_proposal_args.build_param.height = CURRENT_BLOCK_NUMBER;
-    // Setup batcher client to return block hash.
+    // Setup batcher client to pass the must-have check (called once per loop iteration = 2 times),
+    // then return the retro block hash once (only reached on the second iteration).
+    test_proposal_args
+        .deps
+        .batcher
+        .expect_get_block_hash()
+        .withf(|block_number| *block_number == MUST_HAVE_BLOCK_HASH_FOR)
+        .times(2)
+        .returning(|_| Ok(RETRO_BLOCK_HASH));
     test_proposal_args
         .deps
         .batcher
@@ -243,6 +281,14 @@ async fn wait_for_retrospective_block_hash_batcher_ready_after_a_while() {
         .state_sync_client
         .expect_get_block_hash()
         .withf(|block_number| *block_number == RETRO_BLOCK_NUMBER)
+        .times(2)
+        .returning(|_| Ok(RETRO_BLOCK_HASH));
+    // Setup batcher client to pass the must-have check (called once per loop iteration = 2 times).
+    test_proposal_args
+        .deps
+        .batcher
+        .expect_get_block_hash()
+        .withf(|block_number| *block_number == MUST_HAVE_BLOCK_HASH_FOR)
         .times(2)
         .returning(|_| Ok(RETRO_BLOCK_HASH));
     // Setup batcher client to return BlockHashNotFound error in the first attempt.

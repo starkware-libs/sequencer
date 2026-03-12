@@ -47,7 +47,8 @@ class ResyncTriggerPayload(TypedDict):
     """
 
     tx_hash: str
-    block_number: int
+    failure_block_number: int
+    revert_target_block_number: int
     reason: str
 
 
@@ -169,13 +170,6 @@ class TxFilterConfig:
 
 
 @dataclass(frozen=True, slots=True)
-class ResyncConfig:
-    """Thresholds for resync decisions."""
-
-    error_threshold: int = 1
-
-
-@dataclass(frozen=True, slots=True)
 class L1Config:
     """External provider credentials for L1 access."""
 
@@ -201,7 +195,6 @@ class EchonetConfig:
     severity: SeverityConfig
     paths: PathsConfig
     tx_filter: TxFilterConfig
-    resync: ResyncConfig
     l1: L1Config
     gcp_logs: GcpLogsConfig
 
@@ -217,7 +210,6 @@ class EchonetConfig:
         secrets = helpers.read_json_object(secrets_path)
 
         start_block = int(keys["start_block"])
-        resync_threshold = int(keys.get("resync_error_threshold", 1))
         blocked_senders_csv = str(keys.get("blocked_senders", ""))
         max_pending_txs_before_pausing = int(keys.get("max_pending_txs_before_pausing", 15))
 
@@ -254,9 +246,6 @@ class EchonetConfig:
             paths=PathsConfig(),
             tx_filter=TxFilterConfig(
                 blocked_senders=helpers.parse_csv_to_lower_set(blocked_senders_csv),
-            ),
-            resync=ResyncConfig(
-                error_threshold=resync_threshold,
             ),
             l1=L1Config(
                 l1_provider_api_key=l1_provider_api_key,
