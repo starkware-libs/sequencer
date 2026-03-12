@@ -20,6 +20,7 @@ use crate::storage_trait::{
     DbKey,
     DbValue,
     EmptyStorageConfig,
+    ImmutableReadOnlyStorage,
     PatriciaStorageResult,
     ReadOnlyStorage,
     Storage,
@@ -102,14 +103,14 @@ impl MdbxStorage {
     }
 }
 
-impl ReadOnlyStorage for MdbxStorage {
-    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+impl ImmutableReadOnlyStorage for MdbxStorage {
+    async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let txn = self.db.begin_ro_txn()?;
         let table = txn.open_table(None)?;
         Ok(txn.get(&table, &key.0)?.map(DbValue))
     }
 
-    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let txn = self.db.begin_ro_txn()?;
         let table = txn.open_table(None)?;
         let mut res = Vec::with_capacity(keys.len());
@@ -117,6 +118,16 @@ impl ReadOnlyStorage for MdbxStorage {
             res.push(txn.get(&table, &key.0)?.map(DbValue));
         }
         Ok(res)
+    }
+}
+
+impl ReadOnlyStorage for MdbxStorage {
+    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+        ImmutableReadOnlyStorage::get(self, key).await
+    }
+
+    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        ImmutableReadOnlyStorage::mget(self, keys).await
     }
 }
 
