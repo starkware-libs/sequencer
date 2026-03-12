@@ -113,14 +113,12 @@ fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
 }
 
 /// Test that compares the Cairo0 `calc_naive_blake_hash` with its Rust equivalent.
-// TODO(Yonatan): remove #[ignore] once calc_naive_blake_hash is used in the virtual OS program.
 #[rstest]
 #[case::empty(vec![])]
 #[case::single_zero(vec![Felt::ZERO])]
 #[case::single_one(vec![Felt::ONE])]
 #[case::two_felts(vec![Felt::from(12), Felt::from(34)])]
 #[case::many_felts(vec![Felt::from(7u64); 20])]
-#[ignore]
 fn test_calc_naive_blake_hash(#[case] test_data: Vec<Felt>) {
     let runner_config = EntryPointRunnerConfig {
         layout: LayoutName::all_cairo,
