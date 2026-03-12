@@ -5,7 +5,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModific
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::db_object::HasStaticPrefix;
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia_storage::storage_trait::ReadOnlyStorage;
 
 use crate::db::facts_db::FactsNodeLayout;
 use crate::db::trie_traversal::create_original_skeleton_tree;
@@ -19,7 +19,7 @@ pub mod create_facts_tree_test;
 /// Note that ATM, the Rust committer does not manage history and is not used for storage proofs;
 /// Thus, this function assumes facts layout.
 pub async fn get_leaves<'a, L: Leaf>(
-    storage: &mut impl Storage,
+    storage: &mut impl ReadOnlyStorage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'a>,
     key_context: &<L as HasStaticPrefix>::KeyContext,
