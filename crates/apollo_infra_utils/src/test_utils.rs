@@ -49,6 +49,7 @@ pub enum TestIdentifier {
     L1EventsProviderUnitTests,
     AnvilStartsWithNoContractTest,
     ClassManagerUnitTests,
+    ReorgChurnIntegrationTest,
 }
 
 #[derive(Debug)]
