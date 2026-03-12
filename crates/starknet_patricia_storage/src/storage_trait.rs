@@ -100,6 +100,23 @@ pub trait StorageConfigTrait:
 {
 }
 
+/// A read-only view of a storage that does not require mutable access.
+/// Allows concurrent reads from multiple threads.
+pub trait ImmutableReadOnlyStorage: Send + Sync {
+    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
+    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
+    // for details.
+    fn get(
+        &self,
+        key: &DbKey,
+    ) -> impl Future<Output = PatriciaStorageResult<Option<DbValue>>> + Send;
+
+    fn mget(
+        &self,
+        keys: &[&DbKey],
+    ) -> impl Future<Output = PatriciaStorageResult<Vec<Option<DbValue>>>> + Send;
+}
+
 /// A read-only view of a storage. Does not assume concurrent access is possible.
 pub trait ReadOnlyStorage: Send + Sync {
     /// Returns value from storage, if it exists.
@@ -202,13 +219,23 @@ impl StorageConfigTrait for EmptyStorageConfig {}
 #[derive(Clone)]
 pub struct NullStorage;
 
-impl ReadOnlyStorage for NullStorage {
-    async fn get_mut(&mut self, _key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+impl ImmutableReadOnlyStorage for NullStorage {
+    async fn get(&self, _key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(None)
     }
 
-    async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         Ok(vec![None; keys.len()])
+    }
+}
+
+impl ReadOnlyStorage for NullStorage {
+    async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+        ImmutableReadOnlyStorage::get(self, key).await
+    }
+
+    async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        ImmutableReadOnlyStorage::mget(self, keys).await
     }
 }
 
