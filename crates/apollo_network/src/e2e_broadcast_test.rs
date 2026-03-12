@@ -17,7 +17,7 @@ use crate::{sqmr, Bytes};
 
 const TIMEOUT: Duration = Duration::from_secs(5);
 
-async fn create_swarm(bootstrap_peer_multiaddr: Option<Multiaddr>) -> Swarm<MixedBehaviour> {
+fn create_swarm(bootstrap_peer_multiaddr: Option<Multiaddr>) -> Swarm<MixedBehaviour> {
     let mut swarm = Swarm::new_ephemeral_tokio(|keypair| {
         MixedBehaviour::new(
             sqmr::Config::default(),
@@ -33,21 +33,22 @@ async fn create_swarm(bootstrap_peer_multiaddr: Option<Multiaddr>) -> Swarm<Mixe
             DEFAULT_PING_TIMEOUT,
         )
     });
+    swarm.listen_on(Protocol::Memory(0).into()).unwrap();
+    swarm
+}
+
+/// Poll the swarm to discover its listen address, then set it as an external address.
+/// Only safe to call on swarms without bootstrap peers (no events will be lost).
+async fn get_listen_address(swarm: &mut Swarm<MixedBehaviour>) -> Multiaddr {
     // Not using SwarmExt::listen because it panics if the swarm emits other events
-    let expected_listener_id = swarm.listen_on(Protocol::Memory(0).into()).unwrap();
     let address = swarm
         .wait(|event| match event {
-            SwarmEvent::NewListenAddr { listener_id, address }
-                if expected_listener_id == listener_id =>
-            {
-                Some(address)
-            }
+            SwarmEvent::NewListenAddr { address, .. } => Some(address),
             _ => None,
         })
         .await;
-    swarm.add_external_address(address);
-
-    swarm
+    swarm.add_external_address(address.clone());
+    address
 }
 
 const MESSAGE_METADATA_BUFFER_SIZE: usize = 100000;
@@ -90,15 +91,16 @@ impl From<Number> for Bytes {
 async fn broadcast_subscriber_end_to_end_test() {
     let topic1 = Topic::new("TOPIC1");
     let topic2 = Topic::new("TOPIC2");
-    let bootstrap_swarm = create_swarm(None).await;
-    let bootstrap_peer_multiaddr = bootstrap_swarm.external_addresses().next().unwrap().clone();
-    let bootstrap_peer_multiaddr =
-        bootstrap_peer_multiaddr.with_p2p(*bootstrap_swarm.local_peer_id()).unwrap();
+    let mut bootstrap_swarm = create_swarm(None);
+    let address = get_listen_address(&mut bootstrap_swarm).await;
+    let bootstrap_peer_multiaddr = address.with_p2p(*bootstrap_swarm.local_peer_id()).unwrap();
     let bootstrap_network_manager = create_network_manager(bootstrap_swarm);
+    // Don't poll subscriber swarms before wrapping in network managers — polling would
+    // discard the initial RequestDial events from bootstrapping before the network
+    // manager is ready to route them.
     let mut network_manager1 =
-        create_network_manager(create_swarm(Some(bootstrap_peer_multiaddr.clone())).await);
-    let mut network_manager2 =
-        create_network_manager(create_swarm(Some(bootstrap_peer_multiaddr)).await);
+        create_network_manager(create_swarm(Some(bootstrap_peer_multiaddr.clone())));
+    let mut network_manager2 = create_network_manager(create_swarm(Some(bootstrap_peer_multiaddr)));
 
     let mut subscriber_channels1_1 =
         network_manager1.register_broadcast_topic::<Number>(topic1.clone(), BUFFER_SIZE).unwrap();

@@ -250,11 +250,7 @@ impl Behaviour {
         bootstrap_peers: Vec<(PeerId, Multiaddr)>,
     ) -> Self {
         Self {
-            boot_strapping: BootstrappingBehaviour::new(
-                local_peer_id,
-                config.bootstrap_dial_retry_config,
-                bootstrap_peers,
-            ),
+            boot_strapping: BootstrappingBehaviour::new(local_peer_id, bootstrap_peers),
             kad_requesting: KadRequestingBehaviour::new(config.heartbeat_interval),
             dialling: DiallingBehaviour::new(config.bootstrap_dial_retry_config),
         }
