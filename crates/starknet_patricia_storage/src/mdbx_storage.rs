@@ -23,6 +23,7 @@ use crate::storage_trait::{
     DbValue,
     EmptyStorageConfig,
     PatriciaStorageResult,
+    ReadOnlyStorage,
     Storage,
     StorageStats,
 };
@@ -103,22 +104,11 @@ impl MdbxStorage {
     }
 }
 
-impl Storage for MdbxStorage {
-    type Stats = MdbxStorageStats;
-    type Config = EmptyStorageConfig;
-
+impl ReadOnlyStorage for MdbxStorage {
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let txn = self.db.begin_ro_txn()?;
         let table = txn.open_table(None)?;
         Ok(txn.get(&table, &key.0)?.map(DbValue))
-    }
-
-    async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
-        let txn = self.db.begin_rw_txn()?;
-        let table = txn.open_table(None)?;
-        txn.put(&table, key.0, value.0, WriteFlags::UPSERT)?;
-        txn.commit()?;
-        Ok(())
     }
 
     async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
@@ -129,6 +119,19 @@ impl Storage for MdbxStorage {
             res.push(txn.get(&table, &key.0)?.map(DbValue));
         }
         Ok(res)
+    }
+}
+
+impl Storage for MdbxStorage {
+    type Stats = MdbxStorageStats;
+    type Config = EmptyStorageConfig;
+
+    async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
+        let txn = self.db.begin_rw_txn()?;
+        let table = txn.open_table(None)?;
+        txn.put(&table, key.0, value.0, WriteFlags::UPSERT)?;
+        txn.commit()?;
+        Ok(())
     }
 
     async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
