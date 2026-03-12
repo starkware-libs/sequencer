@@ -14,6 +14,7 @@ use crate::storage_trait::{
     DbKey,
     DbValue,
     EmptyStorageConfig,
+    ImmutableReadOnlyStorage,
     NoStats,
     NullStorage,
     PatriciaStorageResult,
@@ -34,13 +35,23 @@ pub struct BorrowedStorage<'a, S: Storage> {
     pub storage: &'a mut S,
 }
 
-impl ReadOnlyStorage for MapStorage {
-    async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+impl ImmutableReadOnlyStorage for MapStorage {
+    async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(self.0.get(key).cloned())
     }
 
-    async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         Ok(keys.iter().map(|key| self.0.get(key).cloned()).collect())
+    }
+}
+
+impl ReadOnlyStorage for MapStorage {
+    async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+        ImmutableReadOnlyStorage::get(self, key).await
+    }
+
+    async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        ImmutableReadOnlyStorage::mget(self, keys).await
     }
 }
 
