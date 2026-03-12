@@ -2,6 +2,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
+use apollo_proc_macros::unique_u16;
 use async_trait::async_trait;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
@@ -95,7 +96,7 @@ async fn endpoint_successful_query() {
         .unwrap();
 
     let mut available_ports =
-        AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), 0);
+        AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), unique_u16!());
 
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
@@ -119,7 +120,7 @@ async fn endpoint_query_nonexistent_block() {
     let ((reader, _writer), _temp_dir) = get_test_storage();
 
     let mut available_ports =
-        AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), 1);
+        AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), unique_u16!());
 
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
@@ -143,7 +144,7 @@ async fn endpoint_handler_error() {
     let ((reader, _writer), _temp_dir) = get_test_storage();
 
     let mut available_ports =
-        AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), 2);
+        AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), unique_u16!());
 
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
@@ -171,7 +172,7 @@ async fn endpoint_invalid_json() {
     let ((reader, _writer), _temp_dir) = get_test_storage();
 
     let mut available_ports =
-        AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), 3);
+        AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), unique_u16!());
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
@@ -204,7 +205,7 @@ async fn endpoint_disabled_returns_service_unavailable() {
     let ((reader, _writer), _temp_dir) = get_test_storage();
 
     let mut available_ports =
-        AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), 4);
+        AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), unique_u16!());
 
     let config = ServerConfig::new(
         IpAddr::from(Ipv4Addr::LOCALHOST),
