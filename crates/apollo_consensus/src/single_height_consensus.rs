@@ -229,6 +229,14 @@ impl SingleHeightConsensus {
         proposal_id: Option<ProposalCommitment>,
         round: Round,
     ) -> Requests {
+        if round != self.state_machine.round() {
+            // Stale: build completed after TimeoutPropose advanced us past this round. Ignore.
+            warn!(
+                "FinishedBuilding for stale round={round}; current round={}. Ignoring.",
+                self.state_machine.round()
+            );
+            return VecDeque::new();
+        }
         if proposal_id.is_none() {
             CONSENSUS_BUILD_PROPOSAL_FAILED.increment(1);
         }
@@ -237,11 +245,6 @@ impl SingleHeightConsensus {
         assert!(
             !self.state_machine.has_proposal_for_round(round),
             "There should be no entry for round {round} when proposing"
-        );
-        assert_eq!(
-            round,
-            self.state_machine.round(),
-            "State machine should not progress while awaiting proposal"
         );
         debug!(%round, proposal_commitment = ?proposal_id, "Built proposal.");
         self.state_machine.handle_event(StateMachineEvent::FinishedBuilding(proposal_id, round))
