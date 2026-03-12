@@ -89,7 +89,7 @@ pub trait BatcherClient: Send + Sync {
     ) -> BatcherClientResult<SendTxsForProposalStatus>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
-    async fn get_timestamp(&self) -> BatcherClientResult<UnixTimestamp>;
+    async fn get_batch_timestamp(&self) -> BatcherClientResult<UnixTimestamp>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -112,7 +112,7 @@ pub enum BatcherRequest {
     DecisionReached(DecisionReachedInput),
     AddSyncBlock(SyncBlock),
     RevertBlock(RevertBlockInput),
-    GetTimestamp,
+    GetBatchTimestamp,
 }
 impl_debug_for_infra_requests_and_responses!(BatcherRequest);
 impl_labeled_request!(BatcherRequest, BatcherRequestLabelValue);
@@ -137,7 +137,7 @@ pub enum BatcherResponse {
     DecisionReached(BatcherResult<Box<DecisionReachedResponse>>),
     AddSyncBlock(BatcherResult<()>),
     RevertBlock(BatcherResult<()>),
-    GetTimestamp(BatcherResult<u64>),
+    GetBatchTimestamp(BatcherResult<u64>),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherResponse);
 
@@ -322,13 +322,13 @@ where
         )
     }
 
-    async fn get_timestamp(&self) -> BatcherClientResult<UnixTimestamp> {
-        let request = BatcherRequest::GetTimestamp;
+    async fn get_batch_timestamp(&self) -> BatcherClientResult<UnixTimestamp> {
+        let request = BatcherRequest::GetBatchTimestamp;
         handle_all_response_variants!(
             self,
             request,
             BatcherResponse,
-            GetTimestamp,
+            GetBatchTimestamp,
             BatcherClientError,
             BatcherError,
             Direct
