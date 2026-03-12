@@ -5,8 +5,7 @@ use apollo_batcher_config::config::PreconfirmedBlockWriterConfig;
 use apollo_batcher_types::batcher_types::Round;
 use apollo_starknet_client::reader::StateDiff;
 use async_trait::async_trait;
-use futures::stream::FuturesUnordered;
-use futures::StreamExt;
+use futures::future::{BoxFuture, OptionFuture};
 use indexmap::map::Entry;
 use indexmap::IndexMap;
 #[cfg(test)]
@@ -24,6 +23,7 @@ use crate::cende_client_types::{
 };
 use crate::pre_confirmed_cende_client::{
     CendeWritePreconfirmedBlock,
+    PreconfirmedCendeClientResult,
     PreconfirmedCendeClientTrait,
 };
 
@@ -126,9 +126,8 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
             ),
         > = IndexMap::new();
 
-        // TODO(Arni): Replace `pending_tasks` with a single-task type since we only allow one
-        // in-flight write task at a time.
-        let mut pending_tasks = FuturesUnordered::new();
+        let mut pending_write_task: Option<BoxFuture<'static, PreconfirmedCendeClientResult<()>>> =
+            None;
         let mut write_pre_confirmed_txs_timer =
             tokio::time::interval(Duration::from_millis(self.write_block_interval_millis));
 
@@ -144,12 +143,15 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
                     // Only send if there are pending changes to avoid unnecessary calls
                     if pending_changes {
                         // Check if there are any ongoing write tasks to avoid contention
-                        if pending_tasks.is_empty() {
+                        if pending_write_task.is_none() {
                             let pre_confirmed_block = self.create_pre_confirmed_block(
                                 &transactions_map,
                                 next_write_iteration,
                             );
-                            pending_tasks.push(self.cende_client.write_pre_confirmed_block(pre_confirmed_block));
+                            let cende_client = Arc::clone(&self.cende_client);
+                            pending_write_task = Some(Box::pin(async move {
+                                cende_client.write_pre_confirmed_block(pre_confirmed_block).await
+                            }));
                             next_write_iteration += 1;
                             pending_changes = false;
                         } else {
@@ -158,8 +160,9 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
                     }
                 }
 
-                Some(_result) = pending_tasks.next() => {
+                Some(_result) = OptionFuture::from(pending_write_task.as_mut()) => {
                     // Intentionally ignore write-task errors; each write is best effort.
+                    pending_write_task = None;
                 }
                 msg = self.pre_confirmed_tx_receiver.recv() => {
                     match msg {
@@ -199,10 +202,10 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
             }
         }
 
-        // Wait for all pending tasks to complete gracefully.
-        // TODO(noamsp): Add timeout.
-        while let Some(_result) = pending_tasks.next().await {
+        // Wait for the pending write task to complete gracefully.
+        if let Some(task) = pending_write_task.take() {
             // Intentionally ignore write-task errors; each write is best effort.
+            let _result: PreconfirmedCendeClientResult<()> = task.await;
         }
 
         if pending_changes {
