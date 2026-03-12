@@ -33,6 +33,9 @@ pub struct ConsensusDynamicConfig {
     pub future_msg_limit: FutureMsgLimitsConfig,
     /// When true, require the virtual proposer to have voted in favor before reaching a decision.
     pub require_virtual_proposer_vote: bool,
+    /// When true, use each validator's staking weight from the committee for vote counting;
+    /// otherwise each vote counts as 1.
+    pub use_committee_weight: bool,
 }
 
 /// Static configuration for consensus that doesn't change during runtime.
@@ -77,6 +80,13 @@ impl SerializeConfig for ConsensusDynamicConfig {
                 &self.require_virtual_proposer_vote,
                 "When true, require the virtual proposer to have voted in favor before reaching a \
                  decision.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "use_committee_weight",
+                &self.use_committee_weight,
+                "When true, use each validator's staking weight from the committee for vote \
+                 counting; otherwise each vote counts as 1.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -124,6 +134,7 @@ impl Default for ConsensusDynamicConfig {
             sync_retry_interval: Duration::from_secs_f64(1.0),
             future_msg_limit: FutureMsgLimitsConfig::default(),
             require_virtual_proposer_vote: false,
+            use_committee_weight: false,
         }
     }
 }

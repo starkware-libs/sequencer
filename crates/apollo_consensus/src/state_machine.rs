@@ -34,9 +34,7 @@ use crate::votes_threshold::{QuorumType, VotesThreshold, ROUND_SKIP_THRESHOLD};
 type VoteKey = (Round, ValidatorId);
 
 /// A vote accompanied by the validator's voting weight.
-/// TODO(Asmaa): Revisit type for staking power: u32 may not be enough; accordingly revisit the
-/// sum (weight_sum in votes_meet_threshold) and total_weight.
-type WeightedVote = (Vote, u32);
+type WeightedVote = (Vote, u128);
 
 /// A map of votes, keyed by round and validator ID, with the vote and its weight.
 type VotesMap = HashMap<VoteKey, WeightedVote>;
@@ -111,9 +109,10 @@ pub(crate) struct StateMachine {
     step: Step,
     quorum: VotesThreshold,
     round_skip_threshold: VotesThreshold,
-    total_weight: u64,
+    total_weight: u128,
     is_observer: bool,
     require_virtual_proposer_vote: bool,
+    use_committee_weight: bool,
     // {round: (proposal_id, valid_round)}
     proposals: HashMap<Round, (Option<ProposalCommitment>, Option<Round>)>,
     // {(round, voter): (vote, weight)}
@@ -136,14 +135,16 @@ pub(crate) struct StateMachine {
 
 impl StateMachine {
     /// total_weight - the total voting weight of all validators for this height.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         height: BlockNumber,
         id: ValidatorId,
-        total_weight: u64,
+        total_weight: u128,
         is_observer: bool,
         quorum_type: QuorumType,
         committee: Arc<dyn CommitteeTrait>,
         require_virtual_proposer_vote: bool,
+        use_committee_weight: bool,
     ) -> Self {
         Self {
             height,
@@ -157,6 +158,7 @@ impl StateMachine {
             total_weight,
             is_observer,
             require_virtual_proposer_vote,
+            use_committee_weight,
             proposals: HashMap::new(),
             prevotes: HashMap::new(),
             precommits: HashMap::new(),
@@ -191,6 +193,22 @@ impl StateMachine {
 
     pub(crate) fn last_self_precommit(&self) -> Option<Vote> {
         self.last_self_precommit.clone()
+    }
+
+    /// Returns the voting weight for a validator. When `use_committee_weight` is false, returns 1.
+    /// Otherwise returns the staker's weight from the committee (voter must be in committee).
+    fn vote_weight(&self, voter: ValidatorId) -> u128 {
+        if !self.use_committee_weight {
+            return 1;
+        }
+        let staker = self
+            .committee
+            .members()
+            // TODO(Asmaa): Use HashMap
+            .iter()
+            .find(|s| s.address == voter)
+            .expect("voter must be in committee");
+        staker.weight.0
     }
 
     /// Check if a vote has already been received (either in the vote maps or queued).
@@ -250,12 +268,13 @@ impl StateMachine {
         if self.is_observer {
             return output;
         }
+        let weight = self.vote_weight(self.id);
         let (votes_map, last_self_vote) = match vote_type {
             VoteType::Prevote => (&mut self.prevotes, &mut self.last_self_prevote),
             VoteType::Precommit => (&mut self.precommits, &mut self.last_self_precommit),
         };
         // Record the vote in the appropriate map.
-        let inserted = votes_map.insert((self.round, self.id), (vote.clone(), 1)).is_none();
+        let inserted = votes_map.insert((self.round, self.id), (vote.clone(), weight)).is_none();
         assert!(
             inserted,
             "This should never happen: duplicate self {:?} vote for round={}, id={}",
@@ -405,7 +424,8 @@ impl StateMachine {
     fn handle_prevote(&mut self, vote: Vote) -> VecDeque<SMRequest> {
         let round = vote.round;
         let voter = vote.voter;
-        let inserted = self.prevotes.insert((round, voter), (vote, 1)).is_none();
+        let inserted =
+            self.prevotes.insert((round, voter), (vote, self.vote_weight(voter))).is_none();
         assert!(
             inserted,
             "SHC should handle conflicts & replays: duplicate prevote for round={round}, \
@@ -429,7 +449,8 @@ impl StateMachine {
     fn handle_precommit(&mut self, vote: Vote) -> VecDeque<SMRequest> {
         let round = vote.round;
         let voter = vote.voter;
-        let inserted = self.precommits.insert((round, voter), (vote, 1)).is_none();
+        let inserted =
+            self.precommits.insert((round, voter), (vote, self.vote_weight(voter))).is_none();
         assert!(
             inserted,
             "SHC should handle conflicts & replays: duplicate precommit for round={round}, \
@@ -727,8 +748,7 @@ impl StateMachine {
         let weight_sum = votes
             .iter()
             .filter_map(|(&(r, _voter), (v, w))| {
-                (r == round && value.is_none_or(|val| val == &v.proposal_commitment))
-                    .then_some(u64::from(*w))
+                (r == round && value.is_none_or(|val| val == &v.proposal_commitment)).then_some(*w)
             })
             .sum();
         threshold.is_met(weight_sum, self.total_weight)

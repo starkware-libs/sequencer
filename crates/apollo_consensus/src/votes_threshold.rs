@@ -42,8 +42,8 @@ impl VotesThreshold {
         }
     }
 
-    pub fn is_met(&self, amount: u64, total: u64) -> bool {
-        amount.checked_mul(self.denominator).expect("Numeric overflow")
-            > total.checked_mul(self.numerator).expect("Numeric overflow")
+    pub fn is_met(&self, amount: u128, total: u128) -> bool {
+        amount.checked_mul(u128::from(self.denominator)).expect("Numeric overflow")
+            > total.checked_mul(u128::from(self.numerator)).expect("Numeric overflow")
     }
 }
