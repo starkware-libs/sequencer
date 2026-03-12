@@ -73,10 +73,16 @@ pub(crate) struct BaseBlockInfo {
     pub(crate) prev_base_block_hash: BlockHash,
 }
 
-impl TryFrom<(BlockHeader, ChainInfo)> for BaseBlockInfo {
-    type Error = VirtualBlockExecutorError;
-
-    fn try_from((header, chain_info): (BlockHeader, ChainInfo)) -> Result<Self, Self::Error> {
+impl BaseBlockInfo {
+    /// Creates a `BaseBlockInfo` from a block header and chain info.
+    ///
+    /// When `use_latest_versioned_constants` is `true`, the latest versioned constants are used
+    /// instead of the ones matching the block's Starknet version.
+    pub(crate) fn new(
+        header: BlockHeader,
+        chain_info: ChainInfo,
+        use_latest_versioned_constants: bool,
+    ) -> Result<Self, VirtualBlockExecutorError> {
         let base_block_hash = header.block_hash;
         let prev_base_block_hash = header.parent_hash;
         let base_block_header_commitments = BlockHeaderCommitments {
@@ -97,13 +103,17 @@ impl TryFrom<(BlockHeader, ChainInfo)> for BaseBlockInfo {
                 "Failed to convert block header to block info: {e}"
             ))
         })?;
-        let mut versioned_constants = VersionedConstants::get(&block_info.starknet_version)
-            .map_err(|e| {
-                VirtualBlockExecutorError::TransactionExecutionError(format!(
-                    "Failed to get versioned constants: {e}"
-                ))
-            })?
-            .clone();
+        let mut versioned_constants = if use_latest_versioned_constants {
+            VersionedConstants::latest_constants().clone()
+        } else {
+            VersionedConstants::get(&block_info.starknet_version)
+                .map_err(|e| {
+                    VirtualBlockExecutorError::TransactionExecutionError(format!(
+                        "Failed to get versioned constants: {e}"
+                    ))
+                })?
+                .clone()
+        };
         // Disable casm hash migration for virtual block execution.
         versioned_constants.enable_casm_hash_migration = false;
         // Enable Sierra gas for all Cairo 1 contracts.
@@ -188,9 +198,9 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
         contract_class_manager: ContractClassManager,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<VirtualBlockExecutionData, VirtualBlockExecutorError> {
-        let tx_hashes: Vec<TransactionHash> = txs.iter().map(|(_, h)| *h).collect();
         let base_block_info = self.base_block_info(block_id)?;
         let state_reader = self.state_reader(block_id, &txs)?;
+        let tx_hashes: Vec<TransactionHash> = txs.iter().map(|(_, h)| *h).collect();
         let blockifier_txs = self.convert_invoke_txs(txs)?;
 
         // Create state reader with contract manager.
@@ -433,6 +443,11 @@ pub(crate) struct RpcVirtualBlockExecutor {
     /// Whether transaction validation is enabled during execution.
     pub(crate) validate_txs: bool,
     pub(crate) config: RpcVirtualBlockExecutorConfig,
+    /// When true, use the latest versioned constants instead of the ones matching the block's
+    /// Starknet version. The OS currently always runs with the latest constants.
+    // TODO(Aviv): Reconsider using latest versioned constants if the OS becomes backward
+    // compatible with older versioned constants.
+    pub(crate) use_latest_versioned_constants: bool,
 }
 
 impl RpcVirtualBlockExecutor {
@@ -448,6 +463,7 @@ impl RpcVirtualBlockExecutor {
             ),
             validate_txs: true,
             config,
+            use_latest_versioned_constants: true,
         }
     }
 
@@ -529,8 +545,11 @@ impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
             .rpc_state_reader
             .get_block_header()
             .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e)))?;
-        let mut base_block_info =
-            BaseBlockInfo::try_from((block_header, self.rpc_state_reader.chain_info.clone()))?;
+        let mut base_block_info = BaseBlockInfo::new(
+            block_header,
+            self.rpc_state_reader.chain_info.clone(),
+            self.use_latest_versioned_constants,
+        )?;
 
         // Client-side bouncer limits may differ from Starknet network limits.
         base_block_info.block_context.bouncer_config = self.config.bouncer_config.clone();

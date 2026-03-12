@@ -91,6 +91,7 @@ pub fn rpc_virtual_block_executor(rpc_state_reader: RpcStateReader) -> RpcVirtua
         // TODO(Aviv): enable the config once there is a v0.10+ node that supports the
         // `RETURN_INITIAL_READS` flag on testnet.
         config: RpcVirtualBlockExecutorConfig { prefetch_state: false, ..Default::default() },
+        use_latest_versioned_constants: true,
     }
 }
 
