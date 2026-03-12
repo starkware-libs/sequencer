@@ -119,12 +119,6 @@ pub struct ValidateBlockInput {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SendProposalContentInput {
-    pub proposal_id: ProposalId,
-    pub content: SendProposalContent,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SendTxsForProposalInput {
     pub proposal_id: ProposalId,
     pub txs: Vec<InternalConsensusTransaction>,
@@ -134,17 +128,6 @@ pub struct SendTxsForProposalInput {
 pub struct FinishProposalInput {
     pub proposal_id: ProposalId,
     pub final_n_executed_txs: usize,
-}
-
-/// The content of the stream that the consensus sends to the batcher.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum SendProposalContent {
-    Txs(Vec<InternalConsensusTransaction>),
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct SendProposalContentResponse {
-    pub response: ProposalStatus,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

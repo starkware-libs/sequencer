@@ -10,9 +10,8 @@ use apollo_batcher_types::batcher_types::{
     FinishProposalStatus,
     FinishedProposalInfo,
     ProposalId,
-    ProposalStatus,
-    SendProposalContent,
-    SendProposalContentInput,
+    SendTxsForProposalInput,
+    SendTxsForProposalStatus,
     ValidateBlockInput,
 };
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
@@ -468,9 +467,8 @@ async fn handle_proposal_part(
             );
 
             content.push(txs.clone());
-            let input =
-                SendProposalContentInput { proposal_id, content: SendProposalContent::Txs(txs) };
-            let response = match batcher.send_proposal_content(input).await {
+            let input = SendTxsForProposalInput { proposal_id, txs };
+            let response = match batcher.send_txs_for_proposal(input).await {
                 Ok(response) => response,
                 Err(e) => {
                     return HandledProposalPart::Failed(format!(
@@ -478,9 +476,9 @@ async fn handle_proposal_part(
                     ));
                 }
             };
-            match response.response {
-                ProposalStatus::Processing => HandledProposalPart::Continue,
-                ProposalStatus::InvalidProposal(err) => HandledProposalPart::Invalid(err),
+            match response {
+                SendTxsForProposalStatus::Processing => HandledProposalPart::Continue,
+                SendTxsForProposalStatus::InvalidProposal(err) => HandledProposalPart::Invalid(err),
             }
         }
         _ => HandledProposalPart::Failed(format!(
