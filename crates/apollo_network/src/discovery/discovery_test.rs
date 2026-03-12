@@ -137,9 +137,6 @@ async fn discovery_redials_on_dial_failure(
         ToSwarm::Dial{opts} if opts.get_peer_id() == Some(bootstrap_peer_id)
     );
 
-    // Consume the first query event.
-    behaviour.next().await.unwrap();
-
     behaviour.on_swarm_event(FromSwarm::DialFailure(DialFailure {
         peer_id: Some(bootstrap_peer_id),
         error: &DialError::Aborted,
@@ -171,9 +168,6 @@ async fn discovery_redials_when_all_connections_closed(
     );
     connect_to_bootstrap_node(&mut behaviour, bootstrap_peer_id, bootstrap_peer_address.clone())
         .await;
-
-    // Consume the initial query event.
-    timeout(TIMEOUT, behaviour.next()).await.unwrap();
 
     behaviour.on_swarm_event(FromSwarm::ConnectionClosed(ConnectionClosed {
         peer_id: bootstrap_peer_id,
@@ -208,9 +202,6 @@ async fn discovery_doesnt_redial_when_one_connection_closes(
     );
     connect_to_bootstrap_node(&mut behaviour, bootstrap_peer_id, bootstrap_peer_address.clone())
         .await;
-
-    // Consume the initial query event.
-    timeout(TIMEOUT, behaviour.next()).await.unwrap();
 
     behaviour.on_swarm_event(FromSwarm::ConnectionEstablished(ConnectionEstablished {
         peer_id: bootstrap_peer_id,
@@ -286,8 +277,15 @@ async fn discovery_sleeps_between_queries(
     );
     connect_to_bootstrap_node(&mut behaviour, bootstrap_peer_id, bootstrap_peer_address).await;
 
-    // Consume the initial query event.
-    timeout(TIMEOUT, behaviour.next()).await.unwrap();
+    // Set a peer to request so the heartbeat has something to query.
+    behaviour.set_target_peers(std::collections::HashSet::from([PeerId::random()]));
+
+    // The first heartbeat fires immediately since time_for_next_kad_query starts at creation time.
+    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
+    assert_matches!(
+        event,
+        ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(_peer_id))
+    );
 
     let event =
         check_event_happens_after_given_duration(&mut behaviour, config.heartbeat_interval).await;
@@ -310,8 +308,7 @@ async fn discovery_performs_queries_even_if_not_connected_to_bootstrap_peer(
         vec![(bootstrap_peer_id, bootstrap_peer_address.clone())],
     );
 
-    // Consume the initial dial and query events.
-    timeout(TIMEOUT, behaviour.next()).await.unwrap();
+    // Consume the initial dial event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
 
     // Simulate dial failure.
@@ -320,6 +317,16 @@ async fn discovery_performs_queries_even_if_not_connected_to_bootstrap_peer(
         error: &DialError::Aborted,
         connection_id: ConnectionId::new_unchecked(0),
     }));
+
+    // Set a peer to request so the heartbeat has something to query.
+    behaviour.set_target_peers(std::collections::HashSet::from([PeerId::random()]));
+
+    // The first heartbeat fires immediately since time_for_next_kad_query starts at creation time.
+    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
+    assert_matches!(
+        event,
+        ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(_peer_id))
+    );
 
     // Check that we get a new Kad query after HEARTBEAT_INTERVAL.
     let event =
