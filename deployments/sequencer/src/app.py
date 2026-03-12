@@ -1,3 +1,4 @@
+import logging
 import sys
 from pathlib import Path
 
@@ -13,12 +14,16 @@ from src.config.loaders import (
 from src.config.merger import merge_configs
 from src.config.schema import DeploymentConfig as DeploymentSchema
 from src.config.schema import Image
+from src.logging_config import configure_logging
 from src.utils import sanitize_name
 
 
 def main():
     """Main entry point for CDK8s application."""
     args = argument_parser()
+    configure_logging(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+    )
     _validate_args(args)
 
     app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
@@ -117,18 +122,20 @@ def _load_deployment_config(base_dir: Path, layout: str, overlays: list[str]) ->
     """Load and merge deployment configuration."""
     layout_common, layout_services, overlay_layers = _get_config_paths(base_dir, layout, overlays)
 
-    overlay_layers_str: list[tuple[str | None, str | None]] = [
+    # Pass (overlay_name, common_path, services_path) for duplicate-key warning logs
+    overlay_layers_with_names: list[tuple[str, str | None, str | None]] = [
         (
+            overlay_name,
             str(common) if common else None,
             str(services) if services else None,
         )
-        for common, services in overlay_layers
+        for overlay_name, (common, services) in zip(overlays, overlay_layers, strict=True)
     ]
     return merge_configs(
         config_base_dir=str(base_dir),
         layout_common_config_path=str(layout_common) if layout_common else None,
         layout_services_config_dir_path=str(layout_services),
-        overlay_layers=overlay_layers_str,
+        overlay_layers=overlay_layers_with_names,
     )
 
 
