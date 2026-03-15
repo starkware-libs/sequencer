@@ -20,7 +20,7 @@ config:
     batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time: 600
     batcher_config.static_config.storage_reader_server_static_config.port: 55011
     class_manager_config.static_config.class_manager_config.max_compiled_contract_class_object_size: 4089446
-    class_manager_config.static_config.class_storage_config.storage_reader_server_static_config.port: 8091
+    class_manager_config.static_config.class_storage_config.storage_reader_server_static_config.port: 55210
     components.batcher.port: 55000
     components.batcher.url: sequencer-core-service
     components.class_manager.port: 55001
