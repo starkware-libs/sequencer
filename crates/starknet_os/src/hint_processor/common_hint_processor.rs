@@ -131,7 +131,7 @@ macro_rules! impl_common_hint_processor_logic {
                     execute_core_hint_base(vm, exec_scopes, &hint, no_temporary_segments)?;
                     Ok(HintExtension::default())
                 }
-                Cairo1Hint::Starknet(hint) => self.execute_cairo1_unique_hint(hint, vm),
+                Cairo1Hint::Starknet(hint) => self.execute_cairo1_unique_hint(&hint, vm),
                 Cairo1Hint::External(_) => {
                     panic!("starknet should never accept classes with external hints!")
                 }
