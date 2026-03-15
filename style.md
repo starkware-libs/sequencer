@@ -79,7 +79,7 @@ Avoid having many tests that all test the same thing. Each test should check a u
 Don't add the same test with different inputs.
 
 ### Integration and Flow Tests
-Use unit tests for short (< 1 sec) and threadsafe tests, otherwise use cargo integration tests:
+Unit tests should be short (< 1 sec) and threadsafe tests, unless there's a specific reason otherwise.
 
 Put flow tests and integration tests inside `tests/` at the crate root if they don't depend on features of their crate (this constraint is valid until [this cargo issue](https://github.com/rust-lang/cargo/issues/2911#issuecomment-1739880593) or [this cargo bug](https://github.com/rust-lang/cargo/issues/15151) get resolved), otherwise put them in a dedicated integration-test crate for the whole package (mostly relevant for multi-crate packages). Cargo integration test files are not parallelized, and are run in an anonymous crate without `cfg(test)`, which allows the test writer to simulate real UX.
 
