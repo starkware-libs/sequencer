@@ -23,9 +23,9 @@ pub enum Event {
     },
     /// Failed to send a shard to a peer.
     ShardSendFailed { sent_from: Option<PeerId>, sent_to: Option<PeerId>, error: ShardPublishError },
-    /// Failed to verify shard
+    /// Failed to verify shard.
     ShardValidationFailed {
-        /// The sender of the shard that filed verification. They should be reported.
+        /// The sender of the shard that failed verification. They should be reported.
         sender: PeerId,
         claimed_root: MessageRoot,
         claimed_publisher: PeerId,
