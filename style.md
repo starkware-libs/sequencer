@@ -481,6 +481,26 @@ Prefer American English spelling over British English in all code components: id
 
 If a 3rd-party crate or API uses British English spelling, maintain that spelling when referring to its types, functions, or fields.
 
+### Self-referencing in methods
+
+Inside `impl` blocks, prefer using `Self` instead of repeating the concrete type name.
+
+```rust
+// BAD
+impl Foo {
+    fn new() -> Foo {
+        Foo { bar: 0 }
+    }
+}
+
+// GOOD
+impl Foo {
+    fn new() -> Self {
+        Self { bar: 0 }
+    }
+}
+```
+
 ### Associated Functions
 
 All associated functions should depend on `Self`. Associated functions that don't should be free functions.
