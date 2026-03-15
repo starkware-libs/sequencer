@@ -187,20 +187,30 @@ impl TryFrom<&BlockHeader> for Option<BlockHeaderCommitments> {
 pub struct PartialBlockHash(pub StarkHash);
 
 impl PartialBlockHash {
-    // TODO(Ariel): Use parent_partial_block_hash instead of zero.
     const GLOBAL_ROOT_FOR_PARTIAL_BLOCK_HASH: GlobalRoot = GlobalRoot(Felt::ZERO);
     const PARENT_HASH_FOR_PARTIAL_BLOCK_HASH: BlockHash = BlockHash(Felt::ZERO);
 
     /// Hash of [`PartialBlockHashComponents`].
     /// Uses the same formula as [`calculate_block_hash`] with the fixed constants above for the
-    /// state root and parent hash.
+    /// state root and a zero parent hash.
     pub fn from_partial_block_hash_components(
         partial_block_hash_components: &PartialBlockHashComponents,
+    ) -> StarknetApiResult<Self> {
+        Self::from_partial_block_hash_components_and_parent(partial_block_hash_components, None)
+    }
+
+    /// Hash of [`PartialBlockHashComponents`] chained to the parent partial block hash.
+    /// Uses the same formula as [`calculate_block_hash`] with a fixed zero state root.
+    pub fn from_partial_block_hash_components_and_parent(
+        partial_block_hash_components: &PartialBlockHashComponents,
+        parent_partial_block_hash: Option<Self>,
     ) -> StarknetApiResult<Self> {
         let block_hash = calculate_block_hash(
             partial_block_hash_components,
             Self::GLOBAL_ROOT_FOR_PARTIAL_BLOCK_HASH,
-            Self::PARENT_HASH_FOR_PARTIAL_BLOCK_HASH,
+            parent_partial_block_hash
+                .map(|parent_partial_block_hash| BlockHash(parent_partial_block_hash.0))
+                .unwrap_or(Self::PARENT_HASH_FOR_PARTIAL_BLOCK_HASH),
         )?;
         Ok(Self(block_hash.0))
     }
