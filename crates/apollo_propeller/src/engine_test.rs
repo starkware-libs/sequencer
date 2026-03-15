@@ -2,13 +2,14 @@ use std::time::Duration;
 
 use libp2p::identity::Keypair;
 use libp2p::PeerId;
+use starknet_api::staking::StakingWeight;
 use tokio::sync::mpsc;
 
 use crate::config::Config;
 use crate::engine::{Engine, EngineCommand, EngineOutput, MessageKey};
-use crate::message_processor::EventStateManagerToEngine;
+use crate::message_processor::{EventStateManagerToEngine, GoodShardsStatus};
 use crate::types::{CommitteeId, MessageRoot};
-use crate::{MerkleProof, PropellerUnit, ShardIndex};
+use crate::{MerkleProof, PropellerUnit, Shard, ShardIndex, ShardsOfPeer};
 
 const TEST_COMMITTEE_ID: CommitteeId = CommitteeId([1; 32]);
 const BASE_TIMESTAMP_NS: u64 = 1_000_000;
@@ -37,8 +38,8 @@ fn setup() -> TestSetup {
         .register_committee(
             TEST_COMMITTEE_ID,
             vec![
-                (engine.local_peer_id, 10, None),
-                (publisher, 10, Some(publisher_keypair.public())),
+                (engine.local_peer_id, StakingWeight(10), None),
+                (publisher, StakingWeight(10), Some(publisher_keypair.public())),
             ],
         )
         .unwrap();
@@ -53,7 +54,7 @@ fn make_unit(publisher: PeerId, nonce: u64, root: MessageRoot) -> PropellerUnit 
         root,
         vec![0; 64],
         ShardIndex(0),
-        vec![1, 2, 3],
+        ShardsOfPeer(vec![Shard(vec![1, 2, 3])]),
         MerkleProof { siblings: vec![] },
         nonce,
     )
@@ -69,6 +70,7 @@ fn finalize_message(engine: &mut Engine, publisher: PeerId, nonce: u64, root: Me
         publisher,
         nonce,
         message_root: root,
+        shard_status: GoodShardsStatus::SomeGoodShardsReceived,
     });
 }
 
