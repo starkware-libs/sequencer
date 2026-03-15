@@ -181,30 +181,20 @@ set_operation_success_status(true)
 
 // BAD - What do the values of the parameters mean?
 create_transaction(true, false)
-connect("server", None)
+find_prime_numbers(None)
 ```
 
 The tools you have at your disposal are:
-1. Define enums for the parameters
+1. Define enum for each parameter
 ```rust
 create_transaction(DryRunStatus::Enabled, ExecutionStatus::Disabled)
-connect("server", Logging::Disabled)
+find_prime_numbers(Logging::Disabled)
 ```
-2. Define a struct for the function parameters
+2. Define a struct for all the function parameters
 ```rust
 create_transaction(CreateTransactionArgs { is_dry_run: true, is_executable: false })
 ```
-3. Make a builder API where each parameter is a function that adds the parameter to the builder
-```rust
-TransactionBuilder::new().with_dry_run(true).with_execution_status(false).build();
-```
-4. If there's a single parameter, you can rename the function to capture the name of the parameter too
-```rust
-create_transaction_from_dry_run_status(true);
-```
-
-If you can't control the API, add names at the callsite by defining variables
-
+3. If you prefer not to change the API or can't, add names at the callsite by defining variables. Note that the compiler won't enforce adjusting the callsite when the API changes.
 ```rust
 let is_dry_run = true;
 let is_executable = false;
