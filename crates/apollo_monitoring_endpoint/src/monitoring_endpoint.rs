@@ -1,5 +1,6 @@
 use std::io::Error;
 use std::net::SocketAddr;
+use std::time::Duration;
 
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::trace_util::{configure_tracing, get_log_directives, set_log_level};
@@ -16,6 +17,7 @@ use axum::{serve, Json, Router};
 use http::StatusCode;
 use metrics_exporter_prometheus::PrometheusHandle;
 use tokio::net::TcpListener;
+use tokio::time::timeout;
 use tracing::level_filters::LevelFilter;
 use tracing::{error, info, instrument};
 
@@ -81,6 +83,8 @@ impl MonitoringEndpoint {
         let prometheus_handle = self.prometheus_handle.clone();
         let mempool_client = self.mempool_client.clone();
         let l1_events_provider_client = self.l1_events_provider_client.clone();
+        let snapshot_timeout =
+            Duration::from_millis(self.config.snapshot_timeout_millis);
 
         Router::new()
             .route(
@@ -101,11 +105,11 @@ impl MonitoringEndpoint {
             )
             .route(
                 format!("/{MONITORING_PREFIX}/{MEMPOOL_SNAPSHOT}").as_str(),
-                get(move || mempool_snapshot(mempool_client)),
+                get(move || mempool_snapshot(mempool_client, snapshot_timeout)),
             )
             .route(
                 format!("/{MONITORING_PREFIX}/{L1_EVENTS_PROVIDER_SNAPSHOT}").as_str(),
-                get(move || get_l1_events_provider_snapshot(l1_events_provider_client)),
+                get(move || get_l1_events_provider_snapshot(l1_events_provider_client, snapshot_timeout)),
             )
             .route(
                 format!("/{MONITORING_PREFIX}/{SET_LOG_LEVEL}/{{crate}}/{{level}}").as_str(),
@@ -158,22 +162,28 @@ async fn metrics(prometheus_handle: Option<PrometheusHandle>) -> Response {
 #[instrument(level = "debug", skip(mempool_client))]
 async fn mempool_snapshot(
     mempool_client: Option<SharedMempoolClient>,
+    snapshot_timeout: Duration,
 ) -> Result<Json<MempoolSnapshot>, StatusCode> {
     match mempool_client {
         Some(client) => {
             // Wrap the mempool client interaction with a tokio::spawn as it is NOT cancel-safe.
             // Even if the current task is cancelled, e.g., when a request is dropped while still
             // being processed, the inner task will continue to run.
-            let mempool_snapshot_result =
-                tokio::spawn(async move { client.get_mempool_snapshot().await })
-                    .await
-                    .expect("Should be able to get mempool_snapshot result");
-
-            match mempool_snapshot_result {
-                Ok(snapshot) => Ok(snapshot.into()),
-                Err(err) => {
-                    error!("Failed to get mempool snapshot: {:?}", err);
-                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+            let get_mempool_snapshot_task =
+                tokio::spawn(async move { client.get_mempool_snapshot().await });
+            match timeout(snapshot_timeout, get_mempool_snapshot_task).await {
+                Err(_elapsed) => {
+                    error!("Timed out waiting for mempool snapshot");
+                    Err(StatusCode::GATEWAY_TIMEOUT)
+                }
+                Ok(join_result) => {
+                    match join_result.expect("Should be able to get mempool_snapshot result") {
+                        Ok(snapshot) => Ok(snapshot.into()),
+                        Err(err) => {
+                            error!("Failed to get mempool snapshot: {:?}", err);
+                            Err(StatusCode::INTERNAL_SERVER_ERROR)
+                        }
+                    }
                 }
             }
         }
@@ -185,22 +195,28 @@ async fn mempool_snapshot(
 #[instrument(level = "debug", skip(l1_events_provider_client))]
 async fn get_l1_events_provider_snapshot(
     l1_events_provider_client: Option<SharedL1EventsProviderClient>,
+    snapshot_timeout: Duration,
 ) -> Result<Json<L1EventsProviderSnapshot>, StatusCode> {
     match l1_events_provider_client {
         Some(client) => {
             // Wrap the l1 client interaction with a tokio::spawn as it is NOT cancel-safe.
             // Even if the current task is cancelled, e.g., when a request is dropped while still
             // being processed, the inner task will continue to run.
-            let l1_events_provider_snapshot_result =
-                tokio::spawn(async move { client.get_l1_events_provider_snapshot().await })
-                    .await
-                    .expect("Should be able to get l1 provider result");
-
-            match l1_events_provider_snapshot_result {
-                Ok(snapshot) => Ok(snapshot.into()),
-                Err(err) => {
-                    error!("Failed to get L1 provider snapshot: {:?}", err);
-                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+            let get_l1_events_provider_snapshot_task =
+                tokio::spawn(async move { client.get_l1_events_provider_snapshot().await });
+            match timeout(snapshot_timeout, get_l1_events_provider_snapshot_task).await {
+                Err(_elapsed) => {
+                    error!("Timed out waiting for L1 events provider snapshot");
+                    Err(StatusCode::GATEWAY_TIMEOUT)
+                }
+                Ok(join_result) => {
+                    match join_result.expect("Should be able to get l1 provider result") {
+                        Ok(snapshot) => Ok(snapshot.into()),
+                        Err(err) => {
+                            error!("Failed to get L1 provider snapshot: {:?}", err);
+                            Err(StatusCode::INTERNAL_SERVER_ERROR)
+                        }
+                    }
                 }
             }
         }

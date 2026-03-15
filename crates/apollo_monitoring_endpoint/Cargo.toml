@@ -28,13 +28,14 @@ hyper-util.workspace = true
 metrics-exporter-prometheus.workspace = true
 num-traits = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
-tokio = { workspace = true, features = ["net", "rt"] }
+tokio = { workspace = true, features = ["net", "rt", "time"] }
 tower = { workspace = true, optional = true }
 tracing.workspace = true
 
 [dev-dependencies]
 apollo_l1_events_types = { workspace = true, features = ["testing"] }
 apollo_mempool_types = { workspace = true, features = ["testing"] }
+indexmap.workspace = true
 apollo_metrics = { workspace = true, features = ["testing"] }
 metrics.workspace = true
 num-traits.workspace = true
