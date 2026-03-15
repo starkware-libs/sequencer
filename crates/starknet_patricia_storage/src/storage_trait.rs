@@ -131,6 +131,9 @@ pub trait ReadOnlyStorage: Send {
         &mut self,
         keys: &[&DbKey],
     ) -> impl Future<Output = PatriciaStorageResult<Vec<Option<DbValue>>>> + Send;
+
+    /// Returns an immutable reference to the storage if it supports concurrent reads.
+    fn get_immutable_read_only_self(&self) -> Option<&impl ImmutableReadOnlyStorage>;
 }
 
 /// A trait for the storage. Extends [ReadOnlyStorage] with write operations.
@@ -219,6 +222,10 @@ impl ReadOnlyStorage for NullStorage {
 
     async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         ImmutableReadOnlyStorage::mget(self, keys).await
+    }
+
+    fn get_immutable_read_only_self(&self) -> Option<&impl ImmutableReadOnlyStorage> {
+        Some(self)
     }
 }
 
