@@ -112,13 +112,11 @@ impl<L: Leaf> DBObject for FactDbFilledNode<L> {
         deserialize_context: &Self::DeserializeContext,
     ) -> Result<Self, DeserializationError> {
         if deserialize_context.is_leaf {
-            return Ok(Self(FilledNode {
+            Ok(Self(FilledNode {
                 hash: deserialize_context.node_hash,
                 data: NodeData::Leaf(L::deserialize(value, &EmptyDeserializationContext)?),
-            }));
-        }
-
-        if value.0.len() == BINARY_BYTES {
+            }))
+        } else if value.0.len() == BINARY_BYTES {
             Ok(Self(FilledNode {
                 hash: deserialize_context.node_hash,
                 data: NodeData::Binary(BinaryData {
@@ -130,15 +128,7 @@ impl<L: Leaf> DBObject for FactDbFilledNode<L> {
                     )),
                 }),
             }))
-        } else {
-            assert_eq!(
-                value.0.len(),
-                EDGE_BYTES,
-                "Unexpected inner node storage value length {}, expected to be {} or {}.",
-                value.0.len(),
-                EDGE_BYTES,
-                BINARY_BYTES
-            );
+        } else if value.0.len() == EDGE_BYTES {
             Ok(Self(FilledNode {
                 hash: deserialize_context.node_hash,
                 data: NodeData::Edge(EdgeData {
@@ -158,6 +148,12 @@ impl<L: Leaf> DBObject for FactDbFilledNode<L> {
                     .map_err(|error| DeserializationError::ValueError(Box::new(error)))?,
                 }),
             }))
+        } else {
+            Err(DeserializationError::UnexpectedInnerNodeBitLength {
+                actual: value.0.len(),
+                expected_edge: EDGE_BYTES,
+                expected_binary: BINARY_BYTES,
+            })
         }
     }
 }
