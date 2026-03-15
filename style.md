@@ -77,7 +77,9 @@ the former will display the error, and the latter will simply say `expected True
 -   Avoid doing too many things in one test with a single assert at the end, unless other tests exist that cover enough parts of the test separately so that finding the source will be simple.
 
 ### Integration and Flow Tests
-Use unit tests for short (< 1 sec) and threadsafe tests, otherwise put these tests in `tests/` at the crate root. Benefits of `tests/`:
+Unit tests should be short (< 1 sec) and deterministic, unless there's a specific reason otherwise.
+
+Other tests should be under `tests/` at the crate root. Benefits of `tests/`:
 
 - Runs without `cfg(test)`, simulating real usage.
 - Each test file runs sequentially, avoiding thread-safety issues.
