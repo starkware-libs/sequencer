@@ -281,43 +281,6 @@ let is_executable = false;
 create_transaction(is_dry_run, is_executable)
 ```
 
-### Re-exports - For Internal Items.
-
-Avoid re-exporting internal items of the crate.
-
-Rationale: two import paths for a single item create needless choice.
-
-Example: an internal re-export is typically made in `lib.rs`:
-
-```rust
-// BAD
-// Filename: lib.rs
-pub use crate::some::type::Foo;
-```
-
-This re-export makes both of these import paths work and point to the same Foo:
-
-```rust
-use crate::Foo;
-use crate::some::type::Foo;
-```
-
-Alternative: none, avoid internal re-exports completely.
-
-### Re-exports - For External Items
-
-Avoid re-exporting external items in most cases.
-
-Rationale: this is usually done to avoid exposing inner types (see [APIs](#APIs)), but it also pulls in trait-impls of the type and adds them to the crate's namespace, polluting the namespace.
-
-Example: a re-export for an external type is:
-
-```rust
-pub use <some_3rd_party_crate>::some::type::Bar;
-```
-
-The above internalizes `Bar` as an inner type of the re-exporting crate. This by-itself can be nice-to-have sometimes due to [APIs](#APIs), however this will also internalize all `impl trait for Bar` into the current crate, which almost always isn't what we want.
-
 ## Logging
 
 Every piece of information that can help debug a specific flow or be useful to know the state of the system should be logged.
