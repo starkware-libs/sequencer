@@ -76,6 +76,9 @@ the former will display the error, and the latter will simply say `expected True
     -    If you're not interested in the value, or if error type doesn't implement `PartialEq`, simply call `result.unwrap()`
 -   Avoid doing too many things in one test with a single assert at the end, unless other tests exist that cover enough parts of the test separately so that finding the source will be simple.
 
+Avoid having many tests that all test the same thing. Each test should check a unique edge case or scenario.
+Don't add the same test with different inputs.
+
 ### Integration and Flow Tests
 Use unit tests for short (< 1 sec) and threadsafe tests, otherwise use cargo integration tests:
 
