@@ -3021,3 +3021,34 @@ async fn test_get_block_hash_current_block_number() {
     let test_output = test_builder.build_and_run().await;
     test_output.perform_default_validations();
 }
+
+#[rstest]
+#[tokio::test]
+async fn test_naive_blake_hash_cairo1_vs_rust() {
+    use starknet_os::hints::hint_implementation::state_diff_encryption::utils::calc_blake_hash;
+
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_builder, [contract_address]) = TestBuilder::create_standard_with_config(
+        [(test_contract, calldata![Felt::ZERO, Felt::ZERO])],
+        TestBuilderConfig { use_kzg_da: true, ..Default::default() },
+    )
+    .await;
+
+    let test_cases: Vec<Vec<Felt>> = vec![
+        vec![],
+        vec![Felt::from(42)],
+        vec![Felt::from(12), Felt::from(34)],
+        (0..20).map(Felt::from).collect(),
+    ];
+
+    for test_data in &test_cases {
+        let expected_hash = calc_blake_hash(test_data);
+        let mut args = vec![expected_hash, Felt::from(test_data.len())];
+        args.extend(test_data);
+        let calldata = create_calldata(contract_address, "test_naive_blake_hash", &args);
+        test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+    }
+
+    let test_output = test_builder.build_and_run().await;
+    test_output.perform_default_validations();
+}

@@ -4,6 +4,9 @@ mod TestContract {
     use box::BoxTrait;
     use clone::Clone;
     use core::blake::{blake2s_compress, blake2s_finalize};
+    #[feature("bounded-int-utils")]
+    use core::internal::bounded_int::{BoundedInt, DivRemHelper, div_rem as bi_div_rem};
+    use core::integer::upcast;
     use core::bytes_31::POW_2_128;
     use core::circuit::{
         AddInputResultTrait, CircuitElement, CircuitInput, CircuitInputs, CircuitModulus,
@@ -1444,5 +1447,107 @@ mod TestContract {
         } else {
             panic!("Unexpected syscall selector");
         }
+    }
+
+    // Computes the naive Blake2s hash of the given felts and asserts it matches expected_hash.
+    #[external(v0)]
+    fn test_naive_blake_hash(
+        self: @ContractState, expected_hash: felt252, data: Span<felt252>,
+    ) {
+        let computed_hash = naive_blake_hash(data);
+        assert(computed_hash == expected_hash, 'BLAKE_HASH_MISMATCH');
+    }
+
+    type U32Limb = BoundedInt<0, 0xFFFFFFFF>;
+    type U64Limb = BoundedInt<0, 0xFFFFFFFFFFFFFFFF>;
+    type U96Limb = BoundedInt<0, 0xFFFFFFFFFFFFFFFFFFFFFFFF>;
+    type U32Shift = BoundedInt<0x100000000, 0x100000000>;
+
+    impl DivRemU128ByU32 of DivRemHelper<u128, U32Shift> {
+        type DivT = U96Limb;
+        type RemT = U32Limb;
+    }
+    impl DivRemU96ByU32 of DivRemHelper<U96Limb, U32Shift> {
+        type DivT = U64Limb;
+        type RemT = U32Limb;
+    }
+    impl DivRemU64ByU32 of DivRemHelper<U64Limb, U32Shift> {
+        type DivT = U32Limb;
+        type RemT = U32Limb;
+    }
+
+    const NZ_U32_SHIFT: NonZero<U32Shift> = 0x100000000;
+
+    // Adapted from https://github.com/starkware-libs/stwo-cairo/blob/b3244cf/stwo_cairo_verifier/crates/verifier_utils/src/lib.cairo.
+    fn deconstruct_f252(x: felt252, ref output: Array<u32>) {
+        let u256 { low, high } = x.into();
+        let (q, r0) = bi_div_rem(low, NZ_U32_SHIFT);
+        let (q, r1) = bi_div_rem(q, NZ_U32_SHIFT);
+        let (r3, r2) = bi_div_rem(q, NZ_U32_SHIFT);
+        let (q, r4) = bi_div_rem(high, NZ_U32_SHIFT);
+        let (q, r5) = bi_div_rem(q, NZ_U32_SHIFT);
+        let (r7, r6) = bi_div_rem(q, NZ_U32_SHIFT);
+        output.append(upcast(r0));
+        output.append(upcast(r1));
+        output.append(upcast(r2));
+        output.append(upcast(r3));
+        output.append(upcast(r4));
+        output.append(upcast(r5));
+        output.append(upcast(r6));
+        output.append(upcast(r7));
+    }
+
+    // Adapted from https://github.com/starkware-libs/stwo-cairo/blob/b3244cf/stwo_cairo_verifier/crates/verifier_utils/src/lib.cairo.
+    fn construct_f252(x: [u32; 8]) -> felt252 {
+        let [l0, l1, l2, l3, l4, l5, l6, l7] = x;
+        let offset = 0x100000000;
+        let result: felt252 = l7.into();
+        let result = result * offset + l6.into();
+        let result = result * offset + l5.into();
+        let result = result * offset + l4.into();
+        let result = result * offset + l3.into();
+        let result = result * offset + l2.into();
+        let result = result * offset + l1.into();
+        result * offset + l0.into()
+    }
+
+    // Adapted from https://github.com/starkware-libs/stwo-cairo/blob/edfe75c/stwo_cairo_verifier/crates/verifier_utils/src/blake2s.cairo.
+    fn hash_u32s(mut values: Span<u32>) -> Box<[u32; 8]> {
+        let mut state = BoxTrait::new([
+            0x6B08E647, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A,
+            0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19,
+        ]);
+        let mut byte_count: u32 = 0;
+        if let Some(mut msg) = values.multi_pop_front::<16>() {
+            byte_count += 64;
+            while let Some(head) = values.multi_pop_front::<16>() {
+                state = blake2s_compress(state, byte_count, *msg);
+                msg = head;
+                byte_count += 64;
+            };
+
+            if values.is_empty() {
+                return blake2s_finalize(state, byte_count, *msg);
+            }
+
+            state = blake2s_compress(state, byte_count, *msg);
+        }
+
+        let mut msg = array![];
+        let i = values.len();
+        msg.append_span(values);
+        for _ in i..16 {
+            msg.append(0);
+        };
+        byte_count += i * 4;
+        blake2s_finalize(state, byte_count, *msg.span().try_into().unwrap())
+    }
+
+    fn naive_blake_hash(data: Span<felt252>) -> felt252 {
+        let mut u32_words: Array<u32> = array![];
+        for felt in data {
+            deconstruct_f252(*felt, ref u32_words);
+        };
+        construct_f252(hash_u32s(u32_words.span()).unbox())
     }
 }
