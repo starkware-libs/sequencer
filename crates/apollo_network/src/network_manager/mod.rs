@@ -107,6 +107,8 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
     metrics: Option<NetworkMetrics>,
     committee_store: ActiveCommittees,
+    #[cfg(any(test, feature = "testing"))]
+    connection_event_sender: Option<futures::channel::mpsc::UnboundedSender<PeerId>>,
 }
 
 impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
@@ -191,6 +193,15 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         todo!("Wire remaining AddEpochOutput fields to behaviours");
     }
 
+    #[cfg(any(test, feature = "testing"))]
+    pub fn subscribe_to_connection_events(
+        &mut self,
+    ) -> futures::channel::mpsc::UnboundedReceiver<PeerId> {
+        let (sender, receiver) = futures::channel::mpsc::unbounded();
+        self.connection_event_sender = Some(sender);
+        receiver
+    }
+
     // TODO(shahak): remove the advertised_multiaddr arg once we manage external addresses
     // in a behaviour.
     pub(crate) fn generic_new(
@@ -228,6 +239,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             continue_propagation_receiver,
             metrics,
             committee_store,
+            #[cfg(any(test, feature = "testing"))]
+            connection_event_sender: None,
         }
     }
 
@@ -696,6 +709,10 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                     if num_established.get() == 1 {
                         metrics.num_connected_peers.increment(1);
                     }
+                }
+                #[cfg(any(test, feature = "testing"))]
+                if let Some(sender) = &self.connection_event_sender {
+                    let _ = sender.unbounded_send(peer_id);
                 }
             }
             SwarmEvent::ConnectionClosed {
