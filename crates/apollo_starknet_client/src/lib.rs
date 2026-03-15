@@ -94,6 +94,7 @@ impl StarknetClient {
         http_headers: Option<Sensitive<HashMap<String, String>>>,
         node_version: &'static str,
         retry_config: RetryConfig,
+        use_compression: bool,
     ) -> Result<Self, ClientCreationError> {
         let header_map = match http_headers {
             Some(inner) => (&inner.expose_secret())
@@ -112,7 +113,10 @@ impl StarknetClient {
         );
         Ok(StarknetClient {
             http_headers: header_map,
-            internal_client: Client::builder().user_agent(app_user_agent).build()?,
+            internal_client: Client::builder()
+                .user_agent(app_user_agent)
+                .gzip(use_compression)
+                .build()?,
             retry_config,
         })
     }
