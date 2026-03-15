@@ -21,6 +21,12 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
 };
+use apollo_transaction_converter::proof_verification::VerifyProofError;
+use apollo_transaction_converter::{
+    MockTransactionConverterTrait,
+    TransactionConverterError,
+    VerifyAndStoreProofTask,
+};
 use assert_matches::assert_matches;
 use futures::channel::mpsc;
 use futures::SinkExt;
@@ -41,6 +47,7 @@ use crate::test_utils::{
     SetupDepsArgs,
     TestDeps,
     CHANNEL_SIZE,
+    INTERNAL_TX_BATCH,
     TIMEOUT,
     TX_BATCH,
 };
@@ -337,6 +344,62 @@ async fn batcher_returns_invalid_proposal() {
 
     let res = validate_proposal(proposal_args.into()).await;
     assert!(matches!(res, Err(ValidateProposalError::InvalidProposal(_))));
+}
+
+#[tokio::test]
+async fn proof_verification_failure_aborts_proposal() {
+    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
+
+    // Replace the default tx converter with one that returns a failing verification task.
+    let mut mock_tx_converter = MockTransactionConverterTrait::new();
+    for (tx, internal_tx) in TX_BATCH.iter().zip(INTERNAL_TX_BATCH.iter()) {
+        let internal_tx = internal_tx.clone();
+        mock_tx_converter
+            .expect_convert_consensus_tx_to_internal_consensus_tx()
+            .withf(move |input| input == tx)
+            .returning(move |_| {
+                let task: VerifyAndStoreProofTask = tokio::spawn(async {
+                    Err(TransactionConverterError::ProofVerificationError(
+                        VerifyProofError::ProofFactsMismatch,
+                    ))
+                });
+                Ok((internal_tx.clone(), Some(task)))
+            });
+    }
+    proposal_args.deps.transaction_converter = mock_tx_converter;
+
+    proposal_args.deps.batcher.expect_validate_block().returning(|_| Ok(()));
+    proposal_args.deps.batcher.expect_send_proposal_content().returning(
+        |input: SendProposalContentInput| match input.content {
+            SendProposalContent::Txs(_) => {
+                Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
+            }
+            SendProposalContent::Abort => {
+                Ok(SendProposalContentResponse { response: ProposalStatus::Aborted })
+            }
+            other => panic!("Unexpected send_proposal_content: {other:?}"),
+        },
+    );
+
+    content_sender
+        .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.clone() }))
+        .await
+        .unwrap();
+    content_sender
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_commitment: ConsensusProposalCommitment::default(),
+            executed_transaction_count: 1,
+            fin_payload: None,
+        }))
+        .await
+        .unwrap();
+
+    let res = validate_proposal(proposal_args.into()).await;
+    assert_matches!(
+        res,
+        Err(ValidateProposalError::ProposalPartFailed(msg, _))
+            if msg.contains("Proof facts do not match proof output")
+    );
 }
 
 #[rstest]
