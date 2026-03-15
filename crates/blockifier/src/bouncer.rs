@@ -575,6 +575,8 @@ impl Bouncer {
     }
 
     /// Updates the bouncer with a new transaction.
+    // TODO(Dan): refactor to reduce the number of arguments.
+    #[allow(clippy::too_many_arguments)]
     pub fn try_update<S: StateReader>(
         &mut self,
         state_reader: &S,
@@ -583,6 +585,7 @@ impl Bouncer {
         tx_builtin_counters: &CairoPrimitiveCounterMap,
         tx_resources: &TransactionResources,
         versioned_constants: &VersionedConstants,
+        receipt_l2_gas: GasAmount,
     ) -> TransactionExecutorResult<()> {
         // The countings here should be linear in the transactional state changes and execution info
         // rather than the cumulative state attributes.
@@ -606,6 +609,7 @@ impl Bouncer {
             versioned_constants,
             tx_builtin_counters,
             &self.bouncer_config,
+            receipt_l2_gas,
         )?;
 
         let tx_bouncer_weights = tx_weights.bouncer_weights;
@@ -857,6 +861,7 @@ pub fn get_tx_weights<S: StateReader>(
     versioned_constants: &VersionedConstants,
     tx_cairo_primitives_counters: &CairoPrimitiveCounterMap,
     bouncer_config: &BouncerConfig,
+    receipt_l2_gas: GasAmount,
 ) -> TransactionExecutionResult<TxWeights> {
     let message_resources = &tx_resources.starknet_resources.messages;
     let message_starknet_l1gas = usize_from_u64(message_resources.get_starknet_gas_cost().l1_gas.0)
@@ -935,7 +940,7 @@ pub fn get_tx_weights<S: StateReader>(
         sierra_gas: total_sierra_gas,
         n_txs: 1,
         proving_gas: total_proving_gas,
-        receipt_l2_gas: GasAmount::ZERO,
+        receipt_l2_gas,
     };
 
     Ok(TxWeights {
@@ -1013,6 +1018,8 @@ pub fn get_patricia_update_resources(
     &resources_per_tree_access * (n_visited_storage_entries + n_first_time_modified_storage_entries)
 }
 
+// TODO(Dan): refactor to reduce the number of arguments.
+#[allow(clippy::too_many_arguments)]
 pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
     state_reader: &S,
     tx_execution_summary: &ExecutionSummary,
@@ -1021,6 +1028,7 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
     tx_state_changes_keys: &StateChangesKeys,
     bouncer_config: &BouncerConfig,
     versioned_constants: &VersionedConstants,
+    receipt_l2_gas: GasAmount,
 ) -> TransactionExecutionResult<()> {
     let tx_weights = get_tx_weights(
         state_reader,
@@ -1031,6 +1039,7 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
         versioned_constants,
         tx_builtin_counters,
         bouncer_config,
+        receipt_l2_gas,
     )?
     .bouncer_weights;
 
