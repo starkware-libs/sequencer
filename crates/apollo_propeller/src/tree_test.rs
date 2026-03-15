@@ -2,7 +2,7 @@ use libp2p::PeerId;
 use rstest::rstest;
 
 use crate::tree::PropellerScheduleManager;
-use crate::types::{PeerSetError, ShardIndex, ShardValidationError, TreeGenerationError};
+use crate::types::{PeerSetError, ShardIndex, ShardValidationError, ScheduleError};
 
 // TODO(AndrewL): Move this to test_utils crate.
 pub fn get_peer_id(index: u8) -> PeerId {
@@ -81,11 +81,11 @@ fn test_new_schedule_manager_without_local_peer() {
 #[case::shard_0_published_by_peer1_maps_to_peer0(ShardIndex(0), Ok(0))]
 #[case::shard_1_published_by_peer1_maps_to_peer2(ShardIndex(1), Ok(2))]
 #[case::shard_2_published_by_peer1_maps_to_peer3(ShardIndex(2), Ok(3))]
-#[case::shard_3_out_of_bounds(ShardIndex(3), Err(TreeGenerationError::ShardIndexOutOfBounds { shard_index: ShardIndex(3) }))]
-#[case::shard_4_out_of_bounds(ShardIndex(4), Err(TreeGenerationError::ShardIndexOutOfBounds { shard_index: ShardIndex(4) }))]
+#[case::shard_3_out_of_bounds(ShardIndex(3), Err(ScheduleError::ShardIndexOutOfBounds { shard_index: ShardIndex(3) }))]
+#[case::shard_4_out_of_bounds(ShardIndex(4), Err(ScheduleError::ShardIndexOutOfBounds { shard_index: ShardIndex(4) }))]
 fn test_get_peer_for_shard_id(
     #[case] shard_index: ShardIndex,
-    #[case] expected_result: Result<usize, TreeGenerationError>,
+    #[case] expected_result: Result<usize, ScheduleError>,
 ) {
     let schedule_manager = make_schedule_manager(0, 4);
     let publisher = schedule_manager.get_nodes()[1].0; // Use peer1 as publisher
@@ -221,13 +221,13 @@ fn test_get_my_shard_index_given_publisher() {
     // When local peer (peer2) is publisher, should return error
     assert!(matches!(
         manager.get_my_shard_index_given_publisher(&peer2),
-        Err(TreeGenerationError::LocalPeerIsPublisher)
+        Err(ScheduleError::LocalPeerIsPublisher)
     ));
 
     // When publisher is not in channel, should return error
     let unknown_peer = get_peer_id(99);
     assert!(matches!(
         manager.get_my_shard_index_given_publisher(&unknown_peer),
-        Err(TreeGenerationError::PublisherNotInChannel { .. })
+        Err(ScheduleError::PublisherNotInChannel { .. })
     ));
 }

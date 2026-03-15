@@ -50,7 +50,7 @@ pub use types::{
     ShardIndex,
     ShardPublishError,
     ShardValidationError,
-    TreeGenerationError,
+    ScheduleError,
 };
 pub use unit::PropellerUnit;
 pub use unit_validator::UnitValidator;
