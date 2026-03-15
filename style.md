@@ -70,7 +70,6 @@ Take extra care when reviewing ai-generated code for these issues:
 
 A failure in a unit test should immediately point to the source of the issue, and the clearly display the error encountered. Moreover, it should be possible to debug a test even if the test writer is not available, for example:
 
--   add `#[track_caller]` on test-utils which include a critical assert, so that the trace will be the callsite in the test
 -   use `assert_eq(result, Ok(<Value>))` over `assert!(result.is_ok())` ---
 the former will display the error, and the latter will simply say `expected True, got False`.
     -    If you're not interested in the value, or if error type doesn't implement `PartialEq`, simply call `result.unwrap()`
