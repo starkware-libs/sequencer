@@ -36,6 +36,8 @@ use crate::requests::LabeledRequest;
 use crate::serde_utils::SerdeWrapper;
 
 pub const DEFAULT_RETRIES: usize = 15;
+pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "request timed out";
+
 const DEFAULT_IDLE_CONNECTIONS: usize = 10;
 const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
 const DEFAULT_MAX_RETRY_INTERVAL_MS: u64 = 1000;
@@ -249,7 +251,7 @@ where
                     "HTTP request to {} timed out after {} ms",
                     self.uri, self.config.request_timeout_ms
                 );
-                Err(ClientError::CommunicationFailure("request timed out".to_string()))
+                Err(ClientError::CommunicationFailure(REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()))
             }
         }
     }

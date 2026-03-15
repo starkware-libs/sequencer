@@ -34,6 +34,7 @@ use crate::component_client::{
     LocalComponentClient,
     RemoteClientConfig,
     RemoteComponentClient,
+    REQUEST_TIMEOUT_ERROR_MESSAGE,
 };
 use crate::component_definitions::{
     ComponentClient,
@@ -497,6 +498,43 @@ async fn unconnected_server() {
         &TEST_REMOTE_CLIENT_METRICS,
     );
     let expected_error_contained_keywords = ["client error (Connect)"];
+    verify_error(client, &expected_error_contained_keywords).await;
+}
+
+/// Server that accepts the connection and request but never sends a response (handler never
+/// completes). Verifies the client times out and returns
+/// CommunicationFailure(REQUEST_TIMEOUT_ERROR_MESSAGE).
+#[tokio::test]
+async fn request_times_out_when_server_never_responds() {
+    let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();
+    task::spawn(async move {
+        async fn handler_that_never_responds(
+            _http_request: Request<Incoming>,
+        ) -> Result<Response<Full<Bytes>>, Infallible> {
+            std::future::pending().await
+        }
+
+        let listener = TcpListener::bind(&socket).await.unwrap();
+        let (stream, _) = listener.accept().await.unwrap();
+        let io = TokioIo::new(stream);
+        let service = service_fn(|req| async move { handler_that_never_responds(req).await });
+        let _ = Http2ServerBuilder::new(TokioExecutor::new())
+            .http2()
+            .serve_connection(io, service)
+            .await;
+    });
+
+    task::yield_now().await;
+
+    let timeout_config =
+        RemoteClientConfig { request_timeout_ms: 200, retries: 0, ..FAST_FAILING_CLIENT_CONFIG };
+    let client = ComponentAClient::new(
+        timeout_config,
+        &socket.ip().to_string(),
+        socket.port(),
+        &TEST_REMOTE_CLIENT_METRICS,
+    );
+    let expected_error_contained_keywords = [REQUEST_TIMEOUT_ERROR_MESSAGE];
     verify_error(client, &expected_error_contained_keywords).await;
 }
 
