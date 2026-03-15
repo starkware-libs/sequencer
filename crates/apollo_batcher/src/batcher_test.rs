@@ -1055,11 +1055,23 @@ async fn add_sync_block(
     storage_reader.expect_state_diff_height().returning(move || Ok(block_number));
     storage_reader.expect_global_root_height().returning(move || Ok(block_number));
 
+    storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(block_number))
+        .returning(|_| {
+            Ok((Some(BlockHash::default()), Some(PartialBlockHashComponents::default())))
+        });
+
     let mut storage_writer = MockBatcherStorageWriter::new();
     storage_writer
         .expect_commit_proposal()
         .times(1)
         .with(eq(block_number), eq(test_state_diff()), eq(storage_commitment_block_hash))
+        .returning(|_, _, _| Ok(()));
+    storage_writer
+        .expect_set_global_root_and_block_hash()
+        .times(1)
+        .with(eq(block_number), eq(GlobalRoot::default()), always())
         .returning(|_, _, _| Ok(()));
 
     mock_clients
@@ -1239,6 +1251,20 @@ async fn add_sync_block_for_first_new_block() {
         )
         .returning(|_, _, _| Ok(()));
 
+    mock_dependencies
+        .storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH))
+        .returning(|_| {
+            Ok((Some(BlockHash::default()), Some(PartialBlockHashComponents::default())))
+        });
+    mock_dependencies
+        .storage_writer
+        .expect_set_global_root_and_block_hash()
+        .times(1)
+        .with(eq(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH), eq(GlobalRoot::default()), always())
+        .returning(|_, _, _| Ok(()));
+
     let mut batcher = create_batcher(mock_dependencies).await;
 
     let sync_block = SyncBlock {
@@ -1338,7 +1364,9 @@ async fn revert_block() {
 
     assert_eq!(*(committer_offset.lock().await), INITIAL_HEIGHT);
     batcher.revert_block(revert_input).await.unwrap();
-    assert_eq!(*committer_offset.lock().await, LATEST_BLOCK_IN_STORAGE);
+    // TODO(Einat): Restore LATEST_BLOCK_IN_STORAGE assertion when the committer is enabled.
+    // revert_commitment is currently disabled, so the offset stays unchanged.
+    assert_eq!(*committer_offset.lock().await, INITIAL_HEIGHT);
 
     let metrics = recorder.handle().render();
     assert_eq!(BUILDING_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0 - 1));
@@ -1433,6 +1461,19 @@ async fn decision_reached() {
         .returning(|_| {
             Ok((Some(BlockHash::default()), Some(PartialBlockHashComponents::default())))
         });
+    mock_dependencies
+        .storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(INITIAL_HEIGHT))
+        .returning(|_| {
+            Ok((Some(BlockHash::default()), Some(PartialBlockHashComponents::default())))
+        });
+    mock_dependencies
+        .storage_writer
+        .expect_set_global_root_and_block_hash()
+        .times(1)
+        .with(eq(INITIAL_HEIGHT), eq(GlobalRoot::default()), always())
+        .returning(|_, _, _| Ok(()));
 
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.clients.block_builder_factory,
@@ -1513,6 +1554,19 @@ async fn test_execution_info_order_is_kept() {
         .returning(|_| {
             Ok((Some(BlockHash::default()), Some(PartialBlockHashComponents::default())))
         });
+    mock_dependencies
+        .storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(INITIAL_HEIGHT))
+        .returning(|_| {
+            Ok((Some(BlockHash::default()), Some(PartialBlockHashComponents::default())))
+        });
+    mock_dependencies
+        .storage_writer
+        .expect_set_global_root_and_block_hash()
+        .times(1)
+        .with(eq(INITIAL_HEIGHT), eq(GlobalRoot::default()), always())
+        .returning(|_, _, _| Ok(()));
 
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.clients.block_builder_factory,
@@ -1606,6 +1660,19 @@ async fn decision_reached_return_success_when_l1_commit_block_fails(
         .returning(|_| {
             Ok((Some(BlockHash::default()), Some(PartialBlockHashComponents::default())))
         });
+    mock_dependencies
+        .storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(INITIAL_HEIGHT))
+        .returning(|_| {
+            Ok((Some(BlockHash::default()), Some(PartialBlockHashComponents::default())))
+        });
+    mock_dependencies
+        .storage_writer
+        .expect_set_global_root_and_block_hash()
+        .times(1)
+        .with(eq(INITIAL_HEIGHT), eq(GlobalRoot::default()), always())
+        .returning(|_, _, _| Ok(()));
 
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.clients.block_builder_factory,

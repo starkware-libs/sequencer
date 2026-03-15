@@ -72,6 +72,7 @@ use indexmap::{IndexMap, IndexSet};
 use mockall::automock;
 use starknet_api::block::{BlockHash, BlockNumber, UnixTimestamp};
 use starknet_api::block_hash::block_hash_calculator::{
+    calculate_block_hash,
     PartialBlockHash,
     PartialBlockHashComponents,
 };
@@ -185,7 +186,8 @@ pub struct Batcher {
     /// The proposal commitment of the previous height.
     /// This is returned by the decision_reached function.
     prev_proposal_commitment: Option<(BlockNumber, ProposalCommitment)>,
-
+    // TODO(Einat): Remove the allow(dead_code) when the committer should be enabled.
+    #[allow(dead_code)]
     commitment_manager: ApolloCommitmentManager,
 
     // Kept alive to maintain the server running.
@@ -717,6 +719,8 @@ impl Batcher {
             StorageCommitmentBlockHash::ParentHash(block_header_without_hash.parent_hash)
         };
 
+        // TODO(Einat): Remove allow(unused_variables) when the committer should be enabled.
+        #[allow(unused_variables)]
         let optional_state_diff_commitment = match &storage_commitment_block_hash {
             StorageCommitmentBlockHash::ParentHash(_) => None,
             StorageCommitmentBlockHash::Partial(PartialBlockHashComponents {
@@ -734,13 +738,9 @@ impl Batcher {
             storage_commitment_block_hash,
         )
         .await?;
-
-        self.write_commitment_results_and_add_new_task(
-            height,
-            state_diff,
-            optional_state_diff_commitment,
-        )
-        .await?;
+        // TODO(Einat): Replace with write_commitment_results_and_add_new_task when the committer
+        // should be enabled.
+        self.write_default_commitment_to_storage(height).await?;
 
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
         SYNCED_TRANSACTIONS.increment(
@@ -781,6 +781,8 @@ impl Batcher {
         .expect("Number of reverted transactions should fit in u64");
         let partial_block_hash_components =
             block_execution_artifacts.partial_block_hash_components();
+        // TODO(Einat): Remove allow(unused_variables) when the committer should be enabled.
+        #[allow(unused_variables)]
         let state_diff_commitment =
             partial_block_hash_components.header_commitments.state_diff_commitment;
         let parent_proposal_commitment = self.get_parent_proposal_commitment(height)?;
@@ -794,12 +796,9 @@ impl Batcher {
         )
         .await?;
 
-        self.write_commitment_results_and_add_new_task(
-            height,
-            state_diff.clone(), // TODO(Nimrod): Remove the clone here.
-            Some(state_diff_commitment),
-        )
-        .await?;
+        // TODO(Einat): Replace with write_commitment_results_and_add_new_task when the committer
+        // should be enabled.
+        self.write_default_commitment_to_storage(height).await?;
 
         let execution_infos = block_execution_artifacts
             .execution_data
@@ -1150,7 +1149,7 @@ impl Batcher {
         }
 
         // Wait for the revert commitment to be completed before reverting the storage.
-        self.revert_commitment(height).await;
+        // self.revert_commitment(height).await;
 
         self.storage_writer.revert_block(height);
         BUILDING_HEIGHT.decrement(1);
@@ -1208,6 +1207,7 @@ impl Batcher {
     /// Reverts the commitment for the given height.
     /// Adds a revert task to the commitment manager channel and waits for the result.
     /// Writes commitment results to storage and handles the revert task result.
+    #[allow(dead_code)]
     async fn revert_commitment(&mut self, height: BlockNumber) {
         let reversed_state_diff = self
             .storage_reader
@@ -1239,6 +1239,7 @@ impl Batcher {
         info!("Reverted commitment for height {height}.");
     }
 
+    #[allow(dead_code)]
     async fn validate_revert_task_result(
         &self,
         revert_task_output: RevertTaskOutput,
@@ -1309,7 +1310,44 @@ impl Batcher {
             })?;
         Ok(())
     }
+    // TODO(Einat): Remove when the committer should be enabled.
+    async fn write_default_commitment_to_storage(
+        &mut self,
+        height: BlockNumber,
+    ) -> BatcherResult<()> {
+        let default_global_root = GlobalRoot::default();
+        let (previous_block_hash, partial_components) = self
+            .storage_reader
+            .get_parent_hash_and_partial_block_hash_components(height)
+            .map_err(|err| {
+                error!("Failed to get parent hash and partial components: {err}");
+                BatcherError::InternalError
+            })?;
 
+        let block_hash = match (previous_block_hash, partial_components) {
+            (Some(prev_hash), Some(components)) => {
+                Some(calculate_block_hash(&components, default_global_root, prev_hash).map_err(
+                    |err| {
+                        error!("Failed to calculate block hash: {err}");
+                        BatcherError::InternalError
+                    },
+                )?)
+            }
+            _ => None,
+        };
+
+        self.storage_writer
+            .set_global_root_and_block_hash(height, default_global_root, block_hash)
+            .map_err(|err| {
+                error!("Failed to set global root and block hash: {err}");
+                BatcherError::InternalError
+            })?;
+        GLOBAL_ROOT_HEIGHT.increment(1);
+        Ok(())
+    }
+
+    // TODO(Einat): Remove the allow(dead_code) when the committer should be enabled.
+    #[allow(dead_code)]
     async fn write_commitment_results_and_add_new_task(
         &mut self,
         height: BlockNumber,
@@ -1659,14 +1697,15 @@ impl ComponentStarter for Batcher {
 
         register_metrics(storage_height, global_root_height);
 
-        self.commitment_manager
-            .add_missing_commitment_tasks(
-                storage_height,
-                &self.config,
-                self.storage_reader.clone(),
-                &mut self.storage_writer,
-            )
-            .await;
+        // TODO(Einat): Uncomment when the committer should be enabled.
+        // self.commitment_manager
+        //     .add_missing_commitment_tasks(
+        //         storage_height,
+        //         &self.config,
+        //         self.storage_reader.clone(),
+        //         &mut self.storage_writer,
+        //     )
+        //     .await;
     }
 }
 

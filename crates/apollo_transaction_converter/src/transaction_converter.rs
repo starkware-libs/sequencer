@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use mockall::automock;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
-use starknet_api::core::{ChainId, ClassHash};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     Transaction as ExecutableTransaction,
@@ -68,6 +68,8 @@ pub struct VerificationHandle {
     // TODO(Dori): add a field for the class hash.
     pub proof_facts: ProofFacts,
     pub proof: Proof,
+    pub nonce: Nonce,
+    pub sender_address: ContractAddress,
     pub verification_task: JoinHandle<Result<(), TransactionConverterError>>,
 }
 
@@ -108,6 +110,8 @@ pub trait TransactionConverterTrait: Send + Sync {
         &self,
         proof_facts: ProofFacts,
         proof: Proof,
+        nonce: Nonce,
+        sender_address: ContractAddress,
     ) -> TransactionConverterResult<Duration>;
 }
 
@@ -137,12 +141,17 @@ impl TransactionConverter {
             .ok_or(TransactionConverterError::ClassNotFound { class_hash })
     }
 
-    async fn get_proof(&self, proof_facts: &ProofFacts) -> TransactionConverterResult<Proof> {
+    async fn get_proof(
+        &self,
+        proof_facts: &ProofFacts,
+        nonce: Nonce,
+        sender_address: ContractAddress,
+    ) -> TransactionConverterResult<Proof> {
         let start_time = Instant::now();
         let proof_facts_hash = proof_facts.hash();
         let proof = self
             .proof_manager_client
-            .get_proof(proof_facts.clone())
+            .get_proof(proof_facts.clone(), nonce, sender_address)
             .await?
             .ok_or(TransactionConverterError::ProofNotFound { facts_hash: proof_facts_hash });
         let duration = start_time.elapsed();
@@ -189,8 +198,8 @@ impl TransactionConverterTrait for TransactionConverter {
         match tx {
             ConsensusTransaction::RpcTransaction(tx) => {
                 let (internal_tx, proof_data) = self.convert_rpc_tx_to_internal(tx).await?;
-                let task = proof_data.map(|(proof_facts, proof)| {
-                    self.spawn_verify_and_store_proof(proof_facts, proof)
+                let task = proof_data.map(|(proof_facts, proof, nonce, sender_address)| {
+                    self.spawn_verify_and_store_proof(proof_facts, proof, nonce, sender_address)
                 });
                 Ok((InternalConsensusTransaction::RpcTransaction(internal_tx), task))
             }
@@ -212,7 +221,7 @@ impl TransactionConverterTrait for TransactionConverter {
                 let proof = if tx.proof_facts.is_empty() {
                     Proof::default()
                 } else {
-                    self.get_proof(&tx.proof_facts).await?
+                    self.get_proof(&tx.proof_facts, tx.nonce, tx.sender_address).await?
                 };
 
                 Ok(RpcTransaction::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
@@ -259,7 +268,9 @@ impl TransactionConverterTrait for TransactionConverter {
     ) -> TransactionConverterResult<(InternalRpcTransaction, Option<VerificationHandle>)> {
         let (internal_tx, proof_data) = self.convert_rpc_tx_to_internal(tx).await?;
         let verification_handle = proof_data
-            .map(|(proof_facts, proof)| self.spawn_proof_verification(proof_facts, proof))
+            .map(|(proof_facts, proof, nonce, sender_address)| {
+                self.spawn_proof_verification(proof_facts, proof, nonce, sender_address)
+            })
             .transpose()?;
         Ok((internal_tx, verification_handle))
     }
@@ -321,9 +332,11 @@ impl TransactionConverterTrait for TransactionConverter {
         &self,
         proof_facts: ProofFacts,
         proof: Proof,
+        nonce: Nonce,
+        sender_address: ContractAddress,
     ) -> TransactionConverterResult<Duration> {
         let start = Instant::now();
-        self.proof_manager_client.set_proof(proof_facts, proof).await?;
+        self.proof_manager_client.set_proof(proof_facts, nonce, sender_address, proof).await?;
         Ok(start.elapsed())
     }
 }
@@ -334,13 +347,16 @@ impl TransactionConverter {
     async fn convert_rpc_tx_to_internal(
         &self,
         tx: RpcTransaction,
-    ) -> TransactionConverterResult<(InternalRpcTransaction, Option<(ProofFacts, Proof)>)> {
+    ) -> TransactionConverterResult<(
+        InternalRpcTransaction,
+        Option<(ProofFacts, Proof, Nonce, ContractAddress)>,
+    )> {
         let (tx_without_hash, proof_data) = match tx {
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
                 let proof_data = if tx.proof_facts.is_empty() {
                     None
                 } else {
-                    Some((tx.proof_facts.clone(), tx.proof.clone()))
+                    Some((tx.proof_facts.clone(), tx.proof.clone(), tx.nonce, tx.sender_address))
                 };
                 (InternalRpcTransactionWithoutTxHash::Invoke(tx.into()), proof_data)
             }
@@ -399,8 +415,11 @@ impl TransactionConverter {
         proof_facts: ProofFacts,
         proof: Proof,
         proof_manager_client: SharedProofManagerClient,
+        nonce: Nonce,
+        sender_address: ContractAddress,
     ) -> Result<bool, TransactionConverterError> {
-        let contains_proof = proof_manager_client.contains_proof(proof_facts.clone()).await?;
+        let contains_proof =
+            proof_manager_client.contains_proof(proof_facts.clone(), nonce, sender_address).await?;
 
         if contains_proof {
             return Ok(false);
@@ -429,15 +448,18 @@ impl TransactionConverter {
         &self,
         proof_facts: ProofFacts,
         proof: Proof,
+        nonce: Nonce,
+        sender_address: ContractAddress,
     ) -> TransactionConverterResult<VerificationHandle> {
         let pmc = self.proof_manager_client.clone();
         let task_proof_facts = proof_facts.clone();
         let task_proof = proof.clone();
         let verification_task = tokio::spawn(async move {
-            Self::run_proof_verification(task_proof_facts, task_proof, pmc).await?;
+            Self::run_proof_verification(task_proof_facts, task_proof, pmc, nonce, sender_address)
+                .await?;
             Ok(())
         });
-        Ok(VerificationHandle { proof_facts, proof, verification_task })
+        Ok(VerificationHandle { proof_facts, proof, nonce, sender_address, verification_task })
     }
 
     /// Spawns a single task that verifies the proof and then stores it in the proof manager.
@@ -447,20 +469,27 @@ impl TransactionConverter {
         &self,
         proof_facts: ProofFacts,
         proof: Proof,
+        nonce: Nonce,
+        sender_address: ContractAddress,
     ) -> VerifyAndStoreProofTask {
         let pmc = self.proof_manager_client.clone();
         let proof_facts_hash = proof_facts.hash();
         tokio::spawn(async move {
-            let verified =
-                Self::run_proof_verification(proof_facts.clone(), proof.clone(), pmc.clone())
-                    .await?;
+            let verified = Self::run_proof_verification(
+                proof_facts.clone(),
+                proof.clone(),
+                pmc.clone(),
+                nonce,
+                sender_address,
+            )
+            .await?;
 
             if !verified {
                 return Ok(());
             }
 
             let start = Instant::now();
-            pmc.set_proof(proof_facts, proof).await?;
+            pmc.set_proof(proof_facts, nonce, sender_address, proof).await?;
             let duration = start.elapsed();
             CONSENSUS_PROOF_MANAGER_STORE_LATENCY.record(duration.as_secs_f64());
             info!(
