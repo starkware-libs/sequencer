@@ -5,9 +5,11 @@
 //! `NetworkBehaviour` adapter in `behaviour.rs` via command/output channels.
 
 use std::collections::{HashMap, HashSet};
+use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use libp2p::identity::{Keypair, PeerId, PublicKey};
+use lru::LruCache;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, trace, warn};
 
@@ -21,6 +23,13 @@ use crate::time_cache::TimeCache;
 use crate::tree::{PropellerScheduleManager, Stake};
 use crate::types::{Channel, Event, MessageRoot, PeerSetError, ShardPublishError};
 use crate::unit::PropellerUnit;
+
+#[cfg(test)]
+#[path = "engine_test.rs"]
+mod engine_test;
+
+// TODO(guyn): move this to the propeller Config.
+const PEER_NONCE_CACHE_SIZE: usize = 1000;
 
 type BroadcastResponseTx = oneshot::Sender<Result<(), ShardPublishError>>;
 type BroadcastResult = (Result<Vec<PropellerUnit>, ShardPublishError>, BroadcastResponseTx);
@@ -88,6 +97,8 @@ pub struct Engine {
     message_to_unit_tx: HashMap<MessageKey, mpsc::UnboundedSender<UnitToValidate>>,
     /// Messages that have already been encountered and processed (for deduplication).
     already_seen_messages: TimeCache<MessageKey>,
+    /// Timestamp based nonce per peer
+    peer_nonce_timestamp: LruCache<PeerId, u64>,
     /// Channel for receiving messages from state manager tasks.
     state_manager_rx: mpsc::UnboundedReceiver<EventStateManagerToEngine>,
     state_manager_tx: mpsc::UnboundedSender<EventStateManagerToEngine>,
@@ -122,6 +133,9 @@ impl Engine {
             local_peer_id,
             message_to_unit_tx: HashMap::new(),
             already_seen_messages,
+            peer_nonce_timestamp: LruCache::new(
+                NonZeroUsize::new(PEER_NONCE_CACHE_SIZE).expect("Cache size must be non-zero"),
+            ),
             state_manager_rx,
             state_manager_tx,
             prepared_units_rx: broadcaster_results_rx,
@@ -237,8 +251,6 @@ impl Engine {
             root: claimed_root,
         };
 
-        // TODO(guyn): Add timestamps to message key to avoid replay attacks or issues with very
-        // late shards.
         if self.already_seen_messages.contains(&message_key) {
             trace!("Message already finalized, dropping unit");
             return;
@@ -246,6 +258,12 @@ impl Engine {
 
         // Spawn tasks if this is a new message.
         if !self.message_to_unit_tx.contains_key(&message_key) {
+            let nonce = self.peer_nonce_timestamp.peek(&claimed_publisher).copied().unwrap_or(0);
+            if nonce >= claimed_timestamp_ns {
+                trace!("Message nonce is too old, dropping unit to prevent replay attacks");
+                return;
+            }
+
             debug!(
                 ?claimed_channel,
                 ?claimed_publisher,
@@ -370,6 +388,16 @@ impl Engine {
                 // Track the messages that have been removed from the TTL cache.
                 if !expired_keys.is_empty() {
                     trace!(?expired_keys, "[ENGINE] Removed expired messages from TTL cache");
+                    for key in expired_keys {
+                        // Update the nonce to the latest timestamp if it is bigger.
+                        let new_nonce = self
+                            .peer_nonce_timestamp
+                            .peek(&key.publisher)
+                            .copied()
+                            .unwrap_or(0)
+                            .max(key.timestamp_ns);
+                        self.peer_nonce_timestamp.put(key.publisher, new_nonce);
+                    }
                 }
 
                 // Clean up task handles

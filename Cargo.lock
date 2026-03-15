@@ -2333,6 +2333,7 @@ dependencies = [
  "asynchronous-codec",
  "futures",
  "libp2p",
+ "lru 0.12.5",
  "prost",
  "rand 0.8.5",
  "reed-solomon-simd",
