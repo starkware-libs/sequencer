@@ -50,6 +50,7 @@ fn base_args() -> CliArgs {
         cors_allow_origin: Vec::new(),
         strk_fee_token_address: None,
         prefetch_state: None,
+        use_latest_versioned_constants: None,
         bouncer_config_override: None,
     }
 }
@@ -130,6 +131,7 @@ fn cors_allow_origin_rejects_non_array_in_config_file() {
         cors_allow_origin: Vec::new(),
         strk_fee_token_address: None,
         prefetch_state: None,
+        use_latest_versioned_constants: None,
         bouncer_config_override: None,
     };
 
