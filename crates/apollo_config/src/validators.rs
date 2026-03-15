@@ -2,10 +2,23 @@
 
 use std::path::Path;
 
+use tracing::error;
 use validator::{Validate, ValidationError, ValidationErrors, ValidationErrorsKind};
 
 use crate::secrets::Sensitive;
 use crate::ConfigError;
+
+/// Creates a validation error.
+pub fn create_validation_error(
+    error_msg: String,
+    validate_code: &'static str,
+    validate_error_msg: &'static str,
+) -> ValidationError {
+    error!(error_msg);
+    let mut error = ValidationError::new(validate_code);
+    error.message = Some(validate_error_msg.into());
+    error
+}
 
 /// Custom validation for ASCII string.
 pub fn validate_ascii(name: &impl ToString) -> Result<(), ValidationError> {
@@ -146,5 +159,19 @@ fn parse_validation_error(
                 }
             }
         }
+    }
+}
+
+/// Validates the configured value is positive. If the value is not positive, it returns an
+/// error.
+pub fn validate_positive(value: usize) -> Result<(), ValidationError> {
+    if value > 0 {
+        Ok(())
+    } else {
+        Err(create_validation_error(
+            format!("Invalid value: {value}"),
+            "Invalid value",
+            "Ensure value is positive, i.e., strictly greater than 0.",
+        ))
     }
 }
