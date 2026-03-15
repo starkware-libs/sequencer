@@ -6,7 +6,7 @@
 
 use libp2p::identity::PeerId;
 
-use crate::types::{PeerSetError, ShardIndex, TreeGenerationError};
+use crate::types::{PeerSetError, ScheduleError, ShardIndex};
 use crate::ShardValidationError;
 
 pub type Stake = u64;
@@ -121,18 +121,19 @@ impl PropellerScheduleManager {
         &self,
         publisher: &PeerId,
         shard_index: ShardIndex,
-    ) -> Result<PeerId, TreeGenerationError> {
+    ) -> Result<PeerId, ScheduleError> {
         let original_shard_index = shard_index;
         let shard_index: usize = shard_index.0.try_into().expect("Failed converting u64 to usize");
         let publisher_index = self
             .channel_nodes
             .binary_search_by_key(&publisher, |(peer_id, _)| peer_id)
-            .map_err(|_| TreeGenerationError::PublisherNotInChannel { publisher: *publisher })?;
+            .map_err(|_| ScheduleError::PublisherNotInChannel { publisher: *publisher })?;
         let index =
             if shard_index < publisher_index { shard_index } else { shard_index.saturating_add(1) };
-        self.channel_nodes.get(index).map(|(peer, _)| *peer).ok_or({
-            TreeGenerationError::ShardIndexOutOfBounds { shard_index: original_shard_index }
-        })
+        self.channel_nodes
+            .get(index)
+            .map(|(peer, _)| *peer)
+            .ok_or({ ScheduleError::ShardIndexOutOfBounds { shard_index: original_shard_index } })
     }
 
     /// Validates that a shard unit was received from the expected sender.
@@ -197,15 +198,15 @@ impl PropellerScheduleManager {
     pub fn get_my_shard_index_given_publisher(
         &self,
         publisher: &PeerId,
-    ) -> Result<ShardIndex, TreeGenerationError> {
+    ) -> Result<ShardIndex, ScheduleError> {
         if self.local_peer_id == *publisher {
-            return Err(TreeGenerationError::LocalPeerIsPublisher);
+            return Err(ScheduleError::LocalPeerIsPublisher);
         }
 
         let publisher_index = self
             .channel_nodes
             .binary_search_by_key(&publisher, |(peer_id, _)| peer_id)
-            .map_err(|_| TreeGenerationError::PublisherNotInChannel { publisher: *publisher })?;
+            .map_err(|_| ScheduleError::PublisherNotInChannel { publisher: *publisher })?;
 
         let shard_id = if self.local_peer_index < publisher_index {
             self.local_peer_index
