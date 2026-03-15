@@ -395,6 +395,9 @@ Don't use abbreviations: use `cannot` (rather than `can't`), `transaction` (rath
 
 In all comment types (including inline comments!) start comments with a capital letter and end with a dot.
 
+When writing a TODO comment, always add an owner for that TODO inside the comment.
+If it's not you, make sure the owner is aware of the TODO
+
 ### Textual Content Quality
 
 All textual content, including code-comments, commit messages, `expect` messages (see also [Assertions](#assertions) section), should include _additional_ information not readily observable in the surrounding code. Take extra care when using AI-generated code, which tends to include a lot of trivial comment-bloat.
