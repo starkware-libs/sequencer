@@ -28,8 +28,16 @@ type ReconstructionResult = Result<ReconstructionOutput, ReconstructionError>;
 #[derive(Debug)]
 pub enum EventStateManagerToEngine {
     BehaviourEvent(Event),
-    Finalized { committee_id: CommitteeId, publisher: PeerId, message_root: MessageRoot },
-    SendUnitToPeers { unit: PropellerUnit, peers: Vec<PeerId> },
+    Finalized {
+        committee_id: CommitteeId,
+        publisher: PeerId,
+        nonce: u64,
+        message_root: MessageRoot,
+    },
+    SendUnitToPeers {
+        unit: PropellerUnit,
+        peers: Vec<PeerId>,
+    },
 }
 
 #[derive(Debug)]
@@ -137,6 +145,7 @@ impl ReconstructionState {
 pub struct MessageProcessor {
     pub committee_id: CommitteeId,
     pub publisher: PeerId,
+    pub nonce: u64,
     pub message_root: MessageRoot,
     pub my_shard_index: ShardIndex,
 
@@ -386,6 +395,7 @@ impl MessageProcessor {
             .send(EventStateManagerToEngine::Finalized {
                 committee_id: self.committee_id,
                 publisher: self.publisher,
+                nonce: self.nonce,
                 message_root: self.message_root,
             })
             .expect("Engine task has exited");
