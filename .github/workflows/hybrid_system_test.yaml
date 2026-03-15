@@ -1,14 +1,6 @@
 name: Sequencer - Hybrid Node System Test
 
 on:
-  workflow_dispatch:
-    inputs:
-      liveness_test_duration_sec:
-        description: Time in seconds to keep the liveness test running.
-        required: false
-        default: 10
-        type: number
-
   pull_request:
     types:
       - opened
@@ -34,7 +26,7 @@ permissions:
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'pr' }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}-pr
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -53,17 +45,15 @@ jobs:
   check-system-test-trigger:
     runs-on: namespace-profile-small-ubuntu-24-04-amd64
     needs: optimize_ci
-    if: github.event_name != 'pull_request' || needs.optimize_ci.outputs.skip == 'false'
+    if: needs.optimize_ci.outputs.skip == 'false'
     outputs:
-      should_run: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.system_check.outputs.should_run }}
+      should_run: ${{ steps.system_check.outputs.should_run }}
     steps:
       - uses: actions/checkout@v6
-        if: github.event_name != 'workflow_dispatch'
         with:
           fetch-depth: 0
 
       - uses: actions/setup-python@v6
-        if: github.event_name != 'workflow_dispatch'
         with:
           python-version: "pypy3.9"
 
@@ -74,11 +64,9 @@ jobs:
 
       - name: Install Python Dependencies
         run: pip install -r scripts/requirements.txt
-        if: github.event_name != 'workflow_dispatch'
 
       - name: Check for system-test-triggering changes
         id: system_check
-        if: github.event_name != 'workflow_dispatch'
         run: |
           echo "Checking if any system-test-triggering crates were modified..."
           OUTPUT_FILE=$(mktemp)
@@ -326,7 +314,7 @@ jobs:
         env:
           initial_delay_sec: 10
           check_interval_sec: 2
-          check_timeout_sec: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.liveness_test_duration_sec || 10 }}
+          check_timeout_sec: 10
         run: |
           pipenv run python ./scripts/system_tests/liveness_check.py \
             --layout ${{ env.layout }} \
