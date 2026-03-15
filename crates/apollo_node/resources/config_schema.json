@@ -3254,6 +3254,11 @@
     "privacy": "Public",
     "value": 8082
   },
+  "monitoring_endpoint_config.snapshot_timeout_millis": {
+    "description": "Timeout in milliseconds for snapshot requests to internal services (mempool, L1 provider). Returns 504 if the service does not respond within this deadline.",
+    "privacy": "Public",
+    "value": 5000
+  },
   "native_classes_whitelist": {
     "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
     "privacy": "TemporaryValue",
