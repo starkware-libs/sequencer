@@ -33,6 +33,7 @@ pub enum EventStateManagerToEngine {
         publisher: PeerId,
         nonce: u64,
         message_root: MessageRoot,
+        unit_status: GoodUnitsStatus,
     },
     SendUnitToPeers {
         unit: PropellerUnit,
@@ -141,6 +142,15 @@ impl ReconstructionState {
     }
 }
 
+// TODO(guyn): consider adding AllGoodShardsReceived to the enum.
+// TODO(guyn): consider adding the number of received shards to the enum.
+#[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
+pub enum GoodUnitsStatus {
+    #[default]
+    NoGoodUnitsReceived,
+    SomeGoodUnitsReceived,
+}
+
 /// Message processor that handles validation and state management for a single message.
 pub struct MessageProcessor {
     pub committee_id: CommitteeId,
@@ -159,6 +169,7 @@ pub struct MessageProcessor {
     pub engine_tx: mpsc::UnboundedSender<EventStateManagerToEngine>,
 
     pub timeout: Duration,
+    pub unit_status: GoodUnitsStatus,
 }
 
 impl MessageProcessor {
@@ -205,6 +216,9 @@ impl MessageProcessor {
                 trace!("[MSG_PROC] Validation failed for index={:?}: {:?}", unit.index(), err);
                 continue;
             }
+
+            // We got at least one good shard.
+            self.unit_status = GoodUnitsStatus::SomeGoodUnitsReceived;
 
             self.maybe_broadcast_my_shard(&unit, &state);
 
@@ -397,6 +411,7 @@ impl MessageProcessor {
                 publisher: self.publisher,
                 nonce: self.nonce,
                 message_root: self.message_root,
+                unit_status: self.unit_status,
             })
             .expect("Engine task has exited");
     }
