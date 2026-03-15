@@ -9,6 +9,7 @@ const PAST_EXPIRATION: Duration = Duration::from_millis(TTL_MS + 50);
 const KEY1: &str = "key1";
 const KEY2: &str = "key2";
 const KEY3: &str = "key3";
+const KEY4: &str = "key4";
 
 #[tokio::test]
 async fn test_time_cache_basic() {
@@ -16,7 +17,8 @@ async fn test_time_cache_basic() {
 
     let mut cache = TimeCache::new(TTL);
 
-    cache.insert(KEY1);
+    let expired = cache.insert(KEY1);
+    assert!(expired.is_empty());
     assert!(cache.contains(&KEY1));
     assert!(!cache.contains(&KEY2));
 
@@ -30,8 +32,8 @@ async fn test_time_cache_cleanup() {
 
     let mut cache = TimeCache::new(TTL);
 
-    cache.insert(KEY1);
-    cache.insert(KEY2);
+    assert!(cache.insert(KEY1).is_empty());
+    assert!(cache.insert(KEY2).is_empty());
     assert!(cache.contains(&KEY1));
     assert!(cache.contains(&KEY2));
 
@@ -43,7 +45,9 @@ async fn test_time_cache_cleanup() {
     assert_eq!(cache.capacity(), 2);
 
     // Insert triggers cleanup of expired entries.
-    cache.insert(KEY3);
+    let mut expired = cache.insert(KEY3);
+    expired.sort();
+    assert_eq!(expired, vec![KEY1, KEY2]);
     assert!(cache.contains(&KEY3));
     assert!(!cache.contains(&KEY1));
     assert!(!cache.contains(&KEY2));
@@ -56,17 +60,51 @@ async fn test_time_cache_reinsert_refreshes_expiration() {
 
     let mut cache = TimeCache::new(TTL);
 
-    cache.insert(KEY1);
+    assert!(cache.insert(KEY1).is_empty());
 
     tokio::time::advance(THREE_QUARTER_TTL).await;
-    cache.insert(KEY1);
+    assert!(cache.insert(KEY1).is_empty());
 
     tokio::time::advance(THREE_QUARTER_TTL).await;
     assert!(cache.contains(&KEY1));
 
     // Inserting KEY2 triggers eviction of the stale KEY1 queue entry; verify KEY1 survives
-    // because its refreshed timestamp is still within the TTL.
-    cache.insert(KEY2);
+    // because its refreshed timestamp is still within the TTL, and is NOT among the expired keys.
+    let expired = cache.insert(KEY2);
+    assert!(expired.is_empty());
     assert!(cache.contains(&KEY1));
     assert!(cache.contains(&KEY2));
+}
+
+#[tokio::test]
+async fn test_reinserted_key_expires_after_refreshed_ttl() {
+    tokio::time::pause();
+
+    let mut cache = TimeCache::new(TTL);
+
+    assert!(cache.insert(KEY1).is_empty());
+    assert!(cache.insert(KEY2).is_empty());
+
+    tokio::time::advance(THREE_QUARTER_TTL).await;
+    // Re-insert KEY1, refreshing its TTL. KEY2 is left to expire.
+    assert!(cache.insert(KEY1).is_empty());
+
+    // Advance past the original TTL — KEY2 expires, KEY1's refreshed entry is still alive.
+    tokio::time::advance(THREE_QUARTER_TTL).await;
+
+    // Insert KEY3 to trigger eviction. Only KEY2 should be expired.
+    let expired = cache.insert(KEY3);
+    assert_eq!(expired, vec![KEY2]);
+    assert!(cache.contains(&KEY1));
+    assert!(!cache.contains(&KEY2));
+    assert!(cache.contains(&KEY3));
+
+    // Advance past KEY1's refreshed TTL.
+    tokio::time::advance(THREE_QUARTER_TTL).await;
+
+    // Insert again to trigger eviction of KEY1.
+    let expired = cache.insert(KEY4);
+    assert_eq!(expired, vec![KEY1]);
+    assert!(!cache.contains(&KEY1));
+    assert!(cache.contains(&KEY3));
 }
