@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::LazyLock;
 
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::execution::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR_FELT;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -15,6 +16,7 @@ use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::block::BlockNumber;
 use starknet_api::core::{
     calculate_contract_address,
     ClassHash,
@@ -86,15 +88,15 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
 
 /// Initial fuzz contract addresses.
 static FUZZ_ADDRESS_ORCHESTRATOR_EXPECT: Expect =
-    expect!["0x6b10f630978a4071bb62858d7b11905943415c4047839bafde9be7347107535"];
+    expect!["0x48aea341404eab574f466c781f2b01d9975986081944490f5df3bb7870b3280"];
 static FUZZ_ADDRESS_CAIRO1_A_EXPECT: Expect =
-    expect!["0x17110f97e6ec0d08c92699433e780b7b3520ef4047eba1514857a65c9b27877"];
+    expect!["0x41148f8877f307bd4499316610c06244b31bf47e929ae4270fbc6f735e9b981"];
 static FUZZ_ADDRESS_CAIRO1_B_EXPECT: Expect =
-    expect!["0x3b1b76276234e11f2620622b62fd47f4ddf42433546914f38034ae80b689f81"];
+    expect!["0x614af80c7737a9bed6c0d9f00c7beb5cc8cbbf1870f05153aba006b8bac1555"];
 static FUZZ_ADDRESS_CAIRO0_A_EXPECT: Expect =
-    expect!["0x1c55b1a99e578e4676b6b367797b77e02193b671e5a225d2ede5bf81cedf319"];
+    expect!["0x6c5c33391ee31f8d21ad507e68c2f34aea1a75e2cf47c729e04d851b008676f"];
 static FUZZ_ADDRESS_CAIRO0_B_EXPECT: Expect =
-    expect!["0x6b57a2c90a7d631ef4cde4a4a11993cbd8f1334f28813396bb8da7de627f5a"];
+    expect!["0x60ec6725b995c68a9791ceeb7cf7533f24aff6a43cdae6e8dac09e7a7d878cc"];
 static FUZZ_ADDRESS_ORCHESTRATOR: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress::try_from(felt!(FUZZ_ADDRESS_ORCHESTRATOR_EXPECT.data())).unwrap()
 });
@@ -128,6 +130,7 @@ const UNDECLARED_SCENARIO_MESSAGE: &str = "is not declared";
 const UNDEPLOYED_SCENARIO_MESSAGE: &str = "is not deployed";
 const NON_EXISTING_ENTRY_POINT_MESSAGE: LazyLock<String> =
     LazyLock::new(|| as_cairo_short_string(&ENTRYPOINT_NOT_FOUND_ERROR_FELT).unwrap());
+const BLOCK_NUMBER_OUT_OF_RANGE_MESSAGE: &str = "Block number out of range";
 
 /// Storage key that can be written to.
 static VALID_STORAGE_KEYS: LazyLock<Vec<Felt>> =
@@ -173,6 +176,7 @@ enum FuzzOperation {
     CallNonexistingEntryPoint,
     LibraryCallNonexistingEntryPoint,
     EmitEvent,
+    GetBlockHash,
 }
 
 impl FuzzOperation {
@@ -195,6 +199,7 @@ impl FuzzOperation {
             Self::CallNonexistingEntryPoint => 14u8,
             Self::LibraryCallNonexistingEntryPoint => 15u8,
             Self::EmitEvent => 16u8,
+            Self::GetBlockHash => 17u8,
         })
     }
 }
@@ -263,6 +268,7 @@ enum FuzzOperationData {
     CallNonexistingEntryPoint(CallOperationData),
     LibraryCallNonexistingEntryPoint(LibraryCallOperationData),
     EmitEvent(Felt),
+    GetBlockHash { block_number: BlockNumber, expect_panic: bool },
 }
 
 impl FuzzOperationData {
@@ -287,6 +293,7 @@ impl FuzzOperationData {
                 FuzzOperation::LibraryCallNonexistingEntryPoint
             }
             Self::EmitEvent(_) => FuzzOperation::EmitEvent,
+            Self::GetBlockHash { .. } => FuzzOperation::GetBlockHash,
         }
     }
 
@@ -311,6 +318,9 @@ impl FuzzOperationData {
             | Self::Sha256(value)
             | Self::Keccak(value)
             | Self::EmitEvent(value) => vec![*value],
+            Self::GetBlockHash { block_number, expect_panic } => {
+                vec![block_number.0.into(), (*expect_panic).into()]
+            }
         });
         felt_vector
     }
@@ -444,6 +454,9 @@ impl RevertInfo {
 /// Represents the call tree of a fuzz test.
 #[derive(Clone)]
 struct FuzzTestContext {
+    /// The block number of the fuzz test.
+    pub block_number: BlockNumber,
+
     /// The call tree of the fuzz test.
     /// The first frame is the frame called by the orchestrator (it's parent frame is the
     /// orchestrator).
@@ -484,8 +497,9 @@ struct FuzzTestContext {
 }
 
 impl FuzzTestContext {
-    pub fn init(seed: u64, first_call: FuzzCallInfo) -> Self {
+    pub fn init(seed: u64, first_call: FuzzCallInfo, next_block_number: BlockNumber) -> Self {
         Self {
+            block_number: next_block_number,
             calls: vec![first_call],
             current_call: vec![0],
             final_state: FinalizedState::Ongoing,
@@ -723,6 +737,23 @@ impl FuzzTestContext {
                     .collect()
             }
             FuzzOperation::EmitEvent => vec![FuzzOperationData::EmitEvent(self.next_event)],
+            FuzzOperation::GetBlockHash => {
+                // If current context is Cairo0, no valid operations are possible.
+                if !self.is_current_context_cairo1() {
+                    return vec![];
+                }
+                // Two options: either one block back (error) or the retrospective block (valid).
+                vec![
+                    FuzzOperationData::GetBlockHash {
+                        block_number: BlockNumber(self.block_number.0 - 1),
+                        expect_panic: true,
+                    },
+                    FuzzOperationData::GetBlockHash {
+                        block_number: BlockNumber(self.block_number.0 - STORED_BLOCK_HASH_BUFFER),
+                        expect_panic: false,
+                    },
+                ]
+            }
         }
     }
 
@@ -996,6 +1027,11 @@ impl FuzzTestContext {
             FuzzOperationData::EmitEvent(event) => {
                 self.current_fuzz_call_info_mut().events.push(event);
                 self.next_event += Felt::ONE;
+            }
+            FuzzOperationData::GetBlockHash { expect_panic, .. } => {
+                if expect_panic {
+                    self.apply_panic(BLOCK_NUMBER_OUT_OF_RANGE_MESSAGE.to_string());
+                }
             }
         }
     }
@@ -1316,6 +1352,13 @@ impl FuzzTestContext {
                         format!("{} (event data)", operation_felt_hexes[1]),
                     ]
                 }
+                FuzzOperationData::GetBlockHash { .. } => {
+                    vec![
+                        format!("{} (Get block hash)", operation_felt_hexes[0]),
+                        format!("{} (block number)", operation_felt_hexes[1]),
+                        format!("{} (expect panic)", operation_felt_hexes[2]),
+                    ]
+                }
             });
         }
         format!(
@@ -1346,6 +1389,11 @@ impl FuzzTestManager {
             test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
         }
 
+        // Add new blocks to pass the stored block hash buffer.
+        for _ in 0..(2 * STORED_BLOCK_HASH_BUFFER) {
+            test_manager.move_to_next_block();
+        }
+
         // First call is the orchestrator calling the first fuzz test contract.
         let first_called_address = *FUZZ_ADDRESS_CAIRO1_A;
         let first_call = FuzzCallInfo::new_call(
@@ -1355,7 +1403,11 @@ impl FuzzTestManager {
             ParentFailureBehavior::Catching,
         );
         Self {
-            context: FuzzTestContext::init(seed, first_call),
+            context: FuzzTestContext::init(
+                seed,
+                first_call,
+                test_manager.get_current_block_number(),
+            ),
             test_manager,
             first_called_address,
         }

@@ -49,7 +49,7 @@
         ],
         "EXTERNAL": [
             {
-                "offset": 716,
+                "offset": 728,
                 "selector": "0x8e64dfac867f301a439703710296f437e9f91d1bba17cfea5ad7f137a5acd"
             },
             {
@@ -157,18 +157,36 @@
                     "__main__",
                     "__main__.test_revert_fuzz"
                 ],
-                "end_pc": 712,
+                "end_pc": 716,
                 "flow_tracking_data": {
                     "ap_tracking": {
                         "group": 27,
-                        "offset": 73
+                        "offset": 74
+                    },
+                    "reference_ids": {}
+                },
+                "name": "error_message",
+                "start_pc": 712,
+                "value": "get_block_hash_cairo0"
+            },
+            {
+                "accessible_scopes": [
+                    "__main__",
+                    "__main__",
+                    "__main__.test_revert_fuzz"
+                ],
+                "end_pc": 724,
+                "flow_tracking_data": {
+                    "ap_tracking": {
+                        "group": 27,
+                        "offset": 74
                     },
                     "reference_ids": {
                         "__main__.test_revert_fuzz.scenario": 9
                     }
                 },
                 "name": "error_message",
-                "start_pc": 708,
+                "start_pc": 720,
                 "value": "Unknown scenario: {scenario}."
             }
         ],
@@ -886,20 +904,32 @@
             "0x1104800180018000",
             "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe42",
             "0x208b7fff7fff7ffe",
+            "0x4826800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffff0",
+            "0x20680017fff7fff",
+            "0xa",
+            "0x480680017fff8000",
+            "0x1",
+            "0x400680017fff7fff",
+            "0x0",
+            "0x48127fe97fff8000",
+            "0x48127fe97fff8000",
+            "0x48127fe97fff8000",
+            "0x208b7fff7fff7ffe",
             "0x480680017fff8000",
             "0x0",
             "0x400680017fff7fff",
             "0x1",
-            "0x48127fea7fff8000",
-            "0x48127fea7fff8000",
-            "0x48127fea7fff8000",
+            "0x48127fe97fff8000",
+            "0x48127fe97fff8000",
+            "0x48127fe97fff8000",
             "0x208b7fff7fff7ffe",
             "0x402b7ffd7ffc7ffd",
             "0x480280007ffb8000",
             "0x480280017ffb8000",
             "0x480280027ffb8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe33",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffe27",
             "0x40780017fff7fff",
             "0x1",
             "0x48127ffc7fff8000",
@@ -1126,7 +1156,7 @@
                     }
                 }
             ],
-            "722": [
+            "734": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -1255,6 +1285,10 @@
             "__main__.SCENARIO_EMIT_EVENT": {
                 "type": "const",
                 "value": 16
+            },
+            "__main__.SCENARIO_GET_BLOCK_HASH": {
+                "type": "const",
+                "value": 17
             },
             "__main__.SCENARIO_INCREMENT_COUNTER": {
                 "type": "const",
@@ -1906,7 +1940,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 716,
+                "pc": 728,
                 "type": "function"
             },
             "__wrappers__.test_revert_fuzz.Args": {
