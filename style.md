@@ -78,6 +78,16 @@ the former will display the error, and the latter will simply say `expected True
 Avoid having many tests that all test the same thing. Each test should check a unique edge case or scenario.
 Don't add the same test with different inputs.
 
+### Test Names
+
+Tests should start with a `test_` prefix.
+
+**Rationale:** Even though the `#[test]` attribute marks test functions, a `test_` prefix makes it
+immediately clear which functions are tests and which are helper functions.
+
+Unlike regular functions, test names can be long. Feel free to describe the exact scenario or edge
+case you're testing, e.g. `test_send_tx_with_duplicate_nonce_returns_already_received`.
+
 ### Integration and Flow Tests
 Unit tests should be short (< 1 sec) and threadsafe tests, unless there's a specific reason otherwise.
 
