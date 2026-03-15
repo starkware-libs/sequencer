@@ -659,6 +659,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "components.batcher.remote_client_config.request_timeout_ms": {
+    "description": "The maximal duration in milliseconds for the full request-response cycle; connection establishment is separate.",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.batcher.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -768,6 +773,11 @@
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
     "value": 1000
+  },
+  "components.class_manager.remote_client_config.request_timeout_ms": {
+    "description": "The maximal duration in milliseconds for the full request-response cycle; connection establishment is separate.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.class_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
@@ -879,6 +889,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "components.committer.remote_client_config.request_timeout_ms": {
+    "description": "The maximal duration in milliseconds for the full request-response cycle; connection establishment is separate.",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.committer.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -988,6 +1003,11 @@
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
     "value": 1000
+  },
+  "components.config_manager.remote_client_config.request_timeout_ms": {
+    "description": "The maximal duration in milliseconds for the full request-response cycle; connection establishment is separate.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.config_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
@@ -1104,6 +1124,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "components.gateway.remote_client_config.request_timeout_ms": {
+    "description": "The maximal duration in milliseconds for the full request-response cycle; connection establishment is separate.",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.gateway.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -1218,6 +1243,11 @@
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
     "value": 1000
+  },
+  "components.l1_events_provider.remote_client_config.request_timeout_ms": {
+    "description": "The maximal duration in milliseconds for the full request-response cycle; connection establishment is separate.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.l1_events_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
@@ -1334,6 +1364,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "components.l1_gas_price_provider.remote_client_config.request_timeout_ms": {
+    "description": "The maximal duration in milliseconds for the full request-response cycle; connection establishment is separate.",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.l1_gas_price_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -1449,6 +1484,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "components.mempool.remote_client_config.request_timeout_ms": {
+    "description": "The maximal duration in milliseconds for the full request-response cycle; connection establishment is separate.",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.mempool.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -1558,6 +1598,11 @@
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
     "value": 1000
+  },
+  "components.mempool_p2p.remote_client_config.request_timeout_ms": {
+    "description": "The maximal duration in milliseconds for the full request-response cycle; connection establishment is separate.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.mempool_p2p.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
@@ -1674,6 +1719,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "components.proof_manager.remote_client_config.request_timeout_ms": {
+    "description": "The maximal duration in milliseconds for the full request-response cycle; connection establishment is separate.",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.proof_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -1783,6 +1833,11 @@
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
     "value": 1000
+  },
+  "components.sierra_compiler.remote_client_config.request_timeout_ms": {
+    "description": "The maximal duration in milliseconds for the full request-response cycle; connection establishment is separate.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.sierra_compiler.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
@@ -1894,6 +1949,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "components.signature_manager.remote_client_config.request_timeout_ms": {
+    "description": "The maximal duration in milliseconds for the full request-response cycle; connection establishment is separate.",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.signature_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -2003,6 +2063,11 @@
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
     "value": 1000
+  },
+  "components.state_sync.remote_client_config.request_timeout_ms": {
+    "description": "The maximal duration in milliseconds for the full request-response cycle; connection establishment is separate.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.state_sync.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",

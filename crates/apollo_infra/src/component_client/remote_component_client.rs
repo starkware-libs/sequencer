@@ -42,6 +42,7 @@ const DEFAULT_MAX_RETRY_INTERVAL_MS: u64 = 1000;
 const DEFAULT_INITIAL_RETRY_DELAY_MS: u64 = 1;
 const DEFAULT_ATTEMPTS_PER_LOG: usize = 1;
 const DEFAULT_CONNECTION_TIMEOUT_MS: u64 = 500;
+const DEFAULT_REQUEST_TIMEOUT_MS: u64 = 30_000;
 
 // TODO(Tsabary): consider retry delay mechanisms, e.g., exponential backoff, jitter, etc.
 
@@ -54,6 +55,7 @@ pub struct RemoteClientConfig {
     pub initial_retry_delay_ms: u64,
     pub max_retry_interval_ms: u64,
     pub connection_timeout_ms: u64,
+    pub request_timeout_ms: u64,
     pub set_tcp_nodelay: bool,
 }
 
@@ -67,6 +69,7 @@ impl Default for RemoteClientConfig {
             attempts_per_log: DEFAULT_ATTEMPTS_PER_LOG,
             max_retry_interval_ms: DEFAULT_MAX_RETRY_INTERVAL_MS,
             connection_timeout_ms: DEFAULT_CONNECTION_TIMEOUT_MS,
+            request_timeout_ms: DEFAULT_REQUEST_TIMEOUT_MS,
             set_tcp_nodelay: true,
         }
     }
@@ -116,6 +119,13 @@ impl SerializeConfig for RemoteClientConfig {
                 &self.connection_timeout_ms,
                 "The maximal duration in milliseconds before a client forgoes remote connection \
                  creation attempt.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "request_timeout_ms",
+                &self.request_timeout_ms,
+                "The maximal duration in milliseconds for the full request-response cycle; \
+                 connection establishment is separate.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -190,41 +200,56 @@ where
 
     async fn try_send(&self, http_request: HyperRequest<Full<Bytes>>) -> ClientResult<Response> {
         trace!("Sending HTTP request");
-        let http_response = self.client.request(http_request).await.map_err(|err| {
-            warn!("HTTP request to {} failed with error: {err:?}", self.uri);
-            ClientError::CommunicationFailure(err.to_string())
-        })?;
+        let timeout_duration = Duration::from_millis(self.config.request_timeout_ms);
+        let request_future = async {
+            let http_response = self.client.request(http_request).await.map_err(|err| {
+                warn!("HTTP request to {} failed with error: {err:?}", self.uri);
+                ClientError::CommunicationFailure(err.to_string())
+            })?;
 
-        match http_response.status() {
-            StatusCode::OK => {
-                let response_body = get_response_body(http_response).await;
-                trace!("Successfully deserialized response");
-                response_body
-            }
-            status_code => {
-                let body_bytes = http_response
-                    .into_body()
-                    .collect()
-                    .await
-                    .map_err(|e| ClientError::CommunicationFailure(e.to_string()))?
-                    .to_bytes();
+            match http_response.status() {
+                StatusCode::OK => {
+                    let response_body = get_response_body(http_response).await;
+                    trace!("Successfully deserialized response");
+                    response_body
+                }
+                status_code => {
+                    let body_bytes = http_response
+                        .into_body()
+                        .collect()
+                        .await
+                        .map_err(|e| ClientError::CommunicationFailure(e.to_string()))?
+                        .to_bytes();
 
-                match SerdeWrapper::<ServerError>::wrapper_deserialize(&body_bytes) {
-                    Ok(server_err) => Err(ClientError::ResponseError(status_code, server_err)),
-                    Err(e) => {
-                        let raw = String::from_utf8_lossy(&body_bytes);
-                        warn!(
-                            "Non-OK ({status_code}) with deserialization error body: {e}; \
-                             raw={raw}"
-                        );
-                        Err(ClientError::ResponseError(
-                            status_code,
-                            ServerError::RequestDeserializationFailure(format!(
-                                "Server returned {status_code}, invalid error body: {e}; raw={raw}"
-                            )),
-                        ))
+                    match SerdeWrapper::<ServerError>::wrapper_deserialize(&body_bytes) {
+                        Ok(server_err) => Err(ClientError::ResponseError(status_code, server_err)),
+                        Err(e) => {
+                            let raw = String::from_utf8_lossy(&body_bytes);
+                            warn!(
+                                "Non-OK ({status_code}) with deserialization error body: {e}; \
+                                 raw={raw}"
+                            );
+                            Err(ClientError::ResponseError(
+                                status_code,
+                                ServerError::RequestDeserializationFailure(format!(
+                                    "Server returned {status_code}, invalid error body: {e}; \
+                                     raw={raw}"
+                                )),
+                            ))
+                        }
                     }
                 }
+            }
+        };
+        match tokio::time::timeout(timeout_duration, request_future).await {
+            Ok(Ok(response)) => Ok(response),
+            Ok(Err(e)) => Err(e),
+            Err(_) => {
+                warn!(
+                    "HTTP request to {} timed out after {} ms",
+                    self.uri, self.config.request_timeout_ms
+                );
+                Err(ClientError::CommunicationFailure("request timed out".to_string()))
             }
         }
     }
