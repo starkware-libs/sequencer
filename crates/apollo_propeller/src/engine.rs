@@ -29,6 +29,7 @@ type BroadcastResult = (Result<Vec<PropellerUnit>, ShardPublishError>, Broadcast
 struct MessageKey {
     channel: Channel,
     publisher: PeerId,
+    nonce: u64,
     root: MessageRoot,
 }
 
@@ -213,6 +214,7 @@ impl Engine {
     fn handle_unit(&mut self, sender_peer_id: PeerId, unit: PropellerUnit) {
         let claimed_channel = unit.channel();
         let claimed_publisher = unit.publisher();
+        let claimed_nonce = unit.nonce();
         let claimed_root = unit.root();
 
         // Track received shard.
@@ -230,6 +232,7 @@ impl Engine {
         let message_key = MessageKey {
             channel: claimed_channel,
             publisher: claimed_publisher,
+            nonce: claimed_nonce,
             root: claimed_root,
         };
 
@@ -275,6 +278,7 @@ impl Engine {
             let processor = MessageProcessor {
                 channel: claimed_channel,
                 publisher: claimed_publisher,
+                nonce: claimed_nonce,
                 message_root: claimed_root,
                 my_shard_index,
                 publisher_public_key,
@@ -349,11 +353,11 @@ impl Engine {
             EventStateManagerToEngine::BehaviourEvent(event) => {
                 self.emit_event(event);
             }
-            EventStateManagerToEngine::Finalized { channel, publisher, message_root } => {
+            EventStateManagerToEngine::Finalized { channel, publisher, nonce, message_root } => {
                 trace!(?channel, ?publisher, ?message_root, "[ENGINE] Message finalized");
 
                 // Mark as finalized
-                let message_key = MessageKey { channel, publisher, root: message_root };
+                let message_key = MessageKey { channel, publisher, nonce, root: message_root };
                 let expired_keys = self.messages_to_ignore_shards_from.insert(message_key);
 
                 // Track the messages that have been removed from the TTL cache.
