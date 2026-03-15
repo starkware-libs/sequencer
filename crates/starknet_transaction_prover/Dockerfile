@@ -87,9 +87,9 @@ FROM base AS builder
 WORKDIR /app
 
 ARG BUILD_MODE=release
-ARG RUSTFLAGS=""
+ARG TARGET_CPU=""
 ENV BUILD_MODE=${BUILD_MODE}
-ENV RUSTFLAGS=${RUSTFLAGS}
+ENV TARGET_CPU=${TARGET_CPU}
 
 # Validate BUILD_MODE value.
 RUN if [ "$BUILD_MODE" != "release" ] && [ "$BUILD_MODE" != "debug" ]; then \
@@ -102,13 +102,36 @@ RUN if [ "$BUILD_MODE" != "release" ] && [ "$BUILD_MODE" != "debug" ]; then \
 COPY --from=planner /app/recipe.json recipe.json
 COPY crates/starknet_transaction_prover/rust-toolchain.toml rust-toolchain.toml
 RUN BUILD_FLAGS=$([ "$BUILD_MODE" = "release" ] && echo "--release" || true); \
-    cargo chef cook $BUILD_FLAGS -p starknet_transaction_prover --features stwo_proving --recipe-path recipe.json
+    if [ -n "$TARGET_CPU" ]; then \
+        PROFILE_NAME=$([ "$BUILD_MODE" = "release" ] && echo "release" || echo "dev"); \
+        cargo \
+            -Z profile-rustflags \
+            --config "profile.${PROFILE_NAME}.rustflags=[\"-C\",\"target-cpu=${TARGET_CPU}\"]" \
+            --config "profile.${PROFILE_NAME}.build-override.rustflags=[]" \
+            chef cook $BUILD_FLAGS \
+            -p starknet_transaction_prover \
+            --features stwo_proving \
+            --recipe-path recipe.json; \
+    else \
+        cargo chef cook $BUILD_FLAGS -p starknet_transaction_prover --features stwo_proving --recipe-path recipe.json; \
+    fi
 
 # Copy source and build starknet_transaction_prover (without cairo_native feature).
 COPY . .
 COPY crates/starknet_transaction_prover/rust-toolchain.toml rust-toolchain.toml
 RUN BUILD_FLAGS=$([ "$BUILD_MODE" = "release" ] && echo "--release" || true); \
-    cargo build $BUILD_FLAGS -p starknet_transaction_prover --features stwo_proving
+    if [ -n "$TARGET_CPU" ]; then \
+        PROFILE_NAME=$([ "$BUILD_MODE" = "release" ] && echo "release" || echo "dev"); \
+        cargo \
+            -Z profile-rustflags \
+            --config "profile.${PROFILE_NAME}.rustflags=[\"-C\",\"target-cpu=${TARGET_CPU}\"]" \
+            --config "profile.${PROFILE_NAME}.build-override.rustflags=[]" \
+            build $BUILD_FLAGS \
+            -p starknet_transaction_prover \
+            --features stwo_proving; \
+    else \
+        cargo build $BUILD_FLAGS -p starknet_transaction_prover --features stwo_proving; \
+    fi
 
 # =============================================================================
 # Stage 4: Final runtime image
