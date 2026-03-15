@@ -320,6 +320,158 @@ fn test_get_txs_does_not_return_txs_with_different_timestamp(mut mempool: Mempoo
 }
 
 #[rstest]
+fn test_get_txs_pauses_once_on_block_number_gap(mut mempool: Mempool) {
+    let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let input2 = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
+    let input3 = add_tx_input!(tx_hash: 3, address: "0x3", tx_nonce: 0, account_nonce: 0);
+    let input4 = add_tx_input!(tx_hash: 4, address: "0x4", tx_nonce: 0, account_nonce: 0);
+    let input5 = add_tx_input!(tx_hash: 5, address: "0x5", tx_nonce: 0, account_nonce: 0);
+
+    // Metadata aligned by block:
+    // block 2 -> ts 100, block 3 -> ts 200, block 5 -> ts 300.
+    // There is an intentional gap at block 4.
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(100, 2));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(100, 2));
+    mempool.update_tx_block_metadata(tx_hash!(3), tx_metadata(200, 3));
+    mempool.update_tx_block_metadata(tx_hash!(4), tx_metadata(300, 5));
+    mempool.update_tx_block_metadata(tx_hash!(5), tx_metadata(300, 5));
+
+    for input in [&input1, &input2, &input3, &input4, &input5] {
+        add_tx(&mut mempool, input);
+    }
+
+    assert_eq!(mempool.resolve_batch_timestamp(), 100);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input1.tx, input2.tx]);
+
+    assert_eq!(mempool.resolve_batch_timestamp(), 200);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input3.tx]);
+
+    // First cycle at block 5 pauses because block 4 is missing.
+    assert_eq!(mempool.resolve_batch_timestamp(), 300);
+    assert_eq!(mempool.get_txs(10).unwrap(), Vec::new());
+
+    // Next cycle proceeds with block 5.
+    assert_eq!(mempool.resolve_batch_timestamp(), 300);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input4.tx, input5.tx]);
+}
+
+#[rstest]
+fn test_get_txs_returns_empty_result_with_gaps(mut mempool: Mempool) {
+    let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let input2 = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
+    let input3 = add_tx_input!(tx_hash: 3, address: "0x3", tx_nonce: 0, account_nonce: 0);
+
+    // block 10 -> ts 100, block 11 -> ts 200, block 31 -> ts 300.
+    // Missing blocks are 12..=30, i.e. 19 empty blocks/cycles.
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(100, 10));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(200, 11));
+    mempool.update_tx_block_metadata(tx_hash!(3), tx_metadata(300, 31));
+
+    for input in [&input1, &input2, &input3] {
+        add_tx(&mut mempool, input);
+    }
+
+    assert_eq!(mempool.resolve_batch_timestamp(), 100);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input1.tx]);
+
+    assert_eq!(mempool.resolve_batch_timestamp(), 200);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input2.tx]);
+
+    for _ in 0..19 {
+        assert_eq!(mempool.resolve_batch_timestamp(), 300);
+        assert_eq!(mempool.get_txs(10).unwrap(), Vec::new());
+    }
+
+    assert_eq!(mempool.resolve_batch_timestamp(), 300);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input3.tx]);
+}
+
+#[rstest]
+fn test_gap_flow_after_queue_empties_and_new_transactions_arrive(mut mempool: Mempool) {
+    let input1 = add_tx_input!(tx_hash: 21, address: "0xb1", tx_nonce: 0, account_nonce: 0);
+    let input2 = add_tx_input!(tx_hash: 22, address: "0xb2", tx_nonce: 0, account_nonce: 0);
+    let input3 = add_tx_input!(tx_hash: 23, address: "0xb3", tx_nonce: 0, account_nonce: 0);
+
+    // Process until block 104 and empty the queue.
+    mempool.update_tx_block_metadata(tx_hash!(21), tx_metadata(100, 2));
+    mempool.update_tx_block_metadata(tx_hash!(22), tx_metadata(200, 3));
+    mempool.update_tx_block_metadata(tx_hash!(23), tx_metadata(300, 104));
+    add_tx(&mut mempool, &input1);
+    add_tx(&mut mempool, &input2);
+    add_tx(&mut mempool, &input3);
+
+    assert_eq!(mempool.resolve_batch_timestamp(), 100);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input1.tx]);
+    assert_eq!(mempool.resolve_batch_timestamp(), 200);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input2.tx]);
+    for _ in 0..100 {
+        assert_eq!(mempool.resolve_batch_timestamp(), 300);
+        assert_eq!(mempool.get_txs(10).unwrap(), Vec::new());
+    }
+    assert_eq!(mempool.resolve_batch_timestamp(), 300);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input3.tx]);
+
+    // Queue empty: timestamp is stable and no txs are returned.
+    assert_eq!(mempool.resolve_batch_timestamp(), 300);
+    assert_eq!(mempool.get_txs(10).unwrap(), Vec::new());
+
+    // New tx at the immediate next block should be returned directly.
+    let input4 = add_tx_input!(tx_hash: 24, address: "0xb4", tx_nonce: 0, account_nonce: 0);
+    mempool.update_tx_block_metadata(tx_hash!(24), tx_metadata(400, 105));
+    add_tx(&mut mempool, &input4);
+    assert_eq!(mempool.resolve_batch_timestamp(), 400);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input4.tx]);
+
+    // New tx with a future block should yield one empty cycle per missing block.
+    let input5 = add_tx_input!(tx_hash: 25, address: "0xb5", tx_nonce: 0, account_nonce: 0);
+    mempool.update_tx_block_metadata(tx_hash!(25), tx_metadata(500, 120));
+    add_tx(&mut mempool, &input5);
+
+    for _ in 0..14 {
+        assert_eq!(mempool.resolve_batch_timestamp(), 500);
+        assert_eq!(mempool.get_txs(10).unwrap(), Vec::new());
+    }
+    assert_eq!(mempool.resolve_batch_timestamp(), 500);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input5.tx]);
+}
+
+#[rstest]
+fn test_gap_then_commit_rewind_reanchors_expected_block(mut mempool: Mempool) {
+    let input1 = add_tx_input!(tx_hash: 31, address: "0xc1", tx_nonce: 0, account_nonce: 0);
+    let input2 = add_tx_input!(tx_hash: 32, address: "0xc1", tx_nonce: 1, account_nonce: 0);
+    let input3 = add_tx_input!(tx_hash: 33, address: "0xc2", tx_nonce: 0, account_nonce: 0);
+
+    // block 10 then block 12 (gap at 11).
+    mempool.update_tx_block_metadata(tx_hash!(31), tx_metadata(100, 10));
+    mempool.update_tx_block_metadata(tx_hash!(32), tx_metadata(300, 12));
+    mempool.update_tx_block_metadata(tx_hash!(33), tx_metadata(300, 12));
+    add_tx(&mut mempool, &input1);
+    add_tx(&mut mempool, &input2);
+    add_tx(&mut mempool, &input3);
+
+    // Pop block 10.
+    assert_eq!(mempool.resolve_batch_timestamp(), 100);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input1.tx]);
+
+    // One empty cycle for missing block 11.
+    assert_eq!(mempool.resolve_batch_timestamp(), 300);
+    assert_eq!(mempool.get_txs(10).unwrap(), Vec::new());
+
+    // Pop block 12 txs.
+    assert_eq!(mempool.resolve_batch_timestamp(), 300);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input2.tx.clone(), input3.tx.clone()]);
+
+    // Commit only nonce 0 for address 0xc1 so nonce 1 tx is rewound.
+    // Address 0xc2 has no committed nonce and is also rewound by FIFO policy.
+    commit_block(&mut mempool, [("0xc1", 1)], []);
+
+    // Cursor was already advanced past block 12 before commit. Rewind puts block 12 txs back at
+    // the front; resolve/get should re-anchor and return them.
+    assert_eq!(mempool.resolve_batch_timestamp(), 300);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input2.tx, input3.tx]);
+}
+
+#[rstest]
 fn test_rewind_preserves_timestamp_order(mut mempool: Mempool) {
     // This test reproduces the bug where rewound transactions go to the back of the queue
     // instead of the front, causing them to be processed after new transactions with
@@ -372,6 +524,41 @@ fn test_rewind_preserves_timestamp_order(mut mempool: Mempool) {
 
     // And get_txs should return tx4
     get_txs_and_assert_expected(&mut mempool, 1, &[input4.tx]);
+}
+
+#[rstest]
+fn test_rewind_partial_block_then_continue_to_next_block(mut mempool: Mempool) {
+    let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
+    let input3 = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 2, account_nonce: 0);
+    let input4 = add_tx_input!(tx_hash: 4, address: "0x2", tx_nonce: 0, account_nonce: 0);
+    let input5 = add_tx_input!(tx_hash: 5, address: "0x3", tx_nonce: 0, account_nonce: 0);
+
+    // tx1..tx4 are in block 10 / ts 1000, tx5 is in block 11 / ts 2000.
+    for hash in [1, 2, 3, 4] {
+        mempool.update_tx_block_metadata(tx_hash!(hash), tx_metadata(1000, 10));
+    }
+    mempool.update_tx_block_metadata(tx_hash!(5), tx_metadata(2000, 11));
+
+    for input in [&input1, &input2, &input3, &input4, &input5] {
+        add_tx(&mut mempool, input);
+    }
+    let tx3 = input3.tx.clone();
+
+    // Round 1: pop only tx1..tx3 from block 10.
+    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    get_txs_and_assert_expected(&mut mempool, 3, &[input1.tx, input2.tx, tx3.clone()]);
+
+    // Commit tx1 and tx2 only (nonce becomes 2), tx3 is rewound.
+    commit_block(&mut mempool, [("0x1", 2)], []);
+
+    // Round 2: same block 10 should return rewound tx3 first, then tx4.
+    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    get_txs_and_assert_expected(&mut mempool, 10, &[tx3, input4.tx]);
+
+    // Round 3: proceed to block 11 and return tx5.
+    assert_eq!(mempool.resolve_batch_timestamp(), 2000);
+    get_txs_and_assert_expected(&mut mempool, 10, &[input5.tx]);
 }
 
 #[rstest]
