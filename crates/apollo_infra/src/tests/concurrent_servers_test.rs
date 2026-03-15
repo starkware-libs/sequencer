@@ -144,7 +144,7 @@ async fn setup_concurrent_local_test() -> LocalConcurrentComponentClient {
         tx_a,
         &TEST_LOCAL_CLIENT_METRICS,
     );
-    let local_server_config = LocalServerConfig{max_concurrency: 10, ..Default::default()};
+    let local_server_config = LocalServerConfig { max_concurrency: 10, ..Default::default() };
     let mut concurrent_local_server = ConcurrentLocalComponentServer::new(
         component,
         &local_server_config,
