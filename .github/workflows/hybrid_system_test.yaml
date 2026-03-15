@@ -40,14 +40,6 @@ concurrency:
 jobs:
   check-system-test-trigger:
     runs-on: namespace-profile-small-ubuntu-24-04-amd64
-<<<<<<< HEAD
-||||||| 78551e8a5f
-    needs: optimize_ci
-    if: needs.optimize_ci.outputs.skip == 'false'
-=======
-    needs: optimize_ci
-    if: github.event_name != 'pull_request' || needs.optimize_ci.outputs.skip == 'false'
->>>>>>> origin/main-v0.14.2
     outputs:
       should_run: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.system_check.outputs.should_run }}
     steps:

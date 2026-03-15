@@ -10203,40 +10203,6 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
-name = "proving_utils"
-version = "0.0.0"
-dependencies = [
- "apollo_infra_utils",
- "bzip2",
- "rstest",
- "serde",
- "starknet_api",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
-]
-
-[[package]]
-||||||| 78551e8a5f
-name = "proving_utils"
-version = "0.18.0-dev.0"
-dependencies = [
- "apollo_infra_utils",
- "bzip2",
- "rstest",
- "serde",
- "starknet_api",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
-]
-
-[[package]]
-=======
->>>>>>> origin/main-v0.14.2
 name = "ptr_meta"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12599,7 +12565,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_proof_verifier"
-version = "0.18.0-dev.0"
+version = "0.0.0"
 dependencies = [
  "apollo_sizeof",
  "privacy-circuit-verify",

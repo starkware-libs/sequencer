@@ -83,15 +83,7 @@ jobs:
 
   benchmarking:
     runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
-<<<<<<< HEAD
-    if: ${{ github.event_name == 'pull_request' }}
-||||||| 78551e8a5f
-    if: ${{ github.event_name == 'pull_request' && needs.optimize_ci.outputs.skip == 'false' }}
-    needs: optimize_ci
-=======
-    needs: optimize_ci
-    if: github.event_name == 'pull_request' && needs.optimize_ci.outputs.skip == 'false'
->>>>>>> origin/main-v0.14.2
+    if: github.event_name == 'pull_request'
     steps:
       # TODO(AndrewL): Remove this after a while in CI (March 4 2026)
       - name: Print PR and base SHAs

@@ -8,7 +8,6 @@ use apollo_class_manager_types::{CachedClassStorageError, ClassId, ExecutableCla
 use apollo_compile_to_casm_types::{RawClass, RawClassError, RawExecutableClass};
 use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
-<<<<<<< HEAD
 #[cfg(any(feature = "testing", test))]
 use apollo_storage::open_storage;
 use apollo_storage::storage_reader_server::{
@@ -22,17 +21,6 @@ use apollo_storage::storage_reader_types::{
     StorageReaderResponse,
 };
 use apollo_storage::StorageConfig;
-||||||| 78551e8a5f
-use apollo_storage::storage_reader_server::{ServerConfig, StorageReaderServerDynamicConfig};
-use apollo_storage::storage_reader_types::GenericStorageReaderServer;
-use apollo_storage::{open_storage, StorageConfig};
-=======
-#[cfg(any(feature = "testing", test))]
-use apollo_storage::open_storage;
-use apollo_storage::storage_reader_server::{ServerConfig, StorageReaderServerDynamicConfig};
-use apollo_storage::storage_reader_types::GenericStorageReaderServer;
-use apollo_storage::StorageConfig;
->>>>>>> origin/main-v0.14.2
 use starknet_api::class_cache::GlobalContractCache;
 use thiserror::Error;
 use tokio::task::AbortHandle;
