@@ -475,6 +475,12 @@ let Some(num) = foo else {
 derp(num)
 ```
 
+### American English
+
+Prefer American English spelling over British English in all code components: identifiers, comments, log messages, error messages, etc. For example, use `serialize` (not `serialise`), `initialize` (not `initialise`), `canceled` (not `cancelled`).
+
+If a 3rd-party crate or API uses British English spelling, maintain that spelling when referring to its types, functions, or fields.
+
 ### Associated Functions
 
 All associated functions should depend on `Self`. Associated functions that don't should be free functions.
