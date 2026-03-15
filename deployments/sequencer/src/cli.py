@@ -17,9 +17,10 @@ def argument_parser():
         "-o",
         "--overlay",
         type=str,
-        required=True,
-        dest="overlay",
-        help="Overlay entrypoint. Must start with layout name and use dot notation (e.g., 'hybrid.testing.node-0').",
+        action="append",
+        default=[],
+        help="Overlay path(s) to apply, in order. Can be specified multiple times. "
+        "Merged left-to-right (last wins). Must start with layout name.",
     )
     parser.add_argument(
         "--monitoring-dashboard-file",
