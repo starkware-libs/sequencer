@@ -29,3 +29,7 @@ service:
     port: 55006
     targetPort: 55006
     protocol: TCP
+  - name: mempool-p2p-config
+    port: 53200
+    targetPort: 53200
+    protocol: TCP
