@@ -29,7 +29,6 @@ pub struct PropellerScheduleManager {
     /// This node's peer ID.
     local_peer_id: PeerId,
     /// This node's index in the nodes vector.
-    #[allow(unused)] // TODO(AndrewL): remove this once we use it
     local_peer_index: usize,
     /// The number of data shards.
     num_data_shards: usize,
