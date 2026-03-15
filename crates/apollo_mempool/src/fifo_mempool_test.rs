@@ -472,6 +472,26 @@ fn test_gap_then_commit_rewind_reanchors_expected_block(mut mempool: Mempool) {
 }
 
 #[rstest]
+fn test_get_txs_same_block_spans_multiple_chunks(mut mempool: Mempool) {
+    for i in 1..=111 {
+        let addr = format!("0x{i:x}");
+        let input =
+            add_tx_input!(tx_hash: i, address: addr.as_str(), tx_nonce: 0, account_nonce: 0);
+        mempool.update_tx_block_metadata(tx_hash!(i), tx_metadata(1000, 10));
+        add_tx(&mut mempool, &input);
+    }
+
+    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
+    // First chunk: block builder fetches 100 (n_concurrent_txs).
+    let chunk1 = mempool.get_txs(100).unwrap();
+    assert_eq!(chunk1.len(), 100);
+    // Second chunk: block builder has capacity again, fetches remaining 11.
+    let chunk2 = mempool.get_txs(100).unwrap();
+    assert_eq!(chunk2.len(), 11);
+    assert_eq!(chunk1.len() + chunk2.len(), 111);
+}
+
+#[rstest]
 fn test_rewind_preserves_timestamp_order(mut mempool: Mempool) {
     // This test reproduces the bug where rewound transactions go to the back of the queue
     // instead of the front, causing them to be processed after new transactions with

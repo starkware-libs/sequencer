@@ -233,8 +233,16 @@ impl TransactionQueueTrait for FifoTransactionQueue {
             self.staged_txs.push(tx);
         }
         if !result.is_empty() {
-            // Only advance expected block when we actually popped txs for the current block.
-            current_state.advance_expected_block_after_pop();
+            // Only advance expected block when we've fully exhausted the current block.
+            // If we hit the n_txs limit with more txs of the same block still in queue,
+            // do NOT advance - the next pop_ready_chunk call must return those txs.
+            let exhausted_current_block = self
+                .queue
+                .front()
+                .is_none_or(|front| front.block_number != current_state.expected_block_number);
+            if exhausted_current_block {
+                current_state.advance_expected_block_after_pop();
+            }
             self.current_proposal_state = Some(current_state);
         }
 
