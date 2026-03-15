@@ -171,49 +171,34 @@ pub use <some_3rd_party_crate>::some::type::Bar;
 
 The above internalizes `Bar` as an inner type of the re-exporting crate. This by-itself can be nice-to-have sometimes due to [APIs](#APIs), however this will also internalize all `impl trait for Bar` into the current crate, which almost always isn't what we want.
 
-### Boolean Function Parameters
+### Unnamed Function Parameters
 
-Use only if the call-site is clear without having to use auxiliary variables, for example a setter for a boolean field, or a "yes-no question".
+Make an API that enforces the call-site parameter values to appear with meaningful names, unless the meaning of the values is trivial.
 
 ```rust
-// GOOD
+// GOOD - The meaning of `true` is clear enough on its own
 set_operation_success_status(true)
 
-// BAD
+// BAD - What do the values of the parameters mean?
 create_transaction(true, false)
+find_prime_numbers(None)
+```
 
-// BETTER BUT STILL BAD
-// Every callsite has to do these two...
+The tools you have at your disposal are:
+1. Define enum for each parameter
+```rust
+create_transaction(DryRunStatus::Enabled, ExecutionStatus::Disabled)
+find_prime_numbers(Logging::Disabled)
+```
+2. Define a struct for all the function parameters
+```rust
+create_transaction(CreateTransactionArgs { is_dry_run: true, is_executable: false })
+```
+3. If you prefer not to change the API or can't, add names at the callsite by defining variables. Note that the compiler won't enforce adjusting the callsite when the API changes.
+```rust
 let is_dry_run = true;
 let is_executable = false;
 create_transaction(is_dry_run, is_executable)
-
-// GOOD
-TransactionBuilder::new().with_dry_run(true).with_execution_status(false);
-
-// ALSO GOOD
-create_transaction(DryRunStatus::Enabled, ExecutionStatus::Disabled)
-```
-
-**Rationale**: callsite is more readable, without having to resort to using auxiliary args.
-
-**Rationale**: when bool parameters are used for configuration, like `foo(also_bar: bool)`, this very commonly breeds more configuration parameters `foo(also_bar: bool, but_maybe_also_baz: bool)` which almost always leads to impossible states (can baz be true without bar?) and are hard to reason about: "how does one know what the "real" set of configurations are?". Rethink the design, consider a builder, or a config object that validates consistency.
-
-### Option Parameters
-
-Prefer enums or [zero-sized-type](https://doc.rust-lang.org/book/ch05-01-defining-structs.html#unit-like-structs-without-any-fields), unless passing `None` as an argument is clear without having to refer to the signature.
-
-```rust
-// BAD
-connect("server", None)  // What does None mean here?
-
-// GOOD — Alternative with enums
-connect("server", Logging::Disabled)
-
-// GOOD — Alternative with zero-sized-types.
-struct NoLogging;
-impl Logger for NoLogging {/* no-op implementation */}
-connect("server", NoLogging)
 ```
 
 ### Getter Names
