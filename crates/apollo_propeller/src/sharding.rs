@@ -24,7 +24,7 @@ use crate::{signature, MerkleProof, MerkleTree, MessageRoot};
 // TODO(AndrewL): Consider rebuilding all shards in a single reed-solomon call instead of
 // reconstructing data shards and then regenerating coding shards separately.
 // <github.com/AndersTrier/reed-solomon-simd/issues/65>
-pub fn reconstruct_message_from_shards(
+pub fn reconstruct_data_shards(
     received_shards: Vec<PropellerUnit>,
     message_root: MessageRoot,
     my_shard_index: usize,
@@ -41,7 +41,7 @@ pub fn reconstruct_message_from_shards(
         })
         .collect();
 
-    let reconstructed_data_shards = crate::reed_solomon::reconstruct_message_from_shards(
+    let reconstructed_data_shards = crate::reed_solomon::reconstruct_data_shards(
         &shards_for_reconstruction,
         data_count,
         coding_count,
