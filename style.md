@@ -75,6 +75,16 @@ the former will display the error, and the latter will simply say `expected True
     -    If you're not interested in the value, or if error type doesn't implement `PartialEq`, simply call `result.unwrap()`
 -   Avoid doing too many things in one test with a single assert at the end, unless other tests exist that cover enough parts of the test separately so that finding the source will be simple.
 
+### Test Names
+
+Tests should start with a `test_` prefix.
+
+**Rationale:** Even though the `#[test]` attribute marks test functions, a `test_` prefix makes it
+immediately clear which functions are tests and which are helper functions.
+
+Unlike regular functions, test names can be long. Feel free to describe the exact scenario or edge
+case you're testing, e.g. `test_send_tx_with_duplicate_nonce_returns_already_received`.
+
 ### Integration and Flow Tests
 Unit tests should be short (< 1 sec) and deterministic, unless there's a specific reason otherwise.
 
