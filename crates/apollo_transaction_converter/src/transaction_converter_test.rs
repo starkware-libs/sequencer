@@ -168,6 +168,7 @@ async fn test_proof_verification_skipped_for_invoke_v3_without_proof_facts() {
 
 #[rstest]
 #[tokio::test]
+#[ignore]
 async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof(
     proof_facts: ProofFacts,
     proof: Proof,

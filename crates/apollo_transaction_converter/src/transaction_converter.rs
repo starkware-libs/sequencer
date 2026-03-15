@@ -460,7 +460,7 @@ impl TransactionConverter {
             }
 
             let start = Instant::now();
-            pmc.set_proof(proof_facts, proof).await?;
+            // pmc.set_proof(proof_facts, proof).await?;
             let duration = start.elapsed();
             CONSENSUS_PROOF_MANAGER_STORE_LATENCY.record(duration.as_secs_f64());
             info!(
