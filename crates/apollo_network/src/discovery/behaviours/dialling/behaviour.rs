@@ -25,16 +25,12 @@ use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 /// Streams terminate once a connection is established. This behaviour does not
 /// re-dial peers after disconnection — callers must call
 /// [`request_dial`](Self::request_dial) again if reconnection is desired.
-// TODO(AndrewL): remove this once the behaviour is added
-#[allow(dead_code)]
 pub struct DiallingBehaviour {
     retry_config: RetryConfig,
     peers: SelectAll<DialPeerStream>,
     waker: Option<Waker>,
 }
 
-// TODO(AndrewL): remove this once the behaviour is added
-#[allow(dead_code)]
 impl DiallingBehaviour {
     pub fn new(retry_config: RetryConfig) -> Self {
         Self { retry_config, peers: SelectAll::new(), waker: None }
