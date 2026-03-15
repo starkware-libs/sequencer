@@ -604,6 +604,11 @@
     "privacy": "Public",
     "value": 1024
   },
+  "components.batcher.local_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
   "components.batcher.local_server_config.normal_priority_requests_channel_capacity": {
     "description": "The normal priority requests channel capacity.",
     "privacy": "Public",
@@ -684,6 +689,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.batcher.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
   "components.batcher.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -718,6 +728,11 @@
     "description": "The inbound requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.class_manager.local_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
   },
   "components.class_manager.local_server_config.normal_priority_requests_channel_capacity": {
     "description": "The normal priority requests channel capacity.",
@@ -799,6 +814,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.class_manager.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
   "components.class_manager.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -833,6 +853,11 @@
     "description": "The inbound requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.committer.local_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
   },
   "components.committer.local_server_config.normal_priority_requests_channel_capacity": {
     "description": "The normal priority requests channel capacity.",
@@ -914,6 +939,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.committer.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
   "components.committer.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -948,6 +978,11 @@
     "description": "The inbound requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.config_manager.local_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
   },
   "components.config_manager.local_server_config.normal_priority_requests_channel_capacity": {
     "description": "The normal priority requests channel capacity.",
@@ -1029,6 +1064,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.config_manager.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
   "components.config_manager.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1068,6 +1108,11 @@
     "description": "The inbound requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.gateway.local_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
   },
   "components.gateway.local_server_config.normal_priority_requests_channel_capacity": {
     "description": "The normal priority requests channel capacity.",
@@ -1149,6 +1194,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.gateway.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
   "components.gateway.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1188,6 +1238,11 @@
     "description": "The inbound requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.l1_events_provider.local_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
   },
   "components.l1_events_provider.local_server_config.normal_priority_requests_channel_capacity": {
     "description": "The normal priority requests channel capacity.",
@@ -1269,6 +1324,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.l1_events_provider.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
   "components.l1_events_provider.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1308,6 +1368,11 @@
     "description": "The inbound requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.l1_gas_price_provider.local_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
   },
   "components.l1_gas_price_provider.local_server_config.normal_priority_requests_channel_capacity": {
     "description": "The normal priority requests channel capacity.",
@@ -1389,6 +1454,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.l1_gas_price_provider.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
   "components.l1_gas_price_provider.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1428,6 +1498,11 @@
     "description": "The inbound requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.mempool.local_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
   },
   "components.mempool.local_server_config.normal_priority_requests_channel_capacity": {
     "description": "The normal priority requests channel capacity.",
@@ -1509,6 +1584,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.mempool.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
   "components.mempool.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1543,6 +1623,11 @@
     "description": "The inbound requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.mempool_p2p.local_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
   },
   "components.mempool_p2p.local_server_config.normal_priority_requests_channel_capacity": {
     "description": "The normal priority requests channel capacity.",
@@ -1624,6 +1709,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.mempool_p2p.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
   "components.mempool_p2p.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1663,6 +1753,11 @@
     "description": "The inbound requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.proof_manager.local_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
   },
   "components.proof_manager.local_server_config.normal_priority_requests_channel_capacity": {
     "description": "The normal priority requests channel capacity.",
@@ -1744,6 +1839,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.proof_manager.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
   "components.proof_manager.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1778,6 +1878,11 @@
     "description": "The inbound requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.sierra_compiler.local_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
   },
   "components.sierra_compiler.local_server_config.normal_priority_requests_channel_capacity": {
     "description": "The normal priority requests channel capacity.",
@@ -1859,6 +1964,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.sierra_compiler.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
   "components.sierra_compiler.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1893,6 +2003,11 @@
     "description": "The inbound requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.signature_manager.local_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
   },
   "components.signature_manager.local_server_config.normal_priority_requests_channel_capacity": {
     "description": "The normal priority requests channel capacity.",
@@ -1974,6 +2089,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.signature_manager.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
   "components.signature_manager.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -2008,6 +2128,11 @@
     "description": "The inbound requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.state_sync.local_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
   },
   "components.state_sync.local_server_config.normal_priority_requests_channel_capacity": {
     "description": "The normal priority requests channel capacity.",
@@ -2088,6 +2213,11 @@
     "description": "Binding address of the remote component server.",
     "privacy": "Public",
     "value": "0.0.0.0"
+  },
+  "components.state_sync.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
   },
   "components.state_sync.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",

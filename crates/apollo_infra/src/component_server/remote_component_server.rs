@@ -4,6 +4,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::validators::validate_positive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
@@ -39,6 +40,7 @@ use crate::serde_utils::SerdeWrapper;
 
 const DEFAULT_MAX_STREAMS_PER_CONNECTION: u32 = 8;
 const DEFAULT_BIND_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
+const DEFAULT_MAX_CONCURRENCY: usize = 128;
 
 macro_rules! serve_connection {
     ($io:expr, $service:expr, $max_streams:expr) => {
@@ -60,6 +62,8 @@ pub struct RemoteServerConfig {
     pub max_streams_per_connection: u32,
     pub bind_ip: IpAddr,
     pub set_tcp_nodelay: bool,
+    #[validate(custom(function = "validate_positive"))]
+    pub max_concurrency: usize,
 }
 
 impl SerializeConfig for RemoteServerConfig {
@@ -83,6 +87,12 @@ impl SerializeConfig for RemoteServerConfig {
                 "Whether to set TCP_NODELAY on the server responses.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "max_concurrency",
+                &self.max_concurrency,
+                "The maximum number of concurrent requests handling.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -93,6 +103,7 @@ impl Default for RemoteServerConfig {
             max_streams_per_connection: DEFAULT_MAX_STREAMS_PER_CONNECTION,
             bind_ip: DEFAULT_BIND_IP,
             set_tcp_nodelay: true,
+            max_concurrency: DEFAULT_MAX_CONCURRENCY,
         }
     }
 }

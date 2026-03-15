@@ -192,7 +192,6 @@ where
 /// - After releasing permits on the shared semaphore, a subsequent request succeeds.
 /// This test also verifies that the number of connections to the remote server metric is updated
 /// correctly.
-// Uses available_ports_factory with index 1.
 #[tokio::test]
 async fn remote_connection_concurrency() {
     let recorder = PrometheusBuilder::new().build_recorder();
@@ -378,7 +377,7 @@ async fn setup_for_tests(
         &TEST_LOCAL_CLIENT_METRICS,
     );
 
-    let config = LocalServerConfig::default();
+    let config = LocalServerConfig { max_concurrency, ..Default::default() };
     let mut component_a_local_server =
         LocalComponentServer::new(component_a, &config, rx_a, &TEST_LOCAL_SERVER_METRICS);
     let mut component_b_local_server =
@@ -386,14 +385,14 @@ async fn setup_for_tests(
 
     let mut component_a_remote_server = RemoteComponentServer::new(
         a_local_client,
-        dummy_remote_server_config(a_socket.ip()),
+        dummy_remote_server_config(a_socket.ip(), max_concurrency),
         a_socket.port(),
         max_concurrency,
         &TEST_REMOTE_SERVER_METRICS,
     );
     let mut component_b_remote_server = RemoteComponentServer::new(
         b_local_client,
-        dummy_remote_server_config(b_socket.ip()),
+        dummy_remote_server_config(b_socket.ip(), max_concurrency),
         b_socket.port(),
         max_concurrency,
         &TEST_REMOTE_SERVER_METRICS,
@@ -418,7 +417,6 @@ async fn setup_for_tests(
     task::yield_now().await;
 }
 
-// Uses available_ports_factory with index 2.
 #[tokio::test]
 async fn proper_setup() {
     let setup_value: ValueB = Felt::from(90);
@@ -446,7 +444,6 @@ async fn proper_setup() {
     test_a_b_functionality(a_remote_client, b_remote_client, setup_value).await;
 }
 
-// Uses available_ports_factory with index 3.
 #[tokio::test]
 async fn faulty_client_setup() {
     let mut available_ports = available_ports_factory(unique_u16!());
@@ -490,7 +487,6 @@ async fn faulty_client_setup() {
     verify_error(faulty_a_client, &expected_error_contained_keywords).await;
 }
 
-// Uses available_ports_factory with index 4.
 #[tokio::test]
 async fn unconnected_server() {
     let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();
@@ -505,7 +501,6 @@ async fn unconnected_server() {
 }
 
 // TODO(Nadin): add DESERIALIZE_REQ_ERROR_MESSAGE to the expected error keywords in the first case.
-// Uses available_ports_factory with indices 8,9.
 #[rstest]
 #[case::request_deserialization_failure(
     create_client_and_faulty_server(unique_u16!(),
@@ -525,7 +520,6 @@ async fn faulty_server(
     verify_error(client, expected_error_contained_keywords).await;
 }
 
-// Uses available_ports_factory with index 5.
 #[tokio::test]
 async fn retry_request() {
     let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();
