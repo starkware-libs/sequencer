@@ -3,3 +3,4 @@
 ~ /gateway/max_proof_size: 600000
 + /os_constants/allowed_virtual_os_program_hashes/0: "0x1b3d407902ce8f242d09ed3429e4b83fa799f75d72918759caeee1e6038e748"
 ~ /os_constants/builtin_gas_costs/blake: 3334
+~ /os_constants/max_proving_blocks_behind: 300000
