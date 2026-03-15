@@ -12,6 +12,7 @@ testing = []
 [dependencies]
 apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
+lru.workspace = true
 apollo_protobuf.workspace = true
 asynchronous-codec.workspace = true
 futures.workspace = true
