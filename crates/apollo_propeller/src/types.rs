@@ -59,8 +59,7 @@ pub enum ShardSignatureVerificationError {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
-// TODO(AndrewL): rename TreeGenerationError
-pub enum TreeGenerationError {
+pub enum ScheduleError {
     #[error("Cannot generate tree: publisher {publisher} was not found in the channel")]
     PublisherNotInChannel {
         /// The publisher that was not found in the peer list.
@@ -96,7 +95,7 @@ pub enum ShardPublishError {
     #[error("Handler error: {0}")]
     HandlerError(String),
     #[error("Tree generation error: {0}")]
-    TreeGenerationError(TreeGenerationError),
+    ScheduleError(ScheduleError),
     #[error("Channel not registered: {0:?}")]
     ChannelNotRegistered(Channel),
     #[error("Broadcast failed to complete")]
@@ -137,7 +136,7 @@ pub enum ShardValidationError {
     #[error("Received shard that is already in cache (duplicate)")]
     DuplicateShard,
     #[error("Received shard but error getting parent in tree topology: {0}")]
-    ScheduleManagerError(TreeGenerationError),
+    ScheduleManagerError(ScheduleError),
     #[error(
         "Shard failed parent verification (expected sender = {expected_sender}, shard index = \
          {shard_index:?})"
