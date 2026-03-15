@@ -111,6 +111,7 @@
 //!
 //! ```rust,no_run
 //! # use apollo_network::network_manager::{NetworkManager, BroadcastTopicClientTrait};
+//! # use apollo_network_types::network_types::{BadPeerReport, BadPeerReason, PenaltyCard};
 //! # use apollo_network::gossipsub_impl::Topic;
 //! # use futures::StreamExt;
 //! # use serde::{Serialize, Deserialize};
@@ -148,7 +149,12 @@
 //!         }
 //!         Err(e) => {
 //!             // Report malicious peer
-//!             channels.broadcast_topic_client.report_peer(metadata).await?;
+//!             let bad_peer_report = BadPeerReport {
+//!                 peer_id: metadata.originator_id.clone(),
+//!                 reason: BadPeerReason::ConversionError(e.to_string()),
+//!                 penalty_card: PenaltyCard::Yellow,
+//!             };
+//!             channels.broadcast_topic_client.report_peer(metadata, bad_peer_report).await?;
 //!         }
 //!     }
 //! }
