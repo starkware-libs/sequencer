@@ -9,16 +9,23 @@ use validator::Validate;
 
 pub const MONITORING_ENDPOINT_DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
 pub const MONITORING_ENDPOINT_DEFAULT_PORT: u16 = 8082;
+pub const MONITORING_ENDPOINT_DEFAULT_SNAPSHOT_TIMEOUT_MILLIS: u64 = 5000;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct MonitoringEndpointConfig {
     pub ip: IpAddr,
     pub port: u16,
+    /// Timeout in milliseconds for snapshot requests to internal services (mempool, L1 provider).
+    pub snapshot_timeout_millis: u64,
 }
 
 impl MonitoringEndpointConfig {
     pub fn deployment() -> Self {
-        Self { ip: MONITORING_ENDPOINT_DEFAULT_IP, port: MONITORING_ENDPOINT_DEFAULT_PORT }
+        Self {
+            ip: MONITORING_ENDPOINT_DEFAULT_IP,
+            port: MONITORING_ENDPOINT_DEFAULT_PORT,
+            snapshot_timeout_millis: MONITORING_ENDPOINT_DEFAULT_SNAPSHOT_TIMEOUT_MILLIS,
+        }
     }
 }
 
@@ -41,6 +48,13 @@ impl SerializeConfig for MonitoringEndpointConfig {
                 "port",
                 &self.port,
                 "The monitoring endpoint port.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "snapshot_timeout_millis",
+                &self.snapshot_timeout_millis,
+                "Timeout in milliseconds for snapshot requests to internal services (mempool, L1 \
+                 provider). Returns 504 if the service does not respond within this deadline.",
                 ParamPrivacyInput::Public,
             ),
         ])
