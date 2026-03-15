@@ -231,17 +231,17 @@ only the runtime binary and required resources.
 ### CPU-specific builds
 
 Building with `-C target-cpu` set to the host microarchitecture provides a meaningful proving
-performance boost. Pass `RUSTFLAGS` as a build arg:
+performance boost. Pass `TARGET_CPU` as a build arg:
 
 ```bash
 # Example: optimized for AMD EPYC Turin (GKE c4d nodes)
 docker build -f crates/starknet_transaction_prover/Dockerfile \
-  --build-arg RUSTFLAGS="-C target-cpu=znver5" \
+  --build-arg TARGET_CPU=znver5 \
   -t tx_prover:latest .
 ```
 
 A convenience script is available for parameterized builds:
 
 ```bash
-./scripts/build_starknet_transaction_prover.sh --rustflags "-C target-cpu=znver5"
+./scripts/build_starknet_transaction_prover.sh --target-cpu znver5
 ```
