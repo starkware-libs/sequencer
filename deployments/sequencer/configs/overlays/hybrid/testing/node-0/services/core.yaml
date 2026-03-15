@@ -42,6 +42,7 @@ config:
     components.state_sync.port: 55009
     components.state_sync.url: sequencer-core-service
     consensus_manager_config.consensus_manager_config.dynamic_config.require_virtual_proposer_vote: false
+    consensus_manager_config.consensus_manager_config.dynamic_config.use_committee_weight: false
     consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base: 9.1
     consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max: 15.0
     consensus_manager_config.context_config.dynamic_config.min_l2_gas_price_per_height: ""
