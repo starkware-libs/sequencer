@@ -34,6 +34,7 @@ use crate::component_client::{
     LocalComponentClient,
     RemoteClientConfig,
     RemoteComponentClient,
+    REQUEST_TIMEOUT_ERROR_MESSAGE,
 };
 use crate::component_definitions::{
     ComponentClient,
@@ -192,7 +193,6 @@ where
 /// - After releasing permits on the shared semaphore, a subsequent request succeeds.
 /// This test also verifies that the number of connections to the remote server metric is updated
 /// correctly.
-// Uses available_ports_factory with index 1.
 #[tokio::test]
 async fn remote_connection_concurrency() {
     let recorder = PrometheusBuilder::new().build_recorder();
@@ -418,7 +418,6 @@ async fn setup_for_tests(
     task::yield_now().await;
 }
 
-// Uses available_ports_factory with index 2.
 #[tokio::test]
 async fn proper_setup() {
     let setup_value: ValueB = Felt::from(90);
@@ -446,7 +445,6 @@ async fn proper_setup() {
     test_a_b_functionality(a_remote_client, b_remote_client, setup_value).await;
 }
 
-// Uses available_ports_factory with index 3.
 #[tokio::test]
 async fn faulty_client_setup() {
     let mut available_ports = available_ports_factory(unique_u16!());
@@ -490,7 +488,6 @@ async fn faulty_client_setup() {
     verify_error(faulty_a_client, &expected_error_contained_keywords).await;
 }
 
-// Uses available_ports_factory with index 4.
 #[tokio::test]
 async fn unconnected_server() {
     let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();
@@ -504,8 +501,44 @@ async fn unconnected_server() {
     verify_error(client, &expected_error_contained_keywords).await;
 }
 
+/// Server that accepts the connection and request but never sends a response (handler never
+/// completes). Verifies the client times out and returns
+/// CommunicationFailure(REQUEST_TIMEOUT_ERROR_MESSAGE).
+#[tokio::test]
+async fn request_times_out_when_server_never_responds() {
+    let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();
+    task::spawn(async move {
+        async fn handler_that_never_responds(
+            _http_request: Request<Incoming>,
+        ) -> Result<Response<Full<Bytes>>, Infallible> {
+            std::future::pending().await
+        }
+
+        let listener = TcpListener::bind(&socket).await.unwrap();
+        let (stream, _) = listener.accept().await.unwrap();
+        let io = TokioIo::new(stream);
+        let service = service_fn(|req| async move { handler_that_never_responds(req).await });
+        let _ = Http2ServerBuilder::new(TokioExecutor::new())
+            .http2()
+            .serve_connection(io, service)
+            .await;
+    });
+
+    task::yield_now().await;
+
+    let timeout_config =
+        RemoteClientConfig { request_timeout_ms: 200, retries: 0, ..FAST_FAILING_CLIENT_CONFIG };
+    let client = ComponentAClient::new(
+        timeout_config,
+        &socket.ip().to_string(),
+        socket.port(),
+        &TEST_REMOTE_CLIENT_METRICS,
+    );
+    let expected_error_contained_keywords = [REQUEST_TIMEOUT_ERROR_MESSAGE];
+    verify_error(client, &expected_error_contained_keywords).await;
+}
+
 // TODO(Nadin): add DESERIALIZE_REQ_ERROR_MESSAGE to the expected error keywords in the first case.
-// Uses available_ports_factory with indices 8,9.
 #[rstest]
 #[case::request_deserialization_failure(
     create_client_and_faulty_server(unique_u16!(),
@@ -525,7 +558,6 @@ async fn faulty_server(
     verify_error(client, expected_error_contained_keywords).await;
 }
 
-// Uses available_ports_factory with index 5.
 #[tokio::test]
 async fn retry_request() {
     let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();

@@ -155,7 +155,6 @@ async fn setup_concurrent_local_test() -> LocalConcurrentComponentClient {
     local_client
 }
 
-// Uses available_ports_factory with index 7.
 async fn setup_concurrent_remote_test() -> RemoteConcurrentComponentClient {
     let local_client = setup_concurrent_local_test().await;
     let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();
