@@ -7,7 +7,7 @@ use rand::seq::SliceRandom;
 use tokio::sync::mpsc;
 use tracing::{debug, error, trace};
 
-use crate::sharding::reconstruct_message_from_shards;
+use crate::sharding::reconstruct_data_shards;
 use crate::tree::PropellerScheduleManager;
 use crate::types::{Channel, Event, MessageRoot, ReconstructionError, ShardValidationError};
 use crate::unit::PropellerUnit;
@@ -289,18 +289,13 @@ impl MessageProcessor {
         // TODO(AndrewL): track task handle to abort the task if the timeout is reached or
         // finalization occurs.
         tokio::task::spawn_blocking(move || {
-            reconstruct_message_from_shards(
-                shards,
-                message_root,
-                my_index,
-                data_count,
-                coding_count,
+            reconstruct_data_shards(shards, message_root, my_index, data_count, coding_count).map(
+                |(message, my_shard, my_shard_proof)| ReconstructionOutput {
+                    message,
+                    my_shard,
+                    my_shard_proof,
+                },
             )
-            .map(|(message, my_shard, my_shard_proof)| ReconstructionOutput {
-                message,
-                my_shard,
-                my_shard_proof,
-            })
         })
         .await
         .expect("Reconstruction task panicked")
