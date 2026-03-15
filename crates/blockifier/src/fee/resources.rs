@@ -218,6 +218,13 @@ impl StateResources {
     }
 
     /// Returns the gas cost of the transaction's state changes.
+    // The allocation_cost L2 gas component prices the extra Patricia Merkle tree proving
+    // overhead for writing to a new (zero → nonzero) state cell. This is computed from
+    // the final state diff, not per-syscall. Implications:
+    // - A 0→x→0 write avoids the charge (correct: no net state change, no proving cost).
+    // - System-side allocations (fee transfers, etc.) are also charged.
+    // - This cost flows into receipt.gas.l2_gas (user fees + EIP-1559) and the bouncer's
+    //   receipt_l2_gas dimension (block closure), but NOT into bouncer sierra_gas.
     pub fn to_gas_vector(&self, use_kzg_da: bool, allocation_cost: &AllocationCost) -> GasVector {
         let n_allocated_keys: u64 = self
             .state_changes_for_fee

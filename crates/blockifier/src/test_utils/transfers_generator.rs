@@ -108,7 +108,7 @@ impl TransfersGenerator {
             &GasVector {
                 l1_gas: 0_u32.into(),
                 l1_data_gas: 224_u32.into(),
-                l2_gas: 1_000_000_u32.into(),
+                l2_gas: 2_000_000_u32.into(),
             },
             &block_context.block_info.gas_prices.strk_gas_prices,
         );

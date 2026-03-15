@@ -1,3 +1,5 @@
+~ /allocation_cost/blob_cost/l2_gas: 402000
+~ /allocation_cost/gas_cost/l2_gas: 402000
 ~ /archival_data_gas_costs/gas_per_proof/0: 75000000
 ~ /enable_casm_hash_migration: false
 ~ /gateway/max_proof_size: 600000
