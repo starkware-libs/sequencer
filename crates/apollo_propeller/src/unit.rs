@@ -28,9 +28,14 @@ pub struct PropellerUnit {
     index: ShardIndex,
     shard: Vec<u8>,
     proof: MerkleProof,
+    /// Timestamp in nanoseconds since UNIX_EPOCH.
+    timestamp_ns: u64,
 }
 
 impl PropellerUnit {
+    // TODO(guyn): I would remove this constructor entirely and initialize the struct directly.
+    // Need fields to be public.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         channel: Channel,
         publisher: PeerId,
@@ -39,8 +44,9 @@ impl PropellerUnit {
         index: ShardIndex,
         shard: Vec<u8>,
         proof: MerkleProof,
+        timestamp_ns: u64,
     ) -> Self {
-        Self { channel, root, publisher, signature, index, shard, proof }
+        Self { channel, root, publisher, signature, index, shard, proof, timestamp_ns }
     }
 
     pub fn channel(&self) -> Channel {
@@ -73,6 +79,10 @@ impl PropellerUnit {
 
     pub fn root(&self) -> MessageRoot {
         self.root
+    }
+
+    pub fn timestamp_ns(&self) -> u64 {
+        self.timestamp_ns
     }
 
     pub fn validate_shard_proof(&self, num_shards: usize) -> Result<(), ShardValidationError> {
@@ -125,6 +135,7 @@ impl TryFrom<ProtoPropellerUnit> for PropellerUnit {
             index: ShardIndex(index),
             shard: msg.shard,
             proof: merkle_proof.try_into()?,
+            timestamp_ns: msg.timestamp_ns,
         })
     }
 }
@@ -139,6 +150,7 @@ impl From<PropellerUnit> for ProtoPropellerUnit {
             publisher: Some(ProtoPeerId { id: msg.publisher.to_bytes() }),
             signature: msg.signature,
             channel: msg.channel.0,
+            timestamp_ns: msg.timestamp_ns,
         }
     }
 }

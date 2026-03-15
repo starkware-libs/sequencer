@@ -92,6 +92,7 @@ fn custom_unit(env: &TestEnv, owner: PeerId, tampered_signature: bool) -> Propel
         index,
         SHARD_DATA.to_vec(),
         env.merkle_tree.prove(index.0.try_into().unwrap()).unwrap(),
+        0,
     )
 }
 
