@@ -5,11 +5,13 @@ use apollo_mempool_types::mempool_types::{
     AccountState,
     AddTransactionArgs,
     CommitBlockArgs,
+    TxBlockMetadata,
     ValidationArgs,
 };
 use apollo_metrics::metrics::HistogramValue;
 use metrics_exporter_prometheus::PrometheusRecorder;
 use pretty_assertions::assert_eq;
+use starknet_api::block::BlockNumber;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransactionLabelValue};
 use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
 use starknet_api::transaction::TransactionHash;
@@ -245,6 +247,10 @@ macro_rules! add_tx_input {
             tip: 0
         )
     };
+}
+
+pub(crate) fn tx_metadata(timestamp: u64, block_number: u64) -> TxBlockMetadata {
+    TxBlockMetadata { timestamp, block_number: BlockNumber(block_number) }
 }
 
 #[track_caller]

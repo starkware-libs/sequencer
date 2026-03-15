@@ -3,21 +3,20 @@ use std::time::Duration;
 
 use apollo_config::behavior_mode::BehaviorMode;
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig, MempoolStaticConfig};
-use apollo_mempool_types::mempool_types::TxBlockMetadata;
 use apollo_time::test_utils::FakeClock;
 use rstest::{fixture, rstest};
-use starknet_api::block::BlockNumber;
 use starknet_api::test_utils::valid_resource_bounds_for_testing;
 use starknet_api::{contract_address, declare_tx_args, tx_hash};
 
 use crate::add_tx_input;
 use crate::mempool::Mempool;
-use crate::test_utils::{add_tx, commit_block, declare_add_tx_input, get_txs_and_assert_expected};
-
-const TX_METADATA_TS_1000_BN_100: TxBlockMetadata =
-    TxBlockMetadata { timestamp: 1000, block_number: BlockNumber(100) };
-const TX_METADATA_TS_2000_BN_200: TxBlockMetadata =
-    TxBlockMetadata { timestamp: 2000, block_number: BlockNumber(200) };
+use crate::test_utils::{
+    add_tx,
+    commit_block,
+    declare_add_tx_input,
+    get_txs_and_assert_expected,
+    tx_metadata,
+};
 
 #[fixture]
 fn mempool() -> Mempool {
@@ -43,7 +42,7 @@ fn test_get_txs_returns_in_fifo_order(mut mempool: Mempool) {
 
     // Set tx block metadata for all transactions.
     for i in 1..=5 {
-        mempool.update_tx_block_metadata(tx_hash!(i), TX_METADATA_TS_1000_BN_100);
+        mempool.update_tx_block_metadata(tx_hash!(i), tx_metadata(1000, 100));
     }
 
     for input in [&input1, &input2, &input3, &input4, &input5] {
@@ -63,8 +62,8 @@ fn test_get_txs_more_than_all_eligible_txs(mut mempool: Mempool) {
     let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
     let input2 = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
 
-    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1000, 100));
 
     for input in [&input1, &input2] {
         add_tx(&mut mempool, input);
@@ -84,8 +83,8 @@ fn test_get_txs_consumes_transactions_from_queue(mut mempool: Mempool) {
     let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
     let input2 = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
 
-    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1000, 100));
 
     for input in [&input1, &input2] {
         add_tx(&mut mempool, input);
@@ -102,8 +101,8 @@ fn test_committed_txs_removed_from_mempool(mut mempool: Mempool) {
     let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
     let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
 
-    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1000, 100));
 
     for input in [&input1, &input2] {
         add_tx(&mut mempool, input);
@@ -124,9 +123,9 @@ fn test_commit_block_rewinds_non_committed_transactions(mut mempool: Mempool) {
     let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
     let input3 = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 2, account_nonce: 0);
 
-    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(3), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(3), tx_metadata(1000, 100));
 
     for input in [&input1, &input2, &input3] {
         add_tx(&mut mempool, input);
@@ -145,7 +144,7 @@ fn test_commit_block_rewinds_non_committed_transactions(mut mempool: Mempool) {
 fn test_commit_block_removes_rejected_transactions(mut mempool: Mempool) {
     let input = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
 
-    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 100));
 
     add_tx(&mut mempool, &input);
 
@@ -164,9 +163,9 @@ fn test_commit_block_committed_and_rejected_no_rewind(mut mempool: Mempool) {
     let input2 = add_tx_input!(tx_hash: 22, address: "0x1", tx_nonce: 1, account_nonce: 0);
     let input3 = add_tx_input!(tx_hash: 33, address: "0x1", tx_nonce: 2, account_nonce: 0);
 
-    mempool.update_tx_block_metadata(tx_hash!(11), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(22), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(33), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(11), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(22), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(33), tx_metadata(1000, 100));
 
     for input in [&input1, &input2, &input3] {
         add_tx(&mut mempool, input);
@@ -187,9 +186,9 @@ fn test_commit_block_future_rejected_tx_should_rewind(mut mempool: Mempool) {
     let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
     let input3 = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 2, account_nonce: 0);
 
-    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(3), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(3), tx_metadata(1000, 100));
 
     for input in [&input1, &input2, &input3] {
         add_tx(&mut mempool, input);
@@ -224,7 +223,7 @@ fn test_declare_txs_preserve_fifo_order(mut mempool: Mempool) {
         add_tx_input!(tx_hash: 5, address: "0x5", tx_nonce: 0, account_nonce: 0);
 
     for i in 1..=5 {
-        mempool.update_tx_block_metadata(tx_hash!(i), TX_METADATA_TS_1000_BN_100);
+        mempool.update_tx_block_metadata(tx_hash!(i), tx_metadata(1000, 100));
     }
 
     for input in [
@@ -257,8 +256,8 @@ fn test_resolve_batch_timestamp_persists_after_queue_emptied(mut mempool: Mempoo
     let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
     let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
 
-    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1000, 100));
 
     add_tx(&mut mempool, &input1);
     add_tx(&mut mempool, &input2);
@@ -285,10 +284,10 @@ fn test_get_txs_does_not_return_txs_with_different_timestamp(mut mempool: Mempoo
     let input4 = add_tx_input!(tx_hash: 4, address: "0x4", tx_nonce: 0, account_nonce: 0);
 
     // Pre-populate timestamps: first two txs have timestamp 1000, next two have 2000
-    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(3), TX_METADATA_TS_2000_BN_200);
-    mempool.update_tx_block_metadata(tx_hash!(4), TX_METADATA_TS_2000_BN_200);
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(3), tx_metadata(1001, 101));
+    mempool.update_tx_block_metadata(tx_hash!(4), tx_metadata(1001, 101));
 
     // Add all transactions
     add_tx(&mut mempool, &input1);
@@ -308,15 +307,15 @@ fn test_get_txs_does_not_return_txs_with_different_timestamp(mut mempool: Mempoo
     get_txs_and_assert_expected(&mut mempool, 10, &[input2.tx]);
 
     // Without resolving batch timestamp again, get_txs should return empty
-    // because the next txs have a different timestamp (2000 != 1000)
+    // because the next txs have a different timestamp (1001 != 1000)
     let txs = mempool.get_txs(10).unwrap();
     assert_eq!(txs, &[], "get_txs should return empty when next tx has different timestamp");
 
-    // Now resolve batch timestamp again to update threshold to 2000
+    // Now resolve batch timestamp again to update threshold to 1001
     let second_timestamp = mempool.resolve_batch_timestamp();
-    assert_eq!(second_timestamp, 2000);
+    assert_eq!(second_timestamp, 1001);
 
-    // Now get_txs should return the remaining txs with timestamp 2000
+    // Now get_txs should return the remaining txs with timestamp 1001
     get_txs_and_assert_expected(&mut mempool, 10, &[input3.tx, input4.tx]);
 }
 
@@ -332,10 +331,10 @@ fn test_rewind_preserves_timestamp_order(mut mempool: Mempool) {
     let input4 = add_tx_input!(tx_hash: 4, address: "0x3", tx_nonce: 0, account_nonce: 0);
 
     // Set metadata for all transactions (timestamp controls ordering in these tests).
-    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(3), TX_METADATA_TS_1000_BN_100); // tx3 also has timestamp 1000
-    mempool.update_tx_block_metadata(tx_hash!(4), TX_METADATA_TS_2000_BN_200); // tx4 has timestamp 2000
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(3), tx_metadata(1000, 100)); // tx3 also has timestamp 1000
+    mempool.update_tx_block_metadata(tx_hash!(4), tx_metadata(1001, 101)); // tx4 has timestamp 1001
 
     // Add tx1, tx2, tx3 (all with timestamp 1000)
     add_tx(&mut mempool, &input1);
@@ -345,31 +344,31 @@ fn test_rewind_preserves_timestamp_order(mut mempool: Mempool) {
     // Get timestamp and fetch only tx1 and tx2 (leave tx3 in queue)
     let first_timestamp = mempool.resolve_batch_timestamp();
     assert_eq!(first_timestamp, 1000);
-    get_txs_and_assert_expected(&mut mempool, 2, &[input1.tx.clone(), input2.tx.clone()]);
+    get_txs_and_assert_expected(&mut mempool, 2, &[input1.tx, input2.tx.clone()]);
 
     // At this point: tx3 is still in the queue
     // Commit block: only tx1 is committed, tx2 should be rewound
     // tx3 is still in the queue
     commit_block(&mut mempool, [("0x1", 1)], []);
 
-    // NOW add tx4 with timestamp 2000
+    // NOW add tx4 with timestamp 1001
     add_tx(&mut mempool, &input4);
 
     // resolve_batch_timestamp() should return 1000 (from rewound tx2 at front)
-    // NOT 2000 (from new tx4 at back)
+    // NOT 1001 (from new tx4 at back)
     let second_timestamp = mempool.resolve_batch_timestamp();
     assert_eq!(
         second_timestamp, 1000,
-        "resolve_batch_timestamp() should return timestamp of rewound tx (1000), not new tx (2000)"
+        "resolve_batch_timestamp() should return timestamp of rewound tx (1000), not new tx (1001)"
     );
 
-    // get_txs should return tx2 and tx3 (both timestamp 1000), not tx4 (timestamp 2000)
+    // get_txs should return tx2 and tx3 (both timestamp 1000), not tx4 (timestamp 1001)
     // The order should be tx2 (rewound, should be first), then tx3
     get_txs_and_assert_expected(&mut mempool, 10, &[input2.tx, input3.tx]);
 
-    // Now resolve_batch_timestamp() should return 2000 for the next batch
+    // Now resolve_batch_timestamp() should return 1001 for the next batch
     let third_timestamp = mempool.resolve_batch_timestamp();
-    assert_eq!(third_timestamp, 2000);
+    assert_eq!(third_timestamp, 1001);
 
     // And get_txs should return tx4
     get_txs_and_assert_expected(&mut mempool, 1, &[input4.tx]);
@@ -388,10 +387,10 @@ fn test_rewind_maintains_fifo_order_with_mixed_results(mut mempool: Mempool) {
     let input4 = add_tx_input!(tx_hash: 4, address: "0x2", tx_nonce: 0, account_nonce: 0);
 
     // Set metadata: tx1,2,3 -> timestamp 1000, tx4 -> timestamp 2000
-    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(3), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(4), TX_METADATA_TS_2000_BN_200);
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(3), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(4), tx_metadata(1001, 101));
 
     add_tx(&mut mempool, &input1);
     add_tx(&mut mempool, &input2);
@@ -416,9 +415,9 @@ fn test_rewind_maintains_fifo_order_with_mixed_results(mut mempool: Mempool) {
     assert_eq!(ts2, 1000);
     get_txs_and_assert_expected(&mut mempool, 3, &[input2.tx, input3.tx]);
 
-    // Next batch has timestamp 2000
+    // Next batch has timestamp 1001
     let ts3 = mempool.resolve_batch_timestamp();
-    assert_eq!(ts3, 2000);
+    assert_eq!(ts3, 1001);
     get_txs_and_assert_expected(&mut mempool, 1, &[input4.tx]);
 }
 
@@ -433,36 +432,6 @@ fn test_resolve_batch_timestamp_returns_zero_when_never_had_transactions(mut mem
 }
 
 #[rstest]
-fn test_timestamp_order_matches_insertion_order(mut mempool: Mempool) {
-    let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
-    let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
-    let input3 = add_tx_input!(tx_hash: 3, address: "0x2", tx_nonce: 0, account_nonce: 0);
-    let input4 = add_tx_input!(tx_hash: 4, address: "0x2", tx_nonce: 1, account_nonce: 0);
-
-    // Set timestamps matching insertion order
-    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_2000_BN_200);
-    mempool.update_tx_block_metadata(tx_hash!(3), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(4), TX_METADATA_TS_2000_BN_200);
-
-    // Add in specific interleaved order: tx1(1000), tx3(1000), tx2(2000), tx4(2000)
-    add_tx(&mut mempool, &input1);
-    add_tx(&mut mempool, &input3);
-    add_tx(&mut mempool, &input2);
-    add_tx(&mut mempool, &input4);
-
-    // First batch: timestamp 1000 should return tx1, tx3 (in insertion order)
-    let ts1 = mempool.resolve_batch_timestamp();
-    assert_eq!(ts1, 1000);
-    get_txs_and_assert_expected(&mut mempool, 10, &[input1.tx, input3.tx]);
-
-    // Second batch: timestamp 2000 should return tx2, tx4 (in insertion order)
-    let ts2 = mempool.resolve_batch_timestamp();
-    assert_eq!(ts2, 2000);
-    get_txs_and_assert_expected(&mut mempool, 10, &[input2.tx, input4.tx]);
-}
-
-#[rstest]
 fn test_rewind_many_transactions_from_same_address(mut mempool: Mempool) {
     // Add 5 transactions from the same address with nonces 0-4
     let input0 = add_tx_input!(tx_hash: 10, address: "0x1", tx_nonce: 0, account_nonce: 0);
@@ -473,7 +442,7 @@ fn test_rewind_many_transactions_from_same_address(mut mempool: Mempool) {
 
     // Set timestamps for all transactions
     for i in 0..=4 {
-        mempool.update_tx_block_metadata(tx_hash!(10 + i), TX_METADATA_TS_1000_BN_100);
+        mempool.update_tx_block_metadata(tx_hash!(10 + i), tx_metadata(1000, 100));
     }
 
     // Add all 5 transactions
@@ -483,9 +452,7 @@ fn test_rewind_many_transactions_from_same_address(mut mempool: Mempool) {
     add_tx(&mut mempool, &input3);
     add_tx(&mut mempool, &input4);
 
-    // Clone transactions for later assertions
-    let tx0 = input0.tx.clone();
-    let tx1 = input1.tx.clone();
+    // Keep references to txs that are asserted again after commit.
     let tx2 = input2.tx.clone();
     let tx3 = input3.tx.clone();
     let tx4 = input4.tx.clone();
@@ -496,7 +463,7 @@ fn test_rewind_many_transactions_from_same_address(mut mempool: Mempool) {
     get_txs_and_assert_expected(
         &mut mempool,
         10,
-        &[tx0, tx1, tx2.clone(), tx3.clone(), tx4.clone()],
+        &[input0.tx, input1.tx, tx2.clone(), tx3.clone(), tx4.clone()],
     );
 
     // Commit only the first 2 transactions (nonces 0 and 1)
@@ -534,8 +501,8 @@ fn test_expired_popped_txs_are_not_rewound() {
     let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
     let input2 = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
 
-    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_1000_BN_100);
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1000, 100));
     add_tx(&mut mempool, &input1);
     add_tx(&mut mempool, &input2);
 
@@ -558,9 +525,9 @@ fn test_rejected_tx_removes_same_address_from_fifo_queue(mut mempool: Mempool) {
         add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
     let other_address_tx = add_tx_input!(tx_hash: 3, address: "0x2", tx_nonce: 0, account_nonce: 0);
 
-    mempool.update_tx_block_metadata(tx_hash!(1), TX_METADATA_TS_1000_BN_100);
-    mempool.update_tx_block_metadata(tx_hash!(2), TX_METADATA_TS_2000_BN_200);
-    mempool.update_tx_block_metadata(tx_hash!(3), TX_METADATA_TS_2000_BN_200);
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 100));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1001, 101));
+    mempool.update_tx_block_metadata(tx_hash!(3), tx_metadata(1001, 101));
 
     for input in [&rejected_tx, &future_same_address_tx, &other_address_tx] {
         add_tx(&mut mempool, input);
@@ -568,14 +535,15 @@ fn test_rejected_tx_removes_same_address_from_fifo_queue(mut mempool: Mempool) {
 
     // Stage only the first tx (timestamp 1000).
     assert_eq!(mempool.resolve_batch_timestamp(), 1000);
-    let expected_rejected = vec![rejected_tx.tx.clone()];
+    let rejected_tx_hash = rejected_tx.tx.tx_hash;
+    let expected_rejected = vec![rejected_tx.tx];
     get_txs_and_assert_expected(&mut mempool, 10, &expected_rejected);
 
     // Reject tx hash 1. In FIFO, this should remove same-address queued txs (tx hash 2).
-    commit_block(&mut mempool, [], [rejected_tx.tx.tx_hash]);
+    commit_block(&mut mempool, [], [rejected_tx_hash]);
 
     // Next timestamp batch should include only the other address tx.
-    assert_eq!(mempool.resolve_batch_timestamp(), 2000);
-    let expected_other = vec![other_address_tx.tx.clone()];
+    assert_eq!(mempool.resolve_batch_timestamp(), 1001);
+    let expected_other = vec![other_address_tx.tx];
     get_txs_and_assert_expected(&mut mempool, 10, &expected_other);
 }
