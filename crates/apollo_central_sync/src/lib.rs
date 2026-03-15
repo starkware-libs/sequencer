@@ -834,6 +834,34 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
                     deployed_contract_class_definitions,
                 ) = maybe_state_diff?;
                 sort_state_diff(&mut state_diff);
+
+                // For blocks with starknet version < STARKNET_VERSION_TO_COMPILE_FROM, fetch the
+                // compiled classes from central so they can be passed to the class manager
+                // directly, bypassing compilation.
+                let mut non_backward_compatible_casms = IndexMap::<ClassHash, CasmContractClass>::new();
+                let starknet_version = reader.begin_ro_txn()?.get_starknet_version(block_number)?
+                .expect("State sync should only process blocks with existing headers.");
+                if starknet_version < STARKNET_VERSION_TO_COMPILE_FROM {
+                        let class_hashes: Vec<ClassHash> =
+                            state_diff.declared_classes.keys().copied().collect();
+                        let results = futures::future::join_all(
+                            class_hashes.iter().map(|class_hash| {
+                                let central_source = central_source.clone();
+                                async move {
+                                    central_source
+                                        .get_compiled_class(*class_hash)
+                                        .await
+                                        .map(|casm| (*class_hash, casm))
+                                }
+                            }),
+                        )
+                        .await;
+                        for result in results {
+                            let (class_hash, casm) = result?;
+                            non_backward_compatible_casms.insert(class_hash, casm);
+                        }
+                }
+
                 yield SyncEvent::StateDiffAvailable {
                     block_number,
                     block_hash,
