@@ -47,10 +47,10 @@ pub use types::{
     MessageRoot,
     PeerSetError,
     ReconstructionError,
+    ScheduleError,
     ShardIndex,
     ShardPublishError,
     ShardValidationError,
-    TreeGenerationError,
 };
 pub use unit::PropellerUnit;
 pub use unit_validator::UnitValidator;
