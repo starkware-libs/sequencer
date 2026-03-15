@@ -15,7 +15,12 @@ use tracing::{debug, error, trace, warn};
 
 use crate::config::Config;
 use crate::handler::{HandlerIn, HandlerOut};
-use crate::message_processor::{EventStateManagerToEngine, MessageProcessor, UnitToValidate};
+use crate::message_processor::{
+    EventStateManagerToEngine,
+    GoodShardsStatus,
+    MessageProcessor,
+    UnitToValidate,
+};
 use crate::metrics::PropellerMetrics;
 use crate::sharding::create_units_to_publish;
 use crate::signature;
@@ -306,6 +311,7 @@ impl Engine {
                 unit_rx,
                 engine_tx: self.state_manager_tx.clone(),
                 timeout: self.config.stale_message_timeout,
+                shard_status: GoodShardsStatus::NoGoodShardsReceived,
             };
 
             // TODO(AndrewL): track task handle to see if it panics or is killed.
@@ -377,15 +383,33 @@ impl Engine {
                 publisher,
                 timestamp_ns,
                 message_root,
+                shard_status,
             } => {
                 trace!(?channel, ?publisher, ?message_root, "[ENGINE] Message finalized");
 
-                // Mark as finalized
+                // Clean up task handles
+                if self.message_to_unit_tx.remove(&message_key).is_some() {
+                    trace!(?channel, ?publisher, ?message_root, "[ENGINE] Removed task handles");
+                }
+
+                // If the message process didn't have any valid shards, we don't cache it.
+                if let GoodShardsStatus::NoGoodShardsReceived = shard_status {
+                    debug!(
+                        ?channel,
+                        ?publisher,
+                        ?message_root,
+                        "[ENGINE] Message finalized with no good shards, dropping without caching"
+                    );
+                    return;
+                }
+
+                // Cache this message and do not accept any more shards for it.
                 let message_key =
                     MessageKey { channel, publisher, timestamp_ns, root: message_root };
                 let expired_keys = self.already_seen_messages.insert(message_key);
 
-                // Track the messages that have been removed from the TTL cache.
+                // Track the messages that have been removed from the TTL cache, ignoring further
+                // shards for this message and any earlier message using the timestamp nonce.
                 if !expired_keys.is_empty() {
                     trace!(?expired_keys, "[ENGINE] Removed expired messages from TTL cache");
                     for key in expired_keys {
@@ -398,11 +422,6 @@ impl Engine {
                             .max(key.timestamp_ns);
                         self.peer_nonce_timestamp.put(key.publisher, new_nonce);
                     }
-                }
-
-                // Clean up task handles
-                if self.message_to_unit_tx.remove(&message_key).is_some() {
-                    trace!(?channel, ?publisher, ?message_root, "[ENGINE] Removed task handles");
                 }
             }
             EventStateManagerToEngine::SendUnitToPeers { unit, peers } => {
