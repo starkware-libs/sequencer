@@ -1,6 +1,6 @@
 use std::ops::ControlFlow;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use libp2p::identity::{PeerId, PublicKey};
 use rand::seq::SliceRandom;
@@ -9,7 +9,14 @@ use tracing::{debug, error, trace};
 
 use crate::sharding::reconstruct_message_from_shards;
 use crate::tree::PropellerScheduleManager;
-use crate::types::{Channel, Event, MessageRoot, ReconstructionError, ShardValidationError};
+use crate::types::{
+    Channel,
+    Event,
+    MessageRoot,
+    ReconstructionError,
+    ShardValidationError,
+    SignatureParts,
+};
 use crate::unit::PropellerUnit;
 use crate::unit_validator::UnitValidator;
 use crate::{MerkleProof, ShardIndex};
@@ -43,7 +50,7 @@ enum ReconstructionState {
     PreConstruction {
         received_shards: Vec<PropellerUnit>,
         did_broadcast_my_shard: bool,
-        signature: Option<Vec<u8>>,
+        signature_parts: Option<SignatureParts>,
     },
     /// Message was reconstructed but not yet delivered to the application. We keep collecting
     /// shards until the emit threshold is reached, then emit the message.
@@ -56,7 +63,7 @@ impl ReconstructionState {
         Self::PreConstruction {
             received_shards: Vec::new(),
             did_broadcast_my_shard: false,
-            signature: None,
+            signature_parts: None,
         }
     }
 
@@ -77,12 +84,15 @@ impl ReconstructionState {
         let is_my_shard = unit.index() == my_shard_index;
 
         match self {
-            Self::PreConstruction { received_shards, did_broadcast_my_shard, signature } => {
+            Self::PreConstruction { received_shards, did_broadcast_my_shard, signature_parts } => {
                 if is_my_shard {
                     *did_broadcast_my_shard = true;
                 }
-                if signature.is_none() {
-                    *signature = Some(unit.signature().to_vec());
+                if signature_parts.is_none() {
+                    *signature_parts = Some(SignatureParts {
+                        signature: unit.signature().to_vec(),
+                        timestamp_ns: unit.timestamp_ns(),
+                    });
                 }
                 received_shards.push(unit);
                 if tree_manager.should_build(received_shards.len()) {
@@ -316,21 +326,15 @@ impl MessageProcessor {
 
         let should_broadcast = !state.did_broadcast_my_shard();
         if should_broadcast {
-            let signature = match state {
-                ReconstructionState::PreConstruction { signature, .. } => {
-                    signature.clone().expect("Signature must exist")
+            let (signature, timestamp_ns) = match state {
+                ReconstructionState::PreConstruction { signature_parts, .. } => {
+                    let parts = signature_parts.as_ref().expect("Signature parts must exist");
+                    (parts.signature.clone(), parts.timestamp_ns)
                 }
                 ReconstructionState::PostConstruction { .. } => {
                     unreachable!("Cannot be PostConstruction before transition")
                 }
             };
-            // TODO(guyn): remove this and use the timestamp from the unit itself.
-            let timestamp_ns = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .expect("system clock is set")
-                .as_nanos();
-            let timestamp_ns = u64::try_from(timestamp_ns)
-                .expect("timestamp in nanos since UNIX_EPOCH should fit in u64, until year 2554");
             let reconstructed_unit = PropellerUnit::new(
                 self.channel,
                 self.publisher,

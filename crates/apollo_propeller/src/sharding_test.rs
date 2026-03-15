@@ -107,8 +107,11 @@ fn test_verify_message_id_signature_rejects_wrong_signature() {
     tampered_signature[0] ^= 0xFF;
 
     let public_key = keypair_publisher.public();
+    let timestamp = units[0].timestamp_ns();
     let result = crate::signature::verify_message_id_signature(
         &message_root,
+        CHANNEL,
+        timestamp,
         &tampered_signature,
         &public_key,
     );
