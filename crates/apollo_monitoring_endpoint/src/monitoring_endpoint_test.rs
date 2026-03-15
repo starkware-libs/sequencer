@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_infra::metrics::{metrics_recorder, MetricsConfig};
 use apollo_l1_events_types::{L1EventsProviderSnapshot, MockL1EventsProviderClient};
@@ -14,6 +15,7 @@ use apollo_monitoring_endpoint_config::config::{
     MonitoringEndpointConfig,
     MONITORING_ENDPOINT_DEFAULT_IP,
     MONITORING_ENDPOINT_DEFAULT_PORT,
+    MONITORING_ENDPOINT_DEFAULT_SNAPSHOT_TIMEOUT_MILLIS,
 };
 use axum::response::Response;
 use axum::Router;
@@ -51,6 +53,7 @@ const TEST_VERSION: &str = "1.2.3-dev";
 const CONFIG_WITHOUT_METRICS: MonitoringEndpointConfig = MonitoringEndpointConfig {
     ip: MONITORING_ENDPOINT_DEFAULT_IP,
     port: MONITORING_ENDPOINT_DEFAULT_PORT,
+    snapshot_timeout_millis: MONITORING_ENDPOINT_DEFAULT_SNAPSHOT_TIMEOUT_MILLIS,
 };
 
 fn setup_monitoring_endpoint(config: Option<MonitoringEndpointConfig>) -> MonitoringEndpoint {
@@ -281,4 +284,149 @@ async fn l1_events_provider_not_present() {
     let app = setup_monitoring_endpoint(None).app();
     let response = request_app(app, L1_EVENTS_PROVIDER_SNAPSHOT).await;
     assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+}
+
+// Hanging stub clients for timeout tests.
+
+struct HangingMempoolClient;
+
+#[async_trait::async_trait]
+impl apollo_mempool_types::communication::MempoolClient for HangingMempoolClient {
+    async fn add_tx(
+        &self,
+        _: apollo_mempool_types::communication::AddTransactionArgsWrapper,
+    ) -> apollo_mempool_types::communication::MempoolClientResult<()> {
+        unreachable!()
+    }
+    async fn validate_tx(
+        &self,
+        _: apollo_mempool_types::mempool_types::ValidationArgs,
+    ) -> apollo_mempool_types::communication::MempoolClientResult<()> {
+        unreachable!()
+    }
+    async fn commit_block(
+        &self,
+        _: apollo_mempool_types::mempool_types::CommitBlockArgs,
+    ) -> apollo_mempool_types::communication::MempoolClientResult<()> {
+        unreachable!()
+    }
+    async fn get_txs(
+        &self,
+        _: usize,
+    ) -> apollo_mempool_types::communication::MempoolClientResult<
+        Vec<starknet_api::rpc_transaction::InternalRpcTransaction>,
+    > {
+        unreachable!()
+    }
+    async fn account_tx_in_pool_or_recent_block(
+        &self,
+        _: starknet_api::core::ContractAddress,
+    ) -> apollo_mempool_types::communication::MempoolClientResult<bool> {
+        unreachable!()
+    }
+    async fn update_gas_price(
+        &self,
+        _: starknet_api::block::GasPrice,
+    ) -> apollo_mempool_types::communication::MempoolClientResult<()> {
+        unreachable!()
+    }
+    async fn get_mempool_snapshot(
+        &self,
+    ) -> apollo_mempool_types::communication::MempoolClientResult<
+        apollo_mempool_types::mempool_types::MempoolSnapshot,
+    > {
+        std::future::pending().await
+    }
+    async fn resolve_batch_timestamp(
+        &self,
+    ) -> apollo_mempool_types::communication::MempoolClientResult<starknet_api::block::UnixTimestamp>
+    {
+        unreachable!()
+    }
+}
+
+struct HangingL1EventsProviderClient;
+
+#[async_trait::async_trait]
+impl apollo_l1_events_types::L1EventsProviderClient for HangingL1EventsProviderClient {
+    async fn start_block(
+        &self,
+        _: apollo_l1_events_types::SessionState,
+        _: starknet_api::block::BlockNumber,
+    ) -> apollo_l1_events_types::L1EventsProviderClientResult<()> {
+        unreachable!()
+    }
+    async fn get_txs(
+        &self,
+        _: usize,
+        _: starknet_api::block::BlockNumber,
+    ) -> apollo_l1_events_types::L1EventsProviderClientResult<
+        Vec<starknet_api::executable_transaction::L1HandlerTransaction>,
+    > {
+        unreachable!()
+    }
+    async fn validate(
+        &self,
+        _: starknet_api::transaction::TransactionHash,
+        _: starknet_api::block::BlockNumber,
+    ) -> apollo_l1_events_types::L1EventsProviderClientResult<
+        apollo_l1_events_types::ValidationStatus,
+    > {
+        unreachable!()
+    }
+    async fn commit_block(
+        &self,
+        _: indexmap::IndexSet<starknet_api::transaction::TransactionHash>,
+        _: indexmap::IndexSet<starknet_api::transaction::TransactionHash>,
+        _: starknet_api::block::BlockNumber,
+    ) -> apollo_l1_events_types::L1EventsProviderClientResult<()> {
+        unreachable!()
+    }
+    async fn add_events(
+        &self,
+        _: Vec<apollo_l1_events_types::Event>,
+    ) -> apollo_l1_events_types::L1EventsProviderClientResult<()> {
+        unreachable!()
+    }
+    async fn initialize(
+        &self,
+        _: starknet_api::block::BlockNumber,
+        _: Vec<apollo_l1_events_types::Event>,
+    ) -> apollo_l1_events_types::L1EventsProviderClientResult<()> {
+        unreachable!()
+    }
+    async fn get_l1_events_provider_snapshot(
+        &self,
+    ) -> apollo_l1_events_types::L1EventsProviderClientResult<
+        apollo_l1_events_types::L1EventsProviderSnapshot,
+    > {
+        std::future::pending().await
+    }
+    async fn get_provider_state(
+        &self,
+    ) -> apollo_l1_events_types::L1EventsProviderClientResult<
+        apollo_l1_events_types::ProviderState,
+    > {
+        unreachable!()
+    }
+}
+
+#[tokio::test]
+async fn mempool_snapshot_timeout() {
+    let result = super::mempool_snapshot(
+        Some(Arc::new(HangingMempoolClient)),
+        Duration::from_millis(10),
+    )
+    .await;
+    assert_eq!(result.unwrap_err(), StatusCode::GATEWAY_TIMEOUT);
+}
+
+#[tokio::test]
+async fn l1_events_provider_snapshot_timeout() {
+    let result = super::get_l1_events_provider_snapshot(
+        Some(Arc::new(HangingL1EventsProviderClient)),
+        Duration::from_millis(10),
+    )
+    .await;
+    assert_eq!(result.unwrap_err(), StatusCode::GATEWAY_TIMEOUT);
 }
