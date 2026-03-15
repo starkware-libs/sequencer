@@ -12,7 +12,7 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use blockifier::blockifier::config::ContractClassManagerConfig;
+use blockifier::blockifier::config::{ContractClassManagerConfig, NativeClassesWhitelist};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
@@ -96,12 +96,17 @@ impl SerializeConfig for GatewayStaticConfig {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Validate)]
 pub struct GatewayConfig {
     #[validate(nested)]
+    pub dynamic_config: GatewayDynamicConfig,
+    #[validate(nested)]
     pub static_config: GatewayStaticConfig,
 }
 
 impl SerializeConfig for GatewayConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        prepend_sub_config_name(self.static_config.dump(), "static_config")
+        let mut dump = BTreeMap::new();
+        dump.extend(prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
+        dump.extend(prepend_sub_config_name(self.static_config.dump(), "static_config"));
+        dump
     }
 }
 
@@ -111,6 +116,29 @@ impl GatewayConfig {
             Some(allowed_accounts) => allowed_accounts.contains(declarer_address),
             None => true,
         }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
+pub struct GatewayDynamicConfig {
+    pub native_classes_whitelist: NativeClassesWhitelist,
+}
+
+impl Default for GatewayDynamicConfig {
+    fn default() -> Self {
+        Self { native_classes_whitelist: NativeClassesWhitelist::All }
+    }
+}
+
+impl SerializeConfig for GatewayDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "native_classes_whitelist",
+            &self.native_classes_whitelist,
+            "Specifies whether to execute all class hashes or only specific ones using Cairo \
+             native. If limited, a specific list of class hashes is provided.",
+            ParamPrivacyInput::Public,
+        )])
     }
 }
 
