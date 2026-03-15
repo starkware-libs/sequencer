@@ -29,6 +29,7 @@ use tracing::instrument;
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
 pub trait GatewayClient: Send + Sync {
+    #[allow(clippy::result_large_err)]
     async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<GatewayOutput>;
 }
 

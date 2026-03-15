@@ -44,11 +44,13 @@ async fn add_tx_metrics_test(#[case] index: u16, #[case] tx: impl GatewayTransac
 
     let mut mock_gateway_client = MockGatewayClient::new();
     // Set the successful response.
+    #[allow(clippy::result_large_err)]
     mock_gateway_client
         .expect_add_tx()
         .times(SUCCESS_TXS_TO_SEND)
         .return_once(move |_| Ok(success_gateway_client_output()));
     // Set the failure response.
+    #[allow(clippy::result_large_err)]
     mock_gateway_client.expect_add_tx().times(FAILURE_TXS_TO_SEND).returning(move |_| {
         Err(GatewayClientError::ClientError(ClientError::UnexpectedResponse(
             "mock response".to_string(),

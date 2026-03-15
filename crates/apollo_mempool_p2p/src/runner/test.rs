@@ -107,6 +107,7 @@ async fn incoming_p2p_tx_reaches_gateway_client() {
 
     let mut mock_gateway_client = MockGatewayClient::new();
     mock_gateway_client.expect_add_tx().with(mockall::predicate::eq(gateway_input)).return_once(
+        #[allow(clippy::result_large_err)]
         move |_| {
             add_tx_indicator_sender.send(()).unwrap();
             Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(TransactionHash::default())))
@@ -156,6 +157,7 @@ async fn incoming_p2p_tx_fails_on_gateway_client() {
         RpcTransactionBatch(vec![RpcTransaction::get_test_instance(&mut get_rng())]);
 
     let mut mock_gateway_client = MockGatewayClient::new();
+    #[allow(clippy::result_large_err)]
     mock_gateway_client.expect_add_tx().return_once(move |_| {
         add_tx_indicator_sender.send(()).unwrap();
         Err(GatewayClientError::GatewayError(GatewayError::DeprecatedGatewayError {
@@ -282,6 +284,7 @@ async fn reject_transaction_due_to_backpressure() {
     // We return an error here so we can ensure the gateway client's response was received by the
     // mempool p2p runner before sending the second tx batch.
     mock_gateway_client.expect_add_tx().with(mockall::predicate::eq(gateway_input_1)).return_once(
+        #[allow(clippy::result_large_err)]
         move |_| {
             Err(GatewayClientError::GatewayError(GatewayError::DeprecatedGatewayError {
                 source: StarknetError {
@@ -296,6 +299,7 @@ async fn reject_transaction_due_to_backpressure() {
     );
     let (add_tx_indicator_sender, add_tx_indicator_receiver) = futures::channel::oneshot::channel();
     mock_gateway_client.expect_add_tx().with(mockall::predicate::eq(gateway_input_2)).return_once(
+        #[allow(clippy::result_large_err)]
         move |_| {
             add_tx_indicator_sender.send(()).unwrap();
             Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(TransactionHash::default())))

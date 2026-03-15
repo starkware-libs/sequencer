@@ -105,6 +105,7 @@ async fn main() {
             // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn_blocking)
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
+            #[allow(clippy::result_large_err)]
             tokio::task::spawn_blocking(move || {
                 ConsecutiveRpcStateReaders::new(
                     BlockNumber(block_number - 1),
