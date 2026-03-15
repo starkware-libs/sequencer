@@ -388,14 +388,12 @@ async fn setup_for_tests(
         a_local_client,
         dummy_remote_server_config(a_socket.ip(), max_concurrency),
         a_socket.port(),
-        max_concurrency,
         &TEST_REMOTE_SERVER_METRICS,
     );
     let mut component_b_remote_server = RemoteComponentServer::new(
         b_local_client,
         dummy_remote_server_config(b_socket.ip(), max_concurrency),
         b_socket.port(),
-        max_concurrency,
         &TEST_REMOTE_SERVER_METRICS,
     );
 

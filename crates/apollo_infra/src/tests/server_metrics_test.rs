@@ -161,7 +161,6 @@ async fn setup_concurrent_local_server_test(
         component,
         &local_server_config,
         rx,
-        max_concurrency,
         &TEST_LOCAL_SERVER_METRICS,
     );
     task::spawn(async move {
@@ -183,7 +182,6 @@ async fn setup_remote_server_test(
         local_client.clone(),
         dummy_remote_server_config(socket.ip(), max_concurrency),
         socket.port(),
-        max_concurrency,
         &TEST_REMOTE_SERVER_METRICS,
     );
     task::spawn(async move {

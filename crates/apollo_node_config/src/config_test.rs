@@ -70,7 +70,6 @@ fn valid_component_execution_config(
         local_server_config,
         remote_server_config,
         remote_client_config,
-        max_concurrency: 1,
         url: url.to_string(),
         port,
     };
