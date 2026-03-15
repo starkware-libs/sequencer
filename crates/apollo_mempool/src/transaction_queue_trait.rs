@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use apollo_mempool_types::mempool_types::TransactionQueueSnapshot;
+use apollo_mempool_types::mempool_types::{TransactionQueueSnapshot, TxBlockMetadata};
 use indexmap::IndexSet;
 use starknet_api::block::{GasPrice, UnixTimestamp};
 use starknet_api::core::{ContractAddress, Nonce};
@@ -64,8 +64,8 @@ pub trait TransactionQueueTrait: Send + Sync {
         0
     }
 
-    // Default implementation is a no-op (for queues that don't support timestamp updates).
-    fn update_timestamp(&mut self, _tx_hash: TransactionHash, _timestamp: UnixTimestamp) {}
+    // Default implementation is a no-op (for queues that don't support metadata updates).
+    fn update_tx_block_metadata(&mut self, _tx_hash: TransactionHash, _metadata: TxBlockMetadata) {}
 
     // Returns the sequencing timestamp and may update queue-internal state.
     // Default implementation returns 0 for queues that don't use timestamp gating.
