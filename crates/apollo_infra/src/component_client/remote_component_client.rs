@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::time::Duration;
 
@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use http::header::CONTENT_TYPE;
 use http::{StatusCode, Uri};
-use http_body_util::{BodyExt, Full};
+use http_body_util::{BodyExt, Full, Limited};
 use hyper::body::Body;
 use hyper::{Request as HyperRequest, Response as HyperResponse};
 use hyper_util::client::legacy::connect::HttpConnector;
@@ -39,6 +39,8 @@ pub const DEFAULT_RETRIES: usize = 15;
 pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "request timed out";
 
 const DEFAULT_IDLE_CONNECTIONS: usize = 10;
+// 8 MiB — bounds memory materialized from a single response as defense in depth.
+const DEFAULT_MAX_RESPONSE_BODY_BYTES: usize = 8 * 1024 * 1024;
 const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
 const DEFAULT_MAX_RETRY_INTERVAL_MS: u64 = 1000;
 const DEFAULT_INITIAL_RETRY_DELAY_MS: u64 = 1;
@@ -59,6 +61,7 @@ pub struct RemoteClientConfig {
     pub connection_timeout_ms: u64,
     pub request_timeout_ms: u64,
     pub set_tcp_nodelay: bool,
+    pub max_response_body_bytes: usize,
 }
 
 impl Default for RemoteClientConfig {
@@ -73,6 +76,7 @@ impl Default for RemoteClientConfig {
             connection_timeout_ms: DEFAULT_CONNECTION_TIMEOUT_MS,
             request_timeout_ms: DEFAULT_REQUEST_TIMEOUT_MS,
             set_tcp_nodelay: true,
+            max_response_body_bytes: DEFAULT_MAX_RESPONSE_BODY_BYTES,
         }
     }
 }
@@ -134,6 +138,13 @@ impl SerializeConfig for RemoteClientConfig {
                 "set_tcp_nodelay",
                 &self.set_tcp_nodelay,
                 "Whether to set TCP_NODELAY on the client requests.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_response_body_bytes",
+                &self.max_response_body_bytes,
+                "Maximum allowed size in bytes for an incoming response body. Responses exceeding \
+                 this limit are treated as a communication failure.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -211,17 +222,20 @@ where
 
             match http_response.status() {
                 StatusCode::OK => {
-                    let response_body = get_response_body(http_response).await;
+                    let response_body =
+                        get_response_body(http_response, self.config.max_response_body_bytes).await;
                     trace!("Successfully deserialized response");
                     response_body
                 }
                 status_code => {
-                    let body_bytes = http_response
-                        .into_body()
-                        .collect()
-                        .await
-                        .map_err(|e| ClientError::CommunicationFailure(e.to_string()))?
-                        .to_bytes();
+                    let body_bytes = Limited::new(
+                        http_response.into_body(),
+                        self.config.max_response_body_bytes,
+                    )
+                    .collect()
+                    .await
+                    .map_err(|e| ClientError::CommunicationFailure(e.to_string()))?
+                    .to_bytes();
 
                     match SerdeWrapper::<ServerError>::wrapper_deserialize(&body_bytes) {
                         Ok(server_err) => Err(ClientError::ResponseError(status_code, server_err)),
@@ -316,14 +330,16 @@ where
     }
 }
 
-async fn get_response_body<Response, B>(response: HyperResponse<B>) -> Result<Response, ClientError>
+async fn get_response_body<Response, B>(
+    response: HyperResponse<B>,
+    max_response_body_bytes: usize,
+) -> Result<Response, ClientError>
 where
     Response: Serialize + DeserializeOwned + Debug,
     B: Body,
-    B::Error: Display,
+    B::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
-    let body_bytes = response
-        .into_body()
+    let body_bytes = Limited::new(response.into_body(), max_response_body_bytes)
         .collect()
         .await
         .map_err(|err| ClientError::ResponseParsingFailure(err.to_string()))?
