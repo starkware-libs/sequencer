@@ -13,6 +13,7 @@ use tokio::time::timeout;
 
 use crate::component_client::{
     ClientResult,
+    LocalClientConfig,
     LocalComponentClient,
     RemoteClientConfig,
     RemoteComponentClient,
@@ -138,8 +139,12 @@ async fn setup_concurrent_local_test() -> LocalConcurrentComponentClient {
     let (tx_a, rx_a) =
         channel::<RequestWrapper<ConcurrentComponentRequest, ConcurrentComponentResponse>>(32);
 
-    let local_client = LocalConcurrentComponentClient::new(tx_a, &TEST_LOCAL_CLIENT_METRICS);
-    let local_server_config = LocalServerConfig { max_concurrency: 10, ..Default::default() };
+    let local_client = LocalConcurrentComponentClient::new(
+        LocalClientConfig::default(),
+        tx_a,
+        &TEST_LOCAL_CLIENT_METRICS,
+    );
+    let local_server_config = LocalServerConfig{max_concurrency: 10, ..Default::default()};
     let mut concurrent_local_server = ConcurrentLocalComponentServer::new(
         component,
         &local_server_config,

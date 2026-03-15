@@ -6,6 +6,9 @@ use thiserror::Error;
 use super::{LocalComponentClient, RemoteComponentClient};
 use crate::component_definitions::ServerError;
 
+/// A constant for the error message returned when a request times out.
+pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "Request timed out";
+
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
 pub enum ClientError {
     #[error("Communication error: {0}")]

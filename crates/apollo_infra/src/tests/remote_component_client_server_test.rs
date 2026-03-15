@@ -31,6 +31,7 @@ use tokio::task;
 use crate::component_client::{
     ClientError,
     ClientResult,
+    LocalClientConfig,
     LocalComponentClient,
     RemoteClientConfig,
     RemoteComponentClient,
@@ -370,10 +371,12 @@ async fn setup_for_tests(
     let (tx_b, rx_b) = channel::<RequestWrapper<ComponentBRequest, ComponentBResponse>>(32);
 
     let a_local_client = LocalComponentClient::<ComponentARequest, ComponentAResponse>::new(
+        LocalClientConfig::default(),
         tx_a,
         &TEST_LOCAL_CLIENT_METRICS,
     );
     let b_local_client = LocalComponentClient::<ComponentBRequest, ComponentBResponse>::new(
+        LocalClientConfig::default(),
         tx_b,
         &TEST_LOCAL_CLIENT_METRICS,
     );

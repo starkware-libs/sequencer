@@ -24,6 +24,7 @@ use tracing::{debug, instrument, trace, warn};
 use validator::Validate;
 
 use super::definitions::{ClientError, ClientResult};
+use crate::component_client::definitions::REQUEST_TIMEOUT_ERROR_MESSAGE;
 use crate::component_definitions::{
     ComponentClient,
     RequestId,
@@ -36,7 +37,6 @@ use crate::requests::LabeledRequest;
 use crate::serde_utils::SerdeWrapper;
 
 pub const DEFAULT_RETRIES: usize = 15;
-pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "request timed out";
 
 const DEFAULT_IDLE_CONNECTIONS: usize = 10;
 const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
