@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773571110269,
+  "lastUpdate": 1773581080885,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -611,6 +611,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1153.1218698900002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0f35bba428fee09168f5dc57274bd62e89b86ef0",
+          "message": "starknet_committer: return DeserializationError (#13088)",
+          "timestamp": "2026-03-15T13:01:34Z",
+          "tree_id": "8085444b5c9b7fab6e681875fde2fb6fe1af65d9",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0f35bba428fee09168f5dc57274bd62e89b86ef0"
+        },
+        "date": 1773581080593,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 783.19340438,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1199.6887104500001,
             "unit": "ms"
           }
         ]
