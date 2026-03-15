@@ -654,6 +654,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.batcher.remote_client_config.max_response_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.batcher.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
@@ -688,6 +693,11 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.batcher.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
   },
   "components.batcher.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
@@ -774,6 +784,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.class_manager.remote_client_config.max_response_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.class_manager.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
@@ -808,6 +823,11 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.class_manager.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
   },
   "components.class_manager.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
@@ -894,6 +914,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.committer.remote_client_config.max_response_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.committer.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
@@ -928,6 +953,11 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.committer.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
   },
   "components.committer.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
@@ -1014,6 +1044,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.config_manager.remote_client_config.max_response_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.config_manager.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
@@ -1048,6 +1083,11 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.config_manager.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
   },
   "components.config_manager.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
@@ -1139,6 +1179,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.gateway.remote_client_config.max_response_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.gateway.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
@@ -1173,6 +1218,11 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.gateway.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
   },
   "components.gateway.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
@@ -1264,6 +1314,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.l1_events_provider.remote_client_config.max_response_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.l1_events_provider.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
@@ -1298,6 +1353,11 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.l1_events_provider.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
   },
   "components.l1_events_provider.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
@@ -1389,6 +1449,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.l1_gas_price_provider.remote_client_config.max_response_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.l1_gas_price_provider.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
@@ -1423,6 +1488,11 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.l1_gas_price_provider.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
   },
   "components.l1_gas_price_provider.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
@@ -1514,6 +1584,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.mempool.remote_client_config.max_response_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.mempool.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
@@ -1548,6 +1623,11 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.mempool.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
   },
   "components.mempool.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
@@ -1634,6 +1714,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.mempool_p2p.remote_client_config.max_response_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.mempool_p2p.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
@@ -1668,6 +1753,11 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.mempool_p2p.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
   },
   "components.mempool_p2p.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
@@ -1759,6 +1849,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.proof_manager.remote_client_config.max_response_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.proof_manager.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
@@ -1793,6 +1888,11 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.proof_manager.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
   },
   "components.proof_manager.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
@@ -1879,6 +1979,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.sierra_compiler.remote_client_config.max_response_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.sierra_compiler.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
@@ -1913,6 +2018,11 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.sierra_compiler.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
   },
   "components.sierra_compiler.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
@@ -1999,6 +2109,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.signature_manager.remote_client_config.max_response_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.signature_manager.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
@@ -2033,6 +2148,11 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.signature_manager.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
   },
   "components.signature_manager.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
@@ -2119,6 +2239,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.state_sync.remote_client_config.max_response_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.state_sync.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
@@ -2153,6 +2278,11 @@
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
+  },
+  "components.state_sync.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
   },
   "components.state_sync.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
