@@ -45,11 +45,13 @@ where
     /// Insert a key into the cache with the current timestamp.
     ///
     /// This also performs cleanup of expired entries from the front of the queue.
-    pub fn insert(&mut self, key: K) {
+    /// Returns the keys that were expired.
+    pub fn insert(&mut self, key: K) -> Vec<K> {
         let now = Instant::now();
-        self.evict_expired(now);
+        let expired_keys = self.evict_expired(now);
         self.key_to_last_insert_time.insert(key.clone(), now);
         self.insertion_ordered_queue.push_back((now, key));
+        expired_keys
     }
 
     /// Return the number of entries in the cache, including expired entries that haven't been
@@ -58,8 +60,10 @@ where
         self.key_to_last_insert_time.len()
     }
 
-    /// Evict expired entries from the front of the insertion-order queue.
-    fn evict_expired(&mut self, now: Instant) {
+    /// Evict expired entries from the front of the insertion-order queue. Return the keys that were
+    /// expired.
+    fn evict_expired(&mut self, now: Instant) -> Vec<K> {
+        let mut expired_keys = Vec::new();
         while let Some(&(inserted_at, _)) = self.insertion_ordered_queue.front() {
             if now.duration_since(inserted_at) < self.ttl {
                 break;
@@ -70,7 +74,9 @@ where
             // (expired) timestamp; otherwise the key is still alive under its later insertion.
             if self.key_to_last_insert_time.get(&key) == Some(&expired_at) {
                 self.key_to_last_insert_time.remove(&key);
+                expired_keys.push(key);
             }
         }
+        expired_keys
     }
 }
