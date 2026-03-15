@@ -36,8 +36,6 @@ mod FuzzRevertContract {
     const SCENARIO_SHA256: felt252 = 11;
     const SCENARIO_KECCAK: felt252 = 12;
 
-    const FUZZ_TEST_SELECTOR: felt252 = selector!("test_revert_fuzz");
-
     #[storage]
     struct Storage {
         counter: felt252,
@@ -100,20 +98,18 @@ mod FuzzRevertContract {
         }
 
         if scenario == SCENARIO_CALL {
-            let contract_address: ContractAddress = orchestrator.pop_front().try_into().unwrap();
+            let address: ContractAddress = orchestrator.pop_front().try_into().unwrap();
+            let selector = orchestrator.pop_front();
             let should_unwrap: bool = orchestrator.pop_front() != 0;
-            let result = syscalls::call_contract_syscall(
-                contract_address, FUZZ_TEST_SELECTOR, array![].span(),
-            );
+            let result = syscalls::call_contract_syscall(address, selector, array![].span());
             self.handle_error_catch(result, should_unwrap);
         }
 
         if scenario == SCENARIO_LIBRARY_CALL {
             let class_hash: ClassHash = orchestrator.pop_front().try_into().unwrap();
+            let selector = orchestrator.pop_front();
             let should_unwrap: bool = orchestrator.pop_front() != 0;
-            let result = syscalls::library_call_syscall(
-                class_hash, FUZZ_TEST_SELECTOR, array![].span()
-            );
+            let result = syscalls::library_call_syscall(class_hash, selector, array![].span());
             self.handle_error_catch(result, should_unwrap);
         }
 
