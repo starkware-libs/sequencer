@@ -118,6 +118,10 @@ fn set_current_epoch(state: &mut State, epoch: Epoch) {
     execute_call(state, "set_current_epoch", &Vec::<Felt>::from(&epoch));
 }
 
+fn set_previous_epoch(state: &mut State, epoch: Epoch) {
+    execute_call(state, "set_previous_epoch", &Vec::<Felt>::from(&epoch));
+}
+
 #[rstest]
 #[tokio::test]
 async fn get_stakers_success(state: Arc<Mutex<State>>) {
@@ -158,4 +162,25 @@ async fn get_current_epoch_success(state: Arc<Mutex<State>>) {
     // Change the state and verify that the contract is updated.
     set_current_epoch(&mut state.lock().unwrap(), EPOCH_2);
     assert_eq!(contract.get_current_epoch().await.unwrap(), EPOCH_2);
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_previous_epoch_returns_none_by_default(state: Arc<Mutex<State>>) {
+    let contract = create_contract(state.clone());
+
+    assert_eq!(contract.get_previous_epoch().await.unwrap(), None);
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_previous_epoch_success(state: Arc<Mutex<State>>) {
+    let contract = create_contract(state.clone());
+
+    set_previous_epoch(&mut state.lock().unwrap(), EPOCH_1);
+    assert_eq!(contract.get_previous_epoch().await.unwrap(), Some(EPOCH_1));
+
+    // Change the state and verify that the contract is updated.
+    set_previous_epoch(&mut state.lock().unwrap(), EPOCH_2);
+    assert_eq!(contract.get_previous_epoch().await.unwrap(), Some(EPOCH_2));
 }

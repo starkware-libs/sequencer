@@ -7,7 +7,12 @@ use starknet_api::core::{ContractAddress, PatriciaKey, CONTRACT_ADDRESS_DOMAIN_S
 use starknet_api::staking::StakingWeight;
 use starknet_types_core::felt::Felt;
 
-use crate::contract_types::{ContractStaker, RetdataDeserializationError, TryFromIterator};
+use crate::contract_types::{
+    CairoOption,
+    ContractStaker,
+    RetdataDeserializationError,
+    TryFromIterator,
+};
 use crate::staking_manager::Epoch;
 
 const STAKER_1: ContractStaker = ContractStaker {
@@ -132,4 +137,39 @@ fn epoch_try_from_invalid_length() {
 fn epoch_try_from_conversion_errors(#[case] raw_felts: Vec<Felt>) {
     let err = Epoch::try_from(Retdata(raw_felts)).unwrap_err();
     assert_matches!(err, RetdataDeserializationError::U64ConversionError { .. });
+}
+
+#[rstest]
+fn optional_epoch_try_from_some() {
+    let result = CairoOption::<Epoch>::try_from(Retdata(vec![
+        Felt::ZERO,
+        Felt::ONE,
+        Felt::TWO,
+        Felt::THREE,
+    ]))
+    .unwrap()
+    .0;
+    assert_eq!(result, Some(Epoch { epoch_id: 1, start_block: BlockNumber(2), epoch_length: 3 }));
+}
+
+#[rstest]
+fn optional_epoch_try_from_none() {
+    let result = CairoOption::<Epoch>::try_from(Retdata(vec![Felt::ONE])).unwrap().0;
+    assert_eq!(result, None);
+}
+
+#[rstest]
+#[case::empty_retdata(vec![])]
+#[case::some_short_length(vec![Felt::ZERO, Felt::ONE])]
+#[case::some_long_length(vec![Felt::ZERO, Felt::ONE, Felt::ONE, Felt::ONE, Felt::ONE])]
+#[case::none_wrong_length(vec![Felt::ONE, Felt::TWO])]
+fn optional_epoch_try_from_invalid_length(#[case] raw_felts: Vec<Felt>) {
+    let err = CairoOption::<Epoch>::try_from(Retdata(raw_felts)).unwrap_err();
+    assert_matches!(err, RetdataDeserializationError::InvalidObjectLength { .. });
+}
+
+#[rstest]
+fn optional_epoch_try_from_invalid_variant() {
+    let err = CairoOption::<Epoch>::try_from(Retdata(vec![Felt::TWO])).unwrap_err();
+    assert_matches!(err, RetdataDeserializationError::UnexpectedEnumVariant { variant: 2 });
 }
