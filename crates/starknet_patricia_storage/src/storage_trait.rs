@@ -38,7 +38,6 @@ impl StorageReads {
         Self(DbHashMap::new())
     }
 
-    #[allow(dead_code)]
     // This method cannot be public, see struct documentation.
     pub(crate) fn insert(&mut self, key: DbKey, value: DbValue) {
         self.0.insert(key, value);

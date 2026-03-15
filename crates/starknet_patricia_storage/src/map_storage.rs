@@ -22,6 +22,7 @@ use crate::storage_trait::{
     ReadOnlyStorage,
     Storage,
     StorageConfigTrait,
+    StorageReads,
     StorageStats,
 };
 
@@ -383,5 +384,47 @@ impl<S: Storage + ImmutableReadOnlyStorage> Storage for CachedStorage<S> {
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
         // Need a concrete Option type.
         None::<NullStorage>
+    }
+}
+
+/// Wraps an [ImmutableReadOnlyStorage] reference and collects all reads performed through it.
+/// The collected reads can be retrieved via [ReadsCollectorStorage::into_reads].
+pub struct ReadsCollectorStorage<'a, S: ImmutableReadOnlyStorage> {
+    pub storage: &'a S,
+    pub reads: StorageReads,
+}
+
+impl<'a, S: ImmutableReadOnlyStorage> ReadsCollectorStorage<'a, S> {
+    pub fn new(storage: &'a S) -> Self {
+        Self { storage, reads: StorageReads::new() }
+    }
+
+    /// Consumes the collector and returns all reads performed through it.
+    pub fn into_reads(self) -> StorageReads {
+        self.reads
+    }
+}
+
+impl<'a, S: ImmutableReadOnlyStorage> ReadOnlyStorage for ReadsCollectorStorage<'a, S> {
+    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+        let value = self.storage.get(key).await?;
+        if let Some(ref v) = value {
+            self.reads.insert(key.clone(), v.clone());
+        }
+        Ok(value)
+    }
+
+    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        let values = self.storage.mget(keys).await?;
+        for (key, value) in keys.iter().zip(values.iter()) {
+            if let Some(v) = value {
+                self.reads.insert((*key).clone(), v.clone());
+            }
+        }
+        Ok(values)
+    }
+
+    fn get_immutable_read_only_self(&self) -> Option<&impl ImmutableReadOnlyStorage> {
+        None::<&NullStorage>
     }
 }
