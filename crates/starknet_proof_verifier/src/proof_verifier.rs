@@ -138,7 +138,7 @@ pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyP
     let output_preimage = reconstruct_output_preimage(&proof_facts)?;
     let proof_output =
         privacy_circuit_verify::PrivacyProofOutput { proof: proof.0.to_vec(), output_preimage };
-    privacy_circuit_verify::verify(&proof_output)
+    let _context = privacy_circuit_verify::verify_recursive_circuit(&proof_output)
         .map_err(|e| VerifyProofError::Verification(e.to_string()))?;
 
     Ok(())
