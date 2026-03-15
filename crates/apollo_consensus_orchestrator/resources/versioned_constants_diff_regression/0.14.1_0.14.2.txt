@@ -1,1 +1,2 @@
-
+~ /gas_target: 1500000000
+~ /max_block_size: 2500000000
