@@ -43,8 +43,7 @@ pub fn generate_coding_shards(
 
 /// Reconstruct the original message from available shards using Reed-Solomon error correction.
 // TODO(AndrewL): Consider adding custom error type and using it here.
-// TODO(AndrewL): Rename this to `reconstruct_data_shards`.
-pub fn reconstruct_message_from_shards(
+pub fn reconstruct_data_shards(
     // TODO(AndrewL): Change this to a HashMap<usize, Vec<u8>>.
     shards: &[(usize, Vec<u8>)],
     num_data_shards: usize,
