@@ -1,6 +1,14 @@
 #!/usr/bin/env python
 import argparse
+import os
+import sys
 from typing import Optional
+
+if os.environ.get("PIPENV_ACTIVE"):
+    print(
+        "DeprecationWarning: Pipenv is deprecated for this project. Use Poetry: poetry install && poetry run python main.py ...",
+        file=sys.stderr,
+    )
 
 from cdk8s import App, Chart, Names, YamlOutputType
 from constructs import Construct
