@@ -78,7 +78,11 @@ use crate::cende::{
     InternalTransactionWithReceipt,
     N_BLOCK_HASHES_BACK_IN_BLOB,
 };
-use crate::fee_market::{calculate_next_l2_gas_price_for_fin, FeeMarketInfo};
+use crate::fee_market::{
+    calculate_next_l2_gas_price_for_fin,
+    get_min_gas_price_for_height,
+    FeeMarketInfo,
+};
 use crate::metrics::{
     record_build_proposal_failure,
     record_validate_proposal_failure,
@@ -859,9 +863,15 @@ impl ConsensusContext for SequencerConsensusContext {
         height: BlockNumber,
         round: Round,
     ) -> Result<(), ConsensusError> {
-        // First or a new (higher) height.
-        if self.current_height.is_none_or(|h| height > h) {
+        if self.current_height.map(|h| height > h).unwrap_or(true) {
             self.update_dynamic_config().await;
+            if self.current_height.is_none() {
+                let min_gas_price_for_height = get_min_gas_price_for_height(
+                    height,
+                    &self.config.dynamic_config.min_l2_gas_price_per_height,
+                );
+                self.l2_gas_price = max(self.l2_gas_price, min_gas_price_for_height);
+            }
             self.current_height = Some(height);
             self.current_round = round;
             self.queued_proposals.clear();
