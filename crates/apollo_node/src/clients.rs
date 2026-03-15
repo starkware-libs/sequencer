@@ -48,7 +48,7 @@ use apollo_gateway_types::communication::{
     RemoteGatewayClient,
     SharedGatewayClient,
 };
-use apollo_infra::component_client::{Client, LocalComponentClient};
+use apollo_infra::component_client::{Client, LocalClientConfig, LocalComponentClient};
 use apollo_l1_events::communication::{LocalL1EventsProviderClient, RemoteL1EventsProviderClient};
 use apollo_l1_events::metrics::L1_EVENTS_PROVIDER_INFRA_METRICS;
 use apollo_l1_events_types::{
@@ -347,8 +347,11 @@ macro_rules! create_client {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-                let local_client =
-                    Some(<$local_client_type>::new($channel_expr, $local_client_metrics));
+                let local_client = Some(<$local_client_type>::new(
+                    LocalClientConfig::default(),
+                    $channel_expr,
+                    $local_client_metrics,
+                ));
                 Client::new(local_client, None)
             }
             ReactiveComponentExecutionMode::Remote => {

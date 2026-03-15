@@ -101,8 +101,11 @@ pub(crate) async fn setup_scraper_and_provider<
     let (tx, rx) = channel::<RequestWrapper<L1EventsProviderRequest, L1EventsProviderResponse>>(32);
 
     // Create the provider client.
-    let l1_events_provider_client =
-        LocalComponentClient::new(tx, L1_EVENTS_PROVIDER_INFRA_METRICS.get_local_client_metrics());
+    let l1_events_provider_client = LocalComponentClient::new(
+        apollo_infra::component_client::LocalClientConfig::default(),
+        tx,
+        L1_EVENTS_PROVIDER_INFRA_METRICS.get_local_client_metrics(),
+    );
 
     // L1 provider setup.
     let l1_events_provider_config = L1EventsProviderConfig {

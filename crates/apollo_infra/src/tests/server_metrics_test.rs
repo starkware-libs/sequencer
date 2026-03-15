@@ -14,6 +14,7 @@ use tokio::task::{self, JoinSet};
 
 use crate::component_client::{
     ClientResult,
+    LocalClientConfig,
     LocalComponentClient,
     RemoteClientConfig,
     RemoteComponentClient,
@@ -131,7 +132,8 @@ fn basic_test_setup(max_concurrency: usize) -> BasicSetup {
 
     let (tx, rx) = channel::<RequestWrapper<TestComponentRequest, TestComponentResponse>>(32);
 
-    let local_client = LocalTestComponentClient::new(tx, &TEST_LOCAL_CLIENT_METRICS);
+    let local_client =
+        LocalTestComponentClient::new(LocalClientConfig::default(), tx, &TEST_LOCAL_CLIENT_METRICS);
 
     BasicSetup { component, local_client, rx, test_sem, local_server_config }
 }
