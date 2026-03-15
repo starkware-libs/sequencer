@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
+use std::thread::sleep;
+use std::time::Duration;
 
 use apollo_infra::metrics::{metrics_recorder, MetricsConfig};
 use apollo_l1_events_types::{L1EventsProviderSnapshot, MockL1EventsProviderClient};
@@ -14,6 +16,7 @@ use apollo_monitoring_endpoint_config::config::{
     MonitoringEndpointConfig,
     MONITORING_ENDPOINT_DEFAULT_IP,
     MONITORING_ENDPOINT_DEFAULT_PORT,
+    MONITORING_ENDPOINT_DEFAULT_SNAPSHOT_TIMEOUT_MILLIS,
 };
 use axum::response::Response;
 use axum::Router;
@@ -33,6 +36,8 @@ use tower::util::ServiceExt;
 
 use crate::monitoring_endpoint::{
     create_monitoring_endpoint,
+    get_l1_events_provider_snapshot,
+    mempool_snapshot,
     MonitoringEndpoint,
     ALIVE,
     L1_EVENTS_PROVIDER_SNAPSHOT,
@@ -51,6 +56,7 @@ const TEST_VERSION: &str = "1.2.3-dev";
 const CONFIG_WITHOUT_METRICS: MonitoringEndpointConfig = MonitoringEndpointConfig {
     ip: MONITORING_ENDPOINT_DEFAULT_IP,
     port: MONITORING_ENDPOINT_DEFAULT_PORT,
+    snapshot_timeout_millis: MONITORING_ENDPOINT_DEFAULT_SNAPSHOT_TIMEOUT_MILLIS,
 };
 
 fn setup_monitoring_endpoint(config: Option<MonitoringEndpointConfig>) -> MonitoringEndpoint {
@@ -197,7 +203,7 @@ fn expected_mempool_snapshot() -> MempoolSnapshot {
 }
 
 #[tokio::test]
-async fn mempool_snapshot() {
+async fn mempool_snapshot_expected_values() {
     let app = setup_monitoring_endpoint_with_mempool_client().app();
 
     let response = request_app(app, MEMPOOL_SNAPSHOT).await;
@@ -281,4 +287,42 @@ async fn l1_events_provider_not_present() {
     let app = setup_monitoring_endpoint(None).app();
     let response = request_app(app, L1_EVENTS_PROVIDER_SNAPSHOT).await;
     assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+}
+
+// Uses a multi threaded setup as two threads are required: one executing the mock mempool behavior,
+// and the other monitoring the timeout.
+#[tokio::test(flavor = "multi_thread")]
+async fn mempool_snapshot_timeout() {
+    const TIMEOUT_MILLIS: u64 = 10;
+    // Set a mock mempool client that will sleep longer than the timeout.
+    let mut mock_mempool_client = MockMempoolClient::new();
+    mock_mempool_client.expect_get_mempool_snapshot().returning(|| {
+        sleep(Duration::from_millis(TIMEOUT_MILLIS * 50));
+        Ok(expected_mempool_snapshot())
+    });
+    let result = mempool_snapshot(
+        Some(Arc::new(mock_mempool_client)),
+        Duration::from_millis(TIMEOUT_MILLIS),
+    )
+    .await;
+    assert_eq!(result.unwrap_err(), StatusCode::GATEWAY_TIMEOUT);
+}
+
+// Uses a multi threaded setup as two threads are required: one executing the mock mempool behavior,
+// and the other monitoring the timeout.
+#[tokio::test(flavor = "multi_thread")]
+async fn l1_events_provider_snapshot_timeout() {
+    const TIMEOUT_MILLIS: u64 = 10;
+    // Set a mock l1 events provider client that will sleep longer than the timeout.
+    let mut mock_l1_events_provider_client = MockL1EventsProviderClient::new();
+    mock_l1_events_provider_client.expect_get_l1_events_provider_snapshot().returning(|| {
+        sleep(Duration::from_millis(TIMEOUT_MILLIS * 100));
+        Ok(expected_l1_events_provider_snapshot())
+    });
+    let result = get_l1_events_provider_snapshot(
+        Some(Arc::new(mock_l1_events_provider_client)),
+        Duration::from_millis(TIMEOUT_MILLIS),
+    )
+    .await;
+    assert_eq!(result.unwrap_err(), StatusCode::GATEWAY_TIMEOUT);
 }
