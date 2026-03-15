@@ -93,6 +93,7 @@ const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
     connection_timeout_ms: 500,
     request_timeout_ms: 1000,
     set_tcp_nodelay: true,
+    ..Default::default()
 };
 
 #[async_trait]

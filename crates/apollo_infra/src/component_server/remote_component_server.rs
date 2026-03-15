@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use http::header::CONTENT_TYPE;
 use http::StatusCode;
-use http_body_util::{BodyExt, Full};
+use http_body_util::{BodyExt, Full, Limited};
 use hyper::body::Incoming;
 use hyper::service::{service_fn, Service};
 use hyper::{Request as HyperRequest, Response as HyperResponse};
@@ -39,6 +39,8 @@ use crate::serde_utils::SerdeWrapper;
 
 const DEFAULT_MAX_STREAMS_PER_CONNECTION: u32 = 8;
 const DEFAULT_BIND_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
+// 8 MiB — bounds memory materialized from a single request as defense in depth.
+const DEFAULT_MAX_REQUEST_BODY_BYTES: usize = 8 * 1024 * 1024;
 
 macro_rules! serve_connection {
     ($io:expr, $service:expr, $max_streams:expr) => {
@@ -60,6 +62,7 @@ pub struct RemoteServerConfig {
     pub max_streams_per_connection: u32,
     pub bind_ip: IpAddr,
     pub set_tcp_nodelay: bool,
+    pub max_request_body_bytes: usize,
 }
 
 impl SerializeConfig for RemoteServerConfig {
@@ -83,6 +86,13 @@ impl SerializeConfig for RemoteServerConfig {
                 "Whether to set TCP_NODELAY on the server responses.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "max_request_body_bytes",
+                &self.max_request_body_bytes,
+                "Maximum allowed size in bytes for an incoming request body. Requests exceeding \
+                 this limit are rejected with 413 Payload Too Large.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -93,6 +103,7 @@ impl Default for RemoteServerConfig {
             max_streams_per_connection: DEFAULT_MAX_STREAMS_PER_CONNECTION,
             bind_ip: DEFAULT_BIND_IP,
             set_tcp_nodelay: true,
+            max_request_body_bytes: DEFAULT_MAX_REQUEST_BODY_BYTES,
         }
     }
 }
@@ -133,9 +144,28 @@ where
         request_id: RequestId,
         local_client: LocalComponentClient<Request, Response>,
         metrics: &'static RemoteServerMetrics,
+        max_request_body_bytes: usize,
     ) -> Result<HyperResponse<Full<Bytes>>, hyper::Error> {
         trace!("Received HTTP request: {http_request:?}");
-        let body_bytes = http_request.into_body().collect().await?.to_bytes();
+        let body_bytes =
+            match Limited::new(http_request.into_body(), max_request_body_bytes).collect().await {
+                Ok(collected) => collected.to_bytes(),
+                Err(err) => {
+                    error!("Failed to collect request body: {err}");
+                    let server_error = ServerError::RequestDeserializationFailure(
+                        "Request body too large".to_string(),
+                    );
+                    return Ok(HyperResponse::builder()
+                        .status(StatusCode::PAYLOAD_TOO_LARGE)
+                        .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+                        .body(Full::new(Bytes::from(
+                            SerdeWrapper::new(server_error)
+                                .wrapper_serialize()
+                                .expect("Server error serialization should succeed"),
+                        )))
+                        .expect("Response building should succeed"));
+                }
+            };
         trace!("Extracted {} bytes from HTTP request body", body_bytes.len());
 
         metrics.increment_total_received();
@@ -213,7 +243,8 @@ where
              max_streams: u32,
              connection_semaphore: Arc<Semaphore>,
              local_client: LocalComponentClient<Request, Response>,
-             metrics: &'static RemoteServerMetrics| {
+             metrics: &'static RemoteServerMetrics,
+             max_request_body_bytes: usize| {
                 async move {
                     match connection_semaphore.try_acquire_owned() {
                         Ok(permit) => {
@@ -235,6 +266,7 @@ where
                                         request_id,
                                         local_client.clone(),
                                         metrics,
+                                        max_request_body_bytes,
                                     )
                                 });
 
@@ -319,6 +351,7 @@ where
                 connection_semaphore.clone(),
                 self.local_client.clone(),
                 self.metrics,
+                self.config.max_request_body_bytes,
             ));
         }
     }
