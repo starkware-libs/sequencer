@@ -110,7 +110,6 @@ service:
     targetPort: 55210
     protocol: TCP
 
-
 statefulSet:
   enabled: true
 
