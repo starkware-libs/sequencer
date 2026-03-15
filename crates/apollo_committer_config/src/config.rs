@@ -5,16 +5,16 @@ use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_committer::block_committer::input::ReaderConfig;
-use starknet_patricia_storage::map_storage::CachedStorage;
-use starknet_patricia_storage::rocksdb_storage::RocksDbStorage;
+use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig};
+use starknet_patricia_storage::rocksdb_storage::{RocksDbStorage, RocksDbStorageConfig};
 use starknet_patricia_storage::storage_trait::{Storage, StorageConfigTrait};
-use validator::Validate;
+use validator::{Validate, ValidationError, ValidationErrors};
 
 pub type ApolloStorage = CachedStorage<RocksDbStorage>;
 
 pub type ApolloCommitterConfig = CommitterConfig<<ApolloStorage as Storage>::Config>;
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct CommitterConfig<C: StorageConfigTrait> {
     pub reader_config: ReaderConfig,
     pub db_path: PathBuf,
@@ -52,5 +52,30 @@ impl<C: StorageConfigTrait> Default for CommitterConfig<C> {
             storage_config: C::default(),
             verify_state_diff_hash: true,
         }
+    }
+}
+
+impl Validate for CommitterConfig<CachedStorageConfig<RocksDbStorageConfig>> {
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        // Validate nested storage config.
+        self.storage_config.validate()?;
+
+        // Cross-field validation: building storage tries concurrently requires spawn_blocking_reads
+        // to be enabled, otherwise the concurrent tasks will block the async runtime.
+        if self.reader_config.build_storage_tries_concurrently()
+            && !self.storage_config.inner_storage_config.spawn_blocking_reads
+        {
+            let mut errors = ValidationErrors::new();
+            errors.add(
+                "storage_config",
+                ValidationError::new(
+                    "spawn_blocking_reads must be true when build_storage_tries_concurrently is \
+                     true",
+                ),
+            );
+            return Err(errors);
+        }
+
+        Ok(())
     }
 }
