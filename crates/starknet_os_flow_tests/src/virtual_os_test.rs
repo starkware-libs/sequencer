@@ -217,6 +217,7 @@ async fn test_get_execution_info(#[case] virtual_os: bool) {
         ProofFacts::custom_proof_facts_for_testing(
             get_valid_virtual_os_program_hash(),
             test_builder.compute_virtual_os_config_hash(),
+            None,
         )
     };
     let expected_execution_info = ExpectedExecutionInfo {
