@@ -33,7 +33,6 @@ use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs, Vali
 use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
-use apollo_transaction_converter::proof_verification::VerifyProofError;
 use apollo_transaction_converter::{
     MockTransactionConverterTrait,
     TransactionConverterError,
@@ -85,6 +84,7 @@ use starknet_api::{
     invoke_tx_args,
     nonce,
 };
+use starknet_proof_verifier::VerifyProofError;
 use starknet_types_core::felt::Felt;
 use strum::VariantNames;
 use tempfile::TempDir;
@@ -310,7 +310,7 @@ fn setup_transaction_converter_mock_with_failed_verification(
             // Create a task that returns a proof verification error.
             let verification_task = tokio::spawn(async {
                 Err(TransactionConverterError::ProofVerificationError(
-                    VerifyProofError::BootloaderHashMismatch,
+                    VerifyProofError::Verification("test error".to_string()),
                 ))
             });
             Some(VerificationHandle {
@@ -548,7 +548,7 @@ async fn test_add_tx_fails_when_proof_verification_fails(mut mock_dependencies: 
     // Assert the error is an internal error due to proof verification failure.
     let error = result.unwrap_err();
     assert_eq!(error.code, StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidProof));
-    assert_eq!(error.message, "Proof verification error: Bootloader program hash mismatch.");
+    assert_eq!(error.message, "Proof verification error: Proof verification failed: test error");
 }
 
 #[rstest]

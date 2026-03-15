@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
-use blockifier::execution::call_info::{ExtendedExecutionResources, OpcodeName};
+use blockifier::execution::call_info::{ExtendedExecutionResources, OpcodeCounterMap, OpcodeName};
 use blockifier::execution::casm_hash_estimation::{
     CasmV1HashResourceEstimate,
     CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
 };
 use blockifier::execution::contract_class::{EntryPointV1, EntryPointsByType, NestedFeltCounts};
+use blockifier::execution::entry_point_execution::opcode_counter_from_extended_resources;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -37,7 +38,6 @@ use tokio::task::JoinSet;
 
 use crate::hints::hint_implementation::compiled_class::utils::create_bytecode_segment_structure;
 use crate::hints::vars::{CairoStruct, Const};
-use crate::opcode_instances::{get_opcode_instances, OpcodeInstanceCounts};
 use crate::test_utils::cairo_runner::{
     initialize_cairo_runner,
     run_cairo_0_entrypoint,
@@ -53,30 +53,29 @@ use crate::vm_utils::{get_address_of_nested_fields_from_base_address, LoadCairoO
 // V1 (Poseidon) HASH CONSTS
 /// Expected Poseidon hash for the test contract.
 const EXPECTED_V1_HASH: expect_test::Expect =
-    expect!["3500374307183977124283371347040805966374333171884755205503203310896946476446"];
-// Expected execution resources for loading full contract.
+    expect!["695083628483333658951120649675925810581194853520678549337469729569818230987"];
 const EXPECTED_BUILTIN_USAGE_FULL_CONTRACT_V1_HASH: expect_test::Expect =
-    expect!["poseidon_builtin: 15897"];
-const EXPECTED_N_STEPS_FULL_CONTRACT_V1_HASH: Expect = expect!["189154"];
+    expect!["poseidon_builtin: 16023"];
+const EXPECTED_N_STEPS_FULL_CONTRACT_V1_HASH: Expect = expect!["190702"];
 // Expected execution resources for loading partial contract.
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V1_HASH: expect_test::Expect =
-    expect!["poseidon_builtin: 462, range_check_builtin: 231"];
-const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["13823"];
+    expect!["poseidon_builtin: 469, range_check_builtin: 233"];
+const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["14028"];
 // Allowed margin between estimated and actual execution resources.
 const ALLOWED_MARGIN_N_STEPS: usize = 127;
 
 //  V2 (Blake) HASH CONSTS
 /// Expected Blake hash for the test contract
 const EXPECTED_V2_HASH: expect_test::Expect =
-    expect!["1287422789837994016073881046109027655176925039944732462697022981400223121028"];
+    expect!["2623458436807550198734332480815982315539765886359127802831902189580009899243"];
 // Expected execution resources for loading full contract.
 const EXPECTED_BUILTIN_USAGE_FULL_CONTRACT_V2_HASH: expect_test::Expect =
-    expect!["range_check_builtin: 32339"];
-const EXPECTED_N_STEPS_FULL_CONTRACT_V2_HASH: Expect = expect!["611685"];
+    expect!["range_check_builtin: 32599"];
+const EXPECTED_N_STEPS_FULL_CONTRACT_V2_HASH: Expect = expect!["616887"];
 // Expected execution resources for loading partial contract.
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V2_HASH: expect_test::Expect =
-    expect!["range_check_builtin: 1312"];
-const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["55955"];
+    expect!["range_check_builtin: 1332"];
+const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["56939"];
 // Allowed margin between estimated and actual execution resources.
 const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 267;
 const ALLOWED_MARGIN_BLAKE_OPCODE_COUNT: usize = 4;
@@ -256,7 +255,7 @@ fn run_compiled_class_hash_entry_point(
     load_full_contract: bool,
     accessed_segments_indicator: &AccessSegmentsIndicator,
     hash_version: &HashVersion,
-) -> Cairo0EntryPointRunnerResult<(ExecutionResources, OpcodeInstanceCounts, Felt)> {
+) -> Cairo0EntryPointRunnerResult<(ExecutionResources, OpcodeCounterMap, Felt)> {
     // Set up the entry point runner configuration.
     let runner_config = EntryPointRunnerConfig {
         layout: LayoutName::all_cairo,
@@ -348,7 +347,8 @@ fn run_compiled_class_hash_entry_point(
 
     // Get the actual execution resources, and compare with expected values.
     let actual_execution_resources = runner.get_execution_resources().unwrap();
-    let opcode_instances = get_opcode_instances(&runner);
+    let opcode_instances =
+        opcode_counter_from_extended_resources(runner.get_extended_execution_resources()).unwrap();
     // Get the hash result from the explicit return values.
     let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(hash_computed_by_cairo))) =
         explicit_return_values[0]
@@ -595,8 +595,10 @@ fn compare_estimated_vs_actual_casm_hash_resources(
     // Compare Blake opcode count.
     let estimated_blake_opcode_count =
         estimated_resources.opcode_instance_counter.get(&OpcodeName::blake).copied().unwrap_or(0);
+    let actual_blake_opcode_count =
+        actual_opcode_instances.get(&OpcodeName::blake).copied().unwrap_or(0);
     let blake_opcode_count_margin =
-        estimated_blake_opcode_count.abs_diff(actual_opcode_instances.blake_opcode_count);
+        estimated_blake_opcode_count.abs_diff(actual_blake_opcode_count);
     let allowed_blake_opcode_count_margin = hash_version.allowed_margin_blake_opcode_count();
     assert!(
         blake_opcode_count_margin <= allowed_blake_opcode_count_margin,

@@ -5,6 +5,7 @@ on:
     types:
       - opened
       - reopened
+      - edited
       - synchronize
     paths:
       - ".github/actions/bootstrap/action.yml"
@@ -37,8 +38,22 @@ permissions:
   contents: read
 
 jobs:
+  # https://graphite.com/docs/stacking-and-ci
+  optimize_ci:
+    runs-on: ubuntu-24.04
+    outputs:
+      skip: ${{ steps.check_skip.outputs.skip }}
+    steps:
+      - name: Optimize CI
+        id: check_skip
+        uses: withgraphite/graphite-ci-action@v0.0.9
+        with:
+          graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
+
   starknet_transaction_prover_ci:
     runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
+    needs: optimize_ci
+    if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
@@ -97,6 +112,8 @@ jobs:
   # Test that the starknet_transaction_prover Docker image builds successfully.
   docker-build:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    needs: optimize_ci
+    if: needs.optimize_ci.outputs.skip == 'false'
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6

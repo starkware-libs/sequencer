@@ -7,6 +7,7 @@ license-file.workspace = true
 description = "Integration tests for Starknet OS execution and state commitment flow."
 
 [features]
+exhaustive_fuzz_test = []
 fuzz_test_debug = []
 long_fuzz_test = []
 

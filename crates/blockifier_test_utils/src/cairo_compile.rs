@@ -1,5 +1,6 @@
+use std::fs::{self, File};
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 use apollo_infra_utils::cairo0_compiler::Cairo0Script;
@@ -70,7 +71,7 @@ pub fn generate_allowed_libfuncs_legacy_json() -> String {
 
 /// Downloads the cairo package to the local directory.
 /// Creates the directory if it does not exist.
-async fn download_cairo_package(version: &String) {
+fn download_cairo_package(version: &String) {
     let directory = cairo1_package_dir(version);
     info!("Downloading Cairo package to {directory:?}.");
     std::fs::create_dir_all(&directory).unwrap();
@@ -101,13 +102,51 @@ fn cairo1_package_exists(version: &String) -> bool {
     cairo_compiler_path.exists() && sierra_compiler_path.exists()
 }
 
-/// Verifies that the Cairo1 package (of the given version) is available.
-/// Attempts to download it if not.
-pub async fn verify_cairo1_package(version: &String) {
-    if !cairo1_package_exists(version) {
-        download_cairo_package(version).await;
+/// Appends `.lock` to a path, used by `with_file_lock` callers to derive a lock file path.
+pub(crate) fn lock_path_for(path: &Path) -> PathBuf {
+    PathBuf::from(format!("{}.lock", path.display()))
+}
+
+/// Executes `action` at most once, guarded by a file lock at `lock_path`.
+///
+/// Uses double-checked locking: if `is_done()` returns `true` before acquiring the lock the
+/// call is a no-op. After acquiring the lock `is_done()` is re-checked so that concurrent
+/// callers that lost the race also skip `action`.
+pub(crate) fn with_file_lock(lock_path: &Path, is_done: impl Fn() -> bool, action: impl FnOnce()) {
+    if is_done() {
+        return;
     }
-    assert!(cairo1_package_exists(version));
+
+    fs::create_dir_all(lock_path.parent().unwrap())
+        .unwrap_or_else(|e| panic!("Failed to create directory for lock file: {e}"));
+    let lock_file = File::create(lock_path)
+        .unwrap_or_else(|e| panic!("Failed to create lock file {lock_path:?}: {e}"));
+    lock_file.lock().unwrap_or_else(|e| panic!("Failed to acquire lock on {lock_path:?}: {e}"));
+
+    if is_done() {
+        return;
+    }
+
+    action();
+}
+
+/// Verifies that the Cairo1 package (of the given version) is available.
+/// Attempts to download it if not. Uses a per-version file lock so concurrent callers (threads
+/// or processes) never download the same package redundantly.
+pub fn verify_cairo1_package(version: &String) {
+    let dir = cairo1_package_dir(version);
+    with_file_lock(
+        &lock_path_for(&dir),
+        || cairo1_package_exists(version),
+        || {
+            eprintln!(
+                "[cairo_compile] Cairo 1 compiler v{version} not found locally, downloading..."
+            );
+            download_cairo_package(version);
+            eprintln!("[cairo_compile] Cairo 1 compiler v{version} downloaded successfully.");
+            assert!(cairo1_package_exists(version));
+        },
+    );
 }
 
 /// Runs a command. If it has succeeded, it returns the command's output; otherwise, it panics with
@@ -153,6 +192,14 @@ impl LibfuncArg {
         match self {
             Self::ListName(name) => command.args(["--allowed-libfuncs-list-name", name]),
             Self::ListFile(file) => command.args(["--allowed-libfuncs-list-file", file]),
+        }
+    }
+
+    /// Returns the file path if this is a `ListFile` variant.
+    pub fn file_path(&self) -> &str {
+        match self {
+            Self::ListFile(path) => path,
+            Self::ListName(_) => panic!("LibfuncArg::ListName has no file path"),
         }
     }
 }
