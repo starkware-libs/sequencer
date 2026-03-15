@@ -28,8 +28,17 @@ type ReconstructionResult = Result<ReconstructionOutput, ReconstructionError>;
 #[derive(Debug)]
 pub enum EventStateManagerToEngine {
     BehaviourEvent(Event),
-    Finalized { channel: Channel, publisher: PeerId, timestamp_ns: u64, message_root: MessageRoot },
-    SendUnitToPeers { unit: PropellerUnit, peers: Vec<PeerId> },
+    Finalized {
+        channel: Channel,
+        publisher: PeerId,
+        timestamp_ns: u64,
+        message_root: MessageRoot,
+        shard_status: GoodShardsStatus,
+    },
+    SendUnitToPeers {
+        unit: PropellerUnit,
+        peers: Vec<PeerId>,
+    },
 }
 
 #[derive(Debug)]
@@ -133,6 +142,15 @@ impl ReconstructionState {
     }
 }
 
+// TODO(guyn): consider adding AllGoodShardsReceived to the enum.
+// TODO(guyn): consider adding the number of received shards to the enum.
+#[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
+pub enum GoodShardsStatus {
+    #[default]
+    NoGoodShardsReceived,
+    SomeGoodShardsReceived,
+}
+
 /// Message processor that handles validation and state management for a single message.
 pub struct MessageProcessor {
     pub channel: Channel,
@@ -151,6 +169,7 @@ pub struct MessageProcessor {
     pub engine_tx: mpsc::UnboundedSender<EventStateManagerToEngine>,
 
     pub timeout: Duration,
+    pub shard_status: GoodShardsStatus,
 }
 
 impl MessageProcessor {
@@ -197,6 +216,9 @@ impl MessageProcessor {
                 trace!("[MSG_PROC] Validation failed for index={:?}: {:?}", unit.index(), err);
                 continue;
             }
+
+            // We got at least one good shard.
+            self.shard_status = GoodShardsStatus::SomeGoodShardsReceived;
 
             self.maybe_broadcast_my_shard(&unit, &state);
 
@@ -394,6 +416,7 @@ impl MessageProcessor {
                 publisher: self.publisher,
                 timestamp_ns: self.timestamp_ns,
                 message_root: self.message_root,
+                shard_status: self.shard_status,
             })
             .expect("Engine task has exited");
     }

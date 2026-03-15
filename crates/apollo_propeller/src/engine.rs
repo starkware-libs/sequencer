@@ -15,7 +15,12 @@ use tracing::{debug, error, trace, warn};
 
 use crate::config::Config;
 use crate::handler::{HandlerIn, HandlerOut};
-use crate::message_processor::{EventStateManagerToEngine, MessageProcessor, UnitToValidate};
+use crate::message_processor::{
+    EventStateManagerToEngine,
+    GoodShardsStatus,
+    MessageProcessor,
+    UnitToValidate,
+};
 use crate::metrics::PropellerMetrics;
 use crate::sharding::create_units_to_publish;
 use crate::signature;
@@ -306,6 +311,7 @@ impl Engine {
                 unit_rx,
                 engine_tx: self.state_manager_tx.clone(),
                 timeout: self.config.stale_message_timeout,
+                shard_status: GoodShardsStatus::NoGoodShardsReceived,
             };
 
             // TODO(AndrewL): track task handle to see if it panics or is killed.
@@ -377,8 +383,19 @@ impl Engine {
                 publisher,
                 timestamp_ns,
                 message_root,
+                shard_status,
             } => {
                 trace!(?channel, ?publisher, ?message_root, "[ENGINE] Message finalized");
+
+                if let GoodShardsStatus::NoGoodShardsReceived = shard_status {
+                    debug!(
+                        ?channel,
+                        ?publisher,
+                        ?message_root,
+                        "[ENGINE] Message finalized with no good shards, dropping without caching"
+                    );
+                    return;
+                }
 
                 // Mark as finalized
                 let message_key =
