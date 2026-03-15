@@ -21,9 +21,6 @@ pub enum Event {
         publisher: PeerId,
         error: ReconstructionError,
     },
-    // TODO(AndrewL): remove this and just use ShardSendFailed
-    /// Failed to broadcast a shard.
-    ShardPublishFailed { error: ShardPublishError },
     /// Failed to send a shard to a peer.
     ShardSendFailed { sent_from: Option<PeerId>, sent_to: Option<PeerId>, error: ShardPublishError },
     /// Failed to verify shard
