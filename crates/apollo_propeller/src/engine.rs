@@ -5,9 +5,12 @@
 //! `NetworkBehaviour` adapter in `behaviour.rs` via command/output channels.
 
 use std::collections::{HashMap, HashSet};
+use std::num::NonZeroUsize;
 use std::sync::Arc;
 
+use apollo_infra_utils::warn_every_n_ms;
 use libp2p::identity::{Keypair, PeerId, PublicKey};
+use lru::LruCache;
 use starknet_api::staking::StakingWeight;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, trace, warn};
@@ -22,6 +25,14 @@ use crate::time_cache::TimeCache;
 use crate::tree::PropellerScheduleManager;
 use crate::types::{CommitteeId, CommitteeSetupError, Event, MessageRoot, ShardPublishError};
 use crate::unit::PropellerUnit;
+
+#[cfg(test)]
+#[path = "engine_test.rs"]
+mod engine_test;
+
+// TODO(guyn): move this to the propeller Config.
+// Must be much bigger than the number of peers we expect to work with (2*committee_size).
+const PEER_NONCE_CACHE_SIZE: usize = 1000;
 
 type BroadcastResponseTx = oneshot::Sender<Result<(), ShardPublishError>>;
 type BroadcastResult = (Result<Vec<PropellerUnit>, ShardPublishError>, BroadcastResponseTx);
@@ -93,6 +104,9 @@ pub struct Engine {
     message_to_unit_tx: HashMap<MessageKey, mpsc::UnboundedSender<UnitToValidate>>,
     /// Messages that have already been encountered and processed (for deduplication).
     messages_to_ignore_shards_from: TimeCache<MessageKey>,
+    // TODO(guyn): track nonces separately for each committee.
+    /// Nonce per peer. LRU cache is used as a passive garbage collection mechanism.
+    peer_nonce: LruCache<PeerId, u64>,
     /// Receiver for messages from state manager tasks.
     state_manager_rx: mpsc::UnboundedReceiver<EventStateManagerToEngine>,
     state_manager_tx: mpsc::UnboundedSender<EventStateManagerToEngine>,
@@ -126,6 +140,9 @@ impl Engine {
             local_peer_id,
             message_to_unit_tx: HashMap::new(),
             messages_to_ignore_shards_from,
+            peer_nonce: LruCache::new(
+                NonZeroUsize::new(PEER_NONCE_CACHE_SIZE).expect("Cache size must be non-zero"),
+            ),
             state_manager_rx,
             state_manager_tx,
             prepared_units_rx: broadcaster_results_rx,
@@ -243,8 +260,6 @@ impl Engine {
             root: claimed_root,
         };
 
-        // TODO(guyn): Add timestamps to message key to avoid replay attacks or issues with very
-        // late shards.
         if self.messages_to_ignore_shards_from.contains(&message_key) {
             trace!(?message_key, "Message already finalized, dropping unit");
             return;
@@ -252,6 +267,15 @@ impl Engine {
 
         // Spawn tasks if this is a new message.
         if !self.message_to_unit_tx.contains_key(&message_key) {
+            let nonce = self.peer_nonce.get(&claimed_publisher).copied().unwrap_or(0);
+            if nonce >= claimed_nonce {
+                warn_every_n_ms!(
+                    2000,
+                    "Message nonce is too old, dropping unit to prevent replay attacks"
+                );
+                return;
+            }
+
             debug!(?message_key, "[ENGINE] Spawning new message processor");
 
             let schedule_manager = committee_data.schedule_manager.clone();
@@ -376,6 +400,16 @@ impl Engine {
 
                 if !expired_keys.is_empty() {
                     trace!(?expired_keys, "[ENGINE] Removed expired messages from TTL cache");
+                    for key in expired_keys {
+                        // Update the nonce to the latest timestamp if it is bigger.
+                        let new_nonce = self
+                            .peer_nonce
+                            .peek(&key.publisher)
+                            .copied()
+                            .unwrap_or(0)
+                            .max(key.nonce);
+                        self.peer_nonce.put(key.publisher, new_nonce);
+                    }
                 }
 
                 // Clean up task handles
