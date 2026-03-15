@@ -4,6 +4,7 @@ from starkware.cairo.common.math import assert_lt_felt
 from starkware.starknet.core.os.constants import (
     ADD_MOD_GAS_COST,
     BITWISE_BUILTIN_GAS_COST,
+    BLAKE_GAS_COST,
     ECOP_GAS_COST,
     MUL_MOD_GAS_COST,
     PEDERSEN_GAS_COST,
@@ -66,6 +67,7 @@ func guess_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}
         POSEIDON_GAS_COST,
         ADD_MOD_GAS_COST,
         MUL_MOD_GAS_COST,
+        BLAKE_GAS_COST,
     );
     local n_compiled_class_facts;
     local compiled_class_facts: CompiledClassFact*;

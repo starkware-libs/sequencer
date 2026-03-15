@@ -6,6 +6,7 @@ on:
     types:
       - opened
       - reopened
+      - edited
       - synchronize
     branches:
       - main
@@ -18,6 +19,14 @@ on:
 jobs:
   prepare:
     runs-on: ubuntu-24.04
+<<<<<<< HEAD
+||||||| 78551e8a5f
+    needs: optimize_ci
+    if: needs.optimize_ci.outputs.skip == 'false'
+=======
+    needs: optimize_ci
+    if: github.event_name != 'pull_request' || needs.optimize_ci.outputs.skip == 'false'
+>>>>>>> origin/main-v0.14.2
     env:
       cluster: test
       namespace: test
@@ -72,7 +81,8 @@ jobs:
 
   validate:
     runs-on: ubuntu-24.04
-    needs: prepare
+    needs: [prepare, optimize_ci]
+    if: success() && (github.event_name != 'pull_request' || needs.optimize_ci.outputs.skip == 'false')
     env:
       dist1_path: ./cdk8s-artifacts/dist1
       dist2_path: ./cdk8s-artifacts/dist2

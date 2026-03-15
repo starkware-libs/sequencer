@@ -8,10 +8,15 @@ use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_rust::providers::Provider;
+use starknet_rust_core::types::ContractStorageKeys;
 use starknet_types_core::felt::Felt;
 
 use crate::running::storage_proofs::{
+    collect_query,
+    count_total_keys,
+    flatten_query,
     RpcStorageProofsProvider,
+    RpcStorageProofsQuery,
     StorageProofConfig,
     StorageProofProvider,
 };
@@ -121,4 +126,49 @@ fn test_get_storage_proofs_from_rpc(
         storage_commitment.previous_root.0 != Felt::ZERO,
         "Expected non-zero storage root for contract {contract_address:?}",
     );
+}
+
+pub(crate) fn make_query(
+    n_class_hashes: u64,
+    n_contract_addresses: u64,
+    storage_keys_per_contract: &[u64],
+) -> RpcStorageProofsQuery {
+    let class_hashes: Vec<Felt> = (0..n_class_hashes).map(Felt::from).collect();
+    let contract_addresses: Vec<ContractAddress> = (0..n_contract_addresses)
+        .map(|i| ContractAddress::try_from(Felt::from(1000 + i)).unwrap())
+        .collect();
+    let contract_storage_keys: Vec<ContractStorageKeys> = storage_keys_per_contract
+        .iter()
+        .zip(2000_u64..)
+        .map(|(&n_keys, addr)| ContractStorageKeys {
+            contract_address: Felt::from(addr),
+            storage_keys: (0..n_keys).map(Felt::from).collect(),
+        })
+        .collect();
+    RpcStorageProofsQuery { class_hashes, contract_addresses, contract_storage_keys }
+}
+
+#[test]
+fn test_flatten_collect_roundtrip() {
+    let query = make_query(3, 5, &[10, 7]);
+    let items = flatten_query(&query);
+    assert_eq!(items.len(), count_total_keys(&query));
+    let reconstructed = collect_query(&items);
+    assert_eq!(reconstructed, query);
+}
+
+#[test]
+fn test_flatten_collect_drops_empty_storage_entries() {
+    let mut query = make_query(1, 1, &[3]);
+    // Add a contract storage entry with no keys (e.g. from `unwrap_or_default` in prepare_query).
+    query
+        .contract_storage_keys
+        .push(ContractStorageKeys { contract_address: Felt::from(9999_u64), storage_keys: vec![] });
+
+    let items = flatten_query(&query);
+    let reconstructed = collect_query(&items);
+
+    // The empty-key entry is intentionally dropped: it has no effect on the proof result.
+    assert_eq!(reconstructed.contract_storage_keys.len(), 1);
+    assert_eq!(reconstructed, make_query(1, 1, &[3]));
 }

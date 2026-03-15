@@ -469,7 +469,7 @@ async fn build_proposal_writes_prev_blob_if_cannot_get_latest_block_number() {
     //
     // Important: We set the height to be under 10 to avoid triggering the code path which writes
     // the block hash mapping for height - 10 (which we're not testing as part of this test)
-    const HEIGHT: BlockNumber = BlockNumber(9);
+    const HEIGHT: BlockNumber = BlockNumber(8);
 
     let (mut deps, _network) = create_test_and_network_deps();
 
@@ -502,7 +502,7 @@ async fn build_proposal_cende_failure() {
     //
     // Important: We set the height to be under 10 to avoid triggering the code path which writes
     // the block hash mapping for height - 10 (which we're not testing as part of this test)
-    const HEIGHT: BlockNumber = BlockNumber(9);
+    const HEIGHT: BlockNumber = BlockNumber(8);
 
     let (mut deps, _network) = create_test_and_network_deps();
     deps.setup_deps_for_build(SetupDepsArgs { start_block_number: HEIGHT, ..Default::default() });
@@ -533,7 +533,7 @@ async fn build_proposal_cende_incomplete() {
     //
     // Important: We set the height to be under 10 to avoid triggering the code path which writes
     // the block hash mapping for height - 10 (which we're not testing as part of this test)
-    const HEIGHT: BlockNumber = BlockNumber(9);
+    const HEIGHT: BlockNumber = BlockNumber(8);
 
     let (mut deps, _network) = create_test_and_network_deps();
     deps.setup_deps_for_build(SetupDepsArgs { start_block_number: HEIGHT, ..Default::default() });

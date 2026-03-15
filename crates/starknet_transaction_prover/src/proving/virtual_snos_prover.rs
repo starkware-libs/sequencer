@@ -9,8 +9,8 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::utils::get_chain_info;
 use serde::{Deserialize, Serialize};
-use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
-use starknet_api::transaction::fields::{Proof, ProofFacts};
+use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
+use starknet_api::transaction::fields::{Fee, Proof, ProofFacts, ValidResourceBounds};
 use starknet_api::transaction::{InvokeTransaction, MessageToL1};
 use tracing::{info, instrument};
 use url::Url;
@@ -43,6 +43,8 @@ pub struct ProveTransactionResult {
 pub(crate) struct VirtualSnosProver<R: VirtualSnosRunner> {
     /// Runner for executing the virtual OS.
     runner: R,
+    /// Whether to validate that fee-related fields (resource bounds, tip) are zero.
+    validate_zero_fee_fields: bool,
 }
 
 /// Type alias for the RPC-based virtual SNOS prover.
@@ -65,7 +67,7 @@ impl VirtualSnosProver<RpcRunnerFactory> {
             contract_class_manager,
             prover_config.runner_config.clone(),
         );
-        Self { runner }
+        Self { runner, validate_zero_fee_fields: prover_config.validate_zero_fee_fields }
     }
 }
 
@@ -75,7 +77,14 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
     /// This constructor allows using any runner implementation.
     #[allow(dead_code)]
     pub(crate) fn from_runner(runner: R) -> Self {
-        Self { runner }
+        Self { runner, validate_zero_fee_fields: true }
+    }
+
+    /// Disables fee-field validation (resource bounds, tip).
+    #[allow(dead_code)]
+    pub(crate) fn disable_fee_validation(mut self) -> Self {
+        self.validate_zero_fee_fields = false;
+        self
     }
 
     /// Proves a transaction on top of the specified block.
@@ -100,7 +109,9 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
             ));
         }
 
-        let invoke_tx = extract_invoke_tx(transaction)?;
+        let invoke_v3 = extract_rpc_invoke_tx(transaction)?;
+        validate_transaction_input(&invoke_v3, self.validate_zero_fee_fields)?;
+        let invoke_tx = InvokeTransaction::V3(invoke_v3.into());
 
         // Run OS and get output.
         let os_start = Instant::now();
@@ -165,12 +176,12 @@ pub async fn prove_virtual_snos_run(
     }
 }
 
-/// Validates that the transaction is an Invoke transaction and extracts it.
-pub fn extract_invoke_tx(tx: RpcTransaction) -> Result<InvokeTransaction, VirtualSnosProverError> {
+/// Extracts the RPC Invoke V3 transaction, rejecting other transaction types.
+fn extract_rpc_invoke_tx(
+    tx: RpcTransaction,
+) -> Result<RpcInvokeTransactionV3, VirtualSnosProverError> {
     match tx {
-        RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_v3)) => {
-            Ok(InvokeTransaction::V3(invoke_v3.into()))
-        }
+        RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_v3)) => Ok(invoke_v3),
         RpcTransaction::Declare(_) => Err(VirtualSnosProverError::InvalidTransactionType(
             "Declare transactions are not supported; only Invoke transactions are allowed"
                 .to_string(),
@@ -180,4 +191,35 @@ pub fn extract_invoke_tx(tx: RpcTransaction) -> Result<InvokeTransaction, Virtua
                 .to_string(),
         )),
     }
+}
+
+/// Validates that the transaction input fields are acceptable for proving.
+///
+/// Rejects transactions where:
+/// - `proof` or `proof_facts` are non-empty (these are output-only fields).
+/// - Max possible fee is non-zero (when `validate_zero_fee_fields` is enabled).
+fn validate_transaction_input(
+    tx: &RpcInvokeTransactionV3,
+    validate_zero_fee_fields: bool,
+) -> Result<(), VirtualSnosProverError> {
+    if !tx.proof.is_empty() {
+        return Err(VirtualSnosProverError::InvalidTransactionInput(
+            "The proof field must be empty on input.".to_string(),
+        ));
+    }
+    if !tx.proof_facts.is_empty() {
+        return Err(VirtualSnosProverError::InvalidTransactionInput(
+            "The proof_facts field must be empty on input.".to_string(),
+        ));
+    }
+    if validate_zero_fee_fields {
+        let resource_bounds = ValidResourceBounds::AllResources(tx.resource_bounds);
+        let max_fee = resource_bounds.max_possible_fee(tx.tip);
+        if max_fee != Fee(0) {
+            return Err(VirtualSnosProverError::InvalidTransactionInput(format!(
+                "Max possible fee must be zero, got: {max_fee}."
+            )));
+        }
+    }
+    Ok(())
 }

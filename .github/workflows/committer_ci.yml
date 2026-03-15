@@ -5,6 +5,7 @@ on:
     types:
       - opened
       - reopened
+      - edited
       - synchronize
     paths:
       - ".github/workflows/committer_ci.yml"
@@ -49,6 +50,33 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+<<<<<<< HEAD
+||||||| 78551e8a5f
+  # https://graphite.com/docs/stacking-and-ci
+  optimize_ci:
+    runs-on: ubuntu-24.04
+    outputs:
+      skip: ${{ steps.check_skip.outputs.skip }}
+    steps:
+      - name: Optimize CI
+        id: check_skip
+        uses: withgraphite/graphite-ci-action@v0.0.9
+        with:
+          graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
+=======
+  # https://graphite.com/docs/stacking-and-ci
+  optimize_ci:
+    runs-on: ubuntu-24.04
+    outputs:
+      skip: ${{ steps.check_skip.outputs.skip }}
+    steps:
+      - name: Optimize CI
+        id: check_skip
+        uses: withgraphite/graphite-ci-action@v0.0.9
+        with:
+          graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
+
+>>>>>>> origin/main-v0.14.2
   run-regression-tests:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     if: ${{ github.event_name == 'pull_request' }}

@@ -15,8 +15,9 @@ const PARENT_BRANCH: &str = include_str!("../scripts/parent_branch.txt");
 const MAIN_BRANCH: &str = "main";
 const EXPECTED_MAIN_VERSION: &str = "0.0.0";
 
-static ROOT_CRATES_FOR_PUBLISH: LazyLock<HashSet<&str>> =
-    LazyLock::new(|| HashSet::from(["blockifier", "apollo_starknet_os_program"]));
+static ROOT_CRATES_FOR_PUBLISH: LazyLock<HashSet<&str>> = LazyLock::new(|| {
+    HashSet::from(["blockifier", "apollo_starknet_os_program", "starknet_proof_verifier"])
+});
 static CRATES_FOR_PUBLISH: LazyLock<HashSet<String>> = LazyLock::new(|| {
     let publish_deps: HashSet<String> = ROOT_CRATES_FOR_PUBLISH
         .iter()
@@ -48,6 +49,7 @@ const CRATES_FOR_PUBLISH_REGRESSION: Expect = expect![[r#"
         "blockifier",
         "blockifier_test_utils",
         "starknet_api",
+        "starknet_proof_verifier",
     ]
 "#]];
 
