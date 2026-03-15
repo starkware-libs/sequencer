@@ -3,7 +3,7 @@ use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::channel;
 use tokio::task;
 
-use crate::component_client::{ClientError, ClientResult, LocalComponentClient};
+use crate::component_client::{ClientError, ClientResult, LocalClientConfig, LocalComponentClient};
 use crate::component_definitions::{ComponentClient, RequestWrapper};
 use crate::component_server::{ComponentServerStarter, LocalComponentServer, LocalServerConfig};
 use crate::tests::{
@@ -68,8 +68,16 @@ async fn local_client_server() {
     let (tx_a, rx_a) = channel::<RequestWrapper<ComponentARequest, ComponentAResponse>>(32);
     let (tx_b, rx_b) = channel::<RequestWrapper<ComponentBRequest, ComponentBResponse>>(32);
 
-    let a_client = ComponentAClient::new(tx_a.clone(), &TEST_LOCAL_CLIENT_METRICS);
-    let b_client = ComponentBClient::new(tx_b.clone(), &TEST_LOCAL_CLIENT_METRICS);
+    let a_client = ComponentAClient::new(
+        LocalClientConfig::default(),
+        tx_a.clone(),
+        &TEST_LOCAL_CLIENT_METRICS,
+    );
+    let b_client = ComponentBClient::new(
+        LocalClientConfig::default(),
+        tx_b.clone(),
+        &TEST_LOCAL_CLIENT_METRICS,
+    );
 
     let component_a = ComponentA::new(Box::new(b_client.clone()));
     let component_b = ComponentB::new(setup_value, Box::new(a_client.clone()));

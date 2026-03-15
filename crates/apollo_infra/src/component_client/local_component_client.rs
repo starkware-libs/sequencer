@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -8,10 +9,11 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::time::Instant;
 use tracing::field::{display, Empty};
-use tracing::instrument;
+use tracing::{instrument, warn};
 use validator::Validate;
 
-use crate::component_client::ClientResult;
+use super::remote_component_client::REQUEST_TIMEOUT_ERROR_MESSAGE;
+use crate::component_client::{ClientError, ClientResult};
 use crate::component_definitions::{ComponentClient, RequestId, RequestWrapper};
 use crate::metrics::LocalClientMetrics;
 use crate::requests::LabeledRequest;
@@ -47,6 +49,7 @@ where
     Request: Send,
     Response: Send,
 {
+    config: LocalClientConfig,
     tx: Sender<RequestWrapper<Request, Response>>,
     metrics: &'static LocalClientMetrics,
 }
@@ -57,10 +60,11 @@ where
     Response: Send,
 {
     pub fn new(
+        config: LocalClientConfig,
         tx: Sender<RequestWrapper<Request, Response>>,
         metrics: &'static LocalClientMetrics,
     ) -> Self {
-        Self { tx, metrics }
+        Self { config, tx, metrics }
     }
 }
 
@@ -79,11 +83,22 @@ where
         let (res_tx, mut res_rx) = channel::<Response>(1);
         let request_wrapper = RequestWrapper::new(request, res_tx, request_id);
         let start = Instant::now();
-        self.tx.send(request_wrapper).await.expect("Outbound connection should be open.");
-        let response = res_rx.recv().await.expect("Inbound connection should be open.");
-        let elapsed = start.elapsed();
-        self.metrics.record_response_time(elapsed.as_secs_f64(), request_label);
-        Ok(response)
+        let timeout_duration = Duration::from_millis(self.config.request_timeout_ms);
+        let request_future = async {
+            self.tx.send(request_wrapper).await.expect("Outbound connection should be open.");
+            res_rx.recv().await.expect("Inbound connection should be open.")
+        };
+        match tokio::time::timeout(timeout_duration, request_future).await {
+            Ok(response) => {
+                let elapsed = start.elapsed();
+                self.metrics.record_response_time(elapsed.as_secs_f64(), request_label);
+                Ok(response)
+            }
+            Err(_) => {
+                warn!("Local request timed out after {} ms", self.config.request_timeout_ms);
+                Err(ClientError::CommunicationFailure(REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()))
+            }
+        }
     }
 }
 
@@ -95,6 +110,6 @@ where
     Response: Send,
 {
     fn clone(&self) -> Self {
-        Self { tx: self.tx.clone(), metrics: self.metrics }
+        Self { config: self.config.clone(), tx: self.tx.clone(), metrics: self.metrics }
     }
 }
