@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use blockifier::state::cached_state::StateMaps;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
@@ -23,7 +24,9 @@ use starknet_rust::providers::{JsonRpcClient, Provider};
 use starknet_rust_core::types::{
     ConfirmedBlockId,
     ContractStorageKeys,
+    ContractsProof,
     Felt,
+    MerkleNode,
     StorageProof as RpcStorageProof,
 };
 
@@ -36,8 +39,11 @@ use crate::running::committer_utils::{
 };
 use crate::running::virtual_block_executor::VirtualBlockExecutionData;
 
+/// Pathfinder hard-codes `const MAX_KEYS: usize = 100` in `get_storage_proof`, counting
+/// `class_hashes.len() + contract_addresses.len() + total_storage_keys`.
+const MAX_KEYS_PER_REQUEST: usize = 100;
+
 /// Counts total keys in a query, mirroring Pathfinder's counting logic.
-#[allow(dead_code)] // Used in follow-up PR for request chunking.
 pub(crate) fn count_total_keys(query: &RpcStorageProofsQuery) -> usize {
     query.class_hashes.len()
         + query.contract_addresses.len()
@@ -45,7 +51,6 @@ pub(crate) fn count_total_keys(query: &RpcStorageProofsQuery) -> usize {
 }
 
 /// A single "key" item from a flattened query — each variant counts as 1 toward the RPC limit.
-#[allow(dead_code)] // Used in follow-up PR for request chunking.
 pub(crate) enum QueryItem {
     ClassHash(Felt),
     ContractAddress(ContractAddress),
@@ -56,7 +61,6 @@ pub(crate) enum QueryItem {
 ///
 /// Contract storage entries with no keys are intentionally dropped — they contribute nothing to
 /// the RPC key count and do not affect the storage proof result.
-#[allow(dead_code)] // Used in follow-up PR for request chunking.
 pub(crate) fn flatten_query(query: &RpcStorageProofsQuery) -> Vec<QueryItem> {
     let mut items = Vec::with_capacity(count_total_keys(query));
     items.extend(query.class_hashes.iter().copied().map(QueryItem::ClassHash));
@@ -69,7 +73,6 @@ pub(crate) fn flatten_query(query: &RpcStorageProofsQuery) -> Vec<QueryItem> {
     items
 }
 
-#[allow(dead_code)] // Used in follow-up PR for request chunking.
 pub(crate) fn collect_query(items: &[QueryItem]) -> RpcStorageProofsQuery {
     let mut query = RpcStorageProofsQuery::default();
     for item in items {
@@ -92,6 +95,62 @@ pub(crate) fn collect_query(items: &[QueryItem]) -> RpcStorageProofsQuery {
         }
     }
     query
+}
+
+/// Splits a query into sub-queries, each within the `max_keys` limit.
+pub(crate) fn split_query(
+    query: &RpcStorageProofsQuery,
+    max_keys: usize,
+) -> Vec<RpcStorageProofsQuery> {
+    assert!(max_keys > 0, "max_keys must be positive");
+    flatten_query(query).chunks(max_keys).map(collect_query).collect()
+}
+
+/// Merges multiple `RpcStorageProof` responses into one, preserving the original query's ordering.
+///
+/// Trie nodes (`classes_proof`, `contracts_proof.nodes`) are unioned across all responses — the
+/// same hash always maps to the same node since all responses target the same block/trie.
+///
+/// Positional data (`contract_leaves_data`, `contracts_storage_proofs`) is reconstructed in the
+/// original query's order. When a contract's storage keys were split across chunks, the merkle
+/// nodes from all chunks are merged into a single entry.
+pub(crate) fn merge_storage_proofs(
+    proofs: Vec<RpcStorageProof>,
+    split_queries: &[RpcStorageProofsQuery],
+    original_query: &RpcStorageProofsQuery,
+) -> RpcStorageProof {
+    assert_eq!(proofs.len(), split_queries.len(), "proofs/queries length mismatch");
+    assert!(!proofs.is_empty(), "cannot merge zero proofs");
+
+    let global_roots = proofs[0].global_roots.clone();
+    let mut classes_proof: IndexMap<Felt, MerkleNode> = IndexMap::default();
+    let mut contracts_proof =
+        ContractsProof { nodes: IndexMap::default(), contract_leaves_data: Vec::new() };
+
+    let addr_to_idx: HashMap<Felt, usize> = original_query
+        .contract_storage_keys
+        .iter()
+        .enumerate()
+        .map(|(i, csk)| (csk.contract_address, i))
+        .collect();
+    let mut contracts_storage_proofs: Vec<IndexMap<Felt, MerkleNode>> =
+        vec![IndexMap::default(); original_query.contract_storage_keys.len()];
+
+    for (chunk_query, proof) in split_queries.iter().zip(proofs) {
+        classes_proof.extend(proof.classes_proof);
+        contracts_proof.nodes.extend(proof.contracts_proof.nodes);
+        contracts_proof.contract_leaves_data.extend(proof.contracts_proof.contract_leaves_data);
+        for (csk, storage_proof) in
+            chunk_query.contract_storage_keys.iter().zip(proof.contracts_storage_proofs)
+        {
+            let idx = addr_to_idx
+                .get(&csk.contract_address)
+                .expect("chunk address not in original query");
+            contracts_storage_proofs[*idx].extend(storage_proof);
+        }
+    }
+
+    RpcStorageProof { classes_proof, contracts_proof, contracts_storage_proofs, global_roots }
 }
 
 /// Configuration for storage proof provider behavior.
@@ -198,7 +257,8 @@ impl RpcStorageProofsProvider {
         RpcStorageProofsQuery { class_hashes, contract_addresses, contract_storage_keys }
     }
 
-    /// Fetch storage proofs from RPC.
+    /// Fetch storage proofs from RPC, automatically chunking if the total key count exceeds
+    /// the node's per-request limit.
     ///
     /// # RPC Order Guarantee
     ///
@@ -210,6 +270,26 @@ impl RpcStorageProofsProvider {
     /// This is a standard API contract for batched requests. Validation is performed in
     /// `to_storage_proofs` to detect any violations of this assumption.
     pub(crate) async fn fetch_proofs(
+        &self,
+        block_number: BlockNumber,
+        query: &RpcStorageProofsQuery,
+    ) -> Result<RpcStorageProof, ProofProviderError> {
+        if count_total_keys(query) <= MAX_KEYS_PER_REQUEST {
+            return self.fetch_single_proof(block_number, query).await;
+        }
+
+        let chunks = split_query(query, MAX_KEYS_PER_REQUEST);
+        // TODO(Aviv): Consider fetching chunks in parallel with try_join_all.
+        let mut proofs = Vec::with_capacity(chunks.len());
+        for chunk in &chunks {
+            proofs.push(self.fetch_single_proof(block_number, chunk).await?);
+        }
+
+        Ok(merge_storage_proofs(proofs, &chunks, query))
+    }
+
+    /// Sends a single `get_storage_proof` RPC call (no chunking).
+    async fn fetch_single_proof(
         &self,
         block_number: BlockNumber,
         query: &RpcStorageProofsQuery,
