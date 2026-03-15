@@ -1,6 +1,6 @@
 use libp2p::identity::Keypair;
 
-use crate::sharding::{create_units_to_publish, reconstruct_message_from_shards};
+use crate::sharding::{create_units_to_publish, reconstruct_data_shards};
 use crate::types::{Channel, ReconstructionError};
 
 const NUM_DATA_SHARDS: usize = 5;
@@ -38,7 +38,7 @@ fn test_create_units_to_publish_all_units_have_same_signature_and_root() {
 }
 
 #[test]
-fn test_reconstruct_message_from_shards_success() {
+fn test_reconstruct_data_shards_success() {
     let message = vec![42u8; MESSAGE_LEN];
     let units = create_units_to_publish(
         message.clone(),
@@ -54,7 +54,7 @@ fn test_reconstruct_message_from_shards_success() {
     let received_indices: Vec<usize> = vec![1, 3, 5, 7, 9];
     let received_units: Vec<_> = received_indices.iter().map(|&i| units[i].clone()).collect();
 
-    let (reconstructed_message, my_shard, proof) = reconstruct_message_from_shards(
+    let (reconstructed_message, my_shard, proof) = reconstruct_data_shards(
         received_units,
         message_root,
         MY_SHARD_INDEX,
@@ -68,7 +68,7 @@ fn test_reconstruct_message_from_shards_success() {
 }
 
 #[test]
-fn test_reconstruct_message_from_shards_wrong_root() {
+fn test_reconstruct_data_shards_wrong_root() {
     let units = create_units_to_publish(
         vec![42u8; MESSAGE_LEN],
         CHANNEL,
@@ -79,7 +79,7 @@ fn test_reconstruct_message_from_shards_wrong_root() {
     .unwrap();
     let wrong_root = crate::types::MessageRoot([0u8; 32]);
     let received_units: Vec<_> = units.iter().take(NUM_DATA_SHARDS).cloned().collect();
-    let result = reconstruct_message_from_shards(
+    let result = reconstruct_data_shards(
         received_units,
         wrong_root,
         MY_SHARD_INDEX,
