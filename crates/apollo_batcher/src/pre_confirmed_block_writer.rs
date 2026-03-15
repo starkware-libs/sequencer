@@ -5,7 +5,6 @@ use apollo_batcher_config::config::PreconfirmedBlockWriterConfig;
 use apollo_batcher_types::batcher_types::Round;
 use apollo_starknet_client::reader::StateDiff;
 use async_trait::async_trait;
-use futures::future::BoxFuture;
 use indexmap::map::Entry;
 use indexmap::IndexMap;
 #[cfg(test)]
@@ -14,7 +13,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
-use tracing::{debug, info};
+use tracing::info;
 
 use crate::cende_client_types::{
     CendeBlockMetadata,
@@ -25,7 +24,6 @@ use crate::cende_client_types::{
 use crate::pre_confirmed_cende_client::{
     CendeWritePreconfirmedBlock,
     PreconfirmedCendeClientError,
-    PreconfirmedCendeClientResult,
     PreconfirmedCendeClientTrait,
 };
 
@@ -51,6 +49,18 @@ pub type PreconfirmedTxSender = tokio::sync::mpsc::Sender<(
     StarknetClientTransactionReceipt,
     StateDiff,
 )>;
+
+type TransactionsMap = IndexMap<
+    TransactionHash,
+    (CendePreconfirmedTransaction, Option<StarknetClientTransactionReceipt>, Option<StateDiff>),
+>;
+
+#[derive(Default)]
+struct SharedWriterState {
+    transactions_map: TransactionsMap,
+    dirty: bool,
+    closed: bool,
+}
 
 /// Coordinates the flow of pre-confirmed block data during block proposal.
 /// Listens for transaction updates from the block builder via dedicated channels and utilizes a
@@ -86,16 +96,40 @@ impl PreconfirmedBlockWriter {
         }
     }
 
+    fn apply_preconfirmed_update(
+        transactions_map: &mut TransactionsMap,
+        tx: InternalConsensusTransaction,
+        tx_receipt: StarknetClientTransactionReceipt,
+        tx_state_diff: StateDiff,
+    ) -> bool {
+        let tx = CendePreconfirmedTransaction::from(tx);
+        let tx_hash = tx.transaction_hash();
+        transactions_map.insert(tx_hash, (tx, Some(tx_receipt), Some(tx_state_diff)));
+        true
+    }
+
+    fn apply_candidate_updates(
+        transactions_map: &mut TransactionsMap,
+        txs: Vec<InternalConsensusTransaction>,
+    ) -> bool {
+        let mut has_changes = false;
+        // Skip transactions that were already executed, to avoid an unnecessary write.
+        for tx in txs {
+            let tx = CendePreconfirmedTransaction::from(tx);
+            match transactions_map.entry(tx.transaction_hash()) {
+                Entry::Vacant(entry) => {
+                    entry.insert((tx, None, None));
+                    has_changes = true;
+                }
+                Entry::Occupied(_) => {}
+            }
+        }
+        has_changes
+    }
+
     fn create_pre_confirmed_block(
         &self,
-        transactions_map: &IndexMap<
-            TransactionHash,
-            (
-                CendePreconfirmedTransaction,
-                Option<StarknetClientTransactionReceipt>,
-                Option<StateDiff>,
-            ),
-        >,
+        transactions_map: &TransactionsMap,
         write_iteration: u64,
     ) -> CendeWritePreconfirmedBlock {
         let mut transactions = Vec::with_capacity(transactions_map.len());
@@ -127,117 +161,123 @@ impl PreconfirmedBlockWriter {
 #[async_trait]
 impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
     async fn run(&mut self) {
-        let mut transactions_map: IndexMap<
-            TransactionHash,
-            (
-                CendePreconfirmedTransaction,
-                Option<StarknetClientTransactionReceipt>,
-                Option<StateDiff>,
-            ),
-        > = IndexMap::new();
+        let shared_state = Arc::new(tokio::sync::Mutex::new(SharedWriterState::default()));
+        let shutdown_notify = Arc::new(tokio::sync::Notify::new());
 
-        let mut pending_write_task: Option<BoxFuture<'static, PreconfirmedCendeClientResult<()>>> =
-            None;
-        let mut write_pre_confirmed_txs_timer =
-            tokio::time::interval(Duration::from_millis(self.write_block_interval_millis));
+        let (_unused_candidate_sender, empty_candidate_receiver) = tokio::sync::mpsc::channel(1);
+        let (_unused_preconfirmed_sender, empty_preconfirmed_receiver) =
+            tokio::sync::mpsc::channel(1);
+        let mut candidate_rx =
+            std::mem::replace(&mut self.candidate_tx_receiver, empty_candidate_receiver);
+        let mut preconfirmed_rx =
+            std::mem::replace(&mut self.pre_confirmed_tx_receiver, empty_preconfirmed_receiver);
 
-        // We initially mark that we have pending changes so that the client will write to the
-        // Cende recorder that a new proposal round has started.
-        let mut pending_changes = true;
-        let mut next_write_iteration = 0;
-
-        loop {
-            tokio::select! {
-                _ = write_pre_confirmed_txs_timer.tick() => {
-                    // TODO(noamsp): Extract to a function.
-                    // Only send if there are pending changes to avoid unnecessary calls
-                    if pending_changes {
-                        // Check if there are any ongoing write tasks to avoid contention
-                        if pending_write_task.is_none() {
-                            let pre_confirmed_block = self.create_pre_confirmed_block(
-                                &transactions_map,
-                                next_write_iteration,
-                            );
-                            let cende_client = Arc::clone(&self.cende_client);
-                            pending_write_task = Some(Box::pin(async move {
-                                cende_client.write_pre_confirmed_block(pre_confirmed_block).await
-                            }));
-                            next_write_iteration += 1;
-                            pending_changes = false;
-                        } else {
-                            debug!("Waiting another write cycle because write iteration {} is still ongoing", next_write_iteration - 1);
+        let receiver_state = Arc::clone(&shared_state);
+        let receiver_notify = Arc::clone(&shutdown_notify);
+        let receiver_loop = async move {
+            loop {
+                tokio::select! {
+                    msg = preconfirmed_rx.recv() => {
+                        match msg {
+                            Some((tx, tx_receipt, tx_state_diff)) => {
+                                let mut state = receiver_state.lock().await;
+                                if Self::apply_preconfirmed_update(
+                                    &mut state.transactions_map,
+                                    tx,
+                                    tx_receipt,
+                                    tx_state_diff,
+                                ) {
+                                    state.dirty = true;
+                                }
+                            }
+                            None => {
+                                info!("Pre confirmed tx channel closed");
+                                let mut state = receiver_state.lock().await;
+                                state.closed = true;
+                                receiver_notify.notify_waiters();
+                                break;
+                            }
+                        }
+                    }
+                    msg = candidate_rx.recv() => {
+                        match msg {
+                            Some(txs) => {
+                                let mut state = receiver_state.lock().await;
+                                if Self::apply_candidate_updates(&mut state.transactions_map, txs) {
+                                    state.dirty = true;
+                                }
+                            }
+                            None => {
+                                info!("Candidate tx channel closed");
+                                let mut state = receiver_state.lock().await;
+                                state.closed = true;
+                                receiver_notify.notify_waiters();
+                                break;
+                            }
                         }
                     }
                 }
+            }
+        };
 
-                result = async {
-                    match pending_write_task.as_mut() {
-                        Some(task) => task.await,
-                        None => std::future::pending::<PreconfirmedCendeClientResult<()>>().await,
+        let writer_state = Arc::clone(&shared_state);
+        let writer_notify = Arc::clone(&shutdown_notify);
+        let writer_interval_millis = self.write_block_interval_millis;
+        let writer_loop = async {
+            let mut next_write_iteration = 0;
+            let mut interval = tokio::time::interval(Duration::from_millis(writer_interval_millis));
+            let mut last_write_started_at: Option<std::time::Instant> = None;
+
+            loop {
+                tokio::select! {
+                    _ = interval.tick() => {}
+                    _ = writer_notify.notified() => {}
+                }
+
+                let (dirty, closed, snapshot) = {
+                    let mut state = writer_state.lock().await;
+                    let dirty = state.dirty;
+                    let closed = state.closed;
+                    let snapshot = if dirty {
+                        state.dirty = false;
+                        Some(state.transactions_map.clone())
+                    } else {
+                        None
+                    };
+                    (dirty, closed, snapshot)
+                };
+
+                if let Some(snapshot) = snapshot {
+                    if let Some(last_started_at) = last_write_started_at {
+                        let elapsed = last_started_at.elapsed();
+                        let interval_duration = Duration::from_millis(writer_interval_millis);
+                        if elapsed < interval_duration {
+                            tokio::time::sleep(interval_duration - elapsed).await;
+                        }
                     }
-                } => {
-                    pending_write_task = None;
+
+                    let pre_confirmed_block =
+                        self.create_pre_confirmed_block(&snapshot, next_write_iteration);
+                    last_write_started_at = Some(std::time::Instant::now());
+                    next_write_iteration += 1;
+                    let result =
+                        self.cende_client.write_pre_confirmed_block(pre_confirmed_block).await;
                     if result.is_err() {
-                        // Intentionally ignore write-task errors (including recorder BAD_REQUEST)
+                        // Intentionally ignore write errors (including recorder BAD_REQUEST)
                         // to preserve current best-effort pre-confirmed block writer behavior.
                     }
                 }
-                msg = self.pre_confirmed_tx_receiver.recv() => {
-                    match msg {
-                        Some((tx, tx_receipt, tx_state_diff)) => {
-                            let tx = CendePreconfirmedTransaction::from(tx);
-                            let tx_hash = tx.transaction_hash();
-                            transactions_map.insert(tx_hash, (tx, Some(tx_receipt), Some(tx_state_diff)));
-                            pending_changes = true;
-                        }
-                        None => {
-                            info!("Pre confirmed tx channel closed");
-                            break;
-                        }
+
+                if closed {
+                    if !dirty {
+                        break;
                     }
-                }
-                msg = self.candidate_tx_receiver.recv() => {
-                    match msg {
-                        Some(txs) => {
-                            // Skip transactions that were already executed, to avoid an unnecessary write.
-                            for tx in txs {
-                                let tx = CendePreconfirmedTransaction::from(tx);
-                                match transactions_map.entry(tx.transaction_hash()) {
-                                    Entry::Vacant(entry) => {
-                                        entry.insert((tx, None, None));
-                                        pending_changes = true;
-                                    }
-                                    Entry::Occupied(_) => {}
-                                }
-                            }
-                        }
-                        None => {
-                            info!("Candidate tx channel closed");
-                            break;
-                        }
-                    }
+                    continue;
                 }
             }
-        }
+        };
 
-        // Wait for the pending write task to complete gracefully.
-        if let Some(task) = pending_write_task.take() {
-            let result: PreconfirmedCendeClientResult<()> = task.await;
-            if result.is_err() {
-                // Intentionally ignore write-task errors (including recorder BAD_REQUEST)
-                // to preserve current best-effort pre-confirmed block writer behavior.
-            }
-        }
-
-        if pending_changes {
-            let pre_confirmed_block =
-                self.create_pre_confirmed_block(&transactions_map, next_write_iteration);
-            let result = self.cende_client.write_pre_confirmed_block(pre_confirmed_block).await;
-            if result.is_err() {
-                // Intentionally ignore write-task errors (including recorder BAD_REQUEST)
-                // to preserve current best-effort pre-confirmed block writer behavior.
-            }
-        }
+        let _ = tokio::join!(receiver_loop, writer_loop);
         info!("Pre confirmed block writer finished");
     }
 }
