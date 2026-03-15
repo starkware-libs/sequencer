@@ -363,32 +363,69 @@ impl DerefMut for Foo {
 if *foo > 0 {...}
 ```
 
-## Documentation Standards
+## Documentation
 
-Use `///` as doc-strings for all non-trivial structs, functions and methods, and place it before the definition --- these show up on docs.rs and editor tooltips.
+Make sure every struct, enum, member, function, method and enum variant that's part of the API is documented, Unless there's nothing to add that the name didn't cover
 
-Use `//` for all other comments.
+Use `///` to document the API (for the user).
+
+Use `//` to explain how the code works (for someone reading the internal implementation).
 
 Don't use `/* */` - style comments.
-
-Don't use abbreviations: use `cannot` (rather than `can't`), `transaction` (rather than `tx`), `does not`, `it is`, etc.
 
 In all comment types (including inline comments!) start comments with a capital letter and end with a dot.
 
 When writing a TODO comment, always add an owner for that TODO inside the comment.
 If it's not you, make sure the owner is aware of the TODO
 
-### Textual Content Quality
+### Abbreviations and Acronyms
+Abbreviations (e.g. `tx` for `transaction`) are allowed only in variables, function arguments and function names. Prefer to avoid them in function names if possible.
+They're **not** allowed in structs, enums, and documentation.
 
-All textual content, including code-comments, commit messages, `expect` messages (see also [Assertions](#assertions) section), should include _additional_ information not readily observable in the surrounding code. Take extra care when using AI-generated code, which tends to include a lot of trivial comment-bloat.
+Acronyms (e.g. `ABI` for `Application Binary Interface`) are allowed in structs/enums and in variables of that type.
+If you have a struct/enum that's an acronym, introduce it in the documentation of the struct/enum.
 
-**Rationale**: clear code is self-documenting, repeating it is a waste of time.
+### Trivial Comments
+
+All comments should include _additional_ information not readily observable in the surrounding code.
+Take extra care when using AI-generated code, which tends to include a lot of trivial comment-bloat.
+
+**Rationale**: clear code is self-documenting; repeating it wastes the reader's time and adds maintenance burden, as the comment can drift out of sync with the code it describes.
 
 ```rust
-// BAD
+// BAD - Restates what the code already says.
 // Add foo to collection.
-my_vec.push(foo)
+my_vec.push(foo);
+
+// BAD - Restates the function signature.
+/// Returns the user's name.
+fn user_name(&self) -> &str { ... }
+
+// GOOD - Explains *why*, which isn't visible in the code.
+// We reverse before sorting because the keys are stored in big-endian order.
+keys.reverse();
+keys.sort();
 ```
+
+However, a comment that gives a title to a paragraph of code _is_ useful: it tells the reader what the block achieves so they can skim or skip it.
+
+```rust
+// GOOD - Summarizes the paragraph's purpose, which isn't obvious from the individual lines.
+// Build a lookup table from account ID to its most recent transaction.
+let mut latest_tx: HashMap<AccountId, Transaction> = HashMap::new();
+for tx in transactions {
+    latest_tx
+        .entry(tx.account_id)
+        .and_modify(|existing| {
+            if tx.timestamp > existing.timestamp {
+                *existing = tx;
+            }
+        })
+        .or_insert(tx);
+}
+```
+
+When you find yourself adding such a title comment, consider extracting the paragraph into a helper function where it makes sense. This way, the function name serves as the documentation.
 
 ## External Dependencies
 
