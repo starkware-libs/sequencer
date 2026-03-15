@@ -85,8 +85,8 @@ pub struct Engine {
     // exhaustion.
     /// Registry of per-message unit senders to their message processors.
     message_to_unit_tx: HashMap<MessageKey, mpsc::UnboundedSender<UnitToValidate>>,
-    /// Recently finalized message IDs (for deduplication).
-    finalized_messages: TimeCache<MessageKey>,
+    /// Messages that have already been encountered and processed (for deduplication).
+    already_seen_messages: TimeCache<MessageKey>,
     /// Channel for receiving messages from state manager tasks.
     state_manager_rx: mpsc::UnboundedReceiver<EventStateManagerToEngine>,
     state_manager_tx: mpsc::UnboundedSender<EventStateManagerToEngine>,
@@ -111,7 +111,7 @@ impl Engine {
         let (state_manager_tx, state_manager_rx) = mpsc::unbounded_channel();
         let (broadcaster_results_tx, broadcaster_results_rx) = mpsc::unbounded_channel();
 
-        let finalized_messages = TimeCache::new(config.stale_message_timeout);
+        let already_seen_messages = TimeCache::new(config.stale_message_timeout);
 
         Self {
             channels: HashMap::new(),
@@ -120,7 +120,7 @@ impl Engine {
             keypair,
             local_peer_id,
             message_to_unit_tx: HashMap::new(),
-            finalized_messages,
+            already_seen_messages,
             state_manager_rx,
             state_manager_tx,
             prepared_units_rx: broadcaster_results_rx,
@@ -236,7 +236,7 @@ impl Engine {
 
         // TODO(guyn): Add timestamps to message key to avoid replay attacks or issues with very
         // late shards.
-        if self.finalized_messages.contains(&message_key) {
+        if self.already_seen_messages.contains(&message_key) {
             trace!("Message already finalized, dropping unit");
             return;
         }
@@ -355,7 +355,7 @@ impl Engine {
 
                 // Mark as finalized
                 let message_key = MessageKey { channel, publisher, root: message_root };
-                let expired_keys = self.finalized_messages.insert(message_key);
+                let expired_keys = self.already_seen_messages.insert(message_key);
 
                 // Track the messages that have been removed from the TTL cache.
                 if !expired_keys.is_empty() {
