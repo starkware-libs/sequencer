@@ -1,5 +1,4 @@
 use apollo_batcher_types::batcher_types::Round;
-use assert_matches::assert_matches;
 use mockito::{Server, ServerGuard};
 use starknet_api::block::{
     BlockNumber,
@@ -16,7 +15,6 @@ use url::Url;
 use super::pre_confirmed_cende_client::{
     CendeWritePreconfirmedBlock,
     PreconfirmedCendeClient,
-    PreconfirmedCendeClientError,
     PreconfirmedCendeClientTrait,
     PreconfirmedCendeConfig,
     RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH,
@@ -80,10 +78,9 @@ async fn test_write_pre_confirmed_block_success() {
         .with_body("")
         .create();
 
-    let result = client.write_pre_confirmed_block(test_data).await;
+    client.write_pre_confirmed_block(test_data).await;
 
     mock_response.assert_async().await;
-    assert!(result.is_ok());
 }
 
 #[tokio::test]
@@ -98,58 +95,7 @@ async fn test_write_pre_confirmed_block_error_response() {
         .with_body("Bad Request")
         .create();
 
-    let result = client.write_pre_confirmed_block(test_data).await;
+    client.write_pre_confirmed_block(test_data).await;
 
-    mock_response.assert();
-    let error_msg = assert_matches!(
-        result.unwrap_err(),
-        PreconfirmedCendeClientError::CendeRecorderError {
-            block_number, round, write_iteration, status_code
-        } => (block_number, round, write_iteration, status_code)
-    );
-    assert_eq!(error_msg.0, TEST_BLOCK_NUMBER);
-    assert_eq!(error_msg.1, TEST_ROUND);
-    assert_eq!(error_msg.2, TEST_WRITE_ITERATION);
-    assert_eq!(error_msg.3, 400);
-}
-
-#[tokio::test]
-async fn test_write_pre_confirmed_block_server_error() {
-    let mut server = Server::new_async().await;
-    let client = test_cende_client(&mut server);
-    let test_data = test_preconfirmed_block_data();
-
-    let mock_response = server
-        .mock("POST", RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH)
-        .with_status(500)
-        .with_body("Internal Server Error")
-        .create();
-
-    let result = client.write_pre_confirmed_block(test_data).await;
-
-    mock_response.assert();
-    let error_code = assert_matches!(
-        result.unwrap_err(),
-        PreconfirmedCendeClientError::CendeRecorderError {
-            block_number: _,
-            round: _,
-            write_iteration: _,
-            status_code
-        } => status_code
-    );
-    assert_eq!(error_code, 500);
-}
-
-#[tokio::test]
-async fn test_write_pre_confirmed_block_network_error() {
-    let config = PreconfirmedCendeConfig {
-        recorder_url: "http://invalid-url-that-should-not-exist.pmrewpohg".parse::<Url>().unwrap(),
-    };
-    let client = PreconfirmedCendeClient::new(config);
-    let test_data = test_preconfirmed_block_data();
-    let result = client.write_pre_confirmed_block(test_data).await;
-    let PreconfirmedCendeClientError::RequestError(e) = result.unwrap_err() else {
-        panic!("Incorrect error type.")
-    };
-    assert!(e.is_connect());
+    mock_response.assert_async().await;
 }

@@ -23,7 +23,6 @@ use crate::cende_client_types::{
 };
 use crate::pre_confirmed_cende_client::{
     CendeWritePreconfirmedBlock,
-    PreconfirmedCendeClientResult,
     PreconfirmedCendeClientTrait,
 };
 
@@ -126,8 +125,7 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
             ),
         > = IndexMap::new();
 
-        let mut pending_write_task: Option<BoxFuture<'static, PreconfirmedCendeClientResult<()>>> =
-            None;
+        let mut pending_write_task: Option<BoxFuture<'static, ()>> = None;
         let mut write_pre_confirmed_txs_timer =
             tokio::time::interval(Duration::from_millis(self.write_block_interval_millis));
 
@@ -160,14 +158,13 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
                     }
                 }
 
-                _result = async {
+                _ = async {
                     match pending_write_task.as_mut() {
                         Some(task) => task.await,
-                        None => std::future::pending::<PreconfirmedCendeClientResult<()>>().await,
+                        None => std::future::pending::<()>().await,
                     }
                 } => {
                     pending_write_task = None;
-                    // Intentionally ignore write-task errors; each write is best effort.
                 }
                 msg = self.pre_confirmed_tx_receiver.recv() => {
                     match msg {
@@ -209,15 +206,13 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
 
         // Wait for the pending write task to complete gracefully.
         if let Some(task) = pending_write_task.take() {
-            let _result: PreconfirmedCendeClientResult<()> = task.await;
-            // Intentionally ignore write-task errors; each write is best effort.
+            task.await;
         }
 
         if pending_changes {
             let pre_confirmed_block =
                 self.create_pre_confirmed_block(&transactions_map, next_write_iteration);
-            // Intentionally ignore write-task errors; each write is best effort.
-            let _result = self.cende_client.write_pre_confirmed_block(pre_confirmed_block).await;
+            self.cende_client.write_pre_confirmed_block(pre_confirmed_block).await;
         }
         info!("Pre confirmed block writer finished");
     }
