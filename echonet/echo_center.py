@@ -80,13 +80,6 @@ def _fetch_bootstrap_constants(
         "transaction_commitment",
         "event_commitment",
         "receipt_commitment",
-        "state_diff_length",
-        "status",
-        "l1_da_mode",
-        "l2_gas_consumed",
-        "next_l2_gas_price",
-        "sequencer_address",
-        "starknet_version",
         "state_diff_commitment",
     ]
     custom_fields: JsonObject = {k: block[k] for k in custom_keys}
@@ -198,7 +191,6 @@ class BlobTransformer:
         self._chain = chain
         self._custom_fields: JsonObject = dict(custom_fields)
         self._logger: logging.Logger = logger_obj
-        self._latest_block_meta: Optional[JsonObject] = None
 
     @staticmethod
     def get_blob_tx_hashes(blob: JsonObject) -> List[str]:
@@ -346,28 +338,38 @@ class BlobTransformer:
 
         return receipt
 
-    def _fetch_upstream_block_meta(self, block_number: Optional[int]) -> JsonObject:
+    def _fetch_upstream_source_block(self, block_number: Optional[int]) -> JsonObject:
         """
-        Fetch mainnet timestamp and gas prices for `block_number`.
-        (fetched from shared FGW snapshot or upstream feeder gateway)
+        Fetch the upstream/source block used for non-constant block fields.
         """
         if block_number is None:
-            if self._latest_block_meta is not None:
-                return dict(self._latest_block_meta)
             block_number = self._chain.base_block_number
 
         obj = self._shared.get_fgw_block(block_number)
         if obj is None:
-            obj = self._feeder_client.get_block(block_number)
+            obj = self._feeder_client.get_block(block_number, with_fee_market_info=True)
+        return dict(obj)
 
-        meta: JsonObject = {
-            "timestamp": obj["timestamp"],
-            "l1_gas_price": obj["l1_gas_price"],
-            "l1_data_gas_price": obj["l1_data_gas_price"],
-            "l2_gas_price": obj["l2_gas_price"],
+    @staticmethod
+    def _extract_blob_block_meta(blob: JsonObject) -> JsonObject:
+        block_info = blob["state_diff"]["block_info"]
+        return {
+            "timestamp": int(block_info["block_timestamp"]),
+            "l1_gas_price": block_info["l1_gas_price"],
+            "l1_data_gas_price": block_info["l1_data_gas_price"],
+            "l2_gas_price": block_info["l2_gas_price"],
         }
-        self._latest_block_meta = meta
-        return meta
+
+    @staticmethod
+    def _compute_state_diff_length(blob: JsonObject) -> int:
+        state_diff = blob["state_diff"]
+        storage_updates = state_diff["storage_updates"]["L1"]
+        return (
+            len(state_diff["address_to_class_hash"])
+            + len(state_diff["class_hash_to_compiled_class_hash"])
+            + len(state_diff["nonces"]["L1"])
+            + sum(len(slots) for slots in storage_updates.values())
+        )
 
     @staticmethod
     def _transform_transactions(tx_entries: List[JsonObject]) -> List[JsonObject]:
@@ -471,8 +473,17 @@ class BlobTransformer:
             self._shared.get_sent_block_number(tx_hashes[0]) if tx_hashes else None
         )
 
-        meta = self._fetch_upstream_block_meta(bn_for_meta)
-        block_document.update(meta)
+        source_block = self._fetch_upstream_source_block(bn_for_meta)
+        block_document["status"] = source_block["status"]
+        block_document["starknet_version"] = source_block["starknet_version"]
+        block_document["sequencer_address"] = source_block["sequencer_address"]
+        block_document["l2_gas_consumed"] = blob["fee_market_info"]["l2_gas_consumed"]
+        block_document["next_l2_gas_price"] = blob["fee_market_info"]["next_l2_gas_price"]
+        block_document["l1_da_mode"] = (
+            "BLOB" if blob["state_diff"]["block_info"]["use_kzg_da"] else "CALLDATA"
+        )
+        block_document["state_diff_length"] = self._compute_state_diff_length(blob)
+        block_document.update(self._extract_blob_block_meta(blob))
 
         return block_document
 

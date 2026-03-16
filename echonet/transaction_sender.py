@@ -73,7 +73,7 @@ async def fetch_block_transactions(
 
     for attempt in range(attempts):
         try:
-            return feeder.get_block(block_number)
+            return feeder.get_block(block_number, with_fee_market_info=True)
         except Exception as err:
             last_err = err
             if attempt == attempts - 1:
