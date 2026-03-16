@@ -10,6 +10,7 @@ use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::utils::is_subsequence;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
+use cairo_vm::vm::errors::runner_errors::RunnerError;
 use cairo_vm::vm::runners::builtin_runner::BuiltinRunner;
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner};
 use cairo_vm::vm::vm_core::VirtualMachine;
@@ -644,6 +645,13 @@ pub fn initialize_cairo_runner(
     Ok((cairo_runner, program, entrypoint))
 }
 
+/// Validates that the final offset of each builtin is a multiple of the builtin's size.
+fn validate_builtins(runner: &mut CairoRunner) -> Result<(), RunnerError> {
+    let allow_missing_builtins = false;
+    // This will fail if the builtin offsets are not a multiple of the builtin's size.
+    runner.read_return_values(allow_missing_builtins)
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn run_cairo_0_entrypoint(
     entrypoint: String,
@@ -692,6 +700,7 @@ pub fn run_cairo_0_entrypoint(
             &mut hint_processor,
         )
         .map_err(Box::new)?;
+    validate_builtins(cairo_runner)?;
     let execution_resources_after = cairo_runner.get_execution_resources().unwrap();
     info!(
         "execution resources after running entrypoint {entrypoint}: is \
