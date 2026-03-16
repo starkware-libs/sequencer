@@ -1,5 +1,6 @@
 use apollo_batcher_types::batcher_types::Round;
 use assert_matches::assert_matches;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use mockito::{Server, ServerGuard};
 use starknet_api::block::{
     BlockNumber,
@@ -22,6 +23,11 @@ use super::pre_confirmed_cende_client::{
     RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH,
 };
 use crate::cende_client_types::{CendeBlockMetadata, CendePreconfirmedBlock};
+use crate::metrics::{
+    PreconfirmedBlockWriteFailureReason,
+    LABEL_NAME_PRECONFIRMED_BLOCK_WRITE_FAILURE_REASON,
+    PRECONFIRMED_BLOCK_WRITE_FAILURE,
+};
 
 const TEST_BLOCK_NUMBER: BlockNumber = BlockNumber(123);
 const TEST_ROUND: Round = 1;
@@ -88,6 +94,10 @@ async fn test_write_pre_confirmed_block_success() {
 
 #[tokio::test]
 async fn test_write_pre_confirmed_block_error_response() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    PRECONFIRMED_BLOCK_WRITE_FAILURE.register();
+
     let mut server = Server::new_async().await;
     let client = test_cende_client(&mut server);
     let test_data = test_preconfirmed_block_data();
@@ -100,12 +110,22 @@ async fn test_write_pre_confirmed_block_error_response() {
 
     let result = client.write_pre_confirmed_block(test_data).await;
 
-    mock_response.assert();
+    mock_response.assert_async().await;
     let error_code = assert_matches!(
         result.unwrap_err(),
         PreconfirmedCendeClientError::RequestFailed(status_code) => status_code
     );
     assert_eq!(error_code, 400);
+
+    let metrics = recorder.handle().render();
+    PRECONFIRMED_BLOCK_WRITE_FAILURE.assert_eq::<u64>(
+        &metrics,
+        1,
+        &[(
+            LABEL_NAME_PRECONFIRMED_BLOCK_WRITE_FAILURE_REASON,
+            PreconfirmedBlockWriteFailureReason::HttpClientError.into(),
+        )],
+    );
 }
 
 #[tokio::test]
@@ -132,6 +152,10 @@ async fn test_write_pre_confirmed_block_server_error() {
 
 #[tokio::test]
 async fn test_write_pre_confirmed_block_network_error() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    PRECONFIRMED_BLOCK_WRITE_FAILURE.register();
+
     let config = PreconfirmedCendeConfig {
         recorder_url: "http://invalid-url-that-should-not-exist.pmrewpohg".parse::<Url>().unwrap(),
     };
@@ -142,4 +166,14 @@ async fn test_write_pre_confirmed_block_network_error() {
         panic!("Incorrect error type.")
     };
     assert!(e.is_connect());
+
+    let metrics = recorder.handle().render();
+    PRECONFIRMED_BLOCK_WRITE_FAILURE.assert_eq::<u64>(
+        &metrics,
+        1,
+        &[(
+            LABEL_NAME_PRECONFIRMED_BLOCK_WRITE_FAILURE_REASON,
+            PreconfirmedBlockWriteFailureReason::SendError.into(),
+        )],
+    );
 }
