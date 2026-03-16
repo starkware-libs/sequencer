@@ -384,11 +384,14 @@ Dependency injection allows you to test a component in isolation by mocking its 
 Use trait-based dependency injection with `#[automock]` from the `mockall` crate:
 
 ```rust
+// In test builds, `automock` generates a `MockDatabase` struct that implements
+// `Database` with configurable behavior for each method.
 #[cfg_attr(test, mockall::automock)]
 trait Database {
     fn get_user(&self, id: u64) -> Result<User, Error>;
 }
 
+// The generic parameter lets us inject either a real database or a mock.
 struct UserService<D: Database> {
     db: D,
 }
@@ -408,11 +411,13 @@ use mockall::predicate::eq;
 #[test]
 fn test_get_user_name() {
     let mut mock_db = MockDatabase::new();
+    // Configure the mock: It will allow exactly one call to `get_user` with id=1, returning a fake user.
     mock_db
         .expect_get_user()
         .with(eq(1))
-        .returning(|_| Ok(User { id: 1, name: "Alice".to_string() }));
+        .return_once(|_| Ok(User { id: 1, name: "Alice".to_string() }));
 
+    // Inject the mock instead of a real database.
     let service = UserService { db: mock_db };
     assert_eq!(service.get_user_name(1).unwrap(), "Alice");
 }
