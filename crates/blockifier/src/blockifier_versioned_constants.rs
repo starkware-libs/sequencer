@@ -24,13 +24,13 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use strum::IntoEnumIterator;
 use thiserror::Error;
 
-use crate::execution::call_info::{CairoPrimitiveName, OpcodeName};
+use crate::execution::call_info::{CairoPrimitiveName, ExtendedExecutionResources, OpcodeName};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::vm_syscall_utils::{SyscallSelector, SyscallUsageMap};
 use crate::fee::resources::StarknetResources;
 use crate::transaction::objects::ExecutionResourcesTraits;
-use crate::utils::get_gas_cost_from_vm_resources;
+use crate::utils::get_gas_cost_from_extended_execution_resources;
 
 #[cfg(test)]
 #[path = "versioned_constants_test.rs"]
@@ -1099,28 +1099,41 @@ impl GasCosts {
         builtin_costs: &BuiltinGasCosts,
         os_resources: &RawOsResources,
     ) -> SyscallGasCost {
-        let vm_resources: ResourcesParams = os_resources
+        let ResourcesParams { constant, calldata_factor } = os_resources
             .execute_syscalls
             .get(&selector)
             .expect("Fetching the execution resources of a syscall should not fail.")
             .into();
 
-        let mut base_gas =
-            get_gas_cost_from_vm_resources(&vm_resources.constant, base_costs, builtin_costs);
+        // Syscall resource definitions currently include only VM resources, with no opcode
+        // accounting. We therefore treat opcode usage here as zero.
+        let with_zero_opcode_resources = |vm_resources| ExtendedExecutionResources {
+            vm_resources,
+            opcode_instance_counter: Default::default(),
+        };
+
+        let mut base_gas = get_gas_cost_from_extended_execution_resources(
+            &with_zero_opcode_resources(constant),
+            base_costs,
+            builtin_costs,
+        );
 
         // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the compiler.
         base_gas = std::cmp::max(base_costs.syscall_base_gas_cost, base_gas);
-        let linear_gas_cost = get_gas_cost_from_vm_resources(
-            &match vm_resources.calldata_factor {
-                VariableCallDataFactor::Scaled(CallDataFactor { resources, scaling_factor }) => {
-                    assert!(
-                        scaling_factor == 1,
-                        "The scaling factor of the syscall should be 1, but it is {scaling_factor}"
-                    );
-                    resources
-                }
-                VariableCallDataFactor::Unscaled(resources) => resources,
-            },
+
+        let calldata_resources = match calldata_factor {
+            VariableCallDataFactor::Scaled(CallDataFactor { resources, scaling_factor }) => {
+                assert!(
+                    scaling_factor == 1,
+                    "The scaling factor of the syscall should be 1, but it is {scaling_factor}"
+                );
+                resources
+            }
+            VariableCallDataFactor::Unscaled(resources) => resources,
+        };
+
+        let linear_gas_cost = get_gas_cost_from_extended_execution_resources(
+            &with_zero_opcode_resources(calldata_resources),
             base_costs,
             builtin_costs,
         );

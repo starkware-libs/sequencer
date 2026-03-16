@@ -1,12 +1,11 @@
 use std::collections::{BTreeMap, HashMap};
 
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::hash::StarkHash;
 
 use crate::blockifier::transaction_executor::CompiledClassHashV2ToV1;
 use crate::blockifier_versioned_constants::{BaseGasCosts, BuiltinGasCosts};
-use crate::execution::call_info::CairoPrimitiveName;
+use crate::execution::call_info::{CairoPrimitiveName, ExtendedExecutionResources};
 use crate::state::state_api::{StateReader, StateResult};
 use crate::transaction::errors::NumericConversionError;
 
@@ -74,27 +73,46 @@ pub fn u64_from_usize(val: usize) -> u64 {
     val.try_into().expect("Conversion from usize to u64 should not fail.")
 }
 
-pub fn get_gas_cost_from_vm_resources(
-    execution_resources: &ExecutionResources,
+pub fn get_gas_cost_from_extended_execution_resources(
+    extended_execution_resources: &ExtendedExecutionResources,
     base_costs: &BaseGasCosts,
     builtin_costs: &BuiltinGasCosts,
 ) -> u64 {
-    let n_steps = u64_from_usize(execution_resources.n_steps);
-    let n_memory_holes = u64_from_usize(execution_resources.n_memory_holes);
-    let total_builtin_gas_cost: u64 = execution_resources
+    let vm_resources = &extended_execution_resources.vm_resources;
+    let n_steps = u64_from_usize(vm_resources.n_steps);
+    let n_memory_holes = u64_from_usize(vm_resources.n_memory_holes);
+
+    let total_builtin_gas_cost: u64 = vm_resources
         .builtin_instance_counter
         .iter()
         .map(|(builtin, amount)| {
-            let builtin_cost = builtin_costs
-                .get_cairo_primitive_gas_cost(&CairoPrimitiveName::Builtin(*builtin))
-                .unwrap_or_else(|err| panic!("Failed to get gas cost: {err}"));
-            builtin_cost * u64_from_usize(*amount)
+            total_gas_for_primitive(builtin_costs, &CairoPrimitiveName::Builtin(*builtin), *amount)
+        })
+        .sum();
+
+    let total_opcode_gas_cost: u64 = extended_execution_resources
+        .opcode_instance_counter
+        .iter()
+        .map(|(opcode, amount)| {
+            total_gas_for_primitive(builtin_costs, &CairoPrimitiveName::Opcode(*opcode), *amount)
         })
         .sum();
 
     n_steps * base_costs.step_gas_cost
         + n_memory_holes * base_costs.memory_hole_gas_cost
         + total_builtin_gas_cost
+        + total_opcode_gas_cost
+}
+
+fn total_gas_for_primitive(
+    builtin_costs: &BuiltinGasCosts,
+    primitive: &CairoPrimitiveName,
+    count: usize,
+) -> u64 {
+    let cost = builtin_costs
+        .get_cairo_primitive_gas_cost(primitive)
+        .unwrap_or_else(|err| panic!("Failed to get gas cost: {err}"));
+    cost * u64_from_usize(count)
 }
 
 /// Adds values from `source` into `dest` by key.
