@@ -101,16 +101,11 @@ async fn test_write_pre_confirmed_block_error_response() {
     let result = client.write_pre_confirmed_block(test_data).await;
 
     mock_response.assert();
-    let error_msg = assert_matches!(
+    let error_code = assert_matches!(
         result.unwrap_err(),
-        PreconfirmedCendeClientError::CendeRecorderError {
-            block_number, round, write_iteration, status_code
-        } => (block_number, round, write_iteration, status_code)
+        PreconfirmedCendeClientError::RequestFailed(status_code) => status_code
     );
-    assert_eq!(error_msg.0, TEST_BLOCK_NUMBER);
-    assert_eq!(error_msg.1, TEST_ROUND);
-    assert_eq!(error_msg.2, TEST_WRITE_ITERATION);
-    assert_eq!(error_msg.3, 400);
+    assert_eq!(error_code, 400);
 }
 
 #[tokio::test]
@@ -130,12 +125,7 @@ async fn test_write_pre_confirmed_block_server_error() {
     mock_response.assert();
     let error_code = assert_matches!(
         result.unwrap_err(),
-        PreconfirmedCendeClientError::CendeRecorderError {
-            block_number: _,
-            round: _,
-            write_iteration: _,
-            status_code
-        } => status_code
+        PreconfirmedCendeClientError::RequestFailed(status_code) => status_code
     );
     assert_eq!(error_code, 500);
 }

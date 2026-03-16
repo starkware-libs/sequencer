@@ -1,7 +1,7 @@
 pub use apollo_batcher_config::config::PreconfirmedCendeConfig;
 use apollo_batcher_types::batcher_types::Round;
 use async_trait::async_trait;
-use reqwest::{Client, StatusCode};
+use reqwest::Client;
 use serde::Serialize;
 use starknet_api::block::BlockNumber;
 use thiserror::Error;
@@ -15,16 +15,8 @@ use crate::metrics::PRECONFIRMED_BLOCK_WRITTEN;
 pub enum PreconfirmedCendeClientError {
     #[error(transparent)]
     RequestError(#[from] reqwest::Error),
-    #[error(
-        "Cende recorder returned an error. block_number: {block_number}, round: {round}, \
-         write_iteration: {write_iteration}, status_code: {status_code}."
-    )]
-    CendeRecorderError {
-        block_number: BlockNumber,
-        round: Round,
-        write_iteration: u64,
-        status_code: StatusCode,
-    },
+    #[error("Request failed with status code: {0}")]
+    RequestFailed(reqwest::StatusCode),
 }
 
 pub type PreconfirmedCendeClientResult<T> = Result<T, PreconfirmedCendeClientError>;
@@ -69,6 +61,9 @@ pub struct CendeWritePreconfirmedBlock {
 
 #[async_trait]
 impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
+    // We considered making this a best-effort method, since errors are already logged and recorded
+    // in metrics here. However, we chose to propagate errors instead, as it makes success and
+    // failure handling more explicit for the caller.
     async fn write_pre_confirmed_block(
         &self,
         pre_confirmed_block: CendeWritePreconfirmedBlock,
@@ -94,7 +89,14 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
              preconfirmed transactions.",
         );
 
-        let response = request_builder.send().await?;
+        let response = request_builder.send().await.inspect_err(|err| {
+            // TODO(Arni): Add metric for failure.
+            warn!(
+                "Failed to send write_pre_confirmed_block request to Cende recorder. \
+                 block_number={block_number}, round={round}, write iteration={write_iteration}, \
+                 error={err}"
+            );
+        })?;
 
         let response_status = response.status();
         if response_status.is_success() {
@@ -111,13 +113,7 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
                 "write_pre_confirmed_block request failed. block_number={block_number}, \
                  round={round}, write_iteration={write_iteration}, status={response_status}",
             );
-
-            return Err(PreconfirmedCendeClientError::CendeRecorderError {
-                block_number,
-                round,
-                write_iteration,
-                status_code: response_status,
-            });
+            Err(PreconfirmedCendeClientError::RequestFailed(response_status))
         }
     }
 }
