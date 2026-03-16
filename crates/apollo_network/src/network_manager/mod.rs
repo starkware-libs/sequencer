@@ -4,7 +4,7 @@ mod test;
 #[cfg(any(test, feature = "testing"))]
 pub mod test_utils;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::net::Ipv4Addr;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -185,8 +185,10 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             .committee_store
             .add_epoch(epoch_id, members)
             .expect("Committee members contain duplicate peer IDs");
+        let allowed_peers: HashSet<PeerId> = output.allowed_peers.into_iter().collect();
+        self.swarm.behaviour_mut().peer_access_control.set_allowed_peers(allowed_peers.clone());
         if let Some(discovery) = self.swarm.behaviour_mut().discovery.as_mut() {
-            discovery.set_target_peers(output.allowed_peers.into_iter().collect());
+            discovery.set_target_peers(allowed_peers);
         }
         todo!("Wire remaining AddEpochOutput fields to behaviours");
     }
