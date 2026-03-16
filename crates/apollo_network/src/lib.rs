@@ -205,6 +205,9 @@ pub mod metrics;
 pub mod misconduct_score;
 pub mod mixed_behaviour;
 pub mod network_manager;
+mod peer_access_control;
+#[cfg(test)]
+mod peer_access_control_test;
 pub mod peer_manager;
 pub mod prune_dead_connections;
 pub mod sqmr;
