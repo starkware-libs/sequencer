@@ -1,4 +1,5 @@
-use apollo_metrics::metric_definitions::METRIC_LABEL_FILTER;
+use apollo_metrics::define_metrics;
+use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alerts::{
     Alert,
@@ -12,6 +13,18 @@ use crate::alerts::{
     PENDING_DURATION_DEFAULT,
 };
 
+define_metrics!(
+    Pod => {
+        MetricCounter { CONTAINER_CPU_USAGE_SECONDS_TOTAL, "container_cpu_usage_seconds_total", "Cumulative CPU time consumed by the container in seconds. Use with irate() for CPU usage rate.", init=0 },
+        MetricGauge { CONTAINER_MEMORY_WORKING_SET_BYTES, "container_memory_working_set_bytes", "Estimated amount of memory that cannot be evicted (working set: recently accessed memory, dirty memory, kernel memory). Used by the OOM killer for eviction decisions." },
+        MetricGauge { CONTAINER_SPEC_CPU_QUOTA, "container_spec_cpu_quota", "CPU quota in microseconds allocated to the container from the container spec (cgroups)." },
+        MetricGauge { CONTAINER_SPEC_MEMORY_LIMIT_BYTES, "container_spec_memory_limit_bytes", "Memory limit for the container from the container spec, in bytes. Exceeding this limit can trigger OOM kill." },
+        MetricGauge { KUBE_POD_CONTAINER_STATUS_READY, "kube_pod_container_status_ready", "Indicates whether a specific container within a pod has successfully passed its readiness check (Readiness Probe) and is currently ready to serve network traffic." },
+        MetricGauge { KUBE_POD_CONTAINER_STATUS_WAITING_REASON, "kube_pod_container_status_waiting_reason", "Indicates the reason a container is in a waiting state (e.g., ContainerCreating, ImagePullBackOff, CrashLoopBackOff). This means the container process has not started or has crashed." },        MetricGauge { KUBELET_VOLUME_STATS_AVAILABLE_BYTES, "kubelet_volume_stats_available_bytes", "Number of bytes available on the volume (persistent volume claim)." },
+        MetricGauge { KUBELET_VOLUME_STATS_USED_BYTES, "kubelet_volume_stats_used_bytes", "Number of bytes used by the volume (persistent volume claim)." },
+    },
+);
+
 pub(crate) fn get_general_pod_state_not_ready() -> Alert {
     Alert::new(
         "pod_state_not_ready",
@@ -19,7 +32,7 @@ pub(crate) fn get_general_pod_state_not_ready() -> Alert {
         AlertGroup::General,
         // Checks if a container in a pod is not ready (status_ready < 1).
         // Triggers when at least one container is unhealthy or not passing readiness probes.
-        format!("kube_pod_container_status_ready{METRIC_LABEL_FILTER}"),
+        KUBE_POD_CONTAINER_STATUS_READY.get_name_with_filter(),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
@@ -29,22 +42,17 @@ pub(crate) fn get_general_pod_state_not_ready() -> Alert {
 }
 
 pub(crate) fn get_general_pod_state_crashloopbackoff() -> Alert {
-    // TODO(Tsabary): avoid the direct suffix replacement here.
-    // Adding a 'reason' label to the metric label filter for 'CrashLoopBackOf' failures.
-    // This is done by replacing the trailing '}' with ', reason="CrashLoopBackOff"}'.
-    let metric_label_filter_with_reason = format!(
-        "{}, reason=\"CrashLoopBackOff\"}}",
-        METRIC_LABEL_FILTER.strip_suffix("}").expect("Metric label filter should end with a }")
-    );
     Alert::new(
         "pod_state_crashloopbackoff",
         "Pod State CrashLoopBackOff",
         AlertGroup::General,
         format!(
             // Convert "NoData" to 0 using `absent`.
-            "sum by(container, pod, namespace) \
-             (kube_pod_container_status_waiting_reason{metric_label_filter_with_reason}) or \
-             absent(kube_pod_container_status_waiting_reason{metric_label_filter_with_reason}) * 0",
+            "sum by(container, pod, namespace) ({}) or absent({}) * 0",
+            KUBE_POD_CONTAINER_STATUS_WAITING_REASON
+                .get_name_with_filer_and_additional_fields("reason=\"CrashLoopBackOff\""),
+            KUBE_POD_CONTAINER_STATUS_WAITING_REASON
+                .get_name_with_filer_and_additional_fields("reason=\"CrashLoopBackOff\""),
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
@@ -69,9 +77,9 @@ fn get_general_pod_memory_utilization(
             // memory limit. This expression compares the actual memory usage
             // (working_set_bytes) of containers against their defined memory limits
             // (spec_memory_limit_bytes), and returns the result as a percentage.
-            "max(container_memory_working_set_bytes{METRIC_LABEL_FILTER}) by (container, pod, \
-             namespace) / max(container_spec_memory_limit_bytes{METRIC_LABEL_FILTER}) by \
-             (container, pod, namespace) * 100"
+            "max({}) by (container, pod, namespace) / max({}) by (container, pod, namespace) * 100",
+            CONTAINER_MEMORY_WORKING_SET_BYTES.get_name_with_filter(),
+            CONTAINER_SPEC_MEMORY_LIMIT_BYTES.get_name_with_filter(),
         ),
         vec![AlertCondition::new(
             AlertComparisonOp::GreaterThan,
@@ -110,10 +118,10 @@ pub(crate) fn get_general_pod_high_cpu_utilization() -> Alert {
         format!(
             // Calculates CPU usage rate over 2 minutes per container, compared to its defined CPU
             // quota. Showing CPU pressure.
-            "max(irate(container_cpu_usage_seconds_total{METRIC_LABEL_FILTER}[2m])) by \
-             (container, pod, namespace) / \
-             (max(container_spec_cpu_quota{METRIC_LABEL_FILTER}/100000) by (container, pod, \
-             namespace)) * 100",
+            "max(irate({}[2m])) by (container, pod, namespace) / (max({}/100000) by (container, \
+             pod, namespace)) * 100",
+            CONTAINER_CPU_USAGE_SECONDS_TOTAL.get_name_with_filter(),
+            CONTAINER_SPEC_CPU_QUOTA.get_name_with_filter(),
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 90.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
@@ -134,12 +142,12 @@ fn get_general_pod_disk_utilization(
         title,
         AlertGroup::General,
         format!(
-            "max by (namespace,persistentvolumeclaim) \
-             (kubelet_volume_stats_used_bytes{METRIC_LABEL_FILTER}) / (min by \
-             (namespace,persistentvolumeclaim) \
-             (kubelet_volume_stats_available_bytes{METRIC_LABEL_FILTER}) + max by \
-             (namespace,persistentvolumeclaim) \
-             (kubelet_volume_stats_used_bytes{METRIC_LABEL_FILTER}))*100",
+            "max by (namespace,persistentvolumeclaim) ({}) / (min by \
+             (namespace,persistentvolumeclaim) ({}) + max by (namespace,persistentvolumeclaim) \
+             ({}))*100",
+            KUBELET_VOLUME_STATS_USED_BYTES.get_name_with_filter(),
+            KUBELET_VOLUME_STATS_AVAILABLE_BYTES.get_name_with_filter(),
+            KUBELET_VOLUME_STATS_USED_BYTES.get_name_with_filter(),
         ),
         vec![AlertCondition::new(
             AlertComparisonOp::GreaterThan,
