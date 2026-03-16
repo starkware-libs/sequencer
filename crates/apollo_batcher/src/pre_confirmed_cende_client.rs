@@ -9,7 +9,11 @@ use tracing::{debug, trace, warn};
 use url::Url;
 
 use crate::cende_client_types::CendePreconfirmedBlock;
-use crate::metrics::PRECONFIRMED_BLOCK_WRITTEN;
+use crate::metrics::{
+    record_preconfirmed_block_write_failure,
+    PreconfirmedBlockWriteFailureReason,
+    PRECONFIRMED_BLOCK_WRITTEN,
+};
 
 #[derive(Debug, Error)]
 pub enum PreconfirmedCendeClientError {
@@ -90,7 +94,8 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
         );
 
         let response = request_builder.send().await.inspect_err(|err| {
-            // TODO(Arni): Add metric for failure.
+            let reason = PreconfirmedBlockWriteFailureReason::from_reqwest_error(err);
+            record_preconfirmed_block_write_failure(reason);
             warn!(
                 "Failed to send write_pre_confirmed_block request to Cende recorder. \
                  block_number={block_number}, round={round}, write iteration={write_iteration}, \
@@ -108,7 +113,9 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
             PRECONFIRMED_BLOCK_WRITTEN.increment(1);
             Ok(())
         } else {
-            // TODO(Arni): Add metric for failure.
+            let reason =
+                PreconfirmedBlockWriteFailureReason::from_response_status(&response_status);
+            record_preconfirmed_block_write_failure(reason);
             warn!(
                 "write_pre_confirmed_block request failed. block_number={block_number}, \
                  round={round}, write_iteration={write_iteration}, status={response_status}",
