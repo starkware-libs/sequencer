@@ -129,10 +129,14 @@ pub struct BouncerWeights {
     pub message_segment_length: usize,
     pub n_events: usize,
     pub state_diff_size: usize,
-    // NOTE: Must stay in sync with orchestrator_versioned_constants' max_block_size.
     pub sierra_gas: GasAmount,
     pub n_txs: usize,
     pub proving_gas: GasAmount,
+    /// Receipt-based L2 gas, including execution gas + state allocation costs + DA costs.
+    /// Used to close blocks on the economic gas metric. Diverges from sierra_gas because
+    /// it includes allocation_cost for new storage keys and other non-execution costs.
+    // NOTE: Must stay in sync with orchestrator_versioned_constants' max_block_size.
+    pub receipt_l2_gas: GasAmount,
 }
 
 impl BouncerWeights {
@@ -143,7 +147,8 @@ impl BouncerWeights {
         n_txs,
         state_diff_size,
         sierra_gas,
-        proving_gas
+        proving_gas,
+        receipt_l2_gas
     );
 
     pub fn has_room(&self, other: Self) -> bool {
@@ -159,6 +164,7 @@ impl BouncerWeights {
             sierra_gas: GasAmount::MAX,
             n_txs: usize::MAX,
             proving_gas: GasAmount::MAX,
+            receipt_l2_gas: GasAmount::MAX,
         }
     }
 
@@ -171,6 +177,7 @@ impl BouncerWeights {
             sierra_gas: GasAmount::ZERO,
             n_txs: 0,
             proving_gas: GasAmount::ZERO,
+            receipt_l2_gas: GasAmount::ZERO,
         }
     }
 }
@@ -184,9 +191,10 @@ impl Default for BouncerWeights {
             n_events: 5000,
             n_txs: 600,
             state_diff_size: 4000,
-            // NOTE: Must stay in sync with orchestrator_versioned_constants' max_block_size.
-            sierra_gas: GasAmount(2500000000),
+            sierra_gas: GasAmount(5000000000),
             proving_gas: GasAmount(5000000000),
+            // NOTE: Must stay in sync with orchestrator_versioned_constants' max_block_size.
+            receipt_l2_gas: GasAmount(2500000000),
         }
     }
 }
@@ -235,6 +243,13 @@ impl SerializeConfig for BouncerWeights {
             "An upper bound on the total builtins and steps gas usage used in a block.",
             ParamPrivacyInput::Public,
         )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "receipt_l2_gas",
+            &self.receipt_l2_gas,
+            "An upper bound on the total receipt-based L2 gas in a block. Includes execution gas \
+             plus state allocation costs. Should equal max_block_size.",
+            ParamPrivacyInput::Public,
+        )]));
         dump
     }
 }
@@ -244,7 +259,7 @@ impl std::fmt::Display for BouncerWeights {
         write!(
             f,
             "BouncerWeights {{ l1_gas: {}, message_segment_length: {}, n_events: {}, n_txs: {}, \
-             state_diff_size: {}, sierra_gas: {}, proving_gas: {} }}",
+             state_diff_size: {}, sierra_gas: {}, proving_gas: {}, receipt_l2_gas: {} }}",
             self.l1_gas,
             self.message_segment_length,
             self.n_events,
@@ -252,6 +267,7 @@ impl std::fmt::Display for BouncerWeights {
             self.state_diff_size,
             self.sierra_gas,
             self.proving_gas,
+            self.receipt_l2_gas,
         )
     }
 }
@@ -918,6 +934,7 @@ pub fn get_tx_weights<S: StateReader>(
         sierra_gas: total_sierra_gas,
         n_txs: 1,
         proving_gas: total_proving_gas,
+        receipt_l2_gas: GasAmount::ZERO,
     };
 
     Ok(TxWeights {
