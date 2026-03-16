@@ -185,7 +185,7 @@ impl Default for BouncerWeights {
             n_txs: 600,
             state_diff_size: 4000,
             // NOTE: Must stay in sync with orchestrator_versioned_constants' max_block_size.
-            sierra_gas: GasAmount(5000000000),
+            sierra_gas: GasAmount(2500000000),
             proving_gas: GasAmount(5000000000),
         }
     }
