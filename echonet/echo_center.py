@@ -284,23 +284,27 @@ class BlobTransformer:
 
     @staticmethod
     def _transform_receipt_from_execution_info(
-        tx_index: int, tx_hash: str, execution_info: JsonObject
+        tx_index: int, tx_hash: str, execution_info: JsonObject, tx_type: str
     ) -> JsonObject:
         """
         Transform a blob execution_infos[i] entry into a feeder gateway type transaction receipt.
         """
-        flat_call_info = BlobTransformer.FlattenedCallInfo()
-
-        for key in ("validate_call_info", "execute_call_info", "fee_transfer_call_info"):
-            flattened = BlobTransformer._flatten_call_info(execution_info[key])
-            flat_call_info.events_with_order.extend(flattened.events_with_order)
-            flat_call_info.l2_to_l1_messages.extend(flattened.l2_to_l1_messages)
-
-        # The "order" field is globally assigned per-tx in the blob (when present).
-        flat_call_info.events_with_order.sort(
-            key=lambda p: (p[0] is None, p[0] if p[0] is not None else 0)
+        events: List[JsonObject] = []
+        l2_to_l1_messages: List[JsonObject] = []
+        call_info_keys = (
+            ("execute_call_info", "validate_call_info", "fee_transfer_call_info")
+            if tx_type == TxType.DEPLOY_ACCOUNT
+            else ("validate_call_info", "execute_call_info", "fee_transfer_call_info")
         )
-        events = [ev for _order, ev in flat_call_info.events_with_order]
+        for key in call_info_keys:
+            flattened = BlobTransformer._flatten_call_info(execution_info[key])
+            # Keep event order stable per execution phase and then concatenate phases in
+            # mainnet-consistent order.
+            flattened.events_with_order.sort(
+                key=lambda p: (p[0] is None, p[0] if p[0] is not None else 0)
+            )
+            events.extend(ev for _order, ev in flattened.events_with_order)
+            l2_to_l1_messages.extend(flattened.l2_to_l1_messages)
 
         revert_error = execution_info["revert_error"]
         execution_status = "SUCCEEDED" if revert_error is None else "REVERTED"
@@ -317,7 +321,7 @@ class BlobTransformer:
             "execution_status": execution_status,
             "transaction_index": tx_index,
             "transaction_hash": tx_hash,
-            "l2_to_l1_messages": flat_call_info.l2_to_l1_messages,
+            "l2_to_l1_messages": l2_to_l1_messages,
             "events": events,
             "execution_resources": {
                 "n_steps": actual_resources["n_steps"],
@@ -445,6 +449,7 @@ class BlobTransformer:
                     tx_index=idx,
                     tx_hash=tx["transaction_hash"],
                     execution_info=execution_info,
+                    tx_type=tx["type"],
                 )
             )
 
