@@ -28,6 +28,8 @@ use super::{Behaviour, DiscoveryConfig, RetryConfig, ToOtherBehaviourEvent};
 const TIMEOUT: Duration = Duration::from_secs(1);
 const SMALL_SLEEP_MILLIS: u64 = 1000;
 const LARGE_SLEEP_MILLIS: u64 = 5000;
+/// Small duration added past a deadline to ensure timers have fired.
+const TIMEOUT_EPSILON: Duration = Duration::from_millis(100);
 
 const CONFIG_WITH_ZERO_HEARTBEAT_AND_SMALL_BOOTSTRAP_DIAL: DiscoveryConfig = DiscoveryConfig {
     bootstrap_dial_retry_config: RetryConfig {
@@ -351,4 +353,148 @@ async fn discovery_performs_queries_even_if_not_connected_to_bootstrap_peer(
         event,
         ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(_peer_id))
     );
+}
+
+#[rstest::rstest]
+#[tokio::test]
+async fn set_target_peers_cancels_dials_for_removed_peers(
+    #[values(CONFIG_WITH_LARGE_HEARTBEAT_AND_SMALL_BOOTSTRAP_SLEEP)] config: DiscoveryConfig,
+    bootstrap_peer_id: PeerId,
+    bootstrap_peer_address: Multiaddr,
+) {
+    let mut behaviour = Behaviour::new(
+        dummy_local_peer_id(),
+        config.clone(),
+        vec![(bootstrap_peer_id, bootstrap_peer_address.clone())],
+    );
+    connect_to_bootstrap_node(&mut behaviour, bootstrap_peer_id, bootstrap_peer_address).await;
+
+    let peer_a = PeerId::random();
+    let peer_a_address = Multiaddr::empty();
+    behaviour.set_target_peers(std::collections::HashSet::from([peer_a]));
+
+    // Consume the KadQuery for peer_a (first heartbeat fires immediately).
+    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
+    assert_matches!(
+        event,
+        ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(queried_peer_id))
+            if queried_peer_id == peer_a
+    );
+
+    // Simulate DHT finding addresses for peer_a.
+    behaviour.kad_requesting.handle_kad_response(&[(peer_a, vec![peer_a_address])]);
+
+    // Poll to trigger dial for peer_a.
+    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
+    assert_matches!(
+        event,
+        ToSwarm::Dial { opts } if opts.get_peer_id() == Some(peer_a)
+    );
+
+    // Simulate dial failure — DialPeerStream schedules retry after some time.
+    behaviour.on_swarm_event(FromSwarm::DialFailure(DialFailure {
+        peer_id: Some(peer_a),
+        error: &DialError::Aborted,
+        connection_id: ConnectionId::new_unchecked(0),
+    }));
+
+    // Remove peer_a from target set — this cancels its DialPeerStream.
+    behaviour.set_target_peers(std::collections::HashSet::new());
+
+    // Advance time well past the retry backoff.
+    tokio::time::pause();
+    tokio::time::advance(config.bootstrap_dial_retry_config.max_delay_seconds + TIMEOUT_EPSILON)
+        .await;
+    tokio::time::resume();
+
+    // Assert no re-dial — the cancelled stream produces no more events.
+    assert_no_event(&mut behaviour);
+}
+
+#[rstest::rstest]
+#[tokio::test]
+async fn set_target_peers_does_not_cancel_bootstrap_dials(
+    #[values(CONFIG_WITH_LARGE_HEARTBEAT_AND_SMALL_BOOTSTRAP_SLEEP)] config: DiscoveryConfig,
+    bootstrap_peer_id: PeerId,
+    bootstrap_peer_address: Multiaddr,
+) {
+    let mut behaviour = Behaviour::new(
+        dummy_local_peer_id(),
+        config.clone(),
+        vec![(bootstrap_peer_id, bootstrap_peer_address.clone())],
+    );
+
+    // Consume the initial Dial event for bootstrap peer.
+    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
+    assert_matches!(
+        event,
+        ToSwarm::Dial { opts } if opts.get_peer_id() == Some(bootstrap_peer_id)
+    );
+
+    // Simulate dial failure — DialPeerStream schedules retry after some time.
+    behaviour.on_swarm_event(FromSwarm::DialFailure(DialFailure {
+        peer_id: Some(bootstrap_peer_id),
+        error: &DialError::Aborted,
+        connection_id: ConnectionId::new_unchecked(0),
+    }));
+
+    // Set empty target peers — bootstrap peer was never in the target set, so its dial persists.
+    behaviour.set_target_peers(std::collections::HashSet::new());
+
+    // Verify the bootstrap peer is still re-dialed after backoff.
+    let event = check_event_happens_after_given_duration(
+        &mut behaviour,
+        config.bootstrap_dial_retry_config.max_delay_seconds,
+    )
+    .await;
+    assert_matches!(
+        event,
+        ToSwarm::Dial { opts } if opts.get_peer_id() == Some(bootstrap_peer_id)
+    );
+}
+
+// TODO(AndrewL): cancel_dial is origin-agnostic — it cancels ALL DialPeerStreams for a peer,
+// including bootstrap-originated ones. If a bootstrap peer overlaps with the target set and is
+// then removed from targets, its bootstrap dial is killed too. BootstrappingBehaviour only
+// re-emits RequestDial on ConnectionClosed (not on cancellation), so the peer becomes
+// permanently unreachable. This test documents the current (buggy) behavior.
+#[rstest::rstest]
+#[tokio::test]
+async fn set_target_peers_cancels_bootstrap_dial_when_bootstrap_peer_overlaps_with_targets(
+    #[values(CONFIG_WITH_LARGE_HEARTBEAT_AND_SMALL_BOOTSTRAP_SLEEP)] config: DiscoveryConfig,
+    bootstrap_peer_id: PeerId,
+    bootstrap_peer_address: Multiaddr,
+) {
+    let mut behaviour = Behaviour::new(
+        dummy_local_peer_id(),
+        config.clone(),
+        vec![(bootstrap_peer_id, bootstrap_peer_address.clone())],
+    );
+
+    // Consume the initial Dial event for bootstrap peer.
+    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
+    assert_matches!(
+        event,
+        ToSwarm::Dial { opts } if opts.get_peer_id() == Some(bootstrap_peer_id)
+    );
+
+    // Simulate dial failure — DialPeerStream schedules retry after some time.
+    behaviour.on_swarm_event(FromSwarm::DialFailure(DialFailure {
+        peer_id: Some(bootstrap_peer_id),
+        error: &DialError::Aborted,
+        connection_id: ConnectionId::new_unchecked(0),
+    }));
+
+    // Add bootstrap peer to the target set, then remove it.
+    behaviour.set_target_peers(std::collections::HashSet::from([bootstrap_peer_id]));
+    behaviour.set_target_peers(std::collections::HashSet::new());
+
+    // Advance time well past the retry backoff.
+    tokio::time::pause();
+    tokio::time::advance(config.bootstrap_dial_retry_config.max_delay_seconds + TIMEOUT_EPSILON)
+        .await;
+    tokio::time::resume();
+
+    // The bootstrap dial was cancelled — no re-dial occurs.
+    assert_no_event(&mut behaviour);
 }
