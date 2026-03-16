@@ -375,6 +375,12 @@ fn get_panel_cende_write_preconfirmed_block() -> Panel {
 }
 
 fn get_panel_cende_write_preconfirmed_block_failure() -> Panel {
+    let query_expression = [
+        "\"write_pre_confirmed_block request failed\"",
+        "\"Failed to send write_pre_confirmed_block request to Cende recorder\"",
+    ]
+    .join(" OR ");
+
     Panel::new(
         "Write Preconfirmed Block Failure by Reason",
         format!(
@@ -389,7 +395,7 @@ fn get_panel_cende_write_preconfirmed_block_failure() -> Panel {
         ),
         PanelType::TimeSeries,
     )
-    .with_log_query("write_pre_confirmed_block request failed")
+    .with_log_query(query_expression)
 }
 
 fn get_panel_consensus_num_connected_peers() -> Panel {
