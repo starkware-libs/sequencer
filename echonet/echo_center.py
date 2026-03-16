@@ -157,11 +157,14 @@ class DeterministicChain:
         current_int = base + offset + 1
         return format_hex(current_int), format_hex(previous_int)
 
-    def compute_current_and_previous_hash(self, block_number: int) -> Tuple[str, str]:
-        """Return (current_block_hash, parent_block_hash) for `block_number`."""
+    def compute_current_hash(self, block_number: int) -> str:
+        """Return current block hash for `block_number`."""
         self.refresh_base()
         assert self._base is not None
-        return self._compute_current_and_previous(block_number, self._base.base_block_hash_hex)
+        current_hash, _previous_hash = self._compute_current_and_previous(
+            block_number, self._base.base_block_hash_hex
+        )
+        return current_hash
 
     def compute_current_and_previous_root(self, block_number: int) -> Tuple[str, str]:
         """Return (new_root, old_root) for `block_number`."""
@@ -173,6 +176,11 @@ class DeterministicChain:
     def base_block_number(self) -> int:
         self.refresh_base()
         return self._base.base_block_number
+
+    @property
+    def base_block_hash_hex(self) -> str:
+        self.refresh_base()
+        return self._base.base_block_hash_hex
 
 
 class BlobTransformer:
@@ -360,6 +368,12 @@ class BlobTransformer:
             "l2_gas_price": block_info["l2_gas_price"],
         }
 
+    def _resolve_parent_block_hash(self) -> str:
+        latest_block_number = self._shared.get_latest_block_number()
+        if not latest_block_number:
+            return self._chain.base_block_hash_hex
+        return self._shared.get_block_field(latest_block_number, "block")["block_hash"]
+
     @staticmethod
     def _compute_state_diff_length(blob: JsonObject) -> int:
         state_diff = blob["state_diff"]
@@ -461,10 +475,8 @@ class BlobTransformer:
             "transaction_receipts": receipts,
         }
 
-        (
-            block_document["block_hash"],
-            block_document["parent_block_hash"],
-        ) = self._chain.compute_current_and_previous_hash(block_number)
+        block_document["block_hash"] = self._chain.compute_current_hash(block_number)
+        block_document["parent_block_hash"] = self._resolve_parent_block_hash()
         # Add custom fields to the block document, constant fields that are the same for all blocks.
         block_document.update(self._custom_fields)
 
@@ -504,7 +516,7 @@ class BlobTransformer:
             storage_diffs_out[address] = [{"key": k, "value": v} for k, v in sorted_updates]
 
         new_root, old_root = self._chain.compute_current_and_previous_root(block_number)
-        block_hash, _parent = self._chain.compute_current_and_previous_hash(block_number)
+        block_hash = self._chain.compute_current_hash(block_number)
 
         deployed_contracts_map: JsonObject = {
             str(addr): class_hash
