@@ -116,9 +116,10 @@ async fn all_peers_discover_each_other_when_given_peer_ids() {
         ids
     };
 
-    // Tell each swarm's discovery behaviour about all peers before wrapping.
+    // Tell each swarm's discovery and access control behaviours about all peers before wrapping.
     for swarm in &mut swarms {
         swarm.behaviour_mut().discovery.as_mut().unwrap().set_target_peers(all_peer_ids.clone());
+        swarm.behaviour_mut().peer_access_control.set_target_peers(all_peer_ids.clone());
     }
 
     // Two channels: one for peer-to-peer connections, one for bootstrap connections.
