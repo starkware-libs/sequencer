@@ -327,6 +327,7 @@ where
         let state_reader_and_contract_manager = self.take_state_reader_and_contract_manager();
 
         let cur_span = Span::current();
+        #[allow(clippy::result_large_err)]
         tokio::task::spawn_blocking(move || {
             cur_span.in_scope(|| {
                 let state = CachedState::new(state_reader_and_contract_manager);
