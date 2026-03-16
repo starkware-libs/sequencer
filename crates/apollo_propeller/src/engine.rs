@@ -94,7 +94,6 @@ pub struct Engine {
     prepared_units_tx: mpsc::UnboundedSender<BroadcastResult>,
     from_behaviour_rx: mpsc::UnboundedReceiver<EngineCommand>,
     to_behaviour_tx: mpsc::UnboundedSender<EngineOutput>,
-    #[allow(dead_code)] // TODO(AndrewL): remove this once metrics are used.
     metrics: Option<PropellerMetrics>,
 }
 
