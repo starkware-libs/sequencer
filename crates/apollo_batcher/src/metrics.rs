@@ -48,6 +48,7 @@ define_metrics!(
 
         MetricCounter { BATCHER_L1_EVENTS_PROVIDER_ERRORS, "batcher_l1_events_provider_errors", "Counter of L1 provider errors", init = 0 },
         MetricCounter { PRECONFIRMED_BLOCK_WRITTEN, "batcher_preconfirmed_block_written", "Counter of preconfirmed blocks written to storage", init = 0 },
+        LabeledMetricCounter { PRECONFIRMED_BLOCK_WRITE_FAILURE, "batcher_preconfirmed_block_write_failure", "Counter of preconfirmed block write failures by reason", init = 0, labels = PRECONFIRMED_BLOCK_WRITE_FAILURE_REASON_LABELS },
         // Block close reason
         LabeledMetricCounter { BLOCK_CLOSE_REASON, "batcher_block_close_reason", "Number of blocks closed by reason", init = 0 , labels = BLOCK_CLOSE_REASON_LABELS},
         // Block weights
@@ -75,6 +76,7 @@ define_metrics!(
 );
 
 pub const LABEL_NAME_BLOCK_CLOSE_REASON: &str = "block_close_reason";
+pub const LABEL_NAME_PRECONFIRMED_BLOCK_WRITE_FAILURE_REASON: &str = "failure_reason";
 
 #[derive(Clone, Copy, Debug, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "snake_case")]
@@ -86,13 +88,76 @@ pub enum BlockCloseReason {
     IdleExecutionTimeout,
 }
 
+// TODO(Arni): replace PreconfirmedBlockWriteFailureReason with the enum bellow.
+// pub enum PreconfirmedBlockWriteFailureReason {
+//     SendError(reqwest::Error),
+//     HttpError(reqwest::StatusCode),
+//     OtherError,
+// }
+#[derive(Clone, Copy, Debug, IntoStaticStr, VariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub enum PreconfirmedBlockWriteFailureReason {
+    HttpClientError,
+    HttpServerError,
+    HttpOtherError,
+    SendTimeout,
+    SendConnect,
+    SendRequest,
+    SendBody,
+    SendDecode,
+    SendRedirect,
+    SendBuilder,
+    SendUnknown,
+}
+
+impl PreconfirmedBlockWriteFailureReason {
+    pub fn from_reqwest_error(error: &reqwest::Error) -> Self {
+        if error.is_timeout() {
+            PreconfirmedBlockWriteFailureReason::SendTimeout
+        } else if error.is_connect() {
+            PreconfirmedBlockWriteFailureReason::SendConnect
+        } else if error.is_request() {
+            PreconfirmedBlockWriteFailureReason::SendRequest
+        } else if error.is_body() {
+            PreconfirmedBlockWriteFailureReason::SendBody
+        } else if error.is_decode() {
+            PreconfirmedBlockWriteFailureReason::SendDecode
+        } else if error.is_redirect() {
+            PreconfirmedBlockWriteFailureReason::SendRedirect
+        } else if error.is_builder() {
+            PreconfirmedBlockWriteFailureReason::SendBuilder
+        } else {
+            PreconfirmedBlockWriteFailureReason::SendUnknown
+        }
+    }
+
+    pub fn from_response_status(status: &reqwest::StatusCode) -> Self {
+        if status.is_client_error() {
+            PreconfirmedBlockWriteFailureReason::HttpClientError
+        } else if status.is_server_error() {
+            PreconfirmedBlockWriteFailureReason::HttpServerError
+        } else {
+            PreconfirmedBlockWriteFailureReason::HttpOtherError
+        }
+    }
+}
+
 generate_permutation_labels! {
     BLOCK_CLOSE_REASON_LABELS,
     (LABEL_NAME_BLOCK_CLOSE_REASON, BlockCloseReason),
 }
+generate_permutation_labels! {
+    PRECONFIRMED_BLOCK_WRITE_FAILURE_REASON_LABELS,
+    (LABEL_NAME_PRECONFIRMED_BLOCK_WRITE_FAILURE_REASON, PreconfirmedBlockWriteFailureReason),
+}
 
 pub(crate) fn record_block_close_reason(reason: BlockCloseReason) {
     BLOCK_CLOSE_REASON.increment(1, &[(LABEL_NAME_BLOCK_CLOSE_REASON, reason.into())]);
+}
+
+pub(crate) fn record_preconfirmed_block_write_failure(reason: PreconfirmedBlockWriteFailureReason) {
+    PRECONFIRMED_BLOCK_WRITE_FAILURE
+        .increment(1, &[(LABEL_NAME_PRECONFIRMED_BLOCK_WRITE_FAILURE_REASON, reason.into())]);
 }
 
 pub const BATCHER_CLASS_CACHE_METRICS: CacheMetrics =
@@ -122,6 +187,7 @@ pub fn register_metrics(storage_height: BlockNumber, global_root_height: BlockNu
 
     BATCHER_L1_EVENTS_PROVIDER_ERRORS.register();
     PRECONFIRMED_BLOCK_WRITTEN.register();
+    PRECONFIRMED_BLOCK_WRITE_FAILURE.register();
     BLOCK_CLOSE_REASON.register();
     NUM_TRANSACTION_IN_BLOCK.register();
 

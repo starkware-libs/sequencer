@@ -1,4 +1,8 @@
-use apollo_batcher::metrics::PRECONFIRMED_BLOCK_WRITTEN;
+use apollo_batcher::metrics::{
+    LABEL_NAME_PRECONFIRMED_BLOCK_WRITE_FAILURE_REASON,
+    PRECONFIRMED_BLOCK_WRITE_FAILURE,
+    PRECONFIRMED_BLOCK_WRITTEN,
+};
 use apollo_consensus::metrics::{
     CONSENSUS_BLOCK_NUMBER,
     CONSENSUS_BUILD_PROPOSAL_FAILED,
@@ -365,6 +369,24 @@ fn get_panel_cende_write_preconfirmed_block() -> Panel {
     .with_log_query("write_pre_confirmed_block request succeeded.")
 }
 
+fn get_panel_cende_write_preconfirmed_block_failure() -> Panel {
+    Panel::new(
+        "Write Preconfirmed Block Failure by Reason",
+        format!(
+            "The number of failed writes to Cende for preconfirmed blocks ({DEFAULT_DURATION} \
+             window)",
+        ),
+        sum_by_label(
+            &PRECONFIRMED_BLOCK_WRITE_FAILURE,
+            LABEL_NAME_PRECONFIRMED_BLOCK_WRITE_FAILURE_REASON,
+            DisplayMethod::Increase(DEFAULT_DURATION),
+            false,
+        ),
+        PanelType::TimeSeries,
+    )
+    .with_log_query("write_pre_confirmed_block request failed")
+}
+
 fn get_panel_consensus_num_connected_peers() -> Panel {
     Panel::new(
         "Number of Connected Peers",
@@ -619,6 +641,7 @@ pub(crate) fn get_cende_row() -> Row {
             get_panel_cende_write_prev_height_blob_latency(),
             get_panel_cende_last_prepared_blob_block_number(),
             get_panel_cende_write_preconfirmed_block(),
+            get_panel_cende_write_preconfirmed_block_failure(),
         ],
     )
 }
