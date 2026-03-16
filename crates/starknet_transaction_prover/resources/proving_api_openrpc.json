@@ -313,7 +313,7 @@
             },
             "PROOF": {
                 "title": "Proof",
-                "description": "The generated proof as a base64-encoded byte string.",
+                "description": "The generated proof as a gzip-compressed, base64-encoded byte string.",
                 "type": "string",
                 "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$"
             },

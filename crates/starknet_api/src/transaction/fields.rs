@@ -1,8 +1,10 @@
 use std::collections::BTreeMap;
 use std::fmt;
+use std::io::{Read, Write};
 use std::sync::Arc;
 
 use apollo_sizeof::SizeOf;
+use flate2::{Compression, read::GzDecoder, write::GzEncoder};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use strum::EnumIter;
@@ -777,6 +779,55 @@ impl fmt::Debug for Proof {
     }
 }
 
+fn deserialize_proof_bytes<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
+    let s = String::deserialize(deserializer)?;
+    if s.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let bytes = base64::decode(&s).map_err(serde::de::Error::custom)?;
+    if bytes.starts_with(&[0x1f, 0x8b]) {
+        let mut decompressed = Vec::new();
+        GzDecoder::new(bytes.as_slice())
+            .read_to_end(&mut decompressed)
+            .map_err(serde::de::Error::custom)?;
+        Ok(decompressed)
+    } else {
+        Ok(bytes)
+    }
+}
+
+pub fn serialize_compressed_proof<S: Serializer>(
+    proof: &Proof,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let bytes: Vec<u8> = proof.0.iter().flat_map(|n| n.to_be_bytes()).collect();
+    if bytes.is_empty() {
+        return serializer.serialize_str("");
+    }
+
+    let mut compressor = GzEncoder::new(Vec::new(), Compression::default());
+    compressor.write_all(&bytes).map_err(serde::ser::Error::custom)?;
+    let compressed = compressor.finish().map_err(serde::ser::Error::custom)?;
+    serializer.serialize_str(&base64::encode(compressed))
+}
+
+pub fn deserialize_proof<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Proof, D::Error> {
+    let bytes = deserialize_proof_bytes(deserializer)?;
+    if bytes.is_empty() {
+        return Ok(Proof::default());
+    }
+
+    let (chunks, []) = bytes.as_chunks::<4>() else {
+        return Err(serde::de::Error::custom(format!(
+            "Proof base64 data length {} is not a multiple of 4",
+            bytes.len()
+        )));
+    };
+    let data: Vec<u32> = chunks.iter().map(|c| u32::from_be_bytes(*c)).collect();
+    Ok(Proof(Arc::new(data)))
+}
+
 impl Serialize for Proof {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let bytes: Vec<u8> = self.0.iter().flat_map(|n| n.to_be_bytes()).collect();
@@ -786,19 +837,7 @@ impl Serialize for Proof {
 
 impl<'de> Deserialize<'de> for Proof {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        if s.is_empty() {
-            return Ok(Self::default());
-        }
-        let bytes = base64::decode(&s).map_err(serde::de::Error::custom)?;
-        let (chunks, []) = bytes.as_chunks::<4>() else {
-            return Err(serde::de::Error::custom(format!(
-                "Proof base64 data length {} is not a multiple of 4",
-                bytes.len()
-            )));
-        };
-        let data: Vec<u32> = chunks.iter().map(|c| u32::from_be_bytes(*c)).collect();
-        Ok(Self(Arc::new(data)))
+        deserialize_proof(deserializer)
     }
 }
 
@@ -811,5 +850,37 @@ impl From<Vec<u32>> for Proof {
 impl Proof {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod proof_serde_tests {
+    use serde::Serialize;
+
+    use super::{Proof, serialize_compressed_proof};
+
+    #[derive(Serialize)]
+    struct CompressedProofWrapper {
+        #[serde(serialize_with = "serialize_compressed_proof")]
+        proof: Proof,
+    }
+
+    #[test]
+    fn proof_deserializes_compressed_base64() {
+        let proof = Proof::from(vec![1_u32, 2, 3, 4]);
+        let json = serde_json::to_value(CompressedProofWrapper { proof: proof.clone() }).unwrap();
+
+        let parsed: Proof = serde_json::from_value(json["proof"].clone()).unwrap();
+        assert_eq!(parsed, proof);
+    }
+
+    #[test]
+    fn compressed_proof_serializer_differs_from_legacy_encoding() {
+        let json = serde_json::to_value(CompressedProofWrapper {
+            proof: Proof::from(vec![1_u32, 2, 3, 4]),
+        })
+        .unwrap();
+
+        assert_ne!(json["proof"].as_str().unwrap(), "AAAAAQAAAAIAAAADAAAABA==");
     }
 }

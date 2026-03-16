@@ -12,7 +12,14 @@ use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::utils::get_chain_info;
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
-use starknet_api::transaction::fields::{Fee, Proof, ProofFacts, ValidResourceBounds};
+use starknet_api::transaction::fields::{
+    Fee,
+    Proof,
+    ProofFacts,
+    ValidResourceBounds,
+    deserialize_proof,
+    serialize_compressed_proof,
+};
 use starknet_api::transaction::{InvokeTransaction, MessageToL1};
 use tracing::{info, instrument};
 use url::Url;
@@ -27,6 +34,10 @@ use crate::running::runner::{RpcRunnerFactory, RunnerOutput, VirtualSnosRunner};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProveTransactionResult {
     /// The generated proof.
+    #[serde(
+        serialize_with = "serialize_compressed_proof",
+        deserialize_with = "deserialize_proof"
+    )]
     pub proof: Proof,
     /// The proof facts.
     pub proof_facts: ProofFacts,

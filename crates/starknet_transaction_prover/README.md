@@ -95,7 +95,7 @@ curl -s -X POST http://localhost:3000 \
   "jsonrpc": "2.0",
   "id": 1,
   "result": {
-    "proof": "<base64-encoded proof bytes>",
+    "proof": "<gzip-compressed, base64-encoded proof bytes>",
     "proof_facts": ["0x1a2b3c", "0x4d5e6f"],
     "l2_to_l1_messages": [
       {
