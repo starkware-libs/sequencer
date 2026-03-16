@@ -863,7 +863,7 @@
           "type": "query"
         }
       ],
-      "for": "30s",
+      "for": "0s",
       "intervalSec": 30,
       "severity": "p2",
       "observer_applicable": "true"

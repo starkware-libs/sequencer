@@ -180,7 +180,7 @@ pub(crate) fn get_periodic_ping() -> Alert {
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         // The alert will be evaluated every 30 seconds, which should suffice to catch the 1-minute
         // long ping.
-        "30s",
+        "0s",
         30,
         AlertSeverity::Regular,
         ObserverApplicability::Applicable,
