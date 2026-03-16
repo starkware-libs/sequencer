@@ -147,9 +147,11 @@ impl KadRequestingBehaviour {
         }
     }
 
-    // TODO(AndrewL): When target peers change, cancel DialPeerStreams in DiallingBehaviour
-    // for peers no longer in the target set. Currently those streams retry indefinitely.
-    pub fn set_target_peers(&mut self, peers: HashSet<PeerId>) {
+    /// Updates the set of target peers and returns the set of peers that were removed
+    /// (present in the old set but not in the new one).
+    pub fn set_target_peers(&mut self, peers: HashSet<PeerId>) -> HashSet<PeerId> {
+        let removed_peers: HashSet<PeerId> =
+            self.target_peers.difference(&peers).copied().collect();
         self.peers_pending_connection =
             peers.iter().filter(|p| !self.connected_peers.contains(p)).copied().collect();
         self.target_peers = peers;
@@ -160,6 +162,7 @@ impl KadRequestingBehaviour {
                 waker.wake();
             }
         }
+        removed_peers
     }
 
     pub fn handle_kad_response(&mut self, peers: &[(PeerId, Vec<Multiaddr>)]) {
