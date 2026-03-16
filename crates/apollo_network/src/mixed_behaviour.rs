@@ -18,13 +18,21 @@ use crate::discovery::DiscoveryConfig;
 use crate::event_tracker::EventMetricsTracker;
 use crate::metrics::{EventMetrics, LatencyMetrics};
 use crate::peer_manager::PeerManagerConfig;
-use crate::{discovery, gossipsub_impl, peer_manager, prune_dead_connections, sqmr};
+use crate::{
+    discovery,
+    gossipsub_impl,
+    peer_access_control,
+    peer_manager,
+    prune_dead_connections,
+    sqmr,
+};
 
 // TODO(Shahak): consider reducing the pulicity of all behaviour to pub(crate)
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "Event")]
 pub struct MixedBehaviour {
     pub limits: connection_limits::Behaviour,
+    pub peer_access_control: peer_access_control::Behaviour,
     pub peer_manager: peer_manager::PeerManager,
     pub discovery: Toggle<discovery::Behaviour>,
     pub identify: identify::Behaviour,
@@ -88,27 +96,27 @@ impl MixedBehaviour {
         let kademlia_config = kad::Config::new(protocol_name);
         let connection_limits = ConnectionLimits::default().with_max_established_per_peer(Some(1));
 
+        let bootstrap_peers_with_ids: Option<Vec<(PeerId, Multiaddr)>> = bootstrap_peers_multiaddrs
+            .map(|addrs| {
+                addrs
+                    .iter()
+                    .map(|addr| {
+                        (
+                            DialOpts::from(addr.clone())
+                                .get_peer_id()
+                                .expect("bootstrap_peer_multiaddr doesn't have a peer id"),
+                            addr.clone(),
+                        )
+                    })
+                    .collect()
+            });
+
         Self {
             limits: connection_limits::Behaviour::new(connection_limits),
+            peer_access_control: peer_access_control::Behaviour::new(),
             peer_manager: peer_manager::PeerManager::new(peer_manager_config),
-            discovery: bootstrap_peers_multiaddrs
-                .map(|bootstrap_peer_multiaddr| {
-                    discovery::Behaviour::new(
-                        local_peer_id,
-                        discovery_config,
-                        bootstrap_peer_multiaddr
-                            .iter()
-                            .map(|bootstrap_peer_multiaddr| {
-                                (
-                                    DialOpts::from(bootstrap_peer_multiaddr.clone())
-                                        .get_peer_id()
-                                        .expect("bootstrap_peer_multiaddr doesn't have a peer id"),
-                                    bootstrap_peer_multiaddr.clone(),
-                                )
-                            })
-                            .collect(),
-                    )
-                })
+            discovery: bootstrap_peers_with_ids
+                .map(|peers| discovery::Behaviour::new(local_peer_id, discovery_config, peers))
                 .into(),
             identify: match node_version {
                 Some(version) => identify::Behaviour::new(
