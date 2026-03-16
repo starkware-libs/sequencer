@@ -1,6 +1,6 @@
 use rstest::rstest;
 
-use crate::reed_solomon::{generate_coding_shards, reconstruct_message_from_shards};
+use crate::reed_solomon::{generate_coding_shards, reconstruct_data_shards};
 
 #[test]
 fn test_empty_generate_coding_shards() {
@@ -50,8 +50,7 @@ fn test_reed_solomon_with_lost_shards(
     );
 
     let reconstructed_data =
-        reconstruct_message_from_shards(&available_shards, num_data_shards, num_coding_shards)
-            .unwrap();
+        reconstruct_data_shards(&available_shards, num_data_shards, num_coding_shards).unwrap();
 
     assert_eq!(reconstructed_data, original_data, "Reconstructed data doesn't match original");
 }
