@@ -644,6 +644,28 @@ pub fn initialize_cairo_runner(
     Ok((cairo_runner, program, entrypoint))
 }
 
+/// Validates that the final offset of each builtin is a multiple of the builtin's
+/// cells_per_instance, by calling `get_builtins_final_stack` with the correct stack pointer.
+/// Assumes there are no builtin implicit args after non-builtin implicit args.
+fn validate_builtins(
+    cairo_runner: &mut CairoRunner,
+    implicit_args: &[ImplicitArg],
+    expected_explicit_return_values: &[EndpointArg],
+) -> Cairo0EntryPointRunnerResult<()> {
+    let non_builtin_implicit_size: usize = implicit_args
+        .iter()
+        .filter(|arg| matches!(arg, ImplicitArg::NonBuiltin(_)))
+        .map(ImplicitArg::memory_length)
+        .sum();
+    let explicit_size: usize =
+        expected_explicit_return_values.iter().map(EndpointArg::memory_length).sum();
+    let overhead = non_builtin_implicit_size + explicit_size;
+    let builtins_stack_end =
+        (cairo_runner.vm.get_ap() - overhead).map_err(LoadReturnValueError::from)?;
+    cairo_runner.get_builtins_final_stack(builtins_stack_end)?;
+    Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn run_cairo_0_entrypoint(
     entrypoint: String,
@@ -692,6 +714,7 @@ pub fn run_cairo_0_entrypoint(
             &mut hint_processor,
         )
         .map_err(Box::new)?;
+    validate_builtins(cairo_runner, implicit_args, expected_explicit_return_values)?;
     let execution_resources_after = cairo_runner.get_execution_resources().unwrap();
     info!(
         "execution resources after running entrypoint {entrypoint}: is \
