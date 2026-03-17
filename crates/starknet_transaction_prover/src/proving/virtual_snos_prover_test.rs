@@ -33,6 +33,7 @@ use blockifier_test_utils::calldata::create_calldata;
 use rstest::rstest;
 use starknet_api::core::ContractAddress;
 use starknet_api::{contract_address, felt};
+use starknet_proof_verifier::verify_proof;
 
 use crate::proving::virtual_snos_prover::VirtualSnosProver;
 use crate::test_utils::{
@@ -71,7 +72,14 @@ async fn test_prove_balance_of_transaction() {
 
     // Verify execution and proving succeeded.
     let output = result.expect("prove_transaction should succeed");
-    assert!(!output.proof.0.is_empty(), "proof should not be empty");
+
+    // Verify the proof against the proof facts.
+    let proof_facts = output.proof_facts.clone();
+    let proof = output.proof.clone();
+    tokio::task::spawn_blocking(move || verify_proof(proof_facts, proof))
+        .await
+        .expect("proof verification task panicked")
+        .expect("proof verification should succeed");
 }
 
 /// Integration test for the full prover pipeline with a STRK `transfer` transaction.
@@ -108,5 +116,12 @@ async fn test_prove_transfer_transaction() {
 
     // Verify execution and proving succeeded.
     let output = result.expect("prove_transaction should succeed");
-    assert!(!output.proof.0.is_empty(), "proof should not be empty");
+
+    // Verify the proof against the proof facts.
+    let proof_facts = output.proof_facts.clone();
+    let proof = output.proof.clone();
+    tokio::task::spawn_blocking(move || verify_proof(proof_facts, proof))
+        .await
+        .expect("proof verification task panicked")
+        .expect("proof verification should succeed");
 }
