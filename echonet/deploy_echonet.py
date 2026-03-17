@@ -157,6 +157,69 @@ def _probe_http_ok(url: str, timeout_seconds: float = 1.0) -> bool:
         return False
 
 
+def _find_local_block_hash_cli(repo_root: Path) -> Path | None:
+    candidates = [
+        repo_root / "target" / "debug" / "starknet_committer_and_os_cli",
+        repo_root / "target" / "release" / "starknet_committer_and_os_cli",
+    ]
+    return next((c for c in candidates if c.exists()), None)
+
+
+def _get_echonet_pod_name(namespace_args: list[str]) -> str:
+    proc = subprocess.run(
+        [
+            "kubectl",
+            *namespace_args,
+            "get",
+            "pods",
+            "-l",
+            "app=echonet,role=flask",
+            "-o",
+            "jsonpath={.items[0].metadata.name}",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"Failed to query echonet pod name (exit {proc.returncode}): {proc.stderr.strip()}"
+        )
+    pod_name = proc.stdout.strip()
+    if not pod_name:
+        raise RuntimeError("No echonet pod found for label selector app=echonet,role=flask.")
+    return pod_name
+
+
+def _install_block_hash_cli_into_pod(
+    namespace_args: list[str], local_binary: Path, remote_binary: str
+) -> None:
+    deadline = time.time() + 90.0
+    while time.time() <= deadline:
+        try:
+            pod_name = _get_echonet_pod_name(namespace_args)
+            kube = ["kubectl", *namespace_args]
+            pod_exec = [*kube, "exec", pod_name, "-c", "echonet", "--"]
+            subprocess.run(
+                [*pod_exec, "mkdir", "-p", str(Path(remote_binary).parent)],
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                [*kube, "cp", str(local_binary), f"{pod_name}:{remote_binary}", "-c", "echonet"],
+                check=True,
+                capture_output=True,
+            )
+            subprocess.run(
+                [*pod_exec, "chmod", "+x", remote_binary], check=True, capture_output=True
+            )
+            logger.info(f"Installed block-hash CLI: {local_binary} -> {pod_name}:{remote_binary}")
+            return
+        except (RuntimeError, subprocess.CalledProcessError):
+            time.sleep(1.0)
+    raise RuntimeError("Timed out waiting for echonet pod before copying block-hash CLI.")
+
+
 def _copy_generated_keys(keys_in_repo: Path, generated_path: Path) -> None:
     """
     Copy the non-secret echonet keys JSON into the kustomize generated/ directory.
@@ -210,10 +273,19 @@ def main(argv: list[str] | None = None) -> int:
         default=18080,
         help="Local port for --port-forward (default: 18080).",
     )
+    parser.add_argument(
+        "--block-hash-cli-binary",
+        default="auto",
+        help=(
+            "Local path to starknet_committer_and_os_cli to copy into the echonet pod. "
+            "Use 'auto' (default) to detect at target/debug or target/release, or 'skip' to disable."
+        ),
+    )
     args = parser.parse_args(argv)
 
     # Paths
     script_dir = Path(__file__).resolve().parent
+    repo_root = script_dir.parent
 
     kustomize_dir = script_dir / "k8s" / "echonet"
 
@@ -257,6 +329,28 @@ def main(argv: list[str] | None = None) -> int:
     # Apply manifests
     logger.info("Applying manifests...")
     _run(["kubectl", *namespace_args, "apply", "-k", str(kustomize_dir)])
+
+    local_block_hash_cli: Path | None = None
+    if args.block_hash_cli_binary == "skip":
+        logger.info("Skipping block-hash CLI copy into pod (--block-hash-cli-binary=skip).")
+    elif args.block_hash_cli_binary == "auto":
+        local_block_hash_cli = _find_local_block_hash_cli(repo_root)
+        if not local_block_hash_cli:
+            logger.warning(
+                "No local block-hash CLI found under target/debug or target/release; "
+                "echonet may fail commitment calculation until the binary is available in the pod."
+            )
+    else:
+        local_block_hash_cli = Path(args.block_hash_cli_binary).expanduser().resolve()
+        if not local_block_hash_cli.exists():
+            raise FileNotFoundError(
+                f"--block-hash-cli-binary points to a missing file: {local_block_hash_cli}"
+            )
+
+    if local_block_hash_cli:
+        _install_block_hash_cli_into_pod(
+            namespace_args, local_block_hash_cli, "/data/echonet/bin/starknet_committer_and_os_cli"
+        )
 
     # Wait for rollout to complete.
     logger.info("Waiting for rollout status deployment/echonet...")
