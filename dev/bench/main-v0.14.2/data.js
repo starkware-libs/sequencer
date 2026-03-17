@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773674681217,
+  "lastUpdate": 1773738500657,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2515,6 +2515,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1338.70029074,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "68a60ea751925b41505a3e11439887e1187e0aff",
+          "message": "starknet_patricia_storage: bump default cache size to 10M (#12316)\n\nSigned-off-by: Dori Medini <dori@starkware.co>",
+          "timestamp": "2026-03-17T08:45:03Z",
+          "tree_id": "a9779337e3e40ebcb3386f5110553803250e346c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/68a60ea751925b41505a3e11439887e1187e0aff"
+        },
+        "date": 1773738500350,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 854.07483429,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1378.40538195,
             "unit": "ms"
           }
         ]
