@@ -55,10 +55,6 @@ impl ReadOnlyStorage for MapStorage {
     async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         ImmutableReadOnlyStorage::mget(self, keys).await
     }
-
-    fn get_immutable_read_only_self(&self) -> Option<&impl ImmutableReadOnlyStorage> {
-        Some(self)
-    }
 }
 
 impl Storage for MapStorage {
@@ -309,10 +305,6 @@ impl<S: Storage + ImmutableReadOnlyStorage> ReadOnlyStorage for CachedStorage<S>
         );
 
         Ok(values)
-    }
-
-    fn get_immutable_read_only_self(&self) -> Option<&impl ImmutableReadOnlyStorage> {
-        Some(self)
     }
 }
 

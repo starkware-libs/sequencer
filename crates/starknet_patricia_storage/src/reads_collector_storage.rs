@@ -1,9 +1,10 @@
+use std::sync::Arc;
+
 use crate::storage_trait::{
     DbHashMap,
     DbKey,
     DbValue,
     ImmutableReadOnlyStorage,
-    NullStorage,
     PatriciaStorageResult,
     ReadOnlyStorage,
 };
@@ -37,13 +38,13 @@ impl StorageReads {
 
 /// Wraps an [ImmutableReadOnlyStorage] reference and collects all reads performed through it.
 /// The collected reads can be retrieved via [ReadsCollectorStorage::into_reads].
-pub struct ReadsCollectorStorage<'a, S: ImmutableReadOnlyStorage> {
-    pub storage: &'a S,
+pub struct ReadsCollectorStorage<S: ImmutableReadOnlyStorage> {
+    pub storage: Arc<S>,
     pub reads: StorageReads,
 }
 
-impl<'a, S: ImmutableReadOnlyStorage> ReadsCollectorStorage<'a, S> {
-    pub fn new(storage: &'a S) -> Self {
+impl<S: ImmutableReadOnlyStorage> ReadsCollectorStorage<S> {
+    pub fn new(storage: Arc<S>) -> Self {
         Self { storage, reads: StorageReads::new() }
     }
 
@@ -53,7 +54,7 @@ impl<'a, S: ImmutableReadOnlyStorage> ReadsCollectorStorage<'a, S> {
     }
 }
 
-impl<'a, S: ImmutableReadOnlyStorage> ReadOnlyStorage for ReadsCollectorStorage<'a, S> {
+impl<S: ImmutableReadOnlyStorage> ReadOnlyStorage for ReadsCollectorStorage<S> {
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let value = self.storage.get(key).await?;
         if let Some(ref v) = value {
@@ -71,8 +72,14 @@ impl<'a, S: ImmutableReadOnlyStorage> ReadOnlyStorage for ReadsCollectorStorage<
         }
         Ok(values)
     }
+}
 
-    fn get_immutable_read_only_self(&self) -> Option<&impl ImmutableReadOnlyStorage> {
-        None::<&NullStorage>
+impl<S: ImmutableReadOnlyStorage> ImmutableReadOnlyStorage for ReadsCollectorStorage<S> {
+    async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+        self.storage.get(key).await
+    }
+
+    async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        self.storage.mget(keys).await
     }
 }

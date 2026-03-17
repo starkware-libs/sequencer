@@ -1,8 +1,10 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
 
-use futures::stream::{FuturesUnordered, StreamExt};
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
@@ -27,12 +29,13 @@ use starknet_patricia::patricia_merkle_tree::traversal::{
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::StorageError;
-use starknet_patricia_storage::reads_collector_storage::{ReadsCollectorStorage, StorageReads};
+use starknet_patricia_storage::reads_collector_storage::ReadsCollectorStorage;
 use starknet_patricia_storage::storage_trait::{
+    AsyncStorage,
     DbKey,
     ImmutableReadOnlyStorage,
     ReadOnlyStorage,
-    Storage,
+    Task,
 };
 use tracing::warn;
 
@@ -344,11 +347,16 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf, Layout: NodeLayout<'a, L
     Ok(skeleton_tree)
 }
 
-/// Creates the original skeleton trees of the lmodified storage tries.
-/// If [ReaderConfig::build_storage_tries_concurrently] is true, the tries are created concurrently.
+/// Creates the original skeleton trees of the modified storage tries.
+/// If [ReaderConfig::build_storage_tries_concurrently] is true and `S: AsyncStorage`,
+/// the tries are created concurrently using [AsyncStorage::gather_reads].
 /// Otherwise, they are created sequentially.
-pub async fn create_storage_tries<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
-    storage: &mut impl Storage,
+pub async fn create_storage_tries<
+    'a,
+    S: AsyncStorage + ImmutableReadOnlyStorage,
+    Layout: NodeLayoutFor<StarknetStorageValue> + 'static,
+>(
+    storage: &mut S,
     actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
@@ -359,23 +367,14 @@ where
         HasStaticPrefix<KeyContext = ContractAddress>,
 {
     if config.build_storage_tries_concurrently() {
-        if let Some(immutable_read_only_storage) = storage.get_immutable_read_only_self() {
-            let (storage_tries, storage_reads) = create_storage_tries_concurrently::<Layout>(
-                immutable_read_only_storage,
-                actual_storage_updates,
-                original_contracts_trie_leaves,
-                config,
-                storage_tries_sorted_indices,
-            )
-            .await?;
-            storage.handle_collected_reads(storage_reads);
-            return Ok(storage_tries);
-        } else {
-            warn!(
-                "Concurrent storage tries creation is enabled in config but the storage layer \
-                 doesn't support it. Creating storage tries sequentially..."
-            );
-        }
+        return create_storage_tries_concurrently::<S, Layout>(
+            storage,
+            actual_storage_updates.clone(),
+            original_contracts_trie_leaves.clone(),
+            config.warn_on_trivial_modifications(),
+            storage_tries_sorted_indices,
+        )
+        .await;
     }
     create_storage_tries_sequentially::<Layout>(
         storage,
@@ -385,6 +384,62 @@ where
         storage_tries_sorted_indices,
     )
     .await
+}
+
+/// Creates the storage tries concurrently using [AsyncStorage::gather_reads].
+/// Each task is a closure over the fixed args; it receives its own [ReadsCollectorStorage]
+/// as the storage argument. Results are collected into a [Mutex]-guarded [HashMap].
+async fn create_storage_tries_concurrently<
+    'a,
+    S: AsyncStorage + ImmutableReadOnlyStorage,
+    Layout: NodeLayoutFor<StarknetStorageValue> + 'static,
+>(
+    storage: &mut S,
+    actual_storage_updates: HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+    original_contracts_trie_leaves: HashMap<NodeIndex, ContractState>,
+    warn_on_trivial_modifications: bool,
+    storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
+) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>>
+where
+    <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
+        HasStaticPrefix<KeyContext = ContractAddress>,
+{
+    let results: Arc<Mutex<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'_>>>> =
+        Arc::new(Mutex::new(HashMap::new()));
+
+    let tasks: Vec<_> = actual_storage_updates
+        .into_iter()
+        .map(|(address, updates)| {
+            let results = Arc::clone(&results);
+            let original_contracts_trie_leaves = original_contracts_trie_leaves.clone();
+            move |storage: &mut ReadsCollectorStorage<S>| -> Pin<Box<dyn Future<Output = ()> + '_>> {
+                let results = Arc::clone(&results);
+                Box::pin(async move {
+                    let result = create_storage_trie::<Layout>(
+                        storage,
+                        address,
+                        updates,
+                        original_contracts_trie_leaves,
+                        storage_tries_sorted_indices,
+                        warn_on_trivial_modifications,
+                    )
+                    .await;
+                    if let Ok(skeleton) = result {
+                        results.lock().expect("mutex poisoned").insert(address, skeleton);
+                    }
+                })
+            }
+        })
+        .collect();
+
+    storage.gather_reads(tasks).await;
+
+    let storage_tries = Arc::try_unwrap(results)
+        .expect("no other Arc holders after gather_reads")
+        .into_inner()
+        .expect("mutex poisoned");
+
+    Ok(storage_tries)
 }
 
 /// Creates the contracts trie original skeleton.
@@ -465,8 +520,8 @@ where
         let original_skeleton = create_storage_trie::<Layout>(
             storage,
             *address,
-            updates,
-            original_contracts_trie_leaves,
+            updates.clone(),
+            original_contracts_trie_leaves.clone(),
             storage_tries_sorted_indices,
             config.warn_on_trivial_modifications(),
         )
@@ -477,58 +532,12 @@ where
     Ok(storage_tries)
 }
 
-async fn create_storage_tries_concurrently<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
-    storage: &impl ImmutableReadOnlyStorage,
-    actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
-    original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
-    config: &ReaderConfig,
-    storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
-) -> ForestResult<(HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>, StorageReads)>
-where
-    <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
-        HasStaticPrefix<KeyContext = ContractAddress>,
-{
-    let mut futures = FuturesUnordered::new();
-    let mut storage_tries = HashMap::new();
-    let mut all_reads = StorageReads::new();
-
-    for (address, updates) in actual_storage_updates {
-        // Create the future - tokio will poll all futures concurrently.
-        futures.push(async move {
-            let mut reads_collector_storage = ReadsCollectorStorage::new(storage);
-            let original_skeleton = create_storage_trie::<Layout>(
-                &mut reads_collector_storage,
-                *address,
-                updates,
-                original_contracts_trie_leaves,
-                storage_tries_sorted_indices,
-                config.warn_on_trivial_modifications(),
-            )
-            .await?;
-            Ok::<_, ForestError>((
-                *address,
-                original_skeleton,
-                reads_collector_storage.into_reads(),
-            ))
-        });
-    }
-
-    // Collect all results as they complete.
-    while let Some(result) = futures.next().await {
-        let (address, original_skeleton, storage_reads) = result?;
-        all_reads.extend(storage_reads);
-        storage_tries.insert(address, original_skeleton);
-    }
-
-    Ok((storage_tries, all_reads))
-}
-
 /// Helper function to create a storage trie for a single contract.
 async fn create_storage_trie<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
     storage: &mut impl ReadOnlyStorage,
     address: ContractAddress,
-    updates: &LeafModifications<StarknetStorageValue>,
-    original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
+    updates: LeafModifications<StarknetStorageValue>,
+    original_contracts_trie_leaves: HashMap<NodeIndex, ContractState>,
     storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
     warn_on_trivial_modifications: bool,
 ) -> ForestResult<OriginalSkeletonTreeImpl<'a>>

@@ -10,9 +10,11 @@ use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::{
+    AsyncStorage,
     DbHashMap,
     DbKey,
     DbValue,
+    ImmutableReadOnlyStorage,
     PatriciaStorageResult,
     Storage,
 };
@@ -94,7 +96,7 @@ pub(crate) async fn read_forest<'a, S, Layout>(
     config: ReaderConfig,
 ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>
 where
-    S: Storage,
+    S: AsyncStorage + ImmutableReadOnlyStorage,
     Layout: DbLayout,
 {
     let (contracts_trie, original_contracts_trie_leaves) =
@@ -104,7 +106,7 @@ where
             forest_sorted_indices.contracts_trie_sorted_indices,
         )
         .await?;
-    let storage_tries = create_storage_tries::<Layout::NodeLayout>(
+    let storage_tries = create_storage_tries::<S, Layout::NodeLayout>(
         storage,
         storage_updates,
         &original_contracts_trie_leaves,

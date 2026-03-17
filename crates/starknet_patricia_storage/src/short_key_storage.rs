@@ -76,9 +76,6 @@ macro_rules! define_short_key_storage {
                 self.storage.mget(small_keys.iter().collect::<Vec<&DbKey>>().as_slice()).await
             }
 
-            fn get_immutable_read_only_self(&self) -> Option<&impl ImmutableReadOnlyStorage> {
-                None::<&NullStorage>
-            }
         }
 
         impl<S: Storage> Storage for $name<S> {
