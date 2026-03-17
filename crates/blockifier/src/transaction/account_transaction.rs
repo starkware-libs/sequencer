@@ -4,7 +4,7 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::{BlockNumber, GasPriceVector};
 use starknet_api::calldata;
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce, OsChainInfo};
+use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{AccountTransaction as Transaction, TransactionType};
 use starknet_api::execution_resources::GasAmount;
@@ -330,11 +330,7 @@ impl AccountTransaction {
         Self::validate_proof_block_hash(proof_block_hash, proof_block_number, os_constants, state)?;
 
         // Validate the config hash.
-        let chain_info = &block_context.chain_info;
-        // TODO(Meshi): Cache this computation as part of the chain context.
-        let virtual_os_config_hash = OsChainInfo::from(chain_info)
-            .compute_virtual_os_config_hash()
-            .expect("Failed to compute OS config hash");
+        let virtual_os_config_hash = block_context.virtual_os_config_hash();
         let proof_config_hash = snos_proof_facts.config_hash;
         if virtual_os_config_hash != proof_config_hash {
             return Err(TransactionPreValidationError::InvalidProofFacts(format!(
