@@ -83,7 +83,7 @@ use crate::utils::{
     TIME_BETWEEN_CHECKS,
 };
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub enum SyncMode {
     #[default]
     P2P,
