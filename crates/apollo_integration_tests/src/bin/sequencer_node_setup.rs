@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::test_utils::TestIdentifier;
-use apollo_integration_tests::integration_test_manager::IntegrationTestManager;
+use apollo_integration_tests::integration_test_manager::{IntegrationTestManager, SyncMode};
 use apollo_integration_tests::storage::CustomPaths;
 use clap::Parser;
 use tokio::fs::create_dir_all;
@@ -31,6 +31,7 @@ async fn main() {
         Some(custom_paths),
         // TODO(Tsabary/Nadin): add a different identifier.
         TestIdentifier::PositiveFlowIntegrationTest,
+        SyncMode::P2P,
     )
     .await;
 

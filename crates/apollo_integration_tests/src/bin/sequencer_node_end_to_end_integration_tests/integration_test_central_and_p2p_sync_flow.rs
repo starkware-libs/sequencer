@@ -1,5 +1,5 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
-use apollo_integration_tests::integration_test_manager::IntegrationTestManager;
+use apollo_integration_tests::integration_test_manager::{IntegrationTestManager, SyncMode};
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
 use apollo_node_config::component_execution_config::{
     ActiveComponentExecutionMode,
@@ -28,6 +28,7 @@ async fn main() {
         N_HYBRID_SEQUENCERS,
         None,
         TestIdentifier::SyncFlowIntegrationTest,
+        SyncMode::P2P,
     )
     .await;
 

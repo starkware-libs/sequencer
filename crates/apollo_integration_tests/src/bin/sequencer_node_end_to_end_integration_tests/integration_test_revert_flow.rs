@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::time::Duration;
 
 use apollo_infra_utils::test_utils::TestIdentifier;
-use apollo_integration_tests::integration_test_manager::IntegrationTestManager;
+use apollo_integration_tests::integration_test_manager::{IntegrationTestManager, SyncMode};
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::SequencerNodeConfig;
@@ -40,6 +40,7 @@ async fn main() {
         N_HYBRID_SEQUENCERS,
         None,
         TestIdentifier::RevertFlowIntegrationTest,
+        SyncMode::P2P,
     )
     .await;
 

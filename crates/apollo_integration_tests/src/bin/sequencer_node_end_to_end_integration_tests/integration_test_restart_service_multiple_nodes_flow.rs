@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use apollo_deployments::deployments::hybrid::HybridNodeServiceName;
 use apollo_deployments::service::NodeService;
 use apollo_infra_utils::test_utils::TestIdentifier;
-use apollo_integration_tests::integration_test_manager::IntegrationTestManager;
+use apollo_integration_tests::integration_test_manager::{IntegrationTestManager, SyncMode};
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
 use starknet_api::block::BlockNumber;
 use static_assertions::const_assert;
@@ -35,6 +35,7 @@ async fn main() {
         N_HYBRID_SEQUENCERS,
         None,
         TestIdentifier::RestartServiceMultipleNodesFlowIntegrationTest,
+        SyncMode::P2P,
     )
     .await;
 

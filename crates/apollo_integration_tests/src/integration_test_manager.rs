@@ -83,6 +83,13 @@ use crate::utils::{
     TIME_BETWEEN_CHECKS,
 };
 
+#[derive(Clone, Debug, Default)]
+pub enum SyncMode {
+    #[default]
+    P2P,
+    MockCentralSync,
+}
+
 pub const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
 pub const BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE: BlockNumber = BlockNumber(4);
 pub const BLOCK_TO_WAIT_FOR_DECLARE: BlockNumber =
@@ -383,6 +390,8 @@ pub struct IntegrationTestManager {
     // Ethereum base layer coupled with an Anvil server instance, the server is dropped when the
     // instance is dropped.
     anvil_base_layer: AnvilBaseLayer,
+    #[allow(dead_code)]
+    sync_mode: SyncMode,
 }
 
 impl IntegrationTestManager {
@@ -392,6 +401,7 @@ impl IntegrationTestManager {
         num_of_hybrid_nodes: usize,
         custom_paths: Option<CustomPaths>,
         test_unique_id: TestIdentifier,
+        sync_mode: SyncMode,
     ) -> Self {
         let tx_generator = create_integration_test_tx_generator();
 
@@ -439,7 +449,7 @@ impl IntegrationTestManager {
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();
 
-        Self { node_indices, idle_nodes, running_nodes, tx_generator, anvil_base_layer }
+        Self { node_indices, idle_nodes, running_nodes, tx_generator, anvil_base_layer, sync_mode }
     }
 
     pub fn get_idle_nodes(&self) -> &HashMap<usize, NodeSetup> {
