@@ -22,3 +22,20 @@ fn object_compression() {
     let restored_program = Program::deserialize_from(&mut decompressed.as_slice()).unwrap();
     assert_eq!(program, restored_program);
 }
+
+#[test]
+fn compress_decompress_reuse_correctness() {
+    // Compress two different payloads back-to-back (exercises context reuse).
+    let payload_a = vec![1u8; 512];
+    let payload_b = vec![2u8; 1024];
+
+    let compressed_a = compress(&payload_a).unwrap();
+    let compressed_b = compress(&payload_b).unwrap();
+
+    // Decompress in reverse order (exercises decompressor reuse with different sizes).
+    let restored_b = decompress(&compressed_b).unwrap();
+    let restored_a = decompress(&compressed_a).unwrap();
+
+    assert_eq!(payload_a, restored_a);
+    assert_eq!(payload_b, restored_b);
+}
