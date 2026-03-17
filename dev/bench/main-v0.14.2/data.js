@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773738500657,
+  "lastUpdate": 1773740952924,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2549,6 +2549,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1378.40538195,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "104720318+noaov1@users.noreply.github.com",
+            "name": "Noa Oved",
+            "username": "noaov1"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6a23a8b27e13cbf5f83a94fa7b9810115aaa0881",
+          "message": "proving_utils: update revision (#13297)",
+          "timestamp": "2026-03-17T09:24:43Z",
+          "tree_id": "f6f25b3f0da368a13f8b09e88f0514c9402ca8d2",
+          "url": "https://github.com/starkware-libs/sequencer/commit/6a23a8b27e13cbf5f83a94fa7b9810115aaa0881"
+        },
+        "date": 1773740952570,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 973.0835153200001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1452.9765845499999,
             "unit": "ms"
           }
         ]
