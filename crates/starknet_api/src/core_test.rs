@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use assert_matches::assert_matches;
 use num_bigint::BigUint;
 use rstest::rstest;
@@ -12,6 +14,7 @@ use crate::core::{
     ContractAddress,
     EthAddress,
     Nonce,
+    OsChainInfo,
     PatriciaKey,
     StarknetApiError,
     CONTRACT_ADDRESS_PREFIX,
@@ -134,5 +137,35 @@ fn test_value_too_large_for_type() {
         format!("{error}"),
         "Out of range Felt 340282366920938463463374607431768211456 is too big to convert to \
          'u128'."
+    );
+}
+
+#[test]
+fn virtual_os_config_hash_is_cached_globally() {
+    // IntegrationSepolia is unlikely to appear in other tests, keeping the cache cold on entry.
+    const TEST_CHAIN_ID: ChainId = ChainId::IntegrationSepolia;
+    let test_fee_token_address = ContractAddress::default();
+
+    let cold =
+        OsChainInfo { chain_id: TEST_CHAIN_ID, strk_fee_token_address: test_fee_token_address };
+
+    let start = Instant::now();
+    let hash_first = cold.compute_virtual_os_config_hash().unwrap();
+    let cold_duration = start.elapsed();
+
+    // Run 10 cached lookups (same data, fresh instances) and time them together.
+    // Even under load, 10 HashMap lookups must be faster than a single Pedersen computation.
+    let start = Instant::now();
+    for _ in 0..10 {
+        let warm =
+            OsChainInfo { chain_id: TEST_CHAIN_ID, strk_fee_token_address: test_fee_token_address };
+        assert_eq!(warm.compute_virtual_os_config_hash().unwrap(), hash_first);
+    }
+    let cached_duration = start.elapsed();
+
+    assert!(
+        cached_duration < cold_duration,
+        "10 cached calls ({cached_duration:?}) should be faster than 1 cold computation \
+         ({cold_duration:?}) — caching appears broken"
     );
 }

@@ -331,7 +331,6 @@ impl AccountTransaction {
 
         // Validate the config hash.
         let chain_info = &block_context.chain_info;
-        // TODO(Meshi): Cache this computation as part of the chain context.
         let virtual_os_config_hash = OsChainInfo::from(chain_info)
             .compute_virtual_os_config_hash()
             .expect("Failed to compute OS config hash");

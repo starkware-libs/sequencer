@@ -2,9 +2,10 @@
 #[path = "core_test.rs"]
 mod core_test;
 
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::str::FromStr;
-use std::sync::LazyLock;
+use std::sync::{LazyLock, Mutex};
 
 use apollo_sizeof::SizeOf;
 use num_traits::ToPrimitive;
@@ -110,6 +111,12 @@ fn compute_public_keys_hash(public_keys: Option<&Vec<Felt>>) -> Felt {
     }
 }
 
+/// Cache for virtual OS config hash, keyed by (chain_id, strk_fee_token_address).
+/// Avoids recomputing the Pedersen hash across multiple transactions in the same block.
+pub(crate) static VIRTUAL_OS_CONFIG_HASH_CACHE: LazyLock<
+    Mutex<HashMap<(ChainId, ContractAddress), Felt>>,
+> = LazyLock::new(|| Mutex::new(HashMap::new()));
+
 /// Chain information for OS execution.
 /// Contains minimal chain configuration needed for OS config hash computation.
 // TODO(Meshi): Remove Once the blockifier ChainInfo do not support deprecated fee token.
@@ -151,8 +158,17 @@ impl OsChainInfo {
     }
 
     /// Computes the virtual OS config hash (without public keys).
+    /// The result is cached globally per (chain_id, strk_fee_token_address) pair.
     pub fn compute_virtual_os_config_hash(&self) -> Result<Felt, StarknetApiError> {
-        self.compute_os_config_hash(None)
+        let key = (self.chain_id.clone(), self.strk_fee_token_address);
+        if let Some(cached) =
+            VIRTUAL_OS_CONFIG_HASH_CACHE.lock().expect("Cache lock poisoned").get(&key)
+        {
+            return Ok(*cached);
+        }
+        let hash = self.compute_os_config_hash(None)?;
+        VIRTUAL_OS_CONFIG_HASH_CACHE.lock().expect("Cache lock poisoned").insert(key, hash);
+        Ok(hash)
     }
 }
 
