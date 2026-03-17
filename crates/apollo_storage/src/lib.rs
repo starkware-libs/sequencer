@@ -841,6 +841,7 @@ pub enum MarkerKind {
     BaseLayerBlock,
     /// Marks the last written class manager block.
     ClassManagerBlock,
+    /// TODO(noamsp): delete this marker.
     /// Marks the block beyond the last block that its classes can't be compiled with the current
     /// compiler version used in the class manager. Determined by starknet version.
     CompilerBackwardCompatibility,
