@@ -131,8 +131,9 @@ def create_folder_return_uid(client: GrafanaApi, title: str) -> str:
 def dump_alert(output_dir: str, alert: dict[str, any]) -> None:
     alert_full_path = f"{output_dir}/{alert['name']}.json".lower().replace(" ", "_")
     os.makedirs(output_dir, exist_ok=True)
+    ordered = {"title": alert["title"], **{k: v for k, v in alert.items() if k != "title"}}
     with open(alert_full_path, "w") as f:
-        json.dump(alert, f, indent=2)
+        json.dump(ordered, f, indent=2)
     # Format with professional colors: Alert (white bold), name (cyan), saved to (white bold), path (dim cyan)
     logger.info(
         f'[bold white]Alert[/bold white] "[blue]{alert["name"]}[/blue]" [bold white]saved to[/bold white] [dim white]{alert_full_path}[/dim white]'
@@ -331,6 +332,8 @@ def alert_builder(args: argparse.Namespace):
                 },
             )
         )
+
+    alerts.sort(key=lambda a: a["title"])
 
     for alert in alerts:
         if args.debug:
