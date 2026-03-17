@@ -2,6 +2,8 @@ import base64
 import json
 import logging
 import os
+import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, List, Literal, Optional, Tuple, Union
@@ -77,7 +79,6 @@ def _fetch_bootstrap_constants(
 
     custom_keys = [
         "state_root",
-        "transaction_commitment",
         "event_commitment",
         "receipt_commitment",
         "state_diff_commitment",
@@ -374,6 +375,93 @@ class BlobTransformer:
             return self._chain.base_block_hash_hex
         return self._shared.get_block_field(latest_block_number, "block")["block_hash"]
 
+    def _run_block_hash_cli(self, subcommand: str, payload: JsonObject) -> Any:
+        cli_path = CONFIG.paths.block_hash_cli_path
+        if not cli_path.exists():
+            raise RuntimeError(f"Missing block-hash calculator CLI binary at: {cli_path}")
+        repo_root = Path(__file__).resolve().parent.parent
+        with tempfile.TemporaryDirectory(prefix="echonet_block_hash_", dir=repo_root) as tmp:
+            input_path = Path(tmp) / "input.json"
+            output_path = Path(tmp) / "output.json"
+            input_path.write_text(json.dumps(payload), encoding="utf-8")
+            command = [
+                str(cli_path),
+                "block-hash",
+                subcommand,
+                "--input-path",
+                str(input_path),
+                "--output-path",
+                str(output_path),
+            ]
+            completed = subprocess.run(
+                command, cwd=repo_root, capture_output=True, text=True, check=False, timeout=30
+            )
+            if completed.returncode != 0:
+                raise RuntimeError(
+                    f"block-hash CLI failed for {subcommand}: "
+                    f"rc={completed.returncode} stderr={(completed.stderr or '').strip()}"
+                )
+            return json.loads(output_path.read_text(encoding="utf-8"))
+
+    @staticmethod
+    def _build_thin_state_diff(blob: JsonObject) -> JsonObject:
+        state_diff = blob["state_diff"]
+        return {
+            "deployed_contracts": state_diff["address_to_class_hash"],
+            "storage_diffs": state_diff["storage_updates"]["L1"],
+            "class_hash_to_compiled_class_hash": state_diff["class_hash_to_compiled_class_hash"],
+            "deprecated_declared_classes": [],
+            "nonces": state_diff["nonces"]["L1"],
+        }
+
+    @staticmethod
+    def _build_transactions_data_for_commitments(
+        transformed_txs: List[JsonObject],
+        receipts: List[JsonObject],
+        execution_infos: List[JsonObject],
+    ) -> List[JsonObject]:
+        return [
+            {
+                "transaction_signature": tx.get("signature", []),
+                "transaction_output": {
+                    "actual_fee": receipt["actual_fee"],
+                    "events": receipt["events"],
+                    "execution_status": (
+                        {
+                            "execution_status": "REVERTED",
+                            "revert_reason": receipt.get("revert_error", ""),
+                        }
+                        if receipt["execution_status"] == "REVERTED"
+                        else {"execution_status": "SUCCEEDED"}
+                    ),
+                    "gas_consumed": execution_info["total_gas"],
+                    "messages_sent": receipt["l2_to_l1_messages"],
+                },
+                "transaction_hash": tx["transaction_hash"],
+            }
+            for tx, receipt, execution_info in zip(transformed_txs, receipts, execution_infos)
+        ]
+
+    def _compute_block_commitments(
+        self,
+        blob: JsonObject,
+        transformed_txs: List[JsonObject],
+        receipts: List[JsonObject],
+        execution_infos: List[JsonObject],
+    ) -> JsonObject:
+        block_info = blob["state_diff"]["block_info"]
+        return self._run_block_hash_cli(
+            "block-hash-commitments",
+            {
+                "transactions_data": self._build_transactions_data_for_commitments(
+                    transformed_txs, receipts, execution_infos
+                ),
+                "state_diff": self._build_thin_state_diff(blob),
+                "l1_da_mode": "BLOB" if block_info.get("use_kzg_da") else "CALLDATA",
+                "starknet_version": block_info["starknet_version"],
+            },
+        )
+
     @staticmethod
     def _compute_state_diff_length(blob: JsonObject) -> int:
         state_diff = blob["state_diff"]
@@ -486,9 +574,16 @@ class BlobTransformer:
         )
 
         source_block = self._fetch_upstream_source_block(bn_for_meta)
+        block_commitments = self._compute_block_commitments(
+            blob=blob,
+            transformed_txs=transformed_txs,
+            receipts=receipts,
+            execution_infos=execution_infos,
+        )
         block_document["status"] = source_block["status"]
         block_document["starknet_version"] = source_block["starknet_version"]
         block_document["sequencer_address"] = source_block["sequencer_address"]
+        block_document["transaction_commitment"] = str(block_commitments["transaction_commitment"])
         block_document["l2_gas_consumed"] = blob["fee_market_info"]["l2_gas_consumed"]
         block_document["next_l2_gas_price"] = blob["fee_market_info"]["next_l2_gas_price"]
         block_document["l1_da_mode"] = (
@@ -619,6 +714,8 @@ class EchoCenterService:
             fgw_l2_by_hash = fgw_l2_cache.get(source_block)
             if fgw_l2_by_hash is None:
                 fgw_block = self.shared.get_fgw_block(source_block)
+                if fgw_block is None:
+                    continue
                 fgw_l2_by_hash = {
                     t["transaction_hash"]: _total_l2_gas_consumed(r)
                     for t, r in zip(fgw_block["transactions"], fgw_block["transaction_receipts"])
