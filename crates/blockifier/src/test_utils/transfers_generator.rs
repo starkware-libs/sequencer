@@ -100,10 +100,8 @@ pub enum ExecutorWrapper {
 impl TransfersGenerator {
     pub fn new(config: TransfersGeneratorConfig) -> Self {
         let account_contract = FeatureContract::AccountWithoutValidations(config.cairo_version);
-        let block_context = BlockContext {
-            block_info: BlockInfo::create_for_testing_with_kzg(true),
-            ..BlockContext::create_for_account_testing()
-        };
+        let mut block_context = BlockContext::create_for_account_testing();
+        block_context.block_info = BlockInfo::create_for_testing_with_kzg(true);
         let resource_bounds = ValidResourceBounds::all_bounds_from_vectors(
             &GasVector {
                 l1_gas: 0_u32.into(),

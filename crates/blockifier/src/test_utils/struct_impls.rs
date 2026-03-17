@@ -193,41 +193,39 @@ impl ChainInfo {
 
 impl BlockContext {
     pub fn create_for_testing() -> Self {
-        Self {
-            block_info: BlockInfo::create_for_testing(),
-            chain_info: ChainInfo::create_for_testing(),
-            versioned_constants: VersionedConstants::create_for_testing(),
-            bouncer_config: BouncerConfig::max(),
-        }
+        Self::new(
+            BlockInfo::create_for_testing(),
+            ChainInfo::create_for_testing(),
+            VersionedConstants::create_for_testing(),
+            BouncerConfig::max(),
+        )
     }
 
     pub fn create_for_account_testing() -> Self {
-        Self {
-            block_info: BlockInfo::create_for_testing(),
-            chain_info: ChainInfo::create_for_testing(),
-            versioned_constants: VersionedConstants::create_for_account_testing(),
-            bouncer_config: BouncerConfig::max(),
-        }
+        Self::new(
+            BlockInfo::create_for_testing(),
+            ChainInfo::create_for_testing(),
+            VersionedConstants::create_for_account_testing(),
+            BouncerConfig::max(),
+        )
     }
 
     pub fn create_for_bouncer_testing(max_n_events_in_block: usize) -> Self {
-        Self {
-            bouncer_config: BouncerConfig {
-                block_max_capacity: BouncerWeights {
-                    n_events: max_n_events_in_block,
-                    ..BouncerWeights::max()
-                },
-                ..BouncerConfig::max()
+        let mut context = Self::create_for_account_testing();
+        context.bouncer_config = BouncerConfig {
+            block_max_capacity: BouncerWeights {
+                n_events: max_n_events_in_block,
+                ..BouncerWeights::max()
             },
-            ..Self::create_for_account_testing()
-        }
+            ..BouncerConfig::max()
+        };
+        context
     }
 
     pub fn create_for_account_testing_with_kzg(use_kzg_da: bool) -> Self {
-        Self {
-            block_info: BlockInfo::create_for_testing_with_kzg(use_kzg_da),
-            ..Self::create_for_account_testing()
-        }
+        let mut context = Self::create_for_account_testing();
+        context.block_info = BlockInfo::create_for_testing_with_kzg(use_kzg_da);
+        context
     }
 
     /// Returns a BlockContext for the given block index based on the base context.

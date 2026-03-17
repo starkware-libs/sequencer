@@ -727,8 +727,7 @@ fn test_send_message_to_l1_invalid_address(#[values(true, false)] is_l3: bool) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    let block_context =
-        BlockContext { chain_info: chain_info.clone(), ..BlockContext::create_for_testing() };
+    let block_context = BlockContext::create_for_testing().with_chain_info(chain_info.clone());
     let result = entry_point_call.execute_directly_given_block_context(&mut state, block_context);
 
     if is_l3 {
