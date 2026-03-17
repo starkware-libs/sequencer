@@ -7,6 +7,10 @@ export DOCKER_BUILDKIT
 export COMPOSE_DOCKER_CLI_BUILD
 export MONITORING_ENABLED=${MONITORING_ENABLED:-true}
 export FOLLOW_LOGS=${FOLLOW_LOGS:-false}
+export SEQUENCER_HTTP_PORT=${SEQUENCER_HTTP_PORT:-8081}
+export SEQUENCER_MONITORING_PORT=${SEQUENCER_MONITORING_PORT:-8082}
+export SEQUENCER_CONFIG_PATH=${SEQUENCER_CONFIG_PATH:-/config/node_0/config.json}
+export SEQUENCER_ROOT_DIR=${SEQUENCER_ROOT_DIR:-$(git -C "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")" rev-parse --show-toplevel)}
 
 monitoring_dir=$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")
 export monitoring_dir
@@ -43,7 +47,9 @@ if [ "$MONITORING_ENABLED" == true ]; then
     --dev-dashboards-file "${monitoring_dir}"/../../crates/apollo_dashboard/resources/dev_grafana.json \
     --dev-alerts-file "${monitoring_dir}"/../../crates/apollo_dashboard/resources/dev_grafana_alerts.json \
     --out-dir /tmp/grafana_builder \
-    --env dev
+    --namespace local \
+    --cluster local \
+    --alert-rules-overrides-config-file "${monitoring_dir}"/examples/config/alert_overrides_testnet.yaml
 fi
 
 if [ "$FOLLOW_LOGS" == true ]; then
