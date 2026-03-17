@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773581080885,
+  "lastUpdate": 1773750375500,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -645,6 +645,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1199.6887104500001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "39aabbfcf399c7faa551978efeb045d66959f988",
+          "message": "apollo_propeller: added snapshot testing to merkle tests (#11394)",
+          "timestamp": "2026-03-17T12:04:02Z",
+          "tree_id": "6a8980961654cd8d34606fb2d31b1ff8abd75ef9",
+          "url": "https://github.com/starkware-libs/sequencer/commit/39aabbfcf399c7faa551978efeb045d66959f988"
+        },
+        "date": 1773750375192,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 897.79399985,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1317.88425503,
             "unit": "ms"
           }
         ]
