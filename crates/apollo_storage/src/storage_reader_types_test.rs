@@ -402,10 +402,6 @@ async fn markers_request() {
         (MarkerKind::CompiledClass, txn.get_compiled_class_marker().unwrap()),
         (MarkerKind::BaseLayerBlock, txn.get_base_layer_block_marker().unwrap()),
         (MarkerKind::ClassManagerBlock, txn.get_class_manager_block_marker().unwrap()),
-        (
-            MarkerKind::CompilerBackwardCompatibility,
-            txn.get_compiler_backward_compatibility_marker().unwrap(),
-        ),
         (MarkerKind::GlobalRoot, txn.get_global_root_marker().unwrap()),
     ];
 

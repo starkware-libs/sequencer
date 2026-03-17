@@ -345,8 +345,7 @@ auto_storage_serde! {
         CompiledClass = 5,
         BaseLayerBlock = 6,
         ClassManagerBlock = 7,
-        CompilerBackwardCompatibility = 8,
-        GlobalRoot = 9,
+        GlobalRoot = 8,
     }
     pub struct MessageToL1 {
         pub to_address: EthAddress,

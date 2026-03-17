@@ -244,9 +244,6 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                     MarkerKind::CompiledClass => txn.get_compiled_class_marker()?,
                     MarkerKind::BaseLayerBlock => txn.get_base_layer_block_marker()?,
                     MarkerKind::ClassManagerBlock => txn.get_class_manager_block_marker()?,
-                    MarkerKind::CompilerBackwardCompatibility => {
-                        txn.get_compiler_backward_compatibility_marker()?
-                    }
                     MarkerKind::Event => txn.get_event_marker()?,
                     MarkerKind::GlobalRoot => txn.get_global_root_marker()?,
                 };
