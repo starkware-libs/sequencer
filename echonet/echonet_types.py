@@ -160,6 +160,7 @@ class PathsConfig:
     """Filesystem locations for auxiliary artifacts (reports, snapshots, etc.)."""
 
     log_dir: Path = Path("/data/echonet")
+    block_hash_cli_path: Path = Path("/data/echonet/bin/starknet_committer_and_os_cli")
 
 
 @dataclass(frozen=True, slots=True)
