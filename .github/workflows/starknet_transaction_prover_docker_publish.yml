@@ -29,6 +29,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Set image tag
+        id: tag
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "value=pr-${SHA::7}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=$REF_NAME" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Login to ghcr.io
         uses: docker/login-action@v2.1.0
         with:
@@ -39,7 +51,7 @@ jobs:
 
       - name: Build Docker image
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ steps.tag.outputs.value }}
         run: |
           ./scripts/build_starknet_transaction_prover.sh \
             --image-tag "$IMAGE_NAME:$TAG" \
@@ -47,7 +59,7 @@ jobs:
 
       - name: Push Docker image
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ steps.tag.outputs.value }}
         run: docker push "$IMAGE_NAME:$TAG"
 
   docker-build-push-arm64:
@@ -57,6 +69,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Set image tag
+        id: tag
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "value=pr-${SHA::7}-arm64" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${REF_NAME}-arm64" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Login to ghcr.io
         uses: docker/login-action@v2.1.0
         with:
@@ -67,13 +91,13 @@ jobs:
 
       - name: Build Docker image
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ steps.tag.outputs.value }}
         run: |
           ./scripts/build_starknet_transaction_prover.sh \
-            --image-tag "$IMAGE_NAME:$TAG-arm64" \
+            --image-tag "$IMAGE_NAME:$TAG" \
             --target-cpu "neoverse-v2"
 
       - name: Push Docker image
         env:
-          TAG: ${{ github.ref_name }}
-        run: docker push "$IMAGE_NAME:$TAG-arm64"
+          TAG: ${{ steps.tag.outputs.value }}
+        run: docker push "$IMAGE_NAME:$TAG"
