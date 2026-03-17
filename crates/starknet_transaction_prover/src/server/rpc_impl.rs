@@ -16,7 +16,7 @@ use crate::server::errors::service_busy;
 use crate::server::rpc_api::ProvingRpcServer;
 
 /// Starknet RPC specification version.
-pub(crate) const SPEC_VERSION: &str = "0.10.0";
+const SPEC_VERSION: &str = "0.10.0";
 
 /// Implementation of the ProvingRpc trait.
 #[derive(Clone)]
