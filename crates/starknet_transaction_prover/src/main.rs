@@ -22,13 +22,10 @@ async fn main() -> anyhow::Result<()> {
     use tracing_subscriber::{fmt, EnvFilter};
 
     // TODO(Avi): Revisit the starknet_transaction_prover=debug default once the service stabilizes.
-    // Initialize tracing with RUST_LOG. By default, keep service logs and lower noisy third-party
-    // proving logs from the stwo stack to warn.
+    // Initialize tracing with RUST_LOG. By default, keep service logs and lower third-party
+    // logs to warn.
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-        EnvFilter::new(
-            "info,starknet_transaction_prover=debug,stwo=warn,stwo_cairo_prover=warn,\
-             stwo_run_and_prove=warn,cairo_air=warn",
-        )
+        EnvFilter::new("warn,starknet_transaction_prover=debug,privacy_prove=info")
     });
     tracing_subscriber::registry().with(fmt::layer()).with(filter).init();
 
