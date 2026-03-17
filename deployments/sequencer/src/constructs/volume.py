@@ -39,7 +39,9 @@ class VolumeConstruct(BaseConstruct):
             self,
             "pvc",
             metadata=k8s.ObjectMeta(
-                name=f"sequencer-{self.service_config.name}-data", labels=self.labels
+                name=f"sequencer-{self.service_config.name}-data",
+                labels=self.labels,
+                annotations=self.service_config.persistentVolume.annotations,
             ),
             spec=k8s.PersistentVolumeClaimSpec(
                 storage_class_name=storage_class_name,  # None will omit the field
