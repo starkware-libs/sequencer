@@ -12,10 +12,12 @@ use crate::core::{
     ContractAddress,
     EthAddress,
     Nonce,
+    OsChainInfo,
     PatriciaKey,
     StarknetApiError,
     CONTRACT_ADDRESS_PREFIX,
     L2_ADDRESS_UPPER_BOUND,
+    VIRTUAL_OS_CONFIG_HASH_CACHE,
 };
 use crate::hash::StarkHash;
 use crate::transaction::fields::{Calldata, ContractAddressSalt};
@@ -135,4 +137,28 @@ fn test_value_too_large_for_type() {
         "Out of range Felt 340282366920938463463374607431768211456 is too big to convert to \
          'u128'."
     );
+}
+
+#[test]
+fn virtual_os_config_hash_is_cached() {
+    const TEST_CHAIN_ID: ChainId = ChainId::IntegrationSepolia;
+    let test_fee_token_address = ContractAddress::default();
+    let key = (TEST_CHAIN_ID, test_fee_token_address);
+
+    // Remove any prior entry for this key to ensure test isolation.
+    VIRTUAL_OS_CONFIG_HASH_CACHE.lock().unwrap().remove(&key);
+
+    let chain_info =
+        OsChainInfo { chain_id: TEST_CHAIN_ID, strk_fee_token_address: test_fee_token_address };
+
+    // First call should compute and insert into cache.
+    let hash1 = chain_info.compute_virtual_os_config_hash().unwrap();
+    {
+        let cache = VIRTUAL_OS_CONFIG_HASH_CACHE.lock().unwrap();
+        assert_eq!(cache.get(&key), Some(&hash1), "Expected cache entry after first call");
+    }
+
+    // Second call should return the same value (served from cache).
+    let hash2 = chain_info.compute_virtual_os_config_hash().unwrap();
+    assert_eq!(hash1, hash2, "Cached hash should match original computation");
 }
