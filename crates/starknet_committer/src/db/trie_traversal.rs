@@ -1,9 +1,7 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
@@ -31,11 +29,11 @@ use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticP
 use starknet_patricia_storage::errors::StorageError;
 use starknet_patricia_storage::reads_collector_storage::ReadsCollectorStorage;
 use starknet_patricia_storage::storage_trait::{
+    gather_reads,
     AsyncStorage,
     DbKey,
     ImmutableReadOnlyStorage,
     ReadOnlyStorage,
-    Task,
 };
 use tracing::warn;
 
@@ -387,8 +385,8 @@ where
 }
 
 /// Creates the storage tries concurrently using [AsyncStorage::gather_reads].
-/// Each task is a closure over the fixed args; it receives its own [ReadsCollectorStorage]
-/// as the storage argument. Results are collected into a [Mutex]-guarded [HashMap].
+/// Each trie is built on its own [ReadsCollectorStorage] snapshot cloned from `storage`.
+/// Collected reads from all snapshots are merged back into `storage` at the end.
 async fn create_storage_tries_concurrently<
     'a,
     S: AsyncStorage + ImmutableReadOnlyStorage,
@@ -404,42 +402,36 @@ where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
 {
-    let results: Arc<Mutex<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'_>>>> =
-        Arc::new(Mutex::new(HashMap::new()));
-
-    let tasks: Vec<_> = actual_storage_updates
+    let futures: Vec<_> = actual_storage_updates
         .into_iter()
-        .map(|(address, updates)| {
-            let results = Arc::clone(&results);
+        .map(|(address, updates)| -> ForestResult<_> {
+            let sorted_leaf_indices = *storage_tries_sorted_indices
+                .get(&address)
+                .ok_or(ForestError::MissingSortedLeafIndices(address))?;
+            let storage_clone = Arc::new(storage.clone());
             let original_contracts_trie_leaves = original_contracts_trie_leaves.clone();
-            move |storage: &mut ReadsCollectorStorage<S>| -> Pin<Box<dyn Future<Output = ()> + '_>> {
-                let results = Arc::clone(&results);
-                Box::pin(async move {
-                    let result = create_storage_trie::<Layout>(
-                        storage,
-                        address,
-                        updates,
-                        original_contracts_trie_leaves,
-                        storage_tries_sorted_indices,
-                        warn_on_trivial_modifications,
-                    )
-                    .await;
-                    if let Ok(skeleton) = result {
-                        results.lock().expect("mutex poisoned").insert(address, skeleton);
-                    }
-                })
-            }
+            Ok(async move {
+                let mut reads_collector = ReadsCollectorStorage::new(storage_clone);
+                let result = create_storage_trie::<Layout>(
+                    &mut reads_collector,
+                    address,
+                    updates,
+                    original_contracts_trie_leaves,
+                    sorted_leaf_indices,
+                    warn_on_trivial_modifications,
+                )
+                .await;
+                let reads = reads_collector.into_reads();
+                ((address, result), reads)
+            })
         })
-        .collect();
+        .collect::<ForestResult<Vec<_>>>()?;
 
-    storage.gather_reads(tasks).await;
-
-    let storage_tries = Arc::try_unwrap(results)
-        .expect("no other Arc holders after gather_reads")
-        .into_inner()
-        .expect("mutex poisoned");
-
-    Ok(storage_tries)
+    gather_reads(storage, futures)
+        .await
+        .into_iter()
+        .map(|(address, result)| result.map(|skeleton| (address, skeleton)))
+        .collect()
 }
 
 /// Creates the contracts trie original skeleton.
@@ -517,12 +509,15 @@ where
 {
     let mut storage_tries = HashMap::new();
     for (address, updates) in actual_storage_updates {
+        let sorted_leaf_indices = *storage_tries_sorted_indices
+            .get(address)
+            .ok_or(ForestError::MissingSortedLeafIndices(*address))?;
         let original_skeleton = create_storage_trie::<Layout>(
             storage,
             *address,
             updates.clone(),
             original_contracts_trie_leaves.clone(),
-            storage_tries_sorted_indices,
+            sorted_leaf_indices,
             config.warn_on_trivial_modifications(),
         )
         .await?;
@@ -538,17 +533,13 @@ async fn create_storage_trie<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
     address: ContractAddress,
     updates: LeafModifications<StarknetStorageValue>,
     original_contracts_trie_leaves: HashMap<NodeIndex, ContractState>,
-    storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
+    sorted_leaf_indices: SortedLeafIndices<'a>,
     warn_on_trivial_modifications: bool,
 ) -> ForestResult<OriginalSkeletonTreeImpl<'a>>
 where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
 {
-    // Extract data needed for this contract.
-    let sorted_leaf_indices = *storage_tries_sorted_indices
-        .get(&address)
-        .ok_or(ForestError::MissingSortedLeafIndices(address))?;
     let contract_state = original_contracts_trie_leaves
         .get(&contract_address_into_node_index(&address))
         .ok_or(ForestError::MissingContractCurrentState(address))?;

@@ -10,7 +10,6 @@ use crate::storage_trait::{
     DbValue,
     EmptyStorageConfig,
     ImmutableReadOnlyStorage,
-    NullStorage,
     PatriciaStorageResult,
     ReadOnlyStorage,
     Storage,

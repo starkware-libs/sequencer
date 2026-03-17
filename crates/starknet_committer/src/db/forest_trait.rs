@@ -98,6 +98,7 @@ pub(crate) async fn read_forest<'a, S, Layout>(
 where
     S: AsyncStorage + ImmutableReadOnlyStorage,
     Layout: DbLayout,
+    <Layout as DbLayout>::NodeLayout: 'static,
 {
     let (contracts_trie, original_contracts_trie_leaves) =
         create_contracts_trie::<Layout::NodeLayout>(

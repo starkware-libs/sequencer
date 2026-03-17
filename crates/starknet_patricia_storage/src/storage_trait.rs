@@ -2,8 +2,6 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display};
 use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
 
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::{ParamPath, SerializedParam};
@@ -15,7 +13,7 @@ use tokio::task::JoinError;
 use validator::Validate;
 
 use crate::errors::DeserializationError;
-use crate::reads_collector_storage::{ReadsCollectorStorage, StorageReads};
+use crate::reads_collector_storage::StorageReads;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DbKey(pub Vec<u8>);
@@ -305,43 +303,27 @@ pub fn try_extract_suffix_from_db_key<'a>(
     key.0.strip_prefix(prefix.to_bytes()).map(|s| &s[1..])
 }
 
-// Task type: a closure that takes a mutable reference to a reads collector and returns a boxed
-// future.
-pub trait Task<'s, S: AsyncStorage>:
-    FnOnce(&'s mut ReadsCollectorStorage<S>) -> Pin<Box<dyn Future<Output = ()> + 's>>
-{
-}
-impl<'s, S: AsyncStorage, F> Task<'s, S> for F where
-    F: FnOnce(&'s mut ReadsCollectorStorage<S>) -> Pin<Box<dyn Future<Output = ()> + 's>>
-{
+/// Runs futures concurrently, collecting all [StorageReads] from their outputs.
+/// Applies the merged reads to `storage` via [Storage::handle_collected_reads], then returns the
+/// output values.
+pub async fn gather_reads<S: Storage, O, F: Future<Output = (O, StorageReads)>>(
+    storage: &mut S,
+    futures: Vec<F>,
+) -> Vec<O> {
+    let mut stream: FuturesUnordered<_> = futures.into_iter().collect();
+    let mut all_reads = StorageReads::new();
+    let mut results = Vec::new();
+    while let Some((output, reads)) = stream.next().await {
+        results.push(output);
+        all_reads.extend(reads);
+    }
+    storage.handle_collected_reads(all_reads);
+    results
 }
 
-// Async storage (cloneable): this trait will have the gathering mechanism.
+// Async storage (cloneable): marker trait combining immutable read-only and mutable storage with
+// Clone and 'static bounds, required for concurrent trie building.
 pub trait AsyncImmutableStorage: ImmutableReadOnlyStorage + 'static {}
 impl<S: ImmutableReadOnlyStorage + 'static> AsyncImmutableStorage for S {}
-#[async_trait::async_trait(?Send)]
-pub trait AsyncStorage: AsyncImmutableStorage + Storage + Clone + 'static {
-    /// Runs each task concurrently, each with its own [ReadsCollectorStorage] snapshot that
-    /// clones `self` as the underlying immutable storage. Returns all reads collected across all
-    /// tasks merged into a single [DbHashMap].
-    async fn gather_reads<T: for<'s> Task<'s, Self>>(&mut self, tasks: Vec<T>) -> DbHashMap {
-        let mut futures = FuturesUnordered::new();
-        let mut all_reads = DbHashMap::new();
-        for task in tasks {
-            let self_cloned = self.clone();
-            futures.push(async move {
-                let mut snapshot = ReadsCollectorStorage::new(Arc::new(self_cloned));
-                task(&mut snapshot).await;
-                snapshot.into_reads().into_inner()
-            });
-        }
-        while let Some(read) = futures.next().await {
-            all_reads.extend(read);
-        }
-        all_reads
-    }
-    async fn gather<T: for<'s> Task<'s, Self>>(&mut self, tasks: Vec<T>) {
-        self.gather_reads(tasks).await;
-    }
-}
+pub trait AsyncStorage: AsyncImmutableStorage + Storage + Clone + 'static {}
 impl<S: AsyncImmutableStorage + Storage + Clone + 'static> AsyncStorage for S {}

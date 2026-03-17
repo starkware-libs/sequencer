@@ -110,7 +110,7 @@ impl FactsDb<MapStorage> {
 }
 
 #[async_trait]
-impl<S: Storage> ForestReader for FactsDb<S> {
+impl<S: Storage + Clone + 'static> ForestReader for FactsDb<S> {
     type InitialReadContext = FactsDbInitialRead;
 
     /// Creates an original skeleton forest that includes the storage tries of the modified
