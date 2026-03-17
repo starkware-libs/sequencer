@@ -39,6 +39,7 @@ use apollo_config::converters::{
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use behaviours::bootstrapping::BootstrappingBehaviour;
+use behaviours::dialing::DialingBehaviour;
 use behaviours::kad_requesting::KadRequestingBehaviour;
 use libp2p::swarm::NetworkBehaviour;
 use libp2p::{Multiaddr, PeerId};
@@ -72,6 +73,9 @@ pub enum ToOtherBehaviourEvent {
         /// The discovered listening addresses.
         listen_addresses: Vec<Multiaddr>,
     },
+
+    /// Request dialing a peer at the given addresses.
+    RequestDial { peer_id: PeerId, addresses: Vec<Multiaddr> },
 }
 
 /// Main discovery behavior that orchestrates peer discovery mechanisms.
@@ -93,6 +97,8 @@ pub struct Behaviour {
     boot_strapping: BootstrappingBehaviour,
     /// Manages ongoing Kademlia queries for peer discovery.
     kad_requesting: KadRequestingBehaviour,
+    /// Manages dialing to peers with retries.
+    dialing: DialingBehaviour,
 }
 
 /// Configuration for the peer discovery system.
@@ -250,6 +256,9 @@ impl Behaviour {
                 bootstrap_peers,
             ),
             kad_requesting: KadRequestingBehaviour::new(config.heartbeat_interval),
+            // TODO(AndrewL): rename bootstrap_dial_retry_config to dial_retry_config since
+            // it's now shared between bootstrap and general dialing behaviours.
+            dialing: DialingBehaviour::new(config.bootstrap_dial_retry_config),
         }
     }
 
@@ -268,12 +277,19 @@ impl From<ToOtherBehaviourEvent> for mixed_behaviour::Event {
 
 impl BridgedBehaviour for Behaviour {
     fn on_other_behaviour_event(&mut self, event: &mixed_behaviour::ToOtherBehaviourEvent) {
-        if let mixed_behaviour::ToOtherBehaviourEvent::Kad(
-            kad_impl::KadToOtherBehaviourEvent::FoundPeers(peers),
-        ) = event
-        {
-            let peer_ids: Vec<_> = peers.iter().map(|(peer_id, _)| *peer_id).collect();
-            self.kad_requesting.handle_kad_response(&peer_ids);
+        match event {
+            mixed_behaviour::ToOtherBehaviourEvent::Kad(
+                kad_impl::KadToOtherBehaviourEvent::FoundPeers(peers),
+            ) => {
+                let peer_ids: Vec<_> = peers.iter().map(|(peer_id, _)| *peer_id).collect();
+                self.kad_requesting.handle_kad_response(&peer_ids);
+            }
+            mixed_behaviour::ToOtherBehaviourEvent::Discovery(
+                ToOtherBehaviourEvent::RequestDial { peer_id, addresses },
+            ) => {
+                self.dialing.request_dial(*peer_id, addresses.clone());
+            }
+            _ => {}
         }
     }
 }
