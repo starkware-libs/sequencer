@@ -1,7 +1,11 @@
 use core::panic;
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use apollo_starknet_os_program::test_programs::ALIASES_TEST_BYTES;
+use apollo_starknet_os_program::test_programs::{
+    ALIASES_TEST_BYTES,
+    BUILTIN_OFFSET_INCREASE_TEST_BYTES,
+};
+use assert_matches::assert_matches;
 use blockifier::state::stateful_compression::{ALIAS_COUNTER_STORAGE_KEY, INITIAL_AVAILABLE_ALIAS};
 use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
@@ -9,7 +13,9 @@ use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use cairo_vm::hint_processor::builtin_hint_processor::dict_hint_utils::DICT_ACCESS_SIZE;
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::vm::errors::runner_errors::RunnerError;
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, L2_ADDRESS_UPPER_BOUND};
 use starknet_api::state::StorageKey;
@@ -25,13 +31,19 @@ use crate::test_utils::cairo_runner::{
     initialize_and_run_cairo_0_entry_point,
     initialize_cairo_runner,
     run_cairo_0_entrypoint,
+    Cairo0EntryPointRunnerResult,
     EndpointArg,
     EntryPointRunnerConfig,
     ImplicitArg,
     PointerArg,
     ValueArg,
 };
-use crate::test_utils::utils::{get_entrypoint_runner_config, test_cairo_function};
+use crate::test_utils::errors::Cairo0EntryPointRunnerError;
+use crate::test_utils::utils::{
+    get_entrypoint_runner_config,
+    run_cairo_function_and_check_result,
+    test_cairo_function,
+};
 
 const DEFAULT_CLASS_HASH: u128 = 7777;
 
@@ -54,6 +66,43 @@ fn test_constants() {
         &[],
         &[],
         &[],
+        HashMap::new(),
+    )
+}
+
+#[rstest]
+fn test_builtin_offset_increase_negative_flow(#[values(0, 1, 2)] offset_increase: u8) {
+    let error = match run_builtin_offset_increase_test(offset_increase) {
+        Ok(_) => {
+            panic!("Offset increase {offset_increase} should be invalid, but got successful run.")
+        }
+        Err(e) => e,
+    };
+    assert_matches!(
+        error,
+        Cairo0EntryPointRunnerError::VmRunner(RunnerError::InvalidStopPointer(boxed_error))
+        if boxed_error.2.offset == usize::from(offset_increase));
+}
+
+#[rstest]
+fn test_builtin_offset_increase_positive_flow(#[values(3)] offset_increase: u8) {
+    run_builtin_offset_increase_test(offset_increase).unwrap_or_else(|e| {
+        panic!(
+            "Offset increase {offset_increase} is valid, so cairo run should be successful. \
+             instead got error: {e}"
+        )
+    });
+}
+
+fn run_builtin_offset_increase_test(offset_increase: u8) -> Cairo0EntryPointRunnerResult<()> {
+    run_cairo_function_and_check_result(
+        &EntryPointRunnerConfig { layout: LayoutName::all_cairo, ..Default::default() },
+        BUILTIN_OFFSET_INCREASE_TEST_BYTES,
+        "builtin_offset_increase_test",
+        &[Felt::from(offset_increase).into()],
+        &[ImplicitArg::Builtin(BuiltinName::pedersen)],
+        &[],
+        &[EndpointArg::Value(ValueArg::Single(Felt::ONE.into()))],
         HashMap::new(),
     )
 }

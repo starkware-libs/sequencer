@@ -238,6 +238,29 @@ fn get_builtin_or_non(arg_name: &str) -> Option<BuiltinName> {
     BuiltinName::from_str(arg_name.strip_suffix("_ptr")?)
 }
 
+/// Asserts that all builtins are at the start of implicit args (no Builtin after a NonBuiltin).
+fn assert_builtins_at_start(implicit_args: &[ImplicitArg]) -> Cairo0EntryPointRunnerResult<()> {
+    let mut first_non_builtin_index: Option<usize> = None;
+    for (i, arg) in implicit_args.iter().enumerate() {
+        match arg {
+            ImplicitArg::NonBuiltin(_) => {
+                if first_non_builtin_index.is_none() {
+                    first_non_builtin_index = Some(i);
+                }
+            }
+            ImplicitArg::Builtin(_) => {
+                if let Some(non_builtin_index) = first_non_builtin_index {
+                    Err(ImplicitArgError::BuiltinsNotAtStart {
+                        non_builtin_index,
+                        builtin_index: i,
+                    })?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Performs basic validations on the implicit arguments. A successful result from this function
 /// does NOT guarantee that the arguments are valid.
 fn perform_basic_validations_on_implicit_args(
@@ -245,6 +268,8 @@ fn perform_basic_validations_on_implicit_args(
     program: &Program,
     entrypoint: &str,
 ) -> Cairo0EntryPointRunnerResult<()> {
+    assert_builtins_at_start(implicit_args)?;
+
     let mut expected_implicit_args: Vec<(String, Member)> = program
         .get_identifier(&format!("{entrypoint}.ImplicitArgs"))
         .unwrap_or_else(|| panic!("Found no implicit args identifier for entrypoint {entrypoint}."))
@@ -647,6 +672,28 @@ pub fn initialize_cairo_runner(
     Ok((cairo_runner, program, entrypoint))
 }
 
+/// Validates that the final offset of each builtin is a multiple of the builtin's
+/// cells_per_instance, by calling `get_builtins_final_stack` with the correct stack pointer.
+/// Assumes there are no builtin implicit args after non-builtin implicit args.
+fn validate_builtins(
+    cairo_runner: &mut CairoRunner,
+    implicit_args: &[ImplicitArg],
+    expected_explicit_return_values: &[EndpointArg],
+) -> Cairo0EntryPointRunnerResult<()> {
+    let non_builtin_implicit_size: usize = implicit_args
+        .iter()
+        .filter(|arg| matches!(arg, ImplicitArg::NonBuiltin(_)))
+        .map(ImplicitArg::memory_length)
+        .sum();
+    let explicit_size: usize =
+        expected_explicit_return_values.iter().map(EndpointArg::memory_length).sum();
+    let overhead = non_builtin_implicit_size + explicit_size;
+    let builtins_stack_end =
+        (cairo_runner.vm.get_ap() - overhead).map_err(LoadReturnValueError::from)?;
+    cairo_runner.get_builtins_final_stack(builtins_stack_end)?;
+    Ok(())
+}
+
 /// Runs a Cairo0 entry point.
 /// Returns the implicit and explicit return values, and the final state of the hint processor.
 #[allow(clippy::too_many_arguments)]
@@ -699,6 +746,7 @@ pub fn run_cairo_0_entrypoint<'a>(
             &mut hint_processor,
         )
         .map_err(Box::new)?;
+    validate_builtins(cairo_runner, implicit_args, expected_explicit_return_values)?;
     let execution_resources_after = cairo_runner.get_execution_resources().unwrap();
     info!(
         "execution resources after running entrypoint {entrypoint}: is \
