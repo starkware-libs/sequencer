@@ -173,14 +173,20 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         let hashes: Vec<_> = matching_logs.iter().filter_map(|log| log.transaction_hash).collect();
         debug!("Got events in {:?}, L1 tx hashes: {:?}", block_range, hashes);
 
-        let block_header_futures = matching_logs.into_iter().map(|log| {
-            let block_number = log.block_number.unwrap();
-            async move {
-                let header =
-                    immutable_self.get_block_header_immutable(block_number).await?.unwrap();
-                parse_event(log, header.timestamp)
-            }
+        // Note that these errors should never happen... but since we are depending on an external
+        // service to provider the logs, it is not impossible for temporary glitches to cause weird
+        // data inconsistencies like a missing number or header.
+        let block_header_futures = matching_logs.into_iter().map(|log| async move {
+            let Some(block_number) = log.block_number else {
+                return Err(EthereumBaseLayerError::BlockNumberMissingError(log));
+            };
+            let header = immutable_self.get_block_header_immutable(block_number).await?;
+            let Some(header) = header else {
+                return Err(EthereumBaseLayerError::BlockHeaderMissingError(log));
+            };
+            parse_event(log, header.timestamp)
         });
+        // TODO(guyn): replace this with try_join_all.
         futures::future::join_all(block_header_futures).await.into_iter().collect()
     }
 
@@ -300,7 +306,11 @@ pub enum EthereumBaseLayerError {
     #[error(transparent)]
     TypeError(#[from] alloy::sol_types::Error),
     #[error("{0:?}")]
-    UnhandledL1Event(alloy::primitives::Log),
+    UnhandledL1Event(Box<alloy::primitives::Log>),
+    #[error("Block number is missing from the event")]
+    BlockNumberMissingError(Box<alloy::rpc::types::Log>),
+    #[error("Block header is missing from the event")]
+    BlockHeaderMissingError(Box<alloy::rpc::types::Log>),
 }
 
 impl PartialEq for EthereumBaseLayerError {
@@ -313,7 +323,9 @@ impl PartialEq for EthereumBaseLayerError {
             (StarknetApiParsingError(this), StarknetApiParsingError(other)) => this == other,
             (TypeError(this), TypeError(other)) => this == other,
             (UnhandledL1Event(this), UnhandledL1Event(other)) => this == other,
-            _ => false,
+            (BlockNumberMissingError(this), BlockNumberMissingError(other)) => this == other,
+            (BlockHeaderMissingError(this), BlockHeaderMissingError(other)) => this == other,
+            _ => false, // TODO(guyn): replace this with explicit matching.
         }
     }
 }
