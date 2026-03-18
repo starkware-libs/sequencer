@@ -471,8 +471,8 @@
           "type": "query"
         }
       ],
-      "for": "30s",
-      "intervalSec": 30,
+      "for": "60s",
+      "intervalSec": 10,
       "severity": "p2",
       "observer_applicable": "false"
     },
