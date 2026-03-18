@@ -163,8 +163,9 @@ fn resolve_query(body: String) -> Result<u128, EthToStrkOracleClientError> {
             return Err(EthToStrkOracleClientError::MissingFieldError("price".to_string(), body));
         }
     };
-    let rate = u128::from_str_radix(price.trim_start_matches("0x"), 16)
-        .expect("Failed to parse price as u128");
+    let rate = u128::from_str_radix(price.trim_start_matches("0x"), 16).map_err(|e| {
+        EthToStrkOracleClientError::ParseError(format!("Failed to parse price {price}: {e}"))
+    })?;
     // Extract decimals from API response. Also returns MissingFieldError if value is not a number.
     let decimals = match json.get("decimals").and_then(|v| v.as_u64()) {
         Some(decimals) => decimals,
