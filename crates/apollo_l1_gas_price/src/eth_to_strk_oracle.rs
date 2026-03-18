@@ -102,6 +102,10 @@ impl EthToStrkOracleClient {
         &self,
         quantized_timestamp: u64,
     ) -> AbortOnDropHandle<Result<u128, EthToStrkOracleClientError>> {
+        assert!(
+            self.config.lag_interval_seconds > 0,
+            "lag_interval_seconds should be greater than 0"
+        );
         let adjusted_timestamp = quantized_timestamp * self.config.lag_interval_seconds;
         let query_timeout_sec = self.config.query_timeout_sec;
         let client = self.client.clone();
