@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::future::IntoFuture;
+use std::mem::discriminant;
 use std::ops::RangeInclusive;
 use std::time::Duration;
 
@@ -313,17 +314,57 @@ pub enum EthereumBaseLayerError {
 impl PartialEq for EthereumBaseLayerError {
     fn eq(&self, other: &Self) -> bool {
         use EthereumBaseLayerError::*;
-        match (self, other) {
-            (Contract(this), Contract(other)) => this.to_string() == other.to_string(),
-            (FeeOutOfRange(this), FeeOutOfRange(other)) => this == other,
-            (RpcError(this), RpcError(other)) => this.to_string() == other.to_string(),
-            (StarknetApiParsingError(this), StarknetApiParsingError(other)) => this == other,
-            (TypeError(this), TypeError(other)) => this == other,
-            (UnhandledL1Event(this), UnhandledL1Event(other)) => this == other,
-            (BlockNumberMissingError(this), BlockNumberMissingError(other)) => this == other,
-            (BlockHeaderMissingError(this), BlockHeaderMissingError(other)) => this == other,
-            _ => false, // TODO(guyn): replace this with explicit matching.
+        if discriminant(self) != discriminant(other) {
+            return false;
         }
+        match self {
+            Contract(this) => {
+                if let Contract(that) = other {
+                    return this.to_string() == that.to_string();
+                }
+            }
+            FeeOutOfRange(this) => {
+                if let FeeOutOfRange(that) = other {
+                    return this == that;
+                }
+            }
+            ProviderTimeout(this) => {
+                if let ProviderTimeout(that) = other {
+                    return this.to_string() == that.to_string();
+                }
+            }
+            RpcError(this) => {
+                if let RpcError(that) = other {
+                    return this.to_string() == that.to_string();
+                }
+            }
+            StarknetApiParsingError(this) => {
+                if let StarknetApiParsingError(that) = other {
+                    return this == that;
+                }
+            }
+            TypeError(this) => {
+                if let TypeError(that) = other {
+                    return this == that;
+                }
+            }
+            UnhandledL1Event(this) => {
+                if let UnhandledL1Event(that) = other {
+                    return this == that;
+                }
+            }
+            BlockNumberMissingError(this) => {
+                if let BlockNumberMissingError(that) = other {
+                    return this == that;
+                }
+            }
+            BlockHeaderMissingError(this) => {
+                if let BlockHeaderMissingError(that) = other {
+                    return this == that;
+                }
+            }
+        }
+        unreachable!()
     }
 }
 
