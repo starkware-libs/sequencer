@@ -4,9 +4,10 @@ use std::sync::Arc;
 
 use libmdbx::{
     Database as MdbxDb,
-    DatabaseFlags,
-    Geometry,
+    DatabaseOptions,
+    Mode,
     PageSize,
+    ReadWriteOptions,
     Stat,
     TableFlags,
     WriteFlags,
@@ -73,14 +74,10 @@ impl MdbxStorage {
         // TODO(tzahi): geometry and related definitions are taken from apollo_storage. Check if
         // there are better configurations for the committer and consider moving boh crates mdbx
         // code to a common location.
-        let db = MdbxDb::<WriteMap>::new()
-            .set_geometry(Geometry {
-                size: Some(1 << 20..1 << 40),
-                growth_step: Some(1 << 32),
+        let db = MdbxDb::<WriteMap>::open_with_options(
+            path,
+            DatabaseOptions {
                 page_size: Some(get_page_size(page_size::get())),
-                ..Default::default()
-            })
-            .set_flags(DatabaseFlags {
                 // As DbKeys are hashed, there is no locality of pages in the database almost at
                 // all, so readahead will fill the RAM with garbage.
                 // See https://libmdbx.dqdkfa.ru/group__c__opening.html#gga9138119a904355d245777c4119534061a16a07f878f8053cc79990063ca9510e7
@@ -88,9 +85,15 @@ impl MdbxStorage {
                 // LIFO policy for recycling a Garbage Collection items should be faster when using
                 // disks with write-back cache.
                 liforeclaim: true,
+                mode: Mode::ReadWrite(ReadWriteOptions {
+                    min_size: Some(1 << 20),
+                    max_size: Some(1 << 40),
+                    growth_step: Some(1 << 32),
+                    ..Default::default()
+                }),
                 ..Default::default()
-            })
-            .open(path)?;
+            },
+        )?;
         let txn = db.begin_rw_txn()?;
         txn.create_table(None, TableFlags::empty())?;
         txn.commit()?;
