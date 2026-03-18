@@ -6,6 +6,7 @@ use blockifier::execution::call_info::{
     CallInfo,
     ExtendedExecutionResources,
     MessageToL1 as BlockifierMessageToL1,
+    OpcodeName,
     OrderedEvent,
     OrderedL2ToL1Message,
     Retdata,
@@ -128,6 +129,7 @@ fn create_execution_resources(
     memory_holes: usize,
     range_check_builtin: usize,
     pedersen_builtin: usize,
+    blake_opcode_count: usize,
 ) -> ExtendedExecutionResources {
     let execution_resources = ExecutionResources {
         n_steps: steps,
@@ -142,8 +144,7 @@ fn create_execution_resources(
 
     ExtendedExecutionResources {
         vm_resources: execution_resources,
-        // TODO(AvivG): test with non-default opcode instance counter.
-        opcode_instance_counter: Default::default(),
+        opcode_instance_counter: BTreeMap::from([(OpcodeName::blake, blake_opcode_count)]),
     }
 }
 
@@ -216,7 +217,7 @@ fn create_call_info(
         call,
         execution,
         inner_calls,
-        resources: create_execution_resources(1000, 0, 10, 5),
+        resources: create_execution_resources(1000, 0, 10, 5, 3),
         tracked_resource: blockifier::execution::contract_class::TrackedResource::CairoSteps,
         storage_access_tracker: Default::default(),
         builtin_counters: cairo_primitive_counter_map([
@@ -232,8 +233,8 @@ fn create_transaction_resources() -> TransactionResources {
     TransactionResources {
         starknet_resources: StarknetResources::default(),
         computation: ComputationResources {
-            tx_extended_vm_resources: create_execution_resources(2000, 5, 20, 10),
-            os_vm_resources: create_execution_resources(500, 1, 5, 2).vm_resources,
+            tx_extended_vm_resources: create_execution_resources(2000, 5, 20, 10, 7),
+            os_vm_resources: create_execution_resources(500, 1, 5, 2, 0).vm_resources,
             n_reverted_steps: 0,
             sierra_gas: GasAmount(1000),
             reverted_sierra_gas: GasAmount(0),
