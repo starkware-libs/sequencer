@@ -251,6 +251,31 @@ pub(crate) fn open_env(config: &DbConfig) -> DbResult<(DbReader, DbWriter)> {
     Ok((DbReader { env: env.clone() }, DbWriter { env }))
 }
 
+/// Opens an MDBX environment in read-only mode without exclusive lock.
+/// Used by the storage analyzer to inspect a populated database without modifying it.
+#[cfg(feature = "storage_analyzer")]
+pub(crate) fn open_env_read_only(config: &DbConfig) -> DbResult<DbReader> {
+    let db_file_path = config.path().join("mdbx.dat");
+    if !db_file_path.exists() {
+        return Err(DbError::FileDoesNotExist(db_file_path));
+    }
+
+    let env = Arc::new(Environment::open_with_options(
+        config.path(),
+        DatabaseOptions {
+            max_tables: Some(MAX_DBS),
+            max_readers: Some(config.max_readers),
+            page_size: Some(get_page_size(page_size::get())),
+            no_rdahead: true,
+            liforeclaim: true,
+            exclusive: false,
+            mode: Mode::ReadOnly,
+            ..Default::default()
+        },
+    )?);
+    Ok(DbReader { env })
+}
+
 // Size in bytes.
 const MDBX_MIN_PAGESIZE: usize = 256;
 const MDBX_MAX_PAGESIZE: usize = 65536; // 64KB
@@ -392,6 +417,15 @@ pub(crate) struct TableIdentifier<K: Key + Debug, V: ValueSerde + Debug, T: Tabl
     _key_type: PhantomData<K>,
     _value_type: PhantomData<V>,
     _table_type: PhantomData<T>,
+}
+
+#[cfg(feature = "storage_analyzer")]
+impl<K: Key + Debug, V: ValueSerde + Debug, T: TableType> TableIdentifier<K, V, T> {
+    /// Creates a table identifier from a name, without creating the table in the database.
+    /// Used for read-only access to an existing database.
+    pub(crate) fn from_name(name: &'static str) -> Self {
+        Self { name, _key_type: PhantomData, _value_type: PhantomData, _table_type: PhantomData }
+    }
 }
 
 pub(crate) struct TableHandle<'env, K: Key + Debug, V: ValueSerde + Debug, T: TableType> {

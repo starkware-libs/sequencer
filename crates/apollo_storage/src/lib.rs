@@ -118,6 +118,9 @@ pub mod test_utils;
 #[cfg(any(feature = "testing", test))]
 pub mod storage_reader_server_test_utils;
 
+#[cfg(feature = "storage_analyzer")]
+pub mod storage_analysis;
+
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::fs;
@@ -188,6 +191,66 @@ use crate::version::{VersionStorageReader, VersionStorageWriter};
 pub const STORAGE_VERSION_STATE: Version = Version { major: 6, minor: 0 };
 /// The current version of the storage blocks code.
 pub const STORAGE_VERSION_BLOCKS: Version = Version { major: 6, minor: 0 };
+
+/// Opens a storage in read-only mode for analysis. Does not acquire exclusive lock, does not
+/// write version info, and does not return a writer.
+#[cfg(feature = "storage_analyzer")]
+pub fn open_storage_read_only(storage_config: StorageConfig) -> StorageResult<StorageReader> {
+    use db::open_env_read_only;
+
+    let db_reader = open_env_read_only(&storage_config.db_config)?;
+
+    // Construct table identifiers without write transactions. The tables already exist in a
+    // populated database — we just need the typed name wrappers.
+    let tables = Arc::new(Tables {
+        block_hash_to_number: TableIdentifier::from_name("block_hash_to_number"),
+        block_signatures: TableIdentifier::from_name("block_signatures"),
+        casms: TableIdentifier::from_name("casms"),
+        contract_storage: TableIdentifier::from_name("contract_storage"),
+        declared_classes: TableIdentifier::from_name("declared_classes"),
+        declared_classes_block: TableIdentifier::from_name("declared_classes_block"),
+        deprecated_declared_classes: TableIdentifier::from_name("deprecated_declared_classes"),
+        deprecated_declared_classes_block: TableIdentifier::from_name(
+            "deprecated_declared_classes_block",
+        ),
+        deployed_contracts: TableIdentifier::from_name("deployed_contracts"),
+        events: TableIdentifier::from_name("events"),
+        headers: TableIdentifier::from_name("headers"),
+        last_voted_marker: TableIdentifier::from_name("last_voted_marker"),
+        markers: TableIdentifier::from_name("markers"),
+        nonces: TableIdentifier::from_name("nonces"),
+        partial_block_hashes_components: TableIdentifier::from_name(
+            "partial_block_hashes_components",
+        ),
+        file_offsets: TableIdentifier::from_name("file_offsets"),
+        state_diffs: TableIdentifier::from_name("state_diffs"),
+        transaction_hash_to_idx: TableIdentifier::from_name("transaction_hash_to_idx"),
+        transaction_metadata: TableIdentifier::from_name("transaction_metadata"),
+        block_hashes: TableIdentifier::from_name("block_hashes"),
+        global_root: TableIdentifier::from_name("global_root"),
+        starknet_version: TableIdentifier::from_name("starknet_version"),
+        storage_version: TableIdentifier::from_name("storage_version"),
+        compiled_class_hash: TableIdentifier::from_name("compiled_class_hash"),
+        stateless_compiled_class_hash_v2: TableIdentifier::from_name(
+            "stateless_compiled_class_hash_v2",
+        ),
+    });
+
+    let (_, file_readers) = open_storage_files(
+        &storage_config.db_config,
+        storage_config.mmap_file_config,
+        db_reader.clone(),
+        &tables.file_offsets,
+    )?;
+
+    Ok(StorageReader {
+        db_reader,
+        tables,
+        scope: storage_config.scope,
+        file_readers,
+        open_readers_metric: None,
+    })
+}
 
 /// Opens a storage and returns a [`StorageReader`] and a [`StorageWriter`].
 pub fn open_storage(
