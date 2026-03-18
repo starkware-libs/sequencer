@@ -190,7 +190,7 @@ pub struct RevertBlockInput {
 
 /// Input for executing a view (read-only) entry point on a contract against the latest committed
 /// batcher state.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CallContractInput {
     pub contract_address: ContractAddress,
     pub entry_point: String,
@@ -198,7 +198,7 @@ pub struct CallContractInput {
 }
 
 /// Output of a successful view entry point call.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CallContractOutput {
     pub retdata: Vec<Felt>,
 }
