@@ -21,8 +21,11 @@ pub(crate) fn get_general_pod_state_not_ready() -> Alert {
         // Triggers when at least one container is unhealthy or not passing readiness probes.
         format!("kube_pod_container_status_ready{METRIC_LABEL_FILTER}"),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
-        PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
+        // Spot evictions in GKE have a 30 second notification window, in which the pod state is
+        // marked as not ready. To avoid alerting on these, we require the not-ready state to last
+        // longer (e.g., 60 seconds), and sample at a rather rapid rate (every 10 seconds).
+        "60s",
+        10,
         AlertSeverity::Regular,
         ObserverApplicability::NotApplicable,
     )
