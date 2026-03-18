@@ -48,7 +48,7 @@ pub fn parse_event(log: Log, block_timestamp: BlockTimestamp) -> EthereumBaseLay
                 cancellation_request_timestamp: block_timestamp,
             })
         }
-        _ => Err(EthereumBaseLayerError::UnhandledL1Event(log)),
+        _ => Err(EthereumBaseLayerError::UnhandledL1Event(Box::new(log))),
     }
 }
 
