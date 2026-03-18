@@ -11,7 +11,6 @@ use tokio::sync::Semaphore;
 use tracing::warn;
 
 use crate::proving::virtual_snos_prover::{ProveTransactionResult, RpcVirtualSnosProver};
-use crate::server::config::ServiceConfig;
 use crate::server::errors::service_busy;
 use crate::server::rpc_api::ProvingRpcServer;
 
@@ -29,19 +28,13 @@ pub struct ProvingRpcServerImpl {
 }
 
 impl ProvingRpcServerImpl {
-    /// Creates a new ProvingRpcServerImpl from a prover.
-    pub(crate) fn new(prover: RpcVirtualSnosProver, max_concurrent_requests: usize) -> Self {
-        Self {
-            prover,
-            concurrency_semaphore: Arc::new(Semaphore::new(max_concurrent_requests)),
-            max_concurrent_requests,
-        }
-    }
-
-    /// Creates a new ProvingRpcServerImpl from configuration.
-    pub fn from_config(config: &ServiceConfig) -> Self {
-        let prover = RpcVirtualSnosProver::new(&config.prover_config);
-        Self::new(prover, config.max_concurrent_requests)
+    /// Creates a new ProvingRpcServerImpl from a prover and a shared semaphore.
+    pub fn new(
+        prover: RpcVirtualSnosProver,
+        max_concurrent_requests: usize,
+        semaphore: Arc<Semaphore>,
+    ) -> Self {
+        Self { prover, concurrency_semaphore: semaphore, max_concurrent_requests }
     }
 }
 

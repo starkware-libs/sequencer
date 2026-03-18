@@ -10,13 +10,16 @@ fn main() {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     use std::net::SocketAddr;
+    use std::sync::Arc;
 
     use clap::Parser;
+    use starknet_transaction_prover::proving::virtual_snos_prover::RpcVirtualSnosProver;
     use starknet_transaction_prover::server::config::{CliArgs, ServiceConfig, TransportMode};
     use starknet_transaction_prover::server::cors::{build_cors_layer, cors_mode};
     use starknet_transaction_prover::server::rpc_api::ProvingRpcServer;
     use starknet_transaction_prover::server::rpc_impl::ProvingRpcServerImpl;
     use starknet_transaction_prover::server::start_server;
+    use tokio::sync::Semaphore;
     use tracing::info;
     use tracing_subscriber::prelude::*;
     use tracing_subscriber::{fmt, EnvFilter};
@@ -33,8 +36,16 @@ async fn main() -> anyhow::Result<()> {
     let args = CliArgs::parse();
     let config = ServiceConfig::from_args(args)?;
 
-    // Build and start the JSON-RPC server.
-    let rpc_impl = ProvingRpcServerImpl::from_config(&config);
+    // Build shared prover and concurrency semaphore (shared between JSON-RPC and binary
+    // endpoints).
+    let prover = RpcVirtualSnosProver::new(&config.prover_config);
+    let semaphore = Arc::new(Semaphore::new(config.max_concurrent_requests));
+
+    let rpc_impl = ProvingRpcServerImpl::new(
+        prover.clone(),
+        config.max_concurrent_requests,
+        semaphore.clone(),
+    );
     let addr = SocketAddr::new(config.ip, config.port);
     let cors_layer = build_cors_layer(&config.cors_allow_origin)?;
 
@@ -49,6 +60,9 @@ async fn main() -> anyhow::Result<()> {
         rpc_impl.into_rpc().into(),
         config.max_connections,
         cors_layer,
+        prover,
+        config.max_concurrent_requests,
+        semaphore,
     )
     .await?;
 

@@ -24,6 +24,8 @@ cairo-vm.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
 futures.workspace = true
 http.workspace = true
+http-body-util.workspace = true
+hyper.workspace = true
 indexmap.workspace = true
 jsonrpsee = { workspace = true, features = ["macros", "server"] }
 privacy-prove = { workspace = true, optional = true }

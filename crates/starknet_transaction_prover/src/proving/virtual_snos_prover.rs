@@ -42,7 +42,7 @@ pub struct ProveTransactionResult {
 /// The prover is generic over the runner, allowing different implementations
 /// (RPC-based, mock, etc.) to be used interchangeably.
 #[derive(Clone)]
-pub(crate) struct VirtualSnosProver<R: VirtualSnosRunner> {
+pub struct VirtualSnosProver<R: VirtualSnosRunner> {
     /// Runner for executing the virtual OS.
     runner: R,
     /// Whether to validate that fee-related fields (resource bounds, tip) are zero.
@@ -53,7 +53,7 @@ pub(crate) struct VirtualSnosProver<R: VirtualSnosRunner> {
 }
 
 /// Type alias for the RPC-based virtual SNOS prover.
-pub(crate) type RpcVirtualSnosProver = VirtualSnosProver<RpcRunnerFactory>;
+pub type RpcVirtualSnosProver = VirtualSnosProver<RpcRunnerFactory>;
 
 impl VirtualSnosProver<RpcRunnerFactory> {
     /// Creates a new VirtualSnosProver from configuration.

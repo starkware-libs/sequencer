@@ -23,6 +23,8 @@ use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
 use tracing::warn;
 
+use super::binary_proof::BinaryProofLayer;
+
 /// Maximum time allowed for a TLS handshake before the connection is dropped.
 const TLS_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -36,13 +38,16 @@ pub async fn start_tls_server(
     methods: impl Into<Methods>,
     max_connections: u32,
     cors_layer: Option<CorsLayer>,
+    binary_proof_layer: BinaryProofLayer,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     let tls_acceptor = load_tls_acceptor(cert_path, key_path)?;
 
     let server_config = ServerConfig::builder().max_connections(max_connections).build();
     let svc_builder = ServerBuilder::default()
         .set_config(server_config)
-        .set_http_middleware(ServiceBuilder::new().option_layer(cors_layer))
+        .set_http_middleware(
+            ServiceBuilder::new().layer(binary_proof_layer).option_layer(cors_layer),
+        )
         .to_service_builder();
 
     let listener = TcpListener::bind(addr)

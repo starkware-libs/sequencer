@@ -338,7 +338,7 @@ where
 /// allowing different runner implementations (RPC-based, mock, etc.) to be used
 /// interchangeably.
 #[async_trait]
-pub(crate) trait VirtualSnosRunner: Clone + Send + Sync {
+pub trait VirtualSnosRunner: Clone + Send + Sync {
     /// Runs the Starknet virtual OS with the given transactions on top of the specified block.
     async fn run_virtual_os(
         &self,
@@ -379,7 +379,7 @@ pub(crate) type RpcRunner = Runner<
 /// let output = runner.run_virtual_os(txs).await?;
 /// ```
 #[derive(Clone)]
-pub(crate) struct RpcRunnerFactory {
+pub struct RpcRunnerFactory {
     /// URL of the RPC node.
     node_url: Url,
     chain_info: ChainInfo,

@@ -41,8 +41,11 @@ static SPEC: LazyLock<Value> = LazyLock::new(|| read_json_file("proving_api_open
 fn rpc_module() -> RpcModule<ProvingRpcServerImpl> {
     let config =
         ProverConfig { rpc_node_url: DUMMY_RPC_NODE_URL.to_string(), ..Default::default() };
-    let rpc_impl =
-        ProvingRpcServerImpl::new(RpcVirtualSnosProver::new(&config), TEST_MAX_CONCURRENT_REQUESTS);
+    let rpc_impl = ProvingRpcServerImpl::new(
+        RpcVirtualSnosProver::new(&config),
+        TEST_MAX_CONCURRENT_REQUESTS,
+        Arc::new(tokio::sync::Semaphore::new(TEST_MAX_CONCURRENT_REQUESTS)),
+    );
     rpc_impl.into_rpc()
 }
 
