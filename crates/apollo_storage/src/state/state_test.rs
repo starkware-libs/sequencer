@@ -14,8 +14,8 @@ use starknet_types_core::felt::Felt;
 use crate::class::{ClassStorageReader, ClassStorageWriter};
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::state::{StateStorageReader, StateStorageWriter};
-use crate::test_utils::get_test_storage;
-use crate::StorageWriter;
+use crate::test_utils::{get_test_config, get_test_storage};
+use crate::{open_storage, StorageError, StorageScope, StorageWriter};
 
 #[test]
 fn get_class_definition_at() {
@@ -915,4 +915,15 @@ fn declare_revert_declare_without_classes_scenario() {
         state_reader.get_deprecated_class_definition_block_number(&deprecated_class_hash).unwrap(),
         Some(BlockNumber(0))
     );
+}
+
+#[test]
+fn flat_state_incompatible_with_full_archive() {
+    let (mut config, _temp_dir) = get_test_config(Some(StorageScope::FullArchive));
+    config.flat_state = true;
+    match open_storage(config) {
+        Err(StorageError::FlatStateIncompatibleWithFullArchive) => {}
+        Err(other) => panic!("Expected FlatStateIncompatibleWithFullArchive, got: {other}"),
+        Ok(_) => panic!("Expected error, got Ok"),
+    }
 }

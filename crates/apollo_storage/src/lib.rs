@@ -231,6 +231,10 @@ fn open_storage_internal(
         info!("Created storage directory: {}", storage_config.db_config.path_prefix.display());
     }
 
+    if storage_config.flat_state && storage_config.scope == StorageScope::FullArchive {
+        return Err(StorageError::FlatStateIncompatibleWithFullArchive);
+    }
+
     let (db_reader, mut db_writer) = open_env(&storage_config.db_config)?;
     let tables = Arc::new(Tables {
         block_hash_to_number: db_writer.create_simple_table("block_hash_to_number")?,
@@ -286,10 +290,17 @@ fn open_storage_internal(
         db_reader,
         tables: tables.clone(),
         scope: storage_config.scope,
+        flat_state: storage_config.flat_state,
         file_readers,
         open_readers_metric,
     };
-    let writer = StorageWriter { db_writer, tables, scope: storage_config.scope, file_writers };
+    let writer = StorageWriter {
+        db_writer,
+        tables,
+        scope: storage_config.scope,
+        flat_state: storage_config.flat_state,
+        file_writers,
+    };
 
     let writer = set_version_if_needed(reader.clone(), writer)?;
     verify_storage_version(reader.clone())?;
@@ -495,6 +506,7 @@ pub struct StorageReader {
     file_readers: FileHandlers<RO>,
     tables: Arc<Tables>,
     scope: StorageScope,
+    flat_state: bool,
     open_readers_metric: Option<&'static MetricGauge>,
 }
 
@@ -507,6 +519,7 @@ impl StorageReader {
             self.file_readers.clone(),
             self.tables.clone(),
             self.scope,
+            self.flat_state,
             MetricsHandler::new(self.open_readers_metric),
         ))
     }
@@ -539,6 +552,7 @@ pub struct StorageWriter {
     file_writers: FileHandlers<RW>,
     tables: Arc<Tables>,
     scope: StorageScope,
+    flat_state: bool,
 }
 
 impl StorageWriter {
@@ -550,6 +564,7 @@ impl StorageWriter {
             self.file_writers.clone(),
             self.tables.clone(),
             self.scope,
+            self.flat_state,
             MetricsHandler::new(None),
         ))
     }
@@ -586,6 +601,9 @@ pub struct StorageTxn<'env, Mode: TransactionKind> {
     file_handlers: FileHandlers<Mode>,
     tables: Arc<Tables>,
     scope: StorageScope,
+    // TODO(dan): will be read in a follow-up PR for flat state reads.
+    #[allow(dead_code)]
+    flat_state: bool,
     // Do not remove this. It is used to automatically update metrics on create/drop.
     _metric_updater: MetricsHandler,
 }
@@ -605,9 +623,10 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         file_handlers: FileHandlers<Mode>,
         tables: Arc<Tables>,
         scope: StorageScope,
+        flat_state: bool,
         metric_updater: MetricsHandler,
     ) -> Self {
-        Self { txn, file_handlers, tables, scope, _metric_updater: metric_updater }
+        Self { txn, file_handlers, tables, scope, flat_state, _metric_updater: metric_updater }
     }
 
     pub(crate) fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
@@ -790,6 +809,8 @@ pub enum StorageError {
     BlockSignatureForNonExistingBlock { block_number: BlockNumber, block_signature: BlockSignature },
     #[error("Object {object_name} at height {height} is missing.")]
     MissingObject { object_name: String, height: BlockNumber },
+    #[error("Cannot enable flat_state with FullArchive scope.")]
+    FlatStateIncompatibleWithFullArchive,
 }
 
 /// A type alias that maps to std::result::Result<T, StorageError>.
@@ -808,16 +829,25 @@ pub struct StorageConfig {
     #[validate(nested)]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
+    pub flat_state: bool,
 }
 
 impl SerializeConfig for StorageConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dumped_config = BTreeMap::from_iter([ser_param(
-            "scope",
-            &self.scope,
-            "The categories of data saved in storage.",
-            ParamPrivacyInput::Public,
-        )]);
+        let mut dumped_config = BTreeMap::from_iter([
+            ser_param(
+                "scope",
+                &self.scope,
+                "The categories of data saved in storage.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "flat_state",
+                &self.flat_state,
+                "Enable flat state tables for O(1) latest-state lookups.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
         dumped_config
             .extend(prepend_sub_config_name(self.mmap_file_config.dump(), "mmap_file_config"));
         dumped_config.extend(prepend_sub_config_name(self.db_config.dump(), "db_config"));

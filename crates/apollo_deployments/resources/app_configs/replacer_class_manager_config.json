@@ -12,6 +12,7 @@
   "class_manager_config.static_config.class_storage_config.class_hash_storage_config.mmap_file_config.growth_step": 2147483648,
   "class_manager_config.static_config.class_storage_config.class_hash_storage_config.mmap_file_config.max_object_size": 1073741824,
   "class_manager_config.static_config.class_storage_config.class_hash_storage_config.mmap_file_config.max_size": 1099511627776,
+  "class_manager_config.static_config.class_storage_config.class_hash_storage_config.flat_state": false,
   "class_manager_config.static_config.class_storage_config.class_hash_storage_config.scope": "StateOnly",
   "class_manager_config.static_config.class_storage_config.persistent_root": "/data/class_manager/classes",
   "class_manager_config.static_config.class_storage_config.storage_reader_server_static_config.ip": "0.0.0.0",

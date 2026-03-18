@@ -72,6 +72,7 @@ impl Default for FsClassStorageConfig {
                     max_object_size: 1 << 10, // 1KB; a class hash is 32B.
                 },
                 scope: StorageScope::StateOnly,
+                flat_state: false,
             },
             storage_reader_server_static_config: StorageReaderServerStaticConfig::default(),
         }
