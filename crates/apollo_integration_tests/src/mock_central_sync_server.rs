@@ -4,7 +4,12 @@ use std::sync::{Arc, Mutex};
 
 use apollo_batcher::pre_confirmed_cende_client::RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH;
 use apollo_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
-use apollo_starknet_client::reader::objects::block::{BlockPostV0_13_1, BlockStatus};
+use apollo_starknet_client::reader::objects::block::{
+    BlockPostV0_13_1,
+    BlockSignatureData,
+    BlockSignatureMessage,
+    BlockStatus,
+};
 use apollo_starknet_client::reader::objects::state::{
     DeclaredClassHashEntry,
     DeployedContract,
@@ -65,6 +70,7 @@ pub fn spawn_mock_central_sync_server(port: u16) -> MockCentralSyncServer {
             get(get_compiled_class_handler),
         )
         .route("/feeder_gateway/get_latest_block", get(get_latest_block_handler))
+        .route("/feeder_gateway/get_signature", get(get_signature_handler))
         .with_state(block_store.clone());
 
     let handle = tokio::spawn(async move {
@@ -118,6 +124,25 @@ async fn get_latest_block_handler(
     }))
 }
 
+async fn get_signature_handler(
+    State(store): State<BlockStore>,
+    Query(params): Query<BlockNumberQuery>,
+) -> Result<Json<BlockSignatureData>, StatusCode> {
+    let store = store.lock().unwrap();
+    if !store.contains_key(&params.block_number) {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    let block_hash = BlockHash(Felt::from(params.block_number));
+    Ok(Json(BlockSignatureData::Deprecated {
+        block_number: BlockNumber(params.block_number),
+        signature: [Felt::ONE, Felt::ONE],
+        signature_input: BlockSignatureMessage {
+            block_hash,
+            state_diff_commitment: GlobalRoot::default(),
+        },
+    }))
+}
+
 async fn get_block_handler(
     State(store): State<BlockStore>,
     Query(params): Query<BlockNumberQuery>,
@@ -167,12 +192,29 @@ async fn get_compiled_class_handler(
     Query(params): Query<ClassHashQuery>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     let store = store.lock().unwrap();
-    let class_hash_lower = params.class_hash.to_lowercase();
+    let sierra_class_hash_lower = params.class_hash.to_lowercase();
     for blob in store.values() {
+        // The compiled_classes entries are keyed by compiled class hash, but the query uses the
+        // Sierra class hash. Build a lookup from the state diff's class_hash_to_compiled_class_hash
+        // to find the compiled class hash for this Sierra class hash.
+        let compiled_class_hash_lower = blob["state_diff"]["class_hash_to_compiled_class_hash"]
+            .as_object()
+            .and_then(|map| {
+                map.iter()
+                    .find(|(sierra_hash, _)| sierra_hash.to_lowercase() == sierra_class_hash_lower)
+                    .map(|(_, compiled_hash)| {
+                        compiled_hash.as_str().unwrap_or("").to_lowercase()
+                    })
+            });
+
+        let Some(compiled_class_hash_lower) = compiled_class_hash_lower else {
+            continue;
+        };
+
         if let Some(entries) = blob["compiled_classes"].as_array() {
             for entry in entries {
                 let entry_hash = entry[0].as_str().unwrap_or("").to_lowercase();
-                if entry_hash == class_hash_lower {
+                if entry_hash == compiled_class_hash_lower {
                     let class_value = if entry[1]["compiled_class"].is_object() {
                         entry[1]["compiled_class"].clone()
                     } else {
