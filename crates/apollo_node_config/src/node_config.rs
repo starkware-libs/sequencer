@@ -169,6 +169,20 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "mempool_config.static_config.validate_resource_bounds",
             ]),
         ),
+        (
+            ser_pointer_target_param(
+                "max_cpu_time",
+                &3600u64,
+                "Limitation of compilation cpu time (seconds).",
+            ),
+            set_pointing_param_paths(&[
+                "sierra_compiler_config.max_cpu_time",
+                "batcher_config.static_config.contract_class_manager_config.native_compiler_config.\
+                 max_cpu_time",
+                "gateway_config.static_config.contract_class_manager_config.native_compiler_config.\
+                 max_cpu_time",
+            ]),
+        ),
     ];
     let mut common_execution_config = generate_optional_struct_pointer::<VersionedConstantsOverrides>(
         "versioned_constants_overrides".to_owned(),

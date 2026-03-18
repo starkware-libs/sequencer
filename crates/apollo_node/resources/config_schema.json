@@ -256,8 +256,8 @@
   },
   "batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
     "description": "Limitation of compilation cpu time (seconds).",
-    "privacy": "Public",
-    "value": 600
+    "pointer_target": "max_cpu_time",
+    "privacy": "Public"
   },
   "batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_file_size": {
     "description": "Limitation of compiled Cairo Native file size (bytes).",
@@ -2476,8 +2476,8 @@
   },
   "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
     "description": "Limitation of compilation cpu time (seconds).",
-    "privacy": "Public",
-    "value": 600
+    "pointer_target": "max_cpu_time",
+    "privacy": "Public"
   },
   "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_file_size": {
     "description": "Limitation of compiled Cairo Native file size (bytes).",
@@ -2799,6 +2799,11 @@
     "privacy": "Public",
     "value": 3600
   },
+  "max_cpu_time": {
+    "description": "Limitation of compilation cpu time (seconds).",
+    "privacy": "TemporaryValue",
+    "value": 3600
+  },
   "mempool_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -3021,8 +3026,8 @@
   },
   "sierra_compiler_config.max_cpu_time": {
     "description": "Limitation of compilation cpu time (seconds).",
-    "privacy": "Public",
-    "value": 60
+    "pointer_target": "max_cpu_time",
+    "privacy": "Public"
   },
   "sierra_compiler_config.max_memory_usage": {
     "description": "Limitation of compilation process's virtual memory (bytes).",
