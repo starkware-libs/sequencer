@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773841860638,
+  "lastUpdate": 1773842396587,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -713,6 +713,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1290.76016696,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "729e5157674208a50c4498f166ef4743982cb5c8",
+          "message": "apollo_propeller: e2e tests (#12837)",
+          "timestamp": "2026-03-18T13:31:58Z",
+          "tree_id": "48692c4f6200b4735ae0a1767afcbb385decccd4",
+          "url": "https://github.com/starkware-libs/sequencer/commit/729e5157674208a50c4498f166ef4743982cb5c8"
+        },
+        "date": 1773842396220,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 895.3657038099999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1462.10003248,
             "unit": "ms"
           }
         ]
