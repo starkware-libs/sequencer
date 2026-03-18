@@ -33,7 +33,7 @@ async fn main() {
         N_HYBRID_SEQUENCERS,
         None,
         TestIdentifier::RestartFlowIntegrationTest,
-        SyncMode::P2P,
+        SyncMode::MockCentralSync,
     )
     .await;
 
@@ -102,8 +102,9 @@ async fn main() {
         )
         .await;
 
+    let central_sync_nodes = std::collections::HashSet::from([RESTART_NODE]);
     integration_test_manager
-        .verify_block_hash_across_all_running_nodes(None, &std::collections::HashSet::new())
+        .verify_block_hash_across_all_running_nodes(None, &central_sync_nodes)
         .await;
 
     integration_test_manager.shutdown_nodes(node_indices);
