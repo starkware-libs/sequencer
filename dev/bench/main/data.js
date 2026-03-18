@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773750375500,
+  "lastUpdate": 1773841860638,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -679,6 +679,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1317.88425503,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "dcea4836335c357e885a010e9ac6fbd4f063539c",
+          "message": "starknet_patricia: use OriginalSkeletonTree not mutable references (#12454)",
+          "timestamp": "2026-03-18T13:27:50Z",
+          "tree_id": "16734ed0e9188a4ea77f2b996d332e20f5dac1e2",
+          "url": "https://github.com/starkware-libs/sequencer/commit/dcea4836335c357e885a010e9ac6fbd4f063539c"
+        },
+        "date": 1773841860251,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 851.5984188799999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1290.76016696,
             "unit": "ms"
           }
         ]
