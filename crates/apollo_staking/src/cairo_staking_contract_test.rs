@@ -1,6 +1,10 @@
 use std::sync::{Arc, Mutex};
 
+use apollo_batcher_types::batcher_types::CallContractOutput;
+use apollo_batcher_types::communication::{BatcherClientError, MockBatcherClient};
+use apollo_batcher_types::errors::BatcherError;
 use blockifier::context::{BlockContext, ChainInfo};
+use blockifier::execution::entry_point::call_view_entry_point;
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::state_api::StateReader;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
@@ -15,17 +19,14 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::{fixture, rstest};
-use starknet_api::block::{BlockInfo, BlockNumber};
-use starknet_api::core::{ContractAddress, PatriciaKey};
+use starknet_api::block::BlockNumber;
+use starknet_api::core::ContractAddress;
 use starknet_api::invoke_tx_args;
 use starknet_api::staking::StakingWeight;
+use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 
-use crate::cairo_staking_contract::{
-    CairoStakingContract,
-    ExtendedStateReader,
-    StateReaderFactory,
-};
+use crate::cairo_staking_contract::CairoStakingContract;
 use crate::committee_provider::Staker;
 use crate::contract_types::ContractStaker;
 use crate::staking_contract::StakingContract;
@@ -39,42 +40,23 @@ const ACCOUNT_CONTRACT: FeatureContract =
     FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
 const STAKER_1: ContractStaker = ContractStaker {
-    contract_address: ContractAddress(PatriciaKey::from_hex_unchecked("0x1")),
+    contract_address: ContractAddress(starknet_api::core::PatriciaKey::from_hex_unchecked("0x1")),
     staking_power: StakingWeight(1000),
     public_key: Some(Felt::ONE),
 };
 const STAKER_2: ContractStaker = ContractStaker {
-    contract_address: ContractAddress(PatriciaKey::from_hex_unchecked("0x2")),
+    contract_address: ContractAddress(starknet_api::core::PatriciaKey::from_hex_unchecked("0x2")),
     staking_power: StakingWeight(2000),
     public_key: Some(Felt::TWO),
 };
 const STAKER_3: ContractStaker = ContractStaker {
-    contract_address: ContractAddress(PatriciaKey::from_hex_unchecked("0x3")),
+    contract_address: ContractAddress(starknet_api::core::PatriciaKey::from_hex_unchecked("0x3")),
     staking_power: StakingWeight(3000),
     public_key: None,
 };
 
 const EPOCH_1: Epoch = Epoch { epoch_id: 1, start_block: BlockNumber(1), epoch_length: 100 };
 const EPOCH_2: Epoch = Epoch { epoch_id: 2, start_block: BlockNumber(101), epoch_length: 100 };
-
-#[derive(Clone)]
-struct TestStateReaderFactory {
-    base_state: Arc<Mutex<State>>,
-}
-
-impl StateReaderFactory for TestStateReaderFactory {
-    fn create(&self) -> Box<dyn ExtendedStateReader> {
-        Box::new(self.base_state.lock().unwrap().clone())
-    }
-}
-
-impl ExtendedStateReader for State {
-    fn get_block_info(
-        &self,
-    ) -> Result<BlockInfo, crate::cairo_staking_contract::ExtendedStateReaderError> {
-        Ok(BlockInfo::create_for_testing())
-    }
-}
 
 #[fixture]
 fn state() -> Arc<Mutex<State>> {
@@ -87,11 +69,30 @@ fn state() -> Arc<Mutex<State>> {
 
     Arc::new(Mutex::new(state))
 }
+
+/// Creates a `CairoStakingContract` backed by a `MockBatcherClient`.
+/// `call_contract` calls are handled by executing the entry point directly against `state`.
 fn create_contract(state: Arc<Mutex<State>>) -> CairoStakingContract {
-    let chain_info = ChainInfo::create_for_testing();
     let contract_address = STAKING_CONTRACT.get_instance_address(0);
-    let factory = TestStateReaderFactory { base_state: state.clone() };
-    CairoStakingContract::new(chain_info, contract_address, Arc::new(factory))
+
+    let mut mock_batcher = MockBatcherClient::new();
+    mock_batcher.expect_call_contract().returning(move |input| {
+        call_view_entry_point(
+            state.lock().unwrap().clone(),
+            Arc::new(BlockContext::create_for_testing()),
+            input.contract_address,
+            &input.entry_point,
+            Calldata::from(input.calldata),
+        )
+        .map(|call_info| CallContractOutput { retdata: call_info.execution.retdata.0 })
+        .map_err(|err| {
+            BatcherClientError::BatcherError(BatcherError::ContractCallFailed {
+                reason: err.to_string(),
+            })
+        })
+    });
+
+    CairoStakingContract::new(contract_address, Arc::new(mock_batcher))
 }
 
 fn execute_call(state: &mut State, function_name: &str, calldata: &[Felt]) {

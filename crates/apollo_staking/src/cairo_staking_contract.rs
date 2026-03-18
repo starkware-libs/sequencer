@@ -1,19 +1,10 @@
-use std::sync::Arc;
-
+use apollo_batcher_types::batcher_types::{CallContractInput, CallContractOutput};
+use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_cairo_utils::CairoOption;
 use async_trait::async_trait;
-use blockifier::blockifier_versioned_constants::VersionedConstants;
-use blockifier::bouncer::BouncerConfig;
-use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::execution::call_info::Retdata;
-use blockifier::execution::entry_point::call_view_entry_point;
-use blockifier::state::state_api::StateReader;
-use starknet_api::block::BlockInfo;
 use starknet_api::core::ContractAddress;
-use starknet_api::transaction::fields::Calldata;
-use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
-use thiserror::Error;
 use tracing::info;
 
 use crate::committee_provider::Staker;
@@ -30,56 +21,32 @@ use crate::staking_manager::Epoch;
 #[path = "cairo_staking_contract_test.rs"]
 mod cairo_staking_contract_test;
 
-#[derive(Debug, Error)]
-pub enum ExtendedStateReaderError {}
-
-/// Trait for extending the StateReader with additional functionality.
-// TODO(Dafna): This is very similar to the existing GatewayFixedBlockStateReader trait. Consider
-// merging them.
-pub trait ExtendedStateReader: StateReader {
-    fn get_block_info(&self) -> Result<BlockInfo, ExtendedStateReaderError>;
-}
-
-/// Factory for producing fresh state reader bounded to the latest block.
-pub trait StateReaderFactory: Send + Sync {
-    fn create(&self) -> Box<dyn ExtendedStateReader>;
-}
-
-/// Staking contract implementation operating against a deployed Cairo staking contract.
+/// Staking contract implementation operating against a deployed Cairo staking contract via the
+/// batcher's call_contract RPC.
 pub struct CairoStakingContract {
-    chain_info: ChainInfo,
     contract_address: ContractAddress,
-    state_reader_factory: Arc<dyn StateReaderFactory>,
+    batcher_client: SharedBatcherClient,
 }
 
 impl CairoStakingContract {
-    pub fn new(
-        chain_info: ChainInfo,
-        contract_address: ContractAddress,
-        state_reader_factory: Arc<dyn StateReaderFactory>,
-    ) -> Self {
-        Self { chain_info, contract_address, state_reader_factory }
+    pub fn new(contract_address: ContractAddress, batcher_client: SharedBatcherClient) -> Self {
+        Self { contract_address, batcher_client }
     }
 
-    fn call_view(&self, entry_point: &str, calldata: Calldata) -> StakingContractResult<Retdata> {
-        let state_reader = self.state_reader_factory.create();
-
-        let block_info = state_reader.get_block_info()?;
-        let block_context = BlockContext::new(
-            block_info,
-            self.chain_info.clone(),
-            VersionedConstants::latest_constants().clone(),
-            BouncerConfig::max(),
-        );
-
-        let call_info = call_view_entry_point(
-            state_reader,
-            Arc::new(block_context),
-            self.contract_address,
-            entry_point,
-            calldata,
-        )?;
-        Ok(call_info.execution.retdata)
+    async fn call_view(
+        &self,
+        entry_point: &str,
+        calldata: Vec<Felt>,
+    ) -> StakingContractResult<Retdata> {
+        let output: CallContractOutput = self
+            .batcher_client
+            .call_contract(CallContractInput {
+                contract_address: self.contract_address,
+                entry_point: entry_point.to_string(),
+                calldata,
+            })
+            .await?;
+        Ok(Retdata(output.retdata))
     }
 }
 
@@ -87,8 +54,7 @@ impl CairoStakingContract {
 impl StakingContract for CairoStakingContract {
     async fn get_stakers(&self, epoch: u64) -> StakingContractResult<Vec<Staker>> {
         info!("Calling staking contract {GET_STAKERS_ENTRY_POINT} for epoch={epoch}.");
-        let calldata = Calldata::from(vec![Felt::from(epoch)]);
-        let retdata = self.call_view(GET_STAKERS_ENTRY_POINT, calldata)?;
+        let retdata = self.call_view(GET_STAKERS_ENTRY_POINT, vec![Felt::from(epoch)]).await?;
 
         // Filter out stakers that don't have a public key.
         let contract_stakers = ContractStaker::from_retdata_many(retdata)?;
@@ -112,7 +78,7 @@ impl StakingContract for CairoStakingContract {
 
     async fn get_current_epoch(&self) -> StakingContractResult<Epoch> {
         info!("Calling staking contract {GET_CURRENT_EPOCH_DATA_ENTRY_POINT}.");
-        let retdata = self.call_view(GET_CURRENT_EPOCH_DATA_ENTRY_POINT, Calldata::from(vec![]))?;
+        let retdata = self.call_view(GET_CURRENT_EPOCH_DATA_ENTRY_POINT, vec![]).await?;
         let epoch = Epoch::try_from(retdata)?;
         info!("Retrieved current epoch from contract: {epoch:?}.",);
         Ok(epoch)
@@ -120,8 +86,7 @@ impl StakingContract for CairoStakingContract {
 
     async fn get_previous_epoch(&self) -> StakingContractResult<Option<Epoch>> {
         info!("Calling staking contract {GET_PREVIOUS_EPOCH_DATA_ENTRY_POINT}.");
-        let retdata =
-            self.call_view(GET_PREVIOUS_EPOCH_DATA_ENTRY_POINT, Calldata::from(vec![]))?;
+        let retdata = self.call_view(GET_PREVIOUS_EPOCH_DATA_ENTRY_POINT, vec![]).await?;
         let epoch = CairoOption::<Epoch>::try_from(retdata)?.0;
         info!("Retrieved previous epoch from contract: {epoch:?}.");
         Ok(epoch)

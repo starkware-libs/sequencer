@@ -1,3 +1,4 @@
+use apollo_batcher_types::communication::BatcherClientError;
 use apollo_cairo_utils::RetdataDeserializationError;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
 use apollo_state_sync_types::communication::StateSyncClientError;
@@ -7,18 +8,17 @@ use blockifier::execution::errors::EntryPointExecutionError;
 use mockall::automock;
 use thiserror::Error;
 
-use crate::cairo_staking_contract::ExtendedStateReaderError;
 use crate::committee_provider::Staker;
 use crate::staking_manager::Epoch;
 
 #[derive(Debug, Error)]
 pub enum StakingContractError {
     #[error(transparent)]
+    BatcherClientError(#[from] BatcherClientError),
+    #[error(transparent)]
     EntryPointExecutionError(#[from] EntryPointExecutionError),
     #[error(transparent)]
     RetdataDeserializationError(#[from] RetdataDeserializationError),
-    #[error(transparent)]
-    ExtendedStateReaderError(#[from] ExtendedStateReaderError),
     #[error(transparent)]
     StateSyncClientError(#[from] StateSyncClientError),
 }
