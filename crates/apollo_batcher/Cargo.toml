@@ -63,6 +63,7 @@ apollo_storage = { workspace = true, features = ["testing"] }
 apollo_transaction_converter = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
+blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
 chrono = { workspace = true }
 itertools.workspace = true

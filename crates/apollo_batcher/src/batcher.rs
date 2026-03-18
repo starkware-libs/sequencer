@@ -9,6 +9,8 @@ use apollo_batcher_config::config::{
 };
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
+    CallContractInput,
+    CallContractOutput,
     CentralObjects,
     DecisionReachedInput,
     DecisionReachedResponse,
@@ -42,6 +44,7 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_proof_manager_types::SharedProofManagerClient;
 use apollo_reverts::revert_block;
+use apollo_state_reader::apollo_state::ApolloReader;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
 use apollo_storage::global_root::{GlobalRootStorageReader, GlobalRootStorageWriter};
@@ -49,6 +52,7 @@ use apollo_storage::global_root_marker::{
     GlobalRootMarkerStorageReader,
     GlobalRootMarkerStorageWriter,
 };
+use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageReader,
@@ -75,13 +79,28 @@ use apollo_storage::{
     StorageWriter,
 };
 use async_trait::async_trait;
+use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::bouncer::BouncerConfig;
 use blockifier::concurrency::worker_pool::WorkerPool;
+use blockifier::context::BlockContext;
+use blockifier::execution::entry_point::call_view_entry_point;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::state::state_api::StateReader;
 use futures::FutureExt;
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHash, BlockNumber, UnixTimestamp};
+use starknet_api::block::{
+    BlockHash,
+    BlockHeaderWithoutHash,
+    BlockInfo,
+    BlockNumber,
+    GasPrice,
+    GasPriceVector,
+    GasPrices,
+    NonzeroGasPrice,
+    UnixTimestamp,
+};
 use starknet_api::block_hash::block_hash_calculator::{
     PartialBlockHash,
     PartialBlockHashComponents,
@@ -89,10 +108,12 @@ use starknet_api::block_hash::block_hash_calculator::{
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, GlobalRoot, Nonce, StateDiffCommitment};
 use starknet_api::state::{StateNumber, ThinStateDiff};
+use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use tokio::sync::Mutex;
 use tokio::task::AbortHandle;
-use tracing::{debug, error, info, instrument, trace, Instrument};
+use tracing::{debug, error, info, instrument, trace, warn, Instrument};
 
 use crate::block_builder::{
     BlockBuilderError,
@@ -154,6 +175,8 @@ type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>
 pub struct Batcher {
     pub config: BatcherConfig,
     pub storage_reader: Arc<dyn BatcherStorageReader>,
+    /// Factory for creating state readers used to execute view calls (e.g. call_contract).
+    view_state_reader_factory: Box<dyn ViewStateReaderFactory>,
     pub storage_writer: Box<dyn BatcherStorageWriter>,
     pub committer_client: SharedCommitterClient,
     pub l1_events_provider_client: SharedL1EventsProviderClient,
@@ -209,6 +232,7 @@ impl Batcher {
     pub(crate) fn new(
         config: BatcherConfig,
         storage_reader: Arc<dyn BatcherStorageReader>,
+        view_state_reader_factory: Box<dyn ViewStateReaderFactory>,
         storage_writer: Box<dyn BatcherStorageWriter>,
         committer_client: SharedCommitterClient,
         l1_events_provider_client: SharedL1EventsProviderClient,
@@ -228,6 +252,7 @@ impl Batcher {
         Self {
             config,
             storage_reader,
+            view_state_reader_factory,
             storage_writer,
             committer_client,
             l1_events_provider_client,
@@ -619,6 +644,41 @@ impl Batcher {
         })
     }
 
+    // Returns the block info for the given committed block number.
+    fn get_block_info(&self, block_number: BlockNumber) -> BatcherResult<BlockInfo> {
+        let header = self.storage_reader.get_block_header(block_number).map_err(|err| {
+            warn!("Failed to get block header for committed block {block_number}: {err}");
+            BatcherError::InternalError
+        })?;
+
+        let convert_price = |price: GasPrice| -> BatcherResult<NonzeroGasPrice> {
+            price.try_into().map_err(|e| {
+                warn!("Failed to convert price: {e}");
+                BatcherError::InternalError
+            })
+        };
+
+        Ok(BlockInfo {
+            block_number: header.block_number,
+            block_timestamp: header.timestamp,
+            sequencer_address: header.sequencer.0,
+            gas_prices: GasPrices {
+                eth_gas_prices: GasPriceVector {
+                    l1_gas_price: convert_price(header.l1_gas_price.price_in_wei)?,
+                    l1_data_gas_price: convert_price(header.l1_data_gas_price.price_in_wei)?,
+                    l2_gas_price: convert_price(header.l2_gas_price.price_in_wei)?,
+                },
+                strk_gas_prices: GasPriceVector {
+                    l1_gas_price: convert_price(header.l1_gas_price.price_in_fri)?,
+                    l1_data_gas_price: convert_price(header.l1_data_gas_price.price_in_fri)?,
+                    l2_gas_price: convert_price(header.l2_gas_price.price_in_fri)?,
+                },
+            },
+            use_kzg_da: header.l1_da_mode.is_use_kzg_da(),
+            starknet_version: header.starknet_version,
+        })
+    }
+
     #[instrument(skip(self), err)]
     pub async fn get_height(&self) -> BatcherResult<GetHeightResponse> {
         let height = self.get_height_from_storage()?;
@@ -635,6 +695,47 @@ impl Batcher {
             error!("Failed to get timestamp from mempool: {err}");
             BatcherError::InternalError
         })
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn call_contract(
+        &self,
+        input: CallContractInput,
+    ) -> BatcherResult<CallContractOutput> {
+        let height = self.get_height_from_storage()?;
+
+        // Get the block info for the latest committed block.
+        let block_info = match height.prev() {
+            None => BlockInfo::default(),
+            Some(last_committed_block) => self.get_block_info(last_committed_block)?,
+        };
+
+        let state_reader = self.view_state_reader_factory.create(height);
+        let block_context = BlockContext::new(
+            block_info,
+            self.config.static_config.block_builder_config.chain_info.clone(),
+            VersionedConstants::latest_constants().clone(),
+            BouncerConfig::max(),
+        );
+
+        let retdata = tokio::task::spawn_blocking(move || {
+            call_view_entry_point(
+                state_reader,
+                Arc::new(block_context),
+                input.contract_address,
+                &input.entry_point,
+                Calldata::from(input.calldata),
+            )
+            .map(|call_info| call_info.execution.retdata.0)
+        })
+        .await
+        .map_err(|err| {
+            error!("Failed to spawn blocking task for call_contract: {err}");
+            BatcherError::InternalError
+        })?
+        .map_err(|err| BatcherError::ContractCallFailed { reason: err.to_string() })?;
+
+        Ok(CallContractOutput { retdata })
     }
 
     #[instrument(skip(self), err)]
@@ -1476,6 +1577,8 @@ pub async fn create_batcher(
         proof_manager_client,
         worker_pool,
     });
+    let view_state_reader_factory =
+        Box::new(StorageViewStateReaderFactory { storage_reader: storage_reader.clone() });
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
 
@@ -1489,6 +1592,7 @@ pub async fn create_batcher(
     Batcher::new(
         config,
         storage_reader,
+        view_state_reader_factory,
         storage_writer,
         committer_client,
         l1_events_provider_client,
@@ -1527,6 +1631,8 @@ pub trait BatcherStorageReader: Send + Sync {
         &self,
         height: BlockNumber,
     ) -> StorageResult<(Option<BlockHash>, Option<PartialBlockHashComponents>)>;
+
+    fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<BlockHeaderWithoutHash>;
 }
 
 impl BatcherStorageReader for StorageReader {
@@ -1624,6 +1730,16 @@ impl BatcherStorageReader for StorageReader {
         let partial_block_hash_components = txn.get_partial_block_hash_components(&height)?;
         Ok((parent_hash, partial_block_hash_components))
     }
+
+    fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<BlockHeaderWithoutHash> {
+        self.begin_ro_txn()?
+            .get_block_header(block_number)?
+            .map(|header| header.block_header_without_hash)
+            .ok_or_else(|| StorageError::NotFound {
+                resource_type: "block header".to_string(),
+                resource_id: block_number.to_string(),
+            })
+    }
 }
 
 #[cfg_attr(test, automock)]
@@ -1700,6 +1816,24 @@ impl BatcherStorageWriter for StorageWriter {
 
     fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()> {
         self.begin_rw_txn()?.set_block_hash(&height, block_hash)?.commit()
+    }
+}
+
+/// Factory for creating state readers used to execute view calls (e.g. call_contract).
+/// Using the factory pattern allows tests to inject in-memory state readers without requiring
+/// real storage infrastructure.
+#[cfg_attr(test, automock)]
+pub trait ViewStateReaderFactory: Send + Sync {
+    fn create(&self, block_number: BlockNumber) -> Box<dyn StateReader + Send>;
+}
+
+pub(crate) struct StorageViewStateReaderFactory {
+    pub(crate) storage_reader: StorageReader,
+}
+
+impl ViewStateReaderFactory for StorageViewStateReaderFactory {
+    fn create(&self, block_number: BlockNumber) -> Box<dyn StateReader + Send> {
+        Box::new(ApolloReader::new(self.storage_reader.clone(), block_number))
     }
 }
 
