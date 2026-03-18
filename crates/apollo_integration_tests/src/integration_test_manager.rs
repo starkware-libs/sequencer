@@ -46,6 +46,7 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{info, instrument};
 
 use crate::executable_setup::{ExecutableSetup, NodeExecutableId};
+use crate::mock_central_sync_server::{spawn_mock_central_sync_server, MockCentralSyncServer};
 use crate::monitoring_utils::{
     assert_no_reverted_txs,
     await_batcher_block,
@@ -390,8 +391,10 @@ pub struct IntegrationTestManager {
     // Ethereum base layer coupled with an Anvil server instance, the server is dropped when the
     // instance is dropped.
     anvil_base_layer: AnvilBaseLayer,
-    #[allow(dead_code)]
     sync_mode: SyncMode,
+    // Kept alive for the duration of the test.
+    #[allow(dead_code)]
+    _mock_central_sync_server: Option<MockCentralSyncServer>,
 }
 
 impl IntegrationTestManager {
@@ -405,15 +408,17 @@ impl IntegrationTestManager {
     ) -> Self {
         let tx_generator = create_integration_test_tx_generator();
 
-        let (sequencers_setup, node_indices) = get_sequencer_setup_configs(
-            &tx_generator,
-            num_of_consolidated_nodes,
-            num_of_distributed_nodes,
-            num_of_hybrid_nodes,
-            custom_paths,
-            test_unique_id,
-        )
-        .await;
+        let (sequencers_setup, node_indices, mock_central_sync_server) =
+            get_sequencer_setup_configs(
+                &tx_generator,
+                num_of_consolidated_nodes,
+                num_of_distributed_nodes,
+                num_of_hybrid_nodes,
+                custom_paths,
+                test_unique_id,
+                sync_mode,
+            )
+            .await;
 
         let l1_gas_price_scraper_config =
             sequencers_setup.first().unwrap().get_l1_gas_price_scraper_config();
@@ -449,7 +454,15 @@ impl IntegrationTestManager {
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();
 
-        Self { node_indices, idle_nodes, running_nodes, tx_generator, anvil_base_layer, sync_mode }
+        Self {
+            node_indices,
+            idle_nodes,
+            running_nodes,
+            tx_generator,
+            anvil_base_layer,
+            sync_mode,
+            _mock_central_sync_server: mock_central_sync_server,
+        }
     }
 
     pub fn get_idle_nodes(&self) -> &HashMap<usize, NodeSetup> {
@@ -1228,7 +1241,8 @@ async fn get_sequencer_setup_configs(
     num_of_hybrid_nodes: usize,
     custom_paths: Option<CustomPaths>,
     test_unique_id: TestIdentifier,
-) -> (Vec<NodeSetup>, HashSet<usize>) {
+    sync_mode: SyncMode,
+) -> (Vec<NodeSetup>, HashSet<usize>, Option<MockCentralSyncServer>) {
     let mut available_ports_generator = AvailablePortsGenerator::new(test_unique_id.into());
 
     let mut node_component_configs = Vec::with_capacity(
@@ -1303,8 +1317,17 @@ async fn get_sequencer_setup_configs(
 
     // TODO(tsabary): Move these to the start of the test and propagate their values when relevant.
     // All nodes use the same recorder_url and eth_to_strk_oracle_url.
-    let (recorder_url, _join_handle) =
-        spawn_local_success_recorder(base_layer_ports.get_next_port());
+    let (recorder_url, mock_central_sync_server) = match sync_mode {
+        SyncMode::P2P => {
+            let (url, _handle) = spawn_local_success_recorder(base_layer_ports.get_next_port());
+            (url, None)
+        }
+        SyncMode::MockCentralSync => {
+            let server = spawn_mock_central_sync_server(base_layer_ports.get_next_port());
+            let url = server.url.clone();
+            (url, Some(server))
+        }
+    };
     let (eth_to_strk_oracle_url, _join_handle_eth_to_strk_oracle) =
         spawn_local_eth_to_strk_oracle(base_layer_ports.get_next_port());
 
@@ -1319,9 +1342,21 @@ async fn get_sequencer_setup_configs(
 
         let mut consensus_manager_config = consensus_manager_configs.remove(0);
         let mempool_p2p_config = mempool_p2p_configs.remove(0);
-        let state_sync_config = state_sync_configs.remove(0);
+        let mut state_sync_config = state_sync_configs.remove(0);
 
         consensus_manager_config.cende_config.recorder_url = recorder_url.clone();
+
+        if matches!(sync_mode, SyncMode::MockCentralSync) {
+            state_sync_config.static_config.p2p_sync_client_config = None;
+            state_sync_config.static_config.central_sync_client_config =
+                Some(apollo_state_sync_config::config::CentralSyncClientConfig {
+                    central_source_config: apollo_central_sync_config::config::CentralSourceConfig {
+                        starknet_url: recorder_url.clone(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                });
+        }
         let eth_to_strk_oracle_config = EthToStrkOracleConfig {
             url_header_list: Some(vec![eth_to_strk_oracle_url.clone().into()]),
             ..Default::default()
@@ -1379,7 +1414,7 @@ async fn get_sequencer_setup_configs(
         nodes.push(NodeSetup::new(node_type, executables, storage_setup.storage_handles));
     }
 
-    (nodes, node_indices)
+    (nodes, node_indices, mock_central_sync_server)
 }
 
 fn create_map<T, K, F>(items: Vec<T>, key_extractor: F) -> HashMap<K, T>
