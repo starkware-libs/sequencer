@@ -20,7 +20,7 @@ curl -s -X POST http://localhost:3000 \
 Expected response:
 
 ```json
-{ "jsonrpc": "2.0", "id": 1, "result": "0.10.0" }
+{ "jsonrpc": "2.0", "id": 1, "result": "0.10.1" }
 ```
 
 ## API Reference
@@ -41,7 +41,7 @@ curl -s -X POST http://localhost:3000 \
 Response:
 
 ```json
-{ "jsonrpc": "2.0", "id": 1, "result": "0.10.0" }
+{ "jsonrpc": "2.0", "id": 1, "result": "0.10.1" }
 ```
 
 ### `starknet_proveTransaction`
