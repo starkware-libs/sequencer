@@ -393,8 +393,6 @@ pub struct IntegrationTestManager {
     // Ethereum base layer coupled with an Anvil server instance, the server is dropped when the
     // instance is dropped.
     anvil_base_layer: AnvilBaseLayer,
-    #[allow(dead_code)]
-    sync_mode: SyncMode,
     // Kept alive for the duration of the test.
     #[allow(dead_code)]
     _mock_central_sync_server: Option<MockCentralSyncServer>,
@@ -463,7 +461,6 @@ impl IntegrationTestManager {
             running_nodes,
             tx_generator,
             anvil_base_layer,
-            sync_mode,
             _mock_central_sync_server: mock_central_sync_server,
         }
     }
@@ -1167,6 +1164,10 @@ impl IntegrationTestManager {
             .into_iter()
             .filter(|node_index| !excluded_nodes.contains(node_index))
             .collect();
+
+        if included_node_indices.len() < 2 {
+            return; // fewer than 2 included nodes — nothing to compare
+        }
 
         // Step 1: Get the max state marker across all running nodes. If a target block number is
         // provided, use it instead of the max state marker.
