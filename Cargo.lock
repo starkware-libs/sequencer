@@ -950,6 +950,7 @@ dependencies = [
  "mockall",
  "serde",
  "serde_json",
+ "starknet-types-core",
  "starknet_api",
  "strum",
  "thiserror 1.0.69",

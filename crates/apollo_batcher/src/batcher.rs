@@ -9,6 +9,8 @@ use apollo_batcher_config::config::{
 };
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
+    CallContractInput,
+    CallContractOutput,
     CentralObjects,
     DecisionReachedInput,
     DecisionReachedResponse,
@@ -64,8 +66,16 @@ use apollo_storage::{
     StorageWriter,
 };
 use async_trait::async_trait;
+use apollo_state_reader::apollo_state::ApolloReader;
+use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::bouncer::BouncerConfig;
 use blockifier::concurrency::worker_pool::WorkerPool;
+use blockifier::context::BlockContext;
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+use blockifier::execution::entry_point::call_view_entry_point;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use starknet_api::block::BlockInfo;
+use starknet_api::transaction::fields::Calldata;
 use futures::FutureExt;
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
@@ -143,6 +153,9 @@ type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>
 pub struct Batcher {
     pub config: BatcherConfig,
     pub storage_reader: Arc<dyn BatcherStorageReader>,
+    /// Concrete storage reader used for executing view calls (e.g. call_contract).
+    /// Stored separately from storage_reader because ApolloReader requires the concrete type.
+    view_storage_reader: StorageReader,
     pub storage_writer: Box<dyn BatcherStorageWriter>,
     pub committer_client: SharedCommitterClient,
     pub l1_provider_client: SharedL1ProviderClient,
@@ -198,6 +211,7 @@ impl Batcher {
     pub(crate) fn new(
         config: BatcherConfig,
         storage_reader: Arc<dyn BatcherStorageReader>,
+        view_storage_reader: StorageReader,
         storage_writer: Box<dyn BatcherStorageWriter>,
         committer_client: SharedCommitterClient,
         l1_provider_client: SharedL1ProviderClient,
@@ -211,6 +225,7 @@ impl Batcher {
         Self {
             config,
             storage_reader,
+            view_storage_reader,
             storage_writer,
             committer_client,
             l1_provider_client,
@@ -599,6 +614,47 @@ impl Batcher {
             error!("Failed to get timestamp from mempool: {err}");
             BatcherError::InternalError
         })
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn call_contract(
+        &self,
+        input: CallContractInput,
+    ) -> BatcherResult<CallContractOutput> {
+        let height = self.get_height_from_storage()?;
+        let latest_block = height.prev().ok_or_else(|| BatcherError::ContractCallFailed {
+            reason: "No committed blocks yet.".to_string(),
+        })?;
+
+        let storage_reader = self.view_storage_reader.clone();
+        let chain_info = self.config.static_config.block_builder_config.chain_info.clone();
+
+        let retdata = tokio::task::spawn_blocking(move || {
+            let state_reader = ApolloReader::new(storage_reader, latest_block);
+            let block_info = BlockInfo { block_number: latest_block, ..Default::default() };
+            let block_context = BlockContext::new(
+                block_info,
+                chain_info,
+                VersionedConstants::latest_constants().clone(),
+                BouncerConfig::max(),
+            );
+            call_view_entry_point(
+                state_reader,
+                Arc::new(block_context),
+                input.contract_address,
+                &input.entry_point,
+                Calldata::from(input.calldata),
+            )
+            .map(|call_info| call_info.execution.retdata.0)
+        })
+        .await
+        .map_err(|err| {
+            error!("Failed to spawn blocking task for call_contract: {err}");
+            BatcherError::InternalError
+        })?
+        .map_err(|err| BatcherError::ContractCallFailed { reason: err.to_string() })?;
+
+        Ok(CallContractOutput { retdata })
     }
 
     #[instrument(skip(self), err)]
@@ -1416,6 +1472,7 @@ pub async fn create_batcher(
         proof_manager_client,
         worker_pool,
     });
+    let view_storage_reader = storage_reader.clone();
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
 
@@ -1429,6 +1486,7 @@ pub async fn create_batcher(
     Batcher::new(
         config,
         storage_reader,
+        view_storage_reader,
         storage_writer,
         committer_client,
         l1_provider_client,

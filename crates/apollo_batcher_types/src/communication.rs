@@ -20,6 +20,8 @@ use thiserror::Error;
 
 use crate::batcher_types::{
     BatcherResult,
+    CallContractInput,
+    CallContractOutput,
     DecisionReachedInput,
     DecisionReachedResponse,
     GetHeightResponse,
@@ -85,6 +87,12 @@ pub trait BatcherClient: Send + Sync {
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
     async fn get_timestamp(&self) -> BatcherClientResult<UnixTimestamp>;
+    /// Executes a view (read-only) entry point on a contract against the latest committed batcher
+    /// state and returns the retdata.
+    async fn call_contract(
+        &self,
+        input: CallContractInput,
+    ) -> BatcherClientResult<CallContractOutput>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -106,6 +114,7 @@ pub enum BatcherRequest {
     AddSyncBlock(SyncBlock),
     RevertBlock(RevertBlockInput),
     GetTimestamp,
+    CallContract(CallContractInput),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherRequest);
 impl_labeled_request!(BatcherRequest, BatcherRequestLabelValue);
@@ -129,6 +138,7 @@ pub enum BatcherResponse {
     AddSyncBlock(BatcherResult<()>),
     RevertBlock(BatcherResult<()>),
     GetTimestamp(BatcherResult<u64>),
+    CallContract(BatcherResult<CallContractOutput>),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherResponse);
 
@@ -291,6 +301,22 @@ where
             request,
             BatcherResponse,
             GetTimestamp,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    async fn call_contract(
+        &self,
+        input: CallContractInput,
+    ) -> BatcherClientResult<CallContractOutput> {
+        let request = BatcherRequest::CallContract(input);
+        handle_all_response_variants!(
+            self,
+            request,
+            BatcherResponse,
+            CallContract,
             BatcherClientError,
             BatcherError,
             Direct

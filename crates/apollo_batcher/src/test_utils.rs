@@ -13,6 +13,8 @@ use apollo_committer_types::communication::MockCommitterClient;
 use apollo_committer_types::test_utils::MockCommitterClientWithOffset;
 use apollo_l1_provider_types::MockL1ProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
+use apollo_storage::test_utils::get_test_storage;
+use apollo_storage::StorageReader;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::BlockExecutionSummary;
@@ -33,6 +35,7 @@ use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
 use starknet_types_core::felt::Felt;
+use tempfile::TempDir;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
 use tokio::time::sleep;
 
@@ -239,6 +242,10 @@ pub(crate) struct MockDependencies {
     pub(crate) storage_writer: MockBatcherStorageWriter,
     pub(crate) batcher_config: BatcherConfig,
     pub(crate) clients: MockClients,
+    /// Concrete storage reader for call_contract; unused in most unit tests.
+    pub(crate) view_storage_reader: StorageReader,
+    // Keep the temp dir alive for the duration of the test.
+    _view_storage_temp_dir: TempDir,
 }
 
 pub(crate) struct MockClients {
@@ -318,11 +325,14 @@ impl Default for MockDependencies {
             },
             ..Default::default()
         };
+        let ((view_storage_reader, _), view_storage_temp_dir) = get_test_storage();
         Self {
             storage_reader,
             storage_writer: MockBatcherStorageWriter::new(),
             clients: MockClients::default(),
             batcher_config,
+            view_storage_reader,
+            _view_storage_temp_dir: view_storage_temp_dir,
         }
     }
 }

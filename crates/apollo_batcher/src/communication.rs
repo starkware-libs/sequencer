@@ -52,6 +52,9 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::GetTimestamp => {
                 BatcherResponse::GetTimestamp(self.get_timestamp().await)
             }
+            BatcherRequest::CallContract(input) => {
+                BatcherResponse::CallContract(self.call_contract(input).await)
+            }
         }
     }
 }

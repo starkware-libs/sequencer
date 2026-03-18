@@ -231,6 +231,7 @@ impl Default for MockDependenciesWithRealStorage {
 async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
     create_batcher_impl(
         Arc::new(mock_dependencies.storage_reader),
+        mock_dependencies.view_storage_reader,
         Box::new(mock_dependencies.storage_writer),
         mock_dependencies.clients,
         mock_dependencies.batcher_config,
@@ -241,8 +242,10 @@ async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
 async fn create_batcher_with_real_storage(
     mock_dependencies: MockDependenciesWithRealStorage,
 ) -> Batcher {
+    let view_storage_reader = mock_dependencies.storage_reader.clone();
     create_batcher_impl(
         Arc::new(mock_dependencies.storage_reader),
+        view_storage_reader,
         Box::new(mock_dependencies.storage_writer),
         mock_dependencies.clients,
         mock_dependencies.batcher_config,
@@ -252,6 +255,7 @@ async fn create_batcher_with_real_storage(
 
 async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
     storage_reader: Arc<R>,
+    view_storage_reader: StorageReader,
     storage_writer: Box<dyn BatcherStorageWriter>,
     clients: MockClients,
     config: BatcherConfig,
@@ -272,6 +276,7 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
     let mut batcher = Batcher::new(
         config,
         storage_reader,
+        view_storage_reader,
         storage_writer,
         committer_client,
         Arc::new(clients.l1_provider_client),

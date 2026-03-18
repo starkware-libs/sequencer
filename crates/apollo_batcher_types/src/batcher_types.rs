@@ -9,6 +9,8 @@ use chrono::prelude::*;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
+use starknet_api::core::ContractAddress;
+use starknet_types_core::felt::Felt;
 use starknet_api::block_hash::block_hash_calculator::{BlockHeaderCommitments, PartialBlockHash};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::execution_resources::GasAmount;
@@ -184,6 +186,21 @@ pub struct DecisionReachedInput {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RevertBlockInput {
     pub height: BlockNumber,
+}
+
+/// Input for executing a view (read-only) entry point on a contract against the latest committed
+/// batcher state.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CallContractInput {
+    pub contract_address: ContractAddress,
+    pub entry_point: String,
+    pub calldata: Vec<Felt>,
+}
+
+/// Output of a successful view entry point call.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CallContractOutput {
+    pub retdata: Vec<Felt>,
 }
 
 pub type BatcherResult<T> = Result<T, BatcherError>;
