@@ -24,7 +24,7 @@ async fn main() {
         N_HYBRID_SEQUENCERS,
         None,
         TestIdentifier::PositiveFlowIntegrationTest,
-        SyncMode::P2P,
+        SyncMode::MockCentralSync,
     )
     .await;
 
