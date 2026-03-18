@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773740952924,
+  "lastUpdate": 1773829520888,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2583,6 +2583,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1452.9765845499999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aviv.g@starkware.co",
+            "name": "avivg-starkware",
+            "username": "avivg-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6ba945924c7898ada5a1586501714f14d9fe87de",
+          "message": "starknet_commiter_and_os_cli: create_execution_resources with opcodes (#13222)",
+          "timestamp": "2026-03-18T10:03:20Z",
+          "tree_id": "51fb8acf3ac05e2ad5d94641b6466f658df6965f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/6ba945924c7898ada5a1586501714f14d9fe87de"
+        },
+        "date": 1773829520583,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 784.32683949,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1180.27628151,
             "unit": "ms"
           }
         ]
