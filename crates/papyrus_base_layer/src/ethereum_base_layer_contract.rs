@@ -316,16 +316,43 @@ pub enum EthereumBaseLayerError {
 impl PartialEq for EthereumBaseLayerError {
     fn eq(&self, other: &Self) -> bool {
         use EthereumBaseLayerError::*;
-        match (self, other) {
-            (Contract(this), Contract(other)) => this.to_string() == other.to_string(),
-            (FeeOutOfRange(this), FeeOutOfRange(other)) => this == other,
-            (RpcError(this), RpcError(other)) => this.to_string() == other.to_string(),
-            (StarknetApiParsingError(this), StarknetApiParsingError(other)) => this == other,
-            (TypeError(this), TypeError(other)) => this == other,
-            (UnhandledL1Event(this), UnhandledL1Event(other)) => this == other,
-            (BlockNumberMissingError(this), BlockNumberMissingError(other)) => this == other,
-            (BlockHeaderMissingError(this), BlockHeaderMissingError(other)) => this == other,
-            _ => false, // TODO(guyn): replace this with explicit matching.
+        match self {
+            Contract(this) => {
+                let Contract(that) = other else { return false };
+                this.to_string() == that.to_string()
+            }
+            FeeOutOfRange(this) => {
+                let FeeOutOfRange(that) = other else { return false };
+                this == that
+            }
+            ProviderTimeout(this) => {
+                let ProviderTimeout(that) = other else { return false };
+                this.to_string() == that.to_string()
+            }
+            RpcError(this) => {
+                let RpcError(that) = other else { return false };
+                this.to_string() == that.to_string()
+            }
+            StarknetApiParsingError(this) => {
+                let StarknetApiParsingError(that) = other else { return false };
+                this == that
+            }
+            TypeError(this) => {
+                let TypeError(that) = other else { return false };
+                this == that
+            }
+            UnhandledL1Event(this) => {
+                let UnhandledL1Event(that) = other else { return false };
+                this == that
+            }
+            BlockNumberMissingError(this) => {
+                let BlockNumberMissingError(that) = other else { return false };
+                this == that
+            }
+            BlockHeaderMissingError(this) => {
+                let BlockHeaderMissingError(that) = other else { return false };
+                this == that
+            }
         }
     }
 }
