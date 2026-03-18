@@ -100,6 +100,7 @@ impl ProposeTransactionProvider {
             .await
             .inspect_err(|_err| {
                 BATCHER_L1_EVENTS_PROVIDER_ERRORS.increment(1);
+                warn!("Failed to get L1 handler transactions from L1 events provider.");
             })
             .unwrap_or_default()
             .into_iter()
