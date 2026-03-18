@@ -554,14 +554,17 @@ impl ConnectionHandler for Handler {
                     );
                 }
 
-                // TODO(AndrewL): Handle DialUpgradeError properly. Current issues:
-                // 1. Silent delivery failure: send_queue is not drained, so messages accumulate
-                //    with no failure signal to the behaviour.
-                // 2. Infinite renegotiation loop: resetting to Idle while send_queue is non-empty
-                //    causes poll_send to immediately request another OutboundSubstreamRequest,
-                //    looping forever against unsupported peers.
-                // Fix: drain send_queue, push a HandlerOut::SendError onto events_to_emit with
-                // the dropped count, and reset to Idle.
+                // Clear the send queue and report the failure to the behaviour. Without this,
+                // messages would silently accumulate and the handler would enter an infinite
+                // renegotiation loop (Idle → request → error → Idle → ...) against unsupported
+                // peers.
+                let dropped_count = self.send_queue.len();
+                if dropped_count > 0 {
+                    self.send_queue.clear();
+                    self.events_to_emit.push_back(HandlerOut::SendError(format!(
+                        "Dial upgrade failed, {dropped_count} queued message(s) lost"
+                    )));
+                }
                 // TODO(AndrewL): Trigger poll (e.g. via a waker) after resetting to Idle so that
                 // a new substream can be established promptly.
             }
