@@ -1267,3 +1267,113 @@ fn flat_state_divergence_panics() {
     // This should panic because flat (0xDEAD) != versioned (0x01).
     let _ = state_reader.get_nonce_at(latest, &address);
 }
+
+#[test]
+fn flat_state_revert_restores_previous_values() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    let address = contract_address!("0xABC");
+    let key = storage_key!("0x01");
+
+    let diff0 = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash!("0x100") },
+        storage_diffs: indexmap! { address => indexmap! { key => felt!("0x01") } },
+        nonces: indexmap! { address => Nonce(felt!("0x01")) },
+        ..Default::default()
+    };
+    let diff1 = ThinStateDiff {
+        storage_diffs: indexmap! { address => indexmap! { key => felt!("0x02") } },
+        nonces: indexmap! { address => Nonce(felt!("0x02")) },
+        ..Default::default()
+    };
+
+    let mut txn = writer.begin_rw_txn().unwrap();
+    txn = txn.append_state_diff(BlockNumber(0), diff0).unwrap();
+    txn = txn.append_state_diff(BlockNumber(1), diff1).unwrap();
+    txn.commit().unwrap();
+
+    let (txn, _) = writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(1)).unwrap();
+    txn.commit().unwrap();
+
+    let txn = reader.begin_ro_txn().unwrap();
+    let flat_storage = txn.open_table(&txn.tables.flat_contract_storage).unwrap();
+    let flat_nonces = txn.open_table(&txn.tables.flat_nonces).unwrap();
+
+    assert_eq!(flat_storage.get(&txn.txn, &(address, key)).unwrap(), Some(felt!("0x01")));
+    assert_eq!(flat_nonces.get(&txn.txn, &address).unwrap(), Some(Nonce(felt!("0x01"))));
+}
+
+#[test]
+fn flat_state_revert_first_block_deletes_entries() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    let address = contract_address!("0xABC");
+    let key = storage_key!("0x01");
+    let class_hash = class_hash!("0x100");
+    let compiled = compiled_class_hash!(0x200_u16);
+
+    let diff = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash },
+        storage_diffs: indexmap! { address => indexmap! { key => felt!("0x42") } },
+        nonces: indexmap! { address => Nonce(felt!("0x01")) },
+        class_hash_to_compiled_class_hash: indexmap! { class_hash => compiled },
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), diff)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let (txn, _) = writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(0)).unwrap();
+    txn.commit().unwrap();
+
+    let txn = reader.begin_ro_txn().unwrap();
+    let flat_deployed = txn.open_table(&txn.tables.flat_deployed_contracts).unwrap();
+    let flat_nonces = txn.open_table(&txn.tables.flat_nonces).unwrap();
+    let flat_storage = txn.open_table(&txn.tables.flat_contract_storage).unwrap();
+    let flat_compiled = txn.open_table(&txn.tables.flat_compiled_class_hash).unwrap();
+
+    assert_eq!(flat_deployed.get(&txn.txn, &address).unwrap(), None);
+    assert_eq!(flat_nonces.get(&txn.txn, &address).unwrap(), None);
+    assert_eq!(flat_storage.get(&txn.txn, &(address, key)).unwrap(), None);
+    assert_eq!(flat_compiled.get(&txn.txn, &class_hash).unwrap(), None);
+}
+
+#[test]
+fn flat_state_revert_deployment_without_nonce_diff() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    let address = contract_address!("0xABC");
+    let class_hash = class_hash!("0x100");
+
+    let diff0 = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash },
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), diff0)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    {
+        let txn = reader.begin_ro_txn().unwrap();
+        let flat_nonces = txn.open_table(&txn.tables.flat_nonces).unwrap();
+        assert_eq!(flat_nonces.get(&txn.txn, &address).unwrap(), Some(Nonce::default()));
+    }
+
+    let (txn, _) = writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(0)).unwrap();
+    txn.commit().unwrap();
+
+    let txn = reader.begin_ro_txn().unwrap();
+    let flat_deployed = txn.open_table(&txn.tables.flat_deployed_contracts).unwrap();
+    let flat_nonces = txn.open_table(&txn.tables.flat_nonces).unwrap();
+
+    assert_eq!(flat_deployed.get(&txn.txn, &address).unwrap(), None);
+    assert_eq!(flat_nonces.get(&txn.txn, &address).unwrap(), None);
+}

@@ -835,6 +835,91 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             thin_state_diff.class_hash_to_compiled_class_hash.keys(),
             &compiled_class_hash_v2_table,
         )?;
+        // Restore flat tables BEFORE deleting versioned entries (we read previous values from
+        // versioned tables).
+        if self.flat_state {
+            let flat_deployed_table = self.open_table(&self.tables.flat_deployed_contracts)?;
+            let flat_nonces_table = self.open_table(&self.tables.flat_nonces)?;
+            let flat_storage_table = self.open_table(&self.tables.flat_contract_storage)?;
+            let flat_compiled_table = self.open_table(&self.tables.flat_compiled_class_hash)?;
+
+            // Restore deployed_contracts.
+            for (address, _) in &thin_state_diff.deployed_contracts {
+                let db_key = (*address, block_number);
+                let mut cursor = deployed_contracts_table.cursor(&self.txn)?;
+                cursor.lower_bound(&db_key)?;
+                match cursor.prev()? {
+                    Some(((got_address, _), hash)) if got_address == *address => {
+                        flat_deployed_table.upsert(&self.txn, address, &hash)?;
+                    }
+                    _ => {
+                        let _ = flat_deployed_table.delete(&self.txn, address);
+                    }
+                }
+            }
+
+            // Restore nonces from the nonces diff.
+            for (address, _) in &thin_state_diff.nonces {
+                match get_nonce_at(block_number, address, &self.txn, &nonces_table)? {
+                    Some(nonce) => flat_nonces_table.upsert(&self.txn, address, &nonce)?,
+                    None => {
+                        let _ = flat_nonces_table.delete(&self.txn, address);
+                    }
+                }
+            }
+
+            // Handle nonces for newly deployed contracts that weren't in the nonces diff.
+            for (address, _) in &thin_state_diff.deployed_contracts {
+                if !thin_state_diff.nonces.contains_key(address) {
+                    match get_nonce_at(block_number, address, &self.txn, &nonces_table)? {
+                        Some(nonce) => flat_nonces_table.upsert(&self.txn, address, &nonce)?,
+                        None => {
+                            let _ = flat_nonces_table.delete(&self.txn, address);
+                        }
+                    }
+                }
+            }
+
+            // Restore storage.
+            for (address, diffs) in &thin_state_diff.storage_diffs {
+                for (key, _) in diffs {
+                    let db_key = ((*address, *key), block_number);
+                    let mut cursor = storage_table.cursor(&self.txn)?;
+                    cursor.lower_bound(&db_key)?;
+                    let previous_value = match cursor.prev()? {
+                        Some((((got_addr, got_key), _), value))
+                            if got_addr == *address && got_key == *key =>
+                        {
+                            value
+                        }
+                        _ => Felt::default(),
+                    };
+                    if previous_value == Felt::default() {
+                        let _ = flat_storage_table.delete(&self.txn, &(*address, *key));
+                    } else {
+                        flat_storage_table.upsert(&self.txn, &(*address, *key), &previous_value)?;
+                    }
+                }
+            }
+
+            // Restore compiled_class_hash.
+            for (hash, _) in &thin_state_diff.class_hash_to_compiled_class_hash {
+                match get_compiled_class_hash_at(
+                    block_number,
+                    hash,
+                    &self.txn,
+                    &compiled_class_hash_table,
+                )? {
+                    Some(compiled) => {
+                        flat_compiled_table.upsert(&self.txn, hash, &compiled)?;
+                    }
+                    None => {
+                        let _ = flat_compiled_table.delete(&self.txn, hash);
+                    }
+                }
+            }
+        }
+
         delete_deployed_contracts(
             &self.txn,
             block_number,
