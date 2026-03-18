@@ -19,9 +19,11 @@ use apollo_node::test_utils::node_runner::{get_node_executable_path, spawn_run_n
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::SequencerNodeConfig;
+use apollo_central_sync_config::config::CentralSourceConfig;
 use apollo_storage::storage_reader_server_test_utils::send_storage_reader_http_request;
 use apollo_storage::storage_reader_types::{StorageReaderRequest, StorageReaderResponse};
 use apollo_storage::{MarkerKind, StorageConfig};
+use apollo_state_sync_config::config::CentralSyncClientConfig;
 use apollo_test_utils::send_request;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::context::ChainInfo;
@@ -391,6 +393,7 @@ pub struct IntegrationTestManager {
     // Ethereum base layer coupled with an Anvil server instance, the server is dropped when the
     // instance is dropped.
     anvil_base_layer: AnvilBaseLayer,
+    #[allow(dead_code)]
     sync_mode: SyncMode,
     // Kept alive for the duration of the test.
     #[allow(dead_code)]
@@ -1349,8 +1352,8 @@ async fn get_sequencer_setup_configs(
         if matches!(sync_mode, SyncMode::MockCentralSync) {
             state_sync_config.static_config.p2p_sync_client_config = None;
             state_sync_config.static_config.central_sync_client_config =
-                Some(apollo_state_sync_config::config::CentralSyncClientConfig {
-                    central_source_config: apollo_central_sync_config::config::CentralSourceConfig {
+                Some(CentralSyncClientConfig {
+                    central_source_config: CentralSourceConfig {
                         starknet_url: recorder_url.clone(),
                         ..Default::default()
                     },
