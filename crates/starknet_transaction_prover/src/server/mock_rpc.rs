@@ -1,20 +1,8 @@
-//! Mock implementation of `prove_transaction` for SDK integration tests.
+//! Mock implementation of the proving RPC server for spec conformance tests.
 //!
-//! The SDK calls [`MockProvingRpc::prove_transaction`] instead of a real prover.
-//!
-//! If the response format (`ProveTransactionResult`) or input types (`BlockId`,
-//! `RpcTransaction`) change, the SDK will fail to send or parse the response.
-//!
-//! # Usage
-//!
-//! ```rust,ignore
-//! let mock = MockProvingRpc::from_expected_json();
-//! let result = mock.prove_transaction(block_id, transaction);
-//! ```
-
-#[cfg(test)]
-#[path = "mock_rpc_test.rs"]
-mod mock_rpc_test;
+//! [`MockProvingRpc`] returns a canned [`ProveTransactionResult`] loaded from a reference JSON
+//! fixture so that [`rpc_spec_test`](super::rpc_spec_test) can validate request/response schemas
+//! against the OpenRPC spec without invoking a real prover.
 
 use std::path::{Path, PathBuf};
 
@@ -28,11 +16,7 @@ use crate::proving::virtual_snos_prover::ProveTransactionResult;
 use crate::server::rpc_api::ProvingRpcServer;
 use crate::server::rpc_impl::SPEC_VERSION;
 
-/// Mock of `prove_transaction` that returns a pre-loaded [`ProveTransactionResult`]
-/// loaded from `resources/mock_proving_rpc/prove_transaction_result.json`.
-///
-/// The JSON values are synthetic (arbitrary but structurally valid); only the **format** matters
-/// for SDK compatibility, not the actual content.
+/// Mock RPC server that returns a pre-loaded [`ProveTransactionResult`].
 pub struct MockProvingRpc {
     response: ProveTransactionResult,
 }
@@ -40,7 +24,7 @@ pub struct MockProvingRpc {
 impl MockProvingRpc {
     /// Loads the pre-loaded response from the reference JSON file.
     pub fn from_expected_json() -> Self {
-        Self { response: load_expected_prove_transaction_result() }
+        Self { response: load_json(&reference_json_dir().join("prove_transaction_result.json")) }
     }
 }
 
@@ -68,9 +52,4 @@ fn load_json<T: DeserializeOwned>(path: &Path) -> T {
 
 fn reference_json_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources").join("mock_proving_rpc")
-}
-
-/// Loads `prove_transaction_result.json` as a [`ProveTransactionResult`].
-pub fn load_expected_prove_transaction_result() -> ProveTransactionResult {
-    load_json(&reference_json_dir().join("prove_transaction_result.json"))
 }
