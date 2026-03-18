@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773842396587,
+  "lastUpdate": 1773866745558,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -747,6 +747,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1462.10003248,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "56217775+dan-starkware@users.noreply.github.com",
+            "name": "dan-starkware",
+            "username": "dan-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1e83c311b6992d814bb880f12585231715044480",
+          "message": "apollo_storage,starknet_patricia_storage: bump libmdbx 0.3.5 to 0.6.6 (#12916)",
+          "timestamp": "2026-03-18T20:20:47Z",
+          "tree_id": "75c2da3b23709b7d27e405953a70071f85dc38ce",
+          "url": "https://github.com/starkware-libs/sequencer/commit/1e83c311b6992d814bb880f12585231715044480"
+        },
+        "date": 1773866745226,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 887.0936626,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1286.17735769,
             "unit": "ms"
           }
         ]
