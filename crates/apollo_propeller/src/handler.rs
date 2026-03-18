@@ -3,7 +3,7 @@
 use std::collections::VecDeque;
 use std::ops::ControlFlow;
 use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::task::{Context, Poll, Waker};
 
 use apollo_infra_utils::warn_every_n_ms;
 use apollo_protobuf::protobuf::{PropellerUnit as ProtoUnit, PropellerUnitBatch as ProtoBatch};
@@ -73,6 +73,9 @@ pub struct Handler {
     events_to_emit: VecDeque<HandlerOut>,
     /// Maximum wire message size for batching.
     max_wire_message_size: usize,
+    /// The most recent waker from [`ConnectionHandler::poll`], used to wake the task when new
+    /// messages are enqueued via [`on_behaviour_event`].
+    waker: Option<Waker>,
 }
 
 /// State of the inbound substream, opened by the remote peer.
@@ -116,6 +119,7 @@ impl Handler {
             send_queue: VecDeque::new(),
             events_to_emit: VecDeque::new(),
             max_wire_message_size: config.max_wire_message_size,
+            waker: None,
         }
     }
 
@@ -484,7 +488,9 @@ impl ConnectionHandler for Handler {
         match event {
             HandlerIn::SendUnit(msg) => {
                 self.send_queue.push_back(msg.into());
-                // TODO(AndrewL): Wake up poll to send the message
+                if let Some(waker) = self.waker.as_ref() {
+                    waker.wake_by_ref();
+                }
             }
         }
     }
@@ -495,8 +501,13 @@ impl ConnectionHandler for Handler {
     ) -> Poll<
         ConnectionHandlerEvent<Self::OutboundProtocol, Self::OutboundOpenInfo, Self::ToBehaviour>,
     > {
-        // TODO(AndrewL): inline this function into poll
-        self.poll_inner(cx)
+        let result = self.poll_inner(cx);
+        // Store the waker so on_behaviour_event / on_connection_event can wake us.
+        // Only clone when we're actually going to sleep (Pending), and skip if unchanged.
+        if result.is_pending() && !self.waker.as_ref().is_some_and(|w| w.will_wake(cx.waker())) {
+            self.waker = Some(cx.waker().clone());
+        }
+        result
     }
 
     fn on_connection_event(
@@ -565,8 +576,9 @@ impl ConnectionHandler for Handler {
                         "Dial upgrade failed, {dropped_count} queued message(s) lost"
                     )));
                 }
-                // TODO(AndrewL): Trigger poll (e.g. via a waker) after resetting to Idle so that
-                // a new substream can be established promptly.
+                if let Some(waker) = self.waker.as_ref() {
+                    waker.wake_by_ref();
+                }
             }
             _ => {}
         }
