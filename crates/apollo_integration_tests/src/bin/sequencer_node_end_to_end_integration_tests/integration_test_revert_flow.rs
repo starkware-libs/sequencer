@@ -65,7 +65,10 @@ async fn main() {
     // This method is called twice in the test, once before and once after the revert.
     // The first call is mainly to verify block hashes were written to storage before the revert.
     integration_test_manager
-        .verify_block_hash_across_all_running_nodes(Some(BLOCK_TO_REVERT_FROM.unchecked_next()))
+        .verify_block_hash_across_all_running_nodes(
+            Some(BLOCK_TO_REVERT_FROM.unchecked_next()),
+            &std::collections::HashSet::new(),
+        )
         .await;
 
     info!("Shutting down nodes.");
@@ -124,9 +127,10 @@ async fn main() {
         .await;
 
     integration_test_manager
-        .verify_block_hash_across_all_running_nodes(Some(
-            BLOCK_TO_WAIT_FOR_AFTER_REVERT.unchecked_next(),
-        ))
+        .verify_block_hash_across_all_running_nodes(
+            Some(BLOCK_TO_WAIT_FOR_AFTER_REVERT.unchecked_next()),
+            &std::collections::HashSet::new(),
+        )
         .await;
 
     integration_test_manager.shutdown_nodes(node_indices);

@@ -1158,8 +1158,15 @@ impl IntegrationTestManager {
     pub async fn verify_block_hash_across_all_running_nodes(
         &self,
         optional_target_block_number: Option<BlockNumber>,
+        excluded_nodes: &HashSet<usize>,
     ) {
         info!("Verifying block hash flow across all running nodes.");
+
+        let included_node_indices: HashSet<usize> = self
+            .get_running_node_indices()
+            .into_iter()
+            .filter(|node_index| !excluded_nodes.contains(node_index))
+            .collect();
 
         // Step 1: Get the max state marker across all running nodes. If a target block number is
         // provided, use it instead of the max state marker.
@@ -1173,7 +1180,7 @@ impl IntegrationTestManager {
         info!(
             "Waiting for global root marker to reach {target_block_number} on all running nodes."
         );
-        self.perform_action_on_all_running_nodes(|running_node| async move {
+        self.perform_action_on_running_nodes(included_node_indices.clone(), |running_node| async move {
             let node_index = running_node.get_node_index();
             let mut global_root_height = running_node.node_setup.get_global_root_height().await;
             timeout(TEST_SCENARIO_TIMEOUT, async {
@@ -1200,7 +1207,7 @@ impl IntegrationTestManager {
         info!("Verifying block hash for block {block_to_check} across all running nodes.");
 
         let block_hashes: HashMap<usize, BlockHash> = self
-            .perform_action_on_all_running_nodes(|running_node| async move {
+            .perform_action_on_running_nodes(included_node_indices, |running_node| async move {
                 let response = running_node
                     .node_setup
                     .send_batcher_storage_reader_request(StorageReaderRequest::BlockHash(

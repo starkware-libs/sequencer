@@ -47,7 +47,10 @@ async fn main() {
         .await;
 
     integration_test_manager
-        .verify_block_hash_across_all_running_nodes(Some(BLOCK_TO_WAIT_FOR.unchecked_next()))
+        .verify_block_hash_across_all_running_nodes(
+            Some(BLOCK_TO_WAIT_FOR.unchecked_next()),
+            &std::collections::HashSet::new(),
+        )
         .await;
 
     info!("Shutting down nodes.");

@@ -79,9 +79,12 @@ async fn main() {
     }
 
     integration_test_manager
-        .verify_block_hash_across_all_running_nodes(Some(BlockNumber(
-            (block_to_wait_for + 1).try_into().expect("Failed to convert to u64"),
-        )))
+        .verify_block_hash_across_all_running_nodes(
+            Some(BlockNumber(
+                (block_to_wait_for + 1).try_into().expect("Failed to convert to u64"),
+            )),
+            &std::collections::HashSet::new(),
+        )
         .await;
 
     info!("Shutting down nodes.");

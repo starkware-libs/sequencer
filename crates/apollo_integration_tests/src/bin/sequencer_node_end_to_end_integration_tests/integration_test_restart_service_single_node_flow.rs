@@ -94,7 +94,9 @@ async fn main() {
         )
         .await;
 
-    integration_test_manager.verify_block_hash_across_all_running_nodes(None).await;
+    integration_test_manager
+        .verify_block_hash_across_all_running_nodes(None, &std::collections::HashSet::new())
+        .await;
 
     integration_test_manager.shutdown_nodes(node_indices);
     info!("Restart service single node flow integration test completed successfully!");
