@@ -100,8 +100,8 @@ impl ProposeTransactionProvider {
             .get_txs(n_txs, self.height)
             .await
             .inspect_err(|err| {
-                warn!("L1 provider error while fetching L1 handler transactions: {:?}", err);
                 BATCHER_L1_EVENTS_PROVIDER_ERRORS.increment(1);
+                warn!(?err, "L1 provider error while fetching L1 handler transactions.");
             })
             .unwrap_or_default()
             .into_iter()
@@ -202,10 +202,7 @@ impl TransactionProvider for ValidateTransactionProvider {
                     .validate(tx.tx_hash, self.height)
                     .await
                     .inspect_err(|err| {
-                        warn!(
-                            "L1 provider error while validating L1 handler transaction: {:?}",
-                            err
-                        );
+                        warn!(?err, "L1 provider error while validating L1 handler transaction",);
                         BATCHER_L1_EVENTS_PROVIDER_ERRORS.increment(1);
                     })
                     .unwrap_or(L1ValidationStatus::Invalid(
