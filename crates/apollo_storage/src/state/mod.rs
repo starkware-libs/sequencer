@@ -737,6 +737,11 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         state_diffs_table.append(&self.txn, &block_number, &location)?;
         file_offset_table.upsert(&self.txn, &OffsetKind::ThinStateDiff, &location.next_offset())?;
 
+        // Mark flat state as enabled (for toggle detection on restart).
+        if self.flat_state && markers_table.get(&self.txn, &MarkerKind::FlatState)?.is_none() {
+            markers_table.upsert(&self.txn, &MarkerKind::FlatState, &BlockNumber(1))?;
+        }
+
         update_marker_to_next_block(&self.txn, &markers_table, MarkerKind::State, block_number)?;
 
         advance_compiled_class_marker_over_blocks_without_classes(

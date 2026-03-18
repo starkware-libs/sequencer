@@ -260,6 +260,7 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                     }
                     MarkerKind::Event => txn.get_event_marker()?,
                     MarkerKind::GlobalRoot => txn.get_global_root_marker()?,
+                    MarkerKind::FlatState => BlockNumber(0),
                 };
                 Ok(StorageReaderResponse::Markers(block_number))
             }

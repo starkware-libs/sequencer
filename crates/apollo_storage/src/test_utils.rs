@@ -63,6 +63,16 @@ pub fn get_test_storage_with_flat_state() -> ((StorageReader, StorageWriter), Te
     ((open_storage(config).unwrap()), temp_dir)
 }
 
+/// Returns [`StorageReader`], [`StorageWriter`], the [`StorageConfig`] used, and the temporary
+/// directory that holds a db for testing purposes. Flat state is enabled.
+pub fn get_test_storage_with_config_flat_state()
+-> ((StorageReader, StorageWriter), StorageConfig, TempDir) {
+    let (mut config, temp_dir) = get_test_config(Some(StorageScope::StateOnly));
+    config.flat_state = true;
+    let (reader, writer) = open_storage(config.clone()).unwrap();
+    ((reader, writer), config, temp_dir)
+}
+
 /// Returns [`StorageReader`], [`StorageWriter`] and the temporary directory that holds a db for
 /// testing purposes.
 pub fn get_test_storage() -> ((StorageReader, StorageWriter), TempDir) {

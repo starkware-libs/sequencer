@@ -71,6 +71,7 @@ auto_impl_get_test_instance! {
         ClassManagerBlock = 7,
         CompilerBackwardCompatibility = 8,
         GlobalRoot = 9,
+        FlatState = 10,
     }
     pub enum OffsetKind {
         ThinStateDiff = 0,
