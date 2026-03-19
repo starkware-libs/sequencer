@@ -31,6 +31,26 @@ use validator::{Validate, ValidationError};
 pub const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
 pub const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
 
+/// Configuration for on-chain bootstrap of the dummy account and fee token contracts.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct BootstrapConfig {
+    /// When true, the batcher exposes bootstrap state derived from storage (declare / deploy /
+    /// fee-token steps). Should be disabled once the chain is initialized.
+    pub bootstrap_enabled: bool,
+}
+
+impl SerializeConfig for BootstrapConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([ser_param(
+            "bootstrap_enabled",
+            &self.bootstrap_enabled,
+            "When true, enables bootstrap state machine for system initialization. Set to false \
+             after bootstrap completes.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
 /// Configuration for the block builder component of the batcher.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BlockBuilderConfig {
@@ -247,6 +267,7 @@ pub struct BatcherStaticConfig {
     // TODO(Amos): Move to commitment manager config.
     pub first_block_with_partial_block_hash: Option<FirstBlockWithPartialBlockHash>,
     pub storage_reader_server_static_config: StorageReaderServerStaticConfig,
+    pub bootstrap_config: BootstrapConfig,
 }
 
 impl SerializeConfig for BatcherStaticConfig {
@@ -308,6 +329,7 @@ impl SerializeConfig for BatcherStaticConfig {
             self.storage_reader_server_static_config.dump(),
             "storage_reader_server_static_config",
         ));
+        dump.append(&mut prepend_sub_config_name(self.bootstrap_config.dump(), "bootstrap_config"));
         dump
     }
 }
@@ -336,6 +358,7 @@ impl Default for BatcherStaticConfig {
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
             first_block_with_partial_block_hash: None,
             storage_reader_server_static_config: StorageReaderServerStaticConfig::default(),
+            bootstrap_config: BootstrapConfig::default(),
         }
     }
 }
