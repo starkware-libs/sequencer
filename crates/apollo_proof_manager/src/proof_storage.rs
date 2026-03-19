@@ -24,8 +24,6 @@ pub enum FsProofStorageError {
     IoError(#[from] std::io::Error),
     #[error("Proof for facts_hash {facts_hash} not found.")]
     ProofNotFound { facts_hash: Felt },
-    #[error("Proof file byte length {0} is not a multiple of 4.")]
-    InvalidProofLength(usize),
 }
 
 type FsProofStorageResult<T> = Result<T, FsProofStorageError>;
@@ -102,9 +100,7 @@ impl FsProofStorage {
         }
 
         let mut file = tokio::fs::File::create(&path).await?;
-        let bytes: Vec<u8> = proof.0.iter().flat_map(|n| n.to_be_bytes()).collect();
-
-        file.write_all(&bytes).await?;
+        file.write_all(&proof.0).await?;
         file.flush().await?;
         Ok(())
     }
@@ -113,12 +109,7 @@ impl FsProofStorage {
     async fn read_proof_from_file(&self, facts_hash: Felt) -> FsProofStorageResult<Proof> {
         let file_path = self.get_persistent_dir(facts_hash).join("proof");
         let buffer = tokio::fs::read(&file_path).await?;
-
-        let (chunks, []) = buffer.as_chunks::<4>() else {
-            return Err(FsProofStorageError::InvalidProofLength(buffer.len()));
-        };
-        let data: Vec<u32> = chunks.iter().map(|c| u32::from_be_bytes(*c)).collect();
-        Ok(Proof::from(data))
+        Ok(Proof::from(buffer))
     }
 
     async fn write_proof_atomically(
