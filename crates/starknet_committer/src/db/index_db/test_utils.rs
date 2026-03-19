@@ -156,7 +156,7 @@ async fn traverse_and_convert<FactsLeaf, IndexLeaf, KeyContext>(
     let facts_db_key = subtree.get_root_db_key::<FactsLeaf>(key_context);
 
     // Try to get the node from storage.
-    let filled_node_raw: Option<DbValue> = facts_storage.get(&facts_db_key).await.unwrap();
+    let filled_node_raw: Option<DbValue> = facts_storage.get_mut(&facts_db_key).await.unwrap();
 
     // Handle missing nodes based on the panic_on_missing_node flag.
     let Some(filled_node_raw) = filled_node_raw else {

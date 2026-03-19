@@ -239,7 +239,8 @@ where
             NodeIndex::ROOT,
         );
 
-        let roots = self.storage.mget(&[&contracts_trie_root_key, &classes_trie_root_key]).await?;
+        let roots =
+            self.storage.mget_mut(&[&contracts_trie_root_key, &classes_trie_root_key]).await?;
         let contracts_trie_root_hash = extract_root_hash::<IndexLayoutContractState>(&roots[0])?;
         let classes_trie_root_hash = extract_root_hash::<IndexLayoutCompiledClassHash>(&roots[1])?;
 
@@ -291,7 +292,7 @@ impl<S: Storage> ForestMetadata for IndexDb<S> {
     }
 
     async fn get_from_storage(&mut self, db_key: DbKey) -> ForestResult<Option<DbValue>> {
-        Ok(self.storage.get(&db_key).await?)
+        Ok(self.storage.get_mut(&db_key).await?)
     }
 }
 

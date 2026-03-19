@@ -248,7 +248,7 @@ pub async fn get_roots_from_storage<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
     let db_keys: Vec<DbKey> =
         subtrees.iter().map(|subtree| subtree.get_root_db_key::<L>(key_context)).collect();
 
-    let db_vals = storage.mget(&db_keys.iter().collect::<Vec<&DbKey>>()).await?;
+    let db_vals = storage.mget_mut(&db_keys.iter().collect::<Vec<&DbKey>>()).await?;
     for ((subtree, optional_val), db_key) in subtrees.iter().zip(db_vals.iter()).zip(db_keys) {
         let Some(val) = optional_val else { Err(StorageError::MissingKey(db_key))? };
         let filled_node =

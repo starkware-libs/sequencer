@@ -31,7 +31,7 @@ async fn test_storage_concurrent_access(#[case] mut storage: impl AsyncStorage) 
     tasks.join_all().await;
 
     for i in 0..10u8 {
-        assert_eq!(storage.get(&DbKey(vec![i])).await.unwrap(), Some(DbValue(vec![i])));
+        assert_eq!(storage.get_mut(&DbKey(vec![i])).await.unwrap(), Some(DbValue(vec![i])));
     }
 
     // Parallel reads from the storage while some writes are happening.
@@ -39,7 +39,7 @@ async fn test_storage_concurrent_access(#[case] mut storage: impl AsyncStorage) 
     for i in 0..10u8 {
         let mut cloned_storage = storage.clone();
         tasks.spawn(async move {
-            let result = cloned_storage.get(&DbKey(vec![i])).await.unwrap().unwrap().0[0];
+            let result = cloned_storage.get_mut(&DbKey(vec![i])).await.unwrap().unwrap().0[0];
             // The result is either the original value or the new value.
             assert!(result == i || result == i + 10);
         });
