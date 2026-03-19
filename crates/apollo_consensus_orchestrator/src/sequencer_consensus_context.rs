@@ -115,6 +115,8 @@ type HeightToRoundToProposal =
 /// Cende status relative to the block we're building.
 #[derive(Debug)]
 pub(crate) enum CendeStatus {
+    /// Cende has current block (or higher) written; fail the proposal round.
+    CurrentBlob,
     /// Cende has prev block written; skip writing, proceed with build.
     PrevBlob,
     /// Prev blob not yet written; must write before building.
@@ -290,7 +292,9 @@ impl SequencerConsensusContext {
         }
         match self.deps.cende_ambassador.get_latest_received_block().await {
             Some(latest_cende_block) => {
-                if latest_cende_block >= height.prev().expect("height > 0 has predecessor") {
+                if latest_cende_block >= height {
+                    CendeStatus::CurrentBlob
+                } else if latest_cende_block >= height.prev().expect("height > 0 has predecessor") {
                     CendeStatus::PrevBlob
                 } else {
                     CendeStatus::PrevBlobMissing
@@ -538,6 +542,9 @@ impl ConsensusContext for SequencerConsensusContext {
     ) -> Result<oneshot::Receiver<ProposalCommitment>, ConsensusError> {
         let status = self.get_cende_status(build_param.height).await;
         let cende_write_success = match status {
+            CendeStatus::CurrentBlob => {
+                return Err(ConsensusError::CendeAheadOfProposalHeight(build_param.height));
+            }
             CendeStatus::PrevBlob => AbortOnDropHandle::new(tokio::spawn(ready(true))),
             CendeStatus::PrevBlobMissing => {
                 // TODO(dvir): consider start writing the blob in `decision_reached`, to reduce
