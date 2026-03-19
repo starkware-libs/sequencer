@@ -367,8 +367,8 @@ pub trait AsyncStorage: AsyncImmutableStorage + Storage {
     /// Important: The outputs are *not* guaranteed to be in the same order as the tasks.
     /// Returns the collected outputs from each task.
     async fn gather<T: StorageTask<Self>>(&mut self, tasks: Vec<T>) -> Vec<T::Output> {
-        // By default, ignore the reads.
         let (_reads, outputs) = run_tasks_and_collect_reads(self, tasks).await;
+        // By default, ignore the reads.
         outputs
     }
 }
