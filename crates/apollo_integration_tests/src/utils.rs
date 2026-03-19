@@ -30,7 +30,10 @@ use apollo_consensus_config::config::{
 };
 use apollo_consensus_config::ValidatorId;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
-use apollo_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
+use apollo_consensus_orchestrator::cende::{
+    RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH,
+    RECORDER_WRITE_BLOB_PATH,
+};
 use apollo_consensus_orchestrator_config::config::{
     CendeConfig,
     ContextConfig,
@@ -472,6 +475,16 @@ pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
                         StatusCode::OK.to_string()
                     }
                     .instrument(tracing::debug_span!("success recorder write_pre_confirmed_block"))
+                }),
+            )
+            .route(
+                RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH,
+                get(|| {
+                    async {
+                        debug!("Received a request for get_latest_received_block.");
+                        Json(serde_json::json!({ "block_number": 0 }))
+                    }
+                    .instrument(tracing::debug_span!("success recorder get_latest_received_block"))
                 }),
             );
         let listener = TcpListener::bind(socket_address).await.unwrap();
