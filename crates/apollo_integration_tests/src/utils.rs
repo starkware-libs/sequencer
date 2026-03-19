@@ -772,6 +772,7 @@ pub fn create_batcher_config(
         dynamic_config: BatcherDynamicConfig {
             native_classes_whitelist: NativeClassesWhitelist::All,
             storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig { enable: true },
+            ..Default::default()
         },
     }
 }
