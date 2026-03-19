@@ -123,6 +123,16 @@ impl Behaviour {
         self.engine_commands_tx.send(command).expect("Engine task has exited");
         response_rx
     }
+
+    /// Creates a handler for a new connection, wiring a bounded channel between the handler
+    /// and the engine for inbound unit delivery.
+    fn create_handler(&self, peer_id: PeerId) -> Handler {
+        let (sender, receiver) =
+            futures::channel::mpsc::channel(self.config.inbound_channel_capacity);
+        let command = EngineCommand::RegisterHandler { peer_id, receiver };
+        self.engine_commands_tx.send(command).expect("Engine task has exited");
+        Handler::new(&self.config, sender)
+    }
 }
 
 impl NetworkBehaviour for Behaviour {
@@ -132,22 +142,22 @@ impl NetworkBehaviour for Behaviour {
     fn handle_established_inbound_connection(
         &mut self,
         _connection_id: ConnectionId,
-        _peer: PeerId,
+        peer: PeerId,
         _local_addr: &libp2p::core::Multiaddr,
         _remote_addr: &libp2p::core::Multiaddr,
     ) -> Result<THandler<Self>, ConnectionDenied> {
-        Ok(Handler::new(&self.config))
+        Ok(self.create_handler(peer))
     }
 
     fn handle_established_outbound_connection(
         &mut self,
         _connection_id: ConnectionId,
-        _peer: PeerId,
+        peer: PeerId,
         _addr: &libp2p::core::Multiaddr,
         _role_override: Endpoint,
         _port_use: libp2p::core::transport::PortUse,
     ) -> Result<THandler<Self>, ConnectionDenied> {
-        Ok(Handler::new(&self.config))
+        Ok(self.create_handler(peer))
     }
 
     fn on_swarm_event(&mut self, event: FromSwarm<'_>) {
