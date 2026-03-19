@@ -108,7 +108,7 @@ pub trait ReadOnlyStorage: Send + Sync {
     // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
     // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
     // for details.
-    fn get(
+    fn get_mut(
         &mut self,
         key: &DbKey,
     ) -> impl Future<Output = PatriciaStorageResult<Option<DbValue>>> + Send;
@@ -118,7 +118,7 @@ pub trait ReadOnlyStorage: Send + Sync {
     // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
     // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
     // for details.
-    fn mget(
+    fn mget_mut(
         &mut self,
         keys: &[&DbKey],
     ) -> impl Future<Output = PatriciaStorageResult<Vec<Option<DbValue>>>> + Send;
@@ -203,11 +203,11 @@ impl StorageConfigTrait for EmptyStorageConfig {}
 pub struct NullStorage;
 
 impl ReadOnlyStorage for NullStorage {
-    async fn get(&mut self, _key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    async fn get_mut(&mut self, _key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(None)
     }
 
-    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         Ok(vec![None; keys.len()])
     }
 }

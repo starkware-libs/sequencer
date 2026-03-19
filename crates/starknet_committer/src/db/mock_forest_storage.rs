@@ -72,7 +72,7 @@ impl<S: Storage> ForestMetadata for MockForestStorage<S> {
     }
 
     async fn get_from_storage(&mut self, db_key: DbKey) -> ForestResult<Option<DbValue>> {
-        Ok(self.storage.get(&db_key).await?)
+        Ok(self.storage.get_mut(&db_key).await?)
     }
 }
 
