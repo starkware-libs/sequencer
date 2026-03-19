@@ -601,6 +601,23 @@ impl<S: FlowTestState> TestBuilder<S> {
         );
     }
 
+    /// Like `add_invoke_tx_from_args`, but does not add the automatic fee-token transfer event
+    /// expectation. Use only when no fee transfer is expected (e.g. zero-price resource bounds).
+    pub(crate) fn add_invoke_tx_from_args_no_fee_event(
+        &mut self,
+        args: InvokeTxArgs,
+        revert_reason: Option<String>,
+    ) {
+        let tx = InvokeTransaction::create(invoke_tx(args), &self.chain_id()).unwrap();
+        self.last_block_txs_mut().push(FlowTestTx {
+            tx: BlockifierTransaction::new_for_sequencing(ExecutableTransaction::Account(
+                AccountTransaction::Invoke(tx),
+            )),
+            expected_revert_reason: revert_reason,
+            event_expectations: vec![],
+        });
+    }
+
     /// Similar to `add_invoke_tx_from_args`, but with the sender address set to the funded account,
     /// nonce set (and incremented) and resource bounds set to the default (non-trivial).
     /// Assumes the tx should not be reverted.

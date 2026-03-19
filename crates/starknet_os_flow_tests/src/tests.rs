@@ -3021,3 +3021,115 @@ async fn test_get_block_hash_current_block_number() {
     let test_output = test_builder.build_and_run().await;
     test_output.perform_default_validations();
 }
+
+/// Generates proof fixture files for the `integration_test_proof_flow` integration test.
+///
+/// Runs a `balanceOf` transaction against an in-memory Starknet chain, generates a real
+/// zero-knowledge proof using the stwo prover, and writes `proof.bin` and `proof_facts.json`
+/// to the `apollo_integration_tests/resources/proof_flow/` directory.
+///
+/// The chain info is overridden to use `ChainInfo::create_for_testing()` so the generated
+/// `config_hash` matches what the integration test computes (strk_fee_token = 0x1002).
+///
+/// # Running
+///
+/// ```bash
+/// cargo +nightly-2025-07-14 test -p starknet_os_flow_tests --features stwo_proving \
+///     generate_proof_flow_fixtures -- --ignored --nocapture
+/// ```
+#[cfg(feature = "stwo_proving")]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn generate_proof_flow_fixtures() {
+    use blockifier::context::{BlockContext, ChainInfo};
+    use blockifier_test_utils::calldata::create_calldata;
+    use starknet_api::block::GasPrice;
+    use starknet_api::core::OsChainInfo;
+    use starknet_api::execution_resources::GasAmount;
+    use starknet_api::invoke_tx_args;
+    use starknet_api::transaction::fields::{
+        AllResourceBounds,
+        ResourceBounds,
+        ValidResourceBounds,
+    };
+    use starknet_transaction_prover::prove_cairo_pie_standalone;
+
+    use crate::test_manager::{TestBuilder, FUNDED_ACCOUNT_ADDRESS, STRK_FEE_TOKEN_ADDRESS};
+
+    // Use virtual OS mode to get a CairoPie (required for proof generation).
+    let (mut test_builder, _) = TestBuilder::create_standard_virtual([]).await;
+
+    // Override chain info to match the integration test's ChainInfo::create_for_testing()
+    // (strk_fee_token = TEST_ERC20_CONTRACT_ADDRESS2 = 0x1002). This ensures the generated
+    // proof_facts have a config_hash that passes the integration test's validation.
+    let chain_info = ChainInfo::create_for_testing();
+    let new_block_context = BlockContext::new(
+        test_builder.initial_state.block_context.block_info().clone(),
+        chain_info.clone(),
+        test_builder.initial_state.block_context.versioned_constants().clone(),
+        test_builder.initial_state.block_context.bouncer_config.clone(),
+    );
+    test_builder.initial_state.block_context = new_block_context;
+    test_builder.os_hints_config.chain_info = OsChainInfo::from(&chain_info);
+
+    // Use zero-price resource bounds so no fee is charged. The fee transfer in the blockifier
+    // is skipped when actual_fee == 0, so the fee token contract at 0x1002 is never called
+    // (it has no ERC20 deployed in this test state).
+    let zero_price_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
+        l1_gas: ResourceBounds {
+            max_amount: GasAmount(100_000_000),
+            max_price_per_unit: GasPrice(0),
+        },
+        l2_gas: ResourceBounds {
+            max_amount: GasAmount(100_000_000),
+            max_price_per_unit: GasPrice(0),
+        },
+        l1_data_gas: ResourceBounds {
+            max_amount: GasAmount(100_000_000),
+            max_price_per_unit: GasPrice(0),
+        },
+    });
+    let nonce = test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS);
+    // Call `balanceOf(FUNDED_ACCOUNT_ADDRESS)` on the STRK token.
+    let calldata =
+        create_calldata(*STRK_FEE_TOKEN_ADDRESS, "balanceOf", &[(*FUNDED_ACCOUNT_ADDRESS).into()]);
+    // Use the no-fee-event variant because zero-price bounds produce actual_fee = 0,
+    // which skips the fee transfer — so no fee token Transfer event is emitted.
+    test_builder.add_invoke_tx_from_args_no_fee_event(
+        invoke_tx_args! {
+            sender_address: *FUNDED_ACCOUNT_ADDRESS,
+            nonce,
+            resource_bounds: zero_price_bounds,
+            calldata,
+        },
+        None,
+    );
+
+    let test_runner = test_builder.build().await;
+    let output = test_runner.run_virtual();
+    let cairo_pie = output.runner_output.cairo_pie;
+
+    println!("OS execution complete. Generating proof (this may take a few minutes)...");
+
+    let (proof, proof_facts) =
+        prove_cairo_pie_standalone(cairo_pie).await.expect("Proving should succeed");
+
+    let resources_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .join("apollo_integration_tests/resources/proof_flow");
+    std::fs::create_dir_all(&resources_dir).expect("Failed to create resources dir");
+
+    let proof_facts_path = resources_dir.join("proof_facts.json");
+    let proof_path = resources_dir.join("proof.bin");
+
+    let proof_facts_json =
+        serde_json::to_string_pretty(&proof_facts).expect("Failed to serialize proof_facts");
+    std::fs::write(&proof_facts_path, proof_facts_json).expect("Failed to write proof_facts.json");
+
+    let proof_bytes: Vec<u8> = proof.0.iter().flat_map(|word| word.to_be_bytes()).collect();
+    std::fs::write(&proof_path, proof_bytes).expect("Failed to write proof.bin");
+
+    println!("Wrote proof_facts.json to {}", proof_facts_path.display());
+    println!("Wrote proof.bin to {}", proof_path.display());
+}

@@ -7,6 +7,7 @@
 # If no argument is provided, the default test "positive" is run.
 # You can also pass:
 #   - "positive" to run the positive flow test,
+#   - "proof" to run the proof flow test,
 #   - "restart" to run the restart flow test,
 #   - "restart_multiple_nodes" to run the restart flow test with multiple nodes,
 #   - "restart_single_node" to run the restart flow test with a single node,
@@ -21,6 +22,7 @@
 # TODO(noamsp): find a way to get this mapping automatically instead of hardcoding
 declare -A TEST_ALIASES=(
   [positive]="integration_test_positive_flow"
+  [proof]="integration_test_proof_flow"
   [restart]="integration_test_restart_flow"
   [restart_multiple_nodes]="integration_test_restart_service_multiple_nodes_flow"
   [restart_single_node]="integration_test_restart_service_single_node_flow"

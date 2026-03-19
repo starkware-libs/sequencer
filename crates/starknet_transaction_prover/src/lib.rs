@@ -22,5 +22,8 @@ pub mod proving;
 pub mod running;
 pub mod server;
 
+#[cfg(feature = "stwo_proving")]
+pub use proving::prover::prove_cairo_pie_standalone;
+
 #[cfg(test)]
 mod test_utils;

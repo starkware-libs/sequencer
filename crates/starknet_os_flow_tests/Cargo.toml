@@ -10,6 +10,7 @@ description = "Integration tests for Starknet OS execution and state commitment 
 exhaustive_fuzz_test = []
 fuzz_test_debug = []
 long_fuzz_test = []
+stwo_proving = ["starknet_transaction_prover/stwo_proving"]
 
 [dev-dependencies]
 assert_matches.workspace = true
