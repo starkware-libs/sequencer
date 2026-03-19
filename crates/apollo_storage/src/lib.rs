@@ -148,7 +148,7 @@ use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, GlobalRoot, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
-use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
+use starknet_api::transaction::{Event, Transaction, TransactionHash, TransactionOutput};
 use starknet_types_core::felt::Felt;
 use tracing::{debug, info, warn};
 use validator::Validate;
@@ -245,6 +245,7 @@ fn open_storage_internal(
             .create_simple_table("deprecated_declared_classes_block")?,
         deployed_contracts: db_writer.create_simple_table("deployed_contracts")?,
         events: db_writer.create_common_prefix_table("events")?,
+        transaction_events: db_writer.create_simple_table("transaction_events")?,
         headers: db_writer.create_simple_table("headers")?,
         last_voted_marker: db_writer.create_simple_table("last_voted_marker")?,
         markers: db_writer.create_simple_table("markers")?,
@@ -677,6 +678,7 @@ struct_field_names! {
         // TODO(dvir): consider use here also the CommonPrefix table type.
         deployed_contracts: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<ClassHash>, SimpleTable>,
         events: TableIdentifier<(ContractAddress, TransactionIndex), NoVersionValueWrapper<NoValue>, CommonPrefix>,
+        transaction_events: TableIdentifier<TransactionIndex, VersionZeroWrapper<Vec<Event>>, SimpleTable>,
         // TODO(Shahak): Remove the block hashes from this table and use block hash tables instead.
         headers: TableIdentifier<BlockNumber, VersionZeroWrapper<StorageBlockHeader>, SimpleTable>,
         last_voted_marker: TableIdentifier<(), VersionZeroWrapper<LastVotedMarker>, SimpleTable>,
