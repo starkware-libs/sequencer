@@ -5,8 +5,11 @@
 //! `NetworkBehaviour` adapter in `behaviour.rs` via command/output channels.
 
 use std::collections::{HashMap, HashSet};
+use std::pin::Pin;
 use std::sync::Arc;
 
+use futures::stream::SelectAll;
+use futures::StreamExt;
 use libp2p::identity::{Keypair, PeerId, PublicKey};
 use starknet_api::staking::StakingWeight;
 use tokio::sync::{mpsc, oneshot};
@@ -25,6 +28,9 @@ use crate::unit::PropellerUnit;
 
 type BroadcastResponseTx = oneshot::Sender<Result<(), ShardPublishError>>;
 type BroadcastResult = (Result<Vec<PropellerUnit>, ShardPublishError>, BroadcastResponseTx);
+
+/// A stream of `(PeerId, PropellerUnit)` from a single connection handler's bounded channel.
+type InboundUnitStream = Pin<Box<dyn futures::Stream<Item = (PeerId, PropellerUnit)> + Send>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct MessageKey {
@@ -60,6 +66,10 @@ pub enum EngineCommand {
     HandleDisconnected {
         peer_id: PeerId,
     },
+    RegisterHandler {
+        peer_id: PeerId,
+        receiver: futures::channel::mpsc::Receiver<PropellerUnit>,
+    },
 }
 
 /// Outputs sent from the engine to the Behaviour.
@@ -94,6 +104,9 @@ pub struct Engine {
     prepared_units_tx: mpsc::UnboundedSender<BroadcastResult>,
     from_behaviour_rx: mpsc::UnboundedReceiver<EngineCommand>,
     to_behaviour_tx: mpsc::UnboundedSender<EngineOutput>,
+    /// Receivers for inbound units from connection handlers, polled via `SelectAll`.
+    /// Each receiver corresponds to one connection's bounded channel.
+    inbound_unit_receivers: SelectAll<InboundUnitStream>,
     metrics: Option<PropellerMetrics>,
 }
 
@@ -126,6 +139,7 @@ impl Engine {
             prepared_units_tx: broadcaster_results_tx,
             from_behaviour_rx,
             to_behaviour_tx: output_tx,
+            inbound_unit_receivers: SelectAll::new(),
             metrics,
         }
     }
@@ -454,7 +468,16 @@ impl Engine {
                     },
                     EngineCommand::HandleConnected { peer_id } => self.handle_connected(peer_id),
                     EngineCommand::HandleDisconnected { peer_id } => self.handle_disconnected(peer_id),
+                    EngineCommand::RegisterHandler { peer_id, receiver } => {
+                        let tagged_stream: InboundUnitStream =
+                            Box::pin(receiver.map(move |unit| (peer_id, unit)));
+                        self.inbound_unit_receivers.push(tagged_stream);
+                    }
                 },
+
+                Some((peer_id, unit)) = self.inbound_unit_receivers.next() => {
+                    self.handle_unit(peer_id, unit);
+                }
 
                 Some((result, response)) = self.prepared_units_rx.recv() => {
                     self.handle_broadcaster_result(result, response);
