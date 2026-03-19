@@ -11,7 +11,7 @@ use http::StatusCode;
 use indexmap::IndexMap;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use starknet_api::block::{BlockNumber, BlockSignature};
+use starknet_api::block::{Block, BlockNumber, BlockSignature};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -75,6 +75,7 @@ struct TestServerSetup {
     app: Router,
     reader: StorageReader,
     state_diff: ThinStateDiff,
+    block: Block,
     _temp_dir: TempDir,
     class_hash: ClassHash,
     class: SierraContractClass,
@@ -151,6 +152,8 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
     let block = get_test_block(3, Some(1), None, None);
     let tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(0));
     let block_signature = BlockSignature::default();
+    let block_body_events = block.body.transaction_events.clone();
+    let stored_block = block.clone();
 
     writer
         .begin_rw_txn()
@@ -172,6 +175,8 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         .append_block_signature(block_number, &block_signature)
         .unwrap()
         .append_body(block_number, block.body)
+        .unwrap()
+        .append_events(block_number, &block_body_events)
         .unwrap()
         .set_executable_class_hash_v2(&class_hash, executable_class_hash_v2)
         .unwrap()
@@ -196,6 +201,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         app,
         reader,
         state_diff,
+        block: stored_block,
         _temp_dir: temp_dir,
         class_hash,
         class: expected_class,
@@ -645,15 +651,10 @@ async fn block_signatures_request() {
 async fn events_request() {
     let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
 
-    let tx_output = setup
-        .reader
-        .begin_ro_txn()
-        .unwrap()
-        .get_transaction_output(setup.tx_index)
-        .unwrap()
-        .expect("Transaction output should exist");
-    let event_address =
-        tx_output.events().first().expect("Transaction should have events").from_address;
+    let event_address = setup.block.body.transaction_events[0]
+        .first()
+        .expect("First transaction should have at least one event")
+        .from_address;
 
     let request = StorageReaderRequest::Events(event_address, setup.tx_index);
     let response: StorageReaderResponse = setup.get_success_response(&request).await;

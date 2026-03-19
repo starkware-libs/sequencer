@@ -1289,48 +1289,217 @@ auto_storage_serde_conditionally_compressed! {
         pub calldata: Calldata,
     }
 
-    pub struct DeclareTransactionOutput {
-        pub actual_fee: Fee,
-        pub messages_sent: Vec<MessageToL1>,
-        pub events: Vec<Event>,
-        pub execution_status: TransactionExecutionStatus,
-        pub execution_resources: ExecutionResources,
-    }
+}
 
-    pub struct DeployAccountTransactionOutput {
-        pub actual_fee: Fee,
-        pub messages_sent: Vec<MessageToL1>,
-        pub events: Vec<Event>,
-        pub contract_address: ContractAddress,
-        pub execution_status: TransactionExecutionStatus,
-        pub execution_resources: ExecutionResources,
-    }
+// Custom StorageSerde impls for TransactionOutput variants.
+// The on-disk format still includes an `events: Vec<Event>` field for backward compatibility
+// with existing mmap files. On serialization we write an empty events vec; on deserialization
+// we read and discard the events that may be present in legacy data.
 
-    pub struct DeployTransactionOutput {
-        pub actual_fee: Fee,
-        pub messages_sent: Vec<MessageToL1>,
-        pub events: Vec<Event>,
-        pub contract_address: ContractAddress,
-        pub execution_status: TransactionExecutionStatus,
-        pub execution_resources: ExecutionResources,
+/// Helper that serializes a transaction output whose on-disk layout is:
+/// actual_fee, messages_sent, events, execution_status, execution_resources.
+/// The `extra_fields_serialize` closure writes any variant-specific fields (e.g.
+/// contract_address) between events and execution_status.
+fn serialize_tx_output_conditionally_compressed(
+    actual_fee: &Fee,
+    messages_sent: &[MessageToL1],
+    extra_fields_serialize: impl FnOnce(&mut Vec<u8>) -> Result<(), StorageSerdeError>,
+    execution_status: &TransactionExecutionStatus,
+    execution_resources: &ExecutionResources,
+    res: &mut impl std::io::Write,
+) -> Result<(), StorageSerdeError> {
+    let mut to_compress: Vec<u8> = Vec::new();
+    actual_fee.serialize_into(&mut to_compress)?;
+    messages_sent.to_vec().serialize_into(&mut to_compress)?;
+    // Write empty events vec for on-disk format compatibility.
+    Vec::<Event>::new().serialize_into(&mut to_compress)?;
+    extra_fields_serialize(&mut to_compress)?;
+    execution_status.serialize_into(&mut to_compress)?;
+    execution_resources.serialize_into(&mut to_compress)?;
+    if to_compress.len() > COMPRESSION_THRESHOLD_BYTES {
+        IsCompressed::Yes.serialize_into(res)?;
+        if to_compress.len() > crate::compression_utils::MAX_DECOMPRESSED_SIZE {
+            warn!(
+                "TransactionOutput serialization size is too large and will lead to \
+                 deserialization error: {}",
+                to_compress.len()
+            );
+        }
+        let compressed = compress(to_compress.as_slice())?;
+        compressed.serialize_into(res)?;
+    } else {
+        IsCompressed::No.serialize_into(res)?;
+        to_compress.serialize_into(res)?;
     }
+    Ok(())
+}
 
-    pub struct InvokeTransactionOutput {
-        pub actual_fee: Fee,
-        pub messages_sent: Vec<MessageToL1>,
-        pub events: Vec<Event>,
-        pub execution_status: TransactionExecutionStatus,
-        pub execution_resources: ExecutionResources,
-    }
-
-    pub struct L1HandlerTransactionOutput {
-        pub actual_fee: Fee,
-        pub messages_sent: Vec<MessageToL1>,
-        pub events: Vec<Event>,
-        pub execution_status: TransactionExecutionStatus,
-        pub execution_resources: ExecutionResources,
+/// Helper that decompresses the raw bytes for a transaction output entry.
+fn decompress_tx_output_bytes(bytes: &mut impl std::io::Read) -> Option<Vec<u8>> {
+    let is_compressed = IsCompressed::deserialize_from(bytes)?;
+    let maybe_compressed_data = Vec::<u8>::deserialize_from(bytes)?;
+    match is_compressed {
+        IsCompressed::No => Some(maybe_compressed_data),
+        IsCompressed::Yes => Some(
+            decompress(maybe_compressed_data.as_slice())
+                .expect("destination buffer should be large enough"),
+        ),
     }
 }
+
+impl StorageSerde for DeclareTransactionOutput {
+    fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
+        serialize_tx_output_conditionally_compressed(
+            &self.actual_fee,
+            &self.messages_sent,
+            |_| Ok(()),
+            &self.execution_status,
+            &self.execution_resources,
+            res,
+        )
+    }
+
+    fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
+        let data = decompress_tx_output_bytes(bytes)?;
+        let data = &mut data.as_slice();
+        let actual_fee = Fee::deserialize_from(data)?;
+        let messages_sent = Vec::<MessageToL1>::deserialize_from(data)?;
+        // Read and discard legacy events field.
+        let _events = Vec::<Event>::deserialize_from(data)?;
+        let execution_status = TransactionExecutionStatus::deserialize_from(data)?;
+        let execution_resources = ExecutionResources::deserialize_from(data)?;
+        Some(Self { actual_fee, messages_sent, execution_status, execution_resources })
+    }
+}
+
+#[cfg(test)]
+create_storage_serde_test!(DeclareTransactionOutput);
+
+impl StorageSerde for DeployAccountTransactionOutput {
+    fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
+        serialize_tx_output_conditionally_compressed(
+            &self.actual_fee,
+            &self.messages_sent,
+            |buf| self.contract_address.serialize_into(buf),
+            &self.execution_status,
+            &self.execution_resources,
+            res,
+        )
+    }
+
+    fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
+        let data = decompress_tx_output_bytes(bytes)?;
+        let data = &mut data.as_slice();
+        let actual_fee = Fee::deserialize_from(data)?;
+        let messages_sent = Vec::<MessageToL1>::deserialize_from(data)?;
+        // Read and discard legacy events field.
+        let _events = Vec::<Event>::deserialize_from(data)?;
+        let contract_address = ContractAddress::deserialize_from(data)?;
+        let execution_status = TransactionExecutionStatus::deserialize_from(data)?;
+        let execution_resources = ExecutionResources::deserialize_from(data)?;
+        Some(Self {
+            actual_fee,
+            messages_sent,
+            contract_address,
+            execution_status,
+            execution_resources,
+        })
+    }
+}
+
+#[cfg(test)]
+create_storage_serde_test!(DeployAccountTransactionOutput);
+
+impl StorageSerde for DeployTransactionOutput {
+    fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
+        serialize_tx_output_conditionally_compressed(
+            &self.actual_fee,
+            &self.messages_sent,
+            |buf| self.contract_address.serialize_into(buf),
+            &self.execution_status,
+            &self.execution_resources,
+            res,
+        )
+    }
+
+    fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
+        let data = decompress_tx_output_bytes(bytes)?;
+        let data = &mut data.as_slice();
+        let actual_fee = Fee::deserialize_from(data)?;
+        let messages_sent = Vec::<MessageToL1>::deserialize_from(data)?;
+        // Read and discard legacy events field.
+        let _events = Vec::<Event>::deserialize_from(data)?;
+        let contract_address = ContractAddress::deserialize_from(data)?;
+        let execution_status = TransactionExecutionStatus::deserialize_from(data)?;
+        let execution_resources = ExecutionResources::deserialize_from(data)?;
+        Some(Self {
+            actual_fee,
+            messages_sent,
+            contract_address,
+            execution_status,
+            execution_resources,
+        })
+    }
+}
+
+#[cfg(test)]
+create_storage_serde_test!(DeployTransactionOutput);
+
+impl StorageSerde for InvokeTransactionOutput {
+    fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
+        serialize_tx_output_conditionally_compressed(
+            &self.actual_fee,
+            &self.messages_sent,
+            |_| Ok(()),
+            &self.execution_status,
+            &self.execution_resources,
+            res,
+        )
+    }
+
+    fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
+        let data = decompress_tx_output_bytes(bytes)?;
+        let data = &mut data.as_slice();
+        let actual_fee = Fee::deserialize_from(data)?;
+        let messages_sent = Vec::<MessageToL1>::deserialize_from(data)?;
+        // Read and discard legacy events field.
+        let _events = Vec::<Event>::deserialize_from(data)?;
+        let execution_status = TransactionExecutionStatus::deserialize_from(data)?;
+        let execution_resources = ExecutionResources::deserialize_from(data)?;
+        Some(Self { actual_fee, messages_sent, execution_status, execution_resources })
+    }
+}
+
+#[cfg(test)]
+create_storage_serde_test!(InvokeTransactionOutput);
+
+impl StorageSerde for L1HandlerTransactionOutput {
+    fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
+        serialize_tx_output_conditionally_compressed(
+            &self.actual_fee,
+            &self.messages_sent,
+            |_| Ok(()),
+            &self.execution_status,
+            &self.execution_resources,
+            res,
+        )
+    }
+
+    fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
+        let data = decompress_tx_output_bytes(bytes)?;
+        let data = &mut data.as_slice();
+        let actual_fee = Fee::deserialize_from(data)?;
+        let messages_sent = Vec::<MessageToL1>::deserialize_from(data)?;
+        // Read and discard legacy events field.
+        let _events = Vec::<Event>::deserialize_from(data)?;
+        let execution_status = TransactionExecutionStatus::deserialize_from(data)?;
+        let execution_resources = ExecutionResources::deserialize_from(data)?;
+        Some(Self { actual_fee, messages_sent, execution_status, execution_resources })
+    }
+}
+
+#[cfg(test)]
+create_storage_serde_test!(L1HandlerTransactionOutput);
 
 // Custom StorageSerde for InvokeTransactionV3 (backward compatibility).
 // Allows deserializing legacy on-disk txs that were stored before `proof_facts` was added.
