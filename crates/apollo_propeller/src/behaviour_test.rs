@@ -10,7 +10,7 @@ use starknet_api::staking::StakingWeight;
 use tokio::time::error::Elapsed;
 
 use crate::config::Config;
-use crate::handler::{HandlerIn, HandlerOut};
+use crate::handler::HandlerIn;
 use crate::types::{CommitteeId, Event};
 use crate::{Behaviour, PropellerUnit};
 
@@ -53,15 +53,6 @@ impl TestNode {
         });
 
         self.behaviour.on_swarm_event(event);
-    }
-
-    fn simulate_receive_unit(&mut self, from_peer: PeerId, unit: PropellerUnit) {
-        let connection_id = ConnectionId::new_unchecked(0);
-        self.behaviour.on_connection_handler_event(
-            from_peer,
-            connection_id,
-            HandlerOut::Unit(unit),
-        );
     }
 
     async fn next_with_timeout(
