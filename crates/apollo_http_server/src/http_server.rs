@@ -28,6 +28,7 @@ use axum::http::HeaderMap;
 use axum::routing::{get, post, MethodRouter};
 use axum::{serve, Extension, Json, Router};
 use blockifier_reexecution::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
+use tower_http::decompression::RequestDecompressionLayer;
 use serde::de::Error;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::serde_utils::bytes_from_hex_str;
@@ -142,6 +143,7 @@ impl HttpServer {
                 get(|| futures::future::ready("Gateway is ready".to_owned()))
             )
             .layer(Extension(self.app_state.clone()))
+            .layer(RequestDecompressionLayer::new())
     }
 
     fn post_method_router<H, T, S>(&self, handler: H) -> MethodRouter<S>

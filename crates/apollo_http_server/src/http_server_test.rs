@@ -385,3 +385,34 @@ async fn request_body_size_limit_enforced(
     let response = http_client.add_tx(tx).await;
     assert_eq!(response.status(), expected_status, "Unexpected status: {}", response.status());
 }
+
+#[tokio::test]
+async fn gzip_compressed_request_decompression() {
+    use std::io::Write;
+
+    let mut mock_gateway_client = MockGatewayClient::new();
+    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(default_gateway_output()));
+
+    let http_client = HttpClientServerSetupBuilder::new(unique_u16!())
+        .with_mock_gateway_client(mock_gateway_client)
+        .build()
+        .await;
+
+    let tx = rpc_invoke_tx();
+    let tx_json = serde_json::to_string(&tx).unwrap();
+
+    // Compress the transaction JSON with gzip
+    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    encoder.write_all(tx_json.as_bytes()).unwrap();
+    let compressed_body = encoder.finish().unwrap();
+
+    // Send the gzip-compressed request
+    let response = http_client.add_rpc_tx_with_gzip(tx, compressed_body).await;
+
+    // Verify the request was successfully processed (decompressed and handled)
+    assert_eq!(response.status(), StatusCode::OK, "Request should be decompressed and handled");
+    let response_body = response.text().await.unwrap();
+    let gateway_output: GatewayOutput = serde_json::from_str(&response_body)
+        .expect("Response should be valid GatewayOutput");
+    assert_eq!(gateway_output.transaction_hash(), EXPECTED_TX_HASH);
+}
