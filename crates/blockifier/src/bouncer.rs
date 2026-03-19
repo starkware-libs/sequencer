@@ -194,7 +194,7 @@ impl Default for BouncerWeights {
             sierra_gas: GasAmount(5000000000),
             proving_gas: GasAmount(5000000000),
             // NOTE: Must stay in sync with orchestrator_versioned_constants' max_block_size.
-            receipt_l2_gas: GasAmount(2500000000),
+            receipt_l2_gas: GasAmount(5800000000),
         }
     }
 }
