@@ -46,10 +46,13 @@ async fn test_prove_cairo_pie_10_transfers() {
 
     // Verify the proof using the circuit verifier.
     let output_preimage: Vec<starknet_types_core::felt::Felt> = output.program_output.0.to_vec();
-    let proof_output = privacy_circuit_verify::PrivacyProofOutput {
-        proof: output.proof.0.to_vec(),
-        output_preimage,
+    // TODO(AvivG): this conversion is temporary until PrivacyProofOutput holds u8 proof.
+    let (chunks, []) = output.proof.0.as_chunks::<4>() else {
+        panic!("Proof byte length {} is not a multiple of 4", output.proof.0.len());
     };
+    let proof_u32s: Vec<u32> = chunks.iter().map(|c| u32::from_be_bytes(*c)).collect();
+    let proof_output =
+        privacy_circuit_verify::PrivacyProofOutput { proof: proof_u32s, output_preimage };
     privacy_circuit_verify::verify_recursive_circuit(&proof_output)
         .expect("Failed to verify proof");
 
@@ -82,8 +85,8 @@ async fn regenerate_proof_fixtures() {
     let precomputes = prepare_precomputes();
     let output = prove(cairo_pie, precomputes).await.expect("Failed to prove Cairo PIE");
 
-    // Save proof as raw binary (each u32 as 4 big-endian bytes).
-    let raw_bytes: Vec<u8> = output.proof.0.iter().flat_map(|n| n.to_be_bytes()).collect();
+    // Save proof as raw binary.
+    let raw_bytes: Vec<u8> = output.proof.0.to_vec();
     let proof_path = resolve_transaction_converter_resource("example_proof.bin");
     fs::write(&proof_path, &raw_bytes).expect("Failed to write proof file");
     println!("Wrote proof to {}", proof_path.display());
