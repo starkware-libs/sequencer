@@ -13,6 +13,9 @@ use apollo_batcher::metrics::{
     EVENT_COMMITMENT_LATENCY,
     GLOBAL_ROOT_HEIGHT,
     LABEL_NAME_BLOCK_CLOSE_REASON,
+    LABEL_NAME_PRECONFIRMED_BLOCK_WRITE_FAILURE_REASON,
+    PRECONFIRMED_BLOCK_WRITE_FAILURE,
+    PRECONFIRMED_BLOCK_WRITTEN,
     PROPOSER_DEFERRED_TXS,
     RECEIPT_COMMITMENT_LATENCY,
     REJECTED_TRANSACTIONS,
@@ -289,6 +292,43 @@ fn get_panel_state_diff_commitment_per_state_diff_length() -> Panel {
     )
 }
 
+fn get_panel_cende_write_preconfirmed_block() -> Panel {
+    Panel::new(
+        "Write Preconfirmed Block Success",
+        format!(
+            "The number of successful writes to Cende for preconfirmed blocks ({DEFAULT_DURATION} \
+             window). Each preconfirmed block may involve multiple writes.",
+        ),
+        increase(&PRECONFIRMED_BLOCK_WRITTEN, DEFAULT_DURATION),
+        PanelType::TimeSeries,
+    )
+    .with_log_query("write_pre_confirmed_block request succeeded.")
+}
+
+fn get_panel_cende_write_preconfirmed_block_failure() -> Panel {
+    let query_expression = [
+        "\"write_pre_confirmed_block request failed\"",
+        "\"Failed to send write_pre_confirmed_block request to Cende recorder\"",
+    ]
+    .join(" OR ");
+
+    Panel::new(
+        "Write Preconfirmed Block Failure by Reason",
+        format!(
+            "The number of failed writes to Cende for preconfirmed blocks ({DEFAULT_DURATION} \
+             window)",
+        ),
+        sum_by_label(
+            &PRECONFIRMED_BLOCK_WRITE_FAILURE,
+            LABEL_NAME_PRECONFIRMED_BLOCK_WRITE_FAILURE_REASON,
+            DisplayMethod::Increase(DEFAULT_DURATION),
+            true,
+        ),
+        PanelType::TimeSeries,
+    )
+    .with_log_query(query_expression)
+}
+
 pub(crate) fn get_batcher_row() -> Row {
     Row::new(
         "Batcher",
@@ -313,6 +353,8 @@ pub(crate) fn get_batcher_row() -> Row {
             get_panel_receipts_commitment_latency(),
             get_panel_state_diff_commitment_latency(),
             get_panel_state_diff_commitment_per_state_diff_length(),
+            get_panel_cende_write_preconfirmed_block(),
+            get_panel_cende_write_preconfirmed_block_failure(),
             get_panel_l1_events_provider_errors(),
         ],
     )

@@ -433,28 +433,6 @@
           "extra_params": {
             "log_query": "\"Blob for block number\""
           }
-        },
-        {
-          "title": "Write Preconfirmed Block Success",
-          "description": "The number of successful writes to Cende for preconfirmed blocks (10m window). Each preconfirmed block may involve multiple writes.",
-          "type": "timeseries",
-          "exprs": [
-            "increase(batcher_preconfirmed_block_written{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
-          ],
-          "extra_params": {
-            "log_query": "\"write_pre_confirmed_block request succeeded.\""
-          }
-        },
-        {
-          "title": "Write Preconfirmed Block Failure by Reason",
-          "description": "The number of failed writes to Cende for preconfirmed blocks (10m window)",
-          "type": "timeseries",
-          "exprs": [
-            "sum by (failure_reason) (increase(batcher_preconfirmed_block_write_failure{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])) > 0"
-          ],
-          "extra_params": {
-            "log_query": "\"write_pre_confirmed_block request failed\" OR \"Failed to send write_pre_confirmed_block request to Cende recorder\""
-          }
         }
       ],
       "collapsed": true
@@ -689,6 +667,28 @@
           "extra_params": {
             "unit": "s",
             "log_query": "\"Block\" AND \"commitment latencies\""
+          }
+        },
+        {
+          "title": "Write Preconfirmed Block Success",
+          "description": "The number of successful writes to Cende for preconfirmed blocks (10m window). Each preconfirmed block may involve multiple writes.",
+          "type": "timeseries",
+          "exprs": [
+            "increase(batcher_preconfirmed_block_written{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {
+            "log_query": "\"write_pre_confirmed_block request succeeded.\""
+          }
+        },
+        {
+          "title": "Write Preconfirmed Block Failure by Reason",
+          "description": "The number of failed writes to Cende for preconfirmed blocks (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "sum by (failure_reason) (increase(batcher_preconfirmed_block_write_failure{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])) > 0"
+          ],
+          "extra_params": {
+            "log_query": "\"write_pre_confirmed_block request failed\" OR \"Failed to send write_pre_confirmed_block request to Cende recorder\""
           }
         },
         {
