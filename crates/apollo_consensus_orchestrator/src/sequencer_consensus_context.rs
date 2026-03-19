@@ -112,6 +112,15 @@ type ProposalContent = (ProposalInit, Vec<Vec<InternalConsensusTransaction>>, Pr
 type HeightToRoundToProposal =
     BTreeMap<BlockNumber, BTreeMap<Round, (ProposalCommitment, ProposalContent)>>;
 
+/// Decision for the prev-height blob write when building a proposal at `height`.
+#[derive(Debug)]
+pub(crate) enum PrevBlobWriteDecision {
+    /// Cende has prev block; skip writing, proceed with build.
+    SkipCendeWrite,
+    /// Must write prev-height blob before building.
+    WritePrevBlob,
+}
+
 pub(crate) struct BuiltProposals {
     // {height: {round: (proposal_commitment, (init, content, proposal_id))}}
     //
@@ -274,16 +283,23 @@ impl SequencerConsensusContext {
             .expect("Failed to send proposal receiver. Receiver channel closed.");
         StreamSender { proposal_sender }
     }
-    async fn can_skip_write_prev_height_blob(&self, height: BlockNumber) -> bool {
+
+    async fn prev_blob_write_decision_for_height(
+        &self,
+        height: BlockNumber,
+    ) -> PrevBlobWriteDecision {
         if height == BlockNumber(0) {
-            return true;
+            return PrevBlobWriteDecision::SkipCendeWrite;
         }
         match self.deps.cende_ambassador.get_latest_received_block().await {
             Some(latest_cende_block) => {
-                latest_cende_block
-                    >= height.prev().expect("Height should be greater than 0. Checked above.")
+                if latest_cende_block >= height.prev().expect("height > 0 has predecessor") {
+                    PrevBlobWriteDecision::SkipCendeWrite
+                } else {
+                    PrevBlobWriteDecision::WritePrevBlob
+                }
             }
-            None => false,
+            None => PrevBlobWriteDecision::WritePrevBlob,
         }
     }
 
@@ -523,18 +539,19 @@ impl ConsensusContext for SequencerConsensusContext {
         build_param: BuildParam,
         timeout: Duration,
     ) -> Result<oneshot::Receiver<ProposalCommitment>, ConsensusError> {
-        let cende_write_success = if self.can_skip_write_prev_height_blob(build_param.height).await
-        {
-            // cende_write_success is a AbortOnDropHandle. To get the actual handle we need to
-            // spawn the task.
-            AbortOnDropHandle::new(tokio::spawn(ready(true)))
-        } else {
-            // TODO(dvir): consider start writing the blob in `decision_reached`, to reduce
-            // transactions finality time. Use this option only for one special
-            // sequencer that is the same cluster as the recorder.
-            AbortOnDropHandle::new(
-                self.deps.cende_ambassador.write_prev_height_blob(build_param.height),
-            )
+        let decision = self.prev_blob_write_decision_for_height(build_param.height).await;
+        let cende_write_success = match decision {
+            PrevBlobWriteDecision::SkipCendeWrite => {
+                AbortOnDropHandle::new(tokio::spawn(ready(true)))
+            }
+            PrevBlobWriteDecision::WritePrevBlob => {
+                // TODO(dvir): consider start writing the blob in `decision_reached`, to reduce
+                // transactions finality time. Use this option only for one special
+                // sequencer that is the same cluster as the recorder.
+                AbortOnDropHandle::new(
+                    self.deps.cende_ambassador.write_prev_height_blob(build_param.height),
+                )
+            }
         };
 
         // Handles interrupting an active proposal from a previous height/round
