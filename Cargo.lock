@@ -12505,8 +12505,10 @@ version = "0.0.0"
 dependencies = [
  "aerospike",
  "apollo_config",
+ "async-trait",
  "blake2",
  "digest 0.10.7",
+ "futures",
  "hex",
  "libmdbx",
  "lru 0.12.5",

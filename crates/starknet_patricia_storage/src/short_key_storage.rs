@@ -74,6 +74,7 @@ macro_rules! define_short_key_storage {
                     .collect::<Vec<_>>();
                 self.storage.mget(small_keys.iter().collect::<Vec<&DbKey>>().as_slice()).await
             }
+
         }
 
         impl<S: Storage> Storage for $name<S> {
@@ -111,6 +112,7 @@ macro_rules! define_short_key_storage {
                 Self { storage: self.storage.clone(), _n_bytes: PhantomData }
             }
         }
+        impl<S: AsyncStorage> AsyncStorage for $name<S> {}
     };
 }
 

@@ -2,14 +2,19 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display};
 use std::future::Future;
+use std::sync::Arc;
 
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::{ParamPath, SerializedParam};
+use futures::stream::FuturesUnordered;
+use futures::StreamExt;
 use serde::{Deserialize, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
+use tokio::task::JoinError;
 use validator::Validate;
 
 use crate::errors::DeserializationError;
+use crate::reads_collector_storage::ReadsCollectorStorage;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DbKey(pub Vec<u8>);
@@ -37,6 +42,8 @@ pub enum PatriciaStorageError {
     AerospikeStorage(#[from] crate::aerospike_storage::AerospikeStorageError),
     #[error(transparent)]
     Deserialization(#[from] DeserializationError),
+    #[error(transparent)]
+    Join(#[from] JoinError),
     #[cfg(any(test, feature = "mdbx_storage"))]
     #[error(transparent)]
     Mdbx(#[from] libmdbx::Error),
@@ -171,14 +178,9 @@ pub trait Storage: ReadOnlyStorage {
         Ok(())
     }
 
-    /// If the storage is async, returns an instance of the async storage.
+    /// If the storage supports async operations, returns a clone of `self` as an [AsyncStorage].
     fn get_async_self(&self) -> Option<impl AsyncStorage>;
 }
-
-/// A trait wrapper for [Storage] that supports concurrency.
-/// Any [Storage] implementation that implements `Clone` is an [AsyncStorage] as well.
-pub trait AsyncStorage: Storage + Clone + 'static {}
-impl<S: Storage + Clone + 'static> AsyncStorage for S {}
 
 /// Empty config struct for storage implementations that don't require configuration.
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
@@ -247,6 +249,8 @@ impl Storage for NullStorage {
     }
 }
 
+impl AsyncStorage for NullStorage {}
+
 #[derive(Debug)]
 pub struct DbKeyPrefix(Cow<'static, [u8]>);
 
@@ -292,4 +296,54 @@ pub fn try_extract_suffix_from_db_key<'a>(
 ) -> Option<&'a [u8]> {
     // Ignore the ':' char that appears after the prefix.
     key.0.strip_prefix(prefix.to_bytes()).map(|s| &s[1..])
+}
+
+/// A unit of work that reads from storage concurrently.
+/// Implementors hold all data needed to perform the read and produce an output.
+#[async_trait::async_trait]
+pub trait StorageTask<S: ImmutableReadOnlyStorage>: Send {
+    type Output: Send;
+    async fn run_with_storage(self, storage: &mut ReadsCollectorStorage<S>) -> Self::Output;
+}
+
+pub trait AsyncImmutableStorage: ImmutableReadOnlyStorage + Clone + 'static {}
+impl<S: ImmutableReadOnlyStorage + Clone + 'static> AsyncImmutableStorage for S {}
+
+/// A helper to run tasks concurrently and merge their reads. Used by [AsyncStorage::gather].
+pub(crate) async fn run_tasks_and_collect_reads<S, T>(
+    storage: &S,
+    tasks: Vec<T>,
+) -> (DbHashMap, Vec<T::Output>)
+where
+    S: AsyncImmutableStorage,
+    T: StorageTask<S>,
+{
+    let mut futures = FuturesUnordered::new();
+    let mut all_reads = DbHashMap::new();
+    let mut outputs = Vec::new();
+    for task in tasks {
+        let self_cloned = storage.clone();
+        futures.push(async move {
+            let mut snapshot = ReadsCollectorStorage::new(Arc::new(self_cloned));
+            let output = task.run_with_storage(&mut snapshot).await;
+            (snapshot.into_reads(), output)
+        });
+    }
+    while let Some((reads, output)) = futures.next().await {
+        all_reads.extend(reads);
+        outputs.push(output);
+    }
+    (all_reads, outputs)
+}
+
+#[async_trait::async_trait]
+pub trait AsyncStorage: AsyncImmutableStorage + Storage {
+    /// Runs each task concurrently, each with its own [ReadsCollectorStorage] snapshot.
+    /// Returns the collected outputs from each task.
+    /// Important: The outputs are *not* guaranteed to be in the same order as the tasks.
+    async fn gather<T: StorageTask<Self>>(&mut self, tasks: Vec<T>) -> Vec<T::Output> {
+        // By default, ignore the reads.
+        let (_reads, outputs) = run_tasks_and_collect_reads(self, tasks).await;
+        outputs
+    }
 }
