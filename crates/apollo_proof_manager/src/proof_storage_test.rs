@@ -20,7 +20,7 @@ fn sample_facts_hash() -> Felt {
 }
 
 fn sample_proof() -> Proof {
-    Proof::from(vec![1_u32, 2_u32, 3_u32, 4_u32, 5_u32])
+    Proof::from(vec![1_u8, 2_u8, 3_u8, 4_u8, 5_u8])
 }
 
 #[tokio::test]

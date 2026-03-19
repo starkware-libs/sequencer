@@ -136,8 +136,11 @@ pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyP
 
     // Reconstruct the output preimage from proof facts and verify the proof.
     let output_preimage = reconstruct_output_preimage(&proof_facts)?;
+    // TODO(AvivG): this conversion is temporary until PrivacyProofOutput holds u8 proof.
+    let proof_u32s: Vec<u32> =
+        proof.0.chunks_exact(4).map(|c| u32::from_be_bytes(c.try_into().unwrap())).collect();
     let proof_output =
-        privacy_circuit_verify::PrivacyProofOutput { proof: proof.0.to_vec(), output_preimage };
+        privacy_circuit_verify::PrivacyProofOutput { proof: proof_u32s, output_preimage };
     privacy_circuit_verify::verify_recursive_circuit(&proof_output)
         .map_err(|e| VerifyProofError::Verification(e.to_string()))?;
 

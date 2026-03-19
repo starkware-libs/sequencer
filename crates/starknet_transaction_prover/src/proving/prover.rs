@@ -14,7 +14,7 @@ use crate::errors::ProvingError;
 /// Output from the prover containing the proof and associated program output.
 #[derive(Debug, Clone)]
 pub(crate) struct ProverOutput {
-    /// The proof packed as u32s.
+    /// The proof packed as bytes.
     pub proof: Proof,
     /// Raw program output from the bootloader (first element is number of tasks).
     pub program_output: ProgramOutput,
@@ -34,7 +34,9 @@ pub(crate) async fn prove(
     .map_err(ProvingError::TaskJoin)?
     .map_err(ProvingError::ProverExecution)?;
 
-    let proof = Proof::from(proof_output.proof);
+    // TODO(AvivG): this conversion is temporary until PrivacyProofOutput holds u8 proof.
+    let proof_bytes: Vec<u8> = proof_output.proof.iter().flat_map(|n| n.to_be_bytes()).collect();
+    let proof = Proof::from(proof_bytes);
     let program_output = ProgramOutput::from(proof_output.output_preimage);
 
     Ok(ProverOutput { proof, program_output })
