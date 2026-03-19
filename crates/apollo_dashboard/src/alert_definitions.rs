@@ -1,3 +1,4 @@
+use apollo_batcher::metrics::BATCHER_L1_EVENTS_PROVIDER_ERRORS;
 use apollo_consensus::metrics::{
     CONSENSUS_CONFLICTING_VOTES,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
@@ -392,6 +393,23 @@ fn get_l1_message_scraper_reorg_detected_alert() -> Alert {
     )
 }
 
+fn get_l1_events_provider_errors_alert() -> Alert {
+    Alert::new(
+        "batcher_l1_events_provider_errors",
+        "Batcher L1 events provider errors",
+        AlertGroup::Batcher,
+        format!(
+            "sum(increase({}[1h])) or vector(0)",
+            BATCHER_L1_EVENTS_PROVIDER_ERRORS.get_name_with_filter()
+        ),
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        AlertSeverity::WorkingHours,
+        ObserverApplicability::NotApplicable,
+    )
+}
+
 fn get_native_compilation_error_increase() -> Alert {
     Alert::new(
         "native_compilation_error",
@@ -556,6 +574,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_http_server_high_transaction_failure_ratio(),
         get_http_server_internal_error_once(),
         get_http_server_no_successful_transactions(),
+        get_l1_events_provider_errors_alert(),
         get_l1_gas_price_reorg_detected_alert(),
         get_l1_gas_price_scraper_baselayer_error_count_alert(),
         get_l1_message_scraper_baselayer_error_count_alert(),

@@ -1,5 +1,6 @@
 use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
+    BATCHER_L1_EVENTS_PROVIDER_ERRORS,
     BLOCK_CLOSE_REASON,
     BLOCK_COMMITMENT_MEASUREMENTS_COUNT,
     BUILDING_HEIGHT,
@@ -268,6 +269,15 @@ fn get_panel_state_diff_commitment_latency() -> Panel {
     )
 }
 
+fn get_panel_l1_events_provider_errors() -> Panel {
+    Panel::new(
+        "L1 Events Provider Errors",
+        format!("Number of L1 provider errors ({DEFAULT_DURATION} window)"),
+        increase(&BATCHER_L1_EVENTS_PROVIDER_ERRORS, DEFAULT_DURATION),
+        PanelType::TimeSeries,
+    )
+}
+
 fn get_panel_state_diff_commitment_per_state_diff_length() -> Panel {
     get_panel_commitment_manager_average_latency(
         "State Diff Commitment Per State Diff Length",
@@ -302,6 +312,7 @@ pub(crate) fn get_batcher_row() -> Row {
             get_panel_receipts_commitment_latency(),
             get_panel_state_diff_commitment_latency(),
             get_panel_state_diff_commitment_per_state_diff_length(),
+            get_panel_l1_events_provider_errors(),
         ],
     )
 }

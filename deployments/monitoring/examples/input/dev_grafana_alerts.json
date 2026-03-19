@@ -14,7 +14,23 @@
           "reducer": {"params": [], "type": "avg"},
           "type": "query"
         }
-      ]  
+      ]
+    },
+    {
+      "name": "Batcher L1 Events Provider Errors",
+      "title": "Batcher L1 Events Provider Errors",
+      "ruleGroup": "batcher",
+      "for": "1m",
+      "expr": "batcher_l1_events_provider_errors{job=\"node\"}",
+      "conditions": [
+        {
+          "evaluator": {"params": [0], "type": "gt"},
+          "operator": {"type": "and"},
+          "query": {"params": []},
+          "reducer": {"params": [], "type": "avg"},
+          "type": "query"
+        }
+      ]
     },
     {
       "name": "Batcher Proposal Failed",
@@ -30,7 +46,7 @@
           "reducer": {"params": [], "type": "avg"},
           "type": "query"
         }
-      ]  
+      ]
     },
     {
       "name": "Batcher Proposal Started",
@@ -46,7 +62,7 @@
           "reducer": {"params": [], "type": "avg"},
           "type": "query"
         }
-      ]  
+      ]
     }
   ]
 }
