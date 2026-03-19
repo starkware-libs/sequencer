@@ -170,7 +170,7 @@ macro_rules! proof_facts {
     };
 }
 
-/// A utility macro to create a [`Proof`] from a list of u32
+/// A utility macro to create a [`Proof`] from a list of u8
 /// values.
 #[macro_export]
 macro_rules! proof {

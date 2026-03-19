@@ -767,7 +767,7 @@ impl TryFrom<ProofFacts> for SnosProofFacts {
     derive_more::Deref,
     derive_more::From,
 )]
-pub struct Proof(pub Arc<Vec<u32>>);
+pub struct Proof(pub Arc<Vec<u8>>);
 
 impl fmt::Debug for Proof {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -779,8 +779,7 @@ impl fmt::Debug for Proof {
 
 impl Serialize for Proof {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let bytes: Vec<u8> = self.0.iter().flat_map(|n| n.to_be_bytes()).collect();
-        serializer.serialize_str(&base64::encode(bytes))
+        serializer.serialize_str(&base64::encode(&*self.0))
     }
 }
 
@@ -791,19 +790,12 @@ impl<'de> Deserialize<'de> for Proof {
             return Ok(Self::default());
         }
         let bytes = base64::decode(&s).map_err(serde::de::Error::custom)?;
-        let (chunks, []) = bytes.as_chunks::<4>() else {
-            return Err(serde::de::Error::custom(format!(
-                "Proof base64 data length {} is not a multiple of 4",
-                bytes.len()
-            )));
-        };
-        let data: Vec<u32> = chunks.iter().map(|c| u32::from_be_bytes(*c)).collect();
-        Ok(Self(Arc::new(data)))
+        Ok(Self(Arc::new(bytes)))
     }
 }
 
-impl From<Vec<u32>> for Proof {
-    fn from(value: Vec<u32>) -> Self {
+impl From<Vec<u8>> for Proof {
+    fn from(value: Vec<u8>) -> Self {
         Self(Arc::new(value))
     }
 }

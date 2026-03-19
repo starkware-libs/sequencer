@@ -18,6 +18,9 @@ pub enum VerifyProofError {
     InvalidProofVersion { expected: Felt, actual: Felt },
     #[error("Proof facts too short: expected at least 3 elements, got {length}.")]
     ProofFactsTooShort { length: usize },
+    // TODO(AvivG): Remove this once PrivacyProofOutput holds u8 proof.
+    #[error("Proof byte length {0} is not a multiple of 4.")]
+    InvalidProofLength(usize),
     #[error("Proof verification failed: {0}")]
     Verification(String),
 }
@@ -31,6 +34,7 @@ impl PartialEq for VerifyProofError {
                 Self::InvalidProofVersion { expected: exp_l, actual: act_l },
                 Self::InvalidProofVersion { expected: exp_r, actual: act_r },
             ) => exp_l == exp_r && act_l == act_r,
+            (Self::InvalidProofLength(lhs), Self::InvalidProofLength(rhs)) => lhs == rhs,
             (Self::Verification(lhs), Self::Verification(rhs)) => lhs == rhs,
             (Self::ProofFactsTooShort { length: l }, Self::ProofFactsTooShort { length: r }) => {
                 l == r
@@ -136,8 +140,13 @@ pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyP
 
     // Reconstruct the output preimage from proof facts and verify the proof.
     let output_preimage = reconstruct_output_preimage(&proof_facts)?;
+    // TODO(AvivG): this conversion is temporary until PrivacyProofOutput holds u8 proof.
+    let (chunks, []) = proof.0.as_chunks::<4>() else {
+        return Err(VerifyProofError::InvalidProofLength(proof.0.len()));
+    };
+    let proof_u32s: Vec<u32> = chunks.iter().map(|c| u32::from_be_bytes(*c)).collect();
     let proof_output =
-        privacy_circuit_verify::PrivacyProofOutput { proof: proof.0.to_vec(), output_preimage };
+        privacy_circuit_verify::PrivacyProofOutput { proof: proof_u32s, output_preimage };
     privacy_circuit_verify::verify_recursive_circuit(&proof_output)
         .map_err(|e| VerifyProofError::Verification(e.to_string()))?;
 
