@@ -23,21 +23,21 @@ async fn test_storage_impl(#[case] mut storage: impl Storage) {
 
     storage.set(key_1.clone(), val_1.clone()).await.unwrap();
     // storage = {1: 1}
-    assert_eq!(storage.get(&key_1.clone()).await.unwrap(), Some(val_1.clone()));
+    assert_eq!(storage.get_mut(&key_1.clone()).await.unwrap(), Some(val_1.clone()));
 
     storage.set(key_2.clone(), val_2.clone()).await.unwrap();
     storage.delete(&key_1).await.unwrap();
     // storage = {2: 2}
-    assert!(storage.get(&key_1.clone()).await.unwrap().is_none());
-    assert_eq!(storage.get(&key_2.clone()).await.unwrap(), Some(val_2.clone()));
+    assert!(storage.get_mut(&key_1.clone()).await.unwrap().is_none());
+    assert_eq!(storage.get_mut(&key_2.clone()).await.unwrap(), Some(val_2.clone()));
 
     storage
         .mset(HashMap::from([(key_1.clone(), val_1.clone()), (key_3.clone(), val_3.clone())]))
         .await
         .unwrap();
     // storage = {1:1, 2: 2, 3:3}
-    assert_eq!(storage.get(&key_2.clone()).await.unwrap(), Some(val_2.clone()));
-    let expected_stored_values = storage.mget(&[&key_1, &key_2, &key_3]).await.unwrap();
+    assert_eq!(storage.get_mut(&key_2.clone()).await.unwrap(), Some(val_2.clone()));
+    let expected_stored_values = storage.mget_mut(&[&key_1, &key_2, &key_3]).await.unwrap();
     assert_eq!(
         expected_stored_values,
         vec![Some(val_1.clone()), Some(val_2.clone()), Some(val_3.clone())]
@@ -45,5 +45,5 @@ async fn test_storage_impl(#[case] mut storage: impl Storage) {
 
     storage.delete(&key_2).await.unwrap();
     // storage = {1:1, 3:3}
-    assert!(storage.get(&key_2.clone()).await.unwrap().is_none());
+    assert!(storage.get_mut(&key_2.clone()).await.unwrap().is_none());
 }
