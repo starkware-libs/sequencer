@@ -242,6 +242,20 @@ impl<S: Storage> CachedStorage<S> {
     }
 }
 
+impl<S: Storage + Clone> Clone for CachedStorage<S> {
+    fn clone(&self) -> Self {
+        Self {
+            storage: self.storage.clone(),
+            cache: self.cache.clone(), // This clone is cheap.
+            cache_on_write: self.cache_on_write,
+            reads: self.reads.clone(),
+            cached_reads: self.cached_reads.clone(),
+            writes: self.writes,
+            include_inner_stats: self.include_inner_stats,
+        }
+    }
+}
+
 impl<S: Storage + ImmutableReadOnlyStorage> ImmutableReadOnlyStorage for CachedStorage<S> {
     async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads.fetch_add(1, Ordering::Relaxed);
@@ -383,7 +397,17 @@ impl<S: Storage + ImmutableReadOnlyStorage> Storage for CachedStorage<S> {
     }
 
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
-        // Need a concrete Option type.
-        None::<NullStorage>
+        let inner_async_storage = self.storage.get_async_self()?;
+        Some(CachedStorage {
+            storage: inner_async_storage,
+            cache: self.cache.clone(), // This clone is cheap.
+            cache_on_write: self.cache_on_write,
+            reads: self.reads.clone(),
+            cached_reads: self.cached_reads.clone(),
+            writes: self.writes,
+            include_inner_stats: self.include_inner_stats,
+        })
     }
 }
+
+impl<S: AsyncStorage> AsyncStorage for CachedStorage<S> {}
