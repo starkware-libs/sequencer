@@ -348,3 +348,5 @@ impl Storage for RocksDbStorage {
         Some(self.clone())
     }
 }
+
+impl AsyncStorage for RocksDbStorage {}
