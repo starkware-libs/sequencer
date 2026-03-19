@@ -25,6 +25,7 @@ use mempool_test_utils::starknet_api_test_utils::{AccountTransactionGenerator, C
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{
     BlockBody,
+    BlockHash,
     BlockHeader,
     BlockHeaderWithoutHash,
     BlockNumber,
@@ -71,6 +72,12 @@ type ContractClassesMap = (
     Vec<(ClassHash, DeprecatedContractClass)>,
     Vec<(ClassHash, (SierraContractClass, CasmContractClass))>,
 );
+
+#[derive(Clone, Default)]
+pub struct GenesisParams {
+    pub initial_block_number: BlockNumber,
+    pub block_hash_seeds: Vec<(BlockNumber, BlockHash)>,
+}
 
 pub(crate) const BATCHER_DB_PATH_SUFFIX: &str = "batcher";
 pub(crate) const CLASS_MANAGER_DB_PATH_SUFFIX: &str = "class_manager";
@@ -152,6 +159,7 @@ impl StorageTestSetup {
         test_defined_accounts: Vec<AccountTransactionGenerator>,
         chain_info: &ChainInfo,
         storage_exec_paths: Option<StorageExecutablePaths>,
+        genesis_params: GenesisParams,
     ) -> Self {
         let preset_test_contracts = PresetTestContracts::new();
         // TODO(yair): Avoid cloning.
@@ -170,6 +178,7 @@ impl StorageTestSetup {
             &test_defined_accounts,
             preset_test_contracts.clone(),
             &classes,
+            &genesis_params,
         );
 
         let state_sync_db_path =
@@ -188,6 +197,7 @@ impl StorageTestSetup {
             &test_defined_accounts,
             preset_test_contracts,
             &classes,
+            &genesis_params,
         );
 
         let fs_class_storage_db_path =
@@ -334,16 +344,27 @@ fn initialize_papyrus_test_state(
     test_defined_accounts: &[AccountTransactionGenerator],
     preset_test_contracts: PresetTestContracts,
     classes: &TestClasses,
+    genesis_params: &GenesisParams,
 ) {
-    let state_diff = prepare_state_diff(chain_info, test_defined_accounts, &preset_test_contracts);
-
-    write_state_to_apollo_storage(storage_writer, state_diff, classes)
+    let state_diff = prepare_state_diff(
+        chain_info,
+        test_defined_accounts,
+        &preset_test_contracts,
+        &genesis_params.block_hash_seeds,
+    );
+    write_state_to_apollo_storage(
+        storage_writer,
+        state_diff,
+        classes,
+        genesis_params.initial_block_number,
+    )
 }
 
 fn prepare_state_diff(
     chain_info: &ChainInfo,
     test_defined_accounts: &[AccountTransactionGenerator],
     preset_test_contracts: &PresetTestContracts,
+    block_hash_seeds: &[(BlockNumber, BlockHash)],
 ) -> ThinStateDiff {
     let mut state_diff_builder = ThinStateDiffBuilder::new(chain_info);
     let PresetTestContracts { default_test_contracts, erc20_contract } = preset_test_contracts;
@@ -375,7 +396,21 @@ fn prepare_state_diff(
     state_diff_builder
         .inject_undeployed_accounts_into_state(undeployed_accounts_contracts.as_slice());
 
-    state_diff_builder.build()
+    let mut state_diff = state_diff_builder.build();
+
+    if !block_hash_seeds.is_empty() {
+        let block_hash_contract_address = VersionedConstants::latest_constants()
+            .os_constants
+            .os_contract_addresses
+            .block_hash_contract_address();
+        let seeds_entry = state_diff.storage_diffs.entry(block_hash_contract_address).or_default();
+        for (block_number, block_hash) in block_hash_seeds {
+            let key = StorageKey::from(block_number.0);
+            seeds_entry.insert(key, block_hash.0);
+        }
+    }
+
+    state_diff
 }
 
 fn prepare_contract_classes(
@@ -408,8 +443,9 @@ fn write_state_to_apollo_storage(
     storage_writer: &mut StorageWriter,
     state_diff: ThinStateDiff,
     classes: &TestClasses,
+    initial_block_number: BlockNumber,
 ) {
-    let block_number = BlockNumber(0);
+    let block_number = initial_block_number;
     let block_header = test_block_header(block_number, state_diff.len());
     let TestClasses { cairo0_contract_classes, cairo1_contract_classes } = classes;
     let cairo0_contract_classes: Vec<_> =
