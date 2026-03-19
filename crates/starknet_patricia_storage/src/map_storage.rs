@@ -8,6 +8,7 @@ use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use lru::LruCache;
 use serde::{Deserialize, Serialize};
+use tokio::sync::RwLock;
 use validator::{Validate, ValidationErrors};
 
 use crate::storage_trait::{
@@ -102,10 +103,11 @@ impl Storage for MapStorage {
 }
 
 /// A storage wrapper that adds an LRU cache to an underlying storage.
+/// The cache is wrapped under a RwLock to allow concurrent reads and writes.
 /// Only getter methods are cached.
 pub struct CachedStorage<S: Storage> {
     pub storage: S,
-    pub cache: LruCache<DbKey, Option<DbValue>>,
+    pub cache: Arc<RwLock<LruCache<DbKey, Option<DbValue>>>>,
     pub cache_on_write: bool,
     reads: Arc<AtomicU64>,
     cached_reads: Arc<AtomicU64>,
@@ -233,7 +235,7 @@ impl<S: Storage> CachedStorage<S> {
     pub fn new(storage: S, config: CachedStorageConfig<S::Config>) -> Self {
         Self {
             storage,
-            cache: LruCache::new(config.cache_size),
+            cache: Arc::new(RwLock::new(LruCache::new(config.cache_size))),
             cache_on_write: config.cache_on_write,
             reads: Arc::new(AtomicU64::new(0)),
             cached_reads: Arc::new(AtomicU64::new(0)),
@@ -242,16 +244,17 @@ impl<S: Storage> CachedStorage<S> {
         }
     }
 
-    fn update_cached_value(&mut self, key: &DbKey, value: &DbValue) {
-        if self.cache_on_write || self.cache.contains(key) {
-            self.cache.put(key.clone(), Some(value.clone()));
+    async fn update_cached_value(&self, key: &DbKey, value: &DbValue) {
+        let mut cache = self.cache.write().await;
+        if self.cache_on_write || cache.contains(key) {
+            cache.put(key.clone(), Some(value.clone()));
         }
     }
 
-    fn update_cached_values(&mut self, key_to_value: &DbHashMap) {
-        key_to_value.iter().for_each(|(key, value)| {
-            self.update_cached_value(key, value);
-        });
+    async fn update_cached_values(&mut self, key_to_value: &DbHashMap) {
+        for (key, value) in key_to_value {
+            self.update_cached_value(key, value).await;
+        }
     }
 
     pub fn total_writes(&self) -> u128 {
@@ -262,7 +265,7 @@ impl<S: Storage> CachedStorage<S> {
 impl<S: Storage + ImmutableReadOnlyStorage> ImmutableReadOnlyStorage for CachedStorage<S> {
     async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads.fetch_add(1, Ordering::Relaxed);
-        if let Some(cached_value) = self.cache.peek(key) {
+        if let Some(cached_value) = self.cache.read().await.peek(key) {
             self.cached_reads.fetch_add(1, Ordering::Relaxed);
             return Ok(cached_value.clone());
         }
@@ -278,12 +281,15 @@ impl<S: Storage + ImmutableReadOnlyStorage> ImmutableReadOnlyStorage for CachedS
         let mut keys_to_fetch = Vec::new();
         let mut indices_to_fetch = Vec::new();
 
-        for (index, key) in keys.iter().enumerate() {
-            if let Some(cached_value) = self.cache.peek(key) {
-                values[index] = cached_value.clone();
-            } else {
-                keys_to_fetch.push(*key);
-                indices_to_fetch.push(index);
+        {
+            let cache = self.cache.read().await;
+            for (index, key) in keys.iter().enumerate() {
+                if let Some(cached_value) = cache.peek(key) {
+                    values[index] = cached_value.clone();
+                } else {
+                    keys_to_fetch.push(*key);
+                    indices_to_fetch.push(index);
+                }
             }
         }
 
@@ -305,13 +311,14 @@ impl<S: Storage + ImmutableReadOnlyStorage> ImmutableReadOnlyStorage for CachedS
 impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
     async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads.fetch_add(1, Ordering::Relaxed);
-        if let Some(cached_value) = self.cache.get(key) {
+        let cached_value = self.cache.write().await.get(key).cloned();
+        if let Some(cached_value) = cached_value {
             self.cached_reads.fetch_add(1, Ordering::Relaxed);
-            return Ok(cached_value.clone());
+            return Ok(cached_value);
         }
 
         let storage_value = self.storage.get_mut(key).await?;
-        self.cache.put(key.clone(), storage_value.clone());
+        self.cache.write().await.put(key.clone(), storage_value.clone());
         Ok(storage_value)
     }
 
@@ -320,12 +327,15 @@ impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
         let mut keys_to_fetch = Vec::new();
         let mut indices_to_fetch = Vec::new();
 
-        for (index, key) in keys.iter().enumerate() {
-            if let Some(cached_value) = self.cache.get(key) {
-                values[index] = cached_value.clone();
-            } else {
-                keys_to_fetch.push(*key);
-                indices_to_fetch.push(index);
+        {
+            let mut cache = self.cache.write().await;
+            for (index, key) in keys.iter().enumerate() {
+                if let Some(cached_value) = cache.get(key) {
+                    values[index] = cached_value.clone();
+                } else {
+                    keys_to_fetch.push(*key);
+                    indices_to_fetch.push(index);
+                }
             }
         }
 
@@ -336,12 +346,15 @@ impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
         self.cached_reads.fetch_add(cached_reads, Ordering::Relaxed);
 
         let fetched_values = self.storage.mget_mut(keys_to_fetch.as_slice()).await?;
-        indices_to_fetch.iter().zip(keys_to_fetch).zip(fetched_values).for_each(
-            |((index, key), value)| {
-                self.cache.put((*key).clone(), value.clone());
-                values[*index] = value;
-            },
-        );
+        {
+            let mut cache = self.cache.write().await;
+            indices_to_fetch.iter().zip(keys_to_fetch).zip(fetched_values).for_each(
+                |((index, key), value)| {
+                    cache.put((*key).clone(), value.clone());
+                    values[*index] = value;
+                },
+            );
+        }
 
         Ok(values)
     }
@@ -354,19 +367,19 @@ impl<S: Storage + ImmutableReadOnlyStorage> Storage for CachedStorage<S> {
     async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
         self.writes += 1;
         self.storage.set(key.clone(), value.clone()).await?;
-        self.update_cached_value(&key, &value);
+        self.update_cached_value(&key, &value).await;
         Ok(())
     }
 
     async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
         self.writes += u128::try_from(key_to_value.len()).expect("usize should fit in u128");
         self.storage.mset(key_to_value.clone()).await?;
-        self.update_cached_values(&key_to_value);
+        self.update_cached_values(&key_to_value).await;
         Ok(())
     }
 
     async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-        self.cache.pop(key);
+        self.cache.write().await.pop(key);
         self.storage.delete(key).await
     }
 
@@ -379,10 +392,10 @@ impl<S: Storage + ImmutableReadOnlyStorage> Storage for CachedStorage<S> {
             match operation {
                 DbOperation::Set(value) => {
                     self.writes += 1;
-                    self.update_cached_value(&key, &value);
+                    self.update_cached_value(&key, &value).await;
                 }
                 DbOperation::Delete => {
-                    self.cache.pop(&key);
+                    self.cache.write().await.pop(&key);
                 }
             };
         }
