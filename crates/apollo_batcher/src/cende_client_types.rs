@@ -542,7 +542,8 @@ impl From<ExecutableL1HandlerTransaction> for CendePreconfirmedTransaction {
 
 const PRE_CONFIRMED_STATUS: &str = "PRE_CONFIRMED";
 
-#[derive(Serialize, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
+#[derive(Clone, Debug, Serialize)]
 pub struct CendeBlockMetadata {
     pub status: &'static str,
     pub starknet_version: StarknetVersion,
@@ -593,7 +594,8 @@ fn get_gas_prices(
     )
 }
 
-#[derive(Serialize)]
+#[cfg_attr(test, derive(PartialEq))]
+#[derive(Debug, Serialize)]
 pub struct CendePreconfirmedBlock {
     #[serde(flatten)]
     pub metadata: CendeBlockMetadata,
