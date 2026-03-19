@@ -6,12 +6,14 @@ use std::sync::Arc;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use async_trait::async_trait;
 use lru::LruCache;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use validator::{Validate, ValidationErrors};
 
 use crate::storage_trait::{
+    run_tasks_and_collect_reads,
     AsyncStorage,
     DbHashMap,
     DbKey,
@@ -27,6 +29,7 @@ use crate::storage_trait::{
     Storage,
     StorageConfigTrait,
     StorageStats,
+    StorageTask,
 };
 
 // 10M entries.
@@ -434,4 +437,14 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 }
 
-impl<S: AsyncStorage> AsyncStorage for CachedStorage<S> {}
+#[async_trait]
+impl<S: AsyncStorage> AsyncStorage for CachedStorage<S> {
+    async fn gather<T: StorageTask<Self>>(&mut self, tasks: Vec<T>) -> Vec<T::Output> {
+        let (reads, outputs) = run_tasks_and_collect_reads::<Self, T>(self, tasks).await;
+        let mut cache = self.cache.write().await;
+        reads.into_iter().for_each(|(key, value)| {
+            cache.put(key, Some(value));
+        });
+        outputs
+    }
+}
