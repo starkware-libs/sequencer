@@ -679,6 +679,17 @@
             "unit": "s",
             "log_query": "\"Block\" AND \"commitment latencies\""
           }
+        },
+        {
+          "title": "L1 Events Provider Errors",
+          "description": "Number of L1 provider errors (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(batcher_l1_events_provider_errors{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {
+            "log_query": "\"L1 provider error while\""
+          }
         }
       ],
       "collapsed": true
