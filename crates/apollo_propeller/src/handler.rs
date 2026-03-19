@@ -76,8 +76,6 @@ pub struct Handler {
     /// Bounded channel for sending received units directly to the engine, bypassing the Swarm's
     /// event path. Provides back-pressure: when the channel is full, the handler stops reading
     /// from the network.
-    // TODO(AndrewL): remove #[allow(dead_code)] once used
-    #[allow(dead_code)]
     unit_sender: futures::channel::mpsc::Sender<PropellerUnit>,
     /// Units decoded from a wire batch that haven't been delivered yet.
     /// Holds at most one batch worth of units (bounded by `max_wire_message_size`).
@@ -440,6 +438,29 @@ impl Handler {
         }
     }
 
+    /// Drains `unsent_units` into the bounded channel to the engine.
+    /// Returns `ControlFlow::Break` when the channel is full (back-pressure) and the caller
+    /// should return `Poll::Pending`. Returns `ControlFlow::Continue` when all units are sent.
+    fn drain_unsent_units(&mut self, cx: &mut Context<'_>) -> ControlFlow<()> {
+        while !self.unsent_units.is_empty() {
+            match self.unit_sender.poll_ready(cx) {
+                Poll::Ready(Ok(())) => {
+                    let unit = self.unsent_units.pop_front().expect("checked non-empty");
+                    self.unit_sender.start_send(unit).expect("poll_ready succeeded");
+                }
+                Poll::Ready(Err(_)) => {
+                    warn!("Unit channel closed, dropping {} unsent units", self.unsent_units.len());
+                    self.unsent_units.clear();
+                    break;
+                }
+                Poll::Pending => {
+                    return ControlFlow::Break(());
+                }
+            }
+        }
+        ControlFlow::Continue(())
+    }
+
     fn poll_inner(
         &mut self,
         cx: &mut Context<'_>,
@@ -468,26 +489,25 @@ impl Handler {
             return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(event));
         }
 
-        // Deliver unsent units from a previously decoded batch via the behaviour path.
-        // Units are drained one at a time so the Swarm can interleave other work.
-        if let Some(unit) = self.unsent_units.pop_front() {
-            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::Unit(unit)));
-        }
-
-        // Process outbound stream
+        // Process outbound stream — always attempt sends regardless of inbound back-pressure.
         if let Poll::Ready(event) = self.poll_send(cx) {
             return Poll::Ready(event);
         }
 
+        // Drain unsent units into the bounded channel to the engine.
+        if self.drain_unsent_units(cx).is_break() {
+            return Poll::Pending;
+        }
+
         // Read from the wire only when the unsent buffer is empty (the previous batch has been
-        // fully delivered). This ensures partially-delivered batches don't cause data loss.
+        // fully delivered).
         for inbound_substream in self.inbound_substream.iter_mut() {
             Self::poll_single_inbound_substream(inbound_substream, &mut self.unsent_units, cx);
         }
 
-        // Deliver the first unit from the newly-read batch (if any).
-        if let Some(unit) = self.unsent_units.pop_front() {
-            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::Unit(unit)));
+        // Send newly-decoded units to the engine channel.
+        if self.drain_unsent_units(cx).is_break() {
+            return Poll::Pending;
         }
 
         Poll::Pending
