@@ -12,7 +12,7 @@ use starknet_api::staking::StakingWeight;
 use tokio::time::error::Elapsed;
 
 use crate::config::Config;
-use crate::handler::{HandlerIn, HandlerOut};
+use crate::handler::HandlerIn;
 use crate::types::{CommitteeId, Event};
 use crate::{Behaviour, PropellerUnit};
 
@@ -30,6 +30,9 @@ fn loopback_dialer_endpoint() -> ConnectedPoint {
 pub(crate) struct TestNode {
     pub(crate) behaviour: Behaviour,
     peer_id: PeerId,
+    /// Sender end of each connected peer's inbound unit channel, keyed by that peer's id. Lets
+    /// `simulate_receive_unit` inject a unit as if it arrived over that peer's connection.
+    inbound_senders: BTreeMap<PeerId, futures::channel::mpsc::Sender<PropellerUnit>>,
 }
 
 impl TestNode {
@@ -38,7 +41,7 @@ impl TestNode {
         let peer_id = PeerId::from(keypair.public());
         let behaviour = Behaviour::new(keypair, config);
 
-        Self { behaviour, peer_id }
+        Self { behaviour, peer_id, inbound_senders: BTreeMap::new() }
     }
 
     fn simulate_connect_to(&mut self, peer_id: PeerId) {
@@ -54,15 +57,18 @@ impl TestNode {
         });
 
         self.behaviour.on_swarm_event(event);
+        // Mirror the inbound channel a real handler would register for this connection, retaining
+        // the sender so units can be injected from this peer via `simulate_receive_unit`.
+        let sender = self.behaviour.register_inbound_channel(peer_id);
+        self.inbound_senders.insert(peer_id, sender);
     }
 
     pub(crate) fn simulate_receive_unit(&mut self, from_peer: PeerId, unit: PropellerUnit) {
-        let connection_id = ConnectionId::new_unchecked(0);
-        self.behaviour.on_connection_handler_event(
-            from_peer,
-            connection_id,
-            HandlerOut::Unit(unit),
-        );
+        self.inbound_senders
+            .get_mut(&from_peer)
+            .expect("No inbound channel for peer; simulate_connect_to must be called first")
+            .try_send(unit)
+            .expect("Inbound unit channel is full or closed");
     }
 
     async fn next_with_timeout(

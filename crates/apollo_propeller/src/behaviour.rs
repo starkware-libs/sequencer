@@ -31,6 +31,8 @@ use crate::engine::{Engine, EngineCommand, EngineOutput};
 use crate::handler::Handler;
 use crate::metrics::PropellerMetrics;
 use crate::types::{CommitteeId, CommitteeSetupError, Event, UnitPublishError};
+#[cfg(test)]
+use crate::PropellerUnit;
 
 /// The Propeller network behaviour.
 ///
@@ -132,6 +134,20 @@ impl Behaviour {
         let command = EngineCommand::RegisterHandler { peer_id, receiver };
         self.engine_commands_tx.send(command).expect("Engine task has exited");
         Handler::new(&self.config, sender)
+    }
+
+    /// Test-only mirror of `create_handler`'s channel wiring that returns the sender, so tests can
+    /// inject inbound units into the engine as if received from `peer_id`'s connection.
+    #[cfg(test)]
+    pub(crate) fn register_inbound_channel(
+        &self,
+        peer_id: PeerId,
+    ) -> futures::channel::mpsc::Sender<PropellerUnit> {
+        let (sender, receiver) =
+            futures::channel::mpsc::channel(self.config.inbound_channel_capacity);
+        let command = EngineCommand::RegisterHandler { peer_id, receiver };
+        self.engine_commands_tx.send(command).expect("Engine task has exited");
+        sender
     }
 }
 
