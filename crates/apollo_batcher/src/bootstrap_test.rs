@@ -5,7 +5,7 @@ use apollo_storage::bootstrap_contracts::{
     bootstrap_account_class_hash,
     bootstrap_erc20_class_hash,
 };
-use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, ContractAddress, Nonce, calculate_contract_address};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 

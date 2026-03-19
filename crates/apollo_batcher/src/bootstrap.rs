@@ -1,8 +1,10 @@
+use std::sync::Arc;
+
 pub use apollo_batcher_config::config::BootstrapConfig;
 use apollo_storage::state::StateStorageReader;
-use apollo_storage::{bootstrap_contracts, StorageReader};
+use apollo_storage::{StorageReader, bootstrap_contracts};
 use serde::{Deserialize, Serialize};
-use starknet_api::abi::abi_utils::get_storage_var_address;
+use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::hash::StarkHash;
@@ -11,13 +13,20 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
+    RpcInvokeTransaction,
+    RpcInvokeTransactionV3,
     RpcTransaction,
 };
 use starknet_api::state::{SierraContractClass, StateNumber};
+use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
+    Calldata,
+    ContractAddressSalt,
     PaymasterData,
+    Proof,
+    ProofFacts,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -146,6 +155,15 @@ pub fn current_bootstrap_state(
     BootstrapState::NotInBootstrap
 }
 
+fn bootstrap_no_fee_resource_bounds() -> AllResourceBounds {
+    let ValidResourceBounds::AllResources(bounds) =
+        ValidResourceBounds::new_unlimited_gas_no_fee_enforcement()
+    else {
+        unreachable!("new_unlimited_gas_no_fee_enforcement returns AllResources");
+    };
+    bounds
+}
+
 fn bootstrap_declare_v3_tx(
     sender_address: ContractAddress,
     resource_bounds: AllResourceBounds,
@@ -175,11 +193,7 @@ fn bootstrap_declare_transactions() -> Vec<RpcTransaction> {
     let erc20_compiled_class_hash = bootstrap_contracts::bootstrap_erc20_compiled_class_hash();
 
     info!("Bootstrap: declaring account and ERC20 contract classes");
-    let ValidResourceBounds::AllResources(resource_bounds) =
-        ValidResourceBounds::new_unlimited_gas_no_fee_enforcement()
-    else {
-        unreachable!("new_unlimited_gas_no_fee_enforcement returns AllResources");
-    };
+    let resource_bounds = bootstrap_no_fee_resource_bounds();
     let bootstrap_address = ContractAddress::from(BOOTSTRAP_SENDER_ADDRESS);
 
     vec![
@@ -199,15 +213,14 @@ fn bootstrap_declare_transactions() -> Vec<RpcTransaction> {
 }
 
 fn bootstrap_deploy_account_transactions() -> Vec<RpcTransaction> {
-    let layout = BootstrapLayout::EMBEDDED;
     info!("Bootstrap: deploying funded account");
-    let resource_bounds = no_fee_resource_bounds();
+    let resource_bounds = bootstrap_no_fee_resource_bounds();
 
     let deploy_account = RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(
         RpcDeployAccountTransactionV3 {
             signature: TransactionSignature::default(),
             nonce: Nonce::default(),
-            class_hash: layout.account_class_hash,
+            class_hash: BOOTSTRAP_ACCOUNT_CLASS_HASH,
             contract_address_salt: ContractAddressSalt::default(),
             constructor_calldata: Calldata::default(),
             resource_bounds,
@@ -221,6 +234,46 @@ fn bootstrap_deploy_account_transactions() -> Vec<RpcTransaction> {
     vec![deploy_account]
 }
 
+/// `deploy_contract` syscall args: class_hash, salt, ctor calldata len, ...ctor (recipient felt).
+fn bootstrap_deploy_fee_token_transactions() -> Vec<RpcTransaction> {
+    info!("Bootstrap: deploying STRK ERC20 fee token");
+    let resource_bounds = bootstrap_no_fee_resource_bounds();
+
+    let nonce = Nonce(StarkHash::from(PRE_FEE_TOKEN_SETUP_NONCE));
+    let salt = ContractAddressSalt(nonce.0);
+    let deploy_contract_selector = selector_from_name(DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME);
+
+    let recipient = *BOOTSTRAP_ACCOUNT_ADDRESS.0.key();
+    let inner_calldata =
+        vec![BOOTSTRAP_ERC20_CLASS_HASH.0, salt.0, StarkHash::from(1_u128), recipient];
+
+    let execute_calldata: Vec<StarkHash> = [
+        recipient,
+        deploy_contract_selector.0,
+        StarkHash::from(u128::try_from(inner_calldata.len()).expect("calldata length overflow")),
+    ]
+    .into_iter()
+    .chain(inner_calldata)
+    .collect();
+
+    let strk_deploy = RpcTransaction::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
+        sender_address: BOOTSTRAP_ACCOUNT_ADDRESS,
+        calldata: Calldata(Arc::new(execute_calldata)),
+        signature: TransactionSignature::default(),
+        nonce,
+        resource_bounds,
+        tip: Tip::default(),
+        paymaster_data: PaymasterData::default(),
+        account_deployment_data: AccountDeploymentData::default(),
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+        proof_facts: ProofFacts::default(),
+        proof: Proof::default(),
+    }));
+
+    vec![strk_deploy]
+}
+
 /// Transactions to submit for `state` during bootstrap.
 pub fn bootstrap_transactions_for_state(
     config: &BootstrapConfig,
@@ -232,6 +285,7 @@ pub fn bootstrap_transactions_for_state(
     match state {
         BootstrapState::DeclareContracts => bootstrap_declare_transactions(),
         BootstrapState::DeployAccount => bootstrap_deploy_account_transactions(),
-        BootstrapState::NotInBootstrap | BootstrapState::DeployFeeToken => Vec::new(),
+        BootstrapState::DeployFeeToken => bootstrap_deploy_fee_token_transactions(),
+        BootstrapState::NotInBootstrap => Vec::new(),
     }
 }
