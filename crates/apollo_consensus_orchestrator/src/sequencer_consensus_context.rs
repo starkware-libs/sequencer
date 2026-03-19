@@ -274,24 +274,13 @@ impl SequencerConsensusContext {
             .expect("Failed to send proposal receiver. Receiver channel closed.");
         StreamSender { proposal_sender }
     }
-
-    async fn get_latest_sync_height(&self) -> Option<BlockNumber> {
-        match self.deps.state_sync_client.get_latest_block_number().await {
-            Ok(height) => height,
-            Err(e) => {
-                error!("Failed to get latest sync height: {e:?}");
-                None
-            }
-        }
-    }
-
     async fn can_skip_write_prev_height_blob(&self, height: BlockNumber) -> bool {
         if height == BlockNumber(0) {
             return true;
         }
-        match self.get_latest_sync_height().await {
-            Some(latest_sync_height) => {
-                latest_sync_height
+        match self.deps.cende_ambassador.get_latest_received_block().await {
+            Some(latest_block) => {
+                latest_block
                     >= height.prev().expect("Height should be greater than 0. Checked above.")
             }
             None => false,
