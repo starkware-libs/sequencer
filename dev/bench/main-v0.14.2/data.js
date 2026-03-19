@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773834648045,
+  "lastUpdate": 1773960421926,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2651,6 +2651,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1148.2805913299999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aviv.g@starkware.co",
+            "name": "avivg-starkware",
+            "username": "avivg-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "814423427808d74eae5b6b71d1800ccdc7cc5fc7",
+          "message": "starknet_api: change Proof from u32 to u8 (#13367)",
+          "timestamp": "2026-03-19T22:22:18Z",
+          "tree_id": "cacc69781ae53fbbf857a322da9724962bba522e",
+          "url": "https://github.com/starkware-libs/sequencer/commit/814423427808d74eae5b6b71d1800ccdc7cc5fc7"
+        },
+        "date": 1773960421548,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 907.1842598200001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1323.44877874,
             "unit": "ms"
           }
         ]
