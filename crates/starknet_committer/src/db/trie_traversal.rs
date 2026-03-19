@@ -32,6 +32,7 @@ use starknet_patricia_storage::storage_trait::{
     AsyncStorage,
     DbKey,
     ReadOnlyStorage,
+    Storage,
     StorageTask,
 };
 use tracing::warn;
@@ -344,25 +345,44 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf, Layout: NodeLayout<'a, L
     Ok(skeleton_tree)
 }
 
-pub async fn create_storage_tries<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
-    storage: &mut impl ReadOnlyStorage,
-    actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+pub async fn create_storage_tries<
+    'a,
+    S: Storage,
+    Layout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
+>(
+    storage: &mut S,
+    actual_storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
-    storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
+    storage_tries_sorted_indices: &'a HashMap<ContractAddress, SortedLeafIndices<'a>>,
 ) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>>
 where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
+    for<'b> <Layout as NodeLayout<'b, <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf>>::SubTree:
+        Send + Sync,
+    for<'b> <Layout as NodeLayout<'b, <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf>>::NodeData:
+        Send,
 {
-    create_storage_tries_sequentially::<Layout>(
-        storage,
-        actual_storage_updates,
-        original_contracts_trie_leaves,
-        config,
-        storage_tries_sorted_indices,
-    )
-    .await
+    if let Some(mut async_storage) = storage.get_async_self() {
+        create_storage_tries_concurrently::<_, Layout>(
+            &mut async_storage,
+            actual_storage_updates,
+            original_contracts_trie_leaves,
+            config.warn_on_trivial_modifications(),
+            storage_tries_sorted_indices,
+        )
+        .await
+    } else {
+        create_storage_tries_sequentially::<Layout>(
+            storage,
+            actual_storage_updates,
+            original_contracts_trie_leaves,
+            config,
+            storage_tries_sorted_indices,
+        )
+        .await
+    }
 }
 
 /// Creates the contracts trie original skeleton.
@@ -499,7 +519,6 @@ where
 
 /// Holds all data needed to build one storage trie concurrently.
 /// Implements [StorageTask] so that [AsyncStorage::gather] can drive it.
-#[allow(dead_code)]
 struct TrieReadTask<'a, Layout: NodeLayoutFor<StarknetStorageValue>> {
     address: ContractAddress,
     updates: &'a LeafModifications<StarknetStorageValue>,
@@ -538,7 +557,6 @@ where
 }
 
 /// Creates the storage tries concurrently using [AsyncStorage::gather].
-#[allow(dead_code)]
 async fn create_storage_tries_concurrently<
     'a,
     S: AsyncStorage,

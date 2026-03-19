@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::StateRoots;
+use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
@@ -14,7 +15,6 @@ use starknet_patricia_storage::storage_trait::{
     DbKey,
     DbValue,
     PatriciaStorageResult,
-    ReadOnlyStorage,
     Storage,
 };
 
@@ -95,8 +95,17 @@ pub(crate) async fn read_forest<'a, S, Layout>(
     config: ReaderConfig,
 ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>
 where
-    S: ReadOnlyStorage,
+    S: Storage,
     Layout: DbLayout,
+    Layout::NodeLayout: Send + 'static,
+    for<'b> <Layout::NodeLayout as NodeLayout<
+        'b,
+        <Layout::NodeLayout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf,
+    >>::SubTree: Send + Sync,
+    for<'b> <Layout::NodeLayout as NodeLayout<
+        'b,
+        <Layout::NodeLayout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf,
+    >>::NodeData: Send,
 {
     let (contracts_trie, original_contracts_trie_leaves) =
         create_contracts_trie::<Layout::NodeLayout>(
@@ -105,7 +114,7 @@ where
             forest_sorted_indices.contracts_trie_sorted_indices,
         )
         .await?;
-    let storage_tries = create_storage_tries::<Layout::NodeLayout>(
+    let storage_tries = create_storage_tries::<_, Layout::NodeLayout>(
         storage,
         storage_updates,
         &original_contracts_trie_leaves,
