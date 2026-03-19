@@ -16,6 +16,58 @@ use jsonrpsee::types::ErrorObjectOwned;
 
 use crate::errors::{RunnerError, VirtualBlockExecutorError, VirtualSnosProverError};
 
+// --- Test-only: exhaustive spec error enum ---
+
+/// Every error defined in the OpenRPC spec (`components/errors`).
+///
+/// Adding a new error to the spec requires adding a variant here; the compiler enforces
+/// exhaustive coverage via `SpecErrorKind::ALL` in the spec test.
+#[cfg(test)]
+#[derive(Clone, Copy)]
+pub(crate) enum SpecErrorKind {
+    BlockNotFound,
+    AccountValidationFailed,
+    UnsupportedTxVersion,
+    ServiceBusy,
+    InvalidTransactionInput,
+}
+
+#[cfg(test)]
+impl SpecErrorKind {
+    /// All variants — used by the spec completeness test.
+    pub(crate) const ALL: &[Self] = &[
+        Self::BlockNotFound,
+        Self::AccountValidationFailed,
+        Self::UnsupportedTxVersion,
+        Self::ServiceBusy,
+        Self::InvalidTransactionInput,
+    ];
+
+    /// The key in `components/errors` of the OpenRPC spec.
+    pub(crate) fn spec_key(self) -> &'static str {
+        match self {
+            Self::BlockNotFound => "BLOCK_NOT_FOUND",
+            Self::AccountValidationFailed => "ACCOUNT_VALIDATION_FAILED",
+            Self::UnsupportedTxVersion => "UNSUPPORTED_TX_VERSION",
+            Self::ServiceBusy => "SERVICE_BUSY",
+            Self::InvalidTransactionInput => "INVALID_TRANSACTION_INPUT",
+        }
+    }
+
+    /// A representative `ErrorObjectOwned` for this error kind.
+    pub(crate) fn example_error(self) -> jsonrpsee::types::ErrorObjectOwned {
+        match self {
+            Self::BlockNotFound => block_not_found(),
+            Self::AccountValidationFailed => validation_failure("test".to_string()),
+            Self::UnsupportedTxVersion => unsupported_tx_version("v99".to_string()),
+            Self::ServiceBusy => service_busy(2),
+            Self::InvalidTransactionInput => {
+                invalid_transaction_input("test field invalid".to_string())
+            }
+        }
+    }
+}
+
 // Starknet RPC v0.10 error codes.
 
 /// Block not found (code 24).
