@@ -123,6 +123,8 @@ macro_rules! define_short_key_storage {
             }
         }
 
+        impl<S: AsyncStorage> AsyncStorage for $name<S> {}
+
         impl<S: AsyncStorage> Clone for $name<S> {
             fn clone(&self) -> Self {
                 Self { storage: self.storage.clone(), _n_bytes: PhantomData }

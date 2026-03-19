@@ -256,3 +256,5 @@ impl Storage for AerospikeStorage {
         Some(self.clone())
     }
 }
+
+impl AsyncStorage for AerospikeStorage {}

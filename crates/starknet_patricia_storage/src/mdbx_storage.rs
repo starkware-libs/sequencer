@@ -191,3 +191,5 @@ impl Storage for MdbxStorage {
         Some(self.clone())
     }
 }
+
+impl AsyncStorage for MdbxStorage {}

@@ -377,7 +377,7 @@ fn apply_interference<S: AsyncStorage>(
     n_updates_arg: usize,
     block_number: usize,
     task_set: &mut JoinSet<()>,
-    mut storage: S,
+    storage: S,
     rng: &mut SmallRng,
 ) {
     match interference_type {
@@ -401,7 +401,7 @@ fn apply_interference<S: AsyncStorage>(
                     .iter()
                     .map(|k| DbKey((**k.0).to_bytes_be().to_vec()))
                     .collect::<Vec<_>>();
-                storage.mget_mut(&keys.iter().collect::<Vec<&DbKey>>()).await.unwrap();
+                storage.mget(&keys.iter().collect::<Vec<&DbKey>>()).await.unwrap();
             });
         }
     }
