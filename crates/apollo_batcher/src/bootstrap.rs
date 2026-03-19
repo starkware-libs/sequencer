@@ -16,6 +16,8 @@ use starknet_api::hash::StarkHash;
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcDeclareTransactionV3,
+    RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3,
     RpcTransaction,
 };
 use starknet_api::state::{SierraContractClass, StateNumber};
@@ -238,8 +240,8 @@ impl BootstrapStateMachine {
     pub fn transactions_for_state(&self, state: BootstrapState) -> Vec<RpcTransaction> {
         match state {
             BootstrapState::DeclareContracts => self.declare_transactions(),
-            BootstrapState::NotInBootstrap => Vec::new(),
-            BootstrapState::DeployAccount
+            BootstrapState::DeployAccount => self.deploy_account_transactions(),
+            BootstrapState::NotInBootstrap
             | BootstrapState::DeployToken
             | BootstrapState::FundAccount => Vec::new(),
         }
@@ -312,5 +314,31 @@ impl BootstrapStateMachine {
             }));
 
         vec![account_declare, erc20_declare]
+    }
+
+    /// Creates the deploy account transaction for the funded account.
+    fn deploy_account_transactions(&self) -> Vec<RpcTransaction> {
+        let params = self.params.as_ref().expect(
+            "BootstrapStateMachine invariant: params is Some when bootstrap_enabled is true",
+        );
+        info!("Bootstrap: deploying funded account");
+        let resource_bounds = Self::no_fee_resource_bounds();
+
+        let deploy_account = RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(
+            RpcDeployAccountTransactionV3 {
+                signature: TransactionSignature::default(),
+                nonce: Nonce::default(),
+                class_hash: params.account_class_hash,
+                contract_address_salt: ContractAddressSalt::default(),
+                constructor_calldata: Calldata::default(),
+                resource_bounds,
+                tip: Tip::default(),
+                paymaster_data: PaymasterData::default(),
+                nonce_data_availability_mode: DataAvailabilityMode::L1,
+                fee_data_availability_mode: DataAvailabilityMode::L1,
+            },
+        ));
+
+        vec![deploy_account]
     }
 }
