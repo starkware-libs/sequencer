@@ -35,6 +35,7 @@ use mempool_test_utils::starknet_api_test_utils::{
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_base_layer::test_utils::anvil_mine_blocks;
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::contract_address;
 use starknet_api::core::{ChainId, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -62,7 +63,7 @@ use crate::node_component_configs::{
     create_hybrid_component_configs,
 };
 use crate::sequencer_simulator_utils::SequencerSimulator;
-use crate::state_reader::StorageTestHandles;
+use crate::state_reader::{GenesisParams, StorageTestHandles};
 use crate::storage::{get_integration_test_storage, CustomPaths};
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
@@ -383,6 +384,7 @@ pub struct IntegrationTestManager {
     // Ethereum base layer coupled with an Anvil server instance, the server is dropped when the
     // instance is dropped.
     anvil_base_layer: AnvilBaseLayer,
+    genesis_block_number: BlockNumber,
 }
 
 impl IntegrationTestManager {
@@ -392,9 +394,11 @@ impl IntegrationTestManager {
         num_of_hybrid_nodes: usize,
         custom_paths: Option<CustomPaths>,
         test_unique_id: TestIdentifier,
+        genesis_params: GenesisParams,
     ) -> Self {
         let tx_generator = create_integration_test_tx_generator();
 
+        let genesis_block_number = genesis_params.initial_block_number;
         let (sequencers_setup, node_indices) = get_sequencer_setup_configs(
             &tx_generator,
             num_of_consolidated_nodes,
@@ -402,6 +406,7 @@ impl IntegrationTestManager {
             num_of_hybrid_nodes,
             custom_paths,
             test_unique_id,
+            genesis_params,
         )
         .await;
 
@@ -439,7 +444,18 @@ impl IntegrationTestManager {
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();
 
-        Self { node_indices, idle_nodes, running_nodes, tx_generator, anvil_base_layer }
+        Self {
+            node_indices,
+            idle_nodes,
+            running_nodes,
+            tx_generator,
+            anvil_base_layer,
+            genesis_block_number,
+        }
+    }
+
+    pub fn genesis_block_number(&self) -> BlockNumber {
+        self.genesis_block_number
     }
 
     pub fn get_idle_nodes(&self) -> &HashMap<usize, NodeSetup> {
@@ -664,6 +680,13 @@ impl IntegrationTestManager {
         .await;
     }
 
+    pub async fn send_deploy_and_invoke_txs_and_verify_at_block(
+        &mut self,
+        wait_for_block: BlockNumber,
+    ) {
+        self.test_and_verify(DeployAndInvokeTxs, DEFAULT_SENDER_ACCOUNT, wait_for_block).await;
+    }
+
     #[instrument(skip(self))]
     pub async fn send_txs_and_verify(
         &mut self,
@@ -735,7 +758,7 @@ impl IntegrationTestManager {
     ///
     /// The function verifies the initial state, runs the test with the given number of
     /// transactions, waits for execution to complete, and then verifies the final state.
-    async fn test_and_verify(
+    pub async fn test_and_verify(
         &mut self,
         test_scenario: impl TestScenario,
         sender_account: AccountId,
@@ -1218,6 +1241,7 @@ async fn get_sequencer_setup_configs(
     num_of_hybrid_nodes: usize,
     custom_paths: Option<CustomPaths>,
     test_unique_id: TestIdentifier,
+    genesis_params: GenesisParams,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let mut available_ports_generator = AvailablePortsGenerator::new(test_unique_id.into());
 
@@ -1242,7 +1266,11 @@ async fn get_sequencer_setup_configs(
     }
 
     info!("Creating node configurations.");
-    let chain_info = ChainInfo::create_for_testing();
+    let mut chain_info = ChainInfo::create_for_testing();
+    // Override STRK fee token to match the virtual OS test's chain configuration so that
+    // the committed proof fixtures (whose config_hash embeds this address) are valid.
+    chain_info.fee_token_addresses.strk_fee_token_address =
+        contract_address!("0x1d9267d6952e9d1fc449d4b2f91b439b65b48365294b9c0731a9faf578e1b14");
     let accounts = tx_generator.accounts();
     let component_configs_len = node_component_configs.len();
 
@@ -1292,8 +1320,10 @@ async fn get_sequencer_setup_configs(
 
     // TODO(tsabary): Move these to the start of the test and propagate their values when relevant.
     // All nodes use the same recorder_url and eth_to_strk_oracle_url.
-    let (recorder_url, _join_handle) =
-        spawn_local_success_recorder(base_layer_ports.get_next_port());
+    let (recorder_url, _join_handle) = spawn_local_success_recorder(
+        base_layer_ports.get_next_port(),
+        genesis_params.initial_block_number.0,
+    );
     let (eth_to_strk_oracle_url, _join_handle_eth_to_strk_oracle) =
         spawn_local_eth_to_strk_oracle(base_layer_ports.get_next_port());
 
@@ -1324,6 +1354,7 @@ async fn get_sequencer_setup_configs(
             custom_paths.clone(),
             accounts.to_vec(),
             &chain_info,
+            genesis_params.clone(),
         );
 
         // Per node, create the executables constituting it.

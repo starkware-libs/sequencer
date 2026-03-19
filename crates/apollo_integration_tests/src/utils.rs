@@ -1,5 +1,6 @@
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
@@ -114,9 +115,9 @@ use serde_json::{json, to_value};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::staking::StakingWeight;
-use starknet_api::transaction::fields::ContractAddressSalt;
+use starknet_api::transaction::fields::{ContractAddressSalt, Proof, ProofFacts, SnosProofFacts};
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, TransactionHasher};
 use starknet_types_core::felt::Felt;
 use tokio::net::TcpListener;
@@ -126,7 +127,7 @@ use tracing::{debug, info, Instrument};
 use url::Url;
 
 use crate::flow_test_setup::{FlowSequencerSetup, FlowTestSetup, NUM_OF_SEQUENCERS};
-use crate::state_reader::StorageTestConfig;
+use crate::state_reader::{GenesisParams, StorageTestConfig};
 
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
@@ -216,6 +217,88 @@ impl TestScenario for DeployAndInvokeTxs {
 
     fn n_txs(&self) -> usize {
         N_TXS_IN_FIRST_BLOCK
+    }
+}
+
+pub fn load_proof_flow_proof_facts() -> ProofFacts {
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/resources/proof_flow/proof_facts.json");
+    let json = std::fs::read_to_string(path)
+        .expect("Failed to read proof_facts.json — run the fixture generator first");
+    serde_json::from_str(&json).expect("Failed to parse proof_facts.json")
+}
+
+pub fn load_proof_flow_proof() -> Proof {
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/resources/proof_flow/proof.bin");
+    let bytes =
+        std::fs::read(path).expect("Failed to read proof.bin — run the fixture generator first");
+    Proof(Arc::new(bytes))
+}
+
+pub fn load_proof_flow_genesis_params() -> GenesisParams {
+    let proof_facts = load_proof_flow_proof_facts();
+    let snos_facts = SnosProofFacts::try_from(proof_facts)
+        .expect("Failed to parse SnosProofFacts from proof_facts.json");
+    let proof_block_number = snos_facts.block_number;
+    let proof_block_hash = snos_facts.block_hash;
+    // Start genesis well above the proof block number so that:
+    // (a) proof_block_number satisfies the constraint: proof_block_number <= genesis -
+    // STORED_BLOCK_HASH_BUFFER (10) (b) the block-hash contract seed at proof_block_number is
+    // never overwritten by the OS     (the OS writes to positions genesis-10, genesis-9, ...,
+    // never touching proof_block_number)
+    let initial_block_number = BlockNumber(proof_block_number.0 + 50);
+    GenesisParams {
+        initial_block_number,
+        block_hash_seeds: vec![(proof_block_number, proof_block_hash)],
+    }
+}
+
+pub struct ProofFlowTxs {
+    proof_facts: ProofFacts,
+    proof: Proof,
+}
+
+impl ProofFlowTxs {
+    pub fn new() -> Self {
+        Self { proof_facts: load_proof_flow_proof_facts(), proof: load_proof_flow_proof() }
+    }
+}
+
+impl Default for ProofFlowTxs {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TestScenario for ProofFlowTxs {
+    fn create_txs(
+        &self,
+        tx_generator: &mut MultiAccountTransactionGenerator,
+        account_id: AccountId,
+    ) -> (Vec<RpcTransaction>, Vec<L1HandlerTransaction>) {
+        let proof_bearing_txs = create_invoke_txs(tx_generator, account_id, 1)
+            .into_iter()
+            .map(|tx| set_proof_on_invoke_tx(tx, self.proof_facts.clone(), self.proof.clone()))
+            .collect();
+        (proof_bearing_txs, vec![])
+    }
+
+    fn n_txs(&self) -> usize {
+        1
+    }
+}
+
+fn set_proof_on_invoke_tx(
+    tx: RpcTransaction,
+    proof_facts: ProofFacts,
+    proof: Proof,
+) -> RpcTransaction {
+    match tx {
+        RpcTransaction::Invoke(RpcInvokeTransaction::V3(mut inner)) => {
+            inner.proof_facts = proof_facts;
+            inner.proof = proof;
+            RpcTransaction::Invoke(RpcInvokeTransaction::V3(inner))
+        }
+        _ => panic!("Expected RpcInvokeTransactionV3"),
     }
 }
 
@@ -464,7 +547,13 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
 }
 
 // Creates a local recorder server that always returns a success status.
-pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
+// `initial_block_number` is returned by the `get_latest_received_block` endpoint so the
+// consensus orchestrator treats the genesis block as already recorded and skips the first
+// blob write (which would fail because there is no in-memory blob for the genesis block).
+pub fn spawn_success_recorder(
+    socket_address: SocketAddr,
+    initial_block_number: u64,
+) -> JoinHandle<()> {
     tokio::spawn(async move {
         let router = Router::new()
             .route(
@@ -489,10 +578,10 @@ pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
             )
             .route(
                 RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH,
-                get(|| {
-                    async {
+                get(move || {
+                    async move {
                         debug!("Received a request for get_latest_received_block.");
-                        Json(serde_json::json!({ "block_number": 0 }))
+                        Json(serde_json::json!({ "block_number": initial_block_number }))
                     }
                     .instrument(tracing::debug_span!("success recorder get_latest_received_block"))
                 }),
@@ -502,10 +591,10 @@ pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
     })
 }
 
-pub fn spawn_local_success_recorder(port: u16) -> (Url, JoinHandle<()>) {
+pub fn spawn_local_success_recorder(port: u16, initial_block_number: u64) -> (Url, JoinHandle<()>) {
     let socket_address = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
     let url = Url::parse(&format!("http://{socket_address}")).unwrap();
-    let join_handle = spawn_success_recorder(socket_address);
+    let join_handle = spawn_success_recorder(socket_address, initial_block_number);
     (url, join_handle)
 }
 
@@ -714,6 +803,7 @@ pub fn create_gateway_config(
         validate_resource_bounds: validate_non_zero_resource_bounds,
         max_calldata_length: 19,
         max_signature_length: 2,
+        allow_client_side_proving: true,
         ..Default::default()
     };
     let stateful_tx_validator_config = StatefulTransactionValidatorConfig {
