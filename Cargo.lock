@@ -2791,6 +2791,7 @@ dependencies = [
  "async-trait",
  "axum",
  "blockifier",
+ "blockifier_test_utils",
  "byteorder",
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",

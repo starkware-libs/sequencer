@@ -34,6 +34,26 @@ use validator::{Validate, ValidationError};
 pub const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
 pub const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
 
+/// Configuration for on-chain bootstrap of the dummy account and fee token contracts.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct BootstrapConfig {
+    /// When true, the batcher exposes bootstrap state derived from storage (declare / deploy /
+    /// fee-token steps). Should be disabled once the chain is initialized.
+    pub bootstrap_enabled: bool,
+}
+
+impl SerializeConfig for BootstrapConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([ser_param(
+            "bootstrap_enabled",
+            &self.bootstrap_enabled,
+            "When true, enables bootstrap state machine for system initialization. Set to false \
+             after bootstrap completes.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
 /// Configuration for the block builder component of the batcher.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct BlockBuilderConfig {
@@ -331,6 +351,7 @@ pub struct BatcherDynamicConfig {
         serialize_with = "serialize_duration_as_milliseconds"
     )]
     pub proposer_idle_detection_delay_millis: Duration,
+    pub bootstrap_config: BootstrapConfig,
 }
 
 impl Default for BatcherDynamicConfig {
@@ -341,6 +362,7 @@ impl Default for BatcherDynamicConfig {
             n_concurrent_txs: 100,
             tx_polling_interval_millis: 10,
             proposer_idle_detection_delay_millis: Duration::from_millis(2000),
+            bootstrap_config: BootstrapConfig::default(),
         }
     }
 }
@@ -375,6 +397,7 @@ impl SerializeConfig for BatcherDynamicConfig {
             self.storage_reader_server_dynamic_config.dump(),
             "storage_reader_server_dynamic_config",
         ));
+        dump.append(&mut prepend_sub_config_name(self.bootstrap_config.dump(), "bootstrap_config"));
         dump
     }
 }

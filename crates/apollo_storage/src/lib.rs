@@ -115,6 +115,9 @@ mod test_instances;
 #[cfg(test)]
 mod open_storage_test;
 
+#[cfg(test)]
+mod bootstrap_contracts_compile_test;
+
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
 

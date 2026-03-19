@@ -7,7 +7,6 @@ pub trait IERC20<TContractState> {
     fn get_decimals(self: @TContractState) -> u8;
     fn get_total_supply(self: @TContractState) -> u256;
     fn balance_of(self: @TContractState, account: ContractAddress) -> u256;
-    fn initial_funding(ref self: TContractState, recipient: ContractAddress);
     fn allowance(self: @TContractState, owner: ContractAddress, spender: ContractAddress) -> u256;
     fn transfer(ref self: TContractState, recipient: ContractAddress, amount: u256);
     fn transfer_from(
@@ -62,11 +61,20 @@ pub mod erc_20 {
     }
 
     #[constructor]
-    fn constructor(ref self: ContractState) {
+    fn constructor(ref self: ContractState, recipient: ContractAddress) {
+        assert(Zero::is_non_zero(@recipient), 'ERC20: mint to the 0 address');
         self.name.write('Wrapped STRK');
         self.symbol.write('WSTRK');
         self.decimals.write(18);
         self.total_supply.write(INITIAL_SUPPLY);
+        self.ERC20_balances.write(recipient, INITIAL_SUPPLY);
+        self.initialized.write(true);
+        self
+            .emit(
+                Event::Transfer(
+                    Transfer { from: Zero::zero(), to: recipient, value: INITIAL_SUPPLY },
+                ),
+            );
     }
 
     #[abi(embed_v0)]
@@ -89,20 +97,6 @@ pub mod erc_20 {
 
         fn balance_of(self: @ContractState, account: ContractAddress) -> u256 {
             self.ERC20_balances.read(account)
-        }
-
-        fn initial_funding(ref self: ContractState, recipient: ContractAddress) {
-            assert(!self.initialized.read(), 'ERC20: already initialized');
-            assert(Zero::is_non_zero(@recipient), 'ERC20: mint to the 0 address');
-            let initial_supply = self.total_supply.read();
-            self.ERC20_balances.write(recipient, initial_supply);
-            self.initialized.write(true);
-            self
-                .emit(
-                    Event::Transfer(
-                        Transfer { from: Zero::zero(), to: recipient, value: initial_supply },
-                    ),
-                );
         }
 
         fn allowance(
