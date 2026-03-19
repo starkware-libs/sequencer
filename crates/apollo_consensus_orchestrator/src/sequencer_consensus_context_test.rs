@@ -78,6 +78,15 @@ use crate::utils::{apply_fee_transformations, make_gas_price_params};
 const TEST_PROPOSAL_COMMITMENT: ProposalCommitment = ProposalCommitment(PARTIAL_BLOCK_HASH.0);
 const HEIGHT_0: BlockNumber = BlockNumber(0);
 const HEIGHT_1: BlockNumber = BlockNumber(1);
+
+// Use heights < 10 to avoid triggering the height-10 block-hash mapping code path (not tested
+// here). Use non-zero height because height 0 always skips the write without querying the recorder.
+const HEIGHT_FOR_SKIP_TEST: BlockNumber = BlockNumber(9);
+const HEIGHT_FOR_WRITE_TESTS: BlockNumber = BlockNumber(8);
+// HEIGHT_FOR_WRITE_TESTS - 2. When building H we need block H-1. If recorder has only up to H-2, we
+// lack H-1 and must write the blob.
+const HEIGHT_M2: BlockNumber = BlockNumber(6);
+
 const ROUND_0: Round = 0;
 const ROUND_1: Round = 1;
 
@@ -348,37 +357,34 @@ async fn build_proposal_skips_write_for_height_0() {
 
 #[tokio::test]
 async fn build_proposal_skips_write_for_height_above_0() {
-    // Important: We set the height to be under 10 to avoid triggering the code path which writes
-    // the block hash mapping for height - 10 (which we're not testing as part of this test)
-    const HEIGHT: BlockNumber = BlockNumber(9);
-
     let (mut deps, _network) = create_test_and_network_deps();
 
-    deps.setup_deps_for_build(SetupDepsArgs { start_block_number: HEIGHT, ..Default::default() });
+    deps.setup_deps_for_build(SetupDepsArgs {
+        start_block_number: HEIGHT_FOR_SKIP_TEST,
+        ..Default::default()
+    });
 
     // Recorder has the previous block.
     let mut mock_cende_context = MockCendeContext::new();
     mock_cende_context
         .expect_get_latest_received_block()
-        .returning(|| Some(HEIGHT.prev().unwrap()));
+        .returning(|| Some(HEIGHT_FOR_SKIP_TEST.prev().unwrap()));
     deps.cende_ambassador = mock_cende_context;
 
     let mut context = deps.build_context();
-    let _fin_receiver =
-        context.build_proposal(BuildParam { height: HEIGHT, ..Default::default() }, TIMEOUT).await;
+    let _fin_receiver = context
+        .build_proposal(BuildParam { height: HEIGHT_FOR_SKIP_TEST, ..Default::default() }, TIMEOUT)
+        .await;
 }
 
 #[tokio::test]
 async fn build_proposal_writes_prev_blob_if_cannot_get_latest_received_block() {
-    // We set a non zero height to make sure a call to get_latest_block_number is made.
-    //
-    // Important: We set the height to be under 10 to avoid triggering the code path which writes
-    // the block hash mapping for height - 10 (which we're not testing as part of this test)
-    const HEIGHT: BlockNumber = BlockNumber(8);
-
     let (mut deps, _network) = create_test_and_network_deps();
 
-    deps.setup_deps_for_build(SetupDepsArgs { start_block_number: HEIGHT, ..Default::default() });
+    deps.setup_deps_for_build(SetupDepsArgs {
+        start_block_number: HEIGHT_FOR_WRITE_TESTS,
+        ..Default::default()
+    });
 
     // Cannot get latest received block (returns None) - must write the blob.
     let mut mock_cende_context = MockCendeContext::new();
@@ -391,7 +397,10 @@ async fn build_proposal_writes_prev_blob_if_cannot_get_latest_received_block() {
 
     let mut context = deps.build_context();
     let fin_receiver = context
-        .build_proposal(BuildParam { height: HEIGHT, ..Default::default() }, TIMEOUT)
+        .build_proposal(
+            BuildParam { height: HEIGHT_FOR_WRITE_TESTS, ..Default::default() },
+            TIMEOUT,
+        )
         .await
         .unwrap();
 
@@ -400,20 +409,13 @@ async fn build_proposal_writes_prev_blob_if_cannot_get_latest_received_block() {
 
 #[tokio::test]
 async fn build_proposal_cende_failure() {
-    // We write a height that isn't 0 since for height 0 we skip writing the blob (and we want to
-    // test a write failure).
-    //
-    // Important: We set the height to be under 10 to avoid triggering the code path which writes
-    // the block hash mapping for height - 10 (which we're not testing as part of this test)
-    const HEIGHT: BlockNumber = BlockNumber(8);
-
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_deps_for_build(SetupDepsArgs { start_block_number: HEIGHT, ..Default::default() });
-    // Recorder does not have the previous block, so we must try to write the previous height blob.
+    deps.setup_deps_for_build(SetupDepsArgs {
+        start_block_number: HEIGHT_FOR_WRITE_TESTS,
+        ..Default::default()
+    });
     let mut mock_cende_context = MockCendeContext::new();
-    mock_cende_context
-        .expect_get_latest_received_block()
-        .returning(|| Some(HEIGHT.prev().unwrap().prev().unwrap()));
+    mock_cende_context.expect_get_latest_received_block().returning(|| Some(HEIGHT_M2));
     mock_cende_context
         .expect_write_prev_height_blob()
         .times(1)
@@ -422,7 +424,10 @@ async fn build_proposal_cende_failure() {
     let mut context = deps.build_context();
 
     let fin_receiver = context
-        .build_proposal(BuildParam { height: HEIGHT, ..Default::default() }, TIMEOUT)
+        .build_proposal(
+            BuildParam { height: HEIGHT_FOR_WRITE_TESTS, ..Default::default() },
+            TIMEOUT,
+        )
         .await
         .unwrap();
     assert_eq!(fin_receiver.await, Err(Canceled));
@@ -430,20 +435,13 @@ async fn build_proposal_cende_failure() {
 
 #[tokio::test]
 async fn build_proposal_cende_incomplete() {
-    // We write a height that isn't 0 since for height 0 we skip writing the blob (and we want to
-    // test a write failure).
-    //
-    // Important: We set the height to be under 10 to avoid triggering the code path which writes
-    // the block hash mapping for height - 10 (which we're not testing as part of this test)
-    const HEIGHT: BlockNumber = BlockNumber(8);
-
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_deps_for_build(SetupDepsArgs { start_block_number: HEIGHT, ..Default::default() });
-    // Recorder does not have the previous block, so we must try to write the previous height blob.
+    deps.setup_deps_for_build(SetupDepsArgs {
+        start_block_number: HEIGHT_FOR_WRITE_TESTS,
+        ..Default::default()
+    });
     let mut mock_cende_context = MockCendeContext::new();
-    mock_cende_context
-        .expect_get_latest_received_block()
-        .returning(|| Some(HEIGHT.prev().unwrap().prev().unwrap()));
+    mock_cende_context.expect_get_latest_received_block().returning(|| Some(HEIGHT_M2));
     mock_cende_context
         .expect_write_prev_height_blob()
         .times(1)
@@ -452,7 +450,10 @@ async fn build_proposal_cende_incomplete() {
     let mut context = deps.build_context();
 
     let fin_receiver = context
-        .build_proposal(BuildParam { height: HEIGHT, ..Default::default() }, TIMEOUT)
+        .build_proposal(
+            BuildParam { height: HEIGHT_FOR_WRITE_TESTS, ..Default::default() },
+            TIMEOUT,
+        )
         .await
         .unwrap();
     assert_eq!(fin_receiver.await, Err(Canceled));
