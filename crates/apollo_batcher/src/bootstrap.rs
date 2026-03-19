@@ -1,12 +1,30 @@
 pub use apollo_batcher_config::config::BootstrapConfig;
 use apollo_storage::state::StateStorageReader;
-use apollo_storage::StorageReader;
+use apollo_storage::{bootstrap_contracts, StorageReader};
 use serde::{Deserialize, Serialize};
 use starknet_api::abi::abi_utils::get_storage_var_address;
-use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::hash::StarkHash;
-use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::state::StateNumber;
+use starknet_api::rpc_transaction::{
+    RpcDeclareTransaction,
+    RpcDeclareTransactionV3,
+    RpcTransaction,
+};
+use starknet_api::state::{SierraContractClass, StateNumber};
+use starknet_api::transaction::fields::{
+    AccountDeploymentData,
+    AllResourceBounds,
+    PaymasterData,
+    Tip,
+    TransactionSignature,
+    ValidResourceBounds,
+};
+use tracing::info;
+
+/// The felt representation of the string 'BOOTSTRAP', used as the sender address for bootstrap
+/// declare transactions.
+const BOOTSTRAP_SENDER_ADDRESS: u128 = 0x424f4f545354524150;
 
 #[cfg(test)]
 #[path = "bootstrap_test.rs"]
@@ -126,10 +144,70 @@ pub fn current_bootstrap_state(
     BootstrapState::NotInBootstrap
 }
 
-/// Transactions to submit for `state` during bootstrap (stub until downstream wiring).
+fn bootstrap_declare_v3_tx(
+    sender_address: ContractAddress,
+    resource_bounds: AllResourceBounds,
+    compiled_class_hash: CompiledClassHash,
+    contract_class: SierraContractClass,
+) -> RpcTransaction {
+    RpcTransaction::Declare(RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
+        sender_address,
+        compiled_class_hash,
+        signature: TransactionSignature::default(),
+        nonce: Nonce::default(),
+        contract_class,
+        resource_bounds,
+        tip: Tip::default(),
+        paymaster_data: PaymasterData::default(),
+        account_deployment_data: AccountDeploymentData::default(),
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+    }))
+}
+
+fn bootstrap_declare_transactions() -> Vec<RpcTransaction> {
+    let account_contract_class = bootstrap_contracts::bootstrap_account_sierra();
+    let account_compiled_class_hash = bootstrap_contracts::bootstrap_account_compiled_class_hash();
+
+    let erc20_contract_class = bootstrap_contracts::bootstrap_erc20_sierra();
+    let erc20_compiled_class_hash = bootstrap_contracts::bootstrap_erc20_compiled_class_hash();
+
+    info!("Bootstrap: declaring account and ERC20 contract classes");
+    let ValidResourceBounds::AllResources(resource_bounds) =
+        ValidResourceBounds::new_unlimited_gas_no_fee_enforcement()
+    else {
+        unreachable!("new_unlimited_gas_no_fee_enforcement returns AllResources");
+    };
+    let bootstrap_address = ContractAddress::from(BOOTSTRAP_SENDER_ADDRESS);
+
+    vec![
+        bootstrap_declare_v3_tx(
+            bootstrap_address,
+            resource_bounds,
+            account_compiled_class_hash,
+            account_contract_class,
+        ),
+        bootstrap_declare_v3_tx(
+            bootstrap_address,
+            resource_bounds,
+            erc20_compiled_class_hash,
+            erc20_contract_class,
+        ),
+    ]
+}
+
+/// Transactions to submit for `state` during bootstrap.
 pub fn bootstrap_transactions_for_state(
-    _config: &BootstrapConfig,
-    _state: BootstrapState,
+    config: &BootstrapConfig,
+    state: BootstrapState,
 ) -> Vec<RpcTransaction> {
-    Vec::new()
+    if !config.bootstrap_enabled {
+        return Vec::new();
+    }
+    match state {
+        BootstrapState::DeclareContracts => bootstrap_declare_transactions(),
+        BootstrapState::NotInBootstrap
+        | BootstrapState::DeployAccount
+        | BootstrapState::DeployFeeToken => Vec::new(),
+    }
 }
