@@ -200,7 +200,7 @@ where
 // TODO(Ariel): define an IndexDbInitialRead empty type, and check whether each tree is empty inside
 // create_xxx_trie.
 #[async_trait]
-impl<S: Storage, H: Send> ForestReader for IndexDb<S, H>
+impl<S: Storage, H: Send + 'static> ForestReader for IndexDb<S, H>
 where
     H: IndexLayoutHasher,
 {
