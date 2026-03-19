@@ -401,7 +401,7 @@ fn apply_interference<S: AsyncStorage>(
                     .iter()
                     .map(|k| DbKey((**k.0).to_bytes_be().to_vec()))
                     .collect::<Vec<_>>();
-                storage.mget(&keys.iter().collect::<Vec<&DbKey>>()).await.unwrap();
+                storage.mget_mut(&keys.iter().collect::<Vec<&DbKey>>()).await.unwrap();
             });
         }
     }
