@@ -113,7 +113,7 @@ pub struct CendeAmbassador {
     // `None` indicates that there is no blob to write, and therefore, the node can't be the
     // proposer.
     prev_height_blob: Arc<Mutex<Option<AerospikeBlob>>>,
-    url: Url,
+    write_blob_url: Url,
     client: ClientWithMiddleware,
     class_manager: SharedClassManagerClient,
 }
@@ -130,12 +130,10 @@ impl CendeAmbassador {
 
         CendeAmbassador {
             prev_height_blob: Arc::new(Mutex::new(None)),
-            url: {
-                let mut recorder_url = cende_config.recorder_url;
-                recorder_url =
-                    recorder_url.join(RECORDER_WRITE_BLOB_PATH).expect("Failed to construct URL");
-                recorder_url
-            },
+            write_blob_url: cende_config
+                .recorder_url
+                .join(RECORDER_WRITE_BLOB_PATH)
+                .expect("Failed to construct write blob URL"),
             client: ClientBuilder::new(reqwest::Client::new())
                 .with(RetryTransientMiddleware::new_with_policy(retry_policy))
                 .build(),
@@ -150,7 +148,7 @@ impl CendeContext for CendeAmbassador {
         info!("Start writing to Aerospike previous height blob for height {current_height}.");
 
         let prev_height_blob = self.prev_height_blob.clone();
-        let request_builder = self.client.post(self.url.clone());
+        let request_builder = self.client.post(self.write_blob_url.clone());
 
         task::spawn(
             async move {
