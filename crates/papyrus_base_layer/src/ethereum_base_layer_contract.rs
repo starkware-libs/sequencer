@@ -176,7 +176,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         // Note that these errors should never happen... but since we are depending on an external
         // service to provider the logs, it is not impossible for temporary glitches to cause weird
         // data inconsistencies like a missing number or header.
-        let block_header_futures = matching_logs.into_iter().map(|log| async move {
+        let parse_event_futures = matching_logs.into_iter().map(|log| async move {
             let Some(block_number) = log.block_number else {
                 return Err(EthereumBaseLayerError::BlockNumberMissingError(Box::new(log)));
             };
@@ -186,8 +186,8 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             };
             parse_event(log, header.timestamp)
         });
-        // TODO(guyn): replace this with try_join_all.
-        futures::future::join_all(block_header_futures).await.into_iter().collect()
+        // try_join_all will fail fast on the first error.
+        futures::future::try_join_all(parse_event_futures).await
     }
 
     #[instrument(skip(self), err)]
