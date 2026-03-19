@@ -186,8 +186,8 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             };
             parse_event(log, header.timestamp)
         });
-        // TODO(guyn): replace this with try_join_all.
-        futures::future::join_all(block_header_futures).await.into_iter().collect()
+        // try_join_all will fail fast on the first error.
+        futures::future::try_join_all(block_header_futures).await
     }
 
     #[instrument(skip(self), err)]
