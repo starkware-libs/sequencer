@@ -77,7 +77,7 @@ async fn transaction_basic_flow() {
     actions.push(Action::SimulateWaitPeriodForOtherProtocol);
 
     // Send transactions for each block and then validate they were written
-    for (i, BlockBody { transactions, transaction_outputs, transaction_hashes }) in
+    for (i, BlockBody { transactions, transaction_outputs, transaction_hashes, .. }) in
         block_bodies.into_iter().enumerate()
     {
         let i = u64::try_from(i).unwrap();

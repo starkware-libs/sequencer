@@ -1077,11 +1077,13 @@ impl From<(starknet_api::transaction::TransactionOutput, TransactionVersion, Opt
         };
 
         match tx_output {
+            // TODO(rpc): events are no longer stored in TransactionOutput. Populate
+            // from a separate events source once available.
             starknet_api::transaction::TransactionOutput::Declare(declare_tx_output) => {
                 TransactionOutput::Declare(DeclareTransactionOutput {
                     actual_fee,
                     messages_sent: declare_tx_output.messages_sent,
-                    events: declare_tx_output.events,
+                    events: vec![],
                     execution_status: declare_tx_output.execution_status,
                     execution_resources: declare_tx_output.execution_resources.into(),
                 })
@@ -1090,7 +1092,7 @@ impl From<(starknet_api::transaction::TransactionOutput, TransactionVersion, Opt
                 TransactionOutput::Deploy(DeployTransactionOutput {
                     actual_fee,
                     messages_sent: deploy_tx_output.messages_sent,
-                    events: deploy_tx_output.events,
+                    events: vec![],
                     contract_address: deploy_tx_output.contract_address,
                     execution_status: deploy_tx_output.execution_status,
                     execution_resources: deploy_tx_output.execution_resources.into(),
@@ -1100,7 +1102,7 @@ impl From<(starknet_api::transaction::TransactionOutput, TransactionVersion, Opt
                 TransactionOutput::DeployAccount(DeployAccountTransactionOutput {
                     actual_fee,
                     messages_sent: deploy_tx_output.messages_sent,
-                    events: deploy_tx_output.events,
+                    events: vec![],
                     contract_address: deploy_tx_output.contract_address,
                     execution_status: deploy_tx_output.execution_status,
                     execution_resources: deploy_tx_output.execution_resources.into(),
@@ -1110,7 +1112,7 @@ impl From<(starknet_api::transaction::TransactionOutput, TransactionVersion, Opt
                 TransactionOutput::Invoke(InvokeTransactionOutput {
                     actual_fee,
                     messages_sent: invoke_tx_output.messages_sent,
-                    events: invoke_tx_output.events,
+                    events: vec![],
                     execution_status: invoke_tx_output.execution_status,
                     execution_resources: invoke_tx_output.execution_resources.into(),
                 })
@@ -1119,7 +1121,7 @@ impl From<(starknet_api::transaction::TransactionOutput, TransactionVersion, Opt
                 TransactionOutput::L1Handler(L1HandlerTransactionOutput {
                     actual_fee,
                     messages_sent: l1_handler_tx_output.messages_sent,
-                    events: l1_handler_tx_output.events,
+                    events: vec![],
                     execution_status: l1_handler_tx_output.execution_status,
                     execution_resources: l1_handler_tx_output.execution_resources.into(),
                     message_hash: maybe_msg_hash

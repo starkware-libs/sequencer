@@ -1,6 +1,9 @@
 //! Interface for iterating over events from the storage.
 //!
-//! Events are part of the transaction output. Each transaction output holds an array of events.
+//! Events are stored in the `transaction_events` table, keyed by [`TransactionIndex`].
+//! The `events` table stores `(ContractAddress, TransactionIndex)` entries as a lookup index
+//! for filtering events by contract address.
+//!
 //! Import [`EventsReader`] to iterate over events using a read-only [`StorageTxn`].
 //!
 //! # Example
@@ -54,19 +57,13 @@ use std::collections::VecDeque;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
-use starknet_api::transaction::{
-    Event,
-    EventContent,
-    EventIndexInTransactionOutput,
-    TransactionOutput,
-};
+use starknet_api::transaction::{Event, EventContent, EventIndexInTransactionOutput};
 
-use super::TransactionMetadataTable;
-use crate::body::{EventsTableKey, TransactionIndex};
-use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
+use crate::body::{EventsTableKey, TransactionEventsTable, TransactionIndex};
+use crate::db::serialization::NoVersionValueWrapper;
 use crate::db::table_types::{CommonPrefix, DbCursor, DbCursorTrait, NoValue, SimpleTable, Table};
 use crate::db::{DbTransaction, RO};
-use crate::{FileHandlers, StorageResult, StorageTxn, TransactionMetadata};
+use crate::{StorageResult, StorageTxn};
 
 /// An identifier of an event.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
@@ -146,7 +143,7 @@ impl<'txn, 'env> EventsReader<'txn, 'env> for StorageTxn<'env, RO> {
 /// A wrapper of two iterators [`EventIterByContractAddress`] and [`EventIterByEventIndex`].
 pub enum EventIter<'txn, 'env> {
     ByContractAddress(EventIterByContractAddress<'env, 'txn>),
-    ByEventIndex(EventIterByEventIndex<'txn>),
+    ByEventIndex(EventIterByEventIndex<'env, 'txn>),
 }
 
 /// This iterator is a wrapper of two iterators [`EventIterByContractAddress`]
@@ -169,7 +166,6 @@ impl Iterator for EventIter<'_, '_> {
 /// That is, the events iterated first by the contract address and then by the event index.
 pub struct EventIterByContractAddress<'env, 'txn> {
     txn: &'txn DbTransaction<'env, RO>,
-    file_handles: &'txn FileHandlers<RO>,
     // This value is the next entry in the events table to search for relevant events. If it is
     // None there are no more events.
     next_entry_in_event_table: Option<EventsTableKey>,
@@ -177,7 +173,7 @@ pub struct EventIterByContractAddress<'env, 'txn> {
     // events.
     events_queue: VecDeque<((ContractAddress, EventIndex), EventContent)>,
     cursor: EventsTableCursor<'txn>,
-    transaction_metadata_table: TransactionMetadataTable<'env>,
+    transaction_events_table: TransactionEventsTable<'env>,
 }
 
 impl EventIterByContractAddress<'_, '_> {
@@ -192,16 +188,9 @@ impl EventIterByContractAddress<'_, '_> {
             let Some((contract_address, tx_index)) = self.next_entry_in_event_table.take() else {
                 return Ok(None);
             };
-            let tx_metadata =
-                self.transaction_metadata_table.get(self.txn, &tx_index)?.unwrap_or_else(|| {
-                    panic!("Transaction metadata not found for transaction index: {tx_index:?}")
-                });
-            let tx_output = self
-                .file_handles
-                .get_transaction_output_unchecked(tx_metadata.tx_output_location)?;
-            // TODO(dvir): don't clone the events here.
-            self.events_queue =
-                get_events_from_tx(tx_output.events().into(), tx_index, contract_address, 0);
+            let events =
+                self.transaction_events_table.get(self.txn, &tx_index)?.unwrap_or_default();
+            self.events_queue = get_events_from_tx(events, tx_index, contract_address, 0);
             self.next_entry_in_event_table = self.cursor.next()?.map(|(key, _)| key);
         }
 
@@ -213,23 +202,23 @@ impl EventIterByContractAddress<'_, '_> {
 /// That is, the events are iterated by the order they are emitted.
 /// First by the block number, then by the transaction offset in the block,
 /// and finally, by the event index in the transaction output.
-pub struct EventIterByEventIndex<'txn> {
-    file_handlers: &'txn FileHandlers<RO>,
-    tx_current: Option<(TransactionIndex, TransactionOutput)>,
-    tx_cursor: TransactionMetadataTableCursor<'txn>,
+pub struct EventIterByEventIndex<'env, 'txn> {
+    txn: &'txn DbTransaction<'env, RO>,
+    tx_current: Option<(TransactionIndex, Vec<Event>)>,
+    tx_cursor: TransactionEventsCursor<'txn>,
     event_index_in_tx_current: EventIndexInTransactionOutput,
     to_block_number: BlockNumber,
+    transaction_events_table: TransactionEventsTable<'env>,
 }
 
-impl EventIterByEventIndex<'_> {
+impl EventIterByEventIndex<'_, '_> {
     /// Returns the next event. If there are no more events, returns None.
     ///
     /// # Errors
     /// Returns [`StorageError`](crate::StorageError) if there was an error.
     fn next(&mut self) -> StorageResult<Option<((ContractAddress, EventIndex), EventContent)>> {
-        let Some((tx_index, tx_output)) = &self.tx_current else { return Ok(None) };
-        let Some(Event { from_address, content }) =
-            tx_output.events().get(self.event_index_in_tx_current.0)
+        let Some((tx_index, events)) = &self.tx_current else { return Ok(None) };
+        let Some(Event { from_address, content }) = events.get(self.event_index_in_tx_current.0)
         else {
             return Ok(None);
         };
@@ -238,7 +227,7 @@ impl EventIterByEventIndex<'_> {
         let content = content.clone();
         self.event_index_in_tx_current.0 += 1;
         self.find_next_event_by_event_index()?;
-        Ok(Some((key, content.clone())))
+        Ok(Some((key, content)))
     }
 
     /// Finds the event that corresponds to the first event index greater than or equals to the
@@ -249,27 +238,25 @@ impl EventIterByEventIndex<'_> {
     /// # Errors
     /// Returns [`StorageError`](crate::StorageError) if there was an error.
     fn find_next_event_by_event_index(&mut self) -> StorageResult<()> {
-        while let Some((tx_index, tx_output)) = &self.tx_current {
+        while let Some((tx_index, events)) = &self.tx_current {
             if tx_index.0 > self.to_block_number {
                 self.tx_current = None;
                 break;
             }
             // Checks if there's an event in the current event index.
-            if tx_output.events().len() > self.event_index_in_tx_current.0 {
+            if events.len() > self.event_index_in_tx_current.0 {
                 break;
             }
 
             // There are no more events in the current transaction, so we go over the rest of the
             // transactions until we find an event.
-            let Some((tx_index, tx_metadata)) = self.tx_cursor.next()? else {
+            let Some((tx_index, _)) = self.tx_cursor.next()? else {
                 self.tx_current = None;
                 return Ok(());
             };
-            self.tx_current = Some((
-                tx_index,
-                self.file_handlers
-                    .get_transaction_output_unchecked(tx_metadata.tx_output_location)?,
-            ));
+            let events =
+                self.transaction_events_table.get(self.txn, &tx_index)?.unwrap_or_default();
+            self.tx_current = Some((tx_index, events));
             self.event_index_in_tx_current = EventIndexInTransactionOutput(0);
         }
 
@@ -292,30 +279,18 @@ where
         &'env self,
         key: (ContractAddress, EventIndex),
     ) -> StorageResult<EventIterByContractAddress<'env, 'txn>> {
-        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
+        let transaction_events_table = self.open_table(&self.tables.transaction_events)?;
         let events_table = self.open_table(&self.tables.events)?;
         let mut cursor = events_table.cursor(&self.txn)?;
         let events_queue = if let Some((contract_address, tx_index)) =
             cursor.lower_bound(&(key.0, key.1.0))?.map(|(key, _)| key)
         {
-            let tx_metadata =
-                transaction_metadata_table.get(&self.txn, &tx_index)?.unwrap_or_else(|| {
-                    panic!("Transaction metadata not found for transaction index: {tx_index:?}")
-                });
-            let tx_output = self
-                .file_handlers
-                .get_transaction_output_unchecked(tx_metadata.tx_output_location)?;
+            let events = transaction_events_table.get(&self.txn, &tx_index)?.unwrap_or_default();
 
             // In case of we get tx_index different from the key, it means we need to start a new
             // transaction which means the first event.
             let start_event_index = if tx_index == key.1.0 { key.1.1.0 } else { 0 };
-            // TODO(dvir): don't clone the events here.
-            get_events_from_tx(
-                tx_output.events().into(),
-                tx_index,
-                contract_address,
-                start_event_index,
-            )
+            get_events_from_tx(events, tx_index, contract_address, start_event_index)
         } else {
             VecDeque::new()
         };
@@ -323,11 +298,10 @@ where
 
         Ok(EventIterByContractAddress {
             txn: &self.txn,
-            file_handles: &self.file_handlers,
             next_entry_in_event_table,
             events_queue,
             cursor,
-            transaction_metadata_table,
+            transaction_events_table,
         })
     }
 
@@ -344,25 +318,18 @@ where
         &'env self,
         event_index: EventIndex,
         to_block_number: BlockNumber,
-    ) -> StorageResult<EventIterByEventIndex<'txn>> {
-        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
-        let mut tx_cursor = transaction_metadata_table.cursor(&self.txn)?;
-        let first_txn_location = tx_cursor.lower_bound(&event_index.0)?;
-        let first_relevant_transaction = match first_txn_location {
-            None => None,
-            Some((tx_index, tx_metadata)) => Some((
-                tx_index,
-                self.file_handlers
-                    .get_transaction_output_unchecked(tx_metadata.tx_output_location)?,
-            )),
-        };
+    ) -> StorageResult<EventIterByEventIndex<'env, 'txn>> {
+        let transaction_events_table = self.open_table(&self.tables.transaction_events)?;
+        let mut tx_cursor = transaction_events_table.cursor(&self.txn)?;
+        let first_relevant_transaction = tx_cursor.lower_bound(&event_index.0)?;
 
         let mut it = EventIterByEventIndex {
-            file_handlers: &self.file_handlers,
+            txn: &self.txn,
             tx_current: first_relevant_transaction,
             tx_cursor,
             event_index_in_tx_current: event_index.1,
             to_block_number,
+            transaction_events_table,
         };
         it.find_next_event_by_event_index()?;
         Ok(it)
@@ -388,6 +355,11 @@ fn get_events_from_tx(
 /// A cursor of the events table.
 type EventsTableCursor<'txn> =
     DbCursor<'txn, RO, EventsTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
-/// A cursor of the transaction outputs table.
-type TransactionMetadataTableCursor<'txn> =
-    DbCursor<'txn, RO, TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>;
+/// A cursor of the transaction_events table.
+type TransactionEventsCursor<'txn> = DbCursor<
+    'txn,
+    RO,
+    TransactionIndex,
+    crate::db::serialization::VersionZeroWrapper<Vec<Event>>,
+    SimpleTable,
+>;

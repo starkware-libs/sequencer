@@ -127,6 +127,8 @@ pub fn revert_block(storage_writer: &mut StorageWriter, target_block_marker: Blo
         .revert_header(target_block_marker)
         .unwrap()
         .0
+        .revert_events(target_block_marker)
+        .unwrap()
         .revert_body(target_block_marker)
         .unwrap()
         .0
