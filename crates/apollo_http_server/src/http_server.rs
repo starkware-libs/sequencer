@@ -35,6 +35,8 @@ use starknet_api::transaction::fields::ValidResourceBounds;
 use tokio::net::TcpListener;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::time;
+use tower_http::decompression::RequestDecompressionLayer;
+use tower_http::limit::RequestBodyLimitLayer;
 use tracing::{debug, info, instrument, warn};
 
 use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
@@ -142,6 +144,13 @@ impl HttpServer {
                 get(|| futures::future::ready("Gateway is ready".to_owned()))
             )
             .layer(Extension(self.app_state.clone()))
+            // Hard streaming limit on decompressed bytes — wraps the body in
+            // http_body_util::Limited which errors during poll_frame() once the
+            // limit is exceeded, preventing zip bombs from expanding in memory.
+            .layer(RequestBodyLimitLayer::new(self.config.static_config.max_request_body_size))
+            .layer(RequestDecompressionLayer::new())
+            // Cap compressed wire bytes to bound network I/O.
+            .layer(RequestBodyLimitLayer::new(self.config.static_config.max_request_body_size))
     }
 
     fn post_method_router<H, T, S>(&self, handler: H) -> MethodRouter<S>
