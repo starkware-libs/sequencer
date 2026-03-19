@@ -35,6 +35,7 @@ use starknet_api::transaction::fields::ValidResourceBounds;
 use tokio::net::TcpListener;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::time;
+use tower_http::decompression::RequestDecompressionLayer;
 use tracing::{debug, info, instrument, warn};
 
 use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
@@ -142,6 +143,7 @@ impl HttpServer {
                 get(|| futures::future::ready("Gateway is ready".to_owned()))
             )
             .layer(Extension(self.app_state.clone()))
+            .layer(RequestDecompressionLayer::new())
     }
 
     fn post_method_router<H, T, S>(&self, handler: H) -> MethodRouter<S>
