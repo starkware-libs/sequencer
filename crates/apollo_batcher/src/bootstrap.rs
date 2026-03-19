@@ -9,6 +9,8 @@ use starknet_api::hash::StarkHash;
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcDeclareTransactionV3,
+    RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3,
     RpcTransaction,
 };
 use starknet_api::state::{SierraContractClass, StateNumber};
@@ -196,6 +198,29 @@ fn bootstrap_declare_transactions() -> Vec<RpcTransaction> {
     ]
 }
 
+fn bootstrap_deploy_account_transactions() -> Vec<RpcTransaction> {
+    let layout = BootstrapLayout::EMBEDDED;
+    info!("Bootstrap: deploying funded account");
+    let resource_bounds = no_fee_resource_bounds();
+
+    let deploy_account = RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(
+        RpcDeployAccountTransactionV3 {
+            signature: TransactionSignature::default(),
+            nonce: Nonce::default(),
+            class_hash: layout.account_class_hash,
+            contract_address_salt: ContractAddressSalt::default(),
+            constructor_calldata: Calldata::default(),
+            resource_bounds,
+            tip: Tip::default(),
+            paymaster_data: PaymasterData::default(),
+            nonce_data_availability_mode: DataAvailabilityMode::L1,
+            fee_data_availability_mode: DataAvailabilityMode::L1,
+        },
+    ));
+
+    vec![deploy_account]
+}
+
 /// Transactions to submit for `state` during bootstrap.
 pub fn bootstrap_transactions_for_state(
     config: &BootstrapConfig,
@@ -206,8 +231,7 @@ pub fn bootstrap_transactions_for_state(
     }
     match state {
         BootstrapState::DeclareContracts => bootstrap_declare_transactions(),
-        BootstrapState::NotInBootstrap
-        | BootstrapState::DeployAccount
-        | BootstrapState::DeployFeeToken => Vec::new(),
+        BootstrapState::DeployAccount => bootstrap_deploy_account_transactions(),
+        BootstrapState::NotInBootstrap | BootstrapState::DeployFeeToken => Vec::new(),
     }
 }
