@@ -6,7 +6,7 @@ pub mod merkle;
 pub mod message_processor;
 pub mod metrics;
 pub mod padding;
-mod protocol;
+pub mod protocol;
 // TODO(AndrewL): Consider renaming this to `erasure_coding` or `error_correction_code`.
 pub mod reed_solomon;
 pub mod sharding;
