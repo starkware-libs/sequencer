@@ -1,6 +1,8 @@
 pub use apollo_batcher_config::config::PreconfirmedCendeConfig;
 use apollo_batcher_types::batcher_types::Round;
 use async_trait::async_trait;
+#[cfg(test)]
+use mockall::automock;
 use reqwest::Client;
 use serde::Serialize;
 use starknet_api::block::BlockNumber;
@@ -27,6 +29,7 @@ pub type PreconfirmedCendeClientResult<T> = Result<T, PreconfirmedCendeClientErr
 
 /// Interface for communicating pre-confirmed block data to the Cende recorder during block
 /// proposal.
+#[cfg_attr(test, automock)]
 #[async_trait]
 pub trait PreconfirmedCendeClientTrait: Send + Sync {
     /// Notifies the Cende recorder about a pre-confirmed block update.
@@ -55,7 +58,8 @@ impl PreconfirmedCendeClient {
     }
 }
 
-#[derive(Serialize)]
+#[cfg_attr(test, derive(PartialEq))]
+#[derive(Debug, Serialize)]
 pub struct CendeWritePreconfirmedBlock {
     pub block_number: BlockNumber,
     pub round: Round,
