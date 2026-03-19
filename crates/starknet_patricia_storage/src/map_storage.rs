@@ -37,11 +37,11 @@ pub struct BorrowedStorage<'a, S: Storage> {
 }
 
 impl ReadOnlyStorage for MapStorage {
-    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(self.0.get(key).cloned())
     }
 
-    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         Ok(keys.iter().map(|key| self.0.get(key).cloned()).collect())
     }
 }
@@ -255,19 +255,19 @@ impl<S: Storage> CachedStorage<S> {
 }
 
 impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
-    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads += 1;
         if let Some(cached_value) = self.cache.get(key) {
             self.cached_reads += 1;
             return Ok(cached_value.clone());
         }
 
-        let storage_value = self.storage.get(key).await?;
+        let storage_value = self.storage.get_mut(key).await?;
         self.cache.put(key.clone(), storage_value.clone());
         Ok(storage_value)
     }
 
-    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let mut values = vec![None; keys.len()]; // The None values are placeholders.
         let mut keys_to_fetch = Vec::new();
         let mut indices_to_fetch = Vec::new();
@@ -285,7 +285,7 @@ impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
         self.cached_reads +=
             u128::try_from(keys.len() - keys_to_fetch.len()).expect("usize should fit in u128");
 
-        let fetched_values = self.storage.mget(keys_to_fetch.as_slice()).await?;
+        let fetched_values = self.storage.mget_mut(keys_to_fetch.as_slice()).await?;
         indices_to_fetch.iter().zip(keys_to_fetch).zip(fetched_values).for_each(
             |((index, key), value)| {
                 self.cache.put((*key).clone(), value.clone());

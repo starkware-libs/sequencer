@@ -130,7 +130,7 @@ impl AerospikeStorage {
 }
 
 impl ReadOnlyStorage for AerospikeStorage {
-    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let record = self
             .client
             .get(&self.config.read_policy, &self.get_key(key.clone())?, Bins::All)
@@ -138,7 +138,7 @@ impl ReadOnlyStorage for AerospikeStorage {
         self.extract_value(&record)
     }
 
-    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let mut ops = Vec::new();
         for key in keys.iter() {
             ops.push(BatchOperation::read(
