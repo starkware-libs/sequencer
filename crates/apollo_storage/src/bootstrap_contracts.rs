@@ -1,4 +1,4 @@
-//! Embedded Sierra/CASM artifacts for bootstrapping Starknet node storage.
+//! Sierra/CASM artifacts shipped in-tree for bootstrapping Starknet node storage.
 //!
 //! Dummy account and ERC20 testing Sierra/CASM JSON is compiled into the binary via
 //! `include_str!`, so bootstrap works for a shipped executable without a checkout or resource
