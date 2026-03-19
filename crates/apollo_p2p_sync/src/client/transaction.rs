@@ -33,7 +33,13 @@ impl BlockData for (BlockBody, BlockNumber) {
         async move {
             let num_txs =
                 self.0.transactions.len().try_into().expect("Failed to convert usize to u64");
-            storage_writer.begin_rw_txn()?.append_body(self.1, self.0)?.commit()?;
+            let block_number = self.1;
+            let transaction_events = self.0.transaction_events.clone();
+            storage_writer
+                .begin_rw_txn()?
+                .append_body(block_number, self.0)?
+                .append_events(block_number, &transaction_events)?
+                .commit()?;
             STATE_SYNC_BODY_MARKER.set_lossy(self.1.unchecked_next().0);
             STATE_SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
             Ok(())
@@ -118,6 +124,7 @@ impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
             })
             .take(num_transactions)
             .collect::<Vec<_>>(),
+            transaction_events: vec![vec![]; num_transactions],
         };
         (block_body, block_number)
     }

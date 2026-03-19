@@ -152,6 +152,8 @@ async fn server_metrics() {
         .unwrap()
         .append_body(BlockNumber(0), BlockBody::default())
         .unwrap()
+        .append_events(BlockNumber(0), &[])
+        .unwrap()
         .append_state_diff(BlockNumber(0), ThinStateDiff::default())
         .unwrap()
         .append_classes(BlockNumber(0), &[], &[])
