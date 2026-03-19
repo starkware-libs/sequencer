@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{bootstrap_contracts, StorageReader};
 use serde::{Deserialize, Serialize};
-use starknet_api::abi::abi_utils::get_storage_var_address;
+use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::block::GasPrice;
 use starknet_api::core::{
     calculate_contract_address,
@@ -18,15 +20,20 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
+    RpcInvokeTransaction,
+    RpcInvokeTransactionV3,
     RpcTransaction,
 };
 use starknet_api::state::{SierraContractClass, StateNumber};
+use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     PaymasterData,
+    Proof,
+    ProofFacts,
     ResourceBounds,
     Tip,
     TransactionSignature,
@@ -241,9 +248,8 @@ impl BootstrapStateMachine {
         match state {
             BootstrapState::DeclareContracts => self.declare_transactions(),
             BootstrapState::DeployAccount => self.deploy_account_transactions(),
-            BootstrapState::NotInBootstrap
-            | BootstrapState::DeployToken
-            | BootstrapState::FundAccount => Vec::new(),
+            BootstrapState::DeployToken => self.deploy_token_transactions(),
+            BootstrapState::NotInBootstrap | BootstrapState::FundAccount => Vec::new(),
         }
     }
 
@@ -340,5 +346,59 @@ impl BootstrapStateMachine {
         ));
 
         vec![deploy_account]
+    }
+
+    /// Creates the invoke transaction to deploy the STRK ERC20 fee token contract.
+    ///
+    /// The erc20_testing contract constructor takes no arguments.
+    fn deploy_token_transactions(&self) -> Vec<RpcTransaction> {
+        let params = self.params.as_ref().expect(
+            "BootstrapStateMachine invariant: params is Some when bootstrap_enabled is true",
+        );
+        info!("Bootstrap: deploying STRK ERC20 fee token");
+        let resource_bounds = Self::no_fee_resource_bounds();
+
+        // The account nonce after deploy_account is 1.
+        let nonce = Nonce(StarkHash::from(STRK_DEPLOY_NONCE));
+        let salt = ContractAddressSalt(nonce.0);
+
+        let deploy_contract_selector =
+            selector_from_name(DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME);
+
+        // The deploy_contract entry point expects:
+        //   [class_hash, salt, ctor_calldata_len, ...ctor_calldata]
+        // The erc20_testing constructor takes no arguments, so ctor_calldata is empty.
+        let inner_calldata = vec![params.erc20_class_hash.0, salt.0, StarkHash::from(0_u128)];
+
+        // The account's __execute__ expects calldata in the format:
+        //   [contract_address, entry_point_selector, calldata_len, ...calldata]
+        let execute_calldata: Vec<StarkHash> = [
+            *params.account_address.0.key(),
+            deploy_contract_selector.0,
+            StarkHash::from(
+                u128::try_from(inner_calldata.len()).expect("calldata length overflow"),
+            ),
+        ]
+        .into_iter()
+        .chain(inner_calldata)
+        .collect();
+
+        let strk_deploy =
+            RpcTransaction::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
+                sender_address: params.account_address,
+                calldata: Calldata(Arc::new(execute_calldata)),
+                signature: TransactionSignature::default(),
+                nonce,
+                resource_bounds,
+                tip: Tip::default(),
+                paymaster_data: PaymasterData::default(),
+                account_deployment_data: AccountDeploymentData::default(),
+                nonce_data_availability_mode: DataAvailabilityMode::L1,
+                fee_data_availability_mode: DataAvailabilityMode::L1,
+                proof_facts: ProofFacts::default(),
+                proof: Proof::default(),
+            }));
+
+        vec![strk_deploy]
     }
 }
