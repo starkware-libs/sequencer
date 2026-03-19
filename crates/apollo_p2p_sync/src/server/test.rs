@@ -125,17 +125,16 @@ async fn state_diff_query_positive_flow() {
 async fn event_query_positive_flow() {
     let assert_event = |data: Vec<(Event, TransactionHash)>| {
         assert_eq!(data.len(), NUM_OF_BLOCKS * NUM_TXS_PER_BLOCK * EVENTS_PER_TX);
-        for (i, (event, tx_hash)) in data.into_iter().enumerate() {
-            assert_eq!(
-                tx_hash,
-                TX_HASHES[i / (NUM_TXS_PER_BLOCK * EVENTS_PER_TX)]
-                    [i / EVENTS_PER_TX % NUM_TXS_PER_BLOCK]
-            );
-            assert_eq!(
-                event,
-                EVENTS[i / (NUM_TXS_PER_BLOCK * EVENTS_PER_TX)
-                    + i / EVENTS_PER_TX % NUM_TXS_PER_BLOCK]
-            );
+        let mut data_idx = 0;
+        for block_idx in 0..NUM_OF_BLOCKS {
+            for tx_idx in 0..NUM_TXS_PER_BLOCK {
+                for event in &TX_EVENTS[block_idx][tx_idx] {
+                    let (actual_event, actual_hash) = &data[data_idx];
+                    assert_eq!(actual_hash, &TX_HASHES[block_idx][tx_idx]);
+                    assert_eq!(actual_event, event);
+                    data_idx += 1;
+                }
+            }
         }
     };
 
@@ -254,18 +253,17 @@ async fn event_query_some_blocks_are_missing() {
     let assert_event = |data: Vec<(Event, TransactionHash)>| {
         let len = data.len();
         assert_eq!(len, BLOCKS_DELTA * NUM_TXS_PER_BLOCK * EVENTS_PER_TX);
-        for (i, (event, tx_hash)) in data.into_iter().enumerate() {
-            assert_eq!(
-                tx_hash,
-                TX_HASHES[i / (NUM_TXS_PER_BLOCK * EVENTS_PER_TX) + (NUM_OF_BLOCKS - BLOCKS_DELTA)]
-                    [i / EVENTS_PER_TX % NUM_TXS_PER_BLOCK]
-            );
-            assert_eq!(
-                event,
-                EVENTS[i / (NUM_TXS_PER_BLOCK * EVENTS_PER_TX)
-                    + (NUM_OF_BLOCKS - BLOCKS_DELTA)
-                    + i / EVENTS_PER_TX % NUM_TXS_PER_BLOCK]
-            );
+        let start_block = NUM_OF_BLOCKS - BLOCKS_DELTA;
+        let mut data_idx = 0;
+        for block_idx in start_block..NUM_OF_BLOCKS {
+            for tx_idx in 0..NUM_TXS_PER_BLOCK {
+                for event in &TX_EVENTS[block_idx][tx_idx] {
+                    let (actual_event, actual_hash) = &data[data_idx];
+                    assert_eq!(actual_hash, &TX_HASHES[block_idx][tx_idx]);
+                    assert_eq!(actual_event, event);
+                    data_idx += 1;
+                }
+            }
         }
     };
 
@@ -462,7 +460,9 @@ fn insert_to_storage_test_blocks_up_to(storage_writer: &mut StorageWriter) {
             .unwrap()
             .append_body(block_number, BlockBody{transactions: TXS[i].clone(),
                 transaction_outputs: TX_OUTPUTS[i].clone(),
-                transaction_hashes: TX_HASHES[i].clone(),}).unwrap()
+                transaction_hashes: TX_HASHES[i].clone(),
+                transaction_events: TX_EVENTS[i].clone(),}).unwrap()
+            .append_events(block_number, &TX_EVENTS[i]).unwrap()
             .commit()
             .unwrap();
     }
@@ -534,10 +534,16 @@ lazy_static! {
         .chunks(NUM_TXS_PER_BLOCK)
         .map(|chunk| chunk.to_vec())
         .collect();
-    static ref EVENTS: Vec<Event> = TX_OUTPUTS
+    static ref TX_EVENTS: Vec<Vec<Vec<Event>>> = BODY
+        .clone()
+        .transaction_events
+        .chunks(NUM_TXS_PER_BLOCK)
+        .map(|chunk| chunk.to_vec())
+        .collect();
+    static ref EVENTS: Vec<Event> = TX_EVENTS
         .clone()
         .into_iter()
-        .flat_map(|tx_output| tx_output.into_iter().flat_map(|output| output.events().to_vec()))
+        .flat_map(|block_events| block_events.into_iter().flatten())
         .collect();
     static ref CLASSES_WITH_HASHES: Vec<Vec<(ClassHash, SierraContractClass)>> = {
         THIN_STATE_DIFFS

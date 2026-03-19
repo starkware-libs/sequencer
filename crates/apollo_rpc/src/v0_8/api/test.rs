@@ -401,12 +401,16 @@ async fn get_block_transaction_count() {
     >(None, None, Some(pending_data.clone()), None, None);
     let transaction_count = 5;
     let block = get_test_block(transaction_count, None, None, None);
+    let events: Vec<Vec<_>> =
+        block.body.transaction_outputs.iter().map(|o| o.events().to_vec()).collect();
     storage_writer
         .begin_rw_txn()
         .unwrap()
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body)
+        .unwrap()
+        .append_events(block.header.block_header_without_hash.block_number, &events)
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -506,6 +510,16 @@ async fn get_block_w_full_transactions() {
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block
+                .body
+                .transaction_outputs
+                .iter()
+                .map(|o| o.events().to_vec())
+                .collect::<Vec<Vec<_>>>(),
+        )
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -693,6 +707,16 @@ async fn get_block_w_full_transactions_and_receipts() {
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block
+                .body
+                .transaction_outputs
+                .iter()
+                .map(|o| o.events().to_vec())
+                .collect::<Vec<Vec<_>>>(),
+        )
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -893,6 +917,16 @@ async fn get_block_w_transaction_hashes() {
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block
+                .body
+                .transaction_outputs
+                .iter()
+                .map(|o| o.events().to_vec())
+                .collect::<Vec<Vec<_>>>(),
+        )
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -1255,6 +1289,16 @@ async fn get_transaction_status() {
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block
+                .body
+                .transaction_outputs
+                .iter()
+                .map(|o| o.events().to_vec())
+                .collect::<Vec<Vec<_>>>(),
+        )
+        .unwrap()
         .commit()
         .unwrap();
 
@@ -1373,6 +1417,16 @@ async fn get_transaction_receipt() {
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block
+                .body
+                .transaction_outputs
+                .iter()
+                .map(|o| o.events().to_vec())
+                .collect::<Vec<Vec<_>>>(),
+        )
         .unwrap()
         .commit()
         .unwrap();
@@ -2286,6 +2340,16 @@ async fn get_transaction_by_hash() {
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block
+                .body
+                .transaction_outputs
+                .iter()
+                .map(|o| o.events().to_vec())
+                .collect::<Vec<Vec<_>>>(),
+        )
+        .unwrap()
         .commit()
         .unwrap();
 
@@ -2375,6 +2439,16 @@ async fn get_transaction_by_block_id_and_index() {
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block
+                .body
+                .transaction_outputs
+                .iter()
+                .map(|o| o.events().to_vec())
+                .collect::<Vec<Vec<_>>>(),
+        )
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -2924,10 +2998,14 @@ async fn test_get_events(
             }
         }
 
+        let events: Vec<Vec<_>> =
+            block.body.transaction_outputs.iter().map(|o| o.events().to_vec()).collect();
         rw_txn = rw_txn
             .append_header(block_number, &block.header)
             .unwrap()
             .append_body(block_number, block.body)
+            .unwrap()
+            .append_events(block_number, &events)
             .unwrap()
             .append_state_diff(
                 block.header.block_header_without_hash.block_number,
@@ -3460,6 +3538,8 @@ async fn get_events_invalid_ct() {
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body)
         .unwrap()
+        .append_events(block.header.block_header_without_hash.block_number, &[])
+        .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
             starknet_api::state::ThinStateDiff::default(),
@@ -3529,6 +3609,8 @@ async fn serialize_returns_valid_json() {
         .unwrap()
         .append_body(parent_block.header.block_header_without_hash.block_number, parent_block.body)
         .unwrap()
+        .append_events(parent_block.header.block_header_without_hash.block_number, &[])
+        .unwrap()
         .append_state_diff(
             parent_block.header.block_header_without_hash.block_number,
             starknet_api::state::ThinStateDiff::default(),
@@ -3539,6 +3621,16 @@ async fn serialize_returns_valid_json() {
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block
+                .body
+                .transaction_outputs
+                .iter()
+                .map(|o| o.events().to_vec())
+                .collect::<Vec<Vec<_>>>(),
+        )
         .unwrap()
         .append_state_diff(block.header.block_header_without_hash.block_number, thin_state_diff)
         .unwrap()
