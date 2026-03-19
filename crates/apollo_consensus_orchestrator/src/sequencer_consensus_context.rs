@@ -115,6 +115,8 @@ type HeightToRoundToProposal =
 /// Decision for the prev-height blob write when building a proposal at `height`.
 #[derive(Debug)]
 pub(crate) enum PrevBlobWriteDecision {
+    /// Cende already has block >= height; fail the proposal round.
+    FailRound,
     /// Cende has prev block; skip writing, proceed with build.
     SkipCendeWrite,
     /// Must write prev-height blob before building.
@@ -293,7 +295,9 @@ impl SequencerConsensusContext {
         }
         match self.deps.cende_ambassador.get_latest_received_block().await {
             Some(latest_cende_block) => {
-                if latest_cende_block >= height.prev().expect("height > 0 has predecessor") {
+                if latest_cende_block >= height {
+                    PrevBlobWriteDecision::FailRound
+                } else if latest_cende_block >= height.prev().expect("height > 0 has predecessor") {
                     PrevBlobWriteDecision::SkipCendeWrite
                 } else {
                     PrevBlobWriteDecision::WritePrevBlob
@@ -541,6 +545,12 @@ impl ConsensusContext for SequencerConsensusContext {
     ) -> Result<oneshot::Receiver<ProposalCommitment>, ConsensusError> {
         let decision = self.prev_blob_write_decision_for_height(build_param.height).await;
         let cende_write_success = match decision {
+            PrevBlobWriteDecision::FailRound => {
+                return Err(ConsensusError::InternalNetworkError(format!(
+                    "Cende recorder height >= current height ({}); failing proposal",
+                    build_param.height
+                )));
+            }
             PrevBlobWriteDecision::SkipCendeWrite => {
                 AbortOnDropHandle::new(tokio::spawn(ready(true)))
             }

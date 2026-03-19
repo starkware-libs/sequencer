@@ -12,7 +12,7 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
-use apollo_consensus::types::{ConsensusContext, Round};
+use apollo_consensus::types::{ConsensusContext, ConsensusError, Round};
 use apollo_consensus_orchestrator_config::config::{
     ContextConfig,
     ContextDynamicConfig,
@@ -375,6 +375,30 @@ async fn build_proposal_skips_write_for_height_above_0() {
     let _fin_receiver = context
         .build_proposal(BuildParam { height: HEIGHT_FOR_SKIP_TEST, ..Default::default() }, TIMEOUT)
         .await;
+}
+
+#[tokio::test]
+async fn build_proposal_fails_if_cende_height_ge_current_height() {
+    let (mut deps, _network) = create_test_and_network_deps();
+
+    // Use setup_default_expectations only - we return Err before any batcher calls.
+    deps.setup_default_expectations();
+
+    // Recorder already has current or higher block - must fail the round.
+    let mut mock_cende_context = MockCendeContext::new();
+    mock_cende_context.expect_get_latest_received_block().returning(|| Some(HEIGHT_FOR_SKIP_TEST));
+    // write_prev_height_blob should NOT be called when we fail the round
+    deps.cende_ambassador = mock_cende_context;
+
+    let mut context = deps.build_context();
+    let result = context
+        .build_proposal(BuildParam { height: HEIGHT_FOR_SKIP_TEST, ..Default::default() }, TIMEOUT)
+        .await;
+
+    assert!(matches!(
+        result,
+        Err(ConsensusError::InternalNetworkError(ref msg)) if msg.contains("Cende recorder height >= current height")
+    ));
 }
 
 #[tokio::test]
