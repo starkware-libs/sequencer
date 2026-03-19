@@ -2,11 +2,41 @@ use apollo_storage::state::StateStorageReader;
 use apollo_storage::{bootstrap_contracts, StorageReader};
 use serde::{Deserialize, Serialize};
 use starknet_api::abi::abi_utils::get_storage_var_address;
-use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, Nonce};
+use starknet_api::block::GasPrice;
+use starknet_api::core::{
+    calculate_contract_address,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+};
+use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
-use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::state::StateNumber;
-use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
+use starknet_api::rpc_transaction::{
+    RpcDeclareTransaction,
+    RpcDeclareTransactionV3,
+    RpcTransaction,
+};
+use starknet_api::state::{SierraContractClass, StateNumber};
+use starknet_api::transaction::fields::{
+    AccountDeploymentData,
+    AllResourceBounds,
+    Calldata,
+    ContractAddressSalt,
+    PaymasterData,
+    ResourceBounds,
+    Tip,
+    TransactionSignature,
+};
+use tracing::info;
+
+/// The felt representation of the string 'BOOTSTRAP', used as the sender address for bootstrap
+/// declare transactions.
+const BOOTSTRAP_SENDER_ADDRESS: u128 = 0x424f4f545354524150;
+
+/// High gas amount sufficient to avoid out-of-gas errors during bootstrap.
+const BOOTSTRAP_GAS_AMOUNT: u64 = 10_000_000_000;
 
 /// The state of the bootstrap process.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -36,10 +66,18 @@ struct BootstrapConfig {
 
 /// Precomputed deterministic addresses and class hashes used during bootstrap.
 struct BootstrapParams {
+    /// Sierra contract class for the account contract.
+    account_contract_class: SierraContractClass,
     /// Class hash of the account contract (computed from the Sierra class).
     account_class_hash: ClassHash,
+    /// Compiled class hash of the account contract.
+    account_compiled_class_hash: CompiledClassHash,
+    /// Sierra contract class for the ERC20 fee token contract.
+    erc20_contract_class: SierraContractClass,
     /// Class hash of the ERC20 contract (computed from the Sierra class).
     erc20_class_hash: ClassHash,
+    /// Compiled class hash of the ERC20 contract.
+    erc20_compiled_class_hash: CompiledClassHash,
     /// Deterministic address of the funded account (computed from deploy account params).
     account_address: ContractAddress,
     /// Deterministic address of the STRK fee token contract.
@@ -48,8 +86,14 @@ struct BootstrapParams {
 
 impl BootstrapParams {
     fn new() -> Self {
+        let account_contract_class = bootstrap_contracts::bootstrap_account_sierra();
         let account_class_hash = bootstrap_contracts::bootstrap_account_class_hash();
+        let account_compiled_class_hash =
+            bootstrap_contracts::bootstrap_account_compiled_class_hash();
+
+        let erc20_contract_class = bootstrap_contracts::bootstrap_erc20_sierra();
         let erc20_class_hash = bootstrap_contracts::bootstrap_erc20_class_hash();
+        let erc20_compiled_class_hash = bootstrap_contracts::bootstrap_erc20_compiled_class_hash();
 
         // Compute the account address deterministically.
         // Deploy account uses: salt=0, class_hash, empty calldata, deployer=0x0.
@@ -73,7 +117,16 @@ impl BootstrapParams {
         )
         .expect("Failed to calculate STRK fee token contract address");
 
-        Self { account_class_hash, erc20_class_hash, account_address, strk_address }
+        Self {
+            account_contract_class,
+            account_class_hash,
+            account_compiled_class_hash,
+            erc20_contract_class,
+            erc20_class_hash,
+            erc20_compiled_class_hash,
+            account_address,
+            strk_address,
+        }
     }
 }
 
@@ -182,8 +235,14 @@ impl BootstrapStateMachine {
     }
 
     /// Returns the transactions that should be submitted for the given bootstrap state.
-    pub fn transactions_for_state(&self, _state: BootstrapState) -> Vec<RpcTransaction> {
-        Vec::new()
+    pub fn transactions_for_state(&self, state: BootstrapState) -> Vec<RpcTransaction> {
+        match state {
+            BootstrapState::DeclareContracts => self.declare_transactions(),
+            BootstrapState::NotInBootstrap => Vec::new(),
+            BootstrapState::DeployAccount
+            | BootstrapState::DeployToken
+            | BootstrapState::FundAccount => Vec::new(),
+        }
     }
 
     /// Returns the deterministic account address computed during initialization.
@@ -198,5 +257,60 @@ impl BootstrapStateMachine {
     /// When bootstrap is disabled, returns the default address (only meaningful when enabled).
     pub fn strk_address(&self) -> ContractAddress {
         self.params.as_ref().map(|p| p.strk_address).unwrap_or_default()
+    }
+
+    fn no_fee_resource_bounds() -> AllResourceBounds {
+        let default_resource =
+            ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(1) };
+        AllResourceBounds {
+            l1_gas: default_resource,
+            l2_gas: ResourceBounds {
+                max_amount: GasAmount(BOOTSTRAP_GAS_AMOUNT),
+                max_price_per_unit: GasPrice(0),
+            },
+            l1_data_gas: default_resource,
+        }
+    }
+
+    /// Creates the declare transactions for the account and ERC20 contract classes.
+    fn declare_transactions(&self) -> Vec<RpcTransaction> {
+        let params = self.params.as_ref().expect(
+            "BootstrapStateMachine invariant: params is Some when bootstrap_enabled is true",
+        );
+        info!("Bootstrap: declaring account and ERC20 contract classes");
+        let resource_bounds = Self::no_fee_resource_bounds();
+        let bootstrap_address = ContractAddress::from(BOOTSTRAP_SENDER_ADDRESS);
+
+        let account_declare =
+            RpcTransaction::Declare(RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
+                sender_address: bootstrap_address,
+                compiled_class_hash: params.account_compiled_class_hash,
+                signature: TransactionSignature::default(),
+                nonce: Nonce::default(),
+                contract_class: params.account_contract_class.clone(),
+                resource_bounds,
+                tip: Tip::default(),
+                paymaster_data: PaymasterData::default(),
+                account_deployment_data: AccountDeploymentData::default(),
+                nonce_data_availability_mode: DataAvailabilityMode::L1,
+                fee_data_availability_mode: DataAvailabilityMode::L1,
+            }));
+
+        let erc20_declare =
+            RpcTransaction::Declare(RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
+                sender_address: bootstrap_address,
+                compiled_class_hash: params.erc20_compiled_class_hash,
+                signature: TransactionSignature::default(),
+                nonce: Nonce::default(),
+                contract_class: params.erc20_contract_class.clone(),
+                resource_bounds,
+                tip: Tip::default(),
+                paymaster_data: PaymasterData::default(),
+                account_deployment_data: AccountDeploymentData::default(),
+                nonce_data_availability_mode: DataAvailabilityMode::L1,
+                fee_data_availability_mode: DataAvailabilityMode::L1,
+            }));
+
+        vec![account_declare, erc20_declare]
     }
 }
