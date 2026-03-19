@@ -249,7 +249,8 @@ impl BootstrapStateMachine {
             BootstrapState::DeclareContracts => self.declare_transactions(),
             BootstrapState::DeployAccount => self.deploy_account_transactions(),
             BootstrapState::DeployToken => self.deploy_token_transactions(),
-            BootstrapState::NotInBootstrap | BootstrapState::FundAccount => Vec::new(),
+            BootstrapState::FundAccount => self.fund_account_transactions(),
+            BootstrapState::NotInBootstrap => Vec::new(),
         }
     }
 
@@ -400,5 +401,52 @@ impl BootstrapStateMachine {
             }));
 
         vec![strk_deploy]
+    }
+
+    /// Creates the invoke transaction to fund the account via the ERC20's `initial_funding`.
+    ///
+    /// Account nonce at this point is 2 (0 consumed by deploy_account, 1 by deploy_token).
+    fn fund_account_transactions(&self) -> Vec<RpcTransaction> {
+        let params = self.params.as_ref().expect(
+            "BootstrapStateMachine invariant: params is Some when bootstrap_enabled is true",
+        );
+        info!("Bootstrap: funding account via ERC20 initial_funding");
+        let resource_bounds = Self::no_fee_resource_bounds();
+        let nonce = Nonce(StarkHash::from(POST_STRK_DEPLOY_NONCE));
+
+        let initial_funding_selector = selector_from_name("initial_funding");
+
+        // The initial_funding entry point expects a single argument: recipient address.
+        let inner_calldata = vec![*params.account_address.0.key()];
+
+        // The account's __execute__ expects calldata in the format:
+        //   [contract_address, entry_point_selector, calldata_len, ...calldata]
+        let execute_calldata: Vec<StarkHash> = [
+            *params.strk_address.0.key(),
+            initial_funding_selector.0,
+            StarkHash::from(
+                u128::try_from(inner_calldata.len()).expect("calldata length overflow"),
+            ),
+        ]
+        .into_iter()
+        .chain(inner_calldata)
+        .collect();
+
+        let fund_tx = RpcTransaction::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
+            sender_address: params.account_address,
+            calldata: Calldata(Arc::new(execute_calldata)),
+            signature: TransactionSignature::default(),
+            nonce,
+            resource_bounds,
+            tip: Tip::default(),
+            paymaster_data: PaymasterData::default(),
+            account_deployment_data: AccountDeploymentData::default(),
+            nonce_data_availability_mode: DataAvailabilityMode::L1,
+            fee_data_availability_mode: DataAvailabilityMode::L1,
+            proof_facts: ProofFacts::default(),
+            proof: Proof::default(),
+        }));
+
+        vec![fund_tx]
     }
 }
