@@ -10,7 +10,7 @@
 
 use std::convert::Infallible;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
@@ -87,14 +87,28 @@ struct FloodHandler {
     protocol: PropellerProtocol,
     outbound: FloodOutboundState,
     batches_sent: Arc<AtomicUsize>,
+    /// Set to true when yamux's `poll_ready` returns `Pending`, indicating the sender was
+    /// back-pressured by the receiver.
+    was_back_pressured: Arc<AtomicBool>,
     publisher: PeerId,
 }
 
 impl FloodHandler {
-    fn new(config: &Config, batches_sent: Arc<AtomicUsize>, publisher: PeerId) -> Self {
+    fn new(
+        config: &Config,
+        batches_sent: Arc<AtomicUsize>,
+        was_back_pressured: Arc<AtomicBool>,
+        publisher: PeerId,
+    ) -> Self {
         let protocol =
             PropellerProtocol::new(config.stream_protocol.clone(), config.max_wire_message_size);
-        Self { protocol, outbound: FloodOutboundState::RequestSubstream, batches_sent, publisher }
+        Self {
+            protocol,
+            outbound: FloodOutboundState::RequestSubstream,
+            batches_sent,
+            was_back_pressured,
+            publisher,
+        }
     }
 }
 
@@ -171,6 +185,7 @@ impl ConnectionHandler for FloodHandler {
                 }
                 Poll::Pending => {
                     // yamux is full — this is back-pressure working.
+                    self.was_back_pressured.store(true, Ordering::Relaxed);
                     self.outbound = FloodOutboundState::Sending(framed);
                     return Poll::Pending;
                 }
@@ -206,11 +221,16 @@ impl ConnectionHandler for FloodHandler {
 struct FloodBehaviour {
     config: Config,
     batches_sent: Arc<AtomicUsize>,
+    was_back_pressured: Arc<AtomicBool>,
 }
 
 impl FloodBehaviour {
-    fn new(config: Config, batches_sent: Arc<AtomicUsize>) -> Self {
-        Self { config, batches_sent }
+    fn new(
+        config: Config,
+        batches_sent: Arc<AtomicUsize>,
+        was_back_pressured: Arc<AtomicBool>,
+    ) -> Self {
+        Self { config, batches_sent, was_back_pressured }
     }
 }
 
@@ -225,7 +245,12 @@ impl NetworkBehaviour for FloodBehaviour {
         _local_addr: &Multiaddr,
         _remote_addr: &Multiaddr,
     ) -> Result<Self::ConnectionHandler, ConnectionDenied> {
-        Ok(FloodHandler::new(&self.config, self.batches_sent.clone(), PeerId::random()))
+        Ok(FloodHandler::new(
+            &self.config,
+            self.batches_sent.clone(),
+            self.was_back_pressured.clone(),
+            PeerId::random(),
+        ))
     }
 
     fn handle_established_outbound_connection(
@@ -236,7 +261,12 @@ impl NetworkBehaviour for FloodBehaviour {
         _role_override: Endpoint,
         _port_use: PortUse,
     ) -> Result<Self::ConnectionHandler, ConnectionDenied> {
-        Ok(FloodHandler::new(&self.config, self.batches_sent.clone(), PeerId::random()))
+        Ok(FloodHandler::new(
+            &self.config,
+            self.batches_sent.clone(),
+            self.was_back_pressured.clone(),
+            PeerId::random(),
+        ))
     }
 
     fn on_swarm_event(&mut self, _event: FromSwarm<'_>) {}
@@ -258,25 +288,26 @@ impl NetworkBehaviour for FloodBehaviour {
     }
 }
 
-/// Demonstrates that a peer can flood the propeller stack without being back-pressured.
+/// Verifies that the propeller stack applies back-pressure to a flooding peer.
 ///
 /// The sender writes `TARGET_BATCHES` batches of `UNITS_PER_BATCH` units each on a propeller
-/// substream. The receiver runs the real propeller Behaviour. Currently, all batches are accepted
-/// without the sender being slowed — the handler reads everything eagerly and the behaviour
-/// forwards to the engine via an unbounded channel.
+/// substream. The receiver runs the real propeller Behaviour with a bounded unit channel
+/// (capacity `inbound_channel_capacity`).
 ///
-/// When full back-pressure is implemented (handler caps inbound reads AND behaviour rate-limits
-/// the handler), the sender's writes should return Pending as yamux flow control kicks in.
-/// At that point, change the assertion to verify the sender was blocked.
+/// Back-pressure chain: when the bounded channel fills, the handler stops reading from yamux.
+/// yamux's receive window fills, closing the send window on the sender side. The sender's
+/// `poll_ready` returns `Pending` — the `was_back_pressured` flag captures this.
 #[tokio::test(flavor = "current_thread")]
-async fn test_flood_is_not_back_pressured() {
+async fn test_flood_is_back_pressured() {
     let config = Config::default();
     let batches_sent = Arc::new(AtomicUsize::new(0));
+    let was_back_pressured = Arc::new(AtomicBool::new(false));
 
     let mut sender_swarm = Swarm::new_ephemeral_tokio({
         let config = config.clone();
         let batches_sent = batches_sent.clone();
-        move |_keypair| FloodBehaviour::new(config, batches_sent)
+        let was_back_pressured = was_back_pressured.clone();
+        move |_keypair| FloodBehaviour::new(config, batches_sent, was_back_pressured)
     });
 
     let mut receiver_swarm =
@@ -298,7 +329,7 @@ async fn test_flood_is_not_back_pressured() {
         }
     });
 
-    // Wait for the sender to finish writing all batches, or timeout.
+    // Wait for the sender to finish writing all batches.
     let result = tokio::time::timeout(TIMEOUT, async {
         loop {
             if batches_sent.load(Ordering::Relaxed) >= TARGET_BATCHES {
@@ -309,30 +340,17 @@ async fn test_flood_is_not_back_pressured() {
     })
     .await;
 
-    let final_count = batches_sent.load(Ordering::Relaxed);
-
     sender_driver.abort();
     receiver_driver.abort();
 
-    // Current assertion: documents the vulnerability.
-    // The sender wrote all batches without being back-pressured.
-    // The handler eagerly reads everything from the wire, and the behaviour forwards it all
-    // to the engine via an unbounded channel — no layer applies back-pressure.
+    // The sender eventually completes (the engine processes units), but it must have been
+    // back-pressured at some point: the bounded channel filled, the handler stopped reading
+    // from yamux, and yamux's send window closed — causing the sender's poll_ready to return
+    // Pending.
+    assert!(result.is_ok(), "Sender should eventually complete all batches");
     assert!(
-        result.is_ok(),
-        "Expected sender to complete all {TARGET_BATCHES} batches without back-pressure, but it \
-         was blocked after {final_count} batches. If back-pressure has been implemented, update \
-         this test to assert the sender IS blocked."
+        was_back_pressured.load(Ordering::Relaxed),
+        "Sender was never back-pressured by yamux. The bounded channel between handler and engine \
+         should cause the handler to pause reads, filling yamux's buffer and blocking the sender."
     );
-    assert_eq!(
-        final_count, TARGET_BATCHES,
-        "Sender should have written exactly {TARGET_BATCHES} batches"
-    );
-
-    // TODO: After implementing full back-pressure (handler + behaviour), change to:
-    // assert!(
-    //     result.is_err(),
-    //     "Expected sender to be back-pressured before completing {TARGET_BATCHES} batches, \
-    //      but it completed all of them. Back-pressure is not working end-to-end."
-    // );
 }
