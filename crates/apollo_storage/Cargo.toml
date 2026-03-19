@@ -50,6 +50,7 @@ zstd.workspace = true
 [dev-dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
+blockifier_test_utils.workspace = true
 assert_matches.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec", "schemars"] }
 camelpaste.workspace = true

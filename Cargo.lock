@@ -2749,6 +2749,7 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "axum",
+ "blockifier_test_utils",
  "byteorder",
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
