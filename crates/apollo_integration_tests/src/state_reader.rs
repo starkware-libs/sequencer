@@ -439,6 +439,8 @@ fn write_state_to_apollo_storage(
         .unwrap()
         .append_body(block_number, BlockBody::default())
         .unwrap()
+        .append_events(block_number, &[])
+        .unwrap()
         .append_state_diff(block_number, state_diff)
         .unwrap()
         .append_classes(block_number, &sierras, &cairo0_contract_classes)
