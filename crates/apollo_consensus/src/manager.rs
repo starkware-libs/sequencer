@@ -453,7 +453,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     self.wait_until_sync_reaches_height(height, context).await;
                     RunHeightRes::Sync
                 }
-                e @ ConsensusError::InternalNetworkError(_) => {
+                e @ ConsensusError::InternalNetworkError(_)
+                | e @ ConsensusError::CendeAheadOfProposalHeight(_) => {
                     // The node is missing required components/data and cannot continue
                     // participating in the consensus. A fix and node restart are required.
                     return Err(e);

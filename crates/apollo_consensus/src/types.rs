@@ -142,6 +142,8 @@ pub enum ConsensusError {
     BatcherError(#[from] BatcherClientError),
     #[error("Committee error: {0}")]
     CommitteeError(String),
+    #[error("Cende recorder height >= proposal height ({0}); failing proposal")]
+    CendeAheadOfProposalHeight(BlockNumber),
     // Indicates an error in communication between consensus and the node's networking component.
     // As opposed to an error between this node and peer nodes.
     #[error("{0}")]
