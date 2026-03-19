@@ -50,7 +50,7 @@ mod staking_manager_test;
 // CONSTRAINT: Must be ≥ `STORED_BLOCK_HASH_BUFFER` - the maximum StateSync lag.
 // A smaller value could cause the consensus tip to advance beyond our knowledge of the next epoch,
 // resulting in a failure to retrieve the committee.
-const MIN_EPOCH_LENGTH: u64 = 30;
+const MIN_EPOCH_LENGTH: u64 = (5 * 60 / 2); // Roughly 5 minutes in 2 seconds blocks.
 const_assert!(MIN_EPOCH_LENGTH >= STORED_BLOCK_HASH_BUFFER);
 
 struct Committee {
