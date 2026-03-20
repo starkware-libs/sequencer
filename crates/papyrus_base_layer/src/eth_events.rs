@@ -8,6 +8,7 @@ use starknet_api::core::{EntryPointSelector, Nonce};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::L1HandlerTransaction;
 use starknet_types_core::felt::Felt;
+use tracing::warn;
 
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerError,
@@ -115,6 +116,20 @@ pub fn create_l1_event_data(
     payload: &[U256],
     nonce: U256,
 ) -> EthereumBaseLayerResult<EventData> {
+    for (field_name, value) in
+        [("to_address", to_address), ("selector", selector), ("nonce", nonce)]
+    {
+        if u256_exceeds_felt(value) {
+            warn!("{} value exceeds felt range: {}", field_name, value);
+            return Err(EthereumBaseLayerError::CalldataValueOutOfRange(value));
+        }
+    }
+    for value in payload {
+        if u256_exceeds_felt(*value) {
+            warn!("payload value exceeds felt range: {}", value);
+            return Err(EthereumBaseLayerError::CalldataValueOutOfRange(*value));
+        }
+    }
     Ok(EventData {
         from_address: Felt::from_bytes_be_slice(from_address.0.as_slice())
             .try_into()
@@ -130,4 +145,8 @@ pub fn create_l1_event_data(
 
 pub fn felt_from_u256(num: U256) -> Felt {
     Felt::from_bytes_be(&num.to_be_bytes())
+}
+
+pub fn u256_exceeds_felt(num: U256) -> bool {
+    num >= U256::from_be_bytes(Felt::MAX.to_bytes_be())
 }
