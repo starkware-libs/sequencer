@@ -17,6 +17,7 @@ mod protocol;
 mod stress_test_node;
 
 use apollo_network_benchmark::node_args::NodeArgs;
+use metrics::register_metrics;
 use stress_test_node::BroadcastNetworkStressTestNode;
 
 #[tokio::main]
@@ -45,6 +46,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )));
 
     builder.install().expect("Failed to install prometheus recorder/exporter");
+
+    register_metrics();
 
     // Start the tokio runtime metrics reporter to automatically collect and export runtime metrics
     tokio::spawn(
