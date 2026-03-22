@@ -94,6 +94,17 @@ impl HttpTestClient {
             .await
             .unwrap()
     }
+
+    pub async fn add_rpc_tx_with_zstd(&self, compressed_body: Vec<u8>) -> Response {
+        self.client
+            .post(format!("http://{}/gateway/add_rpc_transaction", self.socket))
+            .header("content-type", "application/json")
+            .header("content-encoding", "zstd")
+            .body(Body::from(compressed_body))
+            .send()
+            .await
+            .unwrap()
+    }
 }
 
 pub fn create_http_server_config(socket: SocketAddr) -> HttpServerConfig {

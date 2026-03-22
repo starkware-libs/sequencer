@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -384,4 +386,68 @@ async fn request_body_size_limit_enforced(
         .await;
     let response = http_client.add_tx(tx).await;
     assert_eq!(response.status(), expected_status, "Unexpected status: {}", response.status());
+}
+
+#[tokio::test]
+async fn zstd_compressed_request_decompression() {
+    let mut mock_gateway_client = MockGatewayClient::new();
+    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(default_gateway_output()));
+
+    let http_client = HttpClientServerSetupBuilder::new(unique_u16!())
+        .with_mock_gateway_client(mock_gateway_client)
+        .build()
+        .await;
+
+    let tx_json = serde_json::to_string(&rpc_invoke_tx()).unwrap();
+    let mut encoder = zstd::stream::write::Encoder::new(Vec::new(), 0).unwrap();
+    encoder.write_all(tx_json.as_bytes()).unwrap();
+    let compressed_body = encoder.finish().unwrap();
+
+    let response = http_client.add_rpc_tx_with_zstd(compressed_body).await;
+
+    assert_eq!(response.status(), StatusCode::OK, "Request should be decompressed and handled");
+    let response_body = response.text().await.unwrap();
+    let gateway_output: GatewayOutput =
+        serde_json::from_str(&response_body).expect("Response should be valid GatewayOutput");
+    assert_eq!(gateway_output.transaction_hash(), EXPECTED_TX_HASH);
+}
+
+#[tokio::test]
+async fn zstd_compressed_request_too_large() {
+    let tx_json = serde_json::to_string(&rpc_invoke_tx()).unwrap();
+    let mut encoder = zstd::stream::write::Encoder::new(Vec::new(), 0).unwrap();
+    encoder.write_all(tx_json.as_bytes()).unwrap();
+    let compressed_body = encoder.finish().unwrap();
+
+    let http_client = HttpClientServerSetupBuilder::new(unique_u16!())
+        .with_max_request_body_size(compressed_body.len() - 1)
+        .build()
+        .await;
+
+    let response = http_client.add_rpc_tx_with_zstd(compressed_body).await;
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+}
+
+#[tokio::test]
+async fn zstd_decompressed_request_too_large() {
+    // 10 KB of repeated bytes — compresses to ~50 bytes with zstd.
+    let large_body = vec![b'a'; 10 * 1024];
+    let mut encoder = zstd::stream::write::Encoder::new(Vec::new(), 0).unwrap();
+    encoder.write_all(&large_body).unwrap();
+    let compressed_body = encoder.finish().unwrap();
+
+    // Limit between compressed size and decompressed size.
+    // compressed_body is ~50 bytes; decompressed is 10240 bytes.
+    let max_request_body_size = large_body.len() - 1;
+    assert!(compressed_body.len() < max_request_body_size);
+
+    let http_client = HttpClientServerSetupBuilder::new(unique_u16!())
+        .with_max_request_body_size(max_request_body_size)
+        .build()
+        .await;
+
+    let response = http_client.add_rpc_tx_with_zstd(compressed_body).await;
+
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
 }
