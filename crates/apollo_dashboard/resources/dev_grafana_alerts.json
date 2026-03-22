@@ -1765,6 +1765,342 @@
       "observer_applicable": "false"
     },
     {
+      "name": "batcher_remote_server_number_of_connections",
+      "title": "batcher - Remote server number of connections exceeds 64",
+      "ruleGroup": "batcher",
+      "expr": "sum by (namespace, pod) (batcher_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              64.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "class_manager_remote_server_number_of_connections",
+      "title": "class_manager - Remote server number of connections exceeds 64",
+      "ruleGroup": "general",
+      "expr": "sum by (namespace, pod) (class_manager_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              64.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "committer_remote_server_number_of_connections",
+      "title": "committer - Remote server number of connections exceeds 64",
+      "ruleGroup": "consensus",
+      "expr": "sum by (namespace, pod) (committer_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              64.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "config_manager_remote_server_number_of_connections",
+      "title": "config_manager - Remote server number of connections exceeds 64",
+      "ruleGroup": "general",
+      "expr": "sum by (namespace, pod) (config_manager_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              64.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "gateway_remote_server_number_of_connections",
+      "title": "gateway - Remote server number of connections exceeds 64",
+      "ruleGroup": "gateway",
+      "expr": "sum by (namespace, pod) (gateway_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              64.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "l1_gas_price_remote_server_number_of_connections",
+      "title": "l1_gas_price - Remote server number of connections exceeds 64",
+      "ruleGroup": "l1_gas_price",
+      "expr": "sum by (namespace, pod) (l1_gas_price_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              64.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "l1_provider_remote_server_number_of_connections",
+      "title": "l1_provider - Remote server number of connections exceeds 64",
+      "ruleGroup": "l1_messages",
+      "expr": "sum by (namespace, pod) (l1_provider_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              64.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "mempool_remote_server_number_of_connections",
+      "title": "mempool - Remote server number of connections exceeds 64",
+      "ruleGroup": "mempool",
+      "expr": "sum by (namespace, pod) (mempool_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              64.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "mempool_p2p_remote_server_number_of_connections",
+      "title": "mempool_p2p - Remote server number of connections exceeds 64",
+      "ruleGroup": "mempool",
+      "expr": "sum by (namespace, pod) (mempool_p2p_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              64.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "sierra_compiler_remote_server_number_of_connections",
+      "title": "sierra_compiler - Remote server number of connections exceeds 64",
+      "ruleGroup": "batcher",
+      "expr": "sum by (namespace, pod) (sierra_compiler_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              64.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "signature_manager_remote_server_number_of_connections",
+      "title": "signature_manager - Remote server number of connections exceeds 64",
+      "ruleGroup": "consensus",
+      "expr": "sum by (namespace, pod) (signature_manager_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              64.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "state_sync_remote_server_number_of_connections",
+      "title": "state_sync - Remote server number of connections exceeds 64",
+      "ruleGroup": "state_sync",
+      "expr": "sum by (namespace, pod) (state_sync_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              64.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "false"
+    },
+    {
       "name": "state_sync_lag",
       "title": "State sync lag",
       "ruleGroup": "state_sync",

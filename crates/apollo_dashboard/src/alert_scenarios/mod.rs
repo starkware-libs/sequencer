@@ -5,6 +5,7 @@ pub mod l1_gas_prices;
 pub mod l1_handlers;
 pub mod mempool_size;
 pub mod preconfirmed;
+pub mod remote_server_connections;
 pub mod sync_halt;
 pub mod tps;
 pub mod transaction_delays;
