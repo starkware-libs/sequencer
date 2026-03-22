@@ -39,6 +39,7 @@ use crate::utils::{is_localhost, make_multiaddr, StreamMap};
 use crate::{gossipsub_impl, mixed_behaviour, Bytes, NetworkConfig};
 
 const DEFAULT_ACTIVE_COMMITTEES_CAPACITY: usize = 2;
+const ADD_EPOCH_CHANNEL_CAPACITY: usize = 100;
 
 /// Errors that can occur during network operations.
 ///
@@ -112,6 +113,8 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     metrics: Option<NetworkMetrics>,
     bootstrap_peer_ids: HashSet<PeerId>,
     committee_store: ActiveCommittees,
+    add_epoch_sender: AddEpochSender,
+    add_epoch_receiver: AddEpochReceiver,
 }
 
 impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
@@ -178,18 +181,24 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 Some(broadcasted_message_metadata) = self.continue_propagation_receiver.next() => {
                     self.swarm.continue_propagation(broadcasted_message_metadata);
                 }
+                Some((epoch_id, members)) = self.add_epoch_receiver.next() => {
+                    self.handle_add_epoch(epoch_id, members);
+                }
             }
         }
     }
 
-    // TODO(AndrewL): return a channel from the constructor for adding epochs.
-    #[allow(dead_code)]
-    fn add_epoch(&mut self, epoch_id: EpochId, members: Vec<CommitteeMember>) {
-        // TODO(AndrewL): propagate this error instead of panicking.
-        let output = self
-            .committee_store
-            .add_epoch(epoch_id, members)
-            .expect("Committee members contain duplicate peer IDs");
+    fn handle_add_epoch(&mut self, epoch_id: EpochId, mut members: Vec<CommitteeMember>) {
+        // Canonicalize member order so the derived committee id is identical across nodes
+        // regardless of the caller's input order.
+        members.sort_by_key(|member| member.peer_id);
+        let output = match self.committee_store.add_epoch(epoch_id, members) {
+            Ok(output) => output,
+            Err(error) => {
+                error!("Failed to add epoch: {error}");
+                return;
+            }
+        };
         let committee_peers: HashSet<PeerId> = output.allowed_peers.into_iter().collect();
         let mut whitelisted_peers = committee_peers.clone();
         whitelisted_peers.extend(&self.bootstrap_peer_ids);
@@ -197,7 +206,18 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         if let Some(discovery) = self.swarm.behaviour_mut().discovery.as_mut() {
             discovery.set_target_peers(committee_peers);
         }
-        todo!("Wire remaining AddEpochOutput fields to behaviours");
+        // TODO(AndrewL): wire remaining `AddEpochOutput` fields (new_committee, removed_committee)
+        // to the relevant behaviours.
+    }
+
+    /// Returns a sender for submitting new epoch committees to this network manager.
+    ///
+    /// Must be obtained before [`Self::run`] is called, since `run` consumes `self`. The handler
+    /// sorts members by `peer_id` before committing, so callers may pass them in any order.
+    /// Errors from adding the epoch (e.g. duplicate epoch id, duplicate peer id) are logged and
+    /// not reported back to the sender.
+    pub fn add_epoch_sender(&self) -> AddEpochSender {
+        self.add_epoch_sender.clone()
     }
 
     // TODO(shahak): remove the advertised_multiaddr arg once we manage external addresses
@@ -220,6 +240,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             futures::channel::mpsc::channel(reported_peer_ids_buffer_size);
         let (continue_propagation_sender, continue_propagation_receiver) =
             futures::channel::mpsc::channel(broadcasted_message_metadata_buffer_size);
+        let (add_epoch_sender, add_epoch_receiver) =
+            futures::channel::mpsc::channel(ADD_EPOCH_CHANNEL_CAPACITY);
         Self {
             swarm,
             inbound_protocol_to_buffer_size: HashMap::new(),
@@ -239,6 +261,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             metrics,
             bootstrap_peer_ids,
             committee_store,
+            add_epoch_sender,
+            add_epoch_receiver,
         }
     }
 
@@ -1290,6 +1314,11 @@ impl NetworkManager {
         self.swarm.local_peer_id().to_string()
     }
 }
+
+/// Channel sender for submitting `(epoch_id, committee_members)` pairs to the network manager's
+/// event loop. Obtain via [`GenericNetworkManager::add_epoch_sender`].
+pub type AddEpochSender = Sender<(EpochId, Vec<CommitteeMember>)>;
+type AddEpochReceiver = Receiver<(EpochId, Vec<CommitteeMember>)>;
 
 pub type ReportSender = oneshot::Sender<()>;
 type ReportReceiver = oneshot::Receiver<()>;
