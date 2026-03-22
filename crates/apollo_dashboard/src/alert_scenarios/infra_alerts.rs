@@ -15,15 +15,25 @@ use crate::alerts::{
 pub(crate) fn get_general_pod_state_not_ready() -> Alert {
     Alert::new(
         "pod_state_not_ready",
-        "Pod State Not Ready",
+        "Pod status Not Ready",
         AlertGroup::General,
-        // Checks if a container in a pod is not ready (status_ready < 1).
-        // Triggers when at least one container is unhealthy or not passing readiness probes.
-        format!("kube_pod_container_status_ready{METRIC_LABEL_FILTER}"),
-        vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
+        // kube_pod_container_status_ready value is 0 if the container is 'not ready', and 1
+        // if the container is 'ready'. We replace the pod name with 'service_name' to group by the
+        // service name using the label_replace function and the regex pattern. Summing across all
+        // service names results in 0 if all of its relevant pods are 'not ready'.
+        format!(
+            "sum by (service_name) \
+             (label_replace(kube_pod_container_status_ready{METRIC_LABEL_FILTER}, \
+             \"service_name\", \"$1\", \"pod\", \
+             \"^sequencer-(.+)-(?:deployment|statefulset)-[a-z0-9]+(?:-[a-z0-9]+)?$\"))"
+        ),
+        // There is no "equal to" operator in Grafana, and the reported values are integers.
+        // Therefore, we use a less-than comparison with with a lower-than-1 threshold. The
+        // intention here is to check for equality with 0.
+        vec![AlertCondition::new(AlertComparisonOp::LessThan, 0.1, AlertLogicalOp::And)],
         // Spot evictions in GKE have a 30 second notification window, in which the pod state is
-        // marked as not ready. To avoid alerting on these, we require the not-ready state to last
-        // longer (e.g., 60 seconds), and sample at a rather rapid rate (every 10 seconds).
+        // marked as not ready. To avoid alerting on these, we require the not-ready status to last
+        // longer (e.g., 60 seconds).
         "60s",
         10,
         AlertSeverity::Regular,
@@ -41,7 +51,7 @@ pub(crate) fn get_general_pod_state_crashloopbackoff() -> Alert {
     );
     Alert::new(
         "pod_state_crashloopbackoff",
-        "Pod State CrashLoopBackOff",
+        "Pod status CrashLoopBackOff",
         AlertGroup::General,
         format!(
             // Convert "NoData" to 0 using `absent`.
