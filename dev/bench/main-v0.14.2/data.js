@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774183152757,
+  "lastUpdate": 1774184232016,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2753,6 +2753,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1142.6468993699998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2e30e530e9fed9ff052ada7a035555f3f0eb0c53",
+          "message": "apollo_http_server: accept compressed HTTP requests (gzip, zstd, brotli) (#13366)",
+          "timestamp": "2026-03-22T12:35:50Z",
+          "tree_id": "adea34fa74818d5ab59212fbaef9f5c0634a4949",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2e30e530e9fed9ff052ada7a035555f3f0eb0c53"
+        },
+        "date": 1774184231719,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 769.1579474600001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1176.2206480099999,
             "unit": "ms"
           }
         ]
