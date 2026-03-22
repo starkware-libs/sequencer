@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773960421926,
+  "lastUpdate": 1774178230862,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2685,6 +2685,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1323.44877874,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2ecc04cbb614a0f876596badcfdf4cafb610dc79",
+          "message": "starknet_transaction_prover: add compression layer (#13323)",
+          "timestamp": "2026-03-22T10:52:59Z",
+          "tree_id": "61c4d97b443e2c1b203769b22a6d2749afef30a5",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2ecc04cbb614a0f876596badcfdf4cafb610dc79"
+        },
+        "date": 1774178230577,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 802.70448314,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1143.06449637,
             "unit": "ms"
           }
         ]
