@@ -3,9 +3,13 @@ mod test;
 
 use std::time::Duration;
 
-use apollo_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
+use apollo_gateway_types::communication::{
+    GatewayClientError,
+    GatewayClientResult,
+    SharedGatewayClient,
+};
 use apollo_gateway_types::errors::GatewayError;
-use apollo_gateway_types::gateway_types::GatewayInput;
+use apollo_gateway_types::gateway_types::{GatewayInput, GatewayOutput};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::component_server::WrapperServer;
 use apollo_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
@@ -24,7 +28,7 @@ use tokio::time::MissedTickBehavior::Delay;
 use tracing::{debug, warn};
 
 pub struct MempoolP2pRunner {
-    network_future: BoxFuture<'static, Result<(), NetworkError>>,
+    network_future: Option<BoxFuture<'static, Result<(), NetworkError>>>,
     broadcasted_topic_server: BroadcastTopicServer<RpcTransactionBatch>,
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionBatch>,
     gateway_client: SharedGatewayClient,
@@ -44,7 +48,7 @@ impl MempoolP2pRunner {
         max_concurrent_gateway_requests: usize,
     ) -> Self {
         Self {
-            network_future,
+            network_future: Some(network_future),
             broadcasted_topic_server,
             broadcast_topic_client,
             gateway_client,
@@ -58,7 +62,14 @@ impl MempoolP2pRunner {
 #[async_trait]
 impl ComponentStarter for MempoolP2pRunner {
     async fn start(&mut self) {
-        let mut gateway_futures = FuturesUnordered::new();
+        // Spawn the network future into a dedicated task to make it cancel-safe.
+        let network_future =
+            self.network_future.take().expect("start() should only be called once");
+        let mut network_handle = tokio::task::spawn(network_future);
+
+        let mut gateway_futures: FuturesUnordered<
+            tokio::task::JoinHandle<GatewayClientResult<GatewayOutput>>,
+        > = FuturesUnordered::new();
         let mut concurrent_gateway_requests = 0;
         let mut transaction_batch_broadcast_interval =
             tokio::time::interval(self.transaction_batch_rate_millis);
@@ -66,17 +77,25 @@ impl ComponentStarter for MempoolP2pRunner {
         transaction_batch_broadcast_interval.tick().await; // The first tick is ready immediately so we consume it.
         loop {
             tokio::select! {
-                _ = &mut self.network_future => {
+                // Cancel-safe: JoinHandle::poll is cancel-safe.
+                res = &mut network_handle => {
+                    let _ = res.expect("Network future panicked");
                     panic!("MempoolP2pRunner failed - network stopped unexpectedly");
                 }
+                // Cancel-safe: Interval::tick() is cancel-safe per tokio docs.
                 _ = transaction_batch_broadcast_interval.tick() => {
                     let result = self.mempool_p2p_propagator_client.broadcast_queued_transactions().await;
                     if result.is_err() {
                         warn!("MempoolP2pPropagatorClient denied BroadcastQueuedTransactions request: {result:?}");
                     };
                 }
-                Some(result) = gateway_futures.next() => {
+                // Cancel-safe: FuturesUnordered::next() is cancel-safe as long as the futures
+                // inside it are cancel-safe. The futures inside are wrapped in a tokio task which
+                // makes them cancel-safe as well.
+                Some(join_result) = gateway_futures.next() => {
                     concurrent_gateway_requests -= 1;
+                    let result = join_result
+                        .expect("Gateway client add_tx task should not panic");
                     match result {
                         Ok(_) => {}
                         Err(gateway_client_error) => {
@@ -100,6 +119,7 @@ impl ComponentStarter for MempoolP2pRunner {
                         }
                     }
                 }
+                // Cancel-safe: mpsc Receiver::recv() is cancel-safe per tokio docs.
                 Some((message_result, broadcasted_message_metadata)) = self.broadcasted_topic_server.next() => {
                     match message_result {
                         Ok(message) => {
@@ -111,9 +131,16 @@ impl ComponentStarter for MempoolP2pRunner {
                                     continue;
                                 }
 
-                                gateway_futures.push(self.gateway_client.add_tx(
-                                    GatewayInput { rpc_tx, message_metadata: Some(broadcasted_message_metadata.clone()) }
-                                ));
+                                // Wrap in tokio::spawn to make the gateway request cancel-safe.
+                                // Without this, the tokio::select! can cancel the add_tx future
+                                // mid-HTTP-request, causing the gateway to have a dead connection.
+                                let gateway_client = self.gateway_client.clone();
+                                let message_metadata = Some(broadcasted_message_metadata.clone());
+                                gateway_futures.push(tokio::spawn(async move {
+                                    gateway_client.add_tx(
+                                        GatewayInput { rpc_tx, message_metadata }
+                                    ).await
+                                }));
                                 concurrent_gateway_requests += 1;
                             }
                         }
