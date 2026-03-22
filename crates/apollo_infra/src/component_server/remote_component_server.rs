@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -14,7 +15,7 @@ use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
 use hyper::service::{service_fn, Service};
 use hyper::{Request as HyperRequest, Response as HyperResponse};
-use hyper_util::rt::{TokioExecutor, TokioIo};
+use hyper_util::rt::{TokioExecutor, TokioIo, TokioTimer};
 use hyper_util::server::conn::auto::Builder as ServerBuilder;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -39,12 +40,23 @@ use crate::serde_utils::SerdeWrapper;
 
 const DEFAULT_MAX_STREAMS_PER_CONNECTION: u32 = 8;
 const DEFAULT_BIND_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
+const DEFAULT_KEEPALIVE_INTERVAL_MS: u64 = 10_000;
+const DEFAULT_KEEPALIVE_TIMEOUT_MS: u64 = 5_000;
 
 macro_rules! serve_connection {
-    ($io:expr, $service:expr, $max_streams:expr) => {
+    (
+        $io:expr,
+        $service:expr,
+        $max_streams:expr,
+        $keepalive_interval:expr,
+        $keepalive_timeout:expr
+    ) => {
         let result = ServerBuilder::new(TokioExecutor::new())
             .http2()
+            .timer(TokioTimer::new())
             .max_concurrent_streams($max_streams)
+            .keep_alive_interval($keepalive_interval)
+            .keep_alive_timeout($keepalive_timeout)
             .serve_connection($io, $service)
             .await;
 
@@ -60,6 +72,8 @@ pub struct RemoteServerConfig {
     pub max_streams_per_connection: u32,
     pub bind_ip: IpAddr,
     pub set_tcp_nodelay: bool,
+    pub keepalive_interval_ms: u64,
+    pub keepalive_timeout_ms: u64,
 }
 
 impl SerializeConfig for RemoteServerConfig {
@@ -83,6 +97,19 @@ impl SerializeConfig for RemoteServerConfig {
                 "Whether to set TCP_NODELAY on the server responses.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "keepalive_interval_ms",
+                &self.keepalive_interval_ms,
+                "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "keepalive_timeout_ms",
+                &self.keepalive_timeout_ms,
+                "Timeout in milliseconds to wait for a keepalive ping response before closing the \
+                 connection.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -93,6 +120,8 @@ impl Default for RemoteServerConfig {
             max_streams_per_connection: DEFAULT_MAX_STREAMS_PER_CONNECTION,
             bind_ip: DEFAULT_BIND_IP,
             set_tcp_nodelay: true,
+            keepalive_interval_ms: DEFAULT_KEEPALIVE_INTERVAL_MS,
+            keepalive_timeout_ms: DEFAULT_KEEPALIVE_TIMEOUT_MS,
         }
     }
 }
@@ -218,6 +247,8 @@ where
         let per_connection_service =
             |io: TokioIo<tokio::net::TcpStream>,
              max_streams: u32,
+             keepalive_interval: Duration,
+             keepalive_timeout: Duration,
              connection_semaphore: Arc<Semaphore>,
              local_client: LocalComponentClient<Request, Response>,
              metrics: &'static RemoteServerMetrics,
@@ -257,7 +288,13 @@ where
                                 remote_server_metrics: metrics,
                             };
 
-                            serve_connection!(io, service, max_streams);
+                            serve_connection!(
+                                io,
+                                service,
+                                max_streams,
+                                keepalive_interval,
+                                keepalive_timeout
+                            );
                             trace!(remote_addr = %client_peer, "remote component TCP connection closed");
                         }
                         Err(_) => {
@@ -298,7 +335,13 @@ where
                                 remote_server_metrics: metrics,
                             };
 
-                            serve_connection!(io, service, max_streams);
+                            serve_connection!(
+                                io,
+                                service,
+                                max_streams,
+                                keepalive_interval,
+                                keepalive_timeout
+                            );
                             trace!(remote_addr = %client_peer, "remote component TCP connection closed");
                         }
                     }
@@ -325,10 +368,14 @@ where
 
             let io = TokioIo::new(stream);
             let max_streams = self.config.max_streams_per_connection;
+            let keepalive_interval = Duration::from_millis(self.config.keepalive_interval_ms);
+            let keepalive_timeout = Duration::from_millis(self.config.keepalive_timeout_ms);
 
             tokio::spawn(per_connection_service(
                 io,
                 max_streams,
+                keepalive_interval,
+                keepalive_timeout,
                 connection_semaphore.clone(),
                 self.local_client.clone(),
                 self.metrics,

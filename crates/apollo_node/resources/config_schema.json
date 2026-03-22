@@ -679,6 +679,16 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.batcher.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 10000
+  },
+  "components.batcher.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 5000
+  },
   "components.batcher.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -788,6 +798,16 @@
     "description": "Binding address of the remote component server.",
     "privacy": "Public",
     "value": "0.0.0.0"
+  },
+  "components.class_manager.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 10000
+  },
+  "components.class_manager.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 5000
   },
   "components.class_manager.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
@@ -899,6 +919,16 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.committer.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 10000
+  },
+  "components.committer.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 5000
+  },
   "components.committer.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1008,6 +1038,16 @@
     "description": "Binding address of the remote component server.",
     "privacy": "Public",
     "value": "0.0.0.0"
+  },
+  "components.config_manager.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 10000
+  },
+  "components.config_manager.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 5000
   },
   "components.config_manager.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
@@ -1124,6 +1164,16 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.gateway.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 10000
+  },
+  "components.gateway.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 5000
+  },
   "components.gateway.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1238,6 +1288,16 @@
     "description": "Binding address of the remote component server.",
     "privacy": "Public",
     "value": "0.0.0.0"
+  },
+  "components.l1_gas_price_provider.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 10000
+  },
+  "components.l1_gas_price_provider.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 5000
   },
   "components.l1_gas_price_provider.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
@@ -1354,6 +1414,16 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.l1_provider.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 10000
+  },
+  "components.l1_provider.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 5000
+  },
   "components.l1_provider.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1469,6 +1539,16 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.mempool.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 10000
+  },
+  "components.mempool.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 5000
+  },
   "components.mempool.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1578,6 +1658,16 @@
     "description": "Binding address of the remote component server.",
     "privacy": "Public",
     "value": "0.0.0.0"
+  },
+  "components.mempool_p2p.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 10000
+  },
+  "components.mempool_p2p.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 5000
   },
   "components.mempool_p2p.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
@@ -1694,6 +1784,16 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.sierra_compiler.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 10000
+  },
+  "components.sierra_compiler.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 5000
+  },
   "components.sierra_compiler.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1804,6 +1904,16 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.signature_manager.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 10000
+  },
+  "components.signature_manager.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 5000
+  },
   "components.signature_manager.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1913,6 +2023,16 @@
     "description": "Binding address of the remote component server.",
     "privacy": "Public",
     "value": "0.0.0.0"
+  },
+  "components.state_sync.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 10000
+  },
+  "components.state_sync.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 5000
   },
   "components.state_sync.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
