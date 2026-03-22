@@ -54,7 +54,6 @@ pub async fn send_stress_test_messages(
 
     let mut message_index = 0;
     let mut message = create_message(args.runner.id, size_bytes);
-    update_broadcast_metrics(message.len(), heartbeat);
 
     let mut interval = tokio::time::interval(heartbeat);
     loop {
@@ -67,6 +66,7 @@ pub async fn send_stress_test_messages(
         };
 
         if should_broadcast_now {
+            update_broadcast_metrics(message.len(), heartbeat);
             message.metadata.time = SystemTime::now();
             message.metadata.message_index = message_index;
             let message_clone = message.clone().into();
@@ -83,6 +83,8 @@ pub async fn send_stress_test_messages(
                 args.user.mode
             );
             message_index += 1;
+        } else {
+            BROADCAST_MESSAGE_THROUGHPUT.set(0.0);
         }
     }
 }
