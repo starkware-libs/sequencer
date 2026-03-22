@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use apollo_infra_utils::path::resolve_project_relative_path;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
+use privacy_circuit_verify::{verify_recursive_circuit, PrivacyProofOutput};
 use privacy_prove::{prepare_recursive_prover_precomputes, RecursiveProverPrecomputes};
 use starknet_api::transaction::fields::VIRTUAL_SNOS;
 use starknet_proof_verifier::ProgramOutput;
@@ -46,15 +47,8 @@ async fn test_prove_cairo_pie_10_transfers() {
 
     // Verify the proof using the circuit verifier.
     let output_preimage: Vec<starknet_types_core::felt::Felt> = output.program_output.0.to_vec();
-    // TODO(AvivG): this conversion is temporary until PrivacyProofOutput holds u8 proof.
-    let (chunks, []) = output.proof.0.as_chunks::<4>() else {
-        panic!("Proof byte length {} is not a multiple of 4", output.proof.0.len());
-    };
-    let proof_u32s: Vec<u32> = chunks.iter().map(|c| u32::from_be_bytes(*c)).collect();
-    let proof_output =
-        privacy_circuit_verify::PrivacyProofOutput { proof: proof_u32s, output_preimage };
-    privacy_circuit_verify::verify_recursive_circuit(&proof_output)
-        .expect("Failed to verify proof");
+    let proof_output = PrivacyProofOutput { proof: output.proof.0.to_vec(), output_preimage };
+    verify_recursive_circuit(&proof_output).expect("Failed to verify proof");
 
     // Read expected program output.
     let expected_program_output_str = fs::read_to_string(&expected_program_output_path)
