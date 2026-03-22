@@ -1,3 +1,8 @@
+use apollo_batcher::metrics::BATCHER_INFRA_METRICS;
+use apollo_class_manager::metrics::CLASS_MANAGER_INFRA_METRICS;
+use apollo_committer::metrics::COMMITTER_INFRA_METRICS;
+use apollo_compile_to_casm::metrics::SIERRA_COMPILER_INFRA_METRICS;
+use apollo_config_manager::metrics::CONFIG_MANAGER_INFRA_METRICS;
 use apollo_consensus::metrics::{
     CONSENSUS_CONFLICTING_VOTES,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
@@ -14,18 +19,24 @@ use apollo_consensus_orchestrator::metrics::{
     CONSENSUS_PROPOSAL_FIN_MISMATCH,
     CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH,
 };
+use apollo_gateway::metrics::GATEWAY_INFRA_METRICS;
 use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
+    L1_GAS_PRICE_INFRA_METRICS,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
 };
 use apollo_l1_provider::metrics::{
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
+    L1_PROVIDER_INFRA_METRICS,
 };
-use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
+use apollo_mempool::metrics::MEMPOOL_INFRA_METRICS;
+use apollo_mempool_p2p::metrics::{MEMPOOL_P2P_INFRA_METRICS, MEMPOOL_P2P_NUM_CONNECTED_PEERS};
 use apollo_metrics::metrics::MetricQueryName;
+use apollo_signature_manager::metrics::SIGNATURE_MANAGER_INFRA_METRICS;
 use apollo_staking::metrics::STAKING_CURRENT_EPOCH_ID;
+use apollo_state_sync_metrics::metrics::STATE_SYNC_INFRA_METRICS;
 use apollo_storage::metrics::{
     BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
     CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,
@@ -66,6 +77,7 @@ use crate::alert_scenarios::mempool_size::{
     get_mempool_pool_size_increase,
 };
 use crate::alert_scenarios::preconfirmed::get_preconfirmed_block_not_written;
+use crate::alert_scenarios::remote_server_connections::get_remote_server_number_of_connections_alert;
 use crate::alert_scenarios::sync_halt::{get_state_sync_lag, get_state_sync_stuck_vec};
 use crate::alert_scenarios::tps::{
     get_gateway_add_tx_idle,
@@ -472,6 +484,71 @@ fn get_staking_epoch_id_mismatch_alert() -> Alert {
     )
 }
 
+fn get_all_remote_server_connection_alerts() -> Vec<Alert> {
+    vec![
+        get_remote_server_number_of_connections_alert(
+            "batcher",
+            AlertGroup::Batcher,
+            BATCHER_INFRA_METRICS.get_remote_server_metrics(),
+        ),
+        get_remote_server_number_of_connections_alert(
+            "class_manager",
+            AlertGroup::General,
+            CLASS_MANAGER_INFRA_METRICS.get_remote_server_metrics(),
+        ),
+        get_remote_server_number_of_connections_alert(
+            "committer",
+            AlertGroup::Consensus,
+            COMMITTER_INFRA_METRICS.get_remote_server_metrics(),
+        ),
+        get_remote_server_number_of_connections_alert(
+            "config_manager",
+            AlertGroup::General,
+            CONFIG_MANAGER_INFRA_METRICS.get_remote_server_metrics(),
+        ),
+        get_remote_server_number_of_connections_alert(
+            "gateway",
+            AlertGroup::Gateway,
+            GATEWAY_INFRA_METRICS.get_remote_server_metrics(),
+        ),
+        get_remote_server_number_of_connections_alert(
+            "l1_gas_price",
+            AlertGroup::L1GasPrice,
+            L1_GAS_PRICE_INFRA_METRICS.get_remote_server_metrics(),
+        ),
+        get_remote_server_number_of_connections_alert(
+            "l1_provider",
+            AlertGroup::L1Messages,
+            L1_PROVIDER_INFRA_METRICS.get_remote_server_metrics(),
+        ),
+        get_remote_server_number_of_connections_alert(
+            "mempool",
+            AlertGroup::Mempool,
+            MEMPOOL_INFRA_METRICS.get_remote_server_metrics(),
+        ),
+        get_remote_server_number_of_connections_alert(
+            "mempool_p2p",
+            AlertGroup::Mempool,
+            MEMPOOL_P2P_INFRA_METRICS.get_remote_server_metrics(),
+        ),
+        get_remote_server_number_of_connections_alert(
+            "sierra_compiler",
+            AlertGroup::Batcher,
+            SIERRA_COMPILER_INFRA_METRICS.get_remote_server_metrics(),
+        ),
+        get_remote_server_number_of_connections_alert(
+            "signature_manager",
+            AlertGroup::Consensus,
+            SIGNATURE_MANAGER_INFRA_METRICS.get_remote_server_metrics(),
+        ),
+        get_remote_server_number_of_connections_alert(
+            "state_sync",
+            AlertGroup::StateSync,
+            STATE_SYNC_INFRA_METRICS.get_remote_server_metrics(),
+        ),
+    ]
+}
+
 pub fn get_apollo_alerts() -> Alerts {
     let mut alerts = vec![
         get_batcher_storage_open_read_transactions_alert(),
@@ -534,6 +611,7 @@ pub fn get_apollo_alerts() -> Alerts {
     alerts.push(get_mempool_pool_size_increase());
     alerts.push(get_mempool_transaction_drop_ratio());
     alerts.push(get_preconfirmed_block_not_written());
+    alerts.append(&mut get_all_remote_server_connection_alerts());
     alerts.push(get_state_sync_lag());
     alerts.append(&mut get_state_sync_stuck_vec());
 
