@@ -15,6 +15,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
+use tracing::warn;
 
 use crate::metrics::BATCHER_L1_EVENTS_PROVIDER_ERRORS;
 
@@ -98,7 +99,8 @@ impl ProposeTransactionProvider {
             .l1_events_provider_client
             .get_txs(n_txs, self.height)
             .await
-            .inspect_err(|_err| {
+            .inspect_err(|err| {
+                warn!("L1 provider error while fetching L1 handler transactions: {:?}", err);
                 BATCHER_L1_EVENTS_PROVIDER_ERRORS.increment(1);
             })
             .unwrap_or_default()
@@ -199,7 +201,11 @@ impl TransactionProvider for ValidateTransactionProvider {
                     .l1_events_provider_client
                     .validate(tx.tx_hash, self.height)
                     .await
-                    .inspect_err(|_err| {
+                    .inspect_err(|err| {
+                        warn!(
+                            "L1 provider error while validating L1 handler transaction: {:?}",
+                            err
+                        );
                         BATCHER_L1_EVENTS_PROVIDER_ERRORS.increment(1);
                     })
                     .unwrap_or(L1ValidationStatus::Invalid(
