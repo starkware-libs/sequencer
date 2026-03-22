@@ -733,8 +733,8 @@ pub enum StorageError {
     /// Errors related to the underlying database.
     #[error(transparent)]
     InnerError(#[from] DbError),
-    #[error("Marker mismatch (expected {expected}, found {found}).")]
-    MarkerMismatch { expected: BlockNumber, found: BlockNumber },
+    #[error("Marker mismatch for {marker_kind:?} (expected {expected}, found {found}).")]
+    MarkerMismatch { marker_kind: MarkerKind, expected: BlockNumber, found: BlockNumber },
     #[error(
         "State diff redefined a nonce {nonce:?} for contract {contract_address:?} at block \
          {block_number}."

@@ -479,7 +479,11 @@ fn update_marker<'env>(
     // Make sure marker is consistent.
     let header_marker = markers_table.get(txn, &MarkerKind::Header)?.unwrap_or_default();
     if header_marker != block_number {
-        return Err(StorageError::MarkerMismatch { expected: header_marker, found: block_number });
+        return Err(StorageError::MarkerMismatch {
+            marker_kind: MarkerKind::Header,
+            expected: header_marker,
+            found: block_number,
+        });
     };
 
     // Advance marker.

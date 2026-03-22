@@ -9,7 +9,7 @@ use crate::body::{BodyStorageReader, BodyStorageWriter, TransactionIndex};
 use crate::db::table_types::Table;
 use crate::db::{DbError, KeyAlreadyExistsError};
 use crate::test_utils::{get_test_storage, get_test_storage_by_scope};
-use crate::{OffsetKind, StorageError, StorageScope, StorageWriter};
+use crate::{MarkerKind, OffsetKind, StorageError, StorageScope, StorageWriter};
 
 #[tokio::test]
 async fn append_body() {
@@ -52,7 +52,7 @@ async fn append_body() {
 
     assert_matches!(
         err,
-        StorageError::MarkerMismatch { expected, found }
+        StorageError::MarkerMismatch { marker_kind: MarkerKind::Body, expected, found }
     if expected == BlockNumber(2) && found == BlockNumber(5));
 
     writer.begin_rw_txn().unwrap().append_body(BlockNumber(2), body2).unwrap().commit().unwrap();

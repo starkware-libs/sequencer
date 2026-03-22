@@ -224,6 +224,7 @@ impl ClassStorageWriter for StorageTxn<'_, RW> {
             markers_table.get(&self.txn, &MarkerKind::Class)?.unwrap_or_default();
         if block_number != marker_block_number {
             return Err(StorageError::MarkerMismatch {
+                marker_kind: MarkerKind::Class,
                 expected: marker_block_number,
                 found: block_number,
             });

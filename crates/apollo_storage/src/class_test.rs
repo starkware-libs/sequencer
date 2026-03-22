@@ -12,7 +12,7 @@ use starknet_api::test_utils::read_json_file;
 use super::{ClassStorageReader, ClassStorageWriter};
 use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::test_utils::get_test_storage;
-use crate::StorageError;
+use crate::{MarkerKind, StorageError};
 
 #[test]
 fn append_classes_writes_correct_data() {
@@ -73,7 +73,7 @@ fn append_classes_marker_mismatch() {
 
     assert_matches!(
         err,
-        StorageError::MarkerMismatch { expected, found } if expected.0 == 0 && found.0 == 1
+        StorageError::MarkerMismatch { marker_kind: MarkerKind::Class, expected, found } if expected.0 == 0 && found.0 == 1
     );
 }
 
