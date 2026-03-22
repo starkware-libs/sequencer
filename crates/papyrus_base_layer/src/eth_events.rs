@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use alloy::primitives::U256;
 use alloy::rpc::types::Log;
@@ -8,6 +8,7 @@ use starknet_api::core::{EntryPointSelector, Nonce};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::L1HandlerTransaction;
 use starknet_types_core::felt::Felt;
+use tracing::{instrument, warn};
 
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerError,
@@ -108,6 +109,7 @@ impl TryFrom<Starknet::ConsumedMessageToL2> for EventData {
     }
 }
 
+#[instrument(level = "debug", ret(level = "debug"), err(level = "debug"))]
 pub fn create_l1_event_data(
     from_address: EthereumContractAddress,
     to_address: U256,
@@ -115,6 +117,20 @@ pub fn create_l1_event_data(
     payload: &[U256],
     nonce: U256,
 ) -> EthereumBaseLayerResult<EventData> {
+    for (field_name, value) in
+        [("to_address", to_address), ("selector", selector), ("nonce", nonce)]
+    {
+        if u256_exceeds_felt(value) {
+            warn!("{} value exceeds felt range: {}", field_name, value);
+            return Err(EthereumBaseLayerError::CalldataValueOutOfRange(value));
+        }
+    }
+    for value in payload {
+        if u256_exceeds_felt(*value) {
+            warn!("payload value exceeds felt range: {}", value);
+            return Err(EthereumBaseLayerError::CalldataValueOutOfRange(*value));
+        }
+    }
     Ok(EventData {
         from_address: Felt::from_bytes_be_slice(from_address.0.as_slice())
             .try_into()
@@ -130,4 +146,15 @@ pub fn create_l1_event_data(
 
 pub fn felt_from_u256(num: U256) -> Felt {
     Felt::from_bytes_be(&num.to_be_bytes())
+}
+
+static FELT_MAX_U256: LazyLock<U256> =
+    LazyLock::new(|| U256::from_be_bytes(Felt::MAX.to_bytes_be()));
+
+pub fn felt_max_u256() -> U256 {
+    *FELT_MAX_U256
+}
+
+pub fn u256_exceeds_felt(num: U256) -> bool {
+    num > felt_max_u256()
 }
