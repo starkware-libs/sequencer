@@ -233,6 +233,24 @@ docker run -e RUST_LOG=debug ... <IMAGE>
 docker run -e RUST_LOG=warn ... <IMAGE>
 ```
 
+## Compression
+
+**HTTP response compression** — The server automatically compresses responses when the client
+sends the `Accept-Encoding` header. Supported codecs: gzip, brotli, zstd. No server-side
+configuration is needed. If the header is omitted, responses are sent uncompressed.
+
+```bash
+# Auto-negotiate compression (typically gzip/brotli):
+curl --compressed -s -X POST http://localhost:3000 \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"starknet_proveTransaction","params":{...}}'
+
+# Explicitly request zstd:
+curl -H 'Accept-Encoding: zstd' -s -X POST http://localhost:3000 \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"starknet_proveTransaction","params":{...}}' | zstd -d
+```
+
 ## Limitations
 
 - Invoke V3 only — Declare and DeployAccount transactions are not supported.
