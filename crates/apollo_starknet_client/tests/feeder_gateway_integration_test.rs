@@ -67,8 +67,10 @@ fn into_block_number_vec<T: Serialize>(obj: T) -> Vec<BlockNumber> {
         .collect()
 }
 
-#[tokio::test]
-async fn test_integration_testnet() {
+// TODO(Shahak/Matan): redesign these tests to avoid being externally-dependent on env endpoints.
+#[ignore = "The integration endpoint has been upgraded to an incompatible version."]
+// #[tokio::test]
+async fn _test_integration_testnet() {
     let _ = simple_logger::init_with_env();
     let integration_testnet_data = TestEnvData {
         url: "https://feeder.integration-sepolia.starknet.io".to_owned(),
@@ -98,6 +100,8 @@ async fn test_integration_testnet() {
     run(integration_testnet_data).await;
 }
 
+// TODO(Shahak/Matan): redesign these tests to avoid being externally-dependent on env endpoints.
+#[ignore = "The testnet endpoint has been upgraded to an incompatible version."]
 #[tokio::test]
 async fn test_alpha_testnet() {
     let _ = simple_logger::init_with_env();
