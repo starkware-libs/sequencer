@@ -33,12 +33,8 @@ apollo_mempool.workspace = true
 apollo_mempool_p2p.workspace = true
 apollo_metrics.workspace = true
 apollo_network.workspace = true
-<<<<<<< HEAD
 apollo_proof_manager.workspace = true
-||||||| 3589931c3a
-=======
 apollo_signature_manager.workspace = true
->>>>>>> origin/main-v0.14.1-committer
 apollo_staking.workspace = true
 apollo_state_sync_metrics.workspace = true
 apollo_storage.workspace = true
