@@ -36,7 +36,7 @@ use apollo_proc_macros::latency_histogram;
 use libmdbx::{DatabaseOptions, Mode, PageSize, ReadWriteOptions, WriteMap};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use self::serialization::{Key, ValueSerde};
 use self::table_types::{DbCursor, DbCursorTrait};
@@ -54,6 +54,7 @@ type DbValueType<'env> = Cow<'env, [u8]>;
 
 /// The configuration of the database.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
+#[validate(schema(function = "validate_db_config"))]
 pub struct DbConfig {
     /// The path prefix of the database files. The final path is the path prefix followed by the
     /// chain id.
@@ -148,6 +149,22 @@ impl DbConfig {
     }
 }
 
+fn validate_db_config(config: &DbConfig) -> Result<(), ValidationError> {
+    if config.min_size == 0 {
+        return Err(ValidationError::new("min_size must be greater than zero"));
+    }
+    if config.min_size > config.max_size {
+        return Err(ValidationError::new("min_size must be less than or equal to max_size"));
+    }
+    if config.growth_step <= 0 {
+        return Err(ValidationError::new("growth_step must be greater than zero"));
+    }
+    if isize::try_from(config.max_size).is_err() {
+        return Err(ValidationError::new("max_size exceeds isize::MAX"));
+    }
+    Ok(())
+}
+
 /// An error that can occur when interacting with the database.
 #[derive(thiserror::Error, Debug)]
 pub enum DbError {
@@ -174,9 +191,6 @@ pub enum DbError {
     /// An error that occurred when trying to append a key when it is not the last.
     #[error("Append error. The key is not the last in the table.")]
     Append,
-    /// An error that occurred when the DB size configuration exceeds isize::MAX.
-    #[error("DB size configuration value {0} exceeds isize::MAX.")]
-    DbSizeConfig(usize),
 }
 
 type DbResult<V> = result::Result<V, DbError>;
@@ -209,11 +223,9 @@ pub(crate) fn open_env(config: &DbConfig) -> DbResult<(DbReader, DbWriter)> {
         return Err(DbError::FileDoesNotExist(db_file_path));
     }
 
-    // TODO(dan): add config validation for min_size <= max_size.
-    let min_size =
-        isize::try_from(config.min_size).map_err(|_| DbError::DbSizeConfig(config.min_size))?;
-    let max_size =
-        isize::try_from(config.max_size).map_err(|_| DbError::DbSizeConfig(config.max_size))?;
+    // Safety: validated by validate_db_config to fit in isize.
+    let min_size = isize::try_from(config.min_size).expect("min_size validated to fit in isize");
+    let max_size = isize::try_from(config.max_size).expect("max_size validated to fit in isize");
     let env = Arc::new(Environment::open_with_options(
         config.path(),
         DatabaseOptions {

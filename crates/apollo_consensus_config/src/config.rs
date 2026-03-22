@@ -42,6 +42,7 @@ pub struct ConsensusStaticConfig {
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub startup_delay: Duration,
     /// Config for the storage used to write/read consensus state.
+    #[validate(nested)]
     pub storage_config: StorageConfig,
     /// If true, skips check that we didn't vote on this height.
     pub skip_last_voted_height_check: bool,

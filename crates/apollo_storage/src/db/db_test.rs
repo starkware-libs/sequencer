@@ -2,10 +2,11 @@ use assert_matches::assert_matches;
 use libmdbx::PageSize;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
+use validator::Validate;
 
 use crate::db::serialization::{NoVersionValueWrapper, ValueSerde, VersionZeroWrapper};
 use crate::db::table_types::Table;
-use crate::db::{get_page_size, open_env, DbError, DbIter, DbReader, DbResult, DbWriter};
+use crate::db::{get_page_size, open_env, DbConfig, DbError, DbIter, DbReader, DbResult, DbWriter};
 use crate::test_utils::get_test_config;
 
 pub(crate) fn get_test_env() -> ((DbReader, DbWriter), TempDir) {
@@ -430,4 +431,9 @@ fn read_your_own_writes() {
     // Verify the final value is persisted.
     let rtxn = reader.begin_ro_txn().unwrap();
     assert_eq!(rtxn.get_block_hash(&block_number).unwrap(), Some(hash_c));
+}
+
+#[test]
+fn validate_db_config_default_is_valid() {
+    DbConfig::default().validate().unwrap();
 }
