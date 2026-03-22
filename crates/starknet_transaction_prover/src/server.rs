@@ -8,6 +8,7 @@ use std::net::SocketAddr;
 use anyhow::Context;
 use jsonrpsee::server::{Methods, ServerBuilder, ServerConfig, ServerHandle};
 use tower::ServiceBuilder;
+use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
 
 use self::config::TransportMode;
@@ -37,7 +38,9 @@ pub async fn start_server(
             let server_config = ServerConfig::builder().max_connections(max_connections).build();
             let server = ServerBuilder::default()
                 .set_config(server_config)
-                .set_http_middleware(ServiceBuilder::new().option_layer(cors_layer))
+                .set_http_middleware(
+                    ServiceBuilder::new().option_layer(cors_layer).layer(CompressionLayer::new()),
+                )
                 .build(&addr)
                 .await
                 .context(format!("Failed to bind JSON-RPC server to {addr}"))?;
