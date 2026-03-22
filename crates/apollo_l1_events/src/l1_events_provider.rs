@@ -178,8 +178,7 @@ impl L1EventsProvider {
                     if let Err(previously_consumed_at) =
                         self.tx_manager.consume_tx(tx_hash, consumed_at, self.clock.unix_now())
                     {
-                        // TODO(guyn): need to check if this is really a critical bug, or if we can
-                        // log and ignore.
+                        // This should never happen. So if it does, better to fail loudly.
                         panic!(
                             "Double consumption of {tx_hash} at {consumed_at}, previously \
                              consumed at {previously_consumed_at}."
