@@ -10,6 +10,8 @@ use std::time::Instant;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::utils::get_chain_info;
+#[cfg(feature = "stwo_proving")]
+use privacy_prove::{prepare_recursive_prover_precomputes, RecursiveProverPrecomputes};
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
 use starknet_api::transaction::fields::{Fee, Proof, ProofFacts, ValidResourceBounds};
@@ -49,7 +51,7 @@ pub(crate) struct VirtualSnosProver<R: VirtualSnosRunner> {
     validate_zero_fee_fields: bool,
     /// Precomputed data for the recursive prover, prepared once at startup.
     #[cfg(feature = "stwo_proving")]
-    precomputes: Arc<privacy_prove::RecursiveProverPrecomputes>,
+    precomputes: Arc<RecursiveProverPrecomputes>,
 }
 
 /// Type alias for the RPC-based virtual SNOS prover.
@@ -73,7 +75,7 @@ impl VirtualSnosProver<RpcRunnerFactory> {
             prover_config.runner_config.clone(),
         );
         #[cfg(feature = "stwo_proving")]
-        let precomputes = privacy_prove::prepare_recursive_prover_precomputes()
+        let precomputes = prepare_recursive_prover_precomputes()
             .expect("Failed to prepare recursive prover precomputes");
         Self {
             runner,
@@ -91,7 +93,7 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
     #[allow(dead_code)]
     pub(crate) fn from_runner(runner: R) -> Self {
         #[cfg(feature = "stwo_proving")]
-        let precomputes = privacy_prove::prepare_recursive_prover_precomputes()
+        let precomputes = prepare_recursive_prover_precomputes()
             .expect("Failed to prepare recursive prover precomputes");
         Self {
             runner,
