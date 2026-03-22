@@ -7,7 +7,7 @@
     "sierra_gas": 5000000000,
     "n_txs": 600,
     "proving_gas": 5000000000,
-    "receipt_l2_gas": 2500000000
+    "receipt_l2_gas": 5800000000
   },
   "builtin_weights": {
     "gas_costs": {
