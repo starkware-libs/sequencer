@@ -60,14 +60,30 @@ impl Stream for Behaviour {
     type Item = ToSwarm<ToOtherBehaviourEvent, Infallible>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match Pin::into_inner(self).poll(cx) {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(event) => Poll::Ready(Some(event.map_in(|_| {
-                unreachable!(
-                    "The in-type is Infallible (cannot be instantiated), so the `map_in` body is \
-                     unreachable."
-                )
-            }))),
+        let this = Pin::into_inner(self);
+        loop {
+            match this.poll(cx) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(event) => {
+                    let event = event.map_in(|_| {
+                        unreachable!(
+                            "The in-type is Infallible (cannot be instantiated), so the `map_in` \
+                             body is unreachable."
+                        )
+                    });
+                    // Simulate network manager routing: intercept RequestDial events
+                    // and forward them to DiallingBehaviour, then re-poll.
+                    if let ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestDial {
+                        ref peer_id,
+                        ref addresses,
+                    }) = event
+                    {
+                        this.dialing.request_dial(*peer_id, addresses.clone());
+                        continue;
+                    }
+                    return Poll::Ready(Some(event));
+                }
+            }
         }
     }
 }

@@ -1,12 +1,12 @@
-use std::task::{Context, Poll};
+use std::collections::{HashMap, VecDeque};
+use std::task::{Context, Poll, Waker};
 
-use bootstrap_peer::BootstrapPeerEventStream;
-use futures::stream::SelectAll;
-use futures::StreamExt;
 use libp2p::core::transport::PortUse;
 use libp2p::core::Endpoint;
+use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::{
     dummy,
+    ConnectionClosed,
     ConnectionDenied,
     ConnectionHandler,
     ConnectionId,
@@ -17,14 +17,17 @@ use libp2p::swarm::{
 use libp2p::{Multiaddr, PeerId};
 use tracing::{info, warn};
 
-use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
+use crate::discovery::ToOtherBehaviourEvent;
 
-pub mod bootstrap_peer;
 #[cfg(test)]
 mod bootstrap_test;
 
 pub struct BootstrappingBehaviour {
-    peers: SelectAll<BootstrapPeerEventStream>,
+    /// Bootstrap peers and their known addresses.
+    bootstrap_peers: HashMap<PeerId, Multiaddr>,
+    /// Events to emit on the next poll.
+    pending_events: VecDeque<ToOtherBehaviourEvent>,
+    waker: Option<Waker>,
 }
 
 impl NetworkBehaviour for BootstrappingBehaviour {
@@ -53,8 +56,43 @@ impl NetworkBehaviour for BootstrappingBehaviour {
     }
 
     fn on_swarm_event(&mut self, event: FromSwarm<'_>) {
-        for peer in self.peers.iter_mut() {
-            peer.on_swarm_event(event);
+        match event {
+            FromSwarm::ConnectionEstablished(ConnectionEstablished {
+                peer_id,
+                other_established: 0,
+                ..
+            }) => {
+                if let Some(address) = self.bootstrap_peers.get(&peer_id) {
+                    // Remove any stale RequestDial for this peer that may have been queued
+                    // by a prior ConnectionClosed in the same poll cycle.
+                    self.pending_events.retain(|event| {
+                        !matches!(
+                            event,
+                            ToOtherBehaviourEvent::RequestDial { peer_id: dial_peer, .. }
+                                if *dial_peer == peer_id
+                        )
+                    });
+                    self.pending_events.push_back(ToOtherBehaviourEvent::FoundListenAddresses {
+                        peer_id,
+                        listen_addresses: vec![address.clone()],
+                    });
+                    self.wake();
+                }
+            }
+            FromSwarm::ConnectionClosed(ConnectionClosed {
+                peer_id,
+                remaining_established: 0,
+                ..
+            }) => {
+                if let Some(address) = self.bootstrap_peers.get(&peer_id) {
+                    self.pending_events.push_back(ToOtherBehaviourEvent::RequestDial {
+                        peer_id,
+                        addresses: vec![address.clone()],
+                    });
+                    self.wake();
+                }
+            }
+            _ => {}
         }
     }
 
@@ -71,22 +109,16 @@ impl NetworkBehaviour for BootstrappingBehaviour {
         cx: &mut Context<'_>,
     ) -> Poll<ToSwarm<Self::ToSwarm, <Self::ConnectionHandler as ConnectionHandler>::FromBehaviour>>
     {
-        if self.peers.is_empty() {
-            return Poll::Pending;
+        if let Some(event) = self.pending_events.pop_front() {
+            return Poll::Ready(ToSwarm::GenerateEvent(event));
         }
-        self.peers
-            .poll_next_unpin(cx)
-            .map(|e| e.expect("BootstrapPeerEventStream returned Poll::Ready(None) unexpectedly"))
+        self.waker = Some(cx.waker().clone());
+        Poll::Pending
     }
 }
 
 impl BootstrappingBehaviour {
-    pub fn new(
-        local_peer_id: PeerId,
-        bootstrap_dial_retry_config: RetryConfig,
-        bootstrap_peers: Vec<(PeerId, Multiaddr)>,
-    ) -> Self {
-        // check that IDs are unique
+    pub fn new(local_peer_id: PeerId, bootstrap_peers: Vec<(PeerId, Multiaddr)>) -> Self {
         let unique_peer_ids: std::collections::HashSet<_> =
             bootstrap_peers.iter().map(|(id, _)| id).collect();
         assert!(
@@ -94,27 +126,33 @@ impl BootstrappingBehaviour {
             "Bootstrap peer IDs must be unique, PeerIds: {bootstrap_peers:?}"
         );
 
-        let mut peers = SelectAll::new();
-        for (bootstrap_peer_id, bootstrap_peer_address) in bootstrap_peers {
-            if bootstrap_peer_id == local_peer_id {
-                info!(
-                    "Skipping bootstrap peer with same ID as local peer: {bootstrap_peer_address}"
-                );
+        let mut peers_map = HashMap::new();
+        let mut pending_events = VecDeque::new();
+
+        for (peer_id, address) in bootstrap_peers {
+            if peer_id == local_peer_id {
+                info!("Skipping bootstrap peer with same ID as local peer: {address}");
                 continue;
             }
-            peers.push(BootstrapPeerEventStream::new(
-                bootstrap_dial_retry_config,
-                bootstrap_peer_id,
-                bootstrap_peer_address,
-            ));
+            pending_events.push_back(ToOtherBehaviourEvent::RequestDial {
+                peer_id,
+                addresses: vec![address.clone()],
+            });
+            peers_map.insert(peer_id, address);
         }
 
-        if peers.is_empty() {
+        if peers_map.is_empty() {
             warn!("No bootstrap peers provided, bootstrapping will not be possible");
         } else {
-            info!("Bootstrapping with {} bootstrap peers", peers.len());
+            info!("Bootstrapping with {} bootstrap peers", peers_map.len());
         }
 
-        Self { peers }
+        Self { bootstrap_peers: peers_map, pending_events, waker: None }
+    }
+
+    fn wake(&mut self) {
+        if let Some(waker) = self.waker.take() {
+            waker.wake();
+        }
     }
 }
