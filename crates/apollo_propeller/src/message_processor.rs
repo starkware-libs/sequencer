@@ -9,7 +9,7 @@ use tracing::{debug, error, trace};
 
 use crate::sharding::reconstruct_data_shards;
 use crate::tree::PropellerScheduleManager;
-use crate::types::{Channel, Event, MessageRoot, ReconstructionError, ShardValidationError};
+use crate::types::{CommitteeId, Event, MessageRoot, ReconstructionError, ShardValidationError};
 use crate::unit::PropellerUnit;
 use crate::unit_validator::UnitValidator;
 use crate::{MerkleProof, ShardIndex};
@@ -21,7 +21,7 @@ type ReconstructionResult = Result<ReconstructionOutput, ReconstructionError>;
 #[derive(Debug)]
 pub enum EventStateManagerToEngine {
     BehaviourEvent(Event),
-    Finalized { channel: Channel, publisher: PeerId, message_root: MessageRoot },
+    Finalized { committee_id: CommitteeId, publisher: PeerId, message_root: MessageRoot },
     SendUnitToPeers { unit: PropellerUnit, peers: Vec<PeerId> },
 }
 
@@ -125,7 +125,7 @@ impl ReconstructionState {
 
 /// Message processor that handles validation and state management for a single message.
 pub struct MessageProcessor {
-    pub channel: Channel,
+    pub committee_id: CommitteeId,
     pub publisher: PeerId,
     pub message_root: MessageRoot,
     pub my_shard_index: ShardIndex,
@@ -145,8 +145,8 @@ pub struct MessageProcessor {
 impl MessageProcessor {
     pub async fn run(mut self) {
         debug!(
-            "[MSG_PROC] Started for channel={:?} publisher={:?} root={:?}",
-            self.channel, self.publisher, self.message_root
+            "[MSG_PROC] Started for committee_id={:?} publisher={:?} root={:?}",
+            self.committee_id, self.publisher, self.message_root
         );
 
         let timed_out = tokio::time::timeout(self.timeout, self.process_units()).await.is_err();
@@ -156,14 +156,14 @@ impl MessageProcessor {
         }
 
         debug!(
-            "[MSG_PROC] Stopped for channel={:?} publisher={:?} root={:?}",
-            self.channel, self.publisher, self.message_root
+            "[MSG_PROC] Stopped for committee_id={:?} publisher={:?} root={:?}",
+            self.committee_id, self.publisher, self.message_root
         );
     }
 
     async fn process_units(&mut self) {
         let mut validator = UnitValidator::new(
-            self.channel,
+            self.committee_id,
             self.publisher,
             self.publisher_public_key.clone(),
             self.message_root,
@@ -196,8 +196,8 @@ impl MessageProcessor {
         }
 
         trace!(
-            "[MSG_PROC] All channels closed for channel={:?} publisher={:?} root={:?}",
-            self.channel,
+            "[MSG_PROC] All senders closed for committee_id={:?} publisher={:?} root={:?}",
+            self.committee_id,
             self.publisher,
             self.message_root
         );
@@ -320,7 +320,7 @@ impl MessageProcessor {
                 }
             };
             let reconstructed_unit = PropellerUnit::new(
-                self.channel,
+                self.committee_id,
                 self.publisher,
                 self.message_root,
                 signature,
@@ -349,13 +349,13 @@ impl MessageProcessor {
 
     fn emit_timeout_and_finalize(&self) {
         trace!(
-            "[MSG_PROC] Timeout reached for channel={:?} publisher={:?} root={:?}",
-            self.channel,
+            "[MSG_PROC] Timeout reached for committee_id={:?} publisher={:?} root={:?}",
+            self.committee_id,
             self.publisher,
             self.message_root
         );
         let _ = self.emit_and_finalize(Event::MessageTimeout {
-            channel: self.channel,
+            committee_id: self.committee_id,
             publisher: self.publisher,
             message_root: self.message_root,
         });
@@ -372,7 +372,7 @@ impl MessageProcessor {
     fn finalize(&self) {
         self.engine_tx
             .send(EventStateManagerToEngine::Finalized {
-                channel: self.channel,
+                committee_id: self.committee_id,
                 publisher: self.publisher,
                 message_root: self.message_root,
             })

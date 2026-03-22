@@ -42,10 +42,10 @@ pub use merkle::{MerkleHash, MerkleProof, MerkleTree};
 pub use metrics::PropellerMetrics;
 pub use tree::{PropellerScheduleManager, Stake};
 pub use types::{
-    Channel,
+    CommitteeId,
+    CommitteeSetupError,
     Event,
     MessageRoot,
-    PeerSetError,
     ReconstructionError,
     ScheduleError,
     ShardIndex,

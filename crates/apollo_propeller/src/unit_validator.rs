@@ -4,7 +4,7 @@ use std::sync::Arc;
 use libp2p::identity::PublicKey;
 use libp2p::PeerId;
 
-use crate::types::{Channel, ShardSignatureVerificationError};
+use crate::types::{CommitteeId, ShardSignatureVerificationError};
 use crate::{
     signature,
     MessageRoot,
@@ -16,8 +16,8 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct UnitValidator {
-    /// the channel the validator belongs to
-    channel: Channel,
+    /// the committee the validator belongs to
+    committee_id: CommitteeId,
     /// The publisher of the message.
     publisher: PeerId,
     /// The public key of the publisher.
@@ -34,14 +34,14 @@ pub struct UnitValidator {
 
 impl UnitValidator {
     pub fn new(
-        channel: Channel,
+        committee_id: CommitteeId,
         publisher: PeerId,
         publisher_public_key: PublicKey,
         message_root: MessageRoot,
         schedule_manager: Arc<PropellerScheduleManager>,
     ) -> Self {
         Self {
-            channel,
+            committee_id,
             publisher,
             message_root,
             schedule_manager,
@@ -87,7 +87,7 @@ impl UnitValidator {
         unit: &PropellerUnit,
     ) -> Result<(), ShardValidationError> {
         // TODO(AndrewL): Think about how to correctly get rid of these assertions
-        assert_eq!(self.channel, unit.channel(), "Channel mismatch");
+        assert_eq!(self.committee_id, unit.committee_id(), "Committee mismatch");
         assert_eq!(self.publisher, unit.publisher(), "Publisher mismatch");
         assert_eq!(self.message_root, unit.root(), "Message root mismatch");
 

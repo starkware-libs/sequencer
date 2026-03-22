@@ -9,7 +9,7 @@ use apollo_protobuf::protobuf::{
 };
 use libp2p::core::PeerId;
 
-use crate::types::{Channel, MessageRoot, ShardIndex};
+use crate::types::{CommitteeId, MessageRoot, ShardIndex};
 use crate::{MerkleHash, MerkleProof, ShardValidationError};
 
 // TODO(AndrewL): consider making fields public and remove
@@ -21,7 +21,7 @@ use crate::{MerkleHash, MerkleProof, ShardValidationError};
 /// receivers to verify the shard is part of the original message.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PropellerUnit {
-    channel: Channel,
+    committee_id: CommitteeId,
     publisher: PeerId,
     root: MessageRoot,
     signature: Vec<u8>,
@@ -32,7 +32,7 @@ pub struct PropellerUnit {
 
 impl PropellerUnit {
     pub fn new(
-        channel: Channel,
+        committee_id: CommitteeId,
         publisher: PeerId,
         root: MessageRoot,
         signature: Vec<u8>,
@@ -40,11 +40,11 @@ impl PropellerUnit {
         shard: Vec<u8>,
         proof: MerkleProof,
     ) -> Self {
-        Self { channel, root, publisher, signature, index, shard, proof }
+        Self { committee_id, root, publisher, signature, index, shard, proof }
     }
 
-    pub fn channel(&self) -> Channel {
-        self.channel
+    pub fn committee_id(&self) -> CommitteeId {
+        self.committee_id
     }
 
     pub fn publisher(&self) -> PeerId {
@@ -108,7 +108,7 @@ impl TryFrom<ProtoPropellerUnit> for PropellerUnit {
             })?;
 
         Ok(Self {
-            channel: Channel(msg.channel),
+            committee_id: CommitteeId(msg.committee_id),
             root: MessageRoot(merkle_root_bytes),
             publisher: PeerId::from_bytes(&publisher_id.id).map_err(|e| {
                 ProtobufConversionError::OutOfRangeValue {
@@ -133,7 +133,7 @@ impl From<PropellerUnit> for ProtoPropellerUnit {
             merkle_proof: Some((&msg.proof).into()),
             publisher: Some(ProtoPeerId { id: msg.publisher.to_bytes() }),
             signature: msg.signature,
-            channel: msg.channel.0,
+            committee_id: msg.committee_id.0,
         }
     }
 }
