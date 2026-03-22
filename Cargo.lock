@@ -1466,6 +1466,7 @@ dependencies = [
  "apollo_mempool_p2p",
  "apollo_metrics",
  "apollo_network",
+ "apollo_signature_manager",
  "apollo_staking",
  "apollo_state_sync_metrics",
  "apollo_storage",
