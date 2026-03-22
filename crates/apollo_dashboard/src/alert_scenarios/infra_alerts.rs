@@ -13,18 +13,21 @@ use crate::alerts::{
 };
 
 pub(crate) fn get_general_pod_state_not_ready() -> Alert {
+    const SAMPLE_FRESHNESS_DURATION_SECS: usize = 30;
+    const PENDING_DURATION_SECS: usize = SAMPLE_FRESHNESS_DURATION_SECS * 2;
+
     Alert::new(
         "pod_state_not_ready",
-        "Pod State Not Ready",
+        "Pod status Not Ready",
         AlertGroup::General,
-        // Checks if a container in a pod is not ready (status_ready < 1).
-        // Triggers when at least one container is unhealthy or not passing readiness probes.
-        format!("kube_pod_container_status_ready{METRIC_LABEL_FILTER}"),
+        // Checks if a container in a pod is not ready (status_ready < 1), ignoring stale samples
+        // erroneously-considered due to the Prometheus look back window.
+        format!("last_over_time(kube_pod_container_status_ready{{{METRIC_LABEL_FILTER}}}[{SAMPLE_FRESHNESS_DURATION_SECS}s])"),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         // Spot evictions in GKE have a 30 second notification window, in which the pod state is
-        // marked as not ready. To avoid alerting on these, we require the not-ready state to last
+        // marked as not ready. To avoid alerting on these, we require the not-ready status to last
         // longer (e.g., 60 seconds), and sample at a rather rapid rate (every 10 seconds).
-        "60s",
+        format!("{PENDING_DURATION_SECS}s"),
         10,
         AlertSeverity::Regular,
         ObserverApplicability::NotApplicable,
@@ -41,7 +44,7 @@ pub(crate) fn get_general_pod_state_crashloopbackoff() -> Alert {
     );
     Alert::new(
         "pod_state_crashloopbackoff",
-        "Pod State CrashLoopBackOff",
+        "Pod status CrashLoopBackOff",
         AlertGroup::General,
         format!(
             // Convert "NoData" to 0 using `absent`.
