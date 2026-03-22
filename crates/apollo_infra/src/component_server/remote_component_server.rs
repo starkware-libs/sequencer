@@ -127,10 +127,11 @@ where
         Self { local_client, config: remote_server_config, port, max_concurrency, metrics }
     }
 
-    #[instrument(skip_all,fields(request_id = %request_id))]
+    #[instrument(skip_all, fields(request_id = %request_id, remote_addr = %client_peer))]
     async fn remote_component_server_handler(
         http_request: HyperRequest<Incoming>,
         request_id: RequestId,
+        client_peer: SocketAddr,
         local_client: LocalComponentClient<Request, Response>,
         metrics: &'static RemoteServerMetrics,
     ) -> Result<HyperResponse<Full<Bytes>>, hyper::Error> {
@@ -144,6 +145,12 @@ where
             .map_err(|err| ClientError::ResponseDeserializationFailure(err.to_string()))
         {
             Ok(request) => {
+                trace!(
+                    remote_addr = %client_peer,
+                    request_id = %request_id,
+                    request_type = request.request_label(),
+                    "remote component request",
+                );
                 trace!("Successfully deserialized request: {request:?}");
                 metrics.increment_valid_received();
 
@@ -213,12 +220,15 @@ where
              max_streams: u32,
              connection_semaphore: Arc<Semaphore>,
              local_client: LocalComponentClient<Request, Response>,
-             metrics: &'static RemoteServerMetrics| {
+             metrics: &'static RemoteServerMetrics,
+             client_peer: SocketAddr| {
                 async move {
+                    trace!(remote_addr = %client_peer, "remote component TCP connection opened");
                     match connection_semaphore.try_acquire_owned() {
                         Ok(permit) => {
                             metrics.increment_number_of_connections();
                             trace!("Acquired semaphore permit for connection");
+                            let client_peer_for_handler = client_peer;
                             let handle_request_service =
                                 service_fn(move |req: HyperRequest<Incoming>| {
                                     trace!("Received request: {:?}", req);
@@ -233,6 +243,7 @@ where
                                     Self::remote_component_server_handler(
                                         req,
                                         request_id,
+                                        client_peer_for_handler,
                                         local_client.clone(),
                                         metrics,
                                     )
@@ -247,6 +258,7 @@ where
                             };
 
                             serve_connection!(io, service, max_streams);
+                            trace!(remote_addr = %client_peer, "remote component TCP connection closed");
                         }
                         Err(_) => {
                             trace!("Too many connections, denying a new connection");
@@ -287,6 +299,7 @@ where
                             };
 
                             serve_connection!(io, service, max_streams);
+                            trace!(remote_addr = %client_peer, "remote component TCP connection closed");
                         }
                     }
                 }
@@ -297,7 +310,7 @@ where
         });
 
         loop {
-            let (stream, _) = match listener.accept().await {
+            let (stream, peer_addr) = match listener.accept().await {
                 Ok(conn) => conn,
                 Err(e) => {
                     error!("Failed to accept connection: {e}");
@@ -319,6 +332,7 @@ where
                 connection_semaphore.clone(),
                 self.local_client.clone(),
                 self.metrics,
+                peer_addr,
             ));
         }
     }
