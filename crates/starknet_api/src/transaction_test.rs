@@ -6,7 +6,6 @@ use crate::core::ChainId;
 use crate::executable_transaction::{
     AccountTransaction,
     InvokeTransaction,
-    L1HandlerTransaction,
     Transaction as ExecutableTransaction,
 };
 use crate::execution_resources::GasAmount;
@@ -68,25 +67,6 @@ fn test_invoke_executable_transaction_conversion(mut transactions_data: Vec<Tran
             tx: invoke_tx,
             tx_hash: transaction_data.transaction_hash,
         }));
-
-    verify_transaction_conversion(&transaction_data.transaction, expected_executable_tx);
-}
-
-#[rstest]
-fn test_l1_handler_executable_transaction_conversion(
-    mut transactions_data: Vec<TransactionTestData>,
-) {
-    // Extract L1 Handler transaction data.
-    let transaction_data = transactions_data.remove(11);
-    let Transaction::L1Handler(l1_handler_tx) = transaction_data.transaction.clone() else {
-        panic!("Transaction_hash.json is expected to have L1 Handler as the 12th transaction.")
-    };
-
-    let expected_executable_tx = ExecutableTransaction::L1Handler(L1HandlerTransaction {
-        tx: l1_handler_tx,
-        tx_hash: transaction_data.transaction_hash,
-        paid_fee_on_l1: Fee(1),
-    });
 
     verify_transaction_conversion(&transaction_data.transaction, expected_executable_tx);
 }
