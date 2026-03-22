@@ -1490,7 +1490,12 @@ dependencies = [
  "apollo_mempool_p2p",
  "apollo_metrics",
  "apollo_network",
+<<<<<<< HEAD
  "apollo_proof_manager",
+||||||| 3589931c3a
+=======
+ "apollo_signature_manager",
+>>>>>>> origin/main-v0.14.1-committer
  "apollo_staking",
  "apollo_state_sync_metrics",
  "apollo_storage",
