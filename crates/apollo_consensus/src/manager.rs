@@ -445,7 +445,9 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             },
 
             Err(err) => match err {
-                e @ ConsensusError::BatcherError(_) | e @ ConsensusError::CommitteeError(_) => {
+                e @ ConsensusError::BatcherError(_)
+                | e @ ConsensusError::CommitteeError(_)
+                | e @ ConsensusError::CendeAheadOfProposalHeight(_) => {
                     error!(
                         "Error while running consensus for height {height}, fallback to sync: {e}"
                     );

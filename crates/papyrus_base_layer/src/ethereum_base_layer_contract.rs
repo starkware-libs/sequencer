@@ -6,7 +6,7 @@ use std::time::Duration;
 use alloy::dyn_abi::SolType;
 use alloy::eips::eip7840;
 use alloy::network::Ethereum;
-use alloy::primitives::Address;
+use alloy::primitives::{Address, U256};
 use alloy::providers::{Provider, ProviderBuilder, RootProvider};
 use alloy::rpc::json_rpc::RpcError;
 use alloy::rpc::types::eth::Filter as EthEventFilter;
@@ -27,7 +27,7 @@ use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::hash::StarkHash;
 use starknet_api::StarknetApiError;
 use tokio::time::error::Elapsed;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, info, instrument, warn};
 use url::Url;
 use validator::{Validate, ValidationError};
 
@@ -172,6 +172,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         // Debugging.
         let hashes: Vec<_> = matching_logs.iter().filter_map(|log| log.transaction_hash).collect();
         debug!("Got events in {:?}, L1 tx hashes: {:?}", block_range, hashes);
+        debug!("Got events in {:?}, matching_logs: {:?}", block_range, matching_logs);
 
         let block_header_futures = matching_logs.into_iter().map(|log| {
             let block_number = log.block_number.unwrap();
@@ -181,7 +182,18 @@ impl BaseLayerContract for EthereumBaseLayerContract {
                 parse_event(log, header.timestamp)
             }
         });
-        futures::future::join_all(block_header_futures).await.into_iter().collect()
+        let events = futures::future::join_all(block_header_futures).await;
+        let mut parsed_events = Vec::with_capacity(events.len());
+        for event in events {
+            match event {
+                Ok(event) => parsed_events.push(event),
+                Err(EthereumBaseLayerError::CalldataValueOutOfRange(_)) => {
+                    warn!("Skipping event due to calldata value out of range {:?}", event);
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(parsed_events)
     }
 
     #[instrument(skip(self), err)]
@@ -297,6 +309,8 @@ pub enum EthereumBaseLayerError {
     RpcError(#[from] RpcError<TransportErrorKind>),
     #[error("{0}")]
     StarknetApiParsingError(StarknetApiError),
+    #[error("calldata value exceeds felt range: {0}")]
+    CalldataValueOutOfRange(U256),
     #[error(transparent)]
     TypeError(#[from] alloy::sol_types::Error),
     #[error("{0:?}")]
@@ -311,6 +325,7 @@ impl PartialEq for EthereumBaseLayerError {
             (FeeOutOfRange(this), FeeOutOfRange(other)) => this == other,
             (RpcError(this), RpcError(other)) => this.to_string() == other.to_string(),
             (StarknetApiParsingError(this), StarknetApiParsingError(other)) => this == other,
+            (CalldataValueOutOfRange(this), CalldataValueOutOfRange(other)) => this == other,
             (TypeError(this), TypeError(other)) => this == other,
             (UnhandledL1Event(this), UnhandledL1Event(other)) => this == other,
             _ => false,

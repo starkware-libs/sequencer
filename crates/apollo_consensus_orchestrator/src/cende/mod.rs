@@ -33,7 +33,7 @@ use reqwest::Response;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, RequestBuilder};
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -100,6 +100,10 @@ pub trait CendeContext: Send + Sync {
     /// This function should return false if the previous height blob is not available.
     fn write_prev_height_blob(&self, current_height: BlockNumber) -> JoinHandle<bool>;
 
+    /// Returns the latest received block number from the recorder, or `None` if no blocks or on
+    /// error.
+    async fn get_latest_received_block(&self) -> Option<BlockNumber>;
+
     // Prepares the previous height blob that will be written in the next height.
     async fn prepare_blob_for_next_height(
         &self,
@@ -113,13 +117,23 @@ pub struct CendeAmbassador {
     // `None` indicates that there is no blob to write, and therefore, the node can't be the
     // proposer.
     prev_height_blob: Arc<Mutex<Option<AerospikeBlob>>>,
-    url: Url,
+    write_blob_url: Url,
+    get_latest_received_block_url: Url,
     client: ClientWithMiddleware,
     class_manager: SharedClassManagerClient,
 }
 
 /// The path to write blob in the Recorder.
 pub const RECORDER_WRITE_BLOB_PATH: &str = "/cende_recorder/write_blob";
+/// The path to get the latest received block from the Recorder (the next block that will be written
+/// to DB. returns null when no blocks exist).
+pub const RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH: &str =
+    "/cende_recorder/get_latest_received_block";
+
+#[derive(Debug, Deserialize)]
+struct GetLatestReceivedBlockResponse {
+    block_number: Option<u64>,
+}
 
 impl CendeAmbassador {
     pub fn new(cende_config: CendeConfig, class_manager: SharedClassManagerClient) -> Self {
@@ -130,12 +144,14 @@ impl CendeAmbassador {
 
         CendeAmbassador {
             prev_height_blob: Arc::new(Mutex::new(None)),
-            url: {
-                let mut recorder_url = cende_config.recorder_url;
-                recorder_url =
-                    recorder_url.join(RECORDER_WRITE_BLOB_PATH).expect("Failed to construct URL");
-                recorder_url
-            },
+            write_blob_url: cende_config
+                .recorder_url
+                .join(RECORDER_WRITE_BLOB_PATH)
+                .expect("Failed to construct write blob URL"),
+            get_latest_received_block_url: cende_config
+                .recorder_url
+                .join(RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH)
+                .expect("Failed to construct get latest received block URL"),
             client: ClientBuilder::new(reqwest::Client::new())
                 .with(RetryTransientMiddleware::new_with_policy(retry_policy))
                 .build(),
@@ -150,7 +166,7 @@ impl CendeContext for CendeAmbassador {
         info!("Start writing to Aerospike previous height blob for height {current_height}.");
 
         let prev_height_blob = self.prev_height_blob.clone();
-        let request_builder = self.client.post(self.url.clone());
+        let request_builder = self.client.post(self.write_blob_url.clone());
 
         task::spawn(
             async move {
@@ -187,6 +203,33 @@ impl CendeContext for CendeAmbassador {
             }
             .instrument(tracing::debug_span!("cende write_prev_height_blob height")),
         )
+    }
+
+    async fn get_latest_received_block(&self) -> Option<BlockNumber> {
+        match self.client.get(self.get_latest_received_block_url.clone()).send().await {
+            Ok(response) if response.status().is_success() => {
+                match response.json::<GetLatestReceivedBlockResponse>().await {
+                    Ok(resp) => resp.block_number.map(BlockNumber),
+                    Err(e) => {
+                        warn!("Failed to parse recorder get_latest_received_block response: {e}");
+                        None
+                    }
+                }
+            }
+            // Response is not successful: log and return None.
+            Ok(response) => {
+                warn!(
+                    "Recorder get_latest_received_block returned error status {}: {}",
+                    response.status(),
+                    response.text().await.unwrap_or_else(|_| "unparseable".to_string())
+                );
+                None
+            }
+            Err(e) => {
+                warn!("Failed to request recorder get_latest_received_block: {e}");
+                None
+            }
+        }
     }
 
     #[sequencer_latency_histogram(CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY, false)]
