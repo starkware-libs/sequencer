@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772554045119,
+  "lastUpdate": 1774176591703,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2753,6 +2753,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1399.9864145699999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "106665835+Itay-Tsabary-Starkware@users.noreply.github.com",
+            "name": "Itay-Tsabary-Starkware",
+            "username": "Itay-Tsabary-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4a6a51c2c0c7611d9f92c5a6775d87ac4d2886ef",
+          "message": "apollo_dashboard: add remote client connection alerts (#13392)",
+          "timestamp": "2026-03-22T10:31:27Z",
+          "tree_id": "5be7a554bab706716d4728236bee6dc11fb0e6ed",
+          "url": "https://github.com/starkware-libs/sequencer/commit/4a6a51c2c0c7611d9f92c5a6775d87ac4d2886ef"
+        },
+        "date": 1774176591399,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 820.9796141,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1270.8087443699999,
             "unit": "ms"
           }
         ]
