@@ -34,9 +34,7 @@ pub(crate) async fn prove(
     .map_err(ProvingError::TaskJoin)?
     .map_err(ProvingError::ProverExecution)?;
 
-    // TODO(AvivG): this conversion is temporary until PrivacyProofOutput holds u8 proof.
-    let proof_bytes: Vec<u8> = proof_output.proof.iter().flat_map(|n| n.to_be_bytes()).collect();
-    let proof = Proof::from(proof_bytes);
+    let proof = Proof::from(proof_output.proof);
     let program_output = ProgramOutput::from(proof_output.output_preimage);
 
     Ok(ProverOutput { proof, program_output })
