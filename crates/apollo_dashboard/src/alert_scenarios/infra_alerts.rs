@@ -12,17 +12,28 @@ use crate::alerts::{
     PENDING_DURATION_DEFAULT,
 };
 
+
 pub(crate) fn get_general_pod_state_not_ready() -> Alert {
+    let pod_not_ready_flag_expr =
+        format!("kube_pod_container_status_ready{METRIC_LABEL_FILTER} == 0",);
+    let pod_ready_flag_expr = format!("kube_pod_container_status_ready{METRIC_LABEL_FILTER} == 1",);
+    let pod_is_emitting_metrics_expr = format!("(kube_pod_info{METRIC_LABEL_FILTER})",);
+
     Alert::new(
         "pod_state_not_ready",
-        "Pod State Not Ready",
+        "Pod status Not Ready",
         AlertGroup::General,
         // Checks if a container in a pod is not ready (status_ready < 1).
-        // Triggers when at least one container is unhealthy or not passing readiness probes.
-        format!("kube_pod_container_status_ready{METRIC_LABEL_FILTER}"),
+        // Metric emission is used as indicator to avoid alerting on removed pods, as the
+        // Prometheus look back window fills in last sampled values despite the pod does no
+        // longer exist.
+        format!(
+            "({pod_not_ready_flag_expr} and on(pod, namespace) ({pod_is_emitting_metrics_expr})) \
+             or ({pod_ready_flag_expr})",
+        ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         // Spot evictions in GKE have a 30 second notification window, in which the pod state is
-        // marked as not ready. To avoid alerting on these, we require the not-ready state to last
+        // marked as not ready. To avoid alerting on these, we require the not-ready status to last
         // longer (e.g., 60 seconds), and sample at a rather rapid rate (every 10 seconds).
         "60s",
         10,
@@ -41,7 +52,7 @@ pub(crate) fn get_general_pod_state_crashloopbackoff() -> Alert {
     );
     Alert::new(
         "pod_state_crashloopbackoff",
-        "Pod State CrashLoopBackOff",
+        "Pod status CrashLoopBackOff",
         AlertGroup::General,
         format!(
             // Convert "NoData" to 0 using `absent`.
