@@ -77,13 +77,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "eth_fee_token_address",
     "gateway_config.static_config.authorized_declarer_accounts.#is_none",
     "gateway_config.static_config.authorized_declarer_accounts",
-<<<<<<< HEAD
-    "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
     "gateway_config.static_config.proof_archive_writer_config.bucket_name",
-||||||| 3589931c3a
-    "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
-=======
->>>>>>> origin/main-v0.14.1-committer
     "gateway_config.static_config.stateful_tx_validator_config.max_allowed_nonce_gap",
     "gateway_config.static_config.stateless_tx_validator_config.min_gas_price",
     "http_server_config.static_config.port",

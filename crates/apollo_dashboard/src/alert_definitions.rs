@@ -19,12 +19,7 @@ use apollo_consensus_orchestrator::metrics::{
     CONSENSUS_PROPOSAL_FIN_MISMATCH,
     CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH,
 };
-<<<<<<< HEAD
-use apollo_gateway::metrics::GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE;
-||||||| 3589931c3a
-=======
-use apollo_gateway::metrics::GATEWAY_INFRA_METRICS;
->>>>>>> origin/main-v0.14.1-committer
+use apollo_gateway::metrics::{GATEWAY_INFRA_METRICS, GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE};
 use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
     L1_GAS_PRICE_INFRA_METRICS,
