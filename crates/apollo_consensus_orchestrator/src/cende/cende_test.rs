@@ -8,7 +8,7 @@ use rstest::rstest;
 use starknet_api::block::{BlockInfo, BlockNumber};
 use url::Url;
 
-use super::{CendeAmbassador, RECORDER_WRITE_BLOB_PATH};
+use super::{CendeAmbassador, RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH, RECORDER_WRITE_BLOB_PATH};
 use crate::cende::{BlobParameters, CendeConfig, CendeContext};
 use crate::metrics::{
     register_metrics,
@@ -112,6 +112,52 @@ async fn write_prev_height_blob(
     assert_eq!(receiver.await.unwrap(), expected_result);
     mock.expect(expected_calls).assert();
 
+    expected_metrics.verify_metrics(&recorder.handle().render());
+}
+
+/// When prev_height_blob is None (e.g. after a restart), write_prev_height_blob queries cende's
+/// get_latest_received_block and returns true if the previous block exists at the recorder
+/// (no write needed), false otherwise.
+#[rstest]
+#[case::height_0_returns_true(0, None, true)] // Block 0 has no previous block → proceed
+#[case::recorder_has_prev_returns_true(10, Some(9), true)] // current=10, recorder latest=9 → prev already there → skip write, proceed
+#[case::recorder_has_current_returns_false(10, Some(10), false)] // current=10, recorder latest=10 → ahead → fail round
+#[case::recorder_has_none_returns_false(10, None, false)] // Recorder has no block → fail round
+#[tokio::test]
+async fn write_prev_height_blob_when_memory_blob_missing(
+    #[case] current_height: u64,
+    #[case] latest_cende_received_block: Option<u64>,
+    #[case] expected_result: bool,
+) {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics();
+
+    let mut server = mockito::Server::new_async().await;
+    let url = server.url();
+
+    let get_latest_body = latest_cende_received_block
+        .map(|n| format!(r#"{{"block_number": {n}}}"#))
+        .unwrap_or_else(|| r#"{"block_number": null}"#.to_string());
+    let mock_get_latest = server
+        .mock("GET", RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH)
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(get_latest_body)
+        .create();
+
+    let cende_ambassador = CendeAmbassador::new(
+        CendeConfig { recorder_url: url.parse::<Url>().unwrap(), ..Default::default() },
+        Arc::new(MockClassManagerClient::new()),
+    );
+
+    let receiver = cende_ambassador.write_prev_height_blob(BlockNumber(current_height));
+
+    assert_eq!(receiver.await.unwrap(), expected_result);
+    mock_get_latest.expect(1).assert();
+
+    let expected_metrics =
+        if expected_result { ExpectedMetrics::default() } else { ExpectedMetrics::no_prev_blob() };
     expected_metrics.verify_metrics(&recorder.handle().render());
 }
 

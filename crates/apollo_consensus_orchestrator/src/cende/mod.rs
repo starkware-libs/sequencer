@@ -160,6 +160,30 @@ impl CendeAmbassador {
     }
 }
 
+/// Returns whether the recorder already has the previous block for `current_height`.
+fn previous_height_exists_at_cende_recorder(
+    current_height: BlockNumber,
+    latest_received_block: Option<BlockNumber>,
+) -> bool {
+    // No previous block needed for height 0.
+    if current_height == BlockNumber(0) {
+        return true;
+    }
+
+    // No latest received block, so no previous block.
+    let Some(latest) = latest_received_block else {
+        return false;
+    };
+
+    // Cende has a block at or above the current height, fail the round.
+    if latest >= current_height {
+        return false;
+    }
+
+    // Has previous block.
+    current_height.prev().is_some_and(|prev| latest >= prev)
+}
+
 #[async_trait]
 impl CendeContext for CendeAmbassador {
     fn write_prev_height_blob(&self, current_height: BlockNumber) -> JoinHandle<bool> {
@@ -167,16 +191,23 @@ impl CendeContext for CendeAmbassador {
 
         let prev_height_blob = self.prev_height_blob.clone();
         let request_builder = self.client.post(self.write_blob_url.clone());
+        let cende_ambassador = self.clone();
 
         task::spawn(
             async move {
-                // TODO(dvir): consider extracting the "should write blob" logic to a function.
                 let Some(ref blob): Option<AerospikeBlob> = *prev_height_blob.lock().await else {
-                    // This case happens when restarting the node, `prev_height_blob` initial value
-                    // is `None`.
-                    warn!("CENDE_FAILURE: No blob to write to Aerospike.");
-                    record_write_failure(CendeWriteFailureReason::BlobNotAvailable);
-                    return false;
+                    // No blob to write (e.g. node restart). Check if cende already has previuos
+                    // block.
+                    let latest_received_block = cende_ambassador.get_latest_received_block().await;
+                    let prev_height_exists = previous_height_exists_at_cende_recorder(
+                        current_height,
+                        latest_received_block,
+                    );
+                    if !prev_height_exists {
+                        warn!("CENDE_FAILURE: No blob to write to Aerospike.");
+                        record_write_failure(CendeWriteFailureReason::BlobNotAvailable);
+                    }
+                    return prev_height_exists;
                 };
 
                 if blob.block_number.0 >= current_height.0 {
