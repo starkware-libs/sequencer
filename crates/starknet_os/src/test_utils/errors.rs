@@ -6,6 +6,7 @@ use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::errors::program_errors::ProgramError;
 use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
+use cairo_vm::vm::errors::runner_errors::RunnerError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use strum::Display;
 
@@ -30,6 +31,8 @@ pub enum Cairo0EntryPointRunnerError {
     RunCairoEndpoint(#[from] Box<CairoRunError>),
     #[error(transparent)]
     LoadReturnValue(#[from] LoadReturnValueError),
+    #[error(transparent)]
+    VmRunner(#[from] RunnerError),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -48,6 +51,11 @@ pub enum ExplicitArgError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ImplicitArgError {
+    #[error(
+        "Builtins must be at the start of implicit args; found Builtin at index {builtin_index} \
+         after NonBuiltin at index {non_builtin_index}"
+    )]
+    BuiltinsNotAtStart { non_builtin_index: usize, builtin_index: usize },
     #[error(
         "Mismatch for implicit arg {index}. expected arg: {expected:?}, actual arg: {actual:?}"
     )]

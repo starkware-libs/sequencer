@@ -263,6 +263,7 @@ fn run_compiled_class_hash_entry_point(
         verify_secure: false,
         proof_mode: false,
         add_main_prefix_to_entrypoint: false, // Set to false since we're using full path.
+        validate_builtins_offset: true,
     };
 
     // Set up implicit arguments.

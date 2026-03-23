@@ -63,6 +63,7 @@ pub fn run_compute_os_kzg_commitment_info(n: usize) -> (CairoRunner, Option<Vec<
         trace_enabled: true,
         verify_secure: false,
         proof_mode: false,
+        validate_builtins_offset: true,
     };
     let implicit_args = vec![
         ImplicitArg::Builtin(BuiltinName::range_check),
