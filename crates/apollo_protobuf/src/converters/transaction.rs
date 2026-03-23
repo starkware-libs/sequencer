@@ -945,7 +945,10 @@ impl TryFrom<protobuf::transaction_in_block::Deploy> for DeployTransaction {
 impl From<DeployTransaction> for protobuf::transaction_in_block::Deploy {
     fn from(value: DeployTransaction) -> Self {
         Self {
-            version: try_from_starkfelt_to_u32(value.version.0).unwrap_or_default(),
+            // TODO(guyn): if at any point we start using version numbers larger than 2^32 we should
+            // change this field to u64 or felt.
+            version: try_from_starkfelt_to_u32(value.version.0)
+                .expect("version number should fit in u32"),
             class_hash: Some(value.class_hash.0.into()),
             address_salt: Some(value.contract_address_salt.0.into()),
             calldata: value
