@@ -137,21 +137,76 @@ Expected success:
 
 `starknet_proveTransaction` expects:
 
-- `params[0]`: base block ID (must not be `"pending"`)
-- `params[1]`: transaction object of type `INVOKE` and version `0x3`
+- `params.block_id`: base block ID (must not be `"pending"`)
+- `params.transaction`: transaction object of type `INVOKE` and version `0x3`
 
-Use this flow to build a realistic request from chain data.
+#### Approach A: Synthetic transaction (recommended)
+
+Use a synthetic INVOKE v3 targeting a `dummy_validate` account (empty signature,
+zero fees). This avoids the signature-invalidation problem that occurs when
+zeroing fee fields on real chain transactions.
+
+The calldata calls `balanceOf(sender)` on the STRK token -- a read-only
+operation that cannot fail from insufficient balance.
+
+```bash
+DUMMY_ACCOUNT="0x2763d2701f413cf0ad7bc73690297c4594bbfd4632ee5f017eb287051595672"
+STRK_TOKEN="0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"
+
+NONCE=$(curl -sS "$CHAIN_RPC_URL" \
+  -H 'content-type: application/json' \
+  -d "{\"jsonrpc\":\"2.0\",\"id\":99,\"method\":\"starknet_getNonce\",\"params\":[\"latest\",\"$DUMMY_ACCOUNT\"]}" \
+  | jq -r '.result')
+
+jq -nc \
+  --arg sender "$DUMMY_ACCOUNT" \
+  --arg strk "$STRK_TOKEN" \
+  --arg nonce "$NONCE" \
+  '{
+    jsonrpc: "2.0", id: 5,
+    method: "starknet_proveTransaction",
+    params: {
+      block_id: "latest",
+      transaction: {
+        type: "INVOKE", version: "0x3",
+        sender_address: $sender,
+        calldata: [$strk, "0x35a73cd311a05d46deda634c5ee045db92f811b4e74bca4437fcb5302b7af33", "0x1", $sender],
+        signature: [],
+        nonce: $nonce,
+        resource_bounds: {
+          l1_gas: {max_amount: "0x0", max_price_per_unit: "0x0"},
+          l2_gas: {max_amount: "0x5f5e100", max_price_per_unit: "0x0"},
+          l1_data_gas: {max_amount: "0x0", max_price_per_unit: "0x0"}
+        },
+        tip: "0x0",
+        paymaster_data: [],
+        account_deployment_data: [],
+        nonce_data_availability_mode: "L1",
+        fee_data_availability_mode: "L1"
+      }
+    }
+  }' > /tmp/prove_request_valid.json
+
+curl -sS "$PROVER_URL" \
+  -H 'content-type: application/json' \
+  -d "$(cat /tmp/prove_request_valid.json)" | jq .
+```
+
+#### Approach B: Chain transaction with fee zeroing
+
+Fetching a real transaction from chain and zeroing its fee fields changes the
+transaction hash, which invalidates the signature. This approach only works if
+the prover is started with `--skip-fee-field-validation`, or if the sender
+account uses a dummy validate function.
 
 1. Find one finalized `INVOKE` `0x3` tx hash.
 
 ```bash
 TX_HASH=$(find_tx_hash "INVOKE" "0x3" 300)
 [ -z "$TX_HASH" ] && { echo "No INVOKE 0x3 tx found in lookback window"; exit 1; }
-
-echo "Using tx_hash=$TX_HASH"
 ```
 
-2. Fetch the tx object and receipt, then compute base block (`tx_block - 1`).
+2. Fetch the tx, zero fee fields, and send.
 
 ```bash
 curl -sS "$CHAIN_RPC_URL" \
@@ -165,13 +220,7 @@ TX_BLOCK=$(curl -sS "$CHAIN_RPC_URL" \
   | jq -r '.result.block_number')
 
 BASE_BLOCK=$((TX_BLOCK - 1))
-echo "tx_block=$TX_BLOCK base_block=$BASE_BLOCK"
-```
 
-3. Zero out fee fields so the request passes fee validation, then call
-   `starknet_proveTransaction`.
-
-```bash
 jq '
   .tip = "0x0" |
   .resource_bounds.l1_gas.max_price_per_unit = "0x0" |
