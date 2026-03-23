@@ -4,6 +4,7 @@ use apollo_batcher_config::config::BatcherDynamicConfig;
 use apollo_class_manager_config::config::ClassManagerDynamicConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
+use apollo_gateway_config::config::GatewayDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
@@ -45,6 +46,7 @@ pub trait ConfigManagerClient: Send + Sync {
     ) -> ConfigManagerClientResult<ClassManagerDynamicConfig>;
 
     async fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig>;
+    async fn get_gateway_dynamic_config(&self) -> ConfigManagerClientResult<GatewayDynamicConfig>;
     async fn get_http_server_dynamic_config(
         &self,
     ) -> ConfigManagerClientResult<HttpServerDynamicConfig>;
@@ -74,6 +76,7 @@ pub enum ConfigManagerRequest {
     GetConsensusDynamicConfig,
     GetClassManagerDynamicConfig,
     GetContextDynamicConfig,
+    GetGatewayDynamicConfig,
     GetHttpServerDynamicConfig,
     GetMempoolDynamicConfig,
     GetBatcherDynamicConfig,
@@ -97,6 +100,7 @@ pub enum ConfigManagerResponse {
     GetConsensusDynamicConfig(ConfigManagerResult<ConsensusDynamicConfig>),
     GetClassManagerDynamicConfig(ConfigManagerResult<ClassManagerDynamicConfig>),
     GetContextDynamicConfig(ConfigManagerResult<ContextDynamicConfig>),
+    GetGatewayDynamicConfig(ConfigManagerResult<GatewayDynamicConfig>),
     GetHttpServerDynamicConfig(ConfigManagerResult<HttpServerDynamicConfig>),
     GetMempoolDynamicConfig(ConfigManagerResult<MempoolDynamicConfig>),
     GetBatcherDynamicConfig(ConfigManagerResult<BatcherDynamicConfig>),
@@ -156,6 +160,19 @@ where
             request,
             ConfigManagerResponse,
             GetContextDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_gateway_dynamic_config(&self) -> ConfigManagerClientResult<GatewayDynamicConfig> {
+        let request = ConfigManagerRequest::GetGatewayDynamicConfig;
+        handle_all_response_variants!(
+            self,
+            request,
+            ConfigManagerResponse,
+            GetGatewayDynamicConfig,
             ConfigManagerClientError,
             ConfigManagerError,
             Direct
