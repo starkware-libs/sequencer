@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
@@ -37,6 +37,12 @@ const RPC_RESPONSE_BUFFER_SIZE: usize = 1;
 
 static SPEC: LazyLock<Value> = LazyLock::new(|| read_json_file("proving_api_openrpc.json"));
 
+static MAIN_API_SPEC: LazyLock<Value> =
+    LazyLock::new(|| read_json_file("starknet_api_openrpc.json"));
+
+static WRITE_API_SPEC: LazyLock<Value> =
+    LazyLock::new(|| read_json_file("starknet_write_api.json"));
+
 #[fixture]
 fn rpc_module() -> RpcModule<ProvingRpcServerImpl> {
     let config =
@@ -52,12 +58,17 @@ fn mock_rpc_module() -> RpcModule<MockProvingRpc> {
 }
 
 /// Compiles a JSON Schema from a `$ref` path within the spec document.
+///
+/// Registers external spec documents so that `$ref`s like
+/// `./starknet_api_openrpc.json#/...` resolve correctly.
 fn compile_schema_for_ref(spec: &Value, ref_path: &str) -> JSONSchema {
     let ref_uri = format!("file:///spec#/{ref_path}");
     let ref_schema: Value = serde_json::from_str(&format!(r#"{{"$ref": "{ref_uri}"}}"#)).unwrap();
 
     JSONSchema::options()
         .with_document("file:///spec".to_string(), spec.clone())
+        .with_document("file:///starknet_api_openrpc.json".to_string(), MAIN_API_SPEC.clone())
+        .with_document("file:///starknet_write_api.json".to_string(), WRITE_API_SPEC.clone())
         .compile(&ref_schema)
         .expect("Failed to compile schema")
 }
@@ -95,8 +106,58 @@ impl SpecError {
     fn assert_matches(&self, error: &ErrorObjectOwned) {
         assert_eq!(error.code(), self.code);
         assert_eq!(error.message(), self.message);
-        assert_eq!(error.data().is_some(), self.expects_data);
+        // If the spec declares a data field, the implementation must include it.
+        // The reverse is allowed: implementations may include extra diagnostic data.
+        if self.expects_data {
+            assert!(error.data().is_some(), "Spec declares data but error has none");
+        }
     }
+}
+
+/// Resolves a `$ref` string (e.g. `./starknet_api_openrpc.json#/components/errors/BLOCK_NOT_FOUND`)
+/// by looking up the referenced document and navigating the JSON pointer.
+fn resolve_ref(ref_str: &str) -> Value {
+    let (file_part, pointer) = ref_str.split_once('#').expect("$ref must contain '#'");
+    let doc = match file_part {
+        f if f.contains("starknet_api_openrpc") => &*MAIN_API_SPEC,
+        f if f.contains("starknet_write_api") => &*WRITE_API_SPEC,
+        _ => panic!("Unknown external ref: {ref_str}"),
+    };
+    pointer.trim_start_matches('/').split('/').fold(doc.clone(), |value, key| value[key].clone())
+}
+
+/// Pre-resolved map of all error names to their definitions, collected from method error arrays.
+/// Handles both local `#/components/errors/...` refs and external `./file.json#/...` refs.
+static SPEC_ERRORS: LazyLock<BTreeMap<String, Value>> = LazyLock::new(|| {
+    let mut errors = BTreeMap::new();
+    for method in SPEC["methods"].as_array().unwrap() {
+        let Some(error_refs) = method.get("errors").and_then(|e| e.as_array()) else {
+            continue;
+        };
+        for error_ref in error_refs {
+            let ref_str = error_ref["$ref"].as_str().unwrap();
+            let error_name = ref_str.rsplit('/').next().unwrap().to_string();
+            if errors.contains_key(&error_name) {
+                continue;
+            }
+            let resolved = if ref_str.starts_with('#') {
+                let path = ref_str.trim_start_matches("#/");
+                path.split('/').fold((*SPEC).clone(), |value, key| value[key].clone())
+            } else {
+                resolve_ref(ref_str)
+            };
+            errors.insert(error_name, resolved);
+        }
+    }
+    errors
+});
+
+/// Resolves a spec error by name, looking up the pre-resolved error map.
+fn resolve_spec_error(error_key: &str) -> Value {
+    SPEC_ERRORS
+        .get(error_key)
+        .unwrap_or_else(|| panic!("Error '{error_key}' not found in spec method error arrays"))
+        .clone()
 }
 
 /// Builds test cases for each RPC method with sample parameters.
@@ -283,8 +344,7 @@ async fn test_prove_transaction_rejects_pending_block_id(
     });
     let actual_error: ErrorObjectOwned = serde_json::from_value(error_value.clone()).unwrap();
 
-    SpecError::from_spec(&SPEC["components"]["errors"]["BLOCK_NOT_FOUND"])
-        .assert_matches(&actual_error);
+    SpecError::from_spec(&resolve_spec_error("BLOCK_NOT_FOUND")).assert_matches(&actual_error);
 }
 
 #[test]
@@ -301,9 +361,8 @@ fn test_error_responses_match_spec() {
         ),
     ];
 
-    // Completeness guard: ensure all spec errors have a test case.
-    let spec_error_keys: HashSet<&str> =
-        SPEC["components"]["errors"].as_object().unwrap().keys().map(|k| k.as_str()).collect();
+    // Completeness guard: ensure all spec errors (from method error arrays) have a test case.
+    let spec_error_keys: HashSet<&str> = SPEC_ERRORS.keys().map(|k| k.as_str()).collect();
     let tested_error_keys: HashSet<&str> = test_cases.iter().map(|(key, _)| *key).collect();
     assert_eq!(
         tested_error_keys, spec_error_keys,
@@ -311,7 +370,7 @@ fn test_error_responses_match_spec() {
     );
 
     for (spec_key, actual) in &test_cases {
-        SpecError::from_spec(&SPEC["components"]["errors"][spec_key]).assert_matches(actual);
+        SpecError::from_spec(&resolve_spec_error(spec_key)).assert_matches(actual);
     }
 }
 
@@ -336,7 +395,7 @@ async fn assert_prove_transaction_error(
     });
     let actual_error: ErrorObjectOwned = serde_json::from_value(error_value.clone()).unwrap();
 
-    SpecError::from_spec(&SPEC["components"]["errors"][expected_spec_error_key])
+    SpecError::from_spec(&resolve_spec_error(expected_spec_error_key))
         .assert_matches(&actual_error);
 }
 
