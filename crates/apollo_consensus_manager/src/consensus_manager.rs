@@ -305,6 +305,7 @@ impl ConsensusManager {
                 vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
                 config_manager_client: Some(Arc::clone(&config_manager_client)),
             },
+            self.config.consensus_manager_config.dynamic_config.stop_at_height,
         )
     }
 

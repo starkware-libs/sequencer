@@ -228,6 +228,9 @@ pub struct SequencerConsensusContext {
     l2_gas_price: GasPrice,
     l1_da_mode: L1DataAvailabilityMode,
     previous_block_info: Option<PreviousBlockInfo>,
+    // If set, the node will stop participating in consensus after this height.
+    #[allow(dead_code)]
+    stop_at_height: Option<BlockNumber>,
 }
 
 #[derive(Clone)]
@@ -255,7 +258,11 @@ enum ReproposeError {
 }
 
 impl SequencerConsensusContext {
-    pub fn new(config: ContextConfig, deps: SequencerConsensusContextDeps) -> Self {
+    pub fn new(
+        config: ContextConfig,
+        deps: SequencerConsensusContextDeps,
+        stop_at_height: Option<BlockNumber>,
+    ) -> Self {
         register_metrics();
         let l1_da_mode = if config.static_config.l1_da_mode {
             L1DataAvailabilityMode::Blob
@@ -274,6 +281,7 @@ impl SequencerConsensusContext {
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
             previous_block_info: None,
+            stop_at_height,
         }
     }
 
@@ -966,8 +974,7 @@ impl SequencerConsensusContext {
 
     async fn update_dynamic_config(&mut self) {
         if let Some(config_manager_client) = self.deps.config_manager_client.clone() {
-            let config_result = config_manager_client.get_context_dynamic_config().await;
-            match config_result {
+            match config_manager_client.get_context_dynamic_config().await {
                 Ok(config) => {
                     self.config.dynamic_config = config;
                 }
