@@ -591,22 +591,3 @@ if let Some(n) =  &maybe_name { // `n` is of type `&String`.
 
 println!("{:?}", maybe_name);
 ```
-
-### Combinators
-
-Avoid side-effects in pure combinators, like `map`, `filter` or `zip` --- use control flow (`for`/`if`/`match`) instead.
-Using the non-pure `for_each` combinator is also fine but only for one-liners.
-
-```rust
-// BAD
-// Even if rust allows the closure to mutate self, it's surprising to do this inside a transformer like `map`.
-let new_vec = old_vec.map(|num| self.mutate_self(num)).collect();
-
-// GOOD
-let mut new_vec = Vec::with_capacity(old_vec.len());
-for num in old_vec {
-    let new_num = self.mutate_self(num);
-    new_vec.push(new_num);
-}
-```
-
