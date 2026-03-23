@@ -1680,3 +1680,248 @@ fn empty_state_diff_advances_changeset_marker_without_rows() {
     let mut cursor = changeset_compiled.cursor(&txn.txn).unwrap();
     assert!(cursor.next().unwrap().is_none(), "changeset_compiled should be empty");
 }
+
+#[test]
+fn changeset_revert_restores_flat_state() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    let address = contract_address!("0x1");
+    let key = storage_key!("0x10");
+    let class_hash_0 = class_hash!("0xaa");
+    let compiled_hash_0 = CompiledClassHash(felt!("0xcc"));
+
+    // Block 0: deploy contract with storage and compiled class hash.
+    let diff0 = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash_0 },
+        nonces: indexmap! { address => Nonce(felt!("0x1")) },
+        storage_diffs: indexmap! { address => indexmap! { key => felt!("0x100") } },
+        class_hash_to_compiled_class_hash: indexmap! {
+            ClassHash(felt!("0xdd")) => compiled_hash_0
+        },
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), diff0)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Block 1: update all values.
+    let class_hash_1 = class_hash!("0xbb");
+    let diff1 = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash_1 },
+        nonces: indexmap! { address => Nonce(felt!("0x2")) },
+        storage_diffs: indexmap! { address => indexmap! { key => felt!("0x200") } },
+        class_hash_to_compiled_class_hash: indexmap! {
+            ClassHash(felt!("0xdd")) => CompiledClassHash(felt!("0xee"))
+        },
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(1), diff1)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Revert block 1.
+    writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(1)).unwrap().0.commit().unwrap();
+
+    // Verify flat tables have block 0 values.
+    let txn = reader.begin_ro_txn().unwrap();
+    let flat_deployed = txn.txn.open_table(&txn.tables.flat_deployed_contracts).unwrap();
+    let flat_nonces = txn.txn.open_table(&txn.tables.flat_nonces).unwrap();
+    let flat_storage = txn.txn.open_table(&txn.tables.flat_contract_storage).unwrap();
+    let flat_compiled = txn.txn.open_table(&txn.tables.flat_compiled_class_hash).unwrap();
+
+    assert_eq!(
+        flat_deployed.get(&txn.txn, &address).unwrap(),
+        Some(class_hash_0),
+        "Flat deployed should have block 0 class hash after revert"
+    );
+    assert_eq!(
+        flat_nonces.get(&txn.txn, &address).unwrap(),
+        Some(Nonce(felt!("0x1"))),
+        "Flat nonce should have block 0 nonce after revert"
+    );
+    assert_eq!(
+        flat_storage.get(&txn.txn, &(address, key)).unwrap(),
+        Some(felt!("0x100")),
+        "Flat storage should have block 0 value after revert"
+    );
+    assert_eq!(
+        flat_compiled.get(&txn.txn, &ClassHash(felt!("0xdd"))).unwrap(),
+        Some(compiled_hash_0),
+        "Flat compiled should have block 0 compiled hash after revert"
+    );
+
+    // Verify changeset entries for block 1 are deleted.
+    let changeset_deployed = txn.txn.open_table(&txn.tables.changeset_deployed_contracts).unwrap();
+    let changeset_nonces = txn.txn.open_table(&txn.tables.changeset_nonces).unwrap();
+    let changeset_storage = txn.txn.open_table(&txn.tables.changeset_contract_storage).unwrap();
+    let changeset_compiled = txn.txn.open_table(&txn.tables.changeset_compiled_class_hash).unwrap();
+
+    assert_eq!(
+        changeset_deployed.get(&txn.txn, &(BlockNumber(1), address)).unwrap(),
+        None,
+        "Block 1 changeset_deployed should be deleted after revert"
+    );
+    assert_eq!(
+        changeset_nonces.get(&txn.txn, &(BlockNumber(1), address)).unwrap(),
+        None,
+        "Block 1 changeset_nonces should be deleted after revert"
+    );
+    assert_eq!(
+        changeset_storage.get(&txn.txn, &((BlockNumber(1), address), key)).unwrap(),
+        None,
+        "Block 1 changeset_storage should be deleted after revert"
+    );
+    assert_eq!(
+        changeset_compiled.get(&txn.txn, &(BlockNumber(1), ClassHash(felt!("0xdd")))).unwrap(),
+        None,
+        "Block 1 changeset_compiled should be deleted after revert"
+    );
+
+    // Block 0 changeset entries should still exist.
+    assert!(
+        changeset_deployed.get(&txn.txn, &(BlockNumber(0), address)).unwrap().is_some(),
+        "Block 0 changeset_deployed should still exist"
+    );
+
+    // Verify changeset marker decremented.
+    let changeset_marker = txn.get_changeset_marker().unwrap();
+    assert_eq!(
+        changeset_marker,
+        BlockNumber(1),
+        "Changeset marker should be 1 after reverting block 1"
+    );
+}
+
+#[test]
+fn changeset_revert_first_block_deletes_flat_entries() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    let address = contract_address!("0x1");
+    let key = storage_key!("0x10");
+
+    // Block 0: deploy, set nonce, storage, and compiled class hash.
+    let diff0 = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash!("0xaa") },
+        nonces: indexmap! { address => Nonce(felt!("0x1")) },
+        storage_diffs: indexmap! { address => indexmap! { key => felt!("0x100") } },
+        class_hash_to_compiled_class_hash: indexmap! {
+            ClassHash(felt!("0xdd")) => CompiledClassHash(felt!("0xcc"))
+        },
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), diff0)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Revert block 0.
+    writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(0)).unwrap().0.commit().unwrap();
+
+    // Verify all flat tables are empty.
+    let txn = reader.begin_ro_txn().unwrap();
+    let flat_deployed = txn.txn.open_table(&txn.tables.flat_deployed_contracts).unwrap();
+    let flat_nonces = txn.txn.open_table(&txn.tables.flat_nonces).unwrap();
+    let flat_storage = txn.txn.open_table(&txn.tables.flat_contract_storage).unwrap();
+    let flat_compiled = txn.txn.open_table(&txn.tables.flat_compiled_class_hash).unwrap();
+
+    assert_eq!(
+        flat_deployed.get(&txn.txn, &address).unwrap(),
+        None,
+        "Flat deployed should be empty after reverting first block"
+    );
+    assert_eq!(
+        flat_nonces.get(&txn.txn, &address).unwrap(),
+        None,
+        "Flat nonces should be empty after reverting first block"
+    );
+    assert_eq!(
+        flat_storage.get(&txn.txn, &(address, key)).unwrap(),
+        None,
+        "Flat storage should be empty after reverting first block"
+    );
+    assert_eq!(
+        flat_compiled.get(&txn.txn, &ClassHash(felt!("0xdd"))).unwrap(),
+        None,
+        "Flat compiled should be empty after reverting first block"
+    );
+
+    // Verify changeset marker is at 0.
+    let changeset_marker = txn.get_changeset_marker().unwrap();
+    assert_eq!(
+        changeset_marker,
+        BlockNumber(0),
+        "Changeset marker should be 0 after reverting first block"
+    );
+}
+
+#[test]
+fn changeset_revert_preserves_default_nonce() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    let address = contract_address!("0x1");
+
+    // Block 0: deploy contract (implicit nonce=0).
+    let diff0 = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash!("0xaa") },
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), diff0)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Block 1: change nonce.
+    let diff1 = ThinStateDiff {
+        nonces: indexmap! { address => Nonce(felt!("0x5")) },
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(1), diff1)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Revert block 1.
+    writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(1)).unwrap().0.commit().unwrap();
+
+    // Flat nonce should be Some(Nonce::default()), NOT deleted.
+    let txn = reader.begin_ro_txn().unwrap();
+    let flat_nonces = txn.txn.open_table(&txn.tables.flat_nonces).unwrap();
+    assert_eq!(
+        flat_nonces.get(&txn.txn, &address).unwrap(),
+        Some(Nonce::default()),
+        "Flat nonce should be Some(Nonce(0)) after revert, not deleted"
+    );
+
+    // Verify changeset entries for block 1 are cleaned up.
+    let changeset_nonces = txn.txn.open_table(&txn.tables.changeset_nonces).unwrap();
+    assert_eq!(
+        changeset_nonces.get(&txn.txn, &(BlockNumber(1), address)).unwrap(),
+        None,
+        "Block 1 changeset nonce should be deleted after revert"
+    );
+
+    // Verify changeset marker decremented.
+    let changeset_marker = txn.get_changeset_marker().unwrap();
+    assert_eq!(
+        changeset_marker,
+        BlockNumber(1),
+        "Changeset marker should be 1 after reverting block 1"
+    );
+}

@@ -893,89 +893,172 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             thin_state_diff.class_hash_to_compiled_class_hash.keys(),
             &compiled_class_hash_v2_table,
         )?;
-        // Restore flat tables BEFORE deleting versioned entries (we read previous values from
-        // versioned tables).
+        // Restore flat tables from changeset tables, with assertions comparing against versioned
+        // table lookups.
         if self.flat_state {
             let flat_deployed_table = self.open_table(&self.tables.flat_deployed_contracts)?;
             let flat_nonces_table = self.open_table(&self.tables.flat_nonces)?;
             let flat_storage_table = self.open_table(&self.tables.flat_contract_storage)?;
             let flat_compiled_table = self.open_table(&self.tables.flat_compiled_class_hash)?;
 
-            // Restore deployed_contracts.
+            let changeset_deployed_table =
+                self.open_table(&self.tables.changeset_deployed_contracts)?;
+            let changeset_nonces_table = self.open_table(&self.tables.changeset_nonces)?;
+            let changeset_storage_table =
+                self.open_table(&self.tables.changeset_contract_storage)?;
+            let changeset_compiled_table =
+                self.open_table(&self.tables.changeset_compiled_class_hash)?;
+
+            // Restore deployed_contracts from changeset.
             for (address, _) in &thin_state_diff.deployed_contracts {
-                let db_key = (*address, block_number);
-                let mut cursor = deployed_contracts_table.cursor(&self.txn)?;
-                cursor.lower_bound(&db_key)?;
-                match cursor.prev()? {
-                    Some(((got_address, _), hash)) if got_address == *address => {
-                        flat_deployed_table.upsert(&self.txn, address, &hash)?;
+                let changeset_preimage =
+                    changeset_deployed_table.get(&self.txn, &(block_number, *address))?.flatten();
+
+                // Assert changeset matches versioned lookup.
+                let versioned_preimage = {
+                    let db_key = (*address, block_number);
+                    let mut cursor = deployed_contracts_table.cursor(&self.txn)?;
+                    cursor.lower_bound(&db_key)?;
+                    match cursor.prev()? {
+                        Some(((got_address, _), hash)) if got_address == *address => Some(hash),
+                        _ => None,
                     }
-                    _ => {
+                };
+                assert_eq!(
+                    changeset_preimage, versioned_preimage,
+                    "Deployed contract changeset mismatch for {address:?} at block {block_number}"
+                );
+
+                match changeset_preimage {
+                    Some(hash) => flat_deployed_table.upsert(&self.txn, address, &hash)?,
+                    None => {
                         let _ = flat_deployed_table.delete(&self.txn, address);
                     }
                 }
             }
 
-            // Restore nonces from the nonces diff.
-            for (address, _) in &thin_state_diff.nonces {
-                match get_nonce_at(block_number, address, &self.txn, &nonces_table)? {
-                    Some(nonce) => flat_nonces_table.upsert(&self.txn, address, &nonce)?,
-                    None => {
-                        let _ = flat_nonces_table.delete(&self.txn, address);
+            // Restore nonces from changeset using cursor iteration (covers both nonces diff and
+            // deployed contracts with implicit nonce initialization).
+            {
+                let mut cursor = changeset_nonces_table.cursor(&self.txn)?;
+                let mut entry = cursor.lower_bound(&(block_number, ContractAddress::default()))?;
+                while let Some(((got_block, address), preimage)) = entry {
+                    if got_block != block_number {
+                        break;
                     }
-                }
-            }
 
-            // Handle nonces for newly deployed contracts that weren't in the nonces diff.
-            for (address, _) in &thin_state_diff.deployed_contracts {
-                if !thin_state_diff.nonces.contains_key(address) {
-                    match get_nonce_at(block_number, address, &self.txn, &nonces_table)? {
-                        Some(nonce) => flat_nonces_table.upsert(&self.txn, address, &nonce)?,
+                    // Assert changeset matches versioned lookup.
+                    let versioned_preimage =
+                        get_nonce_at(block_number, &address, &self.txn, &nonces_table)?;
+                    assert_eq!(
+                        preimage, versioned_preimage,
+                        "Nonce changeset mismatch for {address:?} at block {block_number}"
+                    );
+
+                    match preimage {
+                        Some(nonce) => flat_nonces_table.upsert(&self.txn, &address, &nonce)?,
                         None => {
-                            let _ = flat_nonces_table.delete(&self.txn, address);
+                            let _ = flat_nonces_table.delete(&self.txn, &address);
                         }
                     }
+
+                    entry = cursor.next()?;
                 }
             }
 
-            // Restore storage.
+            // Restore storage from changeset.
             for (address, diffs) in &thin_state_diff.storage_diffs {
                 for (key, _) in diffs {
-                    let db_key = ((*address, *key), block_number);
-                    let mut cursor = storage_table.cursor(&self.txn)?;
-                    cursor.lower_bound(&db_key)?;
-                    let previous_value = match cursor.prev()? {
-                        Some((((got_addr, got_key), _), value))
-                            if got_addr == *address && got_key == *key =>
-                        {
-                            value
+                    let changeset_preimage = changeset_storage_table
+                        .get(&self.txn, &((block_number, *address), *key))?
+                        .flatten();
+
+                    // Assert changeset matches versioned lookup.
+                    let versioned_preimage = {
+                        let db_key = ((*address, *key), block_number);
+                        let mut cursor = storage_table.cursor(&self.txn)?;
+                        cursor.lower_bound(&db_key)?;
+                        match cursor.prev()? {
+                            Some((((got_addr, got_key), _), value))
+                                if got_addr == *address && got_key == *key =>
+                            {
+                                Some(value)
+                            }
+                            _ => None,
                         }
-                        _ => Felt::default(),
                     };
-                    if previous_value == Felt::default() {
-                        let _ = flat_storage_table.delete(&self.txn, &(*address, *key));
-                    } else {
-                        flat_storage_table.upsert(&self.txn, &(*address, *key), &previous_value)?;
+                    assert_eq!(
+                        changeset_preimage, versioned_preimage,
+                        "Storage changeset mismatch for {address:?}/{key:?} at block \
+                         {block_number}"
+                    );
+
+                    match changeset_preimage {
+                        Some(value) if value != Felt::default() => {
+                            flat_storage_table.upsert(&self.txn, &(*address, *key), &value)?;
+                        }
+                        _ => {
+                            let _ = flat_storage_table.delete(&self.txn, &(*address, *key));
+                        }
                     }
                 }
             }
 
-            // Restore compiled_class_hash.
+            // Restore compiled_class_hash from changeset.
             for (hash, _) in &thin_state_diff.class_hash_to_compiled_class_hash {
-                match get_compiled_class_hash_at(
+                let changeset_preimage =
+                    changeset_compiled_table.get(&self.txn, &(block_number, *hash))?.flatten();
+
+                // Assert changeset matches versioned lookup.
+                let versioned_preimage = get_compiled_class_hash_at(
                     block_number,
                     hash,
                     &self.txn,
                     &compiled_class_hash_table,
-                )? {
-                    Some(compiled) => {
-                        flat_compiled_table.upsert(&self.txn, hash, &compiled)?;
-                    }
+                )?;
+                assert_eq!(
+                    changeset_preimage, versioned_preimage,
+                    "Compiled class hash changeset mismatch for {hash:?} at block {block_number}"
+                );
+
+                match changeset_preimage {
+                    Some(compiled) => flat_compiled_table.upsert(&self.txn, hash, &compiled)?,
                     None => {
                         let _ = flat_compiled_table.delete(&self.txn, hash);
                     }
                 }
             }
+
+            // Delete changeset entries for the reverted block.
+            for (address, _) in &thin_state_diff.deployed_contracts {
+                changeset_deployed_table.delete(&self.txn, &(block_number, *address))?;
+            }
+            {
+                let mut nonce_addresses_to_delete = Vec::new();
+                let mut cursor = changeset_nonces_table.cursor(&self.txn)?;
+                let mut entry = cursor.lower_bound(&(block_number, ContractAddress::default()))?;
+                while let Some(((got_block, address), _)) = entry {
+                    if got_block != block_number {
+                        break;
+                    }
+                    nonce_addresses_to_delete.push(address);
+                    entry = cursor.next()?;
+                }
+                for address in nonce_addresses_to_delete {
+                    changeset_nonces_table.delete(&self.txn, &(block_number, address))?;
+                }
+            }
+            for (address, diffs) in &thin_state_diff.storage_diffs {
+                for (key, _) in diffs {
+                    changeset_storage_table.delete(&self.txn, &((block_number, *address), *key))?;
+                }
+            }
+            for (hash, _) in &thin_state_diff.class_hash_to_compiled_class_hash {
+                changeset_compiled_table.delete(&self.txn, &(block_number, *hash))?;
+            }
+
+            // Decrement changeset marker.
+            markers_table.upsert(&self.txn, &MarkerKind::Changeset, &block_number)?;
         }
 
         delete_deployed_contracts(
