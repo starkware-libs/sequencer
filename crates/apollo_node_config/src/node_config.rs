@@ -173,7 +173,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         (
             ser_pointer_target_param(
                 "max_cpu_time",
-                &3600u64,
+                &600u64,
                 "Limitation of compilation cpu time (seconds).",
             ),
             set_pointing_param_paths(&[
