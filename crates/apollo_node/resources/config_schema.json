@@ -2569,6 +2569,16 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "consensus_manager_config.context_config.dynamic_config.stop_at_height": {
+    "description": "If set, the node participates in consensus up to and including this height, then stops. The proposer will write the blob for this height immediately after the decision.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "consensus_manager_config.context_config.dynamic_config.stop_at_height.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "consensus_manager_config.context_config.static_config.behavior_mode": {
     "description": "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
     "pointer_target": "behavior_mode",
