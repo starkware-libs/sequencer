@@ -141,6 +141,17 @@ where
                 }
             }
         }
+        if manager
+            .consensus_config
+            .dynamic_config
+            .stop_at_height
+            .is_some_and(|stop_height| current_height > stop_height)
+        {
+            warn!(height = current_height.0, "Consensus is running past stop height.");
+            current_height = current_height.unchecked_next();
+            tokio::task::yield_now().await;
+            continue;
+        }
 
         match manager
             .run_height(&mut context, current_height, &mut vote_receiver, &mut proposals_receiver)
