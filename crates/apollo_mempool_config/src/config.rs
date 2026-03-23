@@ -2,7 +2,10 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use apollo_config::behavior_mode::BehaviorMode;
-use apollo_config::converters::deserialize_seconds_to_duration;
+use apollo_config::converters::{
+    deserialize_float_seconds_to_duration,
+    deserialize_seconds_to_duration,
+};
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -66,8 +69,12 @@ pub struct MempoolStaticConfig {
     pub validate_resource_bounds: bool,
     // Time to wait before allowing a Declare transaction to be returned in `get_txs`.
     // Declare transactions are delayed to allow other nodes sufficient time to compile them.
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub declare_delay: Duration,
+    // Time to wait before allowing a transaction with proofs to be returned in `get_txs`.
+    // Proof transactions are delayed to allow other nodes sufficient time to verify the proofs.
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub proof_tx_delay: Duration,
     // Number of latest committed blocks for which committed account nonces are preserved.
     pub committed_nonce_retention_block_count: usize,
     // The maximum size of the mempool, in bytes.
@@ -85,6 +92,7 @@ impl Default for MempoolStaticConfig {
             validate_resource_bounds: true,
             fee_escalation_percentage: 10,
             declare_delay: Duration::from_secs(1),
+            proof_tx_delay: Duration::from_millis(500),
             committed_nonce_retention_block_count: 100,
             capacity_in_bytes: 1 << 30, // 1GB.
             behavior_mode: BehaviorMode::Starknet,
@@ -120,8 +128,15 @@ impl SerializeConfig for MempoolStaticConfig {
             ),
             ser_param(
                 "declare_delay",
-                &self.declare_delay.as_secs(),
+                &self.declare_delay.as_secs_f64(),
                 "Time to wait before allowing a Declare transaction to be returned, in seconds.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "proof_tx_delay",
+                &self.proof_tx_delay.as_secs_f64(),
+                "Time to wait before allowing a transaction with proofs to be returned, in \
+                 seconds.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
