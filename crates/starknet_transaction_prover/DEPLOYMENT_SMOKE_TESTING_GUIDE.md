@@ -28,7 +28,10 @@ Run those periodically (daily/weekly) or before major releases.
 ## 2. Prerequisites
 
 - A deployed proving service endpoint (for example `http://127.0.0.1:3000`).
-- Access to a Starknet RPC node on the same chain as the prover (for nonce lookup).
+- The prover config must have `"validate_zero_fee_fields": false` (or pass
+  `--skip-fee-field-validation` locally) so that real chain transactions with
+  non-zero fees are accepted.
+- Access to a Starknet RPC node on the same chain as the prover.
 - `curl`
 - `jq`
 
@@ -49,12 +52,48 @@ The script runs Section 3 checks and prints a PASS/FAIL summary.
 
 Optional environment variables:
 
-- `DUMMY_ACCOUNT_ADDRESS` -- address of a dummy-validate account on the target
-  chain (default: the Sepolia Integration dummy account).
-- `STRK_TOKEN_ADDRESS` -- STRK token contract address on the target chain
-  (default: Sepolia Integration STRK address).
+- `TX_HASH` -- pre-set an `INVOKE` `0x3` tx hash to skip the block scan
+  (useful on rate-limited RPCs).
+- `LOOKBACK_BLOCKS` -- number of recent blocks to scan (default: 300).
 - `KEEP_ARTIFACTS=true` -- preserve temp files for post-mortem inspection.
   Artifacts are also preserved automatically when any check fails.
+
+Define helpers once:
+
+```bash
+rpc_call() {
+  local payload="$1"
+  curl -sS "$CHAIN_RPC_URL" -H 'content-type: application/json' -d "$payload"
+}
+
+find_tx_hash() {
+  local tx_type="$1"
+  local tx_version="$2"
+  local lookback="${3:-300}"
+  local latest_block
+  local offset
+  local block_number
+  local tx_hash
+
+  latest_block=$(rpc_call '{"jsonrpc":"2.0","id":100,"method":"starknet_blockNumber","params":[]}' | jq -r '.result')
+
+  for ((offset = 0; offset <= lookback; offset++)); do
+    block_number=$((latest_block - offset))
+    [ "$block_number" -lt 0 ] && break
+
+    tx_hash=$(rpc_call "{\"jsonrpc\":\"2.0\",\"id\":101,\"method\":\"starknet_getBlockWithTxs\",\"params\":[{\"block_number\":$block_number}]}" \
+      | jq -r --arg tx_type "$tx_type" --arg tx_version "$tx_version" \
+          '[.result.transactions[] | select(.type==$tx_type and .version==$tx_version) | .transaction_hash] | .[0] // empty')
+
+    if [ -n "$tx_hash" ] && [ "$tx_hash" != "null" ]; then
+      echo "$tx_hash"
+      return 0
+    fi
+  done
+
+  return 1
+}
+```
 
 ## 3. Per-Deployment Smoke Checks
 
@@ -74,58 +113,43 @@ Pass:
 - `result` matches the `SPEC_VERSION` constant in
   `crates/starknet_transaction_prover/src/server/rpc_impl.rs` (currently `"0.10.1"`).
 
-### 3.2 Happy path: `starknet_proveTransaction` with synthetic tx
+### 3.2 Happy path: one real `starknet_proveTransaction`
 
-The script constructs a synthetic INVOKE v3 transaction targeting a
-`dummy_validate` account (empty signature, zero fees). This avoids the
-signature-invalidation problem that occurs when zeroing fee fields on real
-chain transactions.
+The script finds a real INVOKE v3 transaction from the chain and sends it
+unmodified (no fee zeroing). This preserves the original transaction hash and
+signature, so `__validate__` passes. The prover must have
+`"validate_zero_fee_fields": false` in the config (or
+`--skip-fee-field-validation` locally) to accept the non-zero fee fields.
 
-1. Fetch the dummy account's current nonce from the chain RPC.
+1. Find a finalized `INVOKE` `0x3` tx and fetch it.
 
 ```bash
-DUMMY_ACCOUNT="0x2763d2701f413cf0ad7bc73690297c4594bbfd4632ee5f017eb287051595672"
-STRK_TOKEN="0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"
+TX_HASH=$(find_tx_hash "INVOKE" "0x3" 300)
+if [ -z "$TX_HASH" ]; then
+  echo "No INVOKE 0x3 tx found in lookback window."
+  echo "Try a larger lookback: find_tx_hash \"INVOKE\" \"0x3\" 500"
+  echo "Remaining smoke checks require a valid tx -- cannot continue."
+else
+  curl -sS "$CHAIN_RPC_URL" \
+    -H 'content-type: application/json' \
+    -d "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"starknet_getTransactionByHash\",\"params\":[\"$TX_HASH\"]}" \
+    | jq '.result | del(.transaction_hash)' > /tmp/prove_tx.json
 
-NONCE=$(curl -sS "$CHAIN_RPC_URL" \
-  -H 'content-type: application/json' \
-  -d "{\"jsonrpc\":\"2.0\",\"id\":99,\"method\":\"starknet_getNonce\",\"params\":[\"latest\",\"$DUMMY_ACCOUNT\"]}" \
-  | jq -r '.result')
+  TX_BLOCK=$(curl -sS "$CHAIN_RPC_URL" \
+    -H 'content-type: application/json' \
+    -d "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"starknet_getTransactionReceipt\",\"params\":[\"$TX_HASH\"]}" \
+    | jq -r '.result.block_number')
+
+  BASE_BLOCK=$((TX_BLOCK - 1))
+fi
 ```
 
-2. Build and send the prove request. The calldata calls `balanceOf(sender)` on
-   the STRK token -- a read-only operation that cannot fail from insufficient
-   balance.
+2. Send prove request.
 
 ```bash
-jq -nc \
-  --arg sender "$DUMMY_ACCOUNT" \
-  --arg strk "$STRK_TOKEN" \
-  --arg nonce "$NONCE" \
-  '{
-    jsonrpc: "2.0", id: 5,
-    method: "starknet_proveTransaction",
-    params: {
-      block_id: "latest",
-      transaction: {
-        type: "INVOKE", version: "0x3",
-        sender_address: $sender,
-        calldata: [$strk, "0x35a73cd311a05d46deda634c5ee045db92f811b4e74bca4437fcb5302b7af33", "0x1", $sender],
-        signature: [],
-        nonce: $nonce,
-        resource_bounds: {
-          l1_gas: {max_amount: "0x0", max_price_per_unit: "0x0"},
-          l2_gas: {max_amount: "0x5f5e100", max_price_per_unit: "0x0"},
-          l1_data_gas: {max_amount: "0x0", max_price_per_unit: "0x0"}
-        },
-        tip: "0x0",
-        paymaster_data: [],
-        account_deployment_data: [],
-        nonce_data_availability_mode: "L1",
-        fee_data_availability_mode: "L1"
-      }
-    }
-  }' > /tmp/prove_request_valid.json
+jq -nc --argjson base "$BASE_BLOCK" --slurpfile tx /tmp/prove_tx.json \
+  '{jsonrpc:"2.0",id:5,method:"starknet_proveTransaction",params:[{block_number:$base},$tx[0]]}' \
+  > /tmp/prove_request_valid.json
 
 curl -sS "$PROVER_URL" \
   -H 'content-type: application/json' \

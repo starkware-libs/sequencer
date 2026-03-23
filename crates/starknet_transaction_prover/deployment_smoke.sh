@@ -3,8 +3,7 @@
 set -euo pipefail
 
 KEEP_ARTIFACTS="${KEEP_ARTIFACTS:-false}"
-DUMMY_ACCOUNT_ADDRESS="${DUMMY_ACCOUNT_ADDRESS:-0x2763d2701f413cf0ad7bc73690297c4594bbfd4632ee5f017eb287051595672}"
-STRK_TOKEN_ADDRESS="${STRK_TOKEN_ADDRESS:-0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d}"
+LOOKBACK_BLOCKS="${LOOKBACK_BLOCKS:-300}"
 TMP_DIR="$(mktemp -d)"
 
 # Auto-detect spec version from the Rust source (single source of truth).
@@ -66,6 +65,40 @@ rpc_call_prover() {
     curl -sS "$PROVER_URL" -H 'content-type: application/json' -d "$payload"
 }
 
+find_tx_hash() {
+    local tx_type="$1"
+    local tx_version="$2"
+    local lookback="$3"
+    local latest_block
+    local offset
+    local block_number
+    local tx_hash
+
+    latest_block=$(rpc_call_chain '{"jsonrpc":"2.0","id":100,"method":"starknet_blockNumber","params":[]}' | jq -r '.result')
+    echo "  Latest block: $latest_block (scanning up to $lookback blocks for $tx_type $tx_version)" >&2
+
+    for ((offset = 0; offset <= lookback; offset++)); do
+        block_number=$((latest_block - offset))
+        [[ "$block_number" -lt 0 ]] && break
+
+        if (( offset % 50 == 0 && offset > 0 )); then
+            echo "  Scanned $offset blocks so far (at block $block_number)..." >&2
+        fi
+
+        tx_hash=$(rpc_call_chain "{\"jsonrpc\":\"2.0\",\"id\":101,\"method\":\"starknet_getBlockWithTxs\",\"params\":[{\"block_number\":$block_number}]}" \
+            | jq -r --arg tx_type "$tx_type" --arg tx_version "$tx_version" \
+                '[.result.transactions[] | select(.type==$tx_type and .version==$tx_version) | .transaction_hash] | .[0] // empty')
+
+        if [[ -n "$tx_hash" && "$tx_hash" != "null" ]]; then
+            echo "  Found $tx_type $tx_version tx at block $block_number (offset $offset)" >&2
+            echo "$block_number $tx_hash"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 check_spec_version() {
     log_step "Check starknet_specVersion"
     local resp
@@ -101,56 +134,50 @@ check_compression() {
     fi
 }
 
-build_prove_request() {
-    log_step "Build starknet_proveTransaction request"
+build_valid_prove_request() {
+    log_step "Build valid starknet_proveTransaction request"
 
-    echo "  Fetching nonce for dummy account..."
-    local nonce
-    nonce=$(rpc_call_chain "{\"jsonrpc\":\"2.0\",\"id\":99,\"method\":\"starknet_getNonce\",\"params\":[\"latest\",\"$DUMMY_ACCOUNT_ADDRESS\"]}" \
-        | jq -r '.result')
+    if [[ -n "${TX_HASH:-}" ]]; then
+        echo "Using pre-set TX_HASH=$TX_HASH (skipping block scan)"
+        echo "  Fetching tx receipt for block number..."
+        TX_BLOCK=$(rpc_call_chain "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"starknet_getTransactionReceipt\",\"params\":[\"$TX_HASH\"]}" \
+            | jq -r '.result.block_number')
+        if [[ "$TX_BLOCK" == "null" || -z "$TX_BLOCK" ]]; then
+            fail_step "Could not resolve transaction block number for tx $TX_HASH"
+            return 1
+        fi
+    else
+        local find_result
+        find_result=$(find_tx_hash "INVOKE" "0x3" "$LOOKBACK_BLOCKS" || true)
+        if [[ -z "$find_result" ]]; then
+            fail_step "No INVOKE 0x3 tx found in last $LOOKBACK_BLOCKS blocks"
+            return 1
+        fi
+        TX_BLOCK="${find_result%% *}"
+        TX_HASH="${find_result#* }"
+    fi
 
-    if [[ -z "$nonce" || "$nonce" == "null" ]]; then
-        fail_step "Could not fetch nonce for dummy account $DUMMY_ACCOUNT_ADDRESS"
+    echo "  Fetching tx object for $TX_HASH..."
+    rpc_call_chain "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"starknet_getTransactionByHash\",\"params\":[\"$TX_HASH\"]}" \
+        > "$TMP_DIR/prove_tx_raw.json"
+    echo "  Got response ($(wc -c < "$TMP_DIR/prove_tx_raw.json") bytes), extracting tx..."
+    jq '.result | del(.transaction_hash)' "$TMP_DIR/prove_tx_raw.json" > "$TMP_DIR/prove_tx.json"
+
+    BASE_BLOCK=$((TX_BLOCK - 1))
+    if [[ "$BASE_BLOCK" -lt 0 ]]; then
+        fail_step "Computed base block is negative for tx $TX_HASH"
         return 1
     fi
-    echo "  Nonce: $nonce"
 
-    jq -nc \
-      --arg sender "$DUMMY_ACCOUNT_ADDRESS" \
-      --arg strk "$STRK_TOKEN_ADDRESS" \
-      --arg nonce "$nonce" \
-      '{
-        jsonrpc: "2.0",
-        id: 5,
-        method: "starknet_proveTransaction",
-        params: {
-          block_id: "latest",
-          transaction: {
-            type: "INVOKE",
-            version: "0x3",
-            sender_address: $sender,
-            calldata: [$strk, "0x35a73cd311a05d46deda634c5ee045db92f811b4e74bca4437fcb5302b7af33", "0x1", $sender],
-            signature: [],
-            nonce: $nonce,
-            resource_bounds: {
-              l1_gas: {max_amount: "0x0", max_price_per_unit: "0x0"},
-              l2_gas: {max_amount: "0x5f5e100", max_price_per_unit: "0x0"},
-              l1_data_gas: {max_amount: "0x0", max_price_per_unit: "0x0"}
-            },
-            tip: "0x0",
-            paymaster_data: [],
-            account_deployment_data: [],
-            nonce_data_availability_mode: "L1",
-            fee_data_availability_mode: "L1"
-          }
-        }
-      }' > "$TMP_DIR/prove_request_valid.json"
+    jq -nc --argjson base "$BASE_BLOCK" --slurpfile tx "$TMP_DIR/prove_tx.json" \
+        '{jsonrpc:"2.0",id:5,method:"starknet_proveTransaction",params:[{block_number:$base},$tx[0]]}' \
+        > "$TMP_DIR/prove_request_valid.json"
 
-    pass_step "Built prove request for dummy account $DUMMY_ACCOUNT_ADDRESS"
+    pass_step "Built valid prove request using tx_hash=$TX_HASH and base_block=$BASE_BLOCK"
 }
 
 check_prove_happy_path() {
-    log_step "Check starknet_proveTransaction happy path (may take 30-60s)"
+    log_step "Check starknet_proveTransaction happy path"
 
     local resp
     resp=$(rpc_call_prover "$(cat "$TMP_DIR/prove_request_valid.json")")
@@ -242,13 +269,13 @@ main() {
     echo "PROVER_URL=$PROVER_URL"
     echo "CHAIN_RPC_URL=$CHAIN_RPC_URL"
     echo "SPEC_VERSION_EXPECTED=$SPEC_VERSION_EXPECTED"
-    echo "DUMMY_ACCOUNT_ADDRESS=$DUMMY_ACCOUNT_ADDRESS"
-    echo "STRK_TOKEN_ADDRESS=$STRK_TOKEN_ADDRESS"
+    echo "LOOKBACK_BLOCKS=$LOOKBACK_BLOCKS"
     echo "KEEP_ARTIFACTS=$KEEP_ARTIFACTS"
+    [[ -n "${TX_HASH:-}" ]] && echo "TX_HASH=$TX_HASH (pre-set, will skip block scan)"
 
     check_spec_version
     check_compression
-    if build_prove_request; then
+    if build_valid_prove_request; then
         check_prove_happy_path
         check_malformed_params
         check_concurrency_and_recovery
