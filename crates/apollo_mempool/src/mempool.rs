@@ -38,6 +38,7 @@ use crate::metrics::{
     metric_set_get_txs_size,
     LABEL_NAME_TX_TYPE,
     MEMPOOL_DELAYED_DECLARES_SIZE,
+    MEMPOOL_DELAYED_PROOF_TXS_SIZE,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
@@ -195,12 +196,17 @@ impl MempoolState {
 #[cfg_attr(test, derive(Clone))]
 pub(crate) enum DelayedTx {
     Declare,
+    ProofTransaction,
 }
 
 impl DelayedTx {
     fn matches(&self, tx: &InternalRpcTransactionWithoutTxHash) -> bool {
         match self {
             Self::Declare => matches!(tx, InternalRpcTransactionWithoutTxHash::Declare(_)),
+            Self::ProofTransaction => {
+                matches!(tx, InternalRpcTransactionWithoutTxHash::Invoke(inv)
+                    if !inv.proof_facts.is_empty())
+            }
         }
     }
 }
@@ -311,8 +317,13 @@ impl Mempool {
             BehaviorMode::Starknet => Box::new(FeeTransactionQueue::default()),
         };
 
-        let delayed_queues =
-            vec![AddTransactionQueue::new(DelayedTx::Declare, config.static_config.declare_delay)];
+        let delayed_queues = vec![
+            AddTransactionQueue::new(DelayedTx::Declare, config.static_config.declare_delay),
+            AddTransactionQueue::new(
+                DelayedTx::ProofTransaction,
+                config.static_config.proof_tx_delay,
+            ),
+        ];
 
         Mempool {
             config: config.clone(),
@@ -919,6 +930,7 @@ impl Mempool {
         Ok(MempoolSnapshot {
             transactions: self.tx_pool.chronological_txs_hashes(),
             delayed_declares: self.delayed_queues[0].tx_hashes(),
+            delayed_proof_txs: self.delayed_queues[1].tx_hashes(),
             transaction_queue: self.tx_queue.queue_snapshot(),
             mempool_state: self.state.state_snapshot(),
         })
@@ -1037,6 +1049,7 @@ impl Mempool {
         MEMPOOL_PRIORITY_QUEUE_SIZE.set_lossy(self.tx_queue.priority_queue_len());
         MEMPOOL_PENDING_QUEUE_SIZE.set_lossy(self.tx_queue.pending_queue_len());
         MEMPOOL_DELAYED_DECLARES_SIZE.set_lossy(self.delayed_queues[0].len());
+        MEMPOOL_DELAYED_PROOF_TXS_SIZE.set_lossy(self.delayed_queues[1].len());
         MEMPOOL_TOTAL_SIZE_BYTES.set_lossy(self.size_in_bytes());
     }
 }
