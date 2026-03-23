@@ -12,8 +12,17 @@ use url::Url;
 use crate::eth_to_strk_oracle::{EthToStrkOracleClient, EthToStrkOracleConfig};
 
 async fn make_server(server: &mut ServerGuard, body: serde_json::Value) -> Mock {
+    make_server_with_status(server, body, 200).await
+}
+
+async fn make_server_with_status(
+    server: &mut ServerGuard,
+    body: serde_json::Value,
+    status: usize,
+) -> Mock {
     server
-        .mock("GET", mockito::Matcher::Any) // Match any GET request.
+        .mock("GET", mockito::Matcher::Any)
+        .with_status(status)
         .with_header("Content-Type", "application/json")
         .with_body(body.to_string())
         .create()
@@ -219,5 +228,37 @@ async fn eth_to_fri_rate_two_urls() {
             Err(e) => panic!("Unexpected error: {e:?}"),
         }
         tokio::task::yield_now().await; // Don't block the executor.
+    }
+}
+
+#[tokio::test]
+async fn eth_to_fri_rate_non_success_status_code() {
+    const LAG_INTERVAL_SECONDS: u64 = 60;
+    const TIMESTAMP: u64 = 1234567890;
+
+    let mut server = mockito::Server::new_async().await;
+
+    let _mock_response =
+        make_server_with_status(&mut server, json!({"error": "rate limit exceeded"}), 429).await;
+
+    let url_and_headers =
+        UrlAndHeaders { url: Url::parse(&server.url()).unwrap(), headers: BTreeMap::new() };
+    let config = EthToStrkOracleConfig {
+        url_header_list: Some(vec![url_and_headers.into()]),
+        lag_interval_seconds: LAG_INTERVAL_SECONDS,
+        ..Default::default()
+    };
+    let client = EthToStrkOracleClient::new(config);
+
+    // First call triggers the background query.
+    assert!(client.eth_to_fri_rate(TIMESTAMP).await.is_err());
+    // Wait for the query to resolve with AllUrlsFailedError.
+    loop {
+        match client.eth_to_fri_rate(TIMESTAMP).await {
+            Err(EthToStrkOracleClientError::QueryNotReadyError(_)) => {}
+            Err(EthToStrkOracleClientError::AllUrlsFailedError(..)) => break,
+            other => panic!("Expected AllUrlsFailedError, got: {other:?}"),
+        }
+        tokio::task::yield_now().await;
     }
 }
