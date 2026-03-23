@@ -126,6 +126,17 @@ pub struct GenericGateway<
     TStatefulValidatorFactory: StatefulTransactionValidatorFactoryTrait,
 > {
     config: Arc<GatewayConfig>,
+    gateway_app_state:
+        GatewayAppState<TStatelessValidator, TTransactionConverter, TStatefulValidatorFactory>,
+}
+
+#[derive(Clone)]
+struct GatewayAppState<
+    TStatelessValidator: StatelessTransactionValidatorTrait,
+    TTransactionConverter: TransactionConverterTrait,
+    TStatefulValidatorFactory: StatefulTransactionValidatorFactoryTrait,
+> {
+    config: Arc<GatewayConfig>,
     stateless_tx_validator: Arc<TStatelessValidator>,
     stateful_tx_validator_factory: Arc<TStatefulValidatorFactory>,
     mempool_client: SharedMempoolClient,
@@ -152,23 +163,37 @@ impl<
         stateless_tx_validator: Arc<TStatelessValidator>,
         proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
     ) -> Self {
+        let config = Arc::new(config.clone());
+        let static_config = config.static_config.clone();
         Self {
-            config: Arc::new(config.clone()),
-            stateless_tx_validator,
-            stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
-                config: config.static_config.stateful_tx_validator_config.clone(),
-                chain_info: config.static_config.chain_info.clone(),
-                state_reader_factory,
-                contract_class_manager: ContractClassManager::start(
-                    config.static_config.contract_class_manager_config.clone(),
-                ),
-            }),
-            mempool_client,
-            transaction_converter,
-            proof_archive_writer,
+            config: config.clone(),
+            gateway_app_state: GatewayAppState {
+                config,
+                stateless_tx_validator,
+                stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
+                    config: static_config.stateful_tx_validator_config,
+                    chain_info: static_config.chain_info,
+                    state_reader_factory,
+                    contract_class_manager: ContractClassManager::start(
+                        static_config.contract_class_manager_config,
+                    ),
+                }),
+                mempool_client,
+                transaction_converter,
+                proof_archive_writer,
+            },
         }
     }
+
+    pub async fn add_tx(
+        &self,
+        tx: RpcTransaction,
+        p2p_message_metadata: Option<BroadcastedMessageMetadata>,
+    ) -> GatewayResult<GatewayOutput> {
+        self.gateway_app_state.add_tx(tx, p2p_message_metadata).await
+    }
 }
+
 impl<
     TStatelessValidator: StatelessTransactionValidatorTrait,
     TTransactionConverter: TransactionConverterTrait,
@@ -177,9 +202,16 @@ impl<
 {
     pub async fn start(&self) {
         register_metrics();
-        self.proof_archive_writer.connect().await;
+        self.gateway_app_state.proof_archive_writer.connect().await;
     }
+}
 
+impl<
+    TStatelessValidator: StatelessTransactionValidatorTrait,
+    TTransactionConverter: TransactionConverterTrait,
+    TStatefulValidatorFactory: StatefulTransactionValidatorFactoryTrait,
+> GatewayAppState<TStatelessValidator, TTransactionConverter, TStatefulValidatorFactory>
+{
     #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]
     pub async fn add_tx(
         &self,
@@ -401,6 +433,7 @@ impl<
 
         Ok((internal_tx, executable_tx, proof_data))
     }
+
     async fn await_verification_task_and_extract_proof_data(
         &self,
         verification_handle: Option<VerificationHandle>,
