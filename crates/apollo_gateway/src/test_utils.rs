@@ -186,7 +186,7 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> GatewayForBenchma
     mempool_client.expect_validate_tx().returning(|_| Ok(()));
     mempool_client.expect_account_tx_in_pool_or_recent_block().returning(|_| Ok(false));
 
-    GenericGateway::new(
+    GenericGateway::new_for_testing(
         gateway_config,
         Arc::new(state_reader_factory),
         Arc::new(mempool_client),
