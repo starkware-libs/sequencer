@@ -160,6 +160,47 @@ impl CendeAmbassador {
     }
 }
 
+/// Returns whether the previous block exists at cende for  the current height.
+async fn previous_height_exists_at_cende_recorder(
+    cende_ambassador: &CendeAmbassador,
+    current_height: BlockNumber,
+) -> bool {
+    let latest_received_block = cende_ambassador.get_latest_received_block().await;
+
+    // No previous block needed for height 0.
+    if current_height == BlockNumber(0) {
+        info!("Block 0 has no previous block. Proceeding.");
+        return true;
+    }
+
+    // No latest received block, so no previous block.
+    let Some(latest) = latest_received_block else {
+        warn!("CENDE_FAILURE: Cende does not have previous block for height {current_height}.");
+        record_write_failure(CendeWriteFailureReason::BlobNotAvailable);
+        return false;
+    };
+
+    // Cende has a block at or above the current height, fail the round.
+    if latest >= current_height {
+        warn!(
+            "Cende ahead of proposal height {current_height} (cende at {latest}). Cannot proceed \
+             with this round."
+        );
+        record_write_failure(CendeWriteFailureReason::RecorderAheadOfProposalHeight);
+        return false;
+    }
+
+    // Has previous block.
+    if current_height.prev().is_some_and(|prev| latest >= prev) {
+        info!("Cende already has previous block for height {current_height}. Skipping write.");
+        return true;
+    }
+
+    unreachable!(
+        "cende behind prev (latest={latest} < prev for current={current_height}) cannot happen"
+    )
+}
+
 #[async_trait]
 impl CendeContext for CendeAmbassador {
     fn write_prev_height_blob(&self, current_height: BlockNumber) -> JoinHandle<bool> {
@@ -167,16 +208,16 @@ impl CendeContext for CendeAmbassador {
 
         let prev_height_blob = self.prev_height_blob.clone();
         let request_builder = self.client.post(self.write_blob_url.clone());
+        let cende_ambassador = self.clone();
 
         task::spawn(
             async move {
-                // TODO(dvir): consider extracting the "should write blob" logic to a function.
                 let Some(ref blob): Option<AerospikeBlob> = *prev_height_blob.lock().await else {
-                    // This case happens when restarting the node, `prev_height_blob` initial value
-                    // is `None`.
-                    warn!("CENDE_FAILURE: No blob to write to Aerospike.");
-                    record_write_failure(CendeWriteFailureReason::BlobNotAvailable);
-                    return false;
+                    return previous_height_exists_at_cende_recorder(
+                        &cende_ambassador,
+                        current_height,
+                    )
+                    .await;
                 };
 
                 if blob.block_number.0 >= current_height.0 {

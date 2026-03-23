@@ -43,6 +43,7 @@ pub(crate) enum CendeWriteFailureReason {
     CommunicationError,
     CendeRecorderError,
     BlobNotAvailable,
+    RecorderAheadOfProposalHeight,
     HeightMismatch,
 }
 
