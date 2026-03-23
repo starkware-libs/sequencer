@@ -26,7 +26,15 @@ use starknet_api::test_utils::invoke::internal_invoke_tx;
 use starknet_api::test_utils::valid_resource_bounds_for_testing;
 use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{contract_address, declare_tx_args, felt, invoke_tx_args, nonce, tx_hash};
+use starknet_api::{
+    contract_address,
+    declare_tx_args,
+    felt,
+    invoke_tx_args,
+    nonce,
+    proof_facts,
+    tx_hash,
+};
 
 use super::{AddTransactionQueue, DelayedTx};
 use crate::communication::MempoolCommunicationWrapper;
@@ -45,6 +53,7 @@ use crate::test_utils::{
     commit_block,
     declare_add_tx_input,
     get_txs_and_assert_expected,
+    proof_tx_add_tx_input,
     validate_tx,
     validate_tx_expect_error,
     MempoolMetrics,
@@ -150,10 +159,16 @@ impl MempoolTestContentBuilder {
     fn build_full_mempool(self) -> Mempool {
         Mempool {
             config: self.config.clone(),
-            delayed_queues: vec![AddTransactionQueue::new(
-                DelayedTx::Declare,
-                self.config.static_config.declare_delay,
-            )],
+            delayed_queues: vec![
+                AddTransactionQueue::new(
+                    DelayedTx::Declare,
+                    self.config.static_config.declare_delay,
+                ),
+                AddTransactionQueue::new(
+                    DelayedTx::ProofTransaction,
+                    self.config.static_config.proof_tx_delay,
+                ),
+            ],
             tx_pool: self.content.tx_pool.unwrap_or_default().into_values().collect(),
             tx_queue: Box::new(FeeTransactionQueue::new(
                 self.content.priority_txs.unwrap_or_default(),
@@ -1358,79 +1373,92 @@ fn expired_staged_txs_are_not_deleted() {
 }
 
 #[rstest]
-fn delay_declare_txs() {
-    // Create a mempool with a fake clock.
+#[case::declare(
+    |addr: &str, hash: u64| declare_add_tx_input(
+        declare_tx_args!(resource_bounds: valid_resource_bounds_for_testing(), sender_address: contract_address!(addr), tx_hash: tx_hash!(hash)),
+    ),
+    MempoolStaticConfig { declare_delay: Duration::from_secs(5), ..Default::default() },
+)]
+#[case::proof_tx(
+    |addr: &str, hash: u64| proof_tx_add_tx_input(
+        invoke_tx_args!(resource_bounds: valid_resource_bounds_for_testing(), sender_address: contract_address!(addr), tx_hash: tx_hash!(hash), proof_facts: proof_facts![felt!("0x1")]),
+    ),
+    MempoolStaticConfig { proof_tx_delay: Duration::from_secs(5), ..Default::default() },
+)]
+fn delay_txs(
+    #[case] make_delayed_tx: fn(&str, u64) -> AddTransactionArgs,
+    #[case] static_config: MempoolStaticConfig,
+) {
     let fake_clock = Arc::new(FakeClock::default());
-    let declare_delay = Duration::from_secs(5);
-    let mut mempool = Mempool::new(
-        MempoolConfig {
-            static_config: MempoolStaticConfig { declare_delay, ..Default::default() },
-            ..Default::default()
-        },
-        fake_clock.clone(),
-    );
-    let first_declare = declare_add_tx_input(
-        declare_tx_args!(resource_bounds: valid_resource_bounds_for_testing(), sender_address: contract_address!("0x0"), tx_hash: tx_hash!(0)),
-    );
-    add_tx(&mut mempool, &first_declare);
+    let delay = Duration::from_secs(5);
+    let mut mempool =
+        Mempool::new(MempoolConfig { static_config, ..Default::default() }, fake_clock.clone());
+    let first_delayed = make_delayed_tx("0x0", 0);
+    add_tx(&mut mempool, &first_delayed);
 
     fake_clock.advance(Duration::from_secs(1));
-    let second_declare = declare_add_tx_input(
-        declare_tx_args!(resource_bounds: valid_resource_bounds_for_testing(), sender_address: contract_address!("0x1"), tx_hash: tx_hash!(1)),
-    );
-    add_tx(&mut mempool, &second_declare);
+    let second_delayed = make_delayed_tx("0x1", 1);
+    add_tx(&mut mempool, &second_delayed);
 
     assert_eq!(mempool.get_txs(2).unwrap(), vec![]);
 
-    // Complete the first declare's delay.
-    fake_clock.advance(declare_delay - Duration::from_secs(1));
+    // Complete the first delayed tx's delay.
+    fake_clock.advance(delay - Duration::from_secs(1));
     // Add another transaction to trigger draining of ready delayed txs.
     let another_tx_1 =
         add_tx_input!(tx_hash: 123, address: "0x123", tx_nonce: 123, account_nonce: 0, tip: 123);
     add_tx(&mut mempool, &another_tx_1);
 
-    // Assert only the first declare is in the mempool.
-    assert_eq!(mempool.get_txs(2).unwrap(), vec![first_declare.tx]);
+    assert_eq!(mempool.get_txs(2).unwrap(), vec![first_delayed.tx]);
 
-    // Complete the second declare's delay.
+    // Complete the second delayed tx's delay.
     fake_clock.advance(Duration::from_secs(1));
-    // Add another transaction to trigger `add_ready_declares`
     let another_tx_2 =
         add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 5, account_nonce: 0, tip: 100);
     add_tx(&mut mempool, &another_tx_2);
 
-    // Assert the second declare was also added to the mempool.
-    assert_eq!(mempool.get_txs(2).unwrap(), vec![second_declare.tx]);
+    assert_eq!(mempool.get_txs(2).unwrap(), vec![second_delayed.tx]);
 }
 
 #[rstest]
-fn no_delay_declare_front_run() {
-    // Create a mempool with a fake clock.
+#[case::declare(
+    |addr: &str, hash: u64| declare_add_tx_input(
+        declare_tx_args!(resource_bounds: valid_resource_bounds_for_testing(), sender_address: contract_address!(addr), tx_hash: tx_hash!(hash)),
+    ),
+    MempoolStaticConfig {
+        declare_delay: Duration::from_secs(5),
+        enable_fee_escalation: true,
+        fee_escalation_percentage: 0,
+        ..Default::default()
+    },
+)]
+#[case::proof_tx(
+    |addr: &str, hash: u64| proof_tx_add_tx_input(
+        invoke_tx_args!(resource_bounds: valid_resource_bounds_for_testing(), sender_address: contract_address!(addr), tx_hash: tx_hash!(hash), proof_facts: proof_facts![felt!("0x1")]),
+    ),
+    MempoolStaticConfig {
+        proof_tx_delay: Duration::from_secs(5),
+        enable_fee_escalation: true,
+        fee_escalation_percentage: 0,
+        ..Default::default()
+    },
+)]
+fn no_delay_front_run(
+    #[case] make_delayed_tx: fn(&str, u64) -> AddTransactionArgs,
+    #[case] static_config: MempoolStaticConfig,
+) {
     let fake_clock = Arc::new(FakeClock::default());
-    let mut mempool = Mempool::new(
-        MempoolConfig {
-            static_config: MempoolStaticConfig {
-                declare_delay: Duration::from_secs(5),
-                // Always accept fee escalation to test only the delayed declare duplicate nonce.
-                enable_fee_escalation: true,
-                fee_escalation_percentage: 0,
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-        fake_clock.clone(),
-    );
-    let declare = declare_add_tx_input(
-        declare_tx_args!(resource_bounds: valid_resource_bounds_for_testing(), sender_address: contract_address!("0x0"), tx_hash: tx_hash!(0)),
-    );
-    add_tx(&mut mempool, &declare);
+    let mut mempool =
+        Mempool::new(MempoolConfig { static_config, ..Default::default() }, fake_clock.clone());
+    let delayed_tx = make_delayed_tx("0x0", 0);
+    add_tx(&mut mempool, &delayed_tx);
 
     let expected_error = MempoolError::DuplicateNonce {
-        address: declare.tx.contract_address(),
-        nonce: declare.tx.nonce(),
+        address: delayed_tx.tx.contract_address(),
+        nonce: delayed_tx.tx.nonce(),
     };
-    add_tx_expect_error(&mut mempool, &declare, expected_error.clone());
-    validate_tx_expect_error(&mut mempool, &ValidationArgs::from(&declare), expected_error);
+    add_tx_expect_error(&mut mempool, &delayed_tx, expected_error.clone());
+    validate_tx_expect_error(&mut mempool, &ValidationArgs::from(&delayed_tx), expected_error);
 }
 
 #[rstest]
@@ -1661,43 +1689,60 @@ fn account_remains_evictable_after_tx_expiry() {
     assert!(mempool.accounts_with_gap().contains(&tx_nonce_2.tx.contract_address()));
 }
 
-#[test]
-fn delayed_declare_does_not_create_gap() {
+#[rstest]
+#[case::declare(
+    |addr: &str, hash: u64| declare_add_tx_input(
+        declare_tx_args!(tx_hash: tx_hash!(hash), sender_address: contract_address!(addr), nonce: nonce!(0)),
+    ),
+    MempoolStaticConfig { declare_delay: Duration::from_secs(10), ..Default::default() },
+)]
+#[case::proof_tx(
+    |addr: &str, hash: u64| proof_tx_add_tx_input(
+        invoke_tx_args!(tx_hash: tx_hash!(hash), sender_address: contract_address!(addr), nonce: nonce!(0), proof_facts: proof_facts![felt!("0x1")]),
+    ),
+    MempoolStaticConfig { proof_tx_delay: Duration::from_secs(10), ..Default::default() },
+)]
+fn delayed_tx_does_not_create_gap(
+    #[case] make_delayed_tx: fn(&str, u64) -> AddTransactionArgs,
+    #[case] static_config: MempoolStaticConfig,
+) {
     let fake_clock = Arc::new(FakeClock::default());
     let mut mempool = Mempool::new(
         MempoolConfig {
             dynamic_config: MempoolDynamicConfig { transaction_ttl: Duration::from_secs(1000) },
-            static_config: MempoolStaticConfig {
-                declare_delay: Duration::from_secs(10),
-                ..Default::default()
-            },
+            static_config,
         },
         fake_clock.clone(),
     );
 
-    let declare_tx = declare_add_tx_input(declare_tx_args!(
-        tx_hash: tx_hash!(1),
-        sender_address: contract_address!("0x0"),
-        nonce: nonce!(0)
-    ));
+    let delayed_tx = make_delayed_tx("0x0", 1);
     let next_tx = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 0);
-    for input in [&declare_tx, &next_tx] {
+    for input in [&delayed_tx, &next_tx] {
         add_tx(&mut mempool, input);
     }
 
-    assert!(!mempool.accounts_with_gap().contains(&declare_tx.tx.contract_address()));
+    assert!(!mempool.accounts_with_gap().contains(&delayed_tx.tx.contract_address()));
 }
 
 #[rstest]
-fn declare_tx_closes_a_gap() {
+#[case::declare(
+    |addr: &str, hash: u64| declare_add_tx_input(
+        declare_tx_args!(tx_hash: tx_hash!(hash), sender_address: contract_address!(addr), nonce: nonce!(0)),
+    ),
+    MempoolStaticConfig { declare_delay: Duration::from_secs(100), ..Default::default() },
+)]
+#[case::proof_tx(
+    |addr: &str, hash: u64| proof_tx_add_tx_input(
+        invoke_tx_args!(tx_hash: tx_hash!(hash), sender_address: contract_address!(addr), nonce: nonce!(0), proof_facts: proof_facts![felt!("0x1")]),
+    ),
+    MempoolStaticConfig { proof_tx_delay: Duration::from_secs(100), ..Default::default() },
+)]
+fn delayed_tx_closes_a_gap(
+    #[case] make_delayed_tx: fn(&str, u64) -> AddTransactionArgs,
+    #[case] static_config: MempoolStaticConfig,
+) {
     let mut mempool = Mempool::new(
-        MempoolConfig {
-            static_config: MempoolStaticConfig {
-                declare_delay: Duration::from_secs(100),
-                ..Default::default()
-            },
-            ..Default::default()
-        },
+        MempoolConfig { static_config, ..Default::default() },
         Arc::new(FakeClock::default()),
     );
 
@@ -1705,17 +1750,31 @@ fn declare_tx_closes_a_gap() {
     add_tx(&mut mempool, &gap_creating_tx);
     assert!(mempool.accounts_with_gap().contains(&gap_creating_tx.tx.contract_address()));
 
-    let delayed_declare_tx_closes_a_gap = declare_add_tx_input(declare_tx_args!(
-        tx_hash: tx_hash!(2),
-        sender_address: contract_address!("0x0"),
-        nonce: nonce!(0)
-    ));
-    add_tx(&mut mempool, &delayed_declare_tx_closes_a_gap);
-    assert!(
-        !mempool
-            .accounts_with_gap()
-            .contains(&delayed_declare_tx_closes_a_gap.tx.contract_address())
+    let gap_closing_tx = make_delayed_tx("0x0", 2);
+    add_tx(&mut mempool, &gap_closing_tx);
+    assert!(!mempool.accounts_with_gap().contains(&gap_closing_tx.tx.contract_address()));
+}
+
+#[rstest]
+fn invoke_without_proof_not_delayed() {
+    let fake_clock = Arc::new(FakeClock::default());
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            static_config: MempoolStaticConfig {
+                proof_tx_delay: Duration::from_secs(100),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        fake_clock.clone(),
     );
+
+    // Invoke without proof_facts — should NOT be delayed.
+    let invoke_tx_input = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
+    add_tx(&mut mempool, &invoke_tx_input);
+
+    // Should be immediately available.
+    assert_eq!(mempool.get_txs(1).unwrap(), vec![invoke_tx_input.tx]);
 }
 
 #[rstest]

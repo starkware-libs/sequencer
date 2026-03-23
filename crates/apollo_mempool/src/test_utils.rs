@@ -12,6 +12,7 @@ use metrics_exporter_prometheus::PrometheusRecorder;
 use pretty_assertions::assert_eq;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransactionLabelValue};
 use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
+use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce};
 
@@ -264,6 +265,14 @@ pub fn add_tx_expect_error(
 #[track_caller]
 pub fn declare_add_tx_input(args: DeclareTxArgs) -> AddTransactionArgs {
     let tx = internal_rpc_declare_tx(args);
+    let account_state = AccountState { address: tx.contract_address(), nonce: tx.nonce() };
+
+    AddTransactionArgs { tx, account_state }
+}
+
+#[track_caller]
+pub fn proof_tx_add_tx_input(args: InvokeTxArgs) -> AddTransactionArgs {
+    let tx = internal_invoke_tx(args);
     let account_state = AccountState { address: tx.contract_address(), nonce: tx.nonce() };
 
     AddTransactionArgs { tx, account_state }
