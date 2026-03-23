@@ -734,6 +734,7 @@ pub fn create_gateway_config(
             contract_class_manager_config,
             chain_info,
             block_declare: false,
+            dynamic_config_poll_interval: std::time::Duration::from_secs(1),
             authorized_declarer_accounts: None,
             proof_archive_writer_config,
         },

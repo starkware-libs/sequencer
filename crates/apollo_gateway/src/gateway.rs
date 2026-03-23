@@ -3,7 +3,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_gateway_config::config::GatewayConfig;
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
+use apollo_gateway_config::config::{GatewayConfig, GatewayDynamicConfig};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
     StarknetError,
@@ -39,6 +40,7 @@ use starknet_api::rpc_transaction::{
 use starknet_api::transaction::fields::{Proof, ProofFacts, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
+use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::task::JoinHandle;
 use tokio::time::timeout;
 use tracing::{debug, error, info, warn};
@@ -91,6 +93,22 @@ pub struct Gateway(
     >,
 );
 
+#[derive(Clone)]
+struct GatewayDynamicConfigUpdater {
+    config_manager_client: SharedConfigManagerClient,
+    dynamic_config_tx: Sender<GatewayDynamicConfig>,
+}
+
+impl GatewayDynamicConfigUpdater {
+    fn spawn_poll_task(&self, poll_interval: Duration) {
+        tokio::spawn(dynamic_config_poll(
+            self.dynamic_config_tx.clone(),
+            self.config_manager_client.clone(),
+            poll_interval,
+        ));
+    }
+}
+
 impl Gateway {
     fn new(
         config: GatewayConfig,
@@ -99,6 +117,7 @@ impl Gateway {
         transaction_converter: Arc<TransactionConverter>,
         stateless_tx_validator: Arc<StatelessTransactionValidator>,
         proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
+        config_manager_client: SharedConfigManagerClient,
     ) -> Self {
         Self(GenericGateway::new(
             config,
@@ -107,6 +126,7 @@ impl Gateway {
             transaction_converter,
             stateless_tx_validator,
             proof_archive_writer,
+            config_manager_client,
         ))
     }
 
@@ -125,11 +145,10 @@ pub struct GenericGateway<
     TTransactionConverter: TransactionConverterTrait,
     TStatefulValidatorFactory: StatefulTransactionValidatorFactoryTrait,
 > {
-    // TODO(Arni): remove this once we properly update the gateway dynamic config.
-    #[allow(dead_code)]
     config: Arc<GatewayConfig>,
     gateway_app_state:
         GatewayAppState<TStatelessValidator, TTransactionConverter, TStatefulValidatorFactory>,
+    gateway_dynamic_config_updater: GatewayDynamicConfigUpdater,
 }
 
 #[derive(Clone)]
@@ -144,6 +163,23 @@ struct GatewayAppState<
     mempool_client: SharedMempoolClient,
     transaction_converter: Arc<TTransactionConverter>,
     proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
+    dynamic_config_rx: Receiver<GatewayDynamicConfig>,
+}
+
+impl<
+    TStatelessValidator: StatelessTransactionValidatorTrait,
+    TTransactionConverter: TransactionConverterTrait,
+    TStatefulValidatorFactory: StatefulTransactionValidatorFactoryTrait,
+> GatewayAppState<TStatelessValidator, TTransactionConverter, TStatefulValidatorFactory>
+{
+    fn get_dynamic_config(&self) -> GatewayDynamicConfig {
+        // `borrow()` returns a reference to a value owned by the channel, so clone it.
+        let config = {
+            let config = self.dynamic_config_rx.borrow();
+            config.clone()
+        };
+        config
+    }
 }
 
 impl<
@@ -164,12 +200,16 @@ impl<
         transaction_converter: Arc<TTransactionConverter>,
         stateless_tx_validator: Arc<TStatelessValidator>,
         proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
+        config_manager_client: SharedConfigManagerClient,
     ) -> Self {
         let stateful_tx_validator_config =
             config.static_config.stateful_tx_validator_config.clone();
         let chain_info = config.static_config.chain_info.clone();
         let contract_class_manager_config =
             config.static_config.contract_class_manager_config.clone();
+        let (dynamic_config_tx, dynamic_config_rx) = channel(config.dynamic_config.clone());
+        let gateway_dynamic_config_updater =
+            GatewayDynamicConfigUpdater { config_manager_client, dynamic_config_tx };
         let config = Arc::new(config);
 
         Self {
@@ -188,7 +228,9 @@ impl<
                 mempool_client,
                 transaction_converter,
                 proof_archive_writer,
+                dynamic_config_rx,
             },
+            gateway_dynamic_config_updater,
         }
     }
 }
@@ -202,6 +244,8 @@ impl<
     pub async fn start(&self) {
         register_metrics();
         self.gateway_app_state.proof_archive_writer.connect().await;
+        self.gateway_dynamic_config_updater
+            .spawn_poll_task(self.config.static_config.dynamic_config_poll_interval);
     }
 
     pub async fn add_tx(
@@ -266,7 +310,7 @@ impl<
 
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory
-            .instantiate_validator(self.config.dynamic_config.native_classes_whitelist.clone())
+            .instantiate_validator(self.get_dynamic_config().native_classes_whitelist)
             .await
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
@@ -472,6 +516,7 @@ pub fn create_gateway(
     mempool_client: SharedMempoolClient,
     class_manager_client: SharedClassManagerClient,
     proof_manager_client: SharedProofManagerClient,
+    config_manager_client: SharedConfigManagerClient,
     runtime: tokio::runtime::Handle,
 ) -> Gateway {
     let state_reader_factory = Arc::new(SyncStateReaderFactory {
@@ -505,6 +550,7 @@ pub fn create_gateway(
         transaction_converter,
         stateless_tx_validator,
         proof_archive_writer,
+        config_manager_client,
     )
 }
 
@@ -512,6 +558,21 @@ pub fn create_gateway(
 impl ComponentStarter for Gateway {
     async fn start(&mut self) {
         self.0.start().await;
+    }
+}
+
+async fn dynamic_config_poll(
+    tx: Sender<GatewayDynamicConfig>,
+    config_manager_client: SharedConfigManagerClient,
+    poll_interval: Duration,
+) {
+    let mut interval = tokio::time::interval(poll_interval);
+    loop {
+        interval.tick().await;
+        let dynamic_config_result = config_manager_client.get_gateway_dynamic_config().await;
+        if let Ok(dynamic_config) = dynamic_config_result {
+            let _ = tx.send(dynamic_config);
+        }
     }
 }
 
