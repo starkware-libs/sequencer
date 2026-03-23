@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use apollo_class_manager_types::MockClassManagerClient;
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_gateway_config::compiler_version::VersionId;
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_mempool_types::communication::MockMempoolClient;
@@ -172,6 +173,7 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> GatewayForBenchma
     let state_reader_factory = local_test_state_reader_factory(cairo_version, false);
     let mut mempool_client = MockMempoolClient::new();
     let class_manager_client = Arc::new(MockClassManagerClient::new());
+    let config_manager_client = Arc::new(MockConfigManagerClient::new());
     let proof_manager_client = Arc::new(MockProofManagerClient::new());
     let proof_archive_writer = Arc::new(MockProofArchiveWriterTrait::new());
     let transaction_converter = TransactionConverter::new(
@@ -193,5 +195,6 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> GatewayForBenchma
         Arc::new(transaction_converter),
         stateless_tx_validator,
         proof_archive_writer,
+        config_manager_client,
     )
 }
