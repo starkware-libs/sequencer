@@ -9,7 +9,7 @@ use apollo_config::converters::{
     deserialize_float_seconds_to_duration,
     deserialize_seconds_to_duration,
 };
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use apollo_storage::db::DbConfig;
@@ -33,6 +33,8 @@ pub struct ConsensusDynamicConfig {
     pub future_msg_limit: FutureMsgLimitsConfig,
     /// When true, require the virtual proposer to have voted in favor before reaching a decision.
     pub require_virtual_proposer_vote: bool,
+    /// If set, the node participates in consensus up to and including this height, then stops.
+    pub stop_at_height: Option<u64>,
 }
 
 /// Static configuration for consensus that doesn't change during runtime.
@@ -81,6 +83,13 @@ impl SerializeConfig for ConsensusDynamicConfig {
         ]);
         config.extend(prepend_sub_config_name(self.timeouts.dump(), "timeouts"));
         config.extend(prepend_sub_config_name(self.future_msg_limit.dump(), "future_msg_limit"));
+        config.extend(ser_optional_param(
+            &self.stop_at_height,
+            0_u64,
+            "stop_at_height",
+            "If set, the node will stop participating in consensus after this height.",
+            ParamPrivacyInput::Public,
+        ));
         config
     }
 }
@@ -123,6 +132,7 @@ impl Default for ConsensusDynamicConfig {
             sync_retry_interval: Duration::from_secs_f64(1.0),
             future_msg_limit: FutureMsgLimitsConfig::default(),
             require_virtual_proposer_vote: false,
+            stop_at_height: None,
         }
     }
 }
