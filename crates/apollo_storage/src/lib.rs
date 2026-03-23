@@ -580,6 +580,11 @@ impl StorageReader {
         self.file_readers.stats()
     }
 
+    /// Returns whether flat state mode is enabled.
+    pub fn get_flat_state(&self) -> bool {
+        self.flat_state
+    }
+
     /// Returns the scope of the storage.
     pub fn get_scope(&self) -> StorageScope {
         self.scope
