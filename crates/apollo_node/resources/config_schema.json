@@ -3374,6 +3374,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "mempool_config.static_config.proof_tx_delay": {
+    "description": "Time to wait before allowing a transaction with proofs to be returned, in seconds.",
+    "privacy": "Public",
+    "value": 10
+  },
   "mempool_config.static_config.recorder_url": {
     "description": "The URL of the recorder service (used for FIFO queue timestamp fetching).",
     "pointer_target": "recorder_url",

@@ -199,6 +199,7 @@ fn expected_mempool_snapshot() -> MempoolSnapshot {
     MempoolSnapshot {
         transactions: expected_chronological_hashes,
         delayed_declares: expected_delayed_declares,
+        delayed_proof_txs: vec![],
         transaction_queue: expected_transaction_queue,
         mempool_state,
     }
