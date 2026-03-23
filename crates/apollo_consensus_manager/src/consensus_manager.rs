@@ -424,5 +424,6 @@ impl ComponentStarter for ConsensusManager {
         info!("Starting component {}.", short_type_name::<Self>());
         register_metrics();
         self.run().await;
+        info!("Component {} stopped gracefully.", short_type_name::<Self>());
     }
 }
