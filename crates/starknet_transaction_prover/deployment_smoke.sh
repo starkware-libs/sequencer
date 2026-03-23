@@ -57,7 +57,7 @@ fail_step() {
 
 rpc_call_chain() {
     local payload="$1"
-    curl -sS "$CHAIN_RPC_URL" -H 'content-type: application/json' -d "$payload"
+    curl -sS --max-time 30 "$CHAIN_RPC_URL" -H 'content-type: application/json' -d "$payload"
 }
 
 rpc_call_prover() {
@@ -75,10 +75,15 @@ find_tx_hash() {
     local tx_hash
 
     latest_block=$(rpc_call_chain '{"jsonrpc":"2.0","id":100,"method":"starknet_blockNumber","params":[]}' | jq -r '.result')
+    echo "  Latest block: $latest_block (scanning up to $lookback blocks for $tx_type $tx_version)" >&2
 
     for ((offset = 0; offset <= lookback; offset++)); do
         block_number=$((latest_block - offset))
         [[ "$block_number" -lt 0 ]] && break
+
+        if (( offset % 50 == 0 && offset > 0 )); then
+            echo "  Scanned $offset blocks so far (at block $block_number)..." >&2
+        fi
 
         tx_hash=$(rpc_call_chain "{\"jsonrpc\":\"2.0\",\"id\":101,\"method\":\"starknet_getBlockWithTxs\",\"params\":[{\"block_number\":$block_number}]}" \
             | jq -r --arg tx_type "$tx_type" --arg tx_version "$tx_version" \
@@ -86,7 +91,8 @@ find_tx_hash() {
             | head -n 1)
 
         if [[ -n "$tx_hash" && "$tx_hash" != "null" ]]; then
-            echo "$tx_hash"
+            echo "  Found $tx_type $tx_version tx at block $block_number (offset $offset)" >&2
+            echo "$block_number $tx_hash"
             return 0
         fi
     done
@@ -121,9 +127,9 @@ check_spec_version() {
 check_compression() {
     log_step "Check HTTP response compression"
     local headers
-    headers=$(curl -sS -D- "$PROVER_URL" \
+    headers=$(curl -sS -D- --compressed "$PROVER_URL" \
         -H 'content-type: application/json' \
-        -H 'accept-encoding: gzip' \
+        -H 'accept-encoding: zstd' \
         -d '{"jsonrpc":"2.0","id":2,"method":"starknet_specVersion","params":[]}' \
         -o "$TMP_DIR/compressed_resp.json" 2>&1)
 
@@ -145,24 +151,29 @@ build_valid_prove_request() {
 
     if [[ -n "${TX_HASH:-}" ]]; then
         echo "Using pre-set TX_HASH=$TX_HASH (skipping block scan)"
+        echo "  Fetching tx receipt for block number..."
+        TX_BLOCK=$(rpc_call_chain "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"starknet_getTransactionReceipt\",\"params\":[\"$TX_HASH\"]}" \
+            | jq -r '.result.block_number')
+        if [[ "$TX_BLOCK" == "null" || -z "$TX_BLOCK" ]]; then
+            fail_step "Could not resolve transaction block number for tx $TX_HASH"
+            return 1
+        fi
     else
-        TX_HASH=$(find_tx_hash "INVOKE" "0x3" "$LOOKBACK_BLOCKS" || true)
-        if [[ -z "${TX_HASH:-}" ]]; then
+        local find_result
+        find_result=$(find_tx_hash "INVOKE" "0x3" "$LOOKBACK_BLOCKS" || true)
+        if [[ -z "$find_result" ]]; then
             fail_step "No INVOKE 0x3 tx found in last $LOOKBACK_BLOCKS blocks"
             return 1
         fi
+        TX_BLOCK="${find_result%% *}"
+        TX_HASH="${find_result#* }"
     fi
 
+    echo "  Fetching tx object for $TX_HASH..."
     rpc_call_chain "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"starknet_getTransactionByHash\",\"params\":[\"$TX_HASH\"]}" \
-        | jq '.result | del(.transaction_hash)' > "$TMP_DIR/prove_tx.json"
-
-    TX_BLOCK=$(rpc_call_chain "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"starknet_getTransactionReceipt\",\"params\":[\"$TX_HASH\"]}" \
-        | jq -r '.result.block_number')
-
-    if [[ "$TX_BLOCK" == "null" || -z "$TX_BLOCK" ]]; then
-        fail_step "Could not resolve transaction block number for tx $TX_HASH"
-        return 1
-    fi
+        > "$TMP_DIR/prove_tx_raw.json"
+    echo "  Got response ($(wc -c < "$TMP_DIR/prove_tx_raw.json") bytes), extracting tx..."
+    jq '.result | del(.transaction_hash)' "$TMP_DIR/prove_tx_raw.json" > "$TMP_DIR/prove_tx.json"
 
     BASE_BLOCK=$((TX_BLOCK - 1))
     if [[ "$BASE_BLOCK" -lt 0 ]]; then
@@ -172,7 +183,7 @@ build_valid_prove_request() {
 
     zero_fee_fields "$TMP_DIR/prove_tx.json" "$TMP_DIR/prove_tx_zeroed.json"
 
-    jq -c --argjson base "$BASE_BLOCK" --slurpfile tx "$TMP_DIR/prove_tx_zeroed.json" \
+    jq -nc --argjson base "$BASE_BLOCK" --slurpfile tx "$TMP_DIR/prove_tx_zeroed.json" \
         '{jsonrpc:"2.0",id:5,method:"starknet_proveTransaction",params:[{block_number:$base},$tx[0]]}' \
         > "$TMP_DIR/prove_request_valid.json"
 
