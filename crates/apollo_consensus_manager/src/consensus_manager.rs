@@ -326,6 +326,12 @@ impl ConsensusManager {
             config_manager_client: Some(Arc::clone(&self.config_manager_client)),
             last_voted_height_storage: self.voted_height_storage.clone(),
             committee_provider: Arc::clone(&self.committee_provider),
+            stop_at_height: self
+                .config
+                .context_config
+                .dynamic_config
+                .stop_at_height
+                .map(BlockNumber),
         }
     }
 
