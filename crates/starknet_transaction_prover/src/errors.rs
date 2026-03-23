@@ -19,6 +19,8 @@ pub enum VirtualBlockExecutorError {
     TransactionExecutionError(String),
     #[error("Reverted transactions are not supported; hash: {0:?}, revert reason: {1}")]
     TransactionReverted(TransactionHash, String),
+    #[error("Upstream transaction execution error: {0}")]
+    UpstreamExecutionError(String),
     #[error("Block state unavailable after execution")]
     StateUnavailable,
     #[error("Failed to acquire bouncer lock: {0}")]

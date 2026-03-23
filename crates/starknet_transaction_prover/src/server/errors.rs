@@ -9,8 +9,10 @@
 use jsonrpsee::types::error::ErrorCode::InternalError;
 use jsonrpsee::types::error::INTERNAL_ERROR_MSG;
 use jsonrpsee::types::ErrorObjectOwned;
+use starknet_rust::providers::ProviderError;
+use starknet_rust_core::types::StarknetError;
 
-use crate::errors::VirtualSnosProverError;
+use crate::errors::{ProofProviderError, RunnerError, VirtualBlockExecutorError, VirtualSnosProverError};
 
 // Starknet RPC v0.10 error codes.
 
@@ -46,29 +48,57 @@ pub fn service_busy(max_concurrent: usize) -> ErrorObjectOwned {
     )
 }
 
+/// Transaction execution error (code 41).
+pub fn transaction_execution_error(data: String) -> ErrorObjectOwned {
+    ErrorObjectOwned::owned(41, "Transaction execution error", Some(data))
+}
+
+/// Storage proof not supported for this block (code 42).
+pub fn storage_proof_not_supported() -> ErrorObjectOwned {
+    ErrorObjectOwned::owned(
+        42,
+        "The node doesn't support storage proofs for blocks that are too far in the past",
+        None::<()>,
+    )
+}
+
 /// Creates an internal server error with the given message.
 pub fn internal_server_error(err: impl std::fmt::Display) -> ErrorObjectOwned {
     ErrorObjectOwned::owned(InternalError.code(), INTERNAL_ERROR_MSG, Some(err.to_string()))
 }
 
+/// Maps a [`RunnerError`] to a JSON-RPC error, surfacing known upstream error
+/// codes instead of hiding them behind -32603.
+fn runner_error_to_rpc(err: RunnerError) -> ErrorObjectOwned {
+    match err {
+        RunnerError::VirtualBlockExecutor(
+            VirtualBlockExecutorError::UpstreamExecutionError(detail),
+        ) => transaction_execution_error(detail),
+        RunnerError::ProofProvider(ProofProviderError::Rpc(ProviderError::StarknetError(
+            StarknetError::StorageProofNotSupported,
+        ))) => storage_proof_not_supported(),
+        other => internal_server_error(other),
+    }
+}
+
 impl From<VirtualSnosProverError> for ErrorObjectOwned {
     fn from(err: VirtualSnosProverError) -> Self {
-        match &err {
+        match err {
             VirtualSnosProverError::InvalidTransactionType(msg) => {
-                unsupported_tx_version(msg.clone())
+                unsupported_tx_version(msg)
             }
             VirtualSnosProverError::InvalidTransactionInput(msg) => {
-                invalid_transaction_input(msg.clone())
+                invalid_transaction_input(msg)
             }
             VirtualSnosProverError::ValidationError(msg) => {
                 // Check if it's a pending block error.
                 if msg.contains("Pending") {
                     block_not_found()
                 } else {
-                    validation_failure(msg.clone())
+                    validation_failure(msg)
                 }
             }
-            VirtualSnosProverError::RunnerError(e) => internal_server_error(e),
+            VirtualSnosProverError::RunnerError(e) => runner_error_to_rpc(*e),
             #[cfg(feature = "stwo_proving")]
             VirtualSnosProverError::ProvingError(e) => internal_server_error(e),
             VirtualSnosProverError::OutputParseError(e) => internal_server_error(e),

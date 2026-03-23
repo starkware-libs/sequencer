@@ -36,6 +36,8 @@ use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 use tracing::{error, warn};
 
+use blockifier_reexecution::errors::RPCStateReaderError;
+
 use crate::errors::VirtualBlockExecutorError;
 use crate::running::serde_utils::deserialize_rpc_initial_reads;
 
@@ -521,7 +523,21 @@ impl RpcVirtualBlockExecutor {
         let result = self
             .rpc_state_reader
             .send_rpc_request("starknet_simulateTransactions", params)
-            .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e.into())))?;
+            .map_err(|e| match e {
+                RPCStateReaderError::TransactionExecutionError(rpc_err) => {
+                    let detail = rpc_err
+                        .error
+                        .data
+                        .as_ref()
+                        .and_then(|d| d.get("execution_error"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or(&rpc_err.error.message);
+                    VirtualBlockExecutorError::UpstreamExecutionError(detail.to_string())
+                }
+                other => {
+                    VirtualBlockExecutorError::ReexecutionError(Box::new(other.into()))
+                }
+            })?;
 
         let initial_reads_value = result.get("initial_reads").cloned().ok_or_else(|| {
             VirtualBlockExecutorError::TransactionExecutionError(
