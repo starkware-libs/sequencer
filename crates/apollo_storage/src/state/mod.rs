@@ -233,6 +233,103 @@ impl<Mode: TransactionKind> StateStorageReader<Mode> for StorageTxn<'_, Mode> {
     }
 }
 
+impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
+    /// Reads changeset tables for a given block and returns a `ThinStateDiff` containing the
+    /// pre-image values (the state *before* this block was applied). `None` pre-images (meaning
+    /// the key did not exist before) are converted to type defaults.
+    pub fn get_reversed_state_diff_from_changeset(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<ThinStateDiff> {
+        // Verify the requested block has changeset data. Without this check, a non-flat-state
+        // node (which never writes changesets) would silently return an empty diff.
+        let changeset_marker = self.get_changeset_marker()?;
+        if block_number >= changeset_marker {
+            return Err(StorageError::DBInconsistency {
+                msg: format!(
+                    "Requested reversed state diff from changeset for block {block_number}, but \
+                     changeset marker is only at {changeset_marker}."
+                ),
+            });
+        }
+
+        let changeset_deployed_table =
+            self.open_table(&self.tables.changeset_deployed_contracts)?;
+        let changeset_nonces_table = self.open_table(&self.tables.changeset_nonces)?;
+        let changeset_storage_table = self.open_table(&self.tables.changeset_contract_storage)?;
+        let changeset_compiled_table =
+            self.open_table(&self.tables.changeset_compiled_class_hash)?;
+
+        // Deployed contracts.
+        let mut deployed_contracts = IndexMap::new();
+        {
+            let mut cursor = changeset_deployed_table.cursor(&self.txn)?;
+            let mut entry = cursor.lower_bound(&(block_number, ContractAddress::default()))?;
+            while let Some(((got_block, address), preimage)) = entry {
+                if got_block != block_number {
+                    break;
+                }
+                deployed_contracts.insert(address, preimage.unwrap_or_default());
+                entry = cursor.next()?;
+            }
+        }
+
+        // Nonces.
+        let mut nonces = IndexMap::new();
+        {
+            let mut cursor = changeset_nonces_table.cursor(&self.txn)?;
+            let mut entry = cursor.lower_bound(&(block_number, ContractAddress::default()))?;
+            while let Some(((got_block, address), preimage)) = entry {
+                if got_block != block_number {
+                    break;
+                }
+                nonces.insert(address, preimage.unwrap_or_default());
+                entry = cursor.next()?;
+            }
+        }
+
+        // Storage diffs.
+        let mut storage_diffs: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>> =
+            IndexMap::new();
+        {
+            let mut cursor = changeset_storage_table.cursor(&self.txn)?;
+            let mut entry = cursor.lower_bound(&(
+                (block_number, ContractAddress::default()),
+                StorageKey::default(),
+            ))?;
+            while let Some((((got_block, address), key), preimage)) = entry {
+                if got_block != block_number {
+                    break;
+                }
+                storage_diffs.entry(address).or_default().insert(key, preimage.unwrap_or_default());
+                entry = cursor.next()?;
+            }
+        }
+
+        // Compiled class hashes.
+        let mut class_hash_to_compiled_class_hash = IndexMap::new();
+        {
+            let mut cursor = changeset_compiled_table.cursor(&self.txn)?;
+            let mut entry = cursor.lower_bound(&(block_number, ClassHash::default()))?;
+            while let Some(((got_block, hash), preimage)) = entry {
+                if got_block != block_number {
+                    break;
+                }
+                class_hash_to_compiled_class_hash.insert(hash, preimage.unwrap_or_default());
+                entry = cursor.next()?;
+            }
+        }
+
+        Ok(ThinStateDiff {
+            deployed_contracts,
+            nonces,
+            storage_diffs,
+            class_hash_to_compiled_class_hash,
+            deprecated_declared_classes: Vec::new(),
+        })
+    }
+}
+
 /// A single coherent state at a single point in time,
 pub struct StateReader<'env, Mode: TransactionKind> {
     txn: &'env DbTransaction<'env, Mode>,
