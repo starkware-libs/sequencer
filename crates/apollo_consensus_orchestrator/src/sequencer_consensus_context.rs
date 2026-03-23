@@ -66,6 +66,7 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use tokio::task::JoinHandle;
+use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
@@ -440,6 +441,11 @@ impl SequencerConsensusContext {
             warn!("Failed to update state sync with new block at height {height}: {e:?}");
         }
 
+        // At stop height, block N's hash may not yet be available; wait before preparing the blob.
+        if self.stop_at_height == Some(height) {
+            self.wait_for_block_hash(height).await;
+        }
+
         if let Err(e) = self
             .deps
             .cende_ambassador
@@ -473,6 +479,32 @@ impl SequencerConsensusContext {
 
     pub fn get_config(&self) -> &ContextConfig {
         &self.config
+    }
+
+    /// Waits until the batcher has computed the hash for `block_number`.
+    /// Used at stop height to ensure block N's hash is included in the blob before it is written.
+    async fn wait_for_block_hash(&self, block_number: BlockNumber) {
+        let retry_interval =
+            self.config.static_config.retrospective_block_hash_retry_interval_millis;
+        info!("Waiting for block hash of {block_number} before writing blob at stop height.");
+        loop {
+            match self.deps.batcher.get_block_hash(block_number).await {
+                Ok(_) => {
+                    info!("Block hash of {block_number} is available.");
+                    return;
+                }
+                Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(_))) => {
+                    info!("Block hash of {block_number} not yet available, retrying.");
+                    sleep(retry_interval).await;
+                }
+                Err(err) => {
+                    warn!(
+                        "Unexpected error while waiting for block hash of {block_number}: {err:?}"
+                    );
+                    sleep(retry_interval).await;
+                }
+            }
+        }
     }
 
     /// Collects the recent block hashes from the batcher.
