@@ -292,6 +292,7 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
         config_manager_client: None,
         last_voted_height_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
         committee_provider,
+        stop_at_height: None,
     };
     // Start at height 1.
     tokio::spawn(async move {
@@ -306,6 +307,57 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
 
     // Decision for height 2.
     decision_rx.await.unwrap();
+}
+
+#[rstest]
+#[tokio::test]
+async fn run_consensus_stop_at_height(consensus_config: ConsensusConfig) {
+    let (mut proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let mut network_sender = mock_network.broadcasted_messages_sender;
+
+    // Send messages for HEIGHT_1.
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
+    )
+    .await;
+    send(&mut network_sender, prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;
+    send(&mut network_sender, precommit(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;
+
+    let mut context = MockTestContext::new();
+    expect_validate_proposal(&mut context, Felt::ONE, 1);
+    context.expect_set_height_and_round().returning(move |_, _| Ok(()));
+    context.expect_broadcast().returning(move |_| Ok(()));
+    context.expect_try_sync().returning(|_| false);
+    context
+        .expect_decision_reached()
+        .withf(move |h, r, c| {
+            *c == ProposalCommitment(Felt::ONE) && *h == HEIGHT_1 && *r == ROUND_0
+        })
+        .return_once(move |_, _, _| Ok(()));
+    // No expectations for HEIGHT_2: if consensus proceeds past stop_at_height, mock will panic.
+
+    let committee_provider =
+        mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
+    let run_consensus_args = RunConsensusArguments {
+        consensus_config,
+        start_active_height: HEIGHT_1,
+        quorum_type: QuorumType::Byzantine,
+        config_manager_client: None,
+        last_voted_height_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        committee_provider,
+        stop_at_height: Some(HEIGHT_1),
+    };
+    let result = run_consensus(
+        run_consensus_args,
+        context,
+        subscriber_channels.into(),
+        proposal_receiver_receiver,
+    )
+    .await;
+    assert!(result.is_ok(), "Expected Ok(()), got: {result:?}");
 }
 
 #[rstest]
@@ -772,6 +824,7 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
         config_manager_client: Some(Arc::new(mock_client)),
         last_voted_height_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
         committee_provider: Arc::new(committee_provider),
+        stop_at_height: None,
     };
 
     // Spawn consensus and wait for a decision at height 2.
