@@ -1356,6 +1356,9 @@ fn make_config_manager_client(provider_config: ContextDynamicConfig) -> MockConf
     config_manager_client
         .expect_get_context_dynamic_config()
         .returning(move || Ok(provider_config.clone()));
+    config_manager_client
+        .expect_get_consensus_dynamic_config()
+        .returning(|| Ok(Default::default()));
     config_manager_client.expect_set_node_dynamic_config().returning(|_| Ok(()));
     config_manager_client
 }
@@ -1404,6 +1407,11 @@ async fn test_dynamic_config_updates_min_gas_price() {
             ..Default::default()
         })
     });
+
+    mock_config_manager
+        .expect_get_consensus_dynamic_config()
+        .times(2)
+        .returning(|| Ok(Default::default()));
 
     // Setup batcher expectations for two heights
     // set_height_and_round() calls batcher.start_height() to notify the batcher

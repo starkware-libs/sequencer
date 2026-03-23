@@ -21,7 +21,12 @@ use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_batcher_types::errors::BatcherError;
 use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
-use apollo_consensus::types::{ConsensusContext, ConsensusError, ProposalCommitment, Round};
+use apollo_consensus::types::{
+    ConsensusContext,
+    ConsensusError,
+    ProposalCommitment,
+    Round,
+};
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
@@ -229,6 +234,7 @@ pub struct SequencerConsensusContext {
     l2_gas_price: GasPrice,
     l1_da_mode: L1DataAvailabilityMode,
     previous_block_info: Option<PreviousBlockInfo>,
+    stop_at_height: Option<u64>,
 }
 
 #[derive(Clone)]
@@ -275,6 +281,7 @@ impl SequencerConsensusContext {
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
             previous_block_info: None,
+            stop_at_height: None,
         }
     }
 
@@ -1000,14 +1007,24 @@ impl SequencerConsensusContext {
 
     async fn update_dynamic_config(&mut self) {
         if let Some(config_manager_client) = self.deps.config_manager_client.clone() {
-            let config_result = config_manager_client.get_context_dynamic_config().await;
-            match config_result {
+            match config_manager_client.get_context_dynamic_config().await {
                 Ok(config) => {
                     self.config.dynamic_config = config;
                 }
                 Err(e) => {
                     error!(
                         "Failed to get dynamic config for consensus context. Config not updated. \
+                         Error: {e:?}"
+                    );
+                }
+            }
+            match config_manager_client.get_consensus_dynamic_config().await {
+                Ok(config) => {
+                    self.stop_at_height = config.stop_at_height;
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to get consensus dynamic config. stop_at_height not updated. \
                          Error: {e:?}"
                     );
                 }
