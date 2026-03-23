@@ -12,7 +12,7 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
-use apollo_consensus::types::{ConsensusContext, ConsensusError, Round};
+use apollo_consensus::types::{ConsensusContext, Round};
 use apollo_consensus_orchestrator_config::config::{
     ContextConfig,
     ContextDynamicConfig,
@@ -32,7 +32,6 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
 };
-use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::time::MockClock;
 use chrono::{TimeZone, Utc};
 use futures::channel::mpsc;
@@ -81,11 +80,7 @@ const HEIGHT_1: BlockNumber = BlockNumber(1);
 
 // Use heights < 10 to avoid triggering the height-10 block-hash mapping code path (not tested
 // here). Use non-zero height because height 0 always skips the write without querying the recorder.
-const HEIGHT_FOR_SKIP_TEST: BlockNumber = BlockNumber(9);
 const HEIGHT_FOR_WRITE_TESTS: BlockNumber = BlockNumber(8);
-// HEIGHT_FOR_WRITE_TESTS - 2. When building H we need block H-1. If recorder has only up to H-2, we
-// lack H-1 and must write the blob.
-const HEIGHT_M2: BlockNumber = BlockNumber(6);
 
 const ROUND_0: Round = 0;
 const ROUND_1: Round = 1;
@@ -337,101 +332,6 @@ async fn build_proposal() {
 }
 
 #[tokio::test]
-async fn build_proposal_skips_write_for_height_0() {
-    let (mut deps, _network) = create_test_and_network_deps();
-
-    deps.batcher.expect_start_height().returning(|_| Ok(()));
-
-    // Make sure the state sync client isn't called by clearing its expectations.
-    deps.state_sync_client = MockStateSyncClient::new();
-
-    // Clear the "default" expectations on the cende ambassador. If we can skip writing the blob,
-    // should not be called at all.
-    deps.cende_ambassador = MockCendeContext::new();
-
-    let mut context = deps.build_context();
-    let _fin_receiver = context
-        .build_proposal(BuildParam { height: HEIGHT_0, ..Default::default() }, TIMEOUT)
-        .await;
-}
-
-#[tokio::test]
-async fn build_proposal_skips_write_for_height_above_0() {
-    let (mut deps, _network) = create_test_and_network_deps();
-
-    deps.setup_deps_for_build(SetupDepsArgs {
-        start_block_number: HEIGHT_FOR_SKIP_TEST,
-        ..Default::default()
-    });
-
-    // Recorder has the previous block.
-    let mut mock_cende_context = MockCendeContext::new();
-    mock_cende_context
-        .expect_get_latest_received_block()
-        .returning(|| Some(HEIGHT_FOR_SKIP_TEST.prev().unwrap()));
-    deps.cende_ambassador = mock_cende_context;
-
-    let mut context = deps.build_context();
-    let _fin_receiver = context
-        .build_proposal(BuildParam { height: HEIGHT_FOR_SKIP_TEST, ..Default::default() }, TIMEOUT)
-        .await;
-}
-
-#[tokio::test]
-async fn build_proposal_fails_if_cende_height_ge_current_height() {
-    let (mut deps, _network) = create_test_and_network_deps();
-
-    // Use setup_default_expectations only - we return Err before any batcher calls.
-    deps.setup_default_expectations();
-
-    // Recorder already has current or higher block - must fail the round.
-    let mut mock_cende_context = MockCendeContext::new();
-    mock_cende_context.expect_get_latest_received_block().returning(|| Some(HEIGHT_FOR_SKIP_TEST));
-    // write_prev_height_blob should NOT be called when we fail the round
-    deps.cende_ambassador = mock_cende_context;
-
-    let mut context = deps.build_context();
-    let result = context
-        .build_proposal(BuildParam { height: HEIGHT_FOR_SKIP_TEST, ..Default::default() }, TIMEOUT)
-        .await;
-
-    assert!(matches!(
-        result,
-        Err(ConsensusError::CendeAheadOfProposalHeight(HEIGHT_FOR_SKIP_TEST))
-    ));
-}
-
-#[tokio::test]
-async fn build_proposal_writes_prev_blob_if_cannot_get_latest_received_block() {
-    let (mut deps, _network) = create_test_and_network_deps();
-
-    deps.setup_deps_for_build(SetupDepsArgs {
-        start_block_number: HEIGHT_FOR_WRITE_TESTS,
-        ..Default::default()
-    });
-
-    // Cannot get latest received block (returns None) - must write the blob.
-    let mut mock_cende_context = MockCendeContext::new();
-    mock_cende_context.expect_get_latest_received_block().returning(|| None);
-    mock_cende_context
-        .expect_write_prev_height_blob()
-        .times(1)
-        .return_once(|_| tokio::spawn(ready(true)));
-    deps.cende_ambassador = mock_cende_context;
-
-    let mut context = deps.build_context();
-    let fin_receiver = context
-        .build_proposal(
-            BuildParam { height: HEIGHT_FOR_WRITE_TESTS, ..Default::default() },
-            TIMEOUT,
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(fin_receiver.await, Ok(TEST_PROPOSAL_COMMITMENT));
-}
-
-#[tokio::test]
 async fn build_proposal_cende_failure() {
     let (mut deps, _network) = create_test_and_network_deps();
     deps.setup_deps_for_build(SetupDepsArgs {
@@ -439,7 +339,6 @@ async fn build_proposal_cende_failure() {
         ..Default::default()
     });
     let mut mock_cende_context = MockCendeContext::new();
-    mock_cende_context.expect_get_latest_received_block().returning(|| Some(HEIGHT_M2));
     mock_cende_context
         .expect_write_prev_height_blob()
         .times(1)
@@ -465,7 +364,6 @@ async fn build_proposal_cende_incomplete() {
         ..Default::default()
     });
     let mut mock_cende_context = MockCendeContext::new();
-    mock_cende_context.expect_get_latest_received_block().returning(|| Some(HEIGHT_M2));
     mock_cende_context
         .expect_write_prev_height_blob()
         .times(1)
