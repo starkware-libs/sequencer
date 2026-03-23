@@ -1423,6 +1423,7 @@ async fn test_dynamic_config_updates_min_gas_price() {
             dynamic_config: ContextDynamicConfig { ..Default::default() },
         },
         context_deps,
+        None,
     );
 
     // Set initial L2 gas price below minimum
