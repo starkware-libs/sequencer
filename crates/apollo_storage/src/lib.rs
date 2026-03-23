@@ -79,6 +79,7 @@
 pub mod base_layer;
 pub mod block_hash;
 pub mod body;
+pub mod bootstrap_contracts;
 pub mod class;
 pub mod class_hash;
 pub mod class_manager;

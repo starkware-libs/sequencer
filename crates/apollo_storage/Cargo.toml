@@ -67,7 +67,7 @@ reqwest.workspace = true
 rstest.workspace = true
 schemars.workspace = true
 simple_logger.workspace = true
-starknet_api = { workspace = true, features = ["testing"] }
+starknet_api.workspace = true
 tempfile = { workspace = true }
 test-case.workspace = true
 test-log.workspace = true
