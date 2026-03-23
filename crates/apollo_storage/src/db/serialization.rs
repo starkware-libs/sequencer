@@ -75,15 +75,11 @@ impl<T: StorageSerde + Debug> ValueSerde for NoVersionValueWrapper<T> {
 /// `Some(value)` = key existed with this value (upsert on revert).
 /// Serialized as: 0x00 for None, 0x01 + serialized_value for Some.
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
 pub(crate) struct ChangesetValueWrapper<T: ValueSerde> {
     _value_type: PhantomData<T>,
 }
 
-// Used by ChangesetValueWrapper serialization; will be exercised once changeset tables are added.
-#[allow(dead_code)]
 const CHANGESET_ABSENT: u8 = 0x00;
-#[allow(dead_code)]
 const CHANGESET_PRESENT: u8 = 0x01;
 
 impl<T: ValueSerde> ValueSerde for ChangesetValueWrapper<T>

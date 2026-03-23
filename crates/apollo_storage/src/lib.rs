@@ -130,7 +130,13 @@ use apollo_proc_macros::{latency_histogram, sequencer_latency_histogram};
 use body::events::EventIndex;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use db::db_stats::{DbTableStats, DbWholeStats};
-use db::serialization::{Key, NoVersionValueWrapper, ValueSerde, VersionZeroWrapper};
+use db::serialization::{
+    ChangesetValueWrapper,
+    Key,
+    NoVersionValueWrapper,
+    ValueSerde,
+    VersionZeroWrapper,
+};
 use db::table_types::{CommonPrefix, NoValue, Table, TableType};
 use mmap_file::{
     open_file,
@@ -278,6 +284,15 @@ fn open_storage_internal(
         flat_nonces: db_writer.create_simple_table("flat_nonces")?,
         flat_deployed_contracts: db_writer.create_simple_table("flat_deployed_contracts")?,
         flat_compiled_class_hash: db_writer.create_simple_table("flat_compiled_class_hash")?,
+
+        // Changeset tables — always created regardless of flat_state config.
+        changeset_contract_storage: db_writer
+            .create_common_prefix_table("changeset_contract_storage")?,
+        changeset_nonces: db_writer.create_common_prefix_table("changeset_nonces")?,
+        changeset_deployed_contracts: db_writer
+            .create_common_prefix_table("changeset_deployed_contracts")?,
+        changeset_compiled_class_hash: db_writer
+            .create_common_prefix_table("changeset_compiled_class_hash")?,
     });
     let (file_writers, file_readers) = open_storage_files(
         &storage_config.db_config,
@@ -741,12 +756,19 @@ struct_field_names! {
         flat_contract_storage: TableIdentifier<(ContractAddress, StorageKey), NoVersionValueWrapper<Felt>, CommonPrefix>,
         flat_nonces: TableIdentifier<ContractAddress, NoVersionValueWrapper<Nonce>, SimpleTable>,
         flat_deployed_contracts: TableIdentifier<ContractAddress, NoVersionValueWrapper<ClassHash>, SimpleTable>,
-        flat_compiled_class_hash: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>
+        flat_compiled_class_hash: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>,
+
+        // Changeset tables (store pre-images before each block's changes, for undo/revert).
+        changeset_contract_storage: TableIdentifier<((BlockNumber, ContractAddress), StorageKey), ChangesetValueWrapper<NoVersionValueWrapper<Felt>>, CommonPrefix>,
+        changeset_nonces: TableIdentifier<(BlockNumber, ContractAddress), ChangesetValueWrapper<NoVersionValueWrapper<Nonce>>, CommonPrefix>,
+        changeset_deployed_contracts: TableIdentifier<(BlockNumber, ContractAddress), ChangesetValueWrapper<NoVersionValueWrapper<ClassHash>>, CommonPrefix>,
+        changeset_compiled_class_hash: TableIdentifier<(BlockNumber, ClassHash), ChangesetValueWrapper<NoVersionValueWrapper<CompiledClassHash>>, CommonPrefix>
     }
 }
 
 macro_rules! struct_field_names {
     (struct $name:ident { $($fname:ident : $ftype:ty),* }) => {
+        #[allow(dead_code)]
         pub(crate) struct $name {
             $($fname : $ftype),*
         }
