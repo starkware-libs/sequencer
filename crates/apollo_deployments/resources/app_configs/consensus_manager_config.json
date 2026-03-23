@@ -53,6 +53,8 @@
   "consensus_manager_config.context_config.dynamic_config.override_l1_gas_price_fri.#is_none": true,
   "consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri": 0,
   "consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri.#is_none": true,
+  "consensus_manager_config.context_config.dynamic_config.stop_at_height": 0,
+  "consensus_manager_config.context_config.dynamic_config.stop_at_height.#is_none": true,
   "consensus_manager_config.context_config.dynamic_config.compare_retrospective_block_hash": false,
   "consensus_manager_config.network_config.advertised_multiaddr.#is_none": "",
   "consensus_manager_config.network_config.advertised_multiaddr": "",

@@ -305,6 +305,9 @@ pub struct ContextDynamicConfig {
     )]
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
     pub compare_retrospective_block_hash: bool,
+    /// If set, the node participates in consensus up to and including this height, then stops.
+    /// The proposer will write the blob for this height immediately after the decision.
+    pub stop_at_height: Option<u64>,
 }
 
 impl SerializeConfig for ContextDynamicConfig {
@@ -396,6 +399,16 @@ impl SerializeConfig for ContextDynamicConfig {
         );
         dump.insert(key, value);
 
+        dump.extend(ser_optional_param(
+            &self.stop_at_height,
+            0_u64,
+            "stop_at_height",
+            "If set, the node participates in consensus up to and including this height, then \
+             stops. The proposer will write the blob for this height immediately after the \
+             decision.",
+            ParamPrivacyInput::Public,
+        ));
+
         dump
     }
 }
@@ -415,6 +428,7 @@ impl Default for ContextDynamicConfig {
             override_eth_to_fri_rate: None,
             min_l2_gas_price_per_height: vec![],
             compare_retrospective_block_hash: true,
+            stop_at_height: None,
         }
     }
 }
