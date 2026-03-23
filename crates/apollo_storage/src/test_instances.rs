@@ -72,6 +72,7 @@ auto_impl_get_test_instance! {
         CompilerBackwardCompatibility = 8,
         GlobalRoot = 9,
         FlatState = 10,
+        Changeset = 11,
     }
     pub enum OffsetKind {
         ThinStateDiff = 0,

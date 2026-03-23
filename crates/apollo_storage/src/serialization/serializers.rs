@@ -348,6 +348,7 @@ auto_storage_serde! {
         CompilerBackwardCompatibility = 8,
         GlobalRoot = 9,
         FlatState = 10,
+        Changeset = 11,
     }
     pub struct MessageToL1 {
         pub to_address: EthAddress,

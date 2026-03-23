@@ -13,6 +13,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::class::{ClassStorageReader, ClassStorageWriter};
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
+use crate::db::serialization::{ChangesetValueWrapper, NoVersionValueWrapper, ValueSerde};
 use crate::db::table_types::Table;
 use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::test_utils::{
@@ -1401,4 +1402,44 @@ fn flat_state_toggle_off_detected() {
     config_off.flat_state = false;
     let result = open_storage(config_off);
     assert!(matches!(result, Err(StorageError::FlatStateToggleNotSupported)));
+}
+
+#[test]
+fn changeset_value_wrapper_none_roundtrip() {
+    let serialized =
+        ChangesetValueWrapper::<NoVersionValueWrapper<Nonce>>::serialize(&None).unwrap();
+    assert_eq!(serialized, vec![0x00]);
+    let deserialized = ChangesetValueWrapper::<NoVersionValueWrapper<Nonce>>::deserialize(
+        &mut serialized.as_slice(),
+    )
+    .unwrap();
+    assert_eq!(deserialized, None);
+}
+
+#[test]
+fn changeset_value_wrapper_some_default_roundtrip() {
+    let wrapper_value = Some(Nonce::default());
+    let serialized =
+        ChangesetValueWrapper::<NoVersionValueWrapper<Nonce>>::serialize(&wrapper_value).unwrap();
+    assert_eq!(serialized[0], 0x01);
+    let deserialized = ChangesetValueWrapper::<NoVersionValueWrapper<Nonce>>::deserialize(
+        &mut serialized.as_slice(),
+    )
+    .unwrap();
+    assert_eq!(deserialized, Some(Nonce::default()));
+    // Crucially: Some(default) != None.
+    assert_ne!(deserialized, None);
+}
+
+#[test]
+fn changeset_value_wrapper_some_nondefault_roundtrip() {
+    let nonce = Nonce(felt!("0x42"));
+    let serialized =
+        ChangesetValueWrapper::<NoVersionValueWrapper<Nonce>>::serialize(&Some(nonce)).unwrap();
+    assert_eq!(serialized[0], 0x01);
+    let deserialized = ChangesetValueWrapper::<NoVersionValueWrapper<Nonce>>::deserialize(
+        &mut serialized.as_slice(),
+    )
+    .unwrap();
+    assert_eq!(deserialized, Some(nonce));
 }
