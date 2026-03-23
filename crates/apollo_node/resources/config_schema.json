@@ -2802,7 +2802,7 @@
   "max_cpu_time": {
     "description": "Limitation of compilation cpu time (seconds).",
     "privacy": "TemporaryValue",
-    "value": 3600
+    "value": 600
   },
   "mempool_config.#is_none": {
     "description": "Flag for an optional field.",
