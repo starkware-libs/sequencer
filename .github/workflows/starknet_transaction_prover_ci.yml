@@ -20,6 +20,7 @@ on:
       - "crates/starknet_patricia/**"
       - "crates/starknet_transaction_prover/**"
       - "scripts/build_starknet_transaction_prover.sh"
+      - "scripts/check_proving_spec_sync.sh"
       - "scripts/dependencies.sh"
       - "scripts/requirements.txt"
 
@@ -108,6 +109,17 @@ jobs:
       - name: Run proving integration tests
         working-directory: crates/starknet_transaction_prover
         run: cargo test --release -p starknet_transaction_prover --features stwo_proving virtual_snos_prover_test -- --ignored --test-threads=1
+
+  # Verify that proving spec files are in sync with the starknet-specs repo.
+  check-proving-spec-sync:
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64
+    needs: optimize_ci
+    if: needs.optimize_ci.outputs.skip == 'false'
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check proving spec files are in sync with starknet-specs
+        run: scripts/check_proving_spec_sync.sh
 
   # Test that the starknet_transaction_prover Docker image builds successfully.
   docker-build:
