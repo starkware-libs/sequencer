@@ -39,8 +39,10 @@ use starknet_api::block::BlockNumber;
 use starknet_api::staking::StakingWeight;
 use starknet_types_core::felt::Felt;
 use tokio::sync::Mutex;
+use tracing_test::traced_test;
 
 use super::{run_consensus, MultiHeightManager, RunHeightRes};
+use crate::manager::CONSENSUS_RUNNING_PAST_STOP_HEIGHT;
 use crate::storage::MockHeightVotedStorageTrait;
 use crate::test_utils::{
     precommit,
@@ -307,6 +309,62 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
 
     // Decision for height 2.
     decision_rx.await.unwrap();
+}
+
+#[rstest]
+#[traced_test]
+#[tokio::test]
+async fn run_consensus_stop_at_height(consensus_config: ConsensusConfig) {
+    let (mut proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let mut network_sender = mock_network.broadcasted_messages_sender;
+
+    // Send messages for HEIGHT_1.
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
+    )
+    .await;
+    send(&mut network_sender, prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;
+    send(&mut network_sender, precommit(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;
+
+    let mut context = MockTestContext::new();
+    expect_validate_proposal(&mut context, Felt::ONE, 1);
+    context.expect_set_height_and_round().returning(move |_, _| Ok(()));
+    context.expect_broadcast().returning(move |_| Ok(()));
+    context.expect_try_sync().returning(|_| false);
+    context
+        .expect_decision_reached()
+        .withf(move |h, r, c| {
+            *c == ProposalCommitment(Felt::ONE) && *h == HEIGHT_1 && *r == ROUND_0
+        })
+        .returning(move |_, _, _| Ok(()));
+
+    let committee_provider =
+        mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
+    let mut consensus_config = consensus_config;
+    consensus_config.dynamic_config.stop_at_height = Some(HEIGHT_1);
+    let run_consensus_args = RunConsensusArguments {
+        consensus_config,
+        start_active_height: HEIGHT_1,
+        quorum_type: QuorumType::Byzantine,
+        config_manager_client: None,
+        last_voted_height_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        committee_provider,
+    };
+    // run_consensus loops indefinitely past the stop height; the timeout bounds the test.
+    let _ = tokio::time::timeout(
+        Duration::from_millis(100),
+        run_consensus(
+            run_consensus_args,
+            context,
+            subscriber_channels.into(),
+            proposal_receiver_receiver,
+        ),
+    )
+    .await;
+    assert!(logs_contain(CONSENSUS_RUNNING_PAST_STOP_HEIGHT));
 }
 
 #[rstest]
