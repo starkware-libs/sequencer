@@ -26,7 +26,7 @@ pub fn validation_failure(data: String) -> ErrorObjectOwned {
 
 /// Unsupported transaction version (code 61).
 pub fn unsupported_tx_version(data: String) -> ErrorObjectOwned {
-    ErrorObjectOwned::owned(61, "The transaction version is not supported", Some(data))
+    ErrorObjectOwned::owned(61, "the transaction version is not supported", Some(data))
 }
 
 /// Invalid transaction input (code 1000).
