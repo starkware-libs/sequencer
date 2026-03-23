@@ -54,6 +54,7 @@ use starknet_api::block::{
     WEI_PER_ETH,
 };
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
+use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
@@ -1415,6 +1416,7 @@ async fn test_dynamic_config_updates_min_gas_price() {
             dynamic_config: ContextDynamicConfig { ..Default::default() },
         },
         context_deps,
+        ContractAddress::default(),
     );
 
     // Set initial L2 gas price below minimum

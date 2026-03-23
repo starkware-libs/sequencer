@@ -338,6 +338,7 @@ impl TestDeps {
                 ..Default::default()
             },
             self.into(),
+            ContractAddress::default(),
         )
     }
 }

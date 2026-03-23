@@ -21,7 +21,13 @@ use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_batcher_types::errors::BatcherError;
 use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
-use apollo_consensus::types::{ConsensusContext, ConsensusError, ProposalCommitment, Round};
+use apollo_consensus::types::{
+    ConsensusContext,
+    ConsensusError,
+    ProposalCommitment,
+    Round,
+    ValidatorId,
+};
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
@@ -229,6 +235,7 @@ pub struct SequencerConsensusContext {
     l2_gas_price: GasPrice,
     l1_da_mode: L1DataAvailabilityMode,
     previous_proposal_init: Option<PreviousProposalInitInfo>,
+    validator_id: ValidatorId,
 }
 
 #[derive(Clone)]
@@ -256,7 +263,11 @@ enum ReproposeError {
 }
 
 impl SequencerConsensusContext {
-    pub fn new(config: ContextConfig, deps: SequencerConsensusContextDeps) -> Self {
+    pub fn new(
+        config: ContextConfig,
+        deps: SequencerConsensusContextDeps,
+        validator_id: ValidatorId,
+    ) -> Self {
         register_metrics();
         let l1_da_mode = if config.static_config.l1_da_mode {
             L1DataAvailabilityMode::Blob
@@ -275,6 +286,7 @@ impl SequencerConsensusContext {
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
             previous_proposal_init: None,
+            validator_id,
         }
     }
 
