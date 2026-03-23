@@ -4,7 +4,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
@@ -14,7 +14,7 @@ use starknet_types_core::felt::Felt;
 use crate::class::{ClassStorageReader, ClassStorageWriter};
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::db::serialization::{ChangesetValueWrapper, NoVersionValueWrapper, ValueSerde};
-use crate::db::table_types::Table;
+use crate::db::table_types::{DbCursorTrait, Table};
 use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::test_utils::{
     get_test_config,
@@ -1476,4 +1476,207 @@ fn flat_state_fresh_sync_passes_when_markers_match() {
     drop(_writer);
     let result = open_storage(config);
     assert!(result.is_ok());
+}
+
+#[test]
+fn changeset_write_captures_preimages() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    let address = contract_address!("0x1");
+    let key = storage_key!("0x10");
+    let class_hash_0 = class_hash!("0xaa");
+    // Block 0: first writes (no prior values).
+    let diff0 = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash_0 },
+        nonces: indexmap! { address => Nonce(felt!("0x1")) },
+        storage_diffs: indexmap! { address => indexmap! { key => felt!("0x100") } },
+        class_hash_to_compiled_class_hash: indexmap! {
+            ClassHash(felt!("0xdd")) => CompiledClassHash(felt!("0xcc"))
+        },
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), diff0)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Block 1: update all values.
+    let class_hash_1 = class_hash!("0xbb");
+    let diff1 = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash_1 },
+        nonces: indexmap! { address => Nonce(felt!("0x2")) },
+        storage_diffs: indexmap! { address => indexmap! { key => felt!("0x200") } },
+        class_hash_to_compiled_class_hash: indexmap! {
+            ClassHash(felt!("0xdd")) => CompiledClassHash(felt!("0xee"))
+        },
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(1), diff1)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Verify block 0 changesets: all None (no prior values existed).
+    let txn = reader.begin_ro_txn().unwrap();
+    let changeset_deployed = txn.txn.open_table(&txn.tables.changeset_deployed_contracts).unwrap();
+    let changeset_nonces = txn.txn.open_table(&txn.tables.changeset_nonces).unwrap();
+    let changeset_storage = txn.txn.open_table(&txn.tables.changeset_contract_storage).unwrap();
+    let changeset_compiled = txn.txn.open_table(&txn.tables.changeset_compiled_class_hash).unwrap();
+
+    assert_eq!(
+        changeset_deployed.get(&txn.txn, &(BlockNumber(0), address)).unwrap(),
+        Some(None),
+        "Block 0 deployed changeset should be None (no prior value)"
+    );
+    assert_eq!(
+        changeset_nonces.get(&txn.txn, &(BlockNumber(0), address)).unwrap(),
+        Some(None),
+        "Block 0 nonce changeset should be None (no prior value)"
+    );
+    assert_eq!(
+        changeset_storage.get(&txn.txn, &((BlockNumber(0), address), key)).unwrap(),
+        Some(None),
+        "Block 0 storage changeset should be None (no prior value)"
+    );
+    assert_eq!(
+        changeset_compiled.get(&txn.txn, &(BlockNumber(0), ClassHash(felt!("0xdd")))).unwrap(),
+        Some(None),
+        "Block 0 compiled changeset should be None (no prior value)"
+    );
+
+    // Verify block 1 changesets: have block 0 values.
+    assert_eq!(
+        changeset_deployed.get(&txn.txn, &(BlockNumber(1), address)).unwrap(),
+        Some(Some(class_hash_0)),
+        "Block 1 deployed changeset should have block 0 class hash"
+    );
+    // Nonce pre-image for block 1 should be block 0's final nonce (0x1).
+    assert_eq!(
+        changeset_nonces.get(&txn.txn, &(BlockNumber(1), address)).unwrap(),
+        Some(Some(Nonce(felt!("0x1")))),
+        "Block 1 nonce changeset should have block 0 nonce"
+    );
+    assert_eq!(
+        changeset_storage.get(&txn.txn, &((BlockNumber(1), address), key)).unwrap(),
+        Some(Some(felt!("0x100"))),
+        "Block 1 storage changeset should have block 0 value"
+    );
+    assert_eq!(
+        changeset_compiled.get(&txn.txn, &(BlockNumber(1), ClassHash(felt!("0xdd")))).unwrap(),
+        Some(Some(CompiledClassHash(felt!("0xcc")))),
+        "Block 1 compiled changeset should have block 0 compiled hash"
+    );
+}
+
+#[test]
+fn changeset_distinguishes_none_from_default_nonce() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    let address = contract_address!("0x1");
+
+    // Block 0: deploy contract (implicit nonce=0).
+    let diff0 = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash!("0xaa") },
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), diff0)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Block 1: change nonce.
+    let diff1 = ThinStateDiff {
+        nonces: indexmap! { address => Nonce(felt!("0x5")) },
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(1), diff1)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let txn = reader.begin_ro_txn().unwrap();
+    let changeset_nonces = txn.txn.open_table(&txn.tables.changeset_nonces).unwrap();
+
+    // Block 0: nonce changeset for the deployed contract should be None (no prior nonce).
+    assert_eq!(
+        changeset_nonces.get(&txn.txn, &(BlockNumber(0), address)).unwrap(),
+        Some(None),
+        "Block 0 changeset nonce should be None (contract didn't exist before)"
+    );
+
+    // Block 1: nonce changeset should be Some(Nonce::default()) since block 0 set nonce to 0.
+    assert_eq!(
+        changeset_nonces.get(&txn.txn, &(BlockNumber(1), address)).unwrap(),
+        Some(Some(Nonce::default())),
+        "Block 1 changeset nonce should be Some(Nonce(0)), not None"
+    );
+}
+
+#[test]
+fn changeset_marker_tracks_progress() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    for block in 0..3 {
+        writer
+            .begin_rw_txn()
+            .unwrap()
+            .append_state_diff(BlockNumber(block), ThinStateDiff::default())
+            .unwrap()
+            .commit()
+            .unwrap();
+    }
+
+    let txn = reader.begin_ro_txn().unwrap();
+    let changeset_marker = txn.get_changeset_marker().unwrap();
+    assert_eq!(
+        changeset_marker,
+        BlockNumber(3),
+        "Changeset marker should be 3 after writing 3 blocks"
+    );
+}
+
+#[test]
+fn empty_state_diff_advances_changeset_marker_without_rows() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), ThinStateDiff::default())
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let txn = reader.begin_ro_txn().unwrap();
+
+    // Marker should have advanced.
+    let changeset_marker = txn.get_changeset_marker().unwrap();
+    assert_eq!(changeset_marker, BlockNumber(1));
+
+    // All changeset tables should be empty.
+    let changeset_deployed = txn.txn.open_table(&txn.tables.changeset_deployed_contracts).unwrap();
+    let changeset_nonces = txn.txn.open_table(&txn.tables.changeset_nonces).unwrap();
+    let changeset_storage = txn.txn.open_table(&txn.tables.changeset_contract_storage).unwrap();
+    let changeset_compiled = txn.txn.open_table(&txn.tables.changeset_compiled_class_hash).unwrap();
+
+    let mut cursor = changeset_deployed.cursor(&txn.txn).unwrap();
+    assert!(cursor.next().unwrap().is_none(), "changeset_deployed should be empty");
+    let mut cursor = changeset_nonces.cursor(&txn.txn).unwrap();
+    assert!(cursor.next().unwrap().is_none(), "changeset_nonces should be empty");
+    let mut cursor = changeset_storage.cursor(&txn.txn).unwrap();
+    assert!(cursor.next().unwrap().is_none(), "changeset_storage should be empty");
+    let mut cursor = changeset_compiled.cursor(&txn.txn).unwrap();
+    assert!(cursor.next().unwrap().is_none(), "changeset_compiled should be empty");
 }
