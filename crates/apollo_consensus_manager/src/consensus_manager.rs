@@ -181,8 +181,10 @@ impl ConsensusManager {
         );
 
         tokio::select! {
-            consensus_result = consensus_fut =>
-                panic!("Consensus task finished unexpectedly: {:?}", consensus_result),
+            consensus_result = consensus_fut => match consensus_result {
+                Ok(()) => info!("Consensus stopped after reaching stop height."),
+                Err(err) => panic!("Consensus task finished unexpectedly: {err:?}"),
+            },
             network_result = network_task =>
                 panic!("Consensus' network task finished unexpectedly: {:?}", network_result),
             stream_handler_result = stream_handler_task =>
@@ -326,6 +328,12 @@ impl ConsensusManager {
             config_manager_client: Some(Arc::clone(&self.config_manager_client)),
             last_voted_height_storage: self.voted_height_storage.clone(),
             committee_provider: Arc::clone(&self.committee_provider),
+            stop_at_height: self
+                .config
+                .context_config
+                .dynamic_config
+                .stop_at_height
+                .map(BlockNumber),
         }
     }
 
@@ -424,5 +432,6 @@ impl ComponentStarter for ConsensusManager {
         info!("Starting component {}.", short_type_name::<Self>());
         register_metrics();
         self.run().await;
+        info!("Component {} stopped gracefully.", short_type_name::<Self>());
     }
 }

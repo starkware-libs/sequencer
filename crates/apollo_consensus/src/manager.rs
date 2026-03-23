@@ -73,6 +73,8 @@ pub struct RunConsensusArguments {
     pub last_voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
     /// Provider for committee (validators, proposer).
     pub committee_provider: Arc<dyn CommitteeProvider>,
+    /// If set, consensus exits cleanly after this height is decided.
+    pub stop_at_height: Option<BlockNumber>,
 }
 
 impl std::fmt::Debug for RunConsensusArguments {
@@ -83,6 +85,7 @@ impl std::fmt::Debug for RunConsensusArguments {
             .field("static_config", &self.consensus_config.static_config)
             .field("quorum_type", &self.quorum_type)
             .field("last_voted_height_storage", &self.last_voted_height_storage)
+            .field("stop_at_height", &self.stop_at_height)
             .finish()
     }
 }
@@ -129,6 +132,11 @@ where
     )
     .await;
     loop {
+        if run_consensus_args.stop_at_height.is_some_and(|stop_height| current_height > stop_height)
+        {
+            info!(height = current_height.0, "Stop height reached, exiting consensus.");
+            return Ok(());
+        }
         if let Some(client) = &run_consensus_args.config_manager_client {
             match client.get_consensus_dynamic_config().await {
                 Ok(dynamic_cfg) => {
