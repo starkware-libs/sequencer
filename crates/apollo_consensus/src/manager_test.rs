@@ -776,6 +776,7 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     // Context: H1 we sync (try_sync returns true); at H2 we run consensus as the proposer.
     let mut context = MockTestContext::new();
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
+    context.expect_set_stop_height().returning(|_| ());
     context.expect_try_sync().withf(move |h| *h == HEIGHT_1).times(1).returning(|_| true);
     context.expect_try_sync().returning(|_| false);
     context.expect_broadcast().returning(move |_| Ok(()));

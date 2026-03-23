@@ -132,6 +132,7 @@ where
         if let Some(client) = &run_consensus_args.config_manager_client {
             match client.get_consensus_dynamic_config().await {
                 Ok(dynamic_cfg) => {
+                    context.set_stop_height(dynamic_cfg.stop_at_height);
                     manager.set_dynamic_config(dynamic_cfg);
                 }
                 Err(e) => {
@@ -148,8 +149,6 @@ where
             .is_some_and(|stop_height| current_height > stop_height)
         {
             warn!(height = current_height.0, "Consensus is running past stop height.");
-            current_height = current_height.unchecked_next();
-            continue;
         }
 
         match manager

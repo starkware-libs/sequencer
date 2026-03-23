@@ -229,6 +229,7 @@ pub struct SequencerConsensusContext {
     l2_gas_price: GasPrice,
     l1_da_mode: L1DataAvailabilityMode,
     previous_block_info: Option<PreviousBlockInfo>,
+    stop_at_height: Option<BlockNumber>,
 }
 
 #[derive(Clone)]
@@ -275,6 +276,7 @@ impl SequencerConsensusContext {
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
             previous_block_info: None,
+            stop_at_height: None,
         }
     }
 
@@ -934,6 +936,10 @@ impl ConsensusContext for SequencerConsensusContext {
         .await;
         Ok(())
     }
+
+    fn set_stop_height(&mut self, stop_at_height: Option<BlockNumber>) {
+        self.stop_at_height = stop_at_height;
+    }
 }
 
 impl SequencerConsensusContext {
@@ -1000,8 +1006,7 @@ impl SequencerConsensusContext {
 
     async fn update_dynamic_config(&mut self) {
         if let Some(config_manager_client) = self.deps.config_manager_client.clone() {
-            let config_result = config_manager_client.get_context_dynamic_config().await;
-            match config_result {
+            match config_manager_client.get_context_dynamic_config().await {
                 Ok(config) => {
                     self.config.dynamic_config = config;
                 }
