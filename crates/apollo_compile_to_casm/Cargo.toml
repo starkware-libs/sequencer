@@ -31,6 +31,7 @@ tracing.workspace = true
 apollo_compilation_utils = { workspace = true, features = ["testing"] }
 apollo_infra_utils.workspace = true
 assert_matches.workspace = true
+expect-test.workspace = true
 mempool_test_utils.workspace = true
 regex.workspace = true
 
