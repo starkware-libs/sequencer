@@ -7,6 +7,7 @@ use apollo_config_manager_types::communication::{ConfigManagerRequest, ConfigMan
 use apollo_config_manager_types::config_manager_types::ConfigManagerResult;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
+use apollo_gateway_config::config::GatewayDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_mempool_config::config::MempoolDynamicConfig;
@@ -85,6 +86,13 @@ impl ConfigManager {
         Ok(config.context_dynamic_config.as_ref().unwrap().clone())
     }
 
+    pub(crate) async fn get_gateway_dynamic_config(
+        &self,
+    ) -> ConfigManagerResult<GatewayDynamicConfig> {
+        let config = self.latest_node_dynamic_config.read().await;
+        Ok(config.gateway_dynamic_config.as_ref().unwrap().clone())
+    }
+
     pub(crate) async fn get_http_server_dynamic_config(
         &self,
     ) -> ConfigManagerResult<HttpServerDynamicConfig> {
@@ -133,6 +141,7 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
             (GetClassManagerDynamicConfig, get_class_manager_dynamic_config),
             (GetConsensusDynamicConfig, get_consensus_dynamic_config),
             (GetContextDynamicConfig, get_context_dynamic_config),
+            (GetGatewayDynamicConfig, get_gateway_dynamic_config),
             (GetHttpServerDynamicConfig, get_http_server_dynamic_config),
             (GetMempoolDynamicConfig, get_mempool_dynamic_config),
             (GetStakingManagerDynamicConfig, get_staking_manager_dynamic_config),

@@ -20,6 +20,7 @@ apollo_config_manager_config.workspace = true
 apollo_config_manager_types.workspace = true
 apollo_consensus_config.workspace = true
 apollo_consensus_orchestrator_config.workspace = true
+apollo_gateway_config.workspace = true
 apollo_http_server_config.workspace = true
 apollo_infra.workspace = true
 apollo_mempool_config.workspace = true
@@ -37,6 +38,7 @@ tracing.workspace = true
 apollo_config.workspace = true
 apollo_config_manager_types = { workspace = true, features = ["testing"] }
 apollo_node_config = { workspace = true, features = ["testing"] }
+blockifier.workspace = true
 starknet_api.workspace = true
 tempfile.workspace = true
 tracing-test.workspace = true
