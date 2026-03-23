@@ -315,7 +315,6 @@ impl TestDeps {
     }
 
     pub(crate) fn setup_default_cende_ambassador(&mut self) {
-        self.cende_ambassador.expect_get_latest_received_block().returning(|| None);
         self.cende_ambassador
             .expect_write_prev_height_blob()
             .return_once(|_height| tokio::spawn(ready(true)));
