@@ -8,7 +8,7 @@ use rstest::rstest;
 use starknet_api::block::{BlockInfo, BlockNumber};
 use url::Url;
 
-use super::{CendeAmbassador, RECORDER_WRITE_BLOB_PATH};
+use super::{CendeAmbassador, RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH, RECORDER_WRITE_BLOB_PATH};
 use crate::cende::{BlobParameters, CendeConfig, CendeContext};
 use crate::metrics::{
     register_metrics,
@@ -30,7 +30,8 @@ impl BlobParameters {
 #[derive(Debug, Default)]
 struct ExpectedMetrics {
     success: usize,
-    failure_no_prev_blob: usize,
+    failure_no_latest_block: usize,
+    failure_recorder_ahead: usize,
     failure_block_height_mismatch: usize,
     failure_recorder_error: usize,
 }
@@ -40,8 +41,12 @@ impl ExpectedMetrics {
         Self { success: 1, ..Default::default() }
     }
 
-    fn no_prev_blob() -> Self {
-        Self { failure_no_prev_blob: 1, ..Default::default() }
+    fn no_latest_block() -> Self {
+        Self { failure_no_latest_block: 1, ..Default::default() }
+    }
+
+    fn recorder_ahead() -> Self {
+        Self { failure_recorder_ahead: 1, ..Default::default() }
     }
 
     fn height_mismatch() -> Self {
@@ -55,8 +60,19 @@ impl ExpectedMetrics {
     fn verify_metrics(&self, metrics: &str) {
         CENDE_WRITE_BLOB_FAILURE.assert_eq(
             metrics,
-            self.failure_no_prev_blob,
-            &[(LABEL_CENDE_FAILURE_REASON, CendeWriteFailureReason::BlobNotAvailable.into())],
+            self.failure_no_latest_block,
+            &[(
+                LABEL_CENDE_FAILURE_REASON,
+                CendeWriteFailureReason::NoLatestBlockFromRecorder.into(),
+            )],
+        );
+        CENDE_WRITE_BLOB_FAILURE.assert_eq(
+            metrics,
+            self.failure_recorder_ahead,
+            &[(
+                LABEL_CENDE_FAILURE_REASON,
+                CendeWriteFailureReason::RecorderAheadOfProposalHeight.into(),
+            )],
         );
         CENDE_WRITE_BLOB_FAILURE.assert_eq(
             metrics,
@@ -74,7 +90,7 @@ impl ExpectedMetrics {
 
 #[rstest]
 #[case::success(200, Some(9), 1, true, ExpectedMetrics::success())]
-#[case::no_prev_block(200, None, 0, false, ExpectedMetrics::no_prev_blob())]
+#[case::no_prev_block(200, None, 0, false, ExpectedMetrics::no_latest_block())]
 #[case::prev_block_height_mismatch(200, Some(7), 0, false, ExpectedMetrics::height_mismatch())]
 #[case::recorder_return_fatal_error(400, Some(9), 1, false, ExpectedMetrics::recorder_error())]
 #[tokio::test]
@@ -111,6 +127,59 @@ async fn write_prev_height_blob(
 
     assert_eq!(receiver.await.unwrap(), expected_result);
     mock.expect(expected_calls).assert();
+
+    expected_metrics.verify_metrics(&recorder.handle().render());
+}
+
+/// When prev_height_blob is None (e.g. after a restart), write_prev_height_blob queries cende's
+/// get_latest_received_block and returns true if the previous block exists at cende
+/// (no write needed), false otherwise.
+#[rstest]
+#[case::height_0_returns_true(0, None, true, ExpectedMetrics::default(), 0)] // Block 0 → skip get_latest, proceed, no failures
+#[case::recorder_has_prev_returns_true(10, Some(9), true, ExpectedMetrics::default(), 1)] // current=10, cende latest=9 → prev already there → proceed, no failures
+#[case::recorder_has_current_returns_false(
+    10,
+    Some(10),
+    false,
+    ExpectedMetrics::recorder_ahead(),
+    1
+)] // current=10, cende latest=10 → ahead → fail, RecorderAheadOfProposalHeight
+#[case::recorder_has_none_returns_false(10, None, false, ExpectedMetrics::no_latest_block(), 1)] // Cende has no block → fail, NoLatestBlockFromRecorder
+#[case::recorder_behind_returns_false(10, Some(7), false, ExpectedMetrics::default(), 1)] // current=10, cende latest=7 → behind prev 9 → fail (warn only, no metric)
+#[tokio::test]
+async fn write_prev_height_blob_when_memory_blob_missing(
+    #[case] current_height: u64,
+    #[case] latest_cende_received_block: Option<u64>,
+    #[case] expected_result: bool,
+    #[case] expected_metrics: ExpectedMetrics,
+    #[case] expected_get_latest_calls: usize,
+) {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics();
+
+    let mut server = mockito::Server::new_async().await;
+    let url = server.url();
+
+    let get_latest_body = latest_cende_received_block
+        .map(|n| format!(r#"{{"block_number": {n}}}"#))
+        .unwrap_or_else(|| r#"{"block_number": null}"#.to_string());
+    let mock_get_latest = server
+        .mock("GET", RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH)
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(get_latest_body)
+        .create();
+
+    let cende_ambassador = CendeAmbassador::new(
+        CendeConfig { recorder_url: url.parse::<Url>().unwrap(), ..Default::default() },
+        Arc::new(MockClassManagerClient::new()),
+    );
+
+    let receiver = cende_ambassador.write_prev_height_blob(BlockNumber(current_height));
+
+    assert_eq!(receiver.await.unwrap(), expected_result);
+    mock_get_latest.expect(expected_get_latest_calls).assert();
 
     expected_metrics.verify_metrics(&recorder.handle().render());
 }

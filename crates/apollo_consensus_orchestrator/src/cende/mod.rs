@@ -160,6 +160,81 @@ impl CendeAmbassador {
     }
 }
 
+/// Returns whether the previous block exists at cende for  the current height.
+async fn previous_height_exists_at_cende_recorder(
+    client: ClientWithMiddleware,
+    url: Url,
+    current_height: BlockNumber,
+) -> bool {
+    // No previous block needed for height 0.
+    if current_height == BlockNumber(0) {
+        info!("Block 0 has no previous block. Proceeding.");
+        return true;
+    }
+
+    let latest_received_block = fetch_latest_received_block(&client, &url).await;
+
+    // No latest received block, so no previous block.
+    let Some(latest) = latest_received_block else {
+        warn!("CENDE_FAILURE: Cende does not have previous block for height {current_height}.");
+        record_write_failure(CendeWriteFailureReason::NoLatestBlockFromRecorder);
+        return false;
+    };
+
+    // Cende has a block at or above the current height, fail the round.
+    if latest >= current_height {
+        warn!(
+            "Cende ahead of proposal height {current_height} (cende at {latest}). Cannot proceed \
+             with this round."
+        );
+        record_write_failure(CendeWriteFailureReason::RecorderAheadOfProposalHeight);
+        return false;
+    }
+
+    // Has previous block.
+    let prev = current_height.prev().unwrap();
+    if latest >= prev {
+        info!("Cende already has previous block for height {current_height}. Skipping write.");
+        return true;
+    }
+
+    // Highly unlikely: Cende behind previous block. Warn for debugging, no metric.
+    warn!(
+        "CENDE_FAILURE: Cende behind prev for height {current_height} (cende latest={latest}). \
+         Cannot proceed."
+    );
+    false
+}
+
+async fn fetch_latest_received_block(
+    client: &ClientWithMiddleware,
+    url: &Url,
+) -> Option<BlockNumber> {
+    match client.get(url.as_str()).send().await {
+        Ok(response) if response.status().is_success() => {
+            match response.json::<GetLatestReceivedBlockResponse>().await {
+                Ok(resp) => resp.block_number.map(BlockNumber),
+                Err(e) => {
+                    warn!("Failed to parse recorder get_latest_received_block response: {e}");
+                    None
+                }
+            }
+        }
+        Ok(response) => {
+            warn!(
+                "Recorder get_latest_received_block returned error status {}: {}",
+                response.status(),
+                response.text().await.unwrap_or_else(|_| "unparseable".to_string())
+            );
+            None
+        }
+        Err(e) => {
+            warn!("Failed to request recorder get_latest_received_block: {e}");
+            None
+        }
+    }
+}
+
 #[async_trait]
 impl CendeContext for CendeAmbassador {
     fn write_prev_height_blob(&self, current_height: BlockNumber) -> JoinHandle<bool> {
@@ -167,16 +242,18 @@ impl CendeContext for CendeAmbassador {
 
         let prev_height_blob = self.prev_height_blob.clone();
         let request_builder = self.client.post(self.write_blob_url.clone());
+        let client = self.client.clone();
+        let get_latest_url = self.get_latest_received_block_url.clone();
 
         task::spawn(
             async move {
-                // TODO(dvir): consider extracting the "should write blob" logic to a function.
                 let Some(ref blob): Option<AerospikeBlob> = *prev_height_blob.lock().await else {
-                    // This case happens when restarting the node, `prev_height_blob` initial value
-                    // is `None`.
-                    warn!("CENDE_FAILURE: No blob to write to Aerospike.");
-                    record_write_failure(CendeWriteFailureReason::BlobNotAvailable);
-                    return false;
+                    return previous_height_exists_at_cende_recorder(
+                        client,
+                        get_latest_url,
+                        current_height,
+                    )
+                    .await;
                 };
 
                 if blob.block_number.0 >= current_height.0 {
@@ -206,30 +283,7 @@ impl CendeContext for CendeAmbassador {
     }
 
     async fn get_latest_received_block(&self) -> Option<BlockNumber> {
-        match self.client.get(self.get_latest_received_block_url.clone()).send().await {
-            Ok(response) if response.status().is_success() => {
-                match response.json::<GetLatestReceivedBlockResponse>().await {
-                    Ok(resp) => resp.block_number.map(BlockNumber),
-                    Err(e) => {
-                        warn!("Failed to parse recorder get_latest_received_block response: {e}");
-                        None
-                    }
-                }
-            }
-            // Response is not successful: log and return None.
-            Ok(response) => {
-                warn!(
-                    "Recorder get_latest_received_block returned error status {}: {}",
-                    response.status(),
-                    response.text().await.unwrap_or_else(|_| "unparseable".to_string())
-                );
-                None
-            }
-            Err(e) => {
-                warn!("Failed to request recorder get_latest_received_block: {e}");
-                None
-            }
-        }
+        fetch_latest_received_block(&self.client, &self.get_latest_received_block_url).await
     }
 
     #[sequencer_latency_histogram(CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY, false)]
