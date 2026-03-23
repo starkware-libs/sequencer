@@ -260,7 +260,7 @@ async fn is_proposal_init_valid(
             "ProposalInit validation failed".to_string(),
         ));
     }
-    let (l1_gas_prices_fri, _l1_gas_prices_wei) = get_l1_prices_in_fri_and_wei(
+    let (l1_gas_prices_fri, l1_gas_prices_wei) = get_l1_prices_in_fri_and_wei(
         l1_gas_price_provider,
         init_proposed.timestamp,
         proposal_init_validation.previous_proposal_init.as_ref(),
@@ -269,17 +269,28 @@ async fn is_proposal_init_valid(
     .await;
     let l1_gas_price_margin_percent =
         VersionedConstants::latest_constants().l1_gas_price_margin_percent.into();
-    debug!("L1 price info: {l1_gas_prices_fri:?}");
+    debug!("L1 price info: FRI: {:?}, WEI: {:?}", l1_gas_prices_fri, l1_gas_prices_wei);
 
     let l1_gas_price_fri = l1_gas_prices_fri.l1_gas_price;
     let l1_data_gas_price_fri = l1_gas_prices_fri.l1_data_gas_price;
     let l1_gas_price_fri_proposed = init_proposed.l1_gas_price_fri;
     let l1_data_gas_price_fri_proposed = init_proposed.l1_data_gas_price_fri;
 
+    let l1_gas_price_wei = l1_gas_prices_wei.l1_gas_price;
+    let l1_data_gas_price_wei = l1_gas_prices_wei.l1_data_gas_price;
+    let l1_gas_price_wei_proposed = init_proposed.l1_gas_price_wei;
+    let l1_data_gas_price_wei_proposed = init_proposed.l1_data_gas_price_wei;
+
     if !(within_margin(l1_gas_price_fri_proposed, l1_gas_price_fri, l1_gas_price_margin_percent)
         && within_margin(
             l1_data_gas_price_fri_proposed,
             l1_data_gas_price_fri,
+            l1_gas_price_margin_percent,
+        )
+        && within_margin(l1_gas_price_wei_proposed, l1_gas_price_wei, l1_gas_price_margin_percent)
+        && within_margin(
+            l1_data_gas_price_wei_proposed,
+            l1_data_gas_price_wei,
             l1_gas_price_margin_percent,
         ))
     {
@@ -289,7 +300,10 @@ async fn is_proposal_init_valid(
             format!(
                 "L1 gas price mismatch: expected L1 gas price FRI={l1_gas_price_fri}, \
                  proposed={l1_gas_price_fri_proposed}, expected L1 data gas price \
-                 FRI={l1_data_gas_price_fri}, proposed={l1_data_gas_price_fri_proposed}, \
+                 FRI={l1_data_gas_price_fri}, proposed={l1_data_gas_price_fri_proposed}, expected \
+                 L1 gas price WEI={l1_gas_price_wei}, proposed={l1_gas_price_wei_proposed}, \
+                 expected L1 data gas price WEI={l1_data_gas_price_wei}, \
+                 proposed={l1_data_gas_price_wei_proposed}, \
                  l1_gas_price_margin_percent={l1_gas_price_margin_percent}"
             ),
         ));
