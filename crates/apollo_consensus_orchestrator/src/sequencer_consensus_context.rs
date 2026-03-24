@@ -48,7 +48,6 @@ use apollo_transaction_converter::transaction_converter::{
 use async_trait::async_trait;
 use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
-use futures::future::ready;
 use futures::SinkExt;
 use starknet_api::block::{
     BlockHashAndNumber,
@@ -113,17 +112,6 @@ type ProposalContent =
 ///   the proposal was originally built/validated in.
 type HeightToRoundToProposal =
     BTreeMap<BlockNumber, BTreeMap<Round, (ProposalCommitment, ProposalContent)>>;
-
-/// Cende status relative to the block we're building.
-#[derive(Debug)]
-pub(crate) enum CendeStatus {
-    /// Cende has current block (or higher) written; fail the proposal round.
-    CurrentBlob,
-    /// Cende has prev block written; skip writing, proceed with build.
-    PrevBlob,
-    /// Prev blob not yet written; must write before building.
-    PrevBlobMissing,
-}
 
 pub(crate) struct BuiltProposals {
     // {height: {proposal_commitment: (init, content, proposal_id, finished_info)}}
@@ -298,24 +286,6 @@ impl SequencerConsensusContext {
             .await
             .expect("Failed to send proposal receiver. Receiver channel closed.");
         StreamSender { proposal_sender }
-    }
-
-    async fn get_cende_status(&self, height: BlockNumber) -> CendeStatus {
-        if height == BlockNumber(0) {
-            return CendeStatus::PrevBlob;
-        }
-        match self.deps.cende_ambassador.get_latest_received_block().await {
-            Some(latest_cende_block) => {
-                if latest_cende_block >= height {
-                    CendeStatus::CurrentBlob
-                } else if latest_cende_block >= height.prev().expect("height > 0 has predecessor") {
-                    CendeStatus::PrevBlob
-                } else {
-                    CendeStatus::PrevBlobMissing
-                }
-            }
-            None => CendeStatus::PrevBlobMissing,
-        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -541,21 +511,9 @@ impl ConsensusContext for SequencerConsensusContext {
         build_param: BuildParam,
         timeout: Duration,
     ) -> Result<oneshot::Receiver<ProposalCommitment>, ConsensusError> {
-        let status = self.get_cende_status(build_param.height).await;
-        let cende_write_success = match status {
-            CendeStatus::CurrentBlob => {
-                return Err(ConsensusError::CendeAheadOfProposalHeight(build_param.height));
-            }
-            CendeStatus::PrevBlob => AbortOnDropHandle::new(tokio::spawn(ready(true))),
-            CendeStatus::PrevBlobMissing => {
-                // TODO(dvir): consider start writing the blob in `decision_reached`, to reduce
-                // transactions finality time. Use this option only for one special
-                // sequencer that is the same cluster as the recorder.
-                AbortOnDropHandle::new(
-                    self.deps.cende_ambassador.write_prev_height_blob(build_param.height),
-                )
-            }
-        };
+        let cende_write_success = AbortOnDropHandle::new(
+            self.deps.cende_ambassador.write_prev_height_blob(build_param.height),
+        );
 
         // Handles interrupting an active proposal from a previous height/round
         self.set_height_and_round(build_param.height, build_param.round).await?;
