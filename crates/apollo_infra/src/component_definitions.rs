@@ -6,6 +6,7 @@ use derive_more::{Display, FromStr};
 use rand::random;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use static_assertions::const_assert;
 use thiserror::Error;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::Instant;
@@ -16,6 +17,11 @@ use crate::requests::LabeledRequest;
 
 pub(crate) const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 pub const BUSY_PREVIOUS_REQUESTS_MSG: &str = "Server is busy addressing previous requests";
+
+pub(crate) const TCP_KEEPALIVE_FACTOR: f64 = 1.5;
+// Ensure tcp connection timeout is greater than http2 connection timeout by requiring a factor
+// greater than 1.
+const_assert!(TCP_KEEPALIVE_FACTOR > 1.0);
 
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {

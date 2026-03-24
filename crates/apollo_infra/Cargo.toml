@@ -28,6 +28,7 @@ metrics-exporter-prometheus.workspace = true
 rand.workspace = true
 rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
+socket2.workspace = true
 serde_json.workspace = true
 starknet_api.workspace = true
 static_assertions.workspace = true
