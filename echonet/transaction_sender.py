@@ -103,10 +103,10 @@ class SenderConfig:
     access_fgw_attempts: int = 3
     retry_backoff_seconds: float = 0.5
     max_retry_sleep_seconds: float = 30.0
-    sequencer_not_ready_retry_attempts: int = 70
+    sequencer_not_ready_retry_attempts: int = CONFIG.tx_sender.max_pending_txs_before_pausing * 2
 
     queue_size: int = 30
-    blocks_to_wait_before_failing_tx: int = CONFIG.tx_sender.max_pending_txs_before_pausing * 2
+    blocks_to_wait_before_failing_tx: int = CONFIG.tx_sender.max_pending_txs_before_pausing
 
 
 @dataclass(frozen=True, slots=True)
@@ -312,7 +312,9 @@ class TransactionSenderService:
                             f"Block {block_number}: total={len(all_txs)} valid={len(valid_txs)}"
                         )
 
-                        shared.record_sent_tx_timestamps_for_block(valid_txs, timestamp)
+                        shared.record_sent_tx_block_metadata_for_block(
+                            valid_txs, timestamp, block_number
+                        )
                         for tx in valid_txs:
                             tx_data = TxData(
                                 tx=tx,

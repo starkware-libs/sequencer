@@ -87,9 +87,9 @@ FROM base AS builder
 WORKDIR /app
 
 ARG BUILD_MODE=release
-ARG RUSTFLAGS=""
+ARG TARGET_CPU=""
 ENV BUILD_MODE=${BUILD_MODE}
-ENV RUSTFLAGS=${RUSTFLAGS}
+ENV TARGET_CPU=${TARGET_CPU}
 
 # Validate BUILD_MODE value.
 RUN if [ "$BUILD_MODE" != "release" ] && [ "$BUILD_MODE" != "debug" ]; then \
@@ -101,14 +101,39 @@ RUN if [ "$BUILD_MODE" != "release" ] && [ "$BUILD_MODE" != "debug" ]; then \
 # Use -p starknet_transaction_prover to avoid building LLVM-dependent crates (e.g., cairo_native).
 COPY --from=planner /app/recipe.json recipe.json
 COPY crates/starknet_transaction_prover/rust-toolchain.toml rust-toolchain.toml
+# TARGET_CPU is injected through profile env vars so cargo-chef and its child cargo builds use
+# the same optimized profile, while build scripts and proc-macros stay on generic host settings.
 RUN BUILD_FLAGS=$([ "$BUILD_MODE" = "release" ] && echo "--release" || true); \
-    cargo chef cook $BUILD_FLAGS -p starknet_transaction_prover --features stwo_proving --recipe-path recipe.json
+    if [ -n "$TARGET_CPU" ]; then \
+        PROFILE_ENV_PREFIX=$([ "$BUILD_MODE" = "release" ] && echo "CARGO_PROFILE_RELEASE" || echo "CARGO_PROFILE_DEV"); \
+        env \
+            CARGO_UNSTABLE_PROFILE_RUSTFLAGS=true \
+            "${PROFILE_ENV_PREFIX}_RUSTFLAGS=-C target-cpu=${TARGET_CPU}" \
+            "${PROFILE_ENV_PREFIX}_BUILD_OVERRIDE_RUSTFLAGS=" \
+            cargo chef cook $BUILD_FLAGS \
+                -p starknet_transaction_prover \
+                --features stwo_proving \
+                --recipe-path recipe.json; \
+    else \
+        cargo chef cook $BUILD_FLAGS -p starknet_transaction_prover --features stwo_proving --recipe-path recipe.json; \
+    fi
 
 # Copy source and build starknet_transaction_prover (without cairo_native feature).
 COPY . .
 COPY crates/starknet_transaction_prover/rust-toolchain.toml rust-toolchain.toml
 RUN BUILD_FLAGS=$([ "$BUILD_MODE" = "release" ] && echo "--release" || true); \
-    cargo build $BUILD_FLAGS -p starknet_transaction_prover --features stwo_proving
+    if [ -n "$TARGET_CPU" ]; then \
+        PROFILE_ENV_PREFIX=$([ "$BUILD_MODE" = "release" ] && echo "CARGO_PROFILE_RELEASE" || echo "CARGO_PROFILE_DEV"); \
+        env \
+            CARGO_UNSTABLE_PROFILE_RUSTFLAGS=true \
+            "${PROFILE_ENV_PREFIX}_RUSTFLAGS=-C target-cpu=${TARGET_CPU}" \
+            "${PROFILE_ENV_PREFIX}_BUILD_OVERRIDE_RUSTFLAGS=" \
+            cargo build $BUILD_FLAGS \
+                -p starknet_transaction_prover \
+                --features stwo_proving; \
+    else \
+        cargo build $BUILD_FLAGS -p starknet_transaction_prover --features stwo_proving; \
+    fi
 
 # =============================================================================
 # Stage 4: Final runtime image
@@ -144,6 +169,14 @@ RUN set -ex; \
     useradd --gid ${ID} --uid ${ID} --comment "" --create-home --home-dir /app sequencer; \
     mkdir -p /data; \
     chown -R sequencer:sequencer /app /data
+
+# OCI metadata labels.
+# source: links the GHCR package to the repository (inherits visibility settings).
+# description: short summary shown on the package page.
+# documentation: links to the crate README.
+LABEL org.opencontainers.image.source="https://github.com/starkware-libs/sequencer"
+LABEL org.opencontainers.image.description="A standalone JSON-RPC service that generates STARK proofs for individual Starknet transactions"
+LABEL org.opencontainers.image.documentation="https://github.com/starkware-libs/sequencer/blob/main/crates/starknet_transaction_prover/README.md"
 
 # Expose the JSON-RPC server port.
 EXPOSE 3000

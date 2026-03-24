@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use apollo_sizeof::SizeOf;
+use privacy_circuit_verify::{verify_recursive_circuit, PrivacyProofOutput};
 use serde::{Deserialize, Serialize};
 use starknet_api::transaction::fields::{Proof, ProofFacts, PROOF_VERSION};
 use starknet_types_core::felt::Felt;
@@ -136,9 +137,9 @@ pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyP
 
     // Reconstruct the output preimage from proof facts and verify the proof.
     let output_preimage = reconstruct_output_preimage(&proof_facts)?;
-    let proof_output =
-        privacy_circuit_verify::PrivacyProofOutput { proof: proof.0.to_vec(), output_preimage };
-    privacy_circuit_verify::verify(&proof_output)
+    // TODO(Avi): Avoid cloning the proof.
+    let proof_output = PrivacyProofOutput { proof: proof.0.to_vec(), output_preimage };
+    verify_recursive_circuit(&proof_output)
         .map_err(|e| VerifyProofError::Verification(e.to_string()))?;
 
     Ok(())

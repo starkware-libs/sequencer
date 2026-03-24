@@ -214,6 +214,8 @@ pub fn cairo0_format_batch<S: AsRef<str>>(files: HashMap<String, S>) -> HashMap<
     sorted_files.sort_by(|(a, _), (b, _)| a.cmp(b));
 
     // First stage: remove unused imports before writing to temp files.
+    // Keep pre-format content for retry if cairo-format -i truncates a file.
+    let mut pre_format_contents: Vec<String> = Vec::with_capacity(filenames.capacity());
     for (filename, content) in sorted_files {
         let without_unused = remove_unused_cairo0_imports(content.as_ref());
         let file_path = temp_dir.path().join(&filename);
@@ -221,18 +223,37 @@ pub fn cairo0_format_batch<S: AsRef<str>>(files: HashMap<String, S>) -> HashMap<
         if let Some(parent) = file_path.parent() {
             std::fs::create_dir_all(parent).unwrap();
         }
-        std::fs::write(&file_path, without_unused).unwrap();
+        std::fs::write(&file_path, &without_unused).unwrap();
+        pre_format_contents.push(without_unused);
         file_paths.push(file_path);
         filenames.push(filename);
     }
 
     // Run cairo-format on all files at once with -i (in-place).
-    let mut format_command = Command::new(script_type.script_name());
+    let format_script = script_type.script_name();
+    let mut format_command = Command::new(format_script);
     format_command.arg("-i");
     for path in &file_paths {
         format_command.arg(path);
     }
     run_command(format_command);
+
+    // Guard against cairo-format -i truncating files. In-place formatting opens the file and
+    // truncates it before writing back; under CI resource pressure a file can end up empty.
+    // Retry affected files: restore original content, then re-format via stdout (no truncation
+    // risk since the file is only read, not written by cairo-format).
+    for (path, original) in file_paths.iter().zip(pre_format_contents.iter()) {
+        if std::fs::metadata(path).unwrap().len() == 0 && !original.is_empty() {
+            std::fs::write(path, original).unwrap();
+            let output = Command::new(format_script).arg(path).output().unwrap();
+            assert!(
+                output.status.success(),
+                "cairo-format stdout retry failed for {path:?}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            std::fs::write(path, &output.stdout).unwrap();
+        }
+    }
 
     // Run isort on all files at once.
     let mut isort_command = Command::new("isort");

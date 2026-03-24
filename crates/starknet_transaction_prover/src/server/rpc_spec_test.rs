@@ -347,7 +347,7 @@ async fn test_prove_transaction_rejects_non_empty_proof(
 ) {
     let transaction = rpc_invoke_tx(invoke_tx_args!(
         resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds::default()),
-        proof: Proof::from(vec![1u32])
+        proof: Proof::from(vec![1u8])
     ));
     assert_prove_transaction_error(&rpc_module, transaction, "INVALID_TRANSACTION_INPUT").await;
 }

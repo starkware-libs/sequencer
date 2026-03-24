@@ -59,9 +59,9 @@ const STAKER_4: Staker = Staker {
 };
 
 const EPOCH_0: Epoch = Epoch { epoch_id: 0, start_block: BlockNumber(0), epoch_length: 100 };
-const EPOCH_1: Epoch = Epoch { epoch_id: 1, start_block: BlockNumber(1), epoch_length: 100 };
-const EPOCH_2: Epoch = Epoch { epoch_id: 2, start_block: BlockNumber(101), epoch_length: 100 };
-const EPOCH_3: Epoch = Epoch { epoch_id: 3, start_block: BlockNumber(201), epoch_length: 100 };
+const EPOCH_1: Epoch = Epoch { epoch_id: 1, start_block: BlockNumber(1), epoch_length: 1000 };
+const EPOCH_2: Epoch = Epoch { epoch_id: 2, start_block: BlockNumber(1001), epoch_length: 1000 };
+const EPOCH_3: Epoch = Epoch { epoch_id: 3, start_block: BlockNumber(2001), epoch_length: 1000 };
 
 const E1_H1: BlockNumber = EPOCH_1.start_block;
 const E1_H2: BlockNumber = BlockNumber(EPOCH_1.start_block.0 + EPOCH_1.epoch_length - 1);

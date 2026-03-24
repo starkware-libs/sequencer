@@ -48,7 +48,6 @@ use apollo_transaction_converter::transaction_converter::{
 use async_trait::async_trait;
 use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
-use futures::future::ready;
 use futures::SinkExt;
 use starknet_api::block::{
     BlockHashAndNumber,
@@ -289,29 +288,6 @@ impl SequencerConsensusContext {
         StreamSender { proposal_sender }
     }
 
-    async fn get_latest_sync_height(&self) -> Option<BlockNumber> {
-        match self.deps.state_sync_client.get_latest_block_number().await {
-            Ok(height) => height,
-            Err(e) => {
-                error!("Failed to get latest sync height: {e:?}");
-                None
-            }
-        }
-    }
-
-    async fn can_skip_write_prev_height_blob(&self, height: BlockNumber) -> bool {
-        if height == BlockNumber(0) {
-            return true;
-        }
-        match self.get_latest_sync_height().await {
-            Some(latest_sync_height) => {
-                latest_sync_height
-                    >= height.prev().expect("Height should be greater than 0. Checked above.")
-            }
-            None => false,
-        }
-    }
-
     #[allow(clippy::too_many_arguments)]
     async fn update_state_sync_with_new_block(
         &self,
@@ -535,19 +511,9 @@ impl ConsensusContext for SequencerConsensusContext {
         build_param: BuildParam,
         timeout: Duration,
     ) -> Result<oneshot::Receiver<ProposalCommitment>, ConsensusError> {
-        let cende_write_success = if self.can_skip_write_prev_height_blob(build_param.height).await
-        {
-            // cende_write_success is a AbortOnDropHandle. To get the actual handle we need to
-            // spawn the task.
-            AbortOnDropHandle::new(tokio::spawn(ready(true)))
-        } else {
-            // TODO(dvir): consider start writing the blob in `decision_reached`, to reduce
-            // transactions finality time. Use this option only for one special
-            // sequencer that is the same cluster as the recorder.
-            AbortOnDropHandle::new(
-                self.deps.cende_ambassador.write_prev_height_blob(build_param.height),
-            )
-        };
+        let cende_write_success = AbortOnDropHandle::new(
+            self.deps.cende_ambassador.write_prev_height_blob(build_param.height),
+        );
 
         // Handles interrupting an active proposal from a previous height/round
         self.set_height_and_round(build_param.height, build_param.round).await?;

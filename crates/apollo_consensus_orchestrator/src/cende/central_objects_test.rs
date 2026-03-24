@@ -19,6 +19,7 @@ use apollo_sizeof::SizeOf;
 use apollo_starknet_client::reader::objects::state::StateDiff;
 use apollo_starknet_client::reader::objects::transaction::ReservedDataAvailabilityMode;
 use apollo_starknet_client::reader::StorageEntry;
+use blockifier::bouncer::BouncerWeights;
 use blockifier::execution::call_info::{
     CallExecution,
     CallInfo,
@@ -395,8 +396,8 @@ fn central_l1_handler_tx() -> CentralTransactionWritten {
     }
 }
 
-fn central_bouncer_weights() -> CentralBouncerWeights {
-    CentralBouncerWeights {
+fn test_bouncer_weights() -> BouncerWeights {
+    BouncerWeights {
         l1_gas: 8,
         message_segment_length: 9,
         n_events: 2,
@@ -404,7 +405,12 @@ fn central_bouncer_weights() -> CentralBouncerWeights {
         sierra_gas: GasAmount(10),
         n_txs: 2,
         proving_gas: GasAmount(11),
+        receipt_l2_gas: GasAmount(7),
     }
+}
+
+fn central_bouncer_weights() -> CentralBouncerWeights {
+    test_bouncer_weights().into()
 }
 
 fn central_fee_market_info() -> CentralFeeMarketInfo {
@@ -737,7 +743,7 @@ fn central_blob() -> AerospikeBlob {
         state_diff: thin_state_diff(),
         compressed_state_diff: Some(commitment_state_diff()),
         transactions_with_execution_infos,
-        bouncer_weights: central_bouncer_weights(),
+        bouncer_weights: test_bouncer_weights(),
         fee_market_info: central_fee_market_info(),
         casm_hash_computation_data_sierra_gas: central_casm_hash_computation_data(),
         casm_hash_computation_data_proving_gas: central_casm_hash_computation_data(),
@@ -768,7 +774,7 @@ fn central_blob_with_empty_or_none_fields() -> AerospikeBlob {
         state_diff: thin_state_diff(),
         compressed_state_diff: None,
         transactions_with_execution_infos: vec![],
-        bouncer_weights: central_bouncer_weights(),
+        bouncer_weights: test_bouncer_weights(),
         fee_market_info: central_fee_market_info(),
         casm_hash_computation_data_sierra_gas: central_casm_hash_computation_data(),
         casm_hash_computation_data_proving_gas: central_casm_hash_computation_data(),

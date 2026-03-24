@@ -6,5 +6,8 @@
   "max_concurrent_requests": 2,
   "max_connections": 10,
   "cors_allow_origin": [],
-  "validate_zero_fee_fields": true
+  "validate_zero_fee_fields": true,
+  "prefetch_state": true,
+  "use_latest_versioned_constants": true,
+  "compiled_class_cache_size": 600
 }

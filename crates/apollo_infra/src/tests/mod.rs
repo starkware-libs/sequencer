@@ -339,6 +339,25 @@ impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for Componen
     }
 }
 
+<<<<<<< HEAD
 fn dummy_remote_server_config(ip: IpAddr, max_concurrency: usize) -> RemoteServerConfig {
     RemoteServerConfig { bind_ip: ip, max_concurrency, ..Default::default() }
+||||||| 9a7aa55855
+fn dummy_remote_server_config(ip: IpAddr) -> RemoteServerConfig {
+    RemoteServerConfig {
+        bind_ip: ip,
+        // arbitrary value
+        max_streams_per_connection: 5,
+        set_tcp_nodelay: true,
+    }
+=======
+fn dummy_remote_server_config(ip: IpAddr) -> RemoteServerConfig {
+    RemoteServerConfig {
+        bind_ip: ip,
+        // arbitrary value
+        max_streams_per_connection: 5,
+        set_tcp_nodelay: true,
+        ..Default::default()
+    }
+>>>>>>> origin/main-v0.14.2
 }

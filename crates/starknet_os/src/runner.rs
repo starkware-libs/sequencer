@@ -42,9 +42,7 @@ pub(crate) fn run_program<HP: HintProcessor + CommonHintProcessor>(
     hint_processor: &mut HP,
 ) -> Result<RunnerReturnObject, StarknetOsError> {
     // Init CairoRunConfig.
-    // TODO(Einat): Set trace_enabled to false once blake opcodes are counted in the VM.
-    let cairo_run_config =
-        CairoRunConfig { layout, relocate_mem: true, trace_enabled: true, ..Default::default() };
+    let cairo_run_config = CairoRunConfig { layout, relocate_mem: true, ..Default::default() };
     let allow_missing_builtins = cairo_run_config.allow_missing_builtins.unwrap_or(false);
 
     // Init cairo runner.

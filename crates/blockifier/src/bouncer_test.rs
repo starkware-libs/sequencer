@@ -71,6 +71,7 @@ fn block_max_capacity() -> BouncerWeights {
         sierra_gas: GasAmount(20),
         n_txs: 20,
         proving_gas: GasAmount(20),
+        receipt_l2_gas: GasAmount(20),
     }
 }
 
@@ -89,6 +90,7 @@ fn test_block_weights_has_room_sierra_gas(block_max_capacity: BouncerWeights) {
         sierra_gas: GasAmount(7),
         n_txs: 7,
         proving_gas: GasAmount(5),
+        receipt_l2_gas: GasAmount(0),
     };
 
     assert!(block_max_capacity.has_room(bouncer_weights));
@@ -101,6 +103,7 @@ fn test_block_weights_has_room_sierra_gas(block_max_capacity: BouncerWeights) {
         n_txs: 5,
         sierra_gas: GasAmount(25),
         proving_gas: GasAmount(5),
+        receipt_l2_gas: GasAmount(0),
     };
 
     assert!(!block_max_capacity.has_room(bouncer_weights_exceeds_max));
@@ -115,6 +118,7 @@ fn test_block_weights_has_room_sierra_gas(block_max_capacity: BouncerWeights) {
         sierra_gas: GasAmount(7),
         n_txs: 7,
         proving_gas: GasAmount(5),
+        receipt_l2_gas: GasAmount(0),
     }, "")]
 #[case::sierra_gas_exceeded(BouncerWeights {
         l1_gas: 20,
@@ -124,6 +128,7 @@ fn test_block_weights_has_room_sierra_gas(block_max_capacity: BouncerWeights) {
         sierra_gas: GasAmount(27),
         n_txs: 7,
         proving_gas: GasAmount(5),
+        receipt_l2_gas: GasAmount(0),
     }, "sierra_gas")]
 #[case::multiple_weights_exceeded(BouncerWeights {
         l1_gas: 7,
@@ -133,6 +138,7 @@ fn test_block_weights_has_room_sierra_gas(block_max_capacity: BouncerWeights) {
         sierra_gas: GasAmount(7),
         n_txs: 7,
         proving_gas: GasAmount(22),
+        receipt_l2_gas: GasAmount(0),
     }, "message_segment_length, state_diff_size, proving_gas")]
 fn test_block_weights_exceeded(
     #[case] accumulated_weight: BouncerWeights,
@@ -159,6 +165,7 @@ fn test_block_weights_has_room_n_txs(
         sierra_gas: GasAmount(7),
         n_txs,
         proving_gas: GasAmount(7),
+        receipt_l2_gas: GasAmount(0),
     };
 
     assert_eq!(block_max_capacity.has_room(bouncer_weights), has_room);
@@ -186,6 +193,7 @@ fn test_block_weights_has_room_n_txs(
         sierra_gas: GasAmount(10),
         n_txs: 1,
         proving_gas: GasAmount(10),
+        receipt_l2_gas: GasAmount(0),
     },
     casm_hash_computation_data_sierra_gas: CasmHashComputationData{
         class_hash_to_casm_hash_computation_gas: HashMap::from([
@@ -219,6 +227,7 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         sierra_gas: GasAmount(9),
         n_txs: 1,
         proving_gas: GasAmount(5),
+        receipt_l2_gas: GasAmount(0),
     };
 
     let class_hash_to_casm_hash_computation_gas_to_update =
@@ -313,6 +322,7 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
         n_txs: 20,
         sierra_gas: GasAmount(20),
         proving_gas: proving_gas_max_capacity,
+        receipt_l2_gas: GasAmount(20),
     };
     let bouncer_config = BouncerConfig { block_max_capacity, builtin_weights };
 
@@ -324,6 +334,7 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
         sierra_gas: GasAmount(10),
         n_txs: 10,
         proving_gas: GasAmount(10),
+        receipt_l2_gas: GasAmount(0),
     };
     let accumulated_weights = TxWeights { bouncer_weights, ..Default::default() };
 
@@ -344,6 +355,7 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
         &cairo_primitive_counter_map(builtin_counters),
         &tx_resources,
         &block_context.versioned_constants,
+        GasAmount::ZERO,
     );
 
     match scenario {
@@ -380,6 +392,7 @@ fn test_transaction_too_large_sierra_gas_based(block_context: BlockContext) {
         &tx_state_changes_keys,
         &bouncer_config,
         &block_context.versioned_constants,
+        GasAmount::ZERO,
     )
     .map_err(TransactionExecutorError::TransactionExecutionError);
 
@@ -411,6 +424,7 @@ fn test_bouncer_try_update_n_txs(
         sierra_gas: GasAmount(10),
         n_txs: 19,
         proving_gas: GasAmount(10),
+        receipt_l2_gas: GasAmount(0),
     };
 
     let accumulated_weights = TxWeights { bouncer_weights, ..Default::default() };
@@ -442,6 +456,7 @@ fn test_bouncer_try_update_n_txs(
         &CairoPrimitiveCounterMap::default(),
         &TransactionResources::default(),
         &block_context.versioned_constants,
+        GasAmount::ZERO,
     );
     assert_matches!(result, Ok(()));
 
@@ -458,6 +473,9 @@ fn test_bouncer_try_update_n_txs(
             n_txs: 20,
             proving_gas: GasAmount(
                 331210,
+            ),
+            receipt_l2_gas: GasAmount(
+                0,
             ),
         }
     "#]]
@@ -476,6 +494,7 @@ fn test_bouncer_try_update_n_txs(
         &CairoPrimitiveCounterMap::default(),
         &TransactionResources::default(),
         &block_context.versioned_constants,
+        GasAmount::ZERO,
     );
 
     assert_matches!(result, Err(TransactionExecutorError::BlockFull));
@@ -507,6 +526,7 @@ fn test_get_tx_weights_with_casm_hash_computation(block_context: BlockContext) {
         &block_context.versioned_constants,
         &CairoPrimitiveCounterMap::default(),
         &BouncerConfig::default(),
+        GasAmount::ZERO,
     );
 
     let tx_weights = result.unwrap();
@@ -671,6 +691,7 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
         &block_context.versioned_constants,
         &cairo_primitive_counter_map(tx_builtin_counters.clone()),
         &block_context.bouncer_config,
+        GasAmount::ZERO,
     )
     .unwrap();
 
@@ -859,6 +880,7 @@ fn get_tx_weights_applies_migration_gas_delta(
         &vc_migration_disabled,
         &CairoPrimitiveCounterMap::default(),
         &bc_migration_enabled.bouncer_config,
+        GasAmount::ZERO,
     )
     .unwrap();
 
@@ -875,6 +897,7 @@ fn get_tx_weights_applies_migration_gas_delta(
         &bc_migration_enabled.versioned_constants,
         &CairoPrimitiveCounterMap::default(),
         &bc_migration_enabled.bouncer_config,
+        GasAmount::ZERO,
     )
     .unwrap();
 

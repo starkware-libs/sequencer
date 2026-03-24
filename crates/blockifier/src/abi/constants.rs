@@ -29,6 +29,7 @@ pub const N_MEMORY_HOLES: &str = "n_memory_holes";
 pub const SIERRA_GAS: &str = "sierra_gas";
 pub const N_TXS: &str = "n_txs";
 pub const PROVING_GAS: &str = "proving_gas";
+pub const RECEIPT_L2_GAS: &str = "receipt_l2_gas";
 
 // Casm hash calculation-related constants.
 pub const CAIRO0_ENTRY_POINT_STRUCT_SIZE: usize = 2;
