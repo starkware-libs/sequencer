@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774364136071,
+  "lastUpdate": 1774368202248,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -951,6 +951,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1274.6040386900002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "58e983b607c2169926c93df96fd2e9fdb42e8e6e",
+          "message": "Merge pull request #13443 from starkware-libs/dori/merge-main-v0.14.2-into-main-1774353189\n\nMerge main-v0.14.2 into main",
+          "timestamp": "2026-03-24T15:39:47Z",
+          "tree_id": "32da8f701165ee7043065c269ac76b7d7f7c0223",
+          "url": "https://github.com/starkware-libs/sequencer/commit/58e983b607c2169926c93df96fd2e9fdb42e8e6e"
+        },
+        "date": 1774368201848,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 895.13581515,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1374.7935519100001,
             "unit": "ms"
           }
         ]
