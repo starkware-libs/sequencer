@@ -692,5 +692,5 @@ pub fn get_apollo_alerts() -> Alerts {
     alerts.push(get_state_sync_lag());
     alerts.append(&mut get_state_sync_stuck_vec());
 
-    Alerts::new(alerts)
+    Alerts::new(alerts, EVALUATION_INTERVAL_SEC_DEFAULT)
 }

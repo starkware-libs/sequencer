@@ -1,4 +1,5 @@
 {
+  "intervalSec": 30,
   "alerts": [
     {
       "name": "batcher_storage_open_read_transactions",
