@@ -17,6 +17,7 @@ use hyper_util::client::legacy::Client;
 use hyper_util::rt::TokioExecutor;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use static_assertions::const_assert;
 use tokio::sync::Mutex;
 use tokio::time::Instant;
 use tracing::field::{display, Empty};
@@ -39,6 +40,11 @@ pub const DEFAULT_RETRIES: usize = 15;
 pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "request timed out";
 
 const DEFAULT_IDLE_CONNECTIONS: usize = 10;
+const TCP_IDLE_TIMEOUT_FACTOR: f64 = 1.5;
+// Ensure tcp connection timeout is greater than http2 connection timeout by requiring a factor
+// greater than 1.
+const_assert!(TCP_IDLE_TIMEOUT_FACTOR > 1.0);
+
 // 8 MiB — bounds memory materialized from a single response as defense in depth.
 const DEFAULT_MAX_RESPONSE_BODY_BYTES: usize = 8 * 1024 * 1024;
 const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
@@ -54,6 +60,8 @@ const DEFAULT_REQUEST_TIMEOUT_MS: u64 = 30_000;
 pub struct RemoteClientConfig {
     pub retries: usize,
     pub idle_connections: usize,
+    // Determines client connection timeouts. Used plainly for HTTP/2 connections, and with a
+    // `TCP_IDLE_TIMEOUT_FACTOR` for TCP connections.
     pub idle_timeout_ms: u64,
     pub attempts_per_log: usize,
     pub initial_retry_delay_ms: u64,
@@ -184,13 +192,20 @@ where
         metrics: &'static RemoteClientMetrics,
     ) -> Self {
         let uri = format!("http://{url}:{port}/").parse().unwrap();
+
+        let idle_timeout = Duration::from_millis(config.idle_timeout_ms);
+
+        // Create the tcp connector.
         let mut connector = HttpConnector::new();
         connector.set_nodelay(config.set_tcp_nodelay);
         connector.set_connect_timeout(Some(Duration::from_millis(config.connection_timeout_ms)));
+        connector.set_keepalive(Some(idle_timeout.mul_f64(TCP_IDLE_TIMEOUT_FACTOR)));
+
+        // Create the HTTP/2 client.
         let client = Client::builder(TokioExecutor::new())
             .http2_only(true)
             .pool_max_idle_per_host(config.idle_connections)
-            .pool_idle_timeout(Duration::from_millis(config.idle_timeout_ms))
+            .pool_idle_timeout(idle_timeout)
             .build(connector);
 
         debug!("RemoteComponentClient created with URI: {uri:?}");
