@@ -41,15 +41,11 @@ use crate::serde_utils::SerdeWrapper;
 
 const DEFAULT_MAX_STREAMS_PER_CONNECTION: u32 = 8;
 const DEFAULT_BIND_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
-<<<<<<< HEAD
 const DEFAULT_MAX_CONCURRENCY: usize = 128;
 // 8 MiB — bounds memory materialized from a single request as defense in depth.
 const DEFAULT_MAX_REQUEST_BODY_BYTES: usize = 8 * 1024 * 1024;
-||||||| 9a7aa55855
-=======
 const DEFAULT_KEEPALIVE_INTERVAL_MS: u64 = 30_000;
 const DEFAULT_KEEPALIVE_TIMEOUT_MS: u64 = 10_000;
->>>>>>> origin/main-v0.14.2
 
 macro_rules! serve_connection {
     (
@@ -80,15 +76,11 @@ pub struct RemoteServerConfig {
     pub max_streams_per_connection: u32,
     pub bind_ip: IpAddr,
     pub set_tcp_nodelay: bool,
-<<<<<<< HEAD
     #[validate(custom(function = "validate_positive"))]
     pub max_concurrency: usize,
     pub max_request_body_bytes: usize,
-||||||| 9a7aa55855
-=======
     pub keepalive_interval_ms: u64,
     pub keepalive_timeout_ms: u64,
->>>>>>> origin/main-v0.14.2
 }
 
 impl SerializeConfig for RemoteServerConfig {
@@ -112,7 +104,6 @@ impl SerializeConfig for RemoteServerConfig {
                 "Whether to set TCP_NODELAY on the server responses.",
                 ParamPrivacyInput::Public,
             ),
-<<<<<<< HEAD
             ser_param(
                 "max_concurrency",
                 &self.max_concurrency,
@@ -126,8 +117,6 @@ impl SerializeConfig for RemoteServerConfig {
                  this limit are rejected with 413 Payload Too Large.",
                 ParamPrivacyInput::Public,
             ),
-||||||| 9a7aa55855
-=======
             ser_param(
                 "keepalive_interval_ms",
                 &self.keepalive_interval_ms,
@@ -141,7 +130,6 @@ impl SerializeConfig for RemoteServerConfig {
                  connection.",
                 ParamPrivacyInput::Public,
             ),
->>>>>>> origin/main-v0.14.2
         ])
     }
 }
@@ -152,14 +140,10 @@ impl Default for RemoteServerConfig {
             max_streams_per_connection: DEFAULT_MAX_STREAMS_PER_CONNECTION,
             bind_ip: DEFAULT_BIND_IP,
             set_tcp_nodelay: true,
-<<<<<<< HEAD
             max_concurrency: DEFAULT_MAX_CONCURRENCY,
             max_request_body_bytes: DEFAULT_MAX_REQUEST_BODY_BYTES,
-||||||| 9a7aa55855
-=======
             keepalive_interval_ms: DEFAULT_KEEPALIVE_INTERVAL_MS,
             keepalive_timeout_ms: DEFAULT_KEEPALIVE_TIMEOUT_MS,
->>>>>>> origin/main-v0.14.2
         }
     }
 }
@@ -306,15 +290,9 @@ where
              keepalive_timeout: Duration,
              connection_semaphore: Arc<Semaphore>,
              local_client: LocalComponentClient<Request, Response>,
-<<<<<<< HEAD
              metrics: &'static RemoteServerMetrics,
-             max_request_body_bytes: usize| {
-||||||| 9a7aa55855
-             metrics: &'static RemoteServerMetrics| {
-=======
-             metrics: &'static RemoteServerMetrics,
+             max_request_body_bytes: usize,
              client_peer: SocketAddr| {
->>>>>>> origin/main-v0.14.2
                 async move {
                     trace!(remote_addr = %client_peer, "remote component TCP connection opened");
                     match connection_semaphore.try_acquire_owned() {
@@ -442,12 +420,8 @@ where
                 connection_semaphore.clone(),
                 self.local_client.clone(),
                 self.metrics,
-<<<<<<< HEAD
                 self.config.max_request_body_bytes,
-||||||| 9a7aa55855
-=======
                 peer_addr,
->>>>>>> origin/main-v0.14.2
             ));
         }
     }

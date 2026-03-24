@@ -694,19 +694,6 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-<<<<<<< HEAD
-  "components.batcher.remote_server_config.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
-  "components.batcher.remote_server_config.max_request_body_bytes": {
-    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
-    "privacy": "Public",
-    "value": 8388608
-  },
-||||||| 9a7aa55855
-=======
   "components.batcher.remote_server_config.keepalive_interval_ms": {
     "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
     "privacy": "Public",
@@ -717,7 +704,16 @@
     "privacy": "Public",
     "value": 10000
   },
->>>>>>> origin/main-v0.14.2
+  "components.batcher.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
+  "components.batcher.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.batcher.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -838,19 +834,6 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-<<<<<<< HEAD
-  "components.class_manager.remote_server_config.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
-  "components.class_manager.remote_server_config.max_request_body_bytes": {
-    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
-    "privacy": "Public",
-    "value": 8388608
-  },
-||||||| 9a7aa55855
-=======
   "components.class_manager.remote_server_config.keepalive_interval_ms": {
     "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
     "privacy": "Public",
@@ -861,7 +844,16 @@
     "privacy": "Public",
     "value": 10000
   },
->>>>>>> origin/main-v0.14.2
+  "components.class_manager.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
+  "components.class_manager.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.class_manager.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -982,19 +974,6 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-<<<<<<< HEAD
-  "components.committer.remote_server_config.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
-  "components.committer.remote_server_config.max_request_body_bytes": {
-    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
-    "privacy": "Public",
-    "value": 8388608
-  },
-||||||| 9a7aa55855
-=======
   "components.committer.remote_server_config.keepalive_interval_ms": {
     "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
     "privacy": "Public",
@@ -1005,7 +984,16 @@
     "privacy": "Public",
     "value": 10000
   },
->>>>>>> origin/main-v0.14.2
+  "components.committer.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
+  "components.committer.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.committer.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1126,19 +1114,6 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-<<<<<<< HEAD
-  "components.config_manager.remote_server_config.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
-  "components.config_manager.remote_server_config.max_request_body_bytes": {
-    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
-    "privacy": "Public",
-    "value": 8388608
-  },
-||||||| 9a7aa55855
-=======
   "components.config_manager.remote_server_config.keepalive_interval_ms": {
     "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
     "privacy": "Public",
@@ -1149,7 +1124,16 @@
     "privacy": "Public",
     "value": 10000
   },
->>>>>>> origin/main-v0.14.2
+  "components.config_manager.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
+  "components.config_manager.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.config_manager.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1275,19 +1259,6 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-<<<<<<< HEAD
-  "components.gateway.remote_server_config.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
-  "components.gateway.remote_server_config.max_request_body_bytes": {
-    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
-    "privacy": "Public",
-    "value": 8388608
-  },
-||||||| 9a7aa55855
-=======
   "components.gateway.remote_server_config.keepalive_interval_ms": {
     "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
     "privacy": "Public",
@@ -1298,7 +1269,16 @@
     "privacy": "Public",
     "value": 10000
   },
->>>>>>> origin/main-v0.14.2
+  "components.gateway.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
+  "components.gateway.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.gateway.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1423,6 +1403,16 @@
     "description": "Binding address of the remote component server.",
     "privacy": "Public",
     "value": "0.0.0.0"
+  },
+  "components.l1_events_provider.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.l1_events_provider.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 10000
   },
   "components.l1_events_provider.remote_server_config.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -1559,19 +1549,6 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-<<<<<<< HEAD
-  "components.l1_gas_price_provider.remote_server_config.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
-  "components.l1_gas_price_provider.remote_server_config.max_request_body_bytes": {
-    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
-    "privacy": "Public",
-    "value": 8388608
-  },
-||||||| 9a7aa55855
-=======
   "components.l1_gas_price_provider.remote_server_config.keepalive_interval_ms": {
     "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
     "privacy": "Public",
@@ -1582,7 +1559,16 @@
     "privacy": "Public",
     "value": 10000
   },
->>>>>>> origin/main-v0.14.2
+  "components.l1_gas_price_provider.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
+  "components.l1_gas_price_provider.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.l1_gas_price_provider.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -1603,250 +1589,6 @@
     "privacy": "Public",
     "value": "Enabled"
   },
-<<<<<<< HEAD
-||||||| 9a7aa55855
-  "components.l1_provider.execution_mode": {
-    "description": "The component execution mode.",
-    "privacy": "Public",
-    "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.l1_provider.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "components.l1_provider.local_server_config.high_priority_requests_channel_capacity": {
-    "description": "The high priority requests channel capacity.",
-    "privacy": "Public",
-    "value": 1024
-  },
-  "components.l1_provider.local_server_config.inbound_requests_channel_capacity": {
-    "description": "The inbound requests channel capacity.",
-    "privacy": "Public",
-    "value": 1024
-  },
-  "components.l1_provider.local_server_config.normal_priority_requests_channel_capacity": {
-    "description": "The normal priority requests channel capacity.",
-    "privacy": "Public",
-    "value": 1024
-  },
-  "components.l1_provider.local_server_config.processing_time_warning_threshold_ms": {
-    "description": "Request processing threshold time in ms after which a warning message is logged.",
-    "privacy": "Public",
-    "value": 3000
-  },
-  "components.l1_provider.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
-  "components.l1_provider.port": {
-    "description": "Listening port of the remote component server.",
-    "privacy": "Public",
-    "value": 0
-  },
-  "components.l1_provider.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.l1_provider.remote_client_config.attempts_per_log": {
-    "description": "Number of attempts between failure log messages.",
-    "privacy": "Public",
-    "value": 1
-  },
-  "components.l1_provider.remote_client_config.connection_timeout_ms": {
-    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
-    "privacy": "Public",
-    "value": 500
-  },
-  "components.l1_provider.remote_client_config.idle_connections": {
-    "description": "The maximum number of idle connections to keep alive.",
-    "privacy": "Public",
-    "value": 10
-  },
-  "components.l1_provider.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
-  },
-  "components.l1_provider.remote_client_config.initial_retry_delay_ms": {
-    "description": "Initial delay before first retry in milliseconds.",
-    "privacy": "Public",
-    "value": 1
-  },
-  "components.l1_provider.remote_client_config.max_retry_interval_ms": {
-    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "components.l1_provider.remote_client_config.retries": {
-    "description": "The max number of retries for sending a message.",
-    "privacy": "Public",
-    "value": 15
-  },
-  "components.l1_provider.remote_client_config.set_tcp_nodelay": {
-    "description": "Whether to set TCP_NODELAY on the client requests.",
-    "privacy": "Public",
-    "value": true
-  },
-  "components.l1_provider.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.l1_provider.remote_server_config.bind_ip": {
-    "description": "Binding address of the remote component server.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
-  },
-  "components.l1_provider.remote_server_config.max_streams_per_connection": {
-    "description": "Maximal number of streams per HTTP connection.",
-    "privacy": "Public",
-    "value": 8
-  },
-  "components.l1_provider.remote_server_config.set_tcp_nodelay": {
-    "description": "Whether to set TCP_NODELAY on the server responses.",
-    "privacy": "Public",
-    "value": true
-  },
-  "components.l1_provider.url": {
-    "description": "URL of the remote component server.",
-    "privacy": "Public",
-    "value": "localhost"
-  },
-  "components.l1_scraper.execution_mode": {
-    "description": "The component execution mode.",
-    "privacy": "Public",
-    "value": "Enabled"
-  },
-=======
-  "components.l1_provider.execution_mode": {
-    "description": "The component execution mode.",
-    "privacy": "Public",
-    "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.l1_provider.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "components.l1_provider.local_server_config.high_priority_requests_channel_capacity": {
-    "description": "The high priority requests channel capacity.",
-    "privacy": "Public",
-    "value": 1024
-  },
-  "components.l1_provider.local_server_config.inbound_requests_channel_capacity": {
-    "description": "The inbound requests channel capacity.",
-    "privacy": "Public",
-    "value": 1024
-  },
-  "components.l1_provider.local_server_config.normal_priority_requests_channel_capacity": {
-    "description": "The normal priority requests channel capacity.",
-    "privacy": "Public",
-    "value": 1024
-  },
-  "components.l1_provider.local_server_config.processing_time_warning_threshold_ms": {
-    "description": "Request processing threshold time in ms after which a warning message is logged.",
-    "privacy": "Public",
-    "value": 3000
-  },
-  "components.l1_provider.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
-  "components.l1_provider.port": {
-    "description": "Listening port of the remote component server.",
-    "privacy": "Public",
-    "value": 0
-  },
-  "components.l1_provider.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.l1_provider.remote_client_config.attempts_per_log": {
-    "description": "Number of attempts between failure log messages.",
-    "privacy": "Public",
-    "value": 1
-  },
-  "components.l1_provider.remote_client_config.connection_timeout_ms": {
-    "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
-    "privacy": "Public",
-    "value": 500
-  },
-  "components.l1_provider.remote_client_config.idle_connections": {
-    "description": "The maximum number of idle connections to keep alive.",
-    "privacy": "Public",
-    "value": 10
-  },
-  "components.l1_provider.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
-  },
-  "components.l1_provider.remote_client_config.initial_retry_delay_ms": {
-    "description": "Initial delay before first retry in milliseconds.",
-    "privacy": "Public",
-    "value": 1
-  },
-  "components.l1_provider.remote_client_config.max_retry_interval_ms": {
-    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "components.l1_provider.remote_client_config.retries": {
-    "description": "The max number of retries for sending a message.",
-    "privacy": "Public",
-    "value": 15
-  },
-  "components.l1_provider.remote_client_config.set_tcp_nodelay": {
-    "description": "Whether to set TCP_NODELAY on the client requests.",
-    "privacy": "Public",
-    "value": true
-  },
-  "components.l1_provider.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.l1_provider.remote_server_config.bind_ip": {
-    "description": "Binding address of the remote component server.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
-  },
-  "components.l1_provider.remote_server_config.keepalive_interval_ms": {
-    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
-    "privacy": "Public",
-    "value": 30000
-  },
-  "components.l1_provider.remote_server_config.keepalive_timeout_ms": {
-    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
-    "privacy": "Public",
-    "value": 10000
-  },
-  "components.l1_provider.remote_server_config.max_streams_per_connection": {
-    "description": "Maximal number of streams per HTTP connection.",
-    "privacy": "Public",
-    "value": 8
-  },
-  "components.l1_provider.remote_server_config.set_tcp_nodelay": {
-    "description": "Whether to set TCP_NODELAY on the server responses.",
-    "privacy": "Public",
-    "value": true
-  },
-  "components.l1_provider.url": {
-    "description": "URL of the remote component server.",
-    "privacy": "Public",
-    "value": "localhost"
-  },
-  "components.l1_scraper.execution_mode": {
-    "description": "The component execution mode.",
-    "privacy": "Public",
-    "value": "Enabled"
-  },
->>>>>>> origin/main-v0.14.2
   "components.mempool.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
@@ -1952,19 +1694,6 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-<<<<<<< HEAD
-  "components.mempool.remote_server_config.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
-  "components.mempool.remote_server_config.max_request_body_bytes": {
-    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
-    "privacy": "Public",
-    "value": 8388608
-  },
-||||||| 9a7aa55855
-=======
   "components.mempool.remote_server_config.keepalive_interval_ms": {
     "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
     "privacy": "Public",
@@ -1975,7 +1704,16 @@
     "privacy": "Public",
     "value": 10000
   },
->>>>>>> origin/main-v0.14.2
+  "components.mempool.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
+  "components.mempool.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.mempool.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -2096,19 +1834,6 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-<<<<<<< HEAD
-  "components.mempool_p2p.remote_server_config.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
-  "components.mempool_p2p.remote_server_config.max_request_body_bytes": {
-    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
-    "privacy": "Public",
-    "value": 8388608
-  },
-||||||| 9a7aa55855
-=======
   "components.mempool_p2p.remote_server_config.keepalive_interval_ms": {
     "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
     "privacy": "Public",
@@ -2119,7 +1844,16 @@
     "privacy": "Public",
     "value": 10000
   },
->>>>>>> origin/main-v0.14.2
+  "components.mempool_p2p.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
+  "components.mempool_p2p.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.mempool_p2p.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -2245,19 +1979,6 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-<<<<<<< HEAD
-  "components.proof_manager.remote_server_config.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
-  "components.proof_manager.remote_server_config.max_request_body_bytes": {
-    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
-    "privacy": "Public",
-    "value": 8388608
-  },
-||||||| 9a7aa55855
-=======
   "components.proof_manager.remote_server_config.keepalive_interval_ms": {
     "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
     "privacy": "Public",
@@ -2268,7 +1989,16 @@
     "privacy": "Public",
     "value": 10000
   },
->>>>>>> origin/main-v0.14.2
+  "components.proof_manager.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
+  "components.proof_manager.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.proof_manager.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -2389,19 +2119,6 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-<<<<<<< HEAD
-  "components.sierra_compiler.remote_server_config.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
-  "components.sierra_compiler.remote_server_config.max_request_body_bytes": {
-    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
-    "privacy": "Public",
-    "value": 8388608
-  },
-||||||| 9a7aa55855
-=======
   "components.sierra_compiler.remote_server_config.keepalive_interval_ms": {
     "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
     "privacy": "Public",
@@ -2412,7 +2129,16 @@
     "privacy": "Public",
     "value": 10000
   },
->>>>>>> origin/main-v0.14.2
+  "components.sierra_compiler.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
+  "components.sierra_compiler.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.sierra_compiler.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -2533,19 +2259,6 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-<<<<<<< HEAD
-  "components.signature_manager.remote_server_config.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
-  "components.signature_manager.remote_server_config.max_request_body_bytes": {
-    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
-    "privacy": "Public",
-    "value": 8388608
-  },
-||||||| 9a7aa55855
-=======
   "components.signature_manager.remote_server_config.keepalive_interval_ms": {
     "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
     "privacy": "Public",
@@ -2556,7 +2269,16 @@
     "privacy": "Public",
     "value": 10000
   },
->>>>>>> origin/main-v0.14.2
+  "components.signature_manager.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
+  "components.signature_manager.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.signature_manager.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -2677,19 +2399,6 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-<<<<<<< HEAD
-  "components.state_sync.remote_server_config.max_concurrency": {
-    "description": "The maximum number of concurrent requests handling.",
-    "privacy": "Public",
-    "value": 128
-  },
-  "components.state_sync.remote_server_config.max_request_body_bytes": {
-    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
-    "privacy": "Public",
-    "value": 8388608
-  },
-||||||| 9a7aa55855
-=======
   "components.state_sync.remote_server_config.keepalive_interval_ms": {
     "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
     "privacy": "Public",
@@ -2700,7 +2409,16 @@
     "privacy": "Public",
     "value": 10000
   },
->>>>>>> origin/main-v0.14.2
+  "components.state_sync.remote_server_config.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 128
+  },
+  "components.state_sync.remote_server_config.max_request_body_bytes": {
+    "description": "Maximum allowed size in bytes for an incoming request body. Requests exceeding this limit are rejected with 413 Payload Too Large.",
+    "privacy": "Public",
+    "value": 8388608
+  },
   "components.state_sync.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
@@ -3606,145 +3324,11 @@
     "privacy": "Public",
     "value": 2
   },
-<<<<<<< HEAD
-||||||| 9a7aa55855
-  "l1_provider_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "l1_provider_config.dummy_mode": {
-    "description": "When true, the L1 provider operates in dummy mode, always responding with trivial truthy responses without connecting to actual L1.",
-    "privacy": "Public",
-    "value": false
-  },
-  "l1_provider_config.l1_handler_cancellation_timelock_seconds": {
-    "description": "How long to allow a transaction requested for cancellation to be validated against (proposals are banned upon receiving a cancellation request).",
-    "privacy": "Public",
-    "value": 300
-  },
-  "l1_provider_config.l1_handler_consumption_timelock_seconds": {
-    "description": "How long to wait after a transaction is consumed on L1 before it can be cleared from the transaction manager.",
-    "privacy": "Public",
-    "value": 300.0
-  },
-  "l1_provider_config.l1_handler_proposal_cooldown_seconds": {
-    "description": "How long to wait before allowing new L1 handler transactions to be proposed (validation is available immediately), from the moment they are scraped.",
-    "privacy": "Public",
-    "value": 70
-  },
-  "l1_provider_config.startup_sync_sleep_retry_interval_seconds": {
-    "description": "Interval in seconds between each retry of syncing with L2 during startup.",
-    "privacy": "Public",
-    "value": 2
-  },
-  "l1_scraper_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "l1_scraper_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "pointer_target": "chain_id",
-    "privacy": "Public"
-  },
-  "l1_scraper_config.finality": {
-    "description": "Number of blocks to wait for finality",
-    "privacy": "Public",
-    "value": 0
-  },
-  "l1_scraper_config.l1_block_time_seconds": {
-    "description": "The time it takes for a new L1 block to be created.",
-    "privacy": "Public",
-    "value": 12
-  },
-  "l1_scraper_config.polling_interval_seconds": {
-    "description": "Interval in Seconds between each scraping attempt of L1.",
-    "privacy": "Public",
-    "value": 30
-  },
-  "l1_scraper_config.set_provider_historic_height_to_l2_genesis": {
-    "description": "When true, the scraper will send the provider an historic height set to the L2 genesis (height zero). This is useful on new chains (or in tests) where there have not been any state updates to the Starknet contract.",
-    "privacy": "Public",
-    "value": false
-  },
-  "l1_scraper_config.startup_rewind_time_seconds": {
-    "description": "Duration in seconds to rewind from latest L1 block when starting scraping.",
-    "privacy": "Public",
-    "value": 3600
-  },
-=======
-  "l1_provider_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "l1_provider_config.dummy_mode": {
-    "description": "When true, the L1 provider operates in dummy mode, always responding with trivial truthy responses without connecting to actual L1.",
-    "privacy": "Public",
-    "value": false
-  },
-  "l1_provider_config.l1_handler_cancellation_timelock_seconds": {
-    "description": "How long to allow a transaction requested for cancellation to be validated against (proposals are banned upon receiving a cancellation request).",
-    "privacy": "Public",
-    "value": 300
-  },
-  "l1_provider_config.l1_handler_consumption_timelock_seconds": {
-    "description": "How long to wait after a transaction is consumed on L1 before it can be cleared from the transaction manager.",
-    "privacy": "Public",
-    "value": 300.0
-  },
-  "l1_provider_config.l1_handler_proposal_cooldown_seconds": {
-    "description": "How long to wait before allowing new L1 handler transactions to be proposed (validation is available immediately), from the moment they are scraped.",
-    "privacy": "Public",
-    "value": 70
-  },
-  "l1_provider_config.startup_sync_sleep_retry_interval_seconds": {
-    "description": "Interval in seconds between each retry of syncing with L2 during startup.",
-    "privacy": "Public",
-    "value": 2
-  },
-  "l1_scraper_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "l1_scraper_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "pointer_target": "chain_id",
-    "privacy": "Public"
-  },
-  "l1_scraper_config.finality": {
-    "description": "Number of blocks to wait for finality",
-    "privacy": "Public",
-    "value": 0
-  },
-  "l1_scraper_config.l1_block_time_seconds": {
-    "description": "The time it takes for a new L1 block to be created.",
-    "privacy": "Public",
-    "value": 12
-  },
-  "l1_scraper_config.polling_interval_seconds": {
-    "description": "Interval in Seconds between each scraping attempt of L1.",
-    "privacy": "Public",
-    "value": 30
-  },
-  "l1_scraper_config.set_provider_historic_height_to_l2_genesis": {
-    "description": "When true, the scraper will send the provider an historic height set to the L2 genesis (height zero). This is useful on new chains (or in tests) where there have not been any state updates to the Starknet contract.",
-    "privacy": "Public",
-    "value": false
-  },
-  "l1_scraper_config.startup_rewind_time_seconds": {
-    "description": "Duration in seconds to rewind from latest L1 block when starting scraping.",
-    "privacy": "Public",
-    "value": 3600
-  },
   "max_cpu_time": {
     "description": "Limitation of compilation cpu time (seconds).",
     "privacy": "TemporaryValue",
     "value": 600
   },
->>>>>>> origin/main-v0.14.2
   "mempool_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
