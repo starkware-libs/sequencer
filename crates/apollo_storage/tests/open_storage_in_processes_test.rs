@@ -40,6 +40,7 @@ fn get_test_config_with_path(storage_scope: Option<StorageScope>, path: PathBuf)
             max_object_size: 1 << 16, // 64KB
         },
         flat_state: false,
+        changeset_retention_blocks: None,
     }
 }
 

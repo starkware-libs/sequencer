@@ -2260,3 +2260,15 @@ fn revert_non_tip_block_returns_none() {
     let (_, reverted) = writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(0)).unwrap();
     assert!(reverted.is_none(), "Reverting a non-tip block should return None");
 }
+
+#[test]
+fn pruning_requires_flat_state() {
+    let (mut config, _temp_dir) = get_test_config(Some(StorageScope::StateOnly));
+    config.flat_state = false;
+    config.changeset_retention_blocks = Some(1000);
+    match open_storage(config) {
+        Err(StorageError::PruningRequiresFlatState) => {}
+        Err(other) => panic!("Expected PruningRequiresFlatState, got: {other}"),
+        Ok(_) => panic!("Expected PruningRequiresFlatState error, got Ok"),
+    }
+}

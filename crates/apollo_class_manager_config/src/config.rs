@@ -73,6 +73,7 @@ impl Default for FsClassStorageConfig {
                 },
                 scope: StorageScope::StateOnly,
                 flat_state: false,
+                changeset_retention_blocks: None,
             },
             storage_reader_server_static_config: StorageReaderServerStaticConfig::default(),
         }
