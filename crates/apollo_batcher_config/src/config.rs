@@ -357,13 +357,7 @@ impl Default for BatcherDynamicConfig {
 
 impl SerializeConfig for BatcherDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([ser_param(
-            "native_classes_whitelist",
-            &self.native_classes_whitelist,
-            "Specifies whether to execute all class hashes or only specific ones using Cairo \
-             native. If limited, a specific list of class hashes is provided.",
-            ParamPrivacyInput::Public,
-        )]);
+        let mut dump = BTreeMap::from([self.native_classes_whitelist.ser_param()]);
         dump.append(&mut prepend_sub_config_name(
             self.storage_reader_server_dynamic_config.dump(),
             "storage_reader_server_dynamic_config",

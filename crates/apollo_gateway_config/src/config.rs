@@ -132,13 +132,7 @@ impl Default for GatewayDynamicConfig {
 
 impl SerializeConfig for GatewayDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "native_classes_whitelist",
-            &self.native_classes_whitelist,
-            "Specifies whether to execute all class hashes or only specific ones using Cairo \
-             native. If limited, a specific list of class hashes is provided.",
-            ParamPrivacyInput::Public,
-        )])
+        BTreeMap::from_iter([self.native_classes_whitelist.ser_param()])
     }
 }
 
