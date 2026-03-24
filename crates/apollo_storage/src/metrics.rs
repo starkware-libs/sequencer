@@ -8,6 +8,7 @@ define_metrics!(
         MetricGauge { BATCHER_STORAGE_OPEN_READ_TRANSACTIONS, "batcher_storage_open_read_transactions", "The number of open batcher read transactions" },
         MetricGauge { CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS, "class_manager_storage_open_read_transactions", "The number of open class manager read transactions" },
         MetricGauge { BATCHER_CHANGESET_MARKER, "batcher_storage_changeset_marker", "The changeset upper bound (next block without changeset data)" },
+        MetricGauge { BATCHER_CHANGESET_PRUNED_MARKER, "batcher_storage_changeset_pruned_marker", "The changeset lower bound (first block still retaining changeset data)" },
     },
 );
 
@@ -18,4 +19,5 @@ pub(crate) fn register_metrics() {
     BATCHER_STORAGE_OPEN_READ_TRANSACTIONS.register();
     CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS.register();
     BATCHER_CHANGESET_MARKER.register();
+    BATCHER_CHANGESET_PRUNED_MARKER.register();
 }

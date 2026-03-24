@@ -70,7 +70,11 @@ use tracing::debug;
 use crate::db::serialization::{ChangesetValueWrapper, NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
-use crate::metrics::{BATCHER_CHANGESET_MARKER, STORAGE_APPEND_THIN_STATE_DIFF_LATENCY};
+use crate::metrics::{
+    BATCHER_CHANGESET_MARKER,
+    BATCHER_CHANGESET_PRUNED_MARKER,
+    STORAGE_APPEND_THIN_STATE_DIFF_LATENCY,
+};
 use crate::mmap_file::LocationInFile;
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::{
@@ -1208,6 +1212,7 @@ fn prune_changesets<'env>(
     }
 
     markers_table.upsert(txn, &MarkerKind::ChangesetPruned, &prune_end)?;
+    BATCHER_CHANGESET_PRUNED_MARKER.set_lossy(prune_end.0);
     Ok(())
 }
 
