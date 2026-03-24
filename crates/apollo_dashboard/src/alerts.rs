@@ -11,7 +11,6 @@ use crate::alert_placeholders::{
 };
 
 pub(crate) const PENDING_DURATION_DEFAULT: &str = "30s";
-pub(crate) const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
 pub(crate) const SECS_IN_MIN: u64 = 60;
 
 /// Alerts to be configured in the dashboard.
@@ -226,9 +225,6 @@ pub(crate) struct Alert {
     // The time duration for which the alert conditions must be true before an alert is triggered.
     #[serde(rename = "for")]
     pending_duration: String,
-    // The interval in sec between evaluations of the alert.
-    #[serde(rename = "intervalSec")]
-    evaluation_interval_sec: u64,
     // The severity level of the alert.
     severity: SeverityValueOrPlaceholder,
     // Indicates if relevant for observer nodes.
@@ -264,7 +260,6 @@ impl Alert {
         expr: impl Into<ExpressionOrExpressionWithPlaceholder>,
         conditions: Vec<AlertCondition>,
         pending_duration: impl ToString,
-        evaluation_interval_sec: u64,
         severity: impl Into<SeverityValueOrPlaceholder>,
         observer_applicable: ObserverApplicability,
     ) -> Self {
@@ -295,7 +290,6 @@ impl Alert {
             expr,
             conditions,
             pending_duration: pending_duration.to_string(),
-            evaluation_interval_sec,
             severity,
             observer_applicable,
             placeholder_names,

@@ -9,7 +9,6 @@ use crate::alerts::{
     AlertSeverity,
     EvaluationRate,
     ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
 
@@ -34,7 +33,6 @@ pub(crate) fn get_remote_server_number_of_connections_alert(
             AlertLogicalOp::And,
         )],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::DayOnly,
         ObserverApplicability::Applicable,
     )

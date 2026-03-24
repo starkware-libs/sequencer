@@ -13,7 +13,6 @@ use crate::alerts::{
     AlertLogicalOp,
     EvaluationRate,
     ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
 
@@ -27,7 +26,6 @@ pub(crate) fn get_eth_to_strk_success_count_alert() -> Alert {
         format!("increase({}[1h])", ETH_TO_STRK_SUCCESS_COUNT.get_name_with_filter()),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
@@ -43,7 +41,6 @@ pub(crate) fn get_l1_gas_price_scraper_success_count_alert() -> Alert {
         format!("increase({}[1h])", L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
@@ -61,7 +58,6 @@ pub(crate) fn get_l1_gas_price_provider_insufficient_history_alert() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )

@@ -14,7 +14,6 @@ use crate::alerts::{
     AlertLogicalOp,
     EvaluationRate,
     ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
 
@@ -27,7 +26,6 @@ pub(crate) fn get_mempool_pool_size_increase() -> Alert {
         MEMPOOL_POOL_SIZE.get_name_with_filter().to_string(),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10000.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
@@ -48,7 +46,6 @@ pub(crate) fn get_mempool_evictions_count_alert() -> Alert {
         query_expr,
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )

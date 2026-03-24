@@ -9,7 +9,6 @@ use crate::alerts::{
     AlertSeverity,
     EvaluationRate,
     ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
 
@@ -25,7 +24,6 @@ pub(crate) fn get_config_manager_update_error_increase() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Regular,
         ObserverApplicability::NotApplicable,
     )
