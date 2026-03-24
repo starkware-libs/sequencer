@@ -10,6 +10,7 @@ use blockifier_reexecution::cli::{
     TransactionInput,
     FULL_RESOURCES_DIR,
 };
+use blockifier_reexecution::rpc_replay::run_rpc_replay;
 use blockifier_reexecution::state_reader::config::RpcStateReaderConfig;
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
 use blockifier_reexecution::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
@@ -277,6 +278,19 @@ async fn main() {
             }
 
             println!("All blocks downloaded successfully to {directory_path}.");
+        }
+
+        Command::RpcReplay { rpc_args, start_block, end_block, parallelism } => {
+            let chain_id = rpc_args.parse_chain_id();
+            run_rpc_replay(
+                rpc_args.node_url,
+                chain_id,
+                start_block,
+                end_block,
+                parallelism,
+                contract_class_manager,
+            )
+            .await;
         }
     }
 }

@@ -148,6 +148,24 @@ pub enum Command {
         directory_path: Option<String>,
     },
 
+    /// Continuously reexecute blocks via RPC and verify state diff correctness.
+    RpcReplay {
+        #[clap(flatten)]
+        rpc_args: RpcArgs,
+
+        /// First block to reexecute.
+        #[clap(long)]
+        start_block: u64,
+
+        /// Last block to reexecute (inclusive). If omitted, runs forever.
+        #[clap(long)]
+        end_block: Option<u64>,
+
+        /// Number of blocks to process in parallel.
+        #[clap(long, default_value = "1")]
+        parallelism: usize,
+    },
+
     // Download all (selected) blocks from the gc bucket.
     DownloadFiles {
         /// Block numbers. If not specified, blocks are retrieved from
