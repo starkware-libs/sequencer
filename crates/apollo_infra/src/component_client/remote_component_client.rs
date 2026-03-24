@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::time::Duration;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -42,6 +42,7 @@ const DEFAULT_IDLE_CONNECTIONS: usize = 10;
 // 8 MiB — bounds memory materialized from a single response as defense in depth.
 const DEFAULT_MAX_RESPONSE_BODY_BYTES: usize = 8 * 1024 * 1024;
 const DEFAULT_HTTP_POOL_IDLE_TIMEOUT_MS: u64 = 30000;
+const DEFAULT_TCP_KEEPALIVE_IDLE_TIME_MS: u64 = 30000;
 const DEFAULT_MAX_RETRY_INTERVAL_MS: u64 = 1000;
 const DEFAULT_INITIAL_RETRY_DELAY_MS: u64 = 1;
 const DEFAULT_ATTEMPTS_PER_LOG: usize = 1;
@@ -56,6 +57,9 @@ pub struct RemoteClientConfig {
     pub idle_connections: usize,
     /// How long the Hyper client keeps an unused HTTP/2 connection in its pool before closing it.
     pub http_pool_idle_timeout_ms: u64,
+    /// TCP keepalive: milliseconds the outbound socket may be idle before the OS sends probes.
+    /// `None` leaves TCP keepalive unset (OS defaults apply).
+    pub tcp_keepalive_idle_time_ms: Option<u64>,
     pub attempts_per_log: usize,
     pub initial_retry_delay_ms: u64,
     pub max_retry_interval_ms: u64,
@@ -71,6 +75,7 @@ impl Default for RemoteClientConfig {
             retries: DEFAULT_RETRIES,
             idle_connections: DEFAULT_IDLE_CONNECTIONS,
             http_pool_idle_timeout_ms: DEFAULT_HTTP_POOL_IDLE_TIMEOUT_MS,
+            tcp_keepalive_idle_time_ms: Some(DEFAULT_TCP_KEEPALIVE_IDLE_TIME_MS),
             initial_retry_delay_ms: DEFAULT_INITIAL_RETRY_DELAY_MS,
             attempts_per_log: DEFAULT_ATTEMPTS_PER_LOG,
             max_retry_interval_ms: DEFAULT_MAX_RETRY_INTERVAL_MS,
@@ -84,7 +89,7 @@ impl Default for RemoteClientConfig {
 
 impl SerializeConfig for RemoteClientConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
+        let mut dump = BTreeMap::from_iter([
             ser_param(
                 "retries",
                 &self.retries,
@@ -149,7 +154,16 @@ impl SerializeConfig for RemoteClientConfig {
                  this limit are treated as a communication failure.",
                 ParamPrivacyInput::Public,
             ),
-        ])
+        ]);
+        dump.extend(ser_optional_param(
+            &self.tcp_keepalive_idle_time_ms,
+            0,
+            "tcp_keepalive_idle_time_ms",
+            "Milliseconds of TCP idleness before the OS sends keepalive probes on outbound \
+             sockets; absent disables TCP keepalive (OS defaults apply).",
+            ParamPrivacyInput::Public,
+        ));
+        dump
     }
 }
 
@@ -189,6 +203,10 @@ where
         let mut connector = HttpConnector::new();
         connector.set_nodelay(config.set_tcp_nodelay);
         connector.set_connect_timeout(Some(Duration::from_millis(config.connection_timeout_ms)));
+        if let Some(idle_time_ms) = config.tcp_keepalive_idle_time_ms {
+            connector.set_keepalive(Some(Duration::from_millis(idle_time_ms)));
+        }
+
         let pool_idle = Duration::from_millis(config.http_pool_idle_timeout_ms);
         let client = Client::builder(TokioExecutor::new())
             .http2_only(true)

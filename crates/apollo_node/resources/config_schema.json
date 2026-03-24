@@ -684,6 +684,16 @@
     "privacy": "Public",
     "value": true
   },
+  "components.batcher.remote_client_config.tcp_keepalive_idle_time_ms": {
+    "description": "Milliseconds of TCP idleness before the OS sends keepalive probes on outbound sockets; absent disables TCP keepalive (OS defaults apply).",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.batcher.remote_client_config.tcp_keepalive_idle_time_ms.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.batcher.remote_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -823,6 +833,16 @@
     "description": "Whether to set TCP_NODELAY on the client requests.",
     "privacy": "Public",
     "value": true
+  },
+  "components.class_manager.remote_client_config.tcp_keepalive_idle_time_ms": {
+    "description": "Milliseconds of TCP idleness before the OS sends keepalive probes on outbound sockets; absent disables TCP keepalive (OS defaults apply).",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.class_manager.remote_client_config.tcp_keepalive_idle_time_ms.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "components.class_manager.remote_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -964,6 +984,16 @@
     "privacy": "Public",
     "value": true
   },
+  "components.committer.remote_client_config.tcp_keepalive_idle_time_ms": {
+    "description": "Milliseconds of TCP idleness before the OS sends keepalive probes on outbound sockets; absent disables TCP keepalive (OS defaults apply).",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.committer.remote_client_config.tcp_keepalive_idle_time_ms.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.committer.remote_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -1103,6 +1133,16 @@
     "description": "Whether to set TCP_NODELAY on the client requests.",
     "privacy": "Public",
     "value": true
+  },
+  "components.config_manager.remote_client_config.tcp_keepalive_idle_time_ms": {
+    "description": "Milliseconds of TCP idleness before the OS sends keepalive probes on outbound sockets; absent disables TCP keepalive (OS defaults apply).",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.config_manager.remote_client_config.tcp_keepalive_idle_time_ms.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "components.config_manager.remote_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -1249,6 +1289,16 @@
     "privacy": "Public",
     "value": true
   },
+  "components.gateway.remote_client_config.tcp_keepalive_idle_time_ms": {
+    "description": "Milliseconds of TCP idleness before the OS sends keepalive probes on outbound sockets; absent disables TCP keepalive (OS defaults apply).",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.gateway.remote_client_config.tcp_keepalive_idle_time_ms.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.gateway.remote_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -1393,6 +1443,16 @@
     "description": "Whether to set TCP_NODELAY on the client requests.",
     "privacy": "Public",
     "value": true
+  },
+  "components.l1_events_provider.remote_client_config.tcp_keepalive_idle_time_ms": {
+    "description": "Milliseconds of TCP idleness before the OS sends keepalive probes on outbound sockets; absent disables TCP keepalive (OS defaults apply).",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.l1_events_provider.remote_client_config.tcp_keepalive_idle_time_ms.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "components.l1_events_provider.remote_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -1539,6 +1599,16 @@
     "privacy": "Public",
     "value": true
   },
+  "components.l1_gas_price_provider.remote_client_config.tcp_keepalive_idle_time_ms": {
+    "description": "Milliseconds of TCP idleness before the OS sends keepalive probes on outbound sockets; absent disables TCP keepalive (OS defaults apply).",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.l1_gas_price_provider.remote_client_config.tcp_keepalive_idle_time_ms.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.l1_gas_price_provider.remote_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -1684,6 +1754,16 @@
     "privacy": "Public",
     "value": true
   },
+  "components.mempool.remote_client_config.tcp_keepalive_idle_time_ms": {
+    "description": "Milliseconds of TCP idleness before the OS sends keepalive probes on outbound sockets; absent disables TCP keepalive (OS defaults apply).",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.mempool.remote_client_config.tcp_keepalive_idle_time_ms.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.mempool.remote_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -1823,6 +1903,16 @@
     "description": "Whether to set TCP_NODELAY on the client requests.",
     "privacy": "Public",
     "value": true
+  },
+  "components.mempool_p2p.remote_client_config.tcp_keepalive_idle_time_ms": {
+    "description": "Milliseconds of TCP idleness before the OS sends keepalive probes on outbound sockets; absent disables TCP keepalive (OS defaults apply).",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.mempool_p2p.remote_client_config.tcp_keepalive_idle_time_ms.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "components.mempool_p2p.remote_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -1969,6 +2059,16 @@
     "privacy": "Public",
     "value": true
   },
+  "components.proof_manager.remote_client_config.tcp_keepalive_idle_time_ms": {
+    "description": "Milliseconds of TCP idleness before the OS sends keepalive probes on outbound sockets; absent disables TCP keepalive (OS defaults apply).",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.proof_manager.remote_client_config.tcp_keepalive_idle_time_ms.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.proof_manager.remote_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -2108,6 +2208,16 @@
     "description": "Whether to set TCP_NODELAY on the client requests.",
     "privacy": "Public",
     "value": true
+  },
+  "components.sierra_compiler.remote_client_config.tcp_keepalive_idle_time_ms": {
+    "description": "Milliseconds of TCP idleness before the OS sends keepalive probes on outbound sockets; absent disables TCP keepalive (OS defaults apply).",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.sierra_compiler.remote_client_config.tcp_keepalive_idle_time_ms.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "components.sierra_compiler.remote_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -2249,6 +2359,16 @@
     "privacy": "Public",
     "value": true
   },
+  "components.signature_manager.remote_client_config.tcp_keepalive_idle_time_ms": {
+    "description": "Milliseconds of TCP idleness before the OS sends keepalive probes on outbound sockets; absent disables TCP keepalive (OS defaults apply).",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.signature_manager.remote_client_config.tcp_keepalive_idle_time_ms.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.signature_manager.remote_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -2388,6 +2508,16 @@
     "description": "Whether to set TCP_NODELAY on the client requests.",
     "privacy": "Public",
     "value": true
+  },
+  "components.state_sync.remote_client_config.tcp_keepalive_idle_time_ms": {
+    "description": "Milliseconds of TCP idleness before the OS sends keepalive probes on outbound sockets; absent disables TCP keepalive (OS defaults apply).",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.state_sync.remote_client_config.tcp_keepalive_idle_time_ms.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "components.state_sync.remote_server_config.#is_none": {
     "description": "Flag for an optional field.",
