@@ -24,7 +24,7 @@ use tracing::field::{display, Empty};
 use tracing::{debug, instrument, trace, warn};
 use validator::{Validate, ValidationError};
 
-use super::definitions::{ClientError, ClientResult};
+use crate::component_client::{ClientError, ClientResult};
 use crate::component_definitions::{
     ComponentClient,
     RequestId,

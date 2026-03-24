@@ -651,13 +651,13 @@ async fn retry_request() {
 async fn tcp_keepalive_idle_time_matches_config() {
     // 2000 * 1.5 = 3000 ms = 3 s exactly; socket2 stores TCP_KEEPIDLE in whole seconds, so the
     // configured duration must be a whole number of seconds or the comparison fails.
-    const IDLE_TIMEOUT_MS: u64 = 2000;
+    const KEEPALIVE_TIMEOUT_MS: u64 = 2000;
     let expected_keepalive_idle =
-        Duration::from_millis(IDLE_TIMEOUT_MS).mul_f64(TCP_KEEPALIVE_FACTOR);
+        Duration::from_millis(KEEPALIVE_TIMEOUT_MS).mul_f64(TCP_KEEPALIVE_FACTOR);
     assert_eq!(
         expected_keepalive_idle.subsec_nanos(),
         0,
-        "IDLE_TIMEOUT_MS * TCP_KEEPALIVE_FACTOR must be a whole number of seconds"
+        "KEEPALIVE_TIMEOUT_MS * TCP_KEEPALIVE_FACTOR must be a whole number of seconds"
     );
 
     let mut ports = available_ports_factory(unique_u16!());
@@ -667,7 +667,7 @@ async fn tcp_keepalive_idle_time_matches_config() {
     setup_for_tests(VALID_VALUE_A, a_socket, b_socket, MAX_CONCURRENCY, None).await;
 
     let client = ComponentAClient::new(
-        RemoteClientConfig { keepalive_timeout_ms: IDLE_TIMEOUT_MS, ..Default::default() },
+        RemoteClientConfig { keepalive_timeout_ms: KEEPALIVE_TIMEOUT_MS, ..Default::default() },
         &a_socket.ip().to_string(),
         a_socket.port(),
         &TEST_REMOTE_CLIENT_METRICS,

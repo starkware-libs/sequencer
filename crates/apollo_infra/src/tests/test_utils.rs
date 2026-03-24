@@ -416,3 +416,20 @@ pub(crate) async fn connect_zombie(addr: SocketAddr) -> TcpStream {
     }
     stream
 }
+
+/// Returns `true` if `data` contains at least one HTTP/2 GOAWAY frame (type `0x07`).
+pub(crate) fn contains_goaway_frame(data: &[u8]) -> bool {
+    const GOAWAY_FRAME_TYPE: u8 = 0x07;
+    const H2_FRAME_HEADER_LEN: usize = 9;
+    let mut pos = 0;
+    while pos + H2_FRAME_HEADER_LEN <= data.len() {
+        let payload_len = (usize::from(data[pos]) << 16)
+            | (usize::from(data[pos + 1]) << 8)
+            | usize::from(data[pos + 2]);
+        if data[pos + 3] == GOAWAY_FRAME_TYPE {
+            return true;
+        }
+        pos += H2_FRAME_HEADER_LEN + payload_len;
+    }
+    false
+}
