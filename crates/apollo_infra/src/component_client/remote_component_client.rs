@@ -41,7 +41,7 @@ pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "request timed out";
 const DEFAULT_IDLE_CONNECTIONS: usize = 10;
 // 8 MiB — bounds memory materialized from a single response as defense in depth.
 const DEFAULT_MAX_RESPONSE_BODY_BYTES: usize = 8 * 1024 * 1024;
-const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
+const DEFAULT_HTTP_POOL_IDLE_TIMEOUT_MS: u64 = 30000;
 const DEFAULT_MAX_RETRY_INTERVAL_MS: u64 = 1000;
 const DEFAULT_INITIAL_RETRY_DELAY_MS: u64 = 1;
 const DEFAULT_ATTEMPTS_PER_LOG: usize = 1;
@@ -54,7 +54,8 @@ const DEFAULT_REQUEST_TIMEOUT_MS: u64 = 30_000;
 pub struct RemoteClientConfig {
     pub retries: usize,
     pub idle_connections: usize,
-    pub idle_timeout_ms: u64,
+    /// How long the Hyper client keeps an unused HTTP/2 connection in its pool before closing it.
+    pub http_pool_idle_timeout_ms: u64,
     pub attempts_per_log: usize,
     pub initial_retry_delay_ms: u64,
     pub max_retry_interval_ms: u64,
@@ -69,7 +70,7 @@ impl Default for RemoteClientConfig {
         Self {
             retries: DEFAULT_RETRIES,
             idle_connections: DEFAULT_IDLE_CONNECTIONS,
-            idle_timeout_ms: DEFAULT_IDLE_TIMEOUT_MS,
+            http_pool_idle_timeout_ms: DEFAULT_HTTP_POOL_IDLE_TIMEOUT_MS,
             initial_retry_delay_ms: DEFAULT_INITIAL_RETRY_DELAY_MS,
             attempts_per_log: DEFAULT_ATTEMPTS_PER_LOG,
             max_retry_interval_ms: DEFAULT_MAX_RETRY_INTERVAL_MS,
@@ -97,9 +98,10 @@ impl SerializeConfig for RemoteClientConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "idle_timeout_ms",
-                &self.idle_timeout_ms,
-                "The duration in milliseconds to keep an idle connection open before closing.",
+                "http_pool_idle_timeout_ms",
+                &self.http_pool_idle_timeout_ms,
+                "Milliseconds before the HTTP client pool closes an idle connection (Hyper \
+                 `pool_idle_timeout`).",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -187,10 +189,11 @@ where
         let mut connector = HttpConnector::new();
         connector.set_nodelay(config.set_tcp_nodelay);
         connector.set_connect_timeout(Some(Duration::from_millis(config.connection_timeout_ms)));
+        let pool_idle = Duration::from_millis(config.http_pool_idle_timeout_ms);
         let client = Client::builder(TokioExecutor::new())
             .http2_only(true)
             .pool_max_idle_per_host(config.idle_connections)
-            .pool_idle_timeout(Duration::from_millis(config.idle_timeout_ms))
+            .pool_idle_timeout(pool_idle)
             .build(connector);
 
         debug!("RemoteComponentClient created with URI: {uri:?}");
