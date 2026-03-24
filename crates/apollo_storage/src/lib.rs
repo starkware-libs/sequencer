@@ -868,6 +868,16 @@ pub enum StorageError {
          {state_marker} > changeset marker {changeset_marker})."
     )]
     FlatStateRequiresFreshSync { state_marker: BlockNumber, changeset_marker: BlockNumber },
+    #[error(
+        "Cannot revert block {block_number}: changeset history pruned. Oldest retained changeset \
+         is block {oldest_changeset}."
+    )]
+    RevertBeyondChangesetHistory { block_number: BlockNumber, oldest_changeset: BlockNumber },
+    #[error(
+        "Changeset pruning requires flat state: changeset_retention_blocks is set but flat_state \
+         is false."
+    )]
+    PruningRequiresFlatState,
 }
 
 /// A type alias that maps to std::result::Result<T, StorageError>.
@@ -957,6 +967,8 @@ pub enum MarkerKind {
     FlatState,
     /// Marks the next block that hasn't had changeset pre-images written yet (forward bound).
     Changeset,
+    /// Marks the oldest block that still has changeset entries (lower bound for pruning).
+    ChangesetPruned,
 }
 
 pub(crate) type MarkersTable<'env> =

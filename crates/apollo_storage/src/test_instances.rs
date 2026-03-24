@@ -73,6 +73,7 @@ auto_impl_get_test_instance! {
         GlobalRoot = 9,
         FlatState = 10,
         Changeset = 11,
+        ChangesetPruned = 12,
     }
     pub enum OffsetKind {
         ThinStateDiff = 0,

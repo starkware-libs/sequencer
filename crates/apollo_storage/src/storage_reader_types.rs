@@ -262,6 +262,7 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                     MarkerKind::GlobalRoot => txn.get_global_root_marker()?,
                     MarkerKind::FlatState => BlockNumber(0),
                     MarkerKind::Changeset => txn.get_changeset_marker()?,
+                    MarkerKind::ChangesetPruned => txn.get_changeset_pruned_marker()?,
                 };
                 Ok(StorageReaderResponse::Markers(block_number))
             }
