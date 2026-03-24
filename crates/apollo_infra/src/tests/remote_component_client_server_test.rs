@@ -707,13 +707,12 @@ async fn zombie_connection_is_evicted() {
     let config = RemoteServerConfig {
         keepalive_interval_ms: KEEPALIVE_INTERVAL_MS,
         keepalive_timeout_ms: KEEPALIVE_TIMEOUT_MS,
-        ..dummy_remote_server_config(socket.ip())
+        ..dummy_remote_server_config(socket.ip(), MAX_CONCURRENCY)
     };
     let mut server = RemoteComponentServer::new(
         local_client,
         config,
         socket.port(),
-        MAX_CONCURRENCY,
         &TEST_REMOTE_SERVER_METRICS,
     );
     task::spawn(async move { server.start().await });

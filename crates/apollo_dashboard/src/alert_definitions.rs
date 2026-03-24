@@ -1,13 +1,8 @@
-<<<<<<< HEAD
-use apollo_batcher::metrics::BATCHER_L1_EVENTS_PROVIDER_ERRORS;
-||||||| 9a7aa55855
-=======
-use apollo_batcher::metrics::BATCHER_INFRA_METRICS;
+use apollo_batcher::metrics::{BATCHER_INFRA_METRICS, BATCHER_L1_EVENTS_PROVIDER_ERRORS};
 use apollo_class_manager::metrics::CLASS_MANAGER_INFRA_METRICS;
 use apollo_committer::metrics::COMMITTER_INFRA_METRICS;
 use apollo_compile_to_casm::metrics::SIERRA_COMPILER_INFRA_METRICS;
 use apollo_config_manager::metrics::CONFIG_MANAGER_INFRA_METRICS;
->>>>>>> origin/main-v0.14.2
 use apollo_consensus::metrics::{
     CONSENSUS_CONFLICTING_VOTES,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
@@ -26,40 +21,19 @@ use apollo_consensus_orchestrator::metrics::{
     CONSENSUS_PROPOSAL_FIN_MISMATCH,
     CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH,
 };
-<<<<<<< HEAD
-use apollo_gateway::metrics::GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE;
+use apollo_gateway::metrics::{GATEWAY_INFRA_METRICS, GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE};
 use apollo_l1_events::metrics::{
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
 };
-||||||| 9a7aa55855
-use apollo_gateway::metrics::GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE;
-=======
-use apollo_gateway::metrics::{GATEWAY_INFRA_METRICS, GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE};
->>>>>>> origin/main-v0.14.2
 use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
     L1_GAS_PRICE_INFRA_METRICS,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
 };
-<<<<<<< HEAD
-use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
-||||||| 9a7aa55855
-use apollo_l1_provider::metrics::{
-    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
-    L1_MESSAGE_SCRAPER_REORG_DETECTED,
-};
-use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
-=======
-use apollo_l1_provider::metrics::{
-    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
-    L1_MESSAGE_SCRAPER_REORG_DETECTED,
-    L1_PROVIDER_INFRA_METRICS,
-};
 use apollo_mempool::metrics::MEMPOOL_INFRA_METRICS;
 use apollo_mempool_p2p::metrics::{MEMPOOL_P2P_INFRA_METRICS, MEMPOOL_P2P_NUM_CONNECTED_PEERS};
->>>>>>> origin/main-v0.14.2
 use apollo_metrics::metrics::MetricQueryName;
 use apollo_signature_manager::metrics::SIGNATURE_MANAGER_INFRA_METRICS;
 use apollo_staking::metrics::STAKING_CURRENT_EPOCH_ID;
@@ -612,11 +586,6 @@ fn get_all_remote_server_connection_alerts() -> Vec<Alert> {
             "l1_gas_price",
             AlertGroup::L1GasPrice,
             L1_GAS_PRICE_INFRA_METRICS.get_remote_server_metrics(),
-        ),
-        get_remote_server_number_of_connections_alert(
-            "l1_provider",
-            AlertGroup::L1Messages,
-            L1_PROVIDER_INFRA_METRICS.get_remote_server_metrics(),
         ),
         get_remote_server_number_of_connections_alert(
             "mempool",

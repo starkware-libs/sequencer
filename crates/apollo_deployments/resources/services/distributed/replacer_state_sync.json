@@ -106,14 +106,10 @@
   "components.state_sync.remote_client_config.#is_none": true,
   "components.state_sync.remote_server_config.#is_none": false,
   "components.state_sync.remote_server_config.bind_ip": "0.0.0.0",
-<<<<<<< HEAD
-  "components.state_sync.remote_server_config.max_concurrency": 128,
-  "components.state_sync.remote_server_config.max_request_body_bytes": 8388608,
-||||||| 9a7aa55855
-=======
   "components.state_sync.remote_server_config.keepalive_interval_ms": 30000,
   "components.state_sync.remote_server_config.keepalive_timeout_ms": 10000,
->>>>>>> origin/main-v0.14.2
+  "components.state_sync.remote_server_config.max_concurrency": 128,
+  "components.state_sync.remote_server_config.max_request_body_bytes": 8388608,
   "components.state_sync.remote_server_config.max_streams_per_connection": 8,
   "components.state_sync.remote_server_config.set_tcp_nodelay": true,
   "components.state_sync.url": "$$$_COMPONENTS-STATE_SYNC-URL_$$$",

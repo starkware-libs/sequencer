@@ -187,12 +187,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             };
             parse_event(log, header.timestamp)
         });
-<<<<<<< HEAD
         // TODO(guyn): replace this with try_join_all.
-        futures::future::join_all(block_header_futures).await.into_iter().collect()
-||||||| 9a7aa55855
-        futures::future::join_all(block_header_futures).await.into_iter().collect()
-=======
         let events = futures::future::join_all(block_header_futures).await;
         let mut parsed_events = Vec::with_capacity(events.len());
         for event in events {
@@ -205,7 +200,6 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             }
         }
         Ok(parsed_events)
->>>>>>> origin/main-v0.14.2
     }
 
     #[instrument(skip(self), err)]
@@ -336,7 +330,6 @@ pub enum EthereumBaseLayerError {
 impl PartialEq for EthereumBaseLayerError {
     fn eq(&self, other: &Self) -> bool {
         use EthereumBaseLayerError::*;
-<<<<<<< HEAD
         match self {
             Contract(this) => {
                 let Contract(that) = other else { return false };
@@ -358,6 +351,10 @@ impl PartialEq for EthereumBaseLayerError {
                 let StarknetApiParsingError(that) = other else { return false };
                 this == that
             }
+            CalldataValueOutOfRange(this) => {
+                let CalldataValueOutOfRange(that) = other else { return false };
+                this == that
+            }
             TypeError(this) => {
                 let TypeError(that) = other else { return false };
                 this == that
@@ -374,26 +371,6 @@ impl PartialEq for EthereumBaseLayerError {
                 let BlockHeaderMissingError(that) = other else { return false };
                 this == that
             }
-||||||| 9a7aa55855
-        match (self, other) {
-            (Contract(this), Contract(other)) => this.to_string() == other.to_string(),
-            (FeeOutOfRange(this), FeeOutOfRange(other)) => this == other,
-            (RpcError(this), RpcError(other)) => this.to_string() == other.to_string(),
-            (StarknetApiParsingError(this), StarknetApiParsingError(other)) => this == other,
-            (TypeError(this), TypeError(other)) => this == other,
-            (UnhandledL1Event(this), UnhandledL1Event(other)) => this == other,
-            _ => false,
-=======
-        match (self, other) {
-            (Contract(this), Contract(other)) => this.to_string() == other.to_string(),
-            (FeeOutOfRange(this), FeeOutOfRange(other)) => this == other,
-            (RpcError(this), RpcError(other)) => this.to_string() == other.to_string(),
-            (StarknetApiParsingError(this), StarknetApiParsingError(other)) => this == other,
-            (CalldataValueOutOfRange(this), CalldataValueOutOfRange(other)) => this == other,
-            (TypeError(this), TypeError(other)) => this == other,
-            (UnhandledL1Event(this), UnhandledL1Event(other)) => this == other,
-            _ => false,
->>>>>>> origin/main-v0.14.2
         }
     }
 }

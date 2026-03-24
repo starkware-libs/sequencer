@@ -22,15 +22,11 @@ use apollo_consensus_manager::metrics::CONSENSUS_MANAGER_ALL_METRICS;
 use apollo_consensus_orchestrator::metrics::CONSENSUS_ORCHESTRATOR_ALL_METRICS;
 use apollo_gateway::metrics::{GATEWAY_ALL_METRICS, INFRA_ALL_METRICS as GATEWAY_INFRA_METRICS};
 use apollo_http_server::metrics::HTTP_SERVER_ALL_METRICS;
-<<<<<<< HEAD
+use apollo_infra::tokio_metrics::TOKIO_ALL_METRICS;
 use apollo_l1_events::metrics::{
     INFRA_ALL_METRICS as L1_EVENTS_PROVIDER_INFRA_METRICS,
     L1_EVENTS_PROVIDER_ALL_METRICS,
 };
-||||||| 9a7aa55855
-=======
-use apollo_infra::tokio_metrics::TOKIO_ALL_METRICS;
->>>>>>> origin/main-v0.14.2
 use apollo_l1_gas_price::metrics::{
     INFRA_ALL_METRICS as L1_GAS_PRICE_INFRA_METRICS,
     L1_GAS_PRICE_ALL_METRICS,
