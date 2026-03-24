@@ -18,11 +18,14 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
-              ARGS="rpc-replay -n ${RPC_URL} -c ${CHAIN_ID} --start-block ${START_BLOCK} --parallelism ${PARALLELISM}"
+              ARGS="rpc-replay -n ${RPC_URL} -c ${CHAIN_ID} --start-block ${START_BLOCK} --n-workers ${N_WORKERS}"
               if [ -n "${END_BLOCK}" ]; then
                 ARGS="${ARGS} --end-block ${END_BLOCK}"
               fi
-              exec ./blockifier_reexecution ${ARGS}
+              if [ "${COMPARE_NATIVE}" = "true" ]; then
+                ARGS="${ARGS} --compare-native"
+              fi
+              exec /app/target/release/blockifier_reexecution ${ARGS}
           env:
             - name: RPC_URL
               value: "http://juno:6060"
@@ -33,8 +36,11 @@ spec:
             # Leave empty to run forever.
             - name: END_BLOCK
               value: ""
-            - name: PARALLELISM
-              value: "4"
+            - name: N_WORKERS
+              value: "16"
+            # Set to "true" to run native-vs-CASM comparison.
+            - name: COMPARE_NATIVE
+              value: ""
           resources:
             requests:
               cpu: "16"

@@ -25,18 +25,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgmp-dev \
     libssl-dev \
     libzstd-dev \
+    lsb-release \
     pkg-config \
     python3 \
     python3-dev \
     python3-pip \
     python3-venv \
+    software-properties-common \
     tini \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Install LLVM 19 (required for Cairo Native compilation).
 RUN curl https://apt.llvm.org/llvm.sh -Lo llvm.sh \
     && bash ./llvm.sh 19 all \
-    && rm -f ./llvm.sh
+    && rm -f ./llvm.sh \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        libgmp3-dev \
+        libmlir-19-dev \
+        libpolly-19-dev \
+        mlir-19-tools \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV LLVM_SYS_191_PREFIX="/usr/lib/llvm-19/"
 ENV MLIR_SYS_190_PREFIX="/usr/lib/llvm-19/"
@@ -66,6 +75,7 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM base AS builder
 WORKDIR /app
 
+COPY rust-toolchain.toml rust-toolchain.toml
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release -p blockifier_reexecution --features cairo_native --recipe-path recipe.json
 
