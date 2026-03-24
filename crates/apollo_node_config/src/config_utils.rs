@@ -212,6 +212,10 @@ pub fn load_and_validate_config(
 ) -> Result<SequencerNodeConfig, ConfigError> {
     let config_load_result = SequencerNodeConfig::load_and_process(args);
     if let Err(error) = config_load_result {
+        if let ConfigError::CommandInput(clap_err) = error {
+            // --help and --version should print to stdout and exit cleanly.
+            clap_err.exit();
+        }
         error!("Failed loading configuration: {error}");
         return Err(error);
     }
