@@ -14,9 +14,9 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    EvaluationRate,
     ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
@@ -27,7 +27,7 @@ pub(crate) fn get_consensus_round_above_zero() -> Alert {
     Alert::new(
         "consensus_round_above_zero",
         "Consensus round above zero",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!("increase({}[1h])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter()),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
@@ -44,7 +44,7 @@ pub(crate) fn get_consensus_round_above_zero_multiple_times() -> Alert {
     Alert::new(
         ALERT_NAME,
         "Consensus round above zero multiple times",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         ExpressionOrExpressionWithPlaceholder::Placeholder(
             Template::new(expr_template_string),
             vec![format_sampling_window(ALERT_NAME)],
@@ -66,7 +66,7 @@ pub(crate) fn get_cende_write_blob_failure_alert() -> Alert {
     Alert::new(
         ALERT_NAME,
         "Cende write blob failure",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!("increase({}[1h])", CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
@@ -81,7 +81,7 @@ pub(crate) fn get_consensus_p2p_peer_down() -> Alert {
     Alert::new(
         ALERT_NAME,
         "Consensus p2p peer down",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!("max_over_time({}[2m])", CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter()),
         vec![AlertCondition::new(
             AlertComparisonOp::LessThan,
@@ -100,7 +100,7 @@ pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
     Alert::new(
         "cende_write_blob_failure_once",
         "Cende write blob failure once",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!("increase({}[1h])", CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
@@ -115,7 +115,7 @@ pub(crate) fn consensus_block_number_progress_is_slow() -> Alert {
     Alert::new(
         ALERT_NAME,
         "Consensus block number progress is slow",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[2m])) or vector(0)",
             CONSENSUS_BLOCK_NUMBER.get_name_with_filter()

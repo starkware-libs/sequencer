@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
+use strum::{EnumIter, IntoEnumIterator};
 
 use crate::alert_placeholders::{
     ComparisonValueOrPlaceholder,
@@ -14,7 +15,7 @@ pub(crate) const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
 pub(crate) const SECS_IN_MIN: u64 = 60;
 
 /// Alerts to be configured in the dashboard.
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct Alerts {
     alerts: Vec<Alert>,
 }
@@ -39,7 +40,34 @@ impl Alerts {
                 panic!("Duplicate placeholder name found across alerts: {duplicate}")
             });
 
+        // Sort alerts lexicographically by name within each group so the JSON output is stable.
+        let mut alerts = alerts;
+        alerts.sort_by(|a, b| a.alert_group.cmp(&b.alert_group).then(a.name.cmp(&b.name)));
+
         Self { alerts }
+    }
+}
+
+impl Serialize for Alerts {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[derive(Serialize)]
+        struct GroupDef {
+            name: EvaluationRate,
+            #[serde(rename = "intervalSec")]
+            interval_sec: u64,
+        }
+        impl GroupDef {
+            fn new(rate: EvaluationRate) -> Self {
+                Self { interval_sec: rate.interval_sec(), name: rate }
+            }
+        }
+
+        let groups: Vec<GroupDef> = EvaluationRate::iter().map(GroupDef::new).collect();
+
+        let mut state = serializer.serialize_struct("Alerts", 2)?;
+        state.serialize_field("groups", &groups)?;
+        state.serialize_field("alerts", &self.alerts)?;
+        state.end()
     }
 }
 
@@ -152,19 +180,33 @@ impl Serialize for AlertCondition {
     }
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum AlertGroup {
-    Batcher,
-    Consensus,
-    Gateway,
-    General,
-    HttpServer,
-    L1GasPrice,
-    L1Messages,
-    Mempool,
-    Staking,
-    StateSync,
+/// Determines which Grafana rule group an alert belongs to, which controls its evaluation
+/// rate — the cadence at which Grafana checks the alert condition.
+///
+/// Variants are ordered alphabetically by their serialized name so that deriving `Ord` produces
+/// the same stable sort used when grouping alerts in the JSON output.
+#[derive(Debug, EnumIter, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+pub(crate) enum EvaluationRate {
+    /// Evaluated every 30 seconds. The default cadence for most production alerts.
+    #[serde(rename = "evaluation_rate_default")]
+    Default,
+    /// Evaluated every 10 seconds. For critical infrastructure state that must be detected
+    /// near-immediately (e.g., pod readiness).
+    #[serde(rename = "evaluation_rate_high")]
+    High,
+    /// Evaluated every 60 seconds. Reserved for low-urgency background checks.
+    #[serde(rename = "evaluation_rate_low")]
+    Low,
+}
+
+impl EvaluationRate {
+    pub(crate) fn interval_sec(&self) -> u64 {
+        match self {
+            Self::High => 10,
+            Self::Default => 30,
+            Self::Low => 60,
+        }
+    }
 }
 
 /// Describes the properties of an alert defined in grafana.
@@ -174,9 +216,9 @@ pub(crate) struct Alert {
     name: String,
     // The title that will be displayed.
     title: String,
-    // The group that the alert will be displayed under.
+    // The evaluation group this alert belongs to, which sets its check interval.
     #[serde(rename = "ruleGroup")]
-    alert_group: AlertGroup,
+    alert_group: EvaluationRate,
     // The expression to evaluate for the alert.
     expr: ExpressionOrExpressionWithPlaceholder,
     // The conditions that must be met for the alert to be triggered.
@@ -218,7 +260,7 @@ impl Alert {
     pub(crate) fn new(
         name: impl ToString,
         title: impl ToString,
-        alert_group: AlertGroup,
+        alert_group: EvaluationRate,
         expr: impl Into<ExpressionOrExpressionWithPlaceholder>,
         conditions: Vec<AlertCondition>,
         pending_duration: impl ToString,

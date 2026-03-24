@@ -16,9 +16,9 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    EvaluationRate,
     ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
@@ -27,7 +27,7 @@ use crate::alerts::{
 fn build_idle_alert(
     alert_name: &str,
     alert_title: &str,
-    alert_group: AlertGroup,
+    alert_group: EvaluationRate,
     metric_name_with_filter: &str,
     alert_severity: AlertSeverity,
 ) -> Alert {
@@ -53,7 +53,7 @@ pub(crate) fn get_http_server_no_successful_transactions() -> Alert {
     build_idle_alert(
         "http_server_no_successful_transactions",
         "http server no successful transactions",
-        AlertGroup::HttpServer,
+        EvaluationRate::Default,
         &ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
         AlertSeverity::Informational,
     )
@@ -63,7 +63,7 @@ pub(crate) fn get_gateway_add_tx_idle() -> Alert {
     build_idle_alert(
         "gateway_add_tx_idle_p2p_rpc",
         "Gateway add_tx idle (p2p+rpc)",
-        AlertGroup::Gateway,
+        EvaluationRate::Default,
         &GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter(),
         AlertSeverity::Regular,
     )
@@ -73,7 +73,7 @@ pub(crate) fn get_mempool_add_tx_idle() -> Alert {
     build_idle_alert(
         "mempool_add_tx_idle_p2p_rpc",
         "Mempool add_tx idle (p2p+rpc)",
-        AlertGroup::Mempool,
+        EvaluationRate::Default,
         &MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter(),
         AlertSeverity::Sos,
     )
@@ -84,7 +84,7 @@ pub(crate) fn get_gateway_low_successful_transaction_rate() -> Alert {
     Alert::new(
         ALERT_NAME,
         "gateway low successful transaction rate",
-        AlertGroup::Gateway,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[10m])) or vector(0)",
             GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name_with_filter()
