@@ -38,6 +38,7 @@ use crate::serde_utils::SerdeWrapper;
 pub const DEFAULT_RETRIES: usize = 15;
 const DEFAULT_IDLE_CONNECTIONS: usize = 10;
 const DEFAULT_HTTP_POOL_IDLE_TIMEOUT_MS: u64 = 30000;
+const DEFAULT_TCP_KEEPALIVE_IDLE_TIME_MS: u64 = 30000;
 const DEFAULT_MAX_RETRY_INTERVAL_MS: u64 = 1000;
 const DEFAULT_INITIAL_RETRY_DELAY_MS: u64 = 1;
 const DEFAULT_ATTEMPTS_PER_LOG: usize = 1;
@@ -51,6 +52,9 @@ pub struct RemoteClientConfig {
     pub idle_connections: usize,
     /// How long the Hyper client keeps an unused HTTP/2 connection in its pool before closing it.
     pub http_pool_idle_timeout_ms: u64,
+    /// TCP keepalive: milliseconds the outbound socket may be idle before the OS sends probes.
+    /// Use `0` to leave TCP keepalive unset (OS defaults).
+    pub tcp_keepalive_idle_time_ms: u64,
     pub attempts_per_log: usize,
     pub initial_retry_delay_ms: u64,
     pub max_retry_interval_ms: u64,
@@ -64,6 +68,7 @@ impl Default for RemoteClientConfig {
             retries: DEFAULT_RETRIES,
             idle_connections: DEFAULT_IDLE_CONNECTIONS,
             http_pool_idle_timeout_ms: DEFAULT_HTTP_POOL_IDLE_TIMEOUT_MS,
+            tcp_keepalive_idle_time_ms: DEFAULT_TCP_KEEPALIVE_IDLE_TIME_MS,
             initial_retry_delay_ms: DEFAULT_INITIAL_RETRY_DELAY_MS,
             attempts_per_log: DEFAULT_ATTEMPTS_PER_LOG,
             max_retry_interval_ms: DEFAULT_MAX_RETRY_INTERVAL_MS,
@@ -93,6 +98,13 @@ impl SerializeConfig for RemoteClientConfig {
                 &self.http_pool_idle_timeout_ms,
                 "Milliseconds before the HTTP client pool closes an idle connection (Hyper \
                  `pool_idle_timeout`).",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "tcp_keepalive_idle_time_ms",
+                &self.tcp_keepalive_idle_time_ms,
+                "Milliseconds of TCP idleness before the OS sends keepalive probes on outbound \
+                 sockets; `0` disables setting TCP keepalive (OS defaults apply).",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -166,6 +178,10 @@ where
         let mut connector = HttpConnector::new();
         connector.set_nodelay(config.set_tcp_nodelay);
         connector.set_connect_timeout(Some(Duration::from_millis(config.connection_timeout_ms)));
+        if config.tcp_keepalive_idle_time_ms > 0 {
+            connector.set_keepalive(Some(Duration::from_millis(config.tcp_keepalive_idle_time_ms)));
+        }
+
         let pool_idle = Duration::from_millis(config.http_pool_idle_timeout_ms);
         let client = Client::builder(TokioExecutor::new())
             .http2_only(true)

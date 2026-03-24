@@ -49,6 +49,7 @@
   "components.gateway.remote_client_config.max_retry_interval_ms": 1000,
   "components.gateway.remote_client_config.retries": 15,
   "components.gateway.remote_client_config.set_tcp_nodelay": true,
+  "components.gateway.remote_client_config.tcp_keepalive_idle_time_ms": 30000,
   "components.gateway.remote_server_config.#is_none": true,
   "components.gateway.url": "$$$_COMPONENTS-GATEWAY-URL_$$$",
   "components.http_server.execution_mode": "Enabled",
