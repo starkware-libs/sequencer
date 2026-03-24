@@ -105,10 +105,7 @@ class GrafanaAlertRuleGroupConstruct(GrafanaBaseConstruct):
         super().__init__(scope, id, cluster, namespace)
 
         self.grafana_alert_group = grafana_alert_rule_group
-        self.grafana_alert_files = self.grafana_alert_group.get_alert_files()
-        self.hash_value = generate_random_hash(from_string=f"{self.cluster}-{self.namespace}")
-        self.custom_name = f"{self.namespace}-arg-{self.hash_value}"
-        self._get_shared_grafana_alert_rule_group()
+        self._create_alert_rule_group_crds()
 
     def _exec_err_state_enum_selector(self, exec_err_state: str) -> Optional[str]:
         """Convert string to ExecErrState enum."""
@@ -167,33 +164,30 @@ class GrafanaAlertRuleGroupConstruct(GrafanaBaseConstruct):
             ],
         )
 
-    def _get_shared_grafana_alert_rule_group_spec(self):
-        """Build the spec for the alert rule group."""
-        loaded_alert_rules = [
-            self.grafana_alert_group.load(str(alert_file))
-            for alert_file in self.grafana_alert_files
-        ]
-        # Keep rule order deterministic so generated YAML has stable PR diffs.
-        loaded_alert_rules.sort(key=lambda rule: rule["title"].lower())
-        rules = [
-            self._get_shared_grafana_alert_rule_group_rules(alert_rule)
-            for alert_rule in loaded_alert_rules
-        ]
+    def _create_alert_rule_group_crds(self):
+        """Create one SharedGrafanaAlertRuleGroup CRD per rule group."""
+        for group_file in sorted(self.grafana_alert_group.get_alert_files()):
+            group_data = self.grafana_alert_group.load(str(group_file))
+            group_name = group_data["name"]
+            interval_sec = group_data["interval"]
+            # Keep rule order deterministic so generated YAML has stable PR diffs.
+            rules_data = sorted(group_data["rules"], key=lambda rule: rule["name"])
 
-        return SharedGrafanaAlertRuleGroupSpec(
-            name=self.custom_name,
-            instance_selector=SharedGrafanaAlertRuleGroupSpecInstanceSelector(),
-            interval="1m",
-            editable=False,
-            folder_ref=self.cluster,
-            rules=rules,
-        )
+            k8s_group_name = group_name.replace("_", "-")
+            custom_name = f"{self.namespace}-arg-{k8s_group_name}"
 
-    def _get_shared_grafana_alert_rule_group(self):
-        """Create the SharedGrafanaAlertRuleGroup resource."""
-        return SharedGrafanaAlertRuleGroup(
-            self,
-            self.node.id,
-            metadata=self._get_api_object_metadata(name=self.custom_name),
-            spec=self._get_shared_grafana_alert_rule_group_spec(),
-        )
+            rules = [self._get_shared_grafana_alert_rule_group_rules(rule) for rule in rules_data]
+            spec = SharedGrafanaAlertRuleGroupSpec(
+                name=custom_name,
+                instance_selector=SharedGrafanaAlertRuleGroupSpecInstanceSelector(),
+                interval=f"{interval_sec}s",
+                editable=False,
+                folder_ref=self.cluster,
+                rules=rules,
+            )
+            SharedGrafanaAlertRuleGroup(
+                self,
+                custom_name,
+                metadata=self._get_api_object_metadata(name=custom_name),
+                spec=spec,
+            )

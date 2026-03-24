@@ -6,8 +6,8 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertGroup,
     AlertLogicalOp,
+    EvaluationRate,
     ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
@@ -18,7 +18,7 @@ pub(crate) fn get_l1_message_scraper_no_successes_alert() -> Alert {
     Alert::new(
         ALERT_NAME,
         "L1 message no successes",
-        AlertGroup::L1GasPrice,
+        EvaluationRate::Default,
         format!("increase({}[5m])", L1_MESSAGE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
