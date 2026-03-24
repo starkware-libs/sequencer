@@ -55,20 +55,16 @@ cargo run --release -p blockifier_reexecution --features cairo_native -- \
 The Docker image is built **with `cairo_native` enabled**, so both standard and
 compare-native modes are available inside the container.
 
-### Build and push the Docker image
+### Docker image
 
-From the repo root:
-
-```bash
-docker build -f crates/blockifier_reexecution/replay/Dockerfile -t blockifier-reexecution .
-docker tag blockifier-reexecution us-central1-docker.pkg.dev/starkware-dev/sequencer/blockifier-reexecution:<TAG>
-docker push us-central1-docker.pkg.dev/starkware-dev/sequencer/blockifier-reexecution:<TAG>
-```
+Pre-built images are published to GHCR on version tags by the
+`Blockifier-Reexecution-Docker-Publish` workflow:
+`ghcr.io/starkware-libs/sequencer/blockifier-reexecution:<tag>`
 
 ### Deploy to Kubernetes
 
 1. Copy `job.yaml` and update it for your environment:
-   - Set `image` to your registry image.
+   - Set `image` to the GHCR image tag.
    - Set `RPC_URL` to a fullnode RPC in the same cluster.
    - Set `CHAIN_ID` to `testnet`, `mainnet`, or `integration`.
    - Set `START_BLOCK` to the block you want to start from.
