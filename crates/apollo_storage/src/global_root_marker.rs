@@ -43,6 +43,7 @@ impl GlobalRootMarkerStorageWriter for StorageTxn<'_, RW> {
         let current_marker = self.get_global_root_marker()?;
         if current_marker != expected_marker {
             return Err(StorageError::MarkerMismatch {
+                marker_kind: MarkerKind::GlobalRoot,
                 found: current_marker,
                 expected: expected_marker,
             });

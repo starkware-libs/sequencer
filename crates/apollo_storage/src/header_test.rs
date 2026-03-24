@@ -11,7 +11,7 @@ use starknet_api::felt;
 
 use crate::header::{HeaderStorageReader, HeaderStorageWriter, StarknetVersion};
 use crate::test_utils::get_test_storage;
-use crate::{StorageError, StorageWriter};
+use crate::{MarkerKind, StorageError, StorageWriter};
 
 #[tokio::test]
 async fn append_header() {
@@ -26,7 +26,7 @@ async fn append_header() {
 
     assert_matches!(
         err,
-        StorageError::MarkerMismatch { expected, found }
+        StorageError::MarkerMismatch { marker_kind: MarkerKind::Header, expected, found }
         if expected == BlockNumber(0) && found == BlockNumber(5)
     );
 

@@ -716,7 +716,11 @@ fn update_marker_to_next_block<'env>(
     // Make sure marker is consistent.
     let marker = markers_table.get(txn, &marker_kind)?.unwrap_or_default();
     if marker != block_number {
-        return Err(StorageError::MarkerMismatch { expected: marker, found: block_number });
+        return Err(StorageError::MarkerMismatch {
+            marker_kind,
+            expected: marker,
+            found: block_number,
+        });
     };
 
     // Advance marker.
