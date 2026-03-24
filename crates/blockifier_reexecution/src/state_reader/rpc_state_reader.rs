@@ -676,7 +676,7 @@ impl ConsecutiveRpcStateReaders {
         let old_block_hash = self.get_old_block_hash().unwrap();
 
         // Run the reexecution and get the state maps and contract class mapping.
-        let (block_state, expected_state_diff, actual_state_diff) = self.reexecute_block();
+        let (block_state, expected_state_diff, actual_state_diff) = self.reexecute_block().unwrap();
 
         // Warn if state diffs don't match, but continue writing the file.
         let expected_comparable = ComparableStateDiff::from(expected_state_diff);
