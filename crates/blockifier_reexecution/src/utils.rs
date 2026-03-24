@@ -171,11 +171,13 @@ impl From<CommitmentStateDiff> for ComparableStateDiff {
 }
 
 /// Compares two state diffs, ignoring insertion order. Returns `true` if they match.
-/// On mismatch, logs a detailed diff to stderr.
+/// On mismatch, logs a detailed diff to stderr. An optional `context` label (e.g.,
+/// "native vs CASM") is included in the mismatch message.
 pub fn compare_state_diffs(
     expected_state_diff: CommitmentStateDiff,
     actual_state_diff: CommitmentStateDiff,
     block_number: Option<u64>,
+    context: Option<&str>,
 ) -> bool {
     let expected = ComparableStateDiff::from(expected_state_diff);
     let actual = ComparableStateDiff::from(actual_state_diff);
@@ -183,10 +185,10 @@ pub fn compare_state_diffs(
     if expected == actual {
         true
     } else {
-        let block_info =
-            block_number.map_or(String::new(), |num| format!(" block {num}"));
+        let block_info = block_number.map_or(String::new(), |num| format!(" block {num}"));
+        let context_info = context.map_or(String::new(), |ctx| format!(" ({ctx})"));
         eprintln!(
-            "MISMATCH{block_info}:\n{}",
+            "MISMATCH{block_info}{context_info}:\n{}",
             pretty_assertions::StrComparison::new(
                 &format!("{expected:#?}"),
                 &format!("{actual:#?}"),
@@ -201,7 +203,7 @@ pub fn compare_state_diffs(
 macro_rules! assert_eq_state_diff {
     ($expected_state_diff:expr, $actual_state_diff:expr $(,)?) => {
         assert!(
-            $crate::utils::compare_state_diffs($expected_state_diff, $actual_state_diff, None),
+            $crate::utils::compare_state_diffs($expected_state_diff, $actual_state_diff, None, None),
             "Expected and actual state diffs do not match.",
         );
     };
