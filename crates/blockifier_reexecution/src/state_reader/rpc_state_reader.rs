@@ -29,6 +29,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
@@ -543,6 +544,9 @@ pub struct ConsecutiveRpcStateReaders {
     pub last_block_state_reader: RpcStateReader,
     pub next_block_state_reader: RpcStateReader,
     contract_class_manager: ContractClassManager,
+    /// When true, override `min_sierra_version_for_sierra_gas` to `0.0.0` so all contracts use
+    /// sierra gas.
+    pub override_sierra_gas: bool,
 }
 
 impl ConsecutiveRpcStateReaders {
@@ -568,6 +572,7 @@ impl ConsecutiveRpcStateReaders {
                 dump_mode,
             ),
             contract_class_manager,
+            override_sierra_gas: false,
         }
     }
 
@@ -713,8 +718,18 @@ impl ConsecutiveReexecutionStateReaders<StateReaderAndContractManager<RpcStateRe
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
     ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<RpcStateReader>>> {
+        let block_context = if self.override_sierra_gas {
+            let block_info = self.next_block_state_reader.get_block_info()?;
+            let chain_info = self.next_block_state_reader.chain_info.clone();
+            let mut versioned_constants =
+                self.next_block_state_reader.get_versioned_constants()?;
+            versioned_constants.min_sierra_version_for_sierra_gas = SierraVersion::new(0, 0, 0);
+            BlockContext::new(block_info, chain_info, versioned_constants, BouncerConfig::max())
+        } else {
+            self.next_block_state_reader.get_block_context()?
+        };
         self.last_block_state_reader.get_transaction_executor(
-            self.next_block_state_reader.get_block_context()?,
+            block_context,
             transaction_executor_config,
             &self.contract_class_manager,
         )

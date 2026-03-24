@@ -159,22 +159,24 @@ fn compare_native_vs_casm(
     native_manager: &ContractClassManager,
     casm_manager: &ContractClassManager,
 ) -> ReexecutionResult<bool> {
-    let native_readers = ConsecutiveRpcStateReaders::new(
+    let mut native_readers = ConsecutiveRpcStateReaders::new(
         BlockNumber(block_number - 1),
         Some(config.clone()),
         chain_info.clone(),
         false,
         native_manager.clone(),
     );
+    native_readers.override_sierra_gas = true;
     let (_block_state, _expected, native_state_diff) = native_readers.reexecute_block()?;
 
-    let casm_readers = ConsecutiveRpcStateReaders::new(
+    let mut casm_readers = ConsecutiveRpcStateReaders::new(
         BlockNumber(block_number - 1),
         Some(config.clone()),
         chain_info.clone(),
         false,
         casm_manager.clone(),
     );
+    casm_readers.override_sierra_gas = true;
     let (_block_state, _expected, casm_state_diff) = casm_readers.reexecute_block()?;
 
     Ok(compare_state_diffs(
