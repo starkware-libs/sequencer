@@ -20,6 +20,7 @@ use crate::test_utils::{
     get_test_config,
     get_test_storage,
     get_test_storage_with_config_flat_state,
+    get_test_storage_with_config_pruning,
     get_test_storage_with_flat_state,
     get_test_storage_with_pruning,
 };
@@ -2690,4 +2691,51 @@ fn retention_zero_keeps_only_tip() {
         assert!(txn.get_reversed_state_diff_from_changeset(BlockNumber(pruned_block)).is_err());
     }
     assert!(txn.get_reversed_state_diff_from_changeset(BlockNumber(4)).is_ok());
+}
+
+#[test]
+fn pruned_marker_survives_restart() {
+    let ((reader, mut writer), config, _temp_dir) = get_test_storage_with_config_pruning(3);
+
+    let address = contract_address!("0x1");
+    let key = storage_key!("0x10");
+
+    // Write 8 blocks — real pruning happens inline in append_state_diff.
+    for block in 0u64..8 {
+        let diff = ThinStateDiff {
+            storage_diffs: indexmap! {
+                address => indexmap! {
+                    key => Felt::from(block + 1),
+                },
+            },
+            ..Default::default()
+        };
+        writer
+            .begin_rw_txn()
+            .unwrap()
+            .append_state_diff(BlockNumber(block), diff)
+            .unwrap()
+            .commit()
+            .unwrap();
+    }
+
+    // After block 7: prune_target = 7 - 3 = 4. Marker should be 4 from real pruning.
+    let txn = reader.begin_ro_txn().unwrap();
+    assert_eq!(txn.get_changeset_pruned_marker().unwrap(), BlockNumber(4));
+    drop(txn);
+
+    // Close and reopen with same config.
+    drop(reader);
+    drop(writer);
+    let (reader2, _writer2) = open_storage(config).unwrap();
+
+    // Marker should persist after restart.
+    let txn2 = reader2.begin_ro_txn().unwrap();
+    assert_eq!(txn2.get_changeset_pruned_marker().unwrap(), BlockNumber(4));
+
+    // Pruned block should still error after restart.
+    assert!(txn2.get_reversed_state_diff_from_changeset(BlockNumber(2)).is_err());
+
+    // Retained block should still succeed after restart.
+    assert!(txn2.get_reversed_state_diff_from_changeset(BlockNumber(5)).is_ok());
 }

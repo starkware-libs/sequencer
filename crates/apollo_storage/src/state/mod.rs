@@ -1180,6 +1180,7 @@ const MAX_BLOCKS_TO_PRUNE_PER_APPEND: u64 = 100;
 // The L1 finality point would be passed down from the batcher (which has L1 provider access)
 // as a parameter to append_state_diff, or set as a "prune target" on the storage transaction.
 
+#[allow(clippy::too_many_arguments)]
 fn prune_changesets<'env>(
     txn: &DbTransaction<'env, RW>,
     current_block: BlockNumber,
