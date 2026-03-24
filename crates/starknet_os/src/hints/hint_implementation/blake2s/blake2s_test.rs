@@ -52,6 +52,7 @@ fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
         verify_secure: false,
         proof_mode: false,
         add_main_prefix_to_entrypoint: false,
+        validate_builtins_offset: true,
     };
 
     let rust_hash = Blake2Felt252::encode_felt252_data_and_calc_blake_hash(&test_data);
@@ -128,6 +129,7 @@ fn test_calc_naive_blake_hash(#[case] test_data: Vec<Felt>) {
         verify_secure: false,
         proof_mode: false,
         add_main_prefix_to_entrypoint: false,
+        validate_builtins_offset: true,
     };
 
     let (_, return_values, _) = initialize_and_run_cairo_0_entry_point(

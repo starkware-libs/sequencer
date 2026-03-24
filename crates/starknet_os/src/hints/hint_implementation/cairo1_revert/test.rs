@@ -92,6 +92,7 @@ fn test_revert(#[case] test_vector: Vec<Operation>) {
         layout: LayoutName::starknet,
         proof_mode: false,
         add_main_prefix_to_entrypoint: false,
+        validate_builtins_offset: true,
     };
     let (mut runner, program, entrypoint) = initialize_cairo_runner(
         &runner_config,
