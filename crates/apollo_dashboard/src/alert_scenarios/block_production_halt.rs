@@ -20,7 +20,6 @@ use crate::alerts::{
     AlertSeverity,
     EvaluationRate,
     ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
     SECS_IN_MIN,
 };
@@ -45,7 +44,6 @@ fn get_consensus_block_number_stuck(
         ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
     )
@@ -79,7 +77,6 @@ fn get_batched_transactions_stuck(title: &'static str) -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(name.clone()),
         ObserverApplicability::NotApplicable,
     )
@@ -114,7 +111,6 @@ fn get_consensus_p2p_not_enough_peers_for_quorum(
             AlertLogicalOp::And,
         )],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::Applicable,
     )
@@ -150,7 +146,6 @@ pub(crate) fn get_consensus_round_high() -> Alert {
             AlertLogicalOp::And,
         )],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
