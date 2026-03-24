@@ -644,15 +644,15 @@
     "privacy": "Public",
     "value": 500
   },
+  "components.batcher.remote_client_config.http_pool_idle_timeout_ms": {
+    "description": "Milliseconds before the HTTP client pool closes an idle connection (Hyper `pool_idle_timeout`).",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.batcher.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 10
-  },
-  "components.batcher.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
   },
   "components.batcher.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
@@ -764,15 +764,15 @@
     "privacy": "Public",
     "value": 500
   },
+  "components.class_manager.remote_client_config.http_pool_idle_timeout_ms": {
+    "description": "Milliseconds before the HTTP client pool closes an idle connection (Hyper `pool_idle_timeout`).",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.class_manager.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 10
-  },
-  "components.class_manager.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
   },
   "components.class_manager.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
@@ -884,15 +884,15 @@
     "privacy": "Public",
     "value": 500
   },
+  "components.committer.remote_client_config.http_pool_idle_timeout_ms": {
+    "description": "Milliseconds before the HTTP client pool closes an idle connection (Hyper `pool_idle_timeout`).",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.committer.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 10
-  },
-  "components.committer.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
   },
   "components.committer.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
@@ -1004,15 +1004,15 @@
     "privacy": "Public",
     "value": 500
   },
+  "components.config_manager.remote_client_config.http_pool_idle_timeout_ms": {
+    "description": "Milliseconds before the HTTP client pool closes an idle connection (Hyper `pool_idle_timeout`).",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.config_manager.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 10
-  },
-  "components.config_manager.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
   },
   "components.config_manager.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
@@ -1129,15 +1129,15 @@
     "privacy": "Public",
     "value": 500
   },
+  "components.gateway.remote_client_config.http_pool_idle_timeout_ms": {
+    "description": "Milliseconds before the HTTP client pool closes an idle connection (Hyper `pool_idle_timeout`).",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.gateway.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 10
-  },
-  "components.gateway.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
   },
   "components.gateway.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
@@ -1254,15 +1254,15 @@
     "privacy": "Public",
     "value": 500
   },
+  "components.l1_gas_price_provider.remote_client_config.http_pool_idle_timeout_ms": {
+    "description": "Milliseconds before the HTTP client pool closes an idle connection (Hyper `pool_idle_timeout`).",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.l1_gas_price_provider.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 10
-  },
-  "components.l1_gas_price_provider.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
   },
   "components.l1_gas_price_provider.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
@@ -1379,15 +1379,15 @@
     "privacy": "Public",
     "value": 500
   },
+  "components.l1_provider.remote_client_config.http_pool_idle_timeout_ms": {
+    "description": "Milliseconds before the HTTP client pool closes an idle connection (Hyper `pool_idle_timeout`).",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.l1_provider.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 10
-  },
-  "components.l1_provider.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
   },
   "components.l1_provider.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
@@ -1504,15 +1504,15 @@
     "privacy": "Public",
     "value": 500
   },
+  "components.mempool.remote_client_config.http_pool_idle_timeout_ms": {
+    "description": "Milliseconds before the HTTP client pool closes an idle connection (Hyper `pool_idle_timeout`).",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.mempool.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 10
-  },
-  "components.mempool.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
   },
   "components.mempool.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
@@ -1624,15 +1624,15 @@
     "privacy": "Public",
     "value": 500
   },
+  "components.mempool_p2p.remote_client_config.http_pool_idle_timeout_ms": {
+    "description": "Milliseconds before the HTTP client pool closes an idle connection (Hyper `pool_idle_timeout`).",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.mempool_p2p.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 10
-  },
-  "components.mempool_p2p.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
   },
   "components.mempool_p2p.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
@@ -1869,15 +1869,15 @@
     "privacy": "Public",
     "value": 500
   },
+  "components.sierra_compiler.remote_client_config.http_pool_idle_timeout_ms": {
+    "description": "Milliseconds before the HTTP client pool closes an idle connection (Hyper `pool_idle_timeout`).",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.sierra_compiler.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 10
-  },
-  "components.sierra_compiler.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
   },
   "components.sierra_compiler.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
@@ -1989,15 +1989,15 @@
     "privacy": "Public",
     "value": 500
   },
+  "components.signature_manager.remote_client_config.http_pool_idle_timeout_ms": {
+    "description": "Milliseconds before the HTTP client pool closes an idle connection (Hyper `pool_idle_timeout`).",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.signature_manager.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 10
-  },
-  "components.signature_manager.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
   },
   "components.signature_manager.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
@@ -2109,15 +2109,15 @@
     "privacy": "Public",
     "value": 500
   },
+  "components.state_sync.remote_client_config.http_pool_idle_timeout_ms": {
+    "description": "Milliseconds before the HTTP client pool closes an idle connection (Hyper `pool_idle_timeout`).",
+    "privacy": "Public",
+    "value": 30000
+  },
   "components.state_sync.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 10
-  },
-  "components.state_sync.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
   },
   "components.state_sync.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",

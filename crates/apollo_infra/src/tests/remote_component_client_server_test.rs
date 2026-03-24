@@ -90,7 +90,7 @@ const MAX_CONCURRENCY: usize = 10;
 const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
     retries: 0,
     idle_connections: 0,
-    idle_timeout_ms: 0,
+    http_pool_idle_timeout_ms: 0,
     max_retry_interval_ms: 0,
     initial_retry_delay_ms: 0,
     attempts_per_log: 1,
