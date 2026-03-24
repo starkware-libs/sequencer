@@ -191,6 +191,21 @@ pub enum NativeClassesWhitelist {
     Limited(Vec<ClassHash>),
 }
 
+impl NativeClassesWhitelist {
+    pub const SER_PARAM_DESCRIPTION: &str = "Specifies whether to execute all class hashes or \
+                                             only specific ones using Cairo native. If limited, a \
+                                             specific list of class hashes is provided.";
+
+    pub fn ser_param(&self) -> (String, SerializedParam) {
+        ser_param(
+            "native_classes_whitelist",
+            &self,
+            Self::SER_PARAM_DESCRIPTION,
+            ParamPrivacyInput::Public,
+        )
+    }
+}
+
 impl<'de> Deserialize<'de> for NativeClassesWhitelist {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
