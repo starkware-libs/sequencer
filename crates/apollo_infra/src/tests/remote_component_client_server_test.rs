@@ -2,6 +2,7 @@ use std::convert::Infallible;
 use std::fmt::Debug;
 use std::future::ready;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::os::unix::io::BorrowedFd;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -23,6 +24,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use socket2::SockRef;
 use starknet_types_core::felt::Felt;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -92,9 +94,10 @@ const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
     retries: 0,
     idle_connections: 0,
     http_pool_idle_timeout_ms: 0,
-    max_retry_interval_ms: 0,
-    initial_retry_delay_ms: 0,
+    tcp_keepalive_idle_time_ms: None,
     attempts_per_log: 1,
+    initial_retry_delay_ms: 0,
+    max_retry_interval_ms: 0,
     connection_timeout_ms: 500,
     request_timeout_ms: 1000,
     set_tcp_nodelay: true,
@@ -732,5 +735,62 @@ async fn zombie_connection_is_evicted() {
         read_result.is_ok(),
         "Server should have closed the zombie connection after keepalive timeout, but the \
          connection is still open"
+    );
+}
+
+/// Returns whether the outbound socket in this process that is connected to `server_addr`
+/// has `SO_KEEPALIVE` enabled. Returns `false` if no such socket is found.
+fn client_socket_has_keepalive(server_addr: SocketAddr) -> bool {
+    for fd in 0_i32..4096 {
+        // SAFETY: We only borrow the fd transiently to read socket options; `SockRef` does
+        // not take ownership of or close the fd. Invalid fds produce errors from `peer_addr`
+        // and `keepalive`, which we handle gracefully via `.ok()` / `.unwrap_or`.
+        let borrowed = unsafe { BorrowedFd::borrow_raw(fd) };
+        let sock = SockRef::from(&borrowed);
+        if sock
+            .peer_addr()
+            .ok()
+            .and_then(|a: socket2::SockAddr| a.as_socket())
+            .is_some_and(|a| a == server_addr)
+        {
+            return sock.keepalive().unwrap_or(false);
+        }
+    }
+    false
+}
+
+/// Verifies that `SO_KEEPALIVE` on the client's outbound socket reflects
+/// `tcp_keepalive_idle_time_ms`: `Some(_)` enables it, `None` leaves it off.
+#[rstest]
+#[case(unique_u16!(), Some(30_000), true)]
+#[case(unique_u16!(), None, false)]
+#[tokio::test]
+async fn tcp_keepalive_socket_option_matches_config(
+    #[case] port_seed: u16,
+    #[case] tcp_keepalive_idle_time_ms: Option<u64>,
+    #[case] expected_keepalive: bool,
+) {
+    let mut ports = available_ports_factory(port_seed);
+    let a_socket = ports.get_next_local_host_socket();
+    let b_socket = ports.get_next_local_host_socket();
+
+    // Hyper connects lazily on first request, so after setup no socket is connected to
+    // a_socket yet — our test client's connection will be the only one to check.
+    setup_for_tests(VALID_VALUE_A, a_socket, b_socket, MAX_CONCURRENCY, None).await;
+
+    let client = ComponentAClient::new(
+        RemoteClientConfig { tcp_keepalive_idle_time_ms, ..Default::default() },
+        &a_socket.ip().to_string(),
+        a_socket.port(),
+        &TEST_REMOTE_CLIENT_METRICS,
+    );
+
+    // Establish the connection and leave it in Hyper's pool.
+    client.a_get_value().await.expect("request should succeed");
+
+    assert_eq!(
+        client_socket_has_keepalive(a_socket),
+        expected_keepalive,
+        "SO_KEEPALIVE on the outbound socket should reflect tcp_keepalive_idle_time_ms"
     );
 }
