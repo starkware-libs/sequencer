@@ -691,7 +691,7 @@ impl ConsecutiveRpcStateReaders {
         let (block_state, expected_state_diff, actual_state_diff) = self.reexecute_block().unwrap();
 
         // Warn if state diffs don't match, but continue writing the file.
-        compare_state_diffs(expected_state_diff, actual_state_diff, block_number, None);
+        compare_state_diffs(expected_state_diff, actual_state_diff, block_number);
 
         let block_state = block_state.unwrap();
         let serializable_data_prev_block = SerializableDataPrevBlock {
