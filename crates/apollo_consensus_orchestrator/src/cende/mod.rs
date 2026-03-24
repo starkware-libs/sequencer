@@ -112,7 +112,7 @@ pub struct CendeAmbassador {
     // TODO(dvir): consider creating enum varaiant instead of the `Option<AerospikeBlob>`.
     // `None` indicates that there is no blob to write, and therefore, the node can't be the
     // proposer.
-    prev_height_blob: Arc<Mutex<Option<AerospikeBlob>>>,
+    prev_height_blob: Arc<Mutex<Option<Arc<AerospikeBlob>>>>,
     write_blob_url: Url,
     get_latest_received_block_url: Url,
     client: ClientWithMiddleware,
@@ -243,36 +243,52 @@ impl CendeContext for CendeAmbassador {
 
         task::spawn(
             async move {
-                let Some(ref blob): Option<AerospikeBlob> = *prev_height_blob.lock().await else {
-                    return previous_height_exists_at_cende_recorder(
-                        client,
-                        get_latest_url,
-                        current_height,
-                    )
-                    .await;
-                };
+                let locked_prev_blob = prev_height_blob.lock().await;
+                match locked_prev_blob.as_ref() {
+                    None => {
+                        drop(locked_prev_blob);
+                        previous_height_exists_at_cende_recorder(
+                            client,
+                            get_latest_url,
+                            current_height,
+                        )
+                        .await
+                    }
+                    Some(blob) => {
+                        if blob.block_number.0 >= current_height.0 {
+                            panic!(
+                                "Blob block number is greater than or equal to the current \
+                                 height. That means cende has a blob of height that hasn't \
+                                 reached a consensus."
+                            )
+                        }
 
-                if blob.block_number.0 >= current_height.0 {
-                    panic!(
-                        "Blob block number is greater than or equal to the current height. That \
-                         means cende has a blob of height that hasn't reached a consensus."
-                    )
+                        // Can happen in case the consensus got a block from the state sync and due
+                        // to that did not update the cende ambassador in `decision_reached`
+                        // function.
+                        if blob.block_number.0 + 1 != current_height.0 {
+                            warn!(
+                                "CENDE_FAILURE: Mismatch blob block number and height, can't \
+                                 write blob to Aerospike. Blob block number {}, height \
+                                 {current_height}",
+                                blob.block_number
+                            );
+                            record_write_failure(CendeWriteFailureReason::HeightMismatch);
+                            return false;
+                        }
+
+                        let blob_to_send = Arc::clone(blob);
+                        drop(locked_prev_blob);
+
+                        info!("Writing blob to Aerospike.");
+                        send_write_blob_and_clear_prev_height_if_unchanged(
+                            prev_height_blob,
+                            request_builder,
+                            blob_to_send,
+                        )
+                        .await
+                    }
                 }
-
-                // Can happen in case the consensus got a block from the state sync and due to that
-                // did not update the cende ambassador in `decision_reached` function.
-                if blob.block_number.0 + 1 != current_height.0 {
-                    warn!(
-                        "CENDE_FAILURE: Mismatch blob block number and height, can't write blob \
-                         to Aerospike. Blob block number {}, height {current_height}",
-                        blob.block_number
-                    );
-                    record_write_failure(CendeWriteFailureReason::HeightMismatch);
-                    return false;
-                }
-
-                info!("Writing blob to Aerospike.");
-                return send_write_blob(request_builder, blob).await;
             }
             .instrument(tracing::debug_span!("cende write_prev_height_blob height")),
         )
@@ -285,13 +301,13 @@ impl CendeContext for CendeAmbassador {
     ) -> CendeAmbassadorResult<()> {
         // TODO(dvir): as optimization, call the `into` and other preperation when writing to AS.
         let block_number = blob_parameters.block_info.block_number;
-        *self.prev_height_blob.lock().await = Some(
+        *self.prev_height_blob.lock().await = Some(Arc::new(
             AerospikeBlob::from_blob_parameters_and_class_manager(
                 blob_parameters,
                 self.class_manager.clone(),
             )
             .await?,
-        );
+        ));
         info!("Blob for block number {block_number} is ready.");
         CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.set_lossy(block_number.0);
         Ok(())
@@ -332,6 +348,24 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
             false
         }
     }
+}
+
+async fn send_write_blob_and_clear_prev_height_if_unchanged(
+    prev_height_blob: Arc<Mutex<Option<Arc<AerospikeBlob>>>>,
+    request_builder: RequestBuilder,
+    blob_to_send: Arc<AerospikeBlob>,
+) -> bool {
+    let written_height = blob_to_send.block_number;
+    let send_ok = send_write_blob(request_builder, blob_to_send.as_ref()).await;
+    if send_ok {
+        let mut guard = prev_height_blob.lock().await;
+        // Send succeeded: clear only if the mutex still has the same blob we sent. If a newer
+        // blob stored, skip.
+        if (*guard).as_deref().map(|b| b.block_number) == Some(written_height) {
+            *guard = None;
+        }
+    }
+    send_ok
 }
 
 async fn print_write_blob_response(response: Response) {
