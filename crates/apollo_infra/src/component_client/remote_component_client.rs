@@ -14,7 +14,7 @@ use hyper::body::Body;
 use hyper::{Request as HyperRequest, Response as HyperResponse};
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::client::legacy::Client;
-use hyper_util::rt::TokioExecutor;
+use hyper_util::rt::{TokioExecutor, TokioTimer};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
@@ -207,8 +207,14 @@ where
             connector.set_keepalive(Some(Duration::from_millis(idle_time_ms)));
         }
 
+        // Server-side HTTP/2 keepalive uses PING frames; the `h2` stack automatically ACKs
+        // inbound pings. We still need a real timer so `pool_idle_timeout` schedules evictions
+        // (see hyper-util `Builder::pool_timer` docs) and so the HTTP/2 stack can use timers if
+        // enabled later (e.g. adaptive window).
         let pool_idle = Duration::from_millis(config.http_pool_idle_timeout_ms);
         let client = Client::builder(TokioExecutor::new())
+            .timer(TokioTimer::default())
+            .pool_timer(TokioTimer::default())
             .http2_only(true)
             .pool_max_idle_per_host(config.idle_connections)
             .pool_idle_timeout(pool_idle)
