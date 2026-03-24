@@ -29,6 +29,7 @@ rand.workspace = true
 rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+socket2 = { workspace = true, features = ["all"] }
 starknet_api.workspace = true
 static_assertions.workspace = true
 thiserror.workspace = true
@@ -49,6 +50,5 @@ metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 once_cell.workspace = true
 pretty_assertions.workspace = true
-socket2 = { workspace = true, features = ["all"] }
 starknet-types-core.workspace = true
 strum = { workspace = true, features = ["derive"] }
