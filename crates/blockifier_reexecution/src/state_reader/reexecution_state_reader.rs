@@ -1,5 +1,4 @@
 use apollo_rpc_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
-use assert_matches::assert_matches;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
@@ -135,31 +134,31 @@ pub trait ConsecutiveReexecutionStateReaders<S: StateReader + Send + Sync + 'sta
 
     /// Reexecutes a block and returns the block state along with the expected and actual state
     /// diffs. Does not verify that the state diffs match.
-    fn reexecute_block(self) -> (Option<CachedState<S>>, CommitmentStateDiff, CommitmentStateDiff) {
-        let expected_state_diff = self.get_next_block_state_diff().unwrap();
+    fn reexecute_block(
+        self,
+    ) -> ReexecutionResult<(Option<CachedState<S>>, CommitmentStateDiff, CommitmentStateDiff)> {
+        let expected_state_diff = self.get_next_block_state_diff()?;
 
-        let all_txs_in_next_block = self.get_next_block_txs().unwrap();
+        let all_txs_in_next_block = self.get_next_block_txs()?;
 
-        let mut transaction_executor = self.pre_process_and_create_executor(None).unwrap();
+        let mut transaction_executor = self.pre_process_and_create_executor(None)?;
 
         let execution_results = transaction_executor.execute_txs(&all_txs_in_next_block, None);
         // Verify all transactions executed successfully.
-        for res in execution_results.iter() {
-            assert_matches!(res, Ok(_));
+        for res in execution_results {
+            res?;
         }
 
         // Finalize block and read actual statediff; using non_consuming_finalize to keep the
         // block_state.
-        let actual_state_diff = transaction_executor
-            .non_consuming_finalize()
-            .expect("Couldn't finalize block")
-            .state_diff;
+        let actual_state_diff = transaction_executor.non_consuming_finalize()?.state_diff;
 
-        (transaction_executor.block_state, expected_state_diff, actual_state_diff)
+        Ok((transaction_executor.block_state, expected_state_diff, actual_state_diff))
     }
 
     fn reexecute_and_verify_correctness(self) -> Option<CachedState<S>> {
-        let (block_state, expected_state_diff, actual_state_diff) = self.reexecute_block();
+        let (block_state, expected_state_diff, actual_state_diff) =
+            self.reexecute_block().unwrap();
 
         assert_eq_state_diff!(expected_state_diff, actual_state_diff);
 
