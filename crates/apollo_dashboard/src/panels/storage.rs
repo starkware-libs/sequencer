@@ -1,4 +1,6 @@
 use apollo_storage::metrics::{
+    BATCHER_CHANGESET_MARKER,
+    BATCHER_CHANGESET_PRUNED_MARKER,
     BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
     CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,
     STORAGE_APPEND_THIN_STATE_DIFF_LATENCY,
@@ -34,6 +36,12 @@ fn get_batcher_storage_open_read_transactions() -> Panel {
 fn get_class_manager_storage_open_read_transactions() -> Panel {
     Panel::from_gauge(&CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS, PanelType::TimeSeries)
 }
+fn get_batcher_changeset_marker() -> Panel {
+    Panel::from_gauge(&BATCHER_CHANGESET_MARKER, PanelType::Stat)
+}
+fn get_batcher_changeset_pruned_marker() -> Panel {
+    Panel::from_gauge(&BATCHER_CHANGESET_PRUNED_MARKER, PanelType::Stat)
+}
 
 pub(crate) fn get_storage_row() -> Row {
     Row::new(
@@ -44,6 +52,8 @@ pub(crate) fn get_storage_row() -> Row {
             get_sync_storage_open_read_transactions(),
             get_batcher_storage_open_read_transactions(),
             get_class_manager_storage_open_read_transactions(),
+            get_batcher_changeset_marker(),
+            get_batcher_changeset_pruned_marker(),
         ],
     )
 }

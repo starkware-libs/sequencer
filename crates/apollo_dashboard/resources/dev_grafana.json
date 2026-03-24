@@ -1985,6 +1985,24 @@
             "class_manager_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Batcher Storage Changeset Marker",
+          "description": "The changeset upper bound (next block without changeset data)",
+          "type": "stat",
+          "exprs": [
+            "batcher_storage_changeset_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Batcher Storage Changeset Pruned Marker",
+          "description": "The changeset lower bound (first block still retaining changeset data)",
+          "type": "stat",
+          "exprs": [
+            "batcher_storage_changeset_pruned_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
         }
       ],
       "collapsed": true
