@@ -106,7 +106,7 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertGroup,
+    EvaluationRate,
     AlertLogicalOp,
     AlertSeverity,
     Alerts,
@@ -128,7 +128,7 @@ fn get_consensus_decisions_reached_by_consensus_ratio() -> Alert {
     Alert::new(
         "consensus_decisions_reached_by_consensus_ratio",
         "Consensus decisions reached by consensus ratio",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         // Clamp to avoid divide by 0.
         format!(
             "(sum(increase({consensus}[10m])) or vector(0)) / \
@@ -149,7 +149,7 @@ fn get_consensus_inbound_stream_evicted_alert() -> Alert {
     Alert::new(
         "consensus_inbound_stream_evicted",
         "Consensus inbound stream evicted",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[1h])) or vector(0)",
             CONSENSUS_INBOUND_STREAM_EVICTED.get_name_with_filter()
@@ -166,7 +166,7 @@ fn get_consensus_inbound_peer_evicted_alert() -> Alert {
     Alert::new(
         "consensus_inbound_peer_evicted",
         "Consensus inbound peer evicted",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[1h])) or vector(0)",
             CONSENSUS_INBOUND_PEER_EVICTED.get_name_with_filter()
@@ -183,7 +183,7 @@ fn get_consensus_inbound_stream_buffer_full_alert() -> Alert {
     Alert::new(
         "consensus_inbound_stream_buffer_full",
         "Consensus inbound stream buffer full",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[1h])) or vector(0)",
             CONSENSUS_INBOUND_STREAM_BUFFER_FULL.get_name_with_filter()
@@ -200,7 +200,7 @@ fn get_consensus_votes_num_sent_messages_alert() -> Alert {
     Alert::new(
         "consensus_votes_num_sent_messages",
         "Consensus votes num sent messages",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[20m])) or vector(0)",
             CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()
@@ -217,7 +217,7 @@ fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
     Alert::new(
         "cende_write_prev_height_blob_latency_too_high",
         "Cende write prev height blob latency too high",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!(
             "(sum(rate({}[20m])) or vector(0)) / clamp_min(sum(rate({}[20m])) or vector(0), \
              0.0000001)",
@@ -236,7 +236,7 @@ fn get_consensus_l1_gas_price_provider_failure() -> Alert {
     Alert::new(
         "consensus_l1_gas_price_provider_failure",
         "Consensus L1 gas price provider failure",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[1h])) or vector(0)",
             CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.get_name_with_filter()
@@ -253,7 +253,7 @@ fn get_consensus_l1_gas_price_provider_failure_once() -> Alert {
     Alert::new(
         "consensus_l1_gas_price_provider_failure_once",
         "Consensus L1 gas price provider failure once",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[1h])) or vector(0)",
             CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.get_name_with_filter()
@@ -270,7 +270,7 @@ fn get_consensus_proposal_fin_mismatch_once() -> Alert {
     Alert::new(
         "consensus_proposal_fin_mismatch_once",
         "Consensus proposal fin mismatch occurred",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[1h])) or vector(0)",
             CONSENSUS_PROPOSAL_FIN_MISMATCH.get_name_with_filter()
@@ -287,7 +287,7 @@ fn get_consensus_conflicting_votes() -> Alert {
     Alert::new(
         "consensus_conflicting_votes",
         "Consensus conflicting votes",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[20m])) or vector(0)",
             CONSENSUS_CONFLICTING_VOTES.get_name_with_filter()
@@ -305,7 +305,7 @@ fn get_consensus_retrospective_block_hash_mismatch() -> Alert {
     Alert::new(
         "consensus_retrospective_block_hash_mismatch",
         "Mismatched retrospective block hashes between the state sync and the batcher",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[5m])) or vector(0)",
             CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH.get_name_with_filter()
@@ -322,7 +322,7 @@ fn get_eth_to_strk_error_count_alert() -> Alert {
     Alert::new(
         "eth_to_strk_error_count",
         "Eth to Strk error count",
-        AlertGroup::L1GasPrice,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[1h])) or vector(0)",
             ETH_TO_STRK_ERROR_COUNT.get_name_with_filter()
@@ -339,7 +339,7 @@ fn get_l1_gas_price_scraper_baselayer_error_count_alert() -> Alert {
     Alert::new(
         "l1_gas_price_scraper_baselayer_error_count",
         "L1 gas price scraper baselayer error count",
-        AlertGroup::L1GasPrice,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[5m])) or vector(0)",
             L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT.get_name_with_filter()
@@ -356,7 +356,7 @@ fn get_l1_gas_price_reorg_detected_alert() -> Alert {
     Alert::new(
         "l1_gas_price_scraper_reorg_detected",
         "L1 gas price scraper reorg detected",
-        AlertGroup::L1GasPrice,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[1m])) or vector(0)",
             L1_GAS_PRICE_SCRAPER_REORG_DETECTED.get_name_with_filter()
@@ -373,7 +373,7 @@ fn get_l1_message_scraper_baselayer_error_count_alert() -> Alert {
     Alert::new(
         "l1_message_scraper_baselayer_error_count",
         "L1 message scraper baselayer error count",
-        AlertGroup::L1Messages,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[1h])) or vector(0)",
             L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.get_name_with_filter()
@@ -390,7 +390,7 @@ fn get_l1_message_scraper_reorg_detected_alert() -> Alert {
     Alert::new(
         "l1_message_scraper_reorg_detected",
         "L1 message scraper reorg detected",
-        AlertGroup::L1Messages,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[1m])) or vector(0)",
             L1_MESSAGE_SCRAPER_REORG_DETECTED.get_name_with_filter()
@@ -407,7 +407,7 @@ fn get_l1_events_provider_errors_alert() -> Alert {
     Alert::new(
         "batcher_l1_events_provider_errors",
         "Batcher L1 events provider errors",
-        AlertGroup::Batcher,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[10m])) or vector(0)",
             BATCHER_L1_EVENTS_PROVIDER_ERRORS.get_name_with_filter()
@@ -425,7 +425,7 @@ fn get_native_compilation_error_increase() -> Alert {
     Alert::new(
         "native_compilation_error",
         "Native compilation alert",
-        AlertGroup::Batcher,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[1h])) or vector(0)",
             NATIVE_COMPILATION_ERROR.get_name_with_filter()
@@ -443,7 +443,7 @@ fn get_consensus_p2p_disconnections() -> Alert {
     Alert::new(
         "consensus_p2p_disconnections",
         "Consensus p2p disconnections",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!(
             // TODO(shahak): find a way to make this depend on num_validators
             // Dividing by two since this counts both disconnections and reconnections
@@ -463,7 +463,7 @@ fn get_mempool_p2p_disconnections() -> Alert {
     Alert::new(
         "mempool_p2p_disconnections",
         "Mempool p2p disconnections",
-        AlertGroup::Mempool,
+        EvaluationRate::Default,
         format!(
             // TODO(shahak): find a way to make this depend on num_validators
             // Dividing by two since this counts both disconnections and reconnections
@@ -484,7 +484,7 @@ fn create_storage_open_read_transactions_alert(storage_type: &str, metric_name: 
     Alert::new(
         format!("{storage_type}_storage_open_read_transactions"),
         format!("{storage_type} - High number of open read transactions"),
-        AlertGroup::StateSync,
+        EvaluationRate::Default,
         format!("max_over_time({}[1m])", metric_name),
         vec![AlertCondition::new(
             AlertComparisonOp::GreaterThan,
@@ -523,7 +523,7 @@ fn get_gateway_proof_archive_write_failure() -> Alert {
     Alert::new(
         "gateway_proof_archive_write_failure",
         "Gateway proof archive (GCS) write failure",
-        AlertGroup::Gateway,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[1h])) or vector(0)",
             GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.get_name_with_filter()
@@ -543,7 +543,7 @@ fn get_staking_epoch_id_mismatch_alert() -> Alert {
     Alert::new(
         "staking_epoch_id_mismatch",
         "Staking epoch ID mismatch between nodes",
-        AlertGroup::Staking,
+        EvaluationRate::Default,
         format!(
             "max({epoch_id}) - min({epoch_id})",
             epoch_id = STAKING_CURRENT_EPOCH_ID.get_name_with_filter()
@@ -560,62 +560,62 @@ fn get_all_remote_server_connection_alerts() -> Vec<Alert> {
     vec![
         get_remote_server_number_of_connections_alert(
             "batcher",
-            AlertGroup::Batcher,
+            EvaluationRate::Default,
             BATCHER_INFRA_METRICS.get_remote_server_metrics(),
         ),
         get_remote_server_number_of_connections_alert(
             "class_manager",
-            AlertGroup::General,
+            EvaluationRate::Default,
             CLASS_MANAGER_INFRA_METRICS.get_remote_server_metrics(),
         ),
         get_remote_server_number_of_connections_alert(
             "committer",
-            AlertGroup::Consensus,
+            EvaluationRate::Default,
             COMMITTER_INFRA_METRICS.get_remote_server_metrics(),
         ),
         get_remote_server_number_of_connections_alert(
             "config_manager",
-            AlertGroup::General,
+            EvaluationRate::Default,
             CONFIG_MANAGER_INFRA_METRICS.get_remote_server_metrics(),
         ),
         get_remote_server_number_of_connections_alert(
             "gateway",
-            AlertGroup::Gateway,
+            EvaluationRate::Default,
             GATEWAY_INFRA_METRICS.get_remote_server_metrics(),
         ),
         get_remote_server_number_of_connections_alert(
             "l1_gas_price",
-            AlertGroup::L1GasPrice,
+            EvaluationRate::Default,
             L1_GAS_PRICE_INFRA_METRICS.get_remote_server_metrics(),
         ),
         get_remote_server_number_of_connections_alert(
             "l1_events",
-            AlertGroup::L1Messages,
+            EvaluationRate::Default,
             L1_EVENTS_INFRA_METRICS.get_remote_server_metrics(),
         ),
         get_remote_server_number_of_connections_alert(
             "mempool",
-            AlertGroup::Mempool,
+            EvaluationRate::Default,
             MEMPOOL_INFRA_METRICS.get_remote_server_metrics(),
         ),
         get_remote_server_number_of_connections_alert(
             "mempool_p2p",
-            AlertGroup::Mempool,
+            EvaluationRate::Default,
             MEMPOOL_P2P_INFRA_METRICS.get_remote_server_metrics(),
         ),
         get_remote_server_number_of_connections_alert(
             "sierra_compiler",
-            AlertGroup::Batcher,
+            EvaluationRate::Default,
             SIERRA_COMPILER_INFRA_METRICS.get_remote_server_metrics(),
         ),
         get_remote_server_number_of_connections_alert(
             "signature_manager",
-            AlertGroup::Consensus,
+            EvaluationRate::Default,
             SIGNATURE_MANAGER_INFRA_METRICS.get_remote_server_metrics(),
         ),
         get_remote_server_number_of_connections_alert(
             "state_sync",
-            AlertGroup::StateSync,
+            EvaluationRate::Default,
             STATE_SYNC_INFRA_METRICS.get_remote_server_metrics(),
         ),
     ]

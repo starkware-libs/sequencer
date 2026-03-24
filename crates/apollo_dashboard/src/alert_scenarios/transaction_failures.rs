@@ -12,7 +12,7 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertGroup,
+    EvaluationRate,
     AlertLogicalOp,
     AlertSeverity,
     ObserverApplicability,
@@ -26,7 +26,7 @@ pub(crate) fn get_http_server_high_deprecated_transaction_failure_ratio() -> Ale
     Alert::new(
         "http_server_high_deprecated_transaction_failure_ratio",
         "http server high deprecated transaction failure ratio",
-        AlertGroup::HttpServer,
+        EvaluationRate::Default,
         format!(
             "increase({}[1h]) / clamp_min(increase({}[1h]), 1)",
             ADDED_TRANSACTIONS_DEPRECATED_ERROR.get_name_with_filter(),
@@ -44,7 +44,7 @@ pub(crate) fn get_http_server_high_transaction_failure_ratio() -> Alert {
     Alert::new(
         "http_server_high_transaction_failure_ratio",
         "http server high transaction failure ratio",
-        AlertGroup::HttpServer,
+        EvaluationRate::Default,
         format!(
             "(increase({}[1h]) - increase({}[1h])) / clamp_min(increase({}[1h]), 1)",
             ADDED_TRANSACTIONS_FAILURE.get_name_with_filter(),
@@ -64,7 +64,7 @@ pub(crate) fn get_http_server_internal_error_ratio() -> Alert {
     Alert::new(
         ALERT_NAME,
         "http server internal error ratio",
-        AlertGroup::HttpServer,
+        EvaluationRate::Default,
         format!(
             "increase({}[1h]) / clamp_min(increase({}[1h]), 1)",
             ADDED_TRANSACTIONS_INTERNAL_ERROR.get_name_with_filter(),
@@ -83,7 +83,7 @@ pub(crate) fn get_mempool_transaction_drop_ratio() -> Alert {
     Alert::new(
         ALERT_NAME,
         "Mempool transaction drop ratio",
-        AlertGroup::Mempool,
+        EvaluationRate::Default,
         format!(
             "increase({}[10m]) / clamp_min(increase({}[10m]), 1)",
             MEMPOOL_TRANSACTIONS_DROPPED.get_name_with_filter(),
@@ -106,7 +106,7 @@ pub(crate) fn get_http_server_internal_error_once() -> Alert {
     Alert::new(
         "http_server_internal_error_once",
         "http server internal error once",
-        AlertGroup::HttpServer,
+        EvaluationRate::Default,
         format!(
             "increase({}[20m]) or vector(0)",
             ADDED_TRANSACTIONS_INTERNAL_ERROR.get_name_with_filter()

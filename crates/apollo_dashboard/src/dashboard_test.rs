@@ -5,7 +5,7 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertGroup,
+    EvaluationRate,
     AlertLogicalOp,
     AlertSeverity,
     ObserverApplicability,
@@ -17,7 +17,7 @@ fn serialize_alert() {
     let alert = Alert::new(
         "Name",
         "Message",
-        AlertGroup::Batcher,
+        EvaluationRate::Default,
         "max".to_string(),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
         "5m",
@@ -30,7 +30,7 @@ fn serialize_alert() {
     let expected = serde_json::json!({
         "name": "Name",
         "title": "Message",
-        "ruleGroup": "batcher",
+        "ruleGroup": "evaluation_rate_default",
         "expr": "max",
         "conditions": [
             {

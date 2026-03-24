@@ -6,7 +6,7 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertGroup,
+    EvaluationRate,
     AlertLogicalOp,
     ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
@@ -19,7 +19,7 @@ pub(crate) fn get_preconfirmed_block_not_written() -> Alert {
     Alert::new(
         ALERT_NAME,
         "Preconfirmed block not written",
-        AlertGroup::Batcher,
+        EvaluationRate::Default,
         format!("increase({}[2m])", PRECONFIRMED_BLOCK_WRITTEN.get_name_with_filter()),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,

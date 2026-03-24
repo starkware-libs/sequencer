@@ -5,7 +5,7 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertGroup,
+    EvaluationRate,
     AlertLogicalOp,
     AlertSeverity,
     ObserverApplicability,
@@ -18,7 +18,7 @@ pub(crate) fn get_config_manager_update_error_increase() -> Alert {
     Alert::new(
         "config_manager_update_error_increase",
         "Config manager update error increase",
-        AlertGroup::General,
+        EvaluationRate::Default,
         format!(
             "sum(increase({}[5m])) or vector(0)",
             CONFIG_MANAGER_UPDATE_ERRORS.get_name_with_filter()

@@ -5,7 +5,7 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertGroup,
+    EvaluationRate,
     AlertLogicalOp,
     AlertSeverity,
     ObserverApplicability,
@@ -17,7 +17,7 @@ const MAX_CONNECTIONS: f64 = 80.0;
 
 pub(crate) fn get_remote_server_number_of_connections_alert(
     component_name: &str,
-    alert_group: AlertGroup,
+    alert_group: EvaluationRate,
     metrics: &RemoteServerMetrics,
 ) -> Alert {
     Alert::new(

@@ -15,7 +15,7 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertGroup,
+    EvaluationRate,
     AlertLogicalOp,
     ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
@@ -29,7 +29,7 @@ pub(crate) fn get_mempool_p2p_peer_down() -> Alert {
     Alert::new(
         ALERT_NAME,
         "Mempool p2p peer down",
-        AlertGroup::Mempool,
+        EvaluationRate::Default,
         format!("max_over_time({}[2m])", MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name_with_filter()),
         vec![AlertCondition::new(
             AlertComparisonOp::LessThan,
@@ -54,7 +54,7 @@ pub(crate) fn get_http_server_avg_add_tx_latency_alert() -> Alert {
     Alert::new(
         ALERT_NAME,
         "High HTTP server average add_tx latency",
-        AlertGroup::HttpServer,
+        EvaluationRate::Default,
         // The clamp_min is used to avoid division by zero, and the minimal value
         // is 1/300, which is the minimum value of a valid count rate over a 5-minute window.
         format!("rate({sum_metric}[5m]) / clamp_min(rate({count_metric}[5m]), 1/300)"),
@@ -77,7 +77,7 @@ pub(crate) fn get_http_server_min_add_tx_latency_alert() -> Alert {
     Alert::new(
         ALERT_NAME,
         "High HTTP server minimal add_tx latency",
-        AlertGroup::HttpServer,
+        EvaluationRate::Default,
         // The lhs expr checks that there were transaction observations during the time window.
         // The rhs expr verifies that none of these observations had a latency of 1 second or less
         // (i.e., the le="1.0" bucket is empty).
@@ -101,7 +101,7 @@ pub(crate) fn get_http_server_p95_add_tx_latency_alert() -> Alert {
     Alert::new(
         "http_server_p95_add_tx_latency",
         "High HTTP server P95 add_tx latency",
-        AlertGroup::HttpServer,
+        EvaluationRate::Default,
         format!(
             "histogram_quantile(0.95, sum(rate({}[5m])) by (le))",
             HTTP_SERVER_ADD_TX_LATENCY.get_name_with_filter()
@@ -130,7 +130,7 @@ pub(crate) fn get_high_empty_blocks_ratio_alert() -> Alert {
     Alert::new(
         ALERT_NAME,
         "High ratio of empty blocks",
-        AlertGroup::Batcher,
+        EvaluationRate::Default,
         ExpressionOrExpressionWithPlaceholder::Placeholder(
             Template::new(expr_template_string),
             vec![
