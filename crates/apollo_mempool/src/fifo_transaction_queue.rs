@@ -19,6 +19,37 @@ struct FifoTransaction {
     block_number: BlockNumber,
 }
 
+#[derive(Clone, Copy, Debug)]
+struct CurrentProposalState {
+    timestamp: UnixTimestamp,
+    expected_block_number: BlockNumber,
+    emit_empty_block: bool,
+}
+
+impl CurrentProposalState {
+    fn matches_tx(&self, tx: &FifoTransaction) -> bool {
+        !self.emit_empty_block
+            && tx.timestamp == self.timestamp
+            && tx.block_number == self.expected_block_number
+    }
+
+    fn advance_block_if_drained(&mut self, remaining_queue: &VecDeque<FifoTransaction>) {
+        let has_more_txs_in_current_block = remaining_queue
+            .front()
+            .is_some_and(|head| head.block_number == self.expected_block_number);
+
+        if has_more_txs_in_current_block {
+            return;
+        }
+
+        self.expected_block_number = self
+            .expected_block_number
+            .next()
+            .expect("Block number overflow while advancing expected block after pop.");
+        self.emit_empty_block = false;
+    }
+}
+
 enum InsertionSide {
     Front,
     Back,
@@ -42,9 +73,10 @@ pub struct FifoTransactionQueue {
     // Temporary map from transaction hash to metadata before the transaction is inserted to
     // queue.
     pending_metadata: HashMap<TransactionHash, TxBlockMetadata>,
-    // Last timestamp returned by resolve_timestamp() - used to filter transactions in
-    // pop_ready_chunk.
-    last_returned_timestamp: Option<UnixTimestamp>,
+    // Tracks current proposal metadata in FIFO mode:
+    // - timestamp returned by resolve_timestamp()
+    // - expected block number for get_txs()
+    current_proposal_state: Option<CurrentProposalState>,
 }
 
 impl FifoTransactionQueue {
@@ -53,7 +85,7 @@ impl FifoTransactionQueue {
             queue: VecDeque::new(),
             staged_txs: Vec::new(),
             pending_metadata: HashMap::new(),
-            last_returned_timestamp: None,
+            current_proposal_state: None,
         }
     }
 
@@ -124,6 +156,48 @@ impl FifoTransactionQueue {
             .copied()
             .collect()
     }
+
+    /// Returns that head transaction's timestamp.
+    fn sync_proposal_state_from_queue_front_tx(&mut self) -> UnixTimestamp {
+        let &front_tx = self
+            .queue
+            .front()
+            .expect("FIFO sync_proposal_state_from_queue_front: queue must be non-empty");
+
+        let Some(prev_state) = self.current_proposal_state else {
+            self.current_proposal_state = Some(CurrentProposalState {
+                timestamp: front_tx.timestamp,
+                expected_block_number: front_tx.block_number,
+                emit_empty_block: false,
+            });
+            return front_tx.timestamp;
+        };
+
+        let (expected_block_number, emit_empty_block) =
+            if front_tx.block_number < prev_state.expected_block_number {
+                // Rewind placed earlier-block txs at the head; realign to that block.
+                (front_tx.block_number, false)
+            } else if front_tx.block_number > prev_state.expected_block_number {
+                // Head skips blocks, emit an empty block and advance by one.
+                (
+                    prev_state
+                        .expected_block_number
+                        .next()
+                        .expect("Block number overflow while advancing expected block."),
+                    true,
+                )
+            } else {
+                // Head matches the expected block; process normally.
+                (prev_state.expected_block_number, false)
+            };
+
+        self.current_proposal_state = Some(CurrentProposalState {
+            timestamp: front_tx.timestamp,
+            expected_block_number,
+            emit_empty_block,
+        });
+        front_tx.timestamp
+    }
 }
 
 impl TransactionQueueTrait for FifoTransactionQueue {
@@ -146,32 +220,51 @@ impl TransactionQueueTrait for FifoTransactionQueue {
     }
 
     fn pop_ready_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
-        // If resolve_timestamp() hasn't been called, return empty vec
-        let Some(timestamp_threshold) = self.last_returned_timestamp else {
+        if self.queue.is_empty() {
             return Vec::new();
+        }
+
+        let Some(current_state) = self.current_proposal_state.as_mut() else {
+            panic!(
+                "FIFO pop_ready_chunk: missing proposal state; resolve_timestamp must run before \
+                 get_txs for this queue"
+            );
         };
 
-        // Collect transactions that match the timestamp threshold
+        let front_tx =
+            self.queue.front().expect("FIFO pop_ready_chunk: queue non-empty after is_empty check");
+        if !current_state.matches_tx(front_tx) {
+            debug!(
+                "FIFO pop_ready_chunk: empty chunk (head_block={:?}, expected_block={:?})",
+                front_tx.block_number, current_state.expected_block_number,
+            );
+            return Vec::new();
+        }
+
         let mut result = Vec::with_capacity(n_txs);
         while result.len() < n_txs {
-            let Some(tx_timestamp) = self.queue.front().map(|tx| tx.timestamp) else {
+            let Some(front_tx) = self.queue.front() else {
                 break;
             };
-
-            if tx_timestamp != timestamp_threshold {
+            if !current_state.matches_tx(front_tx) {
                 break;
             }
 
             let tx = self.queue.pop_front().expect("Queue front must exist if peek succeeded");
-            debug!(
-                "FIFO pop_ready_chunk: popping tx_hash={}, timestamp={}, \
-                 last_returned_timestamp={:?}",
-                tx.tx_reference.tx_hash, tx_timestamp, self.last_returned_timestamp
-            );
             result.push(tx.tx_reference);
             self.staged_txs.push(tx);
         }
 
+        debug!(
+            "FIFO pop_ready_chunk: popped {} txs (requested cap n_txs={}, queue_len_after={})",
+            result.len(),
+            n_txs,
+            self.queue.len()
+        );
+
+        if !result.is_empty() {
+            current_state.advance_block_if_drained(&self.queue);
+        }
         result
     }
 
@@ -210,21 +303,20 @@ impl TransactionQueueTrait for FifoTransactionQueue {
     }
 
     fn has_ready_txs(&self) -> bool {
-        // If resolve_timestamp() hasn't been called yet, no txs are ready
-        let Some(timestamp_threshold) = self.last_returned_timestamp else {
-            return false;
-        };
-
-        // Check if the first tx in queue has the same timestamp as last_returned_timestamp
-        if let Some(first_tx) = self.queue.front() {
-            return first_tx.timestamp == timestamp_threshold;
+        match (self.current_proposal_state, self.queue.front()) {
+            (Some(state), Some(front_tx)) => state.matches_tx(front_tx),
+            _ => false,
         }
-
-        false
     }
 
     fn iter_over_ready_txs(&self) -> Box<dyn Iterator<Item = &TransactionReference> + '_> {
-        Box::new(self.queue.iter().map(|tx| &tx.tx_reference))
+        let Some(state) = self.current_proposal_state else {
+            return Box::new(std::iter::empty());
+        };
+
+        Box::new(
+            self.queue.iter().take_while(move |tx| state.matches_tx(tx)).map(|tx| &tx.tx_reference),
+        )
     }
 
     fn queue_snapshot(&self) -> TransactionQueueSnapshot {
@@ -274,14 +366,24 @@ impl TransactionQueueTrait for FifoTransactionQueue {
     }
 
     fn resolve_timestamp(&mut self) -> UnixTimestamp {
-        // If queue is non-empty, use front tx timestamp and persist it as current threshold.
-        if let Some(timestamp) = self.queue.front().map(|tx| tx.timestamp) {
-            self.last_returned_timestamp = Some(timestamp);
-            return timestamp;
+        if self.queue.front().is_some() {
+            return self.sync_proposal_state_from_queue_front_tx();
         }
-        // If queue is empty, reuse last returned threshold.
-        // If no threshold was ever returned, default to 0.
-        self.last_returned_timestamp.unwrap_or(0)
+        // Queue is empty: reuse previous timestamp if it exists, otherwise return 0.
+        match self.current_proposal_state {
+            Some(state) => {
+                debug!(
+                    "FIFO resolve_timestamp: queue empty, reusing last_timestamp={:?}, \
+                     expected_block={:?}",
+                    state.timestamp, state.expected_block_number
+                );
+                state.timestamp
+            }
+            None => {
+                debug!("FIFO resolve_timestamp: queue empty, no previous proposal state");
+                0
+            }
+        }
     }
 
     fn update_tx_block_metadata(&mut self, tx_hash: TransactionHash, metadata: TxBlockMetadata) {
