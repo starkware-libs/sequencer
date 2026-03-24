@@ -30,7 +30,7 @@ use apollo_l1_events::communication::{
     LocalL1EventsProviderServer,
     RemoteL1EventsProviderServer,
 };
-use apollo_l1_events::metrics::L1_EVENTS_PROVIDER_INFRA_METRICS;
+use apollo_l1_events::metrics::L1_EVENTS_INFRA_METRICS;
 use apollo_l1_gas_price::communication::{
     L1GasPriceScraperServer,
     LocalL1GasPriceServer,
@@ -384,7 +384,7 @@ fn create_local_servers(
             .as_ref()
             .expect("L1 provider local server config should be available."),
         communication.take_l1_events_provider_rx(),
-        &L1_EVENTS_PROVIDER_INFRA_METRICS.get_local_server_metrics()
+        &L1_EVENTS_INFRA_METRICS.get_local_server_metrics()
     );
 
     let mempool_server = create_local_server!(
@@ -560,7 +560,7 @@ pub fn create_remote_servers(
         || { clients.get_l1_events_provider_local_client() },
         config.components.l1_events_provider.remote_server_config,
         config.components.l1_events_provider.port,
-        L1_EVENTS_PROVIDER_INFRA_METRICS.get_remote_server_metrics()
+        L1_EVENTS_INFRA_METRICS.get_remote_server_metrics()
     );
 
     let l1_gas_price_provider_server = create_remote_server!(

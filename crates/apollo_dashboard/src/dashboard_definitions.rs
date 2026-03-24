@@ -4,7 +4,7 @@ use apollo_committer::metrics::COMMITTER_INFRA_METRICS;
 use apollo_compile_to_casm::metrics::SIERRA_COMPILER_INFRA_METRICS;
 use apollo_config_manager::metrics::CONFIG_MANAGER_INFRA_METRICS;
 use apollo_gateway::metrics::GATEWAY_INFRA_METRICS;
-use apollo_l1_events::metrics::L1_EVENTS_PROVIDER_INFRA_METRICS;
+use apollo_l1_events::metrics::L1_EVENTS_INFRA_METRICS;
 use apollo_l1_gas_price::metrics::L1_GAS_PRICE_INFRA_METRICS;
 use apollo_mempool::metrics::MEMPOOL_INFRA_METRICS;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_INFRA_METRICS;
@@ -112,7 +112,7 @@ pub fn get_apollo_dashboard() -> Dashboard {
             get_component_infra_row("Config Manager", &CONFIG_MANAGER_INFRA_METRICS),
             get_component_infra_row("Gateway", &GATEWAY_INFRA_METRICS),
             get_component_infra_row("L1 Gas Price", &L1_GAS_PRICE_INFRA_METRICS),
-            get_component_infra_row("L1 Events", &L1_EVENTS_PROVIDER_INFRA_METRICS),
+            get_component_infra_row("L1 Events", &L1_EVENTS_INFRA_METRICS),
             get_component_infra_row("Mempool", &MEMPOOL_INFRA_METRICS),
             get_component_infra_row("Mempool P2P", &MEMPOOL_P2P_INFRA_METRICS),
             get_component_infra_row("Proof Manager", &PROOF_MANAGER_INFRA_METRICS),

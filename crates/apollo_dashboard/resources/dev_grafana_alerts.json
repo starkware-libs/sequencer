@@ -2073,6 +2073,34 @@
       "observer_applicable": "true"
     },
     {
+      "name": "l1_events_remote_server_number_of_connections",
+      "title": "l1_events - Remote server number of connections exceeds 80",
+      "ruleGroup": "l1_messages",
+      "expr": "sum by (namespace, pod) (l1_events_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              80.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3",
+      "observer_applicable": "true"
+    },
+    {
       "name": "mempool_remote_server_number_of_connections",
       "title": "mempool - Remote server number of connections exceeds 80",
       "ruleGroup": "mempool",

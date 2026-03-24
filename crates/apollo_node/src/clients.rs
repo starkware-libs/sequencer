@@ -50,7 +50,7 @@ use apollo_gateway_types::communication::{
 };
 use apollo_infra::component_client::{Client, LocalComponentClient};
 use apollo_l1_events::communication::{LocalL1EventsProviderClient, RemoteL1EventsProviderClient};
-use apollo_l1_events::metrics::L1_EVENTS_PROVIDER_INFRA_METRICS;
+use apollo_l1_events::metrics::L1_EVENTS_INFRA_METRICS;
 use apollo_l1_events_types::{
     L1EventsProviderRequest,
     L1EventsProviderResponse,
@@ -442,8 +442,8 @@ pub fn create_node_clients(
         &config.components.l1_events_provider.remote_client_config,
         &config.components.l1_events_provider.url,
         config.components.l1_events_provider.port,
-        &L1_EVENTS_PROVIDER_INFRA_METRICS.get_local_client_metrics(),
-        &L1_EVENTS_PROVIDER_INFRA_METRICS.get_remote_client_metrics()
+        &L1_EVENTS_INFRA_METRICS.get_local_client_metrics(),
+        &L1_EVENTS_INFRA_METRICS.get_remote_client_metrics()
     );
 
     let l1_gas_price_client = create_client!(

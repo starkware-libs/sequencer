@@ -5,10 +5,10 @@ use apollo_infra::metrics::{
     RemoteClientMetrics,
     RemoteServerMetrics,
 };
-use apollo_l1_events_types::L1_EVENTS_PROVIDER_REQUEST_LABELS;
+use apollo_l1_events_types::L1_EVENTS_REQUEST_LABELS;
 use apollo_metrics::{define_infra_metrics, define_metrics};
 
-define_infra_metrics!(l1_events_provider);
+define_infra_metrics!(l1_events);
 
 define_metrics!(
     L1EventsProvider => {

@@ -23,6 +23,7 @@ use apollo_consensus_orchestrator::metrics::{
 };
 use apollo_gateway::metrics::{GATEWAY_INFRA_METRICS, GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE};
 use apollo_l1_events::metrics::{
+    L1_EVENTS_INFRA_METRICS,
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
 };
@@ -586,6 +587,11 @@ fn get_all_remote_server_connection_alerts() -> Vec<Alert> {
             "l1_gas_price",
             AlertGroup::L1GasPrice,
             L1_GAS_PRICE_INFRA_METRICS.get_remote_server_metrics(),
+        ),
+        get_remote_server_number_of_connections_alert(
+            "l1_events",
+            AlertGroup::L1Messages,
+            L1_EVENTS_INFRA_METRICS.get_remote_server_metrics(),
         ),
         get_remote_server_number_of_connections_alert(
             "mempool",

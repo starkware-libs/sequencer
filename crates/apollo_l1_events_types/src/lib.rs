@@ -480,6 +480,6 @@ pub struct L1EventsProviderSnapshot {
 }
 
 generate_permutation_labels! {
-    L1_EVENTS_PROVIDER_REQUEST_LABELS,
+    L1_EVENTS_REQUEST_LABELS,
     (LABEL_NAME_REQUEST_VARIANT, L1EventsProviderRequestLabelValue),
 }
