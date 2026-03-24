@@ -243,36 +243,48 @@ impl CendeContext for CendeAmbassador {
 
         task::spawn(
             async move {
-                let Some(ref blob): Option<AerospikeBlob> = *prev_height_blob.lock().await else {
-                    return previous_height_exists_at_cende_recorder(
-                        client,
-                        get_latest_url,
-                        current_height,
-                    )
-                    .await;
-                };
+                let mut locked_prev_blob = prev_height_blob.lock().await;
+                match locked_prev_blob.as_ref() {
+                    None => {
+                        drop(locked_prev_blob);
+                        return previous_height_exists_at_cende_recorder(
+                            client,
+                            get_latest_url,
+                            current_height,
+                        )
+                        .await;
+                    }
+                    Some(blob) => {
+                        if blob.block_number.0 >= current_height.0 {
+                            panic!(
+                                "Blob block number is greater than or equal to the current \
+                                 height. That means cende has a blob of height that hasn't \
+                                 reached a consensus."
+                            )
+                        }
 
-                if blob.block_number.0 >= current_height.0 {
-                    panic!(
-                        "Blob block number is greater than or equal to the current height. That \
-                         means cende has a blob of height that hasn't reached a consensus."
-                    )
-                }
-
-                // Can happen in case the consensus got a block from the state sync and due to that
-                // did not update the cende ambassador in `decision_reached` function.
-                if blob.block_number.0 + 1 != current_height.0 {
-                    warn!(
-                        "CENDE_FAILURE: Mismatch blob block number and height, can't write blob \
-                         to Aerospike. Blob block number {}, height {current_height}",
-                        blob.block_number
-                    );
-                    record_write_failure(CendeWriteFailureReason::HeightMismatch);
-                    return false;
+                        // Can happen in case the consensus got a block from the state sync and due
+                        // to that did not update the cende ambassador in `decision_reached`
+                        // function.
+                        if blob.block_number.0 + 1 != current_height.0 {
+                            warn!(
+                                "CENDE_FAILURE: Mismatch blob block number and height, can't \
+                                 write blob to Aerospike. Blob block number {}, height \
+                                 {current_height}",
+                                blob.block_number
+                            );
+                            record_write_failure(CendeWriteFailureReason::HeightMismatch);
+                            return false;
+                        }
+                    }
                 }
 
                 info!("Writing blob to Aerospike.");
-                return send_write_blob(request_builder, blob).await;
+                let blob =
+                    locked_prev_blob.take().expect("match arm left Some(valid blob) in the mutex");
+                drop(locked_prev_blob);
+                send_write_blob_and_reinsert_on_failure(prev_height_blob, request_builder, blob)
+                    .await
             }
             .instrument(tracing::debug_span!("cende write_prev_height_blob height")),
         )
@@ -332,6 +344,18 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
             false
         }
     }
+}
+
+async fn send_write_blob_and_reinsert_on_failure(
+    prev_height_blob: Arc<Mutex<Option<AerospikeBlob>>>,
+    request_builder: RequestBuilder,
+    blob: AerospikeBlob,
+) -> bool {
+    let send_ok = send_write_blob(request_builder, &blob).await;
+    if !send_ok {
+        *prev_height_blob.lock().await = Some(blob);
+    }
+    send_ok
 }
 
 async fn print_write_blob_response(response: Response) {
