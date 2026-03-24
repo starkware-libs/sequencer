@@ -74,6 +74,27 @@ pub fn get_test_storage_with_config_flat_state()
     ((reader, writer), config, temp_dir)
 }
 
+/// Returns [`StorageReader`], [`StorageWriter`] with flat state and changeset pruning enabled.
+pub fn get_test_storage_with_pruning(
+    retention_blocks: u64,
+) -> ((StorageReader, StorageWriter), TempDir) {
+    let (mut config, temp_dir) = get_test_config(Some(StorageScope::StateOnly));
+    config.flat_state = true;
+    config.changeset_retention_blocks = Some(retention_blocks);
+    ((open_storage(config).unwrap()), temp_dir)
+}
+
+/// Like [`get_test_storage_with_pruning`] but also returns the config for reopening.
+pub fn get_test_storage_with_config_pruning(
+    retention_blocks: u64,
+) -> ((StorageReader, StorageWriter), StorageConfig, TempDir) {
+    let (mut config, temp_dir) = get_test_config(Some(StorageScope::StateOnly));
+    config.flat_state = true;
+    config.changeset_retention_blocks = Some(retention_blocks);
+    let (reader, writer) = open_storage(config.clone()).unwrap();
+    ((reader, writer), config, temp_dir)
+}
+
 /// Returns [`StorageReader`], [`StorageWriter`] and the temporary directory that holds a db for
 /// testing purposes.
 pub fn get_test_storage() -> ((StorageReader, StorageWriter), TempDir) {
