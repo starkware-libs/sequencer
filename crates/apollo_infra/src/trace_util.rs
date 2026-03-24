@@ -107,7 +107,7 @@ pub async fn configure_tracing() -> ReloadHandle {
             // different subscriber for some threads and use set_global_default instead
             // of init.
             tracing_subscriber::registry().with(filtered_layer).with(fmt_layer).init();
-            tracing::info!("Tracing has been successfully initialized.");
+            tracing::debug!("Tracing has been successfully initialized.");
 
             reload_handle
         })
