@@ -18,7 +18,6 @@ use hyper_util::client::legacy::Client;
 use hyper_util::rt::{TokioExecutor, TokioTimer};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use static_assertions::const_assert;
 use tokio::sync::Mutex;
 use tokio::time::Instant;
 use tracing::field::{display, Empty};
@@ -32,6 +31,7 @@ use crate::component_definitions::{
     ServerError,
     APPLICATION_OCTET_STREAM,
     REQUEST_ID_HEADER,
+    TCP_KEEPALIVE_FACTOR,
 };
 use crate::metrics::RemoteClientMetrics;
 use crate::requests::LabeledRequest;
@@ -45,10 +45,6 @@ pub const DEFAULT_RETRIES: usize = 15;
 pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "request timed out";
 
 const DEFAULT_IDLE_CONNECTIONS: usize = 10;
-pub(crate) const TCP_IDLE_TIMEOUT_FACTOR: f64 = 1.5;
-// Ensure tcp connection timeout is greater than http2 connection timeout by requiring a factor
-// greater than 1.
-const_assert!(TCP_IDLE_TIMEOUT_FACTOR > 1.0);
 
 // 8 MiB — bounds memory materialized from a single response as defense in depth.
 const DEFAULT_MAX_RESPONSE_BODY_BYTES: usize = 8 * 1024 * 1024;
@@ -66,8 +62,8 @@ pub struct RemoteClientConfig {
     pub retries: usize,
     pub idle_connections: usize,
     // Determines client connection timeouts. Used plainly for HTTP/2 connections, and with a
-    // `TCP_IDLE_TIMEOUT_FACTOR` for TCP connections.
-    #[validate(custom(function = "validate_tcp_exceeds_http_keepalive"))]
+    // `TCP_KEEPALIVE_FACTOR` for TCP connections.
+    #[validate(custom(function = "validate_keepalive_timeout_ms"))]
     pub keepalive_timeout_ms: u64,
     pub attempts_per_log: usize,
     pub initial_retry_delay_ms: u64,
@@ -96,24 +92,39 @@ impl Default for RemoteClientConfig {
 }
 
 /// Validates that the TCP keepalive duration (at second granularity, as the OS stores
-/// `TCP_KEEPIDLE` in whole seconds) is greater than or equal to the HTTP keepalive duration
-/// (millisecond granularity). If the configured `keepalive_timeout_ms * TCP_IDLE_TIMEOUT_FACTOR` is
-/// less than 1 second, truncation to whole seconds yields 0 s, making the TCP keepalive shorter
-/// than the HTTP keepalive.
-fn validate_tcp_exceeds_http_keepalive(keepalive_timeout_ms: u64) -> Result<(), ValidationError> {
+/// `TCP_KEEPIDLE` in whole seconds) is positive and greater than or equal to the HTTP keepalive
+/// duration (millisecond granularity). If the configured
+/// `keepalive_timeout_ms * TCP_KEEPALIVE_FACTOR` rounds to 0 s, the kernel rejects the socket
+/// option with `EINVAL`. If it is less than `keepalive_timeout_ms`, the TCP keepalive fires before
+/// the HTTP-level timeout.
+pub(crate) fn validate_keepalive_timeout_ms(
+    keepalive_timeout_ms: u64,
+) -> Result<(), ValidationError> {
     let http_keepalive = Duration::from_millis(keepalive_timeout_ms);
-    let tcp_keepalive_raw = http_keepalive.mul_f64(TCP_IDLE_TIMEOUT_FACTOR);
+    let tcp_keepalive_raw = http_keepalive.mul_f64(TCP_KEEPALIVE_FACTOR);
     // TCP_KEEPIDLE is stored in whole seconds; fractional seconds are truncated by the OS.
-    let tcp_keepalive = Duration::from_secs(tcp_keepalive_raw.as_secs());
+    let tcp_keepalive_secs = tcp_keepalive_raw.as_secs();
+    if tcp_keepalive_secs == 0 {
+        return Err(create_validation_error(
+            format!(
+                "TCP keepalive rounds to 0 s (keepalive_timeout_ms={keepalive_timeout_ms}, \
+                 factor={TCP_KEEPALIVE_FACTOR}): increase keepalive_timeout_ms so that \
+                 keepalive_timeout_ms * {TCP_KEEPALIVE_FACTOR} is at least 1 s",
+            ),
+            "tcp_keepalive_zero",
+            "TCP keepalive (second granularity) must be > 0 s.",
+        ));
+    }
+    let tcp_keepalive = Duration::from_secs(tcp_keepalive_secs);
     if tcp_keepalive >= http_keepalive {
         Ok(())
     } else {
         Err(create_validation_error(
             format!(
-                "TCP keepalive ({} s) is shorter than HTTP keepalive ({keepalive_timeout_ms} ms): \
-                 increase keepalive_timeout_ms so that keepalive_timeout_ms * \
-                 {TCP_IDLE_TIMEOUT_FACTOR} rounds to at least {keepalive_timeout_ms} ms",
-                tcp_keepalive.as_secs(),
+                "TCP keepalive ({tcp_keepalive_secs} s) is shorter than HTTP keepalive \
+                 ({keepalive_timeout_ms} ms): increase keepalive_timeout_ms so that \
+                 keepalive_timeout_ms * {TCP_KEEPALIVE_FACTOR} rounds to at least \
+                 {keepalive_timeout_ms} ms",
             ),
             "tcp_keepalive_shorter_than_http_keepalive",
             "TCP keepalive (second granularity) must be >= HTTP keepalive (ms granularity).",
@@ -230,7 +241,7 @@ where
         let mut connector = HttpConnector::new();
         connector.set_nodelay(config.set_tcp_nodelay);
         connector.set_connect_timeout(Some(Duration::from_millis(config.connection_timeout_ms)));
-        connector.set_keepalive(Some(idle_timeout.mul_f64(TCP_IDLE_TIMEOUT_FACTOR)));
+        connector.set_keepalive(Some(idle_timeout.mul_f64(TCP_KEEPALIVE_FACTOR)));
 
         // Server-side HTTP/2 keepalive uses PING frames; the `h2` stack automatically ACKs
         // inbound pings. We still need a real timer so `pool_idle_timeout` schedules evictions

@@ -18,8 +18,8 @@ fn tcp_keepalive_validation_passes_when_tcp_equals_http_keepalive() {
     assert!(config.validate().is_ok());
 }
 
-// keepalive_timeout_ms = 100 ms: tcp_raw = 150 ms, tcp_whole_secs = 0 s = 0 ms, which is less than
-// http_keepalive = 100 ms.
+// keepalive_timeout_ms = 100 ms: tcp_raw = 150 ms, tcp_whole_secs = 0 s = 0 ms, which is less
+// than http_keepalive = 100 ms.
 #[test]
 fn tcp_keepalive_validation_fails_when_tcp_truncated_below_http_keepalive() {
     let config = RemoteClientConfig { keepalive_timeout_ms: 100, ..Default::default() };
