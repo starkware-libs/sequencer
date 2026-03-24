@@ -1,9 +1,19 @@
 # RPC Replay
 
-Continuously reexecutes blocks via RPC with Cairo Native enabled on all contracts,
-comparing the resulting state diffs against the original chain to verify correctness.
+Continuously reexecutes blocks fetched via RPC and compares the resulting state
+diffs to verify correctness. Supports two modes:
 
-## CLI Usage
+- **Standard** (default): reexecutes each block once and compares the actual
+  state diff against the expected one from the chain.
+- **Compare-native** (`--compare-native`): reexecutes each block twice — once
+  with Cairo Native and once with CASM — and compares the two state diffs
+  against each other. Requires the `cairo_native` feature.
+
+## Running locally
+
+All commands must be run from the **repository root**.
+
+### Standard mode
 
 ```bash
 cargo run --release -p blockifier_reexecution -- \
@@ -12,27 +22,38 @@ cargo run --release -p blockifier_reexecution -- \
   -c <CHAIN_ID> \
   --start-block <BLOCK_NUMBER> \
   --end-block <BLOCK_NUMBER> \   # optional, omit to run forever
-  --parallelism <N>              # default: 1
+  --n-workers <N>                # default: 1
+```
+
+### Compare-native mode
+
+Requires building with the `cairo_native` feature:
+
+```bash
+cargo run --release -p blockifier_reexecution --features cairo_native -- \
+  rpc-replay \
+  -n <RPC_URL> \
+  -c <CHAIN_ID> \
+  --start-block <BLOCK_NUMBER> \
+  --compare-native \
+  --n-workers <N>
 ```
 
 ### Parameters
 
-| Parameter       | Description                                                    |
-|-----------------|----------------------------------------------------------------|
-| `-n`            | RPC endpoint URL (e.g. `http://juno:6060`)                     |
-| `-c`            | Chain ID: `testnet`, `mainnet`, or `integration`               |
-| `--start-block` | First block to reexecute                                       |
-| `--end-block`   | Last block (inclusive). Omit to run indefinitely                |
-| `--parallelism` | Number of parallel worker threads (default: 1)                 |
-
-### Native Compilation
-
-Cairo Native is controlled at build time via the `cairo_native` feature flag.
-When enabled, all Sierra contracts are compiled to native before execution.
-The `ContractClassManager` is shared across all workers, so native compilations
-are cached and reused across blocks.
+| Parameter          | Description                                              |
+|--------------------|----------------------------------------------------------|
+| `-n`               | RPC endpoint URL (e.g. `http://juno:6060`)               |
+| `-c`               | Chain ID: `testnet`, `mainnet`, or `integration`         |
+| `--start-block`    | First block to reexecute                                 |
+| `--end-block`      | Last block (inclusive). Omit to run indefinitely          |
+| `--n-workers`      | Number of parallel worker threads (default: 1)           |
+| `--compare-native` | Run native-vs-CASM comparison (requires `cairo_native`)  |
 
 ## Cloud Deployment
+
+The Docker image is built **with `cairo_native` enabled**, so both standard and
+compare-native modes are available inside the container.
 
 ### Build and push the Docker image
 
@@ -47,12 +68,13 @@ docker push us-central1-docker.pkg.dev/starkware-dev/sequencer/blockifier-reexec
 ### Deploy to Kubernetes
 
 1. Copy `job.yaml` and update it for your environment:
-   - Set `image` to your registry image
-   - Set `RPC_URL` to a fullnode RPC in the same cluster (e.g. `http://pathfinder.starknet-testnet-full-nodes:9545/rpc/v0_10`)
-   - Set `CHAIN_ID` to `testnet`, `mainnet`, or `integration`
-   - Set `START_BLOCK` to the block you want to start from
-   - Set `END_BLOCK` or leave empty to run forever
-   - Set `PARALLELISM` based on available resources
+   - Set `image` to your registry image.
+   - Set `RPC_URL` to a fullnode RPC in the same cluster.
+   - Set `CHAIN_ID` to `testnet`, `mainnet`, or `integration`.
+   - Set `START_BLOCK` to the block you want to start from.
+   - Set `END_BLOCK` or leave empty to run forever.
+   - Set `N_WORKERS` based on available resources.
+   - Set `COMPARE_NATIVE` to `true` to enable native-vs-CASM comparison.
 
 2. Create a namespace and deploy:
 
@@ -71,24 +93,30 @@ kubectl logs -f job/blockifier-reexecution -n rpc-replay
 
 All parameters are configured via environment variables in `job.yaml`:
 
-| Env Var       | Description                              | Default              |
-|---------------|------------------------------------------|----------------------|
-| `RPC_URL`     | Starknet RPC endpoint                    | `http://juno:6060`   |
-| `CHAIN_ID`    | Chain identifier                         | `testnet`            |
-| `START_BLOCK` | First block to replay                    | `800000`             |
-| `END_BLOCK`   | Last block (empty = run forever)         | (empty)              |
-| `PARALLELISM` | Number of worker threads                 | `4`                  |
+| Env Var          | Description                              | Default            |
+|------------------|------------------------------------------|--------------------|
+| `RPC_URL`        | Starknet RPC endpoint                    | `http://juno:6060` |
+| `CHAIN_ID`       | Chain identifier                         | `testnet`          |
+| `START_BLOCK`    | First block to replay                    | `800000`           |
+| `END_BLOCK`      | Last block (empty = run forever)         | (empty)            |
+| `N_WORKERS`      | Number of worker threads                 | `16`               |
+| `COMPARE_NATIVE` | Enable native-vs-CASM comparison         | (empty/disabled)   |
 
 ### Resource Sizing
 
+- CPU and memory scale with `N_WORKERS` — tune based on observed usage.
+- In compare-native mode, each block is executed twice, so expect roughly
+  double the CPU usage compared to standard mode.
 - The shared `ContractClassManager` caches compiled native classes across all
   workers, so memory grows with the number of unique contracts encountered.
-- CPU and memory scale with `PARALLELISM` — tune based on observed usage.
 - The RPC fullnode should be in the same cluster to avoid network latency.
 
 ### Output
 
-- `stdout`: per-block pass/fail messages (e.g. `Block 800000 passed.`)
-- `stderr`: detailed state diff mismatches with colored diffs, and error messages
+All output goes to stdout via structured logging (tracing). Per-block
+pass/fail messages appear at `INFO` level, state diff mismatches at `WARN`
+level with colored diffs, and errors at `ERROR` level.
 
-On mismatch, the full expected vs actual state diff is printed to stderr.
+Override the log level with the `RUST_LOG` environment variable (e.g.
+`RUST_LOG=debug`). The default level is `info` for `blockifier` and
+`blockifier_reexecution`, `warn` for everything else.
