@@ -211,7 +211,7 @@ where
         debug!("Committing block number {height} with state diff {state_diff_commitment:?}");
         let mut block_measurements = SingleBlockMeasurements::default();
         block_measurements.start_measurement(Action::EndToEnd);
-        let CommitStateDiffOutput { filled_forest, global_root, deleted_nodes: _deleted_nodes } =
+        let CommitStateDiffOutput { filled_forest, global_root, deleted_nodes } =
             self.commit_state_diff(state_diff, &mut block_measurements).await?;
         let next_offset = height.unchecked_next();
         let metadata = HashMap::from([
@@ -230,12 +230,13 @@ where
         ]);
         info!(
             "For block number {height}, writing filled forest to storage with metadata: \
-             {metadata:?}"
+             {metadata:?}, delete {} nodes",
+            deleted_nodes.len()
         );
         block_measurements.start_measurement(Action::Write);
         let n_write_entries = self
             .forest_storage
-            .write_with_metadata(&filled_forest, metadata)
+            .write_with_metadata(&filled_forest, metadata, deleted_nodes)
             .await
             .map_err(|err| self.map_internal_error(err))?;
         block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
@@ -308,7 +309,7 @@ where
         // Happy flow. Reverts the state diff and returns the computed global root.
         let mut block_measurements = SingleBlockMeasurements::default();
         block_measurements.start_measurement(Action::EndToEnd);
-        let CommitStateDiffOutput { filled_forest, global_root: revert_global_root, .. } =
+        let CommitStateDiffOutput { filled_forest, global_root: revert_global_root, deleted_nodes } =
             self.commit_state_diff(reversed_state_diff, &mut block_measurements).await?;
 
         // The last committed block is offset-1. After the revert, the last committed block wll be
@@ -341,7 +342,7 @@ where
         block_measurements.start_measurement(Action::Write);
         let n_write_entries = self
             .forest_storage
-            .write_with_metadata(&filled_forest, metadata)
+            .write_with_metadata(&filled_forest, metadata, deleted_nodes)
             .await
             .map_err(|err| self.map_internal_error(err))?;
         block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
