@@ -18,6 +18,8 @@ use crate::storage_trait::{
     AsyncStorage,
     DbHashMap,
     DbKey,
+    DbOperation,
+    DbOperationMap,
     DbValue,
     EmptyStorageConfig,
     PatriciaStorageResult,
@@ -143,6 +145,26 @@ impl Storage for MdbxStorage {
         let txn = self.db.begin_rw_txn()?;
         let table = txn.open_table(None)?;
         txn.del(&table, &key.0, None)?;
+        txn.commit()?;
+        Ok(())
+    }
+
+    async fn multi_set_and_delete(
+        &mut self,
+        key_to_operation: DbOperationMap,
+    ) -> PatriciaStorageResult<()> {
+        let txn = self.db.begin_rw_txn()?;
+        let table = txn.open_table(None)?;
+        for (key, op) in key_to_operation {
+            match op {
+                DbOperation::Set(value) => {
+                    txn.put(&table, key.0, value.0, WriteFlags::UPSERT)?;
+                }
+                DbOperation::Delete => {
+                    txn.del(&table, &key.0, None)?;
+                }
+            }
+        }
         txn.commit()?;
         Ok(())
     }
