@@ -506,14 +506,14 @@
     },
     {
       "name": "pod_state_not_ready",
-      "title": "Pod State Not Ready",
+      "title": "Pod status Not Ready",
       "ruleGroup": "general",
-      "expr": "kube_pod_container_status_ready{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+      "expr": "sum by (service_name) (label_replace(kube_pod_container_status_ready{cluster=~\"$cluster\", namespace=~\"$namespace\"}, \"service_name\", \"$1\", \"pod\", \"^sequencer-(.+)-(?:deployment|statefulset)-[a-z0-9]+(?:-[a-z0-9]+)?$\"))",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              1.0
+              0.1
             ],
             "type": "lt"
           },
@@ -534,7 +534,7 @@
     },
     {
       "name": "pod_state_crashloopbackoff",
-      "title": "Pod State CrashLoopBackOff",
+      "title": "Pod status CrashLoopBackOff",
       "ruleGroup": "general",
       "expr": "sum by(container, pod, namespace) (kube_pod_container_status_waiting_reason{cluster=~\"$cluster\", namespace=~\"$namespace\", reason=\"CrashLoopBackOff\"}) or absent(kube_pod_container_status_waiting_reason{cluster=~\"$cluster\", namespace=~\"$namespace\", reason=\"CrashLoopBackOff\"}) * 0",
       "conditions": [

@@ -42,7 +42,8 @@ pub const LABEL_CENDE_FAILURE_REASON: &str = "cende_write_failure_reason";
 pub(crate) enum CendeWriteFailureReason {
     CommunicationError,
     CendeRecorderError,
-    BlobNotAvailable,
+    NoLatestBlockFromRecorder,
+    RecorderAheadOfProposalHeight,
     HeightMismatch,
 }
 
