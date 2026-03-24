@@ -182,7 +182,7 @@ use crate::db::{
     RW,
 };
 use crate::header::StorageBlockHeader;
-use crate::metrics::{register_metrics, STORAGE_COMMIT_LATENCY};
+use crate::metrics::{register_metrics, BATCHER_CHANGESET_MARKER, STORAGE_COMMIT_LATENCY};
 use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::storage_reader_server::{
@@ -355,6 +355,15 @@ fn open_storage_internal(
                 changeset_marker,
             });
         }
+    }
+
+    // Initialize changeset metrics from persisted markers (only meaningful for flat_state).
+    if storage_config.flat_state {
+        let rtxn = reader.begin_ro_txn()?;
+        let markers_table = rtxn.open_table(&rtxn.tables.markers)?;
+        let changeset_marker =
+            markers_table.get(&rtxn.txn, &MarkerKind::Changeset)?.unwrap_or_default();
+        BATCHER_CHANGESET_MARKER.set_lossy(changeset_marker.0);
     }
 
     Ok((reader, writer))
