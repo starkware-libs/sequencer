@@ -31,6 +31,7 @@ use tokio::sync::{Mutex, Semaphore};
 use tokio::task;
 use tokio::time::{sleep, timeout};
 
+use crate::component_client::remote_component_client::TCP_IDLE_TIMEOUT_FACTOR;
 use crate::component_client::{
     ClientError,
     ClientResult,
@@ -56,6 +57,7 @@ use crate::component_server::{
     RemoteServerConfig,
 };
 use crate::serde_utils::SerdeWrapper;
+use crate::tests::test_utils::client_socket_keepalive_time;
 use crate::tests::{
     available_ports_factory,
     dummy_remote_server_config,
@@ -732,5 +734,54 @@ async fn zombie_connection_is_evicted() {
         read_result.is_ok(),
         "Server should have closed the zombie connection after keepalive timeout, but the \
          connection is still open"
+    );
+}
+
+/// Verifies that `TCP_KEEPIDLE` on the client's outbound socket equals
+/// `idle_timeout_ms * TCP_IDLE_TIMEOUT_FACTOR`, confirming the socket is armed to probe after
+/// exactly the expected idle period.
+///
+/// Internally, hyper's `HttpConnector::set_keepalive` calls `SockRef::set_tcp_keepalive` via
+/// socket2 only when it establishes a TCP connection for a request. The socket therefore only
+/// exists — and the option is only applied — after the first `send`. The test triggers that path,
+/// then reads the option back through the raw file-descriptor scan to confirm config value was
+/// properly applied on the socket.
+///
+/// Note: an end-to-end test that the OS closes the socket after unanswered probes would require
+/// packet-level manipulation (e.g. iptables DROP on loopback) and is out of scope for unit tests.
+#[tokio::test]
+async fn tcp_keepalive_idle_time_matches_config() {
+    // 2000 * 1.5 = 3000 ms = 3 s exactly; socket2 stores TCP_KEEPIDLE in whole seconds, so the
+    // configured duration must be a whole number of seconds or the comparison fails.
+    const IDLE_TIMEOUT_MS: u64 = 2000;
+    let expected_keepalive_idle =
+        Duration::from_millis(IDLE_TIMEOUT_MS).mul_f64(TCP_IDLE_TIMEOUT_FACTOR);
+    assert_eq!(
+        expected_keepalive_idle.subsec_nanos(),
+        0,
+        "IDLE_TIMEOUT_MS * TCP_IDLE_TIMEOUT_FACTOR must be a whole number of seconds"
+    );
+
+    let mut ports = available_ports_factory(unique_u16!());
+    let a_socket = ports.get_next_local_host_socket();
+    let b_socket = ports.get_next_local_host_socket();
+
+    setup_for_tests(VALID_VALUE_A, a_socket, b_socket, MAX_CONCURRENCY, None).await;
+
+    let client = ComponentAClient::new(
+        RemoteClientConfig { idle_timeout_ms: IDLE_TIMEOUT_MS, ..Default::default() },
+        &a_socket.ip().to_string(),
+        a_socket.port(),
+        &TEST_REMOTE_CLIENT_METRICS,
+    );
+
+    // Trigger the lazy TCP connect so the socket exists and keepalive options are applied.
+    client.a_get_value().await.expect("request should succeed");
+
+    let actual_keepalive_idle = client_socket_keepalive_time(a_socket)
+        .expect("SO_KEEPALIVE should be set and TCP_KEEPIDLE should be readable");
+    assert_eq!(
+        actual_keepalive_idle, expected_keepalive_idle,
+        "TCP_KEEPIDLE should equal idle_timeout_ms * TCP_IDLE_TIMEOUT_FACTOR"
     );
 }

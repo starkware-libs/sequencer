@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 use std::time::Duration;
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::validators::create_validation_error;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -17,11 +18,12 @@ use hyper_util::client::legacy::Client;
 use hyper_util::rt::TokioExecutor;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use static_assertions::const_assert;
 use tokio::sync::Mutex;
 use tokio::time::Instant;
 use tracing::field::{display, Empty};
 use tracing::{debug, instrument, trace, warn};
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use super::definitions::{ClientError, ClientResult};
 use crate::component_definitions::{
@@ -35,10 +37,19 @@ use crate::metrics::RemoteClientMetrics;
 use crate::requests::LabeledRequest;
 use crate::serde_utils::SerdeWrapper;
 
+#[cfg(test)]
+#[path = "remote_component_client_test.rs"]
+mod remote_component_client_test;
+
 pub const DEFAULT_RETRIES: usize = 15;
 pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "request timed out";
 
 const DEFAULT_IDLE_CONNECTIONS: usize = 10;
+pub(crate) const TCP_IDLE_TIMEOUT_FACTOR: f64 = 1.5;
+// Ensure tcp connection timeout is greater than http2 connection timeout by requiring a factor
+// greater than 1.
+const_assert!(TCP_IDLE_TIMEOUT_FACTOR > 1.0);
+
 // 8 MiB — bounds memory materialized from a single response as defense in depth.
 const DEFAULT_MAX_RESPONSE_BODY_BYTES: usize = 8 * 1024 * 1024;
 const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
@@ -54,6 +65,9 @@ const DEFAULT_REQUEST_TIMEOUT_MS: u64 = 30_000;
 pub struct RemoteClientConfig {
     pub retries: usize,
     pub idle_connections: usize,
+    // Determines client connection timeouts. Used plainly for HTTP/2 connections, and with a
+    // `TCP_IDLE_TIMEOUT_FACTOR` for TCP connections.
+    #[validate(custom(function = "validate_tcp_exceeds_http_keepalive"))]
     pub idle_timeout_ms: u64,
     pub attempts_per_log: usize,
     pub initial_retry_delay_ms: u64,
@@ -78,6 +92,32 @@ impl Default for RemoteClientConfig {
             set_tcp_nodelay: true,
             max_response_body_bytes: DEFAULT_MAX_RESPONSE_BODY_BYTES,
         }
+    }
+}
+
+/// Validates that the TCP keepalive duration (at second granularity, as the OS stores
+/// `TCP_KEEPIDLE` in whole seconds) is greater than or equal to the HTTP keepalive duration
+/// (millisecond granularity). If the configured `idle_timeout_ms * TCP_IDLE_TIMEOUT_FACTOR` is
+/// less than 1 second, truncation to whole seconds yields 0 s, making the TCP keepalive shorter
+/// than the HTTP keepalive.
+fn validate_tcp_exceeds_http_keepalive(idle_timeout_ms: u64) -> Result<(), ValidationError> {
+    let http_keepalive = Duration::from_millis(idle_timeout_ms);
+    let tcp_keepalive_raw = http_keepalive.mul_f64(TCP_IDLE_TIMEOUT_FACTOR);
+    // TCP_KEEPIDLE is stored in whole seconds; fractional seconds are truncated by the OS.
+    let tcp_keepalive = Duration::from_secs(tcp_keepalive_raw.as_secs());
+    if tcp_keepalive >= http_keepalive {
+        Ok(())
+    } else {
+        Err(create_validation_error(
+            format!(
+                "TCP keepalive ({} s) is shorter than HTTP keepalive ({idle_timeout_ms} ms): \
+                 increase idle_timeout_ms so that idle_timeout_ms * {TCP_IDLE_TIMEOUT_FACTOR} \
+                 rounds to at least {idle_timeout_ms} ms",
+                tcp_keepalive.as_secs(),
+            ),
+            "tcp_keepalive_shorter_than_http_keepalive",
+            "TCP keepalive (second granularity) must be >= HTTP keepalive (ms granularity).",
+        ))
     }
 }
 
@@ -184,13 +224,19 @@ where
         metrics: &'static RemoteClientMetrics,
     ) -> Self {
         let uri = format!("http://{url}:{port}/").parse().unwrap();
+        let idle_timeout = Duration::from_millis(config.idle_timeout_ms);
+
+        // Create the tcp connector.
         let mut connector = HttpConnector::new();
         connector.set_nodelay(config.set_tcp_nodelay);
         connector.set_connect_timeout(Some(Duration::from_millis(config.connection_timeout_ms)));
+        connector.set_keepalive(Some(idle_timeout.mul_f64(TCP_IDLE_TIMEOUT_FACTOR)));
+
+        // Create the HTTP/2 client.
         let client = Client::builder(TokioExecutor::new())
             .http2_only(true)
             .pool_max_idle_per_host(config.idle_connections)
-            .pool_idle_timeout(Duration::from_millis(config.idle_timeout_ms))
+            .pool_idle_timeout(idle_timeout)
             .build(connector);
 
         debug!("RemoteComponentClient created with URI: {uri:?}");
