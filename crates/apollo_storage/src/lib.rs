@@ -664,8 +664,6 @@ pub struct StorageTxn<'env, Mode: TransactionKind> {
     tables: Arc<Tables>,
     scope: StorageScope,
     flat_state: bool,
-    // TODO(dan): remove allow once pruning logic reads this field.
-    #[allow(dead_code)]
     changeset_retention_blocks: Option<u64>,
     // Do not remove this. It is used to automatically update metrics on create/drop.
     _metric_updater: MetricsHandler,

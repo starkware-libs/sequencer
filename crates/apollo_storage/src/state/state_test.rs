@@ -21,6 +21,7 @@ use crate::test_utils::{
     get_test_storage,
     get_test_storage_with_config_flat_state,
     get_test_storage_with_flat_state,
+    get_test_storage_with_pruning,
 };
 use crate::{open_storage, MarkerKind, StorageError, StorageScope, StorageWriter};
 
@@ -2371,4 +2372,322 @@ fn revert_beyond_pruned_window_returns_error() {
     let revert_result =
         writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(2)).map(|_| ());
     assert_matches!(revert_result, Err(StorageError::RevertBeyondChangesetHistory { .. }));
+}
+
+#[test]
+fn pruning_deletes_old_changesets() {
+    // retention=5 on blocks 0-9 should prune blocks 0-3, retain 4-9.
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_pruning(5);
+
+    let address = contract_address!("0x1");
+    let key = storage_key!("0x10");
+
+    for block in 0u64..10 {
+        let diff = ThinStateDiff {
+            storage_diffs: indexmap! {
+                address => indexmap! {
+                    key => Felt::from(block + 1),
+                },
+            },
+            ..Default::default()
+        };
+        writer
+            .begin_rw_txn()
+            .unwrap()
+            .append_state_diff(BlockNumber(block), diff)
+            .unwrap()
+            .commit()
+            .unwrap();
+    }
+
+    let txn = reader.begin_ro_txn().unwrap();
+
+    // Verify pruned marker advanced.
+    assert_eq!(txn.get_changeset_pruned_marker().unwrap(), BlockNumber(4));
+
+    // Pruned blocks should error on lookup.
+    for pruned_block in 0u64..4 {
+        let result = txn.get_reversed_state_diff_from_changeset(BlockNumber(pruned_block));
+        assert!(result.is_err(), "Block {pruned_block} should be pruned");
+    }
+
+    // Retained blocks should succeed.
+    for retained_block in 4u64..10 {
+        let result = txn.get_reversed_state_diff_from_changeset(BlockNumber(retained_block));
+        assert!(result.is_ok(), "Block {retained_block} should be retained");
+    }
+}
+
+#[test]
+fn no_pruning_when_retention_is_none() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    let address = contract_address!("0x1");
+    let key = storage_key!("0x10");
+
+    for block in 0u64..20 {
+        let diff = ThinStateDiff {
+            storage_diffs: indexmap! {
+                address => indexmap! {
+                    key => Felt::from(block + 1),
+                },
+            },
+            ..Default::default()
+        };
+        writer
+            .begin_rw_txn()
+            .unwrap()
+            .append_state_diff(BlockNumber(block), diff)
+            .unwrap()
+            .commit()
+            .unwrap();
+    }
+
+    let txn = reader.begin_ro_txn().unwrap();
+
+    // Pruned marker should still be 0 (no pruning).
+    assert_eq!(txn.get_changeset_pruned_marker().unwrap(), BlockNumber(0));
+
+    // All blocks should be accessible.
+    for block in 0u64..20 {
+        let result = txn.get_reversed_state_diff_from_changeset(BlockNumber(block));
+        assert!(result.is_ok(), "Block {block} should be retained");
+    }
+}
+
+#[test]
+fn pruning_cap_limits_backlog_on_toggle() {
+    let ((_reader, mut writer), config, _temp_dir) = get_test_storage_with_config_flat_state();
+
+    let address = contract_address!("0x1");
+    let key = storage_key!("0x10");
+
+    // Write 200 blocks with NO pruning.
+    for block in 0u64..200 {
+        let diff = ThinStateDiff {
+            storage_diffs: indexmap! {
+                address => indexmap! {
+                    key => Felt::from(block + 1),
+                },
+            },
+            ..Default::default()
+        };
+        writer
+            .begin_rw_txn()
+            .unwrap()
+            .append_state_diff(BlockNumber(block), diff)
+            .unwrap()
+            .commit()
+            .unwrap();
+    }
+
+    // Reopen with pruning enabled (retention=5).
+    drop(_reader);
+    drop(writer);
+    let mut pruning_config = config;
+    pruning_config.changeset_retention_blocks = Some(5);
+    let (reader2, mut writer2) = open_storage(pruning_config).unwrap();
+
+    // Append one more block — triggers pruning with a 200-block backlog.
+    let diff = ThinStateDiff {
+        storage_diffs: indexmap! {
+            address => indexmap! {
+                key => Felt::from(201u64),
+            },
+        },
+        ..Default::default()
+    };
+    writer2
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(200), diff)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // prune_target = 200 - 5 = 195. But cap is 100, so only 0..100 pruned.
+    let txn2 = reader2.begin_ro_txn().unwrap();
+    assert_eq!(txn2.get_changeset_pruned_marker().unwrap(), BlockNumber(100));
+
+    assert!(txn2.get_reversed_state_diff_from_changeset(BlockNumber(99)).is_err());
+    assert!(txn2.get_reversed_state_diff_from_changeset(BlockNumber(100)).is_ok());
+}
+
+#[test]
+fn pruning_idempotent_when_caught_up() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_pruning(5);
+
+    let address = contract_address!("0x1");
+    let key = storage_key!("0x10");
+
+    for block in 0u64..3 {
+        let diff = ThinStateDiff {
+            storage_diffs: indexmap! {
+                address => indexmap! {
+                    key => Felt::from(block + 1),
+                },
+            },
+            ..Default::default()
+        };
+        writer
+            .begin_rw_txn()
+            .unwrap()
+            .append_state_diff(BlockNumber(block), diff)
+            .unwrap()
+            .commit()
+            .unwrap();
+    }
+
+    let txn = reader.begin_ro_txn().unwrap();
+
+    // Only 3 blocks written, retention=5. prune_target = 2 - 5 = 0 (saturating).
+    assert_eq!(txn.get_changeset_pruned_marker().unwrap(), BlockNumber(0));
+
+    for block in 0u64..3 {
+        assert!(txn.get_reversed_state_diff_from_changeset(BlockNumber(block)).is_ok());
+    }
+}
+
+#[test]
+fn empty_diff_blocks_pruned_correctly() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_pruning(2);
+
+    for block in 0u64..5 {
+        writer
+            .begin_rw_txn()
+            .unwrap()
+            .append_state_diff(BlockNumber(block), ThinStateDiff::default())
+            .unwrap()
+            .commit()
+            .unwrap();
+    }
+
+    let txn = reader.begin_ro_txn().unwrap();
+    assert_eq!(txn.get_changeset_pruned_marker().unwrap(), BlockNumber(2));
+
+    assert!(txn.get_reversed_state_diff_from_changeset(BlockNumber(0)).is_err());
+    assert!(txn.get_reversed_state_diff_from_changeset(BlockNumber(1)).is_err());
+    assert!(txn.get_reversed_state_diff_from_changeset(BlockNumber(2)).is_ok());
+}
+
+#[test]
+fn flat_tables_unaffected_by_pruning() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_pruning(2);
+
+    let address = contract_address!("0x1");
+    let key = storage_key!("0x10");
+
+    for block in 0u64..10 {
+        let diff = ThinStateDiff {
+            storage_diffs: indexmap! {
+                address => indexmap! {
+                    key => Felt::from(block + 1),
+                },
+            },
+            ..Default::default()
+        };
+        writer
+            .begin_rw_txn()
+            .unwrap()
+            .append_state_diff(BlockNumber(block), diff)
+            .unwrap()
+            .commit()
+            .unwrap();
+    }
+
+    // Verify flat table still has latest value (pruning only deletes changeset entries).
+    let txn = reader.begin_ro_txn().unwrap();
+    let flat_storage = txn.txn.open_table(&txn.tables.flat_contract_storage).unwrap();
+    let value = flat_storage.get(&txn.txn, &(address, key)).unwrap();
+    assert_eq!(value, Some(Felt::from(10u64)));
+}
+
+#[test]
+fn pruning_resumes_after_revert() {
+    let ((_reader, mut writer), _temp_dir) = get_test_storage_with_pruning(3);
+
+    let address = contract_address!("0x1");
+    let key = storage_key!("0x10");
+
+    for block in 0u64..8 {
+        let diff = ThinStateDiff {
+            storage_diffs: indexmap! {
+                address => indexmap! {
+                    key => Felt::from(block + 1),
+                },
+            },
+            ..Default::default()
+        };
+        writer
+            .begin_rw_txn()
+            .unwrap()
+            .append_state_diff(BlockNumber(block), diff)
+            .unwrap()
+            .commit()
+            .unwrap();
+    }
+
+    // After block 7: prune_target = 7 - 3 = 4, pruned_marker = 4.
+    let txn = _reader.begin_ro_txn().unwrap();
+    assert_eq!(txn.get_changeset_pruned_marker().unwrap(), BlockNumber(4));
+    drop(txn);
+
+    // Revert block 7.
+    let (writer_txn, reversed) =
+        writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(7)).unwrap();
+    assert!(reversed.is_some());
+    writer_txn.commit().unwrap();
+
+    // Append a new block 7.
+    let diff = ThinStateDiff {
+        storage_diffs: indexmap! {
+            address => indexmap! {
+                key => felt!("0x99"),
+            },
+        },
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(7), diff)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let txn = _reader.begin_ro_txn().unwrap();
+    assert_eq!(txn.get_changeset_pruned_marker().unwrap(), BlockNumber(4));
+}
+
+#[test]
+fn retention_zero_keeps_only_tip() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_pruning(0);
+
+    let address = contract_address!("0x1");
+    let key = storage_key!("0x10");
+
+    for block in 0u64..5 {
+        let diff = ThinStateDiff {
+            storage_diffs: indexmap! {
+                address => indexmap! {
+                    key => Felt::from(block + 1),
+                },
+            },
+            ..Default::default()
+        };
+        writer
+            .begin_rw_txn()
+            .unwrap()
+            .append_state_diff(BlockNumber(block), diff)
+            .unwrap()
+            .commit()
+            .unwrap();
+    }
+
+    let txn = reader.begin_ro_txn().unwrap();
+    assert_eq!(txn.get_changeset_pruned_marker().unwrap(), BlockNumber(4));
+    for pruned_block in 0u64..4 {
+        assert!(txn.get_reversed_state_diff_from_changeset(BlockNumber(pruned_block)).is_err());
+    }
+    assert!(txn.get_reversed_state_diff_from_changeset(BlockNumber(4)).is_ok());
 }
