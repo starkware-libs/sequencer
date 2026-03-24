@@ -150,6 +150,14 @@ fn hash_map_into_bouncer_weights(
             .try_into()
             .unwrap_or_else(|err| panic!("Failed to convert 'proving_gas' into GasAmount: {err}.")),
     );
+    let receipt_l2_gas = GasAmount(
+        data.remove(constants::RECEIPT_L2_GAS)
+            .expect("receipt_l2_gas must be present")
+            .try_into()
+            .unwrap_or_else(|err| {
+                panic!("Failed to convert 'receipt_l2_gas' into GasAmount: {err}.")
+            }),
+    );
 
     assert!(
         data.is_empty(),
@@ -165,6 +173,7 @@ fn hash_map_into_bouncer_weights(
         n_txs,
         sierra_gas,
         proving_gas,
+        receipt_l2_gas,
     })
 }
 

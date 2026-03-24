@@ -252,7 +252,7 @@ cairo-lang-starknet-classes = "2.16.0"
 cairo-lang-utils = "2.16.0"
 cairo-native = "0.9.0-rc.2"
 cairo-program-runner-lib = "1.1.0"
-cairo-vm = "3.1.0"
+cairo-vm = "3.2.0"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
 clap = "4.5.4"
@@ -322,8 +322,8 @@ paste = "1.0.15"
 phf = "0.11"
 pretty_assertions = "1.4.0"
 primitive-types = "0.12.1"
-privacy-circuit-verify = { git = "https://github.com/starkware-libs/proving-utils", rev = "5c930499f7ebb45aaa3ceff50c6ad6bf2d952104" }
-privacy-prove = { git = "https://github.com/starkware-libs/proving-utils", rev = "5c930499f7ebb45aaa3ceff50c6ad6bf2d952104" }
+privacy-circuit-verify = { git = "https://github.com/starkware-libs/proving-utils", rev = "dbc39e745d23424f1997ce3505ce5f83805cefde" }
+privacy-prove = { git = "https://github.com/starkware-libs/proving-utils", rev = "dbc39e745d23424f1997ce3505ce5f83805cefde" }
 proc-macro2 = "1.0"
 prometheus-parse = "0.2.4"
 prost = "0.12.1"
@@ -423,9 +423,6 @@ unexpected_cfgs = { level = "warn", check-cfg = [
   # removed from the workspace.
   'cfg(addr_of)',
 ] }
-
-[patch.crates-io]
-cairo-vm = { git = "https://github.com/avivg-starkware/cairo-vm", rev = "2ad6d5fba6df67da62309bb64d1482a47ad54132" }
 
 [workspace.lints.clippy]
 as_conversions = "warn"

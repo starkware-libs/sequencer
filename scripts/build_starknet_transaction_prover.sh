@@ -8,7 +8,7 @@
 # Options:
 #   --image-tag TAG               Docker image tag (default: transaction_prover:latest)
 #   --build-mode MODE             Build mode: release or debug (default: release)
-#   --rustflags FLAGS             RUSTFLAGS passed to cargo build inside Docker
+#   --target-cpu CPU              Target CPU passed to Cargo profile rustflags inside Docker
 #   --docker-build-args ARGS      Additional arguments to pass to docker build
 #   -h, --help                    Show this help message
 #
@@ -20,7 +20,7 @@
 #   ./scripts/build_starknet_transaction_prover.sh
 #
 #   # Build optimized for AMD EPYC Turin (c4d GKE nodes)
-#   ./scripts/build_starknet_os_runner.sh --rustflags "-C target-cpu=znver5"
+#   ./scripts/build_starknet_transaction_prover.sh --target-cpu znver5
 #
 #   # Build debug mode
 #   ./scripts/build_starknet_transaction_prover.sh --build-mode debug
@@ -53,7 +53,7 @@ error() {
 DOCKERFILE_PATH="${REPO_ROOT}/crates/starknet_transaction_prover/Dockerfile"
 IMAGE_TAG="us-central1-docker.pkg.dev/starkware-dev/sequencer/transaction-prover:latest"
 BUILD_MODE="release"
-RUSTFLAGS=""
+TARGET_CPU=""
 DOCKER_BUILD_ARGS=""
 
 # Parse command-line arguments.
@@ -79,12 +79,12 @@ while [[ $# -gt 0 ]]; do
             BUILD_MODE="$2"
             shift 2
             ;;
-        --rustflags)
+        --target-cpu)
             if [[ -z "${2:-}" ]]; then
-                error "Error: --rustflags requires a flags argument"
+                error "Error: --target-cpu requires a CPU argument"
                 exit 1
             fi
-            RUSTFLAGS="$2"
+            TARGET_CPU="$2"
             shift 2
             ;;
         --docker-build-args)
@@ -103,7 +103,7 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --image-tag TAG               Docker image tag (default: transaction_prover:latest)"
             echo "  --build-mode MODE             Build mode: release or debug (default: release)"
-            echo "  --rustflags FLAGS             RUSTFLAGS passed to cargo build inside Docker"
+            echo "  --target-cpu CPU              Target CPU passed to Cargo profile rustflags inside Docker"
             echo "  --docker-build-args ARGS      Additional arguments to pass to docker build"
             echo "  -h, --help                    Show this help message"
             echo ""
@@ -115,7 +115,7 @@ while [[ $# -gt 0 ]]; do
             echo "  $0"
             echo ""
             echo "  # Build optimized for AMD EPYC Turin (c4d GKE nodes)"
-            echo "  $0 --rustflags \"-C target-cpu=znver5\""
+            echo "  $0 --target-cpu znver5"
             echo ""
             echo "  # Build debug mode"
             echo "  $0 --build-mode debug"
@@ -133,8 +133,8 @@ done
 build_docker_image() {
     info "Building Docker image: ${IMAGE_TAG}"
     info "Build mode: ${BUILD_MODE}"
-    if [[ -n "${RUSTFLAGS}" ]]; then
-        info "RUSTFLAGS: ${RUSTFLAGS}"
+    if [[ -n "${TARGET_CPU}" ]]; then
+        info "Target CPU: ${TARGET_CPU}"
     fi
 
     # Check if Dockerfile exists.
@@ -148,7 +148,7 @@ build_docker_image() {
         docker build
         -f "${DOCKERFILE_PATH}"
         --build-arg "BUILD_MODE=${BUILD_MODE}"
-        --build-arg "RUSTFLAGS=${RUSTFLAGS}"
+        --build-arg "TARGET_CPU=${TARGET_CPU}"
         -t "${IMAGE_TAG}"
     )
 

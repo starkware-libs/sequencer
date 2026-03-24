@@ -31,22 +31,13 @@ use crate::transaction_converter::{
 const EXAMPLE_PROOF_FILE: &str = "example_proof.bin";
 const EXAMPLE_PROOF_FACTS_FILE: &str = "example_proof_facts.json";
 
-/// Loads the example proof from the resources directory as raw binary (big-endian u32 words).
+/// Loads the example proof from the resources directory as raw binary bytes.
 #[fixture]
 fn proof() -> Proof {
     let proof_path = path_in_resources(EXAMPLE_PROOF_FILE);
     let raw_bytes =
         std::fs::read(&proof_path).expect("Failed to read example_proof.bin from resources");
-    assert!(
-        raw_bytes.len().is_multiple_of(4),
-        "Proof file size ({} bytes) is not a multiple of 4",
-        raw_bytes.len()
-    );
-    let data: Vec<u32> = raw_bytes
-        .chunks_exact(4)
-        .map(|chunk| u32::from_be_bytes(chunk.try_into().unwrap()))
-        .collect();
-    Proof::from(data)
+    Proof::from(raw_bytes)
 }
 
 /// Loads the example proof facts from the resources directory.

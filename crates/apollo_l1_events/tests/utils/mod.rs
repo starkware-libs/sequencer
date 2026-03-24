@@ -20,7 +20,7 @@ use apollo_infra::component_server::{
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_l1_events::l1_events_provider::L1EventsProvider;
 use apollo_l1_events::l1_scraper::L1EventsScraper;
-use apollo_l1_events::metrics::L1_EVENTS_PROVIDER_INFRA_METRICS;
+use apollo_l1_events::metrics::L1_EVENTS_INFRA_METRICS;
 use apollo_l1_events::{event_identifiers_to_track, L1EventsProviderConfig};
 use apollo_l1_events_config::config::L1EventsScraperConfig;
 use apollo_l1_events_types::{
@@ -102,7 +102,7 @@ pub(crate) async fn setup_scraper_and_provider<
 
     // Create the provider client.
     let l1_events_provider_client =
-        LocalComponentClient::new(tx, L1_EVENTS_PROVIDER_INFRA_METRICS.get_local_client_metrics());
+        LocalComponentClient::new(tx, L1_EVENTS_INFRA_METRICS.get_local_client_metrics());
 
     // L1 provider setup.
     let l1_events_provider_config = L1EventsProviderConfig {
@@ -122,7 +122,7 @@ pub(crate) async fn setup_scraper_and_provider<
         l1_events_provider,
         &LocalServerConfig::default(),
         rx,
-        L1_EVENTS_PROVIDER_INFRA_METRICS.get_local_server_metrics(),
+        L1_EVENTS_INFRA_METRICS.get_local_server_metrics(),
     );
     // Start the server:
     tokio::spawn(async move {

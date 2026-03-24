@@ -78,6 +78,8 @@
   "components.proof_manager.remote_client_config.#is_none": true,
   "components.proof_manager.remote_server_config.#is_none": false,
   "components.proof_manager.remote_server_config.bind_ip": "0.0.0.0",
+  "components.proof_manager.remote_server_config.keepalive_interval_ms": 30000,
+  "components.proof_manager.remote_server_config.keepalive_timeout_ms": 10000,
   "components.proof_manager.remote_server_config.max_concurrency": 128,
   "components.proof_manager.remote_server_config.max_request_body_bytes": 8388608,
   "components.proof_manager.remote_server_config.max_streams_per_connection": 8,

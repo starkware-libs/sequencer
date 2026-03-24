@@ -34,6 +34,7 @@ apollo_mempool_p2p.workspace = true
 apollo_metrics.workspace = true
 apollo_network.workspace = true
 apollo_proof_manager.workspace = true
+apollo_signature_manager.workspace = true
 apollo_staking.workspace = true
 apollo_state_sync_metrics.workspace = true
 apollo_storage.workspace = true
@@ -47,7 +48,9 @@ serde_with.workspace = true
 [dev-dependencies]
 apollo_batcher = { workspace = true, features = ["testing"] }
 apollo_class_manager = { workspace = true, features = ["testing"] }
+apollo_committer = { workspace = true, features = ["testing"] }
 apollo_compile_to_casm = { workspace = true, features = ["testing"] }
+apollo_config_manager = { workspace = true, features = ["testing"] }
 apollo_consensus = { workspace = true, features = ["testing"] }
 apollo_consensus_manager = { workspace = true, features = ["testing"] }
 apollo_consensus_orchestrator = { workspace = true, features = ["testing"] }
@@ -60,6 +63,8 @@ apollo_l1_gas_price = { workspace = true, features = ["testing"] }
 apollo_mempool = { workspace = true, features = ["testing"] }
 apollo_mempool_p2p = { workspace = true, features = ["testing"] }
 apollo_proof_manager = { workspace = true, features = ["testing"] }
+apollo_staking = { workspace = true, features = ["testing"] }
 apollo_state_sync_metrics = { workspace = true, features = ["testing"] }
+apollo_storage = { workspace = true, features = ["testing"] }
 apollo_transaction_converter = { workspace = true, features = ["testing"] }
 rstest.workspace = true

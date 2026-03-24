@@ -20,6 +20,7 @@ use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig as RustlsServerConfig;
 use tokio_rustls::TlsAcceptor;
 use tower::ServiceBuilder;
+use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
 use tracing::warn;
 
@@ -42,7 +43,9 @@ pub async fn start_tls_server(
     let server_config = ServerConfig::builder().max_connections(max_connections).build();
     let svc_builder = ServerBuilder::default()
         .set_config(server_config)
-        .set_http_middleware(ServiceBuilder::new().option_layer(cors_layer))
+        .set_http_middleware(
+            ServiceBuilder::new().option_layer(cors_layer).layer(CompressionLayer::new()),
+        )
         .to_service_builder();
 
     let listener = TcpListener::bind(addr)

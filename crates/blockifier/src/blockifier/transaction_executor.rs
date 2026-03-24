@@ -168,6 +168,7 @@ impl<S: StateReader> TransactionExecutor<S> {
                     &tx_execution_info.summarize_builtins(),
                     &tx_execution_info.receipt.resources,
                     &self.block_context.versioned_constants,
+                    tx_execution_info.receipt.gas.l2_gas,
                 )?;
                 transactional_state.commit();
 

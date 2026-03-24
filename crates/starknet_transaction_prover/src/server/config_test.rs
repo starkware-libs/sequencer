@@ -50,6 +50,8 @@ fn base_args() -> CliArgs {
         cors_allow_origin: Vec::new(),
         strk_fee_token_address: None,
         prefetch_state: None,
+        use_latest_versioned_constants: None,
+        compiled_class_cache_size: None,
         bouncer_config_override: None,
     }
 }
@@ -130,6 +132,8 @@ fn cors_allow_origin_rejects_non_array_in_config_file() {
         cors_allow_origin: Vec::new(),
         strk_fee_token_address: None,
         prefetch_state: None,
+        use_latest_versioned_constants: None,
+        compiled_class_cache_size: None,
         bouncer_config_override: None,
     };
 
@@ -286,13 +290,4 @@ fn env_var_sets_tls_key_file() {
     let args = CliArgs::parse_from(["starknet-transaction-prover"]);
 
     assert_eq!(args.tls_key_file, Some(PathBuf::from("/etc/ssl/key.pem")));
-}
-
-#[test]
-fn env_var_sets_bouncer_config_override() {
-    let _guard = EnvGuard::set("BOUNCER_CONFIG_OVERRIDE", "/tmp/bouncer.json");
-
-    let args = CliArgs::parse_from(["starknet-transaction-prover"]);
-
-    assert_eq!(args.bouncer_config_override, Some(PathBuf::from("/tmp/bouncer.json")));
 }

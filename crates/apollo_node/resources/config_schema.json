@@ -74,6 +74,11 @@
     "privacy": "Public",
     "value": 5000000000
   },
+  "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.receipt_l2_gas": {
+    "description": "An upper bound on the total receipt-based L2 gas in a block. Includes execution gas plus state allocation costs. Should equal max_block_size.",
+    "privacy": "Public",
+    "value": 5800000000
+  },
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
     "description": "An upper bound on the total sierra_gas used in a block.",
     "privacy": "Public",
@@ -251,8 +256,8 @@
   },
   "batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
     "description": "Limitation of compilation cpu time (seconds).",
-    "privacy": "Public",
-    "value": 600
+    "pointer_target": "max_cpu_time",
+    "privacy": "Public"
   },
   "batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_file_size": {
     "description": "Limitation of compiled Cairo Native file size (bytes).",
@@ -522,7 +527,7 @@
   "committer_config.storage_config.cache_size": {
     "description": "Max number of entries in the cache",
     "privacy": "Public",
-    "value": 1000000
+    "value": 10000000
   },
   "committer_config.storage_config.include_inner_stats": {
     "description": "If true, the inner stats are included when collecting statistics",
@@ -689,6 +694,16 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.batcher.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.batcher.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 10000
+  },
   "components.batcher.remote_server_config.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
@@ -818,6 +833,16 @@
     "description": "Binding address of the remote component server.",
     "privacy": "Public",
     "value": "0.0.0.0"
+  },
+  "components.class_manager.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.class_manager.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 10000
   },
   "components.class_manager.remote_server_config.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -949,6 +974,16 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.committer.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.committer.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 10000
+  },
   "components.committer.remote_server_config.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
@@ -1078,6 +1113,16 @@
     "description": "Binding address of the remote component server.",
     "privacy": "Public",
     "value": "0.0.0.0"
+  },
+  "components.config_manager.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.config_manager.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 10000
   },
   "components.config_manager.remote_server_config.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -1214,6 +1259,16 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.gateway.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.gateway.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 10000
+  },
   "components.gateway.remote_server_config.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
@@ -1348,6 +1403,16 @@
     "description": "Binding address of the remote component server.",
     "privacy": "Public",
     "value": "0.0.0.0"
+  },
+  "components.l1_events_provider.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.l1_events_provider.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 10000
   },
   "components.l1_events_provider.remote_server_config.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -1484,6 +1549,16 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.l1_gas_price_provider.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.l1_gas_price_provider.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 10000
+  },
   "components.l1_gas_price_provider.remote_server_config.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
@@ -1619,6 +1694,16 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.mempool.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.mempool.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 10000
+  },
   "components.mempool.remote_server_config.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
@@ -1748,6 +1833,16 @@
     "description": "Binding address of the remote component server.",
     "privacy": "Public",
     "value": "0.0.0.0"
+  },
+  "components.mempool_p2p.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.mempool_p2p.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 10000
   },
   "components.mempool_p2p.remote_server_config.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -1884,6 +1979,16 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.proof_manager.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.proof_manager.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 10000
+  },
   "components.proof_manager.remote_server_config.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
@@ -2013,6 +2118,16 @@
     "description": "Binding address of the remote component server.",
     "privacy": "Public",
     "value": "0.0.0.0"
+  },
+  "components.sierra_compiler.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.sierra_compiler.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 10000
   },
   "components.sierra_compiler.remote_server_config.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -2144,6 +2259,16 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.signature_manager.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.signature_manager.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 10000
+  },
   "components.signature_manager.remote_server_config.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
@@ -2273,6 +2398,16 @@
     "description": "Binding address of the remote component server.",
     "privacy": "Public",
     "value": "0.0.0.0"
+  },
+  "components.state_sync.remote_server_config.keepalive_interval_ms": {
+    "description": "Interval in milliseconds between HTTP/2 keepalive pings sent to the client.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "components.state_sync.remote_server_config.keepalive_timeout_ms": {
+    "description": "Timeout in milliseconds to wait for a keepalive ping response before closing the connection.",
+    "privacy": "Public",
+    "value": 10000
   },
   "components.state_sync.remote_server_config.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -2851,8 +2986,8 @@
   },
   "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
     "description": "Limitation of compilation cpu time (seconds).",
-    "privacy": "Public",
-    "value": 600
+    "pointer_target": "max_cpu_time",
+    "privacy": "Public"
   },
   "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_file_size": {
     "description": "Limitation of compiled Cairo Native file size (bytes).",
@@ -2932,7 +3067,7 @@
   "gateway_config.static_config.stateless_tx_validator_config.allow_client_side_proving": {
     "description": "If true, allows transactions with non-empty proof_facts or proof fields.",
     "privacy": "Public",
-    "value": true
+    "value": false
   },
   "gateway_config.static_config.stateless_tx_validator_config.max_calldata_length": {
     "description": "Limitation of calldata length.",
@@ -2957,7 +3092,7 @@
   "gateway_config.static_config.stateless_tx_validator_config.max_proof_size": {
     "description": "Limitation of proof size.",
     "privacy": "Public",
-    "value": 600000
+    "value": 480000
   },
   "gateway_config.static_config.stateless_tx_validator_config.max_sierra_version.major": {
     "description": "The major version of the configuration.",
@@ -3188,6 +3323,11 @@
     "description": "How many sets of config.num_blocks_for_mean blocks to go back on the chain when starting to scrape.",
     "privacy": "Public",
     "value": 2
+  },
+  "max_cpu_time": {
+    "description": "Limitation of compilation cpu time (seconds).",
+    "privacy": "TemporaryValue",
+    "value": 600
   },
   "mempool_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -3441,8 +3581,8 @@
   },
   "sierra_compiler_config.max_cpu_time": {
     "description": "Limitation of compilation cpu time (seconds).",
-    "privacy": "Public",
-    "value": 60
+    "pointer_target": "max_cpu_time",
+    "privacy": "Public"
   },
   "sierra_compiler_config.max_memory_usage": {
     "description": "Limitation of compilation process's virtual memory (bytes).",

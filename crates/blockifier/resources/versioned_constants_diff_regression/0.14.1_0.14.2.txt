@@ -1,5 +1,10 @@
+~ /allocation_cost/blob_cost/l2_gas: 402000
+~ /allocation_cost/gas_cost/l2_gas: 402000
 ~ /archival_data_gas_costs/gas_per_proof/0: 75000000
 ~ /enable_casm_hash_migration: false
-~ /gateway/max_proof_size: 600000
-+ /os_constants/allowed_virtual_os_program_hashes/0: "0x1b3d407902ce8f242d09ed3429e4b83fa799f75d72918759caeee1e6038e748"
+~ /gateway/max_proof_size: 480000
++ /os_constants/allowed_virtual_os_program_hashes/0: "0x3e98c2d7703b03a7edb73ed7f075f97f1dcbaa8f717cdf6e1a57bf058265473"
 ~ /os_constants/builtin_gas_costs/blake: 3334
+~ /os_constants/execute_max_sierra_gas: 1100000000
+~ /os_resources/execute_syscalls/StorageRead/n_steps: 180
+~ /os_resources/execute_syscalls/StorageWrite/n_steps: 449

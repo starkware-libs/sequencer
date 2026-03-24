@@ -123,12 +123,22 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
 
 
 def remove_cluster_and_namespace_from_display_name():
+    # One label-set segment that can include quoted values (with escaped chars),
+    # so braces inside matcher regex strings do not terminate the segment early.
+    label_set_chunk = r'(?:[^{}"]|"(?:\\.|[^"\\])*")*'
+
     return {
         "id": "renameByRegex",
         "options": {
             # Remove 'cluster' and 'namespace' label from display name if it is a panel with
             # combined namespaces (meaning it contains 'cluster' but not 'location').
-            "regex": "^(.*)\{(?=[^}]*cluster)(?![^}]*location)[^}]*\}(.*)$",
+            "regex": (
+                rf"^(.*)\{{"
+                rf"(?={label_set_chunk}cluster)"
+                rf"(?!{label_set_chunk}location)"
+                rf"{label_set_chunk}"
+                rf"\}}(.*)$"
+            ),
             "renamePattern": "$1$2",
         },
     }

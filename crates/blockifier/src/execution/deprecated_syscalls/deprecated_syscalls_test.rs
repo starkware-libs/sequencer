@@ -157,7 +157,7 @@ fn test_nested_library_call() {
         ..nested_storage_entry_point
     };
     let storage_entry_point_resources: ExtendedExecutionResources = ExecutionResources {
-        n_steps: 228,
+        n_steps: 671,
         n_memory_holes: 0,
         builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 2)]),
     }
@@ -325,7 +325,7 @@ fn test_call_contract() {
         },
         execution: expected_execution.clone(),
         resources: ExecutionResources {
-            n_steps: 228,
+            n_steps: 671,
             n_memory_holes: 0,
             builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 2)]),
         }
@@ -353,7 +353,7 @@ fn test_call_contract() {
         execution: expected_execution,
         resources: (&get_const_syscall_resources(DeprecatedSyscallSelector::CallContract)
             + &ExecutionResources {
-                n_steps: 267,
+                n_steps: 710,
                 n_memory_holes: 0,
                 builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 3)]),
             })

@@ -1,7 +1,10 @@
 use std::fs;
+use std::sync::Arc;
 
 use apollo_infra_utils::path::resolve_project_relative_path;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
+use privacy_circuit_verify::{verify_recursive_circuit, PrivacyProofOutput};
+use privacy_prove::{prepare_recursive_prover_precomputes, RecursiveProverPrecomputes};
 use starknet_api::transaction::fields::VIRTUAL_SNOS;
 use starknet_proof_verifier::ProgramOutput;
 
@@ -16,6 +19,10 @@ fn resolve_resource_path(file_name: &str) -> std::path::PathBuf {
         ["crates", "starknet_transaction_prover", "resources", file_name].iter().collect();
     resolve_project_relative_path(&path.to_string_lossy())
         .unwrap_or_else(|_| panic!("Failed to resolve path for {file_name}"))
+}
+
+fn prepare_precomputes() -> Arc<RecursiveProverPrecomputes> {
+    prepare_recursive_prover_precomputes().expect("Failed to prepare precomputes")
 }
 
 /// Integration test that verifies proving works with a real Cairo PIE.
@@ -34,16 +41,14 @@ async fn test_prove_cairo_pie_10_transfers() {
     let cairo_pie =
         CairoPie::read_zip_file(&cairo_pie_path).expect("Failed to read Cairo PIE from zip file");
 
-    // Prove the Cairo PIE.
-    let output = prove(cairo_pie).await.expect("Failed to prove Cairo PIE");
+    // Prepare precomputes and prove the Cairo PIE.
+    let precomputes = prepare_precomputes();
+    let output = prove(cairo_pie, precomputes).await.expect("Failed to prove Cairo PIE");
 
     // Verify the proof using the circuit verifier.
     let output_preimage: Vec<starknet_types_core::felt::Felt> = output.program_output.0.to_vec();
-    let proof_output = privacy_circuit_verify::PrivacyProofOutput {
-        proof: output.proof.0.to_vec(),
-        output_preimage,
-    };
-    privacy_circuit_verify::verify(&proof_output).expect("Failed to verify proof");
+    let proof_output = PrivacyProofOutput { proof: output.proof.0.to_vec(), output_preimage };
+    verify_recursive_circuit(&proof_output).expect("Failed to verify proof");
 
     // Read expected program output.
     let expected_program_output_str = fs::read_to_string(&expected_program_output_path)
@@ -71,10 +76,11 @@ async fn regenerate_proof_fixtures() {
     let cairo_pie =
         CairoPie::read_zip_file(&cairo_pie_path).expect("Failed to read Cairo PIE from zip file");
 
-    let output = prove(cairo_pie).await.expect("Failed to prove Cairo PIE");
+    let precomputes = prepare_precomputes();
+    let output = prove(cairo_pie, precomputes).await.expect("Failed to prove Cairo PIE");
 
-    // Save proof as raw binary (each u32 as 4 big-endian bytes).
-    let raw_bytes: Vec<u8> = output.proof.0.iter().flat_map(|n| n.to_be_bytes()).collect();
+    // Save proof as raw binary.
+    let raw_bytes: Vec<u8> = output.proof.0.to_vec();
     let proof_path = resolve_transaction_converter_resource("example_proof.bin");
     fs::write(&proof_path, &raw_bytes).expect("Failed to write proof file");
     println!("Wrote proof to {}", proof_path.display());

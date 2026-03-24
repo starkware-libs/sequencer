@@ -20,7 +20,7 @@ curl -s -X POST http://localhost:3000 \
 Expected response:
 
 ```json
-{ "jsonrpc": "2.0", "id": 1, "result": "0.10.0" }
+{ "jsonrpc": "2.0", "id": 1, "result": "0.10.1" }
 ```
 
 ## API Reference
@@ -41,7 +41,7 @@ curl -s -X POST http://localhost:3000 \
 Response:
 
 ```json
-{ "jsonrpc": "2.0", "id": 1, "result": "0.10.0" }
+{ "jsonrpc": "2.0", "id": 1, "result": "0.10.1" }
 ```
 
 ### `starknet_proveTransaction`
@@ -146,23 +146,25 @@ curl -s -X POST http://localhost:3000 \
 ## Configuration
 
 Configuration is accepted via environment variables, CLI flags, or a JSON config file. CLI flags
-and environment variables override values from the config file. See
-`resources/example-config.json` for a full JSON config reference.
+and environment variables override values from the config file.
 
-### Environment variables
+### Environment variables and CLI flags
 
-| Variable                    | CLI Flag                      | Default            | Description                                                                                  |
-| --------------------------- | ----------------------------- | ------------------ | -------------------------------------------------------------------------------------------- |
-| `RPC_URL`                   | `--rpc-url`                   | _(required)_       | Starknet RPC node URL (v0.10 compatible).                                                    |
-| `CHAIN_ID`                  | `--chain-id`                  | `SN_MAIN`          | Network: `SN_MAIN`, `SN_SEPOLIA`, or a custom chain ID string.                               |
-| `PROVER_PORT`               | `--port`                      | `3000`             | JSON-RPC server port.                                                                        |
-| `PROVER_IP`                 | `--ip`                        | `0.0.0.0`          | Bind IP address.                                                                             |
-| `MAX_CONCURRENT_REQUESTS`   | `--max-concurrent-requests`   | `2`                | Max parallel proving requests. Excess requests receive error `-32005`.                       |
-| `MAX_CONNECTIONS`           | `--max-connections`           | `10`               | Max simultaneous TCP connections.                                                            |
-| `SKIP_FEE_FIELD_VALIDATION` | `--skip-fee-field-validation` | `false`            | Allow non-zero gas prices and tip in requests.                                               |
-| `STRK_FEE_TOKEN_ADDRESS`    | `--strk-fee-token-address`    | _(auto per chain)_ | Override STRK fee token address (hex). Useful for custom environments that share a chain ID. |
-| `PREFETCH_STATE`            | `--prefetch-state`            | `false`            | Simulate transactions before proving to prefetch state and reduce RPC calls.                 |
-| `CONFIG_FILE`               | `--config-file`               | —                  | Path to JSON config file. See `resources/example-config.json`.                               |
+| Variable | CLI Flag | Default | Description |
+|---|---|---|---|
+| `RPC_URL` | `--rpc-url` | _(required)_ | Starknet JSON-RPC node URL (must support v0.10 API). Used to fetch block state during re-execution. |
+| `CHAIN_ID` | `--chain-id` | `SN_MAIN` | Target Starknet network. Determines fee token addresses and versioned constants. Accepts `SN_MAIN`, `SN_SEPOLIA`, or a custom chain ID string. |
+| `PROVER_PORT` | `--port` | `3000` | TCP port the JSON-RPC server listens on. Must be >=1. |
+| `PROVER_IP` | `--ip` | `0.0.0.0` | IP address to bind. Use `127.0.0.1` to restrict to localhost, `0.0.0.0` for all interfaces. |
+| `MAX_CONCURRENT_REQUESTS` | `--max-concurrent-requests` | `2` | Max parallel proving requests. Additional requests receive error `-32005`. Bound by available CPU/memory. Must be >=1. |
+| `MAX_CONNECTIONS` | `--max-connections` | `10` | Max simultaneous TCP connections accepted by the server. Must be >=1. |
+| `SKIP_FEE_FIELD_VALIDATION` | `--skip-fee-field-validation` | `false` | When `true`, allows non-zero gas prices and tip in requests. By default the service rejects them because proving is client-side and no fees are charged. |
+| `STRK_FEE_TOKEN_ADDRESS` | `--strk-fee-token-address` | _(auto per chain)_ | Override the STRK fee token contract address (hex). Only needed for custom networks that share a standard chain ID but use a different fee token. |
+| `PREFETCH_STATE` | `--prefetch-state` | `false` | Simulate the transaction before proving to prefetch state from the RPC node. Reduces the number of RPC calls during the actual proof run at the cost of one extra simulation. |
+| `USE_LATEST_VERSIONED_CONSTANTS` | `--use-latest-versioned-constants` | `true` | Use the latest versioned constants rather than block-version constants. Must match the OS version used by the prover. |
+| `COMPILED_CLASS_CACHE_SIZE` | `--compiled-class-cache-size` | `600` | Number of compiled Sierra contract classes to keep in an in-memory LRU cache. Higher values reduce RPC fetches for repeated contracts. |
+| `CONFIG_FILE` | `--config-file` | — | Path to a JSON config file. Fields use snake_case names matching `resources/example-config.json`. Values in the file are overridden by env vars and CLI flags. |
+| `RUST_LOG` | — | _(see Logging)_ | Controls log verbosity via `tracing-subscriber`. |
 
 ### TLS / HTTPS
 
@@ -182,6 +184,28 @@ absent it uses plain HTTP. Setting only one is an error.
 | —                   | `--no-cors`           | Disable CORS (overrides any origins set in the config file).  |
 
 CORS is disabled by default. `--no-cors` and `--cors-allow-origin` are mutually exclusive.
+
+### JSON config file
+
+The JSON config file uses snake_case field names. All fields are optional and fall back to
+built-in defaults. See `resources/example-config.json` for a template.
+
+| JSON field | Corresponds to | Type |
+|---|---|---|
+| `rpc_node_url` | `RPC_URL` | string |
+| `chain_id` | `CHAIN_ID` | string |
+| `ip` | `PROVER_IP` | string |
+| `port` | `PROVER_PORT` | integer |
+| `max_concurrent_requests` | `MAX_CONCURRENT_REQUESTS` | integer |
+| `max_connections` | `MAX_CONNECTIONS` | integer |
+| `validate_zero_fee_fields` | inverse of `SKIP_FEE_FIELD_VALIDATION` | bool |
+| `strk_fee_token_address` | `STRK_FEE_TOKEN_ADDRESS` | hex string or null |
+| `prefetch_state` | `PREFETCH_STATE` | bool |
+| `use_latest_versioned_constants` | `USE_LATEST_VERSIONED_CONSTANTS` | bool |
+| `compiled_class_cache_size` | `COMPILED_CLASS_CACHE_SIZE` | integer |
+| `cors_allow_origin` | `CORS_ALLOW_ORIGIN` | array of strings |
+| `tls_cert_file` | `TLS_CERT_FILE` | file path or null |
+| `tls_key_file` | `TLS_KEY_FILE` | file path or null |
 
 ### Docker example with common options
 
@@ -209,12 +233,42 @@ docker run -e RUST_LOG=debug ... <IMAGE>
 docker run -e RUST_LOG=warn ... <IMAGE>
 ```
 
+## Compression
+
+**HTTP response compression** — The server automatically compresses responses when the client
+sends the `Accept-Encoding` header. Supported codecs: gzip, brotli, zstd. No server-side
+configuration is needed. If the header is omitted, responses are sent uncompressed.
+
+```bash
+# Auto-negotiate compression (typically gzip/brotli):
+curl --compressed -s -X POST http://localhost:3000 \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"starknet_proveTransaction","params":{...}}'
+
+# Explicitly request zstd:
+curl -H 'Accept-Encoding: zstd' -s -X POST http://localhost:3000 \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"starknet_proveTransaction","params":{...}}' | zstd -d
+```
+
 ## Limitations
 
 - Invoke V3 only — Declare and DeployAccount transactions are not supported.
 - Finalized blocks only — pending blocks are not supported as the `block_id`.
 - One transaction per request — batch proving is not available.
 - Nightly Rust required for the Stwo prover — this is handled automatically in the Docker image.
+
+## Machine specs
+
+Proving time is highly sensitive to the machine type. We recommend using a **c4d-highcpu-48**
+(or equivalent) instance for production workloads.
+
+| Spec | Value |
+|------|-------|
+| Machine type | c4d-highcpu-48 |
+| vCPU | 48 |
+| Memory | 96 GB |
+| Arch | amd64 (AMD EPYC Turin) |
 
 ## Building the Docker image
 
@@ -231,17 +285,29 @@ only the runtime binary and required resources.
 ### CPU-specific builds
 
 Building with `-C target-cpu` set to the host microarchitecture provides a meaningful proving
-performance boost. Pass `RUSTFLAGS` as a build arg:
+performance boost. Pass `TARGET_CPU` as a build arg:
 
 ```bash
 # Example: optimized for AMD EPYC Turin (GKE c4d nodes)
 docker build -f crates/starknet_transaction_prover/Dockerfile \
-  --build-arg RUSTFLAGS="-C target-cpu=znver5" \
+  --build-arg TARGET_CPU=znver5 \
   -t tx_prover:latest .
 ```
 
 A convenience script is available for parameterized builds:
 
 ```bash
-./scripts/build_starknet_transaction_prover.sh --rustflags "-C target-cpu=znver5"
+./scripts/build_starknet_transaction_prover.sh --target-cpu znver5
 ```
+
+## Kubernetes deployment
+
+Mount a ConfigMap containing your JSON config file and pass its path via `--config-file`.
+Override individual values with environment variables in the Deployment spec.
+
+Configuration precedence (highest priority first):
+
+1. CLI flags / container args
+2. Environment variables
+3. JSON config file (`--config-file`)
+4. Built-in defaults

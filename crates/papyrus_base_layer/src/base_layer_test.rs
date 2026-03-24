@@ -1,11 +1,16 @@
 use alloy::consensus::Header;
-use alloy::primitives::B256;
+use alloy::primitives::{Address, B256, U256};
 use alloy::providers::mock::Asserter;
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::rpc::types::{Block, BlockTransactions, Header as AlloyRpcHeader};
 use pretty_assertions::assert_eq;
 
-use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
+use crate::eth_events::{create_l1_event_data, felt_max_u256, u256_exceeds_felt};
+use crate::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    EthereumBaseLayerContract,
+    EthereumBaseLayerError,
+};
 use crate::BaseLayerContract;
 
 // TODO(Gilad): Use everywhere instead of relying on the confusing `#[ignore]` api to mark slow
@@ -95,4 +100,35 @@ async fn get_gas_price_and_timestamps() {
     // Roughly e ** (BLOB_GAS / eip7691::BLOB_GASPRICE_UPDATE_FRACTION_PECTRA)
     let expected_pectra_blob_calc = 7;
     assert_eq!(header.blob_fee, expected_pectra_blob_calc);
+}
+
+#[test]
+fn create_l1_event_data_rejects_out_of_range_inputs() {
+    let oversized = felt_max_u256() + U256::from(1_u8);
+    assert!(u256_exceeds_felt(oversized));
+
+    let cases = [
+        ("to_address", oversized, U256::from(1_u8), U256::from(1_u8), vec![U256::from(1_u8)]),
+        ("selector", U256::from(1_u8), oversized, U256::from(1_u8), vec![U256::from(1_u8)]),
+        ("nonce", U256::from(1_u8), U256::from(1_u8), oversized, vec![U256::from(1_u8)]),
+        ("payload", U256::from(1_u8), U256::from(1_u8), U256::from(1_u8), vec![oversized]),
+    ];
+
+    for (field, to_address, selector, nonce, payload) in cases {
+        let result = create_l1_event_data(Address::ZERO, to_address, selector, &payload, nonce);
+        assert_eq!(
+            result,
+            Err(EthereumBaseLayerError::CalldataValueOutOfRange(oversized)),
+            "Unexpected result for field: {field}"
+        );
+    }
+}
+
+#[test]
+fn test_u256_exceeds_felt_for_extreme_values() {
+    // Felt(-1) should map to FIELD_PRIME - 1 and be accepted.
+    let felt_neg_one = felt_max_u256();
+    assert!(!u256_exceeds_felt(felt_neg_one));
+
+    assert!(u256_exceeds_felt(felt_neg_one + U256::from(1_u8)));
 }

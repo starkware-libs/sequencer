@@ -3,11 +3,15 @@
 //! This module contains the core proving logic, extracted from the HTTP layer
 //! to enable better separation of concerns and testability.
 
+#[cfg(feature = "stwo_proving")]
+use std::sync::Arc;
 use std::time::Instant;
 
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::utils::get_chain_info;
+#[cfg(feature = "stwo_proving")]
+use privacy_prove::{prepare_recursive_prover_precomputes, RecursiveProverPrecomputes};
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
 use starknet_api::transaction::fields::{Fee, Proof, ProofFacts, ValidResourceBounds};
@@ -45,6 +49,9 @@ pub(crate) struct VirtualSnosProver<R: VirtualSnosRunner> {
     runner: R,
     /// Whether to validate that fee-related fields (resource bounds, tip) are zero.
     validate_zero_fee_fields: bool,
+    /// Precomputed data for the recursive prover, prepared once at startup.
+    #[cfg(feature = "stwo_proving")]
+    precomputes: Arc<RecursiveProverPrecomputes>,
 }
 
 /// Type alias for the RPC-based virtual SNOS prover.
@@ -67,7 +74,15 @@ impl VirtualSnosProver<RpcRunnerFactory> {
             contract_class_manager,
             prover_config.runner_config.clone(),
         );
-        Self { runner, validate_zero_fee_fields: prover_config.validate_zero_fee_fields }
+        #[cfg(feature = "stwo_proving")]
+        let precomputes = prepare_recursive_prover_precomputes()
+            .expect("Failed to prepare recursive prover precomputes");
+        Self {
+            runner,
+            validate_zero_fee_fields: prover_config.validate_zero_fee_fields,
+            #[cfg(feature = "stwo_proving")]
+            precomputes,
+        }
     }
 }
 
@@ -77,7 +92,15 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
     /// This constructor allows using any runner implementation.
     #[allow(dead_code)]
     pub(crate) fn from_runner(runner: R) -> Self {
-        Self { runner, validate_zero_fee_fields: true }
+        #[cfg(feature = "stwo_proving")]
+        let precomputes = prepare_recursive_prover_precomputes()
+            .expect("Failed to prepare recursive prover precomputes");
+        Self {
+            runner,
+            validate_zero_fee_fields: true,
+            #[cfg(feature = "stwo_proving")]
+            precomputes,
+        }
     }
 
     /// Disables fee-field validation (resource bounds, tip).
@@ -130,7 +153,7 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
 
         // Run the prover.
         let prove_start = Instant::now();
-        let result = prove_virtual_snos_run(runner_output).await?;
+        let result = self.prove_virtual_snos_run(runner_output).await?;
 
         info!(
             prove_duration_ms = %prove_start.elapsed().as_millis(),
@@ -140,31 +163,36 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
         info!(total_duration_ms = %start_time.elapsed().as_millis(), "prove_transaction completed");
         Ok(result)
     }
-}
 
-/// Proves a Virtual Starknet OS run from its output.
-///
-/// Generates a proof from the given [`RunnerOutput`] and converts the program output into proof
-/// facts.
-pub async fn prove_virtual_snos_run(
-    runner_output: RunnerOutput,
-) -> Result<ProveTransactionResult, VirtualSnosProverError> {
+    /// Proves a Virtual Starknet OS run from its output.
+    ///
+    /// Generates a proof from the given [`RunnerOutput`] and converts the program output into
+    /// proof facts.
     #[cfg(not(feature = "stwo_proving"))]
-    {
-        let _ = runner_output;
+    async fn prove_virtual_snos_run(
+        &self,
+        _runner_output: RunnerOutput,
+    ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
         unimplemented!(
             "In-memory proving requires the `stwo_proving` feature flag and a nightly Rust \
              toolchain."
         );
     }
 
+    /// Proves a Virtual Starknet OS run from its output.
+    ///
+    /// Generates a proof from the given [`RunnerOutput`] and converts the program output into
+    /// proof facts.
     #[cfg(feature = "stwo_proving")]
-    {
+    async fn prove_virtual_snos_run(
+        &self,
+        runner_output: RunnerOutput,
+    ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
         use starknet_api::transaction::fields::VIRTUAL_SNOS;
 
         use crate::proving::prover::prove;
 
-        let prover_output = prove(runner_output.cairo_pie).await?;
+        let prover_output = prove(runner_output.cairo_pie, self.precomputes.clone()).await?;
         // Convert program output to proof facts using VIRTUAL_SNOS variant marker.
         let proof_facts = prover_output.program_output.try_into_proof_facts(VIRTUAL_SNOS)?;
 
