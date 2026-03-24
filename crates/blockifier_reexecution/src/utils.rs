@@ -174,6 +174,7 @@ pub fn compare_state_diffs(
     expected_state_diff: CommitmentStateDiff,
     actual_state_diff: CommitmentStateDiff,
     block_number: BlockNumber,
+    context: Option<&str>,
 ) -> bool {
     let expected = ComparableStateDiff::from(expected_state_diff);
     let actual = ComparableStateDiff::from(actual_state_diff);
@@ -182,7 +183,8 @@ pub fn compare_state_diffs(
         let expected_str = format!("{expected:#?}");
         let actual_str = format!("{actual:#?}");
         let diff = pretty_assertions::StrComparison::new(&expected_str, &actual_str);
-        tracing::warn!("State diff mismatch for block {block_number}.\n{diff}");
+        let context_str = context.map_or(String::new(), |c| format!(" ({c})"));
+        tracing::warn!("State diff mismatch{context_str} for block {block_number}.\n{diff}");
     }
     is_match
 }
