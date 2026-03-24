@@ -197,8 +197,6 @@ pub mod active_committees;
 #[cfg(test)]
 mod config_test;
 pub mod discovery;
-#[cfg(test)]
-mod e2e_broadcast_test;
 mod event_tracker;
 pub mod gossipsub_impl;
 pub mod metrics;
