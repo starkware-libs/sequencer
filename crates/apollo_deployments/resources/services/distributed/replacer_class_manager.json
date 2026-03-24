@@ -26,6 +26,8 @@
   "components.class_manager.remote_server_config.max_request_body_bytes": 8388608,
   "components.class_manager.remote_server_config.max_streams_per_connection": 8,
   "components.class_manager.remote_server_config.set_tcp_nodelay": true,
+  "components.class_manager.remote_server_config.tcp_keepalive_idle_time_ms": 30000,
+  "components.class_manager.remote_server_config.tcp_keepalive_idle_time_ms.#is_none": false,
   "components.class_manager.url": "$$$_COMPONENTS-CLASS_MANAGER-URL_$$$",
   "components.committer.execution_mode": "Disabled",
   "components.committer.local_server_config.#is_none": true,

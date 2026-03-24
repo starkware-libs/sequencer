@@ -4,7 +4,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::validators::validate_positive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::type_name::short_type_name;
@@ -20,6 +20,7 @@ use hyper_util::rt::{TokioExecutor, TokioIo, TokioTimer};
 use hyper_util::server::conn::auto::Builder as ServerBuilder;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use socket2::{SockRef, TcpKeepalive};
 use tokio::net::TcpListener;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tracing::{debug, error, instrument, trace, warn};
@@ -46,6 +47,7 @@ const DEFAULT_MAX_CONCURRENCY: usize = 128;
 const DEFAULT_MAX_REQUEST_BODY_BYTES: usize = 8 * 1024 * 1024;
 const DEFAULT_KEEPALIVE_INTERVAL_MS: u64 = 30_000;
 const DEFAULT_KEEPALIVE_TIMEOUT_MS: u64 = 10_000;
+const DEFAULT_TCP_KEEPALIVE_IDLE_TIME_MS: u64 = 30_000;
 
 macro_rules! serve_connection {
     (
@@ -81,11 +83,14 @@ pub struct RemoteServerConfig {
     pub max_request_body_bytes: usize,
     pub keepalive_interval_ms: u64,
     pub keepalive_timeout_ms: u64,
+    /// TCP keepalive: milliseconds an accepted socket may be idle before the OS sends probes.
+    /// `None` leaves TCP keepalive unset (OS defaults apply).
+    pub tcp_keepalive_idle_time_ms: Option<u64>,
 }
 
 impl SerializeConfig for RemoteServerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
+        let mut dump = BTreeMap::from_iter([
             ser_param(
                 "bind_ip",
                 &self.bind_ip.to_string(),
@@ -130,7 +135,16 @@ impl SerializeConfig for RemoteServerConfig {
                  connection.",
                 ParamPrivacyInput::Public,
             ),
-        ])
+        ]);
+        dump.extend(ser_optional_param(
+            &self.tcp_keepalive_idle_time_ms,
+            0,
+            "tcp_keepalive_idle_time_ms",
+            "Milliseconds of TCP idleness before the OS sends keepalive probes on accepted \
+             sockets; absent disables TCP keepalive (OS defaults apply).",
+            ParamPrivacyInput::Public,
+        ));
+        dump
     }
 }
 
@@ -144,6 +158,7 @@ impl Default for RemoteServerConfig {
             max_request_body_bytes: DEFAULT_MAX_REQUEST_BODY_BYTES,
             keepalive_interval_ms: DEFAULT_KEEPALIVE_INTERVAL_MS,
             keepalive_timeout_ms: DEFAULT_KEEPALIVE_TIMEOUT_MS,
+            tcp_keepalive_idle_time_ms: Some(DEFAULT_TCP_KEEPALIVE_IDLE_TIME_MS),
         }
     }
 }
@@ -405,6 +420,12 @@ where
 
             if let Err(e) = stream.set_nodelay(self.config.set_tcp_nodelay) {
                 warn!("Failed to set TCP_NODELAY: {e}");
+            }
+            if let Some(idle_time_ms) = self.config.tcp_keepalive_idle_time_ms {
+                let keepalive = TcpKeepalive::new().with_time(Duration::from_millis(idle_time_ms));
+                if let Err(e) = SockRef::from(&stream).set_tcp_keepalive(&keepalive) {
+                    warn!("Failed to set TCP keepalive: {e}");
+                }
             }
 
             let io = TokioIo::new(stream);

@@ -114,6 +114,8 @@
   "components.state_sync.remote_server_config.max_request_body_bytes": 8388608,
   "components.state_sync.remote_server_config.max_streams_per_connection": 8,
   "components.state_sync.remote_server_config.set_tcp_nodelay": true,
+  "components.state_sync.remote_server_config.tcp_keepalive_idle_time_ms": 30000,
+  "components.state_sync.remote_server_config.tcp_keepalive_idle_time_ms.#is_none": false,
   "components.state_sync.url": "$$$_COMPONENTS-STATE_SYNC-URL_$$$",
   "config_manager_config.#is_none": false,
   "consensus_manager_config.#is_none": true,

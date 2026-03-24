@@ -90,6 +90,8 @@
   "components.sierra_compiler.remote_server_config.max_request_body_bytes": 8388608,
   "components.sierra_compiler.remote_server_config.max_streams_per_connection": 8,
   "components.sierra_compiler.remote_server_config.set_tcp_nodelay": true,
+  "components.sierra_compiler.remote_server_config.tcp_keepalive_idle_time_ms": 30000,
+  "components.sierra_compiler.remote_server_config.tcp_keepalive_idle_time_ms.#is_none": false,
   "components.sierra_compiler.url": "$$$_COMPONENTS-SIERRA_COMPILER-URL_$$$",
   "components.signature_manager.execution_mode": "Disabled",
   "components.signature_manager.local_server_config.#is_none": true,
