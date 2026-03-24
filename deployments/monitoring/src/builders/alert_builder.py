@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import collections
 import json
 import os
 import sys
@@ -20,12 +21,6 @@ from common.grafana10_objects import (
 )
 from common.logger import get_logger
 from grafana_client import GrafanaApi
-from grafana_client.client import (
-    GrafanaBadInputError,
-    GrafanaClientError,
-    GrafanaException,
-    GrafanaServerError,
-)
 from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
 
 # Global logger (initialized in alert_builder function)
@@ -69,7 +64,6 @@ def create_alert_rule(
     title: str,
     folder_uid: str,
     rule_group: str,
-    interval_sec: int,
     _for: str,
     expr: str,
     conditions: list[dict[str, any]],
@@ -82,7 +76,6 @@ def create_alert_rule(
     alert_rule["title"] = title
     alert_rule["folderUID"] = folder_uid
     alert_rule["ruleGroup"] = rule_group
-    alert_rule["intervalSec"] = interval_sec
     alert_rule["for"] = _for
     alert_rule["labels"] = labels
     alert_rule["data"] = [
@@ -98,6 +91,10 @@ def create_alert_rule(
     ]
     logger.debug(f"Alert rule created: {alert_rule}")
     return alert_rule
+
+
+def create_rule_group(name: str, interval_sec: int, rules: list[dict[str, any]]) -> dict[str, any]:
+    return {"name": name, "interval": interval_sec, "rules": rules}
 
 
 def get_all_folders(client: GrafanaApi) -> list[dict[str, any]]:
@@ -128,25 +125,14 @@ def create_folder_return_uid(client: GrafanaApi, title: str) -> str:
         return folder["uid"]
 
 
-def dump_alert(output_dir: str, alert: dict[str, any]) -> None:
-    alert_full_path = f"{output_dir}/{alert['name']}.json".lower().replace(" ", "_")
+def dump_rule_group(output_dir: str, rule_group: dict[str, any]) -> None:
+    group_full_path = f"{output_dir}/{rule_group['name']}.json".lower().replace(" ", "_")
     os.makedirs(output_dir, exist_ok=True)
-    ordered = {"title": alert["title"], **{k: v for k, v in alert.items() if k != "title"}}
-    with open(alert_full_path, "w") as f:
-        json.dump(ordered, f, indent=2)
-    # Format with professional colors: Alert (white bold), name (cyan), saved to (white bold), path (dim cyan)
+    with open(group_full_path, "w") as f:
+        json.dump(rule_group, f, indent=2)
     logger.info(
-        f'[bold white]Alert[/bold white] "[blue]{alert["name"]}[/blue]" [bold white]saved to[/bold white] [dim white]{alert_full_path}[/dim white]'
+        f'[bold white]Rule group[/bold white] "[blue]{rule_group["name"]}[/blue]" [bold white]saved to[/bold white] [dim white]{group_full_path}[/dim white]'
     )
-
-
-def get_alert_rule_group(client: GrafanaApi, folder_uid: str, group_uid: str) -> str:
-    logger.debug(f'Getting alert rule group "{group_uid}"')
-    rule_group = client.alertingprovisioning.get_rule_group(
-        folder_uid=folder_uid, group_uid=group_uid
-    )
-    logger.debug(f"Got alert group: {rule_group}")
-    return rule_group
 
 
 @retry(
@@ -296,7 +282,10 @@ def alert_builder(args: argparse.Namespace):
         # Exit cleanly without traceback
         sys.exit(1)
 
-    alerts = []
+    interval_sec = dev_alerts["intervalSec"]
+
+    # group_name -> list of alert rules (preserving insertion order within each group)
+    groups: dict[str, list[dict[str, any]]] = collections.defaultdict(list)
 
     for dev_alert in dev_alerts["alerts"]:
         # Apply config overrides to replace placeholders
@@ -315,13 +304,14 @@ def alert_builder(args: argparse.Namespace):
             )
         else:
             expr = remove_expr_placeholder(expr=dev_alert["expr"])
-        alerts.append(
+
+        group_name = dev_alert["ruleGroup"]
+        groups[group_name].append(
             create_alert_rule(
                 name=dev_alert["name"],
                 title=dev_alert["title"],
                 folder_uid=folder_uid,
-                interval_sec=dev_alert["intervalSec"],
-                rule_group=dev_alert["ruleGroup"],
+                rule_group=group_name,
                 _for=dev_alert["for"],
                 expr=expr,
                 conditions=dev_alert["conditions"],
@@ -333,66 +323,31 @@ def alert_builder(args: argparse.Namespace):
             )
         )
 
-    alerts.sort(key=lambda a: a["title"])
+    rule_groups = [
+        create_rule_group(
+            name=group_name,
+            interval_sec=interval_sec,
+            rules=sorted(rules, key=lambda a: a["name"]),
+        )
+        for group_name, rules in sorted(groups.items())
+    ]
 
-    for alert in alerts:
+    for rule_group in rule_groups:
         if args.debug:
-            logger.debug(json.dumps(alert))
+            logger.debug(json.dumps(rule_group))
         if not args.dry_run:
-            alert_created_or_exists = False
             try:
-                client.alertingprovisioning.create_alertrule(
-                    alertrule=alert,
-                    disable_provenance=True,
-                )
-                logger.info(f'Alert "{alert["name"]}" uploaded to Grafana successfully')
-                alert_created_or_exists = True
-
-            except GrafanaBadInputError as e:
-                if "alerting.alert-rule.conflict" in e.message:
-                    logger.info(f'Alert "{alert["name"]}" already exists. Skipping creation.')
-                    alert_created_or_exists = True
-                else:
-                    # Handle other bad input errors
-                    logger.error(
-                        f'Failed to create alert "{alert["name"]}". Bad input: {e.message}'
-                    )
-            except GrafanaClientError as e:
-                # Handle other client-side errors (e.g., invalid request)
-                logger.error(f'Failed to create alert "{alert["name"]}". Client error: {e.message}')
-            except GrafanaServerError as e:
-                # Handle server-side errors (5xx errors)
-                logger.error(f'Failed to create alert "{alert["name"]}". Server error: {e.message}')
-            except GrafanaException as e:
-                # Catch any other Grafana-related exceptions
-                logger.error(
-                    f'Failed to create alert "{alert["name"]}". Grafana error: {e.message}'
+                update_alert_rule_group(
+                    client=client,
+                    folder_uid=folder_uid,
+                    group_uid=rule_group["name"],
+                    alertrule_group=rule_group,
                 )
             except Exception as e:
-                # Catch any other exceptions (non-Grafana-related)
-                logger.error(f'Failed to create alert "{alert["name"]}". Unexpected error: {e}')
-
-            # Only update rule group interval if alert was successfully created or already exists
-            if alert_created_or_exists:
-                try:
-                    group_uid = alert["ruleGroup"]
-                    rule_group = get_alert_rule_group(
-                        client=client, folder_uid=folder_uid, group_uid=group_uid
-                    )
-                    if rule_group["interval"] != alert["intervalSec"]:
-                        rule_group["interval"] = alert["intervalSec"]
-                        update_alert_rule_group(
-                            client=client,
-                            folder_uid=folder_uid,
-                            group_uid=group_uid,
-                            alertrule_group=rule_group,
-                        )
-                        logger.info(f'Alert rule group "{group_uid}" updated successfully')
-                except Exception as e:
-                    logger.error(f'Failed to update alert rule group "{alert["ruleGroup"]}". {e}')
+                logger.error(f'Failed to update rule group "{rule_group["name"]}". {e}')
 
         if args.out_dir:
             output_dir = f"{args.out_dir}/alerts"
-            dump_alert(output_dir=output_dir, alert=alert)
+            dump_rule_group(output_dir=output_dir, rule_group=rule_group)
 
     logger.info("Done building grafana alerts")

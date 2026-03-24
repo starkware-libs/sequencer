@@ -42,6 +42,7 @@ apollo_transaction_converter.workspace = true
 blockifier.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
+strum = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 serde_with.workspace = true
 

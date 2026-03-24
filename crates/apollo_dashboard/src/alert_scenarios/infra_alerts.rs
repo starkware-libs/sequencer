@@ -5,9 +5,9 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    EvaluationRate,
     ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
@@ -30,7 +30,7 @@ pub(crate) fn get_general_pod_state_not_ready() -> Alert {
     Alert::new(
         "pod_state_not_ready",
         "Pod status Not Ready",
-        AlertGroup::General,
+        EvaluationRate::High,
         // kube_pod_container_status_ready value is 0 if the container is 'not ready', and 1
         // if the container is 'ready'. We replace the pod name with 'service_name' to group by the
         // service name using the label_replace function and the regex pattern. Summing across all
@@ -58,7 +58,7 @@ pub(crate) fn get_general_pod_state_crashloopbackoff() -> Alert {
     Alert::new(
         "pod_state_crashloopbackoff",
         "Pod status CrashLoopBackOff",
-        AlertGroup::General,
+        EvaluationRate::Default,
         format!(
             // Convert "NoData" to 0 using `absent`.
             "sum by(container, pod, namespace) ({}) or absent({}) * 0",
@@ -84,7 +84,7 @@ fn get_general_pod_memory_utilization(
     Alert::new(
         name,
         title,
-        AlertGroup::General,
+        EvaluationRate::Default,
         format!(
             // Calculates the memory usage percentage of each container in a pod, relative to its
             // memory limit. This expression compares the actual memory usage
@@ -127,7 +127,7 @@ pub(crate) fn get_general_pod_high_cpu_utilization() -> Alert {
     Alert::new(
         "pod_high_cpu_utilization",
         "Pod High CPU Utilization ( >90% )",
-        AlertGroup::General,
+        EvaluationRate::Default,
         format!(
             // Calculates CPU usage rate over 2 minutes per container, compared to its defined CPU
             // quota. Showing CPU pressure.
@@ -153,7 +153,7 @@ fn get_general_pod_disk_utilization(
     Alert::new(
         name,
         title,
-        AlertGroup::General,
+        EvaluationRate::Low,
         format!(
             "max by (namespace,persistentvolumeclaim) ({}) / (min by \
              (namespace,persistentvolumeclaim) ({}) + max by (namespace,persistentvolumeclaim) \
@@ -195,7 +195,7 @@ pub(crate) fn get_periodic_ping() -> Alert {
     Alert::new(
         "periodic_ping",
         "Periodic Ping",
-        AlertGroup::General,
+        EvaluationRate::Default,
         // Checks if the UTC time is 7:55 AM on Sunday.
         "(day_of_week() == bool 0) * (hour() == bool 7) * (minute() == bool 55)",
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
