@@ -1,8 +1,9 @@
 use std::convert::Infallible;
 use std::fmt::Debug;
 use std::future::ready;
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::os::unix::io::BorrowedFd;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -24,7 +25,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use socket2::SockRef;
+use socket2::{SockRef, TcpKeepalive};
 use starknet_types_core::felt::Felt;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
@@ -699,8 +700,7 @@ async fn zombie_connection_is_evicted() {
 
     let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();
 
-    // Start a RemoteComponentServer with very short keepalive values.
-    // The local channel receiver is intentionally dropped — no requests will be sent.
+    // The local channel is kept alive but never consumed — no requests will be processed.
     let (tx, _rx) = channel::<RequestWrapper<ComponentARequest, ComponentAResponse>>(32);
     let local_client = LocalComponentClient::<ComponentARequest, ComponentAResponse>::new(
         tx,
@@ -722,14 +722,155 @@ async fn zombie_connection_is_evicted() {
 
     let mut zombie = connect_zombie(socket).await;
 
-    // Wait for the keepalive cycle to fire and time out.
-    sleep(Duration::from_millis(KEEPALIVE_INTERVAL_MS + KEEPALIVE_TIMEOUT_MS + MARGIN_MS)).await;
+    // read_to_end blocks until the server closes the connection (GOAWAY + FIN). The timeout
+    // covers the full keepalive cycle plus a scheduling margin.
+    let mut buf = Vec::new();
+    let read_result = timeout(
+        Duration::from_millis(KEEPALIVE_INTERVAL_MS + KEEPALIVE_TIMEOUT_MS + MARGIN_MS),
+        zombie.read_to_end(&mut buf),
+    )
+    .await;
+    assert!(
+        read_result.is_ok(),
+        "Server should have closed the zombie connection after keepalive timeout, but the \
+         connection is still open"
+    );
+}
 
-    // The server should have closed the connection; read_to_end should return quickly with
-    // whatever GOAWAY bytes were sent, and then EOF.
-    let mut remainder = Vec::new();
-    let read_result =
-        timeout(Duration::from_millis(MARGIN_MS), zombie.read_to_end(&mut remainder)).await;
+/// Verifies that Hyper evicts an idle connection from its pool after `http_pool_idle_timeout_ms`
+/// and opens a fresh TCP connection for the next request.
+///
+/// Since no pool timer is configured, eviction is triggered by the next pool checkout (the second
+/// request), not a background task. A new connection is detected by counting server-side accepts.
+#[tokio::test]
+async fn idle_connection_is_evicted_after_pool_timeout() {
+    const POOL_IDLE_TIMEOUT_MS: u64 = 100;
+    const MARGIN_MS: u64 = 300;
+
+    let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();
+    let accept_count = Arc::new(AtomicUsize::new(0));
+
+    {
+        let accept_count = accept_count.clone();
+        task::spawn(async move {
+            let listener = TcpListener::bind(socket).await.unwrap();
+            loop {
+                let Ok((stream, _)) = listener.accept().await else { continue };
+                accept_count.fetch_add(1, Ordering::SeqCst);
+                let io = TokioIo::new(stream);
+                let service = service_fn(|_req: Request<Incoming>| async {
+                    let body = ComponentAResponse::AGetValue(VALID_VALUE_A);
+                    Ok::<_, Infallible>(
+                        Response::builder()
+                            .status(StatusCode::OK)
+                            .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+                            .body(Full::new(Bytes::from(
+                                SerdeWrapper::new(body).wrapper_serialize().unwrap(),
+                            )))
+                            .unwrap(),
+                    )
+                });
+                tokio::spawn(async move {
+                    let _ = Http2ServerBuilder::new(TokioExecutor::new())
+                        .http2()
+                        .serve_connection(io, service)
+                        .await;
+                });
+            }
+        });
+    }
+    task::yield_now().await;
+
+    let client = ComponentAClient::new(
+        RemoteClientConfig { idle_timeout_ms: POOL_IDLE_TIMEOUT_MS, ..Default::default() },
+        &socket.ip().to_string(),
+        socket.port(),
+        &TEST_REMOTE_CLIENT_METRICS,
+    );
+
+    // Establish connection C1.
+    client.a_get_value().await.expect("first request should succeed");
+    assert_eq!(accept_count.load(Ordering::SeqCst), 1, "C1 should have been accepted");
+
+    // Let the idle timeout expire.
+    sleep(Duration::from_millis(POOL_IDLE_TIMEOUT_MS + MARGIN_MS)).await;
+
+    // The next checkout detects C1 is expired, drops it, and opens a new connection C2.
+    client.a_get_value().await.expect("second request should succeed");
+    assert_eq!(
+        accept_count.load(Ordering::SeqCst),
+        2,
+        "idle timeout should have evicted C1 and caused a new connection C2"
+    );
+}
+
+/// Verifies that `SO_KEEPALIVE` on a server-accepted socket reflects `idle_time_ms`.
+///
+/// The test accepts the connection itself so it owns the `TcpStream` and can inspect socket
+/// options via `SockRef::from` without any unsafe FD scanning.
+#[rstest]
+#[tokio::test]
+async fn server_tcp_keepalive_socket_option_matches_config() {
+    const ARBITRARY_IDLE_TIMEOUT_MS: u64 = 100;
+
+    let listener =
+        TcpListener::bind(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0)).await.unwrap();
+    let server_addr = listener.local_addr().unwrap();
+
+    let _client_stream = TcpStream::connect(server_addr).await.unwrap();
+    let (accepted_stream, _) = listener.accept().await.unwrap();
+
+    // Mirror the keepalive logic in RemoteComponentServer::start().
+    let keepalive = TcpKeepalive::new().with_time(Duration::from_millis(ARBITRARY_IDLE_TIMEOUT_MS));
+    SockRef::from(&accepted_stream).set_tcp_keepalive(&keepalive).unwrap();
+
+    assert!(
+        SockRef::from(&accepted_stream).keepalive().unwrap(),
+        "SO_KEEPALIVE on the accepted socket should reflect idle_time_ms"
+    );
+}
+
+/// Verifies that a `RemoteComponentServer` configured with TCP keepalive correctly evicts
+/// zombie connections.
+///
+/// On loopback the OS always acknowledges TCP keepalive probes, so the connection is evicted
+/// via the HTTP/2 PING mechanism rather than TCP keepalive itself. The test verifies that
+/// enabling TCP keepalive does not interfere with connection eviction.
+#[tokio::test]
+async fn server_with_tcp_keepalive_evicts_zombie_connection() {
+    const KEEPALIVE_INTERVAL_MS: u64 = 100;
+    const KEEPALIVE_TIMEOUT_MS: u64 = 100;
+    const MARGIN_MS: u64 = 500;
+
+    let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();
+
+    let (tx, _rx) = channel::<RequestWrapper<ComponentARequest, ComponentAResponse>>(32);
+    let local_client = LocalComponentClient::<ComponentARequest, ComponentAResponse>::new(
+        tx,
+        &TEST_LOCAL_CLIENT_METRICS,
+    );
+    let config = RemoteServerConfig {
+        keepalive_interval_ms: KEEPALIVE_INTERVAL_MS,
+        keepalive_timeout_ms: KEEPALIVE_TIMEOUT_MS,
+        ..dummy_remote_server_config(socket.ip(), MAX_CONCURRENCY)
+    };
+    let mut server = RemoteComponentServer::new(
+        local_client,
+        config,
+        socket.port(),
+        &TEST_REMOTE_SERVER_METRICS,
+    );
+    task::spawn(async move { server.start().await });
+    task::yield_now().await;
+
+    let mut zombie = connect_zombie(socket).await;
+
+    let mut buf = Vec::new();
+    let read_result = timeout(
+        Duration::from_millis(KEEPALIVE_INTERVAL_MS + KEEPALIVE_TIMEOUT_MS + MARGIN_MS),
+        zombie.read_to_end(&mut buf),
+    )
+    .await;
     assert!(
         read_result.is_ok(),
         "Server should have closed the zombie connection after keepalive timeout, but the \

@@ -20,6 +20,8 @@ use hyper_util::rt::{TokioExecutor, TokioIo, TokioTimer};
 use hyper_util::server::conn::auto::Builder as ServerBuilder;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use socket2::{SockRef, TcpKeepalive};
+use static_assertions::const_assert;
 use tokio::net::TcpListener;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tracing::{debug, error, instrument, trace, warn};
@@ -46,6 +48,11 @@ const DEFAULT_MAX_CONCURRENCY: usize = 128;
 const DEFAULT_MAX_REQUEST_BODY_BYTES: usize = 8 * 1024 * 1024;
 const DEFAULT_KEEPALIVE_INTERVAL_MS: u64 = 30_000;
 const DEFAULT_KEEPALIVE_TIMEOUT_MS: u64 = 10_000;
+
+const TCP_IDLE_TIMEOUT_FACTOR: f64 = 1.5;
+// Ensure tcp connection timeout is greater than http2 connection timeout by requiring a factor
+// greater than 1.
+const_assert!(TCP_IDLE_TIMEOUT_FACTOR > 1.0);
 
 macro_rules! serve_connection {
     (
@@ -393,6 +400,10 @@ where
             panic!("Failed to bind remote component server socket {:#?}: {e}", bind_socket)
         });
 
+        let max_streams = self.config.max_streams_per_connection;
+        let keepalive_interval = Duration::from_millis(self.config.keepalive_interval_ms);
+        let keepalive_timeout = Duration::from_millis(self.config.keepalive_timeout_ms);
+
         loop {
             let (stream, peer_addr) = match listener.accept().await {
                 Ok(conn) => conn,
@@ -407,10 +418,13 @@ where
                 warn!("Failed to set TCP_NODELAY: {e}");
             }
 
+            let tcp_keepalive =
+                TcpKeepalive::new().with_time(keepalive_timeout.mul_f64(TCP_IDLE_TIMEOUT_FACTOR));
+            if let Err(e) = SockRef::from(&stream).set_tcp_keepalive(&tcp_keepalive) {
+                warn!("Failed to set TCP keepalive: {e}");
+            }
+
             let io = TokioIo::new(stream);
-            let max_streams = self.config.max_streams_per_connection;
-            let keepalive_interval = Duration::from_millis(self.config.keepalive_interval_ms);
-            let keepalive_timeout = Duration::from_millis(self.config.keepalive_timeout_ms);
 
             tokio::spawn(per_connection_service(
                 io,
