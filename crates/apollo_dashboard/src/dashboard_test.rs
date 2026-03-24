@@ -5,9 +5,9 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    EvaluationRate,
     AlertLogicalOp,
     AlertSeverity,
+    EvaluationRate,
     ObserverApplicability,
 };
 use crate::panel::{Panel, PanelType, ThresholdMode, ThresholdStep, Thresholds, Unit};
@@ -21,7 +21,6 @@ fn serialize_alert() {
         "max".to_string(),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
         "5m",
-        20,
         AlertSeverity::Sos,
         ObserverApplicability::Applicable,
     );
@@ -41,7 +40,6 @@ fn serialize_alert() {
             }
         ],
         "for": "5m",
-        "intervalSec": 20,
         "severity": "p1",
         "observer_applicable": "true"
     });

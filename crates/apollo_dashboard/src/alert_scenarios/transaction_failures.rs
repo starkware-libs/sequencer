@@ -12,11 +12,10 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    EvaluationRate,
     AlertLogicalOp,
     AlertSeverity,
+    EvaluationRate,
     ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
 
@@ -34,7 +33,6 @@ pub(crate) fn get_http_server_high_deprecated_transaction_failure_ratio() -> Ale
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.1, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
     )
@@ -53,7 +51,6 @@ pub(crate) fn get_http_server_high_transaction_failure_ratio() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.5, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
     )
@@ -72,7 +69,6 @@ pub(crate) fn get_http_server_internal_error_ratio() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.01, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
@@ -96,7 +92,6 @@ pub(crate) fn get_mempool_transaction_drop_ratio() -> Alert {
             AlertLogicalOp::And,
         )],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
@@ -113,7 +108,6 @@ pub(crate) fn get_http_server_internal_error_once() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
     )

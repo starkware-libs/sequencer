@@ -106,12 +106,11 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    EvaluationRate,
     AlertLogicalOp,
     AlertSeverity,
     Alerts,
+    EvaluationRate,
     ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
 
@@ -139,7 +138,6 @@ fn get_consensus_decisions_reached_by_consensus_ratio() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 0.5, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
     )
@@ -156,7 +154,6 @@ fn get_consensus_inbound_stream_evicted_alert() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 5.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
     )
@@ -173,7 +170,6 @@ fn get_consensus_inbound_peer_evicted_alert() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 5.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
     )
@@ -190,7 +186,6 @@ fn get_consensus_inbound_stream_buffer_full_alert() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
     )
@@ -207,7 +202,6 @@ fn get_consensus_votes_num_sent_messages_alert() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 20.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
     )
@@ -226,7 +220,6 @@ fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 3.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
     )
@@ -243,7 +236,6 @@ fn get_consensus_l1_gas_price_provider_failure() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 5.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
     )
@@ -260,7 +252,6 @@ fn get_consensus_l1_gas_price_provider_failure_once() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
     )
@@ -277,7 +268,6 @@ fn get_consensus_proposal_fin_mismatch_once() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
     )
@@ -294,7 +284,6 @@ fn get_consensus_conflicting_votes() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         // TODO(matan): Increase severity once slashing is supported.
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
@@ -312,7 +301,6 @@ fn get_consensus_retrospective_block_hash_mismatch() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Sos,
         ObserverApplicability::Applicable,
     )
@@ -329,7 +317,6 @@ fn get_eth_to_strk_error_count_alert() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
         "1m",
-        20,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
     )
@@ -346,7 +333,6 @@ fn get_l1_gas_price_scraper_baselayer_error_count_alert() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
     )
@@ -363,7 +349,6 @@ fn get_l1_gas_price_reorg_detected_alert() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
     )
@@ -380,7 +365,6 @@ fn get_l1_message_scraper_baselayer_error_count_alert() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 5.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
     )
@@ -397,7 +381,6 @@ fn get_l1_message_scraper_reorg_detected_alert() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Sos,
         ObserverApplicability::NotApplicable,
     )
@@ -414,7 +397,6 @@ fn get_l1_events_provider_errors_alert() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         // TODO(Arni): set a configurable severity, similar to `get_high_empty_blocks_ratio_alert`.
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
@@ -432,7 +414,6 @@ fn get_native_compilation_error_increase() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
     )
@@ -452,7 +433,6 @@ fn get_consensus_p2p_disconnections() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::Applicable,
     )
@@ -472,7 +452,6 @@ fn get_mempool_p2p_disconnections() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
     )
@@ -492,7 +471,6 @@ fn create_storage_open_read_transactions_alert(storage_type: &str, metric_name: 
             AlertLogicalOp::And,
         )],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
     )
@@ -530,7 +508,6 @@ fn get_gateway_proof_archive_write_failure() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
     )
@@ -550,7 +527,6 @@ fn get_staking_epoch_id_mismatch_alert() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         "5m",
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::DayOnly,
         ObserverApplicability::NotApplicable,
     )

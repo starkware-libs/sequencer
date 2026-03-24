@@ -16,11 +16,10 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    EvaluationRate,
     AlertLogicalOp,
     AlertSeverity,
+    EvaluationRate,
     ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
 
@@ -43,7 +42,6 @@ fn build_idle_alert(
         ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 0.1, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
     )
@@ -91,7 +89,6 @@ pub(crate) fn get_gateway_low_successful_transaction_rate() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 5.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )

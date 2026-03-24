@@ -15,10 +15,9 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    EvaluationRate,
     AlertLogicalOp,
+    EvaluationRate,
     ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
 
@@ -38,7 +37,6 @@ pub(crate) fn get_mempool_p2p_peer_down() -> Alert {
             AlertLogicalOp::And,
         )],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
@@ -60,7 +58,6 @@ pub(crate) fn get_http_server_avg_add_tx_latency_alert() -> Alert {
         format!("rate({sum_metric}[5m]) / clamp_min(rate({count_metric}[5m]), 1/300)"),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 15.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
@@ -89,7 +86,6 @@ pub(crate) fn get_http_server_min_add_tx_latency_alert() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
@@ -108,7 +104,6 @@ pub(crate) fn get_http_server_p95_add_tx_latency_alert() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 2.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::ConcreteValue(crate::alerts::AlertSeverity::Informational),
         ObserverApplicability::NotApplicable,
     )
@@ -144,7 +139,6 @@ pub(crate) fn get_high_empty_blocks_ratio_alert() -> Alert {
             AlertLogicalOp::And,
         )],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )

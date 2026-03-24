@@ -5,11 +5,10 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    EvaluationRate,
     AlertLogicalOp,
     AlertSeverity,
+    EvaluationRate,
     ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
 
@@ -48,7 +47,6 @@ pub(crate) fn get_general_pod_state_not_ready() -> Alert {
         // marked as not ready. To avoid alerting on these, we require the not-ready status to last
         // longer (e.g., 60 seconds).
         "60s",
-        10,
         AlertSeverity::Regular,
         ObserverApplicability::NotApplicable,
     )
@@ -69,7 +67,6 @@ pub(crate) fn get_general_pod_state_crashloopbackoff() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Regular,
         ObserverApplicability::Applicable,
     )
@@ -100,7 +97,6 @@ fn get_general_pod_memory_utilization(
             AlertLogicalOp::And,
         )],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         severity,
         ObserverApplicability::Applicable,
     )
@@ -138,7 +134,6 @@ pub(crate) fn get_general_pod_high_cpu_utilization() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 90.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Regular,
         ObserverApplicability::Applicable,
     )
@@ -168,7 +163,6 @@ fn get_general_pod_disk_utilization(
             AlertLogicalOp::And,
         )],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         severity,
         ObserverApplicability::Applicable,
     )
@@ -199,10 +193,7 @@ pub(crate) fn get_periodic_ping() -> Alert {
         // Checks if the UTC time is 7:55 AM on Sunday.
         "(day_of_week() == bool 0) * (hour() == bool 7) * (minute() == bool 55)",
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
-        // The alert will be evaluated every 30 seconds, which should suffice to catch the 1-minute
-        // long ping.
         "0s",
-        30,
         AlertSeverity::Regular,
         ObserverApplicability::Applicable,
     )

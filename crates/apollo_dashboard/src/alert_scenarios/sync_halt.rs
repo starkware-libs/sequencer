@@ -11,11 +11,10 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    EvaluationRate,
     AlertLogicalOp,
     AlertSeverity,
+    EvaluationRate,
     ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
     SECS_IN_MIN,
 };
@@ -33,7 +32,6 @@ pub(crate) fn get_state_sync_lag() -> Alert {
         ), // Alert when the central sync is ahead of the class manager by more than 5 blocks
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 5.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
@@ -55,7 +53,6 @@ fn get_state_sync_stuck(
         ), // Alert is triggered when the class manager marker is not updated for {duration}s
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::Applicable,
     )
