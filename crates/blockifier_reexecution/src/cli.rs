@@ -164,6 +164,11 @@ pub enum Command {
         /// Number of parallel worker threads.
         #[clap(long, default_value = "1")]
         n_workers: usize,
+
+        /// Run each block twice (native and CASM) and compare the resulting state diffs.
+        /// Requires the cairo_native feature.
+        #[clap(long)]
+        compare_native: bool,
     },
 
     // Download all (selected) blocks from the gc bucket.
