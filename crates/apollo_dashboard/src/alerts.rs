@@ -16,11 +16,14 @@ pub(crate) const SECS_IN_MIN: u64 = 60;
 /// Alerts to be configured in the dashboard.
 #[derive(Debug, Serialize)]
 pub struct Alerts {
+    // The interval in seconds between evaluations of all alerts in the group.
+    #[serde(rename = "intervalSec")]
+    interval_sec: u64,
     alerts: Vec<Alert>,
 }
 
 impl Alerts {
-    pub(crate) fn new(alerts: Vec<Alert>) -> Self {
+    pub(crate) fn new(alerts: Vec<Alert>, interval_sec: u64) -> Self {
         // Validate that there are no duplicate alert names.
         alerts
             .iter()
@@ -39,7 +42,7 @@ impl Alerts {
                 panic!("Duplicate placeholder name found across alerts: {duplicate}")
             });
 
-        Self { alerts }
+        Self { interval_sec, alerts }
     }
 }
 
