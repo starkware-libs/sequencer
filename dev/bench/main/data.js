@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774345484767,
+  "lastUpdate": 1774355498383,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -849,6 +849,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1296.9357606600001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9bb356517b64e019fd4d93cbe7f8ca913ca9b66c",
+          "message": "starknet_committer: return deleted nodes from commit_block (#12435)",
+          "timestamp": "2026-03-24T12:08:58Z",
+          "tree_id": "80bfcf6468dfc03748d723bad3d8938d7cb0e570",
+          "url": "https://github.com/starkware-libs/sequencer/commit/9bb356517b64e019fd4d93cbe7f8ca913ca9b66c"
+        },
+        "date": 1774355498019,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 799.7331254500001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1303.41861074,
             "unit": "ms"
           }
         ]
