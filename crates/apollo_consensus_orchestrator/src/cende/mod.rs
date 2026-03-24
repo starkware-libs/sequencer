@@ -112,8 +112,9 @@ pub struct CendeAmbassador {
     // TODO(dvir): consider creating enum varaiant instead of the `Option<AerospikeBlob>`.
     // `None` indicates that there is no blob to write, and therefore, the node can't be the
     // proposer.
-    prev_height_blob: Arc<Mutex<Option<AerospikeBlob>>>,
-    url: Url,
+    prev_height_blob: Arc<Mutex<Option<Arc<AerospikeBlob>>>>,
+    write_blob_url: Url,
+    get_latest_received_block_url: Url,
     client: ClientWithMiddleware,
     class_manager: SharedClassManagerClient,
 }
@@ -154,13 +155,18 @@ impl CendeContext for CendeAmbassador {
 
         task::spawn(
             async move {
-                // TODO(dvir): consider extracting the "should write blob" logic to a function.
-                let Some(ref blob): Option<AerospikeBlob> = *prev_height_blob.lock().await else {
-                    // This case happens when restarting the node, `prev_height_blob` initial value
-                    // is `None`.
-                    warn!("CENDE_FAILURE: No blob to write to Aerospike.");
-                    record_write_failure(CendeWriteFailureReason::BlobNotAvailable);
-                    return false;
+                let prev_blob: Option<Arc<AerospikeBlob>> = {
+                    let guard = prev_height_blob.lock().await;
+                    (*guard).clone()
+                };
+
+                let Some(blob) = prev_blob else {
+                    return previous_height_exists_at_cende_recorder(
+                        client,
+                        get_latest_url,
+                        current_height,
+                    )
+                    .await;
                 };
 
                 if blob.block_number.0 >= current_height.0 {
@@ -183,7 +189,7 @@ impl CendeContext for CendeAmbassador {
                 }
 
                 info!("Writing blob to Aerospike.");
-                return send_write_blob(request_builder, blob).await;
+                return send_write_blob(request_builder, blob.as_ref()).await;
             }
             .instrument(tracing::debug_span!("cende write_prev_height_blob height")),
         )
@@ -196,13 +202,13 @@ impl CendeContext for CendeAmbassador {
     ) -> CendeAmbassadorResult<()> {
         // TODO(dvir): as optimization, call the `into` and other preperation when writing to AS.
         let block_number = blob_parameters.block_info.block_number;
-        *self.prev_height_blob.lock().await = Some(
+        *self.prev_height_blob.lock().await = Some(Arc::new(
             AerospikeBlob::from_blob_parameters_and_class_manager(
                 blob_parameters,
                 self.class_manager.clone(),
             )
             .await?,
-        );
+        ));
         info!("Blob for block number {block_number} is ready.");
         CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.set_lossy(block_number.0);
         Ok(())
