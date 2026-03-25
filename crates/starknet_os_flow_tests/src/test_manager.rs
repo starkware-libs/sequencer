@@ -101,7 +101,7 @@ use crate::utils::{
 /// must be updated.
 pub(crate) const EXPECTED_STRK_FEE_TOKEN_ADDRESS: Expect = expect![
     r#"
-    0x1d9267d6952e9d1fc449d4b2f91b439b65b48365294b9c0731a9faf578e1b14
+    0xf3ecde7344151f53b887b541d6742628dbe2c780024fba15a7ca0d46c05a43
 "#
 ];
 const SEQUENCER_ADDRESS_FELT: Felt = Felt::from_hex_unchecked(TEST_SEQUENCER_ADDRESS);
