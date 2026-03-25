@@ -48,12 +48,19 @@ class ServiceConstruct(BaseConstruct):
                 f"sequencer-{self.service_config.name}-{self.service_name_suffix}-service"
             )
 
+        # Merge Service labels with common labels, ensuring common labels take precedence
+        service_labels = (
+            {**service_spec.labels, **self.labels}
+            if service_spec and service_spec.labels
+            else self.labels
+        )
+
         return k8s.KubeService(
             self,
             "service",
             metadata=k8s.ObjectMeta(
                 name=service_name,
-                labels=self.labels,
+                labels=service_labels,
                 annotations=self._get_service_annotations(service_spec),
             ),
             spec=k8s.ServiceSpec(
