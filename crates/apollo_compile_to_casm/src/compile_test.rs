@@ -35,7 +35,7 @@ const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConf
 
 // Libfuncs in allowed_libfuncs.json but not yet in Cairo's audited list.
 // Remove entries once they're added to the audited list.
-const PENDING_LIBFUNCS: &[&str] = &["get_execution_info_v3_syscall"];
+const PENDING_LIBFUNCS: &[&str] = &[];
 
 fn compiler() -> SierraToCasmCompiler {
     SierraToCasmCompiler::new(SIERRA_COMPILATION_CONFIG)

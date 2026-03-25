@@ -432,9 +432,6 @@ impl FeatureContract {
             Self::Experimental => {
                 LibfuncArg::ListFile("./resources/experimental_libfuncs.json".to_string())
             }
-            // TODO(AvivG): Remove once the compiler outputs Sierra ≥1.8.0.
-            Self::TestContract(_) => LibfuncArg::ListName("all".to_string()),
-
             Self::LegacyTestContract | Self::CairoStepsTestContract => {
                 LibfuncArg::ListFile(allowed_libfuncs_legacy_json_path())
             }
