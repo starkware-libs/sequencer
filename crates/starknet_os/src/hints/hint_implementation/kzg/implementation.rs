@@ -11,6 +11,8 @@ use crate::hints::hint_implementation::kzg::utils::{
 use crate::hints::types::HintContext;
 use crate::hints::vars::{Const, Ids};
 
+pub(crate) const MAX_N_BLOBS_PER_TX: usize = 6;
+
 pub(crate) fn guess_kzg_commitments_and_store_da_segment<CHP: CommonHintProcessor>(
     hint_processor: &mut CHP,
     mut ctx: HintContext<'_>,

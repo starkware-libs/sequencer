@@ -14,6 +14,7 @@ use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1};
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
+use crate::hints::hint_implementation::kzg::implementation::MAX_N_BLOBS_PER_TX;
 use crate::io::os_output_types::{
     FullCommitmentOsStateDiff,
     FullOsStateDiff,
@@ -193,6 +194,15 @@ impl TryFromOutputIter for OsKzgCommitmentInfo {
     ) -> Result<Self, OsOutputError> {
         let kzg_z = wrap_missing(output_iter.next(), "kzg_z")?;
         let n_blobs: usize = wrap_missing_as(output_iter.next(), "n_blobs")?;
+        if n_blobs > MAX_N_BLOBS_PER_TX {
+            return Err(OsOutputError::InvalidOsOutputField {
+                value_name: "n_blobs".to_string(),
+                val: n_blobs.into(),
+                message: format!(
+                    "Number of blobs exceeds {MAX_N_BLOBS_PER_TX} (the maximum allowed)."
+                ),
+            });
+        }
 
         let mut commitments = Vec::with_capacity(n_blobs);
         for i in 0..n_blobs {

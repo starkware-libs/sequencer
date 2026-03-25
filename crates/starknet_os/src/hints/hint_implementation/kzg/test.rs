@@ -12,6 +12,7 @@ use rstest::rstest;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 
+use crate::hints::hint_implementation::kzg::implementation::MAX_N_BLOBS_PER_TX;
 use crate::hints::hint_implementation::kzg::test_utils::{
     estimate_os_kzg_commitment_computation_resources,
     run_compute_os_kzg_commitment_info,
@@ -31,8 +32,6 @@ use crate::io::os_output::OsKzgCommitmentInfo;
 use crate::io::os_output_types::TryFromOutputIter;
 use crate::io::test_utils::validate_kzg_segment;
 use crate::vm_utils::get_field_offset;
-
-const MAX_N_BLOBS_PER_TX: usize = 6;
 
 static BLOB_SUBGROUP_GENERATOR: LazyLock<BigUint> = LazyLock::new(|| {
     BigUint::from_str_radix(
