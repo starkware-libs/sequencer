@@ -335,7 +335,8 @@ fn test_assert_actual_fee_in_bounds(
             invoke_tx_args! { max_fee, version: TransactionVersion::ONE },
         );
         let context = Arc::new(block_context.to_tx_context(&tx));
-        AccountTransaction::assert_actual_fee_in_bounds(&context, max_fee + actual_fee_offset);
+        AccountTransaction::assert_actual_fee_in_bounds(&context, max_fee + actual_fee_offset)
+            .unwrap();
     } else {
         // All resources.
         let l1_gas = ResourceBounds { max_amount: GasAmount(2), max_price_per_unit: GasPrice(3) };
@@ -362,7 +363,7 @@ fn test_assert_actual_fee_in_bounds(
                 version: TransactionVersion::THREE,
             });
             let context = Arc::new(block_context.to_tx_context(&tx));
-            AccountTransaction::assert_actual_fee_in_bounds(&context, actual_fee);
+            AccountTransaction::assert_actual_fee_in_bounds(&context, actual_fee).unwrap();
         }
     }
 }
