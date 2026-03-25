@@ -41,7 +41,7 @@ use crate::execution::stack_trace::{
     gen_tx_execution_error_trace,
     Cairo1RevertHeader,
 };
-use crate::fee::fee_checks::{FeeCheckReportFields, PostExecutionReport};
+use crate::fee::fee_checks::{FeeCheckError, FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::{
     get_fee_by_gas_vector,
     get_sequencer_balance_keys,
@@ -498,25 +498,15 @@ impl AccountTransaction {
         })
     }
 
-    fn assert_actual_fee_in_bounds(tx_context: &Arc<TransactionContext>, actual_fee: Fee) {
+    fn assert_actual_fee_in_bounds(
+        tx_context: &Arc<TransactionContext>,
+        actual_fee: Fee,
+    ) -> Result<(), FeeCheckError> {
         let max_fee = tx_context.max_possible_fee();
         if actual_fee > max_fee {
-            match &tx_context.tx_info {
-                TransactionInfo::Current(context) => {
-                    panic!(
-                        "Actual fee {:#?} exceeded bounds; max possible fee is {:#?} (computed \
-                         from {:#?} with tip {:#?}).",
-                        actual_fee,
-                        max_fee,
-                        context.resource_bounds,
-                        tx_context.effective_tip()
-                    );
-                }
-                TransactionInfo::Deprecated(_) => {
-                    panic!("Actual fee {actual_fee:#?} exceeded bounds; max fee is {max_fee:#?}.");
-                }
-            }
+            return Err(FeeCheckError::MaxFeeExceeded { max_fee, actual_fee });
         }
+        Ok(())
     }
 
     fn handle_fee<S: StateReader>(
@@ -532,7 +522,7 @@ impl AccountTransaction {
             return Ok(None);
         }
 
-        Self::assert_actual_fee_in_bounds(&tx_context, actual_fee);
+        Self::assert_actual_fee_in_bounds(&tx_context, actual_fee)?;
 
         let fee_transfer_call_info = if concurrency_mode && !tx_context.is_sequencer_the_sender() {
             Self::concurrency_execute_fee_transfer(state, tx_context, actual_fee)?
