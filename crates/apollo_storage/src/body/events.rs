@@ -61,7 +61,8 @@ use crate::body::{EventsTableKey, TransactionEventsTable, TransactionIndex};
 use crate::db::serialization::NoVersionValueWrapper;
 use crate::db::table_types::{CommonPrefix, DbCursor, DbCursorTrait, NoValue, SimpleTable, Table};
 use crate::db::{DbTransaction, RO};
-use crate::{StorageResult, StorageTxn};
+use crate::mmap_file::LocationInFile;
+use crate::{FileHandlers, StorageResult, StorageTxn};
 
 /// An identifier of an event.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
@@ -164,6 +165,7 @@ impl Iterator for EventIter<'_, '_> {
 /// That is, the events iterated first by the contract address and then by the event index.
 pub struct EventIterByContractAddress<'env, 'txn> {
     txn: &'txn DbTransaction<'env, RO>,
+    file_handlers: &'txn FileHandlers<RO>,
     // This value is the next entry in the events table to search for relevant events. If it is
     // None there are no more events.
     next_entry_in_event_table: Option<EventsTableKey>,
@@ -186,13 +188,14 @@ impl EventIterByContractAddress<'_, '_> {
             let Some((contract_address, tx_index)) = self.next_entry_in_event_table.take() else {
                 return Ok(None);
             };
-            let events =
+            let location =
                 self.transaction_events_table.get(self.txn, &tx_index)?.unwrap_or_else(|| {
                     panic!(
                         "Transaction events for {tx_index:?} not found, but entry exists in \
                          events table"
                     )
                 });
+            let events = self.file_handlers.get_events_unchecked(location)?;
             self.events_queue = get_events_from_tx(events, tx_index, contract_address, 0);
             self.next_entry_in_event_table = self.cursor.next()?.map(|(key, _)| key);
         }
@@ -206,6 +209,7 @@ impl EventIterByContractAddress<'_, '_> {
 /// First by the block number, then by the transaction offset in the block,
 /// and finally, by the event index in the transaction output.
 pub struct EventIterByEventIndex<'txn> {
+    file_handlers: &'txn FileHandlers<RO>,
     tx_current: Option<(TransactionIndex, Vec<Event>)>,
     tx_cursor: TransactionEventsCursor<'txn>,
     event_index_in_tx_current: EventIndexInTransactionOutput,
@@ -251,10 +255,11 @@ impl EventIterByEventIndex<'_> {
 
             // There are no more events in the current transaction, so we go over the rest of the
             // transactions until we find an event.
-            let Some((tx_index, events)) = self.tx_cursor.next()? else {
+            let Some((tx_index, location)) = self.tx_cursor.next()? else {
                 self.tx_current = None;
                 return Ok(());
             };
+            let events = self.file_handlers.get_events_unchecked(location)?;
             self.tx_current = Some((tx_index, events));
             self.event_index_in_tx_current = EventIndexInTransactionOutput(0);
         }
@@ -284,12 +289,14 @@ where
         let events_queue = if let Some((contract_address, tx_index)) =
             cursor.lower_bound(&(key.0, key.1.0))?.map(|(key, _)| key)
         {
-            let events = transaction_events_table.get(&self.txn, &tx_index)?.unwrap_or_else(|| {
-                panic!(
-                    "Transaction events for {tx_index:?} not found, but entry exists in events \
-                     table"
-                )
-            });
+            let location =
+                transaction_events_table.get(&self.txn, &tx_index)?.unwrap_or_else(|| {
+                    panic!(
+                        "Transaction events for {tx_index:?} not found, but entry exists in \
+                         events table"
+                    )
+                });
+            let events = self.file_handlers.get_events_unchecked(location)?;
 
             // In case of we get tx_index different from the key, it means we need to start a new
             // transaction which means the first event.
@@ -302,6 +309,7 @@ where
 
         Ok(EventIterByContractAddress {
             txn: &self.txn,
+            file_handlers: &self.file_handlers,
             next_entry_in_event_table,
             events_queue,
             cursor,
@@ -325,9 +333,15 @@ where
     ) -> StorageResult<EventIterByEventIndex<'txn>> {
         let transaction_events_table = self.open_table(&self.tables.transaction_events)?;
         let mut tx_cursor = transaction_events_table.cursor(&self.txn)?;
-        let first_relevant_transaction = tx_cursor.lower_bound(&event_index.0)?;
+        let first_relevant_transaction = match tx_cursor.lower_bound(&event_index.0)? {
+            Some((tx_index, location)) => {
+                Some((tx_index, self.file_handlers.get_events_unchecked(location)?))
+            }
+            None => None,
+        };
 
         let mut it = EventIterByEventIndex {
+            file_handlers: &self.file_handlers,
             tx_current: first_relevant_transaction,
             tx_cursor,
             event_index_in_tx_current: event_index.1,
@@ -362,6 +376,6 @@ type TransactionEventsCursor<'txn> = DbCursor<
     'txn,
     RO,
     TransactionIndex,
-    crate::db::serialization::VersionZeroWrapper<Vec<Event>>,
+    crate::db::serialization::VersionZeroWrapper<LocationInFile>,
     SimpleTable,
 >;

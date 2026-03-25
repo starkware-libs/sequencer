@@ -62,6 +62,7 @@ use tracing::debug;
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, NoValue, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
+use crate::mmap_file::LocationInFile;
 use crate::{
     FileHandlers,
     MarkerKind,
@@ -84,7 +85,7 @@ type EventsTableKey = (ContractAddress, TransactionIndex);
 type EventsTable<'env> =
     TableHandle<'env, EventsTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
 type TransactionEventsTable<'env> =
-    TableHandle<'env, TransactionIndex, VersionZeroWrapper<Vec<Event>>, SimpleTable>;
+    TableHandle<'env, TransactionIndex, VersionZeroWrapper<LocationInFile>, SimpleTable>;
 
 /// The index of a transaction in a block.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
@@ -323,7 +324,10 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         transaction_index: TransactionIndex,
     ) -> StorageResult<Option<Vec<Event>>> {
         let transaction_events_table = self.open_table(&self.tables.transaction_events)?;
-        Ok(transaction_events_table.get(&self.txn, &transaction_index)?)
+        let Some(location) = transaction_events_table.get(&self.txn, &transaction_index)? else {
+            return Ok(None);
+        };
+        Ok(Some(self.file_handlers.get_events_unchecked(location)?))
     }
 
     fn get_block_transaction_events(
@@ -338,11 +342,11 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         let mut current_entry =
             cursor.lower_bound(&TransactionIndex(block_number, TransactionOffsetInBlock(0)))?;
         let mut result = Vec::new();
-        while let Some((TransactionIndex(current_block_number, _), events)) = current_entry {
+        while let Some((TransactionIndex(current_block_number, _), location)) = current_entry {
             if current_block_number != block_number {
                 break;
             }
-            result.push(events);
+            result.push(self.file_handlers.get_events_unchecked(location)?);
             current_entry = cursor.next()?;
         }
         Ok(Some(result))
@@ -460,13 +464,23 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                 block_number,
             )?;
 
-            // Write events to the events index table and the transaction_events table.
+            // Write events to the mmap file, events index table, and transaction_events table.
+            let mut last_events_location = None;
             for (offset, tx_output) in block_body.transaction_outputs.iter().enumerate() {
                 let transaction_index =
                     TransactionIndex(block_number, TransactionOffsetInBlock(offset));
                 let events = tx_output.events();
                 write_events(events, &self.txn, &events_table, transaction_index)?;
-                transaction_events_table.insert(&self.txn, &transaction_index, &events.to_vec())?;
+                let events_location = self.file_handlers.append_events(&events.to_vec());
+                transaction_events_table.insert(&self.txn, &transaction_index, &events_location)?;
+                last_events_location = Some(events_location);
+            }
+            if let Some(location) = last_events_location {
+                file_offset_table.upsert(
+                    &self.txn,
+                    &OffsetKind::Events,
+                    &location.next_offset(),
+                )?;
             }
         }
 
@@ -520,10 +534,11 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                 cursor.lower_bound(&TransactionIndex(block_number, TransactionOffsetInBlock(0)))?;
             let mut event_keys_to_delete = Vec::new();
             let mut tx_event_keys_to_delete = Vec::new();
-            while let Some((tx_index, events)) = current_entry {
+            while let Some((tx_index, location)) = current_entry {
                 if tx_index.0 != block_number {
                     break;
                 }
+                let events = self.file_handlers.get_events_unchecked(location)?;
                 let addresses: HashSet<_> = events.iter().map(|e| e.from_address).collect();
                 for address in addresses {
                     event_keys_to_delete.push((address, tx_index));
