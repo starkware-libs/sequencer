@@ -67,7 +67,7 @@ use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStat
 use starknet_types_core::felt::Felt;
 use tracing::debug;
 
-use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
+use crate::db::serialization::{NoVersionValueWrapper, ValueSerde, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
 use crate::metrics::STORAGE_APPEND_THIN_STATE_DIFF_LATENCY;
@@ -204,6 +204,45 @@ pub struct StateReader<'env, Mode: TransactionKind> {
     storage_table: ContractStorageTable<'env>,
     markers_table: MarkersTable<'env>,
     file_handlers: &'env FileHandlers<Mode>,
+}
+
+/// Scans a MDBX table with keys `(EK, BlockNumber)` over the entity-key range
+/// `[start, end)` at `synced_block`, returning up to `limit` entries.
+///
+/// `end` is exclusive. `None` means no upper bound (scan to end of table).
+fn scan_synced_block<C, EK, EV>(
+    cursor: &mut C,
+    start: EK,
+    end: Option<EK>,
+    synced_block: BlockNumber,
+    limit: usize,
+) -> StorageResult<Vec<(EK, EV)>>
+where
+    C: DbCursorTrait<Key = (EK, BlockNumber)>,
+    C::Value: ValueSerde<Value = EV>,
+    EK: Copy + PartialOrd,
+{
+    let first_irrelevant_block = BlockNumber(synced_block.0 + 1);
+    let mut result = Vec::new();
+    let mut current = start;
+    loop {
+        if result.len() >= limit || end.is_some_and(|e| current >= e) {
+            break;
+        }
+        // Position just past all entries for `current` at `synced_block`, then step back.
+        cursor.lower_bound(&(current, first_irrelevant_block))?;
+        if let Some(((got_ek, _block), value)) = cursor.prev()? {
+            if got_ek == current {
+                result.push((current, value));
+            }
+        }
+        // Advance to the next entity key by seeking past all blocks for `current`.
+        match cursor.lower_bound(&(current, BlockNumber(u64::from(u32::MAX))))? {
+            None => break,
+            Some(((next_ek, _), _)) => current = next_ek,
+        }
+    }
+    Ok(result)
 }
 
 impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
@@ -508,6 +547,52 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         Ok(Some(
             self.file_handlers.get_deprecated_contract_class_unchecked(value.location_in_file)?,
         ))
+    }
+
+    /// Returns all contract addresses in [start, end) at `synced_block`, paired with their class
+    /// hashes.
+    pub fn scan_contract_class_hashes_in_range(
+        &self,
+        start: ContractAddress,
+        end: Option<ContractAddress>,
+        synced_block: BlockNumber,
+        limit: usize,
+    ) -> StorageResult<Vec<(ContractAddress, ClassHash)>> {
+        let mut cursor = self.deployed_contracts_table.cursor(self.txn)?;
+        scan_synced_block(&mut cursor, start, end, synced_block, limit)
+    }
+
+    /// Returns non-zero storage values for `addr` in the key range [`start_key`, `end`) at
+    /// `synced_block`, up to `limit` entries.
+    pub fn scan_storage_keys_for_contract(
+        &self,
+        addr: ContractAddress,
+        start_key: StorageKey,
+        end: Option<StorageKey>,
+        synced_block: BlockNumber,
+        limit: usize,
+    ) -> StorageResult<Vec<(StorageKey, Felt)>> {
+        let mut cursor = self.storage_table.cursor(self.txn)?;
+        let entries = scan_synced_block(
+            &mut cursor,
+            (addr, start_key),
+            end.map(|key| (addr, key)),
+            synced_block,
+            limit,
+        )?;
+        Ok(entries.into_iter().map(|((_, key), value)| (key, value)).collect())
+    }
+
+    /// Returns all compiled class hashes in [start, end) at `synced_block`.
+    pub fn scan_compiled_class_hashes_in_range(
+        &self,
+        start: ClassHash,
+        end: Option<ClassHash>,
+        synced_block: BlockNumber,
+        limit: usize,
+    ) -> StorageResult<Vec<(ClassHash, CompiledClassHash)>> {
+        let mut cursor = self.compiled_class_hash_table.cursor(self.txn)?;
+        scan_synced_block(&mut cursor, start, end, synced_block, limit)
     }
 }
 

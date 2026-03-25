@@ -3,6 +3,7 @@ use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
 use pretty_assertions::assert_eq;
+use rstest::rstest;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -914,5 +915,129 @@ fn declare_revert_declare_without_classes_scenario() {
     assert_eq!(
         state_reader.get_deprecated_class_definition_block_number(&deprecated_class_hash).unwrap(),
         Some(BlockNumber(0))
+    );
+}
+
+// Tests for `scan_synced_block` via `scan_contract_class_hashes_in_range`.
+//
+// Settings:
+//   block 0 — keys 1, 3, 4
+//   block 1 — key 1 updated, key 4 updated, key 5 added
+#[rstest]
+// The state after block 1: scan [0x1, 0x6) — exclusive end covers 0x1..=0x5.
+#[case::happy_flow(
+    contract_address!("0x1"), Some(contract_address!("0x6")), BlockNumber(1), usize::MAX,
+    vec![
+        (contract_address!("0x1"), class_hash!("0x11")),
+        (contract_address!("0x3"), class_hash!("0x3")),
+        (contract_address!("0x4"), class_hash!("0x14")),
+        (contract_address!("0x5"), class_hash!("0x15")),
+    ],
+)]
+// The state after block 1000 - same as block 1.
+#[case::block_in_future(
+    contract_address!("0x1"), Some(contract_address!("0x6")), BlockNumber(1000), usize::MAX,
+    vec![
+        (contract_address!("0x1"), class_hash!("0x11")),
+        (contract_address!("0x3"), class_hash!("0x3")),
+        (contract_address!("0x4"), class_hash!("0x14")),
+        (contract_address!("0x5"), class_hash!("0x15")),
+    ],
+)]
+// The state after block 0.
+#[case::state_at_block_zero(
+    contract_address!("0x1"), Some(contract_address!("0x6")), BlockNumber(0), usize::MAX,
+    vec![
+        (contract_address!("0x1"), class_hash!("0x1")),
+        (contract_address!("0x3"), class_hash!("0x3")),
+        (contract_address!("0x4"), class_hash!("0x4")),
+    ],
+)]
+// The state after block 0 - ca5 is not deployed yet.
+#[case::key_not_yet_deployed(
+    contract_address!("0x5"), Some(contract_address!("0x6")), BlockNumber(0), usize::MAX,
+    vec![],
+)]
+// Range [0x6, 0xa): entirely outside the populated key space.
+#[case::range_both_ends_outside(
+    contract_address!("0x6"), Some(contract_address!("0xa")), BlockNumber(1), usize::MAX,
+    vec![],
+)]
+// Range [0x4, 0xa): start inside, end beyond the last key.
+#[case::range_start_inside_end_outside(
+    contract_address!("0x4"), Some(contract_address!("0xa")), BlockNumber(1), usize::MAX,
+    vec![
+        (contract_address!("0x4"), class_hash!("0x14")),
+        (contract_address!("0x5"), class_hash!("0x15")),
+    ],
+)]
+// Range [0x0, 0x4): start before any key, end exclusive at 0x4 — includes 0x1 and 0x3.
+#[case::range_start_outside_end_inside(
+    contract_address!("0x0"), Some(contract_address!("0x4")), BlockNumber(1), usize::MAX,
+    vec![
+        (contract_address!("0x1"), class_hash!("0x11")),
+        (contract_address!("0x3"), class_hash!("0x3")),
+    ],
+)]
+// Limit truncates the result after the first 2 entries.
+#[case::limit_truncates_result(
+    contract_address!("0x2"), Some(contract_address!("0x6")), BlockNumber(1), 2,
+    vec![
+        (contract_address!("0x3"), class_hash!("0x3")),
+        (contract_address!("0x4"), class_hash!("0x14")),
+    ],
+)]
+// None end: no upper bound — returns all entries at block 1.
+#[case::none_end(
+    contract_address!("0x0"), None, BlockNumber(1), usize::MAX,
+    vec![
+        (contract_address!("0x1"), class_hash!("0x11")),
+        (contract_address!("0x3"), class_hash!("0x3")),
+        (contract_address!("0x4"), class_hash!("0x14")),
+        (contract_address!("0x5"), class_hash!("0x15")),
+    ],
+)]
+fn test_scan_synced_block(
+    #[case] start: ContractAddress,
+    #[case] end: Option<ContractAddress>,
+    #[case] synced_block: BlockNumber,
+    #[case] limit: usize,
+    #[case] expected: Vec<(ContractAddress, ClassHash)>,
+) {
+    let ((reader, mut writer), _temp_dir) = get_test_storage();
+    let mut txn = writer.begin_rw_txn().unwrap();
+    txn = txn
+        .append_state_diff(
+            BlockNumber(0),
+            ThinStateDiff {
+                deployed_contracts: IndexMap::from([
+                    (contract_address!("0x1"), class_hash!("0x1")),
+                    (contract_address!("0x3"), class_hash!("0x3")),
+                    (contract_address!("0x4"), class_hash!("0x4")),
+                ]),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    txn = txn
+        .append_state_diff(
+            BlockNumber(1),
+            ThinStateDiff {
+                deployed_contracts: IndexMap::from([
+                    (contract_address!("0x1"), class_hash!("0x11")),
+                    (contract_address!("0x4"), class_hash!("0x14")),
+                    (contract_address!("0x5"), class_hash!("0x15")),
+                ]),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    txn.commit().unwrap();
+
+    let txn = reader.begin_ro_txn().unwrap();
+    let state_reader = txn.get_state_reader().unwrap();
+    assert_eq!(
+        state_reader.scan_contract_class_hashes_in_range(start, end, synced_block, limit).unwrap(),
+        expected,
     );
 }
