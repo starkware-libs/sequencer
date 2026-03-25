@@ -148,7 +148,7 @@ use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, GlobalRoot, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
-use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
+use starknet_api::transaction::{Event, Transaction, TransactionHash, TransactionOutput};
 use starknet_types_core::felt::Felt;
 use tracing::{debug, info, warn};
 use validator::Validate;
@@ -251,6 +251,7 @@ fn open_storage_internal(
         nonces: db_writer.create_common_prefix_table("nonces")?,
         file_offsets: db_writer.create_simple_table("file_offsets")?,
         state_diffs: db_writer.create_simple_table("state_diffs")?,
+        transaction_events: db_writer.create_simple_table("transaction_events")?,
         transaction_hash_to_idx: db_writer.create_simple_table("transaction_hash_to_idx")?,
         transaction_metadata: db_writer.create_simple_table("transaction_metadata")?,
         block_hashes: db_writer.create_simple_table("block_hashes")?,
@@ -687,6 +688,7 @@ struct_field_names! {
         state_diffs: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>,
         transaction_hash_to_idx: TableIdentifier<TransactionHash, NoVersionValueWrapper<TransactionIndex>, SimpleTable>,
         // TODO(dvir): consider not saving transaction hash and calculating it from the transaction on demand.
+        transaction_events: TableIdentifier<TransactionIndex, VersionZeroWrapper<Vec<Event>>, SimpleTable>,
         transaction_metadata: TableIdentifier<TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>,
         block_hashes: TableIdentifier<BlockNumber, VersionZeroWrapper<BlockHash>, SimpleTable>,
         global_root: TableIdentifier<BlockNumber, NoVersionValueWrapper<GlobalRoot>, SimpleTable>,
