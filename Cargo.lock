@@ -2427,7 +2427,6 @@ dependencies = [
 name = "apollo_rpc"
 version = "0.18.0-dev.2"
 dependencies = [
- "alloy-primitives",
  "anyhow",
  "apollo_class_manager_types",
  "apollo_config",
