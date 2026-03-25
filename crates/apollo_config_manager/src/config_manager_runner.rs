@@ -15,8 +15,9 @@ use async_trait::async_trait;
 use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde_json::Value;
 use tokio::sync::mpsc;
+use tokio::sync::watch::{Receiver, Sender};
 use tokio::time::{interval, Duration as TokioDuration, Interval};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::metrics::{register_metrics, CONFIG_MANAGER_UPDATE_ERRORS};
 
@@ -29,7 +30,11 @@ pub mod config_manager_runner_tests;
 pub struct ConfigManagerRunner {
     config_manager_config: ConfigManagerConfig,
     config_manager_client: SharedConfigManagerClient,
-    latest_node_dynamic_config: NodeDynamicConfig,
+    dynamic_config_tx: Sender<NodeDynamicConfig>,
+    // Keeps the receiver alive so the sender never observes a dead channel.
+    // TODO(Arni): Remove once LocalComponentChannelClient is held long-term (done in
+    // arni/http_server/add_client_to_server).
+    _dynamic_config_rx: Receiver<NodeDynamicConfig>,
     cli_args: Vec<String>,
 }
 
@@ -59,13 +64,15 @@ impl ConfigManagerRunner {
     pub fn new(
         config_manager_config: ConfigManagerConfig,
         config_manager_client: SharedConfigManagerClient,
-        initial_node_dynamic_config: NodeDynamicConfig,
+        dynamic_config_tx: Sender<NodeDynamicConfig>,
+        dynamic_config_rx: Receiver<NodeDynamicConfig>,
         cli_args: Vec<String>,
     ) -> Self {
         Self {
             config_manager_config,
             config_manager_client,
-            latest_node_dynamic_config: initial_node_dynamic_config,
+            dynamic_config_tx,
+            _dynamic_config_rx: dynamic_config_rx,
             cli_args,
         }
     }
@@ -123,7 +130,7 @@ impl ConfigManagerRunner {
     // TODO(Nadin): Define a proper result type instead of Box<dyn std::error::Error + Send + Sync>
     pub(crate) async fn update_config(
         &mut self,
-    ) -> Result<NodeDynamicConfig, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let config = load_and_validate_config(self.cli_args.clone(), false).map_err(|e| {
             CONFIG_MANAGER_UPDATE_ERRORS.increment(1);
             error!("ConfigManagerRunner: failed to update config: {e}");
@@ -131,46 +138,28 @@ impl ConfigManagerRunner {
         })?;
         let node_dynamic_config = NodeDynamicConfig::from(&config);
 
-        // Compare the previous and the newly read node dynamic config.
-        if self.latest_node_dynamic_config == node_dynamic_config {
-            // No change, so no action is needed.
-            Ok(node_dynamic_config)
-        } else {
-            // Log the diff between the latest and the new node dynamic config.
-            self.log_config_diff(&self.latest_node_dynamic_config, &node_dynamic_config);
-            // Update the latest node dynamic config.
-            self.latest_node_dynamic_config = node_dynamic_config.clone();
-            match self
-                .config_manager_client
-                .set_node_dynamic_config(node_dynamic_config.clone())
-                .await
-            {
-                Ok(()) => {
-                    info!("Successfully updated dynamic config");
-                    Ok(node_dynamic_config)
-                }
-                Err(e) => Err(format!("Failed to update dynamic config: {:?}", e).into()),
+        let changed = self.dynamic_config_tx.send_if_modified(|current| {
+            if current == &node_dynamic_config {
+                return false;
             }
+            log_config_diff(current, &node_dynamic_config);
+            // TODO(Arni): Remove this clone once the config_manager_client block below is removed.
+            *current = node_dynamic_config.clone();
+            true
+        });
+
+        if !changed {
+            return Ok(());
         }
-    }
 
-    fn log_config_diff(&self, old_config: &NodeDynamicConfig, new_config: &NodeDynamicConfig) {
-        let old_config = get_config_presentation(old_config, false).unwrap();
-        let new_config = get_config_presentation(new_config, false).unwrap();
-        let all_keys: BTreeSet<_> = old_config
-            .as_object()
-            .unwrap()
-            .keys()
-            .chain(new_config.as_object().unwrap().keys())
-            .collect();
-
-        for key in all_keys {
-            let old_value = old_config.as_object().unwrap().get(key).unwrap_or(&Value::Null);
-            let new_value = new_config.as_object().unwrap().get(key).unwrap_or(&Value::Null);
-
-            if old_value != new_value {
-                info!("ConfigManagerRunner: {key} changed from {old_value} to {new_value}");
+        debug!("Successfully sent node dynamic config to the channel");
+        // TODO(Arni): Remove this block once config_manager_client is removed from the runner.
+        match self.config_manager_client.set_node_dynamic_config(node_dynamic_config).await {
+            Ok(()) => {
+                info!("Successfully updated dynamic config");
+                Ok(())
             }
+            Err(e) => Err(format!("Failed to update dynamic config: {:?}", e).into()),
         }
     }
 
@@ -194,6 +183,26 @@ impl ConfigManagerRunner {
         }
 
         paths
+    }
+}
+
+fn log_config_diff(old_config: &NodeDynamicConfig, new_config: &NodeDynamicConfig) {
+    let old_config = get_config_presentation(old_config, false).unwrap();
+    let new_config = get_config_presentation(new_config, false).unwrap();
+    let all_keys: BTreeSet<_> = old_config
+        .as_object()
+        .unwrap()
+        .keys()
+        .chain(new_config.as_object().unwrap().keys())
+        .collect();
+
+    for key in all_keys {
+        let old_value = old_config.as_object().unwrap().get(key).unwrap_or(&Value::Null);
+        let new_value = new_config.as_object().unwrap().get(key).unwrap_or(&Value::Null);
+
+        if old_value != new_value {
+            info!("ConfigManagerRunner: {key} changed from {old_value} to {new_value}");
+        }
     }
 }
 
