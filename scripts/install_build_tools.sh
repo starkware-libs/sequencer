@@ -34,7 +34,9 @@ function install_common_packages() {
             clang \
             curl \
             gnupg \
+            libssl-dev \
             libzstd-dev \
+            pkg-config \
             python3-dev \
             python3-venv \
             sudo \

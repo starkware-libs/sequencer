@@ -25,9 +25,7 @@ function install_essential_deps_linux() {
             git \
             gnupg \
             jq \
-            libssl-dev \
             lsb-release \
-            pkg-config \
             protobuf-compiler \
             ripgrep \
             software-properties-common \
