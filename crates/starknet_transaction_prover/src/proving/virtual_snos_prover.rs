@@ -194,7 +194,16 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
 
         let prover_output = prove(runner_output.cairo_pie, self.precomputes.clone()).await?;
         // Convert program output to proof facts using VIRTUAL_SNOS variant marker.
-        let proof_facts = prover_output.program_output.try_into_proof_facts(VIRTUAL_SNOS)?;
+        let proof_facts = {
+            use starknet_types_core::felt::Felt;
+            let mut facts =
+                (*prover_output.program_output.try_into_proof_facts(VIRTUAL_SNOS)?.0).clone();
+            // Corrupt the OS program hash (index 2) for testing bad-hash behavior.
+            if facts.len() > 2 {
+                facts[2] = facts[2] + Felt::ONE;
+            }
+            ProofFacts(Arc::new(facts))
+        };
 
         Ok(ProveTransactionResult {
             proof: prover_output.proof,
