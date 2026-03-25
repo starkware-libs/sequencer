@@ -15,8 +15,9 @@ use async_trait::async_trait;
 use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde_json::Value;
 use tokio::sync::mpsc;
+use tokio::sync::watch::{Receiver, Sender};
 use tokio::time::{interval, Duration as TokioDuration, Interval};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::metrics::{register_metrics, CONFIG_MANAGER_UPDATE_ERRORS};
 
@@ -29,6 +30,11 @@ pub mod config_manager_runner_tests;
 pub struct ConfigManagerRunner {
     config_manager_config: ConfigManagerConfig,
     config_manager_client: SharedConfigManagerClient,
+    dynamic_config_tx: Sender<NodeDynamicConfig>,
+    // Keeps the receiver alive so the sender never observes a dead channel.
+    // TODO(Arni): Remove once LocalComponentChannelClient is held long-term (done in
+    // arni/http_server/add_client_to_server).
+    _value_rx_keep_alive: Receiver<NodeDynamicConfig>,
     latest_node_dynamic_config: NodeDynamicConfig,
     cli_args: Vec<String>,
 }
@@ -59,12 +65,16 @@ impl ConfigManagerRunner {
     pub fn new(
         config_manager_config: ConfigManagerConfig,
         config_manager_client: SharedConfigManagerClient,
+        dynamic_config_tx: Sender<NodeDynamicConfig>,
+        value_rx_keep_alive: Receiver<NodeDynamicConfig>,
         initial_node_dynamic_config: NodeDynamicConfig,
         cli_args: Vec<String>,
     ) -> Self {
         Self {
             config_manager_config,
             config_manager_client,
+            dynamic_config_tx,
+            _value_rx_keep_alive: value_rx_keep_alive,
             latest_node_dynamic_config: initial_node_dynamic_config,
             cli_args,
         }
@@ -123,7 +133,7 @@ impl ConfigManagerRunner {
     // TODO(Nadin): Define a proper result type instead of Box<dyn std::error::Error + Send + Sync>
     pub(crate) async fn update_config(
         &mut self,
-    ) -> Result<NodeDynamicConfig, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let config = load_and_validate_config(self.cli_args.clone(), false).map_err(|e| {
             CONFIG_MANAGER_UPDATE_ERRORS.increment(1);
             error!("ConfigManagerRunner: failed to update config: {e}");
@@ -134,20 +144,25 @@ impl ConfigManagerRunner {
         // Compare the previous and the newly read node dynamic config.
         if self.latest_node_dynamic_config == node_dynamic_config {
             // No change, so no action is needed.
-            Ok(node_dynamic_config)
+            Ok(())
         } else {
             // Log the diff between the latest and the new node dynamic config.
             self.log_config_diff(&self.latest_node_dynamic_config, &node_dynamic_config);
             // Update the latest node dynamic config.
             self.latest_node_dynamic_config = node_dynamic_config.clone();
-            match self
-                .config_manager_client
-                .set_node_dynamic_config(node_dynamic_config.clone())
-                .await
-            {
+            // TODO(Arni): Make the error logging less verbose, once we get rid of the next match
+            // block.
+            match self.dynamic_config_tx.send(node_dynamic_config.clone()) {
+                Ok(()) => debug!("Successfully sent node dynamic config to the channel"),
+                Err(e) => error!("Failed to send node dynamic config to the channel: {e}"),
+            }
+
+            // TODO(Arni): Remove this match block. Squash the behavior into the previous match
+            // block.
+            match self.config_manager_client.set_node_dynamic_config(node_dynamic_config).await {
                 Ok(()) => {
                     info!("Successfully updated dynamic config");
-                    Ok(node_dynamic_config)
+                    Ok(())
                 }
                 Err(e) => Err(format!("Failed to update dynamic config: {:?}", e).into()),
             }
