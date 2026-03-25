@@ -270,7 +270,7 @@ pub fn test_get_versioned_constants(test_state_reader: RpcStateReader) {
 
 #[rstest]
 pub fn test_get_block_context(test_state_reader: RpcStateReader) {
-    test_state_reader.get_block_context().unwrap();
+    test_state_reader.get_block_context(None).unwrap();
 }
 
 #[rstest]
