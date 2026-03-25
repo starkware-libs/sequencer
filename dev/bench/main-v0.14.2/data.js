@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774191665168,
+  "lastUpdate": 1774449452869,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2855,6 +2855,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1186.65797823,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "00a0f20e77c1d18ebadcefaf74ba9b0248549f7b",
+          "message": "blockifier_reexecution: add tracing initialization and convert prints to structured logging (#13463)",
+          "timestamp": "2026-03-25T13:55:16Z",
+          "tree_id": "41c65138b859711cd89eef496a3e843c0a3162a2",
+          "url": "https://github.com/starkware-libs/sequencer/commit/00a0f20e77c1d18ebadcefaf74ba9b0248549f7b"
+        },
+        "date": 1774449452107,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 890.93326815,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1468.26985127,
             "unit": "ms"
           }
         ]
