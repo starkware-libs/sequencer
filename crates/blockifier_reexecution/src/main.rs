@@ -21,6 +21,7 @@ use google_cloud_storage::http::objects::download::Range;
 use google_cloud_storage::http::objects::get::GetObjectRequest;
 use google_cloud_storage::http::objects::upload::{Media, UploadObjectRequest, UploadType};
 use starknet_api::block::BlockNumber;
+use tracing::info;
 
 const BUCKET: &str = "reexecution_artifacts";
 const RESOURCES_DIR: &str = "/resources";
@@ -31,6 +32,16 @@ const OFFLINE_PREFIX_FILE: &str = "/offline_reexecution_files_prefix";
 /// TODO(Aner): run by default from the root of the project.
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(
+            |_| {
+                tracing_subscriber::EnvFilter::new(
+                    "warn,blockifier=info,blockifier_reexecution=info",
+                )
+            },
+        ))
+        .init();
+
     let args = BlockifierReexecutionCliArgs::parse();
 
     // Lambda functions for single point of truth.
@@ -59,7 +70,7 @@ async fn main() {
 
     match args.command {
         Command::RpcTest { block_number, rpc_args } => {
-            println!(
+            info!(
                 "Running RPC test for block number {block_number} using node url {}.",
                 rpc_args.node_url
             );
@@ -82,9 +93,7 @@ async fn main() {
             .await
             .unwrap();
 
-            // Compare the expected and actual state differences
-            // by avoiding discrepancies caused by insertion order
-            println!("RPC test passed successfully.");
+            info!("RPC test passed successfully.");
         }
 
         Command::ReexecuteSingleTx { block_number, rpc_args, tx_input } => {
@@ -93,9 +102,9 @@ async fn main() {
                 TransactionInput::FromHash { ref tx_hash } => format!("with hash {tx_hash}"),
             };
 
-            println!(
-                "Executing single transaction {tx_source}, for block number {block_number}, and \
-                 using node url {}.",
+            info!(
+                "Executing single transaction {tx_source}, for block number {block_number}, using \
+                 node url {}.",
                 rpc_args.node_url
             );
 
@@ -119,14 +128,14 @@ async fn main() {
             .unwrap()
             .unwrap();
 
-            println!("Single transaction execution completed.");
+            info!("Single transaction execution completed.");
         }
 
         Command::WriteToFile { block_numbers, directory_path, rpc_args } => {
             let directory_path = directory_path.unwrap_or(FULL_RESOURCES_DIR.to_string());
 
             let block_numbers = parse_block_numbers_args(block_numbers);
-            println!("Computing reexecution data for blocks {block_numbers:?}.");
+            info!("Computing reexecution data for blocks {block_numbers:?}.");
 
             let mut task_set = tokio::task::JoinSet::new();
             for block_number in block_numbers {
@@ -140,7 +149,7 @@ async fn main() {
                 // TODO(Aner): make only the RPC calls blocking, not the whole function.
                 let rpc_state_reader_config = RpcStateReaderConfig::from_url(node_url);
                 task_set.spawn(async move {
-                    println!("Computing reexecution data for block {block_number}.");
+                    info!("Computing reexecution data for block {block_number}.");
                     tokio::task::spawn_blocking(move || {
                         ConsecutiveRpcStateReaders::new(
                             block_number.prev().expect("Should not run with block 0"),
@@ -154,7 +163,7 @@ async fn main() {
                     .await
                 });
             }
-            println!("Waiting for all blocks to be processed.");
+            info!("Waiting for all blocks to be processed.");
             task_set.join_all().await;
         }
 
@@ -162,7 +171,7 @@ async fn main() {
             let directory_path = directory_path.unwrap_or(FULL_RESOURCES_DIR.to_string());
 
             let block_numbers = parse_block_numbers_args(block_numbers);
-            println!("Reexecuting blocks {block_numbers:?}.");
+            info!("Reexecuting blocks {block_numbers:?}.");
 
             let mut task_set = tokio::task::JoinSet::new();
             for block in block_numbers {
@@ -175,10 +184,10 @@ async fn main() {
                     )
                     .unwrap()
                     .reexecute_and_verify_correctness();
-                    println!("Reexecution test for block {block} passed successfully.");
+                    info!("Reexecution test for block {block} passed successfully.");
                 });
             }
-            println!("Waiting for all blocks to be processed.");
+            info!("Waiting for all blocks to be processed.");
             task_set.join_all().await;
         }
 
@@ -188,7 +197,7 @@ async fn main() {
             let directory_path = directory_path.unwrap_or(FULL_RESOURCES_DIR.to_string());
 
             let block_numbers = parse_block_numbers_args(block_numbers);
-            println!("Uploading blocks {block_numbers:?}.");
+            info!("Uploading blocks {block_numbers:?}.");
 
             let files_prefix = prefix_dir(directory_path.clone());
 
@@ -238,8 +247,9 @@ async fn main() {
                     .unwrap();
             }
 
-            println!(
-                "All blocks uploaded successfully to https://console.cloud.google.com/storage/browser/{BUCKET}/{files_prefix}."
+            info!(
+                "All blocks uploaded successfully to \
+                 https://console.cloud.google.com/storage/browser/{BUCKET}/{files_prefix}."
             );
         }
 
@@ -247,7 +257,7 @@ async fn main() {
             let directory_path = directory_path.unwrap_or(FULL_RESOURCES_DIR.to_string());
 
             let block_numbers = parse_block_numbers_args(block_numbers);
-            println!("Downloading blocks {block_numbers:?}.");
+            info!("Downloading blocks {block_numbers:?}.");
 
             let files_prefix = prefix_dir(directory_path.clone());
 
@@ -276,7 +286,7 @@ async fn main() {
                 fs::write(block_full_file_path(directory_path.clone(), block_number), res).unwrap();
             }
 
-            println!("All blocks downloaded successfully to {directory_path}.");
+            info!("All blocks downloaded successfully to {directory_path}.");
         }
     }
 }

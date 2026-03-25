@@ -111,12 +111,9 @@ macro_rules! retry_request {
                             .iter()
                             .any(|s| e.to_string().contains(s)) =>
                     {
-                        println!(
-                            "Attempt {}: Retrying request due to error: {:?}",
-                            attempt_number, e
-                        );
-                        println!(
-                            "Retry delay in milliseconds: {}",
+                        tracing::warn!(
+                            "Attempt {attempt_number}: Retrying request due to error: {e:?}. \
+                             Retry delay in milliseconds: {}",
                             $retry_config.retry_interval_milliseconds
                         );
                         retry::OperationResult::Retry(e)
