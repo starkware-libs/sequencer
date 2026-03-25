@@ -21,7 +21,8 @@ use starknet_api::transaction::fields::{
 use starknet_api::transaction::{L1HandlerTransaction, Transaction};
 use starknet_api::{calldata, contract_address, felt, nonce};
 
-use super::super::transaction::{L1HandlerMsgHash, L1L2MsgHash};
+use starknet_api::hash::L1L2MsgHash;
+
 use super::{
     DeployAccountTransaction,
     DeployAccountTransactionV1,

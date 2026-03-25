@@ -85,6 +85,7 @@ use starknet_api::block::{
     StarknetVersion,
 };
 use starknet_api::contract_class::SierraVersion;
+use starknet_api::hash::{l1_handler_message_hash, L1L2MsgHash};
 use starknet_api::core::{
     ClassHash,
     ContractAddress,
@@ -152,8 +153,6 @@ use super::super::transaction::{
     Event,
     GeneralTransactionReceipt,
     InvokeTransaction,
-    L1HandlerMsgHash,
-    L1L2MsgHash,
     PendingTransactionFinalityStatus,
     PendingTransactionOutput,
     PendingTransactionReceipt,
@@ -2219,7 +2218,12 @@ fn generate_client_transaction_client_receipt_rpc_transaction_and_rpc_receipt(
             .into_starknet_api_transaction_output(&client_transaction);
         let msg_hash = match &client_transaction {
             apollo_starknet_client::reader::objects::transaction::Transaction::L1Handler(tx) => {
-                Some(tx.calc_msg_hash())
+                Some(l1_handler_message_hash(
+                    &tx.contract_address,
+                    tx.nonce,
+                    &tx.entry_point_selector,
+                    &tx.calldata,
+                ))
             }
             _ => None,
         };

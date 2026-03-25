@@ -322,10 +322,20 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
             Event::L1HandlerTransaction { l1_handler_tx, .. } => Some(l1_handler_tx.tx_hash),
             _ => None,
         });
+        // Collect the L1-L2 message hashes (keccak) for L1 handler transactions.
+        let l1_msg_hashes = events.iter().filter_map(|event| match event {
+            Event::L1HandlerTransaction { l1_handler_tx, .. } => {
+                Some(l1_handler_tx.tx.calc_msg_hash())
+            }
+            _ => None,
+        });
 
-        let formatted_pairs = zip_eq(l1_messages_info, l2_hashes)
-            .map(|((l1_hash, timestamp), l2_hash)| {
-                format!("L1 tx hash: {l1_hash:?}, L1 timestamp: {timestamp}, L2 tx hash: {l2_hash}")
+        let formatted_pairs = zip_eq(zip_eq(l1_messages_info, l2_hashes), l1_msg_hashes)
+            .map(|(((l1_hash, timestamp), l2_hash), l1_msg_hash)| {
+                format!(
+                    "L1 tx hash: {l1_hash:?}, L1 timestamp: {timestamp}, L2 tx hash: {l2_hash}, \
+                     L1-L2 msg hash: {l1_msg_hash}"
+                )
             })
             .collect::<Vec<_>>();
         if formatted_pairs.is_empty() {
