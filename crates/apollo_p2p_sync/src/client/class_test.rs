@@ -27,6 +27,7 @@ use starknet_api::deprecated_contract_class::{
 use starknet_api::state::SierraContractClass;
 
 use super::test_utils::{
+    build_header_and_state_diff_query_actions,
     random_header,
     run_test,
     wait_for_marker,
@@ -317,29 +318,9 @@ async fn validate_class_sync_fails(
     classes: Vec<Option<(ApiContractClass, ClassHash)>>,
 ) {
     let mut rng = get_rng();
-
-    // TODO(noamsp): remove code duplication with state diff test.
-    let mut actions = vec![
-        Action::RunP2pSync,
-        // We already validate the header query content in other tests.
-        Action::ReceiveQuery(Box::new(|_query| ()), DataType::Header),
-    ];
-
-    // Send headers with corresponding state diff length
-    for (i, state_diff_length) in header_state_diff_lengths.iter().copied().enumerate() {
-        actions.push(Action::SendHeader(DataOrFin(Some(random_header(
-            &mut rng,
-            BlockNumber(i.try_into().unwrap()),
-            Some(state_diff_length),
-            None,
-        )))));
-    }
-    actions.push(Action::SendHeader(DataOrFin(None)));
-
-    actions.push(
-        // We already validate the state diff query content in other tests.
-        Action::ReceiveQuery(Box::new(|_query| ()), DataType::StateDiff),
-    );
+    // We already validate the header and state diff query content in other tests.
+    let mut actions =
+        build_header_and_state_diff_query_actions(&mut rng, &header_state_diff_lengths);
 
     // Send state diff chunks.
     for state_diff_chunk in state_diff_chunks {

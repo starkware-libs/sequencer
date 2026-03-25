@@ -349,6 +349,29 @@ pub async fn run_test(
     }
 }
 
+/// Builds the initial actions common to failure tests: run sync, receive the header query, send
+/// headers with the given state diff lengths (followed by Fin), and receive the state diff query.
+pub fn build_header_and_state_diff_query_actions(
+    rng: &mut ChaCha8Rng,
+    header_state_diff_lengths: &[usize],
+) -> Vec<Action> {
+    let mut actions = vec![
+        Action::RunP2pSync,
+        Action::ReceiveQuery(Box::new(|_query| ()), DataType::Header),
+    ];
+    for (i, state_diff_length) in header_state_diff_lengths.iter().copied().enumerate() {
+        actions.push(Action::SendHeader(DataOrFin(Some(random_header(
+            rng,
+            BlockNumber(i.try_into().unwrap()),
+            Some(state_diff_length),
+            None,
+        )))));
+    }
+    actions.push(Action::SendHeader(DataOrFin(None)));
+    actions.push(Action::ReceiveQuery(Box::new(|_query| ()), DataType::StateDiff));
+    actions
+}
+
 pub fn random_header(
     rng: &mut ChaCha8Rng,
     block_number: BlockNumber,
