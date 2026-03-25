@@ -35,8 +35,8 @@ class PriorityClassConstruct(BaseConstruct):
                 "Set existingPriorityClass to use an existing PriorityClass instead."
             )
 
-        # Merge labels with common labels
-        merged_labels = {**self.labels, **pc_config.labels}
+        # Merge labels with common labels, ensuring common labels take precedence
+        merged_labels = {**pc_config.labels, **self.labels}
 
         # Build resource name
         name = (

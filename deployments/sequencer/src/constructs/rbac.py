@@ -33,8 +33,8 @@ class RbacConstruct(BaseConstruct):
         """Create Role resource."""
         rbac_config = self.service_config.rbac
 
-        # Merge labels with common labels
-        merged_labels = {**self.labels, **rbac_config.labels}
+        # Merge labels with common labels, ensuring common labels take precedence
+        merged_labels = {**rbac_config.labels, **self.labels}
 
         # Build resource name
         role_name = (
@@ -61,8 +61,8 @@ class RbacConstruct(BaseConstruct):
         """Create ClusterRole resource."""
         rbac_config = self.service_config.rbac
 
-        # Merge labels with common labels
-        merged_labels = {**self.labels, **rbac_config.labels}
+        # Merge labels with common labels, ensuring common labels take precedence
+        merged_labels = {**rbac_config.labels, **self.labels}
 
         # Build resource name
         role_name = (
@@ -89,8 +89,8 @@ class RbacConstruct(BaseConstruct):
         """Create RoleBinding resource."""
         rbac_config = self.service_config.rbac
 
-        # Merge labels with common labels
-        merged_labels = {**self.labels, **rbac_config.labels}
+        # Merge labels with common labels, ensuring common labels take precedence
+        merged_labels = {**rbac_config.labels, **self.labels}
 
         # Build resource name
         binding_name = (
@@ -121,8 +121,8 @@ class RbacConstruct(BaseConstruct):
         """Create ClusterRoleBinding resource."""
         rbac_config = self.service_config.rbac
 
-        # Merge labels with common labels
-        merged_labels = {**self.labels, **rbac_config.labels}
+        # Merge labels with common labels, ensuring common labels take precedence
+        merged_labels = {**rbac_config.labels, **self.labels}
 
         # Build resource name
         binding_name = (
