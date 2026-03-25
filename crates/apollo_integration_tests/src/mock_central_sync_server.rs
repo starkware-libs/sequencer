@@ -10,6 +10,7 @@ use apollo_starknet_client::reader::objects::block::{
     BlockSignatureMessage,
     BlockStatus,
 };
+use apollo_starknet_client::reader::objects::transaction::{TransactionReceipt, Transaction};
 use apollo_starknet_client::reader::objects::state::{
     DeclaredClassHashEntry,
     DeployedContract,
@@ -36,7 +37,10 @@ use starknet_api::core::{
     ContractAddress,
     GlobalRoot,
     Nonce,
+    SequencerPublicKey,
 };
+use starknet_api::crypto::utils::PublicKey;
+use starknet_api::transaction::TransactionOffsetInBlock;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_types_core::felt::Felt;
 use tokio::net::TcpListener;
@@ -71,6 +75,7 @@ pub fn spawn_mock_central_sync_server(port: u16) -> MockCentralSyncServer {
         )
         .route("/feeder_gateway/get_latest_block", get(get_latest_block_handler))
         .route("/feeder_gateway/get_signature", get(get_signature_handler))
+        .route("/feeder_gateway/get_public_key", get(get_public_key_handler))
         .with_state(block_store.clone());
 
     let handle = tokio::spawn(async move {
@@ -141,6 +146,10 @@ async fn get_signature_handler(
             state_diff_commitment: GlobalRoot::default(),
         },
     }))
+}
+
+async fn get_public_key_handler() -> Json<SequencerPublicKey> {
+    Json(SequencerPublicKey(PublicKey(Felt::ONE)))
 }
 
 async fn get_block_handler(
@@ -257,9 +266,7 @@ fn construct_block(block_number: u64, blob: &serde_json::Value) -> BlockPostV0_1
     let l1_da_mode =
         if use_kzg_da { L1DataAvailabilityMode::Blob } else { L1DataAvailabilityMode::Calldata };
 
-    let timestamp = block_info["block_timestamp"]
-        .as_u64()
-        .unwrap_or(0);
+    let timestamp = block_info["block_timestamp"].as_u64().unwrap_or(0);
 
     let starknet_version = block_info["starknet_version"]
         .as_str()
@@ -271,6 +278,9 @@ fn construct_block(block_number: u64, blob: &serde_json::Value) -> BlockPostV0_1
         .and_then(|s| serde_json::from_value(serde_json::Value::String(s.to_string())).ok())
         .unwrap_or_default();
 
+    let transactions = extract_transactions(blob);
+    let transaction_receipts = build_dummy_receipts(&transactions);
+
     BlockPostV0_13_1 {
         block_hash: BlockHash(Felt::from(block_number)),
         block_number: BlockNumber(block_number),
@@ -279,8 +289,8 @@ fn construct_block(block_number: u64, blob: &serde_json::Value) -> BlockPostV0_1
         state_root: GlobalRoot::default(),
         status: BlockStatus::AcceptedOnL2,
         timestamp: starknet_api::block::BlockTimestamp(timestamp),
-        transactions: extract_transactions(blob),
-        transaction_receipts: vec![],
+        transactions,
+        transaction_receipts,
         starknet_version,
         l1_da_mode,
         l1_gas_price: parse_gas_price_per_token(&block_info["l1_gas_price"]),
@@ -294,6 +304,18 @@ fn construct_block(block_number: u64, blob: &serde_json::Value) -> BlockPostV0_1
         l2_gas_consumed: Default::default(),
         next_l2_gas_price: GasPrice(1),
     }
+}
+
+fn build_dummy_receipts(transactions: &[Transaction]) -> Vec<TransactionReceipt> {
+    transactions
+        .iter()
+        .enumerate()
+        .map(|(i, tx)| TransactionReceipt {
+            transaction_index: TransactionOffsetInBlock(i),
+            transaction_hash: tx.transaction_hash(),
+            ..Default::default()
+        })
+        .collect()
 }
 
 fn construct_state_update(block_number: u64, blob: &serde_json::Value) -> StateUpdate {

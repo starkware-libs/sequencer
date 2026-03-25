@@ -1367,6 +1367,11 @@ async fn get_sequencer_setup_configs(
                     },
                     ..Default::default()
                 });
+            // create_node_config reads rpc_config.starknet_url as the "starknet_url" config
+            // pointer value, which broadcasts to all starknet_url consumers including
+            // central_sync_client_config. Set it here so the pointer propagates the mock URL
+            // rather than the mainnet default.
+            state_sync_config.static_config.rpc_config.starknet_url = recorder_url.to_string();
         }
         let eth_to_strk_oracle_config = EthToStrkOracleConfig {
             url_header_list: Some(vec![eth_to_strk_oracle_url.clone().into()]),
