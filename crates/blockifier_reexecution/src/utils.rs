@@ -170,6 +170,31 @@ impl From<CommitmentStateDiff> for ComparableStateDiff {
     }
 }
 
+/// Compares two state diffs, ignoring insertion order. Returns `true` if they match.
+/// On mismatch, logs a detailed diff to stderr.
+pub fn compare_state_diffs(
+    expected_state_diff: CommitmentStateDiff,
+    actual_state_diff: CommitmentStateDiff,
+    block_number: Option<u64>,
+) -> bool {
+    let expected = ComparableStateDiff::from(expected_state_diff);
+    let actual = ComparableStateDiff::from(actual_state_diff);
+
+    if expected == actual {
+        true
+    } else {
+        let block_info = block_number.map_or(String::new(), |num| format!(" block {num}"));
+        eprintln!(
+            "MISMATCH{block_info}:\n{}",
+            pretty_assertions::StrComparison::new(
+                &format!("{expected:#?}"),
+                &format!("{actual:#?}"),
+            )
+        );
+        false
+    }
+}
+
 /// Asserts equality between two `CommitmentStateDiff` structs, ignoring insertion order.
 #[macro_export]
 macro_rules! assert_eq_state_diff {
