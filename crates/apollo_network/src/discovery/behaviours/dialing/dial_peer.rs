@@ -58,6 +58,18 @@ impl DialPeerStream {
         &self.peer_id
     }
 
+    /// Override the earliest time this stream will attempt its next dial.
+    /// Used by [`super::behaviour::DialingBehaviour`] to apply reconnection backoff that
+    /// survives across stream replacements.
+    ///
+    /// Note: this intentionally does NOT reset the stream's internal `retry_strategy`.
+    /// The stream's dial-failure backoff and the behaviour's reconnection backoff are
+    /// independent concerns.
+    pub fn set_next_dial_time(&mut self, time: Instant) {
+        self.next_dial_time = time;
+        self.sleeper = None;
+    }
+
     /// Mark this stream for termination. The next poll will return `None`.
     pub fn cancel(&mut self) {
         self.state = DialState::Done;
