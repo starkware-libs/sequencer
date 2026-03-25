@@ -80,7 +80,7 @@ pub fn compute_program_hash_blake(program: &Program) -> Result<Felt, ProgramHash
 }
 
 pub fn compute_os_program_hash() -> Result<Felt, ProgramHashError> {
-    compute_program_hash(&OS_PROGRAM)
+    compute_program_hash_blake(&OS_PROGRAM)
 }
 
 pub fn compute_virtual_os_program_hash() -> Result<Felt, ProgramHashError> {
@@ -88,9 +88,12 @@ pub fn compute_virtual_os_program_hash() -> Result<Felt, ProgramHashError> {
 }
 
 pub fn compute_aggregator_program_hash() -> Result<AggregatorHash, ProgramHashError> {
-    let hash = compute_program_hash(&AGGREGATOR_PROGRAM)?;
+    let hash = compute_program_hash_blake(&AGGREGATOR_PROGRAM)?;
     Ok(AggregatorHash {
-        with_prefix: Pedersen::hash(&Felt::from_bytes_be(&pad_to_32_bytes(b"AGGREGATOR")), &hash),
+        with_prefix: Blake2Felt252::encode_felt252_data_and_calc_blake_hash(&[
+            Felt::from_bytes_be(&pad_to_32_bytes(b"AGGREGATOR")),
+            hash,
+        ]),
         without_prefix: hash,
     })
 }
