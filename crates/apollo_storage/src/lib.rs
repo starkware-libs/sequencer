@@ -688,7 +688,7 @@ struct_field_names! {
         state_diffs: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>,
         transaction_hash_to_idx: TableIdentifier<TransactionHash, NoVersionValueWrapper<TransactionIndex>, SimpleTable>,
         // TODO(dvir): consider not saving transaction hash and calculating it from the transaction on demand.
-        transaction_events: TableIdentifier<TransactionIndex, VersionZeroWrapper<Vec<Event>>, SimpleTable>,
+        transaction_events: TableIdentifier<TransactionIndex, VersionZeroWrapper<LocationInFile>, SimpleTable>,
         transaction_metadata: TableIdentifier<TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>,
         block_hashes: TableIdentifier<BlockNumber, VersionZeroWrapper<BlockHash>, SimpleTable>,
         global_root: TableIdentifier<BlockNumber, NoVersionValueWrapper<GlobalRoot>, SimpleTable>,
@@ -862,6 +862,7 @@ struct FileHandlers<Mode: TransactionKind> {
     deprecated_contract_class: FileHandler<VersionZeroWrapper<DeprecatedContractClass>, Mode>,
     transaction_output: FileHandler<VersionZeroWrapper<TransactionOutput>, Mode>,
     transaction: FileHandler<VersionZeroWrapper<Transaction>, Mode>,
+    events: FileHandler<VersionZeroWrapper<Vec<Event>>, Mode>,
 }
 
 impl FileHandlers<RW> {
@@ -899,6 +900,11 @@ impl FileHandlers<RW> {
         self.clone().transaction.append(transaction)
     }
 
+    // Appends events to the corresponding file and returns their location.
+    fn append_events(&self, events: &Vec<Event>) -> LocationInFile {
+        self.clone().events.append(events)
+    }
+
     // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.
     #[latency_histogram("storage_file_handler_flush_latency_seconds", false)]
     fn flush(&self) {
@@ -909,6 +915,7 @@ impl FileHandlers<RW> {
         self.deprecated_contract_class.flush();
         self.transaction_output.flush();
         self.transaction.flush();
+        self.events.flush();
     }
 }
 
@@ -922,6 +929,7 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             ("deprecated_contract_class".to_string(), self.deprecated_contract_class.stats()),
             ("transaction_output".to_string(), self.transaction_output.stats()),
             ("transaction".to_string(), self.transaction.stats()),
+            ("events".to_string(), self.events.stats()),
         ])
     }
 
@@ -980,6 +988,13 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             msg: format!("Transaction at location {location:?} not found."),
         })
     }
+
+    // Returns the events at the given location or an error in case they don't exist.
+    fn get_events_unchecked(&self, location: LocationInFile) -> StorageResult<Vec<Event>> {
+        self.events.get(location)?.ok_or(StorageError::DBInconsistency {
+            msg: format!("Events at location {location:?} not found."),
+        })
+    }
 }
 
 fn open_storage_files(
@@ -1030,8 +1045,15 @@ fn open_storage_files(
 
     let transaction_offset =
         table.get(&db_transaction, &OffsetKind::Transaction)?.unwrap_or_default();
-    let (transaction_writer, transaction_reader) =
-        open_file(mmap_file_config, db_config.path().join("transaction.dat"), transaction_offset)?;
+    let (transaction_writer, transaction_reader) = open_file(
+        mmap_file_config.clone(),
+        db_config.path().join("transaction.dat"),
+        transaction_offset,
+    )?;
+
+    let events_offset = table.get(&db_transaction, &OffsetKind::Events)?.unwrap_or_default();
+    let (events_writer, events_reader) =
+        open_file(mmap_file_config, db_config.path().join("events.dat"), events_offset)?;
 
     Ok((
         FileHandlers {
@@ -1041,6 +1063,7 @@ fn open_storage_files(
             deprecated_contract_class: deprecated_contract_class_writer,
             transaction_output: transaction_output_writer,
             transaction: transaction_writer,
+            events: events_writer,
         },
         FileHandlers {
             thin_state_diff: thin_state_diff_reader,
@@ -1049,6 +1072,7 @@ fn open_storage_files(
             deprecated_contract_class: deprecated_contract_class_reader,
             transaction_output: transaction_output_reader,
             transaction: transaction_reader,
+            events: events_reader,
         },
     ))
 }
@@ -1068,4 +1092,6 @@ pub enum OffsetKind {
     TransactionOutput,
     /// A transaction file.
     Transaction,
+    /// An events file.
+    Events,
 }

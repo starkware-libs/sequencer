@@ -179,6 +179,8 @@ fn revert_events() {
         .revert_header(block_number)
         .unwrap()
         .0
+        .revert_events(block_number)
+        .unwrap()
         .revert_body(block_number)
         .unwrap()
         .0

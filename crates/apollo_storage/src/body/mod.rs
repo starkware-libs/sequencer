@@ -62,6 +62,7 @@ use tracing::debug;
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, NoValue, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
+use crate::mmap_file::LocationInFile;
 use crate::{
     FileHandlers,
     MarkerKind,
@@ -84,7 +85,7 @@ type EventsTableKey = (ContractAddress, TransactionIndex);
 type EventsTable<'env> =
     TableHandle<'env, EventsTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
 type TransactionEventsTable<'env> =
-    TableHandle<'env, TransactionIndex, VersionZeroWrapper<Vec<Event>>, SimpleTable>;
+    TableHandle<'env, TransactionIndex, VersionZeroWrapper<LocationInFile>, SimpleTable>;
 
 /// The index of a transaction in a block.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
@@ -158,18 +159,6 @@ pub trait BodyStorageReader {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<usize>>;
-
-    /// Returns the events emitted by the transaction at the given index.
-    fn get_transaction_events(
-        &self,
-        transaction_index: TransactionIndex,
-    ) -> StorageResult<Option<Vec<Event>>>;
-
-    /// Returns the events for each transaction in the block with the given number.
-    fn get_block_transaction_events(
-        &self,
-        block_number: BlockNumber,
-    ) -> StorageResult<Option<Vec<Vec<Event>>>>;
 }
 
 type RevertedBlockBody = (Vec<Transaction>, Vec<TransactionOutput>, Vec<TransactionHash>);
@@ -191,6 +180,9 @@ where
         self,
         block_number: BlockNumber,
     ) -> StorageResult<(Self, Option<RevertedBlockBody>)>;
+
+    /// Removes event data for a block.
+    fn revert_events(self, block_number: BlockNumber) -> StorageResult<Self>;
 }
 
 impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
@@ -317,36 +309,6 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
 
         Ok(Some(last_tx_index.0 + 1))
     }
-
-    fn get_transaction_events(
-        &self,
-        transaction_index: TransactionIndex,
-    ) -> StorageResult<Option<Vec<Event>>> {
-        let transaction_events_table = self.open_table(&self.tables.transaction_events)?;
-        Ok(transaction_events_table.get(&self.txn, &transaction_index)?)
-    }
-
-    fn get_block_transaction_events(
-        &self,
-        block_number: BlockNumber,
-    ) -> StorageResult<Option<Vec<Vec<Event>>>> {
-        if self.get_event_marker()? <= block_number {
-            return Ok(None);
-        }
-        let transaction_events_table = self.open_table(&self.tables.transaction_events)?;
-        let mut cursor = transaction_events_table.cursor(&self.txn)?;
-        let mut current_entry =
-            cursor.lower_bound(&TransactionIndex(block_number, TransactionOffsetInBlock(0)))?;
-        let mut result = Vec::new();
-        while let Some((TransactionIndex(current_block_number, _), events)) = current_entry {
-            if current_block_number != block_number {
-                break;
-            }
-            result.push(events);
-            current_entry = cursor.next()?;
-        }
-        Ok(Some(result))
-    }
 }
 
 impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
@@ -443,6 +405,20 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
         update_event_marker(&self.txn, &markers_table, block_number)?;
 
         if self.scope != StorageScope::StateOnly {
+            let num_transactions = block_body.transactions.len();
+            if block_body.transaction_outputs.len() != num_transactions
+                || block_body.transaction_hashes.len() != num_transactions
+            {
+                return Err(StorageError::DBInconsistency {
+                    msg: format!(
+                        "Block body length mismatch for block {block_number}: transactions={}, \
+                         outputs={}, hashes={}",
+                        num_transactions,
+                        block_body.transaction_outputs.len(),
+                        block_body.transaction_hashes.len(),
+                    ),
+                });
+            }
             let events_table = self.open_table(&self.tables.events)?;
             let transaction_events_table = self.open_table(&self.tables.transaction_events)?;
             let transaction_hash_to_idx_table =
@@ -460,13 +436,24 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                 block_number,
             )?;
 
-            // Write events to the events index table and the transaction_events table.
+            // TODO(mohammad): remove events from TransactionOutput and extract event writing
+            // into a separate append_events method. Then remove this block.
+            let mut last_events_location = None;
             for (offset, tx_output) in block_body.transaction_outputs.iter().enumerate() {
                 let transaction_index =
                     TransactionIndex(block_number, TransactionOffsetInBlock(offset));
                 let events = tx_output.events();
                 write_events(events, &self.txn, &events_table, transaction_index)?;
-                transaction_events_table.insert(&self.txn, &transaction_index, &events.to_vec())?;
+                let events_location = self.file_handlers.append_events(&events.to_vec());
+                transaction_events_table.insert(&self.txn, &transaction_index, &events_location)?;
+                last_events_location = Some(events_location);
+            }
+            if let Some(location) = last_events_location {
+                file_offset_table.upsert(
+                    &self.txn,
+                    &OffsetKind::Events,
+                    &location.next_offset(),
+                )?;
             }
         }
 
@@ -501,8 +488,6 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
             let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
             let transaction_hash_to_idx_table =
                 self.open_table(&self.tables.transaction_hash_to_idx)?;
-            let events_table = self.open_table(&self.tables.events)?;
-            let transaction_events_table = self.open_table(&self.tables.transaction_events)?;
 
             let transactions = self
                 .get_block_transactions(block_number)?
@@ -514,16 +499,49 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                 .get_block_transaction_hashes(block_number)?
                 .unwrap_or_else(|| panic!("Missing transaction hashes for block {block_number}."));
 
-            // Delete events using the transaction_events table as the source of truth.
+            for (offset, tx_hash) in transaction_hashes.iter().enumerate() {
+                let tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(offset));
+                transaction_hash_to_idx_table.delete(&self.txn, tx_hash)?;
+                transaction_metadata_table.delete(&self.txn, &tx_index)?;
+            }
+            Some((transactions, transaction_outputs, transaction_hashes))
+        };
+
+        markers_table.upsert(&self.txn, &MarkerKind::Body, &block_number)?;
+        Ok((self, reverted_block_body))
+    }
+
+    fn revert_events(self, block_number: BlockNumber) -> StorageResult<Self> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+
+        let current_event_marker = self.get_event_marker()?;
+        if block_number
+            .next()
+            .filter(|next_block_number| current_event_marker == *next_block_number)
+            .is_none()
+        {
+            debug!(
+                "Attempt to revert events for a non-existing / old block {}. Returning without an \
+                 action.",
+                block_number
+            );
+            return Ok(self);
+        }
+
+        if self.scope != StorageScope::StateOnly {
+            let events_table = self.open_table(&self.tables.events)?;
+            let transaction_events_table = self.open_table(&self.tables.transaction_events)?;
+
             let mut cursor = transaction_events_table.cursor(&self.txn)?;
             let mut current_entry =
                 cursor.lower_bound(&TransactionIndex(block_number, TransactionOffsetInBlock(0)))?;
             let mut event_keys_to_delete = Vec::new();
             let mut tx_event_keys_to_delete = Vec::new();
-            while let Some((tx_index, events)) = current_entry {
+            while let Some((tx_index, location)) = current_entry {
                 if tx_index.0 != block_number {
                     break;
                 }
+                let events = self.file_handlers.get_events_unchecked(location)?;
                 let addresses: HashSet<_> = events.iter().map(|e| e.from_address).collect();
                 for address in addresses {
                     event_keys_to_delete.push((address, tx_index));
@@ -539,19 +557,10 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
             for key in &tx_event_keys_to_delete {
                 transaction_events_table.delete(&self.txn, key)?;
             }
+        }
 
-            // Delete transaction data.
-            for (offset, tx_hash) in transaction_hashes.iter().enumerate() {
-                let tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(offset));
-                transaction_hash_to_idx_table.delete(&self.txn, tx_hash)?;
-                transaction_metadata_table.delete(&self.txn, &tx_index)?;
-            }
-            Some((transactions, transaction_outputs, transaction_hashes))
-        };
-
-        markers_table.upsert(&self.txn, &MarkerKind::Body, &block_number)?;
         markers_table.upsert(&self.txn, &MarkerKind::Event, &block_number)?;
-        Ok((self, reverted_block_body))
+        Ok(self)
     }
 }
 
