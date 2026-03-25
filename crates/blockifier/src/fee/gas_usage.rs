@@ -85,7 +85,12 @@ pub fn get_message_segment_length(
     let mut message_segment_length = l2_to_l1_payload_lengths
         .iter()
         .map(|payload_length| constants::L2_TO_L1_MSG_HEADER_SIZE + payload_length)
-        .sum();
+        .fold(0, |accumulator, length| {
+            usize::checked_add(accumulator, length).expect(
+                "Sending a message to L1 costs gas proportional to payload, so total cannot \
+                 exceed usize.",
+            )
+        });
 
     if let Some(payload_size) = l1_handler_payload_size {
         // The corresponding transaction is of type L1 handler; add the length of the L1-to-L2
