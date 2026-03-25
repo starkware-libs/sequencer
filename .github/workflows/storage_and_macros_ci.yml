@@ -1,4 +1,4 @@
-name: Papyrus-CI
+name: Storage-and-Macros-CI
 
 on:
   pull_request:
@@ -7,12 +7,13 @@ on:
       - reopened
       - synchronize
     paths:
-      - ".github/workflows/papyrus_ci.yml"
+      - ".github/workflows/storage_and_macros_ci.yml"
       - "deployments/images/base/Dockerfile"
       - "Cargo.toml"
       - "Cargo.lock"
-      - "crates/papyrus**/**"
-      - "crates/apollo_starknet_client/**"
+      - "crates/apollo_storage/src/db/**"
+      - "crates/apollo_proc_macros/**"
+      - "crates/apollo_proc_macros_tests/tests/latency_histogram.rs"
       - "scripts/dependencies.sh"
 
 env:
@@ -28,32 +29,26 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  integration-test:
+  macros-test:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
       - run: >
           cargo test
           --test latency_histogram
-          --test gateway_integration_test
-          --test feeder_gateway_integration_test
-          -- --include-ignored --skip test_gw_integration_testnet
+          -- --include-ignored
 
   random-table-test:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       # run this job only if the path 'crates/apollo_storage/src/db/**' is changed, because it takes around 2 minutes.
       - uses: dorny/paths-filter@v3
         id: changes
         with:
-          # The 'base' and 'ref' parameters are set to be able to run the job in a 'merge_group' event. in a 'pull_request' event
-          # those parameters are ignored.
-          base: ${{ github.event.merge_group.base_ref}}
-          ref: ${{ github.event.merge_group.head_ref }}
           filters: |
             target_directory:
               - 'crates/apollo_storage/src/db/**'
