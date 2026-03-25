@@ -254,8 +254,6 @@ fn create_random_state_diff_chunk_with_class(
     }
 }
 
-// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(NotEnoughClasses)
-// was returned from parse_data_for_block. We currently dont have a way to check this.
 #[tokio::test]
 async fn not_enough_classes() {
     let mut rng = get_rng();
@@ -272,8 +270,6 @@ async fn not_enough_classes() {
     .await;
 }
 
-// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(ClassNotInStateDiff)
-// was returned from parse_data_for_block. We currently dont have a way to check this.
 #[tokio::test]
 async fn class_not_in_state_diff() {
     let mut rng = get_rng();
@@ -287,8 +283,6 @@ async fn class_not_in_state_diff() {
     .await;
 }
 
-// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(DuplicateClass)
-// was returned from parse_data_for_block. We currently dont have a way to check this.
 #[tokio::test]
 async fn duplicate_classes() {
     let mut rng = get_rng();

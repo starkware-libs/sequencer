@@ -202,15 +202,11 @@ async fn state_diff_basic_flow() {
     .await;
 }
 
-// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(EmptyStateDiffPart) was
-// returned from parse_data_for_block. We currently dont have a way to check this.
 #[tokio::test]
 async fn state_diff_empty_state_diff() {
     validate_state_diff_fails(vec![1], vec![Some(StateDiffChunk::default())]).await;
 }
 
-// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(WrongStateDiffLength) was
-// returned from parse_data_for_block. We currently dont have a way to check this.
 #[tokio::test]
 async fn state_diff_stopped_in_middle() {
     validate_state_diff_fails(
@@ -223,8 +219,6 @@ async fn state_diff_stopped_in_middle() {
     .await;
 }
 
-// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(WrongStateDiffLength) was
-// returned from parse_data_for_block. We currently dont have a way to check this.
 #[tokio::test]
 async fn state_diff_not_split_correctly() {
     validate_state_diff_fails(
@@ -242,8 +236,6 @@ async fn state_diff_not_split_correctly() {
     .await;
 }
 
-// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(ConflictingStateDiffParts)
-// was returned from parse_data_for_block. We currently dont have a way to check this.
 #[tokio::test]
 async fn state_diff_conflicting() {
     validate_state_diff_fails(
