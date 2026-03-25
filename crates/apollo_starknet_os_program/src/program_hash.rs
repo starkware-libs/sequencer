@@ -1,9 +1,9 @@
-use cairo_vm::program_hash::{compute_program_hash_chain, ProgramHashError as VmProgramHashError};
+use cairo_vm::program_hash::ProgramHashError as VmProgramHashError;
 use cairo_vm::types::errors::program_errors::ProgramError;
 use cairo_vm::types::program::Program;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
-use starknet_types_core::hash::{Blake2Felt252, Pedersen, StarkHash};
+use starknet_types_core::hash::Blake2Felt252;
 
 use crate::{AGGREGATOR_PROGRAM, OS_PROGRAM, VIRTUAL_OS_PROGRAM};
 
@@ -44,10 +44,6 @@ fn pad_to_32_bytes(data: &[u8]) -> [u8; 32] {
     padded
 }
 
-fn compute_program_hash(program: &Program) -> Result<Felt, ProgramHashError> {
-    Ok(compute_program_hash_chain(&program.get_stripped_program()?, BOOTLOADER_VERSION)?)
-}
-
 /// Computes the program hash using Blake2s.
 /// Hashes the full program header (bootloader_version, main, n_builtins, builtins) followed by
 /// program data, matching the bootloader's Cairo implementation.
@@ -80,7 +76,7 @@ pub fn compute_program_hash_blake(program: &Program) -> Result<Felt, ProgramHash
 }
 
 pub fn compute_os_program_hash() -> Result<Felt, ProgramHashError> {
-    compute_program_hash(&OS_PROGRAM)
+    compute_program_hash_blake(&OS_PROGRAM)
 }
 
 pub fn compute_virtual_os_program_hash() -> Result<Felt, ProgramHashError> {
@@ -88,9 +84,12 @@ pub fn compute_virtual_os_program_hash() -> Result<Felt, ProgramHashError> {
 }
 
 pub fn compute_aggregator_program_hash() -> Result<AggregatorHash, ProgramHashError> {
-    let hash = compute_program_hash(&AGGREGATOR_PROGRAM)?;
+    let hash = compute_program_hash_blake(&AGGREGATOR_PROGRAM)?;
     Ok(AggregatorHash {
-        with_prefix: Pedersen::hash(&Felt::from_bytes_be(&pad_to_32_bytes(b"AGGREGATOR")), &hash),
+        with_prefix: Blake2Felt252::encode_felt252_data_and_calc_blake_hash(&[
+            Felt::from_bytes_be(&pad_to_32_bytes(b"AGGREGATOR")),
+            hash,
+        ]),
         without_prefix: hash,
     })
 }
