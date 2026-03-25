@@ -8,7 +8,7 @@ use std::task::{Context, Poll, Waker};
 use futures::Stream;
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
-use libp2p::swarm::{dummy, ConnectionHandler, DialFailure, FromSwarm, ToSwarm};
+use libp2p::swarm::{dummy, ConnectionHandler, ConnectionId, DialFailure, FromSwarm, ToSwarm};
 use libp2p::{Multiaddr, PeerId};
 use tokio::time::{Instant, Sleep};
 use tokio_retry::strategy::ExponentialBackoff;
@@ -34,8 +34,9 @@ pub struct DialPeerStream {
 enum DialState {
     /// Waiting to dial (immediately or after backoff).
     PendingDial,
-    /// A dial attempt is in progress.
-    Dialing,
+    /// A dial attempt is in progress. The `ConnectionId` identifies the specific dial so that
+    /// `DialFailure` events from other components or inbound connections are ignored.
+    Dialing(ConnectionId),
     /// Terminal state - connection was established after the request, no guarantee if it's still
     /// connected.
     Done,
@@ -84,12 +85,11 @@ impl DialPeerStream {
                 self.state = DialState::Done;
                 self.wake();
             }
-            FromSwarm::DialFailure(DialFailure { peer_id: Some(peer_id), .. })
-                if peer_id == self.peer_id =>
+            FromSwarm::DialFailure(DialFailure {
+                peer_id: Some(peer_id), connection_id, ..
+            }) if peer_id == self.peer_id
+                && matches!(self.state, DialState::Dialing(id) if id == connection_id) =>
             {
-                if self.state != DialState::Dialing {
-                    return;
-                }
                 let backoff = self
                     .retry_strategy
                     .next()
@@ -112,14 +112,13 @@ impl DialPeerStream {
 
     fn emit_dial<T, W>(&mut self) -> ToSwarm<T, W> {
         self.sleeper = None;
-        self.state = DialState::Dialing;
+        let opts = DialOpts::peer_id(self.peer_id)
+            .addresses(self.addresses.clone())
+            .condition(PeerCondition::DisconnectedAndNotDialing)
+            .build();
+        self.state = DialState::Dialing(opts.connection_id());
         debug!(?self.peer_id, addresses = ?self.addresses, "Dialing peer");
-        ToSwarm::Dial {
-            opts: DialOpts::peer_id(self.peer_id)
-                .addresses(self.addresses.clone())
-                .condition(PeerCondition::DisconnectedAndNotDialing)
-                .build(),
-        }
+        ToSwarm::Dial { opts }
     }
 }
 
@@ -134,7 +133,7 @@ impl Stream for DialPeerStream {
 
         match self.state {
             DialState::Done => Poll::Ready(None),
-            DialState::Dialing => Poll::Pending,
+            DialState::Dialing(_) => Poll::Pending,
             DialState::PendingDial => {
                 let now = Instant::now();
                 if self.next_dial_time <= now {
