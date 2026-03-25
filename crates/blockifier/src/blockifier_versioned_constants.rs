@@ -54,6 +54,7 @@ define_versioned_constants!(
     (V0_14_0, "../resources/blockifier_versioned_constants_0_14_0.json"),
     (V0_14_1, "../resources/blockifier_versioned_constants_0_14_1.json"),
     (V0_14_2, "../resources/blockifier_versioned_constants_0_14_2.json"),
+    (V0_14_3, "../resources/blockifier_versioned_constants_0_14_3.json"),
 );
 
 pub type SyscallGasCostsMap = HashMap<SyscallSelector, RawSyscallGasCost>;
