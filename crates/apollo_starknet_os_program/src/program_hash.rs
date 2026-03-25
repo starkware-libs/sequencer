@@ -80,7 +80,7 @@ pub fn compute_program_hash_blake(program: &Program) -> Result<Felt, ProgramHash
 }
 
 pub fn compute_os_program_hash() -> Result<Felt, ProgramHashError> {
-    compute_program_hash(&OS_PROGRAM)
+    compute_program_hash_blake(&OS_PROGRAM)
 }
 
 pub fn compute_virtual_os_program_hash() -> Result<Felt, ProgramHashError> {
