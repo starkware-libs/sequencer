@@ -22,8 +22,8 @@ class ServiceAccountConstruct(BaseConstruct):
         self.service_account = self._create_service_account()
 
     def _create_service_account(self) -> k8s.KubeServiceAccount:
-        # Merge service account labels with common labels
-        sa_labels = {**self.labels, **self.service_config.serviceAccount.labels}
+        # Merge service account labels with common labels, ensuring common labels take precedence
+        sa_labels = {**self.service_config.serviceAccount.labels, **self.labels}
 
         spec = {}
 
