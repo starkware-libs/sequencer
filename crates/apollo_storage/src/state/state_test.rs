@@ -916,3 +916,97 @@ fn declare_revert_declare_without_classes_scenario() {
         Some(BlockNumber(0))
     );
 }
+
+// Tests for `scan_synced_block` via `scan_contract_class_hashes_in_range`.
+#[test]
+fn test_scan_synced_block() {
+    // Addresses in ascending order. ca2 is intentionally absent to test gap-skipping.
+    let ca1 = contract_address!("0x1");
+    let ca3 = contract_address!("0x3");
+    let ca4 = contract_address!("0x4"); // deployed after block 0
+    let ca5 = contract_address!("0x5");
+
+    let ch1 = class_hash!("0x1");
+    let ch1_v2 = class_hash!("0x10"); // ca1 updated at block 1
+    let ch3 = class_hash!("0x3");
+    let ch4 = class_hash!("0x4");
+    let ch5 = class_hash!("0x5");
+
+    let ((reader, mut writer), _temp_dir) = get_test_storage();
+    let mut txn = writer.begin_rw_txn().unwrap();
+    txn = txn
+        .append_state_diff(
+            BlockNumber(0),
+            ThinStateDiff {
+                deployed_contracts: IndexMap::from([(ca1, ch1), (ca3, ch3), (ca5, ch5)]),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    txn = txn
+        .append_state_diff(
+            BlockNumber(1),
+            ThinStateDiff {
+                deployed_contracts: IndexMap::from([(ca1, ch1_v2), (ca4, ch4)]),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    txn.commit().unwrap();
+
+    let txn = reader.begin_ro_txn().unwrap();
+    let state_reader = txn.get_state_reader().unwrap();
+
+    // Full range at block 0: gaps (ca2, ca4) are skipped.
+    assert_eq!(
+        state_reader
+            .scan_contract_class_hashes_in_range(&ca1, &ca5, BlockNumber(0), usize::MAX)
+            .unwrap(),
+        vec![(ca1, ch1), (ca3, ch3), (ca5, ch5)],
+    );
+
+    // ca4 deployed at block 1 — invisible at block 0.
+    assert_eq!(
+        state_reader
+            .scan_contract_class_hashes_in_range(&ca4, &ca5, BlockNumber(0), usize::MAX)
+            .unwrap(),
+        vec![(ca5, ch5)],
+    );
+
+    // At block 1: ca1 has updated class hash, ca4 is now present.
+    assert_eq!(
+        state_reader
+            .scan_contract_class_hashes_in_range(&ca1, &ca5, BlockNumber(1), usize::MAX)
+            .unwrap(),
+        vec![(ca1, ch1_v2), (ca3, ch3), (ca4, ch4), (ca5, ch5)],
+    );
+
+    // End boundary is inclusive; ca5 excluded when end = ca3.
+    assert_eq!(
+        state_reader
+            .scan_contract_class_hashes_in_range(&ca1, &ca3, BlockNumber(0), usize::MAX)
+            .unwrap(),
+        vec![(ca1, ch1), (ca3, ch3)],
+    );
+
+    // Limit stops the scan early.
+    assert_eq!(
+        state_reader
+            .scan_contract_class_hashes_in_range(&ca1, &ca5, BlockNumber(0), 2)
+            .unwrap(),
+        vec![(ca1, ch1), (ca3, ch3)],
+    );
+
+    // Range with no deployed contracts.
+    assert_eq!(
+        state_reader
+            .scan_contract_class_hashes_in_range(
+                &contract_address!("0x2"),
+                &contract_address!("0x2"),
+                BlockNumber(0),
+                usize::MAX,
+            )
+            .unwrap(),
+        vec![],
+    );
+}
