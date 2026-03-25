@@ -450,6 +450,7 @@ auto_storage_serde! {
         V0_14_0 = 23,
         V0_14_1 = 24,
         V0_14_2 = 25,
+        V0_14_3 = 26,
     }
     pub struct StateDiffCommitment(pub PoseidonHash);
     pub struct Tip(pub u64);
