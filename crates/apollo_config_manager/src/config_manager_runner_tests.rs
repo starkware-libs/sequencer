@@ -16,6 +16,7 @@ use serde_json::Value;
 use starknet_api::core::ContractAddress;
 use tempfile::NamedTempFile;
 use tokio::sync::mpsc::channel;
+use tokio::sync::watch;
 use tokio::task::yield_now;
 use tokio::time::{interval, timeout};
 use tracing_test::traced_test;
@@ -86,6 +87,7 @@ fn update_config_file(temp_file: &NamedTempFile) -> String {
 
 #[tokio::test]
 async fn config_manager_runner_update_config_with_changed_values() {
+    let (dynamic_config_tx, _dynamic_config_rx) = watch::channel(NodeDynamicConfig::default());
     // Set a mock config manager client to expect the update dynamic config request.
     let mut mock_client = MockConfigManagerClient::new();
     mock_client.expect_set_node_dynamic_config().times(1..).return_const(Ok(()));
@@ -103,6 +105,7 @@ async fn config_manager_runner_update_config_with_changed_values() {
     let mut config_manager_runner = ConfigManagerRunner::new(
         config_manager_config,
         config_manager_client,
+        dynamic_config_tx,
         node_dynamic_config,
         cli_args,
     );
@@ -151,6 +154,7 @@ async fn watcher_triggers_update_on_file_change() {
     // Channel to observe that update_config was called.
     let (tx, mut rx) = channel(1);
 
+    let (dynamic_config_tx, _dynamic_config_rx) = watch::channel(NodeDynamicConfig::default());
     let mut mock_client = MockConfigManagerClient::new();
     mock_client.expect_set_node_dynamic_config().times(1).returning(move |_| {
         let _ = tx.blocking_send(());
@@ -162,6 +166,7 @@ async fn watcher_triggers_update_on_file_change() {
     let mut runner = ConfigManagerRunner::new(
         ConfigManagerConfig::default(),
         client,
+        dynamic_config_tx,
         NodeDynamicConfig::default(),
         cli_args,
     );
@@ -201,10 +206,12 @@ fn log_config_diff_changes() {
         ..Default::default()
     };
 
+    let (dynamic_config_tx, _dynamic_config_rx) = watch::channel(NodeDynamicConfig::default());
     let mock_client = MockConfigManagerClient::new();
     let runner = ConfigManagerRunner::new(
         ConfigManagerConfig::default(),
         Arc::new(mock_client),
+        dynamic_config_tx,
         old_dynamic_config.clone(),
         Vec::<String>::new(),
     );
