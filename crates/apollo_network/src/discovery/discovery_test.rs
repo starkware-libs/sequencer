@@ -148,15 +148,15 @@ async fn discovery_redials_on_dial_failure(
     );
 
     let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
-    assert_matches!(
+    let dial_connection_id = assert_matches!(
         event,
-        ToSwarm::Dial{opts} if opts.get_peer_id() == Some(bootstrap_peer_id)
+        ToSwarm::Dial{opts} if opts.get_peer_id() == Some(bootstrap_peer_id) => opts.connection_id()
     );
 
     behaviour.on_swarm_event(FromSwarm::DialFailure(DialFailure {
         peer_id: Some(bootstrap_peer_id),
         error: &DialError::Aborted,
-        connection_id: ConnectionId::new_unchecked(0),
+        connection_id: dial_connection_id,
     }));
 
     let event = check_event_happens_after_given_duration(
