@@ -167,6 +167,7 @@ and environment variables override values from the config file.
 | `PREFETCH_STATE` | `--prefetch-state` | `false` | Simulate the transaction before proving to prefetch state from the RPC node. Reduces the number of RPC calls during the actual proof run at the cost of one extra simulation. |
 | `USE_LATEST_VERSIONED_CONSTANTS` | `--use-latest-versioned-constants` | `true` | Use the latest versioned constants rather than block-version constants. Must match the OS version used by the prover. |
 | `COMPILED_CLASS_CACHE_SIZE` | `--compiled-class-cache-size` | `600` | Number of compiled Sierra contract classes to keep in an in-memory LRU cache. Higher values reduce RPC fetches for repeated contracts. |
+| `MAX_REQUEST_BODY_SIZE` | `--max-request-body-size` | `5242880` (5 MiB) | Maximum size of an incoming JSON-RPC request body in bytes. Requests exceeding this limit are rejected before parsing. |
 | `CONFIG_FILE` | `--config-file` | — | Path to a JSON config file. Fields use snake_case names matching `resources/example-config.json`. Values in the file are overridden by env vars and CLI flags. |
 | `RUST_LOG` | — | _(see Logging)_ | Controls log verbosity via `tracing-subscriber`. |
 
@@ -207,6 +208,7 @@ built-in defaults. See `resources/example-config.json` for a template.
 | `prefetch_state` | `PREFETCH_STATE` | bool |
 | `use_latest_versioned_constants` | `USE_LATEST_VERSIONED_CONSTANTS` | bool |
 | `compiled_class_cache_size` | `COMPILED_CLASS_CACHE_SIZE` | integer |
+| `max_request_body_size` | `MAX_REQUEST_BODY_SIZE` | integer (bytes) |
 | `cors_allow_origin` | `CORS_ALLOW_ORIGIN` | array of strings |
 | `tls_cert_file` | `TLS_CERT_FILE` | file path or null |
 | `tls_key_file` | `TLS_KEY_FILE` | file path or null |

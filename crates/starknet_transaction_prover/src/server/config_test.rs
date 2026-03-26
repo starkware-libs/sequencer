@@ -53,6 +53,7 @@ fn base_args() -> CliArgs {
         use_latest_versioned_constants: None,
         compiled_class_cache_size: None,
         bouncer_config_override: None,
+        max_request_body_size: None,
     }
 }
 
@@ -135,6 +136,7 @@ fn cors_allow_origin_rejects_non_array_in_config_file() {
         use_latest_versioned_constants: None,
         compiled_class_cache_size: None,
         bouncer_config_override: None,
+        max_request_body_size: None,
     };
 
     let error = ServiceConfig::from_args(args).unwrap_err();
