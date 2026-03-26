@@ -328,6 +328,7 @@ pub struct EntryPointExecutionContext {
 
     // Used to support charging for gas consumed in blockifier revert flow.
     pub sierra_gas_revert_tracker: SierraGasRevertTracker,
+
 }
 
 impl EntryPointExecutionContext {
