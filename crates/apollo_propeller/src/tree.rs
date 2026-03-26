@@ -135,15 +135,15 @@ impl PropellerScheduleManager {
             .ok_or(ScheduleError::ShardIndexOutOfBounds { shard_index: original_shard_index })
     }
 
-    /// Validates that a shard unit was received from the expected sender.
+    /// Validates that a unit was received from the expected sender.
     ///
-    /// Verifies that the sender is either the publisher (for direct shards) or the designated
-    /// broadcaster for this shard index.
+    /// Verifies that the sender is either the publisher (for direct units) or the designated
+    /// broadcaster for this unit's index.
     ///
     /// # Arguments
     ///
-    /// * `sender` - The peer ID that sent this shard unit
-    /// * `unit` - The shard unit to validate
+    /// * `sender` - The peer ID that sent this unit
+    /// * `unit` - The unit to validate
     pub fn validate_origin(
         &self,
         sender: PeerId,
