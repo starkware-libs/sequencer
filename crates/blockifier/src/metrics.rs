@@ -1,5 +1,7 @@
-use apollo_metrics::define_metrics;
 use apollo_metrics::metrics::{MetricCounter, MetricDetails, MetricScope};
+use apollo_metrics::{define_metrics, generate_permutation_labels};
+
+use crate::bouncer::BouncerWeights;
 
 define_metrics!(
     Blockifier => {
@@ -23,9 +25,35 @@ define_metrics!(
             "number_of_total_calls",
             "Counter of the total number of calls",
             init=0
+        },
+        LabeledMetricCounter {
+            BLOCKS_FULL_BY_RESOURCE,
+            "blockifier_blocks_full_by_resource",
+            "Number of blocks closed on each bouncer resource",
+            init = 0,
+            labels = BLOCKS_FULL_BY_RESOURCE_LABELS
         }
     }
 );
+
+pub const LABEL_NAME_BLOCK_FULL_RESOURCE: &str = "resource";
+
+generate_permutation_labels! {
+    BLOCKS_FULL_BY_RESOURCE_LABELS,
+    (LABEL_NAME_BLOCK_FULL_RESOURCE, BouncerWeights),
+}
+
+pub fn record_exceeded_bouncer_resources(exceeded_weights: &str) {
+    for field in exceeded_weights.split(", ") {
+        // Look up the static string from field_names() to satisfy the 'static lifetime requirement.
+        let Some(static_field) =
+            <BouncerWeights as strum::VariantNames>::VARIANTS.iter().find(|name| **name == field)
+        else {
+            continue;
+        };
+        BLOCKS_FULL_BY_RESOURCE.increment(1, &[(LABEL_NAME_BLOCK_FULL_RESOURCE, static_field)]);
+    }
+}
 
 pub const BLOCKIFIER_METRIC_RATE_DURATION: &str = "5m";
 

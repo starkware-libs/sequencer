@@ -23,6 +23,7 @@ use crate::execution::call_info::{
 };
 use crate::fee::gas_usage::get_onchain_data_segment_length;
 use crate::fee::resources::TransactionResources;
+use crate::metrics::record_exceeded_bouncer_resources;
 use crate::state::cached_state::{StateChangesKeys, StorageEntry};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
@@ -34,7 +35,7 @@ use crate::utils::{add_maps, should_migrate, u64_from_usize, usize_from_u64};
 mod test;
 
 macro_rules! impl_field_wise_ops {
-    ($($field:ident),+) => {
+    ($type:ty, $($field:ident),+) => {
         pub fn checked_sub(self: Self, other: Self) -> Option<Self> {
             Some(
                 Self {
@@ -64,6 +65,18 @@ macro_rules! impl_field_wise_ops {
                 }
             )+
             exceeded.join(", ")
+        }
+
+        const fn field_names() -> &'static [&'static str] {
+            &[$(stringify!($field)),+]
+        }
+    };
+}
+
+macro_rules! impl_variant_names_from_field_names {
+    ($type:ty) => {
+        impl strum::VariantNames for $type {
+            const VARIANTS: &'static [&'static str] = <$type>::field_names();
         }
     };
 }
@@ -139,8 +152,11 @@ pub struct BouncerWeights {
     pub receipt_l2_gas: GasAmount,
 }
 
+impl_variant_names_from_field_names!(BouncerWeights);
+
 impl BouncerWeights {
     impl_field_wise_ops!(
+        BouncerWeights,
         l1_gas,
         message_segment_length,
         n_events,
@@ -621,14 +637,17 @@ impl Bouncer {
         let next_accumulated_weights =
             self.get_bouncer_weights().checked_add(tx_bouncer_weights).expect(&err_msg);
         if !self.bouncer_config.has_room(next_accumulated_weights) {
+            let exceeded_weights =
+                self.bouncer_config.get_exceeded_weights(next_accumulated_weights);
             log::debug!(
                 "Transaction cannot be added to the current block, block capacity reached; \
                  transaction weights: {:?}, block weights: {:?}. Block max capacity reached on \
                  fields: {}",
                 tx_weights.bouncer_weights,
                 self.get_bouncer_weights(),
-                self.bouncer_config.get_exceeded_weights(next_accumulated_weights)
+                exceeded_weights
             );
+            record_exceeded_bouncer_resources(&exceeded_weights);
             Err(TransactionExecutorError::BlockFull)?
         }
 
