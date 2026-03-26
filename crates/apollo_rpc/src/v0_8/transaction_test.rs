@@ -8,6 +8,7 @@ use apollo_test_utils::{
 use pretty_assertions::assert_eq;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::hash::L1L2MsgHash;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
@@ -21,7 +22,6 @@ use starknet_api::transaction::fields::{
 use starknet_api::transaction::{L1HandlerTransaction, Transaction};
 use starknet_api::{calldata, contract_address, felt, nonce};
 
-use super::super::transaction::{L1HandlerMsgHash, L1L2MsgHash};
 use super::{
     DeployAccountTransaction,
     DeployAccountTransactionV1,

@@ -50,6 +50,7 @@ use starknet_api::core::{
     BLOCK_HASH_TABLE_ADDRESS,
 };
 use starknet_api::execution_utils::format_panic_data;
+use starknet_api::hash::{l1_handler_message_hash, L1L2MsgHash};
 use starknet_api::state::{StateNumber, StorageKey, ThinStateDiff as StarknetApiThinStateDiff};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
@@ -99,8 +100,6 @@ use super::super::transaction::{
     get_block_txs_by_number,
     Event,
     GeneralTransactionReceipt,
-    L1HandlerMsgHash,
-    L1L2MsgHash,
     MessageFromL1,
     PendingTransactionFinalityStatus,
     PendingTransactionOutput,
@@ -1755,7 +1754,12 @@ fn client_receipt_to_rpc_pending_receipt(
     let starknet_api_output =
         client_transaction_receipt.into_starknet_api_transaction_output(client_transaction);
     let msg_hash = match client_transaction {
-        ClientTransaction::L1Handler(tx) => Some(tx.calc_msg_hash()),
+        ClientTransaction::L1Handler(tx) => Some(l1_handler_message_hash(
+            &tx.contract_address,
+            tx.nonce,
+            &tx.entry_point_selector,
+            &tx.calldata,
+        )),
         _ => None,
     };
     let output = PendingTransactionOutput::try_from(TransactionOutput::from((
