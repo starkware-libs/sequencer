@@ -39,6 +39,7 @@ use apollo_config_manager_types::communication::{
     LocalConfigManagerClient,
     RemoteConfigManagerClient,
     SharedConfigManagerClient,
+    SharedConfigManagerClientWithChannel,
 };
 use apollo_gateway::metrics::GATEWAY_INFRA_METRICS;
 use apollo_gateway_types::communication::{
@@ -48,7 +49,11 @@ use apollo_gateway_types::communication::{
     RemoteGatewayClient,
     SharedGatewayClient,
 };
-use apollo_infra::component_client::{Client, LocalComponentClient};
+use apollo_infra::component_client::{
+    Client,
+    LocalComponentClient,
+    LocalComponentClientWithChannel,
+};
 use apollo_l1_events::communication::{LocalL1EventsProviderClient, RemoteL1EventsProviderClient};
 use apollo_l1_events::metrics::L1_EVENTS_INFRA_METRICS;
 use apollo_l1_events_types::{
@@ -76,7 +81,7 @@ use apollo_mempool_types::communication::{
     SharedMempoolClient,
 };
 use apollo_node_config::component_execution_config::ReactiveComponentExecutionMode;
-use apollo_node_config::node_config::SequencerNodeConfig;
+use apollo_node_config::node_config::{NodeDynamicConfig, SequencerNodeConfig};
 use apollo_proof_manager::metrics::PROOF_MANAGER_INFRA_METRICS;
 use apollo_proof_manager_types::{
     LocalProofManagerClient,
@@ -101,6 +106,7 @@ use apollo_state_sync_types::communication::{
     StateSyncRequest,
     StateSyncResponse,
 };
+use tokio::sync::watch::Receiver;
 use tracing::info;
 
 use crate::communication::SequencerNodeCommunication;
@@ -163,6 +169,20 @@ macro_rules! get_shared_client {
     }};
 }
 
+#[macro_export]
+macro_rules! get_shared_client_with_channel {
+    ($self:ident, $client_field:ident, $rx_channel_expr:expr) => {{
+        let client = &$self.$client_field;
+        let rx = $rx_channel_expr;
+        if let Some(local_client) = client.get_local_client() {
+            let local_client_with_channel = LocalComponentClientWithChannel::new(local_client, rx);
+            return Some(Arc::new(local_client_with_channel));
+        } else if let Some(_remote_client) = client.get_remote_client() {
+            panic!("Remote clients do not support channels.");
+        }
+        None
+    }};
+}
 // TODO(Nadin): Refactor getters to remove code duplication.
 impl SequencerNodeClients {
     pub fn get_batcher_local_client(
@@ -197,6 +217,13 @@ impl SequencerNodeClients {
 
     pub fn get_config_manager_shared_client(&self) -> Option<SharedConfigManagerClient> {
         get_shared_client!(self, config_manager_client)
+    }
+
+    pub fn get_config_manager_shared_client_with_channel(
+        &self,
+        dynamic_config_rx: Receiver<NodeDynamicConfig>,
+    ) -> Option<SharedConfigManagerClientWithChannel> {
+        get_shared_client_with_channel!(self, config_manager_client, dynamic_config_rx)
     }
 
     pub fn get_gateway_local_client(
