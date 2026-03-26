@@ -41,7 +41,7 @@ enum AddUnitAction {
 /// Tracks reconstruction progress for a single message.
 enum ReconstructionState {
     PreConstruction {
-        received_shards: Vec<PropellerUnit>,
+        received_units: Vec<PropellerUnit>,
         did_broadcast_my_shard: bool,
         signature: Option<Vec<u8>>,
     },
@@ -54,7 +54,7 @@ enum ReconstructionState {
 impl ReconstructionState {
     fn new() -> Self {
         Self::PreConstruction {
-            received_shards: Vec::new(),
+            received_units: Vec::new(),
             did_broadcast_my_shard: false,
             signature: None,
         }
@@ -77,16 +77,16 @@ impl ReconstructionState {
         let is_my_shard = unit.index() == my_shard_index;
 
         match self {
-            Self::PreConstruction { received_shards, did_broadcast_my_shard, signature } => {
+            Self::PreConstruction { received_units, did_broadcast_my_shard, signature } => {
                 if is_my_shard {
                     *did_broadcast_my_shard = true;
                 }
                 if signature.is_none() {
                     *signature = Some(unit.signature().to_vec());
                 }
-                received_shards.push(unit);
-                if tree_manager.should_build(received_shards.len()) {
-                    AddUnitAction::Reconstruct(std::mem::take(received_shards))
+                received_units.push(unit);
+                if tree_manager.should_build(received_units.len()) {
+                    AddUnitAction::Reconstruct(std::mem::take(received_units))
                 } else {
                     AddUnitAction::NoOp
                 }
