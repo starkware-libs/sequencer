@@ -111,10 +111,14 @@ curl -s -X POST http://localhost:3000 \
 ### Transaction requirements
 
 - Only INVOKE V3 transactions (`"type": "INVOKE"`, `"version": "0x3"`) are accepted.
-- Fee-related prices and tip must be zero: each resource bound (`l1_gas`, `l2_gas`, `l1_data_gas`)
-  must have `max_price_per_unit` set to `"0x0"`, and `tip` must be `"0x0"`. The `max_amount` fields
-  may be non-zero. Proving is client-side; no fees are charged. Disable this check with
-  `SKIP_FEE_FIELD_VALIDATION=true`.
+- **Prices and tip must be zero**: since proving is client-side and no fees are charged, each
+  resource bound (`l1_gas`, `l2_gas`, `l1_data_gas`) must have `max_price_per_unit` set to `"0x0"`,
+  and `tip` must be `"0x0"`. Disable this check with `SKIP_FEE_FIELD_VALIDATION=true`.
+- **`l2_gas.max_amount` must be non-zero**: this value is the gas limit the OS enforces on the
+  transaction. Set it to the value returned by `starknet_estimateFee`, or use `"0x5f5e100"`
+  (100,000,000) as a safe upper bound — this is sufficient for approximately 1 million Cairo steps.
+- **`l1_gas.max_amount` and `l1_data_gas.max_amount`** do not affect OS execution and can be any
+  value (including zero).
 - The `proof` and `proof_facts` fields are output-only and must be absent from the request (they
   are not part of the `RpcTransaction` input type).
 
