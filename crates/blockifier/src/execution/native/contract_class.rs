@@ -50,6 +50,16 @@ impl NativeCompiledClassV1 {
         Self(Arc::new(contract))
     }
 
+    #[cfg(feature = "sierra-emu")]
+    pub fn new_from_executor(
+        executor: ContractExecutor,
+        casm: CompiledClassV1,
+    ) -> NativeCompiledClassV1 {
+        let contract = NativeCompiledClassV1Inner::new_from_executor(executor, casm);
+
+        Self(Arc::new(contract))
+    }
+
     pub fn get_entry_point(
         &self,
         entry_point: &EntryPointTypeAndSelector,
@@ -115,6 +125,16 @@ impl NativeCompiledClassV1Inner {
         // identity conversion.
         let executor = executor.into();
         NativeCompiledClassV1Inner { executor, program: Some(program), casm }
+    }
+
+    #[cfg(feature = "sierra-emu")]
+    fn new_from_executor(executor: ContractExecutor, casm: CompiledClassV1) -> Self {
+        NativeCompiledClassV1Inner {
+            executor,
+            #[cfg(feature = "with-libfunc-profiling")]
+            program: None,
+            casm,
+        }
     }
 }
 
