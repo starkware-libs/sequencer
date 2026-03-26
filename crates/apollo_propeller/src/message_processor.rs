@@ -61,7 +61,7 @@ enum ReconstructionState {
         verified_fields: Option<VerifiedFields>,
     },
     /// Message was reconstructed but not yet delivered to the application. We keep collecting
-    /// shards until the emit threshold is reached, then emit the message.
+    /// units until the emit threshold is reached, then emit the message.
     // No need to track the unit indices after reconstruction (unit duplication already validated)
     PostConstruction { reconstructed_message: Option<Vec<u8>>, num_held_units: usize },
 }
