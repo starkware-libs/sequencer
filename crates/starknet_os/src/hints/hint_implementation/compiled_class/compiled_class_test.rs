@@ -51,31 +51,31 @@ use crate::test_utils::utils::DEFAULT_PRIME;
 use crate::vm_utils::{get_address_of_nested_fields_from_base_address, LoadCairoObject};
 
 // V1 (Poseidon) HASH CONSTS
-/// Expected Poseidon hash for the test contract.
+/// Expected Poseidon hash for the Cairo1 ERC20 feature contract (committed `erc20.casm.json`).
 const EXPECTED_V1_HASH: expect_test::Expect =
-    expect!["999275515568006028307283908900764751466300037034630245880145212575608036868"];
+    expect!["1086536622945160114536053561878005579687531094896980931390443771221568164185"];
 const EXPECTED_BUILTIN_USAGE_FULL_CONTRACT_V1_HASH: expect_test::Expect =
-    expect!["poseidon_builtin: 16023"];
-const EXPECTED_N_STEPS_FULL_CONTRACT_V1_HASH: Expect = expect!["190705"];
+    expect!["poseidon_builtin: 11928"];
+const EXPECTED_N_STEPS_FULL_CONTRACT_V1_HASH: Expect = expect!["136909"];
 // Expected execution resources for loading partial contract.
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V1_HASH: expect_test::Expect =
-    expect!["poseidon_builtin: 469, range_check_builtin: 233"];
-const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["14028"];
+    expect!["poseidon_builtin: 221, range_check_builtin: 85"];
+const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["6382"];
 // Allowed margin between estimated and actual execution resources.
 const ALLOWED_MARGIN_N_STEPS: usize = 127;
 
 //  V2 (Blake) HASH CONSTS
-/// Expected Blake hash for the test contract
+/// Expected Blake hash for the Cairo1 ERC20 feature contract.
 const EXPECTED_V2_HASH: expect_test::Expect =
-    expect!["2283996186416818293582511354369937106720755819352182396112367539994319472752"];
+    expect!["3325824766528769720608805422968547980476991657768956291033663350476760978279"];
 // Expected execution resources for loading full contract.
 const EXPECTED_BUILTIN_USAGE_FULL_CONTRACT_V2_HASH: expect_test::Expect =
-    expect!["range_check_builtin: 32600"];
-const EXPECTED_N_STEPS_FULL_CONTRACT_V2_HASH: Expect = expect!["616905"];
+    expect!["range_check_builtin: 24037"];
+const EXPECTED_N_STEPS_FULL_CONTRACT_V2_HASH: Expect = expect!["432095"];
 // Expected execution resources for loading partial contract.
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V2_HASH: expect_test::Expect =
-    expect!["range_check_builtin: 1332"];
-const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["56939"];
+    expect!["range_check_builtin: 581"];
+const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["25349"];
 // Allowed margin between estimated and actual execution resources.
 const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 267;
 const ALLOWED_MARGIN_BLAKE_OPCODE_COUNT: usize = 4;
@@ -98,7 +98,7 @@ trait HashVersionTestSpec {
     /// depending on whether the full contract is loaded or not.
     fn expected_n_steps_full_contract(&self) -> Expect;
     fn expected_n_steps_partial_contract(&self) -> Expect;
-    /// The expected hash for the test contract.
+    /// The expected hash for the Cairo1 ERC20 contract under test.
     fn expected_hash(&self) -> Expect;
     /// The allowed margin for the number of steps.
     fn allowed_margin_n_steps(&self) -> usize;
@@ -434,9 +434,8 @@ fn test_compiled_class_hash(
     accessed_segments_indicator: AccessSegmentsIndicator,
     #[values(HashVersion::V1, HashVersion::V2)] hash_version: HashVersion,
 ) {
-    // Get the test contract class.
-    let feature_contract =
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    // Use Cairo1 ERC20: committed artifact, stable vs the frequently edited test contract.
+    let feature_contract = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let contract_class = match feature_contract.get_class() {
         ContractClass::V1((casm, _sierra_version)) => casm,
         _ => panic!("Expected ContractClass::V1"),
