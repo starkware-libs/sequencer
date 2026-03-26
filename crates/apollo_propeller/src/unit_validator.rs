@@ -11,7 +11,7 @@ use crate::{
     PropellerScheduleManager,
     PropellerUnit,
     ShardIndex,
-    ShardValidationError,
+    UnitValidationError,
 };
 
 #[derive(Debug, Clone)]
@@ -89,14 +89,14 @@ impl UnitValidator {
         &mut self,
         sender: PeerId,
         unit: &PropellerUnit,
-    ) -> Result<(), ShardValidationError> {
+    ) -> Result<(), UnitValidationError> {
         // TODO(AndrewL): Think about how to correctly get rid of these assertions
         assert_eq!(self.committee_id, unit.committee_id(), "Committee mismatch");
         assert_eq!(self.publisher, unit.publisher(), "Publisher mismatch");
         assert_eq!(self.message_root, unit.root(), "Message root mismatch");
 
         if self.received_indices.contains(&unit.index()) {
-            return Err(ShardValidationError::DuplicateShard);
+            return Err(UnitValidationError::DuplicateShard);
         }
 
         self.schedule_manager.validate_origin(sender, unit.publisher(), unit.index())?;
@@ -105,7 +105,7 @@ impl UnitValidator {
         unit.validate_shard_count(1)?;
         unit.validate_shard_lengths()?;
         unit.validate_merkle_proof(self.schedule_manager.num_shards())?;
-        self.verify_signature(unit).map_err(ShardValidationError::SignatureVerificationFailed)?;
+        self.verify_signature(unit).map_err(UnitValidationError::SignatureVerificationFailed)?;
 
         // add for next time we see this unit's index
         self.received_indices.insert(unit.index());
