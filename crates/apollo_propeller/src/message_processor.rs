@@ -206,7 +206,7 @@ impl MessageProcessor {
                 continue;
             }
 
-            self.maybe_broadcast_my_shard(&unit, &state);
+            self.maybe_broadcast_my_unit(&unit, &state);
 
             let action = state.add_unit(unit, self.my_shard_index, &self.tree_manager);
             if self.handle_action(action, &mut state).await.is_break() {
@@ -242,7 +242,7 @@ impl MessageProcessor {
 
     /// Broadcasts our unit to peers the first time we see it. In PostConstruction this is a no-op
     /// because reconstruction already triggered the broadcast.
-    fn maybe_broadcast_my_shard(&self, unit: &PropellerUnit, state: &ReconstructionState) {
+    fn maybe_broadcast_my_unit(&self, unit: &PropellerUnit, state: &ReconstructionState) {
         if unit.index() == self.my_shard_index && !state.did_broadcast_my_unit() {
             self.broadcast_unit(unit);
         }
