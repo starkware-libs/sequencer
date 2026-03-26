@@ -135,7 +135,7 @@ pub enum CommitteeSetupError {
     DuplicatePeerIds,
 }
 
-/// Specific errors that can occur during shard verification.
+/// Specific errors that can occur during unit verification.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum UnitValidationError {
     #[error("Self received a shard from myself (libp2p should not allow this)")]
