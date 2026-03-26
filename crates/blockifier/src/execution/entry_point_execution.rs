@@ -520,6 +520,10 @@ pub fn finalize_execution(
         tracked_resource,
         resources: extended_resources,
         storage_access_tracker: syscall_handler_base.storage_access_tracker,
+        #[cfg(feature = "benchmarking")]
+        time: Default::default(),
+        #[cfg(feature = "benchmarking")]
+        call_counter: 0,
         builtin_counters: extended_resources_without_inner_calls.prover_cairo_primitives(),
         syscalls_usage: syscall_handler_base.syscalls_usage,
     })
