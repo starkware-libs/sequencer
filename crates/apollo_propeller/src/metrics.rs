@@ -6,13 +6,13 @@ use apollo_metrics::metrics::MetricCounter;
 
 /// Propeller protocol metrics
 pub struct PropellerMetrics {
-    /// Total number of shards received from peers
-    pub shards_received: MetricCounter,
+    /// Total number of units received from peers
+    pub units_received: MetricCounter,
 }
 
 impl PropellerMetrics {
     /// Register all metrics with the metrics system
     pub fn register(&self) {
-        self.shards_received.register();
+        self.units_received.register();
     }
 }
