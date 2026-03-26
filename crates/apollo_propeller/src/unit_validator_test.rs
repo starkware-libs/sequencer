@@ -141,7 +141,7 @@ fn test_duplicate_shard_rejected() {
     env.validator.validate_unit(env.publisher, &unit).unwrap();
     assert!(matches!(
         env.validator.validate_unit(env.publisher, &unit),
-        Err(UnitValidationError::DuplicateShard)
+        Err(UnitValidationError::DuplicateUnit)
     ));
 }
 

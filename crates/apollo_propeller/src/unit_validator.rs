@@ -93,7 +93,7 @@ impl UnitValidator {
         assert_eq!(self.message_root, unit.root(), "Message root mismatch");
 
         if self.received_indices.contains(&unit.index()) {
-            return Err(UnitValidationError::DuplicateShard);
+            return Err(UnitValidationError::DuplicateUnit);
         }
 
         self.schedule_manager.validate_origin(sender, unit.publisher(), unit.index())?;

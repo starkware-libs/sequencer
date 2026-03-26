@@ -141,9 +141,9 @@ pub enum UnitValidationError {
     #[error("Self received a unit from myself (libp2p should not allow this)")]
     SelfSending,
     #[error("Publisher should not receive their own unit")]
-    ReceivedSelfPublishedShard,
+    ReceivedSelfPublishedUnit,
     #[error("Received unit that is already in cache (duplicate)")]
-    DuplicateShard,
+    DuplicateUnit,
     #[error("Received unit but error getting parent in tree topology: {0}")]
     ScheduleManagerError(ScheduleError),
     #[error(

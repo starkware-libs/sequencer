@@ -156,7 +156,7 @@ impl PropellerScheduleManager {
         }
 
         if stated_publisher == local_peer_id {
-            return Err(UnitValidationError::ReceivedSelfPublishedShard);
+            return Err(UnitValidationError::ReceivedSelfPublishedUnit);
         }
 
         let expected_broadcaster_for_index = self
