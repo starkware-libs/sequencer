@@ -1064,13 +1064,13 @@ pub struct PropellerUnit {
     /// The shards assigned to this unit's peer.
     #[prost(message, optional, tag = "1")]
     pub shards: ::core::option::Option<ShardsOfPeer>,
-    /// The position of this shard in the erasure coding scheme.
+    /// The position of this unit in the erasure coding scheme.
     #[prost(uint64, tag = "2")]
     pub index: u64,
-    /// The Merkle root of all shards, used to verify shard integrity.
+    /// The Merkle root of all units, used to verify unit integrity.
     #[prost(message, optional, tag = "3")]
     pub merkle_root: ::core::option::Option<Hash256>,
-    /// The Merkle proof that this shard belongs to the tree with the given root.
+    /// The Merkle proof that this unit belongs to the tree with the given root.
     #[prost(message, optional, tag = "4")]
     pub merkle_proof: ::core::option::Option<MerkleProof>,
     /// The peer ID of the original publisher who created and signed this unit.
