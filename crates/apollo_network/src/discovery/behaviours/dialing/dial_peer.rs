@@ -17,11 +17,6 @@ use tracing::debug;
 
 use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 
-/// How long to keep a `DialPeerStream` alive after a connection is established. If a redial is
-/// requested within this window the stream reuses its accumulated backoff. If the timer expires
-/// the connection is considered stable and the stream terminates.
-const COOLDOWN: Duration = Duration::from_secs(2);
-
 /// A stream that drives a single peer's dial lifecycle with exponential backoff.
 ///
 /// The stream emits `ToSwarm::Dial` events and terminates (`None`) once a
@@ -31,6 +26,7 @@ pub struct DialPeerStream {
     addresses: Vec<Multiaddr>,
     state: DialState,
     retry_strategy: ExponentialBackoff,
+    cooldown: Duration,
     waker: Option<Waker>,
 }
 
@@ -52,6 +48,7 @@ impl DialPeerStream {
             addresses,
             state: DialState::PendingDial { sleeper: Self::create_sleeper(Duration::ZERO) },
             retry_strategy: retry_config.strategy(),
+            cooldown: retry_config.cooldown_seconds,
             waker: None,
         }
     }
@@ -71,7 +68,7 @@ impl DialPeerStream {
             FromSwarm::ConnectionEstablished(ConnectionEstablished { peer_id, .. })
                 if peer_id == self.peer_id =>
             {
-                self.state = DialState::Cooldown { sleeper: Self::create_sleeper(COOLDOWN) };
+                self.state = DialState::Cooldown { sleeper: Self::create_sleeper(self.cooldown) };
                 self.wake();
             }
             FromSwarm::DialFailure(DialFailure {
