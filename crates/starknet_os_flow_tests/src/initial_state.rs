@@ -44,7 +44,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::test_manager::{
     block_context_for_flow_tests,
-    EXPECTED_STRK_FEE_TOKEN_ADDRESS,
     FUNDED_ACCOUNT_ADDRESS,
     STRK_FEE_TOKEN_ADDRESS,
 };
@@ -61,6 +60,9 @@ const INITIAL_TOKEN_SUPPLY: u128 = 10_000_000_000_000_000_000_000_000_000_000_00
 const STRK_TOKEN_NAME: &[u8] = b"StarkNet Token";
 const STRK_SYMBOL: &[u8] = b"STRK";
 const STRK_DECIMALS: u8 = 18;
+
+/// Salt passed to the deploy syscall for the STRK fee token (independent of the account tx nonce).
+const STRK_FEE_TOKEN_DEPLOY_SALT: ContractAddressSalt = ContractAddressSalt(Felt::ONE);
 
 /// Trait alias for state readers used in flow tests.
 pub(crate) trait FlowTestState: Default + UpdatableState + Send {}
@@ -366,12 +368,14 @@ pub(crate) fn get_deploy_contract_tx_and_address_with_salt(
     (deploy_contract_tx, contract_address)
 }
 
-pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction, ContractAddress) {
-    let class_hash = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm))
+fn strk_fee_token_class_hash() -> ClassHash {
+    FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm))
         .get_sierra()
-        .calculate_class_hash();
+        .calculate_class_hash()
+}
 
-    let constructor_calldata = calldata![
+fn strk_fee_token_constructor_calldata() -> Calldata {
+    calldata![
         Felt::from_bytes_be_slice(STRK_TOKEN_NAME),
         Felt::from_bytes_be_slice(STRK_SYMBOL),
         STRK_DECIMALS.into(),
@@ -381,13 +385,33 @@ pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction,
         *FUNDED_ACCOUNT_ADDRESS.0.key(), // permitted minter
         *FUNDED_ACCOUNT_ADDRESS.0.key(), // provisional_governance_admin
         10.into()                        // upgrade delay
-    ];
-    let (tx, address) = get_deploy_contract_tx_and_address(
-        class_hash,
-        constructor_calldata,
+    ]
+}
+
+/// Calculates the STRK fee token contract address from the deployment parameters.
+pub(crate) fn calculate_strk_fee_token_address() -> ContractAddress {
+    calculate_contract_address(
+        STRK_FEE_TOKEN_DEPLOY_SALT,
+        strk_fee_token_class_hash(),
+        &strk_fee_token_constructor_calldata(),
+        *FUNDED_ACCOUNT_ADDRESS,
+    )
+    .unwrap()
+}
+
+pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction, ContractAddress) {
+    let (deploy_contract_tx, contract_address) = get_deploy_contract_tx_and_address_with_salt(
+        strk_fee_token_class_hash(),
+        strk_fee_token_constructor_calldata(),
         nonce,
         ValidResourceBounds::create_for_testing_no_fee_enforcement(),
+        STRK_FEE_TOKEN_DEPLOY_SALT,
     );
-    EXPECTED_STRK_FEE_TOKEN_ADDRESS.assert_debug_eq(&**address);
-    (tx, address)
+    assert_eq!(contract_address, *STRK_FEE_TOKEN_ADDRESS);
+    (
+        Transaction::new_for_sequencing(StarknetAPITransaction::Account(
+            AccountTransaction::Invoke(deploy_contract_tx),
+        )),
+        contract_address,
+    )
 }
