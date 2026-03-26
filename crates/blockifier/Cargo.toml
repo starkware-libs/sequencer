@@ -16,6 +16,8 @@ cairo_native = [
   "dep:apollo_compile_to_native",
   "dep:cairo-native",
 ]
+benchmarking = []
+only-native = ["cairo_native"]
 mocks = []
 native_blockifier = []
 node_api = []
