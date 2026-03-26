@@ -12,6 +12,8 @@ statefulSet:
 service:
   enabled: true
   type: ClusterIP
+  labels:
+    svc-level-label: "true"
   ports:
     - name: mempool
       port: 55006
