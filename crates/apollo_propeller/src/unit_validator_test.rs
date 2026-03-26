@@ -135,7 +135,7 @@ fn test_validation_fails_with_wrong_signature() {
 }
 
 #[rstest]
-fn test_duplicate_shard_rejected() {
+fn test_duplicate_unit_rejected() {
     let mut env = build_env(1);
     let unit = unit(&env, env.local_peer);
     env.validator.validate_unit(env.publisher, &unit).unwrap();
