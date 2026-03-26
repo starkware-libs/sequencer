@@ -22,6 +22,7 @@ apollo_node_config.workspace = true
 apollo_staking_config.workspace = true
 apollo_state_sync_config.workspace = true
 async-trait.workspace = true
+paste.workspace = true
 mockall = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 strum = { workspace = true, features = ["derive"] }
