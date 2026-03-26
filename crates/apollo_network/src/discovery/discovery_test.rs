@@ -37,6 +37,7 @@ const CONFIG_WITH_ZERO_HEARTBEAT_AND_SMALL_BOOTSTRAP_DIAL: DiscoveryConfig = Dis
         base_delay_millis: SMALL_SLEEP_MILLIS,
         max_delay_seconds: Duration::from_millis(SMALL_SLEEP_MILLIS),
         factor: 1,
+        cooldown_seconds: Duration::from_secs(2),
     },
     heartbeat_interval: Duration::ZERO,
 };
@@ -53,6 +54,7 @@ const CONFIG_WITH_SMALL_HEARTBEAT_AND_LARGE_BOOTSTRAP_SLEEP: DiscoveryConfig = D
         base_delay_millis: LARGE_SLEEP_MILLIS,
         max_delay_seconds: Duration::from_millis(LARGE_SLEEP_MILLIS),
         factor: 1,
+        cooldown_seconds: Duration::from_secs(2),
     },
     ..CONFIG_WITH_SMALL_HEARTBEAT_AND_BOOTSTRAP_SLEEP
 };

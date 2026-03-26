@@ -116,6 +116,7 @@ pub struct Behaviour {
 ///         base_delay_millis: 100,
 ///         max_delay_seconds: Duration::from_secs(10),
 ///         factor: 2,
+///         cooldown_seconds: Duration::from_secs(2),
 ///     },
 ///     heartbeat_interval: Duration::from_millis(500),
 /// };
@@ -180,6 +181,7 @@ impl SerializeConfig for DiscoveryConfig {
 ///     base_delay_millis: 2,                          // double each time
 ///     max_delay_seconds: Duration::from_millis(100), // Cap at 0.1 seconds
 ///     factor: 7,                                     // start with 7ms
+///     cooldown_seconds: Duration::from_secs(2),
 /// };
 ///
 /// let mut strategy = aggressive.strategy();
@@ -200,11 +202,22 @@ pub struct RetryConfig {
 
     /// Multiplication factor for the exponential backoff.
     pub factor: u64,
+
+    /// Grace period after a connection is established before the backoff state is reset. Redials
+    /// within this window (e.g. from an immediately refused connection) use accumulated backoff.
+    /// Connections that survive past the cooldown are considered stable.
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    pub cooldown_seconds: Duration,
 }
 
 impl Default for RetryConfig {
     fn default() -> Self {
-        Self { base_delay_millis: 2, max_delay_seconds: Duration::from_secs(5), factor: 5 }
+        Self {
+            base_delay_millis: 2,
+            max_delay_seconds: Duration::from_secs(5),
+            factor: 5,
+            cooldown_seconds: Duration::from_secs(2),
+        }
     }
 }
 
@@ -227,6 +240,12 @@ impl SerializeConfig for RetryConfig {
                 "factor",
                 &self.factor,
                 "The factor for the exponential backoff strategy.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "cooldown_seconds",
+                &self.cooldown_seconds.as_secs(),
+                "Grace period in seconds after connection before backoff state is reset.",
                 ParamPrivacyInput::Public,
             ),
         ])
