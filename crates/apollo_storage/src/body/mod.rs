@@ -84,6 +84,8 @@ type TransactionHashToIdxTable<'env> =
 type ContractAddressEventsIndexKey = (ContractAddress, TransactionIndex);
 type ContractAddressEventsIndexTable<'env> =
     TableHandle<'env, ContractAddressEventsIndexKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
+type TransactionOutputsTable<'env> =
+    TableHandle<'env, TransactionIndex, VersionZeroWrapper<TransactionOutput>, SimpleTable>;
 type TransactionEventsTable<'env> =
     TableHandle<'env, TransactionIndex, VersionZeroWrapper<LocationInFile>, SimpleTable>;
 
@@ -220,12 +222,8 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         transaction_index: TransactionIndex,
     ) -> StorageResult<Option<TransactionOutput>> {
-        let Some(tx_metadata) = self.get_transaction_metadata(&transaction_index)? else {
-            return Ok(None);
-        };
-        let transaction_output =
-            self.file_handlers.get_transaction_output_unchecked(tx_metadata.tx_output_location)?;
-        Ok(Some(transaction_output))
+        let transaction_outputs_table = self.open_table(&self.tables.transaction_outputs)?;
+        Ok(transaction_outputs_table.get(&self.txn, &transaction_index)?)
     }
 
     fn get_transaction_idx_by_hash(
@@ -285,8 +283,22 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<Vec<TransactionOutput>>> {
-        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
-        self.get_transaction_outputs_in_block(block_number, transaction_metadata_table)
+        if self.get_body_marker()? <= block_number {
+            return Ok(None);
+        }
+        let transaction_outputs_table = self.open_table(&self.tables.transaction_outputs)?;
+        let mut cursor = transaction_outputs_table.cursor(&self.txn)?;
+        let mut current_entry =
+            cursor.lower_bound(&TransactionIndex(block_number, TransactionOffsetInBlock(0)))?;
+        let mut result = Vec::new();
+        while let Some((TransactionIndex(current_block_number, _), tx_output)) = current_entry {
+            if current_block_number != block_number {
+                break;
+            }
+            result.push(tx_output);
+            current_entry = cursor.next()?;
+        }
+        Ok(Some(result))
     }
 
     fn get_block_transactions_count(
@@ -346,20 +358,6 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
             current_entry = cursor.next()?;
         }
         Ok(Some(res))
-    }
-
-    fn get_transaction_outputs_in_block(
-        &self,
-        block_number: BlockNumber,
-        transaction_metadata_table: TransactionMetadataTable<'env>,
-    ) -> StorageResult<Option<Vec<TransactionOutput>>> {
-        self.get_vector_of_transaction_objects(
-            block_number,
-            transaction_metadata_table,
-            |tx_metadata, file_handlers| {
-                file_handlers.get_transaction_output_unchecked(tx_metadata.tx_output_location)
-            },
-        )
     }
 
     fn get_transactions_in_block(
@@ -429,6 +427,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
             let transaction_hash_to_idx_table =
                 self.open_table(&self.tables.transaction_hash_to_idx)?;
             let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
+            let transaction_outputs_table = self.open_table(&self.tables.transaction_outputs)?;
             let file_offset_table = self.txn.open_table(&self.tables.file_offsets)?;
 
             write_transactions(
@@ -438,6 +437,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                 &file_offset_table,
                 &transaction_hash_to_idx_table,
                 &transaction_metadata_table,
+                &transaction_outputs_table,
                 block_number,
             )?;
         }
@@ -508,6 +508,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
             let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
             let transaction_hash_to_idx_table =
                 self.open_table(&self.tables.transaction_hash_to_idx)?;
+            let transaction_outputs_table = self.open_table(&self.tables.transaction_outputs)?;
 
             let transactions = self
                 .get_block_transactions(block_number)?
@@ -523,6 +524,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                 let tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(offset));
                 transaction_hash_to_idx_table.delete(&self.txn, tx_hash)?;
                 transaction_metadata_table.delete(&self.txn, &tx_index)?;
+                transaction_outputs_table.delete(&self.txn, &tx_index)?;
             }
             Some((transactions, transaction_outputs, transaction_hashes))
         };
@@ -594,6 +596,7 @@ fn write_transactions<'env>(
     file_offset_table: &'env FileOffsetsTable<'env>,
     transaction_hash_to_idx_table: &'env TransactionHashToIdxTable<'env>,
     transaction_metadata_table: &'env TransactionMetadataTable<'env>,
+    transaction_outputs_table: &'env TransactionOutputsTable<'env>,
     block_number: BlockNumber,
 ) -> StorageResult<()> {
     for (index, ((tx, tx_output), tx_hash)) in block_body
@@ -606,22 +609,17 @@ fn write_transactions<'env>(
         let tx_offset_in_block = TransactionOffsetInBlock(index);
         let transaction_index = TransactionIndex(block_number, tx_offset_in_block);
         let tx_location = file_handlers.append_transaction(tx);
-        let tx_output_location = file_handlers.append_transaction_output(tx_output);
         transaction_hash_to_idx_table.insert(txn, tx_hash, &transaction_index)?;
+        transaction_outputs_table.insert(txn, &transaction_index, tx_output)?;
         transaction_metadata_table.append(
             txn,
             &transaction_index,
-            &TransactionMetadata { tx_location, tx_output_location, tx_hash: *tx_hash },
+            &TransactionMetadata { tx_location, tx_hash: *tx_hash },
         )?;
 
         // If this is the last iteration, update the file offset table.
         if index == block_body.transactions.len() - 1 {
             file_offset_table.upsert(txn, &OffsetKind::Transaction, &tx_location.next_offset())?;
-            file_offset_table.upsert(
-                txn,
-                &OffsetKind::TransactionOutput,
-                &tx_output_location.next_offset(),
-            )?;
         }
     }
 

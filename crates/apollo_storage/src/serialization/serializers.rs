@@ -463,7 +463,6 @@ auto_storage_serde! {
     pub struct TransactionMetadata {
         pub tx_hash: TransactionHash,
         pub tx_location: LocationInFile,
-        pub tx_output_location: LocationInFile,
     }
     pub enum Transaction {
         Declare(DeclareTransaction) = 0,
