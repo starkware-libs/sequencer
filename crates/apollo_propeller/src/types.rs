@@ -13,9 +13,9 @@ use crate::MerkleHash;
 /// Events emitted by the Propeller protocol to the application layer.
 #[derive(Debug, Clone)]
 pub enum Event {
-    /// A complete message has been reconstructed from shards.
+    /// A complete message has been reconstructed from units.
     MessageReceived { publisher: PeerId, message_root: MessageRoot, message: Vec<u8> },
-    /// Failed to reconstruct a message from shards.
+    /// Failed to reconstruct a message from units.
     MessageReconstructionFailed {
         message_root: MessageRoot,
         publisher: PeerId,
