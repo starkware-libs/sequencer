@@ -5,11 +5,10 @@
 //! based on the publisher and shard ID, making the network resilient to targeted attacks.
 
 use libp2p::identity::PeerId;
+use starknet_api::staking::StakingWeight;
 
 use crate::types::{CommitteeSetupError, ScheduleError, ShardIndex};
 use crate::ShardValidationError;
-
-pub type Stake = u64;
 
 // TODO(AndrewL): add the concept of shard_owner when naming
 
@@ -25,7 +24,7 @@ pub type Stake = u64;
 #[derive(Debug, Clone)]
 pub struct PropellerScheduleManager {
     /// All nodes in the committee with their stake, sorted by peer_id
-    committee_nodes: Vec<(PeerId, Stake)>,
+    committee_nodes: Vec<(PeerId, StakingWeight)>,
     /// This node's peer ID.
     local_peer_id: PeerId,
     /// This node's index in the nodes vector.
@@ -40,7 +39,7 @@ impl PropellerScheduleManager {
     // TODO(AndrewL): What should I name the error type?
     pub fn new(
         local_peer_id: PeerId,
-        mut nodes: Vec<(PeerId, Stake)>,
+        mut nodes: Vec<(PeerId, StakingWeight)>,
     ) -> Result<Self, CommitteeSetupError> {
         // Check that local peer is in the list before sorting
         if !nodes.iter().any(|(peer_id, _)| *peer_id == local_peer_id) {
@@ -81,7 +80,7 @@ impl PropellerScheduleManager {
         self.committee_nodes.len()
     }
 
-    pub fn get_nodes(&self) -> &[(PeerId, Stake)] {
+    pub fn get_nodes(&self) -> &[(PeerId, StakingWeight)] {
         &self.committee_nodes
     }
 

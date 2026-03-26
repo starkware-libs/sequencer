@@ -1,5 +1,6 @@
 use libp2p::PeerId;
 use rstest::rstest;
+use starknet_api::staking::StakingWeight;
 
 use crate::tree::PropellerScheduleManager;
 use crate::types::{CommitteeSetupError, ScheduleError, ShardIndex, ShardValidationError};
@@ -18,7 +19,7 @@ fn make_schedule_manager(index: u8, num_nodes: u8) -> PropellerScheduleManager {
     let local_peer = peers[usize::from(index)];
     let scheduler = PropellerScheduleManager::new(
         local_peer,
-        peers.into_iter().map(|peer| (peer, 1)).collect(),
+        peers.into_iter().map(|peer| (peer, StakingWeight(1))).collect(),
     )
     .unwrap();
     assert_eq!(scheduler.get_nodes()[usize::from(index)].0, local_peer);
@@ -34,7 +35,7 @@ fn test_create_empty_schedule_manager() {
 #[test]
 fn test_create_schedule_manager() {
     let peer = PeerId::random();
-    let manager = PropellerScheduleManager::new(peer, vec![(peer, 100)]).unwrap();
+    let manager = PropellerScheduleManager::new(peer, vec![(peer, StakingWeight(100))]).unwrap();
     assert_eq!(manager.get_local_peer_id(), peer);
     assert_eq!(manager.get_node_count(), 1);
 }
@@ -73,7 +74,7 @@ fn test_should_build_and_receive(
 fn test_new_schedule_manager_without_local_peer() {
     let peer1 = PeerId::random();
     let peer2 = PeerId::random();
-    let result = PropellerScheduleManager::new(peer1, vec![(peer2, 100)]);
+    let result = PropellerScheduleManager::new(peer1, vec![(peer2, StakingWeight(100))]);
     assert_eq!(result.unwrap_err(), CommitteeSetupError::LocalPeerNotInCommittee);
 }
 
@@ -206,7 +207,12 @@ fn test_get_my_shard_index_given_publisher() {
     let (peer0, peer1, peer2, peer3) = (peers[0], peers[1], peers[2], peers[3]);
     let manager = PropellerScheduleManager::new(
         peer2,
-        vec![(peer0, 100), (peer1, 75), (peer2, 50), (peer3, 25)],
+        vec![
+            (peer0, StakingWeight(100)),
+            (peer1, StakingWeight(75)),
+            (peer2, StakingWeight(50)),
+            (peer3, StakingWeight(25)),
+        ],
     )
     .unwrap();
     // When peer0 is publisher, peer2 is at sorted position 2, so shard index is 1
