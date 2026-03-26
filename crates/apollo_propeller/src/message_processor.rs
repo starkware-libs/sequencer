@@ -279,11 +279,11 @@ impl MessageProcessor {
                     message,
                 })
             }
-            AddUnitAction::Reconstruct(shards) => {
-                let shard_count = shards.len();
-                trace!("[MSG_PROC] Starting reconstruction with {} shards", shard_count);
-                match self.reconstruct_blocking(shards).await {
-                    Ok(output) => self.handle_reconstruction_output(output, shard_count, state),
+            AddUnitAction::Reconstruct(units) => {
+                let unit_count = units.len();
+                trace!("[MSG_PROC] Starting reconstruction with {} units", unit_count);
+                match self.reconstruct_blocking(units).await {
+                    Ok(output) => self.handle_reconstruction_output(output, unit_count, state),
                     Err(e) => {
                         error!("[MSG_PROC] Reconstruction failed: {:?}", e);
                         self.emit_and_finalize(Event::MessageReconstructionFailed {
