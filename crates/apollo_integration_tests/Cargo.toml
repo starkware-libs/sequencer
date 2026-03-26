@@ -20,6 +20,7 @@ apollo_batcher.workspace = true
 apollo_batcher_config.workspace = true
 apollo_class_manager = { workspace = true, features = ["testing"] }
 apollo_class_manager_config.workspace = true
+apollo_committer.workspace = true
 apollo_committer_config.workspace = true
 apollo_config.workspace = true
 apollo_config_manager_config = { workspace = true, features = ["testing"] }
@@ -75,6 +76,8 @@ serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+starknet_committer.workspace = true
+starknet_patricia_storage = { workspace = true, features = ["rocksdb_storage"] }
 static_assertions.workspace = true
 strum.workspace = true
 tempfile.workspace = true
