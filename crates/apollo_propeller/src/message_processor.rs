@@ -323,7 +323,7 @@ impl MessageProcessor {
     fn handle_reconstruction_output(
         &self,
         output: ReconstructionOutput,
-        shard_count: usize,
+        unit_count: usize,
         state: &mut ReconstructionState,
     ) -> ControlFlow<()> {
         let ReconstructionOutput { message, my_shards, my_shard_proof } = output;
@@ -352,8 +352,8 @@ impl MessageProcessor {
             self.broadcast_unit(&reconstructed_unit);
         }
 
-        let total_shards = shard_count + usize::from(should_broadcast);
-        state.transition_to_post(message, total_shards);
+        let total_units = unit_count + usize::from(should_broadcast);
+        state.transition_to_post(message, total_units);
 
         match state.maybe_emit(&self.tree_manager) {
             AddUnitAction::Emit(message) => {
