@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774449452869,
+  "lastUpdate": 1774515061576,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2889,6 +2889,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1468.26985127,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "70578257+ShahakShama@users.noreply.github.com",
+            "name": "ShahakShama",
+            "username": "ShahakShama"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1687c964c047e64eab5fb66df80d736ef829ede2",
+          "message": "apollo_l1_provider: add l1 msg hash to log (#13468)",
+          "timestamp": "2026-03-26T08:27:31Z",
+          "tree_id": "f620670d79c00940f8f3b520fdadc80a62eec3a5",
+          "url": "https://github.com/starkware-libs/sequencer/commit/1687c964c047e64eab5fb66df80d736ef829ede2"
+        },
+        "date": 1774515061252,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 850.02272052,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1233.45174108,
             "unit": "ms"
           }
         ]
