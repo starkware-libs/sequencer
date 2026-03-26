@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774530827934,
+  "lastUpdate": 1774549350129,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1053,6 +1053,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1403.24041723,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b43fff4afaae14878c84f580eacb435b77c5753c",
+          "message": "apollo_propeller: replace local Stake type alias with StakingWeight from starknet_api (#13037)",
+          "timestamp": "2026-03-26T17:58:12Z",
+          "tree_id": "b89359d5459d513208223f5599f21b1c99c5570b",
+          "url": "https://github.com/starkware-libs/sequencer/commit/b43fff4afaae14878c84f580eacb435b77c5753c"
+        },
+        "date": 1774549349759,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 851.40518365,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1397.45826849,
             "unit": "ms"
           }
         ]
