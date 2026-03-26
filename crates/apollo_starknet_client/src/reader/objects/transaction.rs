@@ -15,7 +15,7 @@ use starknet_api::core::{
     Nonce,
 };
 use starknet_api::execution_resources::{GasAmount, GasVector};
-use starknet_api::hash::StarkHash;
+use starknet_api::hash::{eth_l1_handler_message_hash, EthL1L2MessageHash, StarkHash};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
@@ -152,6 +152,17 @@ pub struct L1HandlerTransaction {
     pub contract_address: ContractAddress,
     pub entry_point_selector: EntryPointSelector,
     pub calldata: Calldata,
+}
+
+impl L1HandlerTransaction {
+    pub fn calc_eth_msg_hash(&self) -> EthL1L2MessageHash {
+        eth_l1_handler_message_hash(
+            &self.contract_address,
+            self.nonce,
+            &self.entry_point_selector,
+            &self.calldata,
+        )
+    }
 }
 
 impl From<L1HandlerTransaction> for starknet_api::transaction::L1HandlerTransaction {
