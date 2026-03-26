@@ -10,6 +10,7 @@ use starknet_types_core::felt::Felt;
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, NestedFeltCounts};
 use crate::execution::entry_point::EntryPointTypeAndSelector;
 use crate::execution::errors::PreExecutionError;
+use crate::execution::native::executor::ContractExecutor;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeCompiledClassV1(pub Arc<NativeCompiledClassV1Inner>);
 impl Deref for NativeCompiledClassV1 {
@@ -85,7 +86,7 @@ impl HashableCompiledClass<EntryPointV1, NestedFeltCounts> for NativeCompiledCla
 
 #[derive(Debug)]
 pub struct NativeCompiledClassV1Inner {
-    pub executor: AotContractExecutor,
+    pub executor: ContractExecutor,
     #[cfg(feature = "with-libfunc-profiling")]
     pub program: Option<Arc<cairo_lang_sierra::program::Program>>,
     casm: CompiledClassV1,
@@ -93,6 +94,7 @@ pub struct NativeCompiledClassV1Inner {
 
 impl NativeCompiledClassV1Inner {
     fn new(executor: AotContractExecutor, casm: CompiledClassV1) -> Self {
+        let executor = executor.into();
         NativeCompiledClassV1Inner {
             executor,
             #[cfg(feature = "with-libfunc-profiling")]
