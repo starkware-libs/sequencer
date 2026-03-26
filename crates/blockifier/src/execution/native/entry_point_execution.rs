@@ -121,6 +121,8 @@ fn create_callinfo(
         inner_calls: syscall_handler.base.inner_calls,
         storage_access_tracker: syscall_handler.base.storage_access_tracker,
         tracked_resource: TrackedResource::SierraGas,
+        #[cfg(feature = "benchmarking")]
+        time: Default::default(),
         builtin_counters: entry_point_primitive_counters,
         syscalls_usage: syscall_handler.base.syscalls_usage,
     })
