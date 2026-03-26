@@ -15,7 +15,7 @@ use crate::types::{CommitteeId, ReconstructionError, ShardIndex, UnitPublishErro
 use crate::unit::{PropellerUnit, Shard, ShardsOfPeer};
 use crate::{signature, MerkleProof, MerkleTree, MessageRoot};
 
-/// Rebuild a message from received shards using erasure coding.
+/// Rebuild a message from received units using erasure coding.
 ///
 /// Returns the reconstructed message, the caller's shards, and the Merkle proof.
 // TODO(AndrewL): Use the fact that ECC is systematic (i.e. data shards are embedded verbatim in
@@ -26,13 +26,13 @@ use crate::{signature, MerkleProof, MerkleTree, MessageRoot};
 // reconstructing data shards and then regenerating coding shards separately.
 // <github.com/AndersTrier/reed-solomon-simd/issues/65>
 pub fn reconstruct_data_shards(
-    received_shards: Vec<PropellerUnit>,
+    received_units: Vec<PropellerUnit>,
     message_root: MessageRoot,
     my_shard_index: usize,
     data_count: usize,
     coding_count: usize,
 ) -> Result<(Vec<u8>, ShardsOfPeer, MerkleProof), ReconstructionError> {
-    let shards_for_reconstruction: Vec<(usize, Vec<u8>)> = received_shards
+    let shards_for_reconstruction: Vec<(usize, Vec<u8>)> = received_units
         .into_iter()
         .map(|mut msg| {
             let index: usize =
