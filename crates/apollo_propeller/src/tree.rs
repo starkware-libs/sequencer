@@ -5,7 +5,7 @@
 use libp2p::identity::PeerId;
 use starknet_api::staking::StakingWeight;
 
-use crate::types::{CommitteeSetupError, ScheduleError, ShardIndex};
+use crate::types::{CommitteeSetupError, ScheduleError, UnitIndex};
 use crate::UnitValidationError;
 
 // TODO(AndrewL): add the concept of shard_owner when naming
@@ -117,7 +117,7 @@ impl PropellerScheduleManager {
     pub fn get_peer_for_shard_index(
         &self,
         publisher: &PeerId,
-        shard_index: ShardIndex,
+        shard_index: UnitIndex,
     ) -> Result<PeerId, ScheduleError> {
         let original_shard_index = shard_index;
         let shard_index: usize = shard_index.0.try_into().expect("Failed converting u64 to usize");
@@ -130,7 +130,7 @@ impl PropellerScheduleManager {
         self.committee_nodes
             .get(index)
             .map(|(peer, _)| *peer)
-            .ok_or(ScheduleError::ShardIndexOutOfBounds { shard_index: original_shard_index })
+            .ok_or(ScheduleError::UnitIndexOutOfBounds { unit_index: original_shard_index })
     }
 
     /// Validates that a unit was received from the expected sender.
@@ -146,7 +146,7 @@ impl PropellerScheduleManager {
         &self,
         sender: PeerId,
         stated_publisher: PeerId,
-        stated_index: ShardIndex,
+        stated_index: UnitIndex,
     ) -> Result<(), UnitValidationError> {
         let local_peer_id = self.get_local_peer_id();
         if local_peer_id == sender {
@@ -172,7 +172,7 @@ impl PropellerScheduleManager {
         // distinguishing between the two cases.
         Err(UnitValidationError::UnexpectedSender {
             expected_sender: expected_broadcaster_for_index,
-            shard_index: stated_index,
+            unit_index: stated_index,
         })
     }
 
@@ -195,7 +195,7 @@ impl PropellerScheduleManager {
     pub fn get_my_shard_index_given_publisher(
         &self,
         publisher: &PeerId,
-    ) -> Result<ShardIndex, ScheduleError> {
+    ) -> Result<UnitIndex, ScheduleError> {
         if self.local_peer_id == *publisher {
             return Err(ScheduleError::LocalPeerIsPublisher);
         }
@@ -211,6 +211,6 @@ impl PropellerScheduleManager {
             self.local_peer_index - 1
         };
 
-        Ok(ShardIndex(shard_id.try_into().unwrap()))
+        Ok(UnitIndex(shard_id.try_into().unwrap()))
     }
 }

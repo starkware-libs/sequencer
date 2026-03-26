@@ -41,7 +41,7 @@ pub enum Event {
 pub struct CommitteeId(pub [u8; 32]);
 
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
-pub struct ShardIndex(pub u64);
+pub struct UnitIndex(pub u64);
 
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
 pub struct MessageRoot(pub MerkleHash);
@@ -76,10 +76,10 @@ pub enum ScheduleError {
     #[error("Cannot generate tree: the local peer is not included in the committee")]
     LocalPeerNotInCommittee,
     #[error(
-        "Cannot generate tree: shard index {:?} is out of bounds. Might be out of sync with peers.",
-        .shard_index
+        "Cannot generate tree: unit index {:?} is out of bounds. Might be out of sync with peers.",
+        .unit_index
     )]
-    ShardIndexOutOfBounds { shard_index: ShardIndex },
+    UnitIndexOutOfBounds { unit_index: UnitIndex },
     #[error("Cannot generate tree: the local peer is the publisher.")]
     LocalPeerIsPublisher,
 }
@@ -147,10 +147,10 @@ pub enum UnitValidationError {
     #[error("Received unit but error getting parent in tree topology: {0}")]
     ScheduleManagerError(ScheduleError),
     #[error(
-        "Unit failed parent verification (expected sender = {expected_sender}, shard index = \
-         {shard_index:?})"
+        "Unit failed parent verification (expected sender = {expected_sender}, unit index = \
+         {unit_index:?})"
     )]
-    UnexpectedSender { expected_sender: PeerId, shard_index: ShardIndex },
+    UnexpectedSender { expected_sender: PeerId, unit_index: UnitIndex },
     #[error("Unit failed signature verification: {0}")]
     SignatureVerificationFailed(SignatureVerificationError),
     #[error("Unit failed Merkle proof verification")]

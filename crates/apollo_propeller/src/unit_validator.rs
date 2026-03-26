@@ -10,7 +10,7 @@ use crate::{
     MessageRoot,
     PropellerScheduleManager,
     PropellerUnit,
-    ShardIndex,
+    UnitIndex,
     UnitValidationError,
 };
 
@@ -29,7 +29,7 @@ pub struct UnitValidator {
     /// The tree manager to use.
     schedule_manager: Arc<PropellerScheduleManager>,
     /// The indices of the received units.
-    received_indices: HashSet<ShardIndex>,
+    received_indices: HashSet<UnitIndex>,
 }
 
 impl UnitValidator {

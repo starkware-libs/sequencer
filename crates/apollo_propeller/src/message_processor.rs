@@ -19,7 +19,7 @@ use crate::types::{
 };
 use crate::unit::{PropellerUnit, ShardsOfPeer};
 use crate::unit_validator::UnitValidator;
-use crate::{MerkleProof, ShardIndex};
+use crate::{MerkleProof, UnitIndex};
 
 pub type UnitToValidate = (PeerId, PropellerUnit);
 type ValidationResult = (Result<(), UnitValidationError>, UnitValidator, PropellerUnit);
@@ -86,7 +86,7 @@ impl ReconstructionState {
     fn add_unit(
         &mut self,
         unit: PropellerUnit,
-        my_shard_index: ShardIndex,
+        my_shard_index: UnitIndex,
         tree_manager: &PropellerScheduleManager,
     ) -> AddUnitAction {
         let is_my_shard = unit.index() == my_shard_index;
@@ -147,7 +147,7 @@ pub struct MessageProcessor {
     pub publisher: PeerId,
     pub nonce: u64,
     pub message_root: MessageRoot,
-    pub my_shard_index: ShardIndex,
+    pub my_shard_index: UnitIndex,
 
     pub publisher_public_key: PublicKey,
     pub tree_manager: Arc<PropellerScheduleManager>,

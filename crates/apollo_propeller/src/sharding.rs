@@ -11,7 +11,7 @@ use libp2p::identity::{Keypair, PeerId};
 
 use crate::padding::{pad_message, unpad_message};
 use crate::reed_solomon::{combine_data_shards, generate_coding_shards, split_data_into_shards};
-use crate::types::{CommitteeId, ReconstructionError, ShardIndex, UnitPublishError};
+use crate::types::{CommitteeId, ReconstructionError, UnitIndex, UnitPublishError};
 use crate::unit::{PropellerUnit, Shard, ShardsOfPeer};
 use crate::{signature, MerkleProof, MerkleTree, MessageRoot};
 
@@ -36,7 +36,7 @@ pub fn reconstruct_data_shards(
         .into_iter()
         .map(|mut msg| {
             let index: usize =
-                msg.index().0.try_into().expect("failed converting u64 ShardIndex to usize");
+                msg.index().0.try_into().expect("failed converting u64 UnitIndex to usize");
             // TODO(AndrewL): Support multiple shards per peer once reconstruction handles it.
             let [shard] = <[Shard; 1]>::try_from(std::mem::take(&mut msg.shards_mut().0)).map_err(
                 |shards| ReconstructionError::UnexpectedShardCount {
@@ -128,7 +128,7 @@ pub fn create_units_to_publish(
             publisher,
             message_root,
             signature.clone(),
-            ShardIndex(u64::try_from(index).expect("shard index exceeds u64::MAX")),
+            UnitIndex(u64::try_from(index).expect("shard index exceeds u64::MAX")),
             // TODO(AndrewL): Support multiple shards per peer once reconstruction handles it.
             ShardsOfPeer(vec![Shard(shard)]),
             proof,
