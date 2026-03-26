@@ -286,7 +286,7 @@ where
                 // Record tx_hash on the parent span (`prove_transaction`) so all
                 // subsequent logs carry it as a prefix.
                 Span::current().record("tx_hash", display(&tx_hash));
-                info!(transaction = ?tx, "Starting transaction proving");
+                info!("Starting transaction proving");
                 Ok((tx, tx_hash))
             })
             .collect::<Result<Vec<_>, RunnerError>>()?;
