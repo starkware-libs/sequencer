@@ -11,7 +11,7 @@ use libp2p::identity::{Keypair, PeerId};
 
 use crate::padding::{pad_message, unpad_message};
 use crate::reed_solomon::{combine_data_shards, generate_coding_shards, split_data_into_shards};
-use crate::types::{CommitteeId, ReconstructionError, ShardIndex, ShardPublishError};
+use crate::types::{CommitteeId, ReconstructionError, ShardIndex, UnitPublishError};
 use crate::unit::{PropellerUnit, Shard, ShardsOfPeer};
 use crate::{signature, MerkleProof, MerkleTree, MessageRoot};
 
@@ -97,12 +97,12 @@ pub fn create_units_to_publish(
     keypair: Keypair,
     num_data_shards: usize,
     num_coding_shards: usize,
-) -> Result<Vec<PropellerUnit>, ShardPublishError> {
+) -> Result<Vec<PropellerUnit>, UnitPublishError> {
     let publisher = PeerId::from(keypair.public());
 
     // The reed-solomon-simd crate requires the shard length to be even.
     let divisor =
-        NonZeroUsize::new(2 * num_data_shards).ok_or(ShardPublishError::InvalidDataSize)?;
+        NonZeroUsize::new(2 * num_data_shards).ok_or(UnitPublishError::InvalidDataSize)?;
     let message = pad_message(message, divisor);
 
     let data_shards = split_data_into_shards(message, num_data_shards)

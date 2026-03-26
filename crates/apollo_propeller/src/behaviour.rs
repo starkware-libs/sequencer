@@ -30,7 +30,7 @@ use crate::config::Config;
 use crate::engine::{Engine, EngineCommand, EngineOutput};
 use crate::handler::Handler;
 use crate::metrics::PropellerMetrics;
-use crate::types::{CommitteeId, CommitteeSetupError, Event, ShardPublishError};
+use crate::types::{CommitteeId, CommitteeSetupError, Event, UnitPublishError};
 
 /// The Propeller network behaviour.
 ///
@@ -117,7 +117,7 @@ impl Behaviour {
         &self,
         committee_id: CommitteeId,
         message: Vec<u8>,
-    ) -> oneshot::Receiver<Result<(), ShardPublishError>> {
+    ) -> oneshot::Receiver<Result<(), UnitPublishError>> {
         let (response_tx, response_rx) = oneshot::channel();
         let command = EngineCommand::Broadcast { committee_id, message, response_tx };
         self.engine_commands_tx.send(command).expect("Engine task has exited");
