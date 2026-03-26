@@ -1,8 +1,6 @@
 //! Dynamic propeller tree computation logic.
 //!
 //! This module implements the core tree topology algorithm inspired by Solana's Turbine protocol.
-//! The tree is computed dynamically for each shard using deterministic seeded randomization
-//! based on the publisher and shard ID, making the network resilient to targeted attacks.
 
 use libp2p::identity::PeerId;
 use starknet_api::staking::StakingWeight;
