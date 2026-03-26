@@ -74,10 +74,10 @@ use crate::state_reader::rpc_objects::{
     RPC_TRANSACTION_EXECUTION_ERROR,
 };
 use crate::utils::{
+    compare_state_diffs,
     disjoint_hashmap_union,
     get_chain_info,
     get_rpc_state_reader_config,
-    ComparableStateDiff,
 };
 
 pub const DEFAULT_RETRY_COUNT: usize = 3;
@@ -679,14 +679,7 @@ impl ConsecutiveRpcStateReaders {
         let (block_state, expected_state_diff, actual_state_diff) = self.reexecute_block().unwrap();
 
         // Warn if state diffs don't match, but continue writing the file.
-        let expected_comparable = ComparableStateDiff::from(expected_state_diff);
-        let actual_comparable = ComparableStateDiff::from(actual_state_diff);
-        if expected_comparable != actual_comparable {
-            tracing::warn!(
-                "State diff mismatch for block {block_number}. Expected and actual state diffs do \
-                 not match."
-            );
-        }
+        compare_state_diffs(expected_state_diff, actual_state_diff, block_number);
 
         let block_state = block_state.unwrap();
         let serializable_data_prev_block = SerializableDataPrevBlock {
