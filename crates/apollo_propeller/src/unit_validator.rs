@@ -28,7 +28,7 @@ pub struct UnitValidator {
     verified_fields: Option<VerifiedFields>,
     /// The tree manager to use.
     schedule_manager: Arc<PropellerScheduleManager>,
-    /// The indices of the received shards.
+    /// The indices of the received units.
     received_indices: HashSet<ShardIndex>,
 }
 
@@ -51,11 +51,11 @@ impl UnitValidator {
         }
     }
 
-    /// Verify the signature of a shard using cached metadata.
+    /// Verify the signature of a unit using cached metadata.
     ///
     /// This is a performance optimization to avoid verifying the signature if we have already
     /// verified the signature for this message. This optimization is possible because the publisher
-    /// signs the merkle root of the message, which is shared by all shards.
+    /// signs the merkle root of the message, which is shared by all units.
     fn verify_signature(
         &mut self,
         unit: &PropellerUnit,
@@ -107,7 +107,7 @@ impl UnitValidator {
         unit.validate_merkle_proof(self.schedule_manager.num_shards())?;
         self.verify_signature(unit).map_err(ShardValidationError::SignatureVerificationFailed)?;
 
-        // add for next time we see this shard
+        // add for next time we see this unit's index
         self.received_indices.insert(unit.index());
 
         Ok(())
