@@ -31,6 +31,18 @@ where
     async fn send(&self, request: Request) -> ClientResult<Response>;
 }
 
+/// A read-only client that synchronously reads the latest value of type `T`.
+///
+/// "Reader client" means a client that only reads — it has no write or mutate
+/// capabilities. Contrast with [`ComponentClient`], which sends requests and
+/// receives responses asynchronously.
+pub trait ComponentReaderClient<T>
+where
+    T: Send + Sync + Clone,
+{
+    fn get_value(&self) -> T;
+}
+
 pub async fn default_component_start_fn<T: ComponentStarter + ?Sized>() {
     info!("Starting component {} with the default starter.", short_type_name::<T>());
 }
