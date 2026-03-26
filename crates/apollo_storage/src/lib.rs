@@ -254,6 +254,7 @@ fn open_storage_internal(
         transaction_events: db_writer.create_simple_table("transaction_events")?,
         transaction_hash_to_idx: db_writer.create_simple_table("transaction_hash_to_idx")?,
         transaction_metadata: db_writer.create_simple_table("transaction_metadata")?,
+        transaction_outputs: db_writer.create_simple_table("transaction_outputs")?,
         block_hashes: db_writer.create_simple_table("block_hashes")?,
         global_root: db_writer.create_simple_table("global_root")?,
         partial_block_hashes_components: db_writer
@@ -690,6 +691,7 @@ struct_field_names! {
         // TODO(dvir): consider not saving transaction hash and calculating it from the transaction on demand.
         transaction_events: TableIdentifier<TransactionIndex, VersionZeroWrapper<LocationInFile>, SimpleTable>,
         transaction_metadata: TableIdentifier<TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>,
+        transaction_outputs: TableIdentifier<TransactionIndex, VersionZeroWrapper<TransactionOutput>, SimpleTable>,
         block_hashes: TableIdentifier<BlockNumber, VersionZeroWrapper<BlockHash>, SimpleTable>,
         global_root: TableIdentifier<BlockNumber, NoVersionValueWrapper<GlobalRoot>, SimpleTable>,
 
@@ -724,7 +726,6 @@ use struct_field_names;
 pub struct TransactionMetadata {
     tx_hash: TransactionHash,
     tx_location: LocationInFile,
-    tx_output_location: LocationInFile,
 }
 
 // TODO(Yair): sort the variants alphabetically.
@@ -860,7 +861,6 @@ struct FileHandlers<Mode: TransactionKind> {
     contract_class: FileHandler<VersionZeroWrapper<SierraContractClass>, Mode>,
     casm: FileHandler<VersionZeroWrapper<CasmContractClass>, Mode>,
     deprecated_contract_class: FileHandler<VersionZeroWrapper<DeprecatedContractClass>, Mode>,
-    transaction_output: FileHandler<VersionZeroWrapper<TransactionOutput>, Mode>,
     transaction: FileHandler<VersionZeroWrapper<Transaction>, Mode>,
     events: FileHandler<VersionZeroWrapper<Vec<Event>>, Mode>,
 }
@@ -890,11 +890,6 @@ impl FileHandlers<RW> {
         self.clone().deprecated_contract_class.append(deprecated_contract_class)
     }
 
-    // Appends a thin transaction output to the corresponding file and returns its location.
-    fn append_transaction_output(&self, transaction_output: &TransactionOutput) -> LocationInFile {
-        self.clone().transaction_output.append(transaction_output)
-    }
-
     // Appends a transaction to the corresponding file and returns its location.
     fn append_transaction(&self, transaction: &Transaction) -> LocationInFile {
         self.clone().transaction.append(transaction)
@@ -913,7 +908,6 @@ impl FileHandlers<RW> {
         self.contract_class.flush();
         self.casm.flush();
         self.deprecated_contract_class.flush();
-        self.transaction_output.flush();
         self.transaction.flush();
         self.events.flush();
     }
@@ -927,7 +921,6 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             ("contract_class".to_string(), self.contract_class.stats()),
             ("casm".to_string(), self.casm.stats()),
             ("deprecated_contract_class".to_string(), self.deprecated_contract_class.stats()),
-            ("transaction_output".to_string(), self.transaction_output.stats()),
             ("transaction".to_string(), self.transaction.stats()),
             ("events".to_string(), self.events.stats()),
         ])
@@ -968,17 +961,6 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
     ) -> StorageResult<DeprecatedContractClass> {
         self.deprecated_contract_class.get(location)?.ok_or(StorageError::DBInconsistency {
             msg: format!("DeprecatedContractClass at location {location:?} not found."),
-        })
-    }
-
-    // Returns the transaction output at the given location or an error in case it doesn't
-    // exist.
-    fn get_transaction_output_unchecked(
-        &self,
-        location: LocationInFile,
-    ) -> StorageResult<TransactionOutput> {
-        self.transaction_output.get(location)?.ok_or(StorageError::DBInconsistency {
-            msg: format!("TransactionOutput at location {location:?} not found."),
         })
     }
 
@@ -1035,14 +1017,6 @@ fn open_storage_files(
         deprecated_contract_class_offset,
     )?;
 
-    let transaction_output_offset =
-        table.get(&db_transaction, &OffsetKind::TransactionOutput)?.unwrap_or_default();
-    let (transaction_output_writer, transaction_output_reader) = open_file(
-        mmap_file_config.clone(),
-        db_config.path().join("transaction_output.dat"),
-        transaction_output_offset,
-    )?;
-
     let transaction_offset =
         table.get(&db_transaction, &OffsetKind::Transaction)?.unwrap_or_default();
     let (transaction_writer, transaction_reader) = open_file(
@@ -1061,7 +1035,6 @@ fn open_storage_files(
             contract_class: contract_class_writer,
             casm: casm_writer,
             deprecated_contract_class: deprecated_contract_class_writer,
-            transaction_output: transaction_output_writer,
             transaction: transaction_writer,
             events: events_writer,
         },
@@ -1070,7 +1043,6 @@ fn open_storage_files(
             contract_class: contract_class_reader,
             casm: casm_reader,
             deprecated_contract_class: deprecated_contract_class_reader,
-            transaction_output: transaction_output_reader,
             transaction: transaction_reader,
             events: events_reader,
         },
