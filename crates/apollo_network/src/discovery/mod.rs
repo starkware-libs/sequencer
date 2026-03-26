@@ -116,6 +116,7 @@ pub struct Behaviour {
 ///         base_delay_millis: 100,
 ///         max_delay_seconds: Duration::from_secs(10),
 ///         factor: 2,
+///         new_connection_stabilization_seconds: Duration::from_secs(2),
 ///     },
 ///     heartbeat_interval: Duration::from_millis(500),
 /// };
@@ -180,6 +181,7 @@ impl SerializeConfig for DiscoveryConfig {
 ///     base_delay_millis: 2,                          // double each time
 ///     max_delay_seconds: Duration::from_millis(100), // Cap at 0.1 seconds
 ///     factor: 7,                                     // start with 7ms
+///     new_connection_stabilization_seconds: Duration::from_secs(2),
 /// };
 ///
 /// let mut strategy = aggressive.strategy();
@@ -200,11 +202,21 @@ pub struct RetryConfig {
 
     /// Multiplication factor for the exponential backoff.
     pub factor: u64,
+
+    /// Seconds to wait on a new connection before treating it as stable. Redials within this
+    /// window (e.g. from an immediately refused connection) use accumulated backoff.
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    pub new_connection_stabilization_seconds: Duration,
 }
 
 impl Default for RetryConfig {
     fn default() -> Self {
-        Self { base_delay_millis: 2, max_delay_seconds: Duration::from_secs(5), factor: 5 }
+        Self {
+            base_delay_millis: 2,
+            max_delay_seconds: Duration::from_secs(5),
+            factor: 5,
+            new_connection_stabilization_seconds: Duration::from_secs(2),
+        }
     }
 }
 
@@ -227,6 +239,12 @@ impl SerializeConfig for RetryConfig {
                 "factor",
                 &self.factor,
                 "The factor for the exponential backoff strategy.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "new_connection_stabilization_seconds",
+                &self.new_connection_stabilization_seconds.as_secs(),
+                "Seconds to wait on a new connection before treating it as stable.",
                 ParamPrivacyInput::Public,
             ),
         ])
