@@ -7,7 +7,7 @@ use apollo_config::validators::validate_path_exists;
 use apollo_config::{CONFIG_FILE_ARG, CONFIG_FILE_SHORT_ARG_NAME};
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
-use apollo_infra::component_definitions::{ComponentStarter, default_component_start_fn};
+use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_infra::component_server::WrapperServer;
 use apollo_node_config::config_utils::load_and_validate_config;
 use apollo_node_config::node_config::NodeDynamicConfig;
@@ -16,10 +16,10 @@ use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMod
 use serde_json::Value;
 use tokio::sync::mpsc;
 use tokio::sync::watch::{Receiver, Sender};
-use tokio::time::{Duration as TokioDuration, Interval, interval};
+use tokio::time::{interval, Duration as TokioDuration, Interval};
 use tracing::{debug, error, info};
 
-use crate::metrics::{CONFIG_MANAGER_UPDATE_ERRORS, register_metrics};
+use crate::metrics::{register_metrics, CONFIG_MANAGER_UPDATE_ERRORS};
 
 const FS_EVENT_CHANNEL_CAPACITY: usize = 16;
 
@@ -32,7 +32,7 @@ pub struct ConfigManagerRunner {
     config_manager_client: SharedConfigManagerClient,
     dynamic_config_tx: Sender<NodeDynamicConfig>,
     // Keeps the receiver alive so the sender never observes a dead channel.
-    // TODO(Arni): Remove once LocalComponentChannelClient is held long-term (done in
+    // TODO(Arni): Remove once LocalComponentReaderClient is held long-term (done in
     // arni/http_server/add_client_to_server).
     _dynamic_config_rx: Receiver<NodeDynamicConfig>,
     cli_args: Vec<String>,

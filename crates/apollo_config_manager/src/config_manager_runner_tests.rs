@@ -5,7 +5,8 @@ use std::time::Duration;
 use apollo_config::CONFIG_FILE_ARG;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::{
-    MockConfigManagerClient, SharedConfigManagerClient,
+    MockConfigManagerClient,
+    SharedConfigManagerClient,
 };
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
@@ -20,7 +21,7 @@ use tokio::task::yield_now;
 use tokio::time::{interval, timeout};
 use tracing_test::traced_test;
 
-use crate::config_manager_runner::{ConfigManagerRunner, log_config_diff};
+use crate::config_manager_runner::{log_config_diff, ConfigManagerRunner};
 
 // An arbitrary hex-str config entry to be replaced.
 const VALIDATOR_ID_CONFIG_ENTRY: &str = "validator_id";

@@ -31,6 +31,13 @@ where
     async fn send(&self, request: Request) -> ClientResult<Response>;
 }
 
+pub trait ComponentReaderClient<T>
+where
+    T: Send + Sync + Clone,
+{
+    fn get_value(&self) -> T;
+}
+
 pub async fn default_component_start_fn<T: ComponentStarter + ?Sized>() {
     info!("Starting component {} with the default starter.", short_type_name::<T>());
 }
