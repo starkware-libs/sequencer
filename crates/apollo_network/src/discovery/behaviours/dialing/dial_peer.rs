@@ -4,13 +4,14 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
+use std::time::Duration;
 
 use futures::Stream;
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
 use libp2p::swarm::{dummy, ConnectionHandler, ConnectionId, DialFailure, FromSwarm, ToSwarm};
 use libp2p::{Multiaddr, PeerId};
-use tokio::time::{Instant, Sleep};
+use tokio::time::Sleep;
 use tokio_retry::strategy::ExponentialBackoff;
 use tracing::debug;
 
@@ -30,7 +31,7 @@ pub struct DialPeerStream {
 
 enum DialState {
     /// Waiting to dial (immediately or after backoff).
-    PendingDial { next_dial_time: Instant, sleeper: Option<Pin<Box<Sleep>>> },
+    PendingDial { sleeper: Pin<Box<Sleep>> },
     /// A dial attempt is in progress with the given connection id.
     Dialing(ConnectionId),
     /// Terminal state - connection was established after the request, no guarantee if it's still
@@ -43,7 +44,7 @@ impl DialPeerStream {
         Self {
             peer_id,
             addresses,
-            state: DialState::PendingDial { next_dial_time: Instant::now(), sleeper: None },
+            state: DialState::PendingDial { sleeper: Self::create_sleeper(Duration::ZERO) },
             retry_strategy: retry_config.strategy(),
             waker: None,
         }
@@ -77,15 +78,16 @@ impl DialPeerStream {
                     .retry_strategy
                     .next()
                     .expect("A bounded ExponentialBackoff is an infinite iterator");
-                self.state = DialState::PendingDial {
-                    next_dial_time: Instant::now() + backoff,
-                    sleeper: None,
-                };
+                self.state = DialState::PendingDial { sleeper: Self::create_sleeper(backoff) };
                 debug!(?self.peer_id, ?backoff, "Dial failed, scheduling retry");
                 self.wake();
             }
             _ => {}
         }
+    }
+
+    fn create_sleeper(delay: Duration) -> Pin<Box<Sleep>> {
+        Box::pin(tokio::time::sleep(delay))
     }
 
     fn wake(&mut self) {
@@ -117,19 +119,10 @@ impl Stream for DialPeerStream {
         match &mut self.state {
             DialState::Done => Poll::Ready(None),
             DialState::Dialing(_) => Poll::Pending,
-            DialState::PendingDial { next_dial_time, sleeper } => {
-                let now = Instant::now();
-                if *next_dial_time <= now {
-                    return Poll::Ready(Some(self.emit_dial()));
-                }
-                let target = *next_dial_time;
-                let sleeper =
-                    sleeper.get_or_insert_with(|| Box::pin(tokio::time::sleep_until(target)));
-                match sleeper.as_mut().poll(cx) {
-                    Poll::Ready(()) => Poll::Ready(Some(self.emit_dial())),
-                    Poll::Pending => Poll::Pending,
-                }
-            }
+            DialState::PendingDial { sleeper } => match sleeper.as_mut().poll(cx) {
+                Poll::Ready(()) => Poll::Ready(Some(self.emit_dial())),
+                Poll::Pending => Poll::Pending,
+            },
         }
     }
 }
