@@ -295,6 +295,10 @@ pub fn finalize_execution(
             accessed_storage_keys: syscall_handler.accessed_keys,
             ..Default::default()
         },
+        #[cfg(feature = "benchmarking")]
+        time: Default::default(),
+        #[cfg(feature = "benchmarking")]
+        call_counter: 0,
         builtin_counters: extended_resources_without_inner_calls.prover_cairo_primitives(),
         syscalls_usage: syscall_handler.syscalls_usage,
     })

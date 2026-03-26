@@ -160,12 +160,14 @@ impl EventSummary {
     }
 }
 
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, Default, derive_more::AddAssign, PartialEq)]
 pub struct CallSummary {
     pub n_calls: u64,
     pub n_calls_running_native: u64,
 }
 
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ExecutionSummary {
     pub charged_resources: ChargedResources,
@@ -449,6 +451,10 @@ pub struct CallInfo {
     pub tracked_resource: TrackedResource,
 
     // Additional information gathered during execution.
+    #[cfg(feature = "benchmarking")]
+    pub time: std::time::Duration,
+    #[cfg(feature = "benchmarking")]
+    pub call_counter: usize,
     pub storage_access_tracker: StorageAccessTracker,
     // Tracks how many times each cairo primitive (builtin or opcode) was called during execution
     // (excluding inner calls). Used by the bouncer to decide when to close a block.
