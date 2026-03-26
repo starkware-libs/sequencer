@@ -190,11 +190,15 @@ async fn incoming_p2p_tx_fails_on_gateway_client() {
 
     res.await.expect("Failed to send message");
 
+    let runner_handle = tokio::spawn(async move {
+        mempool_p2p_runner.start().await;
+    });
+
     tokio::select! {
         // if the runner fails, there was a network issue => panic.
         // if the runner returns successfully, we panic because the runner should never terminate.
-        res = tokio::time::timeout(Duration::from_secs(5), mempool_p2p_runner.start()) => {
-            res.expect("Test timed out (MempoolP2pRunner took too long to start)");
+        res = tokio::time::timeout(Duration::from_secs(5), runner_handle) => {
+            res.unwrap().expect("Test timed out (MempoolP2pRunner took too long to start)");
             panic!("MempoolP2pRunner terminated");
         },
         // if a message was received on this oneshot channel, the gateway client received the tx.
