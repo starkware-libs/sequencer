@@ -86,10 +86,14 @@ impl ReconstructionState {
     fn add_unit(
         &mut self,
         unit: PropellerUnit,
+<<<<<<< HEAD
         my_shard_index: UnitIndex,
+=======
+        my_unit_index: UnitIndex,
+>>>>>>> 0619ce9469 (apollo_propeller: fix engine.rs comments to use 'unit' instead of 'shard' when referring to PropellerUnit)
         tree_manager: &PropellerScheduleManager,
     ) -> AddUnitAction {
-        let is_my_shard = unit.index() == my_shard_index;
+        let is_my_shard = unit.index() == my_unit_index;
 
         match self {
             Self::PreConstruction { received_units, did_broadcast_my_unit, verified_fields } => {
@@ -147,7 +151,11 @@ pub struct MessageProcessor {
     pub publisher: PeerId,
     pub nonce: u64,
     pub message_root: MessageRoot,
+<<<<<<< HEAD
     pub my_shard_index: UnitIndex,
+=======
+    pub my_unit_index: UnitIndex,
+>>>>>>> 0619ce9469 (apollo_propeller: fix engine.rs comments to use 'unit' instead of 'shard' when referring to PropellerUnit)
 
     pub publisher_public_key: PublicKey,
     pub tree_manager: Arc<PropellerScheduleManager>,
@@ -208,7 +216,7 @@ impl MessageProcessor {
 
             self.maybe_broadcast_my_unit(&unit, &state);
 
-            let action = state.add_unit(unit, self.my_shard_index, &self.tree_manager);
+            let action = state.add_unit(unit, self.my_unit_index, &self.tree_manager);
             if self.handle_action(action, &mut state).await.is_break() {
                 return;
             }
@@ -243,7 +251,11 @@ impl MessageProcessor {
     /// Broadcasts our unit to peers the first time we see it. In PostConstruction this is a no-op
     /// because reconstruction already triggered the broadcast.
     fn maybe_broadcast_my_unit(&self, unit: &PropellerUnit, state: &ReconstructionState) {
+<<<<<<< HEAD
         if unit.index() == self.my_shard_index && !state.did_broadcast_my_unit() {
+=======
+        if unit.index() == self.my_unit_index && !state.did_broadcast_my_unit() {
+>>>>>>> 0619ce9469 (apollo_propeller: fix engine.rs comments to use 'unit' instead of 'shard' when referring to PropellerUnit)
             self.broadcast_unit(unit);
         }
     }
@@ -301,7 +313,7 @@ impl MessageProcessor {
     async fn reconstruct_blocking(&self, units: Vec<PropellerUnit>) -> ReconstructionResult {
         let message_root = self.message_root;
         let my_index: usize =
-            self.my_shard_index.0.try_into().expect("Shard index could not be converted to usize");
+            self.my_unit_index.0.try_into().expect("Unit index could not be converted to usize");
         let data_count = self.tree_manager.num_data_shards();
         let coding_count = self.tree_manager.num_coding_shards();
 
@@ -344,7 +356,7 @@ impl MessageProcessor {
                 self.publisher,
                 self.message_root,
                 signature,
-                self.my_shard_index,
+                self.my_unit_index,
                 my_shards,
                 my_shard_proof,
                 nonce,

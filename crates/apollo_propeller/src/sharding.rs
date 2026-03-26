@@ -28,7 +28,7 @@ use crate::{signature, MerkleProof, MerkleTree, MessageRoot};
 pub fn reconstruct_data_shards(
     received_units: Vec<PropellerUnit>,
     message_root: MessageRoot,
-    my_shard_index: usize,
+    my_unit_index: usize,
     data_count: usize,
     coding_count: usize,
 ) -> Result<(Vec<u8>, ShardsOfPeer, MerkleProof), ReconstructionError> {
@@ -71,10 +71,10 @@ pub fn reconstruct_data_shards(
     }
 
     let total_shards = all_shards.len();
-    if my_shard_index >= total_shards {
+    if my_unit_index >= total_shards {
         return Err(ReconstructionError::ErasureReconstructionFailed(format!(
-            "my_shard_index {} is out of bounds (total shards: {})",
-            my_shard_index, total_shards
+            "my_unit_index {} is out of bounds (total shards: {})",
+            my_unit_index, total_shards
         )));
     }
 
@@ -82,11 +82,11 @@ pub fn reconstruct_data_shards(
     let un_padded_message =
         unpad_message(message).map_err(ReconstructionError::MessagePaddingError)?;
     // TODO(AndrewL): Support multiple shards per peer once reconstruction handles it.
-    let my_shards = ShardsOfPeer(vec![Shard(std::mem::take(&mut all_shards[my_shard_index]))]);
+    let my_shards = ShardsOfPeer(vec![Shard(std::mem::take(&mut all_shards[my_unit_index]))]);
     Ok((
         un_padded_message,
         my_shards,
-        merkle_tree.prove(my_shard_index).expect("my_shard_index was already bounds-checked"),
+        merkle_tree.prove(my_unit_index).expect("my_unit_index was already bounds-checked"),
     ))
 }
 

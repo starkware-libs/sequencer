@@ -285,13 +285,17 @@ impl Engine {
                 warn!(?claimed_publisher, "Received unit for unregistered publisher, dropping");
                 return;
             };
-            let my_shard_index_result =
+            let my_unit_index_result =
                 schedule_manager.get_my_shard_index_given_publisher(&claimed_publisher);
-            let Ok(my_shard_index) = my_shard_index_result else {
+            let Ok(my_unit_index) = my_unit_index_result else {
                 warn!(
                     ?claimed_publisher,
                     ?claimed_committee_id,
+<<<<<<< HEAD
                     ?my_shard_index_result,
+=======
+                    ?my_unit_index_result,
+>>>>>>> 0619ce9469 (apollo_propeller: fix engine.rs comments to use 'unit' instead of 'shard' when referring to PropellerUnit)
                     "Received unit for publisher not in committee, dropping"
                 );
                 return;
@@ -306,7 +310,7 @@ impl Engine {
                 publisher: claimed_publisher,
                 nonce: claimed_nonce,
                 message_root: claimed_root,
-                my_shard_index,
+                my_unit_index,
                 publisher_public_key,
                 tree_manager: Arc::clone(&schedule_manager),
                 local_peer_id: self.local_peer_id,
