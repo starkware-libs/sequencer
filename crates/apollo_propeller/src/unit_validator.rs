@@ -81,7 +81,7 @@ impl UnitValidator {
         result
     }
 
-    pub fn validate_shard(
+    pub fn validate_unit(
         &mut self,
         sender: PeerId,
         unit: &PropellerUnit,
