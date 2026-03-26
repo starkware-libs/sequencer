@@ -28,6 +28,9 @@ Run those periodically (daily/weekly) or before major releases.
 ## 2. Prerequisites
 
 - A deployed proving service endpoint (for example `http://127.0.0.1:3000`).
+- The prover config must have `"validate_zero_fee_fields": false` (or pass
+  `--skip-fee-field-validation` locally) so that real chain transactions with
+  non-zero fees are accepted.
 - Access to a Starknet RPC node on the same chain as the prover.
 - `curl`
 - `jq`
@@ -80,8 +83,7 @@ find_tx_hash() {
 
     tx_hash=$(rpc_call "{\"jsonrpc\":\"2.0\",\"id\":101,\"method\":\"starknet_getBlockWithTxs\",\"params\":[{\"block_number\":$block_number}]}" \
       | jq -r --arg tx_type "$tx_type" --arg tx_version "$tx_version" \
-          '.result.transactions[] | select(.type==$tx_type and .version==$tx_version) | .transaction_hash' \
-      | head -n 1)
+          '[.result.transactions[] | select(.type==$tx_type and .version==$tx_version) | .transaction_hash] | .[0] // empty')
 
     if [ -n "$tx_hash" ] && [ "$tx_hash" != "null" ]; then
       echo "$tx_hash"
@@ -113,36 +115,39 @@ Pass:
 
 ### 3.2 Happy path: one real `starknet_proveTransaction`
 
-1. Find a finalized `INVOKE` `0x3` tx, fetch it, and zero out fee fields.
+The script finds a real INVOKE v3 transaction from the chain and sends it
+unmodified (no fee zeroing). This preserves the original transaction hash and
+signature, so `__validate__` passes. The prover must have
+`"validate_zero_fee_fields": false` in the config (or
+`--skip-fee-field-validation` locally) to accept the non-zero fee fields.
+
+1. Find a finalized `INVOKE` `0x3` tx and fetch it.
 
 ```bash
 TX_HASH=$(find_tx_hash "INVOKE" "0x3" 300)
-[ -z "$TX_HASH" ] && { echo "No INVOKE 0x3 tx found in lookback window"; exit 1; }
+if [ -z "$TX_HASH" ]; then
+  echo "No INVOKE 0x3 tx found in lookback window."
+  echo "Try a larger lookback: find_tx_hash \"INVOKE\" \"0x3\" 500"
+  echo "Remaining smoke checks require a valid tx -- cannot continue."
+else
+  curl -sS "$CHAIN_RPC_URL" \
+    -H 'content-type: application/json' \
+    -d "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"starknet_getTransactionByHash\",\"params\":[\"$TX_HASH\"]}" \
+    | jq '.result | del(.transaction_hash)' > /tmp/prove_tx.json
 
-curl -sS "$CHAIN_RPC_URL" \
-  -H 'content-type: application/json' \
-  -d "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"starknet_getTransactionByHash\",\"params\":[\"$TX_HASH\"]}" \
-  | jq '.result | del(.transaction_hash)' > /tmp/prove_tx.json
+  TX_BLOCK=$(curl -sS "$CHAIN_RPC_URL" \
+    -H 'content-type: application/json' \
+    -d "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"starknet_getTransactionReceipt\",\"params\":[\"$TX_HASH\"]}" \
+    | jq -r '.result.block_number')
 
-TX_BLOCK=$(curl -sS "$CHAIN_RPC_URL" \
-  -H 'content-type: application/json' \
-  -d "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"starknet_getTransactionReceipt\",\"params\":[\"$TX_HASH\"]}" \
-  | jq -r '.result.block_number')
-
-BASE_BLOCK=$((TX_BLOCK - 1))
-
-jq '
-  .tip = "0x0" |
-  .resource_bounds.l1_gas.max_price_per_unit = "0x0" |
-  .resource_bounds.l2_gas.max_price_per_unit = "0x0" |
-  .resource_bounds.l1_data_gas.max_price_per_unit = "0x0"
-' /tmp/prove_tx.json > /tmp/prove_tx_zeroed.json
+  BASE_BLOCK=$((TX_BLOCK - 1))
+fi
 ```
 
 2. Send prove request.
 
 ```bash
-jq -c --argjson base "$BASE_BLOCK" --slurpfile tx /tmp/prove_tx_zeroed.json \
+jq -nc --argjson base "$BASE_BLOCK" --slurpfile tx /tmp/prove_tx.json \
   '{jsonrpc:"2.0",id:5,method:"starknet_proveTransaction",params:[{block_number:$base},$tx[0]]}' \
   > /tmp/prove_request_valid.json
 

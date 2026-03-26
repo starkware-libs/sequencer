@@ -39,6 +39,33 @@ export PROVER_URL="http://127.0.0.1:3000"
 export CHAIN_RPC_URL="https://your-starknet-rpc"
 ```
 
+### Changing service configuration
+
+Several sections require starting the service with specific flags. For a
+**deployed** service, edit the prover's JSON config file (mounted as a
+Kubernetes ConfigMap) and restart the pod. Key config fields and their CLI
+equivalents:
+
+| JSON config field | CLI flag | Type |
+|-------------------|----------|------|
+| `cors_allow_origin` | `--cors-allow-origin` | array of strings (`["*"]` or `["http://..."]`) |
+| `max_concurrent_requests` | `--max-concurrent-requests` | integer |
+| `validate_zero_fee_fields` | `--skip-fee-field-validation` (inverted) | boolean |
+
+Example: to allow wildcard CORS and lower concurrency to 1, update the config
+file:
+
+```json
+{
+  "cors_allow_origin": ["*"],
+  "max_concurrent_requests": 1
+}
+```
+
+Then restart the pod (or `kubectl rollout restart`).
+
+For **local** testing, pass CLI flags to `cargo run` (see section 3).
+
 Define helper functions once for the rest of the guide:
 
 ```bash
@@ -59,22 +86,27 @@ find_tx_hash() {
   latest_block=$(rpc_call '{"jsonrpc":"2.0","id":100,"method":"starknet_blockNumber","params":[]}' \
     | jq -r '.result')
 
+  printf 'Searching last %d blocks for %s %s...\n' "$lookback" "$tx_type" "$tx_version" >&2
+
   for ((offset = 0; offset <= lookback; offset++)); do
     block_number=$((latest_block - offset))
     [ "$block_number" -lt 0 ] && break
 
+    printf '\r  block %d (%d/%d)' "$block_number" "$((offset + 1))" "$lookback" >&2
+
     tx_hash=$(rpc_call \
       "{\"jsonrpc\":\"2.0\",\"id\":101,\"method\":\"starknet_getBlockWithTxs\",\"params\":[{\"block_number\":$block_number}]}" \
       | jq -r --arg tx_type "$tx_type" --arg tx_version "$tx_version" \
-          '.result.transactions[] | select(.type==$tx_type and .version==$tx_version) | .transaction_hash' \
-      | head -n 1)
+          '[.result.transactions[] | select(.type==$tx_type and .version==$tx_version) | .transaction_hash] | .[0] // empty')
 
     if [ -n "$tx_hash" ] && [ "$tx_hash" != "null" ]; then
+      printf '\r  found in block %d (%d/%d)\n' "$block_number" "$((offset + 1))" "$lookback" >&2
       echo "$tx_hash"
       return 0
     fi
   done
 
+  printf '\r  not found after %d blocks\n' "$offset" >&2
   return 1
 }
 ```
@@ -140,46 +172,39 @@ Expected success:
 - `params[0]`: base block ID (must not be `"pending"`)
 - `params[1]`: transaction object of type `INVOKE` and version `0x3`
 
-Use this flow to build a realistic request from chain data.
+When the prover config has `"validate_zero_fee_fields": false` (or is started
+with `--skip-fee-field-validation`), real chain transactions can be sent with
+their original fee fields intact. This preserves
+the transaction hash and signature, so `__validate__` passes without needing
+a dummy-validate account.
 
-1. Find one finalized `INVOKE` `0x3` tx hash.
+1. Find one finalized `INVOKE` `0x3` tx hash and fetch it.
 
 ```bash
 TX_HASH=$(find_tx_hash "INVOKE" "0x3" 300)
-[ -z "$TX_HASH" ] && { echo "No INVOKE 0x3 tx found in lookback window"; exit 1; }
+if [ -z "$TX_HASH" ]; then
+  echo "No INVOKE 0x3 tx found in lookback window."
+  echo "Try a larger lookback: find_tx_hash \"INVOKE\" \"0x3\" 500"
+  echo "Sections 4.2-9 require a valid tx -- cannot continue."
+else
+  curl -sS "$CHAIN_RPC_URL" \
+    -H 'content-type: application/json' \
+    -d "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"starknet_getTransactionByHash\",\"params\":[\"$TX_HASH\"]}" \
+    | jq '.result | del(.transaction_hash)' > /tmp/prove_tx.json
 
-echo "Using tx_hash=$TX_HASH"
+  TX_BLOCK=$(curl -sS "$CHAIN_RPC_URL" \
+    -H 'content-type: application/json' \
+    -d "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"starknet_getTransactionReceipt\",\"params\":[\"$TX_HASH\"]}" \
+    | jq -r '.result.block_number')
+
+  BASE_BLOCK=$((TX_BLOCK - 1))
+fi
 ```
 
-2. Fetch the tx object and receipt, then compute base block (`tx_block - 1`).
+2. Send the prove request.
 
 ```bash
-curl -sS "$CHAIN_RPC_URL" \
-  -H 'content-type: application/json' \
-  -d "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"starknet_getTransactionByHash\",\"params\":[\"$TX_HASH\"]}" \
-  | jq '.result | del(.transaction_hash)' > /tmp/prove_tx.json
-
-TX_BLOCK=$(curl -sS "$CHAIN_RPC_URL" \
-  -H 'content-type: application/json' \
-  -d "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"starknet_getTransactionReceipt\",\"params\":[\"$TX_HASH\"]}" \
-  | jq -r '.result.block_number')
-
-BASE_BLOCK=$((TX_BLOCK - 1))
-echo "tx_block=$TX_BLOCK base_block=$BASE_BLOCK"
-```
-
-3. Zero out fee fields so the request passes fee validation, then call
-   `starknet_proveTransaction`.
-
-```bash
-jq '
-  .tip = "0x0" |
-  .resource_bounds.l1_gas.max_price_per_unit = "0x0" |
-  .resource_bounds.l2_gas.max_price_per_unit = "0x0" |
-  .resource_bounds.l1_data_gas.max_price_per_unit = "0x0"
-' /tmp/prove_tx.json > /tmp/prove_tx_zeroed.json
-
-jq -c --argjson base "$BASE_BLOCK" --slurpfile tx /tmp/prove_tx_zeroed.json \
+jq -nc --argjson base "$BASE_BLOCK" --slurpfile tx /tmp/prove_tx.json \
   '{jsonrpc:"2.0",id:5,method:"starknet_proveTransaction",params:[{block_number:$base},$tx[0]]}' \
   > /tmp/prove_request_valid.json
 
@@ -201,7 +226,7 @@ Use a valid `INVOKE v3` tx in `/tmp/prove_tx.json` from section 4.2 unless noted
 ### 5.1 Pending block is rejected
 
 ```bash
-jq -c --slurpfile tx /tmp/prove_tx_zeroed.json \
+jq -nc --slurpfile tx /tmp/prove_tx.json \
   '{jsonrpc:"2.0",id:11,method:"starknet_proveTransaction",params:["pending",$tx[0]]}' \
   > /tmp/prove_request_pending.json
 
@@ -219,18 +244,20 @@ Find a `DECLARE` `0x3` tx and drop `transaction_hash` before sending.
 
 ```bash
 DECLARE_HASH=$(find_tx_hash "DECLARE" "0x3" 500)
-[ -z "$DECLARE_HASH" ] && { echo "No DECLARE 0x3 tx found in lookback window"; exit 1; }
+if [ -z "$DECLARE_HASH" ]; then
+  echo "No DECLARE 0x3 tx found in lookback window -- skipping"
+else
+  curl -sS "$CHAIN_RPC_URL" \
+    -H 'content-type: application/json' \
+    -d "{\"jsonrpc\":\"2.0\",\"id\":13,\"method\":\"starknet_getTransactionByHash\",\"params\":[\"$DECLARE_HASH\"]}" \
+    | jq '.result | del(.transaction_hash)' > /tmp/declare_tx.json
 
-curl -sS "$CHAIN_RPC_URL" \
-  -H 'content-type: application/json' \
-  -d "{\"jsonrpc\":\"2.0\",\"id\":13,\"method\":\"starknet_getTransactionByHash\",\"params\":[\"$DECLARE_HASH\"]}" \
-  | jq '.result | del(.transaction_hash)' > /tmp/declare_tx.json
+  jq -nc --argjson base "$BASE_BLOCK" --slurpfile tx /tmp/declare_tx.json \
+    '{jsonrpc:"2.0",id:14,method:"starknet_proveTransaction",params:[{block_number:$base},$tx[0]]}' \
+    > /tmp/prove_request_declare.json
 
-jq -c --argjson base "$BASE_BLOCK" --slurpfile tx /tmp/declare_tx.json \
-  '{jsonrpc:"2.0",id:14,method:"starknet_proveTransaction",params:[{block_number:$base},$tx[0]]}' \
-  > /tmp/prove_request_declare.json
-
-curl -sS "$PROVER_URL" -H 'content-type: application/json' -d "$(cat /tmp/prove_request_declare.json)" | jq .
+  curl -sS "$PROVER_URL" -H 'content-type: application/json' -d "$(cat /tmp/prove_request_declare.json)" | jq .
+fi
 ```
 
 Expected error:
@@ -242,20 +269,22 @@ Expected error:
 
 ```bash
 DEPLOY_HASH=$(find_tx_hash "DEPLOY_ACCOUNT" "0x3" 500)
-[ -z "$DEPLOY_HASH" ] && { echo "No DEPLOY_ACCOUNT 0x3 tx found in lookback window"; exit 1; }
+if [ -z "$DEPLOY_HASH" ]; then
+  echo "No DEPLOY_ACCOUNT 0x3 tx found in lookback window -- skipping"
+else
+  curl -sS "$CHAIN_RPC_URL" \
+    -H 'content-type: application/json' \
+    -d "{\"jsonrpc\":\"2.0\",\"id\":17,\"method\":\"starknet_getTransactionByHash\",\"params\":[\"$DEPLOY_HASH\"]}" \
+    | jq '.result | del(.transaction_hash)' > /tmp/deploy_account_tx.json
 
-curl -sS "$CHAIN_RPC_URL" \
-  -H 'content-type: application/json' \
-  -d "{\"jsonrpc\":\"2.0\",\"id\":17,\"method\":\"starknet_getTransactionByHash\",\"params\":[\"$DEPLOY_HASH\"]}" \
-  | jq '.result | del(.transaction_hash)' > /tmp/deploy_account_tx.json
+  jq -nc --argjson base "$BASE_BLOCK" --slurpfile tx /tmp/deploy_account_tx.json \
+    '{jsonrpc:"2.0",id:18,method:"starknet_proveTransaction",params:[{block_number:$base},$tx[0]]}' \
+    > /tmp/prove_request_deploy_account.json
 
-jq -c --argjson base "$BASE_BLOCK" --slurpfile tx /tmp/deploy_account_tx.json \
-  '{jsonrpc:"2.0",id:18,method:"starknet_proveTransaction",params:[{block_number:$base},$tx[0]]}' \
-  > /tmp/prove_request_deploy_account.json
-
-curl -sS "$PROVER_URL" \
-  -H 'content-type: application/json' \
-  -d "$(cat /tmp/prove_request_deploy_account.json)" | jq .
+  curl -sS "$PROVER_URL" \
+    -H 'content-type: application/json' \
+    -d "$(cat /tmp/prove_request_deploy_account.json)" | jq .
+fi
 ```
 
 Expected error:
@@ -265,6 +294,10 @@ Expected error:
 
 ### 5.4 Invalid transaction input: non-zero fee fields
 
+> **Note:** This test only applies when `validate_zero_fee_fields` is `true`
+> (default). If it is `false` in the config or `--skip-fee-field-validation` is
+> passed, non-zero fee fields are accepted and this test should be skipped.
+
 The service rejects transactions with non-zero `max_price_per_unit` or `tip`
 (unless `--skip-fee-field-validation` is set). Mutate a valid invoke to trigger
 the check.
@@ -272,7 +305,7 @@ the check.
 ```bash
 jq '.tip = "0x1"' /tmp/prove_tx.json > /tmp/prove_tx_nonzero_tip.json
 
-jq -c --argjson base "$BASE_BLOCK" --slurpfile tx /tmp/prove_tx_nonzero_tip.json \
+jq -nc --argjson base "$BASE_BLOCK" --slurpfile tx /tmp/prove_tx_nonzero_tip.json \
   '{jsonrpc:"2.0",id:19,method:"starknet_proveTransaction",params:[{block_number:$base},$tx[0]]}' \
   > /tmp/prove_request_nonzero_tip.json
 
@@ -289,9 +322,9 @@ Expected error:
 Mutate a valid invoke tx to break validation (for example set nonce to a clearly wrong value).
 
 ```bash
-jq '.nonce = "0xdeadbeef"' /tmp/prove_tx_zeroed.json > /tmp/prove_tx_invalid_nonce.json
+jq '.nonce = "0xdeadbeef"' /tmp/prove_tx.json > /tmp/prove_tx_invalid_nonce.json
 
-jq -c --argjson base "$BASE_BLOCK" --slurpfile tx /tmp/prove_tx_invalid_nonce.json \
+jq -nc --argjson base "$BASE_BLOCK" --slurpfile tx /tmp/prove_tx_invalid_nonce.json \
   '{jsonrpc:"2.0",id:15,method:"starknet_proveTransaction",params:[{block_number:$base},$tx[0]]}' \
   > /tmp/prove_request_invalid_nonce.json
 
@@ -327,8 +360,8 @@ Use a lightweight request (`starknet_specVersion`) for all CORS tests.
 
 ### 6.1 Wildcard mode allows any origin
 
-Start the service with `--cors-allow-origin '*'` (or restart if already running
-with different CORS settings).
+Set `"cors_allow_origin": ["*"]` in the prover config file and restart the pod
+(or start locally with `--cors-allow-origin '*'`).
 
 Send a request with an `Origin` header and check for the CORS response header:
 
@@ -346,7 +379,8 @@ Pass criteria:
 
 ### 6.2 Allowlist mode returns the matching origin
 
-Start the service with a specific allowed origin:
+Set `"cors_allow_origin": ["http://localhost:5173"]` in the prover config file
+and restart the pod. For local testing:
 
 ```bash
 cargo run -p starknet_transaction_prover -- \
@@ -406,7 +440,8 @@ Pass criteria (with the matching origin from 6.2):
 
 ### 6.4 CORS disabled (default)
 
-Start the service without any `--cors-allow-origin` flag:
+Set `"cors_allow_origin": []` in the prover config file and restart the pod.
+For local testing, omit the `--cors-allow-origin` flag:
 
 ```bash
 cargo run -p starknet_transaction_prover -- \
@@ -429,7 +464,9 @@ Pass criteria:
 
 ### 6.5 Origin normalization
 
-Verify that invalid origin values are rejected at startup:
+Verify that invalid origin values are rejected at startup. Set
+`"cors_allow_origin": ["ftp://example.com"]` in the config file and restart (or
+pass the flag locally):
 
 ```bash
 cargo run -p starknet_transaction_prover -- \
@@ -513,6 +550,10 @@ Pass criteria:
 
 ### 7.5 Compressed prove response
 
+> **Note:** If the block from section 4.2 has aged out of the proof window
+> (you get error code 42 or -32603 mentioning storage proofs), re-run
+> section 4.2 to refresh the request with a recent block.
+
 Proof responses are large and benefit most from compression. Use the valid
 request from section 4.2:
 
@@ -537,10 +578,13 @@ Use the same valid request body from section 4.2:
 cp /tmp/prove_request_valid.json /tmp/prove_request.json
 ```
 
+> **Note:** Same freshness caveat as section 7.5 — re-run section 4.2 if
+> needed.
+
 ### 8.1 Verify concurrency limit rejects excess requests
 
-Start the service with `--max-concurrent-requests 1` so only one proving request
-runs at a time:
+Set `"max_concurrent_requests": 1` in the prover config file and restart the
+pod so only one proving request runs at a time. For local testing:
 
 ```bash
 cargo run -p starknet_transaction_prover -- \
@@ -585,7 +629,8 @@ Pass criteria:
 
 ### 8.3 Burst test
 
-Restart the service with default concurrency (`--max-concurrent-requests 2`).
+Reset `"max_concurrent_requests"` to `2` in the config file and restart the pod
+(or restart locally with `--max-concurrent-requests 2`).
 Fire 8 requests with shell concurrency 4:
 
 ```bash
@@ -609,7 +654,15 @@ bounded and the service stays healthy under sustained pressure.
 
 ### 9.1 Monitor memory during load
 
-In a separate terminal, sample the service's resident memory every 2 seconds:
+In a separate terminal, sample the service's memory every 2 seconds.
+
+**Kubernetes deployment:**
+
+```bash
+watch -n 2 kubectl top pod <pod-name> -n <namespace>
+```
+
+**Local process:**
 
 ```bash
 PROVER_PID=$(pgrep -f starknet_transaction_prover)
@@ -621,6 +674,15 @@ done
 ```
 
 ### 9.2 Using `vegeta` (recommended)
+
+Install ([releases](https://github.com/tsenart/vegeta/releases)):
+
+```bash
+curl -sL https://github.com/tsenart/vegeta/releases/download/v12.12.0/vegeta_12.12.0_linux_amd64.tar.gz \
+  | tar xz -C /usr/local/bin vegeta
+```
+
+Usage:
 
 ```bash
 echo "POST $PROVER_URL" \
@@ -634,6 +696,15 @@ vegeta report -type='hist[0,2s,5s,10s,20s,30s]' /tmp/vegeta.bin
 Start with low rate (`1 req/s`) because proving is CPU heavy.
 
 ### 9.3 Using `hey`
+
+Install ([releases](https://github.com/rakyll/hey/releases)):
+
+```bash
+curl -sL https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64 -o /usr/local/bin/hey \
+  && chmod +x /usr/local/bin/hey
+```
+
+Usage:
 
 ```bash
 hey -n 20 -c 2 -m POST -H 'Content-Type: application/json' -D /tmp/prove_request.json "$PROVER_URL"
@@ -693,3 +764,74 @@ Pass criteria:
 - Burst test: all responses are valid JSON-RPC (success or `-32005`), no `-32603`
 - Memory stays bounded under sustained load (no unbounded RSS growth)
 - Load test completed at chosen rate without process instability
+
+## 11. Documenting Test Results
+
+Record results after each test run so regressions are traceable and audit
+history is preserved.
+
+### What to record
+
+- **Date and tester** — who ran the tests and when.
+- **Build version** — the exact image tag, commit SHA, or release version under
+  test.
+- **Environment** — deployment target (e.g., `testnet-prover-01`, `staging`),
+  chain (mainnet / sepolia), and RPC node used.
+- **Configuration** — relevant config values: `validate_zero_fee_fields`,
+  `max_concurrent_requests`, `cors_allow_origin`.
+- **Per-section results** — for each item in the checklist (section 10), record
+  PASS / FAIL / SKIP with the actual response when it deviates from expected.
+- **Bugs found** — link to any issues filed as a result of the test run.
+
+### Template
+
+Copy the block below and fill in the details:
+
+```text
+# Manual Test Run — <date>
+
+Tester:       <name>
+Build:        <image tag or commit SHA>
+Environment:  <deployment target>
+Chain RPC:    <RPC endpoint used>
+Config:       validate_zero_fee_fields=<true/false>
+              max_concurrent_requests=<value>
+              cors_allow_origin=<value or []>
+
+## Results
+
+| # | Check | Result | Notes |
+|---|-------|--------|-------|
+| 4.1 | specVersion | PASS / FAIL | |
+| 4.2 | proveTransaction happy path | PASS / FAIL | proving time: ___s |
+| 5.1 | Pending block rejected (24) | PASS / FAIL | |
+| 5.2 | DECLARE rejected (61) | PASS / FAIL / SKIP | |
+| 5.3 | DEPLOY_ACCOUNT rejected (61) | PASS / FAIL / SKIP | |
+| 5.4 | Non-zero fee rejected (1000) | PASS / FAIL / SKIP | |
+| 5.5 | Invalid nonce rejected (55) | PASS / FAIL | |
+| 5.6 | Malformed params rejected | PASS / FAIL | |
+| 6.1 | CORS wildcard | PASS / FAIL | |
+| 6.2 | CORS allowlist match | PASS / FAIL | |
+| 6.2 | CORS allowlist non-match | PASS / FAIL | |
+| 6.3 | CORS preflight | PASS / FAIL | |
+| 6.4 | CORS disabled | PASS / FAIL | |
+| 6.5 | CORS invalid origin startup | PASS / FAIL | |
+| 7.1 | Gzip compression | PASS / FAIL | |
+| 7.2 | Brotli compression | PASS / FAIL | |
+| 7.3 | Zstd compression | PASS / FAIL | |
+| 7.4 | No compression | PASS / FAIL | |
+| 7.5 | Compressed prove response | PASS / FAIL | |
+| 8.1 | Concurrency limit (-32005) | PASS / FAIL | |
+| 8.2 | Recovery after rejection | PASS / FAIL | |
+| 8.3 | Burst test | PASS / FAIL | |
+| 9   | Load test | PASS / FAIL | tool: ___, rate: ___, duration: ___ |
+
+## Issues Filed
+
+- (link to any issues opened during this run)
+```
+
+### Where to store
+
+Post the completed template as a comment on the deployment PR or ticket. For
+periodic (non-deployment) test runs, file under the team's test log.
