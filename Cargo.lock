@@ -868,13 +868,7 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "apollo_base_layer_tests"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "alloy",
  "apollo_config",
@@ -890,13 +884,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_batcher"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_batcher_config",
  "apollo_batcher_types",
@@ -948,13 +936,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_batcher_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "apollo_storage",
@@ -967,13 +949,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_batcher_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra",
  "apollo_infra_utils",
@@ -998,13 +974,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_central_sync"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_central_sync_config",
  "apollo_class_manager_types",
@@ -1039,13 +1009,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_central_sync_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "apollo_starknet_client",
@@ -1057,13 +1021,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_class_manager"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_class_manager_config",
  "apollo_class_manager_types",
@@ -1086,13 +1044,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_class_manager_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "apollo_storage",
@@ -1102,13 +1054,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_class_manager_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_compile_to_casm_types",
  "apollo_infra",
@@ -1129,13 +1075,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_committer"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_committer_config",
  "apollo_committer_types",
@@ -1154,13 +1094,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_committer_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "serde",
@@ -1171,13 +1105,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_committer_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -1193,13 +1121,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_compilation_utils"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra_utils",
  "assert_matches",
@@ -1218,13 +1140,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_compile_to_casm"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_compilation_utils",
  "apollo_compile_to_casm_types",
@@ -1247,13 +1163,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_compile_to_casm_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -1270,13 +1180,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_compile_to_native"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_compilation_utils",
  "apollo_compile_to_native_types",
@@ -1292,13 +1196,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_compile_to_native_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "serde",
@@ -1307,13 +1205,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra_utils",
  "apollo_test_utils",
@@ -1335,13 +1227,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_config_manager"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_batcher_config",
  "apollo_class_manager_config",
@@ -1370,13 +1256,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_config_manager_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "serde",
@@ -1385,13 +1265,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_config_manager_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_batcher_config",
  "apollo_class_manager_config",
@@ -1413,13 +1287,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_consensus"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_batcher_types",
  "apollo_config_manager_types",
@@ -1456,13 +1324,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_consensus_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "apollo_protobuf",
@@ -1474,13 +1336,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_consensus_manager"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_batcher_types",
  "apollo_class_manager_types",
@@ -1515,13 +1371,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_consensus_manager_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "apollo_consensus_config",
@@ -1535,13 +1385,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_consensus_orchestrator"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_batcher",
  "apollo_batcher_types",
@@ -1603,13 +1447,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_consensus_orchestrator_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "serde",
@@ -1620,13 +1458,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_dashboard"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_batcher",
  "apollo_class_manager",
@@ -1663,13 +1495,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_deployments"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "apollo_infra",
@@ -1686,13 +1512,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_gateway"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
@@ -1739,13 +1559,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_gateway_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_compilation_utils",
  "apollo_config",
@@ -1760,13 +1574,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_gateway_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra",
  "apollo_network_types",
@@ -1785,13 +1593,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_http_server"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config_manager_types",
  "apollo_gateway_types",
@@ -1831,13 +1633,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_http_server_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "rstest",
@@ -1847,13 +1643,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_infra"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "apollo_infra_utils",
@@ -1889,13 +1679,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_infra_utils"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_proc_macros",
  "assert-json-diff",
@@ -1920,13 +1704,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_integration_tests"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "alloy",
  "anyhow",
@@ -2003,128 +1781,8 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
 name = "apollo_l1_events"
 version = "0.0.0"
-||||||| d67b8d8d46
-name = "apollo_l1_gas_price"
-version = "0.18.0-dev.2"
-dependencies = [
- "apollo_config",
- "apollo_infra",
- "apollo_infra_utils",
- "apollo_l1_gas_price_provider_config",
- "apollo_l1_gas_price_types",
- "apollo_metrics",
- "assert_matches",
- "async-trait",
- "futures",
- "lru 0.12.5",
- "mockall",
- "mockito",
- "papyrus_base_layer",
- "reqwest 0.12.24",
- "rstest",
- "serde_json",
- "starknet_api",
- "thiserror 1.0.69",
- "tokio",
- "tokio-util",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "apollo_l1_gas_price_provider_config"
-version = "0.18.0-dev.2"
-dependencies = [
- "apollo_config",
- "serde",
- "starknet_api",
- "url",
- "validator",
-]
-
-[[package]]
-name = "apollo_l1_gas_price_types"
-version = "0.18.0-dev.2"
-dependencies = [
- "apollo_infra",
- "apollo_metrics",
- "async-trait",
- "mockall",
- "papyrus_base_layer",
- "reqwest 0.12.24",
- "serde",
- "starknet_api",
- "strum",
- "thiserror 1.0.69",
- "tracing",
-]
-
-[[package]]
-name = "apollo_l1_provider"
-version = "0.18.0-dev.2"
-=======
-name = "apollo_l1_gas_price"
-version = "0.18.0-rc.0"
-dependencies = [
- "apollo_config",
- "apollo_infra",
- "apollo_infra_utils",
- "apollo_l1_gas_price_provider_config",
- "apollo_l1_gas_price_types",
- "apollo_metrics",
- "assert_matches",
- "async-trait",
- "futures",
- "lru 0.12.5",
- "mockall",
- "mockito",
- "papyrus_base_layer",
- "reqwest 0.12.24",
- "rstest",
- "serde_json",
- "starknet_api",
- "thiserror 1.0.69",
- "tokio",
- "tokio-util",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "apollo_l1_gas_price_provider_config"
-version = "0.18.0-rc.0"
-dependencies = [
- "apollo_config",
- "serde",
- "starknet_api",
- "url",
- "validator",
-]
-
-[[package]]
-name = "apollo_l1_gas_price_types"
-version = "0.18.0-rc.0"
-dependencies = [
- "apollo_infra",
- "apollo_metrics",
- "async-trait",
- "mockall",
- "papyrus_base_layer",
- "reqwest 0.12.24",
- "serde",
- "starknet_api",
- "strum",
- "thiserror 1.0.69",
- "tracing",
-]
-
-[[package]]
-name = "apollo_l1_provider"
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "alloy",
  "apollo_base_layer_tests",
@@ -2155,16 +1813,8 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
 name = "apollo_l1_events_config"
 version = "0.0.0"
-||||||| d67b8d8d46
-name = "apollo_l1_provider_config"
-version = "0.18.0-dev.2"
-=======
-name = "apollo_l1_provider_config"
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "serde",
@@ -2173,16 +1823,8 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
 name = "apollo_l1_events_types"
 version = "0.0.0"
-||||||| d67b8d8d46
-name = "apollo_l1_provider_types"
-version = "0.18.0-dev.2"
-=======
-name = "apollo_l1_provider_types"
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -2198,7 +1840,6 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
 name = "apollo_l1_gas_price"
 version = "0.0.0"
 dependencies = [
@@ -2229,13 +1870,6 @@ dependencies = [
 [[package]]
 name = "apollo_l1_gas_price_config"
 version = "0.0.0"
-||||||| d67b8d8d46
-name = "apollo_l1_scraper_config"
-version = "0.18.0-dev.2"
-=======
-name = "apollo_l1_scraper_config"
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "serde",
@@ -2263,13 +1897,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_mempool"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "apollo_config_manager_types",
@@ -2312,13 +1940,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_mempool_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "serde",
@@ -2328,13 +1950,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_mempool_p2p"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_class_manager_types",
  "apollo_gateway_types",
@@ -2360,13 +1976,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_mempool_p2p_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "apollo_network",
@@ -2376,13 +1986,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_mempool_p2p_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -2397,13 +2001,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_mempool_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -2419,13 +2017,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_metrics"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_time",
  "indexmap 2.12.0",
@@ -2441,13 +2033,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_monitoring_endpoint"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "anyhow",
  "apollo_infra",
@@ -2476,13 +2062,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_monitoring_endpoint_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "serde",
@@ -2491,13 +2071,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_network"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "apollo_metrics",
@@ -2538,13 +2112,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_network_benchmark"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_metrics",
  "apollo_network",
@@ -2563,13 +2131,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_network_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_test_utils",
  "lazy_static",
@@ -2580,13 +2142,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_node"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "anyhow",
  "apollo_batcher",
@@ -2639,13 +2195,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_node_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_batcher_config",
  "apollo_class_manager_config",
@@ -2683,13 +2233,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_p2p_sync"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_class_manager_types",
  "apollo_network",
@@ -2724,13 +2268,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_p2p_sync_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "serde",
@@ -2739,13 +2277,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_proc_macros"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "lazy_static",
  "proc-macro2",
@@ -2755,13 +2287,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_proc_macros_tests"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_metrics",
  "apollo_proc_macros",
@@ -2776,13 +2302,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_proof_manager"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -2800,13 +2320,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_proof_manager_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "serde",
@@ -2815,13 +2329,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_proof_manager_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -2835,13 +2343,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_propeller"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra_utils",
  "apollo_metrics",
@@ -2868,13 +2370,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_protobuf"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_batcher_types",
  "apollo_test_utils",
@@ -2904,13 +2400,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_reverts"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "apollo_metrics",
@@ -2925,13 +2415,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_rpc"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "anyhow",
  "apollo_class_manager_types",
@@ -2981,13 +2465,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_rpc_execution"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "anyhow",
  "apollo_class_manager_types",
@@ -3019,13 +2497,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_sierra_compilation_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "serde",
@@ -3034,13 +2506,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_signature_manager"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -3061,13 +2527,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_signature_manager_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -3082,13 +2542,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_sizeof"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_sizeof_macros",
  "starknet-types-core",
@@ -3096,13 +2550,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_sizeof_macros"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3111,13 +2559,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_staking"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_batcher_types",
  "apollo_config_manager_types",
@@ -3142,13 +2584,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_staking_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "serde",
@@ -3160,13 +2596,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_starknet_client"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "apollo_test_utils",
@@ -3199,13 +2629,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_starknet_os_program"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra_utils",
  "blockifier",
@@ -3223,13 +2647,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_state_reader"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_class_manager_types",
  "apollo_storage",
@@ -3246,13 +2664,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_state_sync"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_central_sync",
  "apollo_class_manager_types",
@@ -3284,13 +2696,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_state_sync_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_central_sync_config",
  "apollo_config",
@@ -3305,13 +2711,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_state_sync_metrics"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -3321,13 +2721,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_state_sync_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
@@ -3345,13 +2739,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_storage"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "apollo_infra_utils",
@@ -3411,13 +2799,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_task_executor"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "futures",
  "rstest",
@@ -3427,13 +2809,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_test_utils"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
@@ -3454,13 +2830,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_time"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "chrono",
  "mockall",
@@ -3469,13 +2839,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_transaction_converter"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_class_manager_types",
  "apollo_metrics",
@@ -4133,13 +3497,7 @@ checksum = "55248b47b0caf0546f7988906588779981c43bb1bc9d0c44087278f80cdb44ba"
 
 [[package]]
 name = "bench_tools"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra_utils",
  "clap",
@@ -4354,13 +3712,7 @@ dependencies = [
 
 [[package]]
 name = "blockifier"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "anyhow",
  "apollo_compilation_utils",
@@ -4419,13 +3771,7 @@ dependencies = [
 
 [[package]]
 name = "blockifier_reexecution"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_compile_to_casm",
  "apollo_compile_to_casm_types",
@@ -4458,13 +3804,7 @@ dependencies = [
 
 [[package]]
 name = "blockifier_test_utils"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra_utils",
  "cairo-lang-starknet-classes",
@@ -9314,13 +8654,7 @@ dependencies = [
 
 [[package]]
 name = "mempool_test_utils"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra_utils",
  "assert_matches",
@@ -9611,13 +8945,7 @@ dependencies = [
 
 [[package]]
 name = "native_blockifier"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_compile_to_native_types",
  "apollo_state_reader",
@@ -10258,13 +9586,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_base_layer"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "alloy",
  "apollo_config",
@@ -10288,13 +9610,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_common"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_test_utils",
  "assert_matches",
@@ -12489,13 +11805,7 @@ dependencies = [
 
 [[package]]
 name = "shared_execution_objects"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "blockifier",
  "rstest",
@@ -13086,13 +12396,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_api"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra_utils",
  "apollo_sizeof",
@@ -13131,13 +12435,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_committer"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_config",
  "async-recursion",
@@ -13166,13 +12464,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_committer_and_os_cli"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra_utils",
  "apollo_starknet_os_program",
@@ -13208,13 +12500,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_committer_cli"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra_utils",
  "apollo_storage",
@@ -13236,13 +12522,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_os"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_infra_utils",
  "apollo_starknet_os_program",
@@ -13297,13 +12577,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_os_flow_tests"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "assert_matches",
  "blockifier",
@@ -13332,13 +12606,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_patricia"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "async-recursion",
  "derive_more",
@@ -13360,13 +12628,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_patricia_storage"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "aerospike",
  "apollo_config",
@@ -13389,13 +12651,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_proof_verifier"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "apollo_sizeof",
  "privacy-circuit-verify",
@@ -13407,13 +12663,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_transaction_prover"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "anyhow",
  "apollo_infra_utils",
@@ -14276,13 +13526,7 @@ dependencies = [
 
 [[package]]
 name = "toml_test_utils"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "serde",
  "toml 0.8.23",
@@ -15448,13 +14692,7 @@ checksum = "f17a85883d4e6d00e8a97c586de764dabcc06133f7f1d55dce5cdc070ad7fe59"
 
 [[package]]
 name = "workspace_tests"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| d67b8d8d46
-version = "0.18.0-dev.2"
-=======
-version = "0.18.0-rc.0"
->>>>>>> origin/main-v0.14.2
 dependencies = [
  "expect-test",
  "toml_test_utils",
