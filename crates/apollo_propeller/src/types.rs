@@ -21,11 +21,11 @@ pub enum Event {
         publisher: PeerId,
         error: ReconstructionError,
     },
-    /// Failed to send a shard to a peer.
-    ShardSendFailed { sent_from: Option<PeerId>, sent_to: Option<PeerId>, error: UnitPublishError },
-    /// Failed to verify shard
-    ShardValidationFailed {
-        /// The sender of the shard that filed verification. They should be reported.
+    /// Failed to send a unit to a peer.
+    UnitSendFailed { sent_from: Option<PeerId>, sent_to: Option<PeerId>, error: UnitPublishError },
+    /// Failed to verify unit.
+    UnitValidationFailed {
+        /// The sender of the unit that failed verification. They should be reported.
         sender: PeerId,
         claimed_root: MessageRoot,
         claimed_publisher: PeerId,
