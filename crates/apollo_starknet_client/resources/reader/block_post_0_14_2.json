@@ -1185,7 +1185,7 @@
             "actual_fee": "0x87077fd6af8a400"
         }
     ],
-    "starknet_version": "0.14.2",
+    "starknet_version": "0.14.3",
     "l2_gas_consumed": 988191555,
     "next_l2_gas_price": "0x1dcd65000"
 }

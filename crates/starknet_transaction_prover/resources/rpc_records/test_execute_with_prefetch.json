@@ -30,7 +30,7 @@
           "parent_hash": "0x5172a5354ac1402a5070817c2cd922be776529a42db43519de5b9e64f470331",
           "receipt_commitment": "0x0",
           "sequencer_address": "0x1176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8",
-          "starknet_version": "0.14.2",
+          "starknet_version": "0.14.3",
           "state_diff_commitment": "0xbbf3e6d4b17a34d5f754866feb02b08232f027edeb05b89de369fda230dbd0",
           "state_diff_length": 1,
           "status": "ACCEPTED_ON_L2",
