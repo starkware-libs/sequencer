@@ -14,7 +14,6 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
-use expect_test::{expect, Expect};
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
@@ -33,7 +32,6 @@ use starknet_api::core::{
     GlobalRoot,
     Nonce,
     OsChainInfo,
-    PatriciaKey,
 };
 use starknet_api::executable_transaction::{
     AccountTransaction,
@@ -79,6 +77,7 @@ use starknet_transaction_prover::running::committer_utils::{
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
+    calculate_strk_fee_token_address,
     create_default_initial_state_data,
     get_initial_deploy_account_tx,
     FlowTestState,
@@ -95,25 +94,10 @@ use crate::utils::{
     ExecutionOutput,
 };
 
-/// The STRK fee token address that was deployed when initializing the default initial state.
-/// The resulting address depends on the nonce of the deploying account - if extra init transactions
-/// are added to the initial state construction before the STRK fee token is deployed, the address
-/// must be updated.
-pub(crate) const EXPECTED_STRK_FEE_TOKEN_ADDRESS: Expect = expect![
-    r#"
-    0x1d9267d6952e9d1fc449d4b2f91b439b65b48365294b9c0731a9faf578e1b14
-"#
-];
 const SEQUENCER_ADDRESS_FELT: Felt = Felt::from_hex_unchecked(TEST_SEQUENCER_ADDRESS);
 
-pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
-    ContractAddress(
-        PatriciaKey::try_from(Felt::from_hex_unchecked(
-            EXPECTED_STRK_FEE_TOKEN_ADDRESS.data.trim(),
-        ))
-        .unwrap(),
-    )
-});
+pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> =
+    LazyLock::new(calculate_strk_fee_token_address);
 /// The address of a funded account that is able to pay fees for transactions.
 /// This address was initialized when creating the default initial state.
 pub(crate) static FUNDED_ACCOUNT_ADDRESS: LazyLock<ContractAddress> =
