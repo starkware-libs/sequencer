@@ -50,7 +50,7 @@ fn test_reconstruct_data_shards_success() {
     .unwrap();
     let message_root = units[0].root();
 
-    // Pick an arbitrary subset of shards (not just the first N).
+    // Pick an arbitrary subset of units (not just the first N).
     let received_indices: Vec<usize> = vec![1, 3, 5, 7, 9];
     let received_units: Vec<_> = received_indices.iter().map(|&i| units[i].clone()).collect();
 
