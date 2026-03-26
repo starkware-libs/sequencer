@@ -1,5 +1,6 @@
 pub mod contract_class;
 pub mod entry_point_execution;
+pub mod executor;
 #[cfg(feature = "with-libfunc-profiling")]
 pub mod profiling;
 pub mod syscall_handler;
