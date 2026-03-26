@@ -17,6 +17,7 @@ apollo_consensus_orchestrator_config.workspace = true
 apollo_http_server_config.workspace = true
 apollo_infra.workspace = true
 apollo_mempool_config.workspace = true
+paste.workspace = true
 apollo_metrics.workspace = true
 apollo_node_config.workspace = true
 apollo_staking_config.workspace = true
