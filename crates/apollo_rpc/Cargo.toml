@@ -7,7 +7,6 @@ license-file.workspace = true
 description = "JSON-RPC server implementation for Starknet API."
 
 [dependencies]
-alloy-primitives.workspace = true
 anyhow.workspace = true
 apollo_class_manager_types.workspace = true
 apollo_config.workspace = true

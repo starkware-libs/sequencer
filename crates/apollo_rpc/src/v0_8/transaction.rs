@@ -7,14 +7,13 @@ use std::num::NonZeroU64;
 use std::ops::Add;
 use std::sync::Arc;
 
-use alloy_primitives::keccak256;
 use apollo_rpc_execution::objects::PriceUnit;
 use apollo_starknet_client::writer::objects::transaction as client_transaction;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::db::TransactionKind;
 use apollo_storage::StorageTxn;
 use jsonrpsee::types::ErrorObjectOwned;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, BlockStatus};
 use starknet_api::core::{
     ClassHash,
@@ -26,7 +25,7 @@ use starknet_api::core::{
 };
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::serde_utils::bytes_from_hex_str;
+use starknet_api::hash::L1L2MsgHash;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -1196,92 +1195,6 @@ pub fn get_block_tx_hashes_by_number<Mode: TransactionKind>(
         .ok_or_else(|| ErrorObjectOwned::from(BLOCK_NOT_FOUND))?;
 
     Ok(transaction_hashes)
-}
-
-/// The hash of a L1 -> L2 message.
-// The hash is Keccak256, so it doesn't necessarily fit in a Felt.
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, PartialOrd, Ord)]
-pub struct L1L2MsgHash(pub [u8; 32]);
-
-impl std::fmt::Display for L1L2MsgHash {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "0x{}", hex::encode(self.0))
-    }
-}
-
-impl Serialize for L1L2MsgHash {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(format!("{self}").as_str())
-    }
-}
-
-impl<'de> Deserialize<'de> for L1L2MsgHash {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        Ok(Self(bytes_from_hex_str::<32, true>(s.as_str()).map_err(serde::de::Error::custom)?))
-    }
-}
-
-pub trait L1HandlerMsgHash {
-    fn calc_msg_hash(&self) -> L1L2MsgHash;
-}
-
-impl L1HandlerMsgHash for L1HandlerTransaction {
-    fn calc_msg_hash(&self) -> L1L2MsgHash {
-        l1_handler_message_hash(
-            &self.contract_address,
-            self.nonce,
-            &self.entry_point_selector,
-            &self.calldata,
-        )
-    }
-}
-
-impl L1HandlerMsgHash
-    for apollo_starknet_client::reader::objects::transaction::L1HandlerTransaction
-{
-    fn calc_msg_hash(&self) -> L1L2MsgHash {
-        l1_handler_message_hash(
-            &self.contract_address,
-            self.nonce,
-            &self.entry_point_selector,
-            &self.calldata,
-        )
-    }
-}
-
-/// Calculating the message hash of  L1 -> L2 message.
-/// `<For more info: https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/messaging-mechanism/#structure_and_hashing_l1-l2>`
-fn l1_handler_message_hash(
-    contract_address: &ContractAddress,
-    nonce: Nonce,
-    entry_point_selector: &EntryPointSelector,
-    calldata: &Calldata,
-) -> L1L2MsgHash {
-    let (from_address, payload) =
-        calldata.0.split_first().expect("Invalid calldata, expected at least from_address");
-
-    let mut encoded = Vec::new();
-    encoded.extend(from_address.to_bytes_be());
-    encoded.extend(contract_address.0.key().to_bytes_be());
-    encoded.extend(nonce.to_bytes_be());
-    encoded.extend(entry_point_selector.0.to_bytes_be());
-
-    let payload_length_as_felt =
-        Felt::from(u64::try_from(payload.len()).expect("usize should fit in u64"));
-    encoded.extend(payload_length_as_felt.to_bytes_be());
-
-    for felt in payload {
-        encoded.extend(felt.to_bytes_be());
-    }
-
-    L1L2MsgHash(keccak256(&encoded).0)
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
