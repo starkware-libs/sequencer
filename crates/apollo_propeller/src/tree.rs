@@ -8,7 +8,7 @@ use libp2p::identity::PeerId;
 use starknet_api::staking::StakingWeight;
 
 use crate::types::{CommitteeSetupError, ScheduleError, ShardIndex};
-use crate::ShardValidationError;
+use crate::UnitValidationError;
 
 // TODO(AndrewL): add the concept of shard_owner when naming
 
@@ -149,19 +149,19 @@ impl PropellerScheduleManager {
         sender: PeerId,
         stated_publisher: PeerId,
         stated_index: ShardIndex,
-    ) -> Result<(), ShardValidationError> {
+    ) -> Result<(), UnitValidationError> {
         let local_peer_id = self.get_local_peer_id();
         if local_peer_id == sender {
-            return Err(ShardValidationError::SelfSending);
+            return Err(UnitValidationError::SelfSending);
         }
 
         if stated_publisher == local_peer_id {
-            return Err(ShardValidationError::ReceivedSelfPublishedShard);
+            return Err(UnitValidationError::ReceivedSelfPublishedShard);
         }
 
         let expected_broadcaster_for_index = self
             .get_peer_for_shard_index(&stated_publisher, stated_index)
-            .map_err(ShardValidationError::ScheduleManagerError)?;
+            .map_err(UnitValidationError::ScheduleManagerError)?;
 
         if expected_broadcaster_for_index == local_peer_id && sender == stated_publisher {
             // I received my shard from the publisher
@@ -172,7 +172,7 @@ impl PropellerScheduleManager {
         }
         // TODO(AndrewL): Make sure that the returned error allows for
         // distinguishing between the two cases.
-        Err(ShardValidationError::UnexpectedSender {
+        Err(UnitValidationError::UnexpectedSender {
             expected_sender: expected_broadcaster_for_index,
             shard_index: stated_index,
         })

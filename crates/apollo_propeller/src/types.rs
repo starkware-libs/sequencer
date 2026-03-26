@@ -29,7 +29,7 @@ pub enum Event {
         sender: PeerId,
         claimed_root: MessageRoot,
         claimed_publisher: PeerId,
-        error: ShardValidationError,
+        error: UnitValidationError,
     },
     /// Message processing timed out before completion.
     MessageTimeout { committee_id: CommitteeId, publisher: PeerId, message_root: MessageRoot },
@@ -137,7 +137,7 @@ pub enum CommitteeSetupError {
 
 /// Specific errors that can occur during shard verification.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
-pub enum ShardValidationError {
+pub enum UnitValidationError {
     #[error("Self received a shard from myself (libp2p should not allow this)")]
     SelfSending,
     #[error("Publisher should not receive their own shard")]

@@ -14,7 +14,7 @@ use crate::types::{
     Event,
     MessageRoot,
     ReconstructionError,
-    ShardValidationError,
+    UnitValidationError,
     VerifiedFields,
 };
 use crate::unit::{PropellerUnit, ShardsOfPeer};
@@ -22,7 +22,7 @@ use crate::unit_validator::UnitValidator;
 use crate::{MerkleProof, ShardIndex};
 
 pub type UnitToValidate = (PeerId, PropellerUnit);
-type ValidationResult = (Result<(), ShardValidationError>, UnitValidator, PropellerUnit);
+type ValidationResult = (Result<(), UnitValidationError>, UnitValidator, PropellerUnit);
 type ReconstructionResult = Result<ReconstructionOutput, ReconstructionError>;
 
 #[derive(Debug)]
