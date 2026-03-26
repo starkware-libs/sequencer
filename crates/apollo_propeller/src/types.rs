@@ -111,6 +111,8 @@ pub enum ReconstructionError {
     UnequalShardLengths,
     #[error("The message was padded incorrectly by the publisher: {0}")]
     MessagePaddingError(UnpaddingError),
+    #[error("Unexpected shard count per unit (expected {expected}, got {actual})")]
+    UnexpectedShardCount { expected: usize, actual: usize },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
@@ -143,4 +145,11 @@ pub enum ShardValidationError {
     SignatureVerificationFailed(ShardSignatureVerificationError),
     #[error("Shard failed Merkle proof verification")]
     MerkleProofVerificationFailed,
+    #[error("Shards have inconsistent lengths")]
+    UnequalShardLengths,
+    #[error(
+        "Unexpected shard count per unit (expected {expected_shard_count}, got \
+         {actual_shard_count})"
+    )]
+    UnexpectedShardCount { expected_shard_count: usize, actual_shard_count: usize },
 }
