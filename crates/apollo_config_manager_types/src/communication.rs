@@ -6,7 +6,12 @@ use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
+use apollo_infra::component_definitions::{
+    ComponentChannelClient,
+    ComponentClient,
+    PrioritizedRequest,
+    RequestWrapper,
+};
 use apollo_infra::{
     handle_all_response_variants,
     impl_debug_for_infra_requests_and_responses,
@@ -32,7 +37,9 @@ pub type RemoteConfigManagerClient =
 pub type ConfigManagerClientResult<T> = Result<T, ConfigManagerClientError>;
 pub type ConfigManagerRequestWrapper = RequestWrapper<ConfigManagerRequest, ConfigManagerResponse>;
 pub type SharedConfigManagerClient = Arc<dyn ConfigManagerClient>;
+pub type SharedConfigManagerChannelClient = Arc<dyn ConfigManagerChannelClient>;
 
+// TODO(Arni): Deprecate this trait.
 #[cfg_attr(any(feature = "testing", test), mockall::automock)]
 #[async_trait]
 pub trait ConfigManagerClient: Send + Sync {
@@ -247,5 +254,78 @@ where
             ConfigManagerError,
             Direct
         )
+    }
+}
+
+#[cfg_attr(any(feature = "testing", test), mockall::automock)]
+pub trait ConfigManagerChannelClient: Send + Sync {
+    fn get_consensus_dynamic_config(&self) -> ConfigManagerClientResult<ConsensusDynamicConfig>;
+    fn get_class_manager_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<ClassManagerDynamicConfig>;
+    fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig>;
+    fn get_http_server_dynamic_config(&self) -> ConfigManagerClientResult<HttpServerDynamicConfig>;
+    fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig>;
+    fn get_batcher_dynamic_config(&self) -> ConfigManagerClientResult<BatcherDynamicConfig>;
+    fn get_state_sync_dynamic_config(&self) -> ConfigManagerClientResult<StateSyncDynamicConfig>;
+    fn get_staking_manager_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<StakingManagerDynamicConfig>;
+}
+
+impl<ComponentClientType> ConfigManagerChannelClient for ComponentClientType
+where
+    ComponentClientType: Send + Sync + ComponentChannelClient<NodeDynamicConfig>,
+{
+    fn get_consensus_dynamic_config(&self) -> ConfigManagerClientResult<ConsensusDynamicConfig> {
+        let info = self.get_info();
+        // TODO(Arni): Handle the None case.
+        Ok(info.consensus_dynamic_config.unwrap())
+    }
+
+    fn get_class_manager_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<ClassManagerDynamicConfig> {
+        let info = self.get_info();
+        // TODO(Arni): Handle the None case.
+        Ok(info.class_manager_dynamic_config.unwrap())
+    }
+
+    fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig> {
+        let info = self.get_info();
+        // TODO(Arni): Handle the None case.
+        Ok(info.context_dynamic_config.unwrap())
+    }
+
+    fn get_http_server_dynamic_config(&self) -> ConfigManagerClientResult<HttpServerDynamicConfig> {
+        let info = self.get_info();
+        // TODO(Arni): Handle the None case.
+        Ok(info.http_server_dynamic_config.unwrap())
+    }
+
+    fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig> {
+        let info = self.get_info();
+        // TODO(Arni): Handle the None case.
+        Ok(info.mempool_dynamic_config.unwrap())
+    }
+
+    fn get_batcher_dynamic_config(&self) -> ConfigManagerClientResult<BatcherDynamicConfig> {
+        let info = self.get_info();
+        // TODO(Arni): Handle the None case.
+        Ok(info.batcher_dynamic_config.unwrap())
+    }
+
+    fn get_state_sync_dynamic_config(&self) -> ConfigManagerClientResult<StateSyncDynamicConfig> {
+        let info = self.get_info();
+        // TODO(Arni): Handle the None case.
+        Ok(info.state_sync_dynamic_config.unwrap())
+    }
+
+    fn get_staking_manager_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<StakingManagerDynamicConfig> {
+        let info = self.get_info();
+        // TODO(Arni): Handle the None case.
+        Ok(info.staking_manager_dynamic_config.unwrap())
     }
 }

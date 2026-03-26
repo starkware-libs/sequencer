@@ -31,6 +31,13 @@ where
     async fn send(&self, request: Request) -> ClientResult<Response>;
 }
 
+pub trait ComponentChannelClient<InfoSource>
+where
+    InfoSource: Send + Sync + Clone,
+{
+    fn get_info(&self) -> InfoSource;
+}
+
 pub async fn default_component_start_fn<T: ComponentStarter + ?Sized>() {
     info!("Starting component {} with the default starter.", short_type_name::<T>());
 }
