@@ -1,6 +1,9 @@
 // Marker indicating SNOS (StarkNet OS) proof facts variant.
 const VIRTUAL_SNOS = 'VIRTUAL_SNOS';
 
+// Marker for testing hash change detection.
+const HASH_CHANGE_TEST = 'HASH_CHANGE_TEST_V1';
+
 // Marker indicating proof facts format version 0.
 const PROOF_VERSION = 'PROOF0';
 

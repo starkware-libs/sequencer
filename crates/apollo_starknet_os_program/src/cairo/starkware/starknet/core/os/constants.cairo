@@ -66,7 +66,7 @@ const STORED_BLOCK_HASH_BUFFER = 10;
 
 // Allowed virtual OS program hashes for client-side proving.
 const ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0 = (
-    0x03e98c2d7703b03a7edb73ed7f075f97f1dcbaa8f717cdf6e1a57bf058265473
+    0x0022c1e41f0a2173f8f47011fbfd37cca8f1ba63ae7983c8290c97c479f5760e
 );
 const ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN = 1;
 

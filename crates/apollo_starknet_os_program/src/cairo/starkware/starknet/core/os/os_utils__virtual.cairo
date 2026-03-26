@@ -7,6 +7,7 @@ from starkware.starknet.core.os.block_hash import get_block_hashes
 from starkware.starknet.core.os.output import MessageToL1Header, OsOutput, OsOutputHeader
 from starkware.starknet.core.os.state.commitment import CommitmentUpdate
 from starkware.starknet.core.os.virtual_os_output import (
+    HASH_CHANGE_TEST,
     VIRTUAL_OS_OUTPUT_VERSION,
     VirtualOsOutputHeader,
 )
@@ -79,6 +80,10 @@ func process_os_output{
 }(n_blocks: felt, os_outputs: OsOutput*, n_public_keys: felt, public_keys: felt*) {
     alloc_locals;
     assert n_public_keys = 0;
+
+    // Embed the version marker constant in the bytecode so changes to it change the program hash.
+    tempvar version_marker = HASH_CHANGE_TEST;
+    assert version_marker = HASH_CHANGE_TEST;
 
     // Part of the VIRTUAL_SNOS0 version contract. Changes must trigger a version bump.
     assert n_blocks = 1;
