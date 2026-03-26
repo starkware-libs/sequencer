@@ -96,6 +96,18 @@ impl Stream for Behaviour {
 // In case we have a bug when we return pending and then return an event.
 const TIMES_TO_CHECK_FOR_PENDING_EVENT: usize = 5;
 
+async fn expect_dial_from_peer(
+    behaviour: &mut Behaviour,
+    expected_peer_id: PeerId,
+) -> ConnectionId {
+    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
+    let ToSwarm::Dial { opts } = event else {
+        panic!("Expected Dial event");
+    };
+    assert_eq!(opts.get_peer_id(), Some(expected_peer_id));
+    opts.connection_id()
+}
+
 fn assert_no_event(behaviour: &mut Behaviour) {
     for _ in 0..TIMES_TO_CHECK_FOR_PENDING_EVENT {
         assert!(behaviour.next().now_or_never().is_none());
@@ -150,16 +162,12 @@ async fn discovery_redials_on_dial_failure(
         vec![(bootstrap_peer_id, bootstrap_peer_address.clone())],
     );
 
-    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
-    assert_matches!(
-        event,
-        ToSwarm::Dial{opts} if opts.get_peer_id() == Some(bootstrap_peer_id)
-    );
+    let dial_connection_id = expect_dial_from_peer(&mut behaviour, bootstrap_peer_id).await;
 
     behaviour.on_swarm_event(FromSwarm::DialFailure(DialFailure {
         peer_id: Some(bootstrap_peer_id),
         error: &DialError::Aborted,
-        connection_id: ConnectionId::new_unchecked(0),
+        connection_id: dial_connection_id,
     }));
 
     let event = check_event_happens_after_given_duration(
@@ -171,6 +179,34 @@ async fn discovery_redials_on_dial_failure(
         event,
         ToSwarm::Dial{opts} if opts.get_peer_id() == Some(bootstrap_peer_id)
     );
+}
+
+#[rstest::rstest]
+#[tokio::test]
+async fn discovery_ignores_dial_failure_from_other_connection_id(
+    #[values(CONFIG_WITH_LARGE_HEARTBEAT_AND_SMALL_BOOTSTRAP_SLEEP)] config: DiscoveryConfig,
+    bootstrap_peer_id: PeerId,
+    bootstrap_peer_address: Multiaddr,
+) {
+    let mut behaviour = Behaviour::new(
+        dummy_local_peer_id(),
+        config.clone(),
+        vec![(bootstrap_peer_id, bootstrap_peer_address.clone())],
+    );
+
+    let dial_connection_id = expect_dial_from_peer(&mut behaviour, bootstrap_peer_id).await;
+
+    // Send a dial failure with a different connection id — should be ignored.
+    let other_connection_id =
+        ConnectionId::new_unchecked(format!("{dial_connection_id}").parse::<usize>().unwrap() + 1);
+    behaviour.on_swarm_event(FromSwarm::DialFailure(DialFailure {
+        peer_id: Some(bootstrap_peer_id),
+        error: &DialError::Aborted,
+        connection_id: other_connection_id,
+    }));
+
+    // No retry should be scheduled since the failure was for a different connection.
+    assert_no_event(&mut behaviour);
 }
 
 #[rstest::rstest]
@@ -328,13 +364,13 @@ async fn discovery_performs_queries_even_if_not_connected_to_bootstrap_peer(
     );
 
     // Consume the initial dial event.
-    timeout(TIMEOUT, behaviour.next()).await.unwrap();
+    let dial_connection_id = expect_dial_from_peer(&mut behaviour, bootstrap_peer_id).await;
 
     // Simulate dial failure.
     behaviour.on_swarm_event(FromSwarm::DialFailure(DialFailure {
         peer_id: Some(bootstrap_peer_id),
         error: &DialError::Aborted,
-        connection_id: ConnectionId::new_unchecked(0),
+        connection_id: dial_connection_id,
     }));
 
     // Set a peer to request so the heartbeat has something to query.
@@ -386,17 +422,13 @@ async fn set_target_peers_cancels_dials_for_removed_peers(
     behaviour.kad_requesting.handle_kad_response(&[(peer_a, vec![peer_a_address])]);
 
     // Poll to trigger dial for peer_a.
-    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
-    assert_matches!(
-        event,
-        ToSwarm::Dial { opts } if opts.get_peer_id() == Some(peer_a)
-    );
+    let dial_connection_id = expect_dial_from_peer(&mut behaviour, peer_a).await;
 
     // Simulate dial failure — DialPeerStream schedules retry after some time.
     behaviour.on_swarm_event(FromSwarm::DialFailure(DialFailure {
         peer_id: Some(peer_a),
         error: &DialError::Aborted,
-        connection_id: ConnectionId::new_unchecked(0),
+        connection_id: dial_connection_id,
     }));
 
     // Remove peer_a from target set — this cancels its DialPeerStream.
@@ -426,17 +458,13 @@ async fn set_target_peers_does_not_cancel_bootstrap_dials(
     );
 
     // Consume the initial Dial event for bootstrap peer.
-    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
-    assert_matches!(
-        event,
-        ToSwarm::Dial { opts } if opts.get_peer_id() == Some(bootstrap_peer_id)
-    );
+    let dial_connection_id = expect_dial_from_peer(&mut behaviour, bootstrap_peer_id).await;
 
     // Simulate dial failure — DialPeerStream schedules retry after some time.
     behaviour.on_swarm_event(FromSwarm::DialFailure(DialFailure {
         peer_id: Some(bootstrap_peer_id),
         error: &DialError::Aborted,
-        connection_id: ConnectionId::new_unchecked(0),
+        connection_id: dial_connection_id,
     }));
 
     // Set empty target peers — bootstrap peer was never in the target set, so its dial persists.
@@ -473,17 +501,13 @@ async fn set_target_peers_cancels_bootstrap_dial_when_bootstrap_peer_overlaps_wi
     );
 
     // Consume the initial Dial event for bootstrap peer.
-    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
-    assert_matches!(
-        event,
-        ToSwarm::Dial { opts } if opts.get_peer_id() == Some(bootstrap_peer_id)
-    );
+    let dial_connection_id = expect_dial_from_peer(&mut behaviour, bootstrap_peer_id).await;
 
     // Simulate dial failure — DialPeerStream schedules retry after some time.
     behaviour.on_swarm_event(FromSwarm::DialFailure(DialFailure {
         peer_id: Some(bootstrap_peer_id),
         error: &DialError::Aborted,
-        connection_id: ConnectionId::new_unchecked(0),
+        connection_id: dial_connection_id,
     }));
 
     // Add bootstrap peer to the target set, then remove it.
