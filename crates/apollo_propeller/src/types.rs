@@ -138,22 +138,22 @@ pub enum CommitteeSetupError {
 /// Specific errors that can occur during unit verification.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum UnitValidationError {
-    #[error("Self received a shard from myself (libp2p should not allow this)")]
+    #[error("Self received a unit from myself (libp2p should not allow this)")]
     SelfSending,
-    #[error("Publisher should not receive their own shard")]
+    #[error("Publisher should not receive their own unit")]
     ReceivedSelfPublishedShard,
-    #[error("Received shard that is already in cache (duplicate)")]
+    #[error("Received unit that is already in cache (duplicate)")]
     DuplicateShard,
-    #[error("Received shard but error getting parent in tree topology: {0}")]
+    #[error("Received unit but error getting parent in tree topology: {0}")]
     ScheduleManagerError(ScheduleError),
     #[error(
-        "Shard failed parent verification (expected sender = {expected_sender}, shard index = \
+        "Unit failed parent verification (expected sender = {expected_sender}, shard index = \
          {shard_index:?})"
     )]
     UnexpectedSender { expected_sender: PeerId, shard_index: ShardIndex },
-    #[error("Shard failed signature verification: {0}")]
+    #[error("Unit failed signature verification: {0}")]
     SignatureVerificationFailed(SignatureVerificationError),
-    #[error("Shard failed Merkle proof verification")]
+    #[error("Unit failed Merkle proof verification")]
     MerkleProofVerificationFailed,
     #[error("Shards have inconsistent lengths")]
     UnequalShardLengths,
