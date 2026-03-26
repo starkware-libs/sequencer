@@ -20,6 +20,16 @@ JsonObject: TypeAlias = dict[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
+class L1OracleGasPrices:
+    """L1 base + blob fee components (wei + fri)"""
+
+    base_fee_wei: int
+    blob_fee_wei: int
+    base_fee_fri: int
+    blob_fee_fri: int
+
+
+@dataclass(frozen=True, slots=True)
 class SeverityConfig:
     """Tuning parameters for report/UI severity classification."""
 
