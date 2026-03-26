@@ -12,7 +12,7 @@ import flask  # pyright: ignore[reportMissingImports]
 import requests
 
 from echonet.constants import IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA
-from echonet.echonet_types import CONFIG, BlockDumpKind, JsonObject, TxType
+from echonet.echonet_types import CONFIG, BlockDumpKind, JsonObject, L1OracleGasPrices, TxType
 from echonet.feeder_client import FeederClient
 from echonet.helpers import format_hex
 from echonet.l1_logic.l1_manager import L1Manager
@@ -53,6 +53,28 @@ def _build_gcp_logs_context() -> dict[str, str]:
 
 def _total_l2_gas_consumed(receipt: JsonObject) -> int:
     return receipt["execution_resources"]["total_gas_consumed"]["l2_gas"]
+
+
+def _extract_gas_prices(fgw_block: JsonObject) -> L1OracleGasPrices:
+    """Extract L1 oracle gas prices from a feeder-gateway block."""
+    gas = fgw_block["l1_gas_price"]
+    data_gas = fgw_block["l1_data_gas_price"]
+    return L1OracleGasPrices(
+        base_fee_wei=int(gas["price_in_wei"], 16),
+        blob_fee_wei=int(data_gas["price_in_wei"], 16),
+        base_fee_fri=int(gas["price_in_fri"], 16),
+        blob_fee_fri=int(data_gas["price_in_fri"], 16),
+    )
+
+
+def _get_fgw_block_or_upstream(
+    feeder_client: FeederClient, shared_ctx: SharedContext, block_number: int
+) -> JsonObject:
+    """Prefer feeder block cached by the mainnet sender; otherwise fetch from the gateway."""
+    cached = shared_ctx.get_fgw_block(block_number)
+    if cached:
+        return cached
+    return feeder_client.get_block(block_number, with_fee_market_info=True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -354,20 +376,8 @@ class BlobTransformer:
         if block_number is None:
             block_number = self._chain.base_block_number
 
-        obj = self._shared.get_fgw_block(block_number)
-        if obj is None:
-            obj = self._feeder_client.get_block(block_number, with_fee_market_info=True)
+        obj = _get_fgw_block_or_upstream(self._feeder_client, self._shared, block_number)
         return dict(obj)
-
-    @staticmethod
-    def _extract_blob_block_meta(blob: JsonObject) -> JsonObject:
-        block_info = blob["state_diff"]["block_info"]
-        return {
-            "timestamp": int(block_info["block_timestamp"]),
-            "l1_gas_price": block_info["l1_gas_price"],
-            "l1_data_gas_price": block_info["l1_data_gas_price"],
-            "l2_gas_price": block_info["l2_gas_price"],
-        }
 
     def _resolve_parent_block_hash(self) -> str:
         latest_block_number = self._shared.get_latest_block_number()
@@ -581,11 +591,13 @@ class BlobTransformer:
         block_document["transaction_commitment"] = str(block_commitments["transaction_commitment"])
         block_document["l2_gas_consumed"] = blob["fee_market_info"]["l2_gas_consumed"]
         block_document["next_l2_gas_price"] = blob["fee_market_info"]["next_l2_gas_price"]
-        block_document["l1_da_mode"] = (
-            "BLOB" if blob["state_diff"]["block_info"]["use_kzg_da"] else "CALLDATA"
-        )
+        block_info = blob["state_diff"]["block_info"]
+        block_document["l1_da_mode"] = "BLOB" if block_info["use_kzg_da"] else "CALLDATA"
         block_document["state_diff_length"] = self._compute_state_diff_length(blob)
-        block_document.update(self._extract_blob_block_meta(blob))
+        block_document["timestamp"] = block_info["block_timestamp"]
+        block_document["l1_gas_price"] = block_info["l1_gas_price"]
+        block_document["l1_data_gas_price"] = block_info["l1_data_gas_price"]
+        block_document["l2_gas_price"] = block_info["l2_gas_price"]
 
         return block_document
 
@@ -655,6 +667,85 @@ class BlobTransformer:
         return revert_error_mappings
 
 
+class GasPriceManager:
+    """
+    Manages gas price state for echonet.
+
+    Stores per-timestamp gas prices for oracle lookups and keeps the L1 mock
+    target current so the L1 gas price scraper always sees up-to-date prices.
+    """
+
+    def __init__(
+        self,
+        feeder_client: FeederClient,
+        shared_ctx: SharedContext,
+        l1_manager: L1Manager,
+        logger: logging.Logger,
+    ) -> None:
+        self._feeder_client = feeder_client
+        self._shared = shared_ctx
+        self._l1_manager = l1_manager
+        self._logger = logger
+
+    def initialize(self, start_block: int) -> None:
+        """Fetch gas prices for start_block+1 and set the initial L1 mock target."""
+        fgw_block = _get_fgw_block_or_upstream(self._feeder_client, self._shared, start_block + 1)
+        self.apply_from_block(fgw_block)
+
+    def apply_from_block(self, fgw_block: JsonObject, for_block: int = 0) -> None:
+        """Extract gas prices from a feeder-gateway block and store by timestamp."""
+        if for_block > 0:
+            if not self._shared.try_advance_gas_prices_set_for_block(for_block):
+                self._logger.info(
+                    f"apply_from_block: skipping stale update for_block={for_block}"
+                )
+                return
+
+        prices = _extract_gas_prices(fgw_block)
+        timestamp = fgw_block["timestamp"]
+        self._shared.set_gas_price_for_timestamp(timestamp, prices)
+        self._l1_manager.set_gas_price_target(
+            prices.base_fee_wei, prices.blob_fee_wei, l2_timestamp=timestamp
+        )
+        self._logger.info(
+            f"Gas prices set for_block={for_block} timestamp={timestamp}: "
+            f"base_fee_wei={prices.base_fee_wei} blob_fee_wei={prices.blob_fee_wei} "
+            f"base_fee_fri={prices.base_fee_fri} blob_fee_fri={prices.blob_fee_fri}"
+        )
+
+    def update_for_next_block(self, committed_block_number: int) -> None:
+        """Pre-fetch gas prices for committed_block_number+1 and update the L1 mock target."""
+        next_block = committed_block_number + 1
+        fgw_block = _get_fgw_block_or_upstream(self._feeder_client, self._shared, next_block)
+        self.apply_from_block(fgw_block, for_block=next_block)
+
+    def log_comparison(self, blob: JsonObject, block_number: int) -> None:
+        """Compare gas prices in the echonet blob against mainnet for the same block number."""
+        mainnet_block = _get_fgw_block_or_upstream(self._feeder_client, self._shared, block_number)
+
+        blob_block_info = blob["state_diff"]["block_info"]
+        fields = [
+            ("l1_gas", "l1_gas_price"),
+            ("l1_data_gas", "l1_data_gas_price"),
+            ("l2_gas", "l2_gas_price"),
+        ]
+        diffs = []
+        for label, key in fields:
+            blob_price = blob_block_info[key]
+            mainnet_price = mainnet_block[key]
+            for unit in ("price_in_wei", "price_in_fri"):
+                blob_val = int(blob_price[unit], 16)
+                mainnet_val = int(mainnet_price[unit], 16)
+                if blob_val != mainnet_val:
+                    diffs.append(
+                        f"{label}.{unit}: echonet={blob_val} mainnet={mainnet_val} diff={blob_val - mainnet_val:+}"
+                    )
+        if diffs:
+            self._logger.warning(f"gas_price_mismatch block={block_number}: " + ", ".join(diffs))
+        else:
+            self._logger.info(f"gas_price_match block={block_number}: all prices match mainnet")
+
+
 class EchoCenterService:
     """
     Encapsulates the core logic and state for the Echo Center.
@@ -689,6 +780,16 @@ class EchoCenterService:
             custom_fields=self._bootstrap.custom_fields,
             logger_obj=self.logger,
         )
+
+        self._last_pre_confirmed_block_seen: Optional[int] = None
+
+        self._gas_price_mgr = GasPriceManager(
+            feeder_client=self.feeder_client,
+            shared_ctx=self.shared,
+            l1_manager=self.l1_manager,
+            logger=self.logger,
+        )
+        self._gas_price_mgr.initialize(CONFIG.blocks.start_block)
 
     def _check_l2_gas_mismatches(self, stored_block: JsonObject, echo_block_number: int) -> None:
         txs = stored_block.get("transactions", [])
@@ -789,11 +890,19 @@ class EchoCenterService:
         )
 
         self._update_tx_tracking_and_reverts(blob, block_number)
+        self._gas_price_mgr.log_comparison(blob, block_number)
+        self._gas_price_mgr.update_for_next_block(block_number)
+        self.shared.pop_gas_price_for_timestamp(blob["state_diff"]["block_info"]["block_timestamp"])
 
         return self._empty_response(requests.codes.ok)
 
     def handle_write_pre_confirmed_block(self) -> flask.Response:
         self.flask_logger.debug("Received pre-confirmed block")
+        body = flask.request.get_json(silent=True) or {}
+        block_number = body.get("block_number")
+        if block_number is not None and block_number != self._last_pre_confirmed_block_seen:
+            self._last_pre_confirmed_block_seen = block_number
+            self._gas_price_mgr.update_for_next_block(block_number)
         return self._empty_response(requests.codes.ok)
 
     def handle_report_snapshot(self) -> flask.Response:
