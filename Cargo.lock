@@ -1289,6 +1289,7 @@ dependencies = [
  "apollo_state_sync_config",
  "async-trait",
  "mockall",
+ "paste",
  "serde",
  "strum",
  "thiserror 1.0.69",
