@@ -23,6 +23,14 @@ IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA = (
     "0x10398fe631af9ab2311840432d507bf7ef4b959ae967f1507928f5afe888a99"
 )
 
+# Fallback virtual L1 block number when no real L1 blocks are stored.
+# Must be above bpo2_start_block_number (9504747) so the BPO2 blob fee formula applies.
+DEFAULT_L1_BLOCK_NUMBER = 22_000_000
+# BPO2 blob fee formula parameters (alloy-eips eip7892).
+BPO2_UPDATE_FRACTION = 11_684_671
+# Upper bound on excessBlobGas for binary search (far above any realistic target fee).
+MAX_EXCESS_BLOB_GAS_SEARCH = BPO2_UPDATE_FRACTION * 200
+
 # ---------------------------------------------------------------------------
 # Echonet config file locations / names
 # ---------------------------------------------------------------------------

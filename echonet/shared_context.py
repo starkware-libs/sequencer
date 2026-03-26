@@ -730,4 +730,6 @@ def get_shared_context() -> "SharedContext":
 shared = get_shared_context()
 
 _l1_client = L1Client(api_key=CONFIG.l1.l1_provider_api_key)
-l1_manager: L1Manager = L1Manager(_l1_client, shared.get_last_proved_block_callback)
+l1_manager: L1Manager = L1Manager(
+    _l1_client, shared.get_last_proved_block_callback, shared.get_last_block
+)
