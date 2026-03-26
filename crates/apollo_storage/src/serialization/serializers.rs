@@ -1293,7 +1293,6 @@ auto_storage_serde_conditionally_compressed! {
     pub struct DeclareTransactionOutput {
         pub actual_fee: Fee,
         pub messages_sent: Vec<MessageToL1>,
-        pub events: Vec<Event>,
         pub execution_status: TransactionExecutionStatus,
         pub execution_resources: ExecutionResources,
     }
@@ -1301,7 +1300,6 @@ auto_storage_serde_conditionally_compressed! {
     pub struct DeployAccountTransactionOutput {
         pub actual_fee: Fee,
         pub messages_sent: Vec<MessageToL1>,
-        pub events: Vec<Event>,
         pub contract_address: ContractAddress,
         pub execution_status: TransactionExecutionStatus,
         pub execution_resources: ExecutionResources,
@@ -1310,7 +1308,6 @@ auto_storage_serde_conditionally_compressed! {
     pub struct DeployTransactionOutput {
         pub actual_fee: Fee,
         pub messages_sent: Vec<MessageToL1>,
-        pub events: Vec<Event>,
         pub contract_address: ContractAddress,
         pub execution_status: TransactionExecutionStatus,
         pub execution_resources: ExecutionResources,
@@ -1319,7 +1316,6 @@ auto_storage_serde_conditionally_compressed! {
     pub struct InvokeTransactionOutput {
         pub actual_fee: Fee,
         pub messages_sent: Vec<MessageToL1>,
-        pub events: Vec<Event>,
         pub execution_status: TransactionExecutionStatus,
         pub execution_resources: ExecutionResources,
     }
@@ -1327,7 +1323,6 @@ auto_storage_serde_conditionally_compressed! {
     pub struct L1HandlerTransactionOutput {
         pub actual_fee: Fee,
         pub messages_sent: Vec<MessageToL1>,
-        pub events: Vec<Event>,
         pub execution_status: TransactionExecutionStatus,
         pub execution_resources: ExecutionResources,
     }

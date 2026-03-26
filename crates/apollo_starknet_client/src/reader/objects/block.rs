@@ -351,9 +351,10 @@ impl Block {
 
         let (transactions, transaction_receipts) = self.get_body();
 
-        // Get the transaction outputs and execution statuses.
+        // Get the transaction outputs, events, and execution statuses.
         let mut transaction_outputs = vec![];
         let mut transaction_hashes = vec![];
+        let mut transaction_events = vec![];
         for (i, receipt) in transaction_receipts.into_iter().enumerate() {
             let transaction = transactions.index(i);
 
@@ -398,6 +399,7 @@ impl Block {
             }
 
             transaction_hashes.push(receipt.transaction_hash);
+            transaction_events.push(receipt.events.clone());
             let tx_output = receipt.into_starknet_api_transaction_output(transaction);
             transaction_outputs.push(tx_output);
         }
@@ -415,6 +417,7 @@ impl Block {
             transactions,
             transaction_outputs,
             transaction_hashes,
+            transaction_events,
         };
 
         Ok(starknet_api_block { header, body })

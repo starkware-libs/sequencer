@@ -30,7 +30,7 @@ use crate::execution_resources::GasAmount;
 use crate::hash::StarkHash;
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
 use crate::transaction::fields::Fee;
-use crate::transaction::{Transaction, TransactionHash, TransactionOutput};
+use crate::transaction::{Event, Transaction, TransactionHash, TransactionOutput};
 use crate::StarknetApiError;
 
 // These prices are in WEI. If we don't set them high enough the gas price when converted
@@ -249,6 +249,8 @@ pub struct BlockBody {
     pub transactions: Vec<Transaction>,
     pub transaction_outputs: Vec<TransactionOutput>,
     pub transaction_hashes: Vec<TransactionHash>,
+    /// Events emitted by each transaction, indexed by transaction offset in the block.
+    pub transaction_events: Vec<Vec<Event>>,
 }
 
 /// The status of a [Block](`crate::block::Block`).
