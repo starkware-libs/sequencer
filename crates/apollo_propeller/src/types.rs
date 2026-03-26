@@ -44,9 +44,9 @@ pub struct ShardIndex(pub u64);
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
 pub struct MessageRoot(pub MerkleHash);
 
-/// Errors that can occur when verifying a shard signature.
+/// Errors that can occur when verifying a unit signature.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
-pub enum ShardSignatureVerificationError {
+pub enum SignatureVerificationError {
     #[error(
         "We could not find a public key for signer/publisher {0}. This suggests that the public \
          key cannot be extracted form the peer ID and needs to be provided explicitly."
@@ -142,7 +142,7 @@ pub enum UnitValidationError {
     )]
     UnexpectedSender { expected_sender: PeerId, shard_index: ShardIndex },
     #[error("Shard failed signature verification: {0}")]
-    SignatureVerificationFailed(ShardSignatureVerificationError),
+    SignatureVerificationFailed(SignatureVerificationError),
     #[error("Shard failed Merkle proof verification")]
     MerkleProofVerificationFailed,
     #[error("Shards have inconsistent lengths")]
