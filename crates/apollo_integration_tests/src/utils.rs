@@ -476,7 +476,13 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
 }
 
 // Creates a local recorder server that always returns a success status.
-pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
+// `initial_block_number` is returned by the `get_latest_received_block` endpoint so the
+// consensus orchestrator treats the genesis block as already recorded and skips the first
+// blob write (which would fail because there is no in-memory blob for the genesis block).
+pub fn spawn_success_recorder(
+    socket_address: SocketAddr,
+    initial_block_number: u64,
+) -> JoinHandle<()> {
     tokio::spawn(async move {
         let router = Router::new()
             .route(
@@ -501,10 +507,10 @@ pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
             )
             .route(
                 RECORDER_GET_LATEST_RECEIVED_BLOCK_PATH,
-                get(|| {
-                    async {
+                get(move || {
+                    async move {
                         debug!("Received a request for get_latest_received_block.");
-                        Json(serde_json::json!({ "block_number": 0 }))
+                        Json(serde_json::json!({ "block_number": initial_block_number }))
                     }
                     .instrument(tracing::debug_span!("success recorder get_latest_received_block"))
                 }),
@@ -514,10 +520,10 @@ pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
     })
 }
 
-pub fn spawn_local_success_recorder(port: u16) -> (Url, JoinHandle<()>) {
+pub fn spawn_local_success_recorder(port: u16, initial_block_number: u64) -> (Url, JoinHandle<()>) {
     let socket_address = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
     let url = Url::parse(&format!("http://{socket_address}")).unwrap();
-    let join_handle = spawn_success_recorder(socket_address);
+    let join_handle = spawn_success_recorder(socket_address, initial_block_number);
     (url, join_handle)
 }
 
