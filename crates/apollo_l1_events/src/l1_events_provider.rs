@@ -234,7 +234,13 @@ impl L1EventsProvider {
                 );
                 debug!(
                     "Returned L1Handler txs: {:?}",
-                    txs.iter().map(|tx| tx.tx_hash).collect::<Vec<_>>()
+                    txs.iter()
+                        .map(|tx| format!(
+                            "L2 tx hash: {}, L1-L2 msg hash: {}",
+                            tx.tx_hash,
+                            tx.tx.calc_msg_hash()
+                        ))
+                        .collect::<Vec<_>>()
                 );
                 Ok(txs)
             }
