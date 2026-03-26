@@ -148,15 +148,16 @@ async fn discovery_redials_on_dial_failure(
     );
 
     let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
-    assert_matches!(
-        event,
-        ToSwarm::Dial{opts} if opts.get_peer_id() == Some(bootstrap_peer_id)
-    );
+    let ToSwarm::Dial { opts } = event else {
+        panic!("Expected Dial event");
+    };
+    assert_eq!(opts.get_peer_id(), Some(bootstrap_peer_id));
+    let dial_connection_id = opts.connection_id();
 
     behaviour.on_swarm_event(FromSwarm::DialFailure(DialFailure {
         peer_id: Some(bootstrap_peer_id),
         error: &DialError::Aborted,
-        connection_id: ConnectionId::new_unchecked(0),
+        connection_id: dial_connection_id,
     }));
 
     let event = check_event_happens_after_given_duration(
@@ -325,13 +326,17 @@ async fn discovery_performs_queries_even_if_not_connected_to_bootstrap_peer(
     );
 
     // Consume the initial dial event.
-    timeout(TIMEOUT, behaviour.next()).await.unwrap();
+    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
+    let ToSwarm::Dial { opts } = event else {
+        panic!("Expected Dial event");
+    };
+    let dial_connection_id = opts.connection_id();
 
     // Simulate dial failure.
     behaviour.on_swarm_event(FromSwarm::DialFailure(DialFailure {
         peer_id: Some(bootstrap_peer_id),
         error: &DialError::Aborted,
-        connection_id: ConnectionId::new_unchecked(0),
+        connection_id: dial_connection_id,
     }));
 
     // Set a peer to request so the heartbeat has something to query.
