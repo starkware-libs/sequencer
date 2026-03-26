@@ -56,9 +56,9 @@ class StatefulSetConstruct(BaseConstruct):
         return k8s.StatefulSetUpdateStrategy(type=strategy_type)
 
     def _create_statefulset(self) -> k8s.KubeStatefulSet:
-        # Merge StatefulSet labels with common labels
+        # Merge StatefulSet labels with common labels, ensuring common labels take precedence
         statefulset_labels = (
-            {**self.labels, **self.service_config.statefulSet.labels}
+            {**self.service_config.statefulSet.labels, **self.labels}
             if self.service_config.statefulSet and self.service_config.statefulSet.labels
             else self.labels
         )
