@@ -33,6 +33,7 @@ pub type ConfigManagerClientResult<T> = Result<T, ConfigManagerClientError>;
 pub type ConfigManagerRequestWrapper = RequestWrapper<ConfigManagerRequest, ConfigManagerResponse>;
 pub type SharedConfigManagerClient = Arc<dyn ConfigManagerClient>;
 
+// TODO(Arni): Deprecate this trait.
 #[cfg_attr(any(feature = "testing", test), mockall::automock)]
 #[async_trait]
 pub trait ConfigManagerClient: Send + Sync {
