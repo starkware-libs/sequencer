@@ -31,10 +31,17 @@ impl BlockData for (BlockBody, BlockNumber) {
         _class_manager_client: &'a mut SharedClassManagerClient,
     ) -> BoxFuture<'a, Result<(), P2pSyncClientError>> {
         async move {
+            let mut this = self;
             let num_txs =
-                self.0.transactions.len().try_into().expect("Failed to convert usize to u64");
-            storage_writer.begin_rw_txn()?.append_body(self.1, self.0)?.commit()?;
-            STATE_SYNC_BODY_MARKER.set_lossy(self.1.unchecked_next().0);
+                this.0.transactions.len().try_into().expect("Failed to convert usize to u64");
+            let block_number = this.1;
+            let transaction_events = std::mem::take(&mut this.0.transaction_events);
+            storage_writer
+                .begin_rw_txn()?
+                .append_body(block_number, this.0)?
+                .append_events(block_number, &transaction_events)?
+                .commit()?;
+            STATE_SYNC_BODY_MARKER.set_lossy(this.1.unchecked_next().0);
             STATE_SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
             Ok(())
         }
@@ -118,6 +125,7 @@ impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
             })
             .take(num_transactions)
             .collect::<Vec<_>>(),
+            transaction_events: vec![vec![]; num_transactions],
         };
         (block_body, block_number)
     }
