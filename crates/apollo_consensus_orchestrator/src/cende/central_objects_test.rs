@@ -589,6 +589,7 @@ fn build_call_info(include_opcodes: bool) -> CallInfo {
             (SyscallSelector::StorageWrite, SyscallUsage { call_count: 4, linear_factor: 0 }),
             (SyscallSelector::EmitEvent, SyscallUsage { call_count: 2, linear_factor: 0 }),
         ]),
+        ..Default::default()
     }
 }
 
