@@ -22,9 +22,9 @@ use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 /// with exponential backoff on failure.
 ///
 /// Each peer gets its own [`DialPeerStream`] that drives the dial lifecycle.
-/// Streams terminate once a connection is established. This behaviour does not
-/// re-dial peers after disconnection — callers must call
-/// [`request_dial`](Self::request_dial) again if reconnection is desired.
+/// Streams enter a cooldown after a connection is established; if a redial is
+/// requested during cooldown the stream resumes with accumulated backoff,
+/// otherwise it terminates once the connection stabilizes.
 pub struct DialingBehaviour {
     retry_config: RetryConfig,
     peers: SelectAll<DialPeerStream>,
@@ -38,11 +38,17 @@ impl DialingBehaviour {
 
     /// Request dialing a peer at the given addresses.
     ///
-    /// Creates a new [`DialPeerStream`] for the peer. If a stream for this peer already
-    /// exists (pending or in-progress), it is cancelled and replaced.
+    /// Creates a new [`DialPeerStream`] for the peer. If an active stream already exists, updates
+    /// its addresses and requests a redial.
     pub fn request_dial(&mut self, peer_id: PeerId, addresses: Vec<Multiaddr>) {
-        self.cancel_dial(&peer_id);
-        self.peers.push(DialPeerStream::new(&self.retry_config, peer_id, addresses));
+        let active_stream =
+            self.peers.iter_mut().find(|s| *s.peer_id() == peer_id && !s.is_cancelled());
+        match active_stream {
+            None => {
+                self.peers.push(DialPeerStream::new(&self.retry_config, peer_id, addresses));
+            }
+            Some(stream) => stream.request_redial(addresses),
+        }
         if let Some(waker) = self.waker.take() {
             waker.wake();
         }
