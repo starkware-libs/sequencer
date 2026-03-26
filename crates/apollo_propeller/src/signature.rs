@@ -5,7 +5,7 @@
 
 use libp2p::identity::{Keypair, PeerId, PublicKey};
 
-use crate::types::{MessageRoot, ShardSignatureVerificationError, UnitPublishError};
+use crate::types::{MessageRoot, SignatureVerificationError, UnitPublishError};
 
 // TODO(AndrewL): Consider removing these (consult gossipsub code )
 pub const SIGNING_PREFIX: &[u8] = b"<propeller>";
@@ -27,13 +27,13 @@ pub fn verify_message_id_signature(
     message_id: &MessageRoot,
     signature: &[u8],
     public_key: &PublicKey,
-) -> Result<(), ShardSignatureVerificationError> {
+) -> Result<(), SignatureVerificationError> {
     if signature.is_empty() {
-        return Err(ShardSignatureVerificationError::VerificationFailed);
+        return Err(SignatureVerificationError::VerificationFailed);
     }
     let msg = [SIGNING_PREFIX, &message_id.0, SIGNING_POSTFIX].concat();
     let signature_valid = public_key.verify(&msg, signature);
-    if signature_valid { Ok(()) } else { Err(ShardSignatureVerificationError::VerificationFailed) }
+    if signature_valid { Ok(()) } else { Err(SignatureVerificationError::VerificationFailed) }
 }
 
 pub fn try_extract_public_key_from_peer_id(peer_id: &PeerId) -> Option<PublicKey> {
