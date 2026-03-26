@@ -49,7 +49,7 @@ pub struct MessageRoot(pub MerkleHash);
 pub enum SignatureVerificationError {
     #[error(
         "We could not find a public key for signer/publisher {0}. This suggests that the public \
-         key cannot be extracted form the peer ID and needs to be provided explicitly."
+         key cannot be extracted from the peer ID and needs to be provided explicitly."
     )]
     NoPublicKeyAvailable(PeerId),
     #[error("Received a unit with an invalid signature. Sender should be reported...")]
