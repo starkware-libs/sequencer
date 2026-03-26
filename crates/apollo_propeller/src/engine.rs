@@ -333,7 +333,7 @@ impl Engine {
     /// Handle a send error from the handler.
     fn handle_send_error(&mut self, peer_id: PeerId, error: String) {
         // TODO(AndrewL): Consider a re-try mechanism.
-        self.emit_event(Event::ShardSendFailed {
+        self.emit_event(Event::UnitSendFailed {
             sent_from: None,
             sent_to: Some(peer_id),
             error: UnitPublishError::HandlerError(error),
@@ -349,7 +349,7 @@ impl Engine {
     // TODO(AndrewL): consider working with ConnectionId instead of PeerId here.
     fn emit_handler_event(&mut self, peer_id: PeerId, event: HandlerIn) {
         if !self.connected_peers.contains(&peer_id) {
-            self.emit_event(Event::ShardSendFailed {
+            self.emit_event(Event::UnitSendFailed {
                 sent_from: None,
                 sent_to: Some(peer_id),
                 error: UnitPublishError::NotConnectedToPeer(peer_id),
