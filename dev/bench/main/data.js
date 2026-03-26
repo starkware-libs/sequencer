@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774524939125,
+  "lastUpdate": 1774530827934,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1019,6 +1019,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1366.2586846,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1b9b0f2c299bbd72b8788cf42b231ae3413dae22",
+          "message": "starknet_api: add version 0.14.3 (#13472)\n\nSigned-off-by: Dori Medini <dori@starkware.co>",
+          "timestamp": "2026-03-26T12:50:39Z",
+          "tree_id": "2459e37aaf73569846b80468f818a8ca767b358e",
+          "url": "https://github.com/starkware-libs/sequencer/commit/1b9b0f2c299bbd72b8788cf42b231ae3413dae22"
+        },
+        "date": 1774530815330,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 880.5008638200001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1403.24041723,
             "unit": "ms"
           }
         ]
