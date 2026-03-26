@@ -119,7 +119,7 @@ fn unit(env: &TestEnv, owner: PeerId) -> PropellerUnit {
 fn test_validation_of_legal_unit() {
     let mut env = build_env(1);
     let unit = unit(&env, env.local_peer);
-    env.validator.validate_shard(env.publisher, &unit).unwrap();
+    env.validator.validate_unit(env.publisher, &unit).unwrap();
 }
 
 #[rstest]
@@ -127,7 +127,7 @@ fn test_validation_fails_with_wrong_signature() {
     let mut env = build_env(1);
     let unit = custom_unit(&env, env.local_peer, true);
     assert!(matches!(
-        env.validator.validate_shard(env.publisher, &unit),
+        env.validator.validate_unit(env.publisher, &unit),
         Err(ShardValidationError::SignatureVerificationFailed(
             ShardSignatureVerificationError::VerificationFailed
         ))
@@ -138,9 +138,9 @@ fn test_validation_fails_with_wrong_signature() {
 fn test_duplicate_shard_rejected() {
     let mut env = build_env(1);
     let unit = unit(&env, env.local_peer);
-    env.validator.validate_shard(env.publisher, &unit).unwrap();
+    env.validator.validate_unit(env.publisher, &unit).unwrap();
     assert!(matches!(
-        env.validator.validate_shard(env.publisher, &unit),
+        env.validator.validate_unit(env.publisher, &unit),
         Err(ShardValidationError::DuplicateShard)
     ));
 }
@@ -198,7 +198,7 @@ fn test_unit_source_validation(
     let mut env = build_env(1);
     let my_unit = unit(&env, owner.id(&env));
     let sender_id = sender.id(&env);
-    let result = env.validator.validate_shard(sender_id, &my_unit);
+    let result = env.validator.validate_unit(sender_id, &my_unit);
     let hop1 = (sender == Sender::Publisher) && (owner == UnitOwner::LocalPeer);
     let hop2_a = (sender == Sender::OtherPeer1) && (owner == UnitOwner::OtherPeer1);
     let hop2_b = (sender == Sender::OtherPeer2) && (owner == UnitOwner::OtherPeer2);
@@ -215,7 +215,7 @@ fn test_tampered_proof_fails_verification() {
     let mut unit = unit(&env, env.local_peer);
     unit.shards_mut().0[0].0.push(42);
 
-    let result = env.validator.validate_shard(env.publisher, &unit);
+    let result = env.validator.validate_unit(env.publisher, &unit);
     result.unwrap_err();
 }
 
@@ -234,7 +234,7 @@ fn test_unexpected_shard_count_rejected() {
     let unit = unit(&env, env.local_peer);
 
     assert_eq!(
-        env.validator.validate_shard(env.publisher, &unit),
+        env.validator.validate_unit(env.publisher, &unit),
         Err(ShardValidationError::UnexpectedShardCount {
             expected_shard_count: 1,
             actual_shard_count: 2,
