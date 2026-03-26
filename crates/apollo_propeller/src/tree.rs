@@ -162,7 +162,7 @@ impl PropellerScheduleManager {
             .map_err(UnitValidationError::ScheduleManagerError)?;
 
         if expected_broadcaster_for_index == local_peer_id && sender == stated_publisher {
-            // I received my shard from the publisher
+            // I received my unit from the publisher
             return Ok(());
         }
         if sender == expected_broadcaster_for_index {
@@ -176,7 +176,7 @@ impl PropellerScheduleManager {
         })
     }
 
-    /// Create the initial broadcast list for message sharding.
+    /// Create the initial broadcast list for unit distribution.
     /// Returns a list of peer IDs for all peers except the publisher (local peer).
     pub fn make_broadcast_list(&self) -> Vec<PeerId> {
         let publisher = self.get_local_peer_id();
