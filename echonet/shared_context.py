@@ -13,6 +13,7 @@ from typing import ClassVar, Dict, List, Mapping, Optional, Sequence, Set
 from echonet.echonet_types import (
     CONFIG,
     JsonObject,
+    L1OracleGasPrices,
     ResyncTriggerMap,
     RevertErrorInfo,
     create_revert_error_info,
@@ -438,6 +439,7 @@ class SharedContext:
         self._blocks = _BlockStore.empty()
         self._progress = _ProgressMarkers.empty()
         self._epoch = 0
+        self._gas_prices_by_timestamp: Dict[int, L1OracleGasPrices] = {}
 
     def get_uptime_seconds(self) -> int:
         return int(time.monotonic() - self._started_at_monotonic)
@@ -569,6 +571,15 @@ class SharedContext:
                 blob_total_gas_l2=blob_total_gas_l2,
                 fgw_total_gas_consumed_l2=fgw_total_gas_consumed_l2,
             )
+
+    # --- Oracle gas prices (by Starknet block timestamp) ---
+    def set_gas_price_for_timestamp(self, timestamp: int, prices: L1OracleGasPrices) -> None:
+        with self._lock:
+            self._gas_prices_by_timestamp[timestamp] = prices
+
+    def pop_gas_price_for_timestamp(self, timestamp: int) -> Optional[L1OracleGasPrices]:
+        with self._lock:
+            return self._gas_prices_by_timestamp.pop(timestamp)
 
     # --- Block storage (echo_center output + raw FGW blocks) ---
     def store_block(
