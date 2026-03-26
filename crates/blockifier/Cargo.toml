@@ -16,6 +16,7 @@ cairo_native = [
   "dep:apollo_compile_to_native",
   "dep:cairo-native",
 ]
+sierra-emu = ["cairo_native", "dep:cairo-lang-sierra", "dep:sierra-emu"]
 benchmarking = []
 only-native = ["cairo_native"]
 with-libfunc-profiling = [
@@ -23,6 +24,7 @@ with-libfunc-profiling = [
   "cairo_native",
   "dep:cairo-lang-sierra",
 ]
+with-trace-dump = ["cairo-native/with-trace-dump", "cairo_native"]
 mocks = []
 native_blockifier = []
 node_api = []
@@ -53,6 +55,7 @@ cairo-lang-sierra = { workspace = true, optional = true }
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-native = { workspace = true, optional = true }
+sierra-emu = { workspace = true, optional = true }
 cairo-vm.workspace = true
 dashmap.workspace = true
 derive_more = { workspace = true, features = [
