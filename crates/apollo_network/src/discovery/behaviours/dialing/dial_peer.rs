@@ -17,6 +17,11 @@ use tracing::debug;
 
 use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 
+/// How long to keep a `DialPeerStream` alive after a connection is established. If a redial is
+/// requested within this window the stream reuses its accumulated backoff. If the timer expires
+/// the connection is considered stable and the stream terminates.
+const COOLDOWN: Duration = Duration::from_secs(2);
+
 /// A stream that drives a single peer's dial lifecycle with exponential backoff.
 ///
 /// The stream emits `ToSwarm::Dial` events and terminates (`None`) once a
@@ -34,9 +39,10 @@ enum DialState {
     PendingDial { sleeper: Pin<Box<Sleep>> },
     /// A dial attempt is in progress with the given connection id.
     Dialing(ConnectionId),
-    /// Terminal state - connection was established after the request, no guarantee if it's still
-    /// connected.
-    Done,
+    /// Connection established, waiting for cooldown to expire. If `request_redial` is called
+    /// before the timer fires the stream transitions back to `PendingDial` with accumulated
+    /// backoff. If the timer expires the stream terminates.
+    Cooldown { sleeper: Pin<Box<Sleep>> },
 }
 
 impl DialPeerStream {
@@ -54,9 +60,10 @@ impl DialPeerStream {
         &self.peer_id
     }
 
-    /// Mark this stream for termination. The next poll will return `None`.
+    /// Mark this stream for termination. The next poll will return `None` unless
+    /// `request_redial` is called before then (which transitions back to `PendingDial`).
     pub fn cancel(&mut self) {
-        self.state = DialState::Done;
+        self.state = DialState::Cooldown { sleeper: Self::create_sleeper(Duration::ZERO) };
         self.wake();
     }
 
@@ -65,7 +72,7 @@ impl DialPeerStream {
             FromSwarm::ConnectionEstablished(ConnectionEstablished { peer_id, .. })
                 if peer_id == self.peer_id =>
             {
-                self.state = DialState::Done;
+                self.state = DialState::Cooldown { sleeper: Self::create_sleeper(COOLDOWN) };
                 self.wake();
             }
             FromSwarm::DialFailure(DialFailure {
@@ -74,16 +81,31 @@ impl DialPeerStream {
                 if !matches!(self.state, DialState::Dialing(id) if id == connection_id) {
                     return;
                 }
-                let backoff = self
-                    .retry_strategy
-                    .next()
-                    .expect("A bounded ExponentialBackoff is an infinite iterator");
-                self.state = DialState::PendingDial { sleeper: Self::create_sleeper(backoff) };
-                debug!(?self.peer_id, ?backoff, "Dial failed, scheduling retry");
-                self.wake();
+                self.schedule_retry();
             }
             _ => {}
         }
+    }
+
+    /// Re-request dialing this peer with updated addresses. Only takes effect if the stream is in
+    /// `Cooldown` (i.e., a connection was previously established). The next dial will use the
+    /// accumulated backoff from the retry strategy.
+    pub fn request_redial(&mut self, addresses: Vec<Multiaddr>) {
+        self.addresses = addresses;
+        if !matches!(self.state, DialState::Cooldown { .. }) {
+            return;
+        }
+        self.schedule_retry();
+    }
+
+    fn schedule_retry(&mut self) {
+        let backoff = self
+            .retry_strategy
+            .next()
+            .expect("A bounded ExponentialBackoff is an infinite iterator");
+        self.state = DialState::PendingDial { sleeper: Self::create_sleeper(backoff) };
+        debug!(?self.peer_id, ?backoff, "Scheduling retry");
+        self.wake();
     }
 
     fn create_sleeper(delay: Duration) -> Pin<Box<Sleep>> {
@@ -117,10 +139,13 @@ impl Stream for DialPeerStream {
         self.waker = Some(cx.waker().clone());
 
         match &mut self.state {
-            DialState::Done => Poll::Ready(None),
             DialState::Dialing(_) => Poll::Pending,
             DialState::PendingDial { sleeper } => match sleeper.as_mut().poll(cx) {
                 Poll::Ready(()) => Poll::Ready(Some(self.emit_dial())),
+                Poll::Pending => Poll::Pending,
+            },
+            DialState::Cooldown { sleeper } => match sleeper.as_mut().poll(cx) {
+                Poll::Ready(()) => Poll::Ready(None),
                 Poll::Pending => Poll::Pending,
             },
         }
