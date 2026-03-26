@@ -243,7 +243,7 @@ impl Engine {
 
         // Track received unit.
         if let Some(metrics) = &self.metrics {
-            metrics.shards_received.increment(1);
+            metrics.units_received.increment(1);
         }
 
         // Check if committee is registered.
