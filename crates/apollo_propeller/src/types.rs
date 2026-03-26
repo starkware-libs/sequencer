@@ -62,7 +62,7 @@ pub enum SignatureVerificationError {
          key cannot be extracted form the peer ID and needs to be provided explicitly."
     )]
     NoPublicKeyAvailable(PeerId),
-    #[error("Received a shard with an invalid signature. Sender should be reported...")]
+    #[error("Received a unit with an invalid signature. Sender should be reported...")]
     VerificationFailed,
 }
 
