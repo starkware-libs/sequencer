@@ -38,11 +38,15 @@ impl DialingBehaviour {
 
     /// Request dialing a peer at the given addresses.
     ///
-    /// Creates a new [`DialPeerStream`] for the peer. If a stream for this peer already
-    /// exists (pending or in-progress), it is cancelled and replaced.
+    /// Creates a new [`DialPeerStream`] for the peer. If a stream already exists, requests a
+    /// redial on it (which only takes effect if the stream is in the connected state).
     pub fn request_dial(&mut self, peer_id: PeerId, addresses: Vec<Multiaddr>) {
-        self.cancel_dial(&peer_id);
-        self.peers.push(DialPeerStream::new(&self.retry_config, peer_id, addresses));
+        let existing = self.peers.iter_mut().find(|s| *s.peer_id() == peer_id);
+        if let Some(stream) = existing {
+            stream.request_redial(addresses);
+        } else {
+            self.peers.push(DialPeerStream::new(&self.retry_config, peer_id, addresses));
+        }
         if let Some(waker) = self.waker.take() {
             waker.wake();
         }
