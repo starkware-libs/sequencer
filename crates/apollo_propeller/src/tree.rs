@@ -16,9 +16,9 @@ use crate::UnitValidationError;
 /// - num_data_shards = floor((N-1)/3) where N is total number of nodes
 /// - num_data_shards represents both max faulty nodes AND number of data shards
 /// - Total shards = N-1 (num_data_shards data shards + (N-1-num_data_shards) coding shards)
-/// - Message is "built" when num_data_shards shards received (can reconstruct)
-/// - Message is "received" when 2*num_data_shards shards received (guarantees gossip property)
-/// - Each peer broadcasts received shards to all other peers (full mesh)
+/// - Message is "built" when num_data_shards units received (can reconstruct)
+/// - Message is "received" when 2*num_data_shards units received (guarantees gossip property)
+/// - Each peer broadcasts received units to all other peers (full mesh)
 #[derive(Debug, Clone)]
 pub struct PropellerScheduleManager {
     /// All nodes in the committee with their stake, sorted by peer_id
