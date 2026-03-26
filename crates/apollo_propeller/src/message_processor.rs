@@ -9,13 +9,13 @@ use tracing::{debug, error, trace};
 
 use crate::sharding::reconstruct_data_shards;
 use crate::tree::PropellerScheduleManager;
-use crate::types::{CommitteeId, Event, MessageRoot, ReconstructionError, ShardValidationError};
+use crate::types::{CommitteeId, Event, MessageRoot, ReconstructionError, UnitValidationError};
 use crate::unit::{PropellerUnit, ShardsOfPeer};
 use crate::unit_validator::UnitValidator;
 use crate::{MerkleProof, ShardIndex};
 
 pub type UnitToValidate = (PeerId, PropellerUnit);
-type ValidationResult = (Result<(), ShardValidationError>, UnitValidator, PropellerUnit);
+type ValidationResult = (Result<(), UnitValidationError>, UnitValidator, PropellerUnit);
 type ReconstructionResult = Result<ReconstructionOutput, ReconstructionError>;
 
 #[derive(Debug)]
