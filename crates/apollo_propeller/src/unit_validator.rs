@@ -4,7 +4,7 @@ use std::sync::Arc;
 use libp2p::identity::PublicKey;
 use libp2p::PeerId;
 
-use crate::types::{CommitteeId, ShardSignatureVerificationError, VerifiedFields};
+use crate::types::{CommitteeId, SignatureVerificationError, VerifiedFields};
 use crate::{
     signature,
     MessageRoot,
@@ -56,16 +56,13 @@ impl UnitValidator {
     /// This is a performance optimization to avoid verifying the signature if we have already
     /// verified the signature for this message. This optimization is possible because the publisher
     /// signs the merkle root of the message, which is shared by all units.
-    fn verify_signature(
-        &mut self,
-        unit: &PropellerUnit,
-    ) -> Result<(), ShardSignatureVerificationError> {
+    fn verify_signature(&mut self, unit: &PropellerUnit) -> Result<(), SignatureVerificationError> {
         if let Some(verified_fields) = &self.verified_fields {
             let VerifiedFields { signature, nonce } = verified_fields;
             return if signature == unit.signature() && *nonce == unit.nonce() {
                 Ok(())
             } else {
-                Err(ShardSignatureVerificationError::VerificationFailed)
+                Err(SignatureVerificationError::VerificationFailed)
             };
         }
 
