@@ -2,12 +2,18 @@ use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::sync::mpsc::{channel, Sender};
+use tokio::sync::watch::Receiver;
 use tokio::time::Instant;
 use tracing::field::{display, Empty};
 use tracing::instrument;
 
 use crate::component_client::ClientResult;
-use crate::component_definitions::{ComponentClient, RequestId, RequestWrapper};
+use crate::component_definitions::{
+    ComponentClient,
+    ComponentClientWithChannel,
+    RequestId,
+    RequestWrapper,
+};
 use crate::metrics::LocalClientMetrics;
 use crate::requests::LabeledRequest;
 
@@ -67,5 +73,33 @@ where
 {
     fn clone(&self) -> Self {
         Self { tx: self.tx.clone(), metrics: self.metrics }
+    }
+}
+
+#[derive(Clone)]
+pub struct LocalComponentClientWithChannel<InfoSource>
+where
+    InfoSource: Send + Sync + Clone,
+{
+    info_source_rx: Receiver<InfoSource>,
+}
+
+impl<InfoSource> LocalComponentClientWithChannel<InfoSource>
+where
+    InfoSource: Send + Sync + Clone,
+{
+    pub fn new(info_source_rx: Receiver<InfoSource>) -> Self {
+        Self { info_source_rx }
+    }
+}
+
+impl<InfoSource> ComponentClientWithChannel<InfoSource>
+    for LocalComponentClientWithChannel<InfoSource>
+where
+    InfoSource: Send + Sync + Clone,
+{
+    fn get_info(&self) -> InfoSource {
+        // `borrow()` returns a reference to the value owned by the channel, hence we clone it.
+        self.info_source_rx.borrow().clone()
     }
 }

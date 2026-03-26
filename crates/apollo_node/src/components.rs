@@ -79,6 +79,46 @@ pub async fn create_node_components(
     cli_args: Vec<String>,
 ) -> SequencerNodeComponents {
     info!("Creating node components.");
+
+    // Create the config manager and runner first, as the clients use the same dynamic_config_rx
+    // channel.
+    let (config_manager, config_manager_runner, dynamic_config_rx) =
+        match config.components.config_manager.execution_mode {
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
+                let node_dynamic_config = NodeDynamicConfig::from(config);
+                let config_manager_config = config
+                    .config_manager_config
+                    .as_ref()
+                    .expect("Config Manager config should be set");
+                // TODO(Arni): remove the config_manager.
+                let config_manger =
+                    ConfigManager::new(config_manager_config.clone(), node_dynamic_config.clone());
+                let (dynamic_config_tx, dynamic_config_rx) =
+                    watch::channel(node_dynamic_config.clone());
+                let config_manager_client = clients
+                    .get_config_manager_shared_client()
+                    .expect("Config Manager client should be available");
+
+                let config_manager_runner = ConfigManagerRunner::new(
+                    config_manager_config.clone(),
+                    config_manager_client,
+                    dynamic_config_tx,
+                    node_dynamic_config,
+                    cli_args,
+                );
+                (Some(config_manger), Some(config_manager_runner), Some(dynamic_config_rx))
+            }
+
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
+            | ReactiveComponentExecutionMode::Remote => {
+                panic!(
+                    "ConfigManager does not support remote mode - it's a local infrastructure \
+                     component"
+                );
+            }
+            ReactiveComponentExecutionMode::Disabled => (None, None, None),
+        };
+
     let batcher = match config.components.batcher.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -151,42 +191,6 @@ pub async fn create_node_components(
         ),
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
-
-    let (config_manager, config_manager_runner) =
-        match config.components.config_manager.execution_mode {
-            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
-                let node_dynamic_config = NodeDynamicConfig::from(config);
-                let config_manager_config = config
-                    .config_manager_config
-                    .as_ref()
-                    .expect("Config Manager config should be set");
-                // TODO(Arni): remove the config_manager.
-                let config_manger =
-                    ConfigManager::new(config_manager_config.clone(), node_dynamic_config.clone());
-                let (dynamic_config_tx, _dynamic_config_rx) =
-                    watch::channel(node_dynamic_config.clone());
-                let config_manager_client = clients
-                    .get_config_manager_shared_client()
-                    .expect("Config Manager client should be available");
-                let config_manager_runner = ConfigManagerRunner::new(
-                    config_manager_config.clone(),
-                    config_manager_client,
-                    dynamic_config_tx,
-                    node_dynamic_config,
-                    cli_args,
-                );
-                (Some(config_manger), Some(config_manager_runner))
-            }
-
-            ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
-            | ReactiveComponentExecutionMode::Remote => {
-                panic!(
-                    "ConfigManager does not support remote mode - it's a local infrastructure \
-                     component"
-                );
-            }
-            ReactiveComponentExecutionMode::Disabled => (None, None),
-        };
 
     let consensus_manager = match config.components.consensus_manager.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
