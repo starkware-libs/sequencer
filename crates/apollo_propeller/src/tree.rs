@@ -105,15 +105,15 @@ impl PropellerScheduleManager {
         unit_count >= 2 * self.num_data_shards
     }
 
-    /// Returns the peer responsible for broadcasting a specific shard.
+    /// Returns the peer responsible for broadcasting a specific unit.
     ///
-    /// In the Propeller protocol, each shard is assigned to a specific peer (excluding the
+    /// In the Propeller protocol, each unit is assigned to a specific peer (excluding the
     /// publisher). This method maps a shard index to its designated broadcaster.
     ///
     /// # Arguments
     ///
     /// * `publisher` - The peer ID of the node that published the original message
-    /// * `shard_index` - The index of the shard (0-based, ranges from 0 to total_shards-1)
+    /// * `shard_index` - The index of the unit (0-based, ranges from 0 to total_shards-1)
     pub fn get_peer_for_shard_index(
         &self,
         publisher: &PeerId,
