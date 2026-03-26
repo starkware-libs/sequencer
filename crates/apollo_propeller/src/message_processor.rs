@@ -298,7 +298,7 @@ impl MessageProcessor {
     }
 
     /// Offloads erasure-coding reconstruction to a blocking thread.
-    async fn reconstruct_blocking(&self, shards: Vec<PropellerUnit>) -> ReconstructionResult {
+    async fn reconstruct_blocking(&self, units: Vec<PropellerUnit>) -> ReconstructionResult {
         let message_root = self.message_root;
         let my_index: usize =
             self.my_shard_index.0.try_into().expect("Shard index could not be converted to usize");
@@ -308,7 +308,7 @@ impl MessageProcessor {
         // TODO(AndrewL): track task handle to abort the task if the timeout is reached or
         // finalization occurs.
         tokio::task::spawn_blocking(move || {
-            reconstruct_data_shards(shards, message_root, my_index, data_count, coding_count).map(
+            reconstruct_data_shards(units, message_root, my_index, data_count, coding_count).map(
                 |(message, my_shards, my_shard_proof)| ReconstructionOutput {
                     message,
                     my_shards,
