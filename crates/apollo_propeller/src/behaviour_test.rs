@@ -315,3 +315,52 @@ async fn test_post_reconstruction_shard_counting() {
     assert_eq!(recv_publisher, publisher_id);
     assert_eq!(recv_message, message);
 }
+
+/// Test that a reconstructed unit matches the original unit created by the publisher.
+///
+/// When a recipient receives its shard from the publisher, it reconstructs the message
+/// and gossips its shard to other peers. The gossiped unit should be identical to the
+/// original unit the publisher created (same signature, proof, shards, etc.).
+#[tokio::test]
+async fn test_reconstructed_unit_matches_original() {
+    // Setup: 4 nodes (1 publisher + 3 recipients)
+    let config = Config::default();
+    let mut env = TestEnv::new(4, config);
+    env.connect_all();
+    let committee_id = env.register_committee().await;
+
+    let peer_ids = env.peer_ids();
+    let publisher_id = peer_ids[0];
+    let recipient_id = peer_ids[1];
+
+    // Publisher broadcasts a message
+    let message = vec![42u8; 100];
+    env.node_mut(publisher_id)
+        .behaviour
+        .broadcast(committee_id, message.clone())
+        .await
+        .unwrap()
+        .unwrap();
+
+    // Collect initial shards from publisher (3 shards to 3 recipients)
+    let mut initial_shards = HashMap::new();
+    for _ in 0..3 {
+        let (peer, unit) = env.node_mut(publisher_id).expect_send_unit().await;
+        initial_shards.insert(peer, unit);
+    }
+
+    // Save the original unit designated for our test recipient
+    let original_unit = initial_shards.get(&recipient_id).unwrap().clone();
+
+    // Deliver recipient's own shard from publisher — triggers reconstruction
+    env.node_mut(recipient_id).receive_unit(publisher_id, original_unit.clone());
+
+    // Recipient gossips its reconstructed shard to the other 2 recipients
+    for _ in 0..2 {
+        let (_peer, reconstructed_unit) = env.node_mut(recipient_id).expect_send_unit().await;
+        assert_eq!(
+            reconstructed_unit, original_unit,
+            "Reconstructed unit should match the original unit from the publisher"
+        );
+    }
+}
