@@ -28,6 +28,7 @@ use reqwest::blocking::Client as BlockingClient;
 use serde::Serialize;
 use serde_json::{json, Value};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
@@ -312,11 +313,18 @@ impl RpcStateReader {
         Ok(vc)
     }
 
-    pub fn get_block_context(&self) -> ReexecutionResult<BlockContext> {
+    pub fn get_block_context(
+        &self,
+        min_sierra_version_for_sierra_gas: Option<SierraVersion>,
+    ) -> ReexecutionResult<BlockContext> {
+        let mut versioned_constants = self.get_versioned_constants()?;
+        if let Some(version) = min_sierra_version_for_sierra_gas {
+            versioned_constants.min_sierra_version_for_sierra_gas = version;
+        }
         Ok(BlockContext::new(
             self.get_block_info()?,
             self.chain_info.clone(),
-            self.get_versioned_constants()?,
+            versioned_constants,
             BouncerConfig::max(),
         ))
     }
@@ -543,6 +551,9 @@ pub struct ConsecutiveRpcStateReaders {
     pub last_block_state_reader: RpcStateReader,
     pub next_block_state_reader: RpcStateReader,
     contract_class_manager: ContractClassManager,
+    /// If set, overrides `min_sierra_version_for_sierra_gas` in the block context so that all
+    /// contracts with sierra version >= this value use sierra gas.
+    pub min_sierra_version_override: Option<SierraVersion>,
 }
 
 impl ConsecutiveRpcStateReaders {
@@ -568,6 +579,7 @@ impl ConsecutiveRpcStateReaders {
                 dump_mode,
             ),
             contract_class_manager,
+            min_sierra_version_override: None,
         }
     }
 
@@ -586,7 +598,7 @@ impl ConsecutiveRpcStateReaders {
 
     pub fn get_old_block_hash(&self) -> ReexecutionResult<BlockHash> {
         self.last_block_state_reader.get_old_block_hash(BlockNumber(
-            self.next_block_state_reader.get_block_context()?.block_info().block_number.0
+            self.next_block_state_reader.get_block_context(None)?.block_info().block_number.0
                 - constants::STORED_BLOCK_HASH_BUFFER,
         ))
     }
@@ -715,7 +727,7 @@ impl ConsecutiveReexecutionStateReaders<StateReaderAndContractManager<RpcStateRe
         transaction_executor_config: Option<TransactionExecutorConfig>,
     ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<RpcStateReader>>> {
         self.last_block_state_reader.get_transaction_executor(
-            self.next_block_state_reader.get_block_context()?,
+            self.next_block_state_reader.get_block_context(self.min_sierra_version_override)?,
             transaction_executor_config,
             &self.contract_class_manager,
         )
