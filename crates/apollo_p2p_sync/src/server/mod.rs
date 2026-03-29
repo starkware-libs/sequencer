@@ -18,6 +18,7 @@ use apollo_protobuf::sync::{
     StateDiffQuery,
     TransactionQuery,
 };
+use apollo_storage::body::events::EventsReader;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::class_manager::ClassManagerStorageReader;
 use apollo_storage::header::HeaderStorageReader;
@@ -346,7 +347,7 @@ impl FetchBlockData for (Event, TransactionHash) {
         txn: &StorageTxn<'_, db::RO>,
         _class_manager_client: &mut SharedClassManagerClient,
     ) -> Result<Vec<Self>, P2pSyncServerError> {
-        let transaction_outputs = txn.get_block_transaction_outputs(block_number)?.ok_or(
+        let transaction_events = txn.get_block_events_per_transaction(block_number)?.ok_or(
             P2pSyncServerError::BlockNotFound {
                 block_hash_or_number: BlockHashOrNumber::Number(block_number),
             },
@@ -358,11 +359,9 @@ impl FetchBlockData for (Event, TransactionHash) {
         )?;
 
         let mut result = Vec::new();
-        for (transaction_output, transaction_hash) in
-            transaction_outputs.into_iter().zip(transaction_hashes)
-        {
-            for event in transaction_output.events() {
-                result.push((event.clone(), transaction_hash));
+        for (events, transaction_hash) in transaction_events.into_iter().zip(transaction_hashes) {
+            for event in events {
+                result.push((event, transaction_hash));
             }
         }
         Ok(result)

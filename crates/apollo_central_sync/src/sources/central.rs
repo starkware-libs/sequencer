@@ -31,6 +31,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::crypto::utils::Signature;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::StateDiff;
+use starknet_api::transaction::Event;
 use starknet_api::StarknetApiError;
 use tracing::{debug, trace};
 
@@ -112,7 +113,7 @@ pub trait CentralSourceTrait {
 }
 
 pub(crate) type BlocksStream<'a> =
-    BoxStream<'a, Result<(BlockNumber, Block, BlockSignature), CentralError>>;
+    BoxStream<'a, Result<(BlockNumber, Block, Vec<Vec<Event>>, BlockSignature), CentralError>>;
 type CentralStateUpdate =
     (BlockNumber, BlockHash, StateDiff, IndexMap<ClassHash, DeprecatedContractClass>);
 pub(crate) type StateUpdatesStream<'a> = BoxStream<'a, CentralResult<CentralStateUpdate>>;
@@ -181,8 +182,8 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
                 let maybe_central_block =
                     client_to_central_block(current_block_number, maybe_client_block);
                 match maybe_central_block {
-                    Ok((block, signature)) => {
-                        yield Ok((current_block_number, block, signature));
+                    Ok((block, transaction_events, signature)) => {
+                        yield Ok((current_block_number, block, transaction_events, signature));
                     }
                     Err(err) => {
                         yield (Err(err));
@@ -315,7 +316,7 @@ fn client_to_central_block(
         ),
         ReaderClientError,
     >,
-) -> CentralResult<(Block, BlockSignature)> {
+) -> CentralResult<(Block, Vec<Vec<Event>>, BlockSignature)> {
     match maybe_client_block {
         Ok((Some(block), Some(signature_data))) => {
             debug!(
@@ -323,14 +324,18 @@ fn client_to_central_block(
                 block.block_hash().0
             );
             trace!("Block: {block:#?}, signature data: {signature_data:#?}.");
-            let block = block
+            let (block, transaction_events) = block
                 .to_starknet_api_block_and_version()
                 .map_err(|err| CentralError::ClientError(Arc::new(err)))?;
             let signature = match signature_data {
                 BlockSignatureData::Deprecated { signature, .. } => signature,
                 BlockSignatureData::V0_13_2 { signature, .. } => signature,
             };
-            Ok((block, BlockSignature(Signature { r: signature[0], s: signature[1] })))
+            Ok((
+                block,
+                transaction_events,
+                BlockSignature(Signature { r: signature[0], s: signature[1] }),
+            ))
         }
         Ok((None, Some(_))) => {
             debug!("Block {current_block_number} not found, but signature was found.");
