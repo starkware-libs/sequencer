@@ -1,5 +1,6 @@
 use libp2p::identity::Keypair;
 use libp2p::PeerId;
+use rstest::rstest;
 
 use crate::signature::{
     sign_message_id,
@@ -7,36 +8,36 @@ use crate::signature::{
     validate_public_key_matches_peer_id,
     verify_message_id_signature,
 };
-use crate::types::MessageRoot;
+use crate::types::{CommitteeId, MessageRoot};
 
-#[test]
-fn test_sign_and_verify_merkle_root() {
+const TEST_COMMITTEE_ID: CommitteeId = CommitteeId([1; 32]);
+const TEST_NONCE: u64 = 1_700_000_000_000_000_000;
+
+#[rstest]
+#[case::matching_params(MessageRoot([1; 32]), TEST_COMMITTEE_ID, TEST_NONCE, true)]
+#[case::wrong_root(MessageRoot([2; 32]), TEST_COMMITTEE_ID, TEST_NONCE, false)]
+#[case::wrong_committee_id(MessageRoot([1; 32]), CommitteeId([99; 32]), TEST_NONCE, false)]
+#[case::wrong_nonce(MessageRoot([1; 32]), TEST_COMMITTEE_ID, TEST_NONCE + 1, false)]
+fn test_sign_and_verify(
+    #[case] verify_root: MessageRoot,
+    #[case] verify_committee_id: CommitteeId,
+    #[case] verify_nonce: u64,
+    #[case] expect_valid: bool,
+) {
     let keypair = Keypair::generate_ed25519();
+    let sign_root = MessageRoot([1; 32]);
 
-    let merkle_root = MessageRoot([1; 32]);
-
-    // Sign the merkle root
-    let signature = sign_message_id(&merkle_root, &keypair).unwrap();
+    let signature = sign_message_id(&sign_root, TEST_COMMITTEE_ID, TEST_NONCE, &keypair).unwrap();
     assert!(!signature.is_empty());
 
-    // Verify the signature
-    let result = verify_message_id_signature(&merkle_root, &signature, &keypair.public());
-    assert!(result.is_ok());
-}
-
-#[test]
-fn test_sign_and_verify_fails_with_wrong_data() {
-    let keypair = Keypair::generate_ed25519();
-
-    let merkle_root = MessageRoot([1u8; 32]);
-    let different_root = MessageRoot([2u8; 32]);
-
-    // Sign the merkle root
-    let signature = sign_message_id(&merkle_root, &keypair).unwrap();
-
-    // Verify with different data should fail
-    let result = verify_message_id_signature(&different_root, &signature, &keypair.public());
-    assert!(result.is_err());
+    let result = verify_message_id_signature(
+        &verify_root,
+        verify_committee_id,
+        verify_nonce,
+        &signature,
+        &keypair.public(),
+    );
+    assert_eq!(result.is_ok(), expect_valid);
 }
 
 #[test]

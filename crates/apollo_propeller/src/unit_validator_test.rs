@@ -32,6 +32,7 @@ struct TestEnv {
     peer_to_index: HashMap<PeerId, ShardIndex>,
     shards_of_peer: ShardsOfPeer,
 }
+const TEST_NONCE: u64 = 1_700_000_000_000_000_000;
 
 fn make_shards(num_shards_per_peer: usize) -> ShardsOfPeer {
     let shards =
@@ -71,7 +72,8 @@ fn build_env(num_shards_per_peer: usize) -> TestEnv {
 
     let validator =
         UnitValidator::new(COMMITTEE, publisher, keypair.public(), message_root, schedule_manager);
-    let signature = crate::signature::sign_message_id(&message_root, &keypair).unwrap();
+    let signature =
+        crate::signature::sign_message_id(&message_root, COMMITTEE, TEST_NONCE, &keypair).unwrap();
 
     TestEnv {
         committee_id: COMMITTEE,
@@ -104,7 +106,7 @@ fn custom_unit(env: &TestEnv, owner: PeerId, tampered_signature: bool) -> Propel
         index,
         env.shards_of_peer.clone(),
         env.merkle_tree.prove(index.0.try_into().unwrap()).unwrap(),
-        0,
+        TEST_NONCE,
     )
 }
 
