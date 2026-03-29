@@ -33,7 +33,11 @@ use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_events_types::errors::{L1EventsProviderClientError, L1EventsProviderError};
 use apollo_l1_events_types::{MockL1EventsProviderClient, SessionState};
-use apollo_mempool_types::communication::{MempoolClientError, MockMempoolClient};
+use apollo_mempool_types::communication::{
+    MempoolClientError,
+    MockMempoolClient,
+    SharedMempoolClient,
+};
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::db::DbError;
@@ -256,6 +260,11 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
     clients: MockClients,
     config: BatcherConfig,
 ) -> Batcher {
+    let mempool_client: Option<SharedMempoolClient> = if config.static_config.validation_only {
+        None
+    } else {
+        Some(Arc::new(clients.mempool_client))
+    };
     let committer_client = Arc::new(clients.committer_client);
     let commitment_manager = CommitmentManager::create_commitment_manager(
         &config.static_config.commitment_manager_config,
@@ -275,7 +284,7 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
         storage_writer,
         committer_client,
         Arc::new(clients.l1_provider_client),
-        Arc::new(clients.mempool_client),
+        mempool_client,
         Arc::new(mock_config_manager),
         Box::new(clients.block_builder_factory),
         Box::new(clients.pre_confirmed_block_writer_factory),
@@ -289,6 +298,39 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
 
 fn abort_signal_sender() -> AbortSignalSender {
     tokio::sync::oneshot::channel().0
+}
+
+/// Calls `Batcher::new` with an explicit `mempool_client`, bypassing the auto-derivation in
+/// `create_batcher_impl`. Used to test the consistency assert in `Batcher::new`.
+async fn new_batcher_with_mempool_override(
+    deps: MockDependencies,
+    mempool_client: Option<SharedMempoolClient>,
+) {
+    let storage_reader = Arc::new(deps.storage_reader);
+    let committer_client = Arc::new(deps.clients.committer_client);
+    let commitment_manager = CommitmentManager::create_commitment_manager(
+        &deps.batcher_config.static_config.commitment_manager_config,
+        storage_reader.clone(),
+        committer_client.clone(),
+    )
+    .await;
+    let mut mock_config_manager = MockConfigManagerClient::new();
+    mock_config_manager
+        .expect_get_batcher_dynamic_config()
+        .returning(|| Ok(BatcherDynamicConfig::default()));
+    Batcher::new(
+        deps.batcher_config,
+        storage_reader,
+        Box::new(deps.storage_writer),
+        committer_client,
+        Arc::new(deps.clients.l1_provider_client),
+        mempool_client,
+        Arc::new(mock_config_manager),
+        Box::new(deps.clients.block_builder_factory),
+        Box::new(deps.clients.pre_confirmed_block_writer_factory),
+        commitment_manager,
+        tokio::spawn(async {}).abort_handle(),
+    );
 }
 
 async fn batcher_propose_and_commit_block(
@@ -1839,4 +1881,93 @@ async fn test_reversed_state_diff() {
         original_state_diff.nonces.clone(),
         reversed_state_diff.nonces,
     );
+}
+
+fn validation_only_mock_dependencies() -> MockDependencies {
+    let mut deps = MockDependencies::default();
+    deps.batcher_config.static_config.validation_only = true;
+    deps
+}
+
+#[tokio::test]
+async fn validation_only_propose_block_returns_not_supported() {
+    let mut batcher = create_batcher(validation_only_mock_dependencies()).await;
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+
+    let result = batcher.propose_block(propose_block_input(PROPOSAL_ID)).await;
+
+    assert_eq!(result, Err(BatcherError::ProposingNotSupported));
+}
+
+#[tokio::test]
+async fn validation_only_get_batch_timestamp_returns_not_supported() {
+    let batcher = create_batcher(validation_only_mock_dependencies()).await;
+
+    let result = batcher.get_batch_timestamp().await;
+
+    assert_eq!(result, Err(BatcherError::ProposingNotSupported));
+}
+
+#[tokio::test]
+async fn validation_only_validate_block_succeeds() {
+    let mut mock_deps = validation_only_mock_dependencies();
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+    mock_create_builder_for_validate_block(
+        &mut block_builder_factory,
+        Ok(BlockExecutionArtifacts::create_for_testing().await),
+    );
+    mock_deps.clients.block_builder_factory = block_builder_factory;
+    mock_deps.clients.l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
+
+    let mut batcher = create_batcher(mock_deps).await;
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+
+    batcher.validate_block(validate_block_input(PROPOSAL_ID)).await.unwrap();
+
+    let finish_proposal = FinishProposalInput {
+        proposal_id: PROPOSAL_ID,
+        final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
+    };
+    let result = batcher.finish_proposal(finish_proposal).await.unwrap();
+    assert_matches!(result, FinishProposalStatus::Finished(_));
+}
+
+#[tokio::test]
+async fn validation_only_decision_reached_skips_mempool_notification() {
+    let mut mock_deps = validation_only_mock_dependencies();
+
+    // The mempool_client on MockClients still exists but must not be called.
+    mock_deps.clients.mempool_client.checkpoint();
+
+    mock_deps.clients.l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
+    mock_deps.clients.l1_provider_client.expect_commit_block().times(1).returning(|_, _, _| Ok(()));
+    mock_deps.storage_writer.expect_commit_proposal().returning(|_, _, _| Ok(()));
+
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+    mock_create_builder_for_validate_block(
+        &mut block_builder_factory,
+        Ok(BlockExecutionArtifacts::create_for_testing().await),
+    );
+    mock_deps.clients.block_builder_factory = block_builder_factory;
+
+    let mut batcher = create_batcher(mock_deps).await;
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+    batcher.validate_block(validate_block_input(PROPOSAL_ID)).await.unwrap();
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
+
+    // decision_reached must succeed and not call mempool_client.commit_block.
+    batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
+}
+
+#[tokio::test]
+#[should_panic(expected = "validation_only=false but mempool_client is None")]
+async fn validation_only_flag_false_with_no_mempool_panics() {
+    new_batcher_with_mempool_override(MockDependencies::default(), None).await;
+}
+
+#[tokio::test]
+#[should_panic(expected = "validation_only=true but mempool_client is Some")]
+async fn validation_only_flag_true_with_mempool_panics() {
+    let mempool: Option<SharedMempoolClient> = Some(Arc::new(MockMempoolClient::new()));
+    new_batcher_with_mempool_override(validation_only_mock_dependencies(), mempool).await;
 }
