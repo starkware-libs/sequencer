@@ -279,7 +279,7 @@ pub async fn create_node_components(
             let config_manager_client = clients
                 .get_config_manager_shared_client()
                 .expect("Config Manager client should be available");
-            let _config_manager_channel_client = config_manager_channel_client
+            let config_manager_channel_client = config_manager_channel_client
                 .expect("Config Manager channel client should be available");
             let http_server_config =
                 config.http_server_config.as_ref().expect("HTTP Server config should be set");
@@ -289,6 +289,7 @@ pub async fn create_node_components(
             Some(create_http_server(
                 http_server_config.clone(),
                 config_manager_client,
+                config_manager_channel_client,
                 gateway_client,
             ))
         }
