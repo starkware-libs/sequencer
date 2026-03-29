@@ -64,9 +64,15 @@ pub struct PropellerUnit {
     index: ShardIndex,
     shards: ShardsOfPeer,
     proof: MerkleProof,
+    /// Any strictly increasing number.
+    /// Current implementation is nanoseconds since UNIX_EPOCH.
+    nonce: u64,
 }
 
 impl PropellerUnit {
+    // TODO(guyn): consider removing this constructor entirely and initializing the struct directly.
+    // Need fields to be public.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         committee_id: CommitteeId,
         publisher: PeerId,
@@ -75,8 +81,9 @@ impl PropellerUnit {
         index: ShardIndex,
         shards: ShardsOfPeer,
         proof: MerkleProof,
+        nonce: u64,
     ) -> Self {
-        Self { committee_id, root, publisher, signature, index, shards, proof }
+        Self { committee_id, root, publisher, signature, index, shards, proof, nonce }
     }
 
     pub fn committee_id(&self) -> CommitteeId {
@@ -109,6 +116,10 @@ impl PropellerUnit {
 
     pub fn root(&self) -> MessageRoot {
         self.root
+    }
+
+    pub fn nonce(&self) -> u64 {
+        self.nonce
     }
 
     pub fn validate_shard_count(
@@ -200,6 +211,7 @@ impl TryFrom<ProtoPropellerUnit> for PropellerUnit {
             index: ShardIndex(msg.index),
             shards: ShardsOfPeer::from(proto_shards),
             proof: merkle_proof.try_into()?,
+            nonce: msg.nonce,
         })
     }
 }
@@ -214,6 +226,7 @@ impl From<PropellerUnit> for ProtoPropellerUnit {
             publisher: Some(ProtoPeerId { id: msg.publisher.to_bytes() }),
             signature: msg.signature,
             committee_id: Some(ProtoHash256 { elements: msg.committee_id.0.to_vec() }),
+            nonce: msg.nonce,
         }
     }
 }

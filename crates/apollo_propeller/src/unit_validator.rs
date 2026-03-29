@@ -68,6 +68,7 @@ impl UnitValidator {
             };
         }
 
+        // TODO(guyn): check the nonce as well.
         let result = signature::verify_message_id_signature(
             &unit.root(),
             unit.signature(),

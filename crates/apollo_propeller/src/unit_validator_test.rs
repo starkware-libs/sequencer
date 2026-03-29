@@ -104,6 +104,7 @@ fn custom_unit(env: &TestEnv, owner: PeerId, tampered_signature: bool) -> Propel
         index,
         env.shards_of_peer.clone(),
         env.merkle_tree.prove(index.0.try_into().unwrap()).unwrap(),
+        0,
     )
 }
 

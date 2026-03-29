@@ -1080,10 +1080,13 @@ pub struct PropellerUnit {
     #[prost(bytes = "vec", tag = "6")]
     pub signature: ::prost::alloc::vec::Vec<u8>,
     /// Committee identifier for multiplexing different message streams.
-    ///
-    /// TODO(AndrewL): CRITICAL: protect against replay attacks (maybe using a timestamp)
     #[prost(message, optional, tag = "7")]
     pub committee_id: ::core::option::Option<Hash256>,
+    /// A strictly increasing number, to avoid replays.
+    /// Current implementation is nanoseconds since UNIX_EPOCH.
+    /// TODO(guyn): CRITICAL: protect against replay attacks using this timestamp
+    #[prost(uint64, tag = "8")]
+    pub nonce: u64,
 }
 /// A batch of PropellerUnits for efficient transmission.
 #[allow(clippy::derive_partial_eq_without_eq)]
