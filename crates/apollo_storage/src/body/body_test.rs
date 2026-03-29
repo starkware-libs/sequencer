@@ -2,7 +2,14 @@ use apollo_test_utils::{get_test_block, get_test_body};
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockBody, BlockNumber};
-use starknet_api::transaction::TransactionOffsetInBlock;
+use starknet_api::core::ContractAddress;
+use starknet_api::transaction::{
+    Event,
+    EventContent,
+    EventData,
+    TransactionOffsetInBlock,
+    TransactionOutput,
+};
 use test_case::test_case;
 
 use crate::body::{BodyStorageReader, BodyStorageWriter, TransactionIndex};
@@ -14,7 +21,7 @@ use crate::{MarkerKind, OffsetKind, StorageError, StorageScope, StorageWriter};
 #[tokio::test]
 async fn append_body() {
     let ((reader, mut writer), _temp_dir) = get_test_storage();
-    let body = get_test_block(10, None, None, None).body;
+    let body = get_test_block(10, None, None, None).0.body;
     let txs = body.transactions;
     let tx_outputs = body.transaction_outputs;
     let tx_hashes = body.transaction_hashes;
@@ -35,12 +42,17 @@ async fn append_body() {
         transaction_outputs: vec![tx_outputs[3].clone(), tx_outputs[0].clone()],
         transaction_hashes: vec![tx_hashes[3], tx_hashes[0]],
     };
+    let body0_events = vec![vec![]; body0.transaction_outputs.len()];
     writer
         .begin_rw_txn()
         .unwrap()
         .append_body(BlockNumber(0), body0)
         .unwrap()
+        .append_events(BlockNumber(0), &body0_events)
+        .unwrap()
         .append_body(BlockNumber(1), body1)
+        .unwrap()
+        .append_events(BlockNumber(1), &[])
         .unwrap()
         .commit()
         .unwrap();
@@ -55,7 +67,16 @@ async fn append_body() {
         StorageError::MarkerMismatch { marker_kind: MarkerKind::Body, expected, found }
     if expected == BlockNumber(2) && found == BlockNumber(5));
 
-    writer.begin_rw_txn().unwrap().append_body(BlockNumber(2), body2).unwrap().commit().unwrap();
+    let body2_events = vec![vec![]; body2.transaction_outputs.len()];
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_body(BlockNumber(2), body2)
+        .unwrap()
+        .append_events(BlockNumber(2), &body2_events)
+        .unwrap()
+        .commit()
+        .unwrap();
 
     let Err(err) = writer.begin_rw_txn().unwrap().append_body(BlockNumber(3), body3) else {
         panic!("Unexpected Ok.");
@@ -179,12 +200,15 @@ async fn append_body() {
 #[tokio::test]
 async fn append_body_state_only() {
     let ((reader, mut writer), _temp_dir) = get_test_storage_by_scope(StorageScope::StateOnly);
-    let block_body = get_test_block(1, Some(1), None, None).body;
+    let block_body = get_test_block(1, Some(1), None, None).0.body;
+    let block_body_events = vec![vec![]; block_body.transaction_outputs.len()];
 
     writer
         .begin_rw_txn()
         .unwrap()
         .append_body(BlockNumber(0), block_body)
+        .unwrap()
+        .append_events(BlockNumber(0), &block_body_events)
         .unwrap()
         .commit()
         .unwrap();
@@ -199,7 +223,13 @@ async fn append_body_state_only() {
 #[tokio::test]
 async fn revert_non_existing_body_fails(storage_scope: StorageScope) {
     let ((_, mut writer), _temp_dir) = get_test_storage_by_scope(storage_scope);
-    let (_, deleted_data) = writer.begin_rw_txn().unwrap().revert_body(BlockNumber(5)).unwrap();
+    let (_, deleted_data) = writer
+        .begin_rw_txn()
+        .unwrap()
+        .revert_events(BlockNumber(5))
+        .unwrap()
+        .revert_body(BlockNumber(5))
+        .unwrap();
     assert!(deleted_data.is_none());
 }
 
@@ -212,6 +242,8 @@ async fn revert_body_state_only(storage_scope: StorageScope) {
         .begin_rw_txn()
         .unwrap()
         .append_body(BlockNumber(0), BlockBody::default())
+        .unwrap()
+        .append_events(BlockNumber(0), &[])
         .unwrap()
         .commit()
         .unwrap();
@@ -231,7 +263,13 @@ async fn revert_body_state_only(storage_scope: StorageScope) {
 async fn revert_old_body_fails() {
     let ((_, mut writer), _temp_dir) = get_test_storage();
     append_2_bodies(&mut writer);
-    let (_, deleted_data) = writer.begin_rw_txn().unwrap().revert_body(BlockNumber(0)).unwrap();
+    let (_, deleted_data) = writer
+        .begin_rw_txn()
+        .unwrap()
+        .revert_events(BlockNumber(0))
+        .unwrap()
+        .revert_body(BlockNumber(0))
+        .unwrap();
     assert!(deleted_data.is_none());
 }
 
@@ -318,11 +356,14 @@ async fn get_reverted_body_returns_none() {
 #[tokio::test]
 async fn revert_transactions() {
     let ((reader, mut writer), _temp_dir) = get_test_storage();
-    let body = get_test_body(10, None, None, None);
+    let (body, _events) = get_test_body(10, None, None, None);
+    let body_events = vec![vec![]; body.transaction_outputs.len()];
     writer
         .begin_rw_txn()
         .unwrap()
         .append_body(BlockNumber(0), body.clone())
+        .unwrap()
+        .append_events(BlockNumber(0), &body_events)
         .unwrap()
         .commit()
         .unwrap();
@@ -418,7 +459,11 @@ fn append_2_bodies(writer: &mut StorageWriter) {
         .unwrap()
         .append_body(BlockNumber(0), BlockBody::default())
         .unwrap()
+        .append_events(BlockNumber(0), &[])
+        .unwrap()
         .append_body(BlockNumber(1), BlockBody::default())
+        .unwrap()
+        .append_events(BlockNumber(1), &[])
         .unwrap()
         .commit()
         .unwrap();
@@ -427,8 +472,17 @@ fn append_2_bodies(writer: &mut StorageWriter) {
 #[test]
 fn update_offset_table() {
     let ((reader, mut writer), _temp_dir) = get_test_storage();
-    let body = get_test_block(3, None, None, None).body;
-    writer.begin_rw_txn().unwrap().append_body(BlockNumber(0), body).unwrap().commit().unwrap();
+    let body = get_test_block(3, None, None, None).0.body;
+    let body_events = vec![vec![]; body.transaction_outputs.len()];
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_body(BlockNumber(0), body)
+        .unwrap()
+        .append_events(BlockNumber(0), &body_events)
+        .unwrap()
+        .commit()
+        .unwrap();
 
     let txn = reader.begin_ro_txn().unwrap();
     let file_offset_table = txn.txn.open_table(&txn.tables.file_offsets).unwrap();
@@ -446,4 +500,24 @@ fn update_offset_table() {
         last_tx_metadata.tx_output_location.next_offset(),
         file_offset_table.get(&txn.txn, &OffsetKind::TransactionOutput).unwrap().unwrap()
     );
+}
+
+pub fn generate_test_events(
+    num_transactions: usize,
+    events_per_tx: usize,
+    from_addresses: &[ContractAddress],
+) -> Vec<Vec<Event>> {
+    (0..num_transactions)
+        .map(|tx_i| {
+            (0..events_per_tx)
+                .map(|event_i| Event {
+                    from_address: from_addresses[event_i % from_addresses.len()],
+                    content: EventContent {
+                        data: EventData(vec![(tx_i * events_per_tx + event_i).into()]),
+                        ..Default::default()
+                    },
+                })
+                .collect()
+        })
+        .collect()
 }

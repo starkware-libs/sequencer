@@ -23,6 +23,7 @@ use tempfile::TempDir;
 
 use crate::base_layer::BaseLayerStorageReader;
 use crate::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
+use crate::body::events::EventsReader;
 use crate::body::{BodyStorageReader, BodyStorageWriter, TransactionIndex};
 use crate::class::{ClassStorageReader, ClassStorageWriter};
 use crate::class_hash::ClassHashStorageWriter;
@@ -148,7 +149,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
     };
 
     // Create a test block with transactions
-    let block = get_test_block(3, Some(1), None, None);
+    let (block, block_events) = get_test_block(3, Some(1), None, None);
     let tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(0));
     let block_signature = BlockSignature::default();
 
@@ -172,6 +173,8 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         .append_block_signature(block_number, &block_signature)
         .unwrap()
         .append_body(block_number, block.body)
+        .unwrap()
+        .append_events(block_number, &block_events)
         .unwrap()
         .set_executable_class_hash_v2(&class_hash, executable_class_hash_v2)
         .unwrap()
@@ -649,11 +652,10 @@ async fn events_request() {
         .reader
         .begin_ro_txn()
         .unwrap()
-        .get_transaction_output(setup.tx_index)
+        .get_transaction_events(setup.tx_index)
         .unwrap()
         .expect("Transaction output should exist");
-    let event_address =
-        tx_output.events().first().expect("Transaction should have events").from_address;
+    let event_address = tx_output.first().expect("Transaction should have events").from_address;
 
     let request = StorageReaderRequest::Events(event_address, setup.tx_index);
     let response: StorageReaderResponse = setup.get_success_response(&request).await;
