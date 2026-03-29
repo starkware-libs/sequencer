@@ -111,7 +111,6 @@ use starknet_api::transaction::{
     Transaction as StarknetApiTransaction,
     TransactionHash,
     TransactionOffsetInBlock,
-    TransactionOutput as StarknetApiTransactionOutput,
 };
 use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, storage_key, tx_hash};
 use starknet_types_core::felt::Felt;
@@ -400,12 +399,15 @@ async fn get_block_transaction_count() {
     >(None, None, Some(pending_data.clone()), None, None);
     let transaction_count = 5;
     let block = get_test_block(transaction_count, None, None, None);
+    let events = block.body.transaction_events.clone();
     storage_writer
         .begin_rw_txn()
         .unwrap()
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body)
+        .unwrap()
+        .append_events(block.header.block_header_without_hash.block_number, &events)
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -505,6 +507,11 @@ async fn get_block_w_full_transactions() {
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block.body.transaction_events,
+        )
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -692,6 +699,11 @@ async fn get_block_w_full_transactions_and_receipts() {
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block.body.transaction_events,
+        )
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -892,6 +904,11 @@ async fn get_block_w_transaction_hashes() {
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block.body.transaction_events,
+        )
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -1254,6 +1271,11 @@ async fn get_transaction_status() {
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block.body.transaction_events,
+        )
+        .unwrap()
         .commit()
         .unwrap();
 
@@ -1270,7 +1292,7 @@ async fn get_transaction_status() {
         starknet_api::transaction::TransactionOutput::L1Handler(_) => Some(L1L2MsgHash::default()),
         _ => None,
     };
-    let output = TransactionOutput::from((tx, transaction_version, msg_hash));
+    let output = TransactionOutput::from((tx, transaction_version, msg_hash, vec![]));
     let expected_status = TransactionStatus {
         finality_status: TransactionFinalityStatus::AcceptedOnL2,
         execution_status: output.execution_status().clone(),
@@ -1373,6 +1395,11 @@ async fn get_transaction_receipt() {
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block.body.transaction_events,
+        )
+        .unwrap()
         .commit()
         .unwrap();
 
@@ -1393,6 +1420,7 @@ async fn get_transaction_receipt() {
         block.body.transaction_outputs.index(0).clone(),
         transaction_version,
         msg_hash,
+        block.body.transaction_events.first().cloned().unwrap_or_default(),
     ));
     let expected_receipt = TransactionReceipt {
         finality_status: TransactionFinalityStatus::AcceptedOnL2,
@@ -2227,10 +2255,12 @@ fn generate_client_transaction_client_receipt_rpc_transaction_and_rpc_receipt(
             }
             _ => None,
         };
+        let events = client_transaction_receipt.events.clone();
         let maybe_output = PendingTransactionOutput::try_from(TransactionOutput::from((
             starknet_api_output,
             client_transaction.transaction_version(),
             msg_hash,
+            events,
         )));
         let Ok(output) = maybe_output else {
             continue;
@@ -2289,6 +2319,11 @@ async fn get_transaction_by_hash() {
         .begin_rw_txn()
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block.body.transaction_events,
+        )
         .unwrap()
         .commit()
         .unwrap();
@@ -2379,6 +2414,11 @@ async fn get_transaction_by_block_id_and_index() {
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block.body.transaction_events,
+        )
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -2829,16 +2869,9 @@ impl BlockMetadata {
             *transaction_hash = tx_hash!(rng.next_u64());
         }
 
-        for (output, event_metadatas_of_tx) in
-            block.body.transaction_outputs.iter_mut().zip(self.0.iter())
+        for (events, event_metadatas_of_tx) in
+            block.body.transaction_events.iter_mut().zip(self.0.iter())
         {
-            let events = match output {
-                StarknetApiTransactionOutput::Declare(transaction) => &mut transaction.events,
-                StarknetApiTransactionOutput::Deploy(transaction) => &mut transaction.events,
-                StarknetApiTransactionOutput::DeployAccount(transaction) => &mut transaction.events,
-                StarknetApiTransactionOutput::Invoke(transaction) => &mut transaction.events,
-                StarknetApiTransactionOutput::L1Handler(transaction) => &mut transaction.events,
-            };
             for event_metadata in event_metadatas_of_tx {
                 events.push(event_metadata.generate_event(rng));
             }
@@ -2905,14 +2938,14 @@ async fn test_get_events(
 
         parent_hash = block.header.block_hash;
 
-        for (i_transaction, (output, transaction_hash)) in block
+        for (i_transaction, (events, transaction_hash)) in block
             .body
-            .transaction_outputs
+            .transaction_events
             .iter()
             .zip(block.body.transaction_hashes.iter().cloned())
             .enumerate()
         {
-            for (i_event, event) in output.events().iter().cloned().enumerate() {
+            for (i_event, event) in events.iter().cloned().enumerate() {
                 event_index_to_event.insert(
                     EventIndex(
                         TransactionIndex(block_number, TransactionOffsetInBlock(i_transaction)),
@@ -2928,10 +2961,13 @@ async fn test_get_events(
             }
         }
 
+        let events = block.body.transaction_events.clone();
         rw_txn = rw_txn
             .append_header(block_number, &block.header)
             .unwrap()
             .append_body(block_number, block.body)
+            .unwrap()
+            .append_events(block_number, &events)
             .unwrap()
             .append_state_diff(
                 block.header.block_header_without_hash.block_number,
@@ -3464,6 +3500,8 @@ async fn get_events_invalid_ct() {
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body)
         .unwrap()
+        .append_events(block.header.block_header_without_hash.block_number, &[])
+        .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
             starknet_api::state::ThinStateDiff::default(),
@@ -3533,6 +3571,8 @@ async fn serialize_returns_valid_json() {
         .unwrap()
         .append_body(parent_block.header.block_header_without_hash.block_number, parent_block.body)
         .unwrap()
+        .append_events(parent_block.header.block_header_without_hash.block_number, &[])
+        .unwrap()
         .append_state_diff(
             parent_block.header.block_header_without_hash.block_number,
             starknet_api::state::ThinStateDiff::default(),
@@ -3543,6 +3583,11 @@ async fn serialize_returns_valid_json() {
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block.body.transaction_events,
+        )
         .unwrap()
         .append_state_diff(block.header.block_header_without_hash.block_number, thin_state_diff)
         .unwrap()
