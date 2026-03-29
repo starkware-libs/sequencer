@@ -69,14 +69,11 @@ impl From<TransactionOutput> for protobuf::Receipt {
     }
 }
 
-// The output will have an empty events vec
 impl TryFrom<protobuf::receipt::DeployAccount> for DeployAccountTransactionOutput {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::receipt::DeployAccount) -> Result<Self, Self::Error> {
         let (actual_fee, messages_sent, execution_status, execution_resources) =
             parse_common_receipt_fields(value.common)?;
-
-        let events = vec![];
 
         let contract_address =
             value.contract_address.ok_or(missing("DeployAccount::contract_address"))?;
@@ -91,7 +88,6 @@ impl TryFrom<protobuf::receipt::DeployAccount> for DeployAccountTransactionOutpu
         Ok(Self {
             actual_fee,
             messages_sent,
-            events,
             contract_address,
             execution_status,
             execution_resources,
@@ -117,14 +113,11 @@ impl From<DeployAccountTransactionOutput> for protobuf::receipt::DeployAccount {
     }
 }
 
-// The output will have an empty events vec
 impl TryFrom<protobuf::receipt::Deploy> for DeployTransactionOutput {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::receipt::Deploy) -> Result<Self, Self::Error> {
         let (actual_fee, messages_sent, execution_status, execution_resources) =
             parse_common_receipt_fields(value.common)?;
-
-        let events = vec![];
 
         let contract_address = value.contract_address.ok_or(missing("Deploy::contract_address"))?;
         let felt = Felt::try_from(contract_address)?;
@@ -138,7 +131,6 @@ impl TryFrom<protobuf::receipt::Deploy> for DeployTransactionOutput {
         Ok(Self {
             actual_fee,
             messages_sent,
-            events,
             contract_address,
             execution_status,
             execution_resources,
@@ -164,16 +156,13 @@ impl From<DeployTransactionOutput> for protobuf::receipt::Deploy {
     }
 }
 
-// The output will have an empty events vec
 impl TryFrom<protobuf::receipt::Declare> for DeclareTransactionOutput {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::receipt::Declare) -> Result<Self, Self::Error> {
         let (actual_fee, messages_sent, execution_status, execution_resources) =
             parse_common_receipt_fields(value.common)?;
 
-        let events = vec![];
-
-        Ok(Self { actual_fee, messages_sent, events, execution_status, execution_resources })
+        Ok(Self { actual_fee, messages_sent, execution_status, execution_resources })
     }
 }
 
@@ -192,16 +181,13 @@ impl From<DeclareTransactionOutput> for protobuf::receipt::Declare {
     }
 }
 
-// The output will have an empty events vec
 impl TryFrom<protobuf::receipt::Invoke> for InvokeTransactionOutput {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::receipt::Invoke) -> Result<Self, Self::Error> {
         let (actual_fee, messages_sent, execution_status, execution_resources) =
             parse_common_receipt_fields(value.common)?;
 
-        let events = vec![];
-
-        Ok(Self { actual_fee, messages_sent, events, execution_status, execution_resources })
+        Ok(Self { actual_fee, messages_sent, execution_status, execution_resources })
     }
 }
 
@@ -220,16 +206,13 @@ impl From<InvokeTransactionOutput> for protobuf::receipt::Invoke {
     }
 }
 
-// The output will have an empty events vec
 impl TryFrom<protobuf::receipt::L1Handler> for L1HandlerTransactionOutput {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::receipt::L1Handler) -> Result<Self, Self::Error> {
         let (actual_fee, messages_sent, execution_status, execution_resources) =
             parse_common_receipt_fields(value.common)?;
 
-        let events = vec![];
-
-        Ok(Self { actual_fee, messages_sent, events, execution_status, execution_resources })
+        Ok(Self { actual_fee, messages_sent, execution_status, execution_resources })
     }
 }
 

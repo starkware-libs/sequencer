@@ -832,6 +832,8 @@ async fn trace_block_transactions_regular_and_pending() {
             },
         )
         .unwrap()
+        .append_events(BlockNumber(3), &[vec![], vec![]])
+        .unwrap()
         .append_state_diff(
             BlockNumber(3),
             StarknetApiStateDiff {
@@ -1038,6 +1040,8 @@ async fn trace_block_transactions_and_trace_transaction_execution_context() {
                 transaction_hashes: vec![tx_hash1, tx_hash2],
             },
         )
+        .unwrap()
+        .append_events(BlockNumber(3), &[vec![], vec![]])
         .unwrap()
         .append_state_diff(
             BlockNumber(3),
@@ -1685,6 +1689,8 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
         .unwrap()
         .append_body(BlockNumber(0), BlockBody::default())
         .unwrap()
+        .append_events(BlockNumber(0), &[])
+        .unwrap()
         .append_state_diff(
             BlockNumber(0),
             StarknetApiStateDiff {
@@ -1748,6 +1754,8 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
         .unwrap()
         .append_body(BlockNumber(1), BlockBody::default())
         .unwrap()
+        .append_events(BlockNumber(1), &[])
+        .unwrap()
         .append_state_diff(BlockNumber(1), StarknetApiStateDiff::default())
         .unwrap()
         .append_classes(BlockNumber(1), &[], &[])
@@ -1770,6 +1778,8 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
         )
         .unwrap()
         .append_body(BlockNumber(2), BlockBody::default())
+        .unwrap()
+        .append_events(BlockNumber(2), &[])
         .unwrap()
         .append_state_diff(BlockNumber(2), StarknetApiStateDiff::default())
         .unwrap()
@@ -1800,6 +1810,8 @@ fn write_empty_block(mut storage_writer: StorageWriter) {
         )
         .unwrap()
         .append_body(BlockNumber(0), BlockBody::default())
+        .unwrap()
+        .append_events(BlockNumber(0), &[])
         .unwrap()
         .append_state_diff(BlockNumber(0), StarknetApiStateDiff::default())
         .unwrap()

@@ -175,6 +175,14 @@ where
     // TODO(yair): make this work without consuming the body.
     fn append_body(self, block_number: BlockNumber, block_body: BlockBody) -> StorageResult<Self>;
 
+    /// Appends events for a block to the storage. Each inner slice contains the events emitted by
+    /// the transaction at the corresponding offset.
+    fn append_events(
+        self,
+        block_number: BlockNumber,
+        events_per_transaction: &[Vec<Event>],
+    ) -> StorageResult<Self>;
+
     /// Removes a block body from the storage and returns the removed data.
     fn revert_body(
         self,
@@ -402,7 +410,6 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
     fn append_body(self, block_number: BlockNumber, block_body: BlockBody) -> StorageResult<Self> {
         let markers_table = self.open_table(&self.tables.markers)?;
         update_body_marker(&self.txn, &markers_table, block_number)?;
-        update_event_marker(&self.txn, &markers_table, block_number)?;
 
         if self.scope != StorageScope::StateOnly {
             let num_transactions = block_body.transactions.len();
@@ -419,9 +426,6 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                     ),
                 });
             }
-            let contract_address_events_index =
-                self.open_table(&self.tables.contract_address_events_index)?;
-            let transaction_events_table = self.open_table(&self.tables.transaction_events)?;
             let transaction_hash_to_idx_table =
                 self.open_table(&self.tables.transaction_hash_to_idx)?;
             let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
@@ -436,16 +440,31 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                 &transaction_metadata_table,
                 block_number,
             )?;
+        }
 
-            // TODO(mohammad): remove events from TransactionOutput and extract event writing
-            // into a separate append_events method. Then remove this block.
+        Ok(self)
+    }
+
+    fn append_events(
+        self,
+        block_number: BlockNumber,
+        events_per_transaction: &[Vec<Event>],
+    ) -> StorageResult<Self> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        update_event_marker(&self.txn, &markers_table, block_number)?;
+
+        if self.scope != StorageScope::StateOnly {
+            let contract_address_events_index =
+                self.open_table(&self.tables.contract_address_events_index)?;
+            let transaction_events_table = self.open_table(&self.tables.transaction_events)?;
+            let file_offset_table = self.txn.open_table(&self.tables.file_offsets)?;
+
             let mut last_events_location = None;
-            for (offset, tx_output) in block_body.transaction_outputs.iter().enumerate() {
+            for (offset, events) in events_per_transaction.iter().enumerate() {
                 let transaction_index =
                     TransactionIndex(block_number, TransactionOffsetInBlock(offset));
-                let events = tx_output.events();
                 write_events(events, &self.txn, &contract_address_events_index, transaction_index)?;
-                let events_location = self.file_handlers.append_events(&events.to_vec());
+                let events_location = self.file_handlers.append_events(events);
                 transaction_events_table.insert(&self.txn, &transaction_index, &events_location)?;
                 last_events_location = Some(events_location);
             }

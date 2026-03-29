@@ -1052,8 +1052,13 @@ impl TransactionOutput {
     }
 }
 
-impl From<(starknet_api::transaction::TransactionOutput, TransactionVersion, Option<L1L2MsgHash>)>
-    for TransactionOutput
+impl
+    From<(
+        starknet_api::transaction::TransactionOutput,
+        TransactionVersion,
+        Option<L1L2MsgHash>,
+        Vec<starknet_api::transaction::Event>,
+    )> for TransactionOutput
 {
     #[cfg_attr(coverage_nightly, coverage_attribute)]
     fn from(
@@ -1061,9 +1066,10 @@ impl From<(starknet_api::transaction::TransactionOutput, TransactionVersion, Opt
             starknet_api::transaction::TransactionOutput,
             TransactionVersion,
             Option<L1L2MsgHash>,
+            Vec<starknet_api::transaction::Event>,
         ),
     ) -> Self {
-        let (tx_output, tx_version, maybe_msg_hash) = tx_output_msg_hash;
+        let (tx_output, tx_version, maybe_msg_hash, events) = tx_output_msg_hash;
         // TODO(DanB): consider supporting match instead.
         let actual_fee = if tx_version == TransactionVersion::ZERO
             || tx_version == TransactionVersion::ONE
@@ -1080,7 +1086,7 @@ impl From<(starknet_api::transaction::TransactionOutput, TransactionVersion, Opt
                 TransactionOutput::Declare(DeclareTransactionOutput {
                     actual_fee,
                     messages_sent: declare_tx_output.messages_sent,
-                    events: declare_tx_output.events,
+                    events,
                     execution_status: declare_tx_output.execution_status,
                     execution_resources: declare_tx_output.execution_resources.into(),
                 })
@@ -1089,7 +1095,7 @@ impl From<(starknet_api::transaction::TransactionOutput, TransactionVersion, Opt
                 TransactionOutput::Deploy(DeployTransactionOutput {
                     actual_fee,
                     messages_sent: deploy_tx_output.messages_sent,
-                    events: deploy_tx_output.events,
+                    events,
                     contract_address: deploy_tx_output.contract_address,
                     execution_status: deploy_tx_output.execution_status,
                     execution_resources: deploy_tx_output.execution_resources.into(),
@@ -1099,7 +1105,7 @@ impl From<(starknet_api::transaction::TransactionOutput, TransactionVersion, Opt
                 TransactionOutput::DeployAccount(DeployAccountTransactionOutput {
                     actual_fee,
                     messages_sent: deploy_tx_output.messages_sent,
-                    events: deploy_tx_output.events,
+                    events,
                     contract_address: deploy_tx_output.contract_address,
                     execution_status: deploy_tx_output.execution_status,
                     execution_resources: deploy_tx_output.execution_resources.into(),
@@ -1109,7 +1115,7 @@ impl From<(starknet_api::transaction::TransactionOutput, TransactionVersion, Opt
                 TransactionOutput::Invoke(InvokeTransactionOutput {
                     actual_fee,
                     messages_sent: invoke_tx_output.messages_sent,
-                    events: invoke_tx_output.events,
+                    events,
                     execution_status: invoke_tx_output.execution_status,
                     execution_resources: invoke_tx_output.execution_resources.into(),
                 })
@@ -1118,7 +1124,7 @@ impl From<(starknet_api::transaction::TransactionOutput, TransactionVersion, Opt
                 TransactionOutput::L1Handler(L1HandlerTransactionOutput {
                     actual_fee,
                     messages_sent: l1_handler_tx_output.messages_sent,
-                    events: l1_handler_tx_output.events,
+                    events,
                     execution_status: l1_handler_tx_output.execution_status,
                     execution_resources: l1_handler_tx_output.execution_resources.into(),
                     message_hash: maybe_msg_hash

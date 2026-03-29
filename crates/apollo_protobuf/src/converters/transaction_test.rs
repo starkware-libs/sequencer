@@ -32,7 +32,6 @@ macro_rules! create_transaction_output {
         let mut rng = get_rng();
         let mut transaction_output = <$tx_output_type>::get_test_instance(&mut rng);
         transaction_output.execution_resources = EXECUTION_RESOURCES.clone();
-        transaction_output.events = vec![];
         TransactionOutput::$tx_output_enum_variant(transaction_output)
     }};
 }
