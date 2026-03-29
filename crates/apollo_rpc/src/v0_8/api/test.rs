@@ -100,7 +100,6 @@ use starknet_api::deprecated_contract_class::{
     FunctionAbiEntry,
     FunctionStateMutability,
 };
-use starknet_api::hash::{l1_handler_message_hash, L1L2MsgHash};
 use starknet_api::state::{SierraContractClass as StarknetApiContractClass, StateDiff};
 use starknet_api::transaction::{
     Event as StarknetApiEvent,
@@ -111,8 +110,8 @@ use starknet_api::transaction::{
     Transaction as StarknetApiTransaction,
     TransactionHash,
     TransactionOffsetInBlock,
-    TransactionOutput as StarknetApiTransactionOutput,
 };
+use starknet_api::hash::L1L2MsgHash;
 use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, storage_key, tx_hash};
 use starknet_types_core::felt::Felt;
 
@@ -257,7 +256,7 @@ async fn block_hash_and_number() {
     .await;
 
     // Add a block without state diff and check that there are still no blocks.
-    let block = get_test_block(1, None, None, None);
+    let (block, block_tx_events) = get_test_block(1, None, None, None);
     storage_writer
         .begin_rw_txn()
         .unwrap()
@@ -399,13 +398,16 @@ async fn get_block_transaction_count() {
         JsonRpcServerImpl,
     >(None, None, Some(pending_data.clone()), None, None);
     let transaction_count = 5;
-    let block = get_test_block(transaction_count, None, None, None);
+    let (block, block_tx_events) = get_test_block(transaction_count, None, None, None);
+    let events = block_tx_events.clone();
     storage_writer
         .begin_rw_txn()
         .unwrap()
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body)
+        .unwrap()
+        .append_events(block.header.block_header_without_hash.block_number, &events)
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -490,7 +492,7 @@ async fn get_block_w_full_transactions() {
         JsonRpcServerImpl,
     >(None, None, Some(pending_data.clone()), None, None);
 
-    let mut block = get_test_block(1, None, None, None);
+    let (mut block, block_tx_events) = get_test_block(1, None, None, None);
     let block_hash = BlockHash(random::<u64>().into());
     let sequencer_address = SequencerContractAddress(random::<u64>().into());
     let timestamp = BlockTimestamp(random::<u64>());
@@ -505,6 +507,11 @@ async fn get_block_w_full_transactions() {
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block_tx_events,
+        )
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -676,7 +683,7 @@ async fn get_block_w_full_transactions_and_receipts() {
         JsonRpcServerImpl,
     >(None, None, Some(pending_data.clone()), None, None);
 
-    let mut block = get_test_block(1, None, None, None);
+    let (mut block, block_tx_events) = get_test_block(1, None, None, None);
     let block_hash = BlockHash(random::<u64>().into());
     let sequencer_address = SequencerContractAddress(random::<u64>().into());
     let timestamp = BlockTimestamp(random::<u64>());
@@ -692,6 +699,11 @@ async fn get_block_w_full_transactions_and_receipts() {
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block_tx_events,
+        )
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -878,7 +890,7 @@ async fn get_block_w_transaction_hashes() {
         JsonRpcServerImpl,
     >(None, None, Some(pending_data.clone()), None, None);
 
-    let mut block = get_test_block(1, None, None, None);
+    let (mut block, block_tx_events) = get_test_block(1, None, None, None);
     let block_hash = BlockHash(random::<u64>().into());
     let sequencer_address = SequencerContractAddress(random::<u64>().into());
     let timestamp = BlockTimestamp(random::<u64>());
@@ -892,6 +904,11 @@ async fn get_block_w_transaction_hashes() {
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block_tx_events,
+        )
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -1246,13 +1263,18 @@ async fn get_transaction_status() {
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
     >(None, None, Some(pending_data.clone()), None, None);
-    let block = get_test_block(1, None, None, None);
+    let (block, block_tx_events) = get_test_block(1, None, None, None);
     storage_writer
         .begin_rw_txn()
         .unwrap()
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block_tx_events,
+        )
         .unwrap()
         .commit()
         .unwrap();
@@ -1270,7 +1292,7 @@ async fn get_transaction_status() {
         starknet_api::transaction::TransactionOutput::L1Handler(_) => Some(L1L2MsgHash::default()),
         _ => None,
     };
-    let output = TransactionOutput::from((tx, transaction_version, msg_hash));
+    let output = TransactionOutput::from((tx, transaction_version, msg_hash, vec![]));
     let expected_status = TransactionStatus {
         finality_status: TransactionFinalityStatus::AcceptedOnL2,
         execution_status: output.execution_status().clone(),
@@ -1365,13 +1387,18 @@ async fn get_transaction_receipt() {
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
     >(None, None, Some(pending_data.clone()), None, None);
-    let block = get_test_block(1, None, None, None);
+    let (block, block_tx_events) = get_test_block(1, None, None, None);
     storage_writer
         .begin_rw_txn()
         .unwrap()
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block_tx_events,
+        )
         .unwrap()
         .commit()
         .unwrap();
@@ -1393,6 +1420,7 @@ async fn get_transaction_receipt() {
         block.body.transaction_outputs.index(0).clone(),
         transaction_version,
         msg_hash,
+        block_tx_events.first().cloned().unwrap_or_default(),
     ));
     let expected_receipt = TransactionReceipt {
         finality_status: TransactionFinalityStatus::AcceptedOnL2,
@@ -2217,20 +2245,17 @@ fn generate_client_transaction_client_receipt_rpc_transaction_and_rpc_receipt(
             .clone()
             .into_starknet_api_transaction_output(&client_transaction);
         let msg_hash = match &client_transaction {
-            apollo_starknet_client::reader::objects::transaction::Transaction::L1Handler(tx) => {
-                Some(l1_handler_message_hash(
-                    &tx.contract_address,
-                    tx.nonce,
-                    &tx.entry_point_selector,
-                    &tx.calldata,
-                ))
+            apollo_starknet_client::reader::objects::transaction::Transaction::L1Handler(_) => {
+                Some(L1L2MsgHash::default())
             }
             _ => None,
         };
+        let events = client_transaction_receipt.events.clone();
         let maybe_output = PendingTransactionOutput::try_from(TransactionOutput::from((
             starknet_api_output,
             client_transaction.transaction_version(),
             msg_hash,
+            events,
         )));
         let Ok(output) = maybe_output else {
             continue;
@@ -2281,7 +2306,7 @@ async fn get_transaction_by_hash() {
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
     >(None, None, Some(pending_data.clone()), None, None);
-    let mut block = get_test_block(1, None, None, None);
+    let (mut block, block_tx_events) = get_test_block(1, None, None, None);
     // Change the transaction hash from 0 to a random value, so that later on we can add a
     // transaction with 0 hash to the pending block.
     block.body.transaction_hashes[0] = tx_hash!(random::<u64>());
@@ -2289,6 +2314,11 @@ async fn get_transaction_by_hash() {
         .begin_rw_txn()
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block_tx_events,
+        )
         .unwrap()
         .commit()
         .unwrap();
@@ -2372,13 +2402,18 @@ async fn get_transaction_by_block_id_and_index() {
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
     >(None, None, Some(pending_data.clone()), None, None);
-    let block = get_test_block(1, None, None, None);
+    let (block, block_tx_events) = get_test_block(1, None, None, None);
     storage_writer
         .begin_rw_txn()
         .unwrap()
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block_tx_events,
+        )
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -2818,9 +2853,9 @@ impl BlockMetadata {
         rng: &mut ChaCha8Rng,
         parent_hash: BlockHash,
         block_number: BlockNumber,
-    ) -> StarknetApiBlock {
+    ) -> (StarknetApiBlock, Vec<Vec<StarknetApiEvent>>) {
         // Generate a block with no events, And then add the events manually.
-        let mut block = get_test_block(self.0.len(), Some(0), None, None);
+        let (mut block, mut block_tx_events) = get_test_block(self.0.len(), Some(0), None, None);
         block.header.block_header_without_hash.parent_hash = parent_hash;
         block.header.block_header_without_hash.block_number = block_number;
         block.header.block_hash = BlockHash(rng.next_u64().into());
@@ -2829,21 +2864,14 @@ impl BlockMetadata {
             *transaction_hash = tx_hash!(rng.next_u64());
         }
 
-        for (output, event_metadatas_of_tx) in
-            block.body.transaction_outputs.iter_mut().zip(self.0.iter())
+        for (events, event_metadatas_of_tx) in
+            block_tx_events.iter_mut().zip(self.0.iter())
         {
-            let events = match output {
-                StarknetApiTransactionOutput::Declare(transaction) => &mut transaction.events,
-                StarknetApiTransactionOutput::Deploy(transaction) => &mut transaction.events,
-                StarknetApiTransactionOutput::DeployAccount(transaction) => &mut transaction.events,
-                StarknetApiTransactionOutput::Invoke(transaction) => &mut transaction.events,
-                StarknetApiTransactionOutput::L1Handler(transaction) => &mut transaction.events,
-            };
             for event_metadata in event_metadatas_of_tx {
                 events.push(event_metadata.generate_event(rng));
             }
         }
-        block
+        (block, block_tx_events)
     }
 
     pub fn generate_pending_block(
@@ -2901,18 +2929,16 @@ async fn test_get_events(
     let mut rw_txn = storage_writer.begin_rw_txn().unwrap();
     for (i, block_metadata) in block_metadatas.iter().enumerate() {
         let block_number = BlockNumber(u64::try_from(i).expect("usize should fit in u64"));
-        let block = block_metadata.generate_block(&mut rng, parent_hash, block_number);
+        let (block, block_tx_events) = block_metadata.generate_block(&mut rng, parent_hash, block_number);
 
         parent_hash = block.header.block_hash;
 
-        for (i_transaction, (output, transaction_hash)) in block
-            .body
-            .transaction_outputs
+        for (i_transaction, (events, transaction_hash)) in block_tx_events
             .iter()
             .zip(block.body.transaction_hashes.iter().cloned())
             .enumerate()
         {
-            for (i_event, event) in output.events().iter().cloned().enumerate() {
+            for (i_event, event) in events.iter().cloned().enumerate() {
                 event_index_to_event.insert(
                     EventIndex(
                         TransactionIndex(block_number, TransactionOffsetInBlock(i_transaction)),
@@ -2928,10 +2954,13 @@ async fn test_get_events(
             }
         }
 
+        let events = block_tx_events.clone();
         rw_txn = rw_txn
             .append_header(block_number, &block.header)
             .unwrap()
             .append_body(block_number, block.body)
+            .unwrap()
+            .append_events(block_number, &events)
             .unwrap()
             .append_state_diff(
                 block.header.block_header_without_hash.block_number,
@@ -3464,6 +3493,8 @@ async fn get_events_invalid_ct() {
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body)
         .unwrap()
+        .append_events(block.header.block_header_without_hash.block_number, &[])
+        .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
             starknet_api::state::ThinStateDiff::default(),
@@ -3498,6 +3529,7 @@ async fn serialize_returns_valid_json() {
     let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
     let mut rng = get_rng();
     let parent_block = starknet_api::block::Block::default();
+    let (body, block_tx_events) = get_test_body(5, Some(5), None, None);
     let block = starknet_api::block::Block {
         header: BlockHeader {
             block_hash: BlockHash(felt!("0x1")),
@@ -3508,7 +3540,7 @@ async fn serialize_returns_valid_json() {
             },
             ..Default::default()
         },
-        body: get_test_body(5, Some(5), None, None),
+        body,
     };
     let mut state_diff = StateDiff::get_test_instance(&mut rng);
     // In the test instance both declared_classes and deprecated_declared_classes have an entry
@@ -3533,6 +3565,8 @@ async fn serialize_returns_valid_json() {
         .unwrap()
         .append_body(parent_block.header.block_header_without_hash.block_number, parent_block.body)
         .unwrap()
+        .append_events(parent_block.header.block_header_without_hash.block_number, &[])
+        .unwrap()
         .append_state_diff(
             parent_block.header.block_header_without_hash.block_number,
             starknet_api::state::ThinStateDiff::default(),
@@ -3543,6 +3577,11 @@ async fn serialize_returns_valid_json() {
         .append_header(block.header.block_header_without_hash.block_number, &block.header)
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
+        .unwrap()
+        .append_events(
+            block.header.block_header_without_hash.block_number,
+            &block_tx_events,
+        )
         .unwrap()
         .append_state_diff(block.header.block_header_without_hash.block_number, thin_state_diff)
         .unwrap()
