@@ -99,6 +99,7 @@ async fn config_manager_runner_update_config_with_changed_values() {
     let (temp_file, cli_args, validator_id_value) = create_temp_config_file_and_args();
 
     // Create a config manager runner and update the config.
+    let value_rx_keep_alive = dynamic_config_tx.subscribe();
     let mut config_manager_runner = ConfigManagerRunner::new(
         config_manager_config,
         config_manager_client,
@@ -157,7 +158,7 @@ async fn watcher_triggers_update_on_file_change() {
     // Channel to observe that update_config was called.
     let (tx, mut rx) = channel(1);
 
-    let (dynamic_config_tx, dynamic_config_rx) = watch::channel(NodeDynamicConfig::default());
+    let (dynamic_config_tx, _dynamic_config_rx) = watch::channel(NodeDynamicConfig::default());
     let mut mock_client = MockConfigManagerClient::new();
     mock_client.expect_set_node_dynamic_config().times(1).returning(move |_| {
         let _ = tx.blocking_send(());
@@ -165,6 +166,7 @@ async fn watcher_triggers_update_on_file_change() {
     });
 
     let client: SharedConfigManagerClient = Arc::new(mock_client);
+    let dynamic_config_rx = dynamic_config_tx.subscribe();
 
     let mut runner = ConfigManagerRunner::new(
         ConfigManagerConfig::default(),

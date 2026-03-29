@@ -13,6 +13,7 @@ use apollo_consensus_manager::consensus_manager::{
 };
 use apollo_gateway::gateway::{Gateway, create_gateway};
 use apollo_http_server::http_server::{HttpServer, create_http_server};
+use apollo_infra::component_client::LocalComponentChannelClient;
 use apollo_l1_events::event_identifiers_to_track;
 use apollo_l1_events::l1_events_provider::L1EventsProvider;
 use apollo_l1_events::l1_scraper::L1EventsScraper;
@@ -37,7 +38,6 @@ use apollo_state_sync::{StateSync, create_state_sync_and_runner};
 use metrics_exporter_prometheus::PrometheusHandle;
 use papyrus_base_layer::cyclic_base_layer_wrapper::CyclicBaseLayerWrapper;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
-use tokio::sync::watch;
 use tracing::info;
 
 use crate::clients::SequencerNodeClients;
@@ -75,6 +75,7 @@ pub async fn create_node_components(
     cli_args: Vec<String>,
 ) -> SequencerNodeComponents {
     info!("Creating node components.");
+
     let batcher = match config.components.batcher.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -155,41 +156,47 @@ pub async fn create_node_components(
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
-    let (config_manager, config_manager_runner) =
-        match config.components.config_manager.execution_mode {
-            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
-                let node_dynamic_config = NodeDynamicConfig::from(config);
-                let config_manager_config = config
-                    .config_manager_config
-                    .as_ref()
-                    .expect("Config Manager config should be set");
-                // TODO(Arni): remove the config_manager.
-                let config_manager =
-                    ConfigManager::new(config_manager_config.clone(), node_dynamic_config.clone());
-                let (dynamic_config_tx, dynamic_config_rx) =
-                    watch::channel(node_dynamic_config.clone());
-                let config_manager_client = clients
-                    .get_config_manager_shared_client()
-                    .expect("Config Manager client should be available");
-                let config_manager_runner = ConfigManagerRunner::new(
-                    config_manager_config.clone(),
-                    config_manager_client,
-                    dynamic_config_tx,
-                    dynamic_config_rx,
-                    cli_args,
-                );
-                (Some(config_manager), Some(config_manager_runner))
-            }
-
-            ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
-            | ReactiveComponentExecutionMode::Remote => {
-                panic!(
-                    "ConfigManager does not support remote mode - it's a local infrastructure \
+    // TODO(Arni): Move this block to the beginning of the function, as the
+    // config_manager_channel_client is needed by components created below.
+    let (config_manager, config_manager_runner, config_manager_channel_client) = match config
+        .components
+        .config_manager
+        .execution_mode
+    {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
+            let node_dynamic_config = NodeDynamicConfig::from(config);
+            let config_manager_config =
+                config.config_manager_config.as_ref().expect("Config Manager config should be set");
+            // TODO(Arni): remove the config_manager.
+            let config_manager =
+                ConfigManager::new(config_manager_config.clone(), node_dynamic_config.clone());
+            let (dynamic_config_tx, channel_client) =
+                LocalComponentChannelClient::new_with_initial_value(node_dynamic_config.clone());
+            // TODO(Arni): Rename to config_manager_client after ConfigManagerClient is
+            // renamed to ConfigManagerClient.
+            let config_manager_channel_client = Arc::new(channel_client);
+            let dynamic_config_rx = dynamic_config_tx.subscribe();
+            let config_manager_client = clients
+                .get_config_manager_shared_client()
+                .expect("Config Manager client should be available");
+            let config_manager_runner = ConfigManagerRunner::new(
+                config_manager_config.clone(),
+                config_manager_client,
+                dynamic_config_tx,
+                dynamic_config_rx,
+                cli_args,
+            );
+            (Some(config_manager), Some(config_manager_runner), Some(config_manager_channel_client))
+        }
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
+        | ReactiveComponentExecutionMode::Remote => {
+            panic!(
+                "ConfigManager does not support remote mode - it's a local infrastructure \
                      component"
-                );
-            }
-            ReactiveComponentExecutionMode::Disabled => (None, None),
-        };
+            );
+        }
+        ReactiveComponentExecutionMode::Disabled => (None, None, None),
+    };
 
     let consensus_manager = match config.components.consensus_manager.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
@@ -271,6 +278,8 @@ pub async fn create_node_components(
             let config_manager_client = clients
                 .get_config_manager_shared_client()
                 .expect("Config Manager client should be available");
+            let _config_manager_channel_client = config_manager_channel_client
+                .expect("Config Manager channel client should be available");
             let http_server_config =
                 config.http_server_config.as_ref().expect("HTTP Server config should be set");
             let gateway_client =
