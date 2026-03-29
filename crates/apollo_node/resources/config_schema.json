@@ -399,6 +399,11 @@
     "privacy": "Public",
     "value": 8091
   },
+  "batcher_config.static_config.validation_only": {
+    "description": "If true, the batcher only validates proposed blocks and cannot build proposals. Set via the node-level validation_only config pointer.",
+    "pointer_target": "validation_only",
+    "privacy": "Public"
+  },
   "behavior_mode": {
     "description": "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
     "privacy": "TemporaryValue",
@@ -3993,6 +3998,11 @@
     "description": "Indicates that validations related to resource bounds are applied. It should be set to false during a system bootstrap.",
     "privacy": "TemporaryValue",
     "value": true
+  },
+  "validation_only": {
+    "description": "If true, the node validates proposed blocks but does not build proposals. Requires gateway, http_server, and mempool to be disabled.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "validator_id": {
     "description": "The ID of the validator. Also the address of this validator as a starknet contract.",
