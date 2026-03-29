@@ -52,7 +52,7 @@ const_assert!(TCP_IDLE_TIMEOUT_FACTOR > 1.0);
 
 // 8 MiB — bounds memory materialized from a single response as defense in depth.
 const DEFAULT_MAX_RESPONSE_BODY_BYTES: usize = 8 * 1024 * 1024;
-const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
+const DEFAULT_KEEPALIVE_TIMEOUT_MS: u64 = 30000;
 const DEFAULT_MAX_RETRY_INTERVAL_MS: u64 = 1000;
 const DEFAULT_INITIAL_RETRY_DELAY_MS: u64 = 1;
 const DEFAULT_ATTEMPTS_PER_LOG: usize = 1;
@@ -68,7 +68,7 @@ pub struct RemoteClientConfig {
     // Determines client connection timeouts. Used plainly for HTTP/2 connections, and with a
     // `TCP_IDLE_TIMEOUT_FACTOR` for TCP connections.
     #[validate(custom(function = "validate_tcp_exceeds_http_keepalive"))]
-    pub idle_timeout_ms: u64,
+    pub keepalive_timeout_ms: u64,
     pub attempts_per_log: usize,
     pub initial_retry_delay_ms: u64,
     pub max_retry_interval_ms: u64,
@@ -83,7 +83,7 @@ impl Default for RemoteClientConfig {
         Self {
             retries: DEFAULT_RETRIES,
             idle_connections: DEFAULT_IDLE_CONNECTIONS,
-            idle_timeout_ms: DEFAULT_IDLE_TIMEOUT_MS,
+            keepalive_timeout_ms: DEFAULT_KEEPALIVE_TIMEOUT_MS,
             initial_retry_delay_ms: DEFAULT_INITIAL_RETRY_DELAY_MS,
             attempts_per_log: DEFAULT_ATTEMPTS_PER_LOG,
             max_retry_interval_ms: DEFAULT_MAX_RETRY_INTERVAL_MS,
@@ -97,11 +97,11 @@ impl Default for RemoteClientConfig {
 
 /// Validates that the TCP keepalive duration (at second granularity, as the OS stores
 /// `TCP_KEEPIDLE` in whole seconds) is greater than or equal to the HTTP keepalive duration
-/// (millisecond granularity). If the configured `idle_timeout_ms * TCP_IDLE_TIMEOUT_FACTOR` is
+/// (millisecond granularity). If the configured `keepalive_timeout_ms * TCP_IDLE_TIMEOUT_FACTOR` is
 /// less than 1 second, truncation to whole seconds yields 0 s, making the TCP keepalive shorter
 /// than the HTTP keepalive.
-fn validate_tcp_exceeds_http_keepalive(idle_timeout_ms: u64) -> Result<(), ValidationError> {
-    let http_keepalive = Duration::from_millis(idle_timeout_ms);
+fn validate_tcp_exceeds_http_keepalive(keepalive_timeout_ms: u64) -> Result<(), ValidationError> {
+    let http_keepalive = Duration::from_millis(keepalive_timeout_ms);
     let tcp_keepalive_raw = http_keepalive.mul_f64(TCP_IDLE_TIMEOUT_FACTOR);
     // TCP_KEEPIDLE is stored in whole seconds; fractional seconds are truncated by the OS.
     let tcp_keepalive = Duration::from_secs(tcp_keepalive_raw.as_secs());
@@ -110,9 +110,9 @@ fn validate_tcp_exceeds_http_keepalive(idle_timeout_ms: u64) -> Result<(), Valid
     } else {
         Err(create_validation_error(
             format!(
-                "TCP keepalive ({} s) is shorter than HTTP keepalive ({idle_timeout_ms} ms): \
-                 increase idle_timeout_ms so that idle_timeout_ms * {TCP_IDLE_TIMEOUT_FACTOR} \
-                 rounds to at least {idle_timeout_ms} ms",
+                "TCP keepalive ({} s) is shorter than HTTP keepalive ({keepalive_timeout_ms} ms): \
+                 increase keepalive_timeout_ms so that keepalive_timeout_ms * \
+                 {TCP_IDLE_TIMEOUT_FACTOR} rounds to at least {keepalive_timeout_ms} ms",
                 tcp_keepalive.as_secs(),
             ),
             "tcp_keepalive_shorter_than_http_keepalive",
@@ -137,8 +137,8 @@ impl SerializeConfig for RemoteClientConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "idle_timeout_ms",
-                &self.idle_timeout_ms,
+                "keepalive_timeout_ms",
+                &self.keepalive_timeout_ms,
                 "The duration in milliseconds to keep an idle connection open before closing.",
                 ParamPrivacyInput::Public,
             ),
@@ -224,7 +224,7 @@ where
         metrics: &'static RemoteClientMetrics,
     ) -> Self {
         let uri = format!("http://{url}:{port}/").parse().unwrap();
-        let idle_timeout = Duration::from_millis(config.idle_timeout_ms);
+        let idle_timeout = Duration::from_millis(config.keepalive_timeout_ms);
 
         // Create the tcp connector.
         let mut connector = HttpConnector::new();

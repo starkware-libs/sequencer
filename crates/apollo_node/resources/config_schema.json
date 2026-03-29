@@ -649,15 +649,15 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.batcher.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
-  },
   "components.batcher.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
+  },
+  "components.batcher.remote_client_config.keepalive_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.batcher.remote_client_config.max_response_body_bytes": {
     "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
@@ -789,15 +789,15 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.class_manager.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
-  },
   "components.class_manager.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
+  },
+  "components.class_manager.remote_client_config.keepalive_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.class_manager.remote_client_config.max_response_body_bytes": {
     "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
@@ -929,15 +929,15 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.committer.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
-  },
   "components.committer.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
+  },
+  "components.committer.remote_client_config.keepalive_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.committer.remote_client_config.max_response_body_bytes": {
     "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
@@ -1069,15 +1069,15 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.config_manager.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
-  },
   "components.config_manager.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
+  },
+  "components.config_manager.remote_client_config.keepalive_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.config_manager.remote_client_config.max_response_body_bytes": {
     "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
@@ -1214,15 +1214,15 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.gateway.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
-  },
   "components.gateway.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
+  },
+  "components.gateway.remote_client_config.keepalive_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.gateway.remote_client_config.max_response_body_bytes": {
     "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
@@ -1359,15 +1359,15 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.l1_events_provider.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
-  },
   "components.l1_events_provider.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
+  },
+  "components.l1_events_provider.remote_client_config.keepalive_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.l1_events_provider.remote_client_config.max_response_body_bytes": {
     "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
@@ -1504,15 +1504,15 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.l1_gas_price_provider.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
-  },
   "components.l1_gas_price_provider.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
+  },
+  "components.l1_gas_price_provider.remote_client_config.keepalive_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.l1_gas_price_provider.remote_client_config.max_response_body_bytes": {
     "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
@@ -1649,15 +1649,15 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.mempool.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
-  },
   "components.mempool.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
+  },
+  "components.mempool.remote_client_config.keepalive_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.mempool.remote_client_config.max_response_body_bytes": {
     "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
@@ -1789,15 +1789,15 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.mempool_p2p.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
-  },
   "components.mempool_p2p.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
+  },
+  "components.mempool_p2p.remote_client_config.keepalive_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.mempool_p2p.remote_client_config.max_response_body_bytes": {
     "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
@@ -1934,15 +1934,15 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.proof_manager.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
-  },
   "components.proof_manager.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
+  },
+  "components.proof_manager.remote_client_config.keepalive_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.proof_manager.remote_client_config.max_response_body_bytes": {
     "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
@@ -2074,15 +2074,15 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.sierra_compiler.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
-  },
   "components.sierra_compiler.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
+  },
+  "components.sierra_compiler.remote_client_config.keepalive_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.sierra_compiler.remote_client_config.max_response_body_bytes": {
     "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
@@ -2214,15 +2214,15 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.signature_manager.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
-  },
   "components.signature_manager.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
+  },
+  "components.signature_manager.remote_client_config.keepalive_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.signature_manager.remote_client_config.max_response_body_bytes": {
     "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
@@ -2354,15 +2354,15 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.state_sync.remote_client_config.idle_timeout_ms": {
-    "description": "The duration in milliseconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 30000
-  },
   "components.state_sync.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
+  },
+  "components.state_sync.remote_client_config.keepalive_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30000
   },
   "components.state_sync.remote_client_config.max_response_body_bytes": {
     "description": "Maximum allowed size in bytes for an incoming response body. Responses exceeding this limit are treated as a communication failure.",
