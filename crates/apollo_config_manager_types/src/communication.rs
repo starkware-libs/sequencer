@@ -52,6 +52,7 @@ pub trait ConfigManagerClient: Send + Sync {
     ) -> ConfigManagerClientResult<ClassManagerDynamicConfig>;
 
     async fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig>;
+    // TODO(Arni): Remove this method.
     async fn get_http_server_dynamic_config(
         &self,
     ) -> ConfigManagerClientResult<HttpServerDynamicConfig>;
