@@ -10,6 +10,7 @@
   "starknet_url": "$$$_STARKNET_URL_$$$",
   "strk_fee_token_address": "$$$_STRK_FEE_TOKEN_ADDRESS_$$$",
   "validate_resource_bounds": true,
+  "validation_only": false,
   "validator_id": "$$$_VALIDATOR_ID_$$$",
   "versioned_constants_overrides.#is_none": true,
   "versioned_constants_overrides.invoke_tx_max_n_steps": 10000000,

@@ -5,7 +5,9 @@ use apollo_infra_utils::dumping::serialize_to_file_test;
 use rstest::rstest;
 use validator::Validate;
 
+use crate::component_config::ComponentConfig;
 use crate::component_execution_config::{
+    ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
     ReactiveComponentExecutionMode,
 };
@@ -109,4 +111,64 @@ fn monitoring_config(
 ) {
     let component_exe_config = MonitoringConfig { collect_metrics, collect_profiling_metrics };
     assert_eq!(component_exe_config.validate().is_ok(), expected_successful_validation);
+}
+
+#[test]
+fn validation_only_with_gateway_enabled_fails() {
+    // gateway is running locally in the default config.
+    let config = SequencerNodeConfig { validation_only: true, ..Default::default() };
+    let err = config.validate_node_config().unwrap_err();
+    assert!(format!("{err:?}").contains("gateway"), "Unexpected error: {err:?}");
+}
+
+#[test]
+fn validation_only_with_http_server_enabled_fails() {
+    // Disable gateway to reach the http_server check; http_server is enabled in the default.
+    let config = SequencerNodeConfig {
+        validation_only: true,
+        components: ComponentConfig {
+            gateway: ReactiveComponentExecutionConfig::disabled(),
+            ..Default::default()
+        },
+        gateway_config: None,
+        ..Default::default()
+    };
+    let err = config.validate_node_config().unwrap_err();
+    assert!(format!("{err:?}").contains("http_server"), "Unexpected error: {err:?}");
+}
+
+#[test]
+fn validation_only_with_mempool_enabled_fails() {
+    // Disable gateway and http_server to reach the mempool check; mempool runs locally by default.
+    let config = SequencerNodeConfig {
+        validation_only: true,
+        components: ComponentConfig {
+            gateway: ReactiveComponentExecutionConfig::disabled(),
+            http_server: ActiveComponentExecutionConfig::disabled(),
+            ..Default::default()
+        },
+        gateway_config: None,
+        http_server_config: None,
+        ..Default::default()
+    };
+    let err = config.validate_node_config().unwrap_err();
+    assert!(format!("{err:?}").contains("mempool"), "Unexpected error: {err:?}");
+}
+
+#[test]
+fn validation_only_with_tx_ingestion_disabled_succeeds() {
+    let config = SequencerNodeConfig {
+        validation_only: true,
+        components: ComponentConfig {
+            gateway: ReactiveComponentExecutionConfig::disabled(),
+            http_server: ActiveComponentExecutionConfig::disabled(),
+            mempool: ReactiveComponentExecutionConfig::disabled(),
+            ..Default::default()
+        },
+        gateway_config: None,
+        http_server_config: None,
+        mempool_config: None,
+        ..Default::default()
+    };
+    assert!(config.validate_node_config().is_ok());
 }
