@@ -3,7 +3,10 @@ use std::net::SocketAddr;
 use std::string::String;
 use std::time::Duration;
 
-use apollo_config_manager_types::communication::SharedConfigManagerClient;
+use apollo_config_manager_types::communication::{
+    SharedConfigManagerChannelClient,
+    SharedConfigManagerClient,
+};
 use apollo_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -70,16 +73,20 @@ pub struct HttpServer {
 #[derive(Clone)]
 pub struct AppState {
     gateway_client: SharedGatewayClient,
+    config_manager_channel_client: SharedConfigManagerChannelClient,
     dynamic_config_rx: Receiver<HttpServerDynamicConfig>,
 }
 
 impl AppState {
     fn get_dynamic_config(&self) -> HttpServerDynamicConfig {
+        let config_from_channel =
+            self.config_manager_channel_client.get_http_server_dynamic_config();
         // `borrow()` returns a reference to the value owned by the channel, hence we clone it.
         let config = {
             let config = self.dynamic_config_rx.borrow();
             config.clone()
         };
+        assert_eq!(config_from_channel.unwrap(), config);
         config
     }
 }
@@ -88,11 +95,13 @@ impl HttpServer {
     pub fn new(
         config: HttpServerConfig,
         config_manager_client: SharedConfigManagerClient,
+        config_manager_channel_client: SharedConfigManagerChannelClient,
         gateway_client: SharedGatewayClient,
     ) -> Self {
         let (dynamic_config_tx, dynamic_config_rx) =
             channel::<HttpServerDynamicConfig>(config.dynamic_config.clone());
-        let app_state = AppState { gateway_client, dynamic_config_rx };
+        let app_state =
+            AppState { gateway_client, config_manager_channel_client, dynamic_config_rx };
         HttpServer { config, app_state, config_manager_client, dynamic_config_tx }
     }
 
@@ -336,9 +345,10 @@ fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, re
 pub fn create_http_server(
     config: HttpServerConfig,
     config_manager_client: SharedConfigManagerClient,
+    config_manager_channel_client: SharedConfigManagerChannelClient,
     gateway_client: SharedGatewayClient,
 ) -> HttpServer {
-    HttpServer::new(config, config_manager_client, gateway_client)
+    HttpServer::new(config, config_manager_client, config_manager_channel_client, gateway_client)
 }
 
 #[async_trait]
