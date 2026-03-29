@@ -1093,13 +1093,14 @@ impl GasCosts {
     // execution step counts. For StorageRead/Write, they include the averaged cost of Patricia
     // Merkle tree path verification during block proving. The actual syscall handler executes
     // fewer steps, but the proving overhead is amortized into the step count.
+    // Syscall resource definitions currently include only VM resources, with no opcode accounting.
     fn new_syscall_gas_cost_summary(
         base_costs: &BaseGasCosts,
         selector: SyscallSelector,
         builtin_costs: &BuiltinGasCosts,
         os_resources: &RawOsResources,
     ) -> SyscallGasCost {
-        let vm_resources: ResourcesParams = os_resources
+        let ResourcesParams { constant, calldata_factor } = os_resources
             .execute_syscalls
             .get(&selector)
             .expect("Fetching the execution resources of a syscall should not fail.")
@@ -1110,17 +1111,20 @@ impl GasCosts {
 
         // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the compiler.
         base_gas = std::cmp::max(base_costs.syscall_base_gas_cost, base_gas);
-        let linear_gas_cost = get_gas_cost_from_vm_resources(
-            &match vm_resources.calldata_factor {
-                VariableCallDataFactor::Scaled(CallDataFactor { resources, scaling_factor }) => {
-                    assert!(
-                        scaling_factor == 1,
-                        "The scaling factor of the syscall should be 1, but it is {scaling_factor}"
-                    );
-                    resources
-                }
-                VariableCallDataFactor::Unscaled(resources) => resources,
-            },
+
+        let calldata_resources = match calldata_factor {
+            VariableCallDataFactor::Scaled(CallDataFactor { resources, scaling_factor }) => {
+                assert!(
+                    scaling_factor == 1,
+                    "The scaling factor of the syscall should be 1, but it is {scaling_factor}"
+                );
+                resources
+            }
+            VariableCallDataFactor::Unscaled(resources) => resources,
+        };
+
+        let linear_gas_cost = get_gas_cost_from_extended_execution_resources(
+            &with_zero_opcode_resources(calldata_resources),
             base_costs,
             builtin_costs,
         );
