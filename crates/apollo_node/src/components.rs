@@ -269,9 +269,6 @@ pub async fn create_node_components(
 
     let http_server = match config.components.http_server.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
-            let config_manager_client = clients
-                .get_config_manager_shared_client()
-                .expect("Config Manager client should be available");
             let config_manager_client_with_channel = clients
                 .get_config_manager_shared_client_with_channel(dynamic_config_rx.clone().unwrap())
                 .expect("Config Manager client with channel should be available");
@@ -282,7 +279,6 @@ pub async fn create_node_components(
 
             Some(create_http_server(
                 http_server_config.clone(),
-                config_manager_client,
                 config_manager_client_with_channel,
                 gateway_client,
             ))

@@ -53,6 +53,7 @@ pub struct HttpServerStaticConfig {
     pub ip: IpAddr,
     pub port: u16,
     pub max_request_body_size: usize,
+    // TODO(Arni): remove dynamic_config_poll_interval from HttpServerStaticConfig.
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub dynamic_config_poll_interval: Duration,
 }
