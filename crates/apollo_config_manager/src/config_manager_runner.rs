@@ -15,7 +15,7 @@ use async_trait::async_trait;
 use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde_json::Value;
 use tokio::sync::mpsc;
-use tokio::sync::watch::{Receiver, Sender};
+use tokio::sync::watch::Sender;
 use tokio::time::{interval, Duration as TokioDuration, Interval};
 use tracing::{debug, error, info};
 
@@ -31,9 +31,6 @@ pub struct ConfigManagerRunner {
     config_manager_config: ConfigManagerConfig,
     config_manager_client: SharedConfigManagerClient,
     dynamic_config_tx: Sender<NodeDynamicConfig>,
-    // Keeps the receiver alive so the sender never observes a dead channel.
-    // TODO(Arni): Remove once a real consumer (e.g. LocalComponentChannelClient) holds the rx.
-    _value_rx_keep_alive: Receiver<NodeDynamicConfig>,
     latest_node_dynamic_config: NodeDynamicConfig,
     cli_args: Vec<String>,
 }
@@ -65,7 +62,6 @@ impl ConfigManagerRunner {
         config_manager_config: ConfigManagerConfig,
         config_manager_client: SharedConfigManagerClient,
         dynamic_config_tx: Sender<NodeDynamicConfig>,
-        value_rx_keep_alive: Receiver<NodeDynamicConfig>,
         initial_node_dynamic_config: NodeDynamicConfig,
         cli_args: Vec<String>,
     ) -> Self {
@@ -73,7 +69,6 @@ impl ConfigManagerRunner {
             config_manager_config,
             config_manager_client,
             dynamic_config_tx,
-            _value_rx_keep_alive: value_rx_keep_alive,
             latest_node_dynamic_config: initial_node_dynamic_config,
             cli_args,
         }
