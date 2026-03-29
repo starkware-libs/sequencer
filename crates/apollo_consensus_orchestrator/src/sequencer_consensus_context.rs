@@ -229,7 +229,6 @@ pub struct SequencerConsensusContext {
     l1_da_mode: L1DataAvailabilityMode,
     previous_block_info: Option<PreviousBlockInfo>,
     // If set, the node will stop participating in consensus after this height.
-    #[allow(dead_code)]
     stop_at_height: Option<BlockNumber>,
 }
 
@@ -907,6 +906,10 @@ impl ConsensusContext for SequencerConsensusContext {
         )
         .await;
         Ok(())
+    }
+
+    fn set_stop_height(&mut self, stop_at_height: Option<BlockNumber>) {
+        self.stop_at_height = stop_at_height;
     }
 }
 

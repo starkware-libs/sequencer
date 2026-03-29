@@ -133,6 +133,7 @@ where
         if let Some(client) = &run_consensus_args.config_manager_client {
             match client.get_consensus_dynamic_config().await {
                 Ok(dynamic_cfg) => {
+                    context.set_stop_height(dynamic_cfg.stop_at_height);
                     manager.set_dynamic_config(dynamic_cfg);
                 }
                 Err(e) => {

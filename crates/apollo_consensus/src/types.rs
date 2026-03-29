@@ -111,6 +111,10 @@ pub trait ConsensusContext {
         height: BlockNumber,
         round: Round,
     ) -> Result<(), ConsensusError>;
+
+    /// Update the height at which the node should stop participating in consensus.
+    /// `None` means the node runs indefinitely.
+    fn set_stop_height(&mut self, stop_at_height: Option<BlockNumber>);
 }
 
 #[derive(PartialEq, Debug)]
