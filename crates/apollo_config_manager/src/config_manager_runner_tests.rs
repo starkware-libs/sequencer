@@ -102,11 +102,12 @@ async fn config_manager_runner_update_config_with_changed_values() {
     let node_dynamic_config = NodeDynamicConfig::default();
 
     // Create a config manager runner and update the config.
+    let value_rx_keep_alive = dynamic_config_tx.subscribe();
     let mut config_manager_runner = ConfigManagerRunner::new(
         config_manager_config,
         config_manager_client,
         dynamic_config_tx,
-        dynamic_config_rx.clone(),
+        value_rx_keep_alive,
         node_dynamic_config,
         cli_args,
     );
@@ -161,7 +162,7 @@ async fn watcher_triggers_update_on_file_change() {
     // Channel to observe that update_config was called.
     let (tx, mut rx) = channel(1);
 
-    let (dynamic_config_tx, dynamic_config_rx) = watch::channel(NodeDynamicConfig::default());
+    let (dynamic_config_tx, _dynamic_config_rx) = watch::channel(NodeDynamicConfig::default());
     let mut mock_client = MockConfigManagerClient::new();
     mock_client.expect_set_node_dynamic_config().times(1).returning(move |_| {
         let _ = tx.blocking_send(());
@@ -169,12 +170,13 @@ async fn watcher_triggers_update_on_file_change() {
     });
 
     let client: SharedConfigManagerClient = Arc::new(mock_client);
+    let value_rx_keep_alive = dynamic_config_tx.subscribe();
 
     let mut runner = ConfigManagerRunner::new(
         ConfigManagerConfig::default(),
         client,
         dynamic_config_tx,
-        dynamic_config_rx,
+        value_rx_keep_alive,
         NodeDynamicConfig::default(),
         cli_args,
     );
@@ -214,13 +216,14 @@ fn log_config_diff_changes() {
         ..Default::default()
     };
 
-    let (dynamic_config_tx, dynamic_config_rx) = watch::channel(NodeDynamicConfig::default());
+    let (dynamic_config_tx, _dynamic_config_rx) = watch::channel(NodeDynamicConfig::default());
     let mock_client = MockConfigManagerClient::new();
+    let value_rx_keep_alive = dynamic_config_tx.subscribe();
     let runner = ConfigManagerRunner::new(
         ConfigManagerConfig::default(),
         Arc::new(mock_client),
         dynamic_config_tx,
-        dynamic_config_rx,
+        value_rx_keep_alive,
         old_dynamic_config.clone(),
         Vec::<String>::new(),
     );
