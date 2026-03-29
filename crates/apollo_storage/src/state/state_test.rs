@@ -8,7 +8,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
+use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
 use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, storage_key};
 use starknet_types_core::felt::Felt;
 
@@ -1057,6 +1057,40 @@ scan_cases!(
         assert_eq!(
             state_reader
                 .scan_contract_class_hashes_in_range(start, end, block_target, limit)
+                .unwrap(),
+            expected,
+        );
+    }
+);
+
+scan_cases!(
+    key_macro = storage_key,
+    value_macro = felt,
+    fn test_scan_storage_keys_for_contract(
+        #[case] start: StorageKey,
+        #[case] end: StorageKey,
+        #[case] synced_block: BlockNumber,
+        #[case] limit: usize,
+        #[case] expected: Vec<(StorageKey, Felt)>,
+    ) {
+        let addr = contract_address!("0x1");
+        let ((reader, mut writer), _temp_dir) = get_test_storage();
+        write_two_block_state_diffs(
+            &mut writer,
+            ThinStateDiff {
+                storage_diffs: IndexMap::from([(addr, block_0_entries!())]),
+                ..Default::default()
+            },
+            ThinStateDiff {
+                storage_diffs: IndexMap::from([(addr, block_1_entries!())]),
+                ..Default::default()
+            },
+        );
+        let txn = reader.begin_ro_txn().unwrap();
+        let state_reader = txn.get_state_reader().unwrap();
+        assert_eq!(
+            state_reader
+                .scan_storage_keys_for_contract(addr, start, end, synced_block, limit)
                 .unwrap(),
             expected,
         );
