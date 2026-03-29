@@ -356,7 +356,11 @@ impl Engine {
 
                 // Mark as finalized
                 let message_key = MessageKey { committee_id, publisher, root: message_root };
-                self.finalized_messages.insert(message_key);
+                let expired_keys = self.finalized_messages.insert_and_get_expired(message_key);
+
+                if !expired_keys.is_empty() {
+                    trace!(?expired_keys, "[ENGINE] Removed expired messages from TTL cache");
+                }
 
                 // Clean up task handles
                 if self.message_to_unit_tx.remove(&message_key).is_some() {
