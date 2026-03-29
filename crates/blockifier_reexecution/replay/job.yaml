@@ -1,0 +1,52 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: blockifier-reexecution
+  labels:
+    app: blockifier-reexecution
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: blockifier-reexecution
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: blockifier-reexecution
+          image: IMAGE_PLACEHOLDER
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              ARGS="rpc-replay -n ${RPC_URL} -c ${CHAIN_ID} --start-block ${START_BLOCK} --n-workers ${N_WORKERS}"
+              if [ -n "${END_BLOCK}" ]; then
+                ARGS="${ARGS} --end-block ${END_BLOCK}"
+              fi
+              if [ "${COMPARE_NATIVE}" = "true" ]; then
+                ARGS="${ARGS} --compare-native"
+              fi
+              # `exec` replaces the shell, making the binary PID 1. tini is not needed
+              # for signal handling in a K8s Job context.
+              exec /app/target/release/blockifier_reexecution ${ARGS}
+          env:
+            - name: RPC_URL
+              value: "http://juno:6060"
+            - name: CHAIN_ID
+              value: "testnet"
+            - name: START_BLOCK
+              value: "800000"
+            # Leave empty to run forever.
+            - name: END_BLOCK
+              value: ""
+            - name: N_WORKERS
+              value: "16"
+            # Set to "true" to run native-vs-CASM comparison.
+            - name: COMPARE_NATIVE
+              value: ""
+          resources:
+            requests:
+              cpu: "8"
+              memory: "16Gi"
+            limits:
+              cpu: "16"
+              memory: "32Gi"
