@@ -247,6 +247,9 @@ pub struct BatcherStaticConfig {
     // TODO(Amos): Move to commitment manager config.
     pub first_block_with_partial_block_hash: Option<FirstBlockWithPartialBlockHash>,
     pub storage_reader_server_static_config: StorageReaderServerStaticConfig,
+    /// If true, the batcher only validates proposed blocks and cannot build proposals.
+    /// Set via the node-level validation_only config pointer.
+    pub validation_only: bool,
 }
 
 impl SerializeConfig for BatcherStaticConfig {
@@ -308,6 +311,13 @@ impl SerializeConfig for BatcherStaticConfig {
             self.storage_reader_server_static_config.dump(),
             "storage_reader_server_static_config",
         ));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "validation_only",
+            &self.validation_only,
+            "If true, the batcher only validates proposed blocks and cannot build proposals. Set \
+             via the node-level validation_only config pointer.",
+            ParamPrivacyInput::Public,
+        )]));
         dump
     }
 }
@@ -336,6 +346,7 @@ impl Default for BatcherStaticConfig {
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
             first_block_with_partial_block_hash: None,
             storage_reader_server_static_config: StorageReaderServerStaticConfig::default(),
+            validation_only: false,
         }
     }
 }

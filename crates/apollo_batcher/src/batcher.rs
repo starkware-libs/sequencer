@@ -157,7 +157,7 @@ pub struct Batcher {
     pub storage_writer: Box<dyn BatcherStorageWriter>,
     pub committer_client: SharedCommitterClient,
     pub l1_events_provider_client: SharedL1EventsProviderClient,
-    pub mempool_client: SharedMempoolClient,
+    pub mempool_client: Option<SharedMempoolClient>,
     pub config_manager_client: SharedConfigManagerClient,
 
     /// Used to create block builders.
@@ -212,13 +212,19 @@ impl Batcher {
         storage_writer: Box<dyn BatcherStorageWriter>,
         committer_client: SharedCommitterClient,
         l1_events_provider_client: SharedL1EventsProviderClient,
-        mempool_client: SharedMempoolClient,
+        mempool_client: Option<SharedMempoolClient>,
         config_manager_client: SharedConfigManagerClient,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         commitment_manager: ApolloCommitmentManager,
         storage_reader_server_handle: AbortHandle,
     ) -> Self {
+        assert!(
+            config.static_config.validation_only == mempool_client.is_none(),
+            "validation_only={} but mempool_client is {}",
+            config.static_config.validation_only,
+            if mempool_client.is_none() { "None" } else { "Some" }
+        );
         Self {
             config,
             storage_reader,
@@ -276,6 +282,9 @@ impl Batcher {
         &mut self,
         propose_block_input: ProposeBlockInput,
     ) -> BatcherResult<()> {
+        if self.config.static_config.validation_only {
+            return Err(BatcherError::ProposingNotSupported);
+        }
         let block_number = propose_block_input.block_info.block_number;
         let proposal_metrics_handle = ProposalMetricsHandle::new();
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
@@ -285,12 +294,17 @@ impl Batcher {
             propose_block_input.retrospective_block_hash,
         )?;
 
+        let mempool_client = self
+            .mempool_client
+            .as_ref()
+            .expect("Mempool client must be present in non-validation-only mode.");
+
         // TODO(yair): extract function for the following calls, use join_all.
         info!(
             "Notifying the mempool we start to work on block {}, round {}.",
             block_number, propose_block_input.proposal_round
         );
-        self.mempool_client.commit_block(CommitBlockArgs::default()).await.map_err(|err| {
+        mempool_client.commit_block(CommitBlockArgs::default()).await.map_err(|err| {
             error!(
                 "Mempool is not ready to start proposal {}: {}.",
                 propose_block_input.proposal_id, err
@@ -301,7 +315,7 @@ impl Batcher {
             "Updating gas price for block {}, round {} in Mempool client",
             block_number, propose_block_input.proposal_round
         );
-        self.mempool_client
+        mempool_client
             .update_gas_price(
                 propose_block_input.block_info.gas_prices.strk_gas_prices.l2_gas_price.get(),
             )
@@ -333,7 +347,7 @@ impl Batcher {
             TxProviderPhase::Mempool
         };
         let tx_provider = ProposeTransactionProvider::new(
-            self.mempool_client.clone(),
+            mempool_client.clone(),
             self.l1_events_provider_client.clone(),
             self.config.static_config.max_l1_handler_txs_per_block_proposal,
             propose_block_input.block_info.block_number,
@@ -613,7 +627,11 @@ impl Batcher {
 
     #[instrument(skip(self), err)]
     pub async fn get_batch_timestamp(&self) -> BatcherResult<UnixTimestamp> {
-        self.mempool_client.resolve_batch_timestamp().await.map_err(|err| {
+        let mempool_client = self.mempool_client.as_ref().expect(
+            "Mempool client must be present in non-validation-only mode. Unreachable code when \
+             validation-only mode is enabled.",
+        );
+        mempool_client.resolve_batch_timestamp().await.map_err(|err| {
             error!("Failed to get timestamp from mempool: {err}");
             BatcherError::InternalError
         })
@@ -933,16 +951,16 @@ impl Batcher {
             BATCHER_L1_EVENTS_PROVIDER_ERRORS.increment(1);
         }
 
-        // Notify the mempool of the new block.
-        let mempool_result = self
-            .mempool_client
-            .commit_block(CommitBlockArgs { address_to_nonce, rejected_tx_hashes })
-            .await;
-
-        if let Err(mempool_err) = mempool_result {
-            // Recoverable error, mempool won't be updated with the new block.
-            error!("Failed to commit block to mempool: {}", mempool_err);
-        };
+        // Notify the mempool of the new block (skipped in validation-only mode).
+        if let Some(mempool_client) = &self.mempool_client {
+            let mempool_result = mempool_client
+                .commit_block(CommitBlockArgs { address_to_nonce, rejected_tx_hashes })
+                .await;
+            if let Err(mempool_err) = mempool_result {
+                // Recoverable error, mempool won't be updated with the new block.
+                error!("Failed to commit block to mempool: {}", mempool_err);
+            }
+        }
 
         BUILDING_HEIGHT.increment(1);
         Ok(())
@@ -1412,7 +1430,7 @@ impl DynamicConfigProvider for BatcherDynamicConfigProvider {
 pub async fn create_batcher(
     config: BatcherConfig,
     committer_client: SharedCommitterClient,
-    mempool_client: SharedMempoolClient,
+    mempool_client: Option<SharedMempoolClient>,
     l1_events_provider_client: SharedL1EventsProviderClient,
     class_manager_client: SharedClassManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
