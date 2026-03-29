@@ -164,6 +164,12 @@ pub enum Command {
         /// Number of parallel worker threads.
         #[clap(long, default_value = "1")]
         n_workers: usize,
+
+        /// Run each block twice (native and CASM) and compare the resulting state diffs.
+        /// Overrides `min_sierra_version_for_sierra_gas` to `0.0.0` so all contracts use sierra
+        /// gas, ensuring a fair comparison. Requires the `cairo_native` feature.
+        #[clap(long)]
+        compare_native: bool,
     },
 
     // Download all (selected) blocks from the gc bucket.
