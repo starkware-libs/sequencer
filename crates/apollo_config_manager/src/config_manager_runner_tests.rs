@@ -104,7 +104,6 @@ async fn config_manager_runner_update_config_with_changed_values() {
         config_manager_config,
         config_manager_client,
         dynamic_config_tx,
-        dynamic_config_rx.clone(),
         cli_args,
     );
 
@@ -171,7 +170,6 @@ async fn watcher_triggers_update_on_file_change() {
         ConfigManagerConfig::default(),
         client,
         dynamic_config_tx,
-        dynamic_config_rx,
         cli_args,
     );
 
