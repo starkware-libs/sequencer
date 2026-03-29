@@ -93,7 +93,7 @@ const MAX_CONCURRENCY: usize = 10;
 const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
     retries: 0,
     idle_connections: 0,
-    idle_timeout_ms: 0,
+    keepalive_timeout_ms: 0,
     max_retry_interval_ms: 0,
     initial_retry_delay_ms: 0,
     attempts_per_log: 1,
@@ -738,7 +738,7 @@ async fn zombie_connection_is_evicted() {
 }
 
 /// Verifies that `TCP_KEEPIDLE` on the client's outbound socket equals
-/// `idle_timeout_ms * TCP_IDLE_TIMEOUT_FACTOR`, confirming the socket is armed to probe after
+/// `keepalive_timeout_ms * TCP_IDLE_TIMEOUT_FACTOR`, confirming the socket is armed to probe after
 /// exactly the expected idle period.
 ///
 /// Internally, hyper's `HttpConnector::set_keepalive` calls `SockRef::set_tcp_keepalive` via
@@ -769,7 +769,7 @@ async fn tcp_keepalive_idle_time_matches_config() {
     setup_for_tests(VALID_VALUE_A, a_socket, b_socket, MAX_CONCURRENCY, None).await;
 
     let client = ComponentAClient::new(
-        RemoteClientConfig { idle_timeout_ms: IDLE_TIMEOUT_MS, ..Default::default() },
+        RemoteClientConfig { keepalive_timeout_ms: IDLE_TIMEOUT_MS, ..Default::default() },
         &a_socket.ip().to_string(),
         a_socket.port(),
         &TEST_REMOTE_CLIENT_METRICS,
@@ -782,6 +782,6 @@ async fn tcp_keepalive_idle_time_matches_config() {
         .expect("SO_KEEPALIVE should be set and TCP_KEEPIDLE should be readable");
     assert_eq!(
         actual_keepalive_idle, expected_keepalive_idle,
-        "TCP_KEEPIDLE should equal idle_timeout_ms * TCP_IDLE_TIMEOUT_FACTOR"
+        "TCP_KEEPIDLE should equal keepalive_timeout_ms * TCP_IDLE_TIMEOUT_FACTOR"
     );
 }
