@@ -737,6 +737,7 @@ pub fn create_gateway_config(
             authorized_declarer_accounts: None,
             proof_archive_writer_config,
         },
+        ..Default::default()
     }
 }
 
