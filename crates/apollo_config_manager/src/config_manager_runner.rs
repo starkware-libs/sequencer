@@ -15,7 +15,7 @@ use async_trait::async_trait;
 use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde_json::Value;
 use tokio::sync::mpsc;
-use tokio::sync::watch::{Receiver, Sender};
+use tokio::sync::watch::Sender;
 use tokio::time::{interval, Duration as TokioDuration, Interval};
 use tracing::{debug, error, info};
 
@@ -31,10 +31,6 @@ pub struct ConfigManagerRunner {
     config_manager_config: ConfigManagerConfig,
     config_manager_client: SharedConfigManagerClient,
     dynamic_config_tx: Sender<NodeDynamicConfig>,
-    // Keeps the receiver alive so the sender never observes a dead channel.
-    // TODO(Arni): Remove once LocalComponentReaderClient is held long-term (done in
-    // arni/http_server/add_client_to_server).
-    _dynamic_config_rx: Receiver<NodeDynamicConfig>,
     cli_args: Vec<String>,
 }
 
@@ -65,16 +61,9 @@ impl ConfigManagerRunner {
         config_manager_config: ConfigManagerConfig,
         config_manager_client: SharedConfigManagerClient,
         dynamic_config_tx: Sender<NodeDynamicConfig>,
-        dynamic_config_rx: Receiver<NodeDynamicConfig>,
         cli_args: Vec<String>,
     ) -> Self {
-        Self {
-            config_manager_config,
-            config_manager_client,
-            dynamic_config_tx,
-            _dynamic_config_rx: dynamic_config_rx,
-            cli_args,
-        }
+        Self { config_manager_config, config_manager_client, dynamic_config_tx, cli_args }
     }
 
     /// Monitors config files for changes via file system events and periodic polling.
