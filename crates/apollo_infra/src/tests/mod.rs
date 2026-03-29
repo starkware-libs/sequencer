@@ -3,6 +3,7 @@ mod local_component_client_server_test;
 mod local_request_prioritization;
 mod remote_component_client_server_test;
 mod server_metrics_test;
+mod test_utils;
 
 use std::net::IpAddr;
 use std::sync::Arc;
