@@ -190,10 +190,8 @@ where
             match Limited::new(http_request.into_body(), max_request_body_bytes).collect().await {
                 Ok(collected) => collected.to_bytes(),
                 Err(err) => {
-                    error!("Failed to collect request body: {err}");
-                    let server_error = ServerError::RequestDeserializationFailure(
-                        "Request body too large".to_string(),
-                    );
+                    warn!("Request body too large: {err}");
+                    let server_error = ServerError::RequestBodyTooLarge(err.to_string());
                     return Ok(HyperResponse::builder()
                         .status(StatusCode::PAYLOAD_TOO_LARGE)
                         .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
