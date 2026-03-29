@@ -3,6 +3,7 @@ use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
 use pretty_assertions::assert_eq;
+use rstest::rstest;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -16,6 +17,11 @@ use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::test_utils::get_test_storage;
 use crate::StorageWriter;
+
+// Value at each key in block 0; indexed by key. Keys 1, 3, 4 are set; other indices are unused.
+const SCAN_VALUES_BLOCK_0: [u8; 6] = [0, 1, 0, 3, 4, 0];
+// Value at each key in block 1; indexed by key. Keys 1, 4, 5 are updated/added; key 3 unchanged.
+const SCAN_VALUES_BLOCK_1: [u8; 6] = [0, 11, 0, 3, 14, 15];
 
 #[test]
 fn get_class_definition_at() {
@@ -916,3 +922,143 @@ fn declare_revert_declare_without_classes_scenario() {
         Some(BlockNumber(0))
     );
 }
+
+/// Writes two state diffs to the given writer and commits.
+fn write_two_block_state_diffs(
+    writer: &mut StorageWriter,
+    diff0: ThinStateDiff,
+    diff1: ThinStateDiff,
+) {
+    let mut txn = writer.begin_rw_txn().unwrap();
+    txn = txn.append_state_diff(BlockNumber(0), diff0).unwrap();
+    txn = txn.append_state_diff(BlockNumber(1), diff1).unwrap();
+    txn.commit().unwrap();
+}
+
+/// Generates `#[rstest]` and shared `#[case]` definitions for `scan_at_block` tests.
+///
+/// The block state layout is constant across all invocations:
+///   block 0 — key 0x1→1, key 0x3→3, key 0x4→4
+///   block 1 — key 0x1→11, key 0x3 (unchanged), key 0x4→14, key 0x5→15
+///
+/// The `fn` item is written at the call site.
+macro_rules! scan_cases {
+    (
+        // The macro generator for the key type.
+        key_macro   = $key_macro:ident,
+        // The macro generator for the value type.
+        value_macro = $value_macro:ident,
+        // The test function.
+        fn $fn_name:ident ( $($params:tt)* ) $body:block $(,)?
+    ) => {
+        #[rstest]
+        // Scan [0x1, 0x6) at block 1 — exclusive end covers 0x1..=0x5.
+        #[case::happy_flow(
+            $key_macro!(1_u8), $key_macro!("0x5"), BlockNumber(1), usize::MAX,
+            vec![
+                ($key_macro!(1_u8), $value_macro!(SCAN_VALUES_BLOCK_1[1])),
+                ($key_macro!(3_u8), $value_macro!(SCAN_VALUES_BLOCK_1[3])),
+                ($key_macro!(4_u8), $value_macro!(SCAN_VALUES_BLOCK_1[4])),
+                ($key_macro!(5_u8), $value_macro!(SCAN_VALUES_BLOCK_1[5])),
+            ],
+        )]
+        // Block 1000 is beyond the last written block, so the result is the same as block 1.
+        #[case::block_in_future(
+            $key_macro!(1_u8), $key_macro!("0x5"), BlockNumber(1000), usize::MAX,
+            vec![
+                ($key_macro!(1_u8), $value_macro!(SCAN_VALUES_BLOCK_1[1])),
+                ($key_macro!(3_u8), $value_macro!(SCAN_VALUES_BLOCK_1[3])),
+                ($key_macro!(4_u8), $value_macro!(SCAN_VALUES_BLOCK_1[4])),
+                ($key_macro!(5_u8), $value_macro!(SCAN_VALUES_BLOCK_1[5])),
+            ],
+        )]
+        // State after block 0 — key 0x1/0x4 have original values, 0x5 not yet present.
+        #[case::state_at_block_zero(
+            $key_macro!(1_u8), $key_macro!("0x5"), BlockNumber(0), usize::MAX,
+            vec![
+                ($key_macro!(1_u8), $value_macro!(SCAN_VALUES_BLOCK_0[1])),
+                ($key_macro!(3_u8), $value_macro!(SCAN_VALUES_BLOCK_0[3])),
+                ($key_macro!(4_u8), $value_macro!(SCAN_VALUES_BLOCK_0[4])),
+            ],
+        )]
+        // Key 0x5 does not exist at block 0 — result is empty.
+        #[case::key_not_yet_in_state(
+            $key_macro!(5_u8), $key_macro!("0x5"), BlockNumber(0), usize::MAX,
+            vec![],
+        )]
+        // Range [0x6, 0xa) is entirely outside the populated key space.
+        #[case::range_both_ends_outside(
+            $key_macro!("0x6"), $key_macro!("0x9"), BlockNumber(1), usize::MAX,
+            vec![],
+        )]
+        // Range [0x4, 0xa): start inside, end beyond the last key.
+        #[case::range_start_inside_end_outside(
+            $key_macro!(4_u8), $key_macro!("0x9"), BlockNumber(1), usize::MAX,
+            vec![
+                ($key_macro!(4_u8), $value_macro!(SCAN_VALUES_BLOCK_1[4])),
+                ($key_macro!(5_u8), $value_macro!(SCAN_VALUES_BLOCK_1[5])),
+            ],
+        )]
+        // Range [0x0, 0x4): start before any key, end exclusive at 0x4 — includes 0x1 and 0x3.
+        #[case::range_start_outside_end_inside(
+            $key_macro!("0x0"), $key_macro!("0x3"), BlockNumber(1), usize::MAX,
+            vec![
+                ($key_macro!(1_u8), $value_macro!(SCAN_VALUES_BLOCK_1[1])),
+                ($key_macro!(3_u8), $value_macro!(SCAN_VALUES_BLOCK_1[3])),
+            ],
+        )]
+        // Limit of 2 truncates the result — returns the first 2 entries in range.
+        #[case::limit_truncates_result(
+            $key_macro!("0x2"), $key_macro!("0x5"), BlockNumber(1), 2,
+            vec![
+                ($key_macro!(3_u8), $value_macro!(SCAN_VALUES_BLOCK_1[3])),
+                ($key_macro!(4_u8), $value_macro!(SCAN_VALUES_BLOCK_1[4])),
+            ],
+        )]
+        fn $fn_name($($params)*) {
+            // Builds an IndexMap for the state diffs at block 0 and 1 using this invocation's key/value macros.
+            macro_rules! block_0_entries {
+                () => { IndexMap::from([
+                    ($key_macro!(1_u8), $value_macro!(SCAN_VALUES_BLOCK_0[1])),
+                    ($key_macro!(3_u8), $value_macro!(SCAN_VALUES_BLOCK_0[3])),
+                    ($key_macro!(4_u8), $value_macro!(SCAN_VALUES_BLOCK_0[4])),
+                ]) }
+            }
+            macro_rules! block_1_entries {
+                () => { IndexMap::from([
+                    ($key_macro!(1_u8), $value_macro!(SCAN_VALUES_BLOCK_1[1])),
+                    ($key_macro!(4_u8), $value_macro!(SCAN_VALUES_BLOCK_1[4])),
+                    ($key_macro!(5_u8), $value_macro!(SCAN_VALUES_BLOCK_1[5])),
+                ]) }
+            }
+            $body
+        }
+    };
+}
+
+scan_cases!(
+    key_macro = contract_address,
+    value_macro = class_hash,
+    fn test_scan_at_block(
+        #[case] start: ContractAddress,
+        #[case] end: ContractAddress,
+        #[case] block_target: BlockNumber,
+        #[case] limit: usize,
+        #[case] expected: Vec<(ContractAddress, ClassHash)>,
+    ) {
+        let ((reader, mut writer), _temp_dir) = get_test_storage();
+        write_two_block_state_diffs(
+            &mut writer,
+            ThinStateDiff { deployed_contracts: block_0_entries!(), ..Default::default() },
+            ThinStateDiff { deployed_contracts: block_1_entries!(), ..Default::default() },
+        );
+        let txn = reader.begin_ro_txn().unwrap();
+        let state_reader = txn.get_state_reader().unwrap();
+        assert_eq!(
+            state_reader
+                .scan_contract_class_hashes_in_range(start, end, block_target, limit)
+                .unwrap(),
+            expected,
+        );
+    }
+);
