@@ -579,6 +579,18 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         let entries = scan_at_block(&mut cursor, (addr, start), (addr, end), block_target, limit)?;
         Ok(entries.into_iter().map(|((_, key), value)| (key, value)).collect())
     }
+
+    /// Returns all compiled class hashes in [start, end] at `block_target`.
+    pub fn scan_compiled_class_hashes_in_range(
+        &self,
+        start: ClassHash,
+        end: ClassHash,
+        block_target: BlockNumber,
+        limit: usize,
+    ) -> StorageResult<Vec<(ClassHash, CompiledClassHash)>> {
+        let mut cursor = self.compiled_class_hash_table.cursor(self.txn)?;
+        scan_at_block(&mut cursor, start, end, block_target, limit)
+    }
 }
 
 impl StateStorageWriter for StorageTxn<'_, RW> {
