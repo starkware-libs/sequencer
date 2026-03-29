@@ -215,7 +215,16 @@ async fn revert_body_state_only(storage_scope: StorageScope) {
         .unwrap()
         .commit()
         .unwrap();
-    writer.begin_rw_txn().unwrap().revert_body(BlockNumber(0)).unwrap().0.commit().unwrap();
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .revert_events(BlockNumber(0))
+        .unwrap()
+        .revert_body(BlockNumber(0))
+        .unwrap()
+        .0
+        .commit()
+        .unwrap();
 }
 
 #[tokio::test]
@@ -236,7 +245,16 @@ async fn revert_body_updates_marker(storage_scope: StorageScope) {
     // Verify that the body marker before revert is 2.
     assert_eq!(reader.begin_ro_txn().unwrap().get_body_marker().unwrap(), BlockNumber(2));
 
-    writer.begin_rw_txn().unwrap().revert_body(BlockNumber(1)).unwrap().0.commit().unwrap();
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .revert_events(BlockNumber(1))
+        .unwrap()
+        .revert_body(BlockNumber(1))
+        .unwrap()
+        .0
+        .commit()
+        .unwrap();
     assert_eq!(reader.begin_ro_txn().unwrap().get_body_marker().unwrap(), BlockNumber(1));
 }
 
@@ -266,7 +284,16 @@ async fn get_reverted_body_returns_none() {
             .is_some()
     );
 
-    writer.begin_rw_txn().unwrap().revert_body(BlockNumber(1)).unwrap().0.commit().unwrap();
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .revert_events(BlockNumber(1))
+        .unwrap()
+        .revert_body(BlockNumber(1))
+        .unwrap()
+        .0
+        .commit()
+        .unwrap();
     assert!(
         reader.begin_ro_txn().unwrap().get_block_transactions(BlockNumber(1)).unwrap().is_none()
     );
@@ -335,7 +362,16 @@ async fn revert_transactions() {
             .is_some()
     );
 
-    writer.begin_rw_txn().unwrap().revert_body(BlockNumber(0)).unwrap().0.commit().unwrap();
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .revert_events(BlockNumber(0))
+        .unwrap()
+        .revert_body(BlockNumber(0))
+        .unwrap()
+        .0
+        .commit()
+        .unwrap();
 
     // Check that all the transactions were deleted.
     for (offset, tx_hash) in body.transaction_hashes.into_iter().enumerate() {

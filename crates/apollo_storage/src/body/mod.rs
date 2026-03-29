@@ -51,6 +51,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::{
+    Event,
     Transaction,
     TransactionHash,
     TransactionOffsetInBlock,
@@ -61,6 +62,7 @@ use tracing::debug;
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, NoValue, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
+use crate::mmap_file::LocationInFile;
 use crate::{
     FileHandlers,
     MarkerKind,
@@ -79,9 +81,11 @@ type TransactionMetadataTable<'env> =
     TableHandle<'env, TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>;
 type TransactionHashToIdxTable<'env> =
     TableHandle<'env, TransactionHash, NoVersionValueWrapper<TransactionIndex>, SimpleTable>;
-type EventsTableKey = (ContractAddress, TransactionIndex);
-type EventsTable<'env> =
-    TableHandle<'env, EventsTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
+type ContractAddressEventsIndexKey = (ContractAddress, TransactionIndex);
+type ContractAddressEventsIndexTable<'env> =
+    TableHandle<'env, ContractAddressEventsIndexKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
+type TransactionEventsTable<'env> =
+    TableHandle<'env, TransactionIndex, VersionZeroWrapper<LocationInFile>, SimpleTable>;
 
 /// The index of a transaction in a block.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
@@ -176,6 +180,9 @@ where
         self,
         block_number: BlockNumber,
     ) -> StorageResult<(Self, Option<RevertedBlockBody>)>;
+
+    /// Removes event data for a block.
+    fn revert_events(self, block_number: BlockNumber) -> StorageResult<Self>;
 }
 
 impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
@@ -394,10 +401,27 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
     #[latency_histogram("storage_append_body_latency_seconds", false)]
     fn append_body(self, block_number: BlockNumber, block_body: BlockBody) -> StorageResult<Self> {
         let markers_table = self.open_table(&self.tables.markers)?;
-        update_marker(&self.txn, &markers_table, block_number)?;
+        update_body_marker(&self.txn, &markers_table, block_number)?;
+        update_event_marker(&self.txn, &markers_table, block_number)?;
 
         if self.scope != StorageScope::StateOnly {
-            let events_table = self.open_table(&self.tables.events)?;
+            let num_transactions = block_body.transactions.len();
+            if block_body.transaction_outputs.len() != num_transactions
+                || block_body.transaction_hashes.len() != num_transactions
+            {
+                return Err(StorageError::DBInconsistency {
+                    msg: format!(
+                        "Block body length mismatch for block {block_number}: transactions={}, \
+                         outputs={}, hashes={}",
+                        num_transactions,
+                        block_body.transaction_outputs.len(),
+                        block_body.transaction_hashes.len(),
+                    ),
+                });
+            }
+            let contract_address_events_index =
+                self.open_table(&self.tables.contract_address_events_index)?;
+            let transaction_events_table = self.open_table(&self.tables.transaction_events)?;
             let transaction_hash_to_idx_table =
                 self.open_table(&self.tables.transaction_hash_to_idx)?;
             let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
@@ -410,9 +434,28 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                 &file_offset_table,
                 &transaction_hash_to_idx_table,
                 &transaction_metadata_table,
-                &events_table,
                 block_number,
             )?;
+
+            // TODO(mohammad): remove events from TransactionOutput and extract event writing
+            // into a separate append_events method. Then remove this block.
+            let mut last_events_location = None;
+            for (offset, tx_output) in block_body.transaction_outputs.iter().enumerate() {
+                let transaction_index =
+                    TransactionIndex(block_number, TransactionOffsetInBlock(offset));
+                let events = tx_output.events();
+                write_events(events, &self.txn, &contract_address_events_index, transaction_index)?;
+                let events_location = self.file_handlers.append_events(&events.to_vec());
+                transaction_events_table.insert(&self.txn, &transaction_index, &events_location)?;
+                last_events_location = Some(events_location);
+            }
+            if let Some(location) = last_events_location {
+                file_offset_table.upsert(
+                    &self.txn,
+                    &OffsetKind::Events,
+                    &location.next_offset(),
+                )?;
+            }
         }
 
         Ok(self)
@@ -424,11 +467,11 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
     ) -> StorageResult<(Self, Option<RevertedBlockBody>)> {
         let markers_table = self.open_table(&self.tables.markers)?;
 
-        // Assert that body marker equals the reverted block number + 1
-        let current_header_marker = self.get_body_marker()?;
+        // Assert that body marker equals the reverted block number + 1.
+        let current_body_marker = self.get_body_marker()?;
         if block_number
             .next()
-            .filter(|next_block_number| current_header_marker == *next_block_number)
+            .filter(|next_block_number| current_body_marker == *next_block_number)
             .is_none()
         {
             debug!(
@@ -446,7 +489,6 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
             let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
             let transaction_hash_to_idx_table =
                 self.open_table(&self.tables.transaction_hash_to_idx)?;
-            let events_table = self.open_table(&self.tables.events)?;
 
             let transactions = self
                 .get_block_transactions(block_number)?
@@ -458,15 +500,8 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                 .get_block_transaction_hashes(block_number)?
                 .unwrap_or_else(|| panic!("Missing transaction hashes for block {block_number}."));
 
-            // Delete the transactions data.
-            for (offset, (tx_hash, tx_output)) in
-                transaction_hashes.iter().zip(transaction_outputs.iter()).enumerate()
-            {
+            for (offset, tx_hash) in transaction_hashes.iter().enumerate() {
                 let tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(offset));
-
-                for event in tx_output.events().iter() {
-                    events_table.delete(&self.txn, &(event.from_address, tx_index))?;
-                }
                 transaction_hash_to_idx_table.delete(&self.txn, tx_hash)?;
                 transaction_metadata_table.delete(&self.txn, &tx_index)?;
             }
@@ -474,14 +509,65 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
         };
 
         markers_table.upsert(&self.txn, &MarkerKind::Body, &block_number)?;
-        markers_table.upsert(&self.txn, &MarkerKind::Event, &block_number)?;
         Ok((self, reverted_block_body))
+    }
+
+    fn revert_events(self, block_number: BlockNumber) -> StorageResult<Self> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+
+        let current_event_marker = self.get_event_marker()?;
+        if block_number
+            .next()
+            .filter(|next_block_number| current_event_marker == *next_block_number)
+            .is_none()
+        {
+            debug!(
+                "Attempt to revert events for a non-existing / old block {}. Returning without an \
+                 action.",
+                block_number
+            );
+            return Ok(self);
+        }
+
+        if self.scope != StorageScope::StateOnly {
+            let contract_address_events_index =
+                self.open_table(&self.tables.contract_address_events_index)?;
+            let transaction_events_table = self.open_table(&self.tables.transaction_events)?;
+
+            let mut cursor = transaction_events_table.cursor(&self.txn)?;
+            let mut current_entry =
+                cursor.lower_bound(&TransactionIndex(block_number, TransactionOffsetInBlock(0)))?;
+            let mut event_keys_to_delete = Vec::new();
+            let mut tx_event_keys_to_delete = Vec::new();
+            while let Some((tx_index, location)) = current_entry {
+                if tx_index.0 != block_number {
+                    break;
+                }
+                let events = self.file_handlers.get_events_unchecked(location)?;
+                let addresses: HashSet<_> = events.iter().map(|e| e.from_address).collect();
+                for address in addresses {
+                    event_keys_to_delete.push((address, tx_index));
+                }
+                tx_event_keys_to_delete.push(tx_index);
+                current_entry = cursor.next()?;
+            }
+            drop(cursor);
+
+            for key in &event_keys_to_delete {
+                contract_address_events_index.delete(&self.txn, key)?;
+            }
+            for key in &tx_event_keys_to_delete {
+                transaction_events_table.delete(&self.txn, key)?;
+            }
+        }
+
+        markers_table.upsert(&self.txn, &MarkerKind::Event, &block_number)?;
+        Ok(self)
     }
 }
 
 // TODO(dvir): consider enforcing that the block_body transactions, transaction_outputs and
 // transaction_hashes to be the same size.
-#[allow(clippy::too_many_arguments)]
 fn write_transactions<'env>(
     block_body: &BlockBody,
     txn: &DbTransaction<'env, RW>,
@@ -489,7 +575,6 @@ fn write_transactions<'env>(
     file_offset_table: &'env FileOffsetsTable<'env>,
     transaction_hash_to_idx_table: &'env TransactionHashToIdxTable<'env>,
     transaction_metadata_table: &'env TransactionMetadataTable<'env>,
-    events_table: &'env EventsTable<'env>,
     block_number: BlockNumber,
 ) -> StorageResult<()> {
     for (index, ((tx, tx_output), tx_hash)) in block_body
@@ -503,7 +588,6 @@ fn write_transactions<'env>(
         let transaction_index = TransactionIndex(block_number, tx_offset_in_block);
         let tx_location = file_handlers.append_transaction(tx);
         let tx_output_location = file_handlers.append_transaction_output(tx_output);
-        write_events(tx_output, txn, events_table, transaction_index)?;
         transaction_hash_to_idx_table.insert(txn, tx_hash, &transaction_index)?;
         transaction_metadata_table.append(
             txn,
@@ -527,14 +611,14 @@ fn write_transactions<'env>(
 
 // This function assumes that the `transaction_index` is the last index used to call it.
 fn write_events<'env>(
-    tx_output: &TransactionOutput,
+    events: &[Event],
     txn: &DbTransaction<'env, RW>,
-    events_table: &'env EventsTable<'env>,
+    contract_address_events_index: &'env ContractAddressEventsIndexTable<'env>,
     transaction_index: TransactionIndex,
 ) -> StorageResult<()> {
     let mut contract_addresses_set = HashSet::new();
 
-    for event in tx_output.events().iter() {
+    for event in events {
         contract_addresses_set.insert(event.from_address);
     }
 
@@ -542,17 +626,16 @@ fn write_events<'env>(
         let key = (contract_address, transaction_index);
         // Here, we use the function assumption; the append will fail if an older transaction_index
         // is a table.
-        events_table.append_greater_sub_key(txn, &key, &NoValue)?;
+        contract_address_events_index.append_greater_sub_key(txn, &key, &NoValue)?;
     }
     Ok(())
 }
 
-fn update_marker<'env>(
+fn update_body_marker<'env>(
     txn: &DbTransaction<'env, RW>,
     markers_table: &'env MarkersTable<'env>,
     block_number: BlockNumber,
 ) -> StorageResult<()> {
-    // Make sure marker is consistent.
     let body_marker = markers_table.get(txn, &MarkerKind::Body)?.unwrap_or_default();
     if body_marker != block_number {
         return Err(StorageError::MarkerMismatch {
@@ -561,6 +644,16 @@ fn update_marker<'env>(
             found: block_number,
         });
     };
+
+    markers_table.upsert(txn, &MarkerKind::Body, &block_number.unchecked_next())?;
+    Ok(())
+}
+
+fn update_event_marker<'env>(
+    txn: &DbTransaction<'env, RW>,
+    markers_table: &'env MarkersTable<'env>,
+    block_number: BlockNumber,
+) -> StorageResult<()> {
     let event_marker = markers_table.get(txn, &MarkerKind::Event)?.unwrap_or_default();
     if event_marker != block_number {
         return Err(StorageError::MarkerMismatch {
@@ -570,8 +663,6 @@ fn update_marker<'env>(
         });
     };
 
-    // Advance marker.
-    markers_table.upsert(txn, &MarkerKind::Body, &block_number.unchecked_next())?;
     markers_table.upsert(txn, &MarkerKind::Event, &block_number.unchecked_next())?;
     Ok(())
 }
