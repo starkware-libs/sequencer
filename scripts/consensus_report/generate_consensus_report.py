@@ -115,6 +115,17 @@ class ValidationAnalysisResult:
     validation_evidence_by_round: Dict[int, List[Tuple[int, str]]]
 
 
+@dataclass
+class RoundMetadata:
+    """Metadata collected for a round."""
+
+    round_start_time: Optional[datetime]
+    round_end_time: Optional[datetime]
+    proposer: Optional[str]
+    round_n_txs: str
+    closing_reason: str
+
+
 def final_weights_marker(height_str: str) -> str:
     return f"Block {height_str} final weights"
 
@@ -508,6 +519,7 @@ def load_and_filter_log_entries_for_height(
         for entry in data
         if height_match(entry, block_height) and (timestamp := parse_timestamp(entry)) is not None
     ]
+
     entries_with_timestamps.sort(key=lambda item: item[0])
 
     return [entry for _, entry in entries_with_timestamps]
@@ -619,6 +631,160 @@ def collect_validation_evidence_for_all_rounds(
         validation_status_by_round_validator=validation_status_by_round_validator,
         validation_evidence_by_round=validation_evidence_by_round,
     )
+
+
+def render_validator_nodes_summary_section(
+    validator_ids: List[str], namespace_by_validator_id: Dict[str, str]
+) -> List[str]:
+    """Render the NODES section showing namespace and ID for each validator."""
+    section_lines = []
+    section_lines.append("NODES")
+    section_lines.append("-----")
+    section_lines.append("")
+    section_lines.append(
+        ascii_table(
+            ["Namespace", "ID"],
+            [
+                [namespace_by_validator_id.get(validator_id, ""), short_id(validator_id)]
+                for validator_id in validator_ids
+            ],
+            aligns=["l", "l"],
+        )
+    )
+    section_lines.append("")
+    return section_lines
+
+
+def collect_round_metadata(round_index: int, consensus_data: ConsensusData) -> RoundMetadata:
+    """Collect round timing and metadata."""
+    round_number = consensus_data.consensus_rounds[round_index]
+    next_round_number = (
+        consensus_data.consensus_rounds[round_index + 1]
+        if round_index < len(consensus_data.consensus_rounds) - 1
+        else None
+    )
+
+    round_start_ts = round_start(consensus_data.all_log_entries, round_number)
+    round_end_ts = round_end(consensus_data.all_log_entries, round_number)
+    proposer = get_round_proposer_id(consensus_data.all_log_entries, round_number)
+
+    round_n_txs = n_txs_for_round(
+        consensus_data.log_entries_by_namespace,
+        consensus_data.all_log_entries,
+        consensus_data.namespace_by_validator_id,
+        round_number,
+        next_round_number,
+    )
+    closing_reason = block_closing_reason(consensus_data.all_log_entries, round_number)
+
+    return RoundMetadata(
+        round_start_time=round_start_ts,
+        round_end_time=round_end_ts,
+        proposer=proposer,
+        round_n_txs=round_n_txs,
+        closing_reason=closing_reason,
+    )
+
+
+def render_round_header(round_number: int) -> List[str]:
+    """Render the round header with title and separator."""
+    header = f"ROUND {round_number}"
+    return [header, "-" * len(header), ""]
+
+
+def render_round_summary_table(metadata: RoundMetadata) -> List[str]:
+    """Render the round summary table with timing and metadata."""
+    return [
+        ascii_table(
+            ["Start (UTC)", "End (UTC)", "Proposer", "N_txs", "Block closing reason"],
+            [
+                [
+                    fmt_timestamp(metadata.round_start_time),
+                    fmt_timestamp(metadata.round_end_time),
+                    short_id(metadata.proposer) if metadata.proposer else "",
+                    metadata.round_n_txs,
+                    metadata.closing_reason,
+                ]
+            ],
+            aligns=["l", "l", "l", "r", "l"],
+        ),
+        "",
+    ]
+
+
+def format_vote_cell(
+    vote_msg: Optional[str], vote_notes: List[Tuple[int, str]], vote_no: int
+) -> Tuple[str, int]:
+    """Format a vote cell and update vote notes if needed."""
+    vote = vote_state(vote_msg)
+    if vote == "yes":
+        cell = f"yes [{vote_no}]"
+        vote_notes.append((vote_no, vote_msg or ""))
+        return cell, vote_no + 1
+    return vote, vote_no
+
+
+def build_node_details_row(
+    validator_id: str,
+    round_number: int,
+    metadata: RoundMetadata,
+    consensus_data: ConsensusData,
+    vote_analysis: VoteAnalysisResult,
+    validation_analysis: ValidationAnalysisResult,
+    vote_notes: List[Tuple[int, str]],
+    vote_no: int,
+) -> Tuple[List[str], int]:
+    """Build a single row for node details table."""
+    role = "Proposer" if metadata.proposer and validator_id == metadata.proposer else "Validator"
+    proposal_start_ts = proposal_start(
+        consensus_data.log_entries_by_round_and_validator, validator_id, round_number
+    )
+    if proposal_start_ts is None:
+        print_error(
+            f"Round {round_number} 'Accepting/Received ProposalInit' log entry not found for validator {validator_id},"
+            f" using round start time instead."
+        )
+        proposal_start_ts = metadata.round_start_time
+
+    duration = fmt_duration_seconds(metadata.round_end_time, proposal_start_ts)
+
+    prevote_msg = vote_analysis.vote_messages_by_round_validator_type.get(
+        (round_number, validator_id, "Prevote")
+    )
+    precommit_msg = vote_analysis.vote_messages_by_round_validator_type.get(
+        (round_number, validator_id, "Precommit")
+    )
+
+    prevote_cell, vote_no = format_vote_cell(prevote_msg, vote_notes, vote_no)
+    precommit_cell, vote_no = format_vote_cell(precommit_msg, vote_notes, vote_no)
+
+    weights = weights_for_node_round(
+        consensus_data.log_entries_by_round_and_validator,
+        consensus_data.log_entries_by_namespace,
+        consensus_data.namespace_by_validator_id,
+        consensus_data.block_height,
+        round_number,
+        validator_id,
+    )
+
+    row = [
+        short_id(validator_id),
+        role,
+        fmt_timestamp(proposal_start_ts),
+        duration,
+        validation_analysis.validation_status_by_round_validator[round_number].get(
+            validator_id, "Passed"
+        ),
+        prevote_cell,
+        precommit_cell,
+        weights.get("l1_gas", ""),
+        weights.get("state_diff_size", ""),
+        weights.get("sierra_gas", ""),
+        weights.get("n_txs", ""),
+        weights.get("proving_gas", ""),
+    ]
+
+    return row, vote_no
 
 
 def main() -> int:
