@@ -67,7 +67,7 @@ use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStat
 use starknet_types_core::felt::Felt;
 use tracing::debug;
 
-use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
+use crate::db::serialization::{NoVersionValueWrapper, ValueSerde, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
 use crate::metrics::STORAGE_APPEND_THIN_STATE_DIFF_LATENCY;
@@ -204,6 +204,47 @@ pub struct StateReader<'env, Mode: TransactionKind> {
     storage_table: ContractStorageTable<'env>,
     markers_table: MarkersTable<'env>,
     file_handlers: &'env FileHandlers<Mode>,
+}
+
+#[allow(dead_code)]
+/// Scans a MDBX table with keys `(EK, BlockNumber)` over the entity-key range
+/// `[start, end)` at `synced_block`, returning up to `limit` entries.
+///
+/// `end` is exclusive.
+fn scan_synced_block<C, EK, EV>(
+    cursor: &mut C,
+    start: EK,
+    end: EK,
+    synced_block: BlockNumber,
+    limit: usize,
+) -> StorageResult<Vec<(EK, EV)>>
+where
+    C: DbCursorTrait<Key = (EK, BlockNumber)>,
+    C::Value: ValueSerde<Value = EV>,
+    EK: Copy + PartialOrd,
+{
+    let first_irrelevant_block = BlockNumber(synced_block.0 + 1);
+    let mut result = Vec::new();
+    let mut current = start;
+    loop {
+        if result.len() >= limit || current >= end {
+            break;
+        }
+        // Position just past all entries for `current` at `synced_block`, then step back.
+        cursor.lower_bound(&(current, first_irrelevant_block))?;
+        if let Some(((got_ek, _block), value)) = cursor.prev()? {
+            if got_ek == current {
+                result.push((current, value));
+            }
+        }
+        // Advance to the next entity key by seeking past all blocks for `current`.
+        // TODO(yoav): define StorageBlockNumber type that wraps a u32 and use it here.
+        match cursor.lower_bound(&(current, BlockNumber(u64::from(u32::MAX))))? {
+            None => break,
+            Some(((next_ek, _), _)) => current = next_ek,
+        }
+    }
+    Ok(result)
 }
 
 impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
