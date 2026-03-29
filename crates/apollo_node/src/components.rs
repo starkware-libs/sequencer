@@ -97,7 +97,6 @@ pub async fn create_node_components(
             let (dynamic_config_tx, channel_client) =
                 LocalComponentChannelClient::new_with_initial_value(node_dynamic_config.clone());
             let config_manager_channel_client = Arc::new(channel_client);
-            let value_rx_keep_alive = dynamic_config_tx.subscribe();
             let config_manager_client = clients
                 .get_config_manager_shared_client()
                 .expect("Config Manager client should be available");
@@ -106,7 +105,6 @@ pub async fn create_node_components(
                 config_manager_config.clone(),
                 config_manager_client,
                 dynamic_config_tx,
-                value_rx_keep_alive,
                 node_dynamic_config,
                 cli_args,
             );
@@ -276,7 +274,7 @@ pub async fn create_node_components(
             let config_manager_client = clients
                 .get_config_manager_shared_client()
                 .expect("Config Manager client should be available");
-            let _config_manager_channel_client = config_manager_channel_client
+            let config_manager_channel_client = config_manager_channel_client
                 .expect("Config Manager channel client should be available");
             let http_server_config =
                 config.http_server_config.as_ref().expect("HTTP Server config should be set");
@@ -286,6 +284,7 @@ pub async fn create_node_components(
             Some(create_http_server(
                 http_server_config.clone(),
                 config_manager_client,
+                config_manager_channel_client,
                 gateway_client,
             ))
         }
