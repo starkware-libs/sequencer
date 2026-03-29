@@ -206,7 +206,6 @@ pub struct StateReader<'env, Mode: TransactionKind> {
     file_handlers: &'env FileHandlers<Mode>,
 }
 
-#[allow(dead_code)]
 /// Scans a MDBX table with keys `(Key, BlockNumber)` over the key range
 /// `[start, end]` at `block_target`, returning up to `limit` entries.
 ///
@@ -551,6 +550,19 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         Ok(Some(
             self.file_handlers.get_deprecated_contract_class_unchecked(value.location_in_file)?,
         ))
+    }
+
+    /// Returns all contract addresses in [start, end] at `block_target`, paired with their class
+    /// hashes.
+    pub fn scan_contract_class_hashes_in_range(
+        &self,
+        start: ContractAddress,
+        end: ContractAddress,
+        block_target: BlockNumber,
+        limit: usize,
+    ) -> StorageResult<Vec<(ContractAddress, ClassHash)>> {
+        let mut cursor = self.deployed_contracts_table.cursor(self.txn)?;
+        scan_at_block(&mut cursor, start, end, block_target, limit)
     }
 }
 
