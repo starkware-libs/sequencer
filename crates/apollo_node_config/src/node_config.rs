@@ -38,6 +38,7 @@ use apollo_reverts::RevertConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
 use apollo_state_sync_config::config::{StateSyncConfig, StateSyncDynamicConfig};
+use blockifier::blockifier::config::NativeClassesWhitelist;
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
@@ -100,8 +101,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             ser_pointer_target_param(
                 "native_classes_whitelist",
                 &"[]".to_string(),
-                "Specifies whether to execute all class hashes or only specific ones using Cairo \
-                native. If limited, a specific list of class hashes is provided.",
+                NativeClassesWhitelist::SER_PARAM_DESCRIPTION,
             ),
             set_pointing_param_paths(&[
                 "batcher_config.dynamic_config.native_classes_whitelist",
