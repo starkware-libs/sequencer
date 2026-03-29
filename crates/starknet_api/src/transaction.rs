@@ -235,16 +235,6 @@ impl TransactionOutput {
         }
     }
 
-    pub fn events(&self) -> &[Event] {
-        match self {
-            TransactionOutput::Declare(output) => &output.events,
-            TransactionOutput::Deploy(output) => &output.events,
-            TransactionOutput::DeployAccount(output) => &output.events,
-            TransactionOutput::Invoke(output) => &output.events,
-            TransactionOutput::L1Handler(output) => &output.events,
-        }
-    }
-
     pub fn execution_status(&self) -> &TransactionExecutionStatus {
         match self {
             TransactionOutput::Declare(output) => &output.execution_status,
@@ -803,7 +793,6 @@ impl TransactionHasher for L1HandlerTransaction {
 pub struct DeclareTransactionOutput {
     pub actual_fee: Fee,
     pub messages_sent: Vec<MessageToL1>,
-    pub events: Vec<Event>,
     #[serde(flatten)]
     pub execution_status: TransactionExecutionStatus,
     pub execution_resources: ExecutionResources,
@@ -814,7 +803,6 @@ pub struct DeclareTransactionOutput {
 pub struct DeployAccountTransactionOutput {
     pub actual_fee: Fee,
     pub messages_sent: Vec<MessageToL1>,
-    pub events: Vec<Event>,
     pub contract_address: ContractAddress,
     #[serde(flatten)]
     pub execution_status: TransactionExecutionStatus,
@@ -826,7 +814,6 @@ pub struct DeployAccountTransactionOutput {
 pub struct DeployTransactionOutput {
     pub actual_fee: Fee,
     pub messages_sent: Vec<MessageToL1>,
-    pub events: Vec<Event>,
     pub contract_address: ContractAddress,
     #[serde(flatten)]
     pub execution_status: TransactionExecutionStatus,
@@ -838,7 +825,6 @@ pub struct DeployTransactionOutput {
 pub struct InvokeTransactionOutput {
     pub actual_fee: Fee,
     pub messages_sent: Vec<MessageToL1>,
-    pub events: Vec<Event>,
     #[serde(flatten)]
     pub execution_status: TransactionExecutionStatus,
     pub execution_resources: ExecutionResources,
@@ -849,7 +835,6 @@ pub struct InvokeTransactionOutput {
 pub struct L1HandlerTransactionOutput {
     pub actual_fee: Fee,
     pub messages_sent: Vec<MessageToL1>,
-    pub events: Vec<Event>,
     #[serde(flatten)]
     pub execution_status: TransactionExecutionStatus,
     pub execution_resources: ExecutionResources,
