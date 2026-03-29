@@ -2,9 +2,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+#[cfg(feature = "cairo_native")]
+use blockifier::blockifier::config::{CairoNativeMode, ContractClassManagerConfig};
 use blockifier::context::ChainInfo;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use starknet_api::block::BlockNumber;
+#[cfg(feature = "cairo_native")]
+use starknet_api::contract_class::SierraVersion;
 
 use crate::errors::{RPCStateReaderError, ReexecutionError, ReexecutionResult};
 use crate::state_reader::config::RpcStateReaderConfig;
@@ -28,6 +32,7 @@ pub async fn run_rpc_replay(
     end_block: Option<u64>,
     n_workers: usize,
     contract_class_manager: ContractClassManager,
+    compare_native: bool,
 ) {
     let rpc_state_reader_config = RpcStateReaderConfig::from_url(node_url);
     let chain_info = get_chain_info(&chain_id, None);
@@ -38,27 +43,43 @@ pub async fn run_rpc_replay(
         mismatched: AtomicU64::new(0),
     });
 
+    let end_block_str = end_block.map_or("inf".to_string(), |b| b.to_string());
     tracing::info!(
-        "Starting RPC replay from block {start_block} to {end_block:?} with {n_workers} workers."
+        "Starting RPC replay from block {start_block} to {end_block_str} with {n_workers} \
+         workers, compare_native={compare_native}."
     );
+
+    let replay_mode = match compare_native {
+        true => {
+            #[cfg(not(feature = "cairo_native"))]
+            panic!("--compare-native requires the cairo_native feature");
+
+            #[cfg(feature = "cairo_native")]
+            {
+                let mut native_config = ContractClassManagerConfig::default();
+                native_config.cairo_native_run_config.cairo_native_mode =
+                    CairoNativeMode::WaitOnCompilation;
+                let mut casm_config = ContractClassManagerConfig::default();
+                casm_config.cairo_native_run_config.cairo_native_mode = CairoNativeMode::Off;
+                ReplayMode::CompareNative {
+                    native_manager: ContractClassManager::start(native_config),
+                    casm_manager: ContractClassManager::start(casm_config),
+                }
+            }
+        }
+        false => ReplayMode::Standard { contract_class_manager },
+    };
 
     let mut task_set = tokio::task::JoinSet::new();
     for _ in 0..n_workers {
         let counter = block_counter.clone();
         let config = rpc_state_reader_config.clone();
         let chain_info = chain_info.clone();
-        let contract_class_manager = contract_class_manager.clone();
+        let replay_mode = replay_mode.clone();
         let counters = counters.clone();
 
         task_set.spawn_blocking(move || {
-            replay_worker(
-                counter,
-                end_block,
-                &config,
-                &chain_info,
-                &contract_class_manager,
-                &counters,
-            );
+            replay_worker(counter, end_block, &config, &chain_info, &replay_mode, &counters);
         });
     }
     task_set.join_all().await;
@@ -73,13 +94,24 @@ pub async fn run_rpc_replay(
     );
 }
 
-/// Worker loop for RPC replay.
+#[derive(Clone)]
+enum ReplayMode {
+    Standard {
+        contract_class_manager: ContractClassManager,
+    },
+    #[cfg(feature = "cairo_native")]
+    CompareNative {
+        native_manager: ContractClassManager,
+        casm_manager: ContractClassManager,
+    },
+}
+
 fn replay_worker(
     block_counter: Arc<AtomicU64>,
     end_block: Option<u64>,
     config: &RpcStateReaderConfig,
     chain_info: &ChainInfo,
-    contract_class_manager: &ContractClassManager,
+    replay_mode: &ReplayMode,
     counters: &ReplayCounters,
 ) {
     loop {
@@ -92,9 +124,24 @@ fn replay_worker(
         }
 
         // Retry until the block is available on the node. If the node hasn't yet reached
-        // this block number (i.e., it's ahead of the chain tip), we wait and retry.
+        // this block number (i.e., we're ahead of the chain tip), we wait and retry.
         let result = loop {
-            match reexecute_block(block_number, config, chain_info, contract_class_manager) {
+            let attempt = match replay_mode {
+                ReplayMode::Standard { contract_class_manager } => {
+                    reexecute_block(block_number, config, chain_info, contract_class_manager)
+                }
+                #[cfg(feature = "cairo_native")]
+                ReplayMode::CompareNative { native_manager, casm_manager } => {
+                    reexecute_block_native_vs_casm(
+                        block_number,
+                        config,
+                        chain_info,
+                        native_manager,
+                        casm_manager,
+                    )
+                }
+            };
+            match attempt {
                 Err(ref e) if is_block_not_found(e) => {
                     tracing::debug!("Block {block_number} not found, waiting for chain tip.");
                     std::thread::sleep(Duration::from_secs(1));
@@ -120,8 +167,7 @@ fn replay_worker(
     }
 }
 
-/// Reexecutes a single block via RPC and compares state diffs.
-/// Returns `Ok(true)` if diffs match, `Ok(false)` if mismatch (logged via tracing).
+/// Reexecutes a single block via RPC and compares the actual state diff against the chain.
 fn reexecute_block(
     block_number: u64,
     config: &RpcStateReaderConfig,
@@ -142,6 +188,45 @@ fn reexecute_block(
     let (_block_state, expected_state_diff, actual_state_diff) = readers.reexecute_block()?;
 
     Ok(compare_state_diffs(expected_state_diff, actual_state_diff, BlockNumber(block_number)))
+}
+
+/// Reexecutes a single block twice -- once with native and once with CASM -- and compares the
+/// resulting state diffs against each other.
+#[cfg(feature = "cairo_native")]
+fn reexecute_block_native_vs_casm(
+    block_number: u64,
+    config: &RpcStateReaderConfig,
+    chain_info: &ChainInfo,
+    native_manager: &ContractClassManager,
+    casm_manager: &ContractClassManager,
+) -> ReexecutionResult<bool> {
+    let prev_block = BlockNumber(block_number)
+        .prev()
+        .expect("Block number 0 cannot be reexecuted (no previous block).");
+
+    let min_sierra_version_override = Some(SierraVersion::new(0, 0, 0));
+
+    let mut native_readers = ConsecutiveRpcStateReaders::new(
+        prev_block,
+        Some(config.clone()),
+        chain_info.clone(),
+        false,
+        native_manager.clone(),
+    );
+    native_readers.min_sierra_version_override = min_sierra_version_override.clone();
+    let (_block_state, _expected, native_state_diff) = native_readers.reexecute_block()?;
+
+    let mut casm_readers = ConsecutiveRpcStateReaders::new(
+        prev_block,
+        Some(config.clone()),
+        chain_info.clone(),
+        false,
+        casm_manager.clone(),
+    );
+    casm_readers.min_sierra_version_override = min_sierra_version_override;
+    let (_block_state, _expected, casm_state_diff) = casm_readers.reexecute_block()?;
+
+    Ok(compare_state_diffs(native_state_diff, casm_state_diff, BlockNumber(block_number)))
 }
 
 fn is_block_not_found(err: &ReexecutionError) -> bool {
