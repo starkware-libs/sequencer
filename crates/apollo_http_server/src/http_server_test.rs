@@ -36,7 +36,6 @@ use crate::test_utils::{
     deprecated_gateway_invoke_tx,
     deprecated_gateway_invoke_tx_client_side_proving,
     get_mock_config_manager_channel_client,
-    get_mock_config_manager_client,
     rpc_invoke_tx,
     GatewayTransaction,
     HttpClientServerSetupBuilder,
@@ -102,7 +101,6 @@ async fn allow_new_txs() {
     let tx = rpc_invoke_tx();
 
     let http_client = HttpClientServerSetupBuilder::new(unique_u16!())
-        .with_mock_config_manager_client(get_mock_config_manager_client(false))
         .with_mock_config_manager_channel_client(get_mock_config_manager_channel_client(false))
         .build()
         .await;
