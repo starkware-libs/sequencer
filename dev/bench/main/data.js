@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774549350129,
+  "lastUpdate": 1774800421384,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1087,6 +1087,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1397.45826849,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "106665835+Itay-Tsabary-Starkware@users.noreply.github.com",
+            "name": "Itay-Tsabary-Starkware",
+            "username": "Itay-Tsabary-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a22e7dc187fb69a0edd19be1b4edf5d06b02950a",
+          "message": "apollo_infra: add tcp keepalive to remote client (#13444)\n\nSet SO_KEEPALIVE on outbound sockets via a configurable idle time\n(tcp_keepalive_idle_time_ms). This lets the OS detect dead peers that\ndisappear without sending FIN/RST.\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-03-29T15:43:54Z",
+          "tree_id": "3c711f2132ecedb81546014cedfb331329302d5e",
+          "url": "https://github.com/starkware-libs/sequencer/commit/a22e7dc187fb69a0edd19be1b4edf5d06b02950a"
+        },
+        "date": 1774800421072,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 896.2881523200001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1357.76722203,
             "unit": "ms"
           }
         ]
