@@ -118,6 +118,10 @@ impl NetworkBehaviour for BootstrappingBehaviour {
 }
 
 impl BootstrappingBehaviour {
+    pub fn is_bootstrap_peer(&self, peer_id: &PeerId) -> bool {
+        self.bootstrap_peers.contains_key(peer_id)
+    }
+
     pub fn new(local_peer_id: PeerId, bootstrap_peers: Vec<(PeerId, Multiaddr)>) -> Self {
         let unique_peer_ids: std::collections::HashSet<_> =
             bootstrap_peers.iter().map(|(id, _)| id).collect();
