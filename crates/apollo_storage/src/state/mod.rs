@@ -214,6 +214,15 @@ pub struct StateReader<'env, Mode: TransactionKind> {
     storage_table: ContractStorageTable<'env>,
     markers_table: MarkersTable<'env>,
     file_handlers: &'env FileHandlers<Mode>,
+    // Flat state fields.
+    flat_state: bool,
+    flat_contract_storage_table: FlatContractStorageTable<'env>,
+    flat_nonces_table: FlatNoncesTable<'env>,
+    flat_deployed_contracts_table: FlatDeployedContractsTable<'env>,
+    flat_compiled_class_hash_table: FlatCompiledClassHashTable<'env>,
+    // Test-only: suppress flat/versioned assertion for routing tests.
+    #[cfg(test)]
+    pub(crate) skip_flat_assertion: bool,
 }
 
 impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
@@ -239,6 +248,12 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         let nonces_table = txn.txn.open_table(&txn.tables.nonces)?;
         let storage_table = txn.txn.open_table(&txn.tables.contract_storage)?;
         let markers_table = txn.txn.open_table(&txn.tables.markers)?;
+        let flat_contract_storage_table = txn.txn.open_table(&txn.tables.flat_contract_storage)?;
+        let flat_nonces_table = txn.txn.open_table(&txn.tables.flat_nonces)?;
+        let flat_deployed_contracts_table =
+            txn.txn.open_table(&txn.tables.flat_deployed_contracts)?;
+        let flat_compiled_class_hash_table =
+            txn.txn.open_table(&txn.tables.flat_compiled_class_hash)?;
         Ok(StateReader {
             txn: &txn.txn,
             compiled_class_hash_table,
@@ -251,7 +266,31 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
             storage_table,
             markers_table,
             file_handlers: &txn.file_handlers,
+            flat_state: txn.flat_state,
+            flat_contract_storage_table,
+            flat_nonces_table,
+            flat_deployed_contracts_table,
+            flat_compiled_class_hash_table,
+            #[cfg(test)]
+            skip_flat_assertion: false,
         })
+    }
+
+    fn assert_flat_versioned_match<T: PartialEq + std::fmt::Debug>(
+        &self,
+        flat: &T,
+        versioned: &T,
+        table_name: &str,
+    ) {
+        #[cfg(test)]
+        if self.skip_flat_assertion {
+            return;
+        }
+        assert_eq!(flat, versioned, "Flat/versioned divergence in {table_name}");
+    }
+
+    fn get_state_marker(&self) -> StorageResult<BlockNumber> {
+        Ok(self.markers_table.get(self.txn, &MarkerKind::State)?.unwrap_or_default())
     }
 
     /// Returns the class hash at a given state number.
@@ -264,6 +303,31 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
     /// # Errors
     /// Returns [`StorageError`] if there was an error searching the table.
     pub fn get_class_hash_at(
+        &self,
+        state_number: StateNumber,
+        address: &ContractAddress,
+    ) -> StorageResult<Option<ClassHash>> {
+        if self.flat_state {
+            let state_marker = self.get_state_marker()?;
+            let first_irrelevant_block = state_number.block_after();
+            if first_irrelevant_block >= state_marker {
+                let flat_result = self.flat_deployed_contracts_table.get(self.txn, address)?;
+                let versioned_result = self.get_class_hash_at_versioned(state_number, address)?;
+                if let Some(flat_value) = flat_result {
+                    self.assert_flat_versioned_match(
+                        &Some(flat_value),
+                        &versioned_result,
+                        "deployed_contracts",
+                    );
+                    return Ok(Some(flat_value));
+                }
+                return Ok(versioned_result);
+            }
+        }
+        self.get_class_hash_at_versioned(state_number, address)
+    }
+
+    fn get_class_hash_at_versioned(
         &self,
         state_number: StateNumber,
         address: &ContractAddress,
@@ -314,6 +378,24 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         state_number: StateNumber,
         address: &ContractAddress,
     ) -> StorageResult<Option<Nonce>> {
+        if self.flat_state {
+            let state_marker = self.get_state_marker()?;
+            let block_number = state_number.block_after();
+            if block_number >= state_marker {
+                let flat_result = self.flat_nonces_table.get(self.txn, address)?;
+                let versioned_result =
+                    get_nonce_at(block_number, address, self.txn, &self.nonces_table)?;
+                if let Some(flat_value) = flat_result {
+                    self.assert_flat_versioned_match(
+                        &Some(flat_value),
+                        &versioned_result,
+                        "nonces",
+                    );
+                    return Ok(Some(flat_value));
+                }
+                return Ok(versioned_result);
+            }
+        }
         // State diff updates are indexed by the block_number at which they occurred.
         let block_number: BlockNumber = state_number.block_after();
         get_nonce_at(block_number, address, self.txn, &self.nonces_table)
@@ -352,6 +434,28 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         state_number: StateNumber,
         class_hash: &ClassHash,
     ) -> StorageResult<Option<CompiledClassHash>> {
+        if self.flat_state {
+            let state_marker = self.get_state_marker()?;
+            let block_number = state_number.block_after();
+            if block_number >= state_marker {
+                let flat_result = self.flat_compiled_class_hash_table.get(self.txn, class_hash)?;
+                let versioned_result = get_compiled_class_hash_at(
+                    block_number,
+                    class_hash,
+                    self.txn,
+                    &self.compiled_class_hash_table,
+                )?;
+                if let Some(flat_value) = flat_result {
+                    self.assert_flat_versioned_match(
+                        &Some(flat_value),
+                        &versioned_result,
+                        "compiled_class_hash",
+                    );
+                    return Ok(Some(flat_value));
+                }
+                return Ok(versioned_result);
+            }
+        }
         // State diff updates are indexed by the block_number at which they occurred.
         let block_number: BlockNumber = state_number.block_after();
         get_compiled_class_hash_at(
@@ -373,6 +477,33 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
     /// # Errors
     /// Returns [`StorageError`] if there was an error searching the table.
     pub fn get_storage_at(
+        &self,
+        state_number: StateNumber,
+        address: &ContractAddress,
+        key: &StorageKey,
+    ) -> StorageResult<Felt> {
+        if self.flat_state {
+            let state_marker = self.get_state_marker()?;
+            let first_irrelevant_block = state_number.block_after();
+            if first_irrelevant_block >= state_marker {
+                let flat_result =
+                    self.flat_contract_storage_table.get(self.txn, &(*address, *key))?;
+                let versioned_result = self.get_storage_at_versioned(state_number, address, key)?;
+                if let Some(flat_value) = flat_result {
+                    self.assert_flat_versioned_match(
+                        &flat_value,
+                        &versioned_result,
+                        "contract_storage",
+                    );
+                    return Ok(flat_value);
+                }
+                return Ok(versioned_result);
+            }
+        }
+        self.get_storage_at_versioned(state_number, address, key)
+    }
+
+    fn get_storage_at_versioned(
         &self,
         state_number: StateNumber,
         address: &ContractAddress,
