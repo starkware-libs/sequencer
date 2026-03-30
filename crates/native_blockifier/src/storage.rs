@@ -71,6 +71,7 @@ impl PapyrusStorage {
                 max_object_size: 1 << 30, // 1GB
             },
             flat_state: false,
+            changeset_retention_blocks: None,
         };
         let (reader, writer) = apollo_storage::open_storage(storage_config)?;
         log::debug!("Initialized Blockifier storage.");

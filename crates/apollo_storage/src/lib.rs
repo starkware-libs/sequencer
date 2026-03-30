@@ -123,7 +123,12 @@ use std::fmt::Debug;
 use std::fs;
 use std::sync::Arc;
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_param,
+    ser_param,
+    SerializeConfig,
+};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_metrics::metrics::MetricGauge;
 use apollo_proc_macros::{latency_histogram, sequencer_latency_histogram};
@@ -241,6 +246,10 @@ fn open_storage_internal(
         return Err(StorageError::FlatStateIncompatibleWithFullArchive);
     }
 
+    if storage_config.changeset_retention_blocks.is_some() && !storage_config.flat_state {
+        return Err(StorageError::PruningRequiresFlatState);
+    }
+
     let (db_reader, mut db_writer) = open_env(&storage_config.db_config)?;
     let tables = Arc::new(Tables {
         block_hash_to_number: db_writer.create_simple_table("block_hash_to_number")?,
@@ -306,6 +315,7 @@ fn open_storage_internal(
         tables: tables.clone(),
         scope: storage_config.scope,
         flat_state: storage_config.flat_state,
+        changeset_retention_blocks: storage_config.changeset_retention_blocks,
         file_readers,
         open_readers_metric,
     };
@@ -314,6 +324,7 @@ fn open_storage_internal(
         tables,
         scope: storage_config.scope,
         flat_state: storage_config.flat_state,
+        changeset_retention_blocks: storage_config.changeset_retention_blocks,
         file_writers,
     };
 
@@ -549,6 +560,7 @@ pub struct StorageReader {
     tables: Arc<Tables>,
     scope: StorageScope,
     flat_state: bool,
+    changeset_retention_blocks: Option<u64>,
     open_readers_metric: Option<&'static MetricGauge>,
 }
 
@@ -562,6 +574,7 @@ impl StorageReader {
             self.tables.clone(),
             self.scope,
             self.flat_state,
+            self.changeset_retention_blocks,
             MetricsHandler::new(self.open_readers_metric),
         ))
     }
@@ -600,6 +613,7 @@ pub struct StorageWriter {
     tables: Arc<Tables>,
     scope: StorageScope,
     flat_state: bool,
+    changeset_retention_blocks: Option<u64>,
 }
 
 impl StorageWriter {
@@ -612,6 +626,7 @@ impl StorageWriter {
             self.tables.clone(),
             self.scope,
             self.flat_state,
+            self.changeset_retention_blocks,
             MetricsHandler::new(None),
         ))
     }
@@ -649,6 +664,9 @@ pub struct StorageTxn<'env, Mode: TransactionKind> {
     tables: Arc<Tables>,
     scope: StorageScope,
     flat_state: bool,
+    // TODO(dan): remove allow once pruning logic reads this field.
+    #[allow(dead_code)]
+    changeset_retention_blocks: Option<u64>,
     // Do not remove this. It is used to automatically update metrics on create/drop.
     _metric_updater: MetricsHandler,
 }
@@ -669,9 +687,18 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         tables: Arc<Tables>,
         scope: StorageScope,
         flat_state: bool,
+        changeset_retention_blocks: Option<u64>,
         metric_updater: MetricsHandler,
     ) -> Self {
-        Self { txn, file_handlers, tables, scope, flat_state, _metric_updater: metric_updater }
+        Self {
+            txn,
+            file_handlers,
+            tables,
+            scope,
+            flat_state,
+            changeset_retention_blocks,
+            _metric_updater: metric_updater,
+        }
     }
 
     pub(crate) fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
@@ -898,6 +925,8 @@ pub struct StorageConfig {
     pub scope: StorageScope,
     #[serde(default)]
     pub flat_state: bool,
+    #[serde(default)]
+    pub changeset_retention_blocks: Option<u64>,
 }
 
 impl SerializeConfig for StorageConfig {
@@ -919,6 +948,13 @@ impl SerializeConfig for StorageConfig {
         dumped_config
             .extend(prepend_sub_config_name(self.mmap_file_config.dump(), "mmap_file_config"));
         dumped_config.extend(prepend_sub_config_name(self.db_config.dump(), "db_config"));
+        dumped_config.extend(ser_optional_param(
+            &self.changeset_retention_blocks,
+            0u64,
+            "changeset_retention_blocks",
+            "Number of blocks of changeset history to retain before the tip. None = no pruning.",
+            ParamPrivacyInput::Public,
+        ));
         dumped_config
     }
 }
