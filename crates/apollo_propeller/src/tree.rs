@@ -118,6 +118,7 @@ impl PropellerScheduleManager {
     ///
     /// * `publisher` - The peer ID of the node that published the original message
 <<<<<<< HEAD
+<<<<<<< HEAD
     /// * `shard_index` - The index of the unit (0-based, ranges from 0 to total_shards-1)
 <<<<<<< HEAD
     pub fn get_peer_for_shard_index(
@@ -128,7 +129,12 @@ impl PropellerScheduleManager {
         publisher: &PeerId,
         shard_index: UnitIndex,
 =======
+=======
+>>>>>>> 020ac77342 (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
     /// * `unit_index` - The index of the unit (0-based, ranges from 0 to total_shards-1)
+=======
+    /// * `unit_index` - The index of the unit (0-based, ranges from 0 to total_units-1)
+>>>>>>> 956fe6c213 (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
     pub fn get_peer_for_unit_index(
         &self,
         publisher: &PeerId,
