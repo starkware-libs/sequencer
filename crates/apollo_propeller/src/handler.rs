@@ -73,6 +73,12 @@ pub struct Handler {
     events_to_emit: VecDeque<HandlerOut>,
     /// Maximum wire message size for batching.
     max_wire_message_size: usize,
+    /// Bounded channel for sending received units directly to the engine, bypassing the Swarm's
+    /// event path. Provides back-pressure: when the channel is full, the handler stops reading
+    /// from the network.
+    // TODO(AndrewL): remove #[allow(dead_code)] once used
+    #[allow(dead_code)]
+    unit_sender: futures::channel::mpsc::Sender<PropellerUnit>,
     /// The most recent waker from [`ConnectionHandler::poll`], used to wake the task when new
     /// messages are enqueued via [`on_behaviour_event`].
     waker: Option<Waker>,
@@ -109,7 +115,10 @@ enum OutboundSubstreamState {
 
 impl Handler {
     /// Builds a new [`Handler`].
-    pub fn new(config: &Config) -> Self {
+    pub fn new(
+        config: &Config,
+        unit_sender: futures::channel::mpsc::Sender<PropellerUnit>,
+    ) -> Self {
         let protocol =
             PropellerProtocol::new(config.stream_protocol.clone(), config.max_wire_message_size);
         Handler {
@@ -119,6 +128,7 @@ impl Handler {
             send_queue: VecDeque::new(),
             events_to_emit: VecDeque::new(),
             max_wire_message_size: config.max_wire_message_size,
+            unit_sender,
             waker: None,
         }
     }
