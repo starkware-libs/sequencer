@@ -13,6 +13,7 @@ use apollo_consensus_orchestrator_config::config::{
     ContextDynamicConfig,
     PricePerHeight,
 };
+use apollo_gateway_config::config::GatewayDynamicConfig;
 use apollo_infra::component_definitions::RequestWrapper;
 use apollo_infra::component_server::{
     ComponentServerStarter,
@@ -21,6 +22,8 @@ use apollo_infra::component_server::{
 };
 use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_state_sync_config::config::StateSyncDynamicConfig;
+use blockifier::blockifier::config::NativeClassesWhitelist;
+use starknet_api::core::ClassHash;
 use tokio::sync::mpsc::channel;
 use tokio::task;
 use validator::Validate;
@@ -98,6 +101,28 @@ async fn config_manager_get_batcher_dynamic_config() {
     assert_eq!(
         retrieved, batcher_dynamic_config,
         "Batcher dynamic config mismatch: {retrieved:#?} != {batcher_dynamic_config:#?}",
+    );
+}
+
+#[tokio::test]
+async fn config_manager_get_gateway_dynamic_config() {
+    let config = ConfigManagerConfig::default();
+    let gateway_dynamic_config = GatewayDynamicConfig {
+        native_classes_whitelist: NativeClassesWhitelist::Limited(vec![ClassHash::default()]),
+    };
+    let node_dynamic_config = NodeDynamicConfig {
+        gateway_dynamic_config: Some(gateway_dynamic_config.clone()),
+        ..Default::default()
+    };
+    let config_manager = ConfigManager::new(config, node_dynamic_config);
+
+    let retrieved = config_manager
+        .get_gateway_dynamic_config()
+        .await
+        .expect("Failed to get gateway dynamic config");
+    assert_eq!(
+        retrieved, gateway_dynamic_config,
+        "Gateway dynamic config mismatch: {retrieved:#?} != {gateway_dynamic_config:#?}",
     );
 }
 
