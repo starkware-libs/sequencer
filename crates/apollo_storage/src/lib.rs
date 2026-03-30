@@ -304,6 +304,17 @@ fn open_storage_internal(
 
     let writer = set_version_if_needed(reader.clone(), writer)?;
     verify_storage_version(reader.clone())?;
+
+    // Detect flat_state toggle off (was enabled, now disabled).
+    if !storage_config.flat_state {
+        let rtxn = reader.begin_ro_txn()?;
+        let markers_table = rtxn.open_table(&rtxn.tables.markers)?;
+        let flat_marker = markers_table.get(&rtxn.txn, &MarkerKind::FlatState)?;
+        if flat_marker.is_some() {
+            return Err(StorageError::FlatStateToggleNotSupported);
+        }
+    }
+
     Ok((reader, writer))
 }
 
@@ -807,6 +818,8 @@ pub enum StorageError {
     MissingObject { object_name: String, height: BlockNumber },
     #[error("Cannot enable flat_state with FullArchive scope.")]
     FlatStateIncompatibleWithFullArchive,
+    #[error("flat_state was previously enabled and cannot be disabled. Re-sync required.")]
+    FlatStateToggleNotSupported,
 }
 
 /// A type alias that maps to std::result::Result<T, StorageError>.
@@ -825,6 +838,7 @@ pub struct StorageConfig {
     #[validate(nested)]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
+    #[serde(default)]
     pub flat_state: bool,
 }
 
@@ -891,6 +905,8 @@ pub enum MarkerKind {
     // TODO(Dori): fill in the missing doc.
     #[allow(missing_docs)]
     GlobalRoot,
+    /// Marks that flat state was enabled (presence means enabled, value is ignored).
+    FlatState,
 }
 
 pub(crate) type MarkersTable<'env> =

@@ -15,7 +15,12 @@ use crate::class::{ClassStorageReader, ClassStorageWriter};
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::db::table_types::Table;
 use crate::state::{StateStorageReader, StateStorageWriter};
-use crate::test_utils::{get_test_config, get_test_storage, get_test_storage_with_flat_state};
+use crate::test_utils::{
+    get_test_config,
+    get_test_storage,
+    get_test_storage_with_config_flat_state,
+    get_test_storage_with_flat_state,
+};
 use crate::{open_storage, StorageError, StorageScope, StorageWriter};
 
 #[test]
@@ -1376,4 +1381,24 @@ fn flat_state_revert_deployment_without_nonce_diff() {
 
     assert_eq!(flat_deployed.get(&txn.txn, &address).unwrap(), None);
     assert_eq!(flat_nonces.get(&txn.txn, &address).unwrap(), None);
+}
+
+#[test]
+fn flat_state_toggle_off_detected() {
+    let ((_, mut writer), config, _temp_dir) = get_test_storage_with_config_flat_state();
+
+    let diff = ThinStateDiff::default();
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), diff)
+        .unwrap()
+        .commit()
+        .unwrap();
+    drop(writer);
+
+    let mut config_off = config;
+    config_off.flat_state = false;
+    let result = open_storage(config_off);
+    assert!(matches!(result, Err(StorageError::FlatStateToggleNotSupported)));
 }
