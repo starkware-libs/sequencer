@@ -79,6 +79,10 @@ pub struct Handler {
     // TODO(AndrewL): remove #[allow(dead_code)] once used
     #[allow(dead_code)]
     unit_sender: futures::channel::mpsc::Sender<PropellerUnit>,
+    /// Units decoded from a wire batch that haven't been delivered yet.
+    /// Holds at most one batch worth of units (bounded by `max_wire_message_size`).
+    /// The handler only reads new batches from the wire when this buffer is empty.
+    unsent_units: VecDeque<PropellerUnit>,
     /// The most recent waker from [`ConnectionHandler::poll`], used to wake the task when new
     /// messages are enqueued via [`on_behaviour_event`].
     waker: Option<Waker>,
@@ -129,6 +133,7 @@ impl Handler {
             events_to_emit: VecDeque::new(),
             max_wire_message_size: config.max_wire_message_size,
             unit_sender,
+            unsent_units: VecDeque::new(),
             waker: None,
         }
     }
@@ -136,7 +141,7 @@ impl Handler {
     /// Polls a single inbound substream for incoming messages.
     fn poll_single_inbound_substream(
         inbound_substream: &mut Option<InboundSubstreamState>,
-        events_to_emit: &mut VecDeque<HandlerOut>,
+        unsent_units: &mut VecDeque<PropellerUnit>,
         cx: &mut Context<'_>,
     ) {
         loop {
@@ -145,7 +150,7 @@ impl Handler {
                     if Self::poll_single_inbound_substream_waiting_input(
                         inbound_substream,
                         substream,
-                        events_to_emit,
+                        unsent_units,
                         cx,
                     )
                     .is_break()
@@ -167,13 +172,13 @@ impl Handler {
     fn poll_single_inbound_substream_waiting_input(
         inbound_substream: &mut Option<InboundSubstreamState>,
         mut substream: Framed<Stream, PropellerCodec>,
-        events_to_emit: &mut VecDeque<HandlerOut>,
+        unsent_units: &mut VecDeque<PropellerUnit>,
         cx: &mut Context<'_>,
     ) -> ControlFlow<()> {
         match substream.poll_next_unpin(cx) {
             Poll::Ready(Some(Ok(batch))) => {
                 *inbound_substream = Some(InboundSubstreamState::WaitingInput(substream));
-                Self::handle_received_batch(batch, events_to_emit);
+                Self::handle_received_batch(batch, unsent_units);
                 // Continue the loop in case there are more messages ready
                 ControlFlow::Continue(())
             }
@@ -215,12 +220,12 @@ impl Handler {
         }
     }
 
-    /// Handles a received batch of units.
-    fn handle_received_batch(batch: ProtoBatch, events_to_emit: &mut VecDeque<HandlerOut>) {
+    /// Decodes a received batch and buffers the units in `unsent_units` for delivery.
+    fn handle_received_batch(batch: ProtoBatch, unsent_units: &mut VecDeque<PropellerUnit>) {
         for proto_unit in batch.batch {
             match PropellerUnit::try_from(proto_unit) {
                 Ok(unit) => {
-                    events_to_emit.push_back(HandlerOut::Unit(unit));
+                    unsent_units.push_back(unit);
                 }
                 Err(e) => {
                     // TODO(AndrewL): Either remove this warning or make it once every N ms.
@@ -458,9 +463,15 @@ impl Handler {
             );
         }
 
-        // Drain any queued events first (received units, errors from DialUpgradeError, etc.)
+        // Drain any queued events first (errors from DialUpgradeError, etc.)
         if let Some(event) = self.events_to_emit.pop_front() {
             return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(event));
+        }
+
+        // Deliver unsent units from a previously decoded batch via the behaviour path.
+        // Units are drained one at a time so the Swarm can interleave other work.
+        if let Some(unit) = self.unsent_units.pop_front() {
+            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::Unit(unit)));
         }
 
         // Process outbound stream
@@ -468,14 +479,15 @@ impl Handler {
             return Poll::Ready(event);
         }
 
-        // Handle inbound messages
+        // Read from the wire only when the unsent buffer is empty (the previous batch has been
+        // fully delivered). This ensures partially-delivered batches don't cause data loss.
         for inbound_substream in self.inbound_substream.iter_mut() {
-            Self::poll_single_inbound_substream(inbound_substream, &mut self.events_to_emit, cx);
+            Self::poll_single_inbound_substream(inbound_substream, &mut self.unsent_units, cx);
         }
 
-        // Check the queue again — poll_single_inbound_substream may have enqueued new events
-        if let Some(event) = self.events_to_emit.pop_front() {
-            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(event));
+        // Deliver the first unit from the newly-read batch (if any).
+        if let Some(unit) = self.unsent_units.pop_front() {
+            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::Unit(unit)));
         }
 
         Poll::Pending
