@@ -67,7 +67,7 @@ use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStat
 use starknet_types_core::felt::Felt;
 use tracing::debug;
 
-use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
+use crate::db::serialization::{NoVersionValueWrapper, ValueSerde, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
 use crate::metrics::STORAGE_APPEND_THIN_STATE_DIFF_LATENCY;
@@ -204,6 +204,49 @@ pub struct StateReader<'env, Mode: TransactionKind> {
     storage_table: ContractStorageTable<'env>,
     markers_table: MarkersTable<'env>,
     file_handlers: &'env FileHandlers<Mode>,
+}
+
+#[allow(dead_code)]
+/// Scans a MDBX table with keys `(Key, BlockNumber)` over the key range
+/// `[start, end]` at `block_target`, returning up to `limit` entries.
+///
+/// `end` is inclusive.
+fn scan_at_block<Cursor, Key, Value>(
+    cursor: &mut Cursor,
+    start: Key,
+    end: Key,
+    block_target: BlockNumber,
+    limit: usize,
+) -> StorageResult<Vec<(Key, Value)>>
+where
+    Cursor: DbCursorTrait<Key = (Key, BlockNumber)>,
+    Cursor::Value: ValueSerde<Value = Value>,
+    Key: Copy + PartialOrd,
+{
+    let first_irrelevant_block = BlockNumber(block_target.0 + 1);
+    let mut result = Vec::new();
+    let mut current = start;
+    loop {
+        if result.len() >= limit || current > end {
+            break;
+        }
+        // Position just past all entries for `current` at `block_target`, then step back.
+        cursor.lower_bound(&(current, first_irrelevant_block))?;
+        if let Some(((got_key, _block), value)) = cursor.prev()? {
+            if got_key == current {
+                result.push((current, value));
+            }
+        }
+        // Advance to the next key by seeking past all blocks for `current`.
+        // Using u32::MAX for block number, which is serialized as u32 (see impl StorageSerde for
+        // BlockNumber).
+        // TODO(yoav): define StorageBlockNumber type that wraps a u32 and use it here.
+        match cursor.lower_bound(&(current, BlockNumber(u64::from(u32::MAX))))? {
+            None => break,
+            Some(((next_key, _), _)) => current = next_key,
+        }
+    }
+    Ok(result)
 }
 
 impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
