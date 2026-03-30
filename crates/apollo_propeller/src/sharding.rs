@@ -36,7 +36,11 @@ pub fn reconstruct_data_shards(
         .into_iter()
         .map(|mut msg| {
             let index: usize =
+<<<<<<< HEAD
                 msg.index().0.try_into().expect("failed converting u64 UnitIndex to usize");
+=======
+                msg.index().0.try_into().expect("failed converting u64 unit index to usize");
+>>>>>>> c942f0b798 (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
             // TODO(AndrewL): Support multiple shards per peer once reconstruction handles it.
             let [shard] = <[Shard; 1]>::try_from(std::mem::take(&mut msg.shards_mut().0)).map_err(
                 |shards| ReconstructionError::UnexpectedShardCount {
@@ -128,7 +132,11 @@ pub fn create_units_to_publish(
             publisher,
             message_root,
             signature.clone(),
+<<<<<<< HEAD
             UnitIndex(u64::try_from(index).expect("shard index exceeds u64::MAX")),
+=======
+            UnitIndex(u64::try_from(index).expect("unit index exceeds u64::MAX")),
+>>>>>>> c942f0b798 (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
             // TODO(AndrewL): Support multiple shards per peer once reconstruction handles it.
             ShardsOfPeer(vec![Shard(shard)]),
             proof,
