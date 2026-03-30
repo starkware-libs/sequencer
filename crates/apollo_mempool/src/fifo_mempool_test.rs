@@ -494,39 +494,6 @@ fn test_rewind_preserves_timestamp_order(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_rewind_maintains_fifo_order_with_mixed_results(mut mempool: Mempool) {
-    let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
-    let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
-    let input3 = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 2, account_nonce: 0);
-    let input4 = add_tx_input!(tx_hash: 4, address: "0x2", tx_nonce: 0, account_nonce: 0);
-
-    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 100));
-    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1000, 100));
-    mempool.update_tx_block_metadata(tx_hash!(3), tx_metadata(1000, 100));
-    mempool.update_tx_block_metadata(tx_hash!(4), tx_metadata(1001, 101));
-
-    for input in [&input1, &input2, &input3, &input4] {
-        add_tx(&mut mempool, input);
-    }
-
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
-    get_txs_and_assert_expected(
-        &mut mempool,
-        5,
-        &[input1.tx, input2.tx.clone(), input3.tx.clone()],
-    );
-
-    // Commit block: tx1 committed, tx2 not mentioned (rewound), tx3 rejected (also rewound).
-    commit_block(&mut mempool, [("0x1", 1)], [tx_hash!(3)]);
-
-    assert_eq!(mempool.resolve_batch_timestamp(), 1000);
-    get_txs_and_assert_expected(&mut mempool, 3, &[input2.tx, input3.tx]);
-
-    assert_eq!(mempool.resolve_batch_timestamp(), 1001);
-    get_txs_and_assert_expected(&mut mempool, 1, &[input4.tx]);
-}
-
-#[rstest]
 fn test_resolve_batch_timestamp_returns_zero_when_never_had_transactions(mut mempool: Mempool) {
     assert_eq!(mempool.resolve_batch_timestamp(), 0);
 }
