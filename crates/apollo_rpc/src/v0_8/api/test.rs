@@ -100,7 +100,7 @@ use starknet_api::deprecated_contract_class::{
     FunctionAbiEntry,
     FunctionStateMutability,
 };
-use starknet_api::hash::L1L2MsgHash;
+use starknet_api::hash::{l1_handler_message_hash, L1L2MsgHash};
 use starknet_api::state::{SierraContractClass as StarknetApiContractClass, StateDiff};
 use starknet_api::transaction::{
     Event as StarknetApiEvent,
@@ -256,7 +256,7 @@ async fn block_hash_and_number() {
     .await;
 
     // Add a block without state diff and check that there are still no blocks.
-    let (block, block_tx_events) = get_test_block(1, None, None, None);
+    let (block, _) = get_test_block(1, None, None, None);
     storage_writer
         .begin_rw_txn()
         .unwrap()
@@ -399,7 +399,6 @@ async fn get_block_transaction_count() {
     >(None, None, Some(pending_data.clone()), None, None);
     let transaction_count = 5;
     let (block, block_tx_events) = get_test_block(transaction_count, None, None, None);
-    let events = block_tx_events.clone();
     storage_writer
         .begin_rw_txn()
         .unwrap()
@@ -407,7 +406,7 @@ async fn get_block_transaction_count() {
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body)
         .unwrap()
-        .append_events(block.header.block_header_without_hash.block_number, &events)
+        .append_events(block.header.block_header_without_hash.block_number, &block_tx_events)
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -2230,8 +2229,13 @@ fn generate_client_transaction_client_receipt_rpc_transaction_and_rpc_receipt(
             .clone()
             .into_starknet_api_transaction_output(&client_transaction);
         let msg_hash = match &client_transaction {
-            apollo_starknet_client::reader::objects::transaction::Transaction::L1Handler(_) => {
-                Some(L1L2MsgHash::default())
+            apollo_starknet_client::reader::objects::transaction::Transaction::L1Handler(tx) => {
+                Some(l1_handler_message_hash(
+                    &tx.contract_address,
+                    tx.nonce,
+                    &tx.entry_point_selector,
+                    &tx.calldata,
+                ))
             }
             _ => None,
         };
