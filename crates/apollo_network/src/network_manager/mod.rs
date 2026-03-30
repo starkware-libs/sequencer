@@ -192,7 +192,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             .expect("Committee members contain duplicate peer IDs");
         let mut allowed_peers: HashSet<PeerId> = output.allowed_peers.into_iter().collect();
         allowed_peers.extend(&self.bootstrap_peer_ids);
-        self.swarm.behaviour_mut().peer_access_control.set_allowed_peers(allowed_peers.clone());
+        self.swarm.behaviour_mut().peer_whitelist.set_allowed_peers(allowed_peers.clone());
         if let Some(discovery) = self.swarm.behaviour_mut().discovery.as_mut() {
             discovery.set_target_peers(allowed_peers);
         }
