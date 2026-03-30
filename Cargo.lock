@@ -1528,6 +1528,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
+ "apollo_config_manager_types",
  "apollo_gateway_config",
  "apollo_gateway_types",
  "apollo_infra",

@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use apollo_config::converters::{
     deserialize_comma_separated_str,
+    deserialize_milliseconds_to_duration,
     serialize_optional_comma_separated,
 };
 use apollo_config::dumping::{
@@ -23,6 +25,7 @@ use validator::Validate;
 use crate::compiler_version::VersionId;
 
 const DEFAULT_BUCKET_NAME: &str = "proof-archive";
+const DEFAULT_DYNAMIC_CONFIG_POLL_INTERVAL_MS: u64 = 1_000; // 1 second.
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 pub struct GatewayStaticConfig {
@@ -34,6 +37,8 @@ pub struct GatewayStaticConfig {
     pub contract_class_manager_config: ContractClassManagerConfig,
     pub chain_info: ChainInfo,
     pub block_declare: bool,
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub dynamic_config_poll_interval: Duration,
     #[serde(default, deserialize_with = "deserialize_comma_separated_str")]
     pub authorized_declarer_accounts: Option<Vec<ContractAddress>>,
     pub proof_archive_writer_config: ProofArchiveWriterConfig,
@@ -50,6 +55,9 @@ impl Default for GatewayStaticConfig {
             },
             chain_info: ChainInfo::default(),
             block_declare: false,
+            dynamic_config_poll_interval: Duration::from_millis(
+                DEFAULT_DYNAMIC_CONFIG_POLL_INTERVAL_MS,
+            ),
             authorized_declarer_accounts: None,
             proof_archive_writer_config: ProofArchiveWriterConfig::default(),
         }
@@ -64,6 +72,12 @@ impl SerializeConfig for GatewayStaticConfig {
             "If true, the gateway will block declare transactions.",
             ParamPrivacyInput::Public,
         )]);
+        dump.extend(BTreeMap::from_iter([ser_param(
+            "dynamic_config_poll_interval",
+            &self.dynamic_config_poll_interval.as_millis(),
+            "Polling interval (in milliseconds) for dynamic config.",
+            ParamPrivacyInput::Public,
+        )]));
         dump.extend(prepend_sub_config_name(
             self.stateless_tx_validator_config.dump(),
             "stateless_tx_validator_config",

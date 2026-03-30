@@ -246,12 +246,16 @@ pub async fn create_node_components(
             let proof_manager_client = clients
                 .get_proof_manager_shared_client()
                 .expect("Proof Manager client should be available");
+            let config_manager_client = clients
+                .get_config_manager_shared_client()
+                .expect("Config Manager client should be available");
             Some(create_gateway(
                 gateway_config.clone(),
                 state_sync_client,
                 mempool_client,
                 class_manager_client,
                 proof_manager_client,
+                config_manager_client,
                 tokio::runtime::Handle::current(),
             ))
         }
