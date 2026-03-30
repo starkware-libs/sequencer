@@ -836,7 +836,7 @@ impl SyscallGasCost {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "reexecution"), derive(Clone))]
 #[derive(Debug, Default, PartialEq)]
 pub struct SyscallGasCosts {
     pub call_contract: SyscallGasCost,
@@ -915,7 +915,7 @@ impl SyscallGasCosts {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
+#[cfg_attr(any(test, feature = "testing", feature = "reexecution"), derive(Clone, Copy))]
 #[derive(Debug, Default, PartialEq)]
 pub struct BaseGasCosts {
     pub step_gas_cost: u64,
@@ -989,7 +989,7 @@ impl BuiltinGasCosts {
 }
 
 /// Gas cost constants. For more documentation see in core/os/constants.cairo.
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "reexecution"), derive(Clone))]
 #[derive(Debug, Default, PartialEq)]
 pub struct GasCosts {
     pub base: BaseGasCosts,
@@ -1130,7 +1130,7 @@ impl GasCosts {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "reexecution"), derive(Clone))]
 #[derive(Debug, Default, PartialEq)]
 pub struct OsConstants {
     pub gas_costs: GasCosts,
@@ -1150,6 +1150,8 @@ pub struct OsConstants {
     // Execution limits.
     pub validate_max_sierra_gas: GasAmount,
     pub execute_max_sierra_gas: GasAmount,
+    #[cfg(feature = "reexecution")]
+    pub ignore_user_l2_gas_bound: bool,
 
     // Validation.
     pub validate_rounding_consts: ValidateRoundingConsts,
@@ -1232,6 +1234,8 @@ impl OsConstants {
             validate_entry_point_selector: raw_constants.validate_entry_point_selector,
             validate_max_sierra_gas: raw_constants.validate_max_sierra_gas,
             execute_max_sierra_gas: raw_constants.execute_max_sierra_gas,
+            #[cfg(feature = "reexecution")]
+            ignore_user_l2_gas_bound: false,
             validate_rounding_consts: raw_constants.validate_rounding_consts,
             validated: raw_constants.validated.clone(),
             error_block_number_out_of_range: raw_constants.error_block_number_out_of_range.clone(),

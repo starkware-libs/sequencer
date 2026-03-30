@@ -320,6 +320,16 @@ impl RpcStateReader {
         let mut versioned_constants = self.get_versioned_constants()?;
         if let Some(version) = min_sierra_version_for_sierra_gas {
             versioned_constants.min_sierra_version_for_sierra_gas = version;
+            // When overriding min_sierra_version, contracts that normally run in CairoSteps
+            // mode (with effectively infinite gas) are forced into SierraGas mode, where gas
+            // is capped by execute/validate_max_sierra_gas. Raise these limits to match
+            // default_initial_gas_cost so these contracts don't hit out-of-gas errors.
+            let mut new_os_constants = (*versioned_constants.os_constants).clone();
+            let default_gas = new_os_constants.default_initial_gas_cost;
+            new_os_constants.execute_max_sierra_gas = default_gas;
+            new_os_constants.validate_max_sierra_gas = default_gas;
+            new_os_constants.ignore_user_l2_gas_bound = true;
+            versioned_constants.os_constants = Arc::new(new_os_constants);
         }
         Ok(BlockContext::new(
             self.get_block_info()?,
