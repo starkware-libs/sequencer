@@ -6,11 +6,32 @@ repository.workspace = true
 license.workspace = true
 description = "End-to-end integration tests for the Starknet sequencer."
 
+[[bin]]
+name = "integration_test_positive_flow"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_positive_flow.rs"
+
+[[bin]]
+name = "integration_test_restart_flow"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_restart_flow.rs"
+
+[[bin]]
+name = "integration_test_restart_service_multiple_nodes_flow"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_restart_service_multiple_nodes_flow.rs"
+
+[[bin]]
+name = "integration_test_restart_service_single_node_flow"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_restart_service_single_node_flow.rs"
+
+[[bin]]
+name = "integration_test_revert_flow"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_revert_flow.rs"
+
+[[bin]]
+name = "integration_test_central_and_p2p_sync_flow"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_central_and_p2p_sync_flow.rs"
+
 [features]
 cairo_native = ["apollo_node/cairo_native"]
-
-[lints]
-workspace = true
 
 [dependencies]
 alloy.workspace = true
@@ -89,28 +110,8 @@ apollo_l1_events_types = { workspace = true, features = ["testing"] }
 futures.workspace = true
 metrics.workspace = true
 mockall.workspace = true
+reqwest = { workspace = true, features = ["json"] }
 rstest.workspace = true
 
-[[bin]]
-name = "integration_test_positive_flow"
-path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_positive_flow.rs"
-
-[[bin]]
-name = "integration_test_restart_flow"
-path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_restart_flow.rs"
-
-[[bin]]
-name = "integration_test_restart_service_multiple_nodes_flow"
-path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_restart_service_multiple_nodes_flow.rs"
-
-[[bin]]
-name = "integration_test_restart_service_single_node_flow"
-path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_restart_service_single_node_flow.rs"
-
-[[bin]]
-name = "integration_test_revert_flow"
-path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_revert_flow.rs"
-
-[[bin]]
-name = "integration_test_central_and_p2p_sync_flow"
-path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_central_and_p2p_sync_flow.rs"
+[lints]
+workspace = true

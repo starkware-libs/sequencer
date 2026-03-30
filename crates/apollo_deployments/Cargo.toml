@@ -6,8 +6,9 @@ repository.workspace = true
 license.workspace = true
 description = "Deployment configurations and utilities for various Starknet environments."
 
-[lints]
-workspace = true
+[[bin]]
+name = "deployment_generator"
+path = "src/bin/deployment_generator.rs"
 
 [dependencies]
 apollo_config.workspace = true
@@ -27,6 +28,5 @@ apollo_node_config = { workspace = true, features = ["testing"] }
 tempfile.workspace = true
 url = { workspace = true, features = ["serde"] }
 
-[[bin]]
-name = "deployment_generator"
-path = "src/bin/deployment_generator.rs"
+[lints]
+workspace = true

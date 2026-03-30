@@ -14,8 +14,8 @@ blockifier.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 
-[lints]
-workspace = true
-
 [dev-dependencies]
 rstest.workspace = true
+
+[lints]
+workspace = true

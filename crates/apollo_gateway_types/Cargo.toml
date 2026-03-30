@@ -9,9 +9,6 @@ description = "Type definitions and interfaces for the Apollo gateway component.
 [features]
 testing = ["mockall"]
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_infra.workspace = true
 apollo_network_types.workspace = true
@@ -29,3 +26,6 @@ tracing.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true
+
+[lints]
+workspace = true

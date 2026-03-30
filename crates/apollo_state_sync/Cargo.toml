@@ -13,9 +13,6 @@ testing = [
   "apollo_storage/testing",
 ]
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_central_sync.workspace = true
 apollo_class_manager_types.workspace = true
@@ -48,3 +45,6 @@ indexmap = { workspace = true, features = ["serde"] }
 libp2p.workspace = true
 mockall.workspace = true
 rand_chacha.workspace = true
+
+[lints]
+workspace = true

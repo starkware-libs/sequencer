@@ -6,8 +6,9 @@ repository.workspace = true
 license-file.workspace = true
 description = "The transaction-executing component in the Starknet sequencer."
 
-[lints]
-workspace = true
+[package.metadata.cargo-machete]
+# `paste` is used in the `define_versioned_constants!` macro but may be falsely detected as unused.
+ignored = ["paste"]
 
 [features]
 cairo_native = [
@@ -78,6 +79,9 @@ strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 validator.workspace = true
 
+[build-dependencies]
+apollo_infra_utils.workspace = true
+
 [dev-dependencies]
 assert_matches.workspace = true
 blockifier_test_utils.workspace = true
@@ -95,15 +99,11 @@ starknet_api = { workspace = true, features = ["testing"] }
 test-case.workspace = true
 tikv-jemallocator.workspace = true
 
-[build-dependencies]
-apollo_infra_utils.workspace = true
+[lints]
+workspace = true
 
 [[bench]]
 harness = false
 name = "blockifier"
 path = "benches/main.rs"
 required-features = ["testing"]
-
-[package.metadata.cargo-machete]
-# `paste` is used in the `define_versioned_constants!` macro but may be falsely detected as unused.
-ignored = ["paste"]

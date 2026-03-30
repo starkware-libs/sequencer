@@ -6,6 +6,13 @@ repository.workspace = true
 license-file.workspace = true
 description = "Implements the consensus context and orchestrates the node's components accordingly"
 
+[package.metadata.cargo-machete]
+# `paste` is used in the `define_versioned_constants!` macro but may be falsely detected as unused.
+ignored = ["paste"]
+
+[features]
+testing = []
+
 [dependencies]
 apollo_batcher.workspace = true
 apollo_batcher_types.workspace = true
@@ -82,10 +89,3 @@ serde_json.workspace = true
 
 [lints]
 workspace = true
-
-[package.metadata.cargo-machete]
-# `paste` is used in the `define_versioned_constants!` macro but may be falsely detected as unused.
-ignored = ["paste"]
-
-[features]
-testing = []

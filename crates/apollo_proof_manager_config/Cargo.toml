@@ -9,13 +9,12 @@ description = "Configuration for Apollo proof manager"
 [features]
 testing = []
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_config.workspace = true
 serde = { workspace = true, features = ["derive"] }
 validator.workspace = true
 
-
 [dev-dependencies]
+
+[lints]
+workspace = true

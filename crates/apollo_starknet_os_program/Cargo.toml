@@ -10,9 +10,6 @@ build = "build/main.rs"
 [features]
 test_programs = []
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_infra_utils.workspace = true
 cairo-vm.workspace = true
@@ -35,3 +32,6 @@ rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

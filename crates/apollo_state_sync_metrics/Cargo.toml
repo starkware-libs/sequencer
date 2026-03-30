@@ -6,9 +6,6 @@ license.workspace = true
 repository.workspace = true
 description = "Metrics collection for Apollo state synchronization."
 
-[lints]
-workspace = true
-
 [features]
 testing = []
 
@@ -17,3 +14,6 @@ apollo_infra.workspace = true
 apollo_metrics.workspace = true
 apollo_state_sync_types.workspace = true
 apollo_storage.workspace = true
+
+[lints]
+workspace = true

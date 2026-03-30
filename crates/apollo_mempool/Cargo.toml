@@ -18,9 +18,6 @@ testing = [
   "starknet_api/testing",
 ]
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_config.workspace = true
 apollo_config_manager_types.workspace = true
@@ -69,6 +66,9 @@ serde.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tokio.workspace = true
+
+[lints]
+workspace = true
 
 [[bench]]
 harness = false

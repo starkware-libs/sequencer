@@ -9,9 +9,6 @@ description = "Configuration aggregation for the Apollo sequencer node."
 [features]
 testing = []
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_batcher_config.workspace = true
 apollo_class_manager_config.workspace = true
@@ -49,3 +46,6 @@ apollo_config = { workspace = true, features = ["testing"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 pretty_assertions.workspace = true
 rstest.workspace = true
+
+[lints]
+workspace = true

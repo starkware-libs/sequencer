@@ -6,8 +6,8 @@ license.workspace = true
 repository.workspace = true
 description = "Type definitions for the Apollo config manager component."
 
-[lints]
-workspace = true
+[features]
+testing = ["mockall"]
 
 [dependencies]
 apollo_batcher_config.workspace = true
@@ -30,5 +30,5 @@ thiserror.workspace = true
 [dev-dependencies]
 mockall.workspace = true
 
-[features]
-testing = ["mockall"]
+[lints]
+workspace = true

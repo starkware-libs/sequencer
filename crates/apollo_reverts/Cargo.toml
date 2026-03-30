@@ -6,9 +6,6 @@ license.workspace = true
 repository.workspace = true
 description = "Handles blockchain revert detection and management."
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_config.workspace = true
 apollo_metrics.workspace = true
@@ -19,3 +16,6 @@ starknet_api.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true
+
+[lints]
+workspace = true

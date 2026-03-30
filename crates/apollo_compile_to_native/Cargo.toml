@@ -6,15 +6,16 @@ repository.workspace = true
 version.workspace = true
 description = "A utility crate for compiling Sierra code into Cairo native."
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_compilation_utils.workspace = true
 apollo_compile_to_native_types.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-native.workspace = true
 tempfile.workspace = true
+
+[build-dependencies]
+apollo_compilation_utils.workspace = true
+apollo_infra_utils.workspace = true
 
 [dev-dependencies]
 apollo_compilation_utils = { workspace = true, features = ["testing"] }
@@ -24,6 +25,5 @@ mempool_test_utils.workspace = true
 rstest.workspace = true
 toml_test_utils.workspace = true
 
-[build-dependencies]
-apollo_compilation_utils.workspace = true
-apollo_infra_utils.workspace = true
+[lints]
+workspace = true

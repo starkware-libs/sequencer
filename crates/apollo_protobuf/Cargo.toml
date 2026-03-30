@@ -6,14 +6,18 @@ repository.workspace = true
 license-file.workspace = true
 description = "Protocol buffer definitions and serialization for P2P communication."
 
-[features]
-testing = ["apollo_test_utils", "rand", "rand_chacha"]
-bin-deps = ["prost-build", "protoc-prebuilt", "tracing-subscriber"]
+[package.metadata.cargo-machete]
+# The `rand` and `rand_chacha` crates are used in the `testing` feature, which is optional.
+ignored = ["rand", "rand_chacha"]
 
 [[bin]]
 name = "generate_protoc_output"
 path = "src/bin/generate_protoc_output.rs"
 required-features = ["bin-deps"]
+
+[features]
+bin-deps = ["prost-build", "protoc-prebuilt", "tracing-subscriber"]
+testing = ["apollo_test_utils", "rand", "rand_chacha"]
 
 [dependencies]
 apollo_batcher_types.workspace = true
@@ -26,6 +30,10 @@ lazy_static.workspace = true
 papyrus_common.workspace = true
 primitive-types.workspace = true
 prost.workspace = true
+
+# Binaries dependencies
+prost-build = { workspace = true, optional = true }
+protoc-prebuilt = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 rand_chacha = { workspace = true, optional = true }
 serde.workspace = true
@@ -37,10 +45,6 @@ tracing.workspace = true
 tracing-subscriber = { workspace = true, optional = true, features = ["env-filter"] }
 unsigned-varint.workspace = true
 
-# Binaries dependencies
-prost-build = { workspace = true, optional = true }
-protoc-prebuilt = { workspace = true, optional = true }
-
 [dev-dependencies]
 apollo_test_utils.workspace = true
 prost-build.workspace = true
@@ -49,10 +53,6 @@ rand.workspace = true
 rand_chacha.workspace = true
 rstest.workspace = true
 tempfile.workspace = true
-
-[package.metadata.cargo-machete]
-# The `rand` and `rand_chacha` crates are used in the `testing` feature, which is optional.
-ignored = ["rand", "rand_chacha"]
 
 [lints]
 workspace = true

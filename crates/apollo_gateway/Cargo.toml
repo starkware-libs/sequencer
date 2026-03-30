@@ -6,9 +6,6 @@ repository.workspace = true
 version.workspace = true
 description = "Gateway component for receiving and validating transactions submitted to the Starknet sequencer."
 
-[lints]
-workspace = true
-
 [features]
 cairo_native = ["blockifier/cairo_native"]
 testing = [
@@ -77,6 +74,9 @@ rstest.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 starknet_proof_verifier.workspace = true
 tracing-test.workspace = true
+
+[lints]
+workspace = true
 
 [[bench]]
 harness = false

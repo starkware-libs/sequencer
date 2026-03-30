@@ -6,11 +6,11 @@ repository.workspace = true
 license.workspace = true
 description = "Configuration types for the Apollo L1 events provider and scraper components."
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_config.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
 validator.workspace = true
+
+[lints]
+workspace = true

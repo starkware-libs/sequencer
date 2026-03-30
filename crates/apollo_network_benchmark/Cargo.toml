@@ -23,7 +23,6 @@ tokio-metrics = { workspace = true, features = ["metrics-rs-integration", "rt"] 
 tracing.workspace = true
 tracing-subscriber.workspace = true
 
-
 [dev-dependencies]
 rstest.workspace = true
 
