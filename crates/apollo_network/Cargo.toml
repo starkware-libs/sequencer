@@ -63,5 +63,9 @@ tokio = { workspace = true, features = ["full", "sync", "test-util"] }
 tokio-stream.workspace = true
 waker-fn.workspace = true
 
+[[test]]
+name = "e2e_discovery_test"
+required-features = ["testing"]
+
 [lints]
 workspace = true
