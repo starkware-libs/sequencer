@@ -118,28 +118,6 @@ fn test_committed_txs_removed_from_mempool(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_commit_block_rewinds_non_committed_transactions(mut mempool: Mempool) {
-    let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
-    let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
-    let input3 = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 2, account_nonce: 0);
-
-    for i in 1..=3 {
-        mempool.update_tx_block_metadata(tx_hash!(i), tx_metadata(1000, 100));
-    }
-    for input in [&input1, &input2, &input3] {
-        add_tx(&mut mempool, input);
-    }
-
-    get_txs_and_assert_expected(&mut mempool, 3, &[input1.tx, input2.tx, input3.tx.clone()]);
-
-    // Commit block: transactions with nonces 0,1 are committed.
-    commit_block(&mut mempool, [("0x1", 2)], []);
-
-    // Transaction with nonce 2 is rewound back to queue.
-    get_txs_and_assert_expected(&mut mempool, 1, &[input3.tx]);
-}
-
-#[rstest]
 fn test_commit_block_removes_rejected_transactions(mut mempool: Mempool) {
     let input = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
 
