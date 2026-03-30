@@ -143,6 +143,36 @@ def get_24_hours_window() -> Tuple[datetime, datetime]:
     return start, now
 
 
+def parse_hours_minutes(duration_str: str) -> timedelta:
+    """Parse HH:MM format and return timedelta. Raises ValueError if invalid format."""
+    parts = duration_str.split(":")
+    if len(parts) != 2:
+        raise ValueError(f"Invalid duration format '{duration_str}'. Expected HH:MM")
+
+    try:
+        hours = int(parts[0])
+        minutes = int(parts[1])
+    except ValueError:
+        raise ValueError(
+            f"Invalid duration format '{duration_str}'. Hours and minutes must be integers"
+        )
+
+    if hours < 0 or minutes < 0 or minutes >= 60:
+        raise ValueError(
+            f"Invalid duration '{duration_str}'. Hours must be >= 0, minutes must be 0-59"
+        )
+
+    return timedelta(hours=hours, minutes=minutes)
+
+
+def get_last_duration_window(duration_str: str) -> Tuple[datetime, datetime]:
+    """Get time window from (now - duration) to now."""
+    duration = parse_hours_minutes(duration_str)
+    now = datetime.now(timezone.utc)
+    start = now - duration
+    return start, now
+
+
 # ------------------------------
 # Filter builders
 # ------------------------------
@@ -249,9 +279,9 @@ def determine_search_window(
     """Determine the search time window based on provided arguments.
 
     Priority/validation:
-      - --auto, --near, --range, --last-24-hours are mutually exclusive
+      - --auto, --near, --range, --last are mutually exclusive
       - --range requires exactly 2 arguments: start and end timestamps
-      - --last-24-hours (or no args) uses (current_time - 24 hours) to current_time window
+      - --last HH:MM (or no args, defaults to 24:00) uses (current_time - duration) to current_time window
       - --auto requires environment and common_filter_prefix parameters
     """
 
@@ -285,7 +315,9 @@ def determine_search_window(
         start_str, end_str = args.range
         return to_utc(parse_local_timestamp(start_str)), to_utc(parse_local_timestamp(end_str))
 
-    # Default: last 24 hours window
+    # Default: last 24 hours window, or custom duration if --last is provided
+    if args.last:
+        return get_last_duration_window(args.last)
     return get_24_hours_window()
 
 
@@ -394,9 +426,9 @@ def get_args(env_map: dict[str, EnvConfig]) -> argparse.Namespace:
         help="Search near this time in local time (±2h window). Format: YYYY-MM-DDTHH:MM:SS",
     )
     time_group.add_argument(
-        "--last-24-hours",
-        action="store_true",
-        help="Use last 24 hours time window (default if no time args)",
+        "--last",
+        metavar="HOURS:MINUTES",
+        help="Search last HOURS:MINUTES time window (default: 24:00 if no time args). Format: HH:MM",
     )
 
     ap.add_argument(
