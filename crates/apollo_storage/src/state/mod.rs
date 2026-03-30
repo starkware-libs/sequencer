@@ -70,7 +70,7 @@ use tracing::debug;
 use crate::db::serialization::{ChangesetValueWrapper, NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
-use crate::metrics::STORAGE_APPEND_THIN_STATE_DIFF_LATENCY;
+use crate::metrics::{BATCHER_CHANGESET_MARKER, STORAGE_APPEND_THIN_STATE_DIFF_LATENCY};
 use crate::mmap_file::LocationInFile;
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::{
@@ -873,6 +873,7 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
                 MarkerKind::Changeset,
                 block_number,
             )?;
+            BATCHER_CHANGESET_MARKER.set_lossy(block_number.unchecked_next().0);
         }
 
         update_marker_to_next_block(&self.txn, &markers_table, MarkerKind::State, block_number)?;
@@ -1111,6 +1112,7 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
 
             // Decrement changeset marker.
             markers_table.upsert(&self.txn, &MarkerKind::Changeset, &block_number)?;
+            BATCHER_CHANGESET_MARKER.set_lossy(block_number.0);
         }
 
         if !self.flat_state {
