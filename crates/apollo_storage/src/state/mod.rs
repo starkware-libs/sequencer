@@ -176,6 +176,8 @@ pub trait StateStorageReader<Mode: TransactionKind> {
     fn get_state_marker(&self) -> StorageResult<BlockNumber>;
     /// The changeset marker is the first block number that doesn't have changeset pre-images yet.
     fn get_changeset_marker(&self) -> StorageResult<BlockNumber>;
+    /// The changeset pruned marker is the oldest block that still has changeset entries.
+    fn get_changeset_pruned_marker(&self) -> StorageResult<BlockNumber>;
     /// Returns the state diff at a given block number.
     fn get_state_diff(&self, block_number: BlockNumber) -> StorageResult<Option<ThinStateDiff>>;
     /// Returns a state reader.
@@ -219,6 +221,10 @@ impl<Mode: TransactionKind> StateStorageReader<Mode> for StorageTxn<'_, Mode> {
     fn get_changeset_marker(&self) -> StorageResult<BlockNumber> {
         let markers_table = self.open_table(&self.tables.markers)?;
         Ok(markers_table.get(&self.txn, &MarkerKind::Changeset)?.unwrap_or_default())
+    }
+    fn get_changeset_pruned_marker(&self) -> StorageResult<BlockNumber> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        Ok(markers_table.get(&self.txn, &MarkerKind::ChangesetPruned)?.unwrap_or_default())
     }
     fn get_state_diff(&self, block_number: BlockNumber) -> StorageResult<Option<ThinStateDiff>> {
         let state_diff_location = self.get_state_diff_location(block_number)?;

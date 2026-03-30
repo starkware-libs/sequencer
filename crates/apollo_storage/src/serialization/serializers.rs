@@ -349,6 +349,7 @@ auto_storage_serde! {
         GlobalRoot = 9,
         FlatState = 10,
         Changeset = 11,
+        ChangesetPruned = 12,
     }
     pub struct MessageToL1 {
         pub to_address: EthAddress,

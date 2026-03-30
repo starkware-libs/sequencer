@@ -422,6 +422,7 @@ async fn markers_request() {
         ),
         (MarkerKind::GlobalRoot, txn.get_global_root_marker().unwrap()),
         (MarkerKind::Changeset, txn.get_changeset_marker().unwrap()),
+        (MarkerKind::ChangesetPruned, txn.get_changeset_pruned_marker().unwrap()),
     ];
 
     for (marker_kind, expected_marker) in marker_tests {
