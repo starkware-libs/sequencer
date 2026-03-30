@@ -977,30 +977,6 @@ fn flat_state_write_roundtrip() {
 }
 
 #[test]
-fn flat_state_disabled_leaves_flat_tables_empty() {
-    let ((reader, mut writer), _temp_dir) = get_test_storage();
-
-    let address = contract_address!("0xABC");
-    let class_hash = class_hash!("0x100");
-    let diff = ThinStateDiff {
-        deployed_contracts: indexmap! { address => class_hash },
-        ..Default::default()
-    };
-
-    writer
-        .begin_rw_txn()
-        .unwrap()
-        .append_state_diff(BlockNumber(0), diff)
-        .unwrap()
-        .commit()
-        .unwrap();
-
-    let txn = reader.begin_ro_txn().unwrap();
-    let flat_deployed = txn.open_table(&txn.tables.flat_deployed_contracts).unwrap();
-    assert_eq!(flat_deployed.get(&txn.txn, &address).unwrap(), None);
-}
-
-#[test]
 fn flat_state_deployment_without_nonce_diff() {
     let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
 
@@ -1319,26 +1295,6 @@ fn flat_state_revert_deployment_without_nonce_diff() {
 
     assert_eq!(flat_deployed.get(&txn.txn, &address).unwrap(), None);
     assert_eq!(flat_nonces.get(&txn.txn, &address).unwrap(), None);
-}
-
-#[test]
-fn flat_state_toggle_off_detected() {
-    let ((_, mut writer), config, _temp_dir) = get_test_storage_with_config_flat_state();
-
-    let diff = ThinStateDiff::default();
-    writer
-        .begin_rw_txn()
-        .unwrap()
-        .append_state_diff(BlockNumber(0), diff)
-        .unwrap()
-        .commit()
-        .unwrap();
-    drop(writer);
-
-    let mut config_off = config;
-    config_off.flat_state = false;
-    let result = open_storage(config_off);
-    assert!(matches!(result, Err(StorageError::FlatStateToggleNotSupported)));
 }
 
 #[test]
@@ -1997,131 +1953,6 @@ fn get_reversed_state_diff_from_changeset_errors_on_missing_block() {
 }
 
 #[test]
-fn versioned_tables_skipped_when_flat_state_enabled() {
-    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
-
-    let address = contract_address!("0x1");
-    let key = storage_key!("0x10");
-    let class_hash = class_hash!("0xaa");
-    let compiled_hash = CompiledClassHash(felt!("0xcc"));
-
-    let diff = ThinStateDiff {
-        deployed_contracts: indexmap! { address => class_hash },
-        nonces: indexmap! { address => Nonce(felt!("0x1")) },
-        storage_diffs: indexmap! { address => indexmap! { key => felt!("0x100") } },
-        class_hash_to_compiled_class_hash: indexmap! {
-            ClassHash(felt!("0xdd")) => compiled_hash
-        },
-        ..Default::default()
-    };
-    writer
-        .begin_rw_txn()
-        .unwrap()
-        .append_state_diff(BlockNumber(0), diff)
-        .unwrap()
-        .commit()
-        .unwrap();
-
-    // Verify versioned tables are empty.
-    let txn = reader.begin_ro_txn().unwrap();
-    let deployed_contracts = txn.txn.open_table(&txn.tables.deployed_contracts).unwrap();
-    let nonces = txn.txn.open_table(&txn.tables.nonces).unwrap();
-    let storage = txn.txn.open_table(&txn.tables.contract_storage).unwrap();
-    let compiled = txn.txn.open_table(&txn.tables.compiled_class_hash).unwrap();
-
-    assert_eq!(
-        deployed_contracts.get(&txn.txn, &(address, BlockNumber(0))).unwrap(),
-        None,
-        "Versioned deployed_contracts should be empty when flat_state is enabled"
-    );
-    assert_eq!(
-        nonces.get(&txn.txn, &(address, BlockNumber(0))).unwrap(),
-        None,
-        "Versioned nonces should be empty when flat_state is enabled"
-    );
-    assert_eq!(
-        storage.get(&txn.txn, &((address, key), BlockNumber(0))).unwrap(),
-        None,
-        "Versioned storage should be empty when flat_state is enabled"
-    );
-    assert_eq!(
-        compiled.get(&txn.txn, &(ClassHash(felt!("0xdd")), BlockNumber(0))).unwrap(),
-        None,
-        "Versioned compiled_class_hash should be empty when flat_state is enabled"
-    );
-
-    // Verify flat tables are populated.
-    let flat_deployed = txn.txn.open_table(&txn.tables.flat_deployed_contracts).unwrap();
-    let flat_nonces = txn.txn.open_table(&txn.tables.flat_nonces).unwrap();
-    let flat_storage = txn.txn.open_table(&txn.tables.flat_contract_storage).unwrap();
-    let flat_compiled = txn.txn.open_table(&txn.tables.flat_compiled_class_hash).unwrap();
-
-    assert_eq!(flat_deployed.get(&txn.txn, &address).unwrap(), Some(class_hash));
-    assert_eq!(flat_nonces.get(&txn.txn, &address).unwrap(), Some(Nonce(felt!("0x1"))));
-    assert_eq!(flat_storage.get(&txn.txn, &(address, key)).unwrap(), Some(felt!("0x100")));
-    assert_eq!(
-        flat_compiled.get(&txn.txn, &ClassHash(felt!("0xdd"))).unwrap(),
-        Some(compiled_hash)
-    );
-}
-
-#[test]
-fn versioned_tables_still_written_when_flat_state_disabled() {
-    let ((reader, mut writer), _temp_dir) = get_test_storage();
-
-    let address = contract_address!("0x1");
-    let key = storage_key!("0x10");
-    let class_hash = class_hash!("0xaa");
-    let compiled_hash = CompiledClassHash(felt!("0xcc"));
-
-    let diff = ThinStateDiff {
-        deployed_contracts: indexmap! { address => class_hash },
-        nonces: indexmap! { address => Nonce(felt!("0x1")) },
-        storage_diffs: indexmap! { address => indexmap! { key => felt!("0x100") } },
-        class_hash_to_compiled_class_hash: indexmap! {
-            ClassHash(felt!("0xdd")) => compiled_hash
-        },
-        ..Default::default()
-    };
-    writer
-        .begin_rw_txn()
-        .unwrap()
-        .append_state_diff(BlockNumber(0), diff)
-        .unwrap()
-        .commit()
-        .unwrap();
-
-    // Verify versioned tables are populated.
-    let txn = reader.begin_ro_txn().unwrap();
-    let deployed_contracts = txn.txn.open_table(&txn.tables.deployed_contracts).unwrap();
-    let nonces = txn.txn.open_table(&txn.tables.nonces).unwrap();
-    let storage = txn.txn.open_table(&txn.tables.contract_storage).unwrap();
-    let compiled = txn.txn.open_table(&txn.tables.compiled_class_hash).unwrap();
-
-    assert_eq!(
-        deployed_contracts.get(&txn.txn, &(address, BlockNumber(0))).unwrap(),
-        Some(class_hash),
-        "Versioned deployed_contracts should be populated when flat_state is disabled"
-    );
-    // Nonce: deployed contract gets implicit Nonce::default(), then nonces diff writes 0x1.
-    assert_eq!(
-        nonces.get(&txn.txn, &(address, BlockNumber(0))).unwrap(),
-        Some(Nonce(felt!("0x1"))),
-        "Versioned nonces should be populated when flat_state is disabled"
-    );
-    assert_eq!(
-        storage.get(&txn.txn, &((address, key), BlockNumber(0))).unwrap(),
-        Some(felt!("0x100")),
-        "Versioned storage should be populated when flat_state is disabled"
-    );
-    assert_eq!(
-        compiled.get(&txn.txn, &(ClassHash(felt!("0xdd")), BlockNumber(0))).unwrap(),
-        Some(compiled_hash),
-        "Versioned compiled_class_hash should be populated when flat_state is disabled"
-    );
-}
-
-#[test]
 fn revert_without_versioned_tables() {
     let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
 
@@ -2186,54 +2017,6 @@ fn revert_without_versioned_tables() {
 
     // State marker should be back to 1.
     assert_eq!(txn.get_state_marker().unwrap(), BlockNumber(1));
-}
-
-#[test]
-fn flat_only_reads_work_without_versioned_fallback() {
-    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
-
-    let address = contract_address!("0x1");
-    let key = storage_key!("0x10");
-    let class_hash = class_hash!("0xaa");
-    let compiled_hash = CompiledClassHash(felt!("0xcc"));
-
-    let diff = ThinStateDiff {
-        deployed_contracts: indexmap! { address => class_hash },
-        nonces: indexmap! { address => Nonce(felt!("0x1")) },
-        storage_diffs: indexmap! { address => indexmap! { key => felt!("0x100") } },
-        class_hash_to_compiled_class_hash: indexmap! {
-            ClassHash(felt!("0xdd")) => compiled_hash
-        },
-        ..Default::default()
-    };
-    writer
-        .begin_rw_txn()
-        .unwrap()
-        .append_state_diff(BlockNumber(0), diff)
-        .unwrap()
-        .commit()
-        .unwrap();
-
-    // Read via state reader (flat path only, no versioned tables populated).
-    let txn = reader.begin_ro_txn().unwrap();
-    let state_reader = txn.get_state_reader().unwrap();
-    let latest = StateNumber::right_after_block(BlockNumber(0)).unwrap();
-
-    assert_eq!(state_reader.get_class_hash_at(latest, &address).unwrap(), Some(class_hash));
-    assert_eq!(state_reader.get_nonce_at(latest, &address).unwrap(), Some(Nonce(felt!("0x1"))));
-    assert_eq!(state_reader.get_storage_at(latest, &address, &key).unwrap(), felt!("0x100"));
-    assert_eq!(
-        state_reader.get_compiled_class_hash_at(latest, &ClassHash(felt!("0xdd"))).unwrap(),
-        Some(compiled_hash)
-    );
-
-    // Verify versioned tables are indeed empty.
-    let deployed_contracts = txn.txn.open_table(&txn.tables.deployed_contracts).unwrap();
-    assert_eq!(
-        deployed_contracts.get(&txn.txn, &(address, BlockNumber(0))).unwrap(),
-        None,
-        "Versioned tables should be empty"
-    );
 }
 
 #[test]
