@@ -6,7 +6,7 @@ use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::{ConnectionId, FromSwarm, NetworkBehaviour, ToSwarm};
 use libp2p::{Multiaddr, PeerId};
 
-use super::peer_access_control::Behaviour;
+use super::peer_whitelist::Behaviour;
 
 #[test]
 fn denies_all_with_empty_allowed_set() {
