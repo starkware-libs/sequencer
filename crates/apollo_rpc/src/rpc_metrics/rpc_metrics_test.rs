@@ -46,7 +46,6 @@ fn get_method_and_version_test() {
 // TODO(victork): Update to use current jsonrpsee 0.24 API when re-enabling this test.
 // The API for creating MethodCallback and MethodResponse has changed significantly.
 #[ignore]
-#[expect(unused_imports, unused_variables)]
 #[test]
 fn logger_test() {
     let full_method_name = "starknet_V0_8_0_blockNumber";

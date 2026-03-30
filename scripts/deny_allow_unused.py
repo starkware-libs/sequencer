@@ -15,9 +15,10 @@ from typing import Optional
 
 from tests_utils import get_local_changes
 
-# Matches #[allow(unused...)], including inner attributes #![allow(unused...)].
-# Captures variants like: unused, unused_imports, unused_variables, unused_macro_rules, etc.
-ALLOW_UNUSED_PATTERN = re.compile(r"#!?\[allow\((unused\w*(?:\s*,\s*unused\w*)*)\s*(?:,\s*\w+)*\)]")
+# Matches #[allow(...)] containing any bare unused* lint, regardless of position in the lint list.
+# Handles variants like: unused, unused_imports, unused_variables, unused_macro_rules, etc.
+# Excludes qualified lints like clippy::unused_async.
+ALLOW_UNUSED_PATTERN = re.compile(r"#!?\[allow\([^]]*(?<![:\w])unused\w*[^]]*\)]")
 
 
 def check_allow_unused(file_path: str) -> bool:
