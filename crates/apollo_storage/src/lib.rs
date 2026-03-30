@@ -601,8 +601,6 @@ pub struct StorageTxn<'env, Mode: TransactionKind> {
     file_handlers: FileHandlers<Mode>,
     tables: Arc<Tables>,
     scope: StorageScope,
-    // TODO(dan): will be read in a follow-up PR for flat state reads.
-    #[allow(dead_code)]
     flat_state: bool,
     // Do not remove this. It is used to automatically update metrics on create/drop.
     _metric_updater: MetricsHandler,
@@ -738,8 +736,6 @@ struct_field_names! {
 
 macro_rules! struct_field_names {
     (struct $name:ident { $($fname:ident : $ftype:ty),* }) => {
-        // TODO(dan): remove allow(dead_code) once flat state reads are wired up.
-        #[allow(dead_code)]
         pub(crate) struct $name {
             $($fname : $ftype),*
         }

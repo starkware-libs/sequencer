@@ -115,6 +115,16 @@ pub(crate) type CompiledClassHashTable<'env> = TableHandle<
     CommonPrefix,
 >;
 
+// Flat state table types (no BlockNumber in key).
+pub(crate) type FlatContractStorageTable<'env> =
+    TableHandle<'env, (ContractAddress, StorageKey), NoVersionValueWrapper<Felt>, CommonPrefix>;
+pub(crate) type FlatNoncesTable<'env> =
+    TableHandle<'env, ContractAddress, NoVersionValueWrapper<Nonce>, SimpleTable>;
+pub(crate) type FlatDeployedContractsTable<'env> =
+    TableHandle<'env, ContractAddress, NoVersionValueWrapper<ClassHash>, SimpleTable>;
+pub(crate) type FlatCompiledClassHashTable<'env> =
+    TableHandle<'env, ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>;
+
 /// Interface for reading data related to the state.
 // Structure of state data:
 // * declared_classes_table: (class_hash) -> (block_num, contract_class). Each entry specifies at
@@ -529,6 +539,11 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             self.open_table(&self.tables.deprecated_declared_classes_block)?;
         let compiled_class_hash_table = self.open_table(&self.tables.compiled_class_hash)?;
 
+        let flat_deployed_table = self.open_table(&self.tables.flat_deployed_contracts)?;
+        let flat_nonces_table = self.open_table(&self.tables.flat_nonces)?;
+        let flat_storage_table = self.open_table(&self.tables.flat_contract_storage)?;
+        let flat_compiled_table = self.open_table(&self.tables.flat_compiled_class_hash)?;
+
         // Write state.
         write_deployed_contracts(
             &thin_state_diff.deployed_contracts,
@@ -536,15 +551,27 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             block_number,
             &deployed_contracts_table,
             &nonces_table,
+            self.flat_state,
+            &flat_deployed_table,
+            &flat_nonces_table,
         )?;
         write_storage_diffs(
             &thin_state_diff.storage_diffs,
             &self.txn,
             block_number,
             &storage_table,
+            self.flat_state,
+            &flat_storage_table,
         )?;
         // Must be called after write_deployed_contracts since the nonces are updated there.
-        write_nonces(&thin_state_diff.nonces, &self.txn, block_number, &nonces_table)?;
+        write_nonces(
+            &thin_state_diff.nonces,
+            &self.txn,
+            block_number,
+            &nonces_table,
+            self.flat_state,
+            &flat_nonces_table,
+        )?;
 
         for (class_hash, _) in &thin_state_diff.class_hash_to_compiled_class_hash {
             let not_declared = declared_classes_block_table.get(&self.txn, class_hash)?.is_none();
@@ -558,6 +585,8 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             &self.txn,
             block_number,
             &compiled_class_hash_table,
+            self.flat_state,
+            &flat_compiled_table,
         )?;
 
         for class_hash in thin_state_diff.deprecated_declared_classes.iter() {
@@ -763,6 +792,7 @@ fn advance_compiled_class_marker_over_blocks_without_classes<'env>(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 #[latency_histogram("storage_write_deployed_contracts_latency_seconds", true)]
 fn write_deployed_contracts<'env>(
     deployed_contracts: &IndexMap<ContractAddress, ClassHash>,
@@ -770,9 +800,15 @@ fn write_deployed_contracts<'env>(
     block_number: BlockNumber,
     deployed_contracts_table: &'env DeployedContractsTable<'env>,
     nonces_table: &'env NoncesTable<'env>,
+    flat_state: bool,
+    flat_deployed_table: &'env FlatDeployedContractsTable<'env>,
+    flat_nonces_table: &'env FlatNoncesTable<'env>,
 ) -> StorageResult<()> {
     for (address, class_hash) in deployed_contracts {
         deployed_contracts_table.insert(txn, &(*address, block_number), class_hash)?;
+        if flat_state {
+            flat_deployed_table.upsert(txn, address, class_hash)?;
+        }
 
         // In old blocks, there is no nonce diff, so we must add the default value for newly
         // deployed contracts. Replaced classes will already have a nonce and thus won't enter this
@@ -783,6 +819,9 @@ fn write_deployed_contracts<'env>(
                 &(*address, block_number),
                 &Nonce::default(),
             )?;
+            if flat_state && flat_nonces_table.get(txn, address)?.is_none() {
+                flat_nonces_table.upsert(txn, address, &Nonce::default())?;
+            }
         }
     }
     Ok(())
@@ -794,9 +833,14 @@ fn write_nonces<'env>(
     txn: &DbTransaction<'env, RW>,
     block_number: BlockNumber,
     contracts_table: &'env NoncesTable<'env>,
+    flat_state: bool,
+    flat_nonces_table: &'env FlatNoncesTable<'env>,
 ) -> StorageResult<()> {
     for (contract_address, nonce) in nonces {
         contracts_table.upsert(txn, &(*contract_address, block_number), nonce)?;
+        if flat_state {
+            flat_nonces_table.upsert(txn, contract_address, nonce)?;
+        }
     }
     Ok(())
 }
@@ -807,9 +851,14 @@ fn write_compiled_class_hashes<'env>(
     txn: &DbTransaction<'env, RW>,
     block_number: BlockNumber,
     compiled_class_hash_table: &'env CompiledClassHashTable<'env>,
+    flat_state: bool,
+    flat_compiled_table: &'env FlatCompiledClassHashTable<'env>,
 ) -> StorageResult<()> {
     for (class_hash, compiled_class_hash) in compiled_class_hashes {
         compiled_class_hash_table.insert(txn, &(*class_hash, block_number), compiled_class_hash)?;
+        if flat_state {
+            flat_compiled_table.upsert(txn, class_hash, compiled_class_hash)?;
+        }
     }
     Ok(())
 }
@@ -820,10 +869,15 @@ fn write_storage_diffs<'env>(
     txn: &DbTransaction<'env, RW>,
     block_number: BlockNumber,
     storage_table: &'env ContractStorageTable<'env>,
+    flat_state: bool,
+    flat_storage_table: &'env FlatContractStorageTable<'env>,
 ) -> StorageResult<()> {
     for (address, storage_entries) in storage_diffs {
         for (key, value) in storage_entries {
             storage_table.append_greater_sub_key(txn, &((*address, *key), block_number), value)?;
+            if flat_state {
+                flat_storage_table.upsert(txn, &(*address, *key), value)?;
+            }
         }
     }
     Ok(())

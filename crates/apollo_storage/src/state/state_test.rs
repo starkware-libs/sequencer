@@ -13,8 +13,9 @@ use starknet_types_core::felt::Felt;
 
 use crate::class::{ClassStorageReader, ClassStorageWriter};
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
+use crate::db::table_types::Table;
 use crate::state::{StateStorageReader, StateStorageWriter};
-use crate::test_utils::{get_test_config, get_test_storage};
+use crate::test_utils::{get_test_config, get_test_storage, get_test_storage_with_flat_state};
 use crate::{open_storage, StorageError, StorageScope, StorageWriter};
 
 #[test]
@@ -926,4 +927,126 @@ fn flat_state_incompatible_with_full_archive() {
         Err(other) => panic!("Expected FlatStateIncompatibleWithFullArchive, got: {other}"),
         Ok(_) => panic!("Expected error, got Ok"),
     }
+}
+
+#[test]
+fn flat_state_write_roundtrip() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    let address = contract_address!("0xABC");
+    let key = storage_key!("0x01");
+    let value = felt!("0x42");
+    let nonce = Nonce(felt!("0x01"));
+    let class_hash = class_hash!("0x100");
+    let compiled = compiled_class_hash!(0x200_u16);
+
+    let diff = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash },
+        storage_diffs: indexmap! { address => indexmap! { key => value } },
+        nonces: indexmap! { address => nonce },
+        class_hash_to_compiled_class_hash: indexmap! { class_hash => compiled },
+        ..Default::default()
+    };
+
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), diff)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let txn = reader.begin_ro_txn().unwrap();
+    let flat_deployed = txn.open_table(&txn.tables.flat_deployed_contracts).unwrap();
+    let flat_nonces = txn.open_table(&txn.tables.flat_nonces).unwrap();
+    let flat_storage = txn.open_table(&txn.tables.flat_contract_storage).unwrap();
+    let flat_compiled = txn.open_table(&txn.tables.flat_compiled_class_hash).unwrap();
+
+    assert_eq!(flat_deployed.get(&txn.txn, &address).unwrap(), Some(class_hash));
+    assert_eq!(flat_nonces.get(&txn.txn, &address).unwrap(), Some(nonce));
+    assert_eq!(flat_storage.get(&txn.txn, &(address, key)).unwrap(), Some(value));
+    assert_eq!(flat_compiled.get(&txn.txn, &class_hash).unwrap(), Some(compiled));
+}
+
+#[test]
+fn flat_state_disabled_leaves_flat_tables_empty() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage();
+
+    let address = contract_address!("0xABC");
+    let class_hash = class_hash!("0x100");
+    let diff = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash },
+        ..Default::default()
+    };
+
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), diff)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let txn = reader.begin_ro_txn().unwrap();
+    let flat_deployed = txn.open_table(&txn.tables.flat_deployed_contracts).unwrap();
+    assert_eq!(flat_deployed.get(&txn.txn, &address).unwrap(), None);
+}
+
+#[test]
+fn flat_state_deployment_without_nonce_diff() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    let address = contract_address!("0xABC");
+    let class_hash = class_hash!("0x100");
+
+    let diff = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash },
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), diff)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let txn = reader.begin_ro_txn().unwrap();
+    let flat_nonces = txn.open_table(&txn.tables.flat_nonces).unwrap();
+    let flat_deployed = txn.open_table(&txn.tables.flat_deployed_contracts).unwrap();
+
+    assert_eq!(flat_deployed.get(&txn.txn, &address).unwrap(), Some(class_hash));
+    assert_eq!(flat_nonces.get(&txn.txn, &address).unwrap(), Some(Nonce::default()));
+}
+
+#[test]
+fn flat_state_overwrites_on_second_block() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    let address = contract_address!("0xABC");
+    let key = storage_key!("0x01");
+
+    let diff0 = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash!("0x100") },
+        storage_diffs: indexmap! { address => indexmap! { key => felt!("0x01") } },
+        nonces: indexmap! { address => Nonce(felt!("0x01")) },
+        ..Default::default()
+    };
+    let diff1 = ThinStateDiff {
+        storage_diffs: indexmap! { address => indexmap! { key => felt!("0x02") } },
+        nonces: indexmap! { address => Nonce(felt!("0x02")) },
+        ..Default::default()
+    };
+
+    let mut txn = writer.begin_rw_txn().unwrap();
+    txn = txn.append_state_diff(BlockNumber(0), diff0).unwrap();
+    txn = txn.append_state_diff(BlockNumber(1), diff1).unwrap();
+    txn.commit().unwrap();
+
+    let txn = reader.begin_ro_txn().unwrap();
+    let flat_storage = txn.open_table(&txn.tables.flat_contract_storage).unwrap();
+    let flat_nonces = txn.open_table(&txn.tables.flat_nonces).unwrap();
+
+    assert_eq!(flat_storage.get(&txn.txn, &(address, key)).unwrap(), Some(felt!("0x02")));
+    assert_eq!(flat_nonces.get(&txn.txn, &address).unwrap(), Some(Nonce(felt!("0x02"))));
 }
