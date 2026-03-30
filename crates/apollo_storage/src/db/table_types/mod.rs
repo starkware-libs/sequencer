@@ -8,7 +8,6 @@ use super::{DbResult, DbTransaction, TransactionKind, RW};
 
 mod dup_sort_tables;
 mod simple_table;
-#[allow(unused_imports)]
 pub(crate) use dup_sort_tables::CommonPrefix;
 pub(crate) use simple_table::SimpleTable;
 #[cfg(test)]
