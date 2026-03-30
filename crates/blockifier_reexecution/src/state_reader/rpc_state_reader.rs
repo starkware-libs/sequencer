@@ -30,6 +30,7 @@ use serde_json::{json, Value};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
@@ -320,6 +321,16 @@ impl RpcStateReader {
         let mut versioned_constants = self.get_versioned_constants()?;
         if let Some(version) = min_sierra_version_for_sierra_gas {
             versioned_constants.min_sierra_version_for_sierra_gas = version;
+            // When overriding min_sierra_version, contracts that normally run in CairoSteps
+            // mode (with effectively infinite gas) are forced into SierraGas mode, where gas
+            // is capped by execute/validate_max_sierra_gas. Raise these limits to match
+            // default_initial_gas_cost so these contracts don't hit out-of-gas errors.
+            let mut new_os_constants = (*versioned_constants.os_constants).clone();
+            let default_gas =
+                GasAmount(new_os_constants.gas_costs.base.default_initial_gas_cost);
+            new_os_constants.execute_max_sierra_gas = default_gas;
+            new_os_constants.validate_max_sierra_gas = default_gas;
+            versioned_constants.os_constants = Arc::new(new_os_constants);
         }
         Ok(BlockContext::new(
             self.get_block_info()?,

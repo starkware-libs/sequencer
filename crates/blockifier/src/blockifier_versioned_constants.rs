@@ -836,7 +836,7 @@ impl SyscallGasCost {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "reexecution"), derive(Clone))]
 #[derive(Debug, Default, PartialEq)]
 pub struct SyscallGasCosts {
     pub call_contract: SyscallGasCost,
@@ -915,7 +915,7 @@ impl SyscallGasCosts {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
+#[cfg_attr(any(test, feature = "testing", feature = "reexecution"), derive(Clone, Copy))]
 #[derive(Debug, Default, PartialEq)]
 pub struct BaseGasCosts {
     pub step_gas_cost: u64,
@@ -989,7 +989,7 @@ impl BuiltinGasCosts {
 }
 
 /// Gas cost constants. For more documentation see in core/os/constants.cairo.
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "reexecution"), derive(Clone))]
 #[derive(Debug, Default, PartialEq)]
 pub struct GasCosts {
     pub base: BaseGasCosts,
@@ -1130,7 +1130,7 @@ impl GasCosts {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "reexecution"), derive(Clone))]
 #[derive(Debug, Default, PartialEq)]
 pub struct OsConstants {
     pub gas_costs: GasCosts,
