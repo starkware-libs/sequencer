@@ -34,7 +34,7 @@ use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_committer_types::committer_types::RevertBlockResponse;
 use apollo_committer_types::communication::SharedCommitterClient;
-use apollo_config_manager_types::communication::SharedConfigManagerClient;
+use apollo_config_manager_types::communication::SharedConfigManagerChannelClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_l1_events_types::errors::{L1EventsProviderClientError, L1EventsProviderError};
 use apollo_l1_events_types::{SessionState, SharedL1EventsProviderClient};
@@ -158,7 +158,7 @@ pub struct Batcher {
     pub committer_client: SharedCommitterClient,
     pub l1_events_provider_client: SharedL1EventsProviderClient,
     pub mempool_client: SharedMempoolClient,
-    pub config_manager_client: SharedConfigManagerClient,
+    pub config_manager_client: SharedConfigManagerChannelClient,
 
     /// Used to create block builders.
     /// Using the factory pattern to allow for easier testing.
@@ -213,7 +213,7 @@ impl Batcher {
         committer_client: SharedCommitterClient,
         l1_events_provider_client: SharedL1EventsProviderClient,
         mempool_client: SharedMempoolClient,
-        config_manager_client: SharedConfigManagerClient,
+        config_manager_client: SharedConfigManagerChannelClient,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         commitment_manager: ApolloCommitmentManager,
@@ -1391,7 +1391,7 @@ fn log_txs_execution_result(
 }
 
 struct BatcherDynamicConfigProvider {
-    config_manager_client: SharedConfigManagerClient,
+    config_manager_client: SharedConfigManagerChannelClient,
 }
 
 #[async_trait]
@@ -1402,7 +1402,6 @@ impl DynamicConfigProvider for BatcherDynamicConfigProvider {
         let config = self
             .config_manager_client
             .get_batcher_dynamic_config()
-            .await
             .map_err(|e| DynamicConfigError(e.to_string()))?;
         Ok(config.storage_reader_server_dynamic_config)
     }
@@ -1417,7 +1416,7 @@ pub async fn create_batcher(
     class_manager_client: SharedClassManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
     proof_manager_client: SharedProofManagerClient,
-    config_manager_client: SharedConfigManagerClient,
+    config_manager_client: SharedConfigManagerChannelClient,
 ) -> Batcher {
     let storage_reader_server_config = ServerConfig {
         static_config: config.static_config.storage_reader_server_static_config.clone(),
