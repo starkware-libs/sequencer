@@ -58,7 +58,11 @@ fn build_env(num_shards_per_peer: usize) -> TestEnv {
         // TODO(AndrewL): Instead of testing that you use schedule_manager properly by calling its
         // functions in the test, use automock and dependency injection
         let index = UnitIndex(i.try_into().unwrap());
+<<<<<<< HEAD
         let peer = schedule_manager.get_peer_for_shard_index(&publisher, index).unwrap();
+=======
+        let peer = schedule_manager.get_peer_for_unit_index(&publisher, index).unwrap();
+>>>>>>> 975f5e5e6a (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
         peer_to_index.insert(peer, index);
     }
 

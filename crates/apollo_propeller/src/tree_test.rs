@@ -90,7 +90,11 @@ fn test_get_peer_for_shard_id(
 ) {
     let schedule_manager = make_schedule_manager(0, 4);
     let publisher = schedule_manager.get_nodes()[1].0; // Use peer1 as publisher
+<<<<<<< HEAD
     let result = schedule_manager.get_peer_for_shard_index(&publisher, unit_index);
+=======
+    let result = schedule_manager.get_peer_for_unit_index(&publisher, unit_index);
+>>>>>>> 975f5e5e6a (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
     assert_eq!(
         result,
         expected_result.map(|peer_index| schedule_manager.get_nodes()[peer_index].0)
