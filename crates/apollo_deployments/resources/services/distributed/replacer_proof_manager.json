@@ -123,5 +123,6 @@
   "monitoring_endpoint_config.#is_none": false,
   "proof_manager_config.#is_none": false,
   "sierra_compiler_config.#is_none": true,
+  "signature_manager_config.#is_none": true,
   "state_sync_config.#is_none": true
 }
