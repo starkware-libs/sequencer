@@ -2320,3 +2320,55 @@ fn get_reversed_state_diff_from_changeset_errors_on_pruned_block() {
     let result = txn.get_reversed_state_diff_from_changeset(BlockNumber(2));
     assert!(result.is_ok());
 }
+
+#[test]
+fn revert_beyond_pruned_window_returns_error() {
+    let ((_reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    let address = contract_address!("0x1");
+    let key = storage_key!("0x10");
+
+    // Write 5 blocks.
+    for block in 0u64..5 {
+        let diff = ThinStateDiff {
+            storage_diffs: indexmap! {
+                address => indexmap! {
+                    key => Felt::from(block + 1),
+                },
+            },
+            ..Default::default()
+        };
+        writer
+            .begin_rw_txn()
+            .unwrap()
+            .append_state_diff(BlockNumber(block), diff)
+            .unwrap()
+            .commit()
+            .unwrap();
+    }
+
+    // Manually advance the ChangesetPruned marker to simulate pruning of blocks 0-2.
+    {
+        let txn = writer.begin_rw_txn().unwrap();
+        let markers_table = txn.open_table(&txn.tables.markers).unwrap();
+        markers_table.upsert(&txn.txn, &MarkerKind::ChangesetPruned, &BlockNumber(3)).unwrap();
+        txn.commit().unwrap();
+    }
+
+    // Revert block 4 (within window) should succeed.
+    let (writer_txn, reversed) =
+        writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(4)).unwrap();
+    assert!(reversed.is_some());
+    writer_txn.commit().unwrap();
+
+    // Revert block 3 (at boundary, within window) should succeed.
+    let (writer_txn, reversed) =
+        writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(3)).unwrap();
+    assert!(reversed.is_some());
+    writer_txn.commit().unwrap();
+
+    // Revert block 2 (below pruned marker) should error.
+    let revert_result =
+        writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(2)).map(|_| ());
+    assert_matches!(revert_result, Err(StorageError::RevertBeyondChangesetHistory { .. }));
+}

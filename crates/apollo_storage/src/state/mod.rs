@@ -969,6 +969,15 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         // Restore flat tables from changeset tables, with assertions comparing against versioned
         // table lookups.
         if self.flat_state {
+            let changeset_pruned_marker =
+                markers_table.get(&self.txn, &MarkerKind::ChangesetPruned)?.unwrap_or_default();
+            if block_number < changeset_pruned_marker {
+                return Err(StorageError::RevertBeyondChangesetHistory {
+                    block_number,
+                    oldest_changeset: changeset_pruned_marker,
+                });
+            }
+
             let flat_deployed_table = self.open_table(&self.tables.flat_deployed_contracts)?;
             let flat_nonces_table = self.open_table(&self.tables.flat_nonces)?;
             let flat_storage_table = self.open_table(&self.tables.flat_contract_storage)?;
