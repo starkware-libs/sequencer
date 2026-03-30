@@ -82,3 +82,7 @@ impl KeyStore for GsmKeyStore {
         self.cached_key.get_or_try_init(|| self.fetch_from_gsm()).await.copied()
     }
 }
+
+#[cfg(test)]
+#[path = "gsm_key_store_test.rs"]
+mod gsm_key_store_test;
