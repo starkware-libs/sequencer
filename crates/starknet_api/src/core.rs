@@ -505,6 +505,10 @@ pub struct PatriciaKey(StarkHash);
 pub const PATRICIA_KEY_UPPER_BOUND: &str =
     "0x800000000000000000000000000000000000000000000000000000000000000";
 
+/// The inclusive maximum key.
+pub const MAX_PATRICIA_FELT: Felt =
+    Felt::from_hex_unchecked("0x07ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
 impl PatriciaKey {
     pub const ZERO: Self = Self(StarkHash::ZERO);
     pub const ONE: Self = Self(StarkHash::ONE);
