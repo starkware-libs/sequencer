@@ -22,6 +22,7 @@ use futures::stream::{FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
+use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
 use tracing::{debug, error, trace, warn};
@@ -109,6 +110,7 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
     continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
     metrics: Option<NetworkMetrics>,
+    bootstrap_peer_ids: HashSet<PeerId>,
     committee_store: ActiveCommittees,
 }
 
@@ -188,10 +190,12 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             .committee_store
             .add_epoch(epoch_id, members)
             .expect("Committee members contain duplicate peer IDs");
-        let allowed_peers: HashSet<PeerId> = output.allowed_peers.into_iter().collect();
-        self.swarm.behaviour_mut().peer_access_control.set_allowed_peers(allowed_peers.clone());
+        let committee_peers: HashSet<PeerId> = output.allowed_peers.into_iter().collect();
+        let mut whitelisted_peers = committee_peers.clone();
+        whitelisted_peers.extend(&self.bootstrap_peer_ids);
+        self.swarm.behaviour_mut().peer_access_control.set_allowed_peers(whitelisted_peers);
         if let Some(discovery) = self.swarm.behaviour_mut().discovery.as_mut() {
-            discovery.set_target_peers(allowed_peers);
+            discovery.set_target_peers(committee_peers);
         }
         todo!("Wire remaining AddEpochOutput fields to behaviours");
     }
@@ -232,6 +236,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             continue_propagation_sender,
             continue_propagation_receiver,
             metrics,
+            bootstrap_peer_ids: HashSet::new(),
             committee_store,
         }
     }
@@ -1194,6 +1199,20 @@ impl NetworkManager {
         let listen_address = make_multiaddr(Ipv4Addr::UNSPECIFIED, port, None);
         debug!("Creating swarm with listen address: {listen_address:?}");
 
+        let bootstrap_peer_ids: HashSet<PeerId> = bootstrap_peer_multiaddr
+            .as_ref()
+            .map(|addrs| {
+                addrs
+                    .iter()
+                    .map(|addr| {
+                        DialOpts::from(addr.clone())
+                            .get_peer_id()
+                            .expect("bootstrap_peer_multiaddr doesn't have a peer id")
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
         let key_pair = match secret_key {
             Some(secret_key) => Keypair::ed25519_from_bytes(secret_key.expose_secret())
                 .expect("Error while parsing secret key"),
@@ -1234,13 +1253,15 @@ impl NetworkManager {
                 .with_p2p(*swarm.local_peer_id())
                 .expect("advertised_multiaddr has a peer id different than the local peer id")
         });
-        Self::generic_new(
+        let mut manager = Self::generic_new(
             swarm,
             advertised_multiaddr,
             metrics,
             broadcasted_message_metadata_buffer_size,
             reported_peer_ids_buffer_size,
-        )
+        );
+        manager.bootstrap_peer_ids = bootstrap_peer_ids;
+        manager
     }
 
     /// Returns the local peer ID as a string.
