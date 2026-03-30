@@ -6,7 +6,7 @@ use std::cmp::min;
 use std::sync::Arc;
 
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_config_manager_types::communication::SharedConfigManagerClient;
+use apollo_config_manager_types::communication::SharedConfigManagerChannelClient;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
 use apollo_starknet_client::reader::{StarknetFeederGatewayClient, StarknetReader};
@@ -38,7 +38,7 @@ const BUFFER_SIZE: usize = 100000;
 pub fn create_state_sync_and_runner(
     config: StateSyncConfig,
     class_manager_client: SharedClassManagerClient,
-    config_manager_client: SharedConfigManagerClient,
+    config_manager_client: SharedConfigManagerChannelClient,
 ) -> (StateSync, StateSyncRunner) {
     let (new_block_sender, new_block_receiver) = channel(BUFFER_SIZE);
     let (state_sync_runner, storage_reader) = StateSyncRunner::new(
@@ -58,7 +58,7 @@ pub struct StateSync {
     storage_reader: StorageReader,
     new_block_sender: Sender<SyncBlock>,
     starknet_client: Option<Arc<dyn StarknetReader + Send + Sync>>,
-    config_manager_client: SharedConfigManagerClient,
+    config_manager_client: SharedConfigManagerChannelClient,
     dynamic_config: Arc<RwLock<StateSyncDynamicConfig>>,
 }
 
@@ -67,7 +67,7 @@ impl StateSync {
         storage_reader: StorageReader,
         new_block_sender: Sender<SyncBlock>,
         config: StateSyncConfig,
-        config_manager_client: SharedConfigManagerClient,
+        config_manager_client: SharedConfigManagerChannelClient,
     ) -> Self {
         let starknet_client = config.static_config.central_sync_client_config.map(|config| {
             let config = config.central_source_config;
@@ -94,7 +94,7 @@ impl StateSync {
     }
 
     async fn update_dynamic_config(&self) {
-        match self.config_manager_client.get_state_sync_dynamic_config().await {
+        match self.config_manager_client.get_state_sync_dynamic_config() {
             Ok(new_config) => {
                 let mut dynamic_config = self.dynamic_config.write().await;
                 *dynamic_config = new_config;
