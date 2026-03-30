@@ -315,3 +315,73 @@ async fn test_post_reconstruction_shard_counting() {
     assert_eq!(recv_publisher, publisher_id);
     assert_eq!(recv_message, message);
 }
+
+/// Test that a reconstructed unit matches the original unit created by the publisher.
+///
+/// Delivers a *foreign* shard (via gossip from another recipient) so that reconstruction
+/// produces and broadcasts the recipient's own shard — rather than simply forwarding the
+/// original unit received from the publisher. The broadcast reconstructed unit should be
+/// identical to the original unit the publisher created for that recipient.
+#[tokio::test]
+async fn test_reconstructed_unit_matches_original() {
+    // Setup: 4 nodes (1 publisher + 3 recipients)
+    let config = Config::default();
+    let mut env = TestEnv::new(4, config);
+    env.connect_all();
+    let committee_id = env.register_committee().await;
+
+    let peer_ids = env.peer_ids();
+    let publisher_id = peer_ids[0];
+    let recipient_id = peer_ids[1];
+
+    // Publisher broadcasts a message
+    let message = vec![42u8; 100];
+    env.node_mut(publisher_id)
+        .behaviour
+        .broadcast(committee_id, message.clone())
+        .await
+        .unwrap()
+        .unwrap();
+
+    // Collect initial shards from publisher (3 shards to 3 recipients)
+    let mut initial_shards = HashMap::new();
+    for _ in 0..3 {
+        let (peer, unit) = env.node_mut(publisher_id).expect_send_unit().await;
+        initial_shards.insert(peer, unit);
+    }
+
+    // Save the original unit designated for our test recipient
+    let original_unit = initial_shards.get(&recipient_id).unwrap().clone();
+
+    // Pick another recipient to act as the gossip source
+    let another_recipient_id = *initial_shards.keys().find(|&&peer| peer != recipient_id).unwrap();
+    let another_unit = initial_shards.get(&another_recipient_id).unwrap().clone();
+
+    // Deliver the other recipient's own shard to them — triggers their reconstruction + gossip
+    env.node_mut(another_recipient_id).receive_unit(publisher_id, another_unit);
+
+    // Collect the gossipped unit destined for our test recipient
+    let mut gossipped_unit = None;
+    for _ in 0..2 {
+        let (peer, unit) = env.node_mut(another_recipient_id).expect_send_unit().await;
+        if peer == recipient_id {
+            gossipped_unit = Some(unit);
+        }
+    }
+    let gossipped_unit = gossipped_unit.expect("Other recipient should gossip to our recipient");
+
+    // Deliver the foreign shard to our recipient via gossip. Because this shard has
+    // another_recipient's index (not our recipient's), maybe_broadcast_my_shard does NOT
+    // fire and did_broadcast_my_shard stays false. Reconstruction triggers and broadcasts
+    // a truly reconstructed unit with the recipient's own shard.
+    env.node_mut(recipient_id).receive_unit(another_recipient_id, gossipped_unit);
+
+    // Recipient broadcasts its reconstructed shard to the other 2 recipients
+    for _ in 0..2 {
+        let (_peer, reconstructed_unit) = env.node_mut(recipient_id).expect_send_unit().await;
+        assert_eq!(
+            reconstructed_unit, original_unit,
+            "Reconstructed unit should match the original unit from the publisher"
+        );
+    }
+}
