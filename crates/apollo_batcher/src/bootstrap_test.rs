@@ -1,8 +1,10 @@
 //! Checked-in bootstrap class hashes and addresses live in [`crate::bootstrap`] (`BOOTSTRAP_*`,
 //! not derived at runtime). Tests derive the same values and assert they match.
 
+use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{bootstrap_contracts, StorageReader};
+use blockifier::context::ChainInfo;
 use indexmap::IndexMap;
 use starknet_api::abi::abi_utils::get_storage_var_address;
 use starknet_api::block::BlockNumber;
@@ -21,6 +23,7 @@ use starknet_types_core::felt::Felt;
 use crate::bootstrap::{
     bootstrap_transactions_for_state,
     current_bootstrap_state,
+    validate_strk_fee_token_for_active_bootstrap,
     BootstrapConfig,
     BootstrapState,
     BOOTSTRAP_ACCOUNT_ADDRESS,
@@ -277,4 +280,34 @@ fn deterministic_addresses_are_consistent() {
     assert_eq!(BOOTSTRAP_STRK_ADDRESS, BOOTSTRAP_STRK_ADDRESS);
     assert_ne!(BOOTSTRAP_ACCOUNT_ADDRESS, ContractAddress::default());
     assert_ne!(BOOTSTRAP_STRK_ADDRESS, ContractAddress::default());
+}
+
+#[test]
+fn validate_strk_skipped_when_not_in_bootstrap_even_if_wrong_address() {
+    let mut chain_info = ChainInfo::default();
+    chain_info.fee_token_addresses.strk_fee_token_address = ContractAddress::from(1_u128);
+    validate_strk_fee_token_for_active_bootstrap(&chain_info, BootstrapState::NotInBootstrap);
+}
+
+#[test]
+fn validate_strk_accepts_expected_address_when_bootstrap_active() {
+    let mut chain_info = ChainInfo::default();
+    chain_info.fee_token_addresses.strk_fee_token_address =
+        bootstrap_contracts::bootstrap_strk_fee_token_contract_address();
+    validate_strk_fee_token_for_active_bootstrap(&chain_info, BootstrapState::DeployFeeToken);
+}
+
+#[test]
+#[should_panic(expected = "strk_fee_token_address must be set to the embedded bootstrap ERC20")]
+fn validate_strk_rejects_default_when_bootstrap_active() {
+    let chain_info = ChainInfo::default();
+    validate_strk_fee_token_for_active_bootstrap(&chain_info, BootstrapState::DeclareContracts);
+}
+
+#[test]
+#[should_panic(expected = "must match the embedded bootstrap ERC20 address")]
+fn validate_strk_rejects_mismatch_when_bootstrap_active() {
+    let mut chain_info = ChainInfo::default();
+    chain_info.fee_token_addresses.strk_fee_token_address = ContractAddress::from(1_u128);
+    validate_strk_fee_token_for_active_bootstrap(&chain_info, BootstrapState::DeployAccount);
 }

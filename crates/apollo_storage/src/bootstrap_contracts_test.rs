@@ -1,18 +1,28 @@
-use starknet_api::core::{ClassHash, CompiledClassHash};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, PatriciaKey};
 use starknet_types_core::felt::Felt;
 
 use crate::bootstrap_contracts::{
+    BOOTSTRAP_ACCOUNT_CLASS_HASH,
+    BOOTSTRAP_ACCOUNT_COMPILED_CLASS_HASH,
+    BOOTSTRAP_ERC20_CLASS_HASH,
+    BOOTSTRAP_ERC20_COMPILED_CLASS_HASH,
+    BOOTSTRAP_STRK_FEE_TOKEN_ADDRESS,
     bootstrap_account_class_hash,
     bootstrap_account_compiled_class_hash,
     bootstrap_account_sierra,
     bootstrap_erc20_class_hash,
     bootstrap_erc20_compiled_class_hash,
     bootstrap_erc20_sierra,
-    BOOTSTRAP_ACCOUNT_CLASS_HASH,
-    BOOTSTRAP_ACCOUNT_COMPILED_CLASS_HASH,
-    BOOTSTRAP_ERC20_CLASS_HASH,
-    BOOTSTRAP_ERC20_COMPILED_CLASS_HASH,
+    bootstrap_strk_fee_token_contract_address,
 };
+
+#[test]
+fn bootstrap_strk_fee_token_address_matches_hardcoded_layout() {
+    assert_eq!(
+        bootstrap_strk_fee_token_contract_address(),
+        ContractAddress(PatriciaKey::from_hex_unchecked(BOOTSTRAP_STRK_FEE_TOKEN_ADDRESS)),
+    );
+}
 
 /// Loads hardcoded Sierra/CASM via the public API (parse + conversion + CASM hash) and asserts
 /// stable hashes. Regenerating committed JSON or changing hash rules requires updating these
