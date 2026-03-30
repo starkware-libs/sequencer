@@ -1532,8 +1532,15 @@ impl BatcherStorageReader for StorageReader {
         &self,
         height: BlockNumber,
     ) -> apollo_storage::StorageResult<ThinStateDiff> {
-        let state_target = StateNumber::right_before_block(height);
         let txn = self.begin_ro_txn()?;
+
+        if self.get_flat_state() {
+            return txn.get_reversed_state_diff_from_changeset(height);
+        }
+
+        // Fallback for non-flat-state storage: reconstruct the reversed diff from versioned
+        // reads (the state just before the block was applied).
+        let state_target = StateNumber::right_before_block(height);
 
         let ThinStateDiff {
             deployed_contracts,
@@ -1548,7 +1555,6 @@ impl BatcherStorageReader for StorageReader {
 
         let state_reader = txn.get_state_reader()?;
 
-        // In the following maps, set empty values to zero.
         let mut reversed_deployed_contracts = IndexMap::new();
         for contract_address in deployed_contracts.keys() {
             let class_hash =

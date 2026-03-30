@@ -349,9 +349,6 @@ pub struct StateReader<'env, Mode: TransactionKind> {
     flat_nonces_table: FlatNoncesTable<'env>,
     flat_deployed_contracts_table: FlatDeployedContractsTable<'env>,
     flat_compiled_class_hash_table: FlatCompiledClassHashTable<'env>,
-    // Test-only: suppress flat/versioned assertion for routing tests.
-    #[cfg(test)]
-    pub(crate) skip_flat_assertion: bool,
 }
 
 impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
@@ -400,22 +397,7 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
             flat_nonces_table,
             flat_deployed_contracts_table,
             flat_compiled_class_hash_table,
-            #[cfg(test)]
-            skip_flat_assertion: false,
         })
-    }
-
-    fn assert_flat_versioned_match<T: PartialEq + std::fmt::Debug>(
-        &self,
-        flat: &T,
-        versioned: &T,
-        table_name: &str,
-    ) {
-        #[cfg(test)]
-        if self.skip_flat_assertion {
-            return;
-        }
-        assert_eq!(flat, versioned, "Flat/versioned divergence in {table_name}");
     }
 
     fn get_state_marker(&self) -> StorageResult<BlockNumber> {
@@ -438,20 +420,16 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
     ) -> StorageResult<Option<ClassHash>> {
         if self.flat_state {
             let state_marker = self.get_state_marker()?;
-            let first_irrelevant_block = state_number.block_after();
-            if first_irrelevant_block >= state_marker {
-                let flat_result = self.flat_deployed_contracts_table.get(self.txn, address)?;
-                let versioned_result = self.get_class_hash_at_versioned(state_number, address)?;
-                if let Some(flat_value) = flat_result {
-                    self.assert_flat_versioned_match(
-                        &Some(flat_value),
-                        &versioned_result,
-                        "deployed_contracts",
-                    );
-                    return Ok(Some(flat_value));
-                }
-                return Ok(versioned_result);
+            let block_number = state_number.block_after();
+            if block_number >= state_marker {
+                return Ok(self.flat_deployed_contracts_table.get(self.txn, address)?);
             }
+            return Err(StorageError::DBInconsistency {
+                msg: format!(
+                    "Historical state query on flat_state node: state_number={state_number:?}, \
+                     state_marker={state_marker}"
+                ),
+            });
         }
         self.get_class_hash_at_versioned(state_number, address)
     }
@@ -511,19 +489,14 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
             let state_marker = self.get_state_marker()?;
             let block_number = state_number.block_after();
             if block_number >= state_marker {
-                let flat_result = self.flat_nonces_table.get(self.txn, address)?;
-                let versioned_result =
-                    get_nonce_at(block_number, address, self.txn, &self.nonces_table)?;
-                if let Some(flat_value) = flat_result {
-                    self.assert_flat_versioned_match(
-                        &Some(flat_value),
-                        &versioned_result,
-                        "nonces",
-                    );
-                    return Ok(Some(flat_value));
-                }
-                return Ok(versioned_result);
+                return Ok(self.flat_nonces_table.get(self.txn, address)?);
             }
+            return Err(StorageError::DBInconsistency {
+                msg: format!(
+                    "Historical state query on flat_state node: state_number={state_number:?}, \
+                     state_marker={state_marker}"
+                ),
+            });
         }
         // State diff updates are indexed by the block_number at which they occurred.
         let block_number: BlockNumber = state_number.block_after();
@@ -567,23 +540,14 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
             let state_marker = self.get_state_marker()?;
             let block_number = state_number.block_after();
             if block_number >= state_marker {
-                let flat_result = self.flat_compiled_class_hash_table.get(self.txn, class_hash)?;
-                let versioned_result = get_compiled_class_hash_at(
-                    block_number,
-                    class_hash,
-                    self.txn,
-                    &self.compiled_class_hash_table,
-                )?;
-                if let Some(flat_value) = flat_result {
-                    self.assert_flat_versioned_match(
-                        &Some(flat_value),
-                        &versioned_result,
-                        "compiled_class_hash",
-                    );
-                    return Ok(Some(flat_value));
-                }
-                return Ok(versioned_result);
+                return Ok(self.flat_compiled_class_hash_table.get(self.txn, class_hash)?);
             }
+            return Err(StorageError::DBInconsistency {
+                msg: format!(
+                    "Historical state query on flat_state node: state_number={state_number:?}, \
+                     state_marker={state_marker}"
+                ),
+            });
         }
         // State diff updates are indexed by the block_number at which they occurred.
         let block_number: BlockNumber = state_number.block_after();
@@ -613,21 +577,19 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
     ) -> StorageResult<Felt> {
         if self.flat_state {
             let state_marker = self.get_state_marker()?;
-            let first_irrelevant_block = state_number.block_after();
-            if first_irrelevant_block >= state_marker {
-                let flat_result =
-                    self.flat_contract_storage_table.get(self.txn, &(*address, *key))?;
-                let versioned_result = self.get_storage_at_versioned(state_number, address, key)?;
-                if let Some(flat_value) = flat_result {
-                    self.assert_flat_versioned_match(
-                        &flat_value,
-                        &versioned_result,
-                        "contract_storage",
-                    );
-                    return Ok(flat_value);
-                }
-                return Ok(versioned_result);
+            let block_number = state_number.block_after();
+            if block_number >= state_marker {
+                return Ok(self
+                    .flat_contract_storage_table
+                    .get(self.txn, &(*address, *key))?
+                    .unwrap_or_default());
             }
+            return Err(StorageError::DBInconsistency {
+                msg: format!(
+                    "Historical state query on flat_state node: state_number={state_number:?}, \
+                     state_marker={state_marker}"
+                ),
+            });
         }
         self.get_storage_at_versioned(state_number, address, key)
     }
@@ -1011,21 +973,6 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
                 let changeset_preimage =
                     changeset_deployed_table.get(&self.txn, &(block_number, *address))?.flatten();
 
-                // Assert changeset matches versioned lookup.
-                let versioned_preimage = {
-                    let db_key = (*address, block_number);
-                    let mut cursor = deployed_contracts_table.cursor(&self.txn)?;
-                    cursor.lower_bound(&db_key)?;
-                    match cursor.prev()? {
-                        Some(((got_address, _), hash)) if got_address == *address => Some(hash),
-                        _ => None,
-                    }
-                };
-                assert_eq!(
-                    changeset_preimage, versioned_preimage,
-                    "Deployed contract changeset mismatch for {address:?} at block {block_number}"
-                );
-
                 match changeset_preimage {
                     Some(hash) => flat_deployed_table.upsert(&self.txn, address, &hash)?,
                     None => {
@@ -1043,14 +990,6 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
                     if got_block != block_number {
                         break;
                     }
-
-                    // Assert changeset matches versioned lookup.
-                    let versioned_preimage =
-                        get_nonce_at(block_number, &address, &self.txn, &nonces_table)?;
-                    assert_eq!(
-                        preimage, versioned_preimage,
-                        "Nonce changeset mismatch for {address:?} at block {block_number}"
-                    );
 
                     match preimage {
                         Some(nonce) => flat_nonces_table.upsert(&self.txn, &address, &nonce)?,
@@ -1070,26 +1009,6 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
                         .get(&self.txn, &((block_number, *address), *key))?
                         .flatten();
 
-                    // Assert changeset matches versioned lookup.
-                    let versioned_preimage = {
-                        let db_key = ((*address, *key), block_number);
-                        let mut cursor = storage_table.cursor(&self.txn)?;
-                        cursor.lower_bound(&db_key)?;
-                        match cursor.prev()? {
-                            Some((((got_addr, got_key), _), value))
-                                if got_addr == *address && got_key == *key =>
-                            {
-                                Some(value)
-                            }
-                            _ => None,
-                        }
-                    };
-                    assert_eq!(
-                        changeset_preimage, versioned_preimage,
-                        "Storage changeset mismatch for {address:?}/{key:?} at block \
-                         {block_number}"
-                    );
-
                     match changeset_preimage {
                         Some(value) if value != Felt::default() => {
                             flat_storage_table.upsert(&self.txn, &(*address, *key), &value)?;
@@ -1105,18 +1024,6 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             for (hash, _) in &thin_state_diff.class_hash_to_compiled_class_hash {
                 let changeset_preimage =
                     changeset_compiled_table.get(&self.txn, &(block_number, *hash))?.flatten();
-
-                // Assert changeset matches versioned lookup.
-                let versioned_preimage = get_compiled_class_hash_at(
-                    block_number,
-                    hash,
-                    &self.txn,
-                    &compiled_class_hash_table,
-                )?;
-                assert_eq!(
-                    changeset_preimage, versioned_preimage,
-                    "Compiled class hash changeset mismatch for {hash:?} at block {block_number}"
-                );
 
                 match changeset_preimage {
                     Some(compiled) => flat_compiled_table.upsert(&self.txn, hash, &compiled)?,
@@ -1158,21 +1065,23 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             markers_table.upsert(&self.txn, &MarkerKind::Changeset, &block_number)?;
         }
 
-        delete_deployed_contracts(
-            &self.txn,
-            block_number,
-            &thin_state_diff,
-            &deployed_contracts_table,
-            &nonces_table,
-        )?;
-        delete_storage_diffs(&self.txn, block_number, &thin_state_diff, &storage_table)?;
-        delete_nonces(&self.txn, block_number, &thin_state_diff, &nonces_table)?;
-        delete_compiled_class_hashes(
-            &self.txn,
-            block_number,
-            &thin_state_diff,
-            &compiled_class_hash_table,
-        )?;
+        if !self.flat_state {
+            delete_deployed_contracts(
+                &self.txn,
+                block_number,
+                &thin_state_diff,
+                &deployed_contracts_table,
+                &nonces_table,
+            )?;
+            delete_storage_diffs(&self.txn, block_number, &thin_state_diff, &storage_table)?;
+            delete_nonces(&self.txn, block_number, &thin_state_diff, &nonces_table)?;
+            delete_compiled_class_hashes(
+                &self.txn,
+                block_number,
+                &thin_state_diff,
+                &compiled_class_hash_table,
+            )?;
+        }
         state_diffs_table.delete(&self.txn, &block_number)?;
 
         Ok((
@@ -1262,24 +1171,18 @@ fn write_deployed_contracts<'env>(
 ) -> StorageResult<()> {
     for (address, class_hash) in deployed_contracts {
         if flat_state {
-            // Capture deployed contract pre-image before writing.
-            let prior_class_hash = {
-                let db_key = (*address, block_number);
-                let mut cursor = deployed_contracts_table.cursor(txn)?;
-                cursor.lower_bound(&db_key)?;
-                match cursor.prev()? {
-                    Some(((got_address, _), hash)) if got_address == *address => Some(hash),
-                    _ => None,
-                }
-            };
+            // Capture deployed contract pre-image from flat table.
+            let prior_class_hash = flat_deployed_table.get(txn, address)?;
             changeset_deployed_table.upsert(txn, &(block_number, *address), &prior_class_hash)?;
 
-            // Capture nonce pre-image BEFORE implicit nonce initialization.
-            let prior_nonce = get_nonce_at(block_number, address, txn, nonces_table)?;
+            // Capture nonce pre-image from flat table BEFORE implicit nonce initialization.
+            let prior_nonce = flat_nonces_table.get(txn, address)?;
             changeset_nonces_table.upsert(txn, &(block_number, *address), &prior_nonce)?;
         }
 
-        deployed_contracts_table.insert(txn, &(*address, block_number), class_hash)?;
+        if !flat_state {
+            deployed_contracts_table.insert(txn, &(*address, block_number), class_hash)?;
+        }
         if flat_state {
             flat_deployed_table.upsert(txn, address, class_hash)?;
         }
@@ -1287,15 +1190,15 @@ fn write_deployed_contracts<'env>(
         // In old blocks, there is no nonce diff, so we must add the default value for newly
         // deployed contracts. Replaced classes will already have a nonce and thus won't enter this
         // condition.
-        if get_nonce_at(block_number, address, txn, nonces_table)?.is_none() {
+        if !flat_state && get_nonce_at(block_number, address, txn, nonces_table)?.is_none() {
             nonces_table.append_greater_sub_key(
                 txn,
                 &(*address, block_number),
                 &Nonce::default(),
             )?;
-            if flat_state && flat_nonces_table.get(txn, address)?.is_none() {
-                flat_nonces_table.upsert(txn, address, &Nonce::default())?;
-            }
+        }
+        if flat_state && flat_nonces_table.get(txn, address)?.is_none() {
+            flat_nonces_table.upsert(txn, address, &Nonce::default())?;
         }
     }
     Ok(())
@@ -1315,8 +1218,7 @@ fn write_nonces<'env>(
         if flat_state {
             // Only write changeset if not already captured by write_deployed_contracts.
             if changeset_nonces_table.get(txn, &(block_number, *contract_address))?.is_none() {
-                let prior_nonce =
-                    get_nonce_at(block_number, contract_address, txn, contracts_table)?;
+                let prior_nonce = flat_nonces_table.get(txn, contract_address)?;
                 changeset_nonces_table.upsert(
                     txn,
                     &(block_number, *contract_address),
@@ -1324,7 +1226,9 @@ fn write_nonces<'env>(
                 )?;
             }
         }
-        contracts_table.upsert(txn, &(*contract_address, block_number), nonce)?;
+        if !flat_state {
+            contracts_table.upsert(txn, &(*contract_address, block_number), nonce)?;
+        }
         if flat_state {
             flat_nonces_table.upsert(txn, contract_address, nonce)?;
         }
@@ -1344,15 +1248,16 @@ fn write_compiled_class_hashes<'env>(
 ) -> StorageResult<()> {
     for (class_hash, compiled_class_hash) in compiled_class_hashes {
         if flat_state {
-            let prior_compiled = get_compiled_class_hash_at(
-                block_number,
-                class_hash,
-                txn,
-                compiled_class_hash_table,
-            )?;
+            let prior_compiled = flat_compiled_table.get(txn, class_hash)?;
             changeset_compiled_table.upsert(txn, &(block_number, *class_hash), &prior_compiled)?;
         }
-        compiled_class_hash_table.insert(txn, &(*class_hash, block_number), compiled_class_hash)?;
+        if !flat_state {
+            compiled_class_hash_table.insert(
+                txn,
+                &(*class_hash, block_number),
+                compiled_class_hash,
+            )?;
+        }
         if flat_state {
             flat_compiled_table.upsert(txn, class_hash, compiled_class_hash)?;
         }
@@ -1373,26 +1278,20 @@ fn write_storage_diffs<'env>(
     for (address, storage_entries) in storage_diffs {
         for (key, value) in storage_entries {
             if flat_state {
-                let prior_value = {
-                    let db_key = ((*address, *key), block_number);
-                    let mut cursor = storage_table.cursor(txn)?;
-                    cursor.lower_bound(&db_key)?;
-                    match cursor.prev()? {
-                        Some((((got_addr, got_key), _), val))
-                            if got_addr == *address && got_key == *key =>
-                        {
-                            Some(val)
-                        }
-                        _ => None,
-                    }
-                };
+                let prior_value = flat_storage_table.get(txn, &(*address, *key))?;
                 changeset_storage_table.upsert(
                     txn,
                     &((block_number, *address), *key),
                     &prior_value,
                 )?;
             }
-            storage_table.append_greater_sub_key(txn, &((*address, *key), block_number), value)?;
+            if !flat_state {
+                storage_table.append_greater_sub_key(
+                    txn,
+                    &((*address, *key), block_number),
+                    value,
+                )?;
+            }
             if flat_state {
                 flat_storage_table.upsert(txn, &(*address, *key), value)?;
             }
