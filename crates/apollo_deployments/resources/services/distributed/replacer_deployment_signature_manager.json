@@ -2,5 +2,6 @@
   "crates/apollo_deployments/resources/app_configs/replacer_config_manager_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_general_config.json",
   "crates/apollo_deployments/resources/app_configs/replacer_monitoring_endpoint_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_signature_manager_config.json",
   "crates/apollo_deployments/resources/services/distributed/replacer_signature_manager.json"
 ]
