@@ -1,3 +1,6 @@
+use apollo_storage::StorageReader;
+use starknet_api::block::BlockNumber;
+use starknet_committer::block_committer::input::StateDiff;
 use starknet_types_core::felt::Felt;
 
 #[cfg(test)]
@@ -20,4 +23,38 @@ fn compute_actual_end(start: Felt, last_key: Felt) -> Felt {
     let covered = last_key - start + Felt::ONE;
     let subtree_size = prev_power_of_two(covered);
     start + subtree_size - Felt::ONE
+}
+
+/// Identifies which Patricia trie a request targets.
+/// Trait for Patricia trie key types used in `TreeRequest`.
+///
+/// `Context` carries any per-request metadata needed by `scan`.
+#[allow(dead_code)]
+trait TreeKey: Copy + Into<Felt> + Send + Sync + 'static {
+    type Context: Clone + Send + Sync + 'static;
+
+    /// Converts a `Felt` to the key type, assuming it is a valid key.
+    fn from_felt(felt: Felt) -> Self;
+
+    /// Scans entries in `[start, end]` at `block_target` and returns `(state_diff, actual_end)`.
+    ///
+    /// `actual_end` is the inclusive end of the largest aligned Patricia subtree rooted at `start`
+    /// that is fully covered by the scan. The number of entries is ≤ `size_limit`.
+    fn scan(
+        reader: &StorageReader,
+        request: &TreeRequest<Self>,
+        block_target: BlockNumber,
+        size_limit: usize,
+    ) -> (StateDiff, Felt);
+}
+
+/// A request to populate a subtree of a particular trie.
+///
+/// `start` and `end` are both inclusive. For a valid subtree the range must satisfy:
+/// `size = end - start + 1` is a power of two and `start % size == 0`.
+#[allow(dead_code)]
+struct TreeRequest<K: TreeKey> {
+    context: K::Context,
+    start: K,
+    end: K,
 }
