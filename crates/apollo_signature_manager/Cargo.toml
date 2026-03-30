@@ -10,6 +10,7 @@ description = "Manages cryptographic signatures for consensus messages."
 testing = []
 
 [dependencies]
+apollo_config.workspace = true
 apollo_infra.workspace = true
 apollo_metrics.workspace = true
 apollo_network_types.workspace = true
@@ -17,6 +18,7 @@ apollo_signature_manager_types.workspace = true
 async-trait.workspace = true
 blake2.workspace = true
 digest.workspace = true
+serde = { workspace = true, features = ["derive"] }
 starknet-core.workspace = true
 starknet-crypto.workspace = true
 starknet-types-core.workspace = true
