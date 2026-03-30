@@ -48,7 +48,6 @@ async fn run_discovery_test(num_peers: usize, timeout: Duration) {
     let bootstrap_address = get_listen_address(&mut bootstrap_swarm).await;
     let bootstrap_peer_id = *bootstrap_swarm.local_peer_id();
     let bootstrap_multiaddr = bootstrap_address.with_p2p(bootstrap_peer_id).unwrap();
-    let bootstrap_network_manager = create_network_manager(bootstrap_swarm);
 
     // Create peer swarms without polling them to avoid discarding initial RequestDial events
     // from bootstrapping before the network manager is ready to route them.
@@ -59,6 +58,16 @@ async fn run_discovery_test(num_peers: usize, timeout: Duration) {
     // only as an initial discovery relay.
     let non_bootstrap_peer_ids: HashSet<PeerId> =
         swarms.iter().map(|s| *s.local_peer_id()).collect();
+
+    // Set allowed peers on all swarms so the whitelist permits connections.
+    let all_peer_ids: HashSet<PeerId> =
+        std::iter::once(bootstrap_peer_id).chain(non_bootstrap_peer_ids.iter().copied()).collect();
+    bootstrap_swarm.behaviour_mut().peer_access_control.set_allowed_peers(all_peer_ids.clone());
+    for swarm in &mut swarms {
+        swarm.behaviour_mut().peer_access_control.set_allowed_peers(all_peer_ids.clone());
+    }
+
+    let bootstrap_network_manager = create_network_manager(bootstrap_swarm);
 
     // Tell each swarm's discovery behaviour about all peers before wrapping.
     for swarm in &mut swarms {
