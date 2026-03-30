@@ -236,6 +236,7 @@ fn test_get_my_unit_index_given_publisher() {
         ],
     )
     .unwrap();
+<<<<<<< HEAD
     // When peer0 is publisher, peer2 is at sorted position 2, so shard index is 1
 <<<<<<< HEAD
     assert_eq!(manager.get_my_shard_index_given_publisher(&peer0).unwrap(), UnitIndex(1));
@@ -252,6 +253,15 @@ fn test_get_my_unit_index_given_publisher() {
     assert_eq!(manager.get_my_unit_index_given_publisher(&peer1).unwrap(), UnitIndex(1));
 
     // When peer3 is publisher, peer2 is at sorted position 2, so shard index is 2
+=======
+    // When peer0 is publisher, peer2 is at sorted position 2, so unit index is 1
+    assert_eq!(manager.get_my_unit_index_given_publisher(&peer0).unwrap(), UnitIndex(1));
+
+    // When peer1 is publisher, peer2 is at sorted position 2, so unit index is 1
+    assert_eq!(manager.get_my_unit_index_given_publisher(&peer1).unwrap(), UnitIndex(1));
+
+    // When peer3 is publisher, peer2 is at sorted position 2, so unit index is 2
+>>>>>>> 804c7a135b (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
     assert_eq!(manager.get_my_unit_index_given_publisher(&peer3).unwrap(), UnitIndex(2));
 >>>>>>> 5003666c69 (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
 
