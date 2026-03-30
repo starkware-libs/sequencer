@@ -732,6 +732,7 @@ impl ConsensusContext for SequencerConsensusContext {
         height: BlockNumber,
         round: Round,
         commitment: ProposalCommitment,
+        _wait_for_last_commitment: bool,
     ) -> Result<(), ConsensusError> {
         info!("Finished consensus for height: {height}. Agreed on block: {:#066x}", commitment.0);
 

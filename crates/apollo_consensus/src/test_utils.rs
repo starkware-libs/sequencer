@@ -112,6 +112,7 @@ mock! {
             height: BlockNumber,
             round: Round,
             commitment: ProposalCommitment,
+            wait_for_last_commitment: bool,
         ) -> Result<(), ConsensusError>;
 
         async fn try_sync(&mut self, height: BlockNumber) -> bool;
