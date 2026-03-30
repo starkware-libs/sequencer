@@ -8,6 +8,7 @@ description = "Manages cryptographic signatures for consensus messages."
 
 [features]
 testing = []
+gsm = ["google-cloud-gax", "google-cloud-secretmanager-v1"]
 
 [dependencies]
 apollo_config.workspace = true
@@ -18,12 +19,15 @@ apollo_signature_manager_types.workspace = true
 async-trait.workspace = true
 blake2.workspace = true
 digest.workspace = true
+google-cloud-gax = { workspace = true, optional = true }
+google-cloud-secretmanager-v1 = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 starknet-core.workspace = true
 starknet-crypto.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
+tokio.workspace = true
 
 [dev-dependencies]
 expect-test.workspace = true
