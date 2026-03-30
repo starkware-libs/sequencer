@@ -13,7 +13,6 @@ mod snap_sync_test;
 ///
 /// A valid Patricia subtree of size `2^k` requires `start % 2^k == 0`, so the size is capped
 /// by the alignment of `start`.
-#[cfg_attr(not(test), expect(dead_code))]
 fn compute_actual_end(start: Felt, last_key: Felt) -> Felt {
     let covered = last_key - start + Felt::ONE;
     // This is the largest number of bits, `x`, such that 2^x <= covered.
@@ -28,6 +27,35 @@ fn compute_actual_end(start: Felt, last_key: Felt) -> Felt {
         max_contained_bits.min(trailing_zeros)
     };
     start + Felt::TWO.pow(exponent) - Felt::ONE
+}
+
+/// Filters `entries` to those within the actual aligned Patricia subtree end, and returns that end.
+///
+/// - Fewer than `limit` entries: all entries are returned with the full requested `end`.
+/// - Greater than or equal to `limit` entries: entries are filtered to `[start, actual_end]` where
+///   `actual_end` is the inclusive end of the largest aligned Patricia subtree starting at `start`
+///   that fits within the last key returned.
+///
+/// Panics if `limit` is 0.
+#[expect(dead_code)]
+fn shrink_to_actual_end<K: TreeKey, V>(
+    mut entries: Vec<(K, V)>,
+    start: K,
+    end: K,
+    limit: usize,
+) -> (Vec<(K, V)>, Felt) {
+    // TODO(yoav): return error if limit is 0.
+    assert!(limit > 0, "limit must be positive");
+    if entries.len() < limit {
+        (entries, end.into())
+    } else {
+        let start_felt: Felt = start.into();
+        let last_key: Felt = entries.last().expect("non-empty scan has a last entry").0.into();
+        let actual_end = compute_actual_end(start_felt, last_key);
+        entries
+            .truncate(entries.partition_point(|(key, _)| Into::<Felt>::into(*key) <= actual_end));
+        (entries, actual_end)
+    }
 }
 
 /// Identifies which Patricia tree a request targets.
