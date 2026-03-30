@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, RwLock};
 
 use apollo_batcher_types::communication::SharedBatcherClient;
-use apollo_config_manager_types::communication::SharedConfigManagerClient;
+use apollo_config_manager_types::communication::SharedConfigManagerChannelClient;
 use apollo_protobuf::consensus::Round;
 use apollo_staking_config::config::{
     get_config_for_epoch,
@@ -190,7 +190,7 @@ pub struct StakingManager {
 
     random_generator_factory: Arc<dyn BlockRandomGeneratorFactory>,
     dynamic_config: RwLock<StakingManagerDynamicConfig>,
-    config_manager_client: Option<SharedConfigManagerClient>,
+    config_manager_client: Option<SharedConfigManagerChannelClient>,
     use_only_actual_proposer_selection: bool,
     committee_member_metrics: Mutex<CommitteeMemberMetrics>,
 }
@@ -219,7 +219,7 @@ impl StakingManager {
         state_sync_client: SharedStateSyncClient,
         random_generator_factory: Arc<dyn BlockRandomGeneratorFactory>,
         config: StakingManagerConfig,
-        config_manager_client: Option<SharedConfigManagerClient>,
+        config_manager_client: Option<SharedConfigManagerChannelClient>,
     ) -> Self {
         register_metrics();
         Self {
@@ -245,7 +245,7 @@ impl StakingManager {
             return;
         };
 
-        match client.get_staking_manager_dynamic_config().await {
+        match client.get_staking_manager_dynamic_config() {
             Ok(new_config) => {
                 let mut dynamic_config = self.dynamic_config.write().expect("RwLock poisoned");
                 *dynamic_config = new_config;

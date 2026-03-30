@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use apollo_config::behavior_mode::BehaviorMode;
-use apollo_config_manager_types::communication::MockConfigManagerClient;
+use apollo_config_manager_types::communication::MockConfigManagerChannelClient;
 use apollo_mempool_config::config::{MempoolConfig, MempoolStaticConfig};
 use apollo_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
 use apollo_mempool_types::communication::AddTransactionArgsWrapper;
@@ -57,7 +57,7 @@ fn create_mempool_communication_wrapper(recorder_url: String) -> MempoolCommunic
     let mut mock_p2p = MockMempoolP2pPropagatorClient::new();
     mock_p2p.expect_add_transaction().returning(|_| Ok(()));
 
-    let mock_config_manager = MockConfigManagerClient::new();
+    let mock_config_manager = MockConfigManagerChannelClient::new();
 
     MempoolCommunicationWrapper::new(mempool, Arc::new(mock_p2p), Arc::new(mock_config_manager))
 }
