@@ -22,13 +22,14 @@ pub enum ClientError {
 
 pub type ClientResult<T> = Result<T, ClientError>;
 
-pub struct Client<Request, Response>
+pub enum Client<Request, Response>
 where
     Request: Send + Serialize,
     Response: Send + DeserializeOwned,
 {
-    local_client: Option<LocalComponentClient<Request, Response>>,
-    remote_client: Option<RemoteComponentClient<Request, Response>>,
+    Local(LocalComponentClient<Request, Response>),
+    Remote(RemoteComponentClient<Request, Response>),
+    Disabled,
 }
 
 impl<Request, Response> Client<Request, Response>
@@ -36,21 +37,12 @@ where
     Request: Send + Serialize,
     Response: Send + DeserializeOwned,
 {
-    pub fn new(
-        local_client: Option<LocalComponentClient<Request, Response>>,
-        remote_client: Option<RemoteComponentClient<Request, Response>>,
-    ) -> Self {
-        if local_client.is_some() && remote_client.is_some() {
-            panic!("Cannot have both local_client and remote_client simultaneously.");
-        }
-        Self { local_client, remote_client }
-    }
-
+    // TODO(Arni): This should return a non-optional client and panic whenever the client is not
+    // local (i.e., it is remote or disabled).
     pub fn get_local_client(&self) -> Option<LocalComponentClient<Request, Response>> {
-        self.local_client.clone()
-    }
-
-    pub fn get_remote_client(&self) -> Option<RemoteComponentClient<Request, Response>> {
-        self.remote_client.clone()
+        match self {
+            Client::Local(client) => Some(client.clone()),
+            Client::Remote(_) | Client::Disabled => None,
+        }
     }
 }
