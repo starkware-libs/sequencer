@@ -1,6 +1,7 @@
+use starknet_api::class_hash;
 use starknet_types_core::felt::Felt;
 
-use super::compute_actual_end;
+use super::{compute_actual_end, shrink_to_actual_end};
 
 #[test]
 fn test_compute_actual_end_single_element() {
@@ -46,4 +47,35 @@ fn test_compute_actual_end_unaligned_start() {
     // Alignment of 12 is 4, but the last key = 14 < 12 + 4 - 1 = 15.
     // So the actual end is determined by the last key.
     assert_eq!(compute_actual_end(Felt::from(12u64), Felt::from(14u64)), Felt::from(13u64));
+}
+
+#[test]
+fn test_shrink_to_actual_end_fewer_than_limit() {
+    // Under the limit: all entries returned, end returned as-is.
+    let entries =
+        vec![(class_hash!(0_u64), ()), (class_hash!(1_u64), ()), (class_hash!(2_u64), ())];
+    let end: u64 = 16;
+    let (result, actual_end) =
+        shrink_to_actual_end(entries.clone(), class_hash!(0_u64), class_hash!(end), 4);
+    assert_eq!(result, entries);
+    assert_eq!(actual_end, Felt::from(end));
+}
+
+#[test]
+fn test_shrink_to_actual_end_at_limit_truncates() {
+    // start=0, last_key=4 → covered=5, subtree_size=4, actual_end=3 (inclusive); entry at key 4
+    // is dropped.
+    let entries = vec![
+        (class_hash!(0_u64), ()),
+        (class_hash!(1_u64), ()),
+        (class_hash!(2_u64), ()),
+        (class_hash!(4_u64), ()),
+    ];
+    let (result, actual_end) =
+        shrink_to_actual_end(entries, class_hash!(0_u64), class_hash!(8_u64), 4);
+    assert_eq!(
+        result,
+        vec![(class_hash!(0_u64), ()), (class_hash!(1_u64), ()), (class_hash!(2_u64), ()),]
+    );
+    assert_eq!(actual_end, Felt::from(3u64));
 }
