@@ -1,5 +1,6 @@
 // TODO(shahak): Erase main_behaviour and make this a separate module.
 
+use std::collections::HashSet;
 use std::convert::Infallible;
 use std::time::Duration;
 
@@ -111,9 +112,16 @@ impl MixedBehaviour {
                     .collect()
             });
 
+        let mut peer_access_control = peer_access_control::Behaviour::new();
+        if let Some(ref peers) = bootstrap_peers_with_ids {
+            let bootstrap_peer_ids: HashSet<PeerId> =
+                peers.iter().map(|(peer_id, _)| *peer_id).collect();
+            peer_access_control.set_allowed_peers(bootstrap_peer_ids);
+        }
+
         Self {
             limits: connection_limits::Behaviour::new(connection_limits),
-            peer_access_control: peer_access_control::Behaviour::new(),
+            peer_access_control,
             peer_manager: peer_manager::PeerManager::new(peer_manager_config),
             discovery: bootstrap_peers_with_ids
                 .map(|peers| discovery::Behaviour::new(local_peer_id, discovery_config, peers))

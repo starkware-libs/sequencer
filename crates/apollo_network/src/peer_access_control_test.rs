@@ -9,7 +9,7 @@ use libp2p::{Multiaddr, PeerId};
 use super::peer_access_control::Behaviour;
 
 #[test]
-fn allows_all_before_enforcement() {
+fn denies_all_with_empty_allowed_set() {
     let mut behaviour = Behaviour::new();
 
     let random_peer = PeerId::random();
@@ -19,7 +19,7 @@ fn allows_all_before_enforcement() {
         &Multiaddr::empty(),
         &Multiaddr::empty(),
     );
-    assert!(result.is_ok());
+    assert!(result.is_err());
 }
 
 #[test]
