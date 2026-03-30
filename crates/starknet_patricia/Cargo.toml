@@ -6,18 +6,9 @@ repository.workspace = true
 license-file.workspace = true
 description = "Library for computing and updating Patricia trees."
 
-[lints]
-workspace = true
-
 [features]
 deserialize = []
 testing = ["dep:num-bigint"]
-
-[dev-dependencies]
-num-bigint = { workspace = true, features = ["rand"] }
-pretty_assertions.workspace = true
-rand.workspace = true
-rstest.workspace = true
 
 [dependencies]
 async-recursion.workspace = true
@@ -34,3 +25,12 @@ starknet_patricia_storage.workspace = true
 strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
+
+[dev-dependencies]
+num-bigint = { workspace = true, features = ["rand"] }
+pretty_assertions.workspace = true
+rand.workspace = true
+rstest.workspace = true
+
+[lints]
+workspace = true

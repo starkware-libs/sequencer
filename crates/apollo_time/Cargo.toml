@@ -15,7 +15,6 @@ chrono.workspace = true
 mockall = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["time"], optional = true }
 
-
 [dev-dependencies]
 mockall.workspace = true
 

@@ -6,21 +6,28 @@ repository.workspace = true
 license-file.workspace = true
 description = "The transaction-executing component in the Starknet sequencer."
 
-[lints]
-workspace = true
+[package.metadata.cargo-machete]
+# `paste` is used in the `define_versioned_constants!` macro but may be falsely detected as unused.
+ignored = ["paste"]
 
 [features]
 cairo_native = [
-  "blockifier_test_utils/cairo_native",
-  "dep:apollo_compilation_utils",
-  "dep:apollo_compile_to_native",
-  "dep:cairo-native",
+    "blockifier_test_utils/cairo_native",
+    "dep:apollo_compilation_utils",
+    "dep:apollo_compile_to_native",
+    "dep:cairo-native",
 ]
 mocks = []
 native_blockifier = []
 node_api = []
 reexecution = ["transaction_serde"]
-testing = ["blockifier_test_utils", "rand", "rstest", "rstest_reuse", "starknet_api/testing"]
+testing = [
+    "blockifier_test_utils",
+    "rand",
+    "rstest",
+    "rstest_reuse",
+    "starknet_api/testing",
+]
 tracing = []
 transaction_serde = []
 
@@ -48,11 +55,11 @@ cairo-native = { workspace = true, optional = true }
 cairo-vm.workspace = true
 dashmap.workspace = true
 derive_more = { workspace = true, features = [
-  "add",
-  "add_assign",
-  "display",
-  "from",
-  "into_iterator",
+    "add",
+    "add_assign",
+    "display",
+    "from",
+    "into_iterator",
 ] }
 indexmap.workspace = true
 itertools.workspace = true
@@ -78,6 +85,9 @@ strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 validator.workspace = true
 
+[build-dependencies]
+apollo_infra_utils.workspace = true
+
 [dev-dependencies]
 assert_matches.workspace = true
 blockifier_test_utils.workspace = true
@@ -95,15 +105,11 @@ starknet_api = { workspace = true, features = ["testing"] }
 test-case.workspace = true
 tikv-jemallocator.workspace = true
 
-[build-dependencies]
-apollo_infra_utils.workspace = true
+[lints]
+workspace = true
 
 [[bench]]
 harness = false
 name = "blockifier"
 path = "benches/main.rs"
 required-features = ["testing"]
-
-[package.metadata.cargo-machete]
-# `paste` is used in the `define_versioned_constants!` macro but may be falsely detected as unused.
-ignored = ["paste"]

@@ -6,8 +6,8 @@ license.workspace = true
 repository.workspace = true
 description = "Type definitions for Apollo mempool P2P communication."
 
-[lints]
-workspace = true
+[features]
+testing = ["mockall"]
 
 [dependencies]
 apollo_infra.workspace = true
@@ -23,5 +23,5 @@ thiserror.workspace = true
 [dev-dependencies]
 mockall.workspace = true
 
-[features]
-testing = ["mockall"]
+[lints]
+workspace = true

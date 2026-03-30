@@ -6,19 +6,16 @@ repository.workspace = true
 version.workspace = true
 description = "Gateway component for receiving and validating transactions submitted to the Starknet sequencer."
 
-[lints]
-workspace = true
-
 [features]
 cairo_native = ["blockifier/cairo_native"]
 testing = [
-  "apollo_class_manager_types/testing",
-  "apollo_gateway_config/testing",
-  "apollo_mempool_types/testing",
-  "apollo_proof_manager_types/testing",
-  "apollo_transaction_converter/testing",
-  "blockifier/testing",
-  "blockifier_test_utils",
+    "apollo_class_manager_types/testing",
+    "apollo_gateway_config/testing",
+    "apollo_mempool_types/testing",
+    "apollo_proof_manager_types/testing",
+    "apollo_transaction_converter/testing",
+    "blockifier/testing",
+    "blockifier_test_utils",
 ]
 
 [dependencies]
@@ -77,6 +74,9 @@ rstest.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 starknet_proof_verifier.workspace = true
 tracing-test.workspace = true
+
+[lints]
+workspace = true
 
 [[bench]]
 harness = false

@@ -6,9 +6,6 @@ repository.workspace = true
 license.workspace = true
 description = "Testing utilities for mempool components."
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_infra_utils.workspace = true
 assert_matches.workspace = true
@@ -17,3 +14,6 @@ papyrus_base_layer = { workspace = true, features = ["testing"] }
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+
+[lints]
+workspace = true

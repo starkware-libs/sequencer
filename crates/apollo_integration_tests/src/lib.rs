@@ -1,4 +1,5 @@
 pub mod executable_setup;
+pub mod fake_starknet_server;
 pub mod flow_test_setup;
 pub mod integration_test_manager;
 pub mod integration_test_utils;

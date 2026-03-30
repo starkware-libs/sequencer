@@ -6,9 +6,6 @@ repository.workspace = true
 version.workspace = true
 description = "Type definitions and interfaces for the Apollo mempool component."
 
-[lints]
-workspace = true
-
 [features]
 testing = ["mockall"]
 
@@ -26,3 +23,6 @@ thiserror.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true
+
+[lints]
+workspace = true

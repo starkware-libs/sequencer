@@ -6,6 +6,10 @@ repository.workspace = true
 license-file.workspace = true
 description = "A client implementation that can communicate with Starknet."
 
+[package.metadata.cargo-machete]
+# The `rand` and `rand_chacha` crates are used in the `testing` feature, which is optional.
+ignored = ["rand", "rand_chacha"]
+
 [features]
 testing = ["apollo_test_utils", "enum-iterator", "mockall", "rand", "rand_chacha"]
 
@@ -45,10 +49,6 @@ rand.workspace = true
 rand_chacha.workspace = true
 simple_logger.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
-
-[package.metadata.cargo-machete]
-# The `rand` and `rand_chacha` crates are used in the `testing` feature, which is optional.
-ignored = ["rand", "rand_chacha"]
 
 [lints]
 workspace = true

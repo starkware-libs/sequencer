@@ -24,18 +24,18 @@ futures.workspace = true
 indexmap.workspace = true
 lazy_static.workspace = true
 libp2p = { workspace = true, features = [
-  "dns",
-  "gossipsub",
-  "identify",
-  "kad",
-  "macros",
-  "noise",
-  "ping",
-  "quic",
-  "serde",
-  "tcp",
-  "tokio",
-  "yamux",
+    "dns",
+    "gossipsub",
+    "identify",
+    "kad",
+    "macros",
+    "noise",
+    "ping",
+    "quic",
+    "serde",
+    "tcp",
+    "tokio",
+    "yamux",
 ] }
 prost.workspace = true
 replace_with.workspace = true

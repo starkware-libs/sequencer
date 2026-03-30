@@ -9,9 +9,6 @@ description = "Type definitions and interfaces for the Apollo class manager comp
 [features]
 testing = ["mockall"]
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_compile_to_casm_types.workspace = true
 apollo_infra.workspace = true
@@ -32,3 +29,6 @@ mockall.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+
+[lints]
+workspace = true

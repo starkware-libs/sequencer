@@ -6,10 +6,10 @@ license.workspace = true
 repository.workspace = true
 description = "Configuration types for the Apollo monitoring endpoint."
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_config.workspace = true
 serde = { workspace = true, features = ["derive"] }
 validator.workspace = true
+
+[lints]
+workspace = true

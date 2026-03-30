@@ -6,9 +6,6 @@ repository.workspace = true
 version.workspace = true
 description = "Privacy circuit proof verification types and logic for Starknet."
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_sizeof.workspace = true
 privacy-circuit-verify.workspace = true
@@ -16,3 +13,6 @@ serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
+
+[lints]
+workspace = true

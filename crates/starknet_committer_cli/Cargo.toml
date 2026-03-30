@@ -6,9 +6,6 @@ repository.workspace = true
 license.workspace = true
 description = "CLI for the committer storage benchmark."
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_infra_utils.workspace = true
 apollo_storage.workspace = true
@@ -23,11 +20,14 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_committer = { workspace = true, features = ["testing"] }
 starknet_patricia_storage = { workspace = true, features = [
-  "aerospike_storage",
-  "mdbx_storage",
-  "rocksdb_storage",
-  "short_key_storage",
+    "aerospike_storage",
+    "mdbx_storage",
+    "rocksdb_storage",
+    "short_key_storage",
 ] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
+
+[lints]
+workspace = true

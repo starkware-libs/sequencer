@@ -8,12 +8,12 @@ description = "Provides L1 (Ethereum) message handling and event tracking for St
 
 [features]
 testing = [
-  "apollo_infra_utils/testing",
-  "apollo_l1_events_types/testing",
-  "apollo_state_sync_types/testing",
-  "apollo_time/testing",
-  "pretty_assertions",
-  "starknet_api/testing",
+    "apollo_infra_utils/testing",
+    "apollo_l1_events_types/testing",
+    "apollo_state_sync_types/testing",
+    "apollo_time/testing",
+    "pretty_assertions",
+    "starknet_api/testing",
 ]
 
 [dependencies]

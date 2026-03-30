@@ -9,9 +9,6 @@ description = "Monitoring and observability endpoints for the Starknet sequencer
 [features]
 testing = ["apollo_metrics/testing", "num-traits", "thiserror", "tower"]
 
-[lints]
-workspace = true
-
 [dependencies]
 anyhow.workspace = true
 apollo_infra.workspace = true
@@ -45,3 +42,6 @@ starknet_api = { workspace = true, features = ["testing"] }
 thiserror.workspace = true
 tokio.workspace = true
 tower.workspace = true
+
+[lints]
+workspace = true

@@ -9,9 +9,6 @@ description = "Peer-to-peer transaction propagation for the Apollo mempool."
 [features]
 testing = []
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_class_manager_types.workspace = true
 apollo_gateway_types.workspace = true
@@ -45,3 +42,6 @@ mockall.workspace = true
 rand_chacha.workspace = true
 starknet_api.workspace = true
 tokio = { workspace = true, features = ["full", "sync", "test-util"] }
+
+[lints]
+workspace = true

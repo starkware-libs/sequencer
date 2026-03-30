@@ -9,9 +9,6 @@ description = "Infrastructure utility."
 [features]
 testing = ["colored", "dep:assert-json-diff", "regex", "socket2", "strum", "tempfile"]
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_proc_macros.workspace = true
 assert-json-diff = { workspace = true, optional = true }
@@ -42,3 +39,6 @@ tempfile.workspace = true
 tokio = { workspace = true, features = ["macros", "rt", "signal", "sync"] }
 toml.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+[lints]
+workspace = true

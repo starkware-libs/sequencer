@@ -8,13 +8,10 @@ description = "Synchronizes Starknet state from other nodes or data sources."
 
 [features]
 testing = [
-  "apollo_config_manager_types/testing",
-  "apollo_starknet_client/testing",
-  "apollo_storage/testing",
+    "apollo_config_manager_types/testing",
+    "apollo_starknet_client/testing",
+    "apollo_storage/testing",
 ]
-
-[lints]
-workspace = true
 
 [dependencies]
 apollo_central_sync.workspace = true
@@ -48,3 +45,6 @@ indexmap = { workspace = true, features = ["serde"] }
 libp2p.workspace = true
 mockall.workspace = true
 rand_chacha.workspace = true
+
+[lints]
+workspace = true

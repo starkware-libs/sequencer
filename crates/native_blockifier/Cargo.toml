@@ -6,17 +6,6 @@ repository.workspace = true
 license-file.workspace = true
 description = "A Bridge between the Rust blockifier crate and Python."
 
-[features]
-cairo_native = ["apollo_state_reader/cairo_native", "blockifier/cairo_native"]
-# Required for `cargo test` to work with Pyo3.
-# On Python, make sure to compile this with the extension-module feature enabled.
-# https://pyo3.rs/v0.19.1/faq#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror
-extension-module = ["pyo3/extension-module"]
-testing = ["apollo_storage/testing", "blockifier/testing", "starknet_api/testing"]
-
-[lints]
-workspace = true
-
 [lib]
 name = "native_blockifier"
 # "cdylib" is necessary to produce a shared library for Python to import from.
@@ -25,6 +14,14 @@ name = "native_blockifier"
 # to `use string_sum;` unless the "rlib" or "lib" crate type is also included, e.g.:
 # crate-type = ["cdylib", "rlib"]
 crate-type = ["cdylib"]
+
+[features]
+cairo_native = ["apollo_state_reader/cairo_native", "blockifier/cairo_native"]
+# Required for `cargo test` to work with Pyo3.
+# On Python, make sure to compile this with the extension-module feature enabled.
+# https://pyo3.rs/v0.19.1/faq#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror
+extension-module = ["pyo3/extension-module"]
+testing = ["apollo_storage/testing", "blockifier/testing", "starknet_api/testing"]
 
 [dependencies]
 apollo_compile_to_native_types.workspace = true
@@ -51,3 +48,6 @@ cached.workspace = true
 pretty_assertions.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tempfile.workspace = true
+
+[lints]
+workspace = true
