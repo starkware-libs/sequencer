@@ -151,6 +151,13 @@ pub(crate) type ChangesetCompiledClassHashTable<'env> = TableHandle<
     CommonPrefix,
 >;
 
+pub(crate) struct ChangesetTables<'env> {
+    pub deployed: ChangesetDeployedContractsTable<'env>,
+    pub nonces: ChangesetNoncesTable<'env>,
+    pub storage: ChangesetContractStorageTable<'env>,
+    pub compiled: ChangesetCompiledClassHashTable<'env>,
+}
+
 /// Interface for reading data related to the state.
 // Structure of state data:
 // * declared_classes_table: (class_hash) -> (block_num, contract_class). Each entry specifies at
@@ -877,6 +884,24 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             &self.file_handlers,
         )?;
 
+        if let Some(retention_blocks) = self.changeset_retention_blocks {
+            if self.flat_state {
+                let changeset_tables = ChangesetTables {
+                    deployed: changeset_deployed_table,
+                    nonces: changeset_nonces_table,
+                    storage: changeset_storage_table,
+                    compiled: changeset_compiled_table,
+                };
+                prune_changesets(
+                    &self.txn,
+                    block_number,
+                    retention_blocks,
+                    &markers_table,
+                    &changeset_tables,
+                )?;
+            }
+        }
+
         Ok(self)
     }
 
@@ -1140,6 +1165,124 @@ fn update_marker_to_next_block<'env>(
 
     // Advance marker.
     markers_table.upsert(txn, &marker_kind, &block_number.unchecked_next())?;
+    Ok(())
+}
+
+/// Maximum number of blocks to prune in a single `append_state_diff` call.
+/// Bounds overhead on the critical write path. Large backlogs converge gradually.
+const MAX_BLOCKS_TO_PRUNE_PER_APPEND: u64 = 100;
+
+// TODO(phase3-optimization): If inline pruning overhead becomes measurable on the critical
+// write path, move to a background task with batched deletes in separate transactions.
+
+// TODO(phase3-l1-finality): Replace fixed block count with L1 finality-based pruning target.
+// The pruning mechanics stay the same — only the source of prune_target changes.
+// The L1 finality point would be passed down from the batcher (which has L1 provider access)
+// as a parameter to append_state_diff, or set as a "prune target" on the storage transaction.
+
+fn prune_changesets<'env>(
+    txn: &DbTransaction<'env, RW>,
+    current_block: BlockNumber,
+    retention_blocks: u64,
+    markers_table: &MarkersTable<'env>,
+    changeset_tables: &ChangesetTables<'env>,
+) -> StorageResult<()> {
+    let prune_target = BlockNumber(current_block.0.saturating_sub(retention_blocks));
+    let changeset_pruned_marker =
+        markers_table.get(txn, &MarkerKind::ChangesetPruned)?.unwrap_or_default();
+
+    if changeset_pruned_marker >= prune_target {
+        return Ok(());
+    }
+
+    let prune_end = BlockNumber(std::cmp::min(
+        prune_target.0,
+        changeset_pruned_marker.0.saturating_add(MAX_BLOCKS_TO_PRUNE_PER_APPEND),
+    ));
+
+    for block_num in changeset_pruned_marker.0..prune_end.0 {
+        delete_changeset_entries_for_block(txn, BlockNumber(block_num), changeset_tables)?;
+    }
+
+    markers_table.upsert(txn, &MarkerKind::ChangesetPruned, &prune_end)?;
+    Ok(())
+}
+
+/// Deletes all changeset entries for the given block number from all 4 changeset tables.
+fn delete_changeset_entries_for_block<'env>(
+    txn: &DbTransaction<'env, RW>,
+    block_number: BlockNumber,
+    tables: &ChangesetTables<'env>,
+) -> StorageResult<()> {
+    // Delete deployed contracts changeset entries.
+    {
+        let mut keys_to_delete = Vec::new();
+        let mut cursor = tables.deployed.cursor(txn)?;
+        let mut entry = cursor.lower_bound(&(block_number, ContractAddress::default()))?;
+        while let Some(((got_block, address), _)) = entry {
+            if got_block != block_number {
+                break;
+            }
+            keys_to_delete.push(address);
+            entry = cursor.next()?;
+        }
+        for address in keys_to_delete {
+            tables.deployed.delete(txn, &(block_number, address))?;
+        }
+    }
+
+    // Delete nonces changeset entries.
+    {
+        let mut keys_to_delete = Vec::new();
+        let mut cursor = tables.nonces.cursor(txn)?;
+        let mut entry = cursor.lower_bound(&(block_number, ContractAddress::default()))?;
+        while let Some(((got_block, address), _)) = entry {
+            if got_block != block_number {
+                break;
+            }
+            keys_to_delete.push(address);
+            entry = cursor.next()?;
+        }
+        for address in keys_to_delete {
+            tables.nonces.delete(txn, &(block_number, address))?;
+        }
+    }
+
+    // Delete contract storage changeset entries.
+    {
+        let mut keys_to_delete = Vec::new();
+        let mut cursor = tables.storage.cursor(txn)?;
+        let mut entry = cursor
+            .lower_bound(&((block_number, ContractAddress::default()), StorageKey::default()))?;
+        while let Some((((got_block, address), key), _)) = entry {
+            if got_block != block_number {
+                break;
+            }
+            keys_to_delete.push((address, key));
+            entry = cursor.next()?;
+        }
+        for (address, key) in keys_to_delete {
+            tables.storage.delete(txn, &((block_number, address), key))?;
+        }
+    }
+
+    // Delete compiled class hash changeset entries.
+    {
+        let mut keys_to_delete = Vec::new();
+        let mut cursor = tables.compiled.cursor(txn)?;
+        let mut entry = cursor.lower_bound(&(block_number, ClassHash::default()))?;
+        while let Some(((got_block, hash), _)) = entry {
+            if got_block != block_number {
+                break;
+            }
+            keys_to_delete.push(hash);
+            entry = cursor.next()?;
+        }
+        for hash in keys_to_delete {
+            tables.compiled.delete(txn, &(block_number, hash))?;
+        }
+    }
+
     Ok(())
 }
 
