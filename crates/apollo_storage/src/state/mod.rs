@@ -67,7 +67,7 @@ use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStat
 use starknet_types_core::felt::Felt;
 use tracing::debug;
 
-use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
+use crate::db::serialization::{ChangesetValueWrapper, NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
 use crate::metrics::STORAGE_APPEND_THIN_STATE_DIFF_LATENCY;
@@ -124,6 +124,36 @@ pub(crate) type FlatDeployedContractsTable<'env> =
     TableHandle<'env, ContractAddress, NoVersionValueWrapper<ClassHash>, SimpleTable>;
 pub(crate) type FlatCompiledClassHashTable<'env> =
     TableHandle<'env, ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>;
+
+// Changeset table types (store pre-images before each block's changes).
+#[allow(dead_code)]
+pub(crate) type ChangesetContractStorageTable<'env> = TableHandle<
+    'env,
+    ((BlockNumber, ContractAddress), StorageKey),
+    ChangesetValueWrapper<NoVersionValueWrapper<Felt>>,
+    CommonPrefix,
+>;
+#[allow(dead_code)]
+pub(crate) type ChangesetNoncesTable<'env> = TableHandle<
+    'env,
+    (BlockNumber, ContractAddress),
+    ChangesetValueWrapper<NoVersionValueWrapper<Nonce>>,
+    CommonPrefix,
+>;
+#[allow(dead_code)]
+pub(crate) type ChangesetDeployedContractsTable<'env> = TableHandle<
+    'env,
+    (BlockNumber, ContractAddress),
+    ChangesetValueWrapper<NoVersionValueWrapper<ClassHash>>,
+    CommonPrefix,
+>;
+#[allow(dead_code)]
+pub(crate) type ChangesetCompiledClassHashTable<'env> = TableHandle<
+    'env,
+    (BlockNumber, ClassHash),
+    ChangesetValueWrapper<NoVersionValueWrapper<CompiledClassHash>>,
+    CommonPrefix,
+>;
 
 /// Interface for reading data related to the state.
 // Structure of state data:
