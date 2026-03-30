@@ -1,7 +1,4 @@
-#[cfg(test)]
-pub(crate) mod swarm_trait;
-#[cfg(not(test))]
-mod swarm_trait;
+pub mod swarm_trait;
 #[cfg(test)]
 mod test;
 #[cfg(any(test, feature = "testing"))]
@@ -196,7 +193,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
 
     // TODO(shahak): remove the advertised_multiaddr arg once we manage external addresses
     // in a behaviour.
-    pub(crate) fn generic_new(
+    pub fn generic_new(
         mut swarm: SwarmT,
         advertised_multiaddr: Option<Multiaddr>,
         metrics: Option<NetworkMetrics>,
