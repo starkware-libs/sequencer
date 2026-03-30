@@ -226,8 +226,10 @@ impl Handler {
                     unsent_units.push_back(unit);
                 }
                 Err(e) => {
-                    // TODO(AndrewL): Either remove this warning or make it once every N ms.
-                    warn!("Failed to convert protobuf unit to unit: {e}");
+                    warn_every_n_ms!(
+                        1000,
+                        "Failed to convert protobuf unit to unit: {e}"
+                    );
                 }
             }
         }
