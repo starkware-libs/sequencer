@@ -1373,34 +1373,6 @@
       "observer_applicable": "true"
     },
     {
-      "name": "pod_state_high_disk_utilization",
-      "title": "Pod High Disk Utilization ( >70% )",
-      "ruleGroup": "general",
-      "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}))*100",
-      "conditions": [
-        {
-          "evaluator": {
-            "params": [
-              70.0
-            ],
-            "type": "gt"
-          },
-          "operator": {
-            "type": "and"
-          },
-          "reducer": {
-            "params": [],
-            "type": "avg"
-          },
-          "type": "query"
-        }
-      ],
-      "for": "30s",
-      "intervalSec": 30,
-      "severity": "p3",
-      "observer_applicable": "true"
-    },
-    {
       "name": "pod_state_critical_disk_utilization",
       "title": "Pod Critical Disk Utilization ( >90% )",
       "ruleGroup": "general",
@@ -1426,6 +1398,34 @@
       "for": "30s",
       "intervalSec": 30,
       "severity": "p2",
+      "observer_applicable": "true"
+    },
+    {
+      "name": "pod_state_disk_filling_soon",
+      "title": "Pod Disk Filling Soon (predicted full within 2 weeks)",
+      "ruleGroup": "general",
+      "expr": "max by (namespace,persistentvolumeclaim) (predict_linear(kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2d], 1209600)) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}))",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3",
       "observer_applicable": "true"
     },
     {
