@@ -230,6 +230,7 @@ async fn register_sqmr_protocol_client_and_use_channels() {
         None,
         MESSAGE_METADATA_BUFFER_SIZE,
         MESSAGE_METADATA_BUFFER_SIZE,
+        HashSet::new(),
     );
 
     // register subscriber and send payload
@@ -298,6 +299,7 @@ async fn process_incoming_query() {
         None,
         MESSAGE_METADATA_BUFFER_SIZE,
         MESSAGE_METADATA_BUFFER_SIZE,
+        HashSet::new(),
     );
 
     let mut inbound_payload_receiver = network_manager
@@ -340,6 +342,7 @@ async fn broadcast_message() {
         None,
         MESSAGE_METADATA_BUFFER_SIZE,
         MESSAGE_METADATA_BUFFER_SIZE,
+        HashSet::new(),
     );
 
     let mut broadcast_topic_client = network_manager
@@ -382,6 +385,7 @@ async fn receive_broadcasted_message_and_report_it() {
         None,
         MESSAGE_METADATA_BUFFER_SIZE,
         MESSAGE_METADATA_BUFFER_SIZE,
+        HashSet::new(),
     );
 
     let BroadcastTopicChannels {

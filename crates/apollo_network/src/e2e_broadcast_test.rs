@@ -1,9 +1,10 @@
+use std::collections::HashSet;
 use std::time::Duration;
 
 use futures::{FutureExt, StreamExt};
 use libp2p::core::multiaddr::Protocol;
 use libp2p::swarm::SwarmEvent;
-use libp2p::{Multiaddr, Swarm};
+use libp2p::{Multiaddr, PeerId, Swarm};
 use libp2p_swarm_test::SwarmExt;
 use starknet_api::core::ChainId;
 
@@ -62,6 +63,7 @@ fn create_network_manager(
         None,
         MESSAGE_METADATA_BUFFER_SIZE,
         MESSAGE_METADATA_BUFFER_SIZE,
+        HashSet::new(),
     )
 }
 
@@ -93,14 +95,24 @@ async fn broadcast_subscriber_end_to_end_test() {
     let topic2 = Topic::new("TOPIC2");
     let mut bootstrap_swarm = create_swarm(None);
     let address = get_listen_address(&mut bootstrap_swarm).await;
-    let bootstrap_peer_multiaddr = address.with_p2p(*bootstrap_swarm.local_peer_id()).unwrap();
-    let bootstrap_network_manager = create_network_manager(bootstrap_swarm);
+    let bootstrap_peer_id = *bootstrap_swarm.local_peer_id();
+    let bootstrap_peer_multiaddr = address.with_p2p(bootstrap_peer_id).unwrap();
+
     // Don't poll subscriber swarms before wrapping in network managers — polling would
     // discard the initial RequestDial events from bootstrapping before the network
     // manager is ready to route them.
-    let mut network_manager1 =
-        create_network_manager(create_swarm(Some(bootstrap_peer_multiaddr.clone())));
-    let mut network_manager2 = create_network_manager(create_swarm(Some(bootstrap_peer_multiaddr)));
+    let mut swarm1 = create_swarm(Some(bootstrap_peer_multiaddr.clone()));
+    let mut swarm2 = create_swarm(Some(bootstrap_peer_multiaddr));
+
+    let all_peers: HashSet<PeerId> =
+        HashSet::from([bootstrap_peer_id, *swarm1.local_peer_id(), *swarm2.local_peer_id()]);
+    bootstrap_swarm.behaviour_mut().peer_access_control.set_allowed_peers(all_peers.clone());
+    swarm1.behaviour_mut().peer_access_control.set_allowed_peers(all_peers.clone());
+    swarm2.behaviour_mut().peer_access_control.set_allowed_peers(all_peers);
+
+    let bootstrap_network_manager = create_network_manager(bootstrap_swarm);
+    let mut network_manager1 = create_network_manager(swarm1);
+    let mut network_manager2 = create_network_manager(swarm2);
 
     let mut subscriber_channels1_1 =
         network_manager1.register_broadcast_topic::<Number>(topic1.clone(), BUFFER_SIZE).unwrap();
