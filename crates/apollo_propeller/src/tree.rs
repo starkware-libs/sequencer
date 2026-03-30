@@ -108,11 +108,16 @@ impl PropellerScheduleManager {
     /// Returns the peer responsible for broadcasting a specific unit.
     ///
     /// In the Propeller protocol, each unit is assigned to a specific peer (excluding the
+<<<<<<< HEAD
     /// publisher). This method maps a shard index to its designated broadcaster.
+=======
+    /// publisher). This method maps a unit index to its designated broadcaster.
+>>>>>>> 5665821e73 (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
     ///
     /// # Arguments
     ///
     /// * `publisher` - The peer ID of the node that published the original message
+<<<<<<< HEAD
     /// * `shard_index` - The index of the unit (0-based, ranges from 0 to total_shards-1)
 <<<<<<< HEAD
     pub fn get_peer_for_shard_index(
@@ -122,19 +127,30 @@ impl PropellerScheduleManager {
         &self,
         publisher: &PeerId,
         shard_index: UnitIndex,
+=======
+    /// * `unit_index` - The index of the unit (0-based, ranges from 0 to total_shards-1)
+    pub fn get_peer_for_unit_index(
+        &self,
+        publisher: &PeerId,
+        unit_index: UnitIndex,
+>>>>>>> 5665821e73 (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
     ) -> Result<PeerId, ScheduleError> {
-        let original_shard_index = shard_index;
-        let shard_index: usize = shard_index.0.try_into().expect("Failed converting u64 to usize");
+        let original_unit_index = unit_index;
+        let unit_index: usize = unit_index.0.try_into().expect("Failed converting u64 to usize");
         let publisher_index = self
             .committee_nodes
             .binary_search_by_key(&publisher, |(peer_id, _)| peer_id)
             .map_err(|_| ScheduleError::PublisherNotInCommittee { publisher: *publisher })?;
         let index =
-            if shard_index < publisher_index { shard_index } else { shard_index.saturating_add(1) };
+            if unit_index < publisher_index { unit_index } else { unit_index.saturating_add(1) };
         self.committee_nodes
             .get(index)
             .map(|(peer, _)| *peer)
+<<<<<<< HEAD
             .ok_or(ScheduleError::UnitIndexOutOfBounds { unit_index: original_shard_index })
+=======
+            .ok_or(ScheduleError::UnitIndexOutOfBounds { unit_index: original_unit_index })
+>>>>>>> 5665821e73 (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
     }
 
     /// Validates that a unit was received from the expected sender.
@@ -213,12 +229,16 @@ impl PropellerScheduleManager {
             .binary_search_by_key(&publisher, |(peer_id, _)| peer_id)
             .map_err(|_| ScheduleError::PublisherNotInCommittee { publisher: *publisher })?;
 
-        let shard_id = if self.local_peer_index < publisher_index {
+        let unit_id = if self.local_peer_index < publisher_index {
             self.local_peer_index
         } else {
             self.local_peer_index - 1
         };
 
+<<<<<<< HEAD
         Ok(UnitIndex(shard_id.try_into().unwrap()))
+=======
+        Ok(UnitIndex(unit_id.try_into().unwrap()))
+>>>>>>> 5665821e73 (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
     }
 }
