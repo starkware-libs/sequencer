@@ -90,7 +90,7 @@ impl PropellerScheduleManager {
         self.num_coding_shards
     }
 
-    pub fn num_shards(&self) -> usize {
+    pub fn num_units(&self) -> usize {
         self.num_data_shards + self.num_coding_shards
     }
 

@@ -101,7 +101,11 @@ impl UnitValidator {
         // once reconstruction supports multiple shards per peer.
         unit.validate_shard_count(1)?;
         unit.validate_shard_lengths()?;
+<<<<<<< HEAD
         unit.validate_merkle_proof(self.schedule_manager.num_shards())?;
+=======
+        unit.validate_merkle_proof(self.schedule_manager.num_units())?;
+>>>>>>> 95ca3a6c2e (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
         self.verify_signature(unit).map_err(UnitValidationError::SignatureVerificationFailed)?;
 
         // add for next time we see this unit's index

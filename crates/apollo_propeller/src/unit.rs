@@ -147,16 +147,20 @@ impl PropellerUnit {
         Ok(())
     }
 
+<<<<<<< HEAD
     pub fn validate_merkle_proof(
         &self,
         num_total_shards: usize,
     ) -> Result<(), UnitValidationError> {
+=======
+    pub fn validate_merkle_proof(&self, num_total_units: usize) -> Result<(), UnitValidationError> {
+>>>>>>> 95ca3a6c2e (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
         let proof = self.proof();
         let index = self.index().0.try_into().expect("u64 could not be converted to usize");
         // Encode as proto bytes because the Merkle tree leaves are the proto-encoded bytes
         // of `ShardsOfPeer`, ensuring cross-language determinism.
         let leaf_data = self.shards.encode_to_proto_bytes();
-        if proof.verify(&self.root().0, &leaf_data, index, num_total_shards) {
+        if proof.verify(&self.root().0, &leaf_data, index, num_total_units) {
             Ok(())
         } else {
             Err(UnitValidationError::MerkleProofVerificationFailed)
