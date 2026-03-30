@@ -246,6 +246,7 @@ async fn sync_happy_flow() {
                 yield Ok((
                     block_number,
                     Block { header, body: BlockBody::default() },
+                    vec![],
                     BlockSignature::default(),
                 ));
             }
@@ -515,6 +516,7 @@ async fn test_unrecoverable_sync_error_flow() {
             yield Ok((
                 BLOCK_NUMBER,
                 Block { header, body: BlockBody::default()},
+                vec![],
                 BlockSignature::default(),
             ));
         }

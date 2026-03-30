@@ -100,6 +100,7 @@ use starknet_api::deprecated_contract_class::{
     FunctionAbiEntry,
     FunctionStateMutability,
 };
+use starknet_api::hash::L1L2MsgHash;
 use starknet_api::state::{SierraContractClass as StarknetApiContractClass, StateDiff};
 use starknet_api::transaction::{
     Event as StarknetApiEvent,
@@ -111,7 +112,6 @@ use starknet_api::transaction::{
     TransactionHash,
     TransactionOffsetInBlock,
 };
-use starknet_api::hash::L1L2MsgHash;
 use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, storage_key, tx_hash};
 use starknet_types_core::felt::Felt;
 
@@ -508,10 +508,7 @@ async fn get_block_w_full_transactions() {
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
-        .append_events(
-            block.header.block_header_without_hash.block_number,
-            &block_tx_events,
-        )
+        .append_events(block.header.block_header_without_hash.block_number, &block_tx_events)
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -700,10 +697,7 @@ async fn get_block_w_full_transactions_and_receipts() {
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
-        .append_events(
-            block.header.block_header_without_hash.block_number,
-            &block_tx_events,
-        )
+        .append_events(block.header.block_header_without_hash.block_number, &block_tx_events)
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -905,10 +899,7 @@ async fn get_block_w_transaction_hashes() {
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
-        .append_events(
-            block.header.block_header_without_hash.block_number,
-            &block_tx_events,
-        )
+        .append_events(block.header.block_header_without_hash.block_number, &block_tx_events)
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -1271,10 +1262,7 @@ async fn get_transaction_status() {
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
-        .append_events(
-            block.header.block_header_without_hash.block_number,
-            &block_tx_events,
-        )
+        .append_events(block.header.block_header_without_hash.block_number, &block_tx_events)
         .unwrap()
         .commit()
         .unwrap();
@@ -1395,10 +1383,7 @@ async fn get_transaction_receipt() {
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
-        .append_events(
-            block.header.block_header_without_hash.block_number,
-            &block_tx_events,
-        )
+        .append_events(block.header.block_header_without_hash.block_number, &block_tx_events)
         .unwrap()
         .commit()
         .unwrap();
@@ -2315,10 +2300,7 @@ async fn get_transaction_by_hash() {
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
-        .append_events(
-            block.header.block_header_without_hash.block_number,
-            &block_tx_events,
-        )
+        .append_events(block.header.block_header_without_hash.block_number, &block_tx_events)
         .unwrap()
         .commit()
         .unwrap();
@@ -2410,10 +2392,7 @@ async fn get_transaction_by_block_id_and_index() {
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
-        .append_events(
-            block.header.block_header_without_hash.block_number,
-            &block_tx_events,
-        )
+        .append_events(block.header.block_header_without_hash.block_number, &block_tx_events)
         .unwrap()
         .append_state_diff(
             block.header.block_header_without_hash.block_number,
@@ -2864,9 +2843,7 @@ impl BlockMetadata {
             *transaction_hash = tx_hash!(rng.next_u64());
         }
 
-        for (events, event_metadatas_of_tx) in
-            block_tx_events.iter_mut().zip(self.0.iter())
-        {
+        for (events, event_metadatas_of_tx) in block_tx_events.iter_mut().zip(self.0.iter()) {
             for event_metadata in event_metadatas_of_tx {
                 events.push(event_metadata.generate_event(rng));
             }
@@ -2929,14 +2906,13 @@ async fn test_get_events(
     let mut rw_txn = storage_writer.begin_rw_txn().unwrap();
     for (i, block_metadata) in block_metadatas.iter().enumerate() {
         let block_number = BlockNumber(u64::try_from(i).expect("usize should fit in u64"));
-        let (block, block_tx_events) = block_metadata.generate_block(&mut rng, parent_hash, block_number);
+        let (block, block_tx_events) =
+            block_metadata.generate_block(&mut rng, parent_hash, block_number);
 
         parent_hash = block.header.block_hash;
 
-        for (i_transaction, (events, transaction_hash)) in block_tx_events
-            .iter()
-            .zip(block.body.transaction_hashes.iter().cloned())
-            .enumerate()
+        for (i_transaction, (events, transaction_hash)) in
+            block_tx_events.iter().zip(block.body.transaction_hashes.iter().cloned()).enumerate()
         {
             for (i_event, event) in events.iter().cloned().enumerate() {
                 event_index_to_event.insert(
@@ -3578,10 +3554,7 @@ async fn serialize_returns_valid_json() {
         .unwrap()
         .append_body(block.header.block_header_without_hash.block_number, block.body.clone())
         .unwrap()
-        .append_events(
-            block.header.block_header_without_hash.block_number,
-            &block_tx_events,
-        )
+        .append_events(block.header.block_header_without_hash.block_number, &block_tx_events)
         .unwrap()
         .append_state_diff(block.header.block_header_without_hash.block_number, thin_state_diff)
         .unwrap()
