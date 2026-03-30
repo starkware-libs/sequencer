@@ -199,15 +199,19 @@ mod config_test;
 pub mod discovery;
 #[cfg(test)]
 mod e2e_broadcast_test;
-#[cfg(test)]
-mod e2e_discovery_test;
 mod event_tracker;
 pub mod gossipsub_impl;
 pub mod metrics;
 pub mod misconduct_score;
+#[cfg(any(test, feature = "testing"))]
+pub mod mixed_behaviour;
+#[cfg(not(any(test, feature = "testing")))]
 mod mixed_behaviour;
 pub mod network_manager;
 pub mod peer_manager;
+#[cfg(any(test, feature = "testing"))]
+pub mod prune_dead_connections;
+#[cfg(not(any(test, feature = "testing")))]
 mod prune_dead_connections;
 pub mod sqmr;
 #[cfg(test)]
@@ -244,6 +248,9 @@ use validator::{Validate, ValidationError};
 
 use crate::prune_dead_connections::{DEFAULT_PING_INTERVAL, DEFAULT_PING_TIMEOUT};
 
+#[cfg(any(test, feature = "testing"))]
+pub type Bytes = Vec<u8>;
+#[cfg(not(any(test, feature = "testing")))]
 pub(crate) type Bytes = Vec<u8>;
 
 // TODO(Shahak): add peer manager config to the network config
