@@ -153,13 +153,11 @@ pub struct SequencerNodeClients {
 #[macro_export]
 macro_rules! get_shared_client {
     ($self:ident, $client_field:ident) => {{
-        let client = &$self.$client_field;
-        if let Some(local_client) = client.get_local_client() {
-            return Some(Arc::new(local_client));
-        } else if let Some(remote_client) = client.get_remote_client() {
-            return Some(Arc::new(remote_client));
+        match &$self.$client_field {
+            Client::Local(local_client) => Some(Arc::new(local_client.clone())),
+            Client::Remote(remote_client) => Some(Arc::new(remote_client.clone())),
+            Client::None => None,
         }
-        None
     }};
 }
 
@@ -320,7 +318,7 @@ impl SequencerNodeClients {
 /// // Assuming ReactiveComponentExecutionMode, channels, and remote client configuration are defined, and
 /// // LocalBatcherClient and RemoteBatcherClient have new methods that accept a channel and config,
 /// // respectively.
-/// let batcher_client: Option<Client<BatcherRequest, BatcherResponse>> = create_client!(
+/// let batcher_client: Client<BatcherRequest, BatcherResponse> = create_client!(
 ///     &config.components.batcher.execution_mode,
 ///     LocalBatcherClient,
 ///     RemoteBatcherClient,
@@ -347,12 +345,11 @@ macro_rules! create_client {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-                let local_client =
-                    Some(<$local_client_type>::new($channel_expr, $local_client_metrics));
-                Client::new(local_client, None)
+                let local_client = <$local_client_type>::new($channel_expr, $local_client_metrics);
+                Client::Local(local_client)
             }
             ReactiveComponentExecutionMode::Remote => {
-                let remote_client = Some(<$remote_client_type>::new(
+                let remote_client = <$remote_client_type>::new(
                     $remote_client_config
                         .as_ref()
                         .expect("Remote client config should be available")
@@ -360,10 +357,10 @@ macro_rules! create_client {
                     $url,
                     $port,
                     $remote_client_metrics,
-                ));
-                Client::new(None, remote_client)
+                );
+                Client::Remote(remote_client)
             }
-            ReactiveComponentExecutionMode::Disabled => Client::new(None, None),
+            ReactiveComponentExecutionMode::Disabled => Client::None,
         }
     };
 }
