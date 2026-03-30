@@ -15,6 +15,10 @@ pub struct Config {
     pub stream_protocol: StreamProtocol,
     /// Maximum size of a message sent over the wire.
     pub max_wire_message_size: usize,
+    /// Capacity of the bounded channel between each handler and the engine for inbound units.
+    /// Controls back-pressure: when the channel is full, the handler stops reading from the
+    /// network, causing yamux flow control to slow the remote peer.
+    pub inbound_channel_capacity: usize,
 }
 
 impl Default for Config {
@@ -23,6 +27,7 @@ impl Default for Config {
             stale_message_timeout: Duration::from_secs(120),
             stream_protocol: StreamProtocol::new("/propeller/0.1.0"),
             max_wire_message_size: 1 << 20, // 1 MB
+            inbound_channel_capacity: 256,
         }
     }
 }
