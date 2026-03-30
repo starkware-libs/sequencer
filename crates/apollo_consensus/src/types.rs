@@ -98,6 +98,7 @@ pub trait ConsensusContext {
         height: BlockNumber,
         round: Round,
         commitment: ProposalCommitment,
+        stop_at_height: Option<BlockNumber>,
     ) -> Result<(), ConsensusError>;
 
     /// Attempt to learn of a decision from the sync protocol.
