@@ -12482,6 +12482,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_infra_utils",
  "apollo_starknet_os_program",
+ "apollo_storage",
  "assert_matches",
  "blockifier",
  "cairo-lang-starknet-classes",
