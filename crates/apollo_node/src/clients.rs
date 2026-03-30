@@ -153,13 +153,11 @@ pub struct SequencerNodeClients {
 #[macro_export]
 macro_rules! get_shared_client {
     ($self:ident, $client_field:ident) => {{
-        let client = &$self.$client_field;
-        if let Some(local_client) = client.get_local_client() {
-            return Some(Arc::new(local_client));
-        } else if let Some(remote_client) = client.get_remote_client() {
-            return Some(Arc::new(remote_client));
+        match &$self.$client_field {
+            Client::Local(local_client) => Some(Arc::new(local_client.clone())),
+            Client::Remote(remote_client) => Some(Arc::new(remote_client.clone())),
+            Client::Disabled => None,
         }
-        None
     }};
 }
 
@@ -167,7 +165,7 @@ macro_rules! get_shared_client {
 impl SequencerNodeClients {
     pub fn get_batcher_local_client(
         &self,
-    ) -> Option<LocalComponentClient<BatcherRequest, BatcherResponse>> {
+    ) -> LocalComponentClient<BatcherRequest, BatcherResponse> {
         self.batcher_client.get_local_client()
     }
 
@@ -177,7 +175,7 @@ impl SequencerNodeClients {
 
     pub fn get_class_manager_local_client(
         &self,
-    ) -> Option<LocalComponentClient<ClassManagerRequest, ClassManagerResponse>> {
+    ) -> LocalComponentClient<ClassManagerRequest, ClassManagerResponse> {
         self.class_manager_client.get_local_client()
     }
 
@@ -187,7 +185,7 @@ impl SequencerNodeClients {
 
     pub fn get_committer_local_client(
         &self,
-    ) -> Option<LocalComponentClient<CommitterRequest, CommitterResponse>> {
+    ) -> LocalComponentClient<CommitterRequest, CommitterResponse> {
         self.committer_client.get_local_client()
     }
 
@@ -201,7 +199,7 @@ impl SequencerNodeClients {
 
     pub fn get_gateway_local_client(
         &self,
-    ) -> Option<LocalComponentClient<GatewayRequest, GatewayResponse>> {
+    ) -> LocalComponentClient<GatewayRequest, GatewayResponse> {
         self.gateway_client.get_local_client()
     }
 
@@ -211,13 +209,13 @@ impl SequencerNodeClients {
 
     pub fn get_l1_events_provider_local_client(
         &self,
-    ) -> Option<LocalComponentClient<L1EventsProviderRequest, L1EventsProviderResponse>> {
+    ) -> LocalComponentClient<L1EventsProviderRequest, L1EventsProviderResponse> {
         self.l1_events_provider_client.get_local_client()
     }
 
     pub fn get_l1_gas_price_provider_local_client(
         &self,
-    ) -> Option<LocalComponentClient<L1GasPriceRequest, L1GasPriceResponse>> {
+    ) -> LocalComponentClient<L1GasPriceRequest, L1GasPriceResponse> {
         self.l1_gas_price_client.get_local_client()
     }
 
@@ -231,7 +229,7 @@ impl SequencerNodeClients {
 
     pub fn get_mempool_local_client(
         &self,
-    ) -> Option<LocalComponentClient<MempoolRequest, MempoolResponse>> {
+    ) -> LocalComponentClient<MempoolRequest, MempoolResponse> {
         self.mempool_client.get_local_client()
     }
 
@@ -241,8 +239,7 @@ impl SequencerNodeClients {
 
     pub fn get_mempool_p2p_propagator_local_client(
         &self,
-    ) -> Option<LocalComponentClient<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>>
-    {
+    ) -> LocalComponentClient<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse> {
         self.mempool_p2p_propagator_client.get_local_client()
     }
 
@@ -254,7 +251,7 @@ impl SequencerNodeClients {
 
     pub fn get_proof_manager_local_client(
         &self,
-    ) -> Option<LocalComponentClient<ProofManagerRequest, ProofManagerResponse>> {
+    ) -> LocalComponentClient<ProofManagerRequest, ProofManagerResponse> {
         self.proof_manager_client.get_local_client()
     }
 
@@ -264,7 +261,7 @@ impl SequencerNodeClients {
 
     pub fn get_sierra_compiler_local_client(
         &self,
-    ) -> Option<LocalComponentClient<SierraCompilerRequest, SierraCompilerResponse>> {
+    ) -> LocalComponentClient<SierraCompilerRequest, SierraCompilerResponse> {
         self.sierra_compiler_client.get_local_client()
     }
 
@@ -274,7 +271,7 @@ impl SequencerNodeClients {
 
     pub fn get_signature_manager_local_client(
         &self,
-    ) -> Option<LocalComponentClient<SignatureManagerRequest, SignatureManagerResponse>> {
+    ) -> LocalComponentClient<SignatureManagerRequest, SignatureManagerResponse> {
         self.signature_manager_client.get_local_client()
     }
 
@@ -284,7 +281,7 @@ impl SequencerNodeClients {
 
     pub fn get_state_sync_local_client(
         &self,
-    ) -> Option<LocalComponentClient<StateSyncRequest, StateSyncResponse>> {
+    ) -> LocalComponentClient<StateSyncRequest, StateSyncResponse> {
         self.state_sync_client.get_local_client()
     }
 
@@ -320,7 +317,7 @@ impl SequencerNodeClients {
 /// // Assuming ReactiveComponentExecutionMode, channels, and remote client configuration are defined, and
 /// // LocalBatcherClient and RemoteBatcherClient have new methods that accept a channel and config,
 /// // respectively.
-/// let batcher_client: Option<Client<BatcherRequest, BatcherResponse>> = create_client!(
+/// let batcher_client: Client<BatcherRequest, BatcherResponse> = create_client!(
 ///     &config.components.batcher.execution_mode,
 ///     LocalBatcherClient,
 ///     RemoteBatcherClient,
@@ -347,12 +344,11 @@ macro_rules! create_client {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-                let local_client =
-                    Some(<$local_client_type>::new($channel_expr, $local_client_metrics));
-                Client::new(local_client, None)
+                let local_client = <$local_client_type>::new($channel_expr, $local_client_metrics);
+                Client::Local(local_client)
             }
             ReactiveComponentExecutionMode::Remote => {
-                let remote_client = Some(<$remote_client_type>::new(
+                let remote_client = <$remote_client_type>::new(
                     $remote_client_config
                         .as_ref()
                         .expect("Remote client config should be available")
@@ -360,10 +356,10 @@ macro_rules! create_client {
                     $url,
                     $port,
                     $remote_client_metrics,
-                ));
-                Client::new(None, remote_client)
+                );
+                Client::Remote(remote_client)
             }
-            ReactiveComponentExecutionMode::Disabled => Client::new(None, None),
+            ReactiveComponentExecutionMode::Disabled => Client::Disabled,
         }
     };
 }
