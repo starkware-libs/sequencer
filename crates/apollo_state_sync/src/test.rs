@@ -90,7 +90,7 @@ async fn test_get_block() {
 async fn test_get_block_hash() {
     let (mut state_sync, mut storage_writer) = setup();
 
-    let Block { header: mut expected_header, body: expected_body } =
+    let (Block { header: mut expected_header, body: expected_body }, expected_events) =
         get_test_block(1, None, None, None);
 
     // get_test_block returns a block with parent_hash == block_hash. Need to change that to make
