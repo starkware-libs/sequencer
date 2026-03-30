@@ -8,7 +8,7 @@ use starknet_api::staking::StakingWeight;
 use crate::types::{CommitteeSetupError, ScheduleError, UnitIndex};
 use crate::UnitValidationError;
 
-// TODO(AndrewL): add the concept of shard_owner when naming
+// TODO(AndrewL): add the concept of unit_owner when naming
 
 /// Propeller tree manager that computes tree topology on-demand for each publisher.
 ///
