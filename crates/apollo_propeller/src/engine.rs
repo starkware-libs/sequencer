@@ -26,10 +26,16 @@ use crate::unit::PropellerUnit;
 type BroadcastResponseTx = oneshot::Sender<Result<(), ShardPublishError>>;
 type BroadcastResult = (Result<Vec<PropellerUnit>, ShardPublishError>, BroadcastResponseTx);
 
+// TODO(guyn): since the nonce is part of the MessageKey, there's a risk that getting a bad nonce
+// will cause a message processor to start working on a bad message, which later takes up resources
+// or blocks legitimate messages. To prevent this we must make sure that message processors that
+// never get a correct signature (with the right nonce) are not counted in the
+// messages_to_ignore_shards_from cache, and don't update the nonce tracked for each peer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct MessageKey {
     committee_id: CommitteeId,
     publisher: PeerId,
+    nonce: u64,
     root: MessageRoot,
 }
 
@@ -215,6 +221,7 @@ impl Engine {
     fn handle_unit(&mut self, sender_peer_id: PeerId, unit: PropellerUnit) {
         let claimed_committee_id = unit.committee_id();
         let claimed_publisher = unit.publisher();
+        let claimed_nonce = unit.nonce();
         let claimed_root = unit.root();
 
         // Track received shard.
@@ -232,24 +239,20 @@ impl Engine {
         let message_key = MessageKey {
             committee_id: claimed_committee_id,
             publisher: claimed_publisher,
+            nonce: claimed_nonce,
             root: claimed_root,
         };
 
         // TODO(guyn): Add timestamps to message key to avoid replay attacks or issues with very
         // late shards.
         if self.messages_to_ignore_shards_from.contains(&message_key) {
-            trace!("Message already finalized, dropping unit");
+            trace!(?message_key, "Message already finalized, dropping unit");
             return;
         }
 
         // Spawn tasks if this is a new message.
         if !self.message_to_unit_tx.contains_key(&message_key) {
-            debug!(
-                ?claimed_committee_id,
-                ?claimed_publisher,
-                ?claimed_root,
-                "[ENGINE] Spawning new message processor"
-            );
+            debug!(?message_key, "[ENGINE] Spawning new message processor");
 
             let schedule_manager = committee_data.schedule_manager.clone();
             let Some(publisher_public_key) =
@@ -277,6 +280,7 @@ impl Engine {
             let processor = MessageProcessor {
                 committee_id: claimed_committee_id,
                 publisher: claimed_publisher,
+                nonce: claimed_nonce,
                 message_root: claimed_root,
                 my_shard_index,
                 publisher_public_key,
@@ -351,11 +355,22 @@ impl Engine {
             EventStateManagerToEngine::BehaviourEvent(event) => {
                 self.emit_event(event);
             }
-            EventStateManagerToEngine::Finalized { committee_id, publisher, message_root } => {
-                trace!(?committee_id, ?publisher, ?message_root, "[ENGINE] Message finalized");
+            EventStateManagerToEngine::Finalized {
+                committee_id,
+                publisher,
+                nonce,
+                message_root,
+            } => {
+                trace!(
+                    ?committee_id,
+                    ?publisher,
+                    ?nonce,
+                    ?message_root,
+                    "[ENGINE] Message finalized"
+                );
 
                 // Mark as finalized
-                let message_key = MessageKey { committee_id, publisher, root: message_root };
+                let message_key = MessageKey { committee_id, publisher, nonce, root: message_root };
                 let expired_keys =
                     self.messages_to_ignore_shards_from.insert_and_get_expired(message_key);
 
@@ -365,12 +380,7 @@ impl Engine {
 
                 // Clean up task handles
                 if self.message_to_unit_tx.remove(&message_key).is_some() {
-                    trace!(
-                        ?committee_id,
-                        ?publisher,
-                        ?message_root,
-                        "[ENGINE] Removed task handles"
-                    );
+                    trace!(?message_key, "[ENGINE] Removed task handles");
                 }
             }
             EventStateManagerToEngine::SendUnitToPeers { unit, peers } => {
