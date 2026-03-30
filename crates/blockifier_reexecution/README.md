@@ -8,7 +8,7 @@ The blockier reexecution crate is intended to verify blockifier changes do not b
 Using the different CLI commands, it is possible to run reexecution tests in different modes, to download (permisionless) files for offline reexecution from the GC bucket, and to upload (permissioned) files for offline reexecution to the GC bucket.
 
 ### Chain ID Option
-Commands that use RPC (`rpc-test`, `reexecute-single-tx`, `write-to-file`) accept optional chain ID arguments. If not provided, the chain ID is guessed from the node URL.
+Commands that use RPC (`rpc-test`, `reexecute-single-tx`, `write-to-file`, `rpc-replay`) accept optional chain ID arguments. If not provided, the chain ID is guessed from the node URL.
 
 There are two mutually exclusive options for specifying the chain ID:
 
@@ -63,6 +63,12 @@ cargo run --bin blockifier_reexecution reexecute-single-tx -n <node_url> -b <blo
 Same as the RPC test; can be executed on multiple blocks. If the block reexecution succeeds, the data required for offline reexecution is saved to a JSON file.
 ```
 cargo run --bin blockifier_reexecution write-to-file -n <node_url> -d <directory_path> -b <block_number_1> ... <block_number_n>
+```
+
+- **Continuous RPC Replay:**
+Continuously reexecutes a range of blocks via RPC, comparing state diffs. Supports running indefinitely (omit `--end-block`) and parallel workers. See [`replay/README.md`](replay/README.md) for full documentation and cloud deployment instructions.
+```
+cargo run --release -p blockifier_reexecution -- rpc-replay -n <node_url> -c <chain_id> --start-block <block_number>
 ```
 
 - **Offline Reexecution:**
