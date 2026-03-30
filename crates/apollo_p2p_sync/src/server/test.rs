@@ -540,12 +540,8 @@ lazy_static! {
         .chunks(NUM_TXS_PER_BLOCK)
         .map(|chunk| chunk.to_vec())
         .collect();
-    static ref TX_EVENTS: Vec<Vec<Vec<Event>>> = BODY_AND_EVENTS
-        .1
-        .clone()
-        .chunks(NUM_TXS_PER_BLOCK)
-        .map(|chunk| chunk.to_vec())
-        .collect();
+    static ref TX_EVENTS: Vec<Vec<Vec<Event>>> =
+        BODY_AND_EVENTS.1.clone().chunks(NUM_TXS_PER_BLOCK).map(|chunk| chunk.to_vec()).collect();
     static ref CLASSES_WITH_HASHES: Vec<Vec<(ClassHash, SierraContractClass)>> = {
         THIN_STATE_DIFFS
             .iter()

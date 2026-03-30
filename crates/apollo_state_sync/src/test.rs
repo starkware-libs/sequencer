@@ -61,10 +61,7 @@ async fn test_get_block() {
         .unwrap()
         .append_body(expected_header.block_header_without_hash.block_number, expected_body.clone())
         .unwrap()
-        .append_events(
-            expected_header.block_header_without_hash.block_number,
-            &expected_events,
-        )
+        .append_events(expected_header.block_header_without_hash.block_number, &expected_events)
         .unwrap()
         .commit()
         .unwrap();
@@ -113,10 +110,7 @@ async fn test_get_block_hash() {
         .unwrap()
         .append_body(expected_header.block_header_without_hash.block_number, expected_body.clone())
         .unwrap()
-        .append_events(
-            expected_header.block_header_without_hash.block_number,
-            &expected_events,
-        )
+        .append_events(expected_header.block_header_without_hash.block_number, &expected_events)
         .unwrap()
         .commit()
         .unwrap();
