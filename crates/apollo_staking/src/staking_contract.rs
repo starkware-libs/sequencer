@@ -1,3 +1,4 @@
+use apollo_cairo_utils::RetdataDeserializationError;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
 use apollo_state_sync_types::communication::StateSyncClientError;
 use async_trait::async_trait;
@@ -8,7 +9,6 @@ use thiserror::Error;
 
 use crate::cairo_staking_contract::ExtendedStateReaderError;
 use crate::committee_provider::Staker;
-use crate::contract_types::RetdataDeserializationError;
 use crate::staking_manager::Epoch;
 
 #[derive(Debug, Error)]

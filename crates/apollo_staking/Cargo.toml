@@ -11,6 +11,7 @@ testing = []
 
 [dependencies]
 apollo_batcher_types.workspace = true
+apollo_cairo_utils.workspace = true
 apollo_config_manager_types.workspace = true
 apollo_metrics.workspace = true
 apollo_protobuf.workspace = true
