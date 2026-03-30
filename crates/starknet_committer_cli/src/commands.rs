@@ -67,6 +67,7 @@ static BATCHER_STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| Storag
         max_object_size: 1073741824,
     },
     scope: StorageScope::StateOnly,
+    flat_state: false,
 });
 
 // This is based on the state sync's storage configuration on mainnet.
@@ -86,6 +87,7 @@ static STATE_SYNC_STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| Sto
         max_object_size: 1073741824,
     },
     scope: StorageScope::FullArchive,
+    flat_state: false,
 });
 
 const FLAVOR_PERIOD_MANY_WINDOW: usize = 10;

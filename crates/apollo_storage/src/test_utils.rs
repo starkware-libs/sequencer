@@ -25,6 +25,7 @@ fn build_storage_config(storage_scope: StorageScope, path_prefix: PathBuf) -> St
         },
         scope: storage_scope,
         mmap_file_config: get_mmap_file_test_config(),
+        flat_state: false,
     }
 }
 
@@ -52,6 +53,14 @@ pub(crate) fn get_test_config_with_path(
     create_dir_all(&path).expect("Failed to create directory");
 
     build_storage_config(storage_scope, path)
+}
+
+/// Returns [`StorageReader`], [`StorageWriter`] with flat state enabled and the temporary directory
+/// that holds a db for testing purposes.
+pub fn get_test_storage_with_flat_state() -> ((StorageReader, StorageWriter), TempDir) {
+    let (mut config, temp_dir) = get_test_config(Some(StorageScope::StateOnly));
+    config.flat_state = true;
+    ((open_storage(config).unwrap()), temp_dir)
 }
 
 /// Returns [`StorageReader`], [`StorageWriter`] and the temporary directory that holds a db for

@@ -56,6 +56,7 @@
   "batcher_config.static_config.storage.mmap_file_config.growth_step": 2147483648,
   "batcher_config.static_config.storage.mmap_file_config.max_object_size": 1073741824,
   "batcher_config.static_config.storage.mmap_file_config.max_size": 1099511627776,
+  "batcher_config.static_config.storage.flat_state": false,
   "batcher_config.static_config.storage.scope": "StateOnly",
   "batcher_config.static_config.storage_reader_server_static_config.ip": "0.0.0.0",
   "batcher_config.static_config.storage_reader_server_static_config.port": "$$$_BATCHER_CONFIG-STATIC_CONFIG-STORAGE_READER_SERVER_STATIC_CONFIG-PORT_$$$"
