@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774800421384,
+  "lastUpdate": 1774862353943,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1121,6 +1121,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1357.76722203,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "92669167+dafnamatsry@users.noreply.github.com",
+            "name": "dafnamatsry",
+            "username": "dafnamatsry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "872e2a629b35892886675a12d443d85860197fb6",
+          "message": "apollo_staking: reorganize contract_types.rs into TryFromIterator and TryFrom<Retdata> sections (#13064)",
+          "timestamp": "2026-03-30T09:01:57Z",
+          "tree_id": "cb565e2693ec59cf3f9e01d05f1933608ece479d",
+          "url": "https://github.com/starkware-libs/sequencer/commit/872e2a629b35892886675a12d443d85860197fb6"
+        },
+        "date": 1774862353613,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 820.17028944,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1298.40826797,
             "unit": "ms"
           }
         ]
