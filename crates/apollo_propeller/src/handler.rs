@@ -500,9 +500,12 @@ impl Handler {
         }
 
         // Read from the wire only when the unsent buffer is empty (the previous batch has been
-        // fully delivered).
-        for inbound_substream in self.inbound_substream.iter_mut() {
-            Self::poll_single_inbound_substream(inbound_substream, &mut self.unsent_units, cx);
+        // fully delivered). This prevents unbounded accumulation: a malicious peer cannot force
+        // memory growth by sending batches faster than the engine drains the channel.
+        if self.unsent_units.is_empty() {
+            for inbound_substream in self.inbound_substream.iter_mut() {
+                Self::poll_single_inbound_substream(inbound_substream, &mut self.unsent_units, cx);
+            }
         }
 
         // Send newly-decoded units to the engine channel.
