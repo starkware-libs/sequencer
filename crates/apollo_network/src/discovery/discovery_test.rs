@@ -482,14 +482,12 @@ async fn set_target_peers_does_not_cancel_bootstrap_dials(
     );
 }
 
-// TODO(AndrewL): cancel_dial is origin-agnostic — it cancels ALL DialPeerStreams for a peer,
-// including bootstrap-originated ones. If a bootstrap peer overlaps with the target set and is
-// then removed from targets, its bootstrap dial is killed too. BootstrappingBehaviour only
-// re-emits RequestDial on ConnectionClosed (not on cancellation), so the peer becomes
-// permanently unreachable. This test documents the current (buggy) behavior.
+/// Verifies that removing a bootstrap peer from the target set does not cancel its
+/// bootstrap-originated dial. This is the overlapping case: the bootstrap peer was temporarily
+/// in the target set and then removed.
 #[rstest::rstest]
 #[tokio::test]
-async fn set_target_peers_cancels_bootstrap_dial_when_bootstrap_peer_overlaps_with_targets(
+async fn set_target_peers_does_not_cancel_bootstrap_dial_even_when_peer_was_in_target_set(
     #[values(CONFIG_WITH_LARGE_HEARTBEAT_AND_SMALL_BOOTSTRAP_SLEEP)] config: DiscoveryConfig,
     bootstrap_peer_id: PeerId,
     bootstrap_peer_address: Multiaddr,
@@ -514,12 +512,14 @@ async fn set_target_peers_cancels_bootstrap_dial_when_bootstrap_peer_overlaps_wi
     behaviour.set_target_peers(HashSet::from([bootstrap_peer_id]));
     behaviour.set_target_peers(HashSet::new());
 
-    // Advance time well past the retry backoff.
-    tokio::time::pause();
-    tokio::time::advance(config.bootstrap_dial_retry_config.max_delay_seconds + TIMEOUT_EPSILON)
-        .await;
-    tokio::time::resume();
-
-    // THIS IS THE BUG: The bootstrap dial was cancelled — no re-dial occurs.
-    assert_no_event(&mut behaviour);
+    // Verify the bootstrap peer is still re-dialed after backoff.
+    let event = check_event_happens_after_given_duration(
+        &mut behaviour,
+        config.bootstrap_dial_retry_config.max_delay_seconds,
+    )
+    .await;
+    assert_matches!(
+        event,
+        ToSwarm::Dial { opts } if opts.get_peer_id() == Some(bootstrap_peer_id)
+    );
 }

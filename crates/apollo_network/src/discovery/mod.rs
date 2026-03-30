@@ -259,7 +259,9 @@ impl Behaviour {
     pub fn set_target_peers(&mut self, peers: std::collections::HashSet<PeerId>) {
         let removed_peers = self.kad_requesting.set_target_peers(peers);
         for peer_id in &removed_peers {
-            self.dialing.cancel_dial(peer_id);
+            if !self.boot_strapping.is_bootstrap_peer(peer_id) {
+                self.dialing.cancel_dial(peer_id);
+            }
         }
     }
 }
