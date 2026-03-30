@@ -36,6 +36,7 @@ use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_proof_manager_config::config::ProofManagerConfig;
 use apollo_reverts::RevertConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
+use apollo_signature_manager::config::SignatureManagerConfig;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
 use apollo_state_sync_config::config::{StateSyncConfig, StateSyncDynamicConfig};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
@@ -249,6 +250,7 @@ pub struct SequencerNodeConfig {
     pub proof_manager_config: Option<ProofManagerConfig>,
     #[validate(nested)]
     pub sierra_compiler_config: Option<SierraCompilationConfig>,
+    pub signature_manager_config: Option<SignatureManagerConfig>,
     #[validate(nested)]
     pub state_sync_config: Option<StateSyncConfig>,
 }
@@ -283,6 +285,7 @@ impl SerializeConfig for SequencerNodeConfig {
             ser_optional_sub_config(&self.l1_events_scraper_config, "l1_events_scraper_config"),
             ser_optional_sub_config(&self.proof_manager_config, "proof_manager_config"),
             ser_optional_sub_config(&self.sierra_compiler_config, "sierra_compiler_config"),
+            ser_optional_sub_config(&self.signature_manager_config, "signature_manager_config"),
             ser_optional_sub_config(&self.state_sync_config, "state_sync_config"),
         ];
 
@@ -314,6 +317,7 @@ impl Default for SequencerNodeConfig {
             monitoring_endpoint_config: Some(MonitoringEndpointConfig::default()),
             proof_manager_config: Some(ProofManagerConfig::default()),
             sierra_compiler_config: Some(SierraCompilationConfig::default()),
+            signature_manager_config: Some(SignatureManagerConfig::default()),
             state_sync_config: Some(StateSyncConfig::default()),
         }
     }
@@ -491,6 +495,10 @@ impl SequencerNodeConfig {
         validate_component_config_is_set_iff_running_locally!(
             sierra_compiler,
             sierra_compiler_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            signature_manager,
+            signature_manager_config
         );
         validate_component_config_is_set_iff_running_locally!(state_sync, state_sync_config);
 

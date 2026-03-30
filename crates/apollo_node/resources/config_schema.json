@@ -3184,6 +3184,16 @@
     "privacy": "Public",
     "value": 5368709120
   },
+  "signature_manager_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "signature_manager_config.key_source": {
+    "description": "Key source configuration for the signature manager. Use 'Testing' for development or 'GoogleSecretManager' with a secret_name for production.",
+    "privacy": "Public",
+    "value": "Testing"
+  },
   "starknet_url": {
     "description": "URL for communicating with Starknet.",
     "privacy": "TemporaryValue",
