@@ -1,6 +1,16 @@
+use std::collections::HashMap;
+
+use apollo_storage::state::StateStorageReader;
 use apollo_storage::StorageReader;
 use starknet_api::block::BlockNumber;
-use starknet_committer::block_committer::input::StateDiff;
+use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey, MAX_PATRICIA_FELT};
+use starknet_api::state::{StateNumber, StorageKey};
+use starknet_committer::block_committer::input::{
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
+};
+use starknet_committer::patricia_merkle_tree::types::CompiledClassHash as CommitterCompiledClassHash;
 use starknet_types_core::felt::Felt;
 
 #[cfg(test)]
@@ -49,7 +59,6 @@ fn compute_actual_end(start: Felt, last_key: Felt) -> Felt {
 ///   the last key returned.
 ///
 /// Panics if `limit` is 0.
-#[allow(dead_code)]
 fn shrink_to_actual_end<K: TreeKey, V>(
     mut entries: Vec<(K, V)>,
     start: K,
@@ -77,6 +86,9 @@ fn shrink_to_actual_end<K: TreeKey, V>(
 trait TreeKey: Copy + Into<Felt> + Send + Sync + 'static {
     type Context: Clone + Send + Sync + 'static;
 
+    /// Returns the inclusive maximum key value for this key type.
+    fn max_key() -> Self;
+
     /// Converts a `Felt` to the key type, assuming it is a valid key.
     fn from_felt(felt: Felt) -> Self;
 
@@ -96,9 +108,144 @@ trait TreeKey: Copy + Into<Felt> + Send + Sync + 'static {
 ///
 /// `start` and `end` are both inclusive. For a valid subtree the range must satisfy:
 /// `size = end - start + 1` is a power of two and `start % size == 0`.
-#[allow(dead_code)]
 struct TreeRequest<K: TreeKey> {
     context: K::Context,
     start: K,
     end: K,
+}
+
+impl TreeKey for StorageKey {
+    type Context = ContractAddress;
+
+    fn max_key() -> Self {
+        Self::from_felt(MAX_PATRICIA_FELT)
+    }
+
+    fn from_felt(felt: Felt) -> Self {
+        StorageKey(PatriciaKey::try_from(felt).expect("felt <= max_key() is a valid StorageKey"))
+    }
+
+    fn scan(
+        reader: &StorageReader,
+        request: &TreeRequest<Self>,
+        block_target: BlockNumber,
+        size_limit: usize,
+    ) -> (StateDiff, Felt) {
+        let txn = reader.begin_ro_txn().expect("Storage scan failed");
+        let state_reader = txn.get_state_reader().expect("Storage scan failed");
+        let raw_entries = state_reader
+            .scan_storage_keys_for_contract(
+                request.context,
+                request.start,
+                request.end,
+                block_target,
+                size_limit,
+            )
+            .expect("Storage scan failed");
+        let (entries, actual_end) =
+            shrink_to_actual_end(raw_entries, request.start, request.end, size_limit);
+        let storage_map = entries
+            .into_iter()
+            .map(|(key, value)| (StarknetStorageKey(key), StarknetStorageValue(value)))
+            .collect();
+        (
+            StateDiff {
+                storage_updates: HashMap::from([(request.context, storage_map)]),
+                ..Default::default()
+            },
+            actual_end,
+        )
+    }
+}
+
+impl TreeKey for ContractAddress {
+    type Context = ();
+
+    fn max_key() -> Self {
+        Self::from_felt(MAX_PATRICIA_FELT)
+    }
+
+    fn from_felt(felt: Felt) -> Self {
+        ContractAddress::try_from(felt).expect("felt <= max_key() is a valid ContractAddress")
+    }
+
+    /// Scans up to `size_limit / 2` contract-address-to-class-hash entries in
+    /// `[request.start, request.end]`, then fetches the nonce for each scanned address (assuming
+    /// every deployed contract has a nonce entry).
+    ///
+    /// Returns a `StateDiff` with `address_to_class_hash` and `address_to_nonce` populated, and
+    /// the inclusive actual end of the largest aligned Patricia subtree covered by the scan.
+    fn scan(
+        reader: &StorageReader,
+        request: &TreeRequest<Self>,
+        block_target: BlockNumber,
+        size_limit: usize,
+    ) -> (StateDiff, Felt) {
+        let txn = reader.begin_ro_txn().expect("Class hash scan failed");
+        let state_reader = txn.get_state_reader().expect("Class hash scan failed");
+        let raw_class_entries = state_reader
+            .scan_contract_class_hashes_in_range(
+                request.start,
+                request.end,
+                block_target,
+                size_limit / 2,
+            )
+            .expect("Class hash scan failed");
+        let (class_entries, actual_end) =
+            shrink_to_actual_end(raw_class_entries, request.start, request.end, size_limit / 2);
+
+        let state_number = StateNumber::unchecked_right_after_block(block_target);
+        let address_to_nonce = class_entries
+            .iter()
+            .map(|(addr, _)| {
+                let nonce = state_reader
+                    .get_nonce_at(state_number, addr)
+                    .expect("Nonce lookup failed")
+                    .unwrap_or_default();
+                (*addr, nonce)
+            })
+            .collect();
+
+        let address_to_class_hash = class_entries.into_iter().collect();
+        (StateDiff { address_to_class_hash, address_to_nonce, ..Default::default() }, actual_end)
+    }
+}
+
+impl TreeKey for ClassHash {
+    type Context = ();
+
+    fn max_key() -> Self {
+        ClassHash(Felt::MAX)
+    }
+
+    fn from_felt(felt: Felt) -> Self {
+        ClassHash(felt)
+    }
+
+    fn scan(
+        reader: &StorageReader,
+        request: &TreeRequest<Self>,
+        block_target: BlockNumber,
+        size_limit: usize,
+    ) -> (StateDiff, Felt) {
+        let txn = reader.begin_ro_txn().expect("Compiled class hash scan failed");
+        let state_reader = txn.get_state_reader().expect("Compiled class hash scan failed");
+        let raw_entries = state_reader
+            .scan_compiled_class_hashes_in_range(
+                request.start,
+                request.end,
+                block_target,
+                size_limit,
+            )
+            .expect("Compiled class hash scan failed");
+        let (entries, actual_end) =
+            shrink_to_actual_end(raw_entries, request.start, request.end, size_limit);
+        let class_hash_to_compiled_class_hash = entries
+            .into_iter()
+            .map(|(class_hash, compiled_class_hash)| {
+                (class_hash, CommitterCompiledClassHash(compiled_class_hash.0))
+            })
+            .collect();
+        (StateDiff { class_hash_to_compiled_class_hash, ..Default::default() }, actual_end)
+    }
 }
