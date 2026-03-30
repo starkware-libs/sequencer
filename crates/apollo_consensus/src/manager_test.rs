@@ -4,7 +4,7 @@ use std::vec;
 
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
-use apollo_config_manager_types::communication::MockConfigManagerClient;
+use apollo_config_manager_types::communication::MockConfigManagerChannelClient;
 use apollo_consensus_config::config::{
     ConsensusConfig,
     ConsensusDynamicConfig,
@@ -289,7 +289,7 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
         consensus_config,
         start_active_height: HEIGHT_1,
         quorum_type: QuorumType::Byzantine,
-        config_manager_client: None,
+        config_manager_channel_client: None,
         last_voted_height_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
         committee_provider,
     };
@@ -745,7 +745,7 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
         .times(1);
 
     // Dynamic client mock: H1 -> VALIDATOR_ID, H2 -> PROPOSER_ID (order is important)
-    let mut mock_client = MockConfigManagerClient::new();
+    let mut mock_client = MockConfigManagerChannelClient::new();
     let validator_config = consensus_config.dynamic_config.clone();
     let proposer_config =
         ConsensusDynamicConfig { validator_id: *PROPOSER_ID, ..validator_config.clone() };
@@ -769,7 +769,7 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
         start_active_height: HEIGHT_1,
         consensus_config,
         quorum_type: QuorumType::Byzantine,
-        config_manager_client: Some(Arc::new(mock_client)),
+        config_manager_channel_client: Some(Arc::new(mock_client)),
         last_voted_height_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
         committee_provider: Arc::new(committee_provider),
     };

@@ -23,7 +23,6 @@ impl ComponentRequestHandler<ClassManagerRequest, ClassManagerResponse> for Clas
             .0
             .config_manager_client
             .get_class_manager_dynamic_config()
-            .await
             .expect("Should be able to get class manager dynamic config");
         self.0.update_dynamic_config(dynamic_config);
 

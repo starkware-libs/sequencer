@@ -14,7 +14,6 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
         let dynamic_config = self
             .config_manager_client
             .get_batcher_dynamic_config()
-            .await
             .expect("Should be able to get batcher dynamic config");
         self.update_dynamic_config(dynamic_config);
 

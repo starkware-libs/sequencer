@@ -15,7 +15,7 @@ use apollo_compile_to_casm_types::{
     SharedSierraCompilerClient,
     SierraCompilerClientError,
 };
-use apollo_config_manager_types::communication::SharedConfigManagerClient;
+use apollo_config_manager_types::communication::SharedConfigManagerChannelClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_storage::storage_reader_server::{
     DynamicConfigError,
@@ -39,7 +39,7 @@ pub struct ClassManager<S: ClassStorage> {
     pub config: FsClassManagerConfig,
     pub compiler: SharedSierraCompilerClient,
     pub classes: CachedClassStorage<S>,
-    pub config_manager_client: SharedConfigManagerClient,
+    pub config_manager_client: SharedConfigManagerChannelClient,
 }
 
 impl<S> ClassManager<S>
@@ -51,7 +51,7 @@ where
         config: FsClassManagerConfig,
         compiler: SharedSierraCompilerClient,
         storage: S,
-        config_manager_client: SharedConfigManagerClient,
+        config_manager_client: SharedConfigManagerChannelClient,
     ) -> Self {
         let cached_class_storage_config =
             config.static_config.class_manager_config.cached_class_storage_config.clone();
@@ -190,7 +190,7 @@ where
 }
 
 struct ClassManagerDynamicConfigProvider {
-    config_manager_client: SharedConfigManagerClient,
+    config_manager_client: SharedConfigManagerChannelClient,
 }
 
 #[async_trait]
@@ -201,7 +201,6 @@ impl DynamicConfigProvider for ClassManagerDynamicConfigProvider {
         let config = self
             .config_manager_client
             .get_class_manager_dynamic_config()
-            .await
             .map_err(|e| DynamicConfigError(e.to_string()))?;
         Ok(config.storage_reader_server_dynamic_config)
     }
@@ -210,7 +209,7 @@ impl DynamicConfigProvider for ClassManagerDynamicConfigProvider {
 pub fn create_class_manager(
     config: FsClassManagerConfig,
     compiler_client: SharedSierraCompilerClient,
-    config_manager_client: SharedConfigManagerClient,
+    config_manager_client: SharedConfigManagerChannelClient,
 ) -> FsClassManager {
     let dynamic_config_provider: SharedDynamicConfigProvider =
         Arc::new(ClassManagerDynamicConfigProvider {

@@ -3,39 +3,22 @@ use std::fmt::Write;
 use std::sync::Arc;
 
 use apollo_batcher_config::config::{
-    BatcherConfig,
-    BatcherDynamicConfig,
-    FirstBlockWithPartialBlockHash,
+    BatcherConfig, BatcherDynamicConfig, FirstBlockWithPartialBlockHash,
 };
 use apollo_batcher_types::batcher_types::{
-    BatcherResult,
-    CentralObjects,
-    DecisionReachedInput,
-    DecisionReachedResponse,
-    FinishProposalInput,
-    FinishProposalStatus,
-    FinishedProposalInfo,
-    FinishedProposalInfoWithoutParent,
-    GetHeightResponse,
-    GetProposalContent,
-    GetProposalContentInput,
-    GetProposalContentResponse,
-    ProposalCommitment,
-    ProposalId,
-    ProposalStatus,
-    ProposeBlockInput,
-    RevertBlockInput,
-    SendTxsForProposalInput,
-    SendTxsForProposalStatus,
-    StartHeightInput,
-    ValidateBlockInput,
+    BatcherResult, CentralObjects, DecisionReachedInput, DecisionReachedResponse,
+    FinishProposalInput, FinishProposalStatus, FinishedProposalInfo,
+    FinishedProposalInfoWithoutParent, GetHeightResponse, GetProposalContent,
+    GetProposalContentInput, GetProposalContentResponse, ProposalCommitment, ProposalId,
+    ProposalStatus, ProposeBlockInput, RevertBlockInput, SendTxsForProposalInput,
+    SendTxsForProposalStatus, StartHeightInput, ValidateBlockInput,
 };
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_committer_types::committer_types::RevertBlockResponse;
 use apollo_committer_types::communication::SharedCommitterClient;
-use apollo_config_manager_types::communication::SharedConfigManagerClient;
-use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
+use apollo_config_manager_types::communication::SharedConfigManagerChannelClient;
+use apollo_infra::component_definitions::{ComponentStarter, default_component_start_fn};
 use apollo_l1_events_types::errors::{L1EventsProviderClientError, L1EventsProviderError};
 use apollo_l1_events_types::{SessionState, SharedL1EventsProviderClient};
 use apollo_mempool_types::communication::SharedMempoolClient;
@@ -46,33 +29,22 @@ use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
 use apollo_storage::global_root::{GlobalRootStorageReader, GlobalRootStorageWriter};
 use apollo_storage::global_root_marker::{
-    GlobalRootMarkerStorageReader,
-    GlobalRootMarkerStorageWriter,
+    GlobalRootMarkerStorageReader, GlobalRootMarkerStorageWriter,
 };
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::partial_block_hash::{
-    PartialBlockHashComponentsStorageReader,
-    PartialBlockHashComponentsStorageWriter,
+    PartialBlockHashComponentsStorageReader, PartialBlockHashComponentsStorageWriter,
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use apollo_storage::storage_reader_server::{
-    DynamicConfigError,
-    DynamicConfigProvider,
-    ServerConfig,
-    SharedDynamicConfigProvider,
+    DynamicConfigError, DynamicConfigProvider, ServerConfig, SharedDynamicConfigProvider,
     StorageReaderServerDynamicConfig,
 };
 use apollo_storage::storage_reader_types::{
-    GenericStorageReaderServerHandler,
-    StorageReaderRequest,
-    StorageReaderResponse,
+    GenericStorageReaderServerHandler, StorageReaderRequest, StorageReaderResponse,
 };
 use apollo_storage::{
-    open_storage_with_metric_and_server,
-    StorageError,
-    StorageReader,
-    StorageResult,
-    StorageWriter,
+    StorageError, StorageReader, StorageResult, StorageWriter, open_storage_with_metric_and_server,
 };
 use async_trait::async_trait;
 use blockifier::concurrency::worker_pool::WorkerPool;
@@ -83,8 +55,7 @@ use indexmap::{IndexMap, IndexSet};
 use mockall::automock;
 use starknet_api::block::{BlockHash, BlockNumber, UnixTimestamp};
 use starknet_api::block_hash::block_hash_calculator::{
-    PartialBlockHash,
-    PartialBlockHashComponents,
+    PartialBlockHash, PartialBlockHashComponents,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, GlobalRoot, Nonce, StateDiffCommitment};
@@ -92,59 +63,34 @@ use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::Mutex;
 use tokio::task::AbortHandle;
-use tracing::{debug, error, info, instrument, trace, Instrument};
+use tracing::{Instrument, debug, error, info, instrument, trace};
 
 use crate::block_builder::{
-    BlockBuilderError,
-    BlockBuilderExecutionParams,
-    BlockBuilderFactory,
-    BlockBuilderFactoryTrait,
-    BlockBuilderTrait,
-    BlockExecutionArtifacts,
-    BlockMetadata,
+    BlockBuilderError, BlockBuilderExecutionParams, BlockBuilderFactory, BlockBuilderFactoryTrait,
+    BlockBuilderTrait, BlockExecutionArtifacts, BlockMetadata,
 };
 use crate::cende_client_types::CendeBlockMetadata;
 use crate::commitment_manager::commitment_manager_impl::{
-    ApolloCommitmentManager,
-    CommitmentManager,
+    ApolloCommitmentManager, CommitmentManager,
 };
 use crate::commitment_manager::types::RevertTaskOutput;
 use crate::metrics::{
-    register_metrics,
-    ProposalMetricsHandle,
-    BATCHED_TRANSACTIONS,
-    BATCHER_L1_EVENTS_PROVIDER_ERRORS,
-    BUILDING_HEIGHT,
-    GLOBAL_ROOT_HEIGHT,
-    L2_GAS_IN_LAST_BLOCK,
-    LAST_BATCHED_BLOCK_HEIGHT,
-    LAST_PROPOSED_BLOCK_HEIGHT,
-    LAST_SYNCED_BLOCK_HEIGHT,
-    NUM_TRANSACTION_IN_BLOCK,
-    PROVING_GAS_IN_LAST_BLOCK,
-    REJECTED_TRANSACTIONS,
-    REVERTED_BLOCKS,
-    REVERTED_TRANSACTIONS,
-    SIERRA_GAS_IN_LAST_BLOCK,
-    SYNCED_TRANSACTIONS,
+    BATCHED_TRANSACTIONS, BATCHER_L1_EVENTS_PROVIDER_ERRORS, BUILDING_HEIGHT, GLOBAL_ROOT_HEIGHT,
+    L2_GAS_IN_LAST_BLOCK, LAST_BATCHED_BLOCK_HEIGHT, LAST_PROPOSED_BLOCK_HEIGHT,
+    LAST_SYNCED_BLOCK_HEIGHT, NUM_TRANSACTION_IN_BLOCK, PROVING_GAS_IN_LAST_BLOCK,
+    ProposalMetricsHandle, REJECTED_TRANSACTIONS, REVERTED_BLOCKS, REVERTED_TRANSACTIONS,
+    SIERRA_GAS_IN_LAST_BLOCK, SYNCED_TRANSACTIONS, register_metrics,
 };
 use crate::pre_confirmed_block_writer::{
-    PreconfirmedBlockWriterFactory,
-    PreconfirmedBlockWriterFactoryTrait,
+    PreconfirmedBlockWriterFactory, PreconfirmedBlockWriterFactoryTrait,
     PreconfirmedBlockWriterTrait,
 };
 use crate::pre_confirmed_cende_client::PreconfirmedCendeClientTrait;
 use crate::transaction_provider::{
-    ProposeTransactionProvider,
-    TxProviderPhase,
-    ValidateTransactionProvider,
+    ProposeTransactionProvider, TxProviderPhase, ValidateTransactionProvider,
 };
 use crate::utils::{
-    deadline_as_instant,
-    proposal_status_from,
-    verify_block_input,
-    ProposalResult,
-    ProposalTask,
+    ProposalResult, ProposalTask, deadline_as_instant, proposal_status_from, verify_block_input,
 };
 
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
@@ -158,7 +104,7 @@ pub struct Batcher {
     pub committer_client: SharedCommitterClient,
     pub l1_events_provider_client: SharedL1EventsProviderClient,
     pub mempool_client: Option<SharedMempoolClient>,
-    pub config_manager_client: SharedConfigManagerClient,
+    pub config_manager_client: SharedConfigManagerChannelClient,
 
     /// Used to create block builders.
     /// Using the factory pattern to allow for easier testing.
@@ -213,7 +159,7 @@ impl Batcher {
         committer_client: SharedCommitterClient,
         l1_events_provider_client: SharedL1EventsProviderClient,
         mempool_client: Option<SharedMempoolClient>,
-        config_manager_client: SharedConfigManagerClient,
+        config_manager_client: SharedConfigManagerChannelClient,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         commitment_manager: ApolloCommitmentManager,
@@ -1409,7 +1355,7 @@ fn log_txs_execution_result(
 }
 
 struct BatcherDynamicConfigProvider {
-    config_manager_client: SharedConfigManagerClient,
+    config_manager_client: SharedConfigManagerChannelClient,
 }
 
 #[async_trait]
@@ -1420,7 +1366,6 @@ impl DynamicConfigProvider for BatcherDynamicConfigProvider {
         let config = self
             .config_manager_client
             .get_batcher_dynamic_config()
-            .await
             .map_err(|e| DynamicConfigError(e.to_string()))?;
         Ok(config.storage_reader_server_dynamic_config)
     }
@@ -1435,7 +1380,7 @@ pub async fn create_batcher(
     class_manager_client: SharedClassManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
     proof_manager_client: SharedProofManagerClient,
-    config_manager_client: SharedConfigManagerClient,
+    config_manager_client: SharedConfigManagerChannelClient,
 ) -> Batcher {
     let storage_reader_server_config = ServerConfig {
         static_config: config.static_config.storage_reader_server_static_config.clone(),

@@ -8,7 +8,7 @@ use std::sync::Arc;
 use apollo_batcher_types::batcher_types::RevertBlockInput;
 use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_config_manager_types::communication::SharedConfigManagerClient;
+use apollo_config_manager_types::communication::SharedConfigManagerChannelClient;
 use apollo_consensus::storage::{get_voted_height_storage, HeightVotedStorageTrait};
 use apollo_consensus::stream_handler::StreamHandler;
 use apollo_consensus::votes_threshold::QuorumType;
@@ -90,7 +90,7 @@ pub struct ConsensusManager {
     pub class_manager_client: SharedClassManagerClient,
     pub proof_manager_client: SharedProofManagerClient,
     pub signature_manager_client: SharedSignatureManagerClient,
-    pub config_manager_client: SharedConfigManagerClient,
+    pub config_manager_channel_client: SharedConfigManagerChannelClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
     committee_provider: Arc<dyn CommitteeProvider>,
@@ -102,7 +102,7 @@ pub struct ConsensusManagerArgs {
     pub state_sync_client: SharedStateSyncClient,
     pub class_manager_client: SharedClassManagerClient,
     pub signature_manager_client: SharedSignatureManagerClient,
-    pub config_manager_client: SharedConfigManagerClient,
+    pub config_manager_channel_client: SharedConfigManagerChannelClient,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     pub proof_manager_client: SharedProofManagerClient,
     pub committee_provider: Arc<dyn CommitteeProvider>,
@@ -132,7 +132,7 @@ impl ConsensusManager {
             class_manager_client: args.class_manager_client,
             proof_manager_client: args.proof_manager_client,
             signature_manager_client: args.signature_manager_client,
-            config_manager_client: args.config_manager_client,
+            config_manager_channel_client: args.config_manager_channel_client,
             l1_gas_price_provider: args.l1_gas_price_provider,
             voted_height_storage,
             committee_provider: args.committee_provider,
@@ -162,7 +162,7 @@ impl ConsensusManager {
         let consensus_context = self.create_sequencer_consensus_context(
             &votes_broadcast_channels,
             outbound_internal_sender,
-            self.config_manager_client.clone(),
+            self.config_manager_channel_client.clone(),
         );
 
         let current_height =
@@ -283,7 +283,7 @@ impl ConsensusManager {
         &self,
         votes_broadcast_channels: &BroadcastTopicChannels<Vote>,
         outbound_internal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
-        config_manager_client: SharedConfigManagerClient,
+        config_manager_channel_client: SharedConfigManagerChannelClient,
     ) -> SequencerConsensusContext {
         SequencerConsensusContext::new(
             self.config.context_config.clone(),
@@ -303,7 +303,7 @@ impl ConsensusManager {
                 clock: Arc::new(DefaultClock),
                 outbound_proposal_sender: outbound_internal_sender,
                 vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
-                config_manager_client: Some(Arc::clone(&config_manager_client)),
+                config_manager_channel_client: Some(Arc::clone(&config_manager_channel_client)),
             },
         )
     }
@@ -323,7 +323,7 @@ impl ConsensusManager {
             consensus_config: self.config.consensus_manager_config.clone(),
             start_active_height: observer_height,
             quorum_type,
-            config_manager_client: Some(Arc::clone(&self.config_manager_client)),
+            config_manager_channel_client: Some(Arc::clone(&self.config_manager_channel_client)),
             last_voted_height_storage: self.voted_height_storage.clone(),
             committee_provider: Arc::clone(&self.committee_provider),
         }
@@ -374,7 +374,7 @@ pub fn create_committee_provider(
     config: &ConsensusManagerConfig,
     batcher_client: SharedBatcherClient,
     state_sync_client: SharedStateSyncClient,
-    config_manager_client: SharedConfigManagerClient,
+    config_manager_channel_client: SharedConfigManagerChannelClient,
 ) -> Arc<dyn CommitteeProvider> {
     let staking_manager_config = config.staking_manager_config.clone();
     // TODO(Asmaa/Dafna): Create StakingContract according to config.
@@ -388,7 +388,7 @@ pub fn create_committee_provider(
         state_sync_client,
         Arc::new(BlockPseudorandomGeneratorFactory),
         staking_manager_config,
-        Some(config_manager_client),
+        Some(config_manager_channel_client),
     );
     Arc::new(staking_manager)
 }
@@ -401,7 +401,7 @@ pub fn create_consensus_manager(
     class_manager_client: SharedClassManagerClient,
     proof_manager_client: SharedProofManagerClient,
     signature_manager_client: SharedSignatureManagerClient,
-    config_manager_client: SharedConfigManagerClient,
+    config_manager_channel_client: SharedConfigManagerChannelClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     committee_provider: Arc<dyn CommitteeProvider>,
 ) -> ConsensusManager {
@@ -412,7 +412,7 @@ pub fn create_consensus_manager(
         class_manager_client,
         proof_manager_client,
         signature_manager_client,
-        config_manager_client,
+        config_manager_channel_client,
         l1_gas_price_provider,
         committee_provider,
     })
