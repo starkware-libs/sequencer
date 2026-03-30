@@ -820,6 +820,11 @@ pub enum StorageError {
     FlatStateIncompatibleWithFullArchive,
     #[error("flat_state was previously enabled and cannot be disabled. Re-sync required.")]
     FlatStateToggleNotSupported,
+    #[error(
+        "Phase 2 requires fresh sync: flat state was enabled on an existing node (state marker \
+         {state_marker} > changeset marker {changeset_marker})."
+    )]
+    FlatStateRequiresFreshSync { state_marker: BlockNumber, changeset_marker: BlockNumber },
 }
 
 /// A type alias that maps to std::result::Result<T, StorageError>.
@@ -907,6 +912,8 @@ pub enum MarkerKind {
     GlobalRoot,
     /// Marks that flat state was enabled (presence means enabled, value is ignored).
     FlatState,
+    /// Marks the next block that hasn't had changeset pre-images written yet (forward bound).
+    Changeset,
 }
 
 pub(crate) type MarkersTable<'env> =

@@ -70,6 +70,59 @@ impl<T: StorageSerde + Debug> ValueSerde for NoVersionValueWrapper<T> {
     }
 }
 
+/// Wraps a changeset pre-image with presence semantics.
+/// `None` = key did not exist before this block (delete on revert).
+/// `Some(value)` = key existed with this value (upsert on revert).
+/// Serialized as: 0x00 for None, 0x01 + serialized_value for Some.
+#[derive(Clone, Debug)]
+#[allow(dead_code)]
+pub(crate) struct ChangesetValueWrapper<T: ValueSerde> {
+    _value_type: PhantomData<T>,
+}
+
+// Used by ChangesetValueWrapper serialization; will be exercised once changeset tables are added.
+#[allow(dead_code)]
+const CHANGESET_ABSENT: u8 = 0x00;
+#[allow(dead_code)]
+const CHANGESET_PRESENT: u8 = 0x01;
+
+impl<T: ValueSerde> ValueSerde for ChangesetValueWrapper<T>
+where
+    T::Value: Debug,
+{
+    type Value = Option<T::Value>;
+
+    fn serialize(val: &Self::Value) -> Result<Vec<u8>, DbError> {
+        match val {
+            None => Ok(vec![CHANGESET_ABSENT]),
+            Some(inner) => {
+                let mut bytes = vec![CHANGESET_PRESENT];
+                let inner_bytes = T::serialize(inner)?;
+                bytes.extend(inner_bytes);
+                Ok(bytes)
+            }
+        }
+    }
+
+    fn deserialize(bytes: &mut impl std::io::Read) -> Option<Self::Value> {
+        let mut prefix = [0u8; 1];
+        bytes.read_exact(&mut prefix).ok()?;
+        match prefix[0] {
+            CHANGESET_ABSENT => {
+                if !is_all_bytes_read(bytes) {
+                    return None;
+                }
+                Some(None)
+            }
+            CHANGESET_PRESENT => {
+                let inner = T::deserialize(bytes)?;
+                Some(Some(inner))
+            }
+            _ => None,
+        }
+    }
+}
+
 // TODO(Eitan): Implement this wrapper struct as VersionWrapper with version 0.
 #[derive(Clone, Debug)]
 /// A generic wrapper for values with version zero. These values are serialized with a leading byte

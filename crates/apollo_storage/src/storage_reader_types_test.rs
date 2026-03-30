@@ -421,6 +421,7 @@ async fn markers_request() {
             txn.get_compiler_backward_compatibility_marker().unwrap(),
         ),
         (MarkerKind::GlobalRoot, txn.get_global_root_marker().unwrap()),
+        (MarkerKind::Changeset, txn.get_changeset_marker().unwrap()),
     ];
 
     for (marker_kind, expected_marker) in marker_tests {
