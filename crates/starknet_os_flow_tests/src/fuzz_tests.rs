@@ -1179,7 +1179,7 @@ impl FuzzTestManager {
         initial_state.context.get_all_operation_tails(max_length, filter)
     }
 
-    #[allow(unused)]
+    #[expect(unused)]
     pub fn prettify_operations(&self) -> String {
         self.context.prettify_operations()
     }

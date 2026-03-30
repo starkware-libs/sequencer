@@ -796,7 +796,7 @@ async fn manager_successfully_syncs_when_higher_than_last_voted_height(
     const CURRENT_HEIGHT: BlockNumber = BlockNumber(LAST_VOTED_HEIGHT.0 + 1);
 
     let TestSubscriberChannels {
-        #[allow(unused)]
+        #[expect(unused)]
         // We need this to stay alive so that the network wont be automatically closed.
         mock_network,
         subscriber_channels,
