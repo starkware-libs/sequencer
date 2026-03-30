@@ -44,7 +44,7 @@ pub enum EventStateManagerToEngine {
 struct ReconstructionOutput {
     message: Vec<u8>,
     my_shards: ShardsOfPeer,
-    my_shard_proof: MerkleProof,
+    my_unit_proof: MerkleProof,
 }
 
 enum AddUnitAction {
@@ -333,10 +333,14 @@ impl MessageProcessor {
         // finalization occurs.
         tokio::task::spawn_blocking(move || {
             reconstruct_data_shards(units, message_root, my_index, data_count, coding_count).map(
+<<<<<<< HEAD
                 |(message, my_shards, my_shard_proof)| ReconstructionOutput {
+=======
+                |(message, my_shards, my_unit_proof)| ReconstructionOutput {
+>>>>>>> 72958519cc (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
                     message,
                     my_shards,
-                    my_shard_proof,
+                    my_unit_proof,
                 },
             )
         })
@@ -350,7 +354,7 @@ impl MessageProcessor {
         unit_count: usize,
         state: &mut ReconstructionState,
     ) -> ControlFlow<()> {
-        let ReconstructionOutput { message, my_shards, my_shard_proof } = output;
+        let ReconstructionOutput { message, my_shards, my_unit_proof } = output;
 
         let should_broadcast = !state.did_broadcast_my_unit();
         if should_broadcast {
@@ -370,7 +374,7 @@ impl MessageProcessor {
                 signature,
                 self.my_unit_index,
                 my_shards,
-                my_shard_proof,
+                my_unit_proof,
                 nonce,
             );
             self.broadcast_unit(&reconstructed_unit);
