@@ -1788,6 +1788,7 @@ dependencies = [
  "mockall",
  "papyrus_base_layer",
  "pretty_assertions",
+ "reqwest 0.12.24",
  "rstest",
  "serde",
  "serde_json",
