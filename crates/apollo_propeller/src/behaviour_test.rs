@@ -250,3 +250,68 @@ async fn test_broadcast_and_receive(#[case] num_nodes: usize, #[values(0, 1, 2)]
     }
     unreachable!();
 }
+
+/// Minimal test that reproduces the shard counting bug in PostReconstruction phase.
+///
+/// This test creates a 5-node network where:
+/// 1. Node receives its first shard and starts reconstruction immediately (since should_build(1) =
+///    true)
+/// 2. After reconstruction, it needs more shards to reach access threshold (should_receive(2) =
+///    true for 5+ nodes)
+/// 3. Additional shards arrive via gossip
+/// 4. Node should emit MessageReceived event (this failed before the fix)
+#[tokio::test]
+async fn test_post_reconstruction_shard_counting() {
+    // Setup: 5 nodes (1 publisher + 4 recipients)
+    let config = Config::default();
+    let mut env = TestEnv::new(5, config);
+    env.connect_all();
+    let committee_id = env.register_committee().await;
+
+    let peer_ids = env.peer_ids();
+    let publisher_id = peer_ids[0];
+    let recipient_id = peer_ids[1]; // The node we're testing
+
+    // Publisher broadcasts a message
+    let message = vec![42u8; 1024];
+    env.node_mut(publisher_id)
+        .behaviour
+        .broadcast(committee_id, message.clone())
+        .await
+        .unwrap()
+        .unwrap();
+
+    // Collect initial broadcast from publisher (4 shards to 4 recipients)
+    let mut initial_shards = HashMap::new();
+    for _ in 0..4 {
+        let (peer, unit) = env.node_mut(publisher_id).expect_send_unit().await;
+        initial_shards.insert(peer, unit);
+    }
+
+    // Recipient receives its assigned shard (index 0) from publisher
+    // This triggers immediate reconstruction since should_build(1) = true
+    let recipient_shard = initial_shards.get(&recipient_id).unwrap().clone();
+    env.node_mut(recipient_id).receive_unit(publisher_id, recipient_shard.clone());
+
+    // Recipient gossips its shard to other recipients
+    for _ in 0..3 {
+        let (_peer, _unit) = env.node_mut(recipient_id).expect_send_unit().await;
+    }
+
+    // Now recipient receives one additional shard from another recipient.
+    // This is the critical moment: before the fix, the additional_shards counter was not
+    // incremented.
+    // The sender must be the designated broadcaster for the shard (validate_origin checks this),
+    // so we pick a shard that was sent to a peer other than recipient_id and deliver it from
+    // that peer.
+    let (&another_recipient_id, another_shard) =
+        initial_shards.iter().find(|(&peer, _)| peer != recipient_id).unwrap();
+    let another_shard = another_shard.clone();
+    env.node_mut(recipient_id).receive_unit(another_recipient_id, another_shard);
+
+    // After receiving 2 shards total (1 at reconstruction + 1 additional),
+    // should_receive(2) = true, so the node should emit MessageReceived
+    let (recv_publisher, recv_message) = env.node_mut(recipient_id).expect_message_received().await;
+    assert_eq!(recv_publisher, publisher_id);
+    assert_eq!(recv_message, message);
+}
