@@ -7,7 +7,7 @@ use apollo_state_sync_types::communication::SharedStateSyncClient;
 use indexmap::IndexSet;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
-use tracing::debug;
+use tracing::{debug, warn};
 
 // When the Provider gets a commit_block that is too high, it starts catching up.
 // The commit is rejected by the provider, so it must use sync to catch up to the height of the
@@ -166,14 +166,18 @@ async fn l2_sync_task(
                 // No rejected txs in sync blocks.
                 let l1_handler_rejected_tx_hashes = Default::default();
 
-                l1_events_provider_client
+                let result = l1_events_provider_client
                     .commit_block(
                         block.l1_transaction_hashes.into_iter().collect(),
                         l1_handler_rejected_tx_hashes,
                         current_height,
                     )
-                    .await
-                    .unwrap();
+                    .await;
+                if let Err(err) = result {
+                    warn!(?err, "Failed to commit block to L1 events provider.");
+                    tokio::time::sleep(retry_interval).await;
+                    continue; // Retry the sync task.
+                }
                 current_height = current_height.unchecked_next();
             }
             _ => tokio::time::sleep(retry_interval).await,
