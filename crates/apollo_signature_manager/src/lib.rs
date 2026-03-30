@@ -5,42 +5,55 @@ pub mod config;
 pub mod metrics;
 pub mod signature_manager;
 
-use std::ops::Deref;
-
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_network_types::network_types::PeerId;
+use apollo_signature_manager_types::SignatureManagerResult;
 use async_trait::async_trait;
+use starknet_api::block::BlockHash;
+use starknet_api::crypto::utils::{Challenge, RawSignature};
 
+use crate::config::{KeySourceConfig, SignatureManagerConfig};
 use crate::signature_manager::{GenericSignatureManager, LocalKeyStore};
 
 #[derive(Clone, Debug)]
-pub struct LocalKeyStoreSignatureManager(pub GenericSignatureManager<LocalKeyStore>);
+pub enum SignatureManager {
+    Local(GenericSignatureManager<LocalKeyStore>),
+}
 
-impl LocalKeyStoreSignatureManager {
-    pub fn new() -> Self {
-        Self(GenericSignatureManager::new(LocalKeyStore::new_for_testing()))
+impl SignatureManager {
+    pub async fn sign_identification(
+        &self,
+        peer_id: PeerId,
+        challenge: Challenge,
+    ) -> SignatureManagerResult<RawSignature> {
+        match self {
+            Self::Local(sm) => sm.sign_identification(peer_id, challenge).await,
+        }
+    }
+
+    pub async fn sign_precommit_vote(
+        &self,
+        block_hash: BlockHash,
+    ) -> SignatureManagerResult<RawSignature> {
+        match self {
+            Self::Local(sm) => sm.sign_precommit_vote(block_hash).await,
+        }
     }
 }
 
-impl Default for LocalKeyStoreSignatureManager {
-    fn default() -> Self {
-        Self::new()
+/// Creates a `SignatureManager` configured according to `config`.
+pub async fn create_signature_manager(config: &SignatureManagerConfig) -> SignatureManager {
+    match &config.key_source {
+        KeySourceConfig::Testing => {
+            SignatureManager::Local(GenericSignatureManager::new(LocalKeyStore::new_for_testing()))
+        }
+        KeySourceConfig::GoogleSecretManager { .. } => {
+            panic!(
+                "KeySourceConfig::GoogleSecretManager requires the 'gsm' feature flag to be \
+                 enabled when building apollo_signature_manager"
+            )
+        }
     }
-}
-
-impl Deref for LocalKeyStoreSignatureManager {
-    type Target = GenericSignatureManager<LocalKeyStore>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-pub use LocalKeyStoreSignatureManager as SignatureManager;
-
-// TODO(Elin): understand how key store would look in production and better define the way the
-// signature manager is created.
-pub fn create_signature_manager() -> SignatureManager {
-    SignatureManager::new()
 }
 
 #[async_trait]
