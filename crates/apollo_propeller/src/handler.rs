@@ -26,10 +26,10 @@ use crate::protocol::{PropellerCodec, PropellerProtocol};
 use crate::PropellerUnit;
 
 /// Events that the handler can send to the behaviour.
+///
+/// Units are delivered directly to the engine via the bounded channel (not through the behaviour).
 #[derive(Debug)]
 pub enum HandlerOut {
-    /// A unit was received from the remote peer.
-    Unit(PropellerUnit),
     /// An error occurred while sending a message.
     SendError(String),
 }

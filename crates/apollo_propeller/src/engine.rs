@@ -479,7 +479,6 @@ impl Engine {
                         self.prepare_units(committee_id, message, response_tx);
                     }
                     EngineCommand::HandleHandlerOutput { peer_id, output } => match output {
-                        HandlerOut::Unit(unit) => self.handle_unit(peer_id, unit),
                         HandlerOut::SendError(error) => self.handle_send_error(peer_id, error),
                     },
                     EngineCommand::HandleConnected { peer_id } => self.handle_connected(peer_id),
