@@ -74,11 +74,19 @@ pub fn reconstruct_data_shards(
         return Err(ReconstructionError::MismatchedMessageRoot);
     }
 
+<<<<<<< HEAD
     let total_shards = all_shards.len();
     if my_unit_index >= total_shards {
         return Err(ReconstructionError::ErasureReconstructionFailed(format!(
             "my_unit_index {} is out of bounds (total shards: {})",
             my_unit_index, total_shards
+=======
+    let total_units = all_shards.len();
+    if my_unit_index >= total_units {
+        return Err(ReconstructionError::ErasureReconstructionFailed(format!(
+            "my_unit_index {} is out of bounds (total units: {})",
+            my_unit_index, total_units
+>>>>>>> ec3689a94a (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
         )));
     }
 
