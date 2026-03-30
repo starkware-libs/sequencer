@@ -93,11 +93,19 @@ impl ReconstructionState {
 >>>>>>> 0619ce9469 (apollo_propeller: fix engine.rs comments to use 'unit' instead of 'shard' when referring to PropellerUnit)
         tree_manager: &PropellerScheduleManager,
     ) -> AddUnitAction {
+<<<<<<< HEAD
         let is_my_shard = unit.index() == my_unit_index;
 
         match self {
             Self::PreConstruction { received_units, did_broadcast_my_unit, verified_fields } => {
                 if is_my_shard {
+=======
+        let is_my_unit = unit.index() == my_unit_index;
+
+        match self {
+            Self::PreConstruction { received_units, did_broadcast_my_unit, verified_fields } => {
+                if is_my_unit {
+>>>>>>> a52d5e050a (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
                     *did_broadcast_my_unit = true;
                 }
                 if verified_fields.is_none() {
@@ -116,7 +124,11 @@ impl ReconstructionState {
             // During reconstruction we broadcast our unit, so receiving it back from the
             // network should not inflate the count.
             Self::PostConstruction { num_held_units, .. } => {
+<<<<<<< HEAD
                 if !is_my_shard {
+=======
+                if !is_my_unit {
+>>>>>>> a52d5e050a (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
                     *num_held_units += 1;
                 }
                 self.maybe_emit(tree_manager)
