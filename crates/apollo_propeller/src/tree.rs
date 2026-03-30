@@ -235,16 +235,27 @@ impl PropellerScheduleManager {
             .binary_search_by_key(&publisher, |(peer_id, _)| peer_id)
             .map_err(|_| ScheduleError::PublisherNotInCommittee { publisher: *publisher })?;
 
+<<<<<<< HEAD
         let unit_id = if self.local_peer_index < publisher_index {
+=======
+        let unit_index = if self.local_peer_index < publisher_index {
+>>>>>>> be2415b786 (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
             self.local_peer_index
         } else {
             self.local_peer_index - 1
         };
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         Ok(UnitIndex(shard_id.try_into().unwrap()))
 =======
         Ok(UnitIndex(unit_id.try_into().unwrap()))
 >>>>>>> 5665821e73 (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
+=======
+        Ok(UnitIndex(unit_id.try_into().unwrap()))
+=======
+        Ok(UnitIndex(unit_index.try_into().unwrap()))
+>>>>>>> be2415b786 (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
+>>>>>>> fc0f890da4 (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
     }
 }
