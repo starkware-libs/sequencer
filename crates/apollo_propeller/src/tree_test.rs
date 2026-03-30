@@ -205,7 +205,7 @@ fn test_validate_origin_failures(
 }
 
 #[test]
-fn test_get_my_shard_index_given_publisher() {
+fn test_get_my_unit_index_given_publisher() {
     let mut peers: Vec<_> = (0..4).map(get_peer_id).collect();
     peers.sort();
     let (peer0, peer1, peer2, peer3) = (peers[0], peers[1], peers[2], peers[3]);
@@ -220,6 +220,7 @@ fn test_get_my_shard_index_given_publisher() {
     )
     .unwrap();
     // When peer0 is publisher, peer2 is at sorted position 2, so shard index is 1
+<<<<<<< HEAD
     assert_eq!(manager.get_my_shard_index_given_publisher(&peer0).unwrap(), UnitIndex(1));
 
     // When peer1 is publisher, peer2 is at sorted position 2, so shard index is 1
@@ -227,17 +228,26 @@ fn test_get_my_shard_index_given_publisher() {
 
     // When peer3 is publisher, peer2 is at sorted position 2, so shard index is 2
     assert_eq!(manager.get_my_shard_index_given_publisher(&peer3).unwrap(), UnitIndex(2));
+=======
+    assert_eq!(manager.get_my_unit_index_given_publisher(&peer0).unwrap(), UnitIndex(1));
+
+    // When peer1 is publisher, peer2 is at sorted position 2, so shard index is 1
+    assert_eq!(manager.get_my_unit_index_given_publisher(&peer1).unwrap(), UnitIndex(1));
+
+    // When peer3 is publisher, peer2 is at sorted position 2, so shard index is 2
+    assert_eq!(manager.get_my_unit_index_given_publisher(&peer3).unwrap(), UnitIndex(2));
+>>>>>>> 5003666c69 (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
 
     // When local peer (peer2) is publisher, should return error
     assert!(matches!(
-        manager.get_my_shard_index_given_publisher(&peer2),
+        manager.get_my_unit_index_given_publisher(&peer2),
         Err(ScheduleError::LocalPeerIsPublisher)
     ));
 
     // When publisher is not in committee, should return error
     let unknown_peer = get_peer_id(99);
     assert!(matches!(
-        manager.get_my_shard_index_given_publisher(&unknown_peer),
+        manager.get_my_unit_index_given_publisher(&unknown_peer),
         Err(ScheduleError::PublisherNotInCommittee { .. })
     ));
 }

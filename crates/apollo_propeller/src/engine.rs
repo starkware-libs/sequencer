@@ -286,7 +286,11 @@ impl Engine {
                 return;
             };
             let my_unit_index_result =
+<<<<<<< HEAD
                 schedule_manager.get_my_shard_index_given_publisher(&claimed_publisher);
+=======
+                schedule_manager.get_my_unit_index_given_publisher(&claimed_publisher);
+>>>>>>> 5003666c69 (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
             let Ok(my_unit_index) = my_unit_index_result else {
                 warn!(
                     ?claimed_publisher,
