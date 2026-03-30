@@ -259,6 +259,14 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
             });
         }
 
+        let changeset_pruned_marker = self.get_changeset_pruned_marker()?;
+        if block_number < changeset_pruned_marker {
+            return Err(StorageError::RevertBeyondChangesetHistory {
+                block_number,
+                oldest_changeset: changeset_pruned_marker,
+            });
+        }
+
         let changeset_deployed_table =
             self.open_table(&self.tables.changeset_deployed_contracts)?;
         let changeset_nonces_table = self.open_table(&self.tables.changeset_nonces)?;

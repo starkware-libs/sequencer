@@ -2272,3 +2272,51 @@ fn pruning_requires_flat_state() {
         Ok(_) => panic!("Expected PruningRequiresFlatState error, got Ok"),
     }
 }
+
+#[test]
+fn get_reversed_state_diff_from_changeset_errors_on_pruned_block() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    // Write 3 blocks with some state.
+    let address = contract_address!("0x1");
+    let key = storage_key!("0x10");
+    for block in 0u64..3 {
+        let diff = ThinStateDiff {
+            storage_diffs: indexmap! {
+                address => indexmap! {
+                    key => Felt::from(block + 1),
+                },
+            },
+            ..Default::default()
+        };
+        writer
+            .begin_rw_txn()
+            .unwrap()
+            .append_state_diff(BlockNumber(block), diff)
+            .unwrap()
+            .commit()
+            .unwrap();
+    }
+
+    // Manually advance the ChangesetPruned marker to simulate pruning of blocks 0 and 1.
+    {
+        let txn = writer.begin_rw_txn().unwrap();
+        let markers_table = txn.open_table(&txn.tables.markers).unwrap();
+        markers_table.upsert(&txn.txn, &MarkerKind::ChangesetPruned, &BlockNumber(2)).unwrap();
+        txn.commit().unwrap();
+    }
+
+    let txn = reader.begin_ro_txn().unwrap();
+
+    // Requesting a pruned block should error.
+    let result = txn.get_reversed_state_diff_from_changeset(BlockNumber(0));
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("changeset history pruned"));
+
+    let result = txn.get_reversed_state_diff_from_changeset(BlockNumber(1));
+    assert!(result.is_err());
+
+    // Requesting a non-pruned block should succeed.
+    let result = txn.get_reversed_state_diff_from_changeset(BlockNumber(2));
+    assert!(result.is_ok());
+}
