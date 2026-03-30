@@ -126,28 +126,24 @@ pub(crate) type FlatCompiledClassHashTable<'env> =
     TableHandle<'env, ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>;
 
 // Changeset table types (store pre-images before each block's changes).
-#[allow(dead_code)]
 pub(crate) type ChangesetContractStorageTable<'env> = TableHandle<
     'env,
     ((BlockNumber, ContractAddress), StorageKey),
     ChangesetValueWrapper<NoVersionValueWrapper<Felt>>,
     CommonPrefix,
 >;
-#[allow(dead_code)]
 pub(crate) type ChangesetNoncesTable<'env> = TableHandle<
     'env,
     (BlockNumber, ContractAddress),
     ChangesetValueWrapper<NoVersionValueWrapper<Nonce>>,
     CommonPrefix,
 >;
-#[allow(dead_code)]
 pub(crate) type ChangesetDeployedContractsTable<'env> = TableHandle<
     'env,
     (BlockNumber, ContractAddress),
     ChangesetValueWrapper<NoVersionValueWrapper<ClassHash>>,
     CommonPrefix,
 >;
-#[allow(dead_code)]
 pub(crate) type ChangesetCompiledClassHashTable<'env> = TableHandle<
     'env,
     (BlockNumber, ClassHash),
@@ -711,6 +707,13 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         let flat_storage_table = self.open_table(&self.tables.flat_contract_storage)?;
         let flat_compiled_table = self.open_table(&self.tables.flat_compiled_class_hash)?;
 
+        let changeset_deployed_table =
+            self.open_table(&self.tables.changeset_deployed_contracts)?;
+        let changeset_nonces_table = self.open_table(&self.tables.changeset_nonces)?;
+        let changeset_storage_table = self.open_table(&self.tables.changeset_contract_storage)?;
+        let changeset_compiled_table =
+            self.open_table(&self.tables.changeset_compiled_class_hash)?;
+
         // Write state.
         write_deployed_contracts(
             &thin_state_diff.deployed_contracts,
@@ -721,6 +724,8 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             self.flat_state,
             &flat_deployed_table,
             &flat_nonces_table,
+            &changeset_deployed_table,
+            &changeset_nonces_table,
         )?;
         write_storage_diffs(
             &thin_state_diff.storage_diffs,
@@ -729,6 +734,7 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             &storage_table,
             self.flat_state,
             &flat_storage_table,
+            &changeset_storage_table,
         )?;
         // Must be called after write_deployed_contracts since the nonces are updated there.
         write_nonces(
@@ -738,6 +744,7 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             &nonces_table,
             self.flat_state,
             &flat_nonces_table,
+            &changeset_nonces_table,
         )?;
 
         for (class_hash, _) in &thin_state_diff.class_hash_to_compiled_class_hash {
@@ -754,6 +761,7 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             &compiled_class_hash_table,
             self.flat_state,
             &flat_compiled_table,
+            &changeset_compiled_table,
         )?;
 
         for class_hash in thin_state_diff.deprecated_declared_classes.iter() {
@@ -776,6 +784,15 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         // Mark flat state as enabled (for toggle detection on restart).
         if self.flat_state && markers_table.get(&self.txn, &MarkerKind::FlatState)?.is_none() {
             markers_table.upsert(&self.txn, &MarkerKind::FlatState, &BlockNumber(1))?;
+        }
+
+        if self.flat_state {
+            update_marker_to_next_block(
+                &self.txn,
+                &markers_table,
+                MarkerKind::Changeset,
+                block_number,
+            )?;
         }
 
         update_marker_to_next_block(&self.txn, &markers_table, MarkerKind::State, block_number)?;
@@ -1060,8 +1077,28 @@ fn write_deployed_contracts<'env>(
     flat_state: bool,
     flat_deployed_table: &'env FlatDeployedContractsTable<'env>,
     flat_nonces_table: &'env FlatNoncesTable<'env>,
+    changeset_deployed_table: &'env ChangesetDeployedContractsTable<'env>,
+    changeset_nonces_table: &'env ChangesetNoncesTable<'env>,
 ) -> StorageResult<()> {
     for (address, class_hash) in deployed_contracts {
+        if flat_state {
+            // Capture deployed contract pre-image before writing.
+            let prior_class_hash = {
+                let db_key = (*address, block_number);
+                let mut cursor = deployed_contracts_table.cursor(txn)?;
+                cursor.lower_bound(&db_key)?;
+                match cursor.prev()? {
+                    Some(((got_address, _), hash)) if got_address == *address => Some(hash),
+                    _ => None,
+                }
+            };
+            changeset_deployed_table.upsert(txn, &(block_number, *address), &prior_class_hash)?;
+
+            // Capture nonce pre-image BEFORE implicit nonce initialization.
+            let prior_nonce = get_nonce_at(block_number, address, txn, nonces_table)?;
+            changeset_nonces_table.upsert(txn, &(block_number, *address), &prior_nonce)?;
+        }
+
         deployed_contracts_table.insert(txn, &(*address, block_number), class_hash)?;
         if flat_state {
             flat_deployed_table.upsert(txn, address, class_hash)?;
@@ -1092,8 +1129,21 @@ fn write_nonces<'env>(
     contracts_table: &'env NoncesTable<'env>,
     flat_state: bool,
     flat_nonces_table: &'env FlatNoncesTable<'env>,
+    changeset_nonces_table: &'env ChangesetNoncesTable<'env>,
 ) -> StorageResult<()> {
     for (contract_address, nonce) in nonces {
+        if flat_state {
+            // Only write changeset if not already captured by write_deployed_contracts.
+            if changeset_nonces_table.get(txn, &(block_number, *contract_address))?.is_none() {
+                let prior_nonce =
+                    get_nonce_at(block_number, contract_address, txn, contracts_table)?;
+                changeset_nonces_table.upsert(
+                    txn,
+                    &(block_number, *contract_address),
+                    &prior_nonce,
+                )?;
+            }
+        }
         contracts_table.upsert(txn, &(*contract_address, block_number), nonce)?;
         if flat_state {
             flat_nonces_table.upsert(txn, contract_address, nonce)?;
@@ -1110,8 +1160,18 @@ fn write_compiled_class_hashes<'env>(
     compiled_class_hash_table: &'env CompiledClassHashTable<'env>,
     flat_state: bool,
     flat_compiled_table: &'env FlatCompiledClassHashTable<'env>,
+    changeset_compiled_table: &'env ChangesetCompiledClassHashTable<'env>,
 ) -> StorageResult<()> {
     for (class_hash, compiled_class_hash) in compiled_class_hashes {
+        if flat_state {
+            let prior_compiled = get_compiled_class_hash_at(
+                block_number,
+                class_hash,
+                txn,
+                compiled_class_hash_table,
+            )?;
+            changeset_compiled_table.upsert(txn, &(block_number, *class_hash), &prior_compiled)?;
+        }
         compiled_class_hash_table.insert(txn, &(*class_hash, block_number), compiled_class_hash)?;
         if flat_state {
             flat_compiled_table.upsert(txn, class_hash, compiled_class_hash)?;
@@ -1128,9 +1188,30 @@ fn write_storage_diffs<'env>(
     storage_table: &'env ContractStorageTable<'env>,
     flat_state: bool,
     flat_storage_table: &'env FlatContractStorageTable<'env>,
+    changeset_storage_table: &'env ChangesetContractStorageTable<'env>,
 ) -> StorageResult<()> {
     for (address, storage_entries) in storage_diffs {
         for (key, value) in storage_entries {
+            if flat_state {
+                let prior_value = {
+                    let db_key = ((*address, *key), block_number);
+                    let mut cursor = storage_table.cursor(txn)?;
+                    cursor.lower_bound(&db_key)?;
+                    match cursor.prev()? {
+                        Some((((got_addr, got_key), _), val))
+                            if got_addr == *address && got_key == *key =>
+                        {
+                            Some(val)
+                        }
+                        _ => None,
+                    }
+                };
+                changeset_storage_table.upsert(
+                    txn,
+                    &((block_number, *address), *key),
+                    &prior_value,
+                )?;
+            }
             storage_table.append_greater_sub_key(txn, &((*address, *key), block_number), value)?;
             if flat_state {
                 flat_storage_table.upsert(txn, &(*address, *key), value)?;
