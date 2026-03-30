@@ -199,16 +199,14 @@ mod config_test;
 pub mod discovery;
 #[cfg(test)]
 mod e2e_broadcast_test;
-#[cfg(test)]
-mod e2e_discovery_test;
 mod event_tracker;
 pub mod gossipsub_impl;
 pub mod metrics;
 pub mod misconduct_score;
-mod mixed_behaviour;
+pub mod mixed_behaviour;
 pub mod network_manager;
 pub mod peer_manager;
-mod prune_dead_connections;
+pub mod prune_dead_connections;
 pub mod sqmr;
 #[cfg(test)]
 mod test_utils;
@@ -244,7 +242,7 @@ use validator::{Validate, ValidationError};
 
 use crate::prune_dead_connections::{DEFAULT_PING_INTERVAL, DEFAULT_PING_TIMEOUT};
 
-pub(crate) type Bytes = Vec<u8>;
+pub type Bytes = Vec<u8>;
 
 // TODO(Shahak): add peer manager config to the network config
 /// Network configuration for the Apollo networking layer.
