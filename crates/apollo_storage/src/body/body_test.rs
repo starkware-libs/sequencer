@@ -2,14 +2,7 @@ use apollo_test_utils::{get_test_block, get_test_body};
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockBody, BlockNumber};
-use starknet_api::core::ContractAddress;
-use starknet_api::transaction::{
-    Event,
-    EventContent,
-    EventData,
-    TransactionOffsetInBlock,
-    TransactionOutput,
-};
+use starknet_api::transaction::TransactionOffsetInBlock;
 use test_case::test_case;
 
 use crate::body::{BodyStorageReader, BodyStorageWriter, TransactionIndex};
@@ -500,24 +493,4 @@ fn update_offset_table() {
         last_tx_metadata.tx_output_location.next_offset(),
         file_offset_table.get(&txn.txn, &OffsetKind::TransactionOutput).unwrap().unwrap()
     );
-}
-
-pub fn generate_test_events(
-    num_transactions: usize,
-    events_per_tx: usize,
-    from_addresses: &[ContractAddress],
-) -> Vec<Vec<Event>> {
-    (0..num_transactions)
-        .map(|tx_i| {
-            (0..events_per_tx)
-                .map(|event_i| Event {
-                    from_address: from_addresses[event_i % from_addresses.len()],
-                    content: EventContent {
-                        data: EventData(vec![(tx_i * events_per_tx + event_i).into()]),
-                        ..Default::default()
-                    },
-                })
-                .collect()
-        })
-        .collect()
 }
