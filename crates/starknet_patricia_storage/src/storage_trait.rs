@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display};
 use std::future::Future;
-use std::sync::Arc;
 
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::{ParamPath, SerializedParam};
@@ -298,33 +297,39 @@ pub fn try_extract_suffix_from_db_key<'a>(
     key.0.strip_prefix(prefix.to_bytes()).map(|s| &s[1..])
 }
 
+/// Result type of a [StorageTask], split out so `gather` can name `T::Output` without a lifetime
+/// on [StorageTask].
+pub trait StorageTaskBase<S: ImmutableReadOnlyStorage + ?Sized>: Send {
+    type Output: Send;
+}
+
 /// A unit of work that reads from storage concurrently.
 /// Implementors hold all data needed to perform the read and produce an output.
 #[async_trait::async_trait]
-pub trait StorageTask<S: ImmutableReadOnlyStorage>: Send {
-    type Output: Send;
-    async fn run_with_storage(self, storage: &mut ReadsCollectorStorage<S>) -> Self::Output;
+pub trait StorageTask<'a, S: ImmutableReadOnlyStorage + ?Sized + 'a>:
+    StorageTaskBase<S> + Send
+{
+    async fn run_with_storage(self, storage: &mut ReadsCollectorStorage<'a, S>) -> Self::Output;
 }
 
-pub trait AsyncImmutableStorage: ImmutableReadOnlyStorage + Clone + 'static {}
-impl<S: ImmutableReadOnlyStorage + Clone + 'static> AsyncImmutableStorage for S {}
+pub trait AsyncImmutableStorage: ImmutableReadOnlyStorage + 'static {}
+impl<S: ImmutableReadOnlyStorage + 'static> AsyncImmutableStorage for S {}
 
 /// A helper to run tasks concurrently and merge their reads. Used by [AsyncStorage::gather].
-pub(crate) async fn run_tasks_and_collect_reads<S, T>(
-    storage: &S,
+pub(crate) async fn run_tasks_and_collect_reads<'a, S, T>(
+    storage: &'a S,
     tasks: Vec<T>,
-) -> (DbHashMap, Vec<T::Output>)
+) -> (DbHashMap, Vec<<T as StorageTaskBase<S>>::Output>)
 where
-    S: AsyncImmutableStorage,
-    T: StorageTask<S>,
+    S: AsyncImmutableStorage + ?Sized,
+    T: StorageTask<'a, S> + Send,
 {
     let mut futures = FuturesUnordered::new();
     let mut collected_reads = DbHashMap::new();
     let mut outputs = Vec::new();
     for task in tasks {
-        let storage_clone = storage.clone();
         futures.push(async move {
-            let mut snapshot = ReadsCollectorStorage::new(Arc::new(storage_clone));
+            let mut snapshot = ReadsCollectorStorage::new(storage);
             let output = task.run_with_storage(&mut snapshot).await;
             (snapshot.into_reads(), output)
         });
@@ -341,8 +346,11 @@ pub trait AsyncStorage: AsyncImmutableStorage + Storage {
     /// Runs each task concurrently, each with its own [ReadsCollectorStorage] snapshot.
     /// Important: The outputs are *not* guaranteed to be in the same order as the tasks.
     /// Returns the collected outputs from each task.
-    async fn gather<T: StorageTask<Self>>(&mut self, tasks: Vec<T>) -> Vec<T::Output> {
-        let (_reads, outputs) = run_tasks_and_collect_reads(self, tasks).await;
+    async fn gather<T>(&mut self, tasks: Vec<T>) -> Vec<<T as StorageTaskBase<Self>>::Output>
+    where
+        T: for<'s> StorageTask<'s, Self> + Send,
+    {
+        let (_reads, outputs) = run_tasks_and_collect_reads(&*self, tasks).await;
         // By default, ignore the reads.
         outputs
     }

@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
-use std::marker::PhantomData;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::marker::PhantomData;
 
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
@@ -34,6 +34,7 @@ use starknet_patricia_storage::storage_trait::{
     ReadOnlyStorage,
     Storage,
     StorageTask,
+    StorageTaskBase,
 };
 use tracing::warn;
 
@@ -528,10 +529,18 @@ struct TrieReadTask<'a, Layout: NodeLayoutFor<StarknetStorageValue>> {
     _layout: PhantomData<Layout>,
 }
 
-#[async_trait::async_trait]
-impl<'a, S, Layout> StorageTask<S> for TrieReadTask<'a, Layout>
+impl<'a, S, Layout> StorageTaskBase<S> for TrieReadTask<'a, Layout>
 where
     S: AsyncStorage,
+    Layout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
+{
+    type Output = ForestResult<(ContractAddress, OriginalSkeletonTreeImpl<'a>)>;
+}
+
+#[async_trait::async_trait]
+impl<'a, 's, S, Layout> StorageTask<'s, S> for TrieReadTask<'a, Layout>
+where
+    S: AsyncStorage + 's,
     Layout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
@@ -540,9 +549,7 @@ where
     for<'b> <Layout as NodeLayout<'b, <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf>>::NodeData:
         Send,
 {
-    type Output = ForestResult<(ContractAddress, OriginalSkeletonTreeImpl<'a>)>;
-
-    async fn run_with_storage(self, storage: &mut ReadsCollectorStorage<S>) -> Self::Output {
+    async fn run_with_storage(self, storage: &mut ReadsCollectorStorage<'s, S>) -> Self::Output {
         let skeleton = create_storage_trie::<Layout>(
             storage,
             self.address,

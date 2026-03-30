@@ -26,6 +26,7 @@ use crate::storage_trait::{
     StorageConfigTrait,
     StorageStats,
     StorageTask,
+    StorageTaskBase,
 };
 
 // 1M entries.
@@ -394,8 +395,11 @@ impl<S: Storage + ImmutableReadOnlyStorage> Storage for CachedStorage<S> {
 
 #[async_trait::async_trait]
 impl<S: AsyncStorage> AsyncStorage for CachedStorage<S> {
-    async fn gather<T: StorageTask<Self>>(&mut self, tasks: Vec<T>) -> Vec<T::Output> {
-        let (reads, outputs) = run_tasks_and_collect_reads::<Self, T>(self, tasks).await;
+    async fn gather<T>(&mut self, tasks: Vec<T>) -> Vec<<T as StorageTaskBase<Self>>::Output>
+    where
+        T: for<'s> StorageTask<'s, Self> + Send,
+    {
+        let (reads, outputs) = run_tasks_and_collect_reads(self, tasks).await;
         let cache = self.cache_mut();
         reads.into_iter().for_each(|(key, value)| {
             cache.put(key, Some(value));

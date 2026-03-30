@@ -17,7 +17,7 @@ use crate::storage_trait::{AsyncStorage, DbKey, DbValue};
 )]
 #[case::mdbx_storage(MdbxStorage::open(Path::new("/tmp/test_mdbx_storage")).unwrap())]
 #[tokio::test(flavor = "multi_thread", worker_threads = 11)]
-async fn test_storage_concurrent_access(#[case] mut storage: impl AsyncStorage) {
+async fn test_storage_concurrent_access(#[case] mut storage: impl AsyncStorage + Clone) {
     // Parallel writes to the storage.
     let mut tasks = JoinSet::new();
 

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::storage_trait::{
     DbHashMap,
     DbKey,
@@ -11,13 +9,13 @@ use crate::storage_trait::{
 
 /// Wraps an [ImmutableReadOnlyStorage] reference and collects all reads performed through it.
 /// The collected reads can be retrieved via [Self::into_reads].
-pub struct ReadsCollectorStorage<S: ImmutableReadOnlyStorage> {
-    storage: Arc<S>,
+pub struct ReadsCollectorStorage<'a, S: ImmutableReadOnlyStorage + ?Sized> {
+    storage: &'a S,
     reads: DbHashMap,
 }
 
-impl<S: ImmutableReadOnlyStorage> ReadsCollectorStorage<S> {
-    pub fn new(storage: Arc<S>) -> Self {
+impl<'a, S: ImmutableReadOnlyStorage + ?Sized> ReadsCollectorStorage<'a, S> {
+    pub fn new(storage: &'a S) -> Self {
         Self { storage, reads: DbHashMap::new() }
     }
 
@@ -27,7 +25,7 @@ impl<S: ImmutableReadOnlyStorage> ReadsCollectorStorage<S> {
     }
 }
 
-impl<S: ImmutableReadOnlyStorage> ReadOnlyStorage for ReadsCollectorStorage<S> {
+impl<'a, S: ImmutableReadOnlyStorage + ?Sized> ReadOnlyStorage for ReadsCollectorStorage<'a, S> {
     async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let value = self.storage.get(key).await?;
         if let Some(ref v) = value {
