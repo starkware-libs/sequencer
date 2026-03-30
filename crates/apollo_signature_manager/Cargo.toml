@@ -19,12 +19,12 @@ async-trait.workspace = true
 blake2.workspace = true
 digest.workspace = true
 serde = { workspace = true, features = ["derive"] }
-validator.workspace = true
 starknet-core.workspace = true
 starknet-crypto.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
+validator.workspace = true
 
 [dev-dependencies]
 expect-test.workspace = true
