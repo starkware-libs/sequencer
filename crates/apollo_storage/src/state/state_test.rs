@@ -1925,3 +1925,136 @@ fn changeset_revert_preserves_default_nonce() {
         "Changeset marker should be 1 after reverting block 1"
     );
 }
+
+#[test]
+fn get_reversed_state_diff_from_changeset_matches_versioned() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    let address = contract_address!("0x1");
+    let key = storage_key!("0x10");
+    let class_hash_0 = class_hash!("0xaa");
+
+    // Block 0: deploy contract, set nonce and storage.
+    let diff0 = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash_0 },
+        nonces: indexmap! { address => Nonce(felt!("0x1")) },
+        storage_diffs: indexmap! { address => indexmap! { key => felt!("0x100") } },
+        class_hash_to_compiled_class_hash: indexmap! {
+            ClassHash(felt!("0xdd")) => CompiledClassHash(felt!("0xcc"))
+        },
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), diff0)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Block 1: update all values (no new deployments, just class replacement).
+    let class_hash_1 = class_hash!("0xbb");
+    let diff1 = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash_1 },
+        nonces: indexmap! { address => Nonce(felt!("0x2")) },
+        storage_diffs: indexmap! { address => indexmap! { key => felt!("0x200") } },
+        class_hash_to_compiled_class_hash: indexmap! {
+            ClassHash(felt!("0xdd")) => CompiledClassHash(felt!("0xee"))
+        },
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(1), diff1)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Get reversed state diff for block 1 — should contain block 0 values.
+    let txn = reader.begin_ro_txn().unwrap();
+    let reversed = txn.get_reversed_state_diff_from_changeset(BlockNumber(1)).unwrap();
+
+    // Deployed contracts: block 1 replaced the class, so pre-image is block 0's class hash.
+    assert_eq!(reversed.deployed_contracts.get(&address), Some(&class_hash_0));
+
+    // Nonces: block 1 changed nonce from 0x1 to 0x2, so pre-image is 0x1.
+    assert_eq!(reversed.nonces.get(&address), Some(&Nonce(felt!("0x1"))));
+
+    // Storage: block 1 changed value from 0x100 to 0x200, so pre-image is 0x100.
+    assert_eq!(
+        reversed.storage_diffs.get(&address).and_then(|m| m.get(&key)),
+        Some(&felt!("0x100"))
+    );
+
+    // Compiled class hash: was 0xcc, now 0xee, so pre-image is 0xcc.
+    assert_eq!(
+        reversed.class_hash_to_compiled_class_hash.get(&ClassHash(felt!("0xdd"))),
+        Some(&CompiledClassHash(felt!("0xcc")))
+    );
+
+    // Deprecated declared classes are always empty from changesets.
+    assert!(reversed.deprecated_declared_classes.is_empty());
+}
+
+#[test]
+fn get_reversed_state_diff_from_changeset_block_zero() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    let address = contract_address!("0x1");
+    let key = storage_key!("0x10");
+
+    // Block 0: deploy contract, set nonce and storage (nothing existed before).
+    let diff0 = ThinStateDiff {
+        deployed_contracts: indexmap! { address => class_hash!("0xaa") },
+        nonces: indexmap! { address => Nonce(felt!("0x1")) },
+        storage_diffs: indexmap! { address => indexmap! { key => felt!("0x100") } },
+        class_hash_to_compiled_class_hash: indexmap! {
+            ClassHash(felt!("0xdd")) => CompiledClassHash(felt!("0xcc"))
+        },
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), diff0)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Get reversed state diff for block 0 — pre-images should all be defaults (None -> default).
+    let txn = reader.begin_ro_txn().unwrap();
+    let reversed = txn.get_reversed_state_diff_from_changeset(BlockNumber(0)).unwrap();
+
+    // Deployed contracts: None pre-image becomes ClassHash::default().
+    assert_eq!(reversed.deployed_contracts.get(&address), Some(&ClassHash::default()));
+
+    // Nonces: None pre-image becomes Nonce::default().
+    assert_eq!(reversed.nonces.get(&address), Some(&Nonce::default()));
+
+    // Storage: None pre-image becomes Felt::default() (zero).
+    assert_eq!(
+        reversed.storage_diffs.get(&address).and_then(|m| m.get(&key)),
+        Some(&Felt::default())
+    );
+
+    // Compiled class hash: None pre-image becomes CompiledClassHash::default().
+    assert_eq!(
+        reversed.class_hash_to_compiled_class_hash.get(&ClassHash(felt!("0xdd"))),
+        Some(&CompiledClassHash::default())
+    );
+}
+
+#[test]
+fn get_reversed_state_diff_from_changeset_errors_on_missing_block() {
+    let ((reader, _writer), _temp_dir) = get_test_storage_with_flat_state();
+
+    // No blocks written, changeset marker is 0. Requesting block 0 should fail.
+    let txn = reader.begin_ro_txn().unwrap();
+    let result = txn.get_reversed_state_diff_from_changeset(BlockNumber(0));
+    assert!(result.is_err());
+    assert!(
+        result.unwrap_err().to_string().contains("changeset marker"),
+        "Expected error about changeset marker"
+    );
+}
