@@ -330,6 +330,22 @@ fn open_storage_internal(
         }
     }
 
+    // Validate fresh sync for phase 2: if flat_state is enabled and state has been written,
+    // changeset marker must match (changesets from block 0).
+    if storage_config.flat_state {
+        let rtxn = reader.begin_ro_txn()?;
+        let markers_table = rtxn.open_table(&rtxn.tables.markers)?;
+        let state_marker = markers_table.get(&rtxn.txn, &MarkerKind::State)?.unwrap_or_default();
+        let changeset_marker =
+            markers_table.get(&rtxn.txn, &MarkerKind::Changeset)?.unwrap_or_default();
+        if state_marker > changeset_marker {
+            return Err(StorageError::FlatStateRequiresFreshSync {
+                state_marker,
+                changeset_marker,
+            });
+        }
+    }
+
     Ok((reader, writer))
 }
 

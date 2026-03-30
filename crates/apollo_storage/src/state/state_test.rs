@@ -22,7 +22,7 @@ use crate::test_utils::{
     get_test_storage_with_config_flat_state,
     get_test_storage_with_flat_state,
 };
-use crate::{open_storage, StorageError, StorageScope, StorageWriter};
+use crate::{open_storage, MarkerKind, StorageError, StorageScope, StorageWriter};
 
 #[test]
 fn get_class_definition_at() {
@@ -1442,4 +1442,38 @@ fn changeset_value_wrapper_some_nondefault_roundtrip() {
     )
     .unwrap();
     assert_eq!(deserialized, Some(nonce));
+}
+
+#[test]
+fn flat_state_requires_fresh_sync_when_state_ahead_of_changeset() {
+    let ((reader, mut writer), config, _temp_dir) = get_test_storage_with_config_flat_state();
+
+    // Manually advance state marker without advancing changeset marker.
+    {
+        let txn = writer.begin_rw_txn().unwrap();
+        let markers_table = txn.open_table(&txn.tables.markers).unwrap();
+        markers_table.upsert(&txn.txn, &MarkerKind::State, &BlockNumber(1)).unwrap();
+        txn.commit().unwrap();
+    }
+
+    // Re-open should fail.
+    drop(reader);
+    drop(writer);
+
+    let result = open_storage(config);
+    let err = result.err().expect("Expected FlatStateRequiresFreshSync error");
+    assert!(
+        err.to_string().contains("fresh sync"),
+        "Expected FlatStateRequiresFreshSync error, got: {err}"
+    );
+}
+
+#[test]
+fn flat_state_fresh_sync_passes_when_markers_match() {
+    let ((_reader, _writer), config, _temp_dir) = get_test_storage_with_config_flat_state();
+    // Fresh node: both markers are 0. Re-open should succeed.
+    drop(_reader);
+    drop(_writer);
+    let result = open_storage(config);
+    assert!(result.is_ok());
 }
