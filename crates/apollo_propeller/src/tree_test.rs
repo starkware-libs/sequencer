@@ -92,8 +92,15 @@ fn test_get_peer_for_shard_id(
 #[case::unit_2_published_by_peer1_maps_to_peer3(UnitIndex(2), Ok(3))]
 #[case::unit_3_out_of_bounds(UnitIndex(3), Err(ScheduleError::UnitIndexOutOfBounds { unit_index: UnitIndex(3) }))]
 #[case::unit_4_out_of_bounds(UnitIndex(4), Err(ScheduleError::UnitIndexOutOfBounds { unit_index: UnitIndex(4) }))]
+<<<<<<< HEAD
 fn test_get_peer_for_unit_id(
+<<<<<<< HEAD
 >>>>>>> be9436519d (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
+=======
+=======
+fn test_get_peer_for_unit_index(
+>>>>>>> 8c5fa1040e (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
+>>>>>>> 3d64b51b37 (apollo_l1_events: replace panic with retry in CatchUpper spawned task (#13328))
     #[case] unit_index: UnitIndex,
     #[case] expected_result: Result<usize, ScheduleError>,
 ) {
