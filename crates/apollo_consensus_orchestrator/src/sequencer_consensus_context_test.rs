@@ -1,5 +1,6 @@
 use std::future::ready;
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
     CentralObjects,
@@ -46,6 +47,7 @@ use futures::{FutureExt, SinkExt, StreamExt};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use starknet_api::block::{
+    BlockHash,
     BlockNumber,
     GasPrice,
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
@@ -54,10 +56,11 @@ use starknet_api::block::{
 };
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::hash::StarkHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
-use crate::cende::MockCendeContext;
+use crate::cende::{MockCendeContext, N_BLOCK_HASHES_BACK_IN_BLOB};
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{
@@ -734,6 +737,102 @@ async fn decision_reached_sends_correct_values() {
     let metrics = recorder.handle().render();
     CONSENSUS_L2_GAS_PRICE
         .assert_eq(&metrics, VersionedConstants::latest_constants().min_gas_price.0);
+}
+
+/// Verify that when `stop_at_height` is set and decision is reached at that height:
+/// 1. `wait_for_block_hash` retries until the batcher has computed the hash.
+/// 2. The blob contains the block hash of that height.
+/// 3. `write_prev_height_blob` is called immediately (not during next round proposal).
+#[tokio::test]
+async fn decision_reached_at_stop_height_writes_blob_immediately() {
+    const STOP_HEIGHT: BlockNumber = BlockNumber(20);
+    // The hash of block n is BlockHash(n), giving each block a distinct, predictable hash.
+    let block_hash_fn = |n: u64| BlockHash(StarkHash::from(n));
+
+    let (mut deps, _network) = create_test_and_network_deps();
+
+    // Expectations added BEFORE setup_deps_for_validate so they are matched first (FIFO).
+
+    // Heights 10–19: already committed; get_block_hash returns immediately for both the
+    // retrospective_block_hash check (called during validate_proposal) and
+    // collect_recent_block_hashes (called during finalize_decision).
+    deps.batcher
+        .expect_get_block_hash()
+        .withf(|n| n.0 >= 10 && n.0 < STOP_HEIGHT.0)
+        .returning(move |n| Ok(block_hash_fn(n.0)));
+
+    // The retrospective_block_hash logic also queries state_sync for block 10.
+    deps.state_sync_client
+        .expect_get_block_hash()
+        .withf(|n| n.0 == 10)
+        .return_once(move |n| Ok(block_hash_fn(n.0)));
+
+    // Height STOP_HEIGHT: first 2 calls return BlockHashNotFound (batcher not yet ready),
+    // then all subsequent calls succeed — covering both wait_for_block_hash (3rd call)
+    // and the collect_recent_block_hashes pass.
+    deps.batcher
+        .expect_get_block_hash()
+        .withf(move |n| *n == STOP_HEIGHT)
+        .times(2)
+        .returning(|n| Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(n))));
+    deps.batcher
+        .expect_get_block_hash()
+        .withf(move |n| *n == STOP_HEIGHT)
+        .returning(move |n| Ok(block_hash_fn(n.0)));
+
+    // write_prev_height_blob must be called immediately after decision, with height STOP_HEIGHT+1.
+    deps.cende_ambassador
+        .expect_write_prev_height_blob()
+        .withf(move |h| *h == STOP_HEIGHT.unchecked_next())
+        .times(1)
+        .return_once(|_| tokio::spawn(ready(true)));
+
+    deps.setup_deps_for_validate(SetupDepsArgs {
+        start_block_number: STOP_HEIGHT,
+        ..Default::default()
+    });
+
+    deps.batcher
+        .expect_decision_reached()
+        .times(1)
+        .return_once(|_| Ok(DecisionReachedResponse::default()));
+
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
+
+    // Verify the blob contains the block hash of the stop height.
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().times(1).return_once(
+        move |params| {
+            assert_eq!(
+                params.recent_block_hashes.len(),
+                usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB + 1).unwrap()
+            );
+            assert!(
+                params.recent_block_hashes.last().is_some_and(
+                    |bhn| bhn.number == STOP_HEIGHT && bhn.hash == block_hash_fn(STOP_HEIGHT.0)
+                ),
+                "Blob's recent_block_hashes should include block {STOP_HEIGHT}'s hash"
+            );
+            Ok(())
+        },
+    );
+
+    let mut context = deps.build_context();
+    // Make wait_for_block_hash retries instant so the test doesn't sleep 500ms per retry.
+    context.config.static_config.retrospective_block_hash_retry_interval_millis =
+        Duration::from_millis(10);
+
+    context.set_height_and_round(STOP_HEIGHT, ROUND_0).await.unwrap();
+
+    let content_receiver = send_proposal_to_validator_context(&mut context).await;
+    let fin_receiver = context
+        .validate_proposal(proposal_init(STOP_HEIGHT, ROUND_0), TIMEOUT, content_receiver)
+        .await;
+    let proposal_commitment = fin_receiver.await.unwrap();
+
+    context
+        .decision_reached(STOP_HEIGHT, ROUND_0, proposal_commitment, Some(STOP_HEIGHT))
+        .await
+        .unwrap();
 }
 
 #[rstest]

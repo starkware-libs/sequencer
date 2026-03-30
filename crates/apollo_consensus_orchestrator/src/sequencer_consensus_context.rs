@@ -501,7 +501,7 @@ impl SequencerConsensusContext {
     }
 
     /// Collects the recent block hashes from the batcher.
-    /// Returns computed block hashes in range [height - N_RECENT_BLOCK_HASHES_IN_BLOB, height].
+    /// Returns computed block hashes in range [height - N_BLOCK_HASHES_BACK_IN_BLOB, height].
     async fn collect_recent_block_hashes(&self, height: BlockNumber) -> Vec<BlockHashAndNumber> {
         let mut recent_block_hashes = Vec::with_capacity(
             usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB)
