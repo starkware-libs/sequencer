@@ -106,9 +106,9 @@ async fn broadcast_subscriber_end_to_end_test() {
 
     let all_peers: HashSet<PeerId> =
         HashSet::from([bootstrap_peer_id, *swarm1.local_peer_id(), *swarm2.local_peer_id()]);
-    bootstrap_swarm.behaviour_mut().peer_access_control.set_allowed_peers(all_peers.clone());
-    swarm1.behaviour_mut().peer_access_control.set_allowed_peers(all_peers.clone());
-    swarm2.behaviour_mut().peer_access_control.set_allowed_peers(all_peers);
+    bootstrap_swarm.behaviour_mut().peer_whitelist.set_allowed_peers(all_peers.clone());
+    swarm1.behaviour_mut().peer_whitelist.set_allowed_peers(all_peers.clone());
+    swarm2.behaviour_mut().peer_whitelist.set_allowed_peers(all_peers);
 
     let bootstrap_network_manager = create_network_manager(bootstrap_swarm);
     let mut network_manager1 = create_network_manager(swarm1);

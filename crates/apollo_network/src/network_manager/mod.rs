@@ -193,7 +193,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         let committee_peers: HashSet<PeerId> = output.allowed_peers.into_iter().collect();
         let mut whitelisted_peers = committee_peers.clone();
         whitelisted_peers.extend(&self.bootstrap_peer_ids);
-        self.swarm.behaviour_mut().peer_access_control.set_allowed_peers(whitelisted_peers);
+        self.swarm.behaviour_mut().peer_whitelist.set_allowed_peers(whitelisted_peers);
         if let Some(discovery) = self.swarm.behaviour_mut().discovery.as_mut() {
             discovery.set_target_peers(committee_peers);
         }
