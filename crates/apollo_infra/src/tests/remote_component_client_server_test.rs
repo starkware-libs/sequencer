@@ -2,6 +2,8 @@ use std::convert::Infallible;
 use std::fmt::Debug;
 use std::future::ready;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::os::unix::io::BorrowedFd;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -737,9 +739,10 @@ async fn zombie_connection_is_evicted() {
     );
 }
 
-/// Verifies that `TCP_KEEPIDLE` on the client's outbound socket equals
-/// `idle_timeout_ms * TCP_IDLE_TIMEOUT_FACTOR`, confirming the socket is armed to probe after
-/// exactly the expected idle period.
+/// Verifies that the client evicts an idle connection from its pool once
+/// `idle_timeout_ms` elapses. After eviction a subsequent request must open a fresh
+/// TCP connection, observable as a second `accept()` on the server side, proving the old pooled
+/// connection was discarded rather than reused.
 ///
 /// Internally, hyper's `HttpConnector::set_keepalive` calls `SockRef::set_tcp_keepalive` via
 /// socket2 only when it establishes a TCP connection for a request. The socket therefore only
@@ -749,6 +752,96 @@ async fn zombie_connection_is_evicted() {
 ///
 /// Note: an end-to-end test that the OS closes the socket after unanswered probes would require
 /// packet-level manipulation (e.g. iptables DROP on loopback) and is out of scope for unit tests.
+#[tokio::test]
+async fn client_evicts_idle_connection_after_pool_timeout() {
+    const IDLE_TIMEOUT_MS: u64 = 100;
+    const WAIT_FOR_EVICTION_MS: u64 = IDLE_TIMEOUT_MS * 3;
+
+    let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();
+    let connections_accepted = Arc::new(AtomicUsize::new(0));
+    let connections_clone = connections_accepted.clone();
+
+    let response_bytes = Bytes::from(
+        SerdeWrapper::new(ComponentAResponse::AGetValue(VALID_VALUE_A))
+            .wrapper_serialize()
+            .unwrap(),
+    );
+
+    task::spawn(async move {
+        let listener = TcpListener::bind(&socket).await.unwrap();
+        loop {
+            let Ok((stream, _)) = listener.accept().await else { continue };
+            connections_clone.fetch_add(1, Ordering::SeqCst);
+            let io = TokioIo::new(stream);
+            let rb = response_bytes.clone();
+            let service = service_fn(move |_req: Request<Incoming>| {
+                let body = Full::new(rb.clone());
+                async move {
+                    Ok::<Response<Full<Bytes>>, Infallible>(
+                        Response::builder().status(StatusCode::OK).body(body).unwrap(),
+                    )
+                }
+            });
+            tokio::spawn(async move {
+                let _ = Http2ServerBuilder::new(TokioExecutor::new())
+                    .http2()
+                    .serve_connection(io, service)
+                    .await;
+            });
+        }
+    });
+    task::yield_now().await;
+
+    let client = ComponentAClient::new(
+        RemoteClientConfig { idle_timeout_ms: IDLE_TIMEOUT_MS, ..Default::default() },
+        &socket.ip().to_string(),
+        socket.port(),
+        &TEST_REMOTE_CLIENT_METRICS,
+    );
+
+    // First request opens the first TCP connection.
+    client.a_get_value().await.expect("first request should succeed");
+    assert_eq!(connections_accepted.load(Ordering::SeqCst), 1);
+
+    // Wait longer than the pool idle timeout to ensure the connection is evicted.
+    sleep(Duration::from_millis(WAIT_FOR_EVICTION_MS)).await;
+
+    // Second request: pool was evicted so a fresh TCP connection must be opened.
+    client.a_get_value().await.expect("second request should succeed");
+    assert_eq!(
+        connections_accepted.load(Ordering::SeqCst),
+        2,
+        "expected a new TCP connection after pool eviction, but the old connection was reused"
+    );
+}
+
+/// Returns whether the outbound socket in this process that is connected to `server_addr`
+/// has `SO_KEEPALIVE` enabled. Returns `false` if no such socket is found.
+fn client_socket_has_keepalive(server_addr: SocketAddr) -> bool {
+    for fd in 0_i32..4096 {
+        // SAFETY: We only borrow the fd transiently to read socket options; `SockRef` does
+        // not take ownership of or close the fd. Invalid fds produce errors from `peer_addr`
+        // and `keepalive`, which we handle gracefully via `.ok()` / `.unwrap_or`.
+        let borrowed = unsafe { BorrowedFd::borrow_raw(fd) };
+        let sock = SockRef::from(&borrowed);
+        if sock
+            .peer_addr()
+            .ok()
+            .and_then(|a: socket2::SockAddr| a.as_socket())
+            .is_some_and(|a| a == server_addr)
+        {
+            return sock.keepalive().unwrap_or(false);
+        }
+    }
+    false
+}
+
+/// Verifies that `TCP_KEEPIDLE` on the client's outbound socket equals
+/// `idle_timeout_ms * TCP_IDLE_TIMEOUT_FACTOR`, confirming the socket is armed to probe after
+/// exactly the expected idle period.
+#[rstest]
+#[case(unique_u16!(), Some(30_000), true)]
+#[case(unique_u16!(), None, false)]
 #[tokio::test]
 async fn tcp_keepalive_idle_time_matches_config() {
     // 2000 * 1.5 = 3000 ms = 3 s exactly; socket2 stores TCP_KEEPIDLE in whole seconds, so the
