@@ -129,7 +129,12 @@ impl NetworkBehaviour for Behaviour {
                             continue;
                         }
 
-                        warn!(?peer, ?connection, ?failure, "Ping failed, closing connection.");
+                        warn!(
+                            ?peer,
+                            ?connection,
+                            ?failure,
+                            "Ping failed, queuing connection close."
+                        );
                         self.pending_close_connections.push_back((peer, connection));
                     }
                 },
@@ -141,6 +146,7 @@ impl NetworkBehaviour for Behaviour {
         }
 
         if let Some((peer_id, connection_id)) = self.pending_close_connections.pop_front() {
+            warn!(?peer_id, ?connection_id, "Ping failed, closing connection.");
             return Poll::Ready(ToSwarm::CloseConnection {
                 peer_id,
                 connection: CloseConnection::One(connection_id),
