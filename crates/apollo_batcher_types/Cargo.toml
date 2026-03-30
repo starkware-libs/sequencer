@@ -9,9 +9,6 @@ description = "Type definitions and interfaces for the Apollo batcher component.
 [features]
 testing = ["mockall"]
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_infra.workspace = true
 apollo_metrics.workspace = true
@@ -27,7 +24,6 @@ starknet_api.workspace = true
 strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 
-
 [dev-dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
@@ -37,3 +33,6 @@ serde_json.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 tower.workspace = true
+
+[lints]
+workspace = true

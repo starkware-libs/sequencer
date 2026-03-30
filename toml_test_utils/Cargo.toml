@@ -6,9 +6,9 @@ repository.workspace = true
 license.workspace = true
 description = "Utilities for working with TOML files in tests."
 
-[lints]
-workspace = true
-
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 toml.workspace = true
+
+[lints]
+workspace = true

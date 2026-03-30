@@ -13,9 +13,6 @@ rocksdb_storage = ["rust-rocksdb"]
 short_key_storage = ["blake2", "digest"]
 testing = []
 
-[lints]
-workspace = true
-
 [dependencies]
 aerospike = { workspace = true, optional = true, features = ["rt-tokio"] }
 apollo_config.workspace = true
@@ -39,3 +36,6 @@ page_size.workspace = true
 rstest.workspace = true
 rust-rocksdb.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
+
+[lints]
+workspace = true

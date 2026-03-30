@@ -8,18 +8,15 @@ description = "Transaction pool management for pending transactions in the Stark
 
 [features]
 testing = [
-  "apollo_mempool_p2p_types/testing",
-  "apollo_metrics/testing",
-  "apollo_network/testing",
-  "apollo_network_types/testing",
-  "apollo_time/testing",
-  "blockifier/testing",
-  "blockifier_test_utils",
-  "starknet_api/testing",
+    "apollo_mempool_p2p_types/testing",
+    "apollo_metrics/testing",
+    "apollo_network/testing",
+    "apollo_network_types/testing",
+    "apollo_time/testing",
+    "blockifier/testing",
+    "blockifier_test_utils",
+    "starknet_api/testing",
 ]
-
-[lints]
-workspace = true
 
 [dependencies]
 apollo_config.workspace = true
@@ -69,6 +66,9 @@ serde.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tokio.workspace = true
+
+[lints]
+workspace = true
 
 [[bench]]
 harness = false

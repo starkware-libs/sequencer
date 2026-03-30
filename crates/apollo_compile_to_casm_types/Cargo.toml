@@ -6,9 +6,6 @@ repository.workspace = true
 version.workspace = true
 description = "Type definitions for Sierra to CASM compilation."
 
-[lints]
-workspace = true
-
 [features]
 testing = ["mockall", "starknet_api/testing"]
 
@@ -28,3 +25,6 @@ blockifier_test_utils.workspace = true
 expect-test.workspace = true
 mockall.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+
+[lints]
+workspace = true

@@ -6,12 +6,12 @@ repository.workspace = true
 license.workspace = true
 description = "Configuration types for the Apollo L1 gas price provider."
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_config.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
 url.workspace = true
 validator.workspace = true
+
+[lints]
+workspace = true

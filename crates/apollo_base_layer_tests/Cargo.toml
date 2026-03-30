@@ -8,9 +8,6 @@ description = "Testing utilities for L1 (Ethereum) base layer interactions."
 
 [features]
 
-[lints]
-workspace = true
-
 [dependencies]
 alloy.workspace = true
 apollo_config.workspace = true
@@ -24,3 +21,6 @@ url.workspace = true
 
 [dev-dependencies]
 apollo_infra_utils.workspace = true
+
+[lints]
+workspace = true

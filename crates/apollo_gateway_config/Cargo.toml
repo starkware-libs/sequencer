@@ -6,6 +6,9 @@ repository.workspace = true
 license-file.workspace = true
 description = "Configuration types for Apollo gateway"
 
+[features]
+testing = []
+
 [dependencies]
 apollo_compilation_utils.workspace = true
 apollo_config.workspace = true
@@ -16,9 +19,6 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
 validator.workspace = true
-
-[features]
-testing = []
 
 [lints]
 workspace = true

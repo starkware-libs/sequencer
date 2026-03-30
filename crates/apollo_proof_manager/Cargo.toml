@@ -9,9 +9,6 @@ description = "Proof manager component for storing proofs"
 [features]
 testing = []
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_infra.workspace = true
 apollo_metrics.workspace = true
@@ -26,7 +23,9 @@ tempfile.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["fs", "io-util"] }
 
-
 [dev-dependencies]
 starknet_api = { workspace = true, features = ["testing"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

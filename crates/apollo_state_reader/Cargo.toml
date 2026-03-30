@@ -10,9 +10,6 @@ description = "Provides read access to Starknet state for transaction execution 
 cairo_native = ["blockifier/cairo_native"]
 testing = []
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_class_manager_types.workspace = true
 apollo_storage.workspace = true
@@ -29,3 +26,6 @@ blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 indexmap.workspace = true
 rstest.workspace = true
+
+[lints]
+workspace = true

@@ -8,18 +8,18 @@ description = "The Starknet OS."
 
 [features]
 deserialize = [
-  "blockifier/transaction_serde",
-  "shared_execution_objects/deserialize",
-  "starknet-types-core/serde",
-  "starknet_patricia/deserialize",
+    "blockifier/transaction_serde",
+    "shared_execution_objects/deserialize",
+    "starknet-types-core/serde",
+    "starknet_patricia/deserialize",
 ]
 include_program_output = []
 testing = [
-  "blockifier/testing",
-  "expect-test",
-  "itertools",
-  "num-bigint/rand",
-  "starknet_patricia/testing",
+    "blockifier/testing",
+    "expect-test",
+    "itertools",
+    "num-bigint/rand",
+    "starknet_patricia/testing",
 ]
 
 [dependencies]
@@ -36,9 +36,9 @@ cairo-lang-casm.workspace = true
 cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm = { workspace = true, features = [
-  "cairo-0-data-availability-hints",
-  "cairo-0-secp-hints",
-  "extensive_hints",
+    "cairo-0-data-availability-hints",
+    "cairo-0-secp-hints",
+    "extensive_hints",
 ] }
 derive_more = { workspace = true, features = ["display"] }
 digest.workspace = true

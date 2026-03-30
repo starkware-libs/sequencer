@@ -9,9 +9,6 @@ description = "A utility crate for compiling Sierra code into CASM."
 [features]
 testing = []
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_compilation_utils.workspace = true
 apollo_compile_to_casm_types.workspace = true
@@ -27,6 +24,10 @@ starknet_api.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
+[build-dependencies]
+apollo_compilation_utils.workspace = true
+apollo_infra_utils.workspace = true
+
 [dev-dependencies]
 apollo_compilation_utils = { workspace = true, features = ["testing"] }
 apollo_infra_utils.workspace = true
@@ -34,6 +35,5 @@ assert_matches.workspace = true
 mempool_test_utils.workspace = true
 regex.workspace = true
 
-[build-dependencies]
-apollo_compilation_utils.workspace = true
-apollo_infra_utils.workspace = true
+[lints]
+workspace = true

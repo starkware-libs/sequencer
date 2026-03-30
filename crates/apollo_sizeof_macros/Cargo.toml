@@ -9,10 +9,10 @@ description = "compute size of types in memory"
 [lib]
 proc-macro = true
 
-[lints]
-workspace = true
-
 [dependencies]
 proc-macro2.workspace = true
 quote.workspace = true
 syn = { workspace = true, features = ["full"] }
+
+[lints]
+workspace = true

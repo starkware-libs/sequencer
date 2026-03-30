@@ -6,6 +6,9 @@ repository.workspace = true
 license.workspace = true
 description = "Tracks and provides L1 (Ethereum) gas prices for Starknet transaction pricing."
 
+[features]
+testing = []
+
 [dependencies]
 apollo_config.workspace = true
 apollo_infra.workspace = true
@@ -33,9 +36,6 @@ apollo_l1_gas_price_types = { workspace = true, features = ["testing"] }
 mockall.workspace = true
 mockito.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
-
-[features]
-testing = []
 
 [lints]
 workspace = true

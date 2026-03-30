@@ -6,12 +6,8 @@ repository.workspace = true
 license.workspace = true
 description = "Infrastructure components including component management and communication patterns."
 
-
 [features]
 testing = ["apollo_metrics/testing"]
-
-[lints]
-workspace = true
 
 [dependencies]
 apollo_config.workspace = true
@@ -39,7 +35,6 @@ tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "json", "time"] }
 validator.workspace = true
 
-
 [dev-dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }
@@ -52,3 +47,6 @@ pretty_assertions.workspace = true
 socket2 = { workspace = true, features = ["all"] }
 starknet-types-core.workspace = true
 strum = { workspace = true, features = ["derive"] }
+
+[lints]
+workspace = true

@@ -10,9 +10,6 @@ description = "Block building and transaction batching component for the Starkne
 cairo_native = ["blockifier/cairo_native"]
 testing = []
 
-[lints]
-workspace = true
-
 [dependencies]
 apollo_batcher_config.workspace = true
 apollo_batcher_types.workspace = true
@@ -76,3 +73,6 @@ rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tempfile.workspace = true
+
+[lints]
+workspace = true

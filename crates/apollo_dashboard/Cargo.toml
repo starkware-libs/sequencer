@@ -6,12 +6,8 @@ repository.workspace = true
 license.workspace = true
 description = "Dashboard and monitoring interface for the Starknet sequencer."
 
-
 [features]
 testing = []
-
-[lints]
-workspace = true
 
 [dependencies]
 apollo_batcher.workspace = true
@@ -68,3 +64,6 @@ apollo_state_sync_metrics = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_transaction_converter = { workspace = true, features = ["testing"] }
 rstest.workspace = true
+
+[lints]
+workspace = true

@@ -35,6 +35,5 @@ tokio-stream.workspace = true
 tokio-test.workspace = true
 tracing-test.workspace = true
 
-
 [lints]
 workspace = true

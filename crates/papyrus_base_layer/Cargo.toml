@@ -6,9 +6,6 @@ repository.workspace = true
 license-file.workspace = true
 description = "Base layer (L1) interaction and Ethereum contract interface for Starknet."
 
-[lints]
-workspace = true
-
 [features]
 testing = ["alloy/node-bindings"]
 
@@ -36,3 +33,6 @@ pretty_assertions.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+
+[lints]
+workspace = true

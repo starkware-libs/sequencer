@@ -6,15 +6,10 @@ repository.workspace = true
 license-file.workspace = true
 description = "Cli for the committer package."
 
-[lints]
-workspace = true
-
-[dev-dependencies]
-assert_matches.workspace = true
-criterion = { workspace = true, features = ["html_reports"] }
-futures.workspace = true
-pretty_assertions.workspace = true
-tempfile.workspace = true
+# Optional dependencies required for tests and the testing feature.
+# See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
+[package.metadata.cargo-machete]
+ignored = ["hex"]
 
 # TODO(Amos): Add `testing` feature and move Python test dependencies under it.
 [dependencies]
@@ -24,8 +19,8 @@ apollo_starknet_os_program = { workspace = true, features = ["test_programs"] }
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm = { workspace = true, features = [
-  "cairo-0-data-availability-hints",
-  "cairo-0-secp-hints",
+    "cairo-0-data-availability-hints",
+    "cairo-0-secp-hints",
 ] }
 clap = { workspace = true, features = ["cargo", "derive"] }
 derive_more = { workspace = true, features = ["deref"] }
@@ -48,15 +43,20 @@ starknet_patricia = { workspace = true, features = ["testing"] }
 starknet_patricia_storage.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-tracing-subscriber.workspace = true
 tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+assert_matches.workspace = true
+criterion = { workspace = true, features = ["html_reports"] }
+futures.workspace = true
+pretty_assertions.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true
 
 [[bench]]
 harness = false
 name = "starknet_committer_and_os_cli"
 path = "benches/main.rs"
-
-# Optional dependencies required for tests and the testing feature.
-# See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
-[package.metadata.cargo-machete]
-ignored = ["hex"]
