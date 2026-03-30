@@ -452,7 +452,14 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                         .expect("Decision must contain at least one precommit")
                         .round;
                     // Commit decision to context.
-                    context.decision_reached(height, decided_round, decision.block).await?;
+                    context
+                        .decision_reached(
+                            height,
+                            decided_round,
+                            decision.block,
+                            self.consensus_config.dynamic_config.stop_at_height,
+                        )
+                        .await?;
                     RunHeightRes::Decision(decision)
                 }
                 RunHeightRes::Sync => RunHeightRes::Sync,
