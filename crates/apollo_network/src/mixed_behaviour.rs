@@ -22,8 +22,8 @@ use crate::peer_manager::PeerManagerConfig;
 use crate::{
     discovery,
     gossipsub_impl,
-    peer_access_control,
     peer_manager,
+    peer_whitelist,
     prune_dead_connections,
     sqmr,
 };
@@ -33,7 +33,7 @@ use crate::{
 #[behaviour(out_event = "Event")]
 pub struct MixedBehaviour {
     pub limits: connection_limits::Behaviour,
-    pub peer_access_control: peer_access_control::Behaviour,
+    pub peer_whitelist: peer_whitelist::Behaviour,
     pub peer_manager: peer_manager::PeerManager,
     pub discovery: Toggle<discovery::Behaviour>,
     pub identify: identify::Behaviour,
@@ -112,16 +112,16 @@ impl MixedBehaviour {
                     .collect()
             });
 
-        let mut peer_access_control = peer_access_control::Behaviour::new();
+        let mut peer_whitelist = peer_whitelist::Behaviour::new();
         if let Some(ref peers) = bootstrap_peers_with_ids {
             let bootstrap_peer_ids: HashSet<PeerId> =
                 peers.iter().map(|(peer_id, _)| *peer_id).collect();
-            peer_access_control.set_allowed_peers(bootstrap_peer_ids);
+            peer_whitelist.set_allowed_peers(bootstrap_peer_ids);
         }
 
         Self {
             limits: connection_limits::Behaviour::new(connection_limits),
-            peer_access_control,
+            peer_whitelist,
             peer_manager: peer_manager::PeerManager::new(peer_manager_config),
             discovery: bootstrap_peers_with_ids
                 .map(|peers| discovery::Behaviour::new(local_peer_id, discovery_config, peers))
