@@ -182,7 +182,12 @@ use crate::db::{
     RW,
 };
 use crate::header::StorageBlockHeader;
-use crate::metrics::{register_metrics, BATCHER_CHANGESET_MARKER, STORAGE_COMMIT_LATENCY};
+use crate::metrics::{
+    register_metrics,
+    BATCHER_CHANGESET_MARKER,
+    BATCHER_CHANGESET_PRUNED_MARKER,
+    STORAGE_COMMIT_LATENCY,
+};
 use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::storage_reader_server::{
@@ -364,6 +369,9 @@ fn open_storage_internal(
         let changeset_marker =
             markers_table.get(&rtxn.txn, &MarkerKind::Changeset)?.unwrap_or_default();
         BATCHER_CHANGESET_MARKER.set_lossy(changeset_marker.0);
+        let changeset_pruned_marker =
+            markers_table.get(&rtxn.txn, &MarkerKind::ChangesetPruned)?.unwrap_or_default();
+        BATCHER_CHANGESET_PRUNED_MARKER.set_lossy(changeset_pruned_marker.0);
     }
 
     Ok((reader, writer))

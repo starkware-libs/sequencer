@@ -18,7 +18,9 @@ use starknet_api::{contract_address, storage_key};
 use starknet_types_core::felt::Felt;
 use tempfile::tempdir;
 
-fn open_flat_state_storage() -> (StorageReader, StorageWriter) {
+fn open_flat_state_storage_with_retention(
+    retention_blocks: Option<u64>,
+) -> (StorageReader, StorageWriter) {
     let temp_dir = tempdir().unwrap();
     let config = StorageConfig {
         db_config: DbConfig {
@@ -37,7 +39,7 @@ fn open_flat_state_storage() -> (StorageReader, StorageWriter) {
             max_object_size: 1 << 16,
         },
         flat_state: true,
-        changeset_retention_blocks: None,
+        changeset_retention_blocks: retention_blocks,
     };
     // Leak temp_dir so the directory persists for the test duration.
     std::mem::forget(temp_dir);
@@ -45,10 +47,11 @@ fn open_flat_state_storage() -> (StorageReader, StorageWriter) {
 }
 
 #[test]
-fn changeset_marker_metric_updates_on_append_and_revert() {
+fn changeset_metrics_update_on_append_revert_and_prune() {
     let handle = PrometheusBuilder::new().install_recorder().unwrap();
 
-    let (_reader, mut writer) = open_flat_state_storage();
+    // --- Part 1: Changeset marker on append and revert ---
+    let (_reader, mut writer) = open_flat_state_storage_with_retention(None);
 
     let address = contract_address!("0x1");
     let key = storage_key!("0x10");
@@ -91,4 +94,40 @@ fn changeset_marker_metric_updates_on_append_and_revert() {
         panic!("batcher_storage_changeset_marker is not a Gauge")
     };
     assert_eq!(marker_value, 2.0);
+
+    // --- Part 2: Changeset pruned marker on prune ---
+    // retention=3 means pruning starts after block 3.
+    let (_reader2, mut writer2) = open_flat_state_storage_with_retention(Some(3));
+
+    let address2 = contract_address!("0x2");
+    let key2 = storage_key!("0x20");
+
+    // Write 6 blocks to trigger pruning.
+    for block in 0u64..6 {
+        let diff = ThinStateDiff {
+            storage_diffs: indexmap! {
+                address2 => indexmap! {
+                    key2 => Felt::from(block + 100),
+                },
+            },
+            ..Default::default()
+        };
+        writer2
+            .begin_rw_txn()
+            .unwrap()
+            .append_state_diff(BlockNumber(block), diff)
+            .unwrap()
+            .commit()
+            .unwrap();
+    }
+
+    // After block 5 with retention=3: prune_target = 5 - 3 = 2.
+    // Pruned marker should be 2.
+    let Gauge(pruned_value) =
+        prometheus_is_contained(handle.render(), "batcher_storage_changeset_pruned_marker", &[])
+            .unwrap()
+    else {
+        panic!("batcher_storage_changeset_pruned_marker is not a Gauge")
+    };
+    assert_eq!(pruned_value, 2.0);
 }
