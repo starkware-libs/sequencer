@@ -144,15 +144,14 @@ pub(crate) fn get_general_pod_high_cpu_utilization() -> Alert {
     )
 }
 
-fn get_general_pod_disk_utilization(
-    name: &str,
-    title: &str,
-    comparison_value: f64,
-    severity: AlertSeverity,
-) -> Alert {
+// The prediction horizon for the disk-filling-soon alert: 2 weeks expressed in seconds.
+// Derived as: 14 days * 24 hours/day * 3600 seconds/hour = 1_209_600 seconds.
+const DISK_FILLING_HORIZON_SECONDS: u64 = 14 * 24 * 3600;
+
+fn get_pod_disk_utilization_alert() -> Alert {
     Alert::new(
-        name,
-        title,
+        "pod_state_critical_disk_utilization",
+        "Pod Critical Disk Utilization ( >90% )",
         AlertGroup::General,
         format!(
             "max by (namespace,persistentvolumeclaim) ({}) / (min by \
@@ -162,33 +161,44 @@ fn get_general_pod_disk_utilization(
             KUBELET_VOLUME_STATS_AVAILABLE_BYTES.get_name_with_filter(),
             KUBELET_VOLUME_STATS_USED_BYTES.get_name_with_filter(),
         ),
-        vec![AlertCondition::new(
-            AlertComparisonOp::GreaterThan,
-            comparison_value,
-            AlertLogicalOp::And,
-        )],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 90.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity,
+        AlertSeverity::WorkingHours,
+        ObserverApplicability::Applicable,
+    )
+}
+
+fn get_pod_disk_filling_soon_alert() -> Alert {
+    Alert::new(
+        "pod_state_disk_filling_soon",
+        "Pod Disk Filling Soon (predicted full within 2 weeks)",
+        AlertGroup::General,
+        format!(
+            // Projects disk usage {horizon} seconds ahead using linear regression over the last
+            // 2 days of used_bytes samples. The result is divided by the total provisioned
+            // capacity (available_bytes + used_bytes). Unlike used_bytes, this sum is constant
+            // because it equals the fixed provisioned volume size — it does not change as the
+            // disk fills up. The alert fires when the ratio exceeds 1, meaning the disk is
+            // projected to be full.
+            "max by (namespace,persistentvolumeclaim) (predict_linear({}[2d], {horizon})) / (min \
+             by (namespace,persistentvolumeclaim) ({}) + max by (namespace,persistentvolumeclaim) \
+             ({}))",
+            KUBELET_VOLUME_STATS_USED_BYTES.get_name_with_filter(),
+            KUBELET_VOLUME_STATS_AVAILABLE_BYTES.get_name_with_filter(),
+            KUBELET_VOLUME_STATS_USED_BYTES.get_name_with_filter(),
+            horizon = DISK_FILLING_HORIZON_SECONDS,
+        ),
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 1.0, AlertLogicalOp::And)],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        AlertSeverity::WorkingHours,
         ObserverApplicability::Applicable,
     )
 }
 
 pub(crate) fn get_general_pod_disk_utilization_vec() -> Vec<Alert> {
-    vec![
-        get_general_pod_disk_utilization(
-            "pod_state_high_disk_utilization",
-            "Pod High Disk Utilization ( >70% )",
-            70.0,
-            AlertSeverity::DayOnly,
-        ),
-        get_general_pod_disk_utilization(
-            "pod_state_critical_disk_utilization",
-            "Pod Critical Disk Utilization ( >90% )",
-            90.0,
-            AlertSeverity::Regular,
-        ),
-    ]
+    vec![get_pod_disk_utilization_alert(), get_pod_disk_filling_soon_alert()]
 }
 
 pub(crate) fn get_periodic_ping() -> Alert {
