@@ -2,26 +2,26 @@ use validator::Validate;
 
 use crate::component_client::RemoteClientConfig;
 
-// idle_timeout_ms = 2000 ms: tcp_raw = 3000 ms, tcp_whole_secs = 3 s = 3000 ms, which is strictly
-// greater than http_keepalive = 2000 ms.
+// keepalive_timeout_ms = 2000 ms: tcp_raw = 3000 ms, tcp_whole_secs = 3 s = 3000 ms, which is
+// strictly greater than http_keepalive = 2000 ms.
 #[test]
 fn tcp_keepalive_validation_passes_when_tcp_strictly_greater_than_http_keepalive() {
-    let config = RemoteClientConfig { idle_timeout_ms: 2000, ..Default::default() };
+    let config = RemoteClientConfig { keepalive_timeout_ms: 2000, ..Default::default() };
     assert!(config.validate().is_ok());
 }
 
-// idle_timeout_ms = 1000 ms: tcp_raw = 1500 ms, tcp_whole_secs = 1 s = 1000 ms, which equals
+// keepalive_timeout_ms = 1000 ms: tcp_raw = 1500 ms, tcp_whole_secs = 1 s = 1000 ms, which equals
 // http_keepalive = 1000 ms.
 #[test]
 fn tcp_keepalive_validation_passes_when_tcp_equals_http_keepalive() {
-    let config = RemoteClientConfig { idle_timeout_ms: 1000, ..Default::default() };
+    let config = RemoteClientConfig { keepalive_timeout_ms: 1000, ..Default::default() };
     assert!(config.validate().is_ok());
 }
 
-// idle_timeout_ms = 100 ms: tcp_raw = 150 ms, tcp_whole_secs = 0 s = 0 ms, which is less than
+// keepalive_timeout_ms = 100 ms: tcp_raw = 150 ms, tcp_whole_secs = 0 s = 0 ms, which is less than
 // http_keepalive = 100 ms.
 #[test]
 fn tcp_keepalive_validation_fails_when_tcp_truncated_below_http_keepalive() {
-    let config = RemoteClientConfig { idle_timeout_ms: 100, ..Default::default() };
+    let config = RemoteClientConfig { keepalive_timeout_ms: 100, ..Default::default() };
     assert!(config.validate().is_err());
 }
