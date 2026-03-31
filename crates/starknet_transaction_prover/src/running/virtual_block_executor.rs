@@ -46,7 +46,10 @@ pub(crate) struct RpcVirtualBlockExecutorConfig {
     #[serde(default)]
     pub(crate) prefetch_state: bool,
     /// Bouncer configuration for virtual block capacity limits.
-    /// Client-side limits may differ from Starknet limits.
+    ///
+    /// This path runs a **virtual OS**: execution output is not posted to L1. The proof carries
+    /// the result on L2 via `proof_fact`, so `l1_gas` and `message_segment_length` in the bouncer
+    /// must not mimic real L1 DA constraints—embedded defaults set those caps high.
     #[serde(default)]
     // TODO(Aviv): Decide on the default value.
     pub(crate) bouncer_config: BouncerConfig,
@@ -559,7 +562,7 @@ impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
             self.config.use_latest_versioned_constants,
         )?;
 
-        // Client-side bouncer limits may differ from Starknet network limits.
+        // Override with client-side caps (see `RpcVirtualBlockExecutorConfig::bouncer_config`).
         base_block_info.block_context.bouncer_config = self.config.bouncer_config.clone();
 
         Ok(base_block_info)
