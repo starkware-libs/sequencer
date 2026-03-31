@@ -136,7 +136,9 @@ RUN BUILD_FLAGS=$([ "$BUILD_MODE" = "release" ] && echo "--release" || true); \
     fi
 
 # Install compiler binary used for Sierra to CASM compilation at runtime.
-RUN cargo install --locked starknet-sierra-compile --version 2.17.0-rc.4
+# Version is extracted from Rust source (the single source of truth).
+RUN SIERRA_V=$(grep 'CAIRO1_COMPILER_VERSION' crates/apollo_infra_utils/src/cairo_compiler_version.rs | grep -oP '"\K[^"]+' | head -1) && \
+    cargo install --locked starknet-sierra-compile --version "$SIERRA_V"
 
 # =============================================================================
 # Stage 4: Final runtime image

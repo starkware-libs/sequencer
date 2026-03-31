@@ -51,12 +51,15 @@ function install_cargo_tools() {
     install_cargo_tool_if_needed "cargo deny --version" "cargo-deny" "0.16.2"
 
     # Install compiler binaries used for Sierra compilation at runtime.
+    # Versions are extracted from Rust source files (the single source of truth).
+    source "${SCRIPT_DIR}/compiler_versions.sh"
     # RUSTC_WRAPPER="" avoids sccache circular dependency during installation.
-    (RUSTC_WRAPPER="" install_cargo_tool_if_needed "starknet-sierra-compile --version" "starknet-sierra-compile" "2.17.0-rc.4")
+    (RUSTC_WRAPPER="" install_cargo_tool_if_needed "starknet-sierra-compile --version" "starknet-sierra-compile" "$SIERRA_COMPILE_VERSION")
     # starknet-native-compile needs LLVM/MLIR env vars (normally set by .cargo/config.toml,
     # but cargo install runs outside the workspace so they must be set explicitly).
-    (RUSTC_WRAPPER="" LLVM_SYS_191_PREFIX="/usr/lib/llvm-19/" MLIR_SYS_190_PREFIX="/usr/lib/llvm-19/" TABLEGEN_190_PREFIX="/usr/lib/llvm-19/" \
-        install_cargo_tool_if_needed "starknet-native-compile --version" "starknet-native-compile" "0.9.0-rc.5")
+    eval "$(grep -E '(LLVM_SYS|MLIR_SYS|TABLEGEN)' "$REPO_ROOT/.cargo/config.toml" | sed 's/ = /=/' | tr -d '"')"
+    (RUSTC_WRAPPER="" LLVM_SYS_191_PREFIX="$LLVM_SYS_191_PREFIX" MLIR_SYS_190_PREFIX="$MLIR_SYS_190_PREFIX" TABLEGEN_190_PREFIX="$TABLEGEN_190_PREFIX" \
+        install_cargo_tool_if_needed "starknet-native-compile --version" "starknet-native-compile" "$NATIVE_COMPILE_VERSION")
 }
 
 install_cargo_tools

@@ -83,8 +83,11 @@ COPY . .
 RUN cargo build --release -p blockifier_reexecution --features cairo_native
 
 # Install compiler binaries used for Sierra compilation at runtime.
-RUN cargo install --locked starknet-sierra-compile --version 2.17.0-rc.4
-RUN cargo install --locked starknet-native-compile --version 0.9.0-rc.5
+# Versions are extracted from Rust source files (the single source of truth).
+RUN SIERRA_V=$(grep 'CAIRO1_COMPILER_VERSION' crates/apollo_infra_utils/src/cairo_compiler_version.rs | grep -oP '"\K[^"]+' | head -1) && \
+    cargo install --locked starknet-sierra-compile --version "$SIERRA_V"
+RUN NATIVE_V=$(grep 'REQUIRED_CAIRO_NATIVE_VERSION' crates/apollo_compile_to_native/src/constants.rs | grep -oP '"\K[^"]+' | head -1) && \
+    cargo install --locked starknet-native-compile --version "$NATIVE_V"
 
 # =============================================================================
 # Stage 4: Final runtime image
