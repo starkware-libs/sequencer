@@ -1,9 +1,11 @@
 use std::path::PathBuf;
 
+use apollo_compilation_utils::build_utils::verify_compiler_binary;
 use apollo_compilation_utils::compiler_utils::compile_with_args;
 use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compilation_utils::paths::binary_path;
 use apollo_compilation_utils::resource_limits::ResourceLimits;
+use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
@@ -19,7 +21,8 @@ pub struct SierraToCasmCompiler {
 
 impl SierraToCasmCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
-        let path_to_binary = binary_path(&out_dir(), CAIRO_LANG_BINARY_NAME);
+        verify_compiler_binary(CAIRO_LANG_BINARY_NAME, CAIRO1_COMPILER_VERSION);
+        let path_to_binary = binary_path(CAIRO_LANG_BINARY_NAME);
         info!("Using Sierra compiler binary at: {:?}", path_to_binary);
         Self { config, path_to_binary }
     }
@@ -50,9 +53,4 @@ impl SierraToCasmCompiler {
         )?;
         Ok(serde_json::from_slice::<CasmContractClass>(&stdout)?)
     }
-}
-
-// Returns the OUT_DIR. This function is only operable at run time.
-fn out_dir() -> PathBuf {
-    env!("RUNTIME_ACCESSIBLE_OUT_DIR").into()
 }

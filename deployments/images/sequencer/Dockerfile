@@ -35,6 +35,10 @@ RUN BUILD_FLAGS=""; \
     fi; \
     cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native
 
+# Install compiler binaries used for Sierra compilation at runtime.
+RUN cargo install --locked starknet-sierra-compile --version 2.17.0-rc.4
+RUN cargo install --locked starknet-native-compile --version 0.9.0-rc.5
+
 
 FROM ubuntu:24.04 AS final_stage
 
@@ -48,8 +52,8 @@ RUN apt-get update && apt-get install -y ca-certificates binutils libc6-dev
 ENV ID=1001
 WORKDIR /app
 COPY --from=builder /app/target/${BUILD_MODE}/apollo_node ./target/${BUILD_MODE}/apollo_node
-COPY --from=builder /app/target/${BUILD_MODE}/shared_executables/starknet-sierra-compile ./target/${BUILD_MODE}/shared_executables/starknet-sierra-compile
-COPY --from=builder /app/target/${BUILD_MODE}/shared_executables/starknet-native-compile ./target/${BUILD_MODE}/shared_executables/starknet-native-compile
+COPY --from=builder /var/tmp/rust/bin/starknet-sierra-compile /usr/local/bin/starknet-sierra-compile
+COPY --from=builder /var/tmp/rust/bin/starknet-native-compile /usr/local/bin/starknet-native-compile
 COPY --from=builder /usr/bin/tini /usr/bin/tini
 
 # Copy apollo config schema, used when it loads its configuration.
