@@ -165,9 +165,14 @@ async fn test_delayed_operation() {
 
 ## Error Handling & Safety
 
+
 Use `Result<T, E>` for recoverable errors and `panic!` only for bugs.
+
 Use `todo!` for to-be-completed code sections.
+
 Don't use `unreachable!` and `unimplemented!`, as they are very similar in meaning to `panic!` and `todo!` and it's not worth the headache of figuring which one fits better.
+
+Error structs and enums should have names ending with `Error` (e.g. `StorageError`, `ParseTransactionError`).
 
 ### expect message
 
