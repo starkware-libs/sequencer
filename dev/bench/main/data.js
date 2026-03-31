@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774862353943,
+  "lastUpdate": 1774949319893,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1155,6 +1155,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1298.40826797,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "guy.n@starkware.co",
+            "name": "guy-starkware",
+            "username": "guy-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d31fd40782e04aa7bc412ca385021f89f7a9f016",
+          "message": "apollo_propeller: add nonce per peer to prevent replays (#13264)",
+          "timestamp": "2026-03-31T09:13:41Z",
+          "tree_id": "5cad6951820867842c8bd8e360aa1b20c5e62b64",
+          "url": "https://github.com/starkware-libs/sequencer/commit/d31fd40782e04aa7bc412ca385021f89f7a9f016"
+        },
+        "date": 1774949319572,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 882.32807178,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1285.03510536,
             "unit": "ms"
           }
         ]
