@@ -986,8 +986,8 @@ impl Mempool {
 
     fn update_accounts_with_gap(&mut self, address_to_nonce: AddressToNonce) {
         for (address, account_nonce) in address_to_nonce {
-            // A delayed transaction whose nonce matches the account nonce fills a gap if one
-            // exists.
+            // If a delayed transaction exists at the account nonce, it is next to execute, so no
+            // gap exists.
             if self.delayed_queues.contains(address, account_nonce) {
                 self.accounts_with_gap.swap_remove(&address);
                 continue;
