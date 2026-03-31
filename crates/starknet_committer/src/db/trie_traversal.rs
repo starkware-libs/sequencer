@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::marker::PhantomData;
 
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
@@ -26,7 +27,14 @@ use starknet_patricia::patricia_merkle_tree::traversal::{
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::StorageError;
-use starknet_patricia_storage::storage_trait::{DbKey, ReadOnlyStorage};
+use starknet_patricia_storage::reads_collector_storage::ReadsCollectorStorage;
+use starknet_patricia_storage::storage_trait::{
+    DbKey,
+    ImmutableReadOnlyStorage,
+    ReadOnlyStorage,
+    StorageTask,
+    StorageTaskOutput,
+};
 use tracing::warn;
 
 use crate::block_committer::input::{
@@ -452,6 +460,82 @@ where
         storage_tries.insert(*address, original_skeleton);
     }
     Ok(storage_tries)
+}
+
+/// Holds all data needed to build one storage trie concurrently.
+/// Implements [StorageTask] so that [ImmutableReadOnlyStorage::gather] can drive it.
+struct TrieReadTask<'a, Layout: NodeLayoutFor<StarknetStorageValue>> {
+    address: ContractAddress,
+    updates: &'a LeafModifications<StarknetStorageValue>,
+    storage_root_hash: HashOutput,
+    sorted_leaf_indices: SortedLeafIndices<'a>,
+    warn_on_trivial_modifications: bool,
+    _layout: PhantomData<Layout>,
+}
+
+impl<'a, S, Layout> StorageTaskOutput<S> for TrieReadTask<'a, Layout>
+where
+    S: ImmutableReadOnlyStorage,
+    Layout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
+{
+    type Output = ForestResult<(ContractAddress, OriginalSkeletonTreeImpl<'a>)>;
+}
+
+#[async_trait::async_trait]
+impl<'a, 's, S, Layout> StorageTask<'s, S> for TrieReadTask<'a, Layout>
+where
+    S: ImmutableReadOnlyStorage + 's,
+    Layout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
+    <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
+        HasStaticPrefix<KeyContext = ContractAddress>,
+{
+    async fn run_with_storage(self, storage: &mut ReadsCollectorStorage<'s, S>) -> Self::Output {
+        let skeleton = create_storage_trie::<Layout>(
+            storage,
+            self.address,
+            self.updates,
+            self.storage_root_hash,
+            self.sorted_leaf_indices,
+            self.warn_on_trivial_modifications,
+        )
+        .await?;
+        Ok((self.address, skeleton))
+    }
+}
+
+#[expect(dead_code)]
+async fn create_storage_tries_concurrently<
+    'a,
+    S: ImmutableReadOnlyStorage,
+    Layout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
+>(
+    storage: &mut S,
+    actual_storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+    original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
+    warn_on_trivial_modifications: bool,
+    storage_tries_sorted_indices: &'a HashMap<ContractAddress, SortedLeafIndices<'a>>,
+) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>>
+where
+    <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
+        HasStaticPrefix<KeyContext = ContractAddress>,
+{
+    let mut tasks = Vec::new();
+    for (address, updates) in actual_storage_updates {
+        tasks.push(TrieReadTask::<Layout> {
+            address: *address,
+            updates,
+            storage_root_hash: original_contracts_trie_leaves
+                .get(&contract_address_into_node_index(address))
+                .ok_or(ForestError::MissingContractCurrentState(*address))?
+                .storage_root_hash,
+            sorted_leaf_indices: *storage_tries_sorted_indices
+                .get(address)
+                .ok_or(ForestError::MissingSortedLeafIndices(*address))?,
+            warn_on_trivial_modifications,
+            _layout: PhantomData,
+        });
+    }
+    storage.gather(tasks).await.into_iter().collect()
 }
 
 /// Helper function to create a storage trie for a single contract.
