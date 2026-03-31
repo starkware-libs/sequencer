@@ -15,9 +15,7 @@ pub fn verify_compiler_binary(binary_name: &str, required_version: &str) {
             }
         }
         Err(_) => {
-            panic!(
-                "{binary_name} not found. Run 'scripts/install_cargo_tools.sh' to install it."
-            );
+            panic!("{binary_name} not found. Run 'scripts/install_cargo_tools.sh' to install it.");
         }
     }
 }
