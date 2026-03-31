@@ -1715,6 +1715,54 @@ fn declare_tx_closes_a_gap() {
     );
 }
 
+#[test]
+fn stale_delayed_declare_does_not_suppress_gap_detection() {
+    // A delayed declare can become stale if another sequencer commits a competing transaction at
+    // the same nonce (multi-sequencer / consensus scenario). The local declare stays in the delay
+    // queue while the on-chain nonce advances past it.
+    let declare_delay = Duration::from_secs(100);
+    let fake_clock = Arc::new(FakeClock::default());
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            static_config: MempoolStaticConfig {
+                declare_delay,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        fake_clock.clone(),
+    );
+    let addr = "0x0";
+
+    // Create a gap: invoke at nonce 2 with account nonce 0.
+    let invoke_nonce_2 = add_tx_input!(tx_hash: 1, address: addr, tx_nonce: 2, account_nonce: 0);
+    add_tx(&mut mempool, &invoke_nonce_2);
+    assert!(mempool.accounts_with_gap().contains(&contract_address!(addr)));
+
+    // Delayed declare at nonce 0 closes the gap.
+    let delayed_declare = declare_add_tx_input(declare_tx_args!(
+        tx_hash: tx_hash!(2),
+        sender_address: contract_address!(addr),
+        nonce: nonce!(0)
+    ));
+    add_tx(&mut mempool, &delayed_declare);
+    assert!(!mempool.accounts_with_gap().contains(&contract_address!(addr)));
+
+    // Another sequencer commits nonce 0 via a competing transaction. The local delayed declare
+    // is now stale (nonce 0 < account nonce 1). Gap detection must not be fooled by it: the
+    // invoke at nonce 2 creates a gap at nonce 1.
+    commit_block(&mut mempool, [(addr, 1)], []);
+    assert!(mempool.accounts_with_gap().contains(&contract_address!(addr)));
+
+    // Once the delay elapses, the stale declare is moved from delayed_declares into tx_pool
+    // (add_ready_declares has no nonce guard). It sits there with stale nonce 0 < account nonce
+    // 1, so it is never queued. The next commit_block will clean it up via
+    // remove_up_to_nonce_when_committed.
+    fake_clock.advance(declare_delay);
+    mempool.get_txs(1).unwrap();
+    assert!(mempool.mempool_snapshot().unwrap().delayed_declares.is_empty());
+}
+
 #[rstest]
 fn returns_error_when_no_evictable_accounts() {
     let not_evictable_tx = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);

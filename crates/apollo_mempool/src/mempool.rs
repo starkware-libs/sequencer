@@ -890,8 +890,8 @@ impl Mempool {
 
     fn update_accounts_with_gap(&mut self, address_to_nonce: AddressToNonce) {
         for (address, account_nonce) in address_to_nonce {
-            // Assumption: Future declares are not allowed — their nonce must match the account
-            // nonce, so they fill a gap if one exists.
+            // If a delayed declare exists at the account nonce, it is next to execute, so no gap
+            // exists.
             if self.delayed_declares.contains(address, account_nonce) {
                 self.accounts_with_gap.swap_remove(&address);
                 continue;
