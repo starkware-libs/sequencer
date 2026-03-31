@@ -124,6 +124,7 @@ use tokio::time::{sleep, timeout};
 use tracing::{debug, info, Instrument};
 use url::Url;
 
+use crate::fake_starknet_server::FakeStarknetServer;
 use crate::flow_test_setup::{FlowSequencerSetup, FlowTestSetup, NUM_OF_SEQUENCERS};
 use crate::state_reader::StorageTestConfig;
 
@@ -466,6 +467,16 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             ..Default::default()
         })
         .collect()
+}
+
+pub async fn spawn_fake_recorder(addr: SocketAddr) -> FakeStarknetServer {
+    let server = FakeStarknetServer::new(addr).await;
+    // Pre-seed block 0 (genesis) so the first proposal at height 1 can proceed.
+    // In a real deployment, the genesis block is in Aerospike before sequencing starts.
+    // Without this, `write_prev_height_blob(1)` would find an empty recorder and return false,
+    // causing every proposal to fail since `prepare_blob_for_next_height` never gets called.
+    server.state.lock().unwrap().blocks.entry(0).or_default().block_hash = Some("0x0".to_string());
+    server
 }
 
 // Creates a local recorder server that always returns a success status.

@@ -8,7 +8,7 @@ use crate::fake_starknet_server::{BLOCK_NOT_FOUND_JSON, BLOCK_SIGNATURE_JSON};
 
 #[tokio::test]
 async fn feeder_is_alive() {
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
     let (status, body) = get(&client, &url(&server, "/feeder_gateway/is_alive")).await;
     assert_eq!(status, StatusCode::OK);
@@ -24,7 +24,7 @@ async fn get_block_by_number() {
         assert!(BLOCK_NUMBER1 < BLOCK_NUMBER2);
     }
 
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let feeder_json1 = make_feeder_block(BLOCK_NUMBER1);
     server.state.lock().unwrap().seed_block(
         BLOCK_NUMBER1,
@@ -80,7 +80,7 @@ async fn get_latest_block_returns_highest_block_number() {
         assert!(BLOCK_NUMBER2 < BLOCK_NUMBER3);
     }
 
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     {
         let mut state = server.state.lock().unwrap();
         state.seed_block(
@@ -111,7 +111,7 @@ async fn get_latest_block_returns_highest_block_number() {
 
 #[tokio::test]
 async fn get_latest_block_empty_store() {
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
     let (status, _) =
         get(&client, &url(&server, "/feeder_gateway/get_block?blockNumber=latest")).await;
@@ -121,7 +121,7 @@ async fn get_latest_block_empty_store() {
 #[tokio::test]
 async fn get_block_header_only_true_returns_subset() {
     const BLOCK_NUMBER: u64 = 16;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     server.state.lock().unwrap().seed_block(
         BLOCK_NUMBER,
         &format!("0x{BLOCK_NUMBER:x}"),
@@ -149,7 +149,7 @@ async fn get_block_header_only_true_returns_subset() {
 #[tokio::test]
 async fn get_block_header_only_false_returns_full_block() {
     const BLOCK_NUMBER: u64 = 16;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let feeder_json = make_feeder_block(BLOCK_NUMBER);
     server.state.lock().unwrap().seed_block(
         BLOCK_NUMBER,
@@ -174,7 +174,7 @@ async fn get_block_header_only_false_returns_full_block() {
 #[tokio::test]
 async fn get_block_without_hash_returns_block_not_found() {
     const BLOCK_NUMBER: u64 = 5;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     // Seed feeder content but no block hash.
     server.state.lock().unwrap().blocks.entry(BLOCK_NUMBER).or_default().feeder_json =
         Some(make_feeder_block(BLOCK_NUMBER));
@@ -193,7 +193,7 @@ async fn get_block_without_hash_returns_block_not_found() {
 #[tokio::test]
 async fn get_block_without_feeder_content_returns_block_not_found() {
     const BLOCK_NUMBER: u64 = 5;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     // Set block hash but no feeder content.
     server.state.lock().unwrap().blocks.entry(BLOCK_NUMBER).or_default().block_hash =
         Some(format!("0x{BLOCK_NUMBER:x}"));
@@ -214,7 +214,7 @@ async fn get_state_update_returns_stored_state_update() {
     const BLOCK_NUMBER: u64 = 2;
     const BAD_BLOCK_NUMBER: u64 = 99;
 
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let state_update = json!({"state_diff": {}});
     {
         let mut state = server.state.lock().unwrap();
@@ -247,7 +247,7 @@ async fn get_state_update_returns_stored_state_update() {
 #[tokio::test]
 async fn get_state_update_without_block_hash_returns_block_not_found() {
     const BLOCK_NUMBER: u64 = 2;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     // Seed state_update but no block hash.
     server.state.lock().unwrap().blocks.entry(BLOCK_NUMBER).or_default().state_update =
         Some(json!({"state_diff": {}}));
@@ -265,7 +265,7 @@ async fn get_state_update_without_block_hash_returns_block_not_found() {
 
 #[tokio::test]
 async fn get_state_update_pending_returns_pending_data() {
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let pending = json!({"pending": true});
     server.state.lock().unwrap().pending_data_json = Some(pending.clone());
 
@@ -279,7 +279,7 @@ async fn get_state_update_pending_returns_pending_data() {
 
 #[tokio::test]
 async fn get_state_update_invalid_block_number_returns_block_not_found() {
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
 
     let client = reqwest::Client::new();
     let (status, body) =
@@ -291,7 +291,7 @@ async fn get_state_update_invalid_block_number_returns_block_not_found() {
 
 #[tokio::test]
 async fn get_state_update_pending_not_configured_returns_block_not_found() {
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     // pending_data_json is None by default.
 
     let client = reqwest::Client::new();
@@ -305,7 +305,7 @@ async fn get_state_update_pending_not_configured_returns_block_not_found() {
 #[tokio::test]
 async fn get_signature_returns_constant() {
     const BLOCK_NUMBER: u64 = 6;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
     let (status, body) = get(
         &client,
@@ -321,7 +321,7 @@ async fn get_class_by_hash_returns_class() {
     const CLASS_HASH: &str = "0xabc";
     const BAD_CLASS_HASH: &str = "0xdeadbeef";
 
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let class = json!({"type": "CAIRO_1"});
     server.state.lock().unwrap().classes_json.insert(CLASS_HASH.to_string(), class.clone());
 
@@ -351,7 +351,7 @@ async fn get_compiled_class_returns_compiled_class() {
     const CLASS_HASH: &str = "0xdef";
     const BAD_CLASS_HASH: &str = "0xunknown";
 
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let compiled = json!({"bytecode": [1, 2, 3]});
     server
         .state
@@ -390,7 +390,7 @@ async fn get_compiled_class_returns_compiled_class() {
 #[tokio::test]
 async fn get_public_key() {
     const PUBLIC_KEY: &str = "0x123456";
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let pub_key = json!(PUBLIC_KEY);
     server.state.lock().unwrap().sequencer_pub_key_json = Some(pub_key.clone());
 
@@ -403,7 +403,7 @@ async fn get_public_key() {
 
 #[tokio::test]
 async fn get_public_key_not_configured() {
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
     let (status, _) = get(&client, &url(&server, "/feeder_gateway/get_public_key")).await;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
@@ -414,7 +414,7 @@ async fn get_public_key_not_configured() {
 #[tokio::test]
 async fn write_blob_records_block_without_hash() {
     const BLOCK_NUMBER: u64 = 10;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
 
     let status =
@@ -432,7 +432,7 @@ async fn write_blob_records_block_without_hash() {
 #[tokio::test]
 async fn write_blob_failure_mode_returns_500_and_does_not_store() {
     const BLOCK_NUMBER: u64 = 3;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     server.state.lock().unwrap().write_blob_should_succeed = false;
     let client = reqwest::Client::new();
 
@@ -446,7 +446,7 @@ async fn write_blob_failure_mode_returns_500_and_does_not_store() {
 
 #[tokio::test]
 async fn get_latest_received_block_empty_store() {
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
     let (status, body) =
         get(&client, &url(&server, "/cende_recorder/get_latest_received_block")).await;
@@ -468,7 +468,7 @@ async fn get_latest_received_block_returns_max_block_with_hash() {
         assert!(BLOCK_NUMBER2 < BLOCK_NUMBER3);
     }
 
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     {
         let mut state = server.state.lock().unwrap();
         // Set block hashes directly, simulating what recent_block_hashes would do.
@@ -497,7 +497,7 @@ async fn get_latest_received_block_ignores_blocks_without_hash() {
         assert!(BLOCK_WITH_HASH < BLOCK_WITHOUT_HASH);
     }
 
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     {
         let mut state = server.state.lock().unwrap();
         state.blocks.entry(BLOCK_WITH_HASH).or_default().block_hash =
@@ -520,7 +520,7 @@ async fn write_blob_with_recent_block_hashes_fills_in_hashes() {
     const BLOB_BLOCK_NUMBER: u64 = 10;
     const RECENT_BLOCK_NUMBER: u64 = 9;
 
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
 
     let blob = make_blob_with_recent_hashes(
@@ -545,7 +545,7 @@ async fn write_blob_with_recent_hashes_updates_get_latest_received_block() {
     const BLOB_BLOCK_NUMBER: u64 = 8;
     const PREV_BLOCK_NUMBER: u64 = BLOB_BLOCK_NUMBER - 1;
 
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
 
     let blob = make_blob_with_recent_hashes(
@@ -565,7 +565,7 @@ async fn write_blob_with_recent_hashes_updates_get_latest_received_block() {
 #[tokio::test]
 async fn write_blob_without_recent_hashes_does_not_update_get_latest_received_block() {
     const BLOCK_NUMBER: u64 = 8;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
 
     // Blob with no recent_block_hashes: the block has no confirmed hash.
@@ -583,7 +583,7 @@ async fn write_blob_without_recent_hashes_does_not_update_get_latest_received_bl
 #[tokio::test]
 async fn write_blob_without_feeder_content_is_not_served_by_feeder() {
     const BLOCK_NUMBER: u64 = 8;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
 
     // Blob with recent_block_hashes gives BLOCK_NUMBER a hash, but no feeder content.
@@ -606,7 +606,7 @@ async fn write_blob_without_feeder_content_is_not_served_by_feeder() {
 #[tokio::test]
 async fn hash_set_before_feeder_content_merges_correctly() {
     const BLOCK_NUMBER: u64 = 5;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
 
     // Step 1: hash arrives via a later blob's recent_block_hashes.
@@ -634,7 +634,7 @@ async fn hash_set_before_feeder_content_merges_correctly() {
 #[tokio::test]
 async fn feeder_content_set_before_hash_merges_correctly() {
     const BLOCK_NUMBER: u64 = 5;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
 
     // Step 1: feeder content seeded first.
@@ -673,7 +673,7 @@ async fn feeder_content_set_before_hash_merges_correctly() {
 async fn write_blob_derives_state_update_from_central_state_diff() {
     const BLOCK_NUMBER: u64 = 5;
     const NEXT_BLOCK_NUMBER: u64 = BLOCK_NUMBER + 1;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
 
     // Blob for BLOCK_NUMBER carries a CentralStateDiff with both L1 and L2 DA-mode entries.
@@ -732,7 +732,7 @@ async fn write_blob_derives_state_update_from_central_state_diff() {
 async fn write_blob_derives_feeder_json_from_block_info() {
     const BLOCK_NUMBER: u64 = 5;
     const NEXT_BLOCK_NUMBER: u64 = BLOCK_NUMBER + 1;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
 
     // Blob for BLOCK_NUMBER carries a full block_info and fee_market_info.
@@ -810,7 +810,7 @@ async fn feeder_json_hash_patched_when_hash_confirmed_before_blob() {
     // not left as null (which would pass the internal gate but serve a broken payload).
     const BLOCK_NUMBER: u64 = 5;
     const NEXT_BLOCK_NUMBER: u64 = BLOCK_NUMBER + 1;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
 
     // Step 1: hash arrives first via a later blob's recent_block_hashes.
@@ -856,7 +856,7 @@ async fn feeder_json_hash_patched_when_hash_confirmed_before_blob() {
 #[tokio::test]
 async fn state_update_not_served_until_hash_confirmed() {
     const BLOCK_NUMBER: u64 = 5;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
 
     // Blob posted: state_diff known but hash not yet confirmed.
@@ -884,7 +884,7 @@ async fn state_update_not_served_until_hash_confirmed() {
 async fn hash_confirmed_before_state_diff_patches_correctly() {
     const BLOCK_NUMBER: u64 = 5;
     const NEXT_BLOCK_NUMBER: u64 = BLOCK_NUMBER + 1;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
 
     // Hash arrives first via a later blob.
@@ -927,7 +927,7 @@ async fn hash_confirmed_before_state_diff_patches_correctly() {
 #[tokio::test]
 async fn write_pre_confirmed_block_records_block_number() {
     const BLOCK_NUMBER: u64 = 11;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     let client = reqwest::Client::new();
 
     let status = post_json(
@@ -946,7 +946,7 @@ async fn write_pre_confirmed_block_records_block_number() {
 #[tokio::test]
 async fn write_pre_confirmed_block_failure_mode_returns_500_and_does_not_store() {
     const BLOCK_NUMBER: u64 = 4;
-    let server = FakeStarknetServer::new().await;
+    let server = test_server().await;
     server.state.lock().unwrap().write_pre_confirmed_block_should_succeed = false;
     let client = reqwest::Client::new();
 
@@ -962,6 +962,11 @@ async fn write_pre_confirmed_block_failure_mode_returns_500_and_does_not_store()
 }
 
 // Helpers
+
+async fn test_server() -> FakeStarknetServer {
+    use std::net::SocketAddr;
+    FakeStarknetServer::new(SocketAddr::from(([127, 0, 0, 1], 0))).await
+}
 
 /// Minimal blob payload with only a block number, no recent_block_hashes.
 fn make_blob(block_number: u64) -> Value {
