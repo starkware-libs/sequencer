@@ -1,12 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::LazyLock;
+use std::sync::{LazyLock, OnceLock};
 
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use chrono::{Datelike, Utc};
-use expect_test::{expect, Expect};
 use itertools::Itertools;
 use rand::prelude::IteratorRandom;
 use rand_chacha::rand_core::SeedableRng;
@@ -22,7 +21,7 @@ use starknet_api::core::{
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::{L2ToL1Payload, MessageToL1};
-use starknet_api::{calldata, felt, invoke_tx_args};
+use starknet_api::{calldata, invoke_tx_args};
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_types_core::felt::Felt;
 use strum::{EnumIter, IntoEnumIterator};
@@ -67,41 +66,36 @@ static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
     ])
 });
 
-/// Initial fuzz contract addresses.
-static FUZZ_ADDRESS_ORCHESTRATOR_EXPECT: Expect =
-    expect!["0x69d54a15354f288de868a0210ec33d6e2ab6ece44fc7f9928294240086736ec"];
-static FUZZ_ADDRESS_CAIRO1_A_EXPECT: Expect =
-    expect!["0x634f0613f6df82b4e13834a12a12bff3553f3f679f4718924a70dce8495dd25"];
-static FUZZ_ADDRESS_CAIRO1_B_EXPECT: Expect =
-    expect!["0x1603f10e783471750094cd6e8d759de8bbed187436f5a97e148bfe1811ff533"];
-static FUZZ_ADDRESS_CAIRO0_A_EXPECT: Expect =
-    expect!["0x64eb9d64ea195139e48c9b188bc2e0a6e6c45935e64499744be63112d1e08ad"];
-static FUZZ_ADDRESS_CAIRO0_B_EXPECT: Expect =
-    expect!["0x44a188168acc2ea7c3fa8554db01650b7e2ee981101b9ab4a27c2be77b36a48"];
-static FUZZ_ADDRESS_ORCHESTRATOR: LazyLock<ContractAddress> = LazyLock::new(|| {
-    ContractAddress::try_from(felt!(FUZZ_ADDRESS_ORCHESTRATOR_EXPECT.data())).unwrap()
-});
-static FUZZ_ADDRESS_CAIRO1_A: LazyLock<ContractAddress> = LazyLock::new(|| {
-    ContractAddress::try_from(felt!(FUZZ_ADDRESS_CAIRO1_A_EXPECT.data())).unwrap()
-});
-static FUZZ_ADDRESS_CAIRO1_B: LazyLock<ContractAddress> = LazyLock::new(|| {
-    ContractAddress::try_from(felt!(FUZZ_ADDRESS_CAIRO1_B_EXPECT.data())).unwrap()
-});
-static FUZZ_ADDRESS_CAIRO0_A: LazyLock<ContractAddress> = LazyLock::new(|| {
-    ContractAddress::try_from(felt!(FUZZ_ADDRESS_CAIRO0_A_EXPECT.data())).unwrap()
-});
-static FUZZ_ADDRESS_CAIRO0_B: LazyLock<ContractAddress> = LazyLock::new(|| {
-    ContractAddress::try_from(felt!(FUZZ_ADDRESS_CAIRO0_B_EXPECT.data())).unwrap()
-});
-static FUZZ_ADDRESS_TO_CLASS_HASH: LazyLock<BTreeMap<ContractAddress, ClassHash>> =
-    LazyLock::new(|| {
-        BTreeMap::from([
-            (*FUZZ_ADDRESS_CAIRO1_A, *CAIRO1_CONTRACT_CLASS_HASH),
-            (*FUZZ_ADDRESS_CAIRO1_B, *CAIRO1_CONTRACT_CLASS_HASH),
-            (*FUZZ_ADDRESS_CAIRO0_A, *CAIRO0_CONTRACT_CLASS_HASH),
-            (*FUZZ_ADDRESS_CAIRO0_B, *CAIRO0_CONTRACT_CLASS_HASH),
-        ])
-    });
+/// Addresses of fuzz contracts after [`TestBuilder::create_standard`] deploys them.
+/// Initialized once from actual deployment; accessed via [`FUZZ_DEPLOYMENT`].
+struct FuzzDeploymentAddresses {
+    orchestrator: ContractAddress,
+    /// First Cairo1 fuzz contract (orchestrator calls this address to start the test).
+    cairo1_a: ContractAddress,
+    address_to_class_hash: BTreeMap<ContractAddress, ClassHash>,
+}
+
+impl FuzzDeploymentAddresses {
+    fn new(
+        orchestrator: ContractAddress,
+        cairo1_a: ContractAddress,
+        cairo1_b: ContractAddress,
+        cairo0_a: ContractAddress,
+        cairo0_b: ContractAddress,
+    ) -> Self {
+        let address_to_class_hash = BTreeMap::from([
+            (cairo1_a, *CAIRO1_CONTRACT_CLASS_HASH),
+            (cairo1_b, *CAIRO1_CONTRACT_CLASS_HASH),
+            (cairo0_a, *CAIRO0_CONTRACT_CLASS_HASH),
+            (cairo0_b, *CAIRO0_CONTRACT_CLASS_HASH),
+        ]);
+        Self { orchestrator, cairo1_a, address_to_class_hash }
+    }
+}
+
+/// Fuzz contract addresses, set once during [`FuzzTestManager::init_deployment`].
+/// Stored as a static so [`FuzzTestContext`] can access it without carrying a clone.
+static FUZZ_DEPLOYMENT: OnceLock<FuzzDeploymentAddresses> = OnceLock::new();
 
 /// Storage key that can be written to.
 static VALID_STORAGE_KEYS: LazyLock<Vec<Felt>> =
@@ -481,7 +475,9 @@ impl FuzzTestContext {
     }
 
     pub fn deployed_contracts(&self) -> impl Iterator<Item = &ContractAddress> {
-        self.newly_deployed_contracts.keys().chain(FUZZ_ADDRESS_TO_CLASS_HASH.keys())
+        self.newly_deployed_contracts
+            .keys()
+            .chain(FUZZ_DEPLOYMENT.get().unwrap().address_to_class_hash.keys())
     }
 
     pub fn try_class_hash_of(&self, address: &ContractAddress) -> Option<ClassHash> {
@@ -489,7 +485,10 @@ impl FuzzTestContext {
             Some(replaced_address) if &replaced_address == address => {
                 Some(*CAIRO1_REPLACEMENT_CLASS_HASH)
             }
-            _ => FUZZ_ADDRESS_TO_CLASS_HASH
+            _ => FUZZ_DEPLOYMENT
+                .get()
+                .unwrap()
+                .address_to_class_hash
                 .get(address)
                 .copied()
                 .or_else(|| self.newly_deployed_contracts.get(address).copied()),
@@ -671,7 +670,7 @@ impl FuzzTestContext {
         calculate_contract_address(
             salt,
             class_hash,
-            &calldata![***FUZZ_ADDRESS_ORCHESTRATOR],
+            &calldata![Felt::from(FUZZ_DEPLOYMENT.get().unwrap().orchestrator)],
             ContractAddress::default(),
         )
         .unwrap()
@@ -1099,16 +1098,18 @@ impl FuzzTestManager {
         // - an orchestrator contract.
         // - two cairo1 fuzz test contracts.
         // - two cairo0 fuzz test contracts.
-        let mut test_manager = Self::init_deployment(false).await;
+        let mut test_manager = Self::init_deployment().await;
+        let deployment = FUZZ_DEPLOYMENT.get().unwrap();
 
         // Initialize the fuzz testing contracts with the orchestrator address.
-        for address in FUZZ_ADDRESS_TO_CLASS_HASH.keys() {
-            let calldata = create_calldata(*address, "initialize", &[***FUZZ_ADDRESS_ORCHESTRATOR]);
+        for address in deployment.address_to_class_hash.keys() {
+            let calldata =
+                create_calldata(*address, "initialize", &[Felt::from(deployment.orchestrator)]);
             test_manager.add_funded_account_invoke(invoke_tx_args! { calldata });
         }
 
         // First call is the orchestrator calling the first fuzz test contract.
-        let first_called_address = *FUZZ_ADDRESS_CAIRO1_A;
+        let first_called_address = deployment.cairo1_a;
         let first_call = FuzzCallInfo::new_call(
             first_called_address,
             *CAIRO1_CONTRACT_CLASS_HASH,
@@ -1131,8 +1132,8 @@ impl FuzzTestManager {
     }
 
     /// Initializes the deployment of the fuzz test contracts.
-    /// Returns the test builder (after deployment).
-    pub async fn init_deployment(assert_expect: bool) -> TestBuilder<DictStateReader> {
+    /// Initializes [`FUZZ_DEPLOYMENT`] and returns the test builder.
+    pub async fn init_deployment() -> TestBuilder<DictStateReader> {
         let (
             test_manager,
             [
@@ -1153,14 +1154,15 @@ impl FuzzTestManager {
             (CAIRO1_REPLACEMENT_CONTRACT, calldata![Felt::ZERO]),
         ])
         .await;
-        if assert_expect {
-            FUZZ_ADDRESS_ORCHESTRATOR_EXPECT
-                .assert_eq(&orchestrator_contract_address.to_hex_string());
-            FUZZ_ADDRESS_CAIRO1_A_EXPECT.assert_eq(&cairo1_contract_address_a.to_hex_string());
-            FUZZ_ADDRESS_CAIRO1_B_EXPECT.assert_eq(&cairo1_contract_address_b.to_hex_string());
-            FUZZ_ADDRESS_CAIRO0_A_EXPECT.assert_eq(&cairo0_contract_address_a.to_hex_string());
-            FUZZ_ADDRESS_CAIRO0_B_EXPECT.assert_eq(&cairo0_contract_address_b.to_hex_string());
-        }
+        FUZZ_DEPLOYMENT.get_or_init(|| {
+            FuzzDeploymentAddresses::new(
+                orchestrator_contract_address,
+                cairo1_contract_address_a,
+                cairo1_contract_address_b,
+                cairo0_contract_address_a,
+                cairo0_contract_address_b,
+            )
+        });
         test_manager
     }
 
@@ -1192,9 +1194,10 @@ impl FuzzTestManager {
         }
 
         // Initialize the orchestrator contract with the scenario data.
+        let orchestrator_address = FUZZ_DEPLOYMENT.get().unwrap().orchestrator;
         let scenario_data = self.context.operations_to_scenario_data();
         let orchestrator_calldata = create_calldata(
-            *FUZZ_ADDRESS_ORCHESTRATOR,
+            orchestrator_address,
             "initialize",
             &[vec![Felt::from(scenario_data.len())], scenario_data].concat(),
         );
@@ -1202,11 +1205,8 @@ impl FuzzTestManager {
             .add_funded_account_invoke(invoke_tx_args! { calldata: orchestrator_calldata });
 
         // Invoke the test.
-        let start_test_calldata = create_calldata(
-            *FUZZ_ADDRESS_ORCHESTRATOR,
-            "start_test",
-            &[**self.first_called_address],
-        );
+        let start_test_calldata =
+            create_calldata(orchestrator_address, "start_test", &[**self.first_called_address]);
 
         // Whether or not a revert is expected depends on context.
         let tx_revert_error = match self.context.final_state {
@@ -1250,13 +1250,6 @@ async fn fuzz_test_body(seed: u64, max_n_operations: usize, filter: Option<Opera
     println!("{}", fuzz_tester.prettify_operations());
 
     fuzz_tester.run_test().await;
-}
-
-/// Updates the expected fuzz contract addresses (if UPDATE_EXPECT env var is set).
-#[rstest]
-#[tokio::test]
-async fn test_fuzz_deployment_expect() {
-    FuzzTestManager::init_deployment(true).await;
 }
 
 #[rstest]
