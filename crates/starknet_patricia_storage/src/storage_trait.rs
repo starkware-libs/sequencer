@@ -245,6 +245,10 @@ pub trait Storage: ReadOnlyStorage {
 
     /// If the storage is async, returns an instance of the async storage.
     fn get_async_self(&self) -> Option<impl AsyncStorage>;
+
+    /// If the storage supports concurrent task execution, returns a mutable reference to it as a
+    /// [ImmutableReadOnlyStorage]. Returns `None` otherwise.
+    fn as_immutable_read_only(&mut self) -> Option<&mut impl ImmutableReadOnlyStorage>;
 }
 
 /// A trait wrapper for [Storage] that supports concurrency.
@@ -323,6 +327,10 @@ impl Storage for NullStorage {
 
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
         Some(self.clone())
+    }
+
+    fn as_immutable_read_only(&mut self) -> Option<&mut impl ImmutableReadOnlyStorage> {
+        Some(self)
     }
 }
 
