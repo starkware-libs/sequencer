@@ -38,6 +38,24 @@ jobs:
           TITLE: ${{ github.event.pull_request.title }}
         run: echo "$TITLE" | commitlint --verbose
 
+  all-checks-pass:
+    runs-on: ubuntu-24.04
+    permissions:
+      checks: read
+      contents: read
+      statuses: read
+    steps:
+      - uses: wechuli/allcheckspassed@v2
+        with:
+          checks_exclude: "code-review/reviewable,merge-gatekeeper"
+          delay: 0
+          retries: 45
+          polling_interval: 1
+          fail_fast: true
+          verbose: true
+          show_job_summary: true
+          treat_skipped_as_passed: true
+
   merge-gatekeeper:
     runs-on: ubuntu-24.04
     # Restrict permissions of the GITHUB_TOKEN.
@@ -63,4 +81,4 @@ jobs:
           ref: ${{github.ref}}
           timeout: 1800
           interval: 30
-          ignored: "code-review/reviewable"
+          ignored: "code-review/reviewable,all-checks-pass"
