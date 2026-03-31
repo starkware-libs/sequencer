@@ -26,7 +26,7 @@ use reqwest::Client;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
-use starknet_api::block::{GasPrice, UnixTimestamp};
+use starknet_api::block::{GasPrice, ReplayMetadata};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -171,8 +171,9 @@ impl MempoolCommunicationWrapper {
         self.mempool.mempool_snapshot()
     }
 
-    fn resolve_batch_timestamp(&mut self) -> MempoolResult<UnixTimestamp> {
-        Ok(self.mempool.resolve_batch_timestamp())
+    fn resolve_block_metadata(&mut self) -> MempoolResult<ReplayMetadata> {
+        let block_metadata = self.mempool.resolve_block_metadata();
+        Ok(ReplayMetadata { timestamp: block_metadata.timestamp, block_number: block_metadata.block_number })
     }
 
     // Fetches tx block metadata from recorder and updates mempool.
@@ -256,8 +257,8 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
             MempoolRequest::GetMempoolSnapshot() => {
                 MempoolResponse::GetMempoolSnapshot(self.mempool_snapshot())
             }
-            MempoolRequest::ResolveBatchTimestamp => {
-                MempoolResponse::ResolveBatchTimestamp(self.resolve_batch_timestamp())
+            MempoolRequest::ResolveBlockMetadata => {
+                MempoolResponse::ResolveBlockMetadata(self.resolve_block_metadata())
             }
         }
     }

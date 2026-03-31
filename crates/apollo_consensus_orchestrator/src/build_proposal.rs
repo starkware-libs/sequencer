@@ -28,7 +28,7 @@ use apollo_protobuf::consensus::{
 };
 use apollo_time::time::{Clock, DateTime};
 use apollo_transaction_converter::TransactionConverterError;
-use starknet_api::block::GasPrice;
+use starknet_api::block::{GasPrice, ReplayMetadata};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -71,8 +71,8 @@ pub(crate) struct ProposalBuildArguments {
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
-    // If true, for echonet mode, use the timestamp from the original block.
-    pub override_timestamp: bool,
+    // If true, for echonet mode, use the metadata of the original block.
+    pub override_block_metadata: bool,
     pub override_l2_gas_price_fri: Option<u128>,
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
     pub compare_retrospective_block_hash: bool,
@@ -130,29 +130,30 @@ pub(crate) async fn build_proposal(
     Ok(proposal_commitment)
 }
 
-async fn get_proposal_timestamp(
-    override_timestamp: bool,
+async fn get_proposal_metadata(
+    override_block_metadata: bool,
     batcher: &dyn BatcherClient,
     clock: &dyn Clock,
-) -> u64 {
-    if override_timestamp {
-        match batcher.get_batch_timestamp().await {
-            Ok(timestamp) => return timestamp,
+) -> ReplayMetadata {
+    if override_block_metadata {
+        match batcher.get_block_metadata().await {
+            Ok(block_metadata) => return block_metadata,
             Err(err) => {
                 warn!("Failed to get timestamp from batcher, falling back to clock time: {err:?}");
             }
         }
     }
-    clock.unix_now()
+    ReplayMetadata { timestamp: clock.unix_now(), block_number: None }
 }
 
 async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResult<ProposalInit> {
-    let timestamp = get_proposal_timestamp(
-        args.override_timestamp,
+    let proposal_metadata = get_proposal_metadata(
+        args.override_block_metadata,
         args.deps.batcher.as_ref(),
         args.deps.clock.as_ref(),
     )
     .await;
+    let timestamp = proposal_metadata.timestamp;
     let (l1_prices_fri, l1_prices_wei) = get_l1_prices_in_fri_and_wei(
         args.deps.l1_gas_price_provider.clone(),
         timestamp,
