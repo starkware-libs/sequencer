@@ -12,8 +12,13 @@ use apollo_metrics::metrics::HistogramValue;
 use metrics_exporter_prometheus::PrometheusRecorder;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
-use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransactionLabelValue};
+use starknet_api::rpc_transaction::{
+    InternalRpcTransaction,
+    InternalRpcTransactionWithoutTxHash,
+    RpcTransactionLabelValue,
+};
 use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
+use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce};
 
@@ -23,6 +28,7 @@ use crate::metrics::{
     LABEL_NAME_DROP_REASON,
     LABEL_NAME_TX_TYPE,
     MEMPOOL_DELAYED_DECLARES_SIZE,
+    MEMPOOL_DELAYED_PROOF_TXS_SIZE,
     MEMPOOL_GET_TXS_SIZE,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
@@ -276,6 +282,18 @@ pub fn declare_add_tx_input(args: DeclareTxArgs) -> AddTransactionArgs {
 }
 
 #[track_caller]
+pub fn proof_tx_add_tx_input(args: InvokeTxArgs) -> AddTransactionArgs {
+    let tx = internal_invoke_tx(args);
+    debug_assert!(
+        matches!(&tx.tx, InternalRpcTransactionWithoutTxHash::Invoke(inv) if !inv.proof_facts.is_empty()),
+        "proof_tx_add_tx_input expects an invoke with non-empty proof_facts"
+    );
+    let account_state = AccountState { address: tx.contract_address(), nonce: tx.nonce() };
+
+    AddTransactionArgs { tx, account_state }
+}
+
+#[track_caller]
 pub fn validate_tx(mempool: &mut Mempool, input: &ValidationArgs) {
     assert_eq!(mempool.validate_tx(input.clone()), Ok(()));
 }
@@ -332,6 +350,7 @@ pub struct MempoolMetrics {
     pub pending_queue_size: u64,
     pub get_txs_size: u64,
     pub delayed_declares_size: u64,
+    pub delayed_proof_txs_size: u64,
     pub total_size_in_bytes: u64,
     pub transaction_time_spent_until_batched: HistogramValue,
     pub transaction_time_spent_until_committed: HistogramValue,
@@ -389,6 +408,9 @@ impl MempoolMetrics {
                 .unwrap(),
             get_txs_size: MEMPOOL_GET_TXS_SIZE.parse_numeric_metric::<u64>(metrics).unwrap(),
             delayed_declares_size: MEMPOOL_DELAYED_DECLARES_SIZE
+                .parse_numeric_metric::<u64>(metrics)
+                .unwrap(),
+            delayed_proof_txs_size: MEMPOOL_DELAYED_PROOF_TXS_SIZE
                 .parse_numeric_metric::<u64>(metrics)
                 .unwrap(),
             total_size_in_bytes: MEMPOOL_TOTAL_SIZE_BYTES

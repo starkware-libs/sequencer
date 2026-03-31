@@ -39,6 +39,7 @@ use crate::metrics::{
     metric_set_get_txs_size,
     LABEL_NAME_TX_TYPE,
     MEMPOOL_DELAYED_DECLARES_SIZE,
+    MEMPOOL_DELAYED_PROOF_TXS_SIZE,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
@@ -196,12 +197,17 @@ impl MempoolState {
 #[cfg_attr(test, derive(Clone))]
 pub(crate) enum DelayedTx {
     Declare,
+    ProofInvoke,
 }
 
 impl DelayedTx {
     fn matches(&self, tx: &InternalRpcTransactionWithoutTxHash) -> bool {
         match self {
             Self::Declare => matches!(tx, InternalRpcTransactionWithoutTxHash::Declare(_)),
+            Self::ProofInvoke => {
+                matches!(tx, InternalRpcTransactionWithoutTxHash::Invoke(invoke_tx)
+                    if !invoke_tx.proof_facts.is_empty())
+            }
         }
     }
 }
@@ -294,19 +300,23 @@ impl AddTransactionQueue {
 #[cfg_attr(test, derive(Clone))]
 pub(crate) struct DelayedQueues {
     declares: AddTransactionQueue,
+    proof_invokes: AddTransactionQueue,
 }
 
 impl DelayedQueues {
-    fn new(declare_delay: Duration) -> Self {
-        Self { declares: AddTransactionQueue::new(DelayedTx::Declare, declare_delay) }
+    fn new(declare_delay: Duration, proof_tx_delay: Duration) -> Self {
+        Self {
+            declares: AddTransactionQueue::new(DelayedTx::Declare, declare_delay),
+            proof_invokes: AddTransactionQueue::new(DelayedTx::ProofInvoke, proof_tx_delay),
+        }
     }
 
     fn iter(&self) -> impl Iterator<Item = &AddTransactionQueue> {
-        [&self.declares].into_iter()
+        [&self.declares, &self.proof_invokes].into_iter()
     }
 
     fn iter_mut(&mut self) -> impl Iterator<Item = &mut AddTransactionQueue> {
-        [&mut self.declares].into_iter()
+        [&mut self.declares, &mut self.proof_invokes].into_iter()
     }
 
     fn drain_ready(&mut self, now: DateTime) -> Vec<AddTransactionArgs> {
@@ -347,7 +357,10 @@ impl Mempool {
             BehaviorMode::Starknet => Box::new(FeeTransactionQueue::default()),
         };
 
-        let delayed_queues = DelayedQueues::new(config.static_config.declare_delay);
+        let delayed_queues = DelayedQueues::new(
+            config.static_config.declare_delay,
+            config.static_config.proof_tx_delay,
+        );
 
         Mempool {
             config: config.clone(),
@@ -956,6 +969,7 @@ impl Mempool {
         Ok(MempoolSnapshot {
             transactions: self.tx_pool.chronological_txs_hashes(),
             delayed_declares: self.delayed_queues.declares.tx_hashes(),
+            delayed_proof_txs: self.delayed_queues.proof_invokes.tx_hashes(),
             transaction_queue: self.tx_queue.queue_snapshot(),
             mempool_state: self.state.state_snapshot(),
         })
@@ -1073,6 +1087,7 @@ impl Mempool {
         MEMPOOL_PRIORITY_QUEUE_SIZE.set_lossy(self.tx_queue.priority_queue_len());
         MEMPOOL_PENDING_QUEUE_SIZE.set_lossy(self.tx_queue.pending_queue_len());
         MEMPOOL_DELAYED_DECLARES_SIZE.set_lossy(self.delayed_queues.declares.len());
+        MEMPOOL_DELAYED_PROOF_TXS_SIZE.set_lossy(self.delayed_queues.proof_invokes.len());
         MEMPOOL_TOTAL_SIZE_BYTES.set_lossy(self.size_in_bytes());
     }
 }

@@ -3362,7 +3362,7 @@
   "mempool_config.static_config.declare_delay": {
     "description": "Time to wait before allowing a Declare transaction to be returned, in seconds.",
     "privacy": "Public",
-    "value": 1
+    "value": 1.0
   },
   "mempool_config.static_config.enable_fee_escalation": {
     "description": "If true, transactions can be replaced with higher fee transactions.",
@@ -3373,6 +3373,11 @@
     "description": "Percentage increase for tip and max gas price to enable transaction replacement.",
     "privacy": "Public",
     "value": 10
+  },
+  "mempool_config.static_config.proof_tx_delay": {
+    "description": "Time to wait before allowing a transaction with proofs to be returned, in seconds.",
+    "privacy": "Public",
+    "value": 0.5
   },
   "mempool_config.static_config.recorder_url": {
     "description": "The URL of the recorder service (used for FIFO queue timestamp fetching).",
