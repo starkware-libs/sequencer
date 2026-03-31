@@ -8,7 +8,7 @@ use crate::fake_starknet_server::BLOCK_NOT_FOUND_JSON;
 
 #[tokio::test]
 async fn feeder_is_alive() {
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     let client = reqwest::Client::new();
     let (status, body) = get(&client, &url(&server, "/feeder_gateway/is_alive")).await;
     assert_eq!(status, StatusCode::OK);
@@ -24,7 +24,7 @@ async fn get_block_by_number() {
         assert!(BLOCK_NUMBER1 < BLOCK_NUMBER2);
     }
 
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     let blob = make_blob(BLOCK_NUMBER1);
     server.state.lock().unwrap().blocks.insert(BLOCK_NUMBER1, blob.clone());
 
@@ -72,7 +72,7 @@ async fn get_latest_block_returns_highest_block_number() {
         assert!(BLOCK_NUMBER2 < BLOCK_NUMBER3);
     }
 
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     {
         let mut state = server.state.lock().unwrap();
         state.blocks.insert(BLOCK_NUMBER3, make_blob(BLOCK_NUMBER3));
@@ -91,7 +91,7 @@ async fn get_latest_block_returns_highest_block_number() {
 
 #[tokio::test]
 async fn get_latest_block_empty_store() {
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     let client = reqwest::Client::new();
     let (status, _) =
         get(&client, &url(&server, "/feeder_gateway/get_block?blockNumber=latest")).await;
@@ -101,7 +101,7 @@ async fn get_latest_block_empty_store() {
 #[tokio::test]
 async fn get_block_header_only_true_returns_subset() {
     const BLOCK_NUMBER: u64 = 16;
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     server.state.lock().unwrap().blocks.insert(BLOCK_NUMBER, make_blob(BLOCK_NUMBER));
 
     let client = reqwest::Client::new();
@@ -148,7 +148,7 @@ async fn get_state_update_returns_stored_state_update() {
     const BLOCK_NUMBER: u64 = 2;
     const BAD_BLOCK_NUMBER: u64 = 99;
 
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     let blob = make_blob(BLOCK_NUMBER);
     server.state.lock().unwrap().state_updates.insert(BLOCK_NUMBER, blob.clone());
 
@@ -176,7 +176,7 @@ async fn get_state_update_returns_stored_state_update() {
 
 #[tokio::test]
 async fn get_state_update_pending_returns_pending_data() {
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     let pending = json!({"pending": true});
     server.state.lock().unwrap().pending_data_json = Some(pending.clone());
 
@@ -218,7 +218,7 @@ async fn get_signature_returns_stored_signature() {
     const BLOCK_NUMBER: u64 = 6;
     const BAD_BLOCK_NUMBER: u64 = 99;
 
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     let blob = make_blob(BLOCK_NUMBER);
     server.state.lock().unwrap().block_signatures.insert(BLOCK_NUMBER, blob.clone());
 
@@ -248,7 +248,7 @@ async fn get_class_by_hash_returns_class() {
     const CLASS_HASH: &str = "0xabc";
     const BAD_CLASS_HASH: &str = "0xdeadbeef";
 
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     let class = json!({"type": "CAIRO_1"});
     server.state.lock().unwrap().classes_json.insert(CLASS_HASH.to_string(), class.clone());
 
@@ -278,7 +278,7 @@ async fn get_compiled_class_returns_compiled_class() {
     const CLASS_HASH: &str = "0xdef";
     const BAD_CLASS_HASH: &str = "0xunknown";
 
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     let compiled = json!({"bytecode": [1, 2, 3]});
     server
         .state
@@ -318,7 +318,7 @@ async fn get_compiled_class_returns_compiled_class() {
 #[tokio::test]
 async fn get_public_key() {
     const PUBLIC_KEY: &str = "0x123456";
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     let pub_key = json!(PUBLIC_KEY);
     server.state.lock().unwrap().sequencer_pub_key_json = Some(pub_key.clone());
 
@@ -331,7 +331,7 @@ async fn get_public_key() {
 
 #[tokio::test]
 async fn get_public_key_not_configured() {
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     let client = reqwest::Client::new();
     let (status, _) = get(&client, &url(&server, "/feeder_gateway/get_public_key")).await;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
@@ -342,7 +342,7 @@ async fn get_public_key_not_configured() {
 #[tokio::test]
 async fn write_blob_records_block_number() {
     const BLOCK_NUMBER: u64 = 10;
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     let client = reqwest::Client::new();
 
     let status =
@@ -358,7 +358,7 @@ async fn write_blob_records_block_number() {
 #[tokio::test]
 async fn write_blob_failure_mode_returns_500_and_does_not_store() {
     const BLOCK_NUMBER: u64 = 3;
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     server.state.lock().unwrap().write_blob_should_succeed = false;
     let client = reqwest::Client::new();
 
@@ -372,7 +372,7 @@ async fn write_blob_failure_mode_returns_500_and_does_not_store() {
 
 #[tokio::test]
 async fn get_latest_received_block_empty_store() {
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     let client = reqwest::Client::new();
     let (status, body) =
         get(&client, &url(&server, "/cende_recorder/get_latest_received_block")).await;
@@ -394,7 +394,7 @@ async fn get_latest_received_block_returns_max_block_number() {
         assert!(BLOCK_NUMBER2 < BLOCK_NUMBER3);
     }
 
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     {
         let mut state = server.state.lock().unwrap();
         state.cende_block_numbers.insert(BLOCK_NUMBER3);
@@ -416,7 +416,7 @@ async fn get_latest_received_block_returns_max_block_number() {
 #[tokio::test]
 async fn write_blob_updates_get_latest_received_block() {
     const BLOCK_NUMBER: u64 = 8;
-    let server = FakeStarknetServer::new().await;
+    let server = FakeStarknetServer::new(0).await;
     let client = reqwest::Client::new();
 
     let write_status =
