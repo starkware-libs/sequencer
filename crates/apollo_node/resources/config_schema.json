@@ -574,15 +574,15 @@
     "privacy": "Public",
     "value": 8
   },
-  "committer_config.storage_config.inner_storage_config.use_mmap_reads": {
-    "description": "Whether to use mmap for reading SST files",
-    "privacy": "Public",
-    "value": false
-  },
   "committer_config.storage_config.inner_storage_config.spawn_blocking_reads": {
     "description": "Whether to spawn blocking tasks for read operations",
     "privacy": "Public",
     "value": true
+  },
+  "committer_config.storage_config.inner_storage_config.use_mmap_reads": {
+    "description": "Whether to use mmap for reading SST files",
+    "privacy": "Public",
+    "value": false
   },
   "committer_config.storage_config.inner_storage_config.write_buffer_size": {
     "description": "Amount of data to build up in memory before writing to disk",

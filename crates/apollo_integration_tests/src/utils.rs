@@ -124,6 +124,7 @@ use tokio::time::{sleep, timeout};
 use tracing::{debug, info, Instrument};
 use url::Url;
 
+use crate::fake_starknet_server::FakeStarknetServer;
 use crate::flow_test_setup::{FlowSequencerSetup, FlowTestSetup, NUM_OF_SEQUENCERS};
 use crate::state_reader::StorageTestConfig;
 
@@ -466,6 +467,55 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             ..Default::default()
         })
         .collect()
+}
+
+pub async fn spawn_fake_recorder(addr: SocketAddr) -> FakeStarknetServer {
+    let server = FakeStarknetServer::new(addr).await;
+    // Pre-seed block 0 (genesis) so that:
+    // - `write_prev_height_blob(1)` sees a known block at height 0 and proceeds.
+    // - Central sync can fetch block 0 via get_block and get_state_update (both require
+    //   feeder_json/state_update in addition to block_hash, otherwise they return BLOCK_NOT_FOUND
+    //   and central sync stalls from the very first request).
+    let genesis_feeder_json = json!({
+        "block_hash": "0x0",
+        "block_number": 0u64,
+        "parent_block_hash": "0x0",
+        "state_root": "0x0",
+        "status": "ACCEPTED_ON_L2",
+        "sequencer_address": "0x0",
+        "timestamp": 0u64,
+        "starknet_version": "0.14.0",
+        "l1_da_mode": "CALLDATA",
+        "l1_gas_price": {"price_in_wei": "0x1", "price_in_fri": "0x1"},
+        "l1_data_gas_price": {"price_in_wei": "0x1", "price_in_fri": "0x1"},
+        "l2_gas_price": {"price_in_wei": "0x1", "price_in_fri": "0x1"},
+        "l2_gas_consumed": 0u64,
+        "next_l2_gas_price": "0x1",
+        "transaction_commitment": "0x0",
+        "event_commitment": "0x0",
+        "transactions": [],
+        "transaction_receipts": [],
+    });
+    let genesis_state_update = json!({
+        "block_hash": "0x0",
+        "new_root": "0x0",
+        "old_root": "0x0",
+        "state_diff": {
+            "storage_diffs": {},
+            "deployed_contracts": [],
+            "declared_classes": [],
+            "migrated_compiled_classes": [],
+            "old_declared_contracts": [],
+            "nonces": {},
+            "replaced_classes": [],
+        }
+    });
+    {
+        let mut state = server.state.lock().unwrap();
+        state.seed_block(0, "0x0", genesis_feeder_json);
+        state.blocks.entry(0).or_default().state_update = Some(genesis_state_update);
+    }
+    server
 }
 
 // Creates a local recorder server that always returns a success status.
