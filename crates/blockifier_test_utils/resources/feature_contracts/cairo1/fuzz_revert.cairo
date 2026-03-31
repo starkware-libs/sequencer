@@ -3,6 +3,7 @@ trait IOrchestrator<TContractState> {
     fn pop_front(ref self: TContractState) -> felt252;
     fn get_index(ref self: TContractState) -> felt252;
     fn set_index(ref self: TContractState, index: felt252);
+    fn should_fail_undeployed_panic_message(ref self: TContractState) -> felt252;
 }
 
 #[starknet::contract]
@@ -33,6 +34,7 @@ mod FuzzRevertContract {
     const SCENARIO_LIBRARY_CALL_NON_EXISTING: felt252 = 10;
     const SCENARIO_SHA256: felt252 = 11;
     const SCENARIO_KECCAK: felt252 = 12;
+    const SCENARIO_CALL_UNDEPLOYED: felt252 = 13;
 
     #[storage]
     struct Storage {
@@ -176,6 +178,15 @@ mod FuzzRevertContract {
             let mut input: Array::<u256> = Default::default();
             input.append(u256 { low: preimage, high: preimage });
             keccak::keccak_u256s_le_inputs(input.span());
+        }
+
+        if scenario == SCENARIO_CALL_UNDEPLOYED {
+            let address: ContractAddress = orchestrator.pop_front().try_into().unwrap();
+            let selector = orchestrator.pop_front();
+            let _should_unwrap = orchestrator.pop_front();
+            // Calling an undeployed contract should be an uncatchable fail.
+            syscalls::call_contract_syscall(address, selector, array![].span()).unwrap_err();
+            panic_with_felt252(orchestrator.should_fail_undeployed_panic_message());
         }
 
         // Unless explicitly stated otherwise, the next operation should be in the current call
