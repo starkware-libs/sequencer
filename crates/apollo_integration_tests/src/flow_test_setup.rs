@@ -57,6 +57,7 @@ use tokio::sync::Mutex;
 use tracing::{debug, instrument, Instrument};
 use url::Url;
 
+use crate::fake_starknet_server::FakeStarknetServer;
 use crate::state_reader::{StorageTestHandles, StorageTestSetup};
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
@@ -64,8 +65,8 @@ use crate::utils::{
     create_node_config,
     create_state_sync_configs,
     set_validator_id,
+    spawn_fake_recorder,
     spawn_local_eth_to_strk_oracle,
-    spawn_local_success_recorder,
     AccumulatedTransactions,
 };
 
@@ -229,6 +230,9 @@ pub struct FlowSequencerSetup {
     // subsequently the test. This occurs for components who are wrapped by servers, but no other
     // component has their client, usually due to these clients being added in a later date.
     clients: SequencerNodeClients,
+
+    // Kept alive for the duration of the test; dropping it aborts the fake HTTP server.
+    _fake_recorder: FakeStarknetServer,
 }
 
 impl FlowSequencerSetup {
@@ -251,8 +255,8 @@ impl FlowSequencerSetup {
         let StorageTestSetup { storage_config, storage_handles } =
             StorageTestSetup::new(accounts, &chain_info, path);
 
-        let (recorder_url, _join_handle) =
-            spawn_local_success_recorder(available_ports.get_next_port());
+        let fake_recorder = spawn_fake_recorder(available_ports.get_next_port()).await;
+        let recorder_url = fake_recorder.url.clone();
         consensus_manager_config.cende_config.recorder_url = recorder_url;
 
         let (eth_to_strk_oracle_url_headers, _join_handle) =
@@ -314,6 +318,7 @@ impl FlowSequencerSetup {
             node_config,
             monitoring_client,
             clients,
+            _fake_recorder: fake_recorder,
         }
     }
 

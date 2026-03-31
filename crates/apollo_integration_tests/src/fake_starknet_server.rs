@@ -102,12 +102,13 @@ pub struct FakeStarknetServer {
 }
 
 impl FakeStarknetServer {
-    /// Spawns the server on an OS-assigned port. Must be called from within a tokio runtime.
-    pub async fn new() -> Self {
+    /// Spawns the server on the given port. Pass `0` to let the OS assign a free port.
+    /// Must be called from within a tokio runtime.
+    pub async fn new(port: u16) -> Self {
         let state: SharedState = Arc::new(Mutex::new(FakeServerState::new()));
 
         let listener =
-            TcpListener::bind("127.0.0.1:0").await.expect("Failed to bind fake server port");
+            TcpListener::bind(("127.0.0.1", port)).await.expect("Failed to bind fake server port");
         let addr = listener.local_addr().expect("Failed to read fake server local address");
         let url = Url::parse(&format!("http://{addr}")).expect("Failed to parse fake server URL");
 
@@ -117,6 +118,11 @@ impl FakeStarknetServer {
         });
 
         Self { url, state, server_handle }
+    }
+
+    /// Runs until the server task exits (or panics).
+    pub async fn run_until_exit(&mut self) {
+        (&mut self.server_handle).await.expect("The fake server has panicked!");
     }
 }
 

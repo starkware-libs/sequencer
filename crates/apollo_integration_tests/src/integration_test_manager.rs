@@ -46,6 +46,7 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{info, instrument};
 
 use crate::executable_setup::{ExecutableSetup, NodeExecutableId};
+use crate::fake_starknet_server::FakeStarknetServer;
 use crate::monitoring_utils::{
     assert_no_reverted_txs,
     await_batcher_block,
@@ -73,8 +74,8 @@ use crate::utils::{
     send_consensus_txs,
     send_message_to_l2_and_calculate_tx_hash,
     set_validator_id,
+    spawn_fake_recorder,
     spawn_local_eth_to_strk_oracle,
-    spawn_local_success_recorder,
     ConsensusTxs,
     DeclareTx,
     DeployAndInvokeTxs,
@@ -383,6 +384,8 @@ pub struct IntegrationTestManager {
     // Ethereum base layer coupled with an Anvil server instance, the server is dropped when the
     // instance is dropped.
     anvil_base_layer: AnvilBaseLayer,
+    // Kept alive for the duration of the test; dropping it aborts the fake HTTP server.
+    _fake_recorder: FakeStarknetServer,
 }
 
 impl IntegrationTestManager {
@@ -395,7 +398,7 @@ impl IntegrationTestManager {
     ) -> Self {
         let tx_generator = create_integration_test_tx_generator();
 
-        let (sequencers_setup, node_indices) = get_sequencer_setup_configs(
+        let (sequencers_setup, node_indices, fake_recorder) = get_sequencer_setup_configs(
             &tx_generator,
             num_of_consolidated_nodes,
             num_of_distributed_nodes,
@@ -439,7 +442,14 @@ impl IntegrationTestManager {
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();
 
-        Self { node_indices, idle_nodes, running_nodes, tx_generator, anvil_base_layer }
+        Self {
+            node_indices,
+            idle_nodes,
+            running_nodes,
+            tx_generator,
+            anvil_base_layer,
+            _fake_recorder: fake_recorder,
+        }
     }
 
     pub fn get_idle_nodes(&self) -> &HashMap<usize, NodeSetup> {
@@ -1218,7 +1228,7 @@ async fn get_sequencer_setup_configs(
     num_of_hybrid_nodes: usize,
     custom_paths: Option<CustomPaths>,
     test_unique_id: TestIdentifier,
-) -> (Vec<NodeSetup>, HashSet<usize>) {
+) -> (Vec<NodeSetup>, HashSet<usize>, FakeStarknetServer) {
     let mut available_ports_generator = AvailablePortsGenerator::new(test_unique_id.into());
 
     let mut node_component_configs = Vec::with_capacity(
@@ -1293,8 +1303,8 @@ async fn get_sequencer_setup_configs(
 
     // TODO(tsabary): Move these to the start of the test and propagate their values when relevant.
     // All nodes use the same recorder_url and eth_to_strk_oracle_url.
-    let (recorder_url, _join_handle) =
-        spawn_local_success_recorder(base_layer_ports.get_next_port());
+    let fake_recorder = spawn_fake_recorder(base_layer_ports.get_next_port()).await;
+    let recorder_url = fake_recorder.url.clone();
     let (eth_to_strk_oracle_url, _join_handle_eth_to_strk_oracle) =
         spawn_local_eth_to_strk_oracle(base_layer_ports.get_next_port());
 
@@ -1369,7 +1379,7 @@ async fn get_sequencer_setup_configs(
         nodes.push(NodeSetup::new(node_type, executables, storage_setup.storage_handles));
     }
 
-    (nodes, node_indices)
+    (nodes, node_indices, fake_recorder)
 }
 
 fn create_map<T, K, F>(items: Vec<T>, key_extractor: F) -> HashMap<K, T>
