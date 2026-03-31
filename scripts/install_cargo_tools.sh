@@ -53,7 +53,10 @@ function install_cargo_tools() {
     # Install compiler binaries used for Sierra compilation at runtime.
     # RUSTC_WRAPPER="" avoids sccache circular dependency during installation.
     (RUSTC_WRAPPER="" install_cargo_tool_if_needed "starknet-sierra-compile --version" "starknet-sierra-compile" "2.17.0-rc.4")
-    (RUSTC_WRAPPER="" install_cargo_tool_if_needed "starknet-native-compile --version" "starknet-native-compile" "0.9.0-rc.5")
+    # starknet-native-compile needs LLVM/MLIR env vars (normally set by .cargo/config.toml,
+    # but cargo install runs outside the workspace so they must be set explicitly).
+    (RUSTC_WRAPPER="" LLVM_SYS_191_PREFIX="/usr/lib/llvm-19/" MLIR_SYS_190_PREFIX="/usr/lib/llvm-19/" TABLEGEN_190_PREFIX="/usr/lib/llvm-19/" \
+        install_cargo_tool_if_needed "starknet-native-compile --version" "starknet-native-compile" "0.9.0-rc.5")
 }
 
 install_cargo_tools
