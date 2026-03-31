@@ -172,8 +172,8 @@ pub trait GatherableStorage: ImmutableReadOnlyStorage + 'static {
         T: for<'s> StorageTask<'s, Self> + Send,
         Self: Sized,
     {
-        let (_reads, outputs) = run_tasks_and_collect_reads(self, tasks).await;
-        // By deafult, ignore the reads.
+        let (_reads, outputs) = run_tasks_and_collect_reads(&*self, tasks).await;
+        // By default, ignore the reads.
         outputs
     }
 }

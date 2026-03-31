@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationErrors};
 
 use crate::storage_trait::{
+    run_tasks_and_collect_reads,
     AsyncStorage,
     DbHashMap,
     DbKey,
@@ -17,6 +18,7 @@ use crate::storage_trait::{
     DbOperationMap,
     DbValue,
     EmptyStorageConfig,
+    GatherableStorage,
     ImmutableReadOnlyStorage,
     NoStats,
     NullStorage,
@@ -25,6 +27,7 @@ use crate::storage_trait::{
     Storage,
     StorageConfigTrait,
     StorageStats,
+    StorageTask,
 };
 
 // 10M entries.
@@ -100,6 +103,20 @@ impl Storage for MapStorage {
     }
 }
 
+#[async_trait::async_trait]
+impl<S: Storage + ImmutableReadOnlyStorage + 'static> GatherableStorage for CachedStorage<S> {
+    async fn gather<T>(&mut self, tasks: Vec<T>) -> Vec<T::Output>
+    where
+        T: for<'s> StorageTask<'s, Self> + Send,
+        Self: Sized,
+    {
+        let (reads, outputs) = run_tasks_and_collect_reads(&*self, tasks).await;
+        for (key, value) in reads {
+            self.cache.put(key, Some(value));
+        }
+        outputs
+    }
+}
 /// A storage wrapper that adds an LRU cache to an underlying storage.
 /// Only getter methods are cached.
 pub struct CachedStorage<S: Storage> {
