@@ -2365,6 +2365,7 @@ dependencies = [
  "insta",
  "libp2p",
  "libp2p-swarm-test",
+ "lru 0.12.5",
  "prost",
  "rand 0.8.5",
  "reed-solomon-simd",
