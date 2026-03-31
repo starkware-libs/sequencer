@@ -230,7 +230,7 @@ pub struct CachedStorageArgs<InnerStorageArgs: StorageFromArgs> {
 impl<InnerStorageArgs: StorageFromArgs + Sync> StorageFromArgs
     for CachedStorageArgs<InnerStorageArgs>
 where
-    InnerStorageArgs::Storage: ImmutableReadOnlyStorage,
+    InnerStorageArgs::Storage: ImmutableReadOnlyStorage + 'static,
 {
     type Storage = CachedStorage<InnerStorageArgs::Storage>;
 

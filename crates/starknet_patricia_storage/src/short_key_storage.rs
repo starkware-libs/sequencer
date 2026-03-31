@@ -11,6 +11,7 @@ use crate::storage_trait::{
     DbValue,
     EmptyStorageConfig,
     ImmutableReadOnlyStorage,
+    NullStorage,
     PatriciaStorageResult,
     ReadOnlyStorage,
     Storage,
@@ -120,6 +121,10 @@ macro_rules! define_short_key_storage {
 
             fn get_async_self(&self) -> Option<impl AsyncStorage> {
                 Some($name::new(self.storage.get_async_self()?))
+            }
+
+            fn as_immutable_read_only(&mut self) -> Option<&mut impl ImmutableReadOnlyStorage> {
+                None::<&mut NullStorage>
             }
         }
 
