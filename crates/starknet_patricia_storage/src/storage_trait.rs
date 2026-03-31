@@ -5,6 +5,7 @@ use std::future::Future;
 
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::{ParamPath, SerializedParam};
+use futures::future::join_all;
 use serde::{Deserialize, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinError;
@@ -106,7 +107,7 @@ pub trait StorageConfigTrait:
 
 /// A read-only view of a storage that does not require mutable access.
 /// Allows concurrent reads from multiple threads.
-pub trait ImmutableReadOnlyStorage: Send + Sync {
+pub trait ImmutableReadOnlyStorage: Send + Sync + 'static {
     // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
     // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
     // for details.
@@ -119,6 +120,18 @@ pub trait ImmutableReadOnlyStorage: Send + Sync {
         &self,
         keys: &[&DbKey],
     ) -> impl Future<Output = PatriciaStorageResult<Vec<Option<DbValue>>>> + Send;
+
+    /// Runs the given tasks concurrently, each with its own [ReadsCollectorStorage] snapshot.
+    /// By default, discards collected reads.
+    #[expect(async_fn_in_trait)]
+    async fn gather<T>(&mut self, tasks: Vec<T>) -> Vec<T::Output>
+    where
+        T: for<'s> StorageTask<'s, Self> + Send,
+        Self: Sized,
+    {
+        let (_reads, outputs) = run_tasks_and_collect_reads(self, tasks).await;
+        outputs
+    }
 }
 
 /// Defines the output type of a [StorageTask], split out so `gather` can reference `T::Output`
@@ -134,6 +147,29 @@ pub trait StorageTask<'a, S: ImmutableReadOnlyStorage + 'a>: StorageTaskOutput<S
         self,
         storage: &mut ReadsCollectorStorage<'a, S>,
     ) -> impl Future<Output = Self::Output> + Send;
+}
+
+/// Runs tasks concurrently, each with its own [ReadsCollectorStorage] snapshot.
+/// Returns the merged reads from all tasks alongside the outputs.
+pub(crate) async fn run_tasks_and_collect_reads<'a, S, T>(
+    storage: &'a S,
+    tasks: Vec<T>,
+) -> (DbHashMap, Vec<T::Output>)
+where
+    S: ImmutableReadOnlyStorage,
+    T: StorageTask<'a, S> + Send,
+{
+    let futures = tasks.into_iter().map(|task| async move {
+        let mut collector = ReadsCollectorStorage::new(storage);
+        let output = task.run_with_storage(&mut collector).await;
+        (collector.into_reads(), output)
+    });
+    let mut collected_reads = DbHashMap::new();
+    let (reads_vec, outputs): (Vec<_>, Vec<_>) = join_all(futures).await.into_iter().unzip();
+    for reads in reads_vec {
+        collected_reads.extend(reads);
+    }
+    (collected_reads, outputs)
 }
 
 /// A read-only view of a storage. Does not assume concurrent access is possible.
