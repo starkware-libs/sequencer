@@ -469,9 +469,9 @@ pub struct CliArgs {
     pub max_request_body_size: Option<u32>,
 
     /// Hidden escape hatch: override the embedded bouncer config (block capacity limits) with a
-    /// custom JSON file. Not advertised because the embedded defaults are tuned to match the
-    /// hardcoded Stwo prover for this version. Exposed only for debugging and testing scenarios
-    /// where the limits need temporary adjustment without rebuilding the binary.
+    /// custom JSON file. Not advertised because the embedded defaults are tuned for this prover
+    /// (including high `l1_gas` / `message_segment_length`: virtual OS output is not L1-bound; it
+    /// is carried on L2 in `proof_fact`). Exposed for debugging and testing without rebuilding.
     #[arg(long, value_name = "FILE", env = "BOUNCER_CONFIG_OVERRIDE", hide = true)]
     pub bouncer_config_override: Option<PathBuf>,
 }
