@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationErrors};
 
 use crate::storage_trait::{
+    run_tasks_and_collect_reads,
     AsyncStorage,
     DbHashMap,
     DbKey,
@@ -25,6 +26,7 @@ use crate::storage_trait::{
     Storage,
     StorageConfigTrait,
     StorageStats,
+    StorageTask,
 };
 
 // 10M entries.
@@ -274,6 +276,18 @@ impl<S: Storage + ImmutableReadOnlyStorage> ImmutableReadOnlyStorage for CachedS
         });
 
         Ok(values)
+    }
+
+    async fn gather<T>(&mut self, tasks: Vec<T>) -> Vec<T::Output>
+    where
+        T: for<'s> StorageTask<'s, Self> + Send,
+        Self: Sized,
+    {
+        let (reads, outputs) = run_tasks_and_collect_reads(&*self, tasks).await;
+        for (key, value) in reads {
+            self.cache.put(key, Some(value));
+        }
+        outputs
     }
 }
 
