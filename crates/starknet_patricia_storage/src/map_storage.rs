@@ -83,9 +83,9 @@ impl Storage for MapStorage {
         Ok(NoStats)
     }
 
-    fn get_async_self(&self) -> Option<impl AsyncStorage> {
+    fn get_async_self(&mut self) -> Option<&mut impl AsyncStorage> {
         // Need a concrete Option type.
-        None::<NullStorage>
+        None::<&mut NullStorage>
     }
 }
 
@@ -93,7 +93,7 @@ impl Storage for MapStorage {
 /// Only getter methods are cached.
 pub struct CachedStorage<S: Storage> {
     pub storage: S,
-    pub cache: Arc<LruCache<DbKey, Option<DbValue>>>,
+    pub cache: LruCache<DbKey, Option<DbValue>>,
     reads: Arc<AtomicU64>,
     cached_reads: Arc<AtomicU64>,
     writes: u128,
@@ -210,7 +210,7 @@ impl<S: Storage> CachedStorage<S> {
     pub fn new(storage: S, config: CachedStorageConfig<S::Config>) -> Self {
         Self {
             storage,
-            cache: Arc::new(LruCache::new(config.cache_size)),
+            cache: LruCache::new(config.cache_size),
             reads: Arc::new(AtomicU64::new(0)),
             cached_reads: Arc::new(AtomicU64::new(0)),
             writes: 0,
@@ -218,25 +218,8 @@ impl<S: Storage> CachedStorage<S> {
         }
     }
 
-    fn cache_mut(&mut self) -> &mut LruCache<DbKey, Option<DbValue>> {
-        Arc::get_mut(&mut self.cache).expect("CachedStorage cache has multiple Arc owners.")
-    }
-
     pub fn total_writes(&self) -> u128 {
         self.writes
-    }
-}
-
-impl<S: Storage + Clone> Clone for CachedStorage<S> {
-    fn clone(&self) -> Self {
-        Self {
-            storage: self.storage.clone(),
-            cache: self.cache.clone(), // This clone is cheap.
-            reads: self.reads.clone(),
-            cached_reads: self.cached_reads.clone(),
-            writes: self.writes,
-            include_inner_stats: self.include_inner_stats,
-        }
     }
 }
 
@@ -286,14 +269,14 @@ impl<S: Storage + ImmutableReadOnlyStorage> ImmutableReadOnlyStorage for CachedS
 impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
     async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads.fetch_add(1, Ordering::Relaxed);
-        let cached_value = self.cache_mut().get(key).cloned();
+        let cached_value = self.cache.get(key).cloned();
         if let Some(cached_value) = cached_value {
             self.cached_reads.fetch_add(1, Ordering::Relaxed);
             return Ok(cached_value);
         }
 
         let storage_value = self.storage.get_mut(key).await?;
-        self.cache_mut().put(key.clone(), storage_value.clone());
+        self.cache.put(key.clone(), storage_value.clone());
         Ok(storage_value)
     }
 
@@ -301,7 +284,7 @@ impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
         let mut values = vec![None; keys.len()]; // The None values are placeholders.
         let mut keys_to_fetch = Vec::new();
         let mut indices_to_fetch = Vec::new();
-        let cache = self.cache_mut();
+        let cache = &mut self.cache;
 
         for (index, key) in keys.iter().enumerate() {
             if let Some(cached_value) = cache.get(key) {
@@ -319,28 +302,26 @@ impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
         self.cached_reads.fetch_add(cached_reads, Ordering::Relaxed);
 
         let fetched_values = self.storage.mget_mut(keys_to_fetch.as_slice()).await?;
-        {
-            let cache = self.cache_mut();
-            indices_to_fetch.iter().zip(keys_to_fetch).zip(fetched_values).for_each(
-                |((index, key), value)| {
-                    cache.put((*key).clone(), value.clone());
-                    values[*index] = value;
-                },
-            );
-        }
+
+        indices_to_fetch.iter().zip(keys_to_fetch).zip(fetched_values).for_each(
+            |((index, key), value)| {
+                self.cache.put((*key).clone(), value.clone());
+                values[*index] = value;
+            },
+        );
 
         Ok(values)
     }
 }
 
-impl<S: Storage + ImmutableReadOnlyStorage> Storage for CachedStorage<S> {
+impl<S: Storage + ImmutableReadOnlyStorage + 'static> Storage for CachedStorage<S> {
     type Stats = CachedStorageStats<S::Stats>;
     type Config = CachedStorageConfig<S::Config>;
 
     async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
         self.writes += 1;
         self.storage.set(key.clone(), value.clone()).await?;
-        self.cache_mut().put(key, Some(value));
+        self.cache.put(key, Some(value));
         Ok(())
     }
 
@@ -348,13 +329,13 @@ impl<S: Storage + ImmutableReadOnlyStorage> Storage for CachedStorage<S> {
         self.writes += u128::try_from(key_to_value.len()).expect("usize should fit in u128");
         self.storage.mset(key_to_value.clone()).await?;
         key_to_value.into_iter().for_each(|(key, value)| {
-            self.cache_mut().put(key, Some(value));
+            self.cache.put(key, Some(value));
         });
         Ok(())
     }
 
     async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-        self.cache_mut().pop(key);
+        self.cache.pop(key);
         self.storage.delete(key).await
     }
 
@@ -380,29 +361,20 @@ impl<S: Storage + ImmutableReadOnlyStorage> Storage for CachedStorage<S> {
         self.storage.reset_stats()
     }
 
-    fn get_async_self(&self) -> Option<impl AsyncStorage> {
-        let inner_async_storage = self.storage.get_async_self()?;
-        Some(CachedStorage {
-            storage: inner_async_storage,
-            cache: self.cache.clone(), // This clone is cheap.
-            reads: self.reads.clone(),
-            cached_reads: self.cached_reads.clone(),
-            writes: self.writes,
-            include_inner_stats: self.include_inner_stats,
-        })
+    fn get_async_self(&mut self) -> Option<&mut impl AsyncStorage> {
+        Some(self)
     }
 }
 
 #[async_trait::async_trait]
-impl<S: AsyncStorage> AsyncStorage for CachedStorage<S> {
+impl<S: Storage + ImmutableReadOnlyStorage + 'static> AsyncStorage for CachedStorage<S> {
     async fn gather<T>(&mut self, tasks: Vec<T>) -> Vec<<T as StorageTaskBase<Self>>::Output>
     where
         T: for<'s> StorageTask<'s, Self> + Send,
     {
         let (reads, outputs) = run_tasks_and_collect_reads(self, tasks).await;
-        let cache = self.cache_mut();
         reads.into_iter().for_each(|(key, value)| {
-            cache.put(key, Some(value));
+            self.cache.put(key, Some(value));
         });
         outputs
     }

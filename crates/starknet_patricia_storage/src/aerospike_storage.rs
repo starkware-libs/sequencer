@@ -207,8 +207,8 @@ impl Storage for AerospikeStorage {
         Ok(NoStats)
     }
 
-    fn get_async_self(&self) -> Option<impl AsyncStorage> {
-        Some(self.clone())
+    fn get_async_self(&mut self) -> Option<&mut impl AsyncStorage> {
+        Some(self)
     }
 }
 

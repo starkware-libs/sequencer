@@ -365,9 +365,9 @@ where
     for<'b> <Layout as NodeLayout<'b, <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf>>::NodeData:
         Send,
 {
-    if let Some(mut async_storage) = storage.get_async_self() {
+    if let Some(async_storage) = storage.get_async_self() {
         create_storage_tries_concurrently::<_, Layout>(
-            &mut async_storage,
+            async_storage,
             actual_storage_updates,
             original_contracts_trie_leaves,
             config.warn_on_trivial_modifications(),

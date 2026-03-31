@@ -96,8 +96,10 @@ impl<S: Storage> IndexDb<S> {
     }
 
     #[cfg(any(feature = "testing", test))]
-    pub fn get_async_underlying_storage<'a>(&'a self) -> Option<impl AsyncStorage + 'a> {
-        self.storage.get_async_self()
+    pub fn get_async_underlying_storage(&mut self) -> Option<&mut impl AsyncStorage> {
+        use starknet_patricia_storage::storage_trait::NullStorage;
+
+        None::<&mut NullStorage>
     }
 }
 

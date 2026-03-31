@@ -178,7 +178,7 @@ pub trait Storage: ReadOnlyStorage {
     }
 
     /// If the storage supports async operations, returns a clone of `self` as an [AsyncStorage].
-    fn get_async_self(&self) -> Option<impl AsyncStorage>;
+    fn get_async_self(&mut self) -> Option<&mut impl AsyncStorage>;
 }
 
 /// Empty config struct for storage implementations that don't require configuration.
@@ -243,8 +243,8 @@ impl Storage for NullStorage {
         Ok(NoStats)
     }
 
-    fn get_async_self(&self) -> Option<impl AsyncStorage> {
-        Some(self.clone())
+    fn get_async_self(&mut self) -> Option<&mut impl AsyncStorage> {
+        Some(self)
     }
 }
 
@@ -321,7 +321,7 @@ pub(crate) async fn run_tasks_and_collect_reads<'a, S, T>(
     tasks: Vec<T>,
 ) -> (DbHashMap, Vec<<T as StorageTaskBase<S>>::Output>)
 where
-    S: AsyncImmutableStorage + ?Sized,
+    S: AsyncImmutableStorage + ?Sized + 'static,
     T: StorageTask<'a, S> + Send,
 {
     let mut futures = FuturesUnordered::new();

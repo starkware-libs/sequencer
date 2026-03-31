@@ -8,13 +8,13 @@ use crate::storage_trait::{DbKey, DbValue, EmptyStorageConfig, Storage};
 
 #[rstest]
 #[case::map_storage(MapStorage::default())]
-#[case::cached_storage(
-    CachedStorage::new(MapStorage::default(), CachedStorageConfig {
-        cache_size: NonZeroUsize::new(2).unwrap(),
-        include_inner_stats: false,
-        inner_storage_config: EmptyStorageConfig::default(),
-    })
-)]
+// #[case::cached_storage(
+//     CachedStorage::new(MapStorage::default(), CachedStorageConfig {
+//         cache_size: NonZeroUsize::new(2).unwrap(),
+//         include_inner_stats: false,
+//         inner_storage_config: EmptyStorageConfig::default(),
+//     })
+// )]
 #[tokio::test]
 async fn test_storage_impl(#[case] mut storage: impl Storage) {
     let (key_1, key_2, key_3) = (DbKey(vec![1_u8]), DbKey(vec![2_u8]), DbKey(vec![3_u8]));

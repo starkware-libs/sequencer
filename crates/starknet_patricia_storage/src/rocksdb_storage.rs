@@ -356,8 +356,8 @@ impl Storage for RocksDbStorage {
         ))
     }
 
-    fn get_async_self(&self) -> Option<impl AsyncStorage> {
-        Some(self.clone())
+    fn get_async_self(&mut self) -> Option<&mut impl AsyncStorage> {
+        Some(self)
     }
 }
 
