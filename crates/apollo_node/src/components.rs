@@ -86,8 +86,15 @@ pub async fn create_node_components(
             let committer_client = clients
                 .get_committer_shared_client()
                 .expect("Committer client should be available");
-            let mempool_client =
-                clients.get_mempool_shared_client().expect("Mempool client should be available");
+            let mempool_client = if config.validation_only {
+                None
+            } else {
+                Some(
+                    clients
+                        .get_mempool_shared_client()
+                        .expect("Mempool client should be available in non-validation-only mode."),
+                )
+            };
             let l1_events_provider_client = clients
                 .get_l1_events_provider_shared_client()
                 .expect("L1 Provider client should be available");
