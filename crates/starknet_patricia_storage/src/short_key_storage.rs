@@ -10,7 +10,9 @@ use crate::storage_trait::{
     DbOperationMap,
     DbValue,
     EmptyStorageConfig,
+    GatherableStorage,
     ImmutableReadOnlyStorage,
+    NullStorage,
     PatriciaStorageResult,
     ReadOnlyStorage,
     Storage,
@@ -120,6 +122,10 @@ macro_rules! define_short_key_storage {
 
             fn get_async_self(&self) -> Option<impl AsyncStorage> {
                 Some($name::new(self.storage.get_async_self()?))
+            }
+
+            fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+                None::<&mut NullStorage>
             }
         }
 

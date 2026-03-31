@@ -22,6 +22,7 @@ use crate::storage_trait::{
     DbOperationMap,
     DbValue,
     EmptyStorageConfig,
+    GatherableStorage,
     ImmutableReadOnlyStorage,
     PatriciaStorageResult,
     ReadOnlyStorage,
@@ -190,4 +191,10 @@ impl Storage for MdbxStorage {
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
         Some(self.clone())
     }
+
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+        Some(self)
+    }
 }
+
+impl GatherableStorage for MdbxStorage {}
