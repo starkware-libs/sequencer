@@ -190,4 +190,8 @@ impl Storage for MdbxStorage {
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
         Some(self.clone())
     }
+
+    fn as_immutable_read_only(&mut self) -> Option<&mut impl ImmutableReadOnlyStorage> {
+        Some(self)
+    }
 }
