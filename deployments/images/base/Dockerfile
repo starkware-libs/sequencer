@@ -8,11 +8,15 @@ FROM ubuntu:24.04 AS base
 
 COPY scripts/install_build_tools.sh scripts/install_build_tools.sh
 COPY scripts/install_cargo_tools.sh scripts/install_cargo_tools.sh
+COPY scripts/compiler_versions.sh scripts/compiler_versions.sh
 COPY scripts/dependencies.sh scripts/dependencies.sh
 COPY scripts/apt_utils.sh scripts/apt_utils.sh
 COPY scripts/cargo_tool_utils.sh scripts/cargo_tool_utils.sh
 COPY scripts/requirements.txt scripts/requirements.txt
 COPY rust-toolchain.toml .
+# Rust source files needed by compiler_versions.sh to extract version constants.
+COPY crates/apollo_infra_utils/src/cairo_compiler_version.rs crates/apollo_infra_utils/src/cairo_compiler_version.rs
+COPY crates/apollo_compile_to_native/src/constants.rs crates/apollo_compile_to_native/src/constants.rs
 
 RUN apt update && apt -y install \
     bzip2 \
@@ -24,13 +28,15 @@ ENV RUSTUP_HOME=/var/tmp/rust
 ENV CARGO_HOME=${RUSTUP_HOME}
 ENV PATH=$PATH:${RUSTUP_HOME}/bin
 
-RUN scripts/install_build_tools.sh
-RUN rustup toolchain install
-RUN cargo install cargo-chef
-
+# LLVM env vars must be set before install_build_tools.sh so that
+# cargo install starknet-native-compile can find LLVM.
 ENV LLVM_SYS_191_PREFIX="/usr/lib/llvm-19/"
 ENV MLIR_SYS_190_PREFIX="/usr/lib/llvm-19/"
 ENV TABLEGEN_190_PREFIX="/usr/lib/llvm-19/"
+
+RUN scripts/install_build_tools.sh
+RUN rustup toolchain install
+RUN cargo install cargo-chef
 
 # Define python venv and install python packages.
 ENV VIRTUAL_ENV=/opt/sequencer_venv
@@ -39,4 +45,5 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r scripts/requirements.txt
 ENV PATH="${VIRTUAL_ENV}/bin:$PATH"
 
 # Cleanup.
-RUN rm -f scripts/install_build_tools.sh scripts/install_cargo_tools.sh scripts/cargo_tool_utils.sh scripts/dependencies.sh scripts/apt_utils.sh scripts/requirements.txt
+RUN rm -f scripts/install_build_tools.sh scripts/install_cargo_tools.sh scripts/compiler_versions.sh scripts/cargo_tool_utils.sh scripts/dependencies.sh scripts/apt_utils.sh scripts/requirements.txt && \
+    rm -rf crates/apollo_infra_utils crates/apollo_compile_to_native
