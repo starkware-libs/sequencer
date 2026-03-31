@@ -124,9 +124,9 @@ pub trait ImmutableReadOnlyStorage: Send + Sync + 'static {
 
     /// Runs the given tasks concurrently, each with its own [ReadsCollectorStorage] snapshot.
     /// By default, discards collected reads.
-    fn gather<T>(&mut self, tasks: Vec<T>) -> impl Future<Output = Vec<T::Output>> + Send + '_
+    fn gather<T>(&mut self, tasks: Vec<T>) -> impl Future<Output = Vec<T::Output>> + Send
     where
-        T: for<'s> StorageTask<'s, Self> + Send + 'static,
+        T: for<'s> StorageTask<'s, Self> + Send,
         Self: Sized,
     {
         async move {
