@@ -11,6 +11,7 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::ValidationArgs;
 use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
+use blockifier::blockifier::config::NativeClassesWhitelist;
 use blockifier::blockifier::stateful_validator::{StatefulValidator, StatefulValidatorTrait};
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
@@ -46,6 +47,7 @@ pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
 
     async fn instantiate_validator(
         &self,
+        native_classes_whitelist: NativeClassesWhitelist,
     ) -> StatefulTransactionValidatorResult<Box<Self::Validator>>;
 }
 
@@ -59,6 +61,7 @@ mockall::mock! {
 
         async fn instantiate_validator(
             &self,
+            native_classes_whitelist: NativeClassesWhitelist,
         ) -> StatefulTransactionValidatorResult<Box<MockStatefulTransactionValidatorTrait>>;
     }
 }
@@ -82,6 +85,7 @@ impl<TStateReaderFactory: StateReaderFactory> StatefulTransactionValidatorFactor
 
     async fn instantiate_validator(
         &self,
+        native_classes_whitelist: NativeClassesWhitelist,
     ) -> StatefulTransactionValidatorResult<Box<Self::Validator>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
@@ -98,11 +102,13 @@ impl<TStateReaderFactory: StateReaderFactory> StatefulTransactionValidatorFactor
                     e,
                 )
             })?;
-        let state_reader_and_contract_manager = StateReaderAndContractManager::new(
-            blockifier_state_reader,
-            self.contract_class_manager.clone(),
-            Some(GATEWAY_CLASS_CACHE_METRICS),
-        );
+        let state_reader_and_contract_manager =
+            StateReaderAndContractManager::new_with_native_classes_whitelist(
+                blockifier_state_reader,
+                self.contract_class_manager.clone(),
+                native_classes_whitelist,
+                Some(GATEWAY_CLASS_CACHE_METRICS),
+            );
 
         Ok(Box::new(StatefulTransactionValidator::new(
             self.config.clone(),
