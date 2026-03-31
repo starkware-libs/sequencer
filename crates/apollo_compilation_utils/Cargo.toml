@@ -28,7 +28,3 @@ thiserror.workspace = true
 apollo_infra_utils.workspace = true
 assert_matches.workspace = true
 rstest.workspace = true
-
-[build-dependencies]
-apollo_infra_utils.workspace = true
-tempfile.workspace = true

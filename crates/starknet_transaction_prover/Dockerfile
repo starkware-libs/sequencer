@@ -135,6 +135,10 @@ RUN BUILD_FLAGS=$([ "$BUILD_MODE" = "release" ] && echo "--release" || true); \
         cargo build $BUILD_FLAGS -p starknet_transaction_prover --features stwo_proving; \
     fi
 
+# Install compiler binary used for Sierra to CASM compilation at runtime.
+# Version is read from a plain text file (the single source of truth).
+RUN cargo install --locked starknet-sierra-compile --version "$(cat crates/apollo_infra_utils/src/cairo_compiler_version.txt)"
+
 # =============================================================================
 # Stage 4: Final runtime image
 # =============================================================================
@@ -158,7 +162,7 @@ COPY --from=builder /app/target/${BUILD_MODE}/starknet_transaction_prover ./targ
 COPY --from=builder /app/crates/starknet_transaction_prover/resources ./crates/starknet_transaction_prover/resources
 
 # Copy starknet-sierra-compile binary required for Sierra to Casm compilation.
-COPY --from=builder /app/target/${BUILD_MODE}/shared_executables/starknet-sierra-compile ./target/${BUILD_MODE}/shared_executables/starknet-sierra-compile
+COPY --from=builder /var/tmp/rust/bin/starknet-sierra-compile /usr/local/bin/starknet-sierra-compile
 
 # Copy tini for proper init handling.
 COPY --from=builder /usr/bin/tini /usr/bin/tini
