@@ -2244,6 +2244,16 @@
     "privacy": "Public",
     "value": false
   },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.stop_at_height": {
+    "description": "If set, the node will stop participating in consensus after this height.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.stop_at_height.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "consensus_manager_config.consensus_manager_config.dynamic_config.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
     "privacy": "Public",
