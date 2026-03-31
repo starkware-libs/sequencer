@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
+use std::path::PathBuf;
 use std::sync::{Arc, LazyLock};
 
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
@@ -12,7 +13,6 @@ use starknet_api::block::GasPrice;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::invoke_tx_args;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
-use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     Proof,
@@ -35,13 +35,54 @@ const DUMMY_RPC_NODE_URL: &str = "http://localhost:1";
 const TEST_MAX_CONCURRENT_REQUESTS: usize = 2;
 const RPC_RESPONSE_BUFFER_SIZE: usize = 1;
 
-static SPEC: LazyLock<Value> = LazyLock::new(|| read_json_file("proving_api_openrpc.json"));
+const STARKNET_SPECS_REPO: &str = "https://github.com/starkware-libs/starknet-specs.git";
+
+/// Clones the starknet-specs repo once per test run.
+/// Branch defaults to "main"; override with `STARKNET_SPECS_BRANCH` env var.
+static SPECS_DIR: LazyLock<tempfile::TempDir> = LazyLock::new(|| {
+    let branch = std::env::var("STARKNET_SPECS_BRANCH").unwrap_or_else(|_| "main".to_string());
+    let dir = tempfile::TempDir::new().expect("Failed to create temp dir for starknet-specs");
+    let status = std::process::Command::new("git")
+        .args([
+            "clone",
+            "--depth",
+            "1",
+            "--branch",
+            &branch,
+            STARKNET_SPECS_REPO,
+            dir.path().to_str().unwrap(),
+        ])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .expect("Failed to run git clone for starknet-specs");
+    assert!(
+        status.success(),
+        "Failed to clone starknet-specs (branch: {branch}). Is the branch name correct?"
+    );
+    dir
+});
+
+fn specs_api_path() -> PathBuf {
+    SPECS_DIR.path().join("api")
+}
+
+fn read_spec_file(name: &str) -> Value {
+    let path = specs_api_path().join(name);
+    let content = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Failed to read {}: {e}", path.display()));
+    serde_json::from_str(&content)
+        .unwrap_or_else(|e| panic!("Failed to parse {}: {e}", path.display()))
+}
+
+static SPEC: LazyLock<Value> =
+    LazyLock::new(|| read_spec_file("starknet_proving_api_openrpc.json"));
 
 static MAIN_API_SPEC: LazyLock<Value> =
-    LazyLock::new(|| read_json_file("starknet_api_openrpc.json"));
+    LazyLock::new(|| read_spec_file("starknet_api_openrpc.json"));
 
 static WRITE_API_SPEC: LazyLock<Value> =
-    LazyLock::new(|| read_json_file("starknet_write_api.json"));
+    LazyLock::new(|| read_spec_file("starknet_write_api.json"));
 
 #[fixture]
 fn rpc_module() -> RpcModule<ProvingRpcServerImpl> {
@@ -60,15 +101,21 @@ fn mock_rpc_module() -> RpcModule<MockProvingRpc> {
 /// Compiles a JSON Schema from a `$ref` path within the spec document.
 ///
 /// Registers external spec documents so that `$ref`s like
-/// `./starknet_api_openrpc.json#/...` resolve correctly.
+/// `./api/starknet_api_openrpc.json#/...` resolve correctly.
 fn compile_schema_for_ref(spec: &Value, ref_path: &str) -> JSONSchema {
     let ref_uri = format!("file:///spec#/{ref_path}");
     let ref_schema: Value = serde_json::from_str(&format!(r#"{{"$ref": "{ref_uri}"}}"#)).unwrap();
 
     JSONSchema::options()
         .with_document("file:///spec".to_string(), spec.clone())
-        .with_document("file:///starknet_api_openrpc.json".to_string(), MAIN_API_SPEC.clone())
-        .with_document("file:///starknet_write_api.json".to_string(), WRITE_API_SPEC.clone())
+        .with_document(
+            "file:///api/starknet_api_openrpc.json".to_string(),
+            MAIN_API_SPEC.clone(),
+        )
+        .with_document(
+            "file:///api/starknet_write_api.json".to_string(),
+            WRITE_API_SPEC.clone(),
+        )
         .compile(&ref_schema)
         .expect("Failed to compile schema")
 }
