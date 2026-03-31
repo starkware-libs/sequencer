@@ -6,6 +6,7 @@ use std::future::Future;
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::{ParamPath, SerializedParam};
 use async_trait::async_trait;
+use futures::stream::{FuturesUnordered, StreamExt};
 use serde::{Deserialize, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinError;
@@ -133,6 +134,48 @@ pub trait StorageTaskOutput<S: ImmutableReadOnlyStorage>: Send {
 #[async_trait]
 pub trait StorageTask<'a, S: ImmutableReadOnlyStorage + 'a>: StorageTaskOutput<S> + Send {
     async fn run_with_storage(self, storage: &mut ReadsCollectorStorage<'a, S>) -> Self::Output;
+}
+
+/// Runs tasks concurrently, each with its own [ReadsCollectorStorage] snapshot.
+/// Returns the merged reads from all tasks alongside the outputs.
+pub(crate) async fn run_tasks_and_collect_reads<'a, S, T>(
+    storage: &'a S,
+    tasks: Vec<T>,
+) -> (DbHashMap, Vec<T::Output>)
+where
+    S: ImmutableReadOnlyStorage + 'static,
+    T: StorageTask<'a, S> + Send,
+{
+    let mut futures = FuturesUnordered::new();
+    for task in tasks {
+        futures.push(async move {
+            let mut collector = ReadsCollectorStorage::new(storage);
+            let output = task.run_with_storage(&mut collector).await;
+            (collector.into_reads(), output)
+        });
+    }
+    let mut collected_reads = DbHashMap::new();
+    let mut outputs = Vec::with_capacity(futures.len());
+    while let Some((reads, output)) = futures.next().await {
+        collected_reads.extend(reads);
+        outputs.push(output);
+    }
+    (collected_reads, outputs)
+}
+
+/// Extends [ImmutableReadOnlyStorage] with the ability to run [StorageTask]s concurrently.
+/// By default, runs tasks concurrently and discards collected reads.
+#[async_trait]
+pub trait GatherableStorage: ImmutableReadOnlyStorage + 'static {
+    async fn gather<T>(&mut self, tasks: Vec<T>) -> Vec<T::Output>
+    where
+        T: for<'s> StorageTask<'s, Self> + Send,
+        Self: Sized,
+    {
+        let (_reads, outputs) = run_tasks_and_collect_reads(self, tasks).await;
+        // By deafult, ignore the reads.
+        outputs
+    }
 }
 
 /// A read-only view of a storage. Does not assume concurrent access is possible.
