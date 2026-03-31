@@ -45,6 +45,8 @@ pub enum BatcherError {
     ProposalAlreadyFinished { proposal_id: ProposalId },
     #[error("Proposal failed.")]
     ProposalFailed,
+    #[error("Proposing is not supported in validation-only mode.")]
+    ProposingNotSupported,
     #[error("Proposal with ID {proposal_id} not found.")]
     ProposalNotFound { proposal_id: ProposalId },
     #[error(

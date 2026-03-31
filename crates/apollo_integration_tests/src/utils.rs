@@ -363,6 +363,7 @@ pub fn create_node_config(
     let state_sync_config = wrap_if_component_config_expected!(state_sync, state_sync_config);
 
     let sequencer_node_config = SequencerNodeConfig {
+        // TODO(asaf): Add a validation-only node to the integration test.
         validation_only: false,
         base_layer_config,
         batcher_config,
