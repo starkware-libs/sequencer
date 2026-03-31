@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -14,6 +14,7 @@ use starknet_api::transaction::fields::{
     Tip,
     ValidResourceBounds,
 };
+use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::BouncerConfig;
@@ -121,6 +122,9 @@ pub struct BlockContext {
     pub(crate) chain_info: ChainInfo,
     pub(crate) versioned_constants: VersionedConstants,
     pub bouncer_config: BouncerConfig,
+    /// Cached on first access; derived from `chain_info`. Fixed for the lifetime of a block
+    /// context.
+    virtual_os_config_hash: OnceLock<Felt>,
 }
 
 impl BlockContext {
@@ -130,7 +134,13 @@ impl BlockContext {
         versioned_constants: VersionedConstants,
         bouncer_config: BouncerConfig,
     ) -> Self {
-        BlockContext { block_info, chain_info, versioned_constants, bouncer_config }
+        BlockContext {
+            block_info,
+            chain_info,
+            versioned_constants,
+            bouncer_config,
+            virtual_os_config_hash: OnceLock::new(),
+        }
     }
 
     pub fn block_info(&self) -> &BlockInfo {
@@ -143,6 +153,15 @@ impl BlockContext {
 
     pub fn versioned_constants(&self) -> &VersionedConstants {
         &self.versioned_constants
+    }
+
+    /// Returns the virtual OS config hash, computing and caching it on first access.
+    pub(crate) fn virtual_os_config_hash(&self) -> Felt {
+        *self.virtual_os_config_hash.get_or_init(|| {
+            OsChainInfo::from(&self.chain_info)
+                .compute_virtual_os_config_hash()
+                .expect("Failed to compute OS config hash")
+        })
     }
 
     pub fn to_tx_context(
@@ -177,6 +196,12 @@ impl BlockContext {
             use_kzg_da: self.block_info.use_kzg_da,
             starknet_version: self.block_info.starknet_version,
         }
+    }
+
+    /// Returns a new context with the given chain info, resetting the cached config hash.
+    #[cfg(any(test, feature = "testing"))]
+    pub fn with_chain_info(self, chain_info: ChainInfo) -> Self {
+        Self::new(self.block_info, chain_info, self.versioned_constants, self.bouncer_config)
     }
 
     /// Test util to allow overriding block gas limits.
