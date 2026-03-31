@@ -166,12 +166,17 @@ async fn test_delayed_operation() {
 
 ## Error Handling & Safety
 
-
-Use `Result<T, E>` for recoverable errors and `panic!` only for bugs.
+Use `panic!` for:
+- Unrecoverable states (e.g. corrupt data, missing compile-time guarantees at runtime).
+- Bugs where you prefer to stop the system and investigate rather than continue in a potentially broken state. In this case, make sure that panicking the process would actually stop the system (e.g. the process is not automatically restarted in a loop).
 
 Use `todo!` for to-be-completed code sections.
 
-Don't use `unreachable!` and `unimplemented!`, as they are very similar in meaning to `panic!` and `todo!` and it's not worth the headache of figuring which one fits better.
+Use `unreachable!` when you are 100% certain a code path can never be reached, e.g:
+- An invariant that's enforced someplace else (Though you should try to avoid this. See [Unnecessary panics](#unnecessary-panics))
+- Code after a loop that never breaks or guaranteed to `return`.
+
+Don't use `unimplemented!`, as it is very similar in meaning to `todo!` and it's not worth the headache of figuring which one fits better.
 
 Error structs and enums should have names ending with `Error` (e.g. `StorageError`, `ParseTransactionError`).
 
@@ -181,9 +186,9 @@ Return a `Result` only when the caller is expected to handle the error. If a fai
 
 Similarly, do not return a `Result` if the error is meant to be ignored. If a failure has no impact on the program's flow or integrity, handle it internally (e.g. log it). Forcing callers to write `let _ = ...` or `.ok()` just to silence the compiler obscures the function's true contract.
 
-### expect message
+### Unreachable messages
 
-Write `expect` messages for code readers, not for the program runner. Explain _why_ the error should never happen, not _what_ is the error. State the invariant rather than saying that it broke.
+Write `unreachable!` messages (and `expect` messages when used for cases that should never happen) for code readers, not for the program runner. Explain _why_ the error should never happen, not _what_ is the error. State the invariant rather than saying that it broke.
 
 ```rust
 // BAD
