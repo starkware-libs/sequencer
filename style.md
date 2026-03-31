@@ -174,6 +174,12 @@ Don't use `unreachable!` and `unimplemented!`, as they are very similar in meani
 
 Error structs and enums should have names ending with `Error` (e.g. `StorageError`, `ParseTransactionError`).
 
+### When to return `Result`
+
+Return a `Result` only when the caller is expected to handle the error. If a failure means the app cannot or should not continue, `panic!` immediately — do not propagate an error via `?` if you intend to `.unwrap()` it later; panicking at the source provides a more useful stack trace and eliminates boilerplate.
+
+Similarly, do not return a `Result` if the error is meant to be ignored. If a failure has no impact on the program's flow or integrity, handle it internally (e.g. log it). Forcing callers to write `let _ = ...` or `.ok()` just to silence the compiler obscures the function's true contract.
+
 ### expect message
 
 Write `expect` messages for code readers, not for the program runner. Explain _why_ the error should never happen, not _what_ is the error. State the invariant rather than saying that it broke.
