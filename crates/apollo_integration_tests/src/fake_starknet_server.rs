@@ -8,14 +8,16 @@
 //!   `CendeAmbassador` pointed at `server.url` works against it.
 //!
 //! Both endpoint sets share a single [`FakeBlock`] store keyed by block number. Each block
-//! accumulates data from two independent sources:
+//! accumulates data from three independent sources:
 //!
 //! - **`block_hash`**: filled in when a later blob's `recent_block_hashes` references this block
 //!   number. Until a hash arrives the block is invisible to feeder endpoints and
 //!   `get_latest_received_block`.
-//! - **`feeder_json` / `state_update`**: seeded by test code with correctly-shaped feeder JSON.
+//! - **`feeder_json`**: seeded by test code with correctly-shaped feeder JSON.
+//! - **`state_update`**: either seeded by test code OR automatically derived from a blob's
+//!   `state_diff` field (converted from `CentralStateDiff` to feeder `StateUpdate` format).
 //!
-//! Either source may arrive first; each write touches only its own field so no data is lost.
+//! Any source may arrive first; each write touches only its own field so no data is lost.
 //!
 //! Serving rules:
 //! - `get_latest_received_block`: max block number whose `block_hash` is `Some`.
@@ -32,6 +34,7 @@
 mod fake_starknet_server_test;
 
 use std::collections::{HashMap, HashSet};
+use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
 use axum::extract::{Json, Query, State};
@@ -49,11 +52,11 @@ pub const BLOCK_NOT_FOUND_JSON: &str =
     r#"{"code":"StarknetErrorCode.BLOCK_NOT_FOUND","message":"Block not found"}"#;
 pub const UNDECLARED_CLASS_JSON: &str =
     r#"{"code":"StarknetErrorCode.UNDECLARED_CLASS","message":"Undeclared class"}"#;
-/// Constant returned by `get_signature`; block signatures are deprecated.
+/// Constant returned by `get_signature`. Block signatures are deprecated.
 pub const BLOCK_SIGNATURE_JSON: &str =
     r#"{"signature":["0x0","0x0"],"signature_input":{"block_hash":"0x0"}}"#;
 
-/// Per-block data accumulating from two independent sources: blob posts and test seeding.
+/// Per-block data accumulating from three independent sources: blob posts and test seeding.
 /// Fields are always written individually so earlier data is never overwritten by later writes.
 #[derive(Default)]
 pub struct FakeBlock {
@@ -62,7 +65,8 @@ pub struct FakeBlock {
     pub block_hash: Option<String>,
     /// Full feeder-format JSON for `GET /feeder_gateway/get_block`. Seeded by test code.
     pub feeder_json: Option<Value>,
-    /// `StateUpdate`-shaped JSON for `GET /feeder_gateway/get_state_update`. Seeded by test code.
+    /// `StateUpdate`-shaped JSON for `GET /feeder_gateway/get_state_update`.
+    /// Either seeded by test code OR derived from a blob's `state_diff` field.
     pub state_update: Option<Value>,
 }
 
@@ -110,8 +114,9 @@ impl FakeServerState {
         self.blocks.iter().filter(|(_, b)| b.block_hash.is_some()).map(|(n, _)| *n).max()
     }
 
-    /// Seeds a block with both a confirmed hash and full feeder JSON.
-    /// Uses field-level writes so it merges correctly with any data already in the entry.
+    /// Seeds a block with both a confirmed hash and full feeder JSON for test setup.
+    /// Uses field-level writes so it merges correctly with any data already in the entry
+    /// (e.g., `state_update` derived from a blob's `state_diff`).
     pub fn seed_block(&mut self, block_number: u64, block_hash: &str, feeder_json: Value) {
         let block = self.blocks.entry(block_number).or_default();
         block.block_hash = Some(block_hash.to_string());
@@ -123,8 +128,7 @@ type SharedState = Arc<Mutex<FakeServerState>>;
 
 /// A combined fake HTTP server with feeder-gateway and Cende-recorder endpoints.
 ///
-/// Binds on a random loopback port on construction. Point both
-/// `StarknetFeederGatewayClient` and `CendeAmbassador` at `server.url`.
+/// Point both `StarknetFeederGatewayClient` and `CendeAmbassador` at `server.url`.
 pub struct FakeStarknetServer {
     /// Base URL of the server (e.g. `http://127.0.0.1:54321`).
     pub url: Url,
@@ -134,12 +138,12 @@ pub struct FakeStarknetServer {
 }
 
 impl FakeStarknetServer {
-    /// Spawns the server on an OS-assigned port. Must be called from within a tokio runtime.
-    pub async fn new() -> Self {
+    /// Spawns the server bound to `addr`. Pass port `0` to let the OS assign a free port.
+    /// Must be called from within a tokio runtime.
+    pub async fn new(addr: SocketAddr) -> Self {
         let state: SharedState = Arc::new(Mutex::new(FakeServerState::new()));
 
-        let listener =
-            TcpListener::bind("127.0.0.1:0").await.expect("Failed to bind fake server port");
+        let listener = TcpListener::bind(addr).await.expect("Failed to bind fake server port");
         let addr = listener.local_addr().expect("Failed to read fake server local address");
         let url = Url::parse(&format!("http://{addr}")).expect("Failed to parse fake server URL");
 
@@ -149,6 +153,11 @@ impl FakeStarknetServer {
         });
 
         Self { url, state, server_handle }
+    }
+
+    /// Runs until the server task exits (or panics).
+    pub async fn run_until_exit(&mut self) {
+        (&mut self.server_handle).await.expect("The fake server has panicked!");
     }
 }
 
