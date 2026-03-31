@@ -13,6 +13,7 @@ from typing import ClassVar, Dict, List, Mapping, Optional, Sequence, Set
 from echonet.echonet_types import (
     CONFIG,
     JsonObject,
+    L1OracleGasPrices,
     ResyncTriggerMap,
     RevertErrorInfo,
     create_revert_error_info,
@@ -438,6 +439,8 @@ class SharedContext:
         self._blocks = _BlockStore.empty()
         self._progress = _ProgressMarkers.empty()
         self._epoch = 0
+        self._gas_prices_by_timestamp: Dict[int, L1OracleGasPrices] = {}
+        self._gas_prices_set_for_block: int = 0
 
     def get_uptime_seconds(self) -> int:
         return int(time.monotonic() - self._started_at_monotonic)
@@ -548,6 +551,7 @@ class SharedContext:
             self._blocks.clear_live()
             self._progress.last_echo_center_block = None
             self._progress.sender_current_block = None
+            self._gas_prices_set_for_block = 0
         _BlockStore.write_snapshot_items_to_disk(snapshot_items, base_dir=archive_dir)
         l1_manager.clear_stored_blocks()
 
@@ -569,6 +573,30 @@ class SharedContext:
                 blob_total_gas_l2=blob_total_gas_l2,
                 fgw_total_gas_consumed_l2=fgw_total_gas_consumed_l2,
             )
+
+    # --- Oracle gas prices (by Starknet block timestamp) ---
+    def try_advance_gas_prices_set_for_block(self, for_block: int) -> bool:
+        """
+        Advance the gas-price high-water mark to `for_block` if not already there.
+
+        Returns True if the caller should proceed with setting gas prices, False if
+        `for_block` is at or below the current high-water mark (stale / duplicate update).
+        The high-water mark is reset to 0 on each resync so block numbers that fall
+        below the pre-resync peak are accepted again.
+        """
+        with self._lock:
+            if for_block <= self._gas_prices_set_for_block:
+                return False
+            self._gas_prices_set_for_block = for_block
+            return True
+
+    def set_gas_price_for_timestamp(self, timestamp: int, prices: L1OracleGasPrices) -> None:
+        with self._lock:
+            self._gas_prices_by_timestamp[timestamp] = prices
+
+    def pop_gas_price_for_timestamp(self, timestamp: int) -> Optional[L1OracleGasPrices]:
+        with self._lock:
+            return self._gas_prices_by_timestamp.pop(timestamp, None)
 
     # --- Block storage (echo_center output + raw FGW blocks) ---
     def store_block(
