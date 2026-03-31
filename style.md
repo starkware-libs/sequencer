@@ -461,6 +461,20 @@ completes successfully --- otherwise the task will _detach_ from the process.
 - When implementing a future, if you return `Poll::Pending`, you _must_ store the context somewhere
 and wake it when the future stops being pending. Otherwise, the future will be forever stuck
 
+### `#[expect]` over `#[allow]`
+
+Prefer `#[expect(...)]` over `#[allow(...)]`. `#[expect]` enforces that the suppressed lint is actually triggered, so the compiler will warn you when the attribute is no longer needed.
+
+```rust
+// BAD - If the function is later used, this attribute silently lingers.
+#[allow(unused)]
+fn foo() {}
+
+// GOOD - If the function is later used, the compiler warns that the `expect` is unnecessary.
+#[expect(unused)]
+fn foo() {}
+```
+
 ### Macros
 
 Only use macros if non-macro alternatives are not feasible and when _really_ necessary (like when writing a domain-specific language).
