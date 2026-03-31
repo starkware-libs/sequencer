@@ -18,7 +18,7 @@ pub trait NodeLayout<'a, L: Leaf> {
     /// 1. When [crate::patricia_merkle_tree::traversal::SubTreeTrait::create] is called in the
     ///    beginning of the original skeleton tree creation.
     /// 2. When Layout::get_db_object is called in the serialization of a FilledTree.
-    type NodeData: Clone + From<HashOutput>;
+    type NodeData: Clone + From<HashOutput> + Send;
 
     /// The context needed to deserialize the node from a raw
     /// [starknet_patricia_storage::storage_trait::DbValue].
@@ -35,7 +35,8 @@ pub trait NodeLayout<'a, L: Leaf> {
             'a,
             NodeData = Self::NodeData,
             NodeDeserializeContext = Self::DeserializationContext,
-        >;
+        > + Send
+        + Sync;
 
     /// Converts `FilledTree` nodes to db objects.
     ///
