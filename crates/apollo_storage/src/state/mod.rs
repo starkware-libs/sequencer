@@ -564,6 +564,21 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         let mut cursor = self.deployed_contracts_table.cursor(self.txn)?;
         scan_at_block(&mut cursor, start, end, block_target, limit)
     }
+
+    /// Returns all storage values for `addr` in the key range [`start_key`, `end`] at
+    /// `scan_at_block`, up to `limit` entries.
+    pub fn scan_storage_keys_for_contract(
+        &self,
+        addr: ContractAddress,
+        start: StorageKey,
+        end: StorageKey,
+        block_target: BlockNumber,
+        limit: usize,
+    ) -> StorageResult<Vec<(StorageKey, Felt)>> {
+        let mut cursor = self.storage_table.cursor(self.txn)?;
+        let entries = scan_at_block(&mut cursor, (addr, start), (addr, end), block_target, limit)?;
+        Ok(entries.into_iter().map(|((_, key), value)| (key, value)).collect())
+    }
 }
 
 impl StateStorageWriter for StorageTxn<'_, RW> {
