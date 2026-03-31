@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Tuple
 
 import yaml
+from generate_consensus_report import generate_consensus_report
 
 # Constants
 RUNNING_CONSENSUS_FOR_HEIGHT = "Running consensus for height"
@@ -346,11 +347,13 @@ def download_logs(environment, log_filter: str, output_path: Optional[str]) -> i
     return rc
 
 
-def generate_report(logs_path: str, height: int, report_output: str) -> int:
+def generate_report(logs_path: str, height: int, report_path: str) -> int:
     """Generate consensus report from logs. Returns exit code."""
-    # TODO(lev): Implement report generation
-    print("Report generation not yet implemented")
-    return 0
+    if os.path.splitext(report_path)[1] == "":
+        report_path = report_path + ".txt"
+
+    print("Generating report...")
+    return generate_consensus_report(logs_path, str(height), report_path)
 
 
 # ------------------------------
