@@ -251,6 +251,12 @@ pub trait Storage: ReadOnlyStorage {
 
     /// If the storage is async, returns an instance of the async storage.
     fn get_async_self(&self) -> Option<impl AsyncStorage>;
+
+    /// If the storage supports concurrent task execution, returns a mutable reference to it as a
+    /// [GatherableStorage]. Returns `None` otherwise.
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+        None::<&mut NullStorage>
+    }
 }
 
 /// A trait wrapper for [Storage] that supports concurrency.
@@ -300,6 +306,8 @@ impl ReadOnlyStorage for NullStorage {
     }
 }
 
+impl GatherableStorage for NullStorage {}
+
 impl Storage for NullStorage {
     type Stats = NoStats;
     type Config = EmptyStorageConfig;
@@ -329,6 +337,10 @@ impl Storage for NullStorage {
 
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
         Some(self.clone())
+    }
+
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+        Some(self)
     }
 }
 
