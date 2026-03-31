@@ -3,7 +3,7 @@
 //! Error codes follow Starknet RPC specification v0.10.
 //!
 //! When adding a new error type, also update:
-//! - The OpenRPC spec: `resources/proving_api_openrpc.json` (under `components/errors`)
+//! - The OpenRPC spec in starknet-specs: `api/starknet_proving_api_openrpc.json`
 //! - The spec validation test: `server/rpc_spec_test.rs` (`test_error_responses_match_spec`)
 
 use jsonrpsee::types::error::ErrorCode::InternalError;
