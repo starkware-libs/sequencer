@@ -52,8 +52,9 @@
 
 #[doc(hidden)]
 pub mod data;
-// TODO(dan): remove allow once used by flat state tables.
+// TODO(dan): remove allow once flat state write path is wired into append_state_diff.
 #[allow(dead_code)]
+pub(crate) mod flat_state;
 pub(crate) mod presence_prefixed;
 #[cfg(test)]
 mod state_test;

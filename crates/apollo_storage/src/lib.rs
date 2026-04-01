@@ -558,6 +558,7 @@ impl StorageReader {
             self.file_readers.clone(),
             self.tables.clone(),
             self.scope,
+            self.mode,
             MetricsHandler::new(self.open_readers_metric),
         ))
     }
@@ -603,6 +604,7 @@ impl StorageWriter {
             self.file_writers.clone(),
             self.tables.clone(),
             self.scope,
+            self.mode,
             MetricsHandler::new(None),
         ))
     }
@@ -639,6 +641,8 @@ pub struct StorageTxn<'env, Mode: TransactionKind> {
     file_handlers: FileHandlers<Mode>,
     tables: Arc<Tables>,
     scope: StorageScope,
+    // TODO(dan): rename to `mode` once sequencer write path is wired.
+    _mode: StorageMode,
     // Do not remove this. It is used to automatically update metrics on create/drop.
     _metric_updater: MetricsHandler,
 }
@@ -658,9 +662,10 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         file_handlers: FileHandlers<Mode>,
         tables: Arc<Tables>,
         scope: StorageScope,
+        mode: StorageMode,
         metric_updater: MetricsHandler,
     ) -> Self {
-        Self { txn, file_handlers, tables, scope, _metric_updater: metric_updater }
+        Self { txn, file_handlers, tables, scope, _mode: mode, _metric_updater: metric_updater }
     }
 
     pub(crate) fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
