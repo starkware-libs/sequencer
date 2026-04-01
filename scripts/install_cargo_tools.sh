@@ -50,16 +50,8 @@ function install_cargo_tools() {
     install_cargo_tool_if_needed "taplo --version" "taplo-cli" "0.9.3"
     install_cargo_tool_if_needed "cargo deny --version" "cargo-deny" "0.16.2"
 
-    # Install compiler binaries used for Sierra compilation at runtime.
-    # Versions are extracted from Rust source files (the single source of truth).
-    source "${SCRIPT_DIR}/compiler_versions.sh"
-    # RUSTC_WRAPPER="" avoids sccache circular dependency during installation.
-    (RUSTC_WRAPPER="" install_cargo_tool_if_needed "starknet-sierra-compile --version" "starknet-sierra-compile" "$SIERRA_COMPILE_VERSION")
-    # starknet-native-compile needs LLVM/MLIR env vars (normally set by .cargo/config.toml,
-    # but cargo install runs outside the workspace so they must be set explicitly).
-    eval "$(grep -E '(LLVM_SYS|MLIR_SYS|TABLEGEN)' "$REPO_ROOT/.cargo/config.toml" | sed 's/ = /=/' | tr -d '"')"
-    (RUSTC_WRAPPER="" LLVM_SYS_191_PREFIX="$LLVM_SYS_191_PREFIX" MLIR_SYS_190_PREFIX="$MLIR_SYS_190_PREFIX" TABLEGEN_190_PREFIX="$TABLEGEN_190_PREFIX" \
-        install_cargo_tool_if_needed "starknet-native-compile --version" "starknet-native-compile" "$NATIVE_COMPILE_VERSION")
+    # Install Sierra compiler binaries (starknet-sierra-compile, starknet-native-compile).
+    "${SCRIPT_DIR}/install_compiler_binaries.sh"
 }
 
 install_cargo_tools

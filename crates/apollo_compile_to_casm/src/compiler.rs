@@ -21,8 +21,8 @@ pub struct SierraToCasmCompiler {
 
 impl SierraToCasmCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
-        verify_compiler_binary(CAIRO_LANG_BINARY_NAME, CAIRO1_COMPILER_VERSION);
         let path_to_binary = binary_path(CAIRO_LANG_BINARY_NAME);
+        verify_compiler_binary(&path_to_binary, CAIRO1_COMPILER_VERSION);
         info!("Using Sierra compiler binary at: {:?}", path_to_binary);
         Self { config, path_to_binary }
     }

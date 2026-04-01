@@ -36,11 +36,9 @@ RUN BUILD_FLAGS=""; \
     cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native
 
 # Install compiler binaries used for Sierra compilation at runtime.
-# Versions are extracted from Rust source files (the single source of truth).
-RUN SIERRA_V=$(grep 'CAIRO1_COMPILER_VERSION' crates/apollo_infra_utils/src/cairo_compiler_version.rs | grep -oP '"\K[^"]+' | head -1) && \
-    cargo install --locked starknet-sierra-compile --version "$SIERRA_V"
-RUN NATIVE_V=$(grep 'REQUIRED_CAIRO_NATIVE_VERSION' crates/apollo_compile_to_native/src/constants.rs | grep -oP '"\K[^"]+' | head -1) && \
-    cargo install --locked starknet-native-compile --version "$NATIVE_V"
+# Versions are read from plain text files (the single source of truth).
+RUN cargo install --locked starknet-sierra-compile --version "$(cat crates/apollo_infra_utils/src/cairo_compiler_version.txt)"
+RUN cargo install --locked starknet-native-compile --version "$(cat crates/apollo_compile_to_native/src/native_compiler_version.txt)"
 
 
 FROM ubuntu:24.04 AS final_stage

@@ -9,14 +9,15 @@ FROM ubuntu:24.04 AS base
 COPY scripts/install_build_tools.sh scripts/install_build_tools.sh
 COPY scripts/install_cargo_tools.sh scripts/install_cargo_tools.sh
 COPY scripts/compiler_versions.sh scripts/compiler_versions.sh
+COPY scripts/install_compiler_binaries.sh scripts/install_compiler_binaries.sh
 COPY scripts/dependencies.sh scripts/dependencies.sh
 COPY scripts/apt_utils.sh scripts/apt_utils.sh
 COPY scripts/cargo_tool_utils.sh scripts/cargo_tool_utils.sh
 COPY scripts/requirements.txt scripts/requirements.txt
 COPY rust-toolchain.toml .
-# Rust source files needed by compiler_versions.sh to extract version constants.
-COPY crates/apollo_infra_utils/src/cairo_compiler_version.rs crates/apollo_infra_utils/src/cairo_compiler_version.rs
-COPY crates/apollo_compile_to_native/src/constants.rs crates/apollo_compile_to_native/src/constants.rs
+# Version files read by compiler_versions.sh (the single source of truth).
+COPY crates/apollo_infra_utils/src/cairo_compiler_version.txt crates/apollo_infra_utils/src/cairo_compiler_version.txt
+COPY crates/apollo_compile_to_native/src/native_compiler_version.txt crates/apollo_compile_to_native/src/native_compiler_version.txt
 
 RUN apt update && apt -y install \
     bzip2 \
@@ -45,5 +46,5 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r scripts/requirements.txt
 ENV PATH="${VIRTUAL_ENV}/bin:$PATH"
 
 # Cleanup.
-RUN rm -f scripts/install_build_tools.sh scripts/install_cargo_tools.sh scripts/compiler_versions.sh scripts/cargo_tool_utils.sh scripts/dependencies.sh scripts/apt_utils.sh scripts/requirements.txt && \
+RUN rm -f scripts/install_build_tools.sh scripts/install_cargo_tools.sh scripts/install_compiler_binaries.sh scripts/compiler_versions.sh scripts/cargo_tool_utils.sh scripts/dependencies.sh scripts/apt_utils.sh scripts/requirements.txt && \
     rm -rf crates/apollo_infra_utils crates/apollo_compile_to_native

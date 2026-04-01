@@ -2,4 +2,5 @@
 #[path = "cairo_compiler_version_test.rs"]
 mod cairo_compiler_version_test;
 
-pub const CAIRO1_COMPILER_VERSION: &str = "2.17.0-rc.4";
+pub const CAIRO1_COMPILER_VERSION: &str =
+    include_str!("cairo_compiler_version.txt").trim_ascii_end();
