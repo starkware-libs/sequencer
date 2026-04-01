@@ -147,6 +147,13 @@ pub trait StateStorageReader<Mode: TransactionKind> {
     fn get_state_marker(&self) -> StorageResult<BlockNumber>;
     /// Returns the state diff at a given block number.
     fn get_state_diff(&self, block_number: BlockNumber) -> StorageResult<Option<ThinStateDiff>>;
+    /// Returns the reversed state diff for a block from pre-image tables (sequencer mode only).
+    /// The returned `ThinStateDiff` contains the OLD values (pre-images) for each key changed
+    /// in the block — suitable for feeding to the committer's revert path.
+    fn get_reversed_state_diff_from_preimages(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<ThinStateDiff>;
     /// Returns a state reader.
     fn get_state_reader(&self) -> StorageResult<StateReader<'_, Mode>>;
 }
@@ -192,6 +199,24 @@ impl<Mode: TransactionKind> StateStorageReader<Mode> for StorageTxn<'_, Mode> {
             None => Ok(None),
             Some(location) => Ok(Some(self.get_state_diff_from_location(location)?)),
         }
+    }
+
+    fn get_reversed_state_diff_from_preimages(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<ThinStateDiff> {
+        let storage_preimages = self.open_table(&self.tables.storage_preimages)?;
+        let nonce_preimages = self.open_table(&self.tables.nonce_preimages)?;
+        let deployed_preimages = self.open_table(&self.tables.deployed_contract_preimages)?;
+        let class_preimages = self.open_table(&self.tables.class_preimages)?;
+        flat_state::build_reversed_state_diff_from_preimages(
+            &self.txn,
+            block_number,
+            &storage_preimages,
+            &nonce_preimages,
+            &deployed_preimages,
+            &class_preimages,
+        )
     }
 
     fn get_state_reader(&self) -> StorageResult<StateReader<'_, Mode>> {
@@ -608,8 +633,29 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         block_number: BlockNumber,
         thin_state_diff: ThinStateDiff,
     ) -> StorageResult<Self> {
-        let file_offset_table = self.txn.open_table(&self.tables.file_offsets)?;
         let markers_table = self.open_table(&self.tables.markers)?;
+
+        // Sequencer mode: additionally write to flat tables + pre-images.
+        if self.mode.is_sequencer() {
+            let tables = flat_state::FlatStateTables {
+                flat_contract_storage: self.open_table(&self.tables.flat_contract_storage)?,
+                flat_nonces: self.open_table(&self.tables.flat_nonces)?,
+                flat_deployed_contracts: self.open_table(&self.tables.flat_deployed_contracts)?,
+                flat_compiled_class_hash: self.open_table(&self.tables.flat_compiled_class_hash)?,
+                storage_preimages: self.open_table(&self.tables.storage_preimages)?,
+                nonce_preimages: self.open_table(&self.tables.nonce_preimages)?,
+                deployed_contract_preimages: self
+                    .open_table(&self.tables.deployed_contract_preimages)?,
+                class_preimages: self.open_table(&self.tables.class_preimages)?,
+                declared_classes_block: self.open_table(&self.tables.declared_classes_block)?,
+                deprecated_declared_classes_block: self
+                    .open_table(&self.tables.deprecated_declared_classes_block)?,
+            };
+            flat_state::write_flat_state_diff(&self.txn, block_number, &thin_state_diff, &tables)?;
+        }
+
+        // Write to versioned tables + state diff mmap (all modes).
+        let file_offset_table = self.txn.open_table(&self.tables.file_offsets)?;
         let state_diffs_table = self.open_table(&self.tables.state_diffs)?;
         let nonces_table = self.open_table(&self.tables.nonces)?;
         let deployed_contracts_table = self.open_table(&self.tables.deployed_contracts)?;
@@ -619,7 +665,6 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             self.open_table(&self.tables.deprecated_declared_classes_block)?;
         let compiled_class_hash_table = self.open_table(&self.tables.compiled_class_hash)?;
 
-        // Write state.
         write_deployed_contracts(
             &thin_state_diff.deployed_contracts,
             &self.txn,
@@ -633,7 +678,6 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             block_number,
             &storage_table,
         )?;
-        // Must be called after write_deployed_contracts since the nonces are updated there.
         write_nonces(&thin_state_diff.nonces, &self.txn, block_number, &nonces_table)?;
 
         for (class_hash, _) in &thin_state_diff.class_hash_to_compiled_class_hash {
@@ -651,8 +695,6 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         )?;
 
         for class_hash in thin_state_diff.deprecated_declared_classes.iter() {
-            // Cairo0 classes can be declared in different blocks. The first block to declare the
-            // class is recorded here.
             if deprecated_declared_classes_block_table.get(&self.txn, class_hash)?.is_none() {
                 deprecated_declared_classes_block_table.insert(
                     &self.txn,
@@ -662,11 +704,11 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             }
         }
 
-        // Write state diff.
         let location = self.file_handlers.append_state_diff(&thin_state_diff);
         state_diffs_table.append(&self.txn, &block_number, &location)?;
         file_offset_table.upsert(&self.txn, &OffsetKind::ThinStateDiff, &location.next_offset())?;
 
+        // State marker must be updated before advance_compiled_class_marker, which reads it.
         update_marker_to_next_block(&self.txn, &markers_table, MarkerKind::State, block_number)?;
 
         advance_compiled_class_marker_over_blocks_without_classes(
@@ -685,22 +727,6 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         block_number: BlockNumber,
     ) -> StorageResult<(Self, Option<RevertedStateDiff>)> {
         let markers_table = self.open_table(&self.tables.markers)?;
-        let declared_classes_table = self.open_table(&self.tables.declared_classes)?;
-        let declared_classes_block_table = self.open_table(&self.tables.declared_classes_block)?;
-        let deprecated_declared_classes_table =
-            self.open_table(&self.tables.deprecated_declared_classes)?;
-        let deprecated_declared_classes_block_table =
-            self.open_table(&self.tables.deprecated_declared_classes_block)?;
-        // TODO(yair): Consider reverting the compiled classes in their own module.
-        let compiled_classes_table = self.open_table(&self.tables.casms)?;
-        let compiled_class_hash_v2_table =
-            self.open_table(&self.tables.stateless_compiled_class_hash_v2)?;
-        let deployed_contracts_table = self.open_table(&self.tables.deployed_contracts)?;
-        let nonces_table = self.open_table(&self.tables.nonces)?;
-        let storage_table = self.open_table(&self.tables.contract_storage)?;
-        let state_diffs_table = self.open_table(&self.tables.state_diffs)?;
-        let compiled_class_hash_table = self.open_table(&self.tables.compiled_class_hash)?;
-
         let current_state_marker = self.get_state_marker()?;
 
         // Reverts only the last state diff.
@@ -715,6 +741,43 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             );
             return Ok((self, None));
         };
+
+        // Sequencer mode: additionally revert flat data tables using pre-image tables.
+        // Class visibility cleanup (declared_classes, casms, deprecated_declared_classes) is
+        // handled by the versioned revert below — skip it here to avoid double-deletion.
+        if self.mode.is_sequencer() {
+            let tables = flat_state::FlatStateTables {
+                flat_contract_storage: self.open_table(&self.tables.flat_contract_storage)?,
+                flat_nonces: self.open_table(&self.tables.flat_nonces)?,
+                flat_deployed_contracts: self.open_table(&self.tables.flat_deployed_contracts)?,
+                flat_compiled_class_hash: self.open_table(&self.tables.flat_compiled_class_hash)?,
+                storage_preimages: self.open_table(&self.tables.storage_preimages)?,
+                nonce_preimages: self.open_table(&self.tables.nonce_preimages)?,
+                deployed_contract_preimages: self
+                    .open_table(&self.tables.deployed_contract_preimages)?,
+                class_preimages: self.open_table(&self.tables.class_preimages)?,
+                declared_classes_block: self.open_table(&self.tables.declared_classes_block)?,
+                deprecated_declared_classes_block: self
+                    .open_table(&self.tables.deprecated_declared_classes_block)?,
+            };
+            flat_state::revert_flat_data_tables(&self.txn, block_number, &tables)?;
+        }
+
+        // Revert versioned tables + state diff mmap (all modes).
+        let declared_classes_table = self.open_table(&self.tables.declared_classes)?;
+        let declared_classes_block_table = self.open_table(&self.tables.declared_classes_block)?;
+        let deprecated_declared_classes_table =
+            self.open_table(&self.tables.deprecated_declared_classes)?;
+        let deprecated_declared_classes_block_table =
+            self.open_table(&self.tables.deprecated_declared_classes_block)?;
+        let compiled_classes_table = self.open_table(&self.tables.casms)?;
+        let compiled_class_hash_v2_table =
+            self.open_table(&self.tables.stateless_compiled_class_hash_v2)?;
+        let deployed_contracts_table = self.open_table(&self.tables.deployed_contracts)?;
+        let nonces_table = self.open_table(&self.tables.nonces)?;
+        let storage_table = self.open_table(&self.tables.contract_storage)?;
+        let state_diffs_table = self.open_table(&self.tables.state_diffs)?;
+        let compiled_class_hash_table = self.open_table(&self.tables.compiled_class_hash)?;
 
         let thin_state_diff = self
             .get_state_diff(block_number)?

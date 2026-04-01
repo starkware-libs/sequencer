@@ -1532,9 +1532,15 @@ impl BatcherStorageReader for StorageReader {
         &self,
         height: BlockNumber,
     ) -> apollo_storage::StorageResult<ThinStateDiff> {
-        let state_target = StateNumber::right_before_block(height);
         let txn = self.begin_ro_txn()?;
 
+        // In sequencer mode, pre-image tables directly contain the old values.
+        if self.mode.is_sequencer() {
+            return txn.get_reversed_state_diff_from_preimages(height);
+        }
+
+        // Archive mode: read forward diff then look up old values via StateReader.
+        let state_target = StateNumber::right_before_block(height);
         let ThinStateDiff {
             deployed_contracts,
             storage_diffs,
