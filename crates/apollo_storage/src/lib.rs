@@ -269,21 +269,23 @@ fn open_storage_internal(
         stateless_compiled_class_hash_v2: db_writer
             .create_simple_table("stateless_compiled_class_hash_v2")?,
     });
+    let mode = storage_config.mode();
     let (file_writers, file_readers) = open_storage_files(
         &storage_config.db_config,
         storage_config.mmap_file_config,
         db_reader.clone(),
         &tables.file_offsets,
     )?;
-
     let reader = StorageReader {
         db_reader,
         tables: tables.clone(),
         scope: storage_config.scope,
+        mode,
         file_readers,
         open_readers_metric,
     };
-    let writer = StorageWriter { db_writer, tables, scope: storage_config.scope, file_writers };
+    let writer =
+        StorageWriter { db_writer, tables, scope: storage_config.scope, mode, file_writers };
 
     let writer = set_version_if_needed(reader.clone(), writer)?;
     verify_storage_version(reader.clone())?;
@@ -311,15 +313,11 @@ fn set_version_if_needed(
         return Ok(writer);
     };
     debug!("Existing storage state: {:?}", existing_storage_version);
+
     // Handle the case where the storage scope has changed.
     match existing_storage_version {
         StorageVersion::FullArchive(FullArchiveVersion { state_version: _, blocks_version: _ }) => {
-            // TODO(yael): consider optimizing by deleting the block's data if the scope has changed
-            // to StateOnly
             if writer.scope == StorageScope::StateOnly {
-                // Deletion of the block's version is required here. It ensures that the node knows
-                // that the storage operates in StateOnly mode and prevents the operator from
-                // running it in FullArchive mode again.
                 debug!("Changing the storage scope from FullArchive to StateOnly.");
                 writer.begin_rw_txn()?.delete_blocks_version()?.commit()?;
             }
@@ -482,6 +480,49 @@ pub enum StorageScope {
     StateOnly,
 }
 
+/// Controls what data the node persists and how. Will replace [`StorageScope`].
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub enum StorageMode {
+    /// Archive: everything, full history, versioned tables.
+    #[default]
+    Archive,
+    /// Sequencer: flat state + pre-images + classes + headers.
+    /// No body/events/state diffs. Pre-images enable reverts and are prunable.
+    Sequencer {
+        /// Minimum number of blocks to retain pre-images for.
+        retention_blocks: u64,
+    },
+}
+
+impl StorageMode {
+    /// Returns true if this is sequencer mode.
+    pub fn is_sequencer(&self) -> bool {
+        matches!(self, StorageMode::Sequencer { .. })
+    }
+
+    /// Returns true if this is archive mode.
+    pub fn is_archive(&self) -> bool {
+        matches!(self, StorageMode::Archive)
+    }
+
+    /// Returns the equivalent [`StorageScope`] for backward compatibility.
+    pub fn as_scope(&self) -> StorageScope {
+        match self {
+            StorageMode::Archive => StorageScope::FullArchive,
+            StorageMode::Sequencer { .. } => StorageScope::StateOnly,
+        }
+    }
+}
+
+impl From<StorageScope> for StorageMode {
+    fn from(scope: StorageScope) -> Self {
+        match scope {
+            StorageScope::FullArchive => StorageMode::Archive,
+            StorageScope::StateOnly => StorageMode::Sequencer { retention_blocks: 1000 },
+        }
+    }
+}
+
 /// A struct for starting RO transactions ([`StorageTxn`]) to the storage.
 #[derive(Clone)]
 pub struct StorageReader {
@@ -489,6 +530,8 @@ pub struct StorageReader {
     file_readers: FileHandlers<RO>,
     tables: Arc<Tables>,
     scope: StorageScope,
+    /// The storage mode (replaces scope).
+    pub mode: StorageMode,
     open_readers_metric: Option<&'static MetricGauge>,
 }
 
@@ -533,6 +576,8 @@ pub struct StorageWriter {
     file_writers: FileHandlers<RW>,
     tables: Arc<Tables>,
     scope: StorageScope,
+    /// The storage mode (replaces scope).
+    pub mode: StorageMode,
 }
 
 impl StorageWriter {
@@ -794,6 +839,13 @@ pub struct StorageConfig {
     #[validate(nested)]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
+}
+
+impl StorageConfig {
+    /// Returns the [`StorageMode`] derived from the configured scope.
+    pub fn mode(&self) -> StorageMode {
+        StorageMode::from(self.scope)
+    }
 }
 
 impl SerializeConfig for StorageConfig {
