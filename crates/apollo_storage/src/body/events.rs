@@ -138,6 +138,7 @@ impl<'txn, 'env> EventsReader<'txn, 'env> for StorageTxn<'env, RO> {
         event_index: EventIndex,
         to_block_number: BlockNumber,
     ) -> StorageResult<EventIter<'txn, 'env>> {
+        self.verify_not_sequencer_mode("iter_events")?;
         if let Some(address) = optional_address {
             return Ok(EventIter::ByContractAddress(
                 self.iter_events_by_contract_address((address, event_index))?,
@@ -152,6 +153,7 @@ impl<'txn, 'env> EventsReader<'txn, 'env> for StorageTxn<'env, RO> {
         address: ContractAddress,
         tx_index: TransactionIndex,
     ) -> StorageResult<Option<()>> {
+        self.verify_not_sequencer_mode("has_event")?;
         let contract_address_events_index =
             self.open_table(&self.tables.contract_address_events_index)?;
         Ok(contract_address_events_index.get(&self.txn, &(address, tx_index))?.map(|_| ()))
@@ -161,6 +163,7 @@ impl<'txn, 'env> EventsReader<'txn, 'env> for StorageTxn<'env, RO> {
         &self,
         transaction_index: TransactionIndex,
     ) -> StorageResult<Option<Vec<Event>>> {
+        self.verify_not_sequencer_mode("get_transaction_events")?;
         let transaction_events_table = self.open_table(&self.tables.transaction_events)?;
         let Some(location) = transaction_events_table.get(&self.txn, &transaction_index)? else {
             return Ok(None);
@@ -172,6 +175,7 @@ impl<'txn, 'env> EventsReader<'txn, 'env> for StorageTxn<'env, RO> {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<Vec<Vec<Event>>>> {
+        self.verify_not_sequencer_mode("get_block_events_per_transaction")?;
         if self.get_event_marker()? <= block_number {
             return Ok(None);
         }

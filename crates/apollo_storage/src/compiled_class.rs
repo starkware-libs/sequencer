@@ -132,6 +132,7 @@ impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
         class_hash: ClassHash,
         block_number: BlockNumber,
     ) -> StorageResult<Option<CompiledClassHash>> {
+        self.verify_not_sequencer_mode("get_compiled_class_hash (versioned)")?;
         let compiled_class_hash_table = self.open_table(&self.tables.compiled_class_hash)?;
         Ok(compiled_class_hash_table.get(&self.txn, &(class_hash, block_number))?)
     }

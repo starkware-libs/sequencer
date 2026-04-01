@@ -641,8 +641,7 @@ pub struct StorageTxn<'env, Mode: TransactionKind> {
     file_handlers: FileHandlers<Mode>,
     tables: Arc<Tables>,
     scope: StorageScope,
-    // TODO(dan): rename to `mode` once sequencer write path is wired.
-    _mode: StorageMode,
+    mode: StorageMode,
     // Do not remove this. It is used to automatically update metrics on create/drop.
     _metric_updater: MetricsHandler,
 }
@@ -665,7 +664,18 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         mode: StorageMode,
         metric_updater: MetricsHandler,
     ) -> Self {
-        Self { txn, file_handlers, tables, scope, _mode: mode, _metric_updater: metric_updater }
+        Self { txn, file_handlers, tables, scope, mode, _metric_updater: metric_updater }
+    }
+
+    /// Returns an error if this transaction is in sequencer mode.
+    /// Used to guard reader APIs that access data not persisted in sequencer mode.
+    pub(crate) fn verify_not_sequencer_mode(&self, operation: &str) -> StorageResult<()> {
+        if self.mode.is_sequencer() {
+            return Err(StorageError::DataUnavailableInSequencerMode {
+                msg: operation.to_string(),
+            });
+        }
+        Ok(())
     }
 
     pub(crate) fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
@@ -853,6 +863,11 @@ pub enum StorageError {
     BlockSignatureForNonExistingBlock { block_number: BlockNumber, block_signature: BlockSignature },
     #[error("Object {object_name} at height {height} is missing.")]
     MissingObject { object_name: String, height: BlockNumber },
+    #[error(
+        "Data unavailable in sequencer mode: {msg}. Sequencer mode does not persist body, event, \
+         state diff, or versioned state data."
+    )]
+    DataUnavailableInSequencerMode { msg: String },
 }
 
 /// A type alias that maps to std::result::Result<T, StorageError>.
