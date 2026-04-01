@@ -45,4 +45,12 @@ fi
 
 # RUSTC_WRAPPER="" avoids sccache circular dependency during installation.
 RUSTC_WRAPPER="" install_compiler_if_needed "starknet-sierra-compile" "$SIERRA_COMPILE_VERSION"
-RUSTC_WRAPPER="" install_compiler_if_needed "starknet-native-compile" "$NATIVE_COMPILE_VERSION"
+
+# starknet-native-compile requires LLVM 19. If LLVM is not installed, print instructions
+# instead of failing with a cryptic tblgen build error.
+if command -v llvm-config-19 &>/dev/null; then
+    RUSTC_WRAPPER="" install_compiler_if_needed "starknet-native-compile" "$NATIVE_COMPILE_VERSION"
+else
+    log_step "install_build_tools" "Skipping starknet-native-compile (LLVM 19 not found)."
+    log_step "install_build_tools" "To install it: run 'scripts/dependencies.sh' first, then re-run this script."
+fi
