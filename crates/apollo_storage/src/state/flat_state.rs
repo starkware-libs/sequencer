@@ -9,9 +9,11 @@ use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
 
 use super::presence_prefixed::PresencePrefixed;
-use crate::db::serialization::NoVersionValueWrapper;
+use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, RW};
+use crate::mmap_file::LocationInFile;
+use crate::state::data::IndexedDeprecatedContractClass;
 use crate::{BlockNumber, StorageResult};
 
 // Type aliases for flat tables.
@@ -56,7 +58,15 @@ pub(crate) type DeclaredClassesBlockTable<'env> =
 pub(crate) type DeprecatedDeclaredClassesBlockTable<'env> =
     TableHandle<'env, ClassHash, NoVersionValueWrapper<BlockNumber>, SimpleTable>;
 
-/// All flat state and pre-image table handles needed for write and revert operations.
+// Class visibility table type aliases (for revert).
+pub(crate) type DeclaredClassesTable<'env> =
+    TableHandle<'env, ClassHash, VersionZeroWrapper<LocationInFile>, SimpleTable>;
+pub(crate) type CompiledClassesTable<'env> =
+    TableHandle<'env, ClassHash, VersionZeroWrapper<LocationInFile>, SimpleTable>;
+pub(crate) type DeprecatedDeclaredClassesTable<'env> =
+    TableHandle<'env, ClassHash, VersionZeroWrapper<IndexedDeprecatedContractClass>, SimpleTable>;
+
+/// All flat state and pre-image table handles needed for write operations.
 pub(crate) struct FlatStateTables<'env> {
     pub flat_contract_storage: FlatContractStorageTable<'env>,
     pub flat_nonces: FlatNoncesTable<'env>,
@@ -68,6 +78,14 @@ pub(crate) struct FlatStateTables<'env> {
     pub class_preimages: ClassPreimagesTable<'env>,
     pub declared_classes_block: DeclaredClassesBlockTable<'env>,
     pub deprecated_declared_classes_block: DeprecatedDeclaredClassesBlockTable<'env>,
+}
+
+/// Additional table handles needed for revert (class visibility cleanup).
+pub(crate) struct FlatStateRevertTables<'env> {
+    pub base: FlatStateTables<'env>,
+    pub declared_classes: DeclaredClassesTable<'env>,
+    pub compiled_classes: CompiledClassesTable<'env>,
+    pub deprecated_declared_classes: DeprecatedDeclaredClassesTable<'env>,
 }
 
 /// Write flat state + pre-images for a block's state diff.
@@ -225,5 +243,226 @@ fn write_deprecated_declared_classes_block<'env>(
             deprecated_declared_classes_block_table.insert(txn, class_hash, &block_number)?;
         }
     }
+    Ok(())
+}
+
+/// Revert flat state for a block using pre-image tables.
+/// Must be called for the last block only (same constraint as archive revert).
+pub(crate) fn revert_flat_state_diff<'env>(
+    txn: &DbTransaction<'env, RW>,
+    block_number: BlockNumber,
+    tables: &'env FlatStateRevertTables<'env>,
+) -> StorageResult<()> {
+    // ORDER MATTERS: class/deprecated-class cleanup must run BEFORE deployed contract revert,
+    // because deprecated-class visibility cleanup needs the current (not-yet-reverted) deployed
+    // class hashes from flat_deployed_contracts.
+
+    // 1. Revert class declarations + visibility (Sierra classes, CASMs).
+    revert_flat_classes(
+        txn,
+        block_number,
+        &tables.base.flat_compiled_class_hash,
+        &tables.base.class_preimages,
+        &tables.base.declared_classes_block,
+        &tables.declared_classes,
+        &tables.compiled_classes,
+    )?;
+    // 2. Revert deprecated class visibility using deployed contract class hashes.
+    revert_deprecated_classes(
+        txn,
+        block_number,
+        &tables.base.flat_deployed_contracts,
+        &tables.base.deployed_contract_preimages,
+        &tables.deprecated_declared_classes,
+        &tables.base.deprecated_declared_classes_block,
+    )?;
+    // 3. Revert deployed contracts.
+    revert_flat_simple_preimages(
+        txn,
+        block_number,
+        &tables.base.flat_deployed_contracts,
+        &tables.base.deployed_contract_preimages,
+    )?;
+    // 4. Revert nonces.
+    revert_flat_simple_preimages(
+        txn,
+        block_number,
+        &tables.base.flat_nonces,
+        &tables.base.nonce_preimages,
+    )?;
+    // 5. Revert storage diffs.
+    revert_flat_storage(
+        txn,
+        block_number,
+        &tables.base.flat_contract_storage,
+        &tables.base.storage_preimages,
+    )?;
+    Ok(())
+}
+
+/// Revert storage diffs from `storage_preimages` (composite main key).
+fn revert_flat_storage<'env>(
+    txn: &DbTransaction<'env, RW>,
+    block_number: BlockNumber,
+    flat_table: &'env FlatContractStorageTable<'env>,
+    preimages_table: &'env StoragePreimagesTable<'env>,
+) -> StorageResult<()> {
+    use crate::db::table_types::DbCursorTrait;
+
+    let mut cursor = preimages_table.cursor(txn)?;
+    // Seek to the first entry for this block.
+    let mut current =
+        cursor.lower_bound(&((block_number, ContractAddress::default()), StorageKey::default()))?;
+    while let Some(((bn, address), key)) = current.as_ref().map(|(k, _)| *k) {
+        if bn != block_number {
+            break;
+        }
+        let preimage = current.as_ref().map(|(_, v)| v.clone()).unwrap();
+        match preimage {
+            PresencePrefixed(Some(value)) => {
+                flat_table.upsert(txn, &(address, key), &value)?;
+            }
+            PresencePrefixed(None) => {
+                flat_table.delete(txn, &(address, key))?;
+            }
+        }
+        preimages_table.delete(txn, &((bn, address), key))?;
+        current = cursor.next()?;
+    }
+    Ok(())
+}
+
+/// Revert simple preimages (nonces, deployed contracts) with `(BlockNumber, K)` main key.
+fn revert_flat_simple_preimages<'env, K, V>(
+    txn: &DbTransaction<'env, RW>,
+    block_number: BlockNumber,
+    flat_table: &'env TableHandle<'env, K, NoVersionValueWrapper<V>, SimpleTable>,
+    preimages_table: &'env TableHandle<
+        'env,
+        (BlockNumber, K),
+        NoVersionValueWrapper<PresencePrefixed<V>>,
+        CommonPrefix,
+    >,
+) -> StorageResult<()>
+where
+    K: crate::db::serialization::Key + std::fmt::Debug + Default,
+    V: crate::db::serialization::StorageSerde + std::fmt::Debug + Clone,
+    PresencePrefixed<V>: crate::db::serialization::StorageSerde + std::fmt::Debug,
+    (BlockNumber, K): crate::db::serialization::Key + std::fmt::Debug,
+{
+    use crate::db::table_types::DbCursorTrait;
+
+    let mut cursor = preimages_table.cursor(txn)?;
+    let mut current = cursor.lower_bound(&(block_number, K::default()))?;
+    while let Some((bn, entity_key)) = current.as_ref().map(|(k, _)| k.clone()) {
+        if bn != block_number {
+            break;
+        }
+        let preimage = current.as_ref().map(|(_, v)| v.clone()).unwrap();
+        match preimage {
+            PresencePrefixed(Some(value)) => {
+                flat_table.upsert(txn, &entity_key, &value)?;
+            }
+            PresencePrefixed(None) => {
+                flat_table.delete(txn, &entity_key)?;
+            }
+        }
+        preimages_table.delete(txn, &(bn, entity_key))?;
+        current = cursor.next()?;
+    }
+    Ok(())
+}
+
+/// Revert class declarations: delete from flat tables + class visibility tables.
+fn revert_flat_classes<'env>(
+    txn: &DbTransaction<'env, RW>,
+    block_number: BlockNumber,
+    flat_compiled_hash_table: &'env FlatCompiledClassHashTable<'env>,
+    class_preimages_table: &'env ClassPreimagesTable<'env>,
+    declared_classes_block_table: &'env DeclaredClassesBlockTable<'env>,
+    declared_classes_table: &'env DeclaredClassesTable<'env>,
+    compiled_classes_table: &'env CompiledClassesTable<'env>,
+) -> StorageResult<()> {
+    use crate::db::table_types::DbCursorTrait;
+
+    let mut cursor = class_preimages_table.cursor(txn)?;
+    let mut current = cursor.lower_bound(&(block_number, ClassHash::default()))?;
+    while let Some((bn, class_hash)) = current.as_ref().map(|(k, _)| *k) {
+        if bn != block_number {
+            break;
+        }
+        flat_compiled_hash_table.delete(txn, &class_hash)?;
+        if declared_classes_block_table.get(txn, &class_hash)? == Some(block_number) {
+            declared_classes_block_table.delete(txn, &class_hash)?;
+            // Remove Sierra class visibility (mmap pointer becomes orphan but data is immutable).
+            let _ = declared_classes_table.delete(txn, &class_hash);
+            // Remove CASM visibility.
+            let _ = compiled_classes_table.delete(txn, &class_hash);
+        }
+        class_preimages_table.delete(txn, &(bn, class_hash))?;
+        current = cursor.next()?;
+    }
+    Ok(())
+}
+
+/// Revert deprecated class visibility for classes introduced by deployment.
+fn revert_deprecated_classes<'env>(
+    txn: &DbTransaction<'env, RW>,
+    block_number: BlockNumber,
+    flat_deployed_table: &'env FlatDeployedContractsTable<'env>,
+    deployed_preimages_table: &'env DeployedContractPreimagesTable<'env>,
+    deprecated_declared_classes_table: &'env DeprecatedDeclaredClassesTable<'env>,
+    deprecated_declared_classes_block_table: &'env DeprecatedDeclaredClassesBlockTable<'env>,
+) -> StorageResult<()> {
+    use crate::db::table_types::DbCursorTrait;
+
+    // Build candidate set from two sources:
+    // 1. deprecated_declared_classes_block entries for this block.
+    // 2. Class hashes of contracts deployed in this block (from flat_deployed_contracts, which
+    //    still holds the block's values before deployed-contract revert runs).
+
+    let mut candidate_class_hashes = std::collections::HashSet::new();
+
+    // Source 1: scan deprecated_declared_classes_block for entries with value == block_number.
+    // This table is keyed by ClassHash with value BlockNumber. We scan the whole table (small)
+    // to find classes first declared in the reverted block.
+    {
+        let mut block_cursor = deprecated_declared_classes_block_table.cursor(txn)?;
+        let mut entry = block_cursor.lower_bound(&ClassHash::default())?;
+        while let Some((class_hash, declared_block)) = entry {
+            if declared_block == block_number {
+                candidate_class_hashes.insert(class_hash);
+            }
+            entry = block_cursor.next()?;
+        }
+    }
+
+    // Source 2: deployed contract class hashes from this block.
+    let mut cursor = deployed_preimages_table.cursor(txn)?;
+    let mut current = cursor.lower_bound(&(block_number, ContractAddress::default()))?;
+    while let Some((bn, address)) = current.as_ref().map(|(k, _)| *k) {
+        if bn != block_number {
+            break;
+        }
+        // Read current class hash (before deployed-contract revert).
+        if let Some(class_hash) = flat_deployed_table.get(txn, &address)? {
+            candidate_class_hashes.insert(class_hash);
+        }
+        current = cursor.next()?;
+    }
+
+    // For each candidate, check if it was first stored in deprecated_declared_classes at this
+    // block, and if so delete it.
+    for class_hash in &candidate_class_hashes {
+        if let Some(entry) = deprecated_declared_classes_table.get(txn, class_hash)? {
+            if entry.block_number == block_number {
+                deprecated_declared_classes_table.delete(txn, class_hash)?;
+            }
+        }
+        if deprecated_declared_classes_block_table.get(txn, class_hash)? == Some(block_number) {
+            deprecated_declared_classes_block_table.delete(txn, class_hash)?;
+        }
+    }
+
     Ok(())
 }
