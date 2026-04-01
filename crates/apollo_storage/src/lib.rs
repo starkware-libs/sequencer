@@ -174,6 +174,7 @@ use crate::header::StorageBlockHeader;
 use crate::metrics::{register_metrics, STORAGE_COMMIT_LATENCY};
 use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
+use crate::state::presence_prefixed::PresencePrefixed;
 use crate::storage_reader_server::{
     create_storage_reader_server,
     ServerConfig,
@@ -268,6 +269,19 @@ fn open_storage_internal(
         compiled_class_hash: db_writer.create_common_prefix_table("compiled_class_hash")?,
         stateless_compiled_class_hash_v2: db_writer
             .create_simple_table("stateless_compiled_class_hash_v2")?,
+
+        // Flat state tables (sequencer mode).
+        flat_contract_storage: db_writer.create_common_prefix_table("flat_contract_storage")?,
+        flat_nonces: db_writer.create_simple_table("flat_nonces")?,
+        flat_deployed_contracts: db_writer.create_simple_table("flat_deployed_contracts")?,
+        flat_compiled_class_hash: db_writer.create_simple_table("flat_compiled_class_hash")?,
+
+        // Pre-image tables (sequencer mode).
+        storage_preimages: db_writer.create_common_prefix_table("storage_preimages")?,
+        nonce_preimages: db_writer.create_common_prefix_table("nonce_preimages")?,
+        deployed_contract_preimages: db_writer
+            .create_common_prefix_table("deployed_contract_preimages")?,
+        class_preimages: db_writer.create_common_prefix_table("class_preimages")?,
     });
     let mode = storage_config.mode();
     let (file_writers, file_readers) = open_storage_files(
@@ -746,12 +760,25 @@ struct_field_names! {
 
         // Compiled class hashes.
         compiled_class_hash: TableIdentifier<(ClassHash, BlockNumber), VersionZeroWrapper<CompiledClassHash>, CommonPrefix>,
-        stateless_compiled_class_hash_v2: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>
+        stateless_compiled_class_hash_v2: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>,
+
+        // Flat state tables (sequencer mode).
+        flat_contract_storage: TableIdentifier<(ContractAddress, StorageKey), NoVersionValueWrapper<Felt>, CommonPrefix>,
+        flat_nonces: TableIdentifier<ContractAddress, NoVersionValueWrapper<Nonce>, SimpleTable>,
+        flat_deployed_contracts: TableIdentifier<ContractAddress, NoVersionValueWrapper<ClassHash>, SimpleTable>,
+        flat_compiled_class_hash: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>,
+
+        // Pre-image tables (sequencer mode).
+        storage_preimages: TableIdentifier<((BlockNumber, ContractAddress), StorageKey), NoVersionValueWrapper<PresencePrefixed<Felt>>, CommonPrefix>,
+        nonce_preimages: TableIdentifier<(BlockNumber, ContractAddress), NoVersionValueWrapper<PresencePrefixed<Nonce>>, CommonPrefix>,
+        deployed_contract_preimages: TableIdentifier<(BlockNumber, ContractAddress), NoVersionValueWrapper<PresencePrefixed<ClassHash>>, CommonPrefix>,
+        class_preimages: TableIdentifier<(BlockNumber, ClassHash), NoVersionValueWrapper<CompiledClassHash>, CommonPrefix>
     }
 }
 
 macro_rules! struct_field_names {
     (struct $name:ident { $($fname:ident : $ftype:ty),* }) => {
+        #[allow(dead_code)]
         pub(crate) struct $name {
             $($fname : $ftype),*
         }
