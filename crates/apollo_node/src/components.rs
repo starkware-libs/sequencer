@@ -97,13 +97,9 @@ pub async fn create_node_components(
             let (dynamic_config_tx, channel_client) =
                 LocalComponentChannelClient::new_with_initial_value(node_dynamic_config.clone());
             let config_manager_channel_client = Arc::new(channel_client);
-            let config_manager_client = clients
-                .get_config_manager_shared_client()
-                .expect("Config Manager client should be available");
 
             let config_manager_runner = ConfigManagerRunner::new(
                 config_manager_config.clone(),
-                config_manager_client,
                 dynamic_config_tx,
                 node_dynamic_config,
                 cli_args,
