@@ -6,7 +6,6 @@ use apollo_class_manager::class_manager::create_class_manager;
 use apollo_class_manager::ClassManager;
 use apollo_committer::committer::ApolloCommitter;
 use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
-use apollo_config_manager::config_manager::ConfigManager;
 use apollo_config_manager::config_manager_runner::ConfigManagerRunner;
 use apollo_consensus_manager::consensus_manager::{
     create_committee_provider,
@@ -50,7 +49,6 @@ pub struct SequencerNodeComponents {
     pub batcher: Option<Batcher>,
     pub class_manager: Option<ClassManager>,
     pub committer: Option<ApolloCommitter>,
-    pub config_manager: Option<ConfigManager>,
     pub config_manager_runner: Option<ConfigManagerRunner>,
     pub consensus_manager: Option<ConsensusManager>,
     pub gateway: Option<Gateway>,
@@ -80,9 +78,9 @@ pub async fn create_node_components(
 ) -> SequencerNodeComponents {
     info!("Creating node components.");
 
-    // Create the config manager and runner first, as the config_manager_channel_client is used by
+    // Create the config manager runner first, as the config_manager_channel_client is used by
     // other components below.
-    let (config_manager, config_manager_runner, config_manager_channel_client) = match config
+    let (config_manager_runner, config_manager_channel_client) = match config
         .components
         .config_manager
         .execution_mode
@@ -91,9 +89,6 @@ pub async fn create_node_components(
             let node_dynamic_config = NodeDynamicConfig::from(config);
             let config_manager_config =
                 config.config_manager_config.as_ref().expect("Config Manager config should be set");
-            // TODO(Arni): remove the config_manager.
-            let config_manager =
-                ConfigManager::new(config_manager_config.clone(), node_dynamic_config.clone());
             let (dynamic_config_tx, channel_client) =
                 LocalComponentChannelClient::new_with_initial_value(node_dynamic_config.clone());
             // TODO(Arni): Rename to config_manager_client after ConfigManagerChannelClient is
@@ -104,7 +99,7 @@ pub async fn create_node_components(
                 dynamic_config_tx,
                 cli_args,
             );
-            (Some(config_manager), Some(config_manager_runner), Some(config_manager_channel_client))
+            (Some(config_manager_runner), Some(config_manager_channel_client))
         }
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
         | ReactiveComponentExecutionMode::Remote => {
@@ -113,7 +108,7 @@ pub async fn create_node_components(
                  component"
             );
         }
-        ReactiveComponentExecutionMode::Disabled => (None, None, None),
+        ReactiveComponentExecutionMode::Disabled => (None, None),
     };
 
     let batcher = match config.components.batcher.execution_mode {
@@ -566,7 +561,6 @@ pub async fn create_node_components(
         batcher,
         class_manager,
         committer,
-        config_manager,
         config_manager_runner,
         consensus_manager,
         gateway,
