@@ -99,12 +99,8 @@ pub async fn create_node_components(
             // TODO(Arni): Rename to config_manager_client after ConfigManagerChannelClient is
             // renamed to ConfigManagerClient.
             let config_manager_channel_client = Arc::new(channel_client);
-            let config_manager_client = clients
-                .get_config_manager_shared_client()
-                .expect("Config Manager client should be available");
             let config_manager_runner = ConfigManagerRunner::new(
                 config_manager_config.clone(),
-                config_manager_client,
                 dynamic_config_tx,
                 cli_args,
             );
