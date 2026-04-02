@@ -6,7 +6,6 @@ use apollo_config::presentation::get_config_presentation;
 use apollo_config::validators::validate_path_exists;
 use apollo_config::{CONFIG_FILE_ARG, CONFIG_FILE_SHORT_ARG_NAME};
 use apollo_config_manager_config::config::ConfigManagerConfig;
-use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_infra::component_server::WrapperServer;
 use apollo_node_config::config_utils::load_and_validate_config;
@@ -17,7 +16,7 @@ use serde_json::Value;
 use tokio::sync::mpsc;
 use tokio::sync::watch::Sender;
 use tokio::time::{interval, Duration as TokioDuration, Interval};
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 use crate::metrics::{register_metrics, CONFIG_MANAGER_UPDATE_ERRORS};
 
@@ -29,7 +28,6 @@ pub mod config_manager_runner_tests;
 
 pub struct ConfigManagerRunner {
     config_manager_config: ConfigManagerConfig,
-    config_manager_client: SharedConfigManagerClient,
     dynamic_config_tx: Sender<NodeDynamicConfig>,
     latest_node_dynamic_config: NodeDynamicConfig,
     cli_args: Vec<String>,
@@ -60,14 +58,12 @@ impl ComponentStarter for ConfigManagerRunner {
 impl ConfigManagerRunner {
     pub fn new(
         config_manager_config: ConfigManagerConfig,
-        config_manager_client: SharedConfigManagerClient,
         dynamic_config_tx: Sender<NodeDynamicConfig>,
         initial_node_dynamic_config: NodeDynamicConfig,
         cli_args: Vec<String>,
     ) -> Self {
         Self {
             config_manager_config,
-            config_manager_client,
             dynamic_config_tx,
             latest_node_dynamic_config: initial_node_dynamic_config,
             cli_args,
@@ -144,21 +140,14 @@ impl ConfigManagerRunner {
             self.log_config_diff(&self.latest_node_dynamic_config, &node_dynamic_config);
             // Update the latest node dynamic config.
             self.latest_node_dynamic_config = node_dynamic_config.clone();
-            // TODO(Arni): Make the error logging less verbose, once we get rid of the next match
-            // block.
-            match self.dynamic_config_tx.send(node_dynamic_config.clone()) {
-                Ok(()) => debug!("Successfully sent node dynamic config to the channel"),
-                Err(e) => error!("Failed to send node dynamic config to the channel: {e}"),
-            }
-
-            // TODO(Arni): Remove this match block. Squash the behavior into the previous match
-            // block.
-            match self.config_manager_client.set_node_dynamic_config(node_dynamic_config).await {
+            match self.dynamic_config_tx.send(node_dynamic_config) {
                 Ok(()) => {
                     info!("Successfully updated dynamic config");
                     Ok(())
                 }
-                Err(e) => Err(format!("Failed to update dynamic config: {:?}", e).into()),
+                Err(e) => {
+                    Err(format!("Failed to send node dynamic config to the channel: {e}").into())
+                }
             }
         }
     }
