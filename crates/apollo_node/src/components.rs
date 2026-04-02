@@ -6,7 +6,6 @@ use apollo_class_manager::ClassManager;
 use apollo_class_manager::class_manager::create_class_manager;
 use apollo_committer::committer::ApolloCommitter;
 use apollo_compile_to_casm::{SierraCompiler, create_sierra_compiler};
-use apollo_config_manager::config_manager::ConfigManager;
 use apollo_config_manager::config_manager_runner::ConfigManagerRunner;
 use apollo_consensus_manager::consensus_manager::{
     ConsensusManager, ConsensusManagerArgs, create_committee_provider,
@@ -46,7 +45,6 @@ pub struct SequencerNodeComponents {
     pub batcher: Option<Batcher>,
     pub class_manager: Option<ClassManager>,
     pub committer: Option<ApolloCommitter>,
-    pub config_manager: Option<ConfigManager>,
     pub config_manager_runner: Option<ConfigManagerRunner>,
     pub consensus_manager: Option<ConsensusManager>,
     pub gateway: Option<Gateway>,
@@ -569,7 +567,6 @@ pub async fn create_node_components(
         batcher,
         class_manager,
         committer,
-        config_manager,
         config_manager_runner,
         consensus_manager,
         gateway,
