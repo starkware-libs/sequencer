@@ -117,6 +117,11 @@ Reusable lessons from code reviews and debugging in this codebase. Update this w
 
 ## Testing
 
+### Test files live in separate `_test.rs` files
+- Never write `#[cfg(test)] mod tests { ... }` inline in the source file
+- Create a sibling file named `<module>_test.rs` and link it with `#[cfg(test)] #[path = "<module>_test.rs"] mod <module>_test;` at the top of the source file
+- This is the codebase convention — see any module in `crates/apollo_storage/src/` for examples
+
 ### Never mask test failures
 - Failing tests indicate real problems; hiding them hides bugs
 - Fix the root cause instead of using `#[ignore]` or similar
