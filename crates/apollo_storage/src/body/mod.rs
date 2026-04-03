@@ -201,6 +201,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         transaction_index: TransactionIndex,
     ) -> StorageResult<Option<Transaction>> {
+        self.verify_not_sequencer_mode("get_transaction")?;
         let Some(tx_metadata) = self.get_transaction_metadata(&transaction_index)? else {
             return Ok(None);
         };
@@ -212,6 +213,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         transaction_index: TransactionIndex,
     ) -> StorageResult<Option<TransactionOutput>> {
+        self.verify_not_sequencer_mode("get_transaction_output")?;
         let Some(tx_metadata) = self.get_transaction_metadata(&transaction_index)? else {
             return Ok(None);
         };
@@ -224,6 +226,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         tx_hash: &TransactionHash,
     ) -> StorageResult<Option<TransactionIndex>> {
+        self.verify_not_sequencer_mode("get_transaction_idx_by_hash")?;
         let transaction_hash_to_idx_table =
             self.open_table(&self.tables.transaction_hash_to_idx)?;
         let idx = transaction_hash_to_idx_table.get(&self.txn, tx_hash)?;
@@ -234,6 +237,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         tx_index: &TransactionIndex,
     ) -> StorageResult<Option<TransactionHash>> {
+        self.verify_not_sequencer_mode("get_transaction_hash_by_idx")?;
         let Some(tx_metadata) = self.get_transaction_metadata(tx_index)? else {
             return Ok(None);
         };
@@ -244,6 +248,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         tx_index: &TransactionIndex,
     ) -> StorageResult<Option<TransactionMetadata>> {
+        self.verify_not_sequencer_mode("get_transaction_metadata")?;
         let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
         let metadata = transaction_metadata_table.get(&self.txn, tx_index)?;
         Ok(metadata)
@@ -253,6 +258,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<Vec<Transaction>>> {
+        self.verify_not_sequencer_mode("get_block_transactions")?;
         let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
         self.get_transactions_in_block(block_number, transaction_metadata_table)
     }
@@ -261,6 +267,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<Vec<TransactionHash>>> {
+        self.verify_not_sequencer_mode("get_block_transaction_hashes")?;
         let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
         self.get_transaction_hashes_in_block(block_number, transaction_metadata_table)
     }
@@ -269,6 +276,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<Vec<(Transaction, TransactionHash)>>> {
+        self.verify_not_sequencer_mode("get_block_transactions_with_hash")?;
         let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
         self.get_transactions_and_hashes_in_block(block_number, transaction_metadata_table)
     }
@@ -277,6 +285,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<Vec<TransactionOutput>>> {
+        self.verify_not_sequencer_mode("get_block_transaction_outputs")?;
         let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
         self.get_transaction_outputs_in_block(block_number, transaction_metadata_table)
     }
@@ -285,6 +294,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<usize>> {
+        self.verify_not_sequencer_mode("get_block_transactions_count")?;
         // After this condition, we know that the block exists, so if something goes wrong is only
         // because there are no transactions in it.
         if self.get_body_marker()? <= block_number {
