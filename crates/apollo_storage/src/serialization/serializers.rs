@@ -551,6 +551,10 @@ auto_storage_serde! {
     (ContractAddress, StorageKey);
     (ContractAddress, TransactionIndex);
     ((ContractAddress, StorageKey), BlockNumber);
+    // Pre-image table key tuples.
+    (BlockNumber, ContractAddress);
+    (BlockNumber, ClassHash);
+    ((BlockNumber, ContractAddress), StorageKey);
     (usize, Vec<Hint>);
     (usize, Vec<String>);
 }
