@@ -246,6 +246,130 @@ fn write_deprecated_declared_classes_block<'env>(
     Ok(())
 }
 
+/// Build a reversed `ThinStateDiff` from pre-image tables for a given block.
+/// The reversed diff contains the OLD values for each key changed in the block.
+pub(crate) fn build_reversed_state_diff_from_preimages<'env, Mode: crate::db::TransactionKind>(
+    txn: &DbTransaction<'env, Mode>,
+    block_number: BlockNumber,
+    storage_preimages_table: &'env StoragePreimagesTable<'env>,
+    nonce_preimages_table: &'env NoncePreimagesTable<'env>,
+    deployed_preimages_table: &'env DeployedContractPreimagesTable<'env>,
+    class_preimages_table: &'env ClassPreimagesTable<'env>,
+) -> StorageResult<ThinStateDiff> {
+    use crate::db::table_types::DbCursorTrait;
+
+    // Storage diffs: iterate storage_preimages for this block.
+    let mut storage_diffs = indexmap::IndexMap::new();
+    let mut cursor = storage_preimages_table.cursor(txn)?;
+    let mut current =
+        cursor.lower_bound(&((block_number, ContractAddress::default()), StorageKey::default()))?;
+    while let Some(((bn, address), key)) = current.as_ref().map(|(k, _)| *k) {
+        if bn != block_number {
+            break;
+        }
+        let preimage = current.as_ref().map(|(_, v)| v.clone()).unwrap();
+        let value = match preimage {
+            PresencePrefixed(Some(v)) => v,
+            PresencePrefixed(None) => Felt::default(),
+        };
+        storage_diffs.entry(address).or_insert_with(indexmap::IndexMap::new).insert(key, value);
+        current = cursor.next()?;
+    }
+
+    // Deployed contracts: iterate deployed_contract_preimages for this block.
+    let mut deployed_contracts = indexmap::IndexMap::new();
+    let mut cursor = deployed_preimages_table.cursor(txn)?;
+    let mut current = cursor.lower_bound(&(block_number, ContractAddress::default()))?;
+    while let Some((bn, address)) = current.as_ref().map(|(k, _)| *k) {
+        if bn != block_number {
+            break;
+        }
+        let preimage = current.as_ref().map(|(_, v)| v.clone()).unwrap();
+        let class_hash = match preimage {
+            PresencePrefixed(Some(v)) => v,
+            PresencePrefixed(None) => ClassHash::default(),
+        };
+        deployed_contracts.insert(address, class_hash);
+        current = cursor.next()?;
+    }
+
+    // Nonces: iterate nonce_preimages for this block.
+    let mut nonces = indexmap::IndexMap::new();
+    let mut cursor = nonce_preimages_table.cursor(txn)?;
+    let mut current = cursor.lower_bound(&(block_number, ContractAddress::default()))?;
+    while let Some((bn, address)) = current.as_ref().map(|(k, _)| *k) {
+        if bn != block_number {
+            break;
+        }
+        let preimage = current.as_ref().map(|(_, v)| v.clone()).unwrap();
+        let nonce = match preimage {
+            PresencePrefixed(Some(v)) => v,
+            PresencePrefixed(None) => Nonce::default(),
+        };
+        nonces.insert(address, nonce);
+        current = cursor.next()?;
+    }
+
+    // Compiled class hashes: iterate class_preimages for this block.
+    // Pre-images store (ClassHash, CompiledClassHash) — the CompiledClassHash is the NEW value
+    // written by the block. For the reversed diff we need the OLD value. But class_preimages
+    // doesn't store old values (classes are declared once). For the reversed diff, we use
+    // CompiledClassHash::default() to indicate "class didn't exist before."
+    let mut class_hash_to_compiled_class_hash = indexmap::IndexMap::new();
+    let mut cursor = class_preimages_table.cursor(txn)?;
+    let mut current = cursor.lower_bound(&(block_number, ClassHash::default()))?;
+    while let Some((bn, class_hash)) = current.as_ref().map(|(k, _)| *k) {
+        if bn != block_number {
+            break;
+        }
+        class_hash_to_compiled_class_hash.insert(class_hash, CompiledClassHash::default());
+        current = cursor.next()?;
+    }
+
+    Ok(ThinStateDiff {
+        deployed_contracts,
+        storage_diffs,
+        class_hash_to_compiled_class_hash,
+        nonces,
+        deprecated_declared_classes: Vec::new(),
+    })
+}
+
+/// Revert only the flat data tables (storage, nonces, deployed contracts, compiled class hashes)
+/// using pre-image tables. Does NOT touch class visibility tables (declared_classes, casms,
+/// deprecated_declared_classes) — use this during dual-write mode where the versioned revert
+/// handles class visibility cleanup.
+pub(crate) fn revert_flat_data_tables<'env>(
+    txn: &DbTransaction<'env, RW>,
+    block_number: BlockNumber,
+    tables: &'env FlatStateTables<'env>,
+) -> StorageResult<()> {
+    // Revert deployed contracts.
+    revert_flat_simple_preimages(
+        txn,
+        block_number,
+        &tables.flat_deployed_contracts,
+        &tables.deployed_contract_preimages,
+    )?;
+    // Revert nonces.
+    revert_flat_simple_preimages(txn, block_number, &tables.flat_nonces, &tables.nonce_preimages)?;
+    // Revert storage diffs.
+    revert_flat_storage(
+        txn,
+        block_number,
+        &tables.flat_contract_storage,
+        &tables.storage_preimages,
+    )?;
+    // Revert flat compiled class hashes (delete preimage entries, restore flat table).
+    revert_flat_compiled_class_hashes(
+        txn,
+        block_number,
+        &tables.flat_compiled_class_hash,
+        &tables.class_preimages,
+    )?;
+    Ok(())
+}
+
 /// Revert flat state for a block using pre-image tables.
 /// Must be called for the last block only (same constraint as archive revert).
 pub(crate) fn revert_flat_state_diff<'env>(
@@ -327,6 +451,28 @@ fn revert_flat_storage<'env>(
             }
         }
         preimages_table.delete(txn, &((bn, address), key))?;
+        current = cursor.next()?;
+    }
+    Ok(())
+}
+
+/// Revert flat compiled class hashes using class preimage table.
+fn revert_flat_compiled_class_hashes<'env>(
+    txn: &DbTransaction<'env, RW>,
+    block_number: BlockNumber,
+    flat_table: &'env FlatCompiledClassHashTable<'env>,
+    preimages_table: &'env ClassPreimagesTable<'env>,
+) -> StorageResult<()> {
+    use crate::db::table_types::DbCursorTrait;
+
+    let mut cursor = preimages_table.cursor(txn)?;
+    let mut current = cursor.lower_bound(&(block_number, ClassHash::default()))?;
+    while let Some((bn, class_hash)) = current.as_ref().map(|(k, _)| *k) {
+        if bn != block_number {
+            break;
+        }
+        flat_table.delete(txn, &class_hash)?;
+        preimages_table.delete(txn, &(bn, class_hash))?;
         current = cursor.next()?;
     }
     Ok(())

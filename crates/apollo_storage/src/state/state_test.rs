@@ -14,9 +14,10 @@ use starknet_types_core::felt::Felt;
 
 use crate::class::{ClassStorageReader, ClassStorageWriter};
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
+use crate::db::table_types::Table;
 use crate::state::{StateStorageReader, StateStorageWriter};
-use crate::test_utils::get_test_storage;
-use crate::StorageWriter;
+use crate::test_utils::{get_test_storage, get_test_storage_by_scope};
+use crate::{StorageScope, StorageWriter};
 
 // Value at each key in block 0; indexed by key. Keys 1, 3, 4 are set; other indices are unused.
 const SCAN_VALUES_BLOCK_0: [u8; 6] = [0, 1, 0, 3, 4, 0];
@@ -1129,3 +1130,143 @@ scan_cases!(
         );
     }
 );
+
+#[test]
+fn sequencer_mode_append_state_diff_writes_versioned_tables() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_by_scope(StorageScope::StateOnly);
+    let address = ContractAddress::from(1_u128);
+    let key = storage_key!("0x2");
+    let value = felt!("0x42");
+    let class_hash = ClassHash(felt!("0x10"));
+    let nonce = Nonce(felt!("0x1"));
+
+    let diff = ThinStateDiff {
+        deployed_contracts: IndexMap::from([(address, class_hash)]),
+        storage_diffs: IndexMap::from([(address, IndexMap::from([(key, value)]))]),
+        nonces: IndexMap::from([(address, nonce)]),
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), diff)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Verify data is readable via the versioned StateReader.
+    let txn = reader.begin_ro_txn().unwrap();
+    let state_reader = txn.get_state_reader().unwrap();
+    let tip = StateNumber::unchecked_right_after_block(BlockNumber(0));
+
+    assert_eq!(state_reader.get_storage_at(tip, &address, &key).unwrap(), value);
+    assert_eq!(state_reader.get_nonce_at(tip, &address).unwrap(), Some(nonce));
+    assert_eq!(state_reader.get_class_hash_at(tip, &address).unwrap(), Some(class_hash));
+
+    // Also verify flat tables were written.
+    let flat_storage = txn.open_table(&txn.tables.flat_contract_storage).unwrap();
+    assert_eq!(flat_storage.get(&txn.txn, &(address, key)).unwrap(), Some(value));
+    let flat_nonces = txn.open_table(&txn.tables.flat_nonces).unwrap();
+    assert_eq!(flat_nonces.get(&txn.txn, &address).unwrap(), Some(nonce));
+}
+
+#[test]
+fn sequencer_mode_revert_state_diff_reverts_both_versioned_and_flat() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_by_scope(StorageScope::StateOnly);
+    let address = ContractAddress::from(1_u128);
+    let key = storage_key!("0x2");
+    let class_hash = ClassHash(felt!("0x10"));
+
+    // Block 0: deploy + storage.
+    let diff0 = ThinStateDiff {
+        deployed_contracts: IndexMap::from([(address, class_hash)]),
+        storage_diffs: IndexMap::from([(address, IndexMap::from([(key, felt!("0x10"))]))]),
+        nonces: IndexMap::from([(address, Nonce(felt!("0x1")))]),
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), diff0)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Block 1: update storage + nonce.
+    let diff1 = ThinStateDiff {
+        storage_diffs: IndexMap::from([(address, IndexMap::from([(key, felt!("0x20"))]))]),
+        nonces: IndexMap::from([(address, Nonce(felt!("0x2")))]),
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(1), diff1)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Revert block 1.
+    let (txn, reverted) = writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(1)).unwrap();
+    txn.commit().unwrap();
+    assert!(reverted.is_some());
+
+    // Versioned state should show block 0 values.
+    let txn = reader.begin_ro_txn().unwrap();
+    let state_reader = txn.get_state_reader().unwrap();
+    let tip = StateNumber::unchecked_right_after_block(BlockNumber(0));
+    assert_eq!(state_reader.get_storage_at(tip, &address, &key).unwrap(), felt!("0x10"));
+    assert_eq!(state_reader.get_nonce_at(tip, &address).unwrap(), Some(Nonce(felt!("0x1"))));
+
+    // Flat state should also show block 0 values.
+    let flat_storage = txn.open_table(&txn.tables.flat_contract_storage).unwrap();
+    assert_eq!(flat_storage.get(&txn.txn, &(address, key)).unwrap(), Some(felt!("0x10")));
+    let flat_nonces = txn.open_table(&txn.tables.flat_nonces).unwrap();
+    assert_eq!(flat_nonces.get(&txn.txn, &address).unwrap(), Some(Nonce(felt!("0x1"))));
+}
+
+#[test]
+fn sequencer_mode_reversed_state_diff_from_preimages() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_by_scope(StorageScope::StateOnly);
+    let address = ContractAddress::from(1_u128);
+    let key = storage_key!("0x2");
+    let class_hash = ClassHash(felt!("0x10"));
+
+    // Block 0: deploy + storage + nonce.
+    let diff0 = ThinStateDiff {
+        deployed_contracts: IndexMap::from([(address, class_hash)]),
+        storage_diffs: IndexMap::from([(address, IndexMap::from([(key, felt!("0x10"))]))]),
+        nonces: IndexMap::from([(address, Nonce(felt!("0x1")))]),
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(0), diff0)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Block 1: update storage + nonce.
+    let diff1 = ThinStateDiff {
+        storage_diffs: IndexMap::from([(address, IndexMap::from([(key, felt!("0x20"))]))]),
+        nonces: IndexMap::from([(address, Nonce(felt!("0x2")))]),
+        ..Default::default()
+    };
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(BlockNumber(1), diff1)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Reversed diff for block 1 should contain old (block 0) values.
+    let txn = reader.begin_ro_txn().unwrap();
+    let reversed = txn.get_reversed_state_diff_from_preimages(BlockNumber(1)).unwrap();
+
+    assert_eq!(*reversed.storage_diffs.get(&address).unwrap().get(&key).unwrap(), felt!("0x10"));
+    assert_eq!(*reversed.nonces.get(&address).unwrap(), Nonce(felt!("0x1")));
+    // No deployed contracts were changed in block 1, so none in reversed diff.
+    assert!(reversed.deployed_contracts.is_empty());
+}
