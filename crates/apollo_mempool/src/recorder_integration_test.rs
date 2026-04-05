@@ -23,7 +23,7 @@ use crate::mempool::Mempool;
 
 // Starts a mock HTTP server that simulates the recorder's get_tx_block_metadata endpoint.
 // Returns the base URL (e.g., "http://127.0.0.1:12345").
-async fn start_mock_recorder(response: Result<TxBlockMetadata, StatusCode>) -> String {
+async fn mock_tx_metadata_recorder(response: Result<TxBlockMetadata, StatusCode>) -> String {
     let app = Router::new().route(
         "/echonet/get_tx_block_metadata",
         get(move || async move {
@@ -65,8 +65,8 @@ fn create_mempool_communication_wrapper(recorder_url: String) -> MempoolCommunic
 #[rstest]
 #[tokio::test]
 async fn test_fetch_tx_block_metadata_success() {
-    let recorder_url = start_mock_recorder(Ok(TxBlockMetadata {
-        timestamp: 1000u64,
+    let recorder_url = mock_tx_metadata_recorder(Ok(TxBlockMetadata {
+        timestamp: 1000,
         block_number: BlockNumber(1234),
     }))
     .await;
@@ -81,7 +81,7 @@ async fn test_fetch_tx_block_metadata_success() {
 #[rstest]
 #[tokio::test]
 async fn test_fetch_tx_block_metadata_fails_on_http_error() {
-    let recorder_url = start_mock_recorder(Err(StatusCode::INTERNAL_SERVER_ERROR)).await;
+    let recorder_url = mock_tx_metadata_recorder(Err(StatusCode::INTERNAL_SERVER_ERROR)).await;
     let mut wrapper = create_mempool_communication_wrapper(recorder_url);
 
     let tx_hash = TransactionHash::default();
@@ -94,8 +94,8 @@ async fn test_fetch_tx_block_metadata_fails_on_http_error() {
 #[rstest]
 #[tokio::test]
 async fn test_add_tx_with_recorder_integration() {
-    let recorder_url = start_mock_recorder(Ok(TxBlockMetadata {
-        timestamp: 1000u64,
+    let recorder_url = mock_tx_metadata_recorder(Ok(TxBlockMetadata {
+        timestamp: 1000,
         block_number: BlockNumber(1234),
     }))
     .await;
