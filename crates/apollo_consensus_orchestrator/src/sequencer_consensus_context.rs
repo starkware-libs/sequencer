@@ -796,6 +796,19 @@ impl ConsensusContext for SequencerConsensusContext {
         )
         .await;
 
+        // At stop height, immediately write the blob instead of waiting for the next proposal
+        // build.
+        if wait_for_last_commitment
+            && !self
+                .deps
+                .cende_ambassador
+                .write_prev_height_blob(height.unchecked_next())
+                .await
+                .unwrap_or(false)
+        {
+            error!("Failed to write blob at stop height {height}.");
+        }
+
         self.previous_block_info = Some(PreviousBlockInfo::from(&init));
 
         Ok(())
