@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775381221071,
+  "lastUpdate": 1775421932509,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3025,6 +3025,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1265.8500699400001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "422c61c62d153fa80d1b5ce1e7fbf1b7b4adf1b6",
+          "message": "apollo_compilation_utils: clean up error messages (#13430)",
+          "timestamp": "2026-04-05T20:22:40Z",
+          "tree_id": "7b4c46637afe1e231408603afac8ddd9812d8560",
+          "url": "https://github.com/starkware-libs/sequencer/commit/422c61c62d153fa80d1b5ce1e7fbf1b7b4adf1b6"
+        },
+        "date": 1775421932210,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 777.8247055,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1173.50433266,
             "unit": "ms"
           }
         ]
