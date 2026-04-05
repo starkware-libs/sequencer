@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775373298128,
+  "lastUpdate": 1775395371530,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1223,6 +1223,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1396.32657317,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0631f581bdd7d8cb93ad3703542c9029ebd8da03",
+          "message": "starknet_proof_verifier: add backwards-compatibility regression tests for proof verification (#13656)",
+          "timestamp": "2026-04-05T12:53:47Z",
+          "tree_id": "cd5c36d4da3edb2f47b73de2a15ec72022b650eb",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0631f581bdd7d8cb93ad3703542c9029ebd8da03"
+        },
+        "date": 1775395371127,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1416.04549951,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1960.82567515,
             "unit": "ms"
           }
         ]
