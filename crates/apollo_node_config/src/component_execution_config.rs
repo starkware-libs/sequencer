@@ -21,6 +21,7 @@ pub const DEFAULT_INVALID_PORT: u16 = 0;
 
 pub trait ExpectedComponentConfig {
     fn is_running_locally(&self) -> bool;
+    fn is_disabled(&self) -> bool;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -41,6 +42,10 @@ impl ExpectedComponentConfig for ReactiveComponentExecutionMode {
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => true,
         }
     }
+
+    fn is_disabled(&self) -> bool {
+        *self == ReactiveComponentExecutionMode::Disabled
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -55,6 +60,10 @@ impl ExpectedComponentConfig for ActiveComponentExecutionMode {
             ActiveComponentExecutionMode::Disabled => false,
             ActiveComponentExecutionMode::Enabled => true,
         }
+    }
+
+    fn is_disabled(&self) -> bool {
+        *self == ActiveComponentExecutionMode::Disabled
     }
 }
 
@@ -185,6 +194,10 @@ impl ExpectedComponentConfig for ReactiveComponentExecutionConfig {
     fn is_running_locally(&self) -> bool {
         self.execution_mode.is_running_locally()
     }
+
+    fn is_disabled(&self) -> bool {
+        self.execution_mode.is_disabled()
+    }
 }
 
 /// Active component configuration.
@@ -214,6 +227,10 @@ impl Default for ActiveComponentExecutionConfig {
 impl ExpectedComponentConfig for ActiveComponentExecutionConfig {
     fn is_running_locally(&self) -> bool {
         self.execution_mode.is_running_locally()
+    }
+
+    fn is_disabled(&self) -> bool {
+        self.execution_mode.is_disabled()
     }
 }
 

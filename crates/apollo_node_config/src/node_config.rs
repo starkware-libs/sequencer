@@ -12,6 +12,7 @@ use apollo_config::dumping::{
     generate_struct_pointer,
     prepend_sub_config_name,
     ser_optional_sub_config,
+    ser_param,
     ser_pointer_target_param,
     set_pointing_param_paths,
     ConfigPointers,
@@ -20,7 +21,7 @@ use apollo_config::dumping::{
 };
 use apollo_config::loading::load_and_process_config;
 use apollo_config::validators::config_validate;
-use apollo_config::{ConfigError, ParamPath, SerializedParam};
+use apollo_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
@@ -213,6 +214,15 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             "mempool_config.static_config.behavior_mode",
         ]),
     ));
+    pointers.push((
+        ser_pointer_target_param(
+            "validation_only",
+            &false,
+            "If true, the node validates proposed blocks but does not build proposals. Requires \
+             gateway, http_server, and mempool to be disabled.",
+        ),
+        set_pointing_param_paths(&["batcher_config.static_config.validation_only"]),
+    ));
     pointers
 });
 
@@ -223,6 +233,9 @@ pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
 /// The configurations of the various components of the node.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct SequencerNodeConfig {
+    /// If true, the node validates proposed blocks but does not build proposals.
+    /// Requires gateway, http_server, and mempool to be disabled.
+    pub validation_only: bool,
     // Infra related configs.
     #[validate(nested)]
     pub components: ComponentConfig,
@@ -269,6 +282,13 @@ pub struct SequencerNodeConfig {
 
 impl SerializeConfig for SequencerNodeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump = BTreeMap::from([ser_param(
+            "validation_only",
+            &self.validation_only,
+            "If true, the node validates proposed blocks but does not build proposals. Requires \
+             gateway, http_server, and mempool to be disabled.",
+            ParamPrivacyInput::Public,
+        )]);
         let sub_configs = vec![
             // Infra related configs.
             prepend_sub_config_name(self.components.dump(), "components"),
@@ -300,13 +320,15 @@ impl SerializeConfig for SequencerNodeConfig {
             ser_optional_sub_config(&self.state_sync_config, "state_sync_config"),
         ];
 
-        sub_configs.into_iter().flatten().collect()
+        dump.extend(sub_configs.into_iter().flatten());
+        dump
     }
 }
 
 impl Default for SequencerNodeConfig {
     fn default() -> Self {
         Self {
+            validation_only: false,
             // Infra related configs.
             components: ComponentConfig::default(),
             config_manager_config: Some(ConfigManagerConfig::default()),
@@ -547,6 +569,35 @@ impl SequencerNodeConfig {
             }
         }
 
+        self.validate_validation_only_config()?;
+
+        Ok(())
+    }
+
+    /// Validates that when `validation_only=true`, all tx-ingestion components are disabled.
+    fn validate_validation_only_config(&self) -> Result<(), ConfigError> {
+        if !self.validation_only {
+            return Ok(());
+        }
+        if !self.components.gateway.is_disabled() {
+            return Err(ConfigError::ComponentConfigMismatch {
+                component_config_mismatch: "gateway must be disabled when validation_only is true"
+                    .to_string(),
+            });
+        }
+        if !self.components.http_server.is_disabled() {
+            return Err(ConfigError::ComponentConfigMismatch {
+                component_config_mismatch: "http_server must be disabled when validation_only is \
+                                            true"
+                    .to_string(),
+            });
+        }
+        if !self.components.mempool.is_disabled() {
+            return Err(ConfigError::ComponentConfigMismatch {
+                component_config_mismatch: "mempool must be disabled when validation_only is true"
+                    .to_string(),
+            });
+        }
         Ok(())
     }
 }
