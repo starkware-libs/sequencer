@@ -140,7 +140,7 @@ impl From<TestDeps> for SequencerConsensusContextDeps {
             clock: deps.clock,
             outbound_proposal_sender: deps.outbound_proposal_sender,
             vote_broadcast_client: deps.vote_broadcast_client,
-            config_manager_channel_client: None,
+            config_manager_client: None,
         }
     }
 }

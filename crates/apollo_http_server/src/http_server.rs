@@ -2,7 +2,7 @@ use std::clone::Clone;
 use std::net::SocketAddr;
 use std::string::String;
 
-use apollo_config_manager_types::communication::SharedConfigManagerChannelClient;
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -65,12 +65,12 @@ pub struct HttpServer {
 #[derive(Clone)]
 pub struct AppState {
     gateway_client: SharedGatewayClient,
-    config_manager_channel_client: SharedConfigManagerChannelClient,
+    config_manager_client: SharedConfigManagerClient,
 }
 
 impl AppState {
     fn get_dynamic_config(&self) -> HttpServerDynamicConfig {
-        self.config_manager_channel_client
+        self.config_manager_client
             .get_http_server_dynamic_config()
             .expect("Failed to get http server dynamic config from channel")
     }
@@ -79,10 +79,10 @@ impl AppState {
 impl HttpServer {
     pub fn new(
         config: HttpServerConfig,
-        config_manager_channel_client: SharedConfigManagerChannelClient,
+        config_manager_client: SharedConfigManagerClient,
         gateway_client: SharedGatewayClient,
     ) -> Self {
-        let app_state = AppState { gateway_client, config_manager_channel_client };
+        let app_state = AppState { gateway_client, config_manager_client };
         HttpServer { config, app_state }
     }
 
@@ -315,10 +315,10 @@ fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, re
 
 pub fn create_http_server(
     config: HttpServerConfig,
-    config_manager_channel_client: SharedConfigManagerChannelClient,
+    config_manager_client: SharedConfigManagerClient,
     gateway_client: SharedGatewayClient,
 ) -> HttpServer {
-    HttpServer::new(config, config_manager_channel_client, gateway_client)
+    HttpServer::new(config, config_manager_client, gateway_client)
 }
 
 #[async_trait]

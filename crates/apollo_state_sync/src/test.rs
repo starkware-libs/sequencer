@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use apollo_config_manager_types::communication::MockConfigManagerChannelClient;
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_definitions::ComponentRequestHandler;
 use apollo_starknet_client::reader::{MockStarknetReader, StarknetReader};
 use apollo_state_sync_config::config::StateSyncDynamicConfig;
@@ -27,7 +27,7 @@ use crate::StateSync;
 
 fn setup() -> (StateSync, StorageWriter) {
     let ((storage_reader, storage_writer), _) = get_test_storage();
-    let mut config_manager_client = MockConfigManagerChannelClient::new();
+    let mut config_manager_client = MockConfigManagerClient::new();
     config_manager_client
         .expect_get_state_sync_dynamic_config()
         .returning(|| Ok(StateSyncDynamicConfig::default()));
@@ -137,7 +137,7 @@ async fn test_get_block_hash_fallback_to_starknet_client() {
     let starknet_client: Option<Arc<dyn StarknetReader + Send + Sync>> =
         Some(Arc::new(starknet_client));
     let ((storage_reader, _storage_writer), _) = get_test_storage();
-    let mut config_manager_client = MockConfigManagerChannelClient::new();
+    let mut config_manager_client = MockConfigManagerClient::new();
     config_manager_client
         .expect_get_state_sync_dynamic_config()
         .returning(|| Ok(StateSyncDynamicConfig::default()));

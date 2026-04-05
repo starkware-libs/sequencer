@@ -12,7 +12,7 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
-use apollo_config_manager_types::communication::MockConfigManagerChannelClient;
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_consensus::types::{ConsensusContext, Round};
 use apollo_consensus_orchestrator_config::config::{
     ContextConfig,
@@ -1177,7 +1177,7 @@ async fn change_gas_price_overrides() {
         ..Default::default()
     };
     let config_manager_client = make_config_manager_client(new_dynamic_config);
-    context.deps.config_manager_channel_client = Some(Arc::new(config_manager_client));
+    context.deps.config_manager_client = Some(Arc::new(config_manager_client));
 
     // Validate block number 1, round 0.
     context.set_height_and_round(HEIGHT_1, ROUND_0).await.unwrap();
@@ -1205,7 +1205,7 @@ async fn change_gas_price_overrides() {
         ..Default::default()
     };
     let config_manager_client = make_config_manager_client(new_dynamic_config);
-    context.deps.config_manager_channel_client = Some(Arc::new(config_manager_client));
+    context.deps.config_manager_client = Some(Arc::new(config_manager_client));
 
     // This should fail, as we have changed the config, without updating the block info.
     context.set_height_and_round(HEIGHT_1, ROUND_1).await.unwrap();
@@ -1237,7 +1237,7 @@ async fn change_gas_price_overrides() {
         ..Default::default()
     };
     let config_manager_client = make_config_manager_client(new_dynamic_config);
-    context.deps.config_manager_channel_client = Some(Arc::new(config_manager_client));
+    context.deps.config_manager_client = Some(Arc::new(config_manager_client));
 
     let fin_receiver = context
         .build_proposal(BuildParam { height: BlockNumber(2), ..Default::default() }, TIMEOUT)
@@ -1255,10 +1255,8 @@ async fn change_gas_price_overrides() {
     };
 }
 
-fn make_config_manager_client(
-    provider_config: ContextDynamicConfig,
-) -> MockConfigManagerChannelClient {
-    let mut config_manager_client = MockConfigManagerChannelClient::new();
+fn make_config_manager_client(provider_config: ContextDynamicConfig) -> MockConfigManagerClient {
+    let mut config_manager_client = MockConfigManagerClient::new();
     config_manager_client
         .expect_get_context_dynamic_config()
         .returning(move || Ok(provider_config.clone()));
@@ -1282,7 +1280,7 @@ async fn test_dynamic_config_updates_min_gas_price() {
     deps.setup_default_expectations();
 
     // Create a mock config manager client that will return dynamic config
-    let mut mock_config_manager = MockConfigManagerChannelClient::new();
+    let mut mock_config_manager = MockConfigManagerClient::new();
 
     // Mock expects get_context_dynamic_config to be called twice (once per height change)
     // This is called inside set_height_and_round() -> update_dynamic_config() ->
@@ -1316,7 +1314,7 @@ async fn test_dynamic_config_updates_min_gas_price() {
 
     // Convert TestDeps to SequencerConsensusContextDeps and add config manager
     let mut context_deps: SequencerConsensusContextDeps = deps.into();
-    context_deps.config_manager_channel_client = Some(Arc::new(mock_config_manager));
+    context_deps.config_manager_client = Some(Arc::new(mock_config_manager));
 
     let mut context = SequencerConsensusContext::new(
         ContextConfig {

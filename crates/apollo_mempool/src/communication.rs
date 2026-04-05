@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_config_manager_types::communication::SharedConfigManagerChannelClient;
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use apollo_mempool_config::config::MempoolConfig;
@@ -42,7 +42,7 @@ pub type RemoteMempoolServer = RemoteComponentServer<MempoolRequest, MempoolResp
 pub fn create_mempool(
     config: MempoolConfig,
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
-    config_manager_client: SharedConfigManagerChannelClient,
+    config_manager_client: SharedConfigManagerClient,
 ) -> MempoolCommunicationWrapper {
     MempoolCommunicationWrapper::new(
         Mempool::new(config, Arc::new(DefaultClock)),
@@ -55,7 +55,7 @@ pub fn create_mempool(
 pub struct MempoolCommunicationWrapper {
     mempool: Mempool,
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
-    config_manager_client: SharedConfigManagerChannelClient,
+    config_manager_client: SharedConfigManagerClient,
     echonet_client: ClientWithMiddleware,
 }
 
@@ -63,7 +63,7 @@ impl MempoolCommunicationWrapper {
     pub fn new(
         mempool: Mempool,
         mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
-        config_manager_client: SharedConfigManagerChannelClient,
+        config_manager_client: SharedConfigManagerClient,
     ) -> Self {
         const MIN_RETRY_INTERVAL: Duration = Duration::from_millis(50);
         const MAX_RETRY_INTERVAL: Duration = Duration::from_millis(500);

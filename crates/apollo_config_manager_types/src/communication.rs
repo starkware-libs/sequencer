@@ -16,7 +16,7 @@ use thiserror::Error;
 use crate::errors::ConfigManagerError;
 
 pub type ConfigManagerClientResult<T> = Result<T, ConfigManagerClientError>;
-pub type SharedConfigManagerChannelClient = Arc<dyn ConfigManagerChannelClient>;
+pub type SharedConfigManagerClient = Arc<dyn ConfigManagerClient>;
 
 #[derive(Clone, Debug, Error)]
 pub enum ConfigManagerClientError {
@@ -27,24 +27,24 @@ pub enum ConfigManagerClientError {
 }
 
 #[cfg_attr(any(feature = "testing", test), mockall::automock)]
-pub trait ConfigManagerChannelClient: Send + Sync {
-    fn get_consensus_dynamic_config(&self) -> ConfigManagerClientResult<ConsensusDynamicConfig>;
+pub trait ConfigManagerClient: Send + Sync {
+    fn get_batcher_dynamic_config(&self) -> ConfigManagerClientResult<BatcherDynamicConfig>;
     fn get_class_manager_dynamic_config(
         &self,
     ) -> ConfigManagerClientResult<ClassManagerDynamicConfig>;
+    fn get_consensus_dynamic_config(&self) -> ConfigManagerClientResult<ConsensusDynamicConfig>;
     fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig>;
     fn get_http_server_dynamic_config(&self) -> ConfigManagerClientResult<HttpServerDynamicConfig>;
     fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig>;
-    fn get_batcher_dynamic_config(&self) -> ConfigManagerClientResult<BatcherDynamicConfig>;
     fn get_state_sync_dynamic_config(&self) -> ConfigManagerClientResult<StateSyncDynamicConfig>;
     fn get_staking_manager_dynamic_config(
         &self,
     ) -> ConfigManagerClientResult<StakingManagerDynamicConfig>;
 }
 
-// Generates a `ConfigManagerChannelClient` method that reads a field from `NodeDynamicConfig`.
+// Generates a `ConfigManagerClient` method that reads a field from `NodeDynamicConfig`.
 // The method name is derived by prepending `get_` to the field name.
-macro_rules! impl_channel_client_getter {
+macro_rules! impl_config_manager_getter {
     ($field:ident, $return_type:ty) => {
         paste::paste! {
             fn [<get_ $field>](&self) -> ConfigManagerClientResult<$return_type> {
@@ -57,16 +57,16 @@ macro_rules! impl_channel_client_getter {
     };
 }
 
-impl<ComponentClientType> ConfigManagerChannelClient for ComponentClientType
+impl<ComponentClientType> ConfigManagerClient for ComponentClientType
 where
     ComponentClientType: Send + Sync + ComponentChannelClient<NodeDynamicConfig>,
 {
-    impl_channel_client_getter!(batcher_dynamic_config, BatcherDynamicConfig);
-    impl_channel_client_getter!(class_manager_dynamic_config, ClassManagerDynamicConfig);
-    impl_channel_client_getter!(consensus_dynamic_config, ConsensusDynamicConfig);
-    impl_channel_client_getter!(context_dynamic_config, ContextDynamicConfig);
-    impl_channel_client_getter!(http_server_dynamic_config, HttpServerDynamicConfig);
-    impl_channel_client_getter!(mempool_dynamic_config, MempoolDynamicConfig);
-    impl_channel_client_getter!(state_sync_dynamic_config, StateSyncDynamicConfig);
-    impl_channel_client_getter!(staking_manager_dynamic_config, StakingManagerDynamicConfig);
+    impl_config_manager_getter!(batcher_dynamic_config, BatcherDynamicConfig);
+    impl_config_manager_getter!(class_manager_dynamic_config, ClassManagerDynamicConfig);
+    impl_config_manager_getter!(consensus_dynamic_config, ConsensusDynamicConfig);
+    impl_config_manager_getter!(context_dynamic_config, ContextDynamicConfig);
+    impl_config_manager_getter!(http_server_dynamic_config, HttpServerDynamicConfig);
+    impl_config_manager_getter!(mempool_dynamic_config, MempoolDynamicConfig);
+    impl_config_manager_getter!(state_sync_dynamic_config, StateSyncDynamicConfig);
+    impl_config_manager_getter!(staking_manager_dynamic_config, StakingManagerDynamicConfig);
 }

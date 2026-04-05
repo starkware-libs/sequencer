@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use apollo_config_manager_types::communication::MockConfigManagerChannelClient;
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_server::{ComponentServerStarter, LocalServerConfig};
 use apollo_infra::metrics::{LocalClientMetrics, LocalServerMetrics};
 use apollo_mempool::communication::{create_mempool, LocalMempoolServer};
@@ -215,7 +215,7 @@ impl BenchTestSetup {
         let bench_p2p_client = Arc::new(BenchMempoolP2pPropagator);
 
         // Create mock config manager client for benchmark
-        let mut mock_config_manager = MockConfigManagerChannelClient::new();
+        let mut mock_config_manager = MockConfigManagerClient::new();
         let dynamic_config = self.config.mempool_config.dynamic_config.clone();
         mock_config_manager
             .expect_get_mempool_dynamic_config()

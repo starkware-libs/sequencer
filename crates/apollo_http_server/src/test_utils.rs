@@ -2,7 +2,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_config_manager_types::communication::MockConfigManagerChannelClient;
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_gateway_types::communication::MockGatewayClient;
 use apollo_gateway_types::gateway_types::GatewayOutput;
 use apollo_http_server_config::config::{
@@ -113,7 +113,7 @@ pub fn create_http_server_config(socket: SocketAddr) -> HttpServerConfig {
 
 pub struct HttpClientServerSetupBuilder {
     http_server_config: HttpServerConfig,
-    mock_config_manager_channel_client: Option<MockConfigManagerChannelClient>,
+    mock_config_manager_client: Option<MockConfigManagerClient>,
     mock_gateway_client: Option<MockGatewayClient>,
 }
 
@@ -136,11 +136,7 @@ impl HttpClientServerSetupBuilder {
 
     // If a custom http server config is needed, don't hesitate to make this method public.
     fn new_from_http_server_config(http_server_config: HttpServerConfig) -> Self {
-        Self {
-            http_server_config,
-            mock_config_manager_channel_client: None,
-            mock_gateway_client: None,
-        }
+        Self { http_server_config, mock_config_manager_client: None, mock_gateway_client: None }
     }
 
     pub fn with_max_request_body_size(mut self, max_request_body_size: usize) -> Self {
@@ -148,11 +144,8 @@ impl HttpClientServerSetupBuilder {
         self
     }
 
-    pub fn with_mock_config_manager_channel_client(
-        mut self,
-        mock: MockConfigManagerChannelClient,
-    ) -> Self {
-        self.mock_config_manager_channel_client = Some(mock);
+    pub fn with_mock_config_manager_client(mut self, mock: MockConfigManagerClient) -> Self {
+        self.mock_config_manager_client = Some(mock);
         self
     }
 
@@ -163,9 +156,8 @@ impl HttpClientServerSetupBuilder {
 
     // Creates a client for testing the http server functionality.
     pub async fn build(self) -> HttpTestClient {
-        let config_manager_channel_client = Arc::new(
-            self.mock_config_manager_channel_client
-                .unwrap_or_else(|| get_mock_config_manager_channel_client(true)),
+        let config_manager_client = Arc::new(
+            self.mock_config_manager_client.unwrap_or_else(|| get_mock_config_manager_client(true)),
         );
         let gateway_client = Arc::new(self.mock_gateway_client.unwrap_or_default());
 
@@ -175,7 +167,7 @@ impl HttpClientServerSetupBuilder {
             // Create the server struct (consumed by the spawned task).
             let mut http_server = HttpServer::new(
                 self.http_server_config.clone(),
-                config_manager_channel_client.clone(),
+                config_manager_client.clone(),
                 gateway_client.clone(),
             );
             // Spawn the server.
@@ -272,10 +264,8 @@ pub fn deprecated_gateway_declare_tx() -> DeprecatedGatewayTransactionV3 {
     DeprecatedGatewayTransactionV3::from(declare_tx())
 }
 
-pub fn get_mock_config_manager_channel_client(
-    accept_new_txs: bool,
-) -> MockConfigManagerChannelClient {
-    let mut mock = MockConfigManagerChannelClient::new();
+pub fn get_mock_config_manager_client(accept_new_txs: bool) -> MockConfigManagerClient {
+    let mut mock = MockConfigManagerClient::new();
     mock.expect_get_http_server_dynamic_config()
         .returning(move || Ok(HttpServerDynamicConfig { accept_new_txs, ..Default::default() }));
     mock
