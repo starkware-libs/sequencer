@@ -1318,14 +1318,14 @@
     },
     {
       "name": "pod_state_high_disk_utilization",
-      "title": "Pod High Disk Utilization ( >70% )",
+      "title": "Pod High Disk Utilization (day only)",
       "ruleGroup": "general",
       "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}))*100",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              70.0
+              85.0
             ],
             "type": "gt"
           },

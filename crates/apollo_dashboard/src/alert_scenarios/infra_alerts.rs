@@ -170,8 +170,8 @@ pub(crate) fn get_general_pod_disk_utilization_vec() -> Vec<Alert> {
     vec![
         get_general_pod_disk_utilization(
             "pod_state_high_disk_utilization",
-            "Pod High Disk Utilization ( >70% )",
-            70.0,
+            "Pod High Disk Utilization (day only)",
+            85.0,
             AlertSeverity::DayOnly,
         ),
         get_general_pod_disk_utilization(
