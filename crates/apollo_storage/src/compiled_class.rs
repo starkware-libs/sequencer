@@ -54,8 +54,8 @@ use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::state::SierraContractClass;
 
 use crate::class::ClassStorageReader;
-use crate::db::serialization::VersionZeroWrapper;
-use crate::db::table_types::{SimpleTable, Table};
+use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
+use crate::db::table_types::{CommonPrefix, DbCursorTrait, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
 use crate::mmap_file::LocationInFile;
 use crate::{FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageResult, StorageTxn};
@@ -148,24 +148,31 @@ impl CasmStorageWriter for StorageTxn<'_, RW> {
     fn append_casm(self, class_hash: &ClassHash, casm: &CasmContractClass) -> StorageResult<Self> {
         let casm_table = self.open_table(&self.tables.casms)?;
         let markers_table = self.open_table(&self.tables.markers)?;
-        let state_diff_table = self.open_table(&self.tables.state_diffs)?;
         let file_offset_table = self.txn.open_table(&self.tables.file_offsets)?;
 
         let location = self.file_handlers.append_casm(casm);
         casm_table.insert(&self.txn, class_hash, &location)?;
         file_offset_table.upsert(&self.txn, &OffsetKind::Casm, &location.next_offset())?;
-        update_marker(
-            &self.txn,
-            &markers_table,
-            &state_diff_table,
-            self.file_handlers.clone(),
-            class_hash,
-        )?;
+
+        if self.mode.is_sequencer() {
+            let class_preimages_table = self.open_table(&self.tables.class_preimages)?;
+            update_marker_sequencer(&self.txn, &markers_table, &class_preimages_table, class_hash)?;
+        } else {
+            let state_diff_table = self.open_table(&self.tables.state_diffs)?;
+            update_marker_archive(
+                &self.txn,
+                &markers_table,
+                &state_diff_table,
+                self.file_handlers.clone(),
+                class_hash,
+            )?;
+        }
         Ok(self)
     }
 }
 
-fn update_marker<'env>(
+/// Archive-mode marker advancement: reads state_diffs to determine class declarations per block.
+fn update_marker_archive<'env>(
     txn: &DbTransaction<'env, RW>,
     markers_table: &'env MarkersTable<'env>,
     state_diffs_table: &'env TableHandle<
@@ -177,8 +184,6 @@ fn update_marker<'env>(
     file_handlers: FileHandlers<RW>,
     class_hash: &ClassHash,
 ) -> StorageResult<()> {
-    // The marker needs to update if we reached the last class from the state diff. We can continue
-    // advancing it if the next blocks don't have declared classes.
     let mut block_number = markers_table.get(txn, &MarkerKind::CompiledClass)?.unwrap_or_default();
     loop {
         let Some(state_diff_location) = state_diffs_table.get(txn, &block_number)? else {
@@ -189,13 +194,67 @@ fn update_marker<'env>(
             .class_hash_to_compiled_class_hash
             .last()
         {
-            // Not the last class in the state diff, keep the current marker.
             if last_class_hash != class_hash {
                 break;
             }
         }
         block_number = block_number.unchecked_next();
         markers_table.upsert(txn, &MarkerKind::CompiledClass, &block_number)?;
+    }
+    Ok(())
+}
+
+/// Sequencer-mode marker advancement: reads class_preimages to determine class declarations.
+fn update_marker_sequencer<'env>(
+    txn: &DbTransaction<'env, RW>,
+    markers_table: &'env MarkersTable<'env>,
+    class_preimages_table: &'env TableHandle<
+        'env,
+        (BlockNumber, ClassHash),
+        NoVersionValueWrapper<CompiledClassHash>,
+        CommonPrefix,
+    >,
+    class_hash: &ClassHash,
+) -> StorageResult<()> {
+    let state_marker = markers_table.get(txn, &MarkerKind::State)?.unwrap_or_default();
+    let mut block_number = markers_table.get(txn, &MarkerKind::CompiledClass)?.unwrap_or_default();
+    loop {
+        if block_number >= state_marker {
+            break;
+        }
+        // Find the last class hash declared in this block by iterating class_preimages.
+        let mut cursor = class_preimages_table.cursor(txn)?;
+        let entry = cursor.lower_bound(&(block_number, ClassHash::default()))?;
+        match entry {
+            None => {
+                // No more preimage entries at all — advance past this block.
+                block_number = block_number.unchecked_next();
+                markers_table.upsert(txn, &MarkerKind::CompiledClass, &block_number)?;
+            }
+            Some(((bn, _), _)) if bn != block_number => {
+                // Entry exists but for a later block — this block has no class declarations.
+                block_number = block_number.unchecked_next();
+                markers_table.upsert(txn, &MarkerKind::CompiledClass, &block_number)?;
+            }
+            Some(_) => {
+                // Block has class declarations. Find the last one.
+                let mut last_class_hash_in_block = ClassHash::default();
+                let mut current = cursor.lower_bound(&(block_number, ClassHash::default()))?;
+                while let Some(((bn, ch), _)) = current {
+                    if bn != block_number {
+                        break;
+                    }
+                    last_class_hash_in_block = ch;
+                    current = cursor.next()?;
+                }
+                if &last_class_hash_in_block == class_hash {
+                    block_number = block_number.unchecked_next();
+                    markers_table.upsert(txn, &MarkerKind::CompiledClass, &block_number)?;
+                } else {
+                    break;
+                }
+            }
+        }
     }
     Ok(())
 }
