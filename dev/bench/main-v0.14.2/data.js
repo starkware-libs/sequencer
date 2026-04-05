@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774952833294,
+  "lastUpdate": 1775381221071,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2991,6 +2991,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1325.53824017,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "143319383+nimrod-starkware@users.noreply.github.com",
+            "name": "nimrod-starkware",
+            "username": "nimrod-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "91cd1173fb906619955fe1b7c3179325598e0c40",
+          "message": "apollo_consensus: add stop_at_height field to context (#13410)",
+          "timestamp": "2026-04-05T09:03:21Z",
+          "tree_id": "ff3c0b057d8ffea9d3625a18c1be60f5fc1b518d",
+          "url": "https://github.com/starkware-libs/sequencer/commit/91cd1173fb906619955fe1b7c3179325598e0c40"
+        },
+        "date": 1775381220758,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 856.51254313,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1265.8500699400001,
             "unit": "ms"
           }
         ]
