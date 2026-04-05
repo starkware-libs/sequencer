@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774949319893,
+  "lastUpdate": 1775373298128,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1189,6 +1189,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1285.03510536,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ba13cef0bce801b18e292a28265898cf6c5d74ed",
+          "message": "starknet_os_flow_tests: fuzz test call/libcall bad entrypoint scenario (#13152)",
+          "timestamp": "2026-04-05T06:52:30Z",
+          "tree_id": "0b119dfb0fdbecde2bc51e607f3e80c01c2d88fb",
+          "url": "https://github.com/starkware-libs/sequencer/commit/ba13cef0bce801b18e292a28265898cf6c5d74ed"
+        },
+        "date": 1775373297809,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 895.74626721,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1396.32657317,
             "unit": "ms"
           }
         ]
