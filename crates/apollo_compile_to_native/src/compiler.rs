@@ -22,9 +22,12 @@ impl SierraToNativeCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
         let path_to_binary = match &config.compiler_binary_path {
             Some(path) => path.clone(),
-            None => binary_path(CAIRO_NATIVE_BINARY_NAME),
+            None => {
+                let path = binary_path(CAIRO_NATIVE_BINARY_NAME);
+                verify_compiler_binary(&path, REQUIRED_CAIRO_NATIVE_VERSION);
+                path
+            }
         };
-        verify_compiler_binary(&path_to_binary, REQUIRED_CAIRO_NATIVE_VERSION);
         Self { config, path_to_binary }
     }
 
