@@ -37,12 +37,12 @@ where
     Request: Send + Serialize,
     Response: Send + DeserializeOwned,
 {
-    // TODO(Arni): This should return a non-optional client and panic whenever the client is not
-    // local (i.e., it is remote or disabled).
-    pub fn get_local_client(&self) -> Option<LocalComponentClient<Request, Response>> {
+    pub fn get_local_client(&self) -> LocalComponentClient<Request, Response> {
         match self {
-            Client::Local(client) => Some(client.clone()),
-            Client::Remote(_) | Client::Disabled => None,
+            Client::Local(client) => client.clone(),
+            Client::Remote(_) | Client::Disabled => {
+                panic!("Expected a local client, but got a remote or disabled client.")
+            }
         }
     }
 }
