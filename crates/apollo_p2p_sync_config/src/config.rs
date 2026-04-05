@@ -13,6 +13,7 @@ pub struct P2pSyncClientConfig {
     pub num_block_state_diffs_per_query: u64,
     pub num_block_transactions_per_query: u64,
     pub num_block_classes_per_query: u64,
+    pub num_block_events_per_query: u64,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub wait_period_for_new_data: Duration,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
@@ -49,6 +50,12 @@ impl SerializeConfig for P2pSyncClientConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
+                "num_block_events_per_query",
+                &self.num_block_events_per_query,
+                "The maximum amount of blocks to ask their events from peers in each iteration.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
                 "wait_period_for_new_data",
                 &self.wait_period_for_new_data.as_millis(),
                 "Time in milliseconds to wait when a query returned with partial data before \
@@ -81,6 +88,7 @@ impl Default for P2pSyncClientConfig {
             num_block_state_diffs_per_query: 100,
             num_block_transactions_per_query: 100,
             num_block_classes_per_query: 100,
+            num_block_events_per_query: 100,
             wait_period_for_new_data: Duration::from_millis(50),
             wait_period_for_other_protocol: Duration::from_millis(50),
             // TODO(eitan): split this by protocol

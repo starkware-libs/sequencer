@@ -413,11 +413,14 @@ impl StateSyncRunner {
             .register_sqmr_protocol_client(Protocol::Transaction.into(), BUFFER_SIZE);
         let class_client_sender =
             network_manager.register_sqmr_protocol_client(Protocol::Class.into(), BUFFER_SIZE);
+        let event_client_sender =
+            network_manager.register_sqmr_protocol_client(Protocol::Event.into(), BUFFER_SIZE);
         let p2p_sync_client_channels = P2pSyncClientChannels::new(
             header_client_sender,
             state_diff_client_sender,
             transaction_client_sender,
             class_client_sender,
+            event_client_sender,
         );
         P2pSyncClient::new(
             p2p_sync_client_config,
