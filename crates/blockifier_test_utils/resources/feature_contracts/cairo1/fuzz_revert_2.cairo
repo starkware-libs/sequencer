@@ -6,6 +6,8 @@ trait IOrchestrator<TContractState> {
     fn get_index(ref self: TContractState) -> felt252;
     fn set_index(ref self: TContractState, index: felt252);
     fn should_fail_undeployed_panic_message(ref self: TContractState) -> felt252;
+    fn should_fail_call_no_entrypoint_panic_message(ref self: TContractState) -> felt252;
+    fn should_fail_libcall_no_entrypoint_panic_message(ref self: TContractState) -> felt252;
 }
 
 #[starknet::contract]
@@ -37,6 +39,8 @@ mod FuzzRevertContract {
     const SCENARIO_SHA256: felt252 = 11;
     const SCENARIO_KECCAK: felt252 = 12;
     const SCENARIO_CALL_UNDEPLOYED: felt252 = 13;
+    const SCENARIO_CALL_NON_EXISTING_ENTRY_POINT: felt252 = 14;
+    const SCENARIO_LIBRARY_CALL_NON_EXISTING_ENTRY_POINT: felt252 = 15;
 
     #[storage]
     struct Storage {
@@ -69,6 +73,32 @@ mod FuzzRevertContract {
                 }
             }
         }
+
+        /// Handle a syscall that immediately fails (e.g. calling a non-existing entry point).
+        fn handle_syscall_immediate_failure(
+            ref self: ContractState,
+            result: SyscallResult<Span<felt252>>,
+            panic_message_if_ok: felt252,
+            should_unwrap: bool
+        ) {
+            match result {
+                Result::Ok(_) => panic_with_felt252(panic_message_if_ok),
+                Result::Err(mut error) => {
+                    // Syscall failed immediately, so no inner calls could have modified the
+                    // orchestrator index. No need to handle index propagation (the !should_unwrap
+                    // case).
+                    if should_unwrap {
+                        // The inner error does not contain the orchestrator index, so to propagate
+                        // the error the index must be prepended.
+                        let mut new_error: Array<felt252> = array![self.orchestrator().get_index()];
+                        for elem in error {
+                            new_error.append(elem);
+                        }
+                        panic(new_error);
+                    }
+                }
+            }
+        }
     }
 
     /// If this contract is deployed as part of the fuzz test "deploy" scenario, the orchestrator
@@ -87,6 +117,7 @@ mod FuzzRevertContract {
         self.counter.write(0xc10);
         self.orchestrator_address.write(orchestrator_address);
     }
+
 
     #[external(v0)]
     fn test_revert_fuzz(ref self: ContractState) {
@@ -191,6 +222,30 @@ mod FuzzRevertContract {
             // Calling an undeployed contract should be an uncatchable fail.
             syscalls::call_contract_syscall(address, selector, array![].span()).unwrap_err();
             panic_with_felt252(orchestrator.should_fail_undeployed_panic_message());
+        }
+
+        if scenario == SCENARIO_CALL_NON_EXISTING_ENTRY_POINT {
+            let address: ContractAddress = orchestrator.pop_front().try_into().unwrap();
+            let selector = orchestrator.pop_front();
+            let should_unwrap: bool = orchestrator.pop_front() != 0;
+            self
+                .handle_syscall_immediate_failure(
+                    syscalls::call_contract_syscall(address, selector, array![].span()),
+                    orchestrator.should_fail_call_no_entrypoint_panic_message(),
+                    should_unwrap
+                );
+        }
+
+        if scenario == SCENARIO_LIBRARY_CALL_NON_EXISTING_ENTRY_POINT {
+            let class_hash: ClassHash = orchestrator.pop_front().try_into().unwrap();
+            let selector = orchestrator.pop_front();
+            let should_unwrap: bool = orchestrator.pop_front() != 0;
+            self
+                .handle_syscall_immediate_failure(
+                    syscalls::library_call_syscall(class_hash, selector, array![].span()),
+                    orchestrator.should_fail_libcall_no_entrypoint_panic_message(),
+                    should_unwrap
+                );
         }
 
         // Unless explicitly stated otherwise, the next operation should be in the current call
