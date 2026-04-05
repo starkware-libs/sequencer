@@ -1152,6 +1152,7 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "cairo-lang-starknet-classes",
+ "expect-test",
  "mempool_test_utils",
  "pretty_assertions",
  "regex",

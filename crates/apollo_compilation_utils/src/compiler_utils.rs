@@ -10,6 +10,10 @@ use tempfile::NamedTempFile;
 use crate::errors::CompilationUtilError;
 use crate::resource_limits::ResourceLimits;
 
+#[cfg(test)]
+#[path = "compiler_utils_test.rs"]
+pub mod test;
+
 pub fn compile_with_args(
     compiler_binary_path: &Path,
     contract_class: ContractClass,
@@ -36,26 +40,63 @@ pub fn compile_with_args(
     let compile_output = command.output()?;
 
     if !compile_output.status.success() {
-        let signal_info = match compile_output.status.signal() {
-            Some(9) => {
-                "SIGKILL (9): Process was forcefully killed (for example, because it exceeded CPU \
-                 limit)."
-            }
-            Some(25) => "SIGXFSZ (25): File size limit exceeded.",
-            None => {
-                "Process exited with non-zero status but no signal (likely a handled error, e.g., \
-                 memory allocation failure)."
-            }
-            Some(sig) => &format!("Process terminated by unexpected signal: {sig}"),
-        };
-
         let stderr_output = String::from_utf8(compile_output.stderr)
             .unwrap_or_else(|_| "Failed to decode stderr output".to_string());
 
-        return Err(CompilationUtilError::CompilationError(format!(
-            "Exit status: {}\nStderr: {}\nSignal info: {}",
-            compile_output.status, stderr_output, signal_info
-        )));
+        let error_message = format_compiler_error(&stderr_output, &compile_output.status);
+        return Err(CompilationUtilError::CompilationError(error_message));
     }
     Ok(compile_output.stdout)
+}
+
+/// Extracts the meaningful error lines from compiler stderr, filtering out stack backtraces and
+/// resource limit setup messages.
+fn extract_error_from_stderr(stderr: &str) -> String {
+    let meaningful_lines: Vec<&str> = stderr
+        .lines()
+        .filter(|line| {
+            let trimmed = line.trim();
+            // Skip resource limit setup lines (e.g., "Setting Resource::CPU limits: ...").
+            if trimmed.starts_with("Setting Resource::") {
+                return false;
+            }
+            // Skip stack backtrace header and frames (e.g., "0: module::path").
+            if trimmed.eq_ignore_ascii_case("stack backtrace:")
+                || trimmed.starts_with("Signal info:")
+            {
+                return false;
+            }
+            if let Some(rest) = trimmed.strip_prefix(|c: char| c.is_ascii_digit()) {
+                let rest = rest.trim_start_matches(|c: char| c.is_ascii_digit());
+                if rest.starts_with(':') {
+                    return false;
+                }
+            }
+            !trimmed.is_empty()
+        })
+        .collect();
+
+    if meaningful_lines.is_empty() {
+        return "Compilation failed with no meaningful error output".to_string();
+    }
+
+    meaningful_lines.join("\n")
+}
+
+pub(crate) fn format_compiler_error(stderr: &str, status: &std::process::ExitStatus) -> String {
+    let error_detail = extract_error_from_stderr(stderr);
+    let signal_description = match status.signal() {
+        Some(9) => Some(
+            "process was killed (SIGKILL), possibly due to exceeding CPU or memory limits"
+                .to_string(),
+        ),
+        Some(25) => Some("file size limit exceeded (SIGXFSZ)".to_string()),
+        Some(signal) => Some(format!("process terminated by signal {signal}")),
+        None => None,
+    };
+
+    match signal_description {
+        Some(signal) => format!("{error_detail} ({signal})"),
+        None => error_detail,
+    }
 }
