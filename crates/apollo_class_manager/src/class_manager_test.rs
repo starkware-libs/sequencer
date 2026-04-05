@@ -10,7 +10,7 @@ use apollo_class_manager_config::config::{
 };
 use apollo_class_manager_types::{ClassHashes, ClassManagerError};
 use apollo_compile_to_casm_types::{MockSierraCompilerClient, RawClass, RawExecutableClass};
-use apollo_config_manager_types::communication::MockConfigManagerChannelClient;
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use assert_matches::assert_matches;
 use mockall::predicate::eq;
 use starknet_api::contract_class::ContractClass;
@@ -39,7 +39,7 @@ impl ClassManager<FsClassStorage> {
             dynamic_config: ClassManagerDynamicConfig::default(),
         };
 
-        let mock_config_manager_client = Arc::new(MockConfigManagerChannelClient::new());
+        let mock_config_manager_client = Arc::new(MockConfigManagerClient::new());
 
         ClassManager::new(
             fs_class_manager_config,

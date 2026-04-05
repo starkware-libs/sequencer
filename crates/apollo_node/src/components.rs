@@ -78,9 +78,9 @@ pub async fn create_node_components(
 ) -> SequencerNodeComponents {
     info!("Creating node components.");
 
-    // Create the config manager runner first, as the config_manager_channel_client is used by
+    // Create the config manager runner first, as the config_manager_client is used by
     // other components below.
-    let (config_manager_runner, config_manager_channel_client) = match config
+    let (config_manager_runner, config_manager_client) = match config
         .components
         .config_manager
         .execution_mode
@@ -91,15 +91,13 @@ pub async fn create_node_components(
                 config.config_manager_config.as_ref().expect("Config Manager config should be set");
             let (dynamic_config_tx, channel_client) =
                 LocalComponentChannelClient::new_with_initial_value(node_dynamic_config.clone());
-            // TODO(Arni): Rename to config_manager_client after ConfigManagerChannelClient is
-            // renamed to ConfigManagerClient.
-            let config_manager_channel_client = Arc::new(channel_client);
+            let config_manager_client = Arc::new(channel_client);
             let config_manager_runner = ConfigManagerRunner::new(
                 config_manager_config.clone(),
                 dynamic_config_tx,
                 cli_args,
             );
-            (Some(config_manager_runner), Some(config_manager_channel_client))
+            (Some(config_manager_runner), Some(config_manager_client))
         }
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
         | ReactiveComponentExecutionMode::Remote => {
@@ -140,9 +138,8 @@ pub async fn create_node_components(
             let proof_manager_client = clients
                 .get_proof_manager_shared_client()
                 .expect("Proof Manager client should be available");
-            let config_manager_channel_client = config_manager_channel_client
-                .clone()
-                .expect("Config Manager channel client should be available");
+            let config_manager_client =
+                config_manager_client.clone().expect("Config Manager client should be available");
             Some(
                 create_batcher(
                     batcher_config.clone(),
@@ -152,7 +149,7 @@ pub async fn create_node_components(
                     class_manager_client,
                     pre_confirmed_cende_client,
                     proof_manager_client,
-                    config_manager_channel_client,
+                    config_manager_client,
                 )
                 .await,
             )
@@ -168,13 +165,12 @@ pub async fn create_node_components(
             let compiler_shared_client = clients
                 .get_sierra_compiler_shared_client()
                 .expect("Sierra Compiler client should be available");
-            let config_manager_channel_client = config_manager_channel_client
-                .clone()
-                .expect("Config Manager channel client should be available");
+            let config_manager_client =
+                config_manager_client.clone().expect("Config Manager client should be available");
             Some(create_class_manager(
                 class_manager_config.clone(),
                 compiler_shared_client,
-                config_manager_channel_client,
+                config_manager_client,
             ))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
@@ -211,9 +207,8 @@ pub async fn create_node_components(
             let l1_gas_price_client = clients
                 .get_l1_gas_price_shared_client()
                 .expect("L1 gas price client should be available");
-            let config_manager_channel_client = config_manager_channel_client
-                .clone()
-                .expect("Config Manager channel client should be available");
+            let config_manager_client =
+                config_manager_client.clone().expect("Config Manager client should be available");
             let proof_manager_client = clients
                 .get_proof_manager_shared_client()
                 .expect("Proof Manager client should be available");
@@ -221,7 +216,7 @@ pub async fn create_node_components(
                 consensus_manager_config,
                 batcher_client.clone(),
                 state_sync_client.clone(),
-                config_manager_channel_client.clone(),
+                config_manager_client.clone(),
             );
             Some(ConsensusManager::new(ConsensusManagerArgs {
                 config: consensus_manager_config.clone(),
@@ -229,7 +224,7 @@ pub async fn create_node_components(
                 state_sync_client,
                 class_manager_client,
                 signature_manager_client,
-                config_manager_channel_client,
+                config_manager_client,
                 l1_gas_price_provider: l1_gas_price_client,
                 proof_manager_client,
                 committee_provider,
@@ -268,9 +263,8 @@ pub async fn create_node_components(
 
     let http_server = match config.components.http_server.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
-            let config_manager_channel_client = config_manager_channel_client
-                .clone()
-                .expect("Config Manager channel client should be available");
+            let config_manager_client =
+                config_manager_client.clone().expect("Config Manager client should be available");
             let http_server_config =
                 config.http_server_config.as_ref().expect("HTTP Server config should be set");
             let gateway_client =
@@ -278,7 +272,7 @@ pub async fn create_node_components(
 
             Some(create_http_server(
                 http_server_config.clone(),
-                config_manager_channel_client,
+                config_manager_client,
                 gateway_client,
             ))
         }
@@ -406,16 +400,15 @@ pub async fn create_node_components(
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let mempool_config =
                 config.mempool_config.as_ref().expect("Mempool config should be set");
-            let config_manager_channel_client = config_manager_channel_client
-                .clone()
-                .expect("Config Manager channel client should be available");
+            let config_manager_client =
+                config_manager_client.clone().expect("Config Manager client should be available");
             let mempool_p2p_propagator_client = clients
                 .get_mempool_p2p_propagator_shared_client()
                 .expect("Propagator client should be available");
             let mempool = create_mempool(
                 mempool_config.clone(),
                 mempool_p2p_propagator_client,
-                config_manager_channel_client,
+                config_manager_client,
             );
             Some(mempool)
         }
@@ -542,13 +535,12 @@ pub async fn create_node_components(
             let class_manager_client = clients
                 .get_class_manager_shared_client()
                 .expect("Class Manager client should be available");
-            let config_manager_channel_client = config_manager_channel_client
-                .clone()
-                .expect("Config Manager channel client should be available");
+            let config_manager_client =
+                config_manager_client.clone().expect("Config Manager client should be available");
             let (state_sync, state_sync_runner) = create_state_sync_and_runner(
                 state_sync_config.clone(),
                 class_manager_client,
-                config_manager_channel_client,
+                config_manager_client,
             );
             (Some(state_sync), Some(state_sync_runner))
         }

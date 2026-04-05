@@ -20,7 +20,7 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_batcher_types::errors::BatcherError;
 use apollo_config::behavior_mode::BehaviorMode;
-use apollo_config_manager_types::communication::SharedConfigManagerChannelClient;
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::{ConsensusContext, ConsensusError, ProposalCommitment, Round};
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
@@ -243,7 +243,7 @@ pub struct SequencerConsensusContextDeps {
     pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
     // Used to broadcast votes to other consensus nodes.
     pub vote_broadcast_client: BroadcastTopicClient<Vote>,
-    pub config_manager_channel_client: Option<SharedConfigManagerChannelClient>,
+    pub config_manager_client: Option<SharedConfigManagerClient>,
 }
 
 #[derive(thiserror::Error, PartialEq, Debug)]
@@ -965,9 +965,8 @@ impl SequencerConsensusContext {
     }
 
     async fn update_dynamic_config(&mut self) {
-        if let Some(config_manager_channel_client) = self.deps.config_manager_channel_client.clone()
-        {
-            let config_result = config_manager_channel_client.get_context_dynamic_config();
+        if let Some(config_manager_client) = self.deps.config_manager_client.clone() {
+            let config_result = config_manager_client.get_context_dynamic_config();
             match config_result {
                 Ok(config) => {
                     self.config.dynamic_config = config;

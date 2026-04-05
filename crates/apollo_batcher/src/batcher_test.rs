@@ -28,7 +28,7 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::errors::BatcherError;
 use apollo_committer_types::committer_types::CommitBlockRequest;
-use apollo_config_manager_types::communication::MockConfigManagerChannelClient;
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_events_types::errors::{L1EventsProviderClientError, L1EventsProviderError};
@@ -273,7 +273,7 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
     )
     .await;
 
-    let mut mock_config_manager = MockConfigManagerChannelClient::new();
+    let mut mock_config_manager = MockConfigManagerClient::new();
     mock_config_manager
         .expect_get_batcher_dynamic_config()
         .returning(|| Ok(BatcherDynamicConfig::default()));
