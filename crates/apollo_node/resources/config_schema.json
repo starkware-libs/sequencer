@@ -172,7 +172,7 @@
   "batcher_config.static_config.block_builder_config.n_concurrent_txs": {
     "description": "Number of transactions in each request from the tx_provider.",
     "privacy": "Public",
-    "value": 100
+    "value": 20
   },
   "batcher_config.static_config.block_builder_config.proposer_idle_detection_delay_millis": {
     "description": "Minimum time (in milliseconds) that must pass since block creation started before checking for idle state. If this delay has passed AND no transactions are currently being executed, the proposer will finish building the current block.",
