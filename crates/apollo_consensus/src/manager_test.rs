@@ -210,12 +210,12 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     context.expect_broadcast().returning(move |_| Ok(()));
     context
         .expect_decision_reached()
-        .withf(move |_, r, c| *c == ProposalCommitment(Felt::ONE) && *r == ROUND_0)
-        .return_once(move |_, _, _| Ok(()));
+        .withf(move |_, r, c, _| *c == ProposalCommitment(Felt::ONE) && *r == ROUND_0)
+        .return_once(move |_, _, _, _| Ok(()));
     context
         .expect_decision_reached()
-        .withf(move |_, r, c| *c == ProposalCommitment(Felt::TWO) && *r == ROUND_0)
-        .return_once(move |_, _, _| Ok(()));
+        .withf(move |_, r, c, _| *c == ProposalCommitment(Felt::TWO) && *r == ROUND_0)
+        .return_once(move |_, _, _, _| Ok(()));
     let committee_provider =
         mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
     let mut manager = MultiHeightManager::new(
@@ -265,10 +265,10 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
     context.expect_broadcast().returning(move |_| Ok(()));
     context
         .expect_decision_reached()
-        .withf(move |h, r, c| {
+        .withf(move |h, r, c, _| {
             *c == ProposalCommitment(Felt::TWO) && *h == HEIGHT_2 && *r == ROUND_0
         })
-        .return_once(move |_, _, _| {
+        .return_once(move |_, _, _, _| {
             decision_tx.send(()).unwrap();
             Ok(())
         });
@@ -336,10 +336,10 @@ async fn run_consensus_stop_at_height(consensus_config: ConsensusConfig) {
     context.expect_try_sync().returning(|_| false);
     context
         .expect_decision_reached()
-        .withf(move |h, r, c| {
+        .withf(move |h, r, c, _| {
             *c == ProposalCommitment(Felt::ONE) && *h == HEIGHT_1 && *r == ROUND_0
         })
-        .returning(move |_, _, _| Ok(()));
+        .returning(move |_, _, _, _| Ok(()));
 
     let committee_provider =
         mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
@@ -405,8 +405,8 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
     context.expect_broadcast().returning(move |_| Ok(()));
     context
         .expect_decision_reached()
-        .withf(move |_, r, c| *c == ProposalCommitment(Felt::ONE) && *r == ROUND_1)
-        .return_once(move |_, _, _| Ok(()));
+        .withf(move |_, r, c, _| *c == ProposalCommitment(Felt::ONE) && *r == ROUND_1)
+        .return_once(move |_, _, _, _| Ok(()));
     let committee_provider = mock_committee_provider_with_members(vec![
         *PROPOSER_ID,
         *VALIDATOR_ID,
@@ -566,12 +566,12 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
     context.expect_broadcast().returning(move |_| Ok(()));
     context
         .expect_decision_reached()
-        .withf(move |_, r, c| *c == ProposalCommitment(Felt::ZERO) && *r == ROUND_0)
-        .return_once(move |_, _, _| Ok(()));
+        .withf(move |_, r, c, _| *c == ProposalCommitment(Felt::ZERO) && *r == ROUND_0)
+        .return_once(move |_, _, _, _| Ok(()));
     context
         .expect_decision_reached()
-        .withf(move |_, r, c| *c == ProposalCommitment(Felt::ONE) && *r == ROUND_0)
-        .return_once(move |_, _, _| Ok(()));
+        .withf(move |_, r, c, _| *c == ProposalCommitment(Felt::ONE) && *r == ROUND_0)
+        .return_once(move |_, _, _, _| Ok(()));
     let committee_provider =
         mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
     let mut manager = MultiHeightManager::new(
@@ -702,8 +702,8 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context
         .expect_decision_reached()
-        .withf(move |_, r, c| *c == ProposalCommitment(Felt::ONE) && *r == ROUND_2)
-        .return_once(move |_, _, _| Ok(()));
+        .withf(move |_, r, c, _| *c == ProposalCommitment(Felt::ONE) && *r == ROUND_2)
+        .return_once(move |_, _, _, _| Ok(()));
     let committee_provider =
         mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2]);
     let mut manager = MultiHeightManager::new(
@@ -796,8 +796,8 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     let (decision_tx, decision_rx) = oneshot::channel();
     context
         .expect_decision_reached()
-        .withf(move |h, _, _| *h == HEIGHT_2)
-        .return_once(move |_, _, _| {
+        .withf(move |h, _, _, _| *h == HEIGHT_2)
+        .return_once(move |_, _, _, _| {
             let _ = decision_tx.send(());
             Ok(())
         })
@@ -938,8 +938,8 @@ async fn manager_runs_normally_when_height_is_greater_than_last_voted_height(
     context.expect_broadcast().returning(move |_| Ok(()));
     context
         .expect_decision_reached()
-        .withf(move |_, _, c| *c == ProposalCommitment(Felt::ONE))
-        .return_once(move |_, _, _| Ok(()));
+        .withf(move |_, _, c, _| *c == ProposalCommitment(Felt::ONE))
+        .return_once(move |_, _, _, _| Ok(()));
     let committee_provider =
         mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
     let mut manager = MultiHeightManager::new(
@@ -1108,8 +1108,8 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
 
     context
         .expect_decision_reached()
-        .withf(move |_, _, c| *c == block_id)
-        .return_once(move |_, _, _| Ok(()));
+        .withf(move |_, _, c, _| *c == block_id)
+        .return_once(move |_, _, _, _| Ok(()));
 
     let committee_provider = mock_committee_provider_with_members(vec![
         *PROPOSER_ID,
@@ -1252,8 +1252,8 @@ async fn manager_ignores_invalid_network_messages(consensus_config: ConsensusCon
     context.expect_broadcast().returning(move |_| Ok(()));
     context
         .expect_decision_reached()
-        .withf(move |_, _, c| *c == ProposalCommitment(Felt::ONE))
-        .return_once(move |_, _, _| Ok(()));
+        .withf(move |_, _, c, _| *c == ProposalCommitment(Felt::ONE))
+        .return_once(move |_, _, _, _| Ok(()));
     let committee_provider =
         mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
     let mut manager = MultiHeightManager::new(

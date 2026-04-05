@@ -203,7 +203,7 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     assert!(receiver.next().await.is_none());
 
     // Verify decision_reached uses the updated init (from reproposal round) for finalize.
-    context.decision_reached(HEIGHT_0, ROUND_1, TEST_PROPOSAL_COMMITMENT).await.unwrap();
+    context.decision_reached(HEIGHT_0, ROUND_1, TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 }
 
 #[tokio::test]
@@ -276,7 +276,7 @@ async fn validate_then_build_then_decision_reached_round_0_uses_round_0_init() {
     assert_eq!(fin_receiver.await.unwrap(), TEST_PROPOSAL_COMMITMENT);
 
     // Decision reached for round 0 - state_sync should receive TIMESTAMP_ROUND_0
-    context.decision_reached(HEIGHT_0, ROUND_0, TEST_PROPOSAL_COMMITMENT).await.unwrap();
+    context.decision_reached(HEIGHT_0, ROUND_0, TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 }
 
 #[tokio::test]
@@ -584,7 +584,7 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     assert!(receiver.next().await.is_none());
 
     // Verify decision_reached uses the updated init (from reproposal round) for finalize.
-    context.decision_reached(HEIGHT_0, ROUND_1, TEST_PROPOSAL_COMMITMENT).await.unwrap();
+    context.decision_reached(HEIGHT_0, ROUND_1, TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 }
 
 #[tokio::test]
@@ -729,7 +729,7 @@ async fn decision_reached_sends_correct_values() {
     let _fin = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
     // At this point we should have a valid proposal in the context which contains the timestamp.
 
-    context.decision_reached(HEIGHT_0, ROUND_0, TEST_PROPOSAL_COMMITMENT).await.unwrap();
+    context.decision_reached(HEIGHT_0, ROUND_0, TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 
     let metrics = recorder.handle().render();
     CONSENSUS_L2_GAS_PRICE
@@ -885,7 +885,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
 
     // Decision reached
 
-    context.decision_reached(HEIGHT_0, ROUND_0, proposal_commitment).await.unwrap();
+    context.decision_reached(HEIGHT_0, ROUND_0, proposal_commitment, false).await.unwrap();
 
     // Build proposal for block number 1.
     let build_param = BuildParam { height: HEIGHT_1, ..Default::default() };
@@ -1050,7 +1050,7 @@ async fn override_prices_behavior(
         return;
     }
 
-    context.decision_reached(HEIGHT_0, ROUND_0, TEST_PROPOSAL_COMMITMENT).await.unwrap();
+    context.decision_reached(HEIGHT_0, ROUND_0, TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
 
     let actual_l2_gas_price = context.l2_gas_price.0;
 
@@ -1178,7 +1178,7 @@ async fn change_gas_price_overrides() {
     let proposal_commitment = fin_receiver.await.unwrap();
     assert_eq!(proposal_commitment, TEST_PROPOSAL_COMMITMENT);
 
-    context.decision_reached(HEIGHT_0, ROUND_0, proposal_commitment).await.unwrap();
+    context.decision_reached(HEIGHT_0, ROUND_0, proposal_commitment, false).await.unwrap();
 
     let new_dynamic_config = ContextDynamicConfig {
         override_l2_gas_price_fri: Some(ODDLY_SPECIFIC_L2_GAS_PRICE),
@@ -1237,7 +1237,7 @@ async fn change_gas_price_overrides() {
     let proposal_commitment = fin_receiver.await.unwrap();
     assert_eq!(proposal_commitment, TEST_PROPOSAL_COMMITMENT);
 
-    context.decision_reached(HEIGHT_1, ROUND_1, proposal_commitment).await.unwrap();
+    context.decision_reached(HEIGHT_1, ROUND_1, proposal_commitment, false).await.unwrap();
 
     // Now build a proposal for height 2.
     let new_dynamic_config = ContextDynamicConfig {
