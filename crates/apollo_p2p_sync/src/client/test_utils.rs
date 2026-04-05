@@ -14,6 +14,7 @@ use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 use apollo_protobuf::sync::{
     ClassQuery,
     DataOrFin,
+    EventQuery,
     HeaderQuery,
     Query,
     SignedBlockHeader,
@@ -46,7 +47,7 @@ use starknet_api::block::{
 use starknet_api::core::ClassHash;
 use starknet_api::crypto::utils::Signature;
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::FullTransaction;
+use starknet_api::transaction::{Event, FullTransaction, TransactionHash};
 use starknet_types_core::felt::Felt;
 use tokio::sync::oneshot;
 
@@ -58,6 +59,7 @@ pub const HEADER_QUERY_LENGTH: u64 = 5;
 pub const STATE_DIFF_QUERY_LENGTH: u64 = 3;
 pub const CLASS_DIFF_QUERY_LENGTH: u64 = 3;
 pub const TRANSACTION_QUERY_LENGTH: u64 = 3;
+pub const EVENT_QUERY_LENGTH: u64 = 3;
 pub const SLEEP_DURATION_TO_LET_SYNC_ADVANCE: Duration = Duration::from_millis(10);
 pub const WAIT_PERIOD_FOR_NEW_DATA: Duration = Duration::from_secs(1);
 pub const WAIT_PERIOD_FOR_OTHER_PROTOCOL: Duration = Duration::from_secs(1);
@@ -70,6 +72,7 @@ lazy_static! {
         num_block_state_diffs_per_query: STATE_DIFF_QUERY_LENGTH,
         num_block_transactions_per_query: TRANSACTION_QUERY_LENGTH,
         num_block_classes_per_query: CLASS_DIFF_QUERY_LENGTH,
+        num_block_events_per_query: EVENT_QUERY_LENGTH,
         wait_period_for_new_data: WAIT_PERIOD_FOR_NEW_DATA,
         wait_period_for_other_protocol: WAIT_PERIOD_FOR_OTHER_PROTOCOL,
         buffer_size: BUFFER_SIZE,
@@ -83,6 +86,8 @@ pub(crate) type TransactionTestPayload =
     MockClientResponsesManager<TransactionQuery, DataOrFin<FullTransaction>>;
 pub(crate) type ClassTestPayload =
     MockClientResponsesManager<ClassQuery, DataOrFin<(ApiContractClass, ClassHash)>>;
+pub(crate) type EventTestPayload =
+    MockClientResponsesManager<EventQuery, DataOrFin<(Event, TransactionHash)>>;
 
 // TODO(Eitan): Use SqmrSubscriberChannels once there is a utility function for testing
 pub struct TestArgs {
@@ -95,6 +100,8 @@ pub struct TestArgs {
     pub mock_transaction_response_manager: GenericReceiver<TransactionTestPayload>,
     #[allow(dead_code)]
     pub mock_class_response_manager: GenericReceiver<ClassTestPayload>,
+    #[allow(dead_code)]
+    pub mock_event_response_manager: GenericReceiver<EventTestPayload>,
 }
 
 pub fn setup() -> TestArgs {
@@ -109,11 +116,14 @@ pub fn setup() -> TestArgs {
         mock_register_sqmr_protocol_client(buffer_size);
     let (class_sender, mock_class_response_manager) =
         mock_register_sqmr_protocol_client(buffer_size);
+    let (event_sender, mock_event_response_manager) =
+        mock_register_sqmr_protocol_client(buffer_size);
     let p2p_sync_channels = P2pSyncClientChannels {
         header_sender,
         state_diff_sender,
         transaction_sender,
         class_sender,
+        event_sender,
     };
     let class_manager_client = Arc::new(MockClassManagerClient::new());
     let p2p_sync = P2pSyncClient::new(
@@ -131,6 +141,7 @@ pub fn setup() -> TestArgs {
         mock_state_diff_response_manager,
         mock_transaction_response_manager,
         mock_class_response_manager,
+        mock_event_response_manager,
     }
 }
 
@@ -142,6 +153,8 @@ pub enum DataType {
     StateDiff,
     #[allow(dead_code)]
     Class,
+    #[allow(dead_code)]
+    Event,
 }
 
 pub enum Action {
@@ -192,6 +205,7 @@ pub async fn run_test(
             .cloned()
             .unwrap_or(1),
         num_block_classes_per_query: max_query_lengths.get(&DataType::Class).cloned().unwrap_or(1),
+        num_block_events_per_query: max_query_lengths.get(&DataType::Event).cloned().unwrap_or(1),
         wait_period_for_new_data: WAIT_PERIOD_FOR_NEW_DATA,
         wait_period_for_other_protocol: WAIT_PERIOD_FOR_OTHER_PROTOCOL,
         buffer_size: BUFFER_SIZE,
@@ -206,11 +220,13 @@ pub async fn run_test(
     let (transaction_sender, mut mock_transaction_network) =
         mock_register_sqmr_protocol_client(buffer_size);
     let (class_sender, mut mock_class_network) = mock_register_sqmr_protocol_client(buffer_size);
+    let (event_sender, mut mock_event_network) = mock_register_sqmr_protocol_client(buffer_size);
     let p2p_sync_channels = P2pSyncClientChannels {
         header_sender,
         state_diff_sender,
         transaction_sender,
         class_sender,
+        event_sender,
     };
     let (mut internal_block_sender, internal_block_receiver) = mpsc::channel(buffer_size);
     let p2p_sync = P2pSyncClient::new(
@@ -226,6 +242,7 @@ pub async fn run_test(
     let mut state_diff_current_query_responses_manager = None;
     let mut transaction_current_query_responses_manager = None;
     let mut class_current_query_responses_manager = None;
+    let mut event_current_query_responses_manager = None;
 
     let (sync_future_sender, sync_future_receiver) = oneshot::channel();
     let mut sync_future_sender = Some(sync_future_sender);
@@ -258,6 +275,12 @@ pub async fn run_test(
                                 get_next_query_and_update_responses_manager(
                                     &mut mock_class_network,
                                     &mut class_current_query_responses_manager,
+                                ).await.0
+                            }
+                            DataType::Event => {
+                                get_next_query_and_update_responses_manager(
+                                    &mut mock_event_network,
+                                    &mut event_current_query_responses_manager,
                                 ).await.0
                             }
                         };
@@ -310,6 +333,13 @@ pub async fn run_test(
                     }
                     Action::ValidateReportSent(DataType::Class) => {
                         let responses_manager = class_current_query_responses_manager.take()
+                            .expect(
+                                "Called ValidateReportSent without calling ReceiveQuery on the same
+                                data type");
+                        responses_manager.assert_reported(TIMEOUT_FOR_TEST).await;
+                    }
+                    Action::ValidateReportSent(DataType::Event) => {
+                        let responses_manager = event_current_query_responses_manager.take()
                             .expect(
                                 "Called ValidateReportSent without calling ReceiveQuery on the same
                                 data type");
@@ -410,6 +440,7 @@ pub(crate) async fn wait_for_marker(
             DataType::Transaction => txn.get_body_marker().unwrap(),
             DataType::StateDiff => txn.get_state_marker().unwrap(),
             DataType::Class => txn.get_class_manager_block_marker().unwrap(),
+            DataType::Event => txn.get_event_marker().unwrap(),
         };
 
         if storage_marker >= expected_marker {

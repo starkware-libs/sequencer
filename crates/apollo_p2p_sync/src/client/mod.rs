@@ -2,6 +2,7 @@ mod block_data_stream_builder;
 mod class;
 #[cfg(test)]
 mod class_test;
+mod event;
 mod header;
 #[cfg(test)]
 mod header_test;
@@ -22,6 +23,7 @@ use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 use apollo_protobuf::sync::{
     ClassQuery,
     DataOrFin,
+    EventQuery,
     HeaderQuery,
     SignedBlockHeader,
     StateDiffChunk,
@@ -32,6 +34,7 @@ use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
 use block_data_stream_builder::{BlockDataResult, BlockDataStreamBuilder};
 use class::ClassStreamBuilder;
+use event::EventStreamFactory;
 use futures::channel::mpsc::{Receiver, SendError, Sender};
 use futures::never::Never;
 use futures::stream::BoxStream;
@@ -40,7 +43,7 @@ use header::HeaderStreamBuilder;
 use papyrus_common::pending_classes::ApiContractClass;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
-use starknet_api::transaction::FullTransaction;
+use starknet_api::transaction::{Event, FullTransaction, TransactionHash};
 use state_diff::StateDiffStreamBuilder;
 use tokio_stream::StreamExt;
 use tracing::{info, instrument};
@@ -70,12 +73,14 @@ type HeaderSqmrSender = SqmrClientSender<HeaderQuery, DataOrFin<SignedBlockHeade
 type StateSqmrDiffSender = SqmrClientSender<StateDiffQuery, DataOrFin<StateDiffChunk>>;
 type TransactionSqmrSender = SqmrClientSender<TransactionQuery, DataOrFin<FullTransaction>>;
 type ClassSqmrSender = SqmrClientSender<ClassQuery, DataOrFin<(ApiContractClass, ClassHash)>>;
+type EventSqmrSender = SqmrClientSender<EventQuery, DataOrFin<(Event, TransactionHash)>>;
 
 pub struct P2pSyncClientChannels {
     header_sender: HeaderSqmrSender,
     state_diff_sender: StateSqmrDiffSender,
     transaction_sender: TransactionSqmrSender,
     class_sender: ClassSqmrSender,
+    event_sender: EventSqmrSender,
 }
 
 impl P2pSyncClientChannels {
@@ -84,8 +89,9 @@ impl P2pSyncClientChannels {
         state_diff_sender: StateSqmrDiffSender,
         transaction_sender: TransactionSqmrSender,
         class_sender: ClassSqmrSender,
+        event_sender: EventSqmrSender,
     ) -> Self {
-        Self { header_sender, state_diff_sender, transaction_sender, class_sender }
+        Self { header_sender, state_diff_sender, transaction_sender, class_sender, event_sender }
     }
     pub(crate) fn create_stream(
         self,
@@ -129,7 +135,20 @@ impl P2pSyncClientChannels {
             config.num_block_classes_per_query,
         );
 
-        header_stream.merge(state_diff_stream).merge(transaction_stream).merge(class_stream)
+        let event_stream = EventStreamFactory::create_stream(
+            self.event_sender,
+            storage_reader.clone(),
+            Some(internal_blocks_receivers.event_receiver),
+            config.wait_period_for_new_data,
+            config.wait_period_for_other_protocol,
+            config.num_block_events_per_query,
+        );
+
+        header_stream
+            .merge(state_diff_stream)
+            .merge(transaction_stream)
+            .merge(class_stream)
+            .merge(event_stream)
     }
 }
 
@@ -200,6 +219,7 @@ pub(crate) struct InternalBlocksReceivers {
     state_diff_receiver: Receiver<SyncBlock>,
     transaction_receiver: Receiver<SyncBlock>,
     class_receiver: Receiver<SyncBlock>,
+    event_receiver: Receiver<SyncBlock>,
 }
 
 pub struct InternalBlocksSenders {
@@ -207,6 +227,7 @@ pub struct InternalBlocksSenders {
     state_diff_sender: Sender<SyncBlock>,
     transaction_sender: Sender<SyncBlock>,
     class_sender: Sender<SyncBlock>,
+    event_sender: Sender<SyncBlock>,
 }
 
 impl InternalBlocksSenders {
@@ -214,17 +235,17 @@ impl InternalBlocksSenders {
         let header_send = self.header_sender.send(sync_block.clone());
         let state_diff_send = self.state_diff_sender.send(sync_block.clone());
         let transaction_send = self.transaction_sender.send(sync_block.clone());
-        let class_send = self.class_sender.send(sync_block);
-        let res =
-            futures::future::join4(header_send, state_diff_send, transaction_send, class_send)
-                .await;
-        match res {
-            (Ok(()), Ok(()), Ok(()), Ok(())) => Ok(()),
-            (Err(e), _, _, _) => Err(e),
-            (_, Err(e), _, _) => Err(e),
-            (_, _, Err(e), _) => Err(e),
-            (_, _, _, Err(e)) => Err(e),
-        }
+        let class_send = self.class_sender.send(sync_block.clone());
+        let event_send = self.event_sender.send(sync_block);
+        let (h, sd, tx, cl, ev) = futures::future::join5(
+            header_send,
+            state_diff_send,
+            transaction_send,
+            class_send,
+            event_send,
+        )
+        .await;
+        h.and(sd).and(tx).and(cl).and(ev)
     }
 }
 
@@ -239,6 +260,7 @@ impl InternalBlocksChannels {
         let (state_diff_sender, state_diff_receiver) = futures::channel::mpsc::channel(100);
         let (transaction_sender, transaction_receiver) = futures::channel::mpsc::channel(100);
         let (class_sender, class_receiver) = futures::channel::mpsc::channel(100);
+        let (event_sender, event_receiver) = futures::channel::mpsc::channel(100);
 
         Self {
             receivers: InternalBlocksReceivers {
@@ -246,12 +268,14 @@ impl InternalBlocksChannels {
                 state_diff_receiver,
                 transaction_receiver,
                 class_receiver,
+                event_receiver,
             },
             senders: InternalBlocksSenders {
                 header_sender,
                 state_diff_sender,
                 transaction_sender,
                 class_sender,
+                event_sender,
             },
         }
     }

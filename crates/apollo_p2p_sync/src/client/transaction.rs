@@ -31,10 +31,11 @@ impl BlockData for (BlockBody, BlockNumber) {
         _class_manager_client: &'a mut SharedClassManagerClient,
     ) -> BoxFuture<'a, Result<(), P2pSyncClientError>> {
         async move {
+            let (block_body, block_number) = *self;
             let num_txs =
-                self.0.transactions.len().try_into().expect("Failed to convert usize to u64");
-            storage_writer.begin_rw_txn()?.append_body(self.1, self.0)?.commit()?;
-            STATE_SYNC_BODY_MARKER.set_lossy(self.1.unchecked_next().0);
+                block_body.transactions.len().try_into().expect("Failed to convert usize to u64");
+            storage_writer.begin_rw_txn()?.append_body(block_number, block_body)?.commit()?;
+            STATE_SYNC_BODY_MARKER.set_lossy(block_number.unchecked_next().0);
             STATE_SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
             Ok(())
         }
@@ -45,7 +46,6 @@ impl BlockData for (BlockBody, BlockNumber) {
 pub(crate) struct TransactionStreamFactory;
 
 impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
-    // TODO(Eitan): Add events protocol to BlockBody or split their write to storage
     type Output = (BlockBody, BlockNumber);
 
     const TYPE_DESCRIPTION: &'static str = "transactions";

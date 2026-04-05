@@ -7,6 +7,7 @@ use apollo_network::network_manager::{ClientResponsesManager, SqmrClientSender};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_protobuf::sync::{BlockHashOrNumber, DataOrFin, Direction, Query};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_storage::body::BodyStorageReader;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
@@ -17,6 +18,7 @@ use futures::stream::BoxStream;
 use futures::{FutureExt, StreamExt};
 use starknet_api::block::{BlockNumber, BlockSignature};
 use starknet_api::core::ClassHash;
+use starknet_api::transaction::TransactionHash;
 use tracing::{debug, info, trace, warn};
 
 use super::{P2pSyncClientError, STEP};
@@ -38,6 +40,7 @@ pub(crate) enum BlockNumberLimit {
     Unlimited,
     HeaderMarker,
     StateDiffMarker,
+    BodyMarker,
 }
 
 pub(crate) trait BlockDataStreamBuilder<InputFromNetwork>
@@ -116,11 +119,14 @@ where
             'send_query_and_parse_responses: loop {
                 let limit = match Self::BLOCK_NUMBER_LIMIT {
                     BlockNumberLimit::Unlimited => num_blocks_per_query,
-                    BlockNumberLimit::HeaderMarker | BlockNumberLimit::StateDiffMarker => {
+                    BlockNumberLimit::HeaderMarker
+                        | BlockNumberLimit::StateDiffMarker
+                        | BlockNumberLimit::BodyMarker => {
                         let (last_block_number, description) = match Self::BLOCK_NUMBER_LIMIT {
                             BlockNumberLimit::HeaderMarker => (storage_reader.begin_ro_txn()?.get_header_marker()?, "header"),
                             BlockNumberLimit::StateDiffMarker => (storage_reader.begin_ro_txn()?.get_state_marker()?, "state diff"),
-                            _ => unreachable!(),
+                            BlockNumberLimit::BodyMarker => (storage_reader.begin_ro_txn()?.get_body_marker()?, "body"),
+                            BlockNumberLimit::Unlimited => unreachable!(),
                         };
                         let limit = min(last_block_number.0 - current_block_number.0, num_blocks_per_query);
                         if limit == 0 {
@@ -271,6 +277,15 @@ pub(crate) enum BadPeerError {
     ClassNotInStateDiff { class_hash: ClassHash },
     #[error("Received two classes with the same hash: {class_hash}.")]
     DuplicateClass { class_hash: ClassHash },
+    #[error(
+        "Expected to receive {expected} events for block {block_number} from the network. Got \
+         {actual} instead."
+    )]
+    NotEnoughEvents { expected: usize, actual: usize, block_number: u64 },
+    #[error(
+        "Received an event with transaction hash {tx_hash} that is not in block {block_number}."
+    )]
+    EventWithUnknownTransactionHash { tx_hash: TransactionHash, block_number: u64 },
 }
 
 #[derive(thiserror::Error, Debug)]
