@@ -11,6 +11,7 @@ mod manager_test;
 
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus_config::config::{
@@ -56,6 +57,9 @@ use crate::types::{
     ValidatorId,
 };
 use crate::votes_threshold::QuorumType;
+
+pub(crate) const CONSENSUS_RUNNING_PAST_STOP_HEIGHT: &str =
+    "Consensus is running past stop height, going to sleep...";
 
 /// Arguments for running consensus.
 pub struct RunConsensusArguments {
@@ -140,6 +144,16 @@ where
                     );
                 }
             }
+        }
+        if manager
+            .consensus_config
+            .dynamic_config
+            .stop_at_height
+            .is_some_and(|stop_height| current_height > stop_height)
+        {
+            warn!(height = current_height.0, "{CONSENSUS_RUNNING_PAST_STOP_HEIGHT}");
+            tokio::time::sleep(Duration::from_secs(2)).await;
+            continue;
         }
 
         match manager
