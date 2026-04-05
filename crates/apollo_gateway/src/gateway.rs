@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -29,6 +30,7 @@ use apollo_transaction_converter::{
 };
 use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use starknet_api::block::StarknetVersion;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
@@ -38,6 +40,7 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::transaction::fields::{Proof, ProofFacts, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
+use starknet_api::versioned_constants_logic::set_effective_latest_version;
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tokio::time::timeout;
@@ -178,6 +181,40 @@ impl<
     pub async fn start(&self) {
         register_metrics();
         self.proof_archive_writer.connect().await;
+        if self.config.static_config.behavior_mode == BehaviorMode::Echonet {
+            self.set_effective_starknet_version_from_echonet().await;
+        }
+    }
+
+    async fn set_effective_starknet_version_from_echonet(&self) {
+        let url: reqwest::Url = self
+            .config
+            .static_config
+            .recorder_url
+            .join("echonet/get_starknet_version")
+            .expect("recorder_url is validated at config load; joining a static path cannot fail")
+            .as_str()
+            .parse()
+            .expect("valid URL");
+
+        match reqwest::get(url).await {
+            Ok(response) if response.status().is_success() => match response.text().await {
+                Ok(version_str) => match StarknetVersion::try_from(version_str.trim()) {
+                    Ok(version) => {
+                        info!("Setting effective Starknet version from echonet: {version}");
+                        set_effective_latest_version(version);
+                    }
+                    Err(e) => {
+                        warn!("Failed to parse starknet version '{version_str}' from echonet: {e}")
+                    }
+                },
+                Err(e) => warn!("Failed to read echonet starknet version response: {e}"),
+            },
+            Ok(response) => {
+                warn!("Echonet get_starknet_version returned HTTP {}", response.status())
+            }
+            Err(e) => warn!("Failed to fetch starknet version from echonet: {e}"),
+        }
     }
 
     #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]
