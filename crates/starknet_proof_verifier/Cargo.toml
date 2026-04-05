@@ -16,3 +16,7 @@ serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }

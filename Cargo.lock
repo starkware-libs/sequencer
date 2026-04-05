@@ -12669,6 +12669,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_sizeof",
  "privacy-circuit-verify",
+ "rstest",
  "serde",
  "starknet-types-core",
  "starknet_api",
