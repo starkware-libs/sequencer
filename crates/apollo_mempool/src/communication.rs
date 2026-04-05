@@ -26,6 +26,7 @@ use reqwest::Client;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
+use serde::de::DeserializeOwned;
 use starknet_api::block::{GasPrice, ReplayMetadata};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
@@ -198,7 +199,7 @@ impl MempoolCommunicationWrapper {
             }
         };
 
-        match self.try_fetch_tx_block_metadata(&url).await {
+        match self.try_fetch_json::<TxBlockMetadata>(&url).await {
             Ok(tx_block_metadata) => {
                 self.mempool.update_tx_block_metadata(tx_hash, tx_block_metadata);
                 true
@@ -210,15 +211,12 @@ impl MempoolCommunicationWrapper {
         }
     }
 
-    async fn try_fetch_tx_block_metadata(
-        &self,
-        url: &reqwest::Url,
-    ) -> Result<TxBlockMetadata, String> {
+    async fn try_fetch_json<T: DeserializeOwned>(&self, url: &reqwest::Url) -> Result<T, String> {
         const REQUEST_TIMEOUT_SECS: u64 = 2;
         let response = self
             .echonet_client
             .get(url.as_str())
-            .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
+            .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
             .send()
             .await
             .map_err(|e| format!("request failed: {}", e))?;
@@ -227,7 +225,7 @@ impl MempoolCommunicationWrapper {
             return Err(format!("HTTP {}", response.status()));
         }
 
-        response.json::<TxBlockMetadata>().await.map_err(|e| format!("invalid response: {}", e))
+        response.json::<T>().await.map_err(|e| format!("invalid response: {}", e))
     }
 }
 
