@@ -4,6 +4,7 @@ use apollo_batcher_config::config::BatcherDynamicConfig;
 use apollo_class_manager_config::config::ClassManagerDynamicConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
+use apollo_gateway_config::config::GatewayDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentChannelClient;
@@ -34,6 +35,7 @@ pub trait ConfigManagerClient: Send + Sync {
     ) -> ConfigManagerClientResult<ClassManagerDynamicConfig>;
     fn get_consensus_dynamic_config(&self) -> ConfigManagerClientResult<ConsensusDynamicConfig>;
     fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig>;
+    fn get_gateway_dynamic_config(&self) -> ConfigManagerClientResult<GatewayDynamicConfig>;
     fn get_http_server_dynamic_config(&self) -> ConfigManagerClientResult<HttpServerDynamicConfig>;
     fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig>;
     fn get_state_sync_dynamic_config(&self) -> ConfigManagerClientResult<StateSyncDynamicConfig>;
@@ -65,6 +67,7 @@ where
     impl_config_manager_getter!(class_manager_dynamic_config, ClassManagerDynamicConfig);
     impl_config_manager_getter!(consensus_dynamic_config, ConsensusDynamicConfig);
     impl_config_manager_getter!(context_dynamic_config, ContextDynamicConfig);
+    impl_config_manager_getter!(gateway_dynamic_config, GatewayDynamicConfig);
     impl_config_manager_getter!(http_server_dynamic_config, HttpServerDynamicConfig);
     impl_config_manager_getter!(mempool_dynamic_config, MempoolDynamicConfig);
     impl_config_manager_getter!(state_sync_dynamic_config, StateSyncDynamicConfig);

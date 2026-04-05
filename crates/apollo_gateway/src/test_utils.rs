@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use apollo_class_manager_types::MockClassManagerClient;
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_gateway_config::compiler_version::VersionId;
-use apollo_gateway_config::config::GatewayConfig;
+use apollo_gateway_config::config::{GatewayConfig, GatewayDynamicConfig};
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_proof_manager_types::MockProofManagerClient;
 use apollo_transaction_converter::TransactionConverter;
@@ -193,5 +194,11 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> GatewayForBenchma
         Arc::new(transaction_converter),
         stateless_tx_validator,
         proof_archive_writer,
+        Arc::new({
+            let mut mock = MockConfigManagerClient::new();
+            mock.expect_get_gateway_dynamic_config()
+                .returning(|| Ok(GatewayDynamicConfig::default()));
+            mock
+        }),
     )
 }
