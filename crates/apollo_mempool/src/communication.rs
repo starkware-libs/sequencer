@@ -27,7 +27,7 @@ use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
 use serde::de::DeserializeOwned;
-use starknet_api::block::{GasPrice, ReplayMetadata};
+use starknet_api::block::{GasPrice, ReplayMetadata, StarknetVersion};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -172,12 +172,37 @@ impl MempoolCommunicationWrapper {
         self.mempool.mempool_snapshot()
     }
 
-    fn resolve_block_metadata(&mut self) -> MempoolResult<ReplayMetadata> {
+    pub(crate) async fn resolve_block_metadata(&mut self) -> MempoolResult<ReplayMetadata> {
         let block_metadata = self.mempool.resolve_block_metadata();
-        Ok(ReplayMetadata {
+        let default_metadata = ReplayMetadata {
             timestamp: block_metadata.timestamp,
             block_number: block_metadata.block_number,
-        })
+            sequencer_address: ContractAddress::default(),
+            starknet_version: StarknetVersion::LATEST,
+        };
+
+        if !self.mempool.is_fifo() {
+            return Ok(default_metadata);
+        }
+
+        let Some(block_number) = block_metadata.block_number else {
+            return Ok(default_metadata);
+        };
+        let url = self
+            .mempool
+            .config
+            .static_config
+            .recorder_url
+            .join(&format!("echonet/get_block_metadata?block_number={}", block_number.0))
+            .expect("recorder_url is validated at config load; joining a static path cannot fail");
+
+        match self.try_fetch_json::<ReplayMetadata>(&url).await {
+            Ok(metadata) => Ok(metadata),
+            Err(e) => {
+                warn!("Failed to fetch block metadata for block {}: {}", block_number, e);
+                Ok(default_metadata)
+            }
+        }
     }
 
     // Fetches tx block metadata from recorder and updates mempool.
@@ -259,7 +284,7 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
                 MempoolResponse::GetMempoolSnapshot(self.mempool_snapshot())
             }
             MempoolRequest::ResolveBlockMetadata => {
-                MempoolResponse::ResolveBlockMetadata(self.resolve_block_metadata())
+                MempoolResponse::ResolveBlockMetadata(self.resolve_block_metadata().await)
             }
         }
     }
