@@ -28,7 +28,7 @@ use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, declare_tx_args, felt, invoke_tx_args, nonce, tx_hash};
 
-use super::DelayedQueues;
+use super::AddTransactionQueue;
 use crate::communication::MempoolCommunicationWrapper;
 use crate::fee_transaction_queue::FeeTransactionQueue;
 use crate::mempool::{
@@ -150,7 +150,7 @@ impl MempoolTestContentBuilder {
     fn build_full_mempool(self) -> Mempool {
         Mempool {
             config: self.config.clone(),
-            delayed_queues: DelayedQueues::new(self.config.static_config.declare_delay),
+            delayed_declares: AddTransactionQueue::new(),
             tx_pool: self.content.tx_pool.unwrap_or_default().into_values().collect(),
             tx_queue: Box::new(FeeTransactionQueue::new(
                 self.content.priority_txs.unwrap_or_default(),
@@ -1381,7 +1381,7 @@ fn delay_declare_txs() {
 
     // Complete the first declare's delay.
     fake_clock.advance(declare_delay - Duration::from_secs(1));
-    // Add another transaction to trigger draining of ready delayed txs.
+    // Add another transaction to trigger `add_ready_declares`.
     let another_tx_1 =
         add_tx_input!(tx_hash: 123, address: "0x123", tx_nonce: 123, account_nonce: 0, tip: 123);
     add_tx(&mut mempool, &another_tx_1);
@@ -1391,7 +1391,7 @@ fn delay_declare_txs() {
 
     // Complete the second declare's delay.
     fake_clock.advance(Duration::from_secs(1));
-    // Add another transaction to trigger draining of ready delayed txs.
+    // Add another transaction to trigger `add_ready_declares`
     let another_tx_2 =
         add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 5, account_nonce: 0, tip: 100);
     add_tx(&mut mempool, &another_tx_2);
