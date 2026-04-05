@@ -713,6 +713,12 @@ pub struct BlockSignature(pub Signature);
 pub struct ReplayMetadata {
     pub timestamp: UnixTimestamp,
     pub block_number: Option<BlockNumber>,
+    pub sequencer_address: ContractAddress,
+    pub starknet_version: StarknetVersion,
+    pub l1_gas_price_wei: GasPrice,
+    pub l1_data_gas_price_wei: GasPrice,
+    pub l1_gas_price_fri: GasPrice,
+    pub l1_data_gas_price_fri: GasPrice,
 }
 
 /// The error type returned from the block verification functions.

@@ -13,26 +13,49 @@ use axum::routing::get;
 use axum::Router;
 use reqwest::Url;
 use rstest::rstest;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, GasPrice, StarknetVersion};
+use starknet_api::contract_address;
+use starknet_api::core::ContractAddress;
 use starknet_api::transaction::TransactionHash;
 use tokio::net::TcpListener;
 
 use crate::add_tx_input;
-use crate::communication::MempoolCommunicationWrapper;
+use crate::communication::{BlockProposalParams, MempoolCommunicationWrapper};
 use crate::mempool::Mempool;
 
-// Starts a mock HTTP server that simulates the recorder's get_tx_block_metadata endpoint.
+// Starts a mock HTTP server simulating the recorder's get_tx_block_metadata endpoint.
 // Returns the base URL (e.g., "http://127.0.0.1:12345").
-async fn mock_tx_metadata_recorder(response: Result<TxBlockMetadata, StatusCode>) -> String {
-    let app = Router::new().route(
-        "/echonet/get_tx_block_metadata",
-        get(move || async move {
-            match response {
-                Ok(metadata) => (StatusCode::OK, Json(metadata)).into_response(),
-                Err(status) => status.into_response(),
-            }
-        }),
-    );
+async fn mock_tx_metadata_recorder(
+    tx_metadata_response: Result<TxBlockMetadata, StatusCode>,
+) -> String {
+    mock_recorder(tx_metadata_response, Err(StatusCode::NOT_FOUND)).await
+}
+
+// Starts a mock HTTP server simulating both recorder endpoints.
+// Returns the base URL (e.g., "http://127.0.0.1:12345").
+async fn mock_recorder(
+    tx_metadata_response: Result<TxBlockMetadata, StatusCode>,
+    block_metadata_response: Result<BlockProposalParams, StatusCode>,
+) -> String {
+    let app = Router::new()
+        .route(
+            "/echonet/get_tx_block_metadata",
+            get(move || async move {
+                match tx_metadata_response {
+                    Ok(metadata) => (StatusCode::OK, Json(metadata)).into_response(),
+                    Err(status) => status.into_response(),
+                }
+            }),
+        )
+        .route(
+            "/echonet/get_block_metadata",
+            get(move || async move {
+                match block_metadata_response {
+                    Ok(metadata) => (StatusCode::OK, Json(metadata)).into_response(),
+                    Err(status) => status.into_response(),
+                }
+            }),
+        );
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
@@ -105,4 +128,67 @@ async fn test_add_tx_with_recorder_integration() {
     let args_wrapper = AddTransactionArgsWrapper { args: tx_args, p2p_message_metadata: None };
 
     wrapper.add_tx(args_wrapper).await.unwrap();
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_resolve_block_metadata_echonet_success() {
+    // Mempool provides timestamp and block_number via tx_metadata.
+    let timestamp = 1000;
+    let block_number = BlockNumber(1234);
+    let tx_metadata = TxBlockMetadata { timestamp, block_number };
+
+    // Echonet provides sequencer_address, starknet_version, and gas prices.
+    let sequencer_address = contract_address!("0x456");
+    let starknet_version = StarknetVersion::V0_14_2;
+    let l1_gas_price_wei = GasPrice(100);
+    let l1_data_gas_price_wei = GasPrice(200);
+    let l1_gas_price_fri = GasPrice(300);
+    let l1_data_gas_price_fri = GasPrice(400);
+    let block_metadata = BlockProposalParams {
+        sequencer_address,
+        starknet_version,
+        l1_gas_price_wei,
+        l1_data_gas_price_wei,
+        l1_gas_price_fri,
+        l1_data_gas_price_fri,
+    };
+
+    let recorder_url = mock_recorder(Ok(tx_metadata), Ok(block_metadata)).await;
+    let mut wrapper = create_mempool_communication_wrapper(recorder_url);
+
+    let tx_args = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let args_wrapper = AddTransactionArgsWrapper { args: tx_args, p2p_message_metadata: None };
+    wrapper.add_tx(args_wrapper).await.unwrap();
+
+    let result = wrapper.resolve_block_metadata().await.unwrap();
+
+    // timestamp and block_number come from mempool, not echonet.
+    assert_eq!(result.timestamp, timestamp);
+    assert_eq!(result.block_number, Some(block_number));
+    // sequencer_address, starknet_version, and gas prices come from echonet.
+    assert_eq!(result.sequencer_address, sequencer_address);
+    assert_eq!(result.starknet_version, starknet_version);
+    assert_eq!(result.l1_gas_price_wei, l1_gas_price_wei);
+    assert_eq!(result.l1_data_gas_price_wei, l1_data_gas_price_wei);
+    assert_eq!(result.l1_gas_price_fri, l1_gas_price_fri);
+    assert_eq!(result.l1_data_gas_price_fri, l1_data_gas_price_fri);
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_resolve_block_metadata_echonet_falls_back_on_http_error() {
+    let tx_metadata = TxBlockMetadata { timestamp: 1000, block_number: BlockNumber(1234) };
+
+    let recorder_url = mock_recorder(Ok(tx_metadata), Err(StatusCode::INTERNAL_SERVER_ERROR)).await;
+    let mut wrapper = create_mempool_communication_wrapper(recorder_url);
+
+    let tx_args = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let args_wrapper = AddTransactionArgsWrapper { args: tx_args, p2p_message_metadata: None };
+    wrapper.add_tx(args_wrapper).await.unwrap();
+
+    let result = wrapper.resolve_block_metadata().await.unwrap();
+
+    assert_eq!(result.sequencer_address, ContractAddress::default());
+    assert_eq!(result.starknet_version, StarknetVersion::LATEST);
 }

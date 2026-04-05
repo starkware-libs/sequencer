@@ -27,7 +27,8 @@ use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
 use serde::de::DeserializeOwned;
-use starknet_api::block::{GasPrice, ReplayMetadata};
+use serde::{Deserialize, Serialize};
+use starknet_api::block::{GasPrice, ReplayMetadata, StarknetVersion};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -35,6 +36,17 @@ use tracing::warn;
 
 use crate::mempool::Mempool;
 use crate::metrics::register_metrics;
+
+/// The fields returned by `echonet/get_block_metadata`.
+#[derive(Clone, Deserialize, Serialize)]
+pub(crate) struct BlockProposalParams {
+    pub sequencer_address: ContractAddress,
+    pub starknet_version: StarknetVersion,
+    pub l1_gas_price_wei: GasPrice,
+    pub l1_data_gas_price_wei: GasPrice,
+    pub l1_gas_price_fri: GasPrice,
+    pub l1_data_gas_price_fri: GasPrice,
+}
 
 pub type LocalMempoolServer =
     LocalComponentServer<MempoolCommunicationWrapper, MempoolRequest, MempoolResponse>;
@@ -172,12 +184,49 @@ impl MempoolCommunicationWrapper {
         self.mempool.mempool_snapshot()
     }
 
-    fn resolve_block_metadata(&mut self) -> MempoolResult<ReplayMetadata> {
+    pub(crate) async fn resolve_block_metadata(&mut self) -> MempoolResult<ReplayMetadata> {
         let block_metadata = self.mempool.resolve_block_metadata();
-        Ok(ReplayMetadata {
+        let default_metadata = ReplayMetadata {
             timestamp: block_metadata.timestamp,
             block_number: block_metadata.block_number,
-        })
+            sequencer_address: ContractAddress::default(),
+            starknet_version: StarknetVersion::LATEST,
+            l1_gas_price_wei: GasPrice::default(),
+            l1_data_gas_price_wei: GasPrice::default(),
+            l1_gas_price_fri: GasPrice::default(),
+            l1_data_gas_price_fri: GasPrice::default(),
+        };
+
+        if !self.mempool.is_fifo() {
+            return Ok(default_metadata);
+        }
+
+        let Some(block_number) = block_metadata.block_number else {
+            return Ok(default_metadata);
+        };
+        let url = self
+            .mempool
+            .config
+            .static_config
+            .recorder_url
+            .join(&format!("echonet/get_block_metadata?block_number={}", block_number.0))
+            .expect("recorder_url is validated at config load; joining a static path cannot fail");
+
+        match self.try_fetch_json::<BlockProposalParams>(&url).await {
+            Ok(echonet_metadata) => Ok(ReplayMetadata {
+                sequencer_address: echonet_metadata.sequencer_address,
+                starknet_version: echonet_metadata.starknet_version,
+                l1_gas_price_wei: echonet_metadata.l1_gas_price_wei,
+                l1_data_gas_price_wei: echonet_metadata.l1_data_gas_price_wei,
+                l1_gas_price_fri: echonet_metadata.l1_gas_price_fri,
+                l1_data_gas_price_fri: echonet_metadata.l1_data_gas_price_fri,
+                ..default_metadata
+            }),
+            Err(e) => {
+                warn!("Failed to fetch block metadata for block {}: {}", block_number, e);
+                Ok(default_metadata)
+            }
+        }
     }
 
     // Fetches tx block metadata from recorder and updates mempool.
@@ -259,7 +308,7 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
                 MempoolResponse::GetMempoolSnapshot(self.mempool_snapshot())
             }
             MempoolRequest::ResolveBlockMetadata => {
-                MempoolResponse::ResolveBlockMetadata(self.resolve_block_metadata())
+                MempoolResponse::ResolveBlockMetadata(self.resolve_block_metadata().await)
             }
         }
     }

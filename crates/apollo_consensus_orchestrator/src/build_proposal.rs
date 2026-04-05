@@ -28,7 +28,7 @@ use apollo_protobuf::consensus::{
 };
 use apollo_time::time::{Clock, DateTime};
 use apollo_transaction_converter::TransactionConverterError;
-use starknet_api::block::{GasPrice, ReplayMetadata};
+use starknet_api::block::{GasPrice, ReplayMetadata, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -134,16 +134,28 @@ async fn get_proposal_metadata(
     override_block_metadata: bool,
     batcher: &dyn BatcherClient,
     clock: &dyn Clock,
+    builder_address: ContractAddress,
 ) -> ReplayMetadata {
     if override_block_metadata {
         match batcher.get_block_metadata().await {
             Ok(block_metadata) => return block_metadata,
             Err(err) => {
-                warn!("Failed to get timestamp from batcher, falling back to clock time: {err:?}");
+                warn!(
+                    "Failed to get block metadata from batcher, falling back to defaults: {err:?}"
+                );
             }
         }
     }
-    ReplayMetadata { timestamp: clock.unix_now(), block_number: None }
+    ReplayMetadata {
+        timestamp: clock.unix_now(),
+        block_number: None,
+        sequencer_address: builder_address,
+        starknet_version: StarknetVersion::LATEST,
+        l1_gas_price_wei: GasPrice::default(),
+        l1_data_gas_price_wei: GasPrice::default(),
+        l1_gas_price_fri: GasPrice::default(),
+        l1_data_gas_price_fri: GasPrice::default(),
+    }
 }
 
 async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResult<ProposalInit> {
@@ -151,30 +163,47 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
         args.override_block_metadata,
         args.deps.batcher.as_ref(),
         args.deps.clock.as_ref(),
+        args.builder_address,
     )
     .await;
     let timestamp = proposal_metadata.timestamp;
-    let (l1_prices_fri, l1_prices_wei) = get_l1_prices_in_fri_and_wei(
-        args.deps.l1_gas_price_provider.clone(),
-        timestamp,
-        args.previous_proposal_init.as_ref(),
-        &args.gas_price_params,
-    )
-    .await;
+    let (l1_gas_price_wei, l1_data_gas_price_wei, l1_gas_price_fri, l1_data_gas_price_fri) =
+        if args.override_block_metadata {
+            (
+                proposal_metadata.l1_gas_price_wei,
+                proposal_metadata.l1_data_gas_price_wei,
+                proposal_metadata.l1_gas_price_fri,
+                proposal_metadata.l1_data_gas_price_fri,
+            )
+        } else {
+            let (l1_prices_fri, l1_prices_wei) = get_l1_prices_in_fri_and_wei(
+                args.deps.l1_gas_price_provider.clone(),
+                timestamp,
+                args.previous_proposal_init.as_ref(),
+                &args.gas_price_params,
+            )
+            .await;
+            (
+                l1_prices_wei.l1_gas_price,
+                l1_prices_wei.l1_data_gas_price,
+                l1_prices_fri.l1_gas_price,
+                l1_prices_fri.l1_data_gas_price,
+            )
+        };
     let init = ProposalInit {
         height: args.build_param.height,
         round: args.build_param.round,
         valid_round: args.build_param.valid_round,
         proposer: args.build_param.proposer,
-        builder: args.builder_address,
+        builder: proposal_metadata.sequencer_address,
         timestamp,
         l1_da_mode: args.l1_da_mode,
         l2_gas_price_fri: args.l2_gas_price,
-        l1_gas_price_wei: l1_prices_wei.l1_gas_price,
-        l1_data_gas_price_wei: l1_prices_wei.l1_data_gas_price,
-        l1_gas_price_fri: l1_prices_fri.l1_gas_price,
-        l1_data_gas_price_fri: l1_prices_fri.l1_data_gas_price,
-        starknet_version: starknet_api::block::StarknetVersion::LATEST,
+        l1_gas_price_wei,
+        l1_data_gas_price_wei,
+        l1_gas_price_fri,
+        l1_data_gas_price_fri,
+        starknet_version: proposal_metadata.starknet_version,
         // TODO(Asmaa): Put the real value once we have it.
         version_constant_commitment: Default::default(),
     };
