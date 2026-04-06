@@ -1,18 +1,17 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::utils::{
-    end_to_end_flow,
-    test_single_tx,
+    ACCOUNT_ID_0,
     EndToEndFlowArgs,
     EndToEndTestScenario,
-    ACCOUNT_ID_0,
+    end_to_end_flow,
+    test_single_tx,
 };
 use blockifier::bouncer::BouncerWeights;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use starknet_api::rpc_transaction::RpcTransaction;
 
-// Uses end_to_end_flow with test identifier EndToEndFlowTest and instance indices [0, 1, 2].
-/// Number of threads is 3 = Num of sequencer + 1 for the test thread.
-#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+// Uses end_to_end_flow with test identifier EndToEndFlowTest and instance indices [0, 1, 2, 3].
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn declare_tx_flow() {
     end_to_end_flow(
         EndToEndFlowArgs::new(
@@ -20,7 +19,7 @@ async fn declare_tx_flow() {
             create_test_scenarios(),
             BouncerWeights::default().proving_gas,
         )
-        .instance_indices([0, 1, 2]),
+        .instance_indices([0, 1, 2, 3]),
     )
     .await
 }

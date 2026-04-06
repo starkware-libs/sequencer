@@ -1,10 +1,10 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::utils::{
-    end_to_end_flow,
-    validate_tx_count,
+    ACCOUNT_ID_1 as CAIRO0_ACCOUNT_ID,
     EndToEndFlowArgs,
     EndToEndTestScenario,
-    ACCOUNT_ID_1 as CAIRO0_ACCOUNT_ID,
+    end_to_end_flow,
+    validate_tx_count,
 };
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::calldata::create_calldata;
@@ -22,8 +22,7 @@ use starknet_api::{calldata, felt};
 
 const CUSTOM_CAIRO_0_INVOKE_TX_COUNT: usize = 9;
 
-/// The test uses 3 threads: 1 for the test's main thread and 2 for the sequencers.
-#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn custom_cairo0_txs() {
     end_to_end_flow(EndToEndFlowArgs::new(
         TestIdentifier::EndToEndFlowTestCustomCairo0Txs,

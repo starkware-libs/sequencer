@@ -1,17 +1,16 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::utils::{
+    EndToEndFlowArgs,
+    EndToEndTestScenario,
     create_l1_to_l2_messages_args,
     end_to_end_flow,
     test_single_tx,
-    EndToEndFlowArgs,
-    EndToEndTestScenario,
 };
 use blockifier::bouncer::BouncerWeights;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use starknet_api::transaction::L1HandlerTransaction;
 
-/// Number of threads is 3 = Num of sequencer + 1 for the test thread.
-#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn reverted_l1_handler_tx_flow() {
     end_to_end_flow(
         EndToEndFlowArgs::new(

@@ -8,6 +8,9 @@ use apollo_class_manager_config::config::{ClassManagerDynamicConfig, FsClassMana
 use apollo_committer_config::config::ApolloCommitterConfig;
 use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config::dumping::{
+    ConfigPointers,
+    Pointers,
+    SerializeConfig,
     generate_optional_struct_pointer,
     generate_struct_pointer,
     prepend_sub_config_name,
@@ -15,9 +18,6 @@ use apollo_config::dumping::{
     ser_param,
     ser_pointer_target_param,
     set_pointing_param_paths,
-    ConfigPointers,
-    Pointers,
-    SerializeConfig,
 };
 use apollo_config::loading::load_and_process_config;
 use apollo_config::validators::config_validate;

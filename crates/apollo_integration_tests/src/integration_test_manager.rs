@@ -25,12 +25,12 @@ use apollo_storage::{MarkerKind, StorageConfig};
 use apollo_test_utils::send_request;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::context::ChainInfo;
-use futures::future::join_all;
 use futures::TryFutureExt;
+use futures::future::join_all;
 use mempool_test_utils::starknet_api_test_utils::{
-    contract_class,
     AccountId,
     MultiAccountTransactionGenerator,
+    contract_class,
 };
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_base_layer::test_utils::anvil_mine_blocks;
@@ -41,7 +41,7 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::TransactionHash;
 use tokio::join;
-use tokio::time::{sleep, timeout, Instant};
+use tokio::time::{Instant, sleep, timeout};
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{info, instrument};
 
@@ -63,8 +63,14 @@ use crate::node_component_configs::{
 };
 use crate::sequencer_simulator_utils::SequencerSimulator;
 use crate::state_reader::StorageTestHandles;
-use crate::storage::{get_integration_test_storage, CustomPaths};
+use crate::storage::{CustomPaths, get_integration_test_storage};
 use crate::utils::{
+    ConsensusTxs,
+    DeclareTx,
+    DeployAndInvokeTxs,
+    TEST_SCENARIO_TIMEOUT,
+    TIME_BETWEEN_CHECKS,
+    TestScenario,
     create_consensus_manager_configs_from_network_configs,
     create_integration_test_tx_generator,
     create_mempool_p2p_configs,
@@ -75,12 +81,6 @@ use crate::utils::{
     set_validator_id,
     spawn_local_eth_to_strk_oracle,
     spawn_local_success_recorder,
-    ConsensusTxs,
-    DeclareTx,
-    DeployAndInvokeTxs,
-    TestScenario,
-    TEST_SCENARIO_TIMEOUT,
-    TIME_BETWEEN_CHECKS,
 };
 
 pub const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
@@ -390,6 +390,7 @@ impl IntegrationTestManager {
         num_of_consolidated_nodes: usize,
         num_of_distributed_nodes: usize,
         num_of_hybrid_nodes: usize,
+        num_of_validation_only_nodes: usize,
         custom_paths: Option<CustomPaths>,
         test_unique_id: TestIdentifier,
     ) -> Self {
@@ -400,6 +401,7 @@ impl IntegrationTestManager {
             num_of_consolidated_nodes,
             num_of_distributed_nodes,
             num_of_hybrid_nodes,
+            num_of_validation_only_nodes,
             custom_paths,
             test_unique_id,
         )
@@ -1216,14 +1218,16 @@ async fn get_sequencer_setup_configs(
     num_of_consolidated_nodes: usize,
     num_of_distributed_nodes: usize,
     num_of_hybrid_nodes: usize,
+    num_of_validation_only_nodes: usize,
     custom_paths: Option<CustomPaths>,
     test_unique_id: TestIdentifier,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let mut available_ports_generator = AvailablePortsGenerator::new(test_unique_id.into());
 
-    let mut node_component_configs = Vec::with_capacity(
-        num_of_consolidated_nodes + num_of_distributed_nodes + num_of_hybrid_nodes,
-    );
+    let num_of_proposing_nodes =
+        num_of_consolidated_nodes + num_of_distributed_nodes + num_of_hybrid_nodes;
+    let mut node_component_configs =
+        Vec::with_capacity(num_of_proposing_nodes + num_of_validation_only_nodes);
     for _ in 0..num_of_consolidated_nodes {
         node_component_configs
             .push((create_consolidated_component_configs(), NodeType::Consolidated));
@@ -1239,6 +1243,10 @@ async fn get_sequencer_setup_configs(
             create_distributed_component_configs(&mut available_ports_generator),
             NodeType::Distributed,
         ));
+    }
+    for _ in 0..num_of_validation_only_nodes {
+        node_component_configs
+            .push((create_consolidated_component_configs(), NodeType::Consolidated));
     }
 
     info!("Creating node configurations.");
@@ -1259,6 +1267,7 @@ async fn get_sequencer_setup_configs(
         ),
         component_configs_len,
         &chain_info.chain_id,
+        num_of_validation_only_nodes,
     );
 
     let node_indices: HashSet<usize> = (0..component_configs_len).collect();
@@ -1302,6 +1311,7 @@ async fn get_sequencer_setup_configs(
     for (node_index, (node_component_config, node_type)) in
         node_component_configs.into_iter().enumerate()
     {
+        let validation_only = node_index >= num_of_proposing_nodes;
         let mut config_available_ports = available_ports_generator
             .next()
             .expect("Failed to get an AvailablePorts instance for node configs");
@@ -1349,6 +1359,7 @@ async fn get_sequencer_setup_configs(
                 block_max_capacity_gas(),
                 validator_id,
                 ALLOW_BOOTSTRAP_TXS,
+                validation_only,
             );
 
             let base_app_config = DeploymentBaseAppConfig::new(config, config_pointers_map);

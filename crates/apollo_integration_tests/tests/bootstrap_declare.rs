@@ -1,9 +1,9 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::utils::{
-    end_to_end_flow,
-    test_single_tx,
     EndToEndFlowArgs,
     EndToEndTestScenario,
+    end_to_end_flow,
+    test_single_tx,
 };
 use mempool_test_utils::starknet_api_test_utils::generate_bootstrap_declare;
 use starknet_api::execution_resources::GasAmount;
@@ -19,8 +19,7 @@ fn create_bootstrap_declare_scenario() -> EndToEndTestScenario {
 /// Bootstrap declare txs are unique: they are sent from a special address and do not increment its
 /// nonce. As a result, they are not removed from the mempool upon successful execution, and will
 /// only be removed after being rejected during a subsequent attempt.
-/// The test uses 3 threads: 1 for the test's main thread and 2 for the sequencers.
-#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bootstrap_declare() {
     end_to_end_flow(
         EndToEndFlowArgs::new(

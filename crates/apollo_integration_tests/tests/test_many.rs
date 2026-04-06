@@ -1,11 +1,11 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::utils::{
+    ACCOUNT_ID_1,
+    EndToEndFlowArgs,
+    EndToEndTestScenario,
     create_invoke_txs,
     end_to_end_flow,
     validate_tx_count,
-    EndToEndFlowArgs,
-    EndToEndTestScenario,
-    ACCOUNT_ID_1,
 };
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use starknet_api::execution_resources::GasAmount;
@@ -14,8 +14,7 @@ use starknet_api::rpc_transaction::RpcTransaction;
 const N_TXS: usize = 15;
 
 /// This test checks that at least one block is full.
-/// The test uses 3 threads: 1 for the test's main thread and 2 for the sequencers.
-#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn many_txs_fill_at_least_one_block() {
     end_to_end_flow(
         EndToEndFlowArgs::new(
