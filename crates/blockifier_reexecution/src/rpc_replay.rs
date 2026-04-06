@@ -6,15 +6,23 @@ use std::time::Duration;
 use blockifier::blockifier::config::{CairoNativeMode, ContractClassManagerConfig};
 use blockifier::context::ChainInfo;
 use blockifier::state::contract_class_manager::ContractClassManager;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::{
+    PartialBlockHashComponents,
+    TransactionHashingData,
+    calculate_block_commitments,
+    calculate_block_hash,
+};
+use starknet_api::core::ClassHash;
 #[cfg(feature = "cairo_native")]
 use starknet_api::contract_class::SierraVersion;
 
 use crate::errors::{RPCStateReaderError, ReexecutionError, ReexecutionResult};
 use crate::state_reader::config::RpcStateReaderConfig;
 use crate::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
+use crate::state_reader::rpc_objects::BlockHeader;
 use crate::state_reader::rpc_state_reader::ConsecutiveRpcStateReaders;
-use crate::utils::{compare_state_diffs, get_chain_info};
+use crate::utils::{commitment_state_diff_to_thin, compare_state_diffs, get_chain_info};
 
 struct ReplayCounters {
     matched: AtomicU64,
@@ -167,7 +175,7 @@ fn replay_worker(
     }
 }
 
-/// Reexecutes a single block via RPC and compares the actual state diff against the chain.
+/// Reexecutes a single block via RPC, compares the state diff and block hash against the chain.
 fn reexecute_block(
     block_number: u64,
     config: &RpcStateReaderConfig,
@@ -185,9 +193,23 @@ fn reexecute_block(
         contract_class_manager.clone(),
     );
 
-    let (_block_state, expected_state_diff, actual_state_diff) = readers.reexecute_block()?;
+    let block_header = readers.get_next_block_header()?;
+    let deprecated_declared_classes = readers.get_next_block_deprecated_declared_classes()?;
 
-    Ok(compare_state_diffs(expected_state_diff, actual_state_diff, BlockNumber(block_number)))
+    let (_block_state, expected_state_diff, actual_state_diff, txs_hashing_data) =
+        readers.reexecute_block()?;
+
+    let state_diff_matched =
+        compare_state_diffs(expected_state_diff, actual_state_diff.clone(), BlockNumber(block_number));
+    let block_hash_matched = compare_block_hash(
+        txs_hashing_data,
+        actual_state_diff,
+        deprecated_declared_classes,
+        &block_header,
+        BlockNumber(block_number),
+    );
+
+    Ok(state_diff_matched && block_hash_matched)
 }
 
 /// Reexecutes a single block twice -- once with native and once with CASM -- and compares the
@@ -204,7 +226,7 @@ fn reexecute_block_native_vs_casm(
         .prev()
         .expect("Block number 0 cannot be reexecuted (no previous block).");
 
-    let min_sierra_version_override = Some(SierraVersion::new(0, 0, 0));
+    let min_sierra_version_override = Some(SierraVersion::new(1, 7, 0));
 
     let mut native_readers = ConsecutiveRpcStateReaders::new(
         prev_block,
@@ -214,7 +236,7 @@ fn reexecute_block_native_vs_casm(
         native_manager.clone(),
     );
     native_readers.min_sierra_version_override = min_sierra_version_override.clone();
-    let (_block_state, _expected, native_state_diff) = native_readers.reexecute_block()?;
+    let (_block_state, _expected, native_state_diff, _) = native_readers.reexecute_block()?;
 
     let mut casm_readers = ConsecutiveRpcStateReaders::new(
         prev_block,
@@ -224,9 +246,77 @@ fn reexecute_block_native_vs_casm(
         casm_manager.clone(),
     );
     casm_readers.min_sierra_version_override = min_sierra_version_override;
-    let (_block_state, _expected, casm_state_diff) = casm_readers.reexecute_block()?;
+    let (_block_state, _expected, casm_state_diff, _) = casm_readers.reexecute_block()?;
 
     Ok(compare_state_diffs(native_state_diff, casm_state_diff, BlockNumber(block_number)))
+}
+
+/// Computes the block hash from the reexecution output and compares it against the expected hash
+/// from the chain. Returns `true` if they match.
+///
+/// Uses the state root from the RPC block header (`new_root`) since the blockifier does not
+/// compute state roots. If the state diff already matched, the state root should also match.
+fn compare_block_hash(
+    txs_hashing_data: Vec<TransactionHashingData>,
+    actual_state_diff: blockifier::state::cached_state::CommitmentStateDiff,
+    deprecated_declared_classes: Vec<ClassHash>,
+    block_header: &BlockHeader,
+    block_number: BlockNumber,
+) -> bool {
+    let starknet_version = match block_header.starknet_version.clone().try_into() {
+        Ok(version) => version,
+        Err(error) => {
+            tracing::warn!(
+                "Block {block_number}: cannot parse starknet version '{}': {error}",
+                block_header.starknet_version
+            );
+            return false;
+        }
+    };
+
+    let thin_state_diff =
+        commitment_state_diff_to_thin(actual_state_diff, deprecated_declared_classes);
+
+    let (commitments, _measurements) = tokio::runtime::Handle::current().block_on(
+        calculate_block_commitments(
+            &txs_hashing_data,
+            thin_state_diff,
+            block_header.l1_da_mode,
+            &starknet_version,
+        ),
+    );
+
+    let block_info: BlockInfo = match block_header.clone().try_into() {
+        Ok(info) => info,
+        Err(error) => {
+            tracing::warn!("Block {block_number}: cannot build block info: {error}");
+            return false;
+        }
+    };
+    let partial_block_hash_components = PartialBlockHashComponents::new(&block_info, commitments);
+
+    let computed_hash = match calculate_block_hash(
+        &partial_block_hash_components,
+        block_header.new_root,
+        block_header.parent_hash,
+    ) {
+        Ok(hash) => hash,
+        Err(error) => {
+            tracing::warn!("Block {block_number}: block hash calculation failed: {error}");
+            return false;
+        }
+    };
+
+    if computed_hash == block_header.block_hash {
+        true
+    } else {
+        tracing::warn!(
+            "Block hash mismatch for block {block_number}.\n  expected: {}\n  actual:   {}",
+            block_header.block_hash,
+            computed_hash,
+        );
+        false
+    }
 }
 
 fn is_block_not_found(err: &ReexecutionError) -> bool {

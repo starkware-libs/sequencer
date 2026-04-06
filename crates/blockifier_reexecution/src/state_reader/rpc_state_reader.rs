@@ -405,6 +405,34 @@ impl RpcStateReader {
         })
     }
 
+    /// Returns the deprecated (Cairo 0) class hashes declared in this block.
+    pub fn get_deprecated_declared_classes(&self) -> ReexecutionResult<Vec<ClassHash>> {
+        let raw_statediff = &retry_request!(self.retry_config, || self.send_rpc_request(
+            "starknet_getStateUpdate",
+            GetBlockWithTxHashesParams { block_id: self.block_id }
+        ))?["state_diff"];
+
+        let deprecated_declared_classes = raw_statediff["deprecated_declared_classes"]
+            .as_array()
+            .unwrap_or(&vec![])
+            .iter()
+            .map(|hash_value| {
+                let hash_str = hash_value.as_str().ok_or_else(|| {
+                    RPCStateReaderError::InternalError(
+                        "deprecated_declared_classes entry is not a string".to_string(),
+                    )
+                })?;
+                Ok(ClassHash(Felt::from_hex(hash_str).map_err(|_| {
+                    RPCStateReaderError::InternalError(format!(
+                        "invalid hex in deprecated_declared_classes: {hash_str}"
+                    ))
+                })?))
+            })
+            .collect::<ReexecutionResult<Vec<ClassHash>>>()?;
+
+        Ok(deprecated_declared_classes)
+    }
+
     pub fn get_contract_class_mapping_dumper(&self) -> Option<StarknetContractClassMapping> {
         self.contract_class_mapping_dumper.lock().unwrap().clone()
     }
@@ -583,6 +611,14 @@ impl ConsecutiveRpcStateReaders {
         }
     }
 
+    pub fn get_next_block_header(&self) -> ReexecutionResult<BlockHeader> {
+        self.next_block_state_reader.get_block_header()
+    }
+
+    pub fn get_next_block_deprecated_declared_classes(&self) -> ReexecutionResult<Vec<ClassHash>> {
+        self.next_block_state_reader.get_deprecated_declared_classes()
+    }
+
     pub fn get_serializable_data_next_block(&self) -> ReexecutionResult<SerializableDataNextBlock> {
         let (transactions_next_block, declared_classes) =
             self.get_next_block_starknet_api_txs_and_declared_classes()?;
@@ -688,7 +724,8 @@ impl ConsecutiveRpcStateReaders {
         let old_block_hash = self.get_old_block_hash().unwrap();
 
         // Run the reexecution and get the state maps and contract class mapping.
-        let (block_state, expected_state_diff, actual_state_diff) = self.reexecute_block().unwrap();
+        let (block_state, expected_state_diff, actual_state_diff, _txs_hashing_data) =
+            self.reexecute_block().unwrap();
 
         // Warn if state diffs don't match, but continue writing the file.
         compare_state_diffs(expected_state_diff, actual_state_diff, block_number);
