@@ -8,11 +8,17 @@ FROM ubuntu:24.04 AS base
 
 COPY scripts/install_build_tools.sh scripts/install_build_tools.sh
 COPY scripts/install_cargo_tools.sh scripts/install_cargo_tools.sh
+COPY scripts/compiler_versions.sh scripts/compiler_versions.sh
+COPY scripts/install_compiler_binaries.sh scripts/install_compiler_binaries.sh
+COPY scripts/install_llvm19.sh scripts/install_llvm19.sh
 COPY scripts/dependencies.sh scripts/dependencies.sh
 COPY scripts/apt_utils.sh scripts/apt_utils.sh
 COPY scripts/cargo_tool_utils.sh scripts/cargo_tool_utils.sh
 COPY scripts/requirements.txt scripts/requirements.txt
 COPY rust-toolchain.toml .
+# Version files read by compiler_versions.sh (the single source of truth).
+COPY crates/apollo_infra_utils/src/cairo_compiler_version.txt crates/apollo_infra_utils/src/cairo_compiler_version.txt
+COPY crates/apollo_compile_to_native/src/native_compiler_version.txt crates/apollo_compile_to_native/src/native_compiler_version.txt
 
 RUN apt update && apt -y install \
     bzip2 \
@@ -24,13 +30,15 @@ ENV RUSTUP_HOME=/var/tmp/rust
 ENV CARGO_HOME=${RUSTUP_HOME}
 ENV PATH=$PATH:${RUSTUP_HOME}/bin
 
-RUN scripts/install_build_tools.sh
-RUN rustup toolchain install
-RUN cargo install --locked cargo-chef
-
+# LLVM env vars must be set before install_build_tools.sh so that
+# cargo install starknet-native-compile can find LLVM.
 ENV LLVM_SYS_191_PREFIX="/usr/lib/llvm-19/"
 ENV MLIR_SYS_190_PREFIX="/usr/lib/llvm-19/"
 ENV TABLEGEN_190_PREFIX="/usr/lib/llvm-19/"
+
+RUN scripts/install_build_tools.sh
+RUN rustup toolchain install
+RUN cargo install --locked cargo-chef
 
 # Define python venv and install python packages.
 ENV VIRTUAL_ENV=/opt/sequencer_venv
@@ -39,4 +47,16 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r scripts/requirements.txt
 ENV PATH="${VIRTUAL_ENV}/bin:$PATH"
 
 # Cleanup.
-RUN rm -f scripts/install_build_tools.sh scripts/install_cargo_tools.sh scripts/cargo_tool_utils.sh scripts/dependencies.sh scripts/apt_utils.sh scripts/requirements.txt
+RUN rm -f \
+    scripts/install_build_tools.sh \
+    scripts/install_cargo_tools.sh \
+    scripts/install_compiler_binaries.sh \
+    scripts/install_llvm19.sh \
+    scripts/compiler_versions.sh \
+    scripts/cargo_tool_utils.sh \
+    scripts/dependencies.sh \
+    scripts/apt_utils.sh \
+    scripts/requirements.txt \
+    crates/apollo_infra_utils/src/cairo_compiler_version.txt \
+    crates/apollo_compile_to_native/src/native_compiler_version.txt && \
+    rmdir -p crates/apollo_infra_utils/src crates/apollo_compile_to_native/src 2>/dev/null || true

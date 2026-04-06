@@ -14,6 +14,12 @@ pub fn shared_folder_dir(out_dir: &std::path::Path) -> std::path::PathBuf {
     target_dir(out_dir).join("shared_executables")
 }
 
-pub fn binary_path(out_dir: &std::path::Path, binary_name: &str) -> std::path::PathBuf {
+/// Returns the binary name as a PathBuf. `Command::new` will find it in PATH.
+pub fn binary_path(binary_name: &str) -> std::path::PathBuf {
+    std::path::PathBuf::from(binary_name)
+}
+
+// TODO(Avi): Remove once build.rs callers are gone.
+pub fn legacy_binary_path(out_dir: &std::path::Path, binary_name: &str) -> std::path::PathBuf {
     shared_folder_dir(out_dir).join(binary_name)
 }
