@@ -15,6 +15,10 @@ function build() {
     source /tmp/venv/bin/activate
     rustup toolchain install
     cargo build --release -p native_blockifier --features "cairo_native" || ret=$?
+    # Install starknet-native-compile and place a copy at a known relative path
+    # so the workflow's GCS upload key is stable (decoupled from $CARGO_HOME).
+    "$(dirname "${BASH_SOURCE[0]}")/install_compiler_binaries.sh" \
+        --native --dest target/release/shared_executables || ret=$?
     clean
     return $ret
 }
