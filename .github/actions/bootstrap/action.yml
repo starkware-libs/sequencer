@@ -12,10 +12,10 @@ runs:
     - name: Setup Namespace Cache
       uses: ./.github/actions/namespace_cache
 
+    - name: Install cairo native.
+      uses: ./.github/actions/setup_native_deps
+
     - name: Install rust.
       uses: ./.github/actions/install_rust
       with:
         github_token: ${{ inputs.github_token }}
-
-    - name: Install cairo native.
-      uses: ./.github/actions/setup_native_deps
