@@ -76,7 +76,7 @@ pub struct GetBlockWithTxHashesParams {
     pub block_id: BlockId,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct BlockHeader {
     pub block_hash: BlockHash,
     pub parent_hash: BlockHash,
