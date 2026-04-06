@@ -1,5 +1,6 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
+use apollo_compilation_utils::build_utils::verify_compiler_binary;
 use apollo_compilation_utils::compiler_utils::compile_with_args;
 use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compilation_utils::paths::binary_path;
@@ -9,7 +10,7 @@ use cairo_lang_starknet_classes::contract_class::ContractClass;
 use cairo_native::executor::AotContractExecutor;
 use tempfile::NamedTempFile;
 
-use crate::constants::CAIRO_NATIVE_BINARY_NAME;
+use crate::constants::{CAIRO_NATIVE_BINARY_NAME, REQUIRED_CAIRO_NATIVE_VERSION};
 
 #[derive(Clone)]
 pub struct SierraToNativeCompiler {
@@ -21,7 +22,11 @@ impl SierraToNativeCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
         let path_to_binary = match &config.compiler_binary_path {
             Some(path) => path.clone(),
-            None => binary_path(&out_dir(), CAIRO_NATIVE_BINARY_NAME),
+            None => {
+                let path = binary_path(CAIRO_NATIVE_BINARY_NAME);
+                verify_compiler_binary(&path, REQUIRED_CAIRO_NATIVE_VERSION);
+                path
+            }
         };
         Self { config, path_to_binary }
     }
@@ -50,13 +55,8 @@ impl SierraToNativeCompiler {
             resource_limits,
         )?;
 
-        Ok(AotContractExecutor::from_path(Path::new(&output_file_path))
+        Ok(AotContractExecutor::from_path(output_file.path())
             .map_err(|e| CompilationUtilError::CompilationError(e.to_string()))?
             .unwrap())
     }
-}
-
-// Returns the OUT_DIR. This function is only operable at run time.
-fn out_dir() -> PathBuf {
-    env!("RUNTIME_ACCESSIBLE_OUT_DIR").into()
 }

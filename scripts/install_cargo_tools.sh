@@ -23,7 +23,7 @@ function install_cargo_tool_if_needed() {
     local crate=$2
     local version=$3
     local current
-    current=$($version_cmd 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1) || true
+    current=$($version_cmd 2>/dev/null | grep -oP '\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?' | head -1) || true
     if [ "$current" = "$version" ]; then
         log_step "install_build_tools" "$crate $version already installed, skipping"
     else
@@ -49,6 +49,9 @@ function install_cargo_tools() {
     install_cargo_tool_if_needed "cargo nextest --version" "cargo-nextest" "0.9.113"
     install_cargo_tool_if_needed "taplo --version" "taplo-cli" "0.9.3"
     install_cargo_tool_if_needed "cargo deny --version" "cargo-deny" "0.16.2"
+
+    # Install Sierra compiler binaries (starknet-sierra-compile, starknet-native-compile).
+    "${SCRIPT_DIR}/install_compiler_binaries.sh"
 }
 
 install_cargo_tools
