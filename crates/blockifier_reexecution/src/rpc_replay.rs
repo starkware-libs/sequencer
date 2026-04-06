@@ -3,7 +3,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 #[cfg(feature = "cairo_native")]
-use blockifier::blockifier::config::{CairoNativeMode, ContractClassManagerConfig};
+use blockifier::blockifier::config::{
+    CairoNativeMode,
+    CairoNativeRunConfig,
+    ContractClassManagerConfig,
+};
 use blockifier::context::ChainInfo;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use starknet_api::block::BlockNumber;
@@ -56,11 +60,18 @@ pub async fn run_rpc_replay(
 
             #[cfg(feature = "cairo_native")]
             {
-                let mut native_config = ContractClassManagerConfig::default();
-                native_config.cairo_native_run_config.cairo_native_mode =
-                    CairoNativeMode::WaitOnCompilation;
-                let mut casm_config = ContractClassManagerConfig::default();
-                casm_config.cairo_native_run_config.cairo_native_mode = CairoNativeMode::Off;
+                let native_config = ContractClassManagerConfig {
+                    cairo_native_run_config: CairoNativeRunConfig::wait_on_compilation_for_testing(
+                    ),
+                    ..Default::default()
+                };
+                let casm_config = ContractClassManagerConfig {
+                    cairo_native_run_config: CairoNativeRunConfig {
+                        cairo_native_mode: CairoNativeMode::Off,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                };
                 ReplayMode::CompareNative {
                     native_manager: ContractClassManager::start(native_config),
                     casm_manager: ContractClassManager::start(casm_config),

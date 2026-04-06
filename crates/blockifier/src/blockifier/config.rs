@@ -255,6 +255,20 @@ impl Default for CairoNativeRunConfig {
     }
 }
 
+impl CairoNativeRunConfig {
+    /// Returns a config that waits for compilation to complete and panics on any compilation
+    /// failure. Use this for reexecution contexts where silent compilation failures would mask
+    /// correctness issues.
+    #[cfg(any(test, feature = "testing", feature = "reexecution"))]
+    pub fn wait_on_compilation_for_testing() -> Self {
+        Self {
+            cairo_native_mode: CairoNativeMode::WaitOnCompilation,
+            panic_on_compilation_failure: true,
+            ..Default::default()
+        }
+    }
+}
+
 impl SerializeConfig for CairoNativeRunConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([

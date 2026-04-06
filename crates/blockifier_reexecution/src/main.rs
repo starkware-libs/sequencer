@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use blockifier::blockifier::config::{CairoNativeMode, ContractClassManagerConfig};
+use blockifier::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::cli::{
     parse_block_numbers_args,
@@ -64,8 +64,8 @@ async fn main() {
     // Initialize the contract class manager.
     let mut contract_class_manager_config = ContractClassManagerConfig::default();
     if cfg!(feature = "cairo_native") {
-        contract_class_manager_config.cairo_native_run_config.cairo_native_mode =
-            CairoNativeMode::WaitOnCompilation;
+        contract_class_manager_config.cairo_native_run_config =
+            CairoNativeRunConfig::wait_on_compilation_for_testing();
     }
     let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
 
