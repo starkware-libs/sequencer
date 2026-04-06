@@ -1,5 +1,6 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::env;
+use std::fmt::Write;
 use std::sync::{Arc, LazyLock};
 
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
@@ -9,12 +10,10 @@ use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::StateResult;
 use indexmap::IndexMap;
-use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::ContractClass;
-use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::{SierraContractClass, StorageKey};
-use starknet_types_core::felt::Felt;
+use starknet_api::core::{ChainId, ContractAddress};
+use starknet_api::state::SierraContractClass;
 
 use crate::state_reader::config::RpcStateReaderConfig;
 
@@ -134,67 +133,149 @@ macro_rules! retry_request {
     }};
 }
 
-/// A struct for comparing `CommitmentStateDiff` instances, disregarding insertion order.
-/// This struct converts `IndexMap` fields to `BTreeMap`, providing a consistent ordering of keys.
-/// This allows `assert_eq` to produce clearer, ordered diffs when comparing instances, especially
-/// useful in testing.
-#[derive(Debug, PartialEq)]
-pub struct ComparableStateDiff {
-    address_to_class_hash: BTreeMap<ContractAddress, ClassHash>,
-    address_to_nonce: BTreeMap<ContractAddress, Nonce>,
-    storage_updates: BTreeMap<ContractAddress, BTreeMap<StorageKey, Felt>>,
-    class_hash_to_compiled_class_hash: BTreeMap<ClassHash, CompiledClassHash>,
-}
-
-impl From<CommitmentStateDiff> for ComparableStateDiff {
-    fn from(state_diff: CommitmentStateDiff) -> Self {
-        // Use helper function to convert IndexMap to HashMap for simplicity
-        fn to_btree_map<K: std::cmp::Ord, V>(index_map: IndexMap<K, V>) -> BTreeMap<K, V> {
-            index_map.into_iter().collect()
-        }
-
-        ComparableStateDiff {
-            address_to_class_hash: to_btree_map(state_diff.address_to_class_hash),
-            address_to_nonce: to_btree_map(state_diff.address_to_nonce),
-            storage_updates: state_diff
-                .storage_updates
-                .into_iter()
-                .map(|(address, storage)| (address, to_btree_map(storage)))
-                .collect(),
-            class_hash_to_compiled_class_hash: to_btree_map(
-                state_diff.class_hash_to_compiled_class_hash,
-            ),
-        }
-    }
-}
-
-/// Compares two state diffs, Returns `true` if they match.
-/// On mismatch, logs a detailed diff.
+/// Compares two state diffs. Returns `true` if they match. On mismatch, logs a detailed diff.
 pub fn compare_state_diffs(
     expected_state_diff: CommitmentStateDiff,
     actual_state_diff: CommitmentStateDiff,
     block_number: BlockNumber,
 ) -> bool {
-    let expected = ComparableStateDiff::from(expected_state_diff);
-    let actual = ComparableStateDiff::from(actual_state_diff);
-    let is_match = expected == actual;
-    if !is_match {
-        let expected_str = format!("{expected:#?}");
-        let actual_str = format!("{actual:#?}");
-        let diff = pretty_assertions::StrComparison::new(&expected_str, &actual_str);
-        tracing::warn!("State diff mismatch for block {block_number}.\n{diff}");
+    match format_state_diff_mismatch(expected_state_diff, actual_state_diff) {
+        None => true,
+        Some(diff) => {
+            tracing::warn!("State diff mismatch for block {block_number}.\n{diff}");
+            false
+        }
     }
-    is_match
+}
+
+/// Returns `None` if the two state diffs match, or `Some(diff)` with a human-readable description
+/// of the differences.
+pub(crate) fn format_state_diff_mismatch(
+    expected_state_diff: CommitmentStateDiff,
+    actual_state_diff: CommitmentStateDiff,
+) -> Option<String> {
+    if expected_state_diff == actual_state_diff {
+        return None;
+    }
+    // Destructuring `CommitmentStateDiff` ensures a compile error if new fields are added without
+    // updating this function.
+    let CommitmentStateDiff {
+        address_to_class_hash: expected_class_hashes,
+        address_to_nonce: expected_nonces,
+        storage_updates: expected_storage,
+        class_hash_to_compiled_class_hash: expected_compiled_class_hashes,
+    } = expected_state_diff;
+    let CommitmentStateDiff {
+        address_to_class_hash: actual_class_hashes,
+        address_to_nonce: actual_nonces,
+        storage_updates: actual_storage,
+        class_hash_to_compiled_class_hash: actual_compiled_class_hashes,
+    } = actual_state_diff;
+
+    let mut output = String::new();
+    diff_flat_map("address_to_class_hash", expected_class_hashes, actual_class_hashes, &mut output);
+    diff_flat_map("address_to_nonce", expected_nonces, actual_nonces, &mut output);
+    diff_flat_map(
+        "class_hash_to_compiled_class_hash",
+        expected_compiled_class_hashes,
+        actual_compiled_class_hashes,
+        &mut output,
+    );
+
+    // storage_updates is a nested map — diff each contract's storage separately.
+    // Convert only the outer map to BTreeMap for sorted address iteration;
+    // inner IndexMaps are passed directly to diff_flat_map.
+    let mut expected_storage: BTreeMap<_, _> = expected_storage.into_iter().collect();
+    let mut actual_storage: BTreeMap<_, _> = actual_storage.into_iter().collect();
+    let all_addresses: BTreeSet<ContractAddress> =
+        expected_storage.keys().chain(actual_storage.keys()).cloned().collect();
+    for address in all_addresses {
+        match (expected_storage.remove(&address), actual_storage.remove(&address)) {
+            (Some(expected_keys), Some(actual_keys)) => {
+                diff_flat_map(
+                    &format!("storage_updates[{address}]"),
+                    expected_keys,
+                    actual_keys,
+                    &mut output,
+                );
+            }
+            (Some(expected_keys), None) => {
+                writeln!(
+                    output,
+                    "  storage_updates[{address}]: missing in actual (expected {expected_keys:?})"
+                )
+                .unwrap();
+            }
+            (None, Some(actual_keys)) => {
+                writeln!(
+                    output,
+                    "  storage_updates[{address}]: missing in expected (actual {actual_keys:?})"
+                )
+                .unwrap();
+            }
+            _ => {}
+        }
+    }
+
+    Some(output)
+}
+
+/// Appends mismatching entries between two maps to `output`, under a named section header.
+fn diff_flat_map<K, V>(
+    name: &str,
+    expected: IndexMap<K, V>,
+    actual: IndexMap<K, V>,
+    output: &mut String,
+) where
+    K: Ord + std::hash::Hash + Eq + std::fmt::Debug,
+    V: PartialEq + std::fmt::Debug,
+{
+    let expected: BTreeMap<K, V> = expected.into_iter().collect();
+    let actual: BTreeMap<K, V> = actual.into_iter().collect();
+    let all_keys: BTreeSet<&K> = expected.keys().chain(actual.keys()).collect();
+    let mut section_printed = false;
+    for key in all_keys {
+        let (expected_value, actual_value) = (expected.get(key), actual.get(key));
+        let is_diff = match (&expected_value, &actual_value) {
+            (Some(expected_value), Some(actual_value)) => expected_value != actual_value,
+            (Some(_), None) | (None, Some(_)) => true,
+            _ => false,
+        };
+        if !is_diff {
+            continue;
+        }
+        if !section_printed {
+            writeln!(output, "  {name}:").unwrap();
+            section_printed = true;
+        }
+        writeln!(output, "    {key:?}:").unwrap();
+        match (expected_value, actual_value) {
+            (Some(expected_value), Some(actual_value)) => {
+                writeln!(output, "      expected: {expected_value:?}").unwrap();
+                writeln!(output, "      actual:   {actual_value:?}").unwrap();
+            }
+            (Some(expected_value), None) => {
+                writeln!(output, "      expected: {expected_value:?}").unwrap();
+                writeln!(output, "      actual:   (missing)").unwrap();
+            }
+            (None, Some(actual_value)) => {
+                writeln!(output, "      expected: (missing)").unwrap();
+                writeln!(output, "      actual:   {actual_value:?}").unwrap();
+            }
+            _ => {}
+        }
+    }
 }
 
 /// Asserts equality between two `CommitmentStateDiff` structs, ignoring insertion order.
+/// On failure, panics with a human-readable diff.
 #[macro_export]
 macro_rules! assert_eq_state_diff {
     ($expected_state_diff:expr, $actual_state_diff:expr $(,)?) => {
-        pretty_assertions::assert_eq!(
-            $crate::utils::ComparableStateDiff::from($expected_state_diff,),
-            $crate::utils::ComparableStateDiff::from($actual_state_diff,),
-            "Expected and actual state diffs do not match.",
-        );
+        if let Some(diff) =
+            $crate::utils::format_state_diff_mismatch($expected_state_diff, $actual_state_diff)
+        {
+            panic!("State diffs do not match.\n{diff}");
+        }
     };
 }
