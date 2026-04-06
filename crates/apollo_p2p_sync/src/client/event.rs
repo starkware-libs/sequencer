@@ -12,14 +12,14 @@ use futures::{FutureExt, StreamExt};
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::{Event, TransactionHash};
 
-use super::block_data_stream_builder::{
+use crate::client::block_data_stream_builder::{
     BadPeerError,
     BlockData,
     BlockDataStreamBuilder,
     BlockNumberLimit,
     ParseDataError,
 };
-use super::P2pSyncClientError;
+use crate::client::P2pSyncClientError;
 
 pub(crate) struct EventsForBlock {
     pub events_per_tx: Vec<Vec<Event>>,
