@@ -94,7 +94,6 @@ pub type MempoolResult<T> = Result<T, MempoolError>;
 pub struct MempoolSnapshot {
     pub transactions: Vec<TransactionHash>,
     pub delayed_declares: Vec<TransactionHash>,
-    pub delayed_proof_txs: Vec<TransactionHash>,
     pub transaction_queue: TransactionQueueSnapshot,
     pub mempool_state: MempoolStateSnapshot,
 }

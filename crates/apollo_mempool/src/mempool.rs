@@ -1,6 +1,5 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
-use std::time::Duration;
 
 use apollo_config::behavior_mode::BehaviorMode;
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
@@ -39,7 +38,6 @@ use crate::metrics::{
     metric_set_get_txs_size,
     LABEL_NAME_TX_TYPE,
     MEMPOOL_DELAYED_DECLARES_SIZE,
-    MEMPOOL_DELAYED_PROOF_TXS_SIZE,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
@@ -193,65 +191,16 @@ impl MempoolState {
     }
 }
 
-/// Classifies which transactions should be delayed before entering the main tx pool.
-#[cfg_attr(test, derive(Clone))]
-pub(crate) enum DelayedTx {
-    Declare,
-    ProofInvoke,
-}
-
-impl DelayedTx {
-    fn matches(&self, tx: &InternalRpcTransactionWithoutTxHash) -> bool {
-        match self {
-            Self::Declare => matches!(tx, InternalRpcTransactionWithoutTxHash::Declare(_)),
-            Self::ProofInvoke => {
-                matches!(tx, InternalRpcTransactionWithoutTxHash::Invoke(invoke_tx)
-                    if !invoke_tx.proof_facts.is_empty())
-            }
-        }
-    }
-}
-
-/// A queue to hold transactions that are waiting to be added to the tx pool after a delay.
-#[cfg_attr(test, derive(Clone))]
-pub(crate) struct AddTransactionQueue {
+// A queue to hold transactions that are waiting to be added to the tx pool.
+struct AddTransactionQueue {
     elements: VecDeque<(DateTime, AddTransactionArgs)>,
     // Keeps track of the total size of the transactions in this queue.
     size_in_bytes: u64,
-    delayed_tx: DelayedTx,
-    // A zero duration effectively disables the queue.
-    // Transactions are added directly to the pool.
-    delay: Duration,
 }
 
 impl AddTransactionQueue {
-    pub(crate) fn new(delayed_tx: DelayedTx, delay: Duration) -> Self {
-        AddTransactionQueue { elements: VecDeque::new(), size_in_bytes: 0, delayed_tx, delay }
-    }
-
-    /// If this tx matches and delay > 0, enqueue it and return None.
-    /// Otherwise return Some(args) unchanged.
-    /// Note: `Duration::ZERO` means the delay feature is disabled for this queue.
-    fn try_delay(&mut self, now: DateTime, args: AddTransactionArgs) -> Option<AddTransactionArgs> {
-        if self.delay > Duration::ZERO && self.delayed_tx.matches(&args.tx.tx) {
-            self.push_back(now, args);
-            None
-        } else {
-            Some(args)
-        }
-    }
-
-    /// Pop all txs whose delay has elapsed.
-    fn drain_ready(&mut self, now: DateTime) -> Vec<AddTransactionArgs> {
-        let mut ready = Vec::new();
-        while let Some((submission_time, _)) = self.front() {
-            if now - self.delay < *submission_time {
-                break;
-            }
-            let (_, args) = self.pop_front().expect("Delayed tx should exist.");
-            ready.push(args);
-        }
-        ready
+    fn new() -> Self {
+        AddTransactionQueue { elements: VecDeque::new(), size_in_bytes: 0 }
     }
 
     fn push_back(&mut self, submission_time: DateTime, args: AddTransactionArgs) {
@@ -291,53 +240,14 @@ impl AddTransactionQueue {
     fn size_in_bytes(&self) -> u64 {
         self.size_in_bytes
     }
-
-    fn tx_hashes(&self) -> Vec<TransactionHash> {
-        self.elements.iter().map(|(_, args)| args.tx.tx_hash).collect()
-    }
-}
-
-#[cfg_attr(test, derive(Clone))]
-pub(crate) struct DelayedQueues {
-    declares: AddTransactionQueue,
-    proof_invokes: AddTransactionQueue,
-}
-
-impl DelayedQueues {
-    fn new(declare_delay: Duration, proof_tx_delay: Duration) -> Self {
-        Self {
-            declares: AddTransactionQueue::new(DelayedTx::Declare, declare_delay),
-            proof_invokes: AddTransactionQueue::new(DelayedTx::ProofInvoke, proof_tx_delay),
-        }
-    }
-
-    fn iter(&self) -> impl Iterator<Item = &AddTransactionQueue> {
-        [&self.declares, &self.proof_invokes].into_iter()
-    }
-
-    fn iter_mut(&mut self) -> impl Iterator<Item = &mut AddTransactionQueue> {
-        [&mut self.declares, &mut self.proof_invokes].into_iter()
-    }
-
-    fn drain_ready(&mut self, now: DateTime) -> Vec<AddTransactionArgs> {
-        self.iter_mut().flat_map(|q| q.drain_ready(now)).collect()
-    }
-
-    fn size_in_bytes(&self) -> u64 {
-        self.iter().map(|q| q.size_in_bytes()).sum()
-    }
-
-    fn contains(&self, address: ContractAddress, nonce: Nonce) -> bool {
-        self.iter().any(|q| q.contains(address, nonce))
-    }
 }
 
 pub struct Mempool {
     pub(crate) config: MempoolConfig,
     // TODO(AlonH): add docstring explaining visibility and coupling of the fields.
-    // Transactions that are waiting to be added to the tx pool after a delay.
-    delayed_queues: DelayedQueues,
-    // All transactions currently held in the mempool (excluding delayed transactions).
+    // Declare transactions that are waiting to be added to the tx pool after a delay.
+    delayed_declares: AddTransactionQueue,
+    // All transactions currently held in the mempool (excluding the delayed declares).
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
     tx_queue: Box<dyn TransactionQueueTrait>,
@@ -357,14 +267,9 @@ impl Mempool {
             BehaviorMode::Starknet => Box::new(FeeTransactionQueue::default()),
         };
 
-        let delayed_queues = DelayedQueues::new(
-            config.static_config.declare_delay,
-            config.static_config.proof_tx_delay,
-        );
-
         Mempool {
             config: config.clone(),
-            delayed_queues,
+            delayed_declares: AddTransactionQueue::new(),
             tx_pool: TransactionPool::new(clock.clone()),
             tx_queue,
             accounts_with_gap: AccountsWithGap::new(),
@@ -414,8 +319,9 @@ impl Mempool {
     // TODO(AlonH): Consider renaming to `pop_txs` to be more consistent with the standard library.
     #[instrument(skip(self), err(level = "debug"))]
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<InternalRpcTransaction>> {
+        // All transactions are enqueued in FIFO mode.
         if !self.is_fifo() {
-            self.drain_ready_delayed_txs();
+            self.add_ready_declares();
         }
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
@@ -549,7 +455,7 @@ impl Mempool {
         // First remove old transactions from the pool.
         let mut account_nonce_updates = self.remove_expired_txs();
         if !self.is_fifo() {
-            self.drain_ready_delayed_txs();
+            self.add_ready_declares();
         }
 
         let tx_reference = TransactionReference::new(&args.tx);
@@ -568,10 +474,13 @@ impl Mempool {
             self.state.resolve_nonce(args.account_state.address, args.account_state.nonce),
         );
 
-        if self.is_fifo() {
-            self.add_tx_inner(args);
+        let should_delay_declare =
+            matches!(&args.tx.tx, InternalRpcTransactionWithoutTxHash::Declare(_))
+                && !self.is_fifo();
+        if should_delay_declare {
+            self.delayed_declares.push_back(self.clock.now(), args);
         } else {
-            self.add_or_delay_tx(args);
+            self.add_tx_inner(args);
         }
 
         self.update_state_metrics();
@@ -675,26 +584,17 @@ impl Mempool {
         }
     }
 
-    /// Drains all delayed transaction queues, moving ready transactions to the main pool.
-    fn drain_ready_delayed_txs(&mut self) {
+    fn add_ready_declares(&mut self) {
         let now = self.clock.now();
-        let ready_txs = self.delayed_queues.drain_ready(now);
-        for args in ready_txs {
+        while let Some((submission_time, _args)) = self.delayed_declares.front() {
+            if now - self.config.static_config.declare_delay < *submission_time {
+                break;
+            }
+            let (_submission_time, args) =
+                self.delayed_declares.pop_front().expect("Delay declare should exist.");
             self.add_tx_inner(args);
         }
         self.update_state_metrics();
-    }
-
-    /// Tries to delay the transaction. If no queue claims it, adds it to the pool directly.
-    fn add_or_delay_tx(&mut self, mut args: AddTransactionArgs) {
-        let now = self.clock.now();
-        for queue in self.delayed_queues.iter_mut() {
-            match queue.try_delay(now, args) {
-                None => return,
-                Some(returned_args) => args = returned_args,
-            }
-        }
-        self.add_tx_inner(args);
     }
 
     /// Update the mempool's internal state according to the committed block (resolves nonce gaps,
@@ -777,13 +677,13 @@ impl Mempool {
         self.state.validate_incoming_tx(tx_reference, incoming_account_nonce)
     }
 
-    /// Validates that the given transaction does not front-run a delayed transaction. This means in
-    /// particular that no fee escalation can occur to a transaction that is being delayed.
-    fn validate_no_delayed_tx_front_run(
+    /// Validates that the given transaction does not front run a delayed declare. This means in
+    /// particular that no fee escalation can occur to a declare that is being delayed.
+    fn validate_no_delayed_declare_front_run(
         &self,
         tx_reference: TransactionReference,
     ) -> MempoolResult<()> {
-        if self.delayed_queues.contains(tx_reference.address, tx_reference.nonce) {
+        if self.delayed_declares.contains(tx_reference.address, tx_reference.nonce) {
             return Err(MempoolError::DuplicateNonce {
                 address: tx_reference.address,
                 nonce: tx_reference.nonce,
@@ -834,7 +734,7 @@ impl Mempool {
     ) -> MempoolResult<()> {
         let TransactionReference { address, nonce, .. } = incoming_tx_reference;
 
-        self.validate_no_delayed_tx_front_run(incoming_tx_reference)?;
+        self.validate_no_delayed_declare_front_run(incoming_tx_reference)?;
 
         if !self.config.static_config.enable_fee_escalation {
             if self.tx_pool.get_by_address_and_nonce(address, nonce).is_some() {
@@ -968,15 +868,19 @@ impl Mempool {
     pub fn mempool_snapshot(&self) -> MempoolResult<MempoolSnapshot> {
         Ok(MempoolSnapshot {
             transactions: self.tx_pool.chronological_txs_hashes(),
-            delayed_declares: self.delayed_queues.declares.tx_hashes(),
-            delayed_proof_txs: self.delayed_queues.proof_invokes.tx_hashes(),
+            delayed_declares: self
+                .delayed_declares
+                .elements
+                .iter()
+                .map(|(_, args)| args.tx.tx_hash)
+                .collect(),
             transaction_queue: self.tx_queue.queue_snapshot(),
             mempool_state: self.state.state_snapshot(),
         })
     }
 
     fn size_in_bytes(&self) -> u64 {
-        self.tx_pool.size_in_bytes() + self.delayed_queues.size_in_bytes()
+        self.tx_pool.size_in_bytes() + self.delayed_declares.size_in_bytes()
     }
 
     // Returns true if the mempool will exceeds its capacity by adding the given transaction.
@@ -986,9 +890,9 @@ impl Mempool {
 
     fn update_accounts_with_gap(&mut self, address_to_nonce: AddressToNonce) {
         for (address, account_nonce) in address_to_nonce {
-            // A delayed transaction whose nonce matches the account nonce fills a gap if one
-            // exists.
-            if self.delayed_queues.contains(address, account_nonce) {
+            // Assumption: Future declares are not allowed — their nonce must match the account
+            // nonce, so they fill a gap if one exists.
+            if self.delayed_declares.contains(address, account_nonce) {
                 self.accounts_with_gap.swap_remove(&address);
                 continue;
             }
@@ -1086,8 +990,7 @@ impl Mempool {
         MEMPOOL_POOL_SIZE.set_lossy(self.tx_pool.len());
         MEMPOOL_PRIORITY_QUEUE_SIZE.set_lossy(self.tx_queue.priority_queue_len());
         MEMPOOL_PENDING_QUEUE_SIZE.set_lossy(self.tx_queue.pending_queue_len());
-        MEMPOOL_DELAYED_DECLARES_SIZE.set_lossy(self.delayed_queues.declares.len());
-        MEMPOOL_DELAYED_PROOF_TXS_SIZE.set_lossy(self.delayed_queues.proof_invokes.len());
+        MEMPOOL_DELAYED_DECLARES_SIZE.set_lossy(self.delayed_declares.len());
         MEMPOOL_TOTAL_SIZE_BYTES.set_lossy(self.size_in_bytes());
     }
 }
