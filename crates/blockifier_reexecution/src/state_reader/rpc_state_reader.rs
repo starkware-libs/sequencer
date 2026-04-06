@@ -583,6 +583,10 @@ impl ConsecutiveRpcStateReaders {
         }
     }
 
+    pub fn get_next_block_header(&self) -> ReexecutionResult<BlockHeader> {
+        self.next_block_state_reader.get_block_header()
+    }
+
     pub fn get_serializable_data_next_block(&self) -> ReexecutionResult<SerializableDataNextBlock> {
         let (transactions_next_block, declared_classes) =
             self.get_next_block_starknet_api_txs_and_declared_classes()?;
@@ -688,7 +692,8 @@ impl ConsecutiveRpcStateReaders {
         let old_block_hash = self.get_old_block_hash().unwrap();
 
         // Run the reexecution and get the state maps and contract class mapping.
-        let (block_state, expected_state_diff, actual_state_diff) = self.reexecute_block().unwrap();
+        let (block_state, expected_state_diff, actual_state_diff, _txs_hashing_data) =
+            self.reexecute_block().unwrap();
 
         // Warn if state diffs don't match, but continue writing the file.
         compare_state_diffs(expected_state_diff, actual_state_diff, block_number);
