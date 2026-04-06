@@ -233,8 +233,15 @@ fn memory_limit_error_message() {
         other => panic!("Expected CompilationError, got: {other:?}"),
     };
 
-    let expected = expect![[r#"
-            memory allocation of 142960 bytes failed
-            note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace (process terminated by signal 6)"#]];
-    expected.assert_eq(&error_message);
+    // The exact allocation byte count and presence of the backtrace hint
+    // vary between runs depending on the compiler binary's memory layout.
+    // Anchoring with ^ and $ also verifies the cleanliness intent: no
+    // resource-limit setup noise or stack frames around the OOM message.
+    let backtrace_note =
+        r"(\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace)?";
+    let pattern = Regex::new(&format!(
+        r"^memory allocation of \d+ bytes failed{backtrace_note} \(process terminated by signal 6\)$"
+    ))
+    .unwrap();
+    assert!(pattern.is_match(&error_message), "unexpected error message: {error_message:?}");
 }
