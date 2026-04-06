@@ -109,7 +109,7 @@ impl ReconstructionState {
                     AddUnitAction::NoOp
                 }
             }
-            // During reconstruction we broadcast our shard, so receiving it back from the
+            // During reconstruction we broadcast our unit, so receiving it back from the
             // network should not inflate the count.
             Self::PostConstruction { num_held_shards, .. } => {
                 if !is_my_shard {
@@ -153,7 +153,7 @@ pub struct MessageProcessor {
     pub tree_manager: Arc<PropellerScheduleManager>,
     pub local_peer_id: PeerId,
 
-    // Unbounded because these bridge sync -> async contexts and shard messages from the network
+    // Unbounded because these bridge sync -> async contexts and unit messages from the network
     // must not be dropped or delayed.
     pub unit_rx: mpsc::UnboundedReceiver<UnitToValidate>,
     pub engine_tx: mpsc::UnboundedSender<EventStateManagerToEngine>,
@@ -194,14 +194,14 @@ impl MessageProcessor {
             // TODO(AndrewL): finalize immediately if first validation fails (DOS attack vector)
             trace!("[MSG_PROC] Validating unit from sender={:?} index={:?}", sender, unit.index());
 
-            // TODO(AndrewL): consider processing multiple shards simultaneously instead of
+            // TODO(AndrewL): consider processing multiple units simultaneously instead of
             // sequentially.
             let (result, returned_validator, unit) =
                 Self::validate_blocking(validator, sender, unit).await;
             validator = returned_validator;
 
             if let Err(err) = result {
-                // TODO(AndrewL): penalize sender of bad shard.
+                // TODO(AndrewL): penalize sender of bad unit.
                 trace!("[MSG_PROC] Validation failed for index={:?}: {:?}", unit.index(), err);
                 continue;
             }
@@ -240,7 +240,7 @@ impl MessageProcessor {
         .expect("Validation task panicked")
     }
 
-    /// Broadcasts our shard to peers the first time we see it. In PostConstruction this is a no-op
+    /// Broadcasts our unit to peers the first time we see it. In PostConstruction this is a no-op
     /// because reconstruction already triggered the broadcast.
     fn maybe_broadcast_my_shard(&self, unit: &PropellerUnit, state: &ReconstructionState) {
         if unit.index() == self.my_shard_index && !state.did_broadcast_my_shard() {
