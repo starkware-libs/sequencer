@@ -28,6 +28,7 @@ async fn main() {
         args.n_consolidated,
         args.n_distributed,
         args.n_hybrid,
+        0,
         Some(custom_paths),
         // TODO(Tsabary/Nadin): add a different identifier.
         TestIdentifier::PositiveFlowIntegrationTest,
