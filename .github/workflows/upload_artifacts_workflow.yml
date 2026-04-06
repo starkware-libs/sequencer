@@ -144,9 +144,12 @@ jobs:
           path: "target/release/native_blockifier.pypy39-pp73-x86_64-linux-gnu.so"
           destination: "native_blockifier_artifacts/${{ env.SHORT_HASH }}/release/"
 
+      - name: Copy starknet-native-compile for upload
+        run: cp "$HOME/.cargo/bin/starknet-native-compile" target/release/starknet-native-compile
+
       - name: Upload starknet-native-compile to GCP
         id: upload_snc_file
         uses: "google-github-actions/upload-cloud-storage@v2"
         with:
-          path: "target/release/shared_executables/starknet-native-compile"
+          path: "target/release/starknet-native-compile"
           destination: "native_blockifier_artifacts/${{ env.SHORT_HASH }}/release/"
