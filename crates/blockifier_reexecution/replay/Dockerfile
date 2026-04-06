@@ -82,6 +82,12 @@ RUN cargo chef cook --release -p blockifier_reexecution --features cairo_native 
 COPY . .
 RUN cargo build --release -p blockifier_reexecution --features cairo_native
 
+# Install compiler binaries used for Sierra compilation at runtime.
+# Binaries land under $CARGO_TOOLS_ROOT/<binary>-<version>/bin/<binary>; the
+# final stage below COPYs the entire $CARGO_TOOLS_ROOT tree so this layout is
+# preserved at runtime.
+RUN scripts/install_compiler_binaries.sh
+
 # =============================================================================
 # Stage 4: Final runtime image
 # =============================================================================
@@ -100,8 +106,10 @@ WORKDIR /app
 
 # Copy the binary and both compilers (Sierra-to-CASM and Sierra-to-Native).
 COPY --from=builder /app/target/release/blockifier_reexecution ./target/release/blockifier_reexecution
-COPY --from=builder /app/target/release/shared_executables/starknet-sierra-compile ./target/release/shared_executables/starknet-sierra-compile
-COPY --from=builder /app/target/release/shared_executables/starknet-native-compile ./target/release/shared_executables/starknet-native-compile
+# Per-version compiler binaries; their absolute path is constructed from
+# $CARGO_TOOLS_ROOT at runtime.
+ENV CARGO_TOOLS_ROOT=/opt/cargo-tools
+COPY --from=builder /var/tmp/rust/tools ${CARGO_TOOLS_ROOT}
 COPY --from=builder /usr/bin/tini /usr/bin/tini
 
 RUN set -ex; \
