@@ -64,7 +64,11 @@ use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
 use apollo_network::NetworkConfig;
 use apollo_node_config::component_config::ComponentConfig;
-use apollo_node_config::component_execution_config::ExpectedComponentConfig;
+use apollo_node_config::component_execution_config::{
+    ActiveComponentExecutionConfig,
+    ExpectedComponentConfig,
+    ReactiveComponentExecutionConfig,
+};
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::monitoring::MonitoringConfig;
 use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
@@ -229,21 +233,23 @@ pub fn create_node_config(
     eth_to_strk_oracle_config: EthToStrkOracleConfig,
     mempool_p2p_config: MempoolP2pConfig,
     monitoring_endpoint_config: MonitoringEndpointConfig,
-    components: ComponentConfig,
+    mut components: ComponentConfig,
     base_layer_config: EthereumBaseLayerConfig,
     block_max_capacity_gas: GasAmount,
     validator_id: ValidatorId,
     allow_bootstrap_txs: bool,
+    validation_only: bool,
 ) -> (SequencerNodeConfig, ConfigPointersMap) {
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let storage_reader_server_port = available_ports.get_next_port();
-    let batcher_config = create_batcher_config(
+    let mut batcher_config = create_batcher_config(
         storage_config.batcher_storage_config,
         chain_info.clone(),
         block_max_capacity_gas,
         storage_reader_server_port,
     );
+    batcher_config.static_config.validation_only = validation_only;
     let committer_config = ApolloCommitterConfig {
         db_path: storage_config.committer_db_path.clone(),
         ..Default::default()
@@ -317,6 +323,17 @@ pub fn create_node_config(
         "starknet_url",
         to_value(starknet_url).expect("Failed to serialize starknet_url"),
     );
+    config_pointers_map.change_target_value(
+        "validation_only",
+        to_value(validation_only).expect("Failed to serialize bool"),
+    );
+
+    if validation_only {
+        components.gateway = ReactiveComponentExecutionConfig::disabled();
+        components.http_server = ActiveComponentExecutionConfig::disabled();
+        components.mempool = ReactiveComponentExecutionConfig::disabled();
+        components.mempool_p2p = ReactiveComponentExecutionConfig::disabled();
+    }
 
     // A helper macro that wraps the config in `Some(...)` if `components.<field>` expects it;
     // otherwise returns `None`. Assumes `components` is in scope.
@@ -363,8 +380,7 @@ pub fn create_node_config(
     let state_sync_config = wrap_if_component_config_expected!(state_sync, state_sync_config);
 
     let sequencer_node_config = SequencerNodeConfig {
-        // TODO(asaf): Add a validation-only node to the integration test.
-        validation_only: false,
+        validation_only,
         base_layer_config,
         batcher_config,
         class_manager_config,
@@ -396,6 +412,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
     network_configs: Vec<NetworkConfig>,
     n_composed_nodes: usize,
     chain_id: &ChainId,
+    n_validation_only_nodes: usize,
 ) -> Vec<ConsensusManagerConfig> {
     let mut timeouts = TimeoutsConfig::default();
     // Scale by 2.0 for integration runs to avoid timeouts.
@@ -409,7 +426,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                 address,
                 weight: StakingWeight(1),
                 public_key: Felt::from(i),
-                can_propose: true,
+                can_propose: i < n_composed_nodes - n_validation_only_nodes,
             }
         })
         .collect();
@@ -922,12 +939,14 @@ pub struct EndToEndTestScenario {
 
 pub struct EndToEndFlowArgs {
     pub test_identifier: TestIdentifier,
-    pub instance_indices: [u16; 3],
+    pub instance_indices: [u16; 4],
     pub test_scenario: EndToEndTestScenario,
     pub block_max_capacity_gas: GasAmount, // Used to max both sierra and proving gas.
     pub expecting_full_blocks: bool,
     pub expecting_reverted_transactions: bool,
     pub allow_bootstrap_txs: bool,
+    // When >= 2, proposers cannot reach quorum alone; at least one validation-only node must vote.
+    pub n_validation_only_nodes: usize,
 }
 
 impl EndToEndFlowArgs {
@@ -938,12 +957,13 @@ impl EndToEndFlowArgs {
     ) -> Self {
         Self {
             test_identifier,
-            instance_indices: [0, 1, 2],
+            instance_indices: [0, 1, 2, 3],
             test_scenario,
             block_max_capacity_gas,
             expecting_full_blocks: false,
             expecting_reverted_transactions: false,
             allow_bootstrap_txs: false,
+            n_validation_only_nodes: 1,
         }
     }
 
@@ -959,8 +979,12 @@ impl EndToEndFlowArgs {
         Self { allow_bootstrap_txs: true, ..self }
     }
 
-    pub fn instance_indices(self, instance_indices: [u16; 3]) -> Self {
+    pub fn instance_indices(self, instance_indices: [u16; 4]) -> Self {
         Self { instance_indices, ..self }
+    }
+
+    pub fn n_validation_only_nodes(self, n: usize) -> Self {
+        Self { n_validation_only_nodes: n, ..self }
     }
 }
 
@@ -976,6 +1000,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         expecting_full_blocks,
         expecting_reverted_transactions,
         allow_bootstrap_txs,
+        n_validation_only_nodes,
     } = args;
     configure_tracing().await;
 
@@ -991,20 +1016,23 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         block_max_capacity_gas,
         allow_bootstrap_txs,
         instance_indices,
+        n_validation_only_nodes,
     )
     .await;
 
     tokio::join!(
         wait_for_sequencer_node(&mock_running_system.sequencer_0),
         wait_for_sequencer_node(&mock_running_system.sequencer_1),
+        wait_for_sequencer_node(&mock_running_system.sequencer_2),
     );
 
-    let sequencers = [&mock_running_system.sequencer_0, &mock_running_system.sequencer_1];
+    let all_sequencers = [
+        &*mock_running_system.sequencer_0,
+        &*mock_running_system.sequencer_1,
+        &*mock_running_system.sequencer_2,
+    ];
     // We use only the first sequencer's gateway to test that the mempools are syncing.
-    let sequencer_to_add_txs = *sequencers.first().unwrap();
-    let mut expected_proposer_iter = sequencers.iter().cycle();
-    // We start at height 1, so we need to skip the proposer of the initial height.
-    expected_proposer_iter.next().unwrap();
+    let sequencer_to_add_txs = &*mock_running_system.sequencer_0;
     let chain_id = mock_running_system.chain_id().clone();
     let mut send_rpc_tx_fn = |tx| sequencer_to_add_txs.assert_add_tx_success(tx);
 
@@ -1036,9 +1064,10 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     )
     .await;
 
-    // Each sequencer increases the same BATCHED_TRANSACTIONS metric because they are running
-    // in the same process in this test.
-    total_expected_batched_txs_count += NUM_OF_SEQUENCERS * expected_batched_tx_hashes.len();
+    // Validation-only nodes may sync early blocks via add_sync_block (not decision_reached),
+    // so only proposing nodes reliably increment this metric.
+    let n_proposing_sequencers = NUM_OF_SEQUENCERS - n_validation_only_nodes;
+    total_expected_batched_txs_count += n_proposing_sequencers * expected_batched_tx_hashes.len();
     let mut current_batched_txs_count = 0;
 
     tokio::time::timeout(TEST_SCENARIO_TIMEOUT, async {
@@ -1050,7 +1079,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
             );
 
             current_batched_txs_count = get_total_batched_txs_count(&global_recorder_handle);
-            if current_batched_txs_count == total_expected_batched_txs_count {
+            if current_batched_txs_count >= total_expected_batched_txs_count {
                 break;
             }
 
@@ -1071,7 +1100,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         &global_recorder_handle,
         expecting_reverted_transactions,
     );
-    verify_block_hash_flow(&sequencers).await;
+    verify_block_hash_flow(&all_sequencers).await;
 }
 
 async fn get_max_batcher_height(sequencers: &[&FlowSequencerSetup]) -> BlockNumber {

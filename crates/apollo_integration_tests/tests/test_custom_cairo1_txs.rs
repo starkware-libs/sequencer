@@ -28,8 +28,7 @@ use starknet_types_core::felt::Felt;
 const CUSTOM_INVOKE_TX_COUNT: usize = 16;
 
 /// Test a wide range of different kinds of invoke transactions.
-/// Number of threads is 3 = Num of sequencer + 1 for the test thread.
-#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn custom_cairo1_txs() {
     end_to_end_flow(EndToEndFlowArgs::new(
         TestIdentifier::EndToEndFlowTestCustomSyscallInvokeTxs,

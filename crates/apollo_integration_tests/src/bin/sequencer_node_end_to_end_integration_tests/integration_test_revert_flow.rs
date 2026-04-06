@@ -38,6 +38,7 @@ async fn main() {
         N_CONSOLIDATED_SEQUENCERS,
         N_DISTRIBUTED_SEQUENCERS,
         N_HYBRID_SEQUENCERS,
+        0,
         None,
         TestIdentifier::RevertFlowIntegrationTest,
     )

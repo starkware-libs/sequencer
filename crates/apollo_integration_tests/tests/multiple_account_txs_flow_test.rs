@@ -11,9 +11,8 @@ use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerato
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 
-// Uses end_to_end_flow with test identifier EndToEndFlowTest and instance indices [12, 13, 14].
-/// Number of threads is 3 = Num of sequencer + 1 for the test thread.
-#[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+// Uses end_to_end_flow with test identifier EndToEndFlowTest and instance indices [16, 17, 18, 19].
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn multiple_account_txs_flow() {
     end_to_end_flow(
         EndToEndFlowArgs::new(
@@ -21,7 +20,7 @@ async fn multiple_account_txs_flow() {
             create_test_scenarios(),
             BouncerWeights::default().proving_gas,
         )
-        .instance_indices([12, 13, 14]),
+        .instance_indices([16, 17, 18, 19]),
     )
     .await
 }
