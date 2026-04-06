@@ -13,7 +13,7 @@ use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::{SierraContractClass, StorageKey};
+use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
 
 use crate::state_reader::config::RpcStateReaderConfig;
@@ -185,6 +185,19 @@ pub fn compare_state_diffs(
         tracing::warn!("State diff mismatch for block {block_number}.\n{diff}");
     }
     is_match
+}
+
+/// Converts a [`CommitmentStateDiff`] to a [`ThinStateDiff`] for block hash computation.
+///
+/// Assumes no deprecated (Cairo 0) declared classes. This is valid for Starknet v0.14.0+.
+pub fn commitment_state_diff_to_thin(state_diff: CommitmentStateDiff) -> ThinStateDiff {
+    ThinStateDiff {
+        deployed_contracts: state_diff.address_to_class_hash,
+        storage_diffs: state_diff.storage_updates,
+        class_hash_to_compiled_class_hash: state_diff.class_hash_to_compiled_class_hash,
+        deprecated_declared_classes: vec![],
+        nonces: state_diff.address_to_nonce,
+    }
 }
 
 /// Asserts equality between two `CommitmentStateDiff` structs, ignoring insertion order.
