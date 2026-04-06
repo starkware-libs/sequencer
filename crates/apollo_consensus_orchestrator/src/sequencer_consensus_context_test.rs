@@ -38,6 +38,7 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
 };
+use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::MockClock;
 use chrono::{TimeZone, Utc};
 use futures::channel::mpsc;
@@ -1368,18 +1369,20 @@ fn make_config_manager_client(provider_config: ContextDynamicConfig) -> MockConf
     config_manager_client
 }
 
+// Flow: dynamic config changes the min gas price per height while the node is running.
+// Config updates do not immediately overwrite current gas price; they take effect on the
+// next block gas-price calculation, which updates gradually.
 #[tokio::test]
 async fn test_dynamic_config_updates_min_gas_price() {
     // Test constants
-    const FIRST_CONFIG_HEIGHT: u64 = 100;
-    const FIRST_CONFIG_MIN_PRICE: u128 = 10_000_000_000;
-    const SECOND_CONFIG_HEIGHT: u64 = 200;
-    const SECOND_CONFIG_MIN_PRICE: u128 = 20_000_000_000;
+    const INITIAL_CONFIG_HEIGHT: u64 = 100;
+    const INITIAL_CONFIG_MIN_PRICE: u128 = 10_000_000_000;
+    const NEW_CONFIG_HEIGHT: u64 = 200;
+    const NEW_CONFIG_MIN_PRICE: u128 = 20_000_000_000;
 
-    const INITIAL_GAS_PRICE: u128 = 8_000_000_000; // below first minimum
-    const FIRST_TEST_HEIGHT: u64 = 150; // Between 100 and 200
-    const SECOND_TEST_HEIGHT: u64 = 250; // Above 200
-    const INTERMEDIATE_GAS_PRICE: u128 = 15_000_000_000; // Below second minimum
+    const INITIAL_HEIGHT: u64 = 150; // Node is already running at this height
+    const TEST_HEIGHT: u64 = 250; // Move to this height with updated config
+    const CURRENT_GAS_PRICE: u128 = 15_000_000_000; // Below new minimum
 
     let (mut deps, _network) = create_test_and_network_deps();
     deps.setup_default_expectations();
@@ -1387,35 +1390,24 @@ async fn test_dynamic_config_updates_min_gas_price() {
     // Create a mock config manager client that will return dynamic config
     let mut mock_config_manager = MockConfigManagerClient::new();
 
-    // Mock expects get_context_dynamic_config to be called twice (once per height change)
+    // Mock expects get_context_dynamic_config to be called once (when moving to new height)
     // This is called inside set_height_and_round() -> update_dynamic_config() ->
     // client.get_context_dynamic_config()
 
-    // First call returns config with min price at FIRST_CONFIG_HEIGHT
-    mock_config_manager.expect_get_context_dynamic_config().times(1).returning(move || {
-        Ok(ContextDynamicConfig {
-            min_l2_gas_price_per_height: vec![PricePerHeight {
-                height: FIRST_CONFIG_HEIGHT,
-                price: FIRST_CONFIG_MIN_PRICE,
-            }],
-            ..Default::default()
-        })
-    });
-
-    // Second call returns config with additional min price at SECOND_CONFIG_HEIGHT
+    // Config returns updated min price at NEW_CONFIG_HEIGHT
     mock_config_manager.expect_get_context_dynamic_config().times(1).returning(move || {
         Ok(ContextDynamicConfig {
             min_l2_gas_price_per_height: vec![
-                PricePerHeight { height: FIRST_CONFIG_HEIGHT, price: FIRST_CONFIG_MIN_PRICE },
-                PricePerHeight { height: SECOND_CONFIG_HEIGHT, price: SECOND_CONFIG_MIN_PRICE },
+                PricePerHeight { height: INITIAL_CONFIG_HEIGHT, price: INITIAL_CONFIG_MIN_PRICE },
+                PricePerHeight { height: NEW_CONFIG_HEIGHT, price: NEW_CONFIG_MIN_PRICE },
             ],
             ..Default::default()
         })
     });
 
-    // Setup batcher expectations for two heights
+    // Setup batcher expectation for one height
     // set_height_and_round() calls batcher.start_height() to notify the batcher
-    deps.batcher.expect_start_height().times(2).returning(|_| Ok(()));
+    deps.batcher.expect_start_height().times(1).returning(|_| Ok(()));
 
     // Convert TestDeps to SequencerConsensusContextDeps and add config manager
     let mut context_deps: SequencerConsensusContextDeps = deps.into();
@@ -1433,69 +1425,121 @@ async fn test_dynamic_config_updates_min_gas_price() {
         context_deps,
     );
 
-    // Set initial L2 gas price below minimum
-    context.l2_gas_price = GasPrice(INITIAL_GAS_PRICE);
+    // Simulate node already running: set current_height to make context "already initialized"
+    context.current_height = Some(BlockNumber(INITIAL_HEIGHT));
+    context.l2_gas_price = GasPrice(INITIAL_CONFIG_MIN_PRICE);
 
-    // Test at FIRST_TEST_HEIGHT: Should use min price from first config.
-    // This calls set_height_and_round which triggers update_dynamic_config() internally
-    context.set_height_and_round(BlockNumber(FIRST_TEST_HEIGHT), ROUND_0).await.unwrap();
+    // Move to TEST_HEIGHT with updated config
+    context.set_height_and_round(BlockNumber(TEST_HEIGHT), ROUND_0).await.unwrap();
 
     // Verify dynamic config was updated
-    assert_eq!(context.config.dynamic_config.min_l2_gas_price_per_height.len(), 1);
-    assert_eq!(
-        context.config.dynamic_config.min_l2_gas_price_per_height[0].price,
-        FIRST_CONFIG_MIN_PRICE
-    );
-
-    // Simulate gas price update - this calls the fee market logic with min_l2_gas_price_per_height
-    context.update_l2_gas_price(BlockNumber(FIRST_TEST_HEIGHT), GasAmount(1000));
-
-    // Gas price should have increased towards minimum (gradual adjustment)
-    // Formula: new_price = min(price + price/333, min_gas_price)
-    // Starting at INITIAL_GAS_PRICE (8 Gwei), with MIN_GAS_PRICE_INCREASE_DENOMINATOR = 333
-    // max_increase = 8_000_000_000 / 333 = 24_024_024
-    // expected = 8_000_000_000 + 24_024_024 = 8_024_024_024
-    const MIN_GAS_PRICE_INCREASE_DENOMINATOR: u128 = 333;
-    let expected_price_after_first =
-        INITIAL_GAS_PRICE + (INITIAL_GAS_PRICE / MIN_GAS_PRICE_INCREASE_DENOMINATOR);
-    let expected_price_after_first = expected_price_after_first.min(FIRST_CONFIG_MIN_PRICE);
-
-    let price_after_first_update = context.l2_gas_price.0;
-    assert_eq!(
-        price_after_first_update, expected_price_after_first,
-        "Gas price should be exactly {} (8 Gwei + 8/333), got {}",
-        expected_price_after_first, price_after_first_update
-    );
-
-    // Test at SECOND_TEST_HEIGHT: Should use min price from config2
-    context.set_height_and_round(BlockNumber(SECOND_TEST_HEIGHT), ROUND_0).await.unwrap();
-
-    // Verify dynamic config was updated again
     assert_eq!(context.config.dynamic_config.min_l2_gas_price_per_height.len(), 2);
     assert_eq!(
         context.config.dynamic_config.min_l2_gas_price_per_height[1].price,
-        SECOND_CONFIG_MIN_PRICE
+        NEW_CONFIG_MIN_PRICE
     );
 
-    // Set gas price below new minimum
-    context.l2_gas_price = GasPrice(INTERMEDIATE_GAS_PRICE);
+    // Set gas price below new minimum to simulate being below the updated config
+    context.l2_gas_price = GasPrice(CURRENT_GAS_PRICE);
 
-    // Simulate gas price update
-    context.update_l2_gas_price(BlockNumber(SECOND_TEST_HEIGHT), GasAmount(1000));
+    // Simulate gas price update with new config in effect
+    context.update_l2_gas_price(BlockNumber(TEST_HEIGHT), GasAmount(1000));
 
-    // Gas price should have increased towards new minimum
+    // Gas price should have increased gradually towards new minimum
     // Formula: new_price = min(price + price/333, min_gas_price)
-    // Starting at INTERMEDIATE_GAS_PRICE (15 Gwei)
+    // Starting at CURRENT_GAS_PRICE (15 Gwei)
     // max_increase = 15_000_000_000 / 333 = 45_045_045
     // expected = 15_000_000_000 + 45_045_045 = 15_045_045_045
-    let expected_price_after_second =
-        INTERMEDIATE_GAS_PRICE + (INTERMEDIATE_GAS_PRICE / MIN_GAS_PRICE_INCREASE_DENOMINATOR);
-    let expected_price_after_second = expected_price_after_second.min(SECOND_CONFIG_MIN_PRICE);
+    const MIN_GAS_PRICE_INCREASE_DENOMINATOR: u128 = 333;
+    let expected_price =
+        CURRENT_GAS_PRICE + (CURRENT_GAS_PRICE / MIN_GAS_PRICE_INCREASE_DENOMINATOR);
+    let expected_price = expected_price.min(NEW_CONFIG_MIN_PRICE);
 
-    let price_after_second_update = context.l2_gas_price.0;
+    let actual_price = context.l2_gas_price.0;
     assert_eq!(
-        price_after_second_update, expected_price_after_second,
+        actual_price, expected_price,
         "Gas price should be exactly {} (15 Gwei + 15/333), got {}",
-        expected_price_after_second, price_after_second_update
+        expected_price, actual_price
+    );
+}
+
+// Flow: node starts processing without syncing first (e.g., after revert or sync unavailable).
+// Gas price begins at versioned-constants fallback, then bootstrap enforces the configured
+// minimum for the current height.
+#[tokio::test]
+async fn test_first_height_uses_configured_min_l2_gas_price_for_height() {
+    const CONFIG_HEIGHT_1: u64 = 100;
+    const CONFIG_PRICE_1: u128 = 10_000_000_000;
+    const CONFIG_HEIGHT_2: u64 = 200;
+    const CONFIG_PRICE_2: u128 = 20_000_000_000;
+    const STARTUP_HEIGHT: u64 = 250;
+    const LOW_STARTUP_PRICE: u128 = 8_000_000_000;
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    deps.batcher.expect_start_height().times(1).returning(|_| Ok(()));
+
+    let mut context = deps.build_context();
+    context.l2_gas_price = GasPrice(LOW_STARTUP_PRICE);
+    context.config.dynamic_config.min_l2_gas_price_per_height = vec![
+        PricePerHeight { height: CONFIG_HEIGHT_1, price: CONFIG_PRICE_1 },
+        PricePerHeight { height: CONFIG_HEIGHT_2, price: CONFIG_PRICE_2 },
+    ];
+
+    // First set_height_and_round call on this new context instance.
+    context.set_height_and_round(BlockNumber(STARTUP_HEIGHT), ROUND_0).await.unwrap();
+
+    // Height 250 is after config height 200, so gas price should initialize to CONFIG_PRICE_2.
+    assert_eq!(context.l2_gas_price, GasPrice(CONFIG_PRICE_2));
+}
+
+// Flow: sync provides next_l2_gas_price at height 200, but config defines a higher
+// minimum starting at height 250. At height 200, the synced value is kept.
+// Later at height 250, config minimum is applied gradually.
+#[tokio::test]
+async fn test_first_height_keeps_sync_provided_l2_gas_price() {
+    const SYNC_HEIGHT: BlockNumber = BlockNumber(200);
+    const LATER_HEIGHT: BlockNumber = BlockNumber(250);
+    const SYNCED_NEXT_L2_GAS_PRICE: u128 = 20_000_000_000;
+    const CONFIG_MIN_PRICE_AT_250: u128 = 25_000_000_000;
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    deps.batcher.expect_add_sync_block().times(1).return_once(|_| Ok(()));
+    deps.batcher.expect_start_height().times(2).returning(|_| Ok(()));
+    deps.state_sync_client.expect_get_block().times(1).return_once(|height| {
+        let mut sync_block = SyncBlock::default();
+        sync_block.block_header_without_hash.block_number = height;
+        sync_block.block_header_without_hash.next_l2_gas_price = GasPrice(SYNCED_NEXT_L2_GAS_PRICE);
+        Ok(sync_block)
+    });
+
+    let mut context = deps.build_context();
+    context.config.dynamic_config.min_l2_gas_price_per_height =
+        vec![PricePerHeight { height: 250, price: CONFIG_MIN_PRICE_AT_250 }];
+
+    // Sync succeeds at height 200, l2_gas_price is taken from synced next_l2_gas_price.
+    assert!(context.try_sync(SYNC_HEIGHT).await);
+    assert_eq!(context.l2_gas_price, GasPrice(SYNCED_NEXT_L2_GAS_PRICE));
+
+    // First height initialization at 200: synced value is kept.
+    context.set_height_and_round(SYNC_HEIGHT, ROUND_0).await.unwrap();
+    assert_eq!(context.l2_gas_price, GasPrice(SYNCED_NEXT_L2_GAS_PRICE));
+
+    // Move to height 250 where config min applies
+    context.set_height_and_round(LATER_HEIGHT, ROUND_0).await.unwrap();
+    // Bootstrap doesn't run (not first height anymore), price still 20g
+    assert_eq!(context.l2_gas_price, GasPrice(SYNCED_NEXT_L2_GAS_PRICE));
+
+    // Subsequent block should gradually increase toward CONFIG_MIN_PRICE_AT_250
+    context.update_l2_gas_price(LATER_HEIGHT, GasAmount(1000));
+
+    const MIN_GAS_PRICE_INCREASE_DENOMINATOR: u128 = 333;
+    let expected_price =
+        SYNCED_NEXT_L2_GAS_PRICE + (SYNCED_NEXT_L2_GAS_PRICE / MIN_GAS_PRICE_INCREASE_DENOMINATOR);
+    assert_eq!(
+        context.l2_gas_price.0, expected_price,
+        "Gas price should be {} (20 Gwei + 20/333), got {}",
+        expected_price, context.l2_gas_price.0
     );
 }
