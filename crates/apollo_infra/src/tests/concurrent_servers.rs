@@ -158,10 +158,9 @@ async fn setup_concurrent_remote_test() -> RemoteConcurrentComponentClient {
     let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();
     let remote_client_config = RemoteClientConfig::default();
 
-    let max_concurrency = 10;
     let mut concurrent_remote_server = RemoteComponentServer::new(
         local_client.clone(),
-        dummy_remote_server_config(socket.ip(), max_concurrency),
+        dummy_remote_server_config(socket.ip()),
         socket.port(),
         &TEST_REMOTE_SERVER_METRICS,
     );

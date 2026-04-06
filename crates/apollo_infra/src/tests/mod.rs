@@ -1,15 +1,6 @@
-mod concurrent_servers_test;
-mod local_component_client_server_test;
-mod local_request_prioritization;
-mod remote_component_client_server_test;
-mod server_metrics_test;
-mod test_utils;
-
 use std::net::IpAddr;
-use std::sync::Arc;
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
-use apollo_metrics::generate_permutation_labels;
 use apollo_metrics::metrics::{
     LabeledMetricHistogram,
     MetricCounter,
@@ -17,14 +8,7 @@ use apollo_metrics::metrics::{
     MetricHistogram,
     MetricScope,
 };
-use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
-use starknet_types_core::felt::Felt;
-use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
-use tokio::sync::Semaphore;
 
-use crate::component_client::ClientResult;
-use crate::component_definitions::{ComponentRequestHandler, ComponentStarter, PrioritizedRequest};
 use crate::component_server::RemoteServerConfig;
 use crate::metrics::{
     LocalClientMetrics,
@@ -32,13 +16,16 @@ use crate::metrics::{
     RemoteClientMetrics,
     RemoteServerMetrics,
 };
-use crate::requests::LABEL_NAME_REQUEST_VARIANT;
-use crate::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use crate::tests::component_a_b_fixture::{COMPONENT_A_REQUEST_LABELS, COMPONENT_B_REQUEST_LABELS};
 
-pub(crate) type ValueA = Felt;
-pub(crate) type ValueB = Felt;
-pub(crate) type ResultA = ClientResult<ValueA>;
-pub(crate) type ResultB = ClientResult<ValueB>;
+pub(crate) mod component_a_b_fixture;
+mod concurrent_servers;
+mod local_component_client_server;
+mod local_request_prioritization;
+mod remote_component_client_server;
+mod remote_server_timeouts;
+mod server_metrics;
+mod test_utils;
 
 // Define mock local server metrics.
 const TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
@@ -173,7 +160,6 @@ pub(crate) const TEST_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientM
     &TEST_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES,
 );
 
-// Define mock local client metrics.
 const TEST_LOCAL_CLIENT_RESPONSE_TIMES: LabeledMetricHistogram = LabeledMetricHistogram::new(
     MetricScope::Infra,
     "test_local_client_response_times",
@@ -188,158 +174,16 @@ pub(crate) const TEST_LOCAL_CLIENT_METRICS: LocalClientMetrics =
 // Each test that binds ports should use a different instance_index to get disjoint port ranges.
 // This is necessary to allow running tests concurrently in different processes, which do not have a
 // shared memory.
-fn available_ports_factory(instance_index: u16) -> AvailablePorts {
+pub(crate) fn available_ports_factory(instance_index: u16) -> AvailablePorts {
     AvailablePorts::new(TestIdentifier::InfraUnitTests.into(), instance_index)
 }
 
-#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
-#[strum_discriminants(
-    name(ComponentARequestLabelValue),
-    derive(IntoStaticStr, EnumIter, VariantNames),
-    strum(serialize_all = "snake_case")
-)]
-pub enum ComponentARequest {
-    AGetValue,
-}
-
-generate_permutation_labels! {
-    COMPONENT_A_REQUEST_LABELS,
-    (LABEL_NAME_REQUEST_VARIANT, ComponentARequestLabelValue),
-}
-
-impl_debug_for_infra_requests_and_responses!(ComponentARequest);
-impl_labeled_request!(ComponentARequest, ComponentARequestLabelValue);
-impl PrioritizedRequest for ComponentARequest {}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum ComponentAResponse {
-    AGetValue(ValueA),
-}
-
-#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
-#[strum_discriminants(
-    name(ComponentBRequestLabelValue),
-    derive(IntoStaticStr, EnumIter, VariantNames),
-    strum(serialize_all = "snake_case")
-)]
-pub enum ComponentBRequest {
-    BGetValue,
-    BSetValue(ValueB),
-}
-
-generate_permutation_labels! {
-    COMPONENT_B_REQUEST_LABELS,
-    (LABEL_NAME_REQUEST_VARIANT, ComponentBRequestLabelValue),
-}
-
-impl_debug_for_infra_requests_and_responses!(ComponentBRequest);
-impl_labeled_request!(ComponentBRequest, ComponentBRequestLabelValue);
-impl PrioritizedRequest for ComponentBRequest {}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum ComponentBResponse {
-    BGetValue(ValueB),
-    BSetValue,
-}
-
-#[async_trait]
-pub(crate) trait ComponentAClientTrait: Send + Sync {
-    async fn a_get_value(&self) -> ResultA;
-}
-
-#[async_trait]
-pub(crate) trait ComponentBClientTrait: Send + Sync {
-    async fn b_get_value(&self) -> ResultB;
-    async fn b_set_value(&self, value: ValueB) -> ClientResult<()>;
-}
-
-pub(crate) struct ComponentA {
-    b: Box<dyn ComponentBClientTrait>,
-    sem: Option<Arc<Semaphore>>,
-}
-
-impl ComponentA {
-    pub fn new(b: Box<dyn ComponentBClientTrait>) -> Self {
-        Self { b, sem: None }
+pub(crate) fn dummy_remote_server_config(ip: IpAddr) -> RemoteServerConfig {
+    RemoteServerConfig {
+        bind_ip: ip,
+        // arbitrary value
+        max_streams_per_connection: 5,
+        set_tcp_nodelay: true,
+        ..Default::default()
     }
-
-    pub async fn a_get_value(&self) -> ValueA {
-        self.b.b_get_value().await.unwrap()
-    }
-
-    pub fn with_semaphore(b: Box<dyn ComponentBClientTrait>, sem: Arc<Semaphore>) -> Self {
-        Self { b, sem: Some(sem) }
-    }
-}
-
-impl ComponentStarter for ComponentA {}
-
-pub(crate) struct ComponentB {
-    value: ValueB,
-    _a: Box<dyn ComponentAClientTrait>,
-}
-
-impl ComponentB {
-    pub fn new(value: ValueB, a: Box<dyn ComponentAClientTrait>) -> Self {
-        Self { value, _a: a }
-    }
-
-    pub fn b_get_value(&self) -> ValueB {
-        self.value
-    }
-
-    pub fn b_set_value(&mut self, value: ValueB) {
-        self.value = value;
-    }
-}
-
-impl ComponentStarter for ComponentB {}
-
-pub(crate) async fn test_a_b_functionality(
-    a_client: impl ComponentAClientTrait,
-    b_client: impl ComponentBClientTrait,
-    expected_value: ValueA,
-) {
-    // Check the setup value in component B through client A.
-    assert_eq!(a_client.a_get_value().await.unwrap(), expected_value);
-
-    let new_expected_value: ValueA = expected_value + 1;
-    // Check that setting a new value to component B succeeds.
-    assert!(b_client.b_set_value(new_expected_value).await.is_ok());
-    // Check the new value in component B through client A.
-    assert_eq!(a_client.a_get_value().await.unwrap(), new_expected_value);
-}
-
-#[async_trait]
-impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for ComponentA {
-    async fn handle_request(&mut self, request: ComponentARequest) -> ComponentAResponse {
-        match request {
-            ComponentARequest::AGetValue => {
-                if let Some(sem) = &self.sem {
-                    let _permit = sem.clone().acquire_owned().await.unwrap();
-                    let v = self.a_get_value().await;
-                    ComponentAResponse::AGetValue(v)
-                } else {
-                    ComponentAResponse::AGetValue(self.a_get_value().await)
-                }
-            }
-        }
-    }
-}
-
-#[async_trait]
-impl ComponentRequestHandler<ComponentBRequest, ComponentBResponse> for ComponentB {
-    async fn handle_request(&mut self, request: ComponentBRequest) -> ComponentBResponse {
-        match request {
-            ComponentBRequest::BGetValue => ComponentBResponse::BGetValue(self.b_get_value()),
-            ComponentBRequest::BSetValue(value) => {
-                self.b_set_value(value);
-                ComponentBResponse::BSetValue
-            }
-        }
-    }
-}
-
-fn dummy_remote_server_config(ip: IpAddr, max_concurrency: usize) -> RemoteServerConfig {
-    RemoteServerConfig { bind_ip: ip, max_concurrency, ..Default::default() }
 }
