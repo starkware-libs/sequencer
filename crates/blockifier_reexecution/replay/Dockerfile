@@ -82,6 +82,11 @@ RUN cargo chef cook --release -p blockifier_reexecution --features cairo_native 
 COPY . .
 RUN cargo build --release -p blockifier_reexecution --features cairo_native
 
+# Install compiler binaries used for Sierra compilation at runtime.
+RUN scripts/install_compiler_binaries.sh && \
+    cp "$(which starknet-sierra-compile)" /usr/local/bin/ && \
+    cp "$(which starknet-native-compile)" /usr/local/bin/
+
 # =============================================================================
 # Stage 4: Final runtime image
 # =============================================================================
@@ -100,8 +105,8 @@ WORKDIR /app
 
 # Copy the binary and both compilers (Sierra-to-CASM and Sierra-to-Native).
 COPY --from=builder /app/target/release/blockifier_reexecution ./target/release/blockifier_reexecution
-COPY --from=builder /app/target/release/shared_executables/starknet-sierra-compile ./target/release/shared_executables/starknet-sierra-compile
-COPY --from=builder /app/target/release/shared_executables/starknet-native-compile ./target/release/shared_executables/starknet-native-compile
+COPY --from=builder /usr/local/bin/starknet-sierra-compile /usr/local/bin/starknet-sierra-compile
+COPY --from=builder /usr/local/bin/starknet-native-compile /usr/local/bin/starknet-native-compile
 COPY --from=builder /usr/bin/tini /usr/bin/tini
 
 RUN set -ex; \
