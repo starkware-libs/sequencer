@@ -640,6 +640,7 @@ impl ConsensusContext for SequencerConsensusContext {
             std::cmp::Ordering::Equal => {
                 let proposal_init_validation = ProposalInitValidation {
                     height: init.height,
+                    builder_address: self.config.static_config.builder_address,
                     block_timestamp_window_seconds: self
                         .config
                         .static_config
@@ -876,6 +877,7 @@ impl ConsensusContext for SequencerConsensusContext {
         };
         let proposal_init_validation = ProposalInitValidation {
             height: init.height,
+            builder_address: self.config.static_config.builder_address,
             block_timestamp_window_seconds: self
                 .config
                 .static_config
