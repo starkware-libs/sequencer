@@ -411,7 +411,11 @@ impl SequencerConsensusContext {
 
         // The conversion should never fail, if we already managed to get a decision.
         let Ok(cende_block_info) = convert_to_sn_api_block_info(init) else {
-            warn!("Failed to convert block info to SN API block info at height {height}: {init:?}");
+            error!(
+                "Failed to convert block info to SN API block info at height {height}: {init:?}. \
+                 The block was committed, but state sync and preparing the blob for the next \
+                 height will be skipped."
+            );
             return;
         };
 
