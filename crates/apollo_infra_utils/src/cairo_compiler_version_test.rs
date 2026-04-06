@@ -2,11 +2,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 
-/// Objects for simple deserialization of `Cargo.toml`, to fetch the Cairo1 compiler version.
-/// The compiler itself isn't actually a dependency, so we compile by using the version of the
-/// `cairo-lang-casm` crate.
-/// The choice of this crate is arbitrary, as all compiler crate dependencies should have the
-/// same version.
+/// Cross-checks that `CAIRO1_COMPILER_VERSION` (loaded from `cairo_compiler_version.txt`,
+/// which the install scripts also read) matches the `cairo-lang-casm` version pinned in
+/// `Cargo.toml`. The two are managed independently: the `.txt` file drives the external
+/// compiler binary install, the Cargo dep drives the in-process Sierra crates. They must
+/// stay in sync; this test fires on drift.
+/// The choice of `cairo-lang-casm` is arbitrary, as all compiler crate dependencies should
+/// have the same version.
 /// Deserializes:
 /// """
 /// ...
