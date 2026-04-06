@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display};
-use std::future::Future;
 
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::{ParamPath, SerializedParam};
@@ -108,31 +107,21 @@ pub trait StorageConfigTrait:
 
 /// A read-only view of a storage that does not require mutable access.
 /// Allows concurrent reads from multiple threads.
+#[async_trait]
 pub trait ImmutableReadOnlyStorage: Send + Sync + 'static {
-    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
-    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
-    // for details.
-    fn get(
-        &self,
-        key: &DbKey,
-    ) -> impl Future<Output = PatriciaStorageResult<Option<DbValue>>> + Send;
+    async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;
 
-    fn mget(
-        &self,
-        keys: &[&DbKey],
-    ) -> impl Future<Output = PatriciaStorageResult<Vec<Option<DbValue>>>> + Send;
+    async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>>;
 
     /// Runs the given tasks concurrently, each with its own [ReadsCollectorStorage] snapshot.
     /// By default, discards collected reads.
-    fn gather<T>(&mut self, tasks: Vec<T>) -> impl Future<Output = Vec<T::Output>> + Send
+    async fn gather<T>(&mut self, tasks: Vec<T>) -> Vec<T::Output>
     where
         T: for<'s> StorageTask<'s, Self> + Send,
         Self: Sized,
     {
-        async move {
-            let (_reads, outputs) = run_tasks_and_collect_reads(self, tasks).await;
-            outputs
-        }
+        let (_reads, outputs) = run_tasks_and_collect_reads(self, tasks).await;
+        outputs
     }
 }
 
@@ -173,67 +162,38 @@ where
 }
 
 /// A read-only view of a storage. Does not assume concurrent access is possible.
+#[async_trait]
 pub trait ReadOnlyStorage: Send + Sync {
     /// Returns value from storage, if it exists.
     /// Uses a mutable `&self` to allow changes in the internal state of the storage (e.g.,
     /// for caching).
-    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
-    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
-    // for details.
-    fn get_mut(
-        &mut self,
-        key: &DbKey,
-    ) -> impl Future<Output = PatriciaStorageResult<Option<DbValue>>> + Send;
+    async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>>;
 
     /// Returns values from storage in same order of given keys. Value is None for keys that do not
     /// exist.
-    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
-    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
-    // for details.
-    fn mget_mut(
-        &mut self,
-        keys: &[&DbKey],
-    ) -> impl Future<Output = PatriciaStorageResult<Vec<Option<DbValue>>>> + Send;
+    async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>>;
 }
 
 /// A trait for the storage. Extends [ReadOnlyStorage] with write operations.
+#[async_trait]
 pub trait Storage: ReadOnlyStorage {
     type Stats: StorageStats;
     type Config: StorageConfigTrait;
 
     /// Sets value in storage. If key already exists, its value is overwritten.
-    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
-    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
-    // for details.
-    fn set(
-        &mut self,
-        key: DbKey,
-        value: DbValue,
-    ) -> impl Future<Output = PatriciaStorageResult<()>> + Send;
+    async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()>;
 
     /// Sets values in storage.
-    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
-    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
-    // for details.
-    fn mset(
-        &mut self,
-        key_to_value: DbHashMap,
-    ) -> impl Future<Output = PatriciaStorageResult<()>> + Send;
+    async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()>;
 
     /// Deletes a value from storage.
-    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
-    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
-    // for details.
-    fn delete(&mut self, key: &DbKey) -> impl Future<Output = PatriciaStorageResult<()>> + Send;
+    async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()>;
 
     /// Sets values in storage and deletes keys from storage in a single operation.
-    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
-    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
-    // for details.
-    fn multi_set_and_delete(
+    async fn multi_set_and_delete(
         &mut self,
         key_to_operation: DbOperationMap,
-    ) -> impl Future<Output = PatriciaStorageResult<()>> + Send;
+    ) -> PatriciaStorageResult<()>;
 
     /// If implemented, returns the statistics of the storage.
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats>;
@@ -278,6 +238,7 @@ impl StorageConfigTrait for EmptyStorageConfig {}
 #[derive(Clone)]
 pub struct NullStorage;
 
+#[async_trait]
 impl ImmutableReadOnlyStorage for NullStorage {
     async fn get(&self, _key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(None)
@@ -288,6 +249,7 @@ impl ImmutableReadOnlyStorage for NullStorage {
     }
 }
 
+#[async_trait]
 impl ReadOnlyStorage for NullStorage {
     async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         ImmutableReadOnlyStorage::get(self, key).await
@@ -298,6 +260,7 @@ impl ReadOnlyStorage for NullStorage {
     }
 }
 
+#[async_trait]
 impl Storage for NullStorage {
     type Stats = NoStats;
     type Config = EmptyStorageConfig;

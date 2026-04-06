@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::path::Path;
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use libmdbx::{
     Database as MdbxDb,
     DatabaseOptions,
@@ -105,6 +106,7 @@ impl MdbxStorage {
     }
 }
 
+#[async_trait]
 impl ImmutableReadOnlyStorage for MdbxStorage {
     async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let txn = self.db.begin_ro_txn()?;
@@ -123,6 +125,7 @@ impl ImmutableReadOnlyStorage for MdbxStorage {
     }
 }
 
+#[async_trait]
 impl ReadOnlyStorage for MdbxStorage {
     async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         ImmutableReadOnlyStorage::get(self, key).await
@@ -133,6 +136,7 @@ impl ReadOnlyStorage for MdbxStorage {
     }
 }
 
+#[async_trait]
 impl Storage for MdbxStorage {
     type Stats = MdbxStorageStats;
     type Config = EmptyStorageConfig;

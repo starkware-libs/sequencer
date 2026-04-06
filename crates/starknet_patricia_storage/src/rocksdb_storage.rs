@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use async_trait::async_trait;
 use rust_rocksdb::statistics::StatsLevel;
 use rust_rocksdb::{
     BlockBasedIndexType,
@@ -299,6 +300,7 @@ impl StorageStats for RocksDbStats {
     }
 }
 
+#[async_trait]
 impl ImmutableReadOnlyStorage for RocksDbStorage {
     async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         if self.config.spawn_blocking_reads {
@@ -322,6 +324,7 @@ impl ImmutableReadOnlyStorage for RocksDbStorage {
     }
 }
 
+#[async_trait]
 impl ReadOnlyStorage for RocksDbStorage {
     async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         ImmutableReadOnlyStorage::get(self, key).await
@@ -332,6 +335,7 @@ impl ReadOnlyStorage for RocksDbStorage {
     }
 }
 
+#[async_trait]
 impl Storage for RocksDbStorage {
     type Stats = RocksDbStats;
     type Config = RocksDbStorageConfig;

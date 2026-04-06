@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use async_trait::async_trait;
 use lru::LruCache;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationErrors};
@@ -40,6 +41,7 @@ pub struct BorrowedStorage<'a, S: Storage> {
     pub storage: &'a mut S,
 }
 
+#[async_trait]
 impl ImmutableReadOnlyStorage for MapStorage {
     async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(self.0.get(key).cloned())
@@ -50,6 +52,7 @@ impl ImmutableReadOnlyStorage for MapStorage {
     }
 }
 
+#[async_trait]
 impl ReadOnlyStorage for MapStorage {
     async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         ImmutableReadOnlyStorage::get(self, key).await
@@ -60,6 +63,7 @@ impl ReadOnlyStorage for MapStorage {
     }
 }
 
+#[async_trait]
 impl Storage for MapStorage {
     type Stats = NoStats;
     type Config = EmptyStorageConfig;
@@ -244,6 +248,7 @@ impl<S: Storage> CachedStorage<S> {
 /// Uses [LruCache::peek] to fetch the value from the immutable cache, this doesn't update the cache
 /// internal state.
 /// Stats are being updated using atomic counters.
+#[async_trait]
 impl<S: Storage + ImmutableReadOnlyStorage> ImmutableReadOnlyStorage for CachedStorage<S> {
     async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads.fetch_add(1, Ordering::Relaxed);
@@ -296,6 +301,7 @@ impl<S: Storage + ImmutableReadOnlyStorage> ImmutableReadOnlyStorage for CachedS
 }
 
 // TODO(Nimrod): Find a way to share the implementation with `ImmutableReadOnlyStorage`.
+#[async_trait]
 impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
     async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads.fetch_add(1, Ordering::Relaxed);
@@ -341,6 +347,7 @@ impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
     }
 }
 
+#[async_trait]
 impl<S: Storage + ImmutableReadOnlyStorage + 'static> Storage for CachedStorage<S> {
     type Stats = CachedStorageStats<S::Stats>;
     type Config = CachedStorageConfig<S::Config>;

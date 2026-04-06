@@ -1,3 +1,5 @@
+use async_trait::async_trait;
+
 use crate::storage_trait::{
     DbHashMap,
     DbKey,
@@ -25,6 +27,7 @@ impl<'a, S: ImmutableReadOnlyStorage> ReadsCollectorStorage<'a, S> {
     }
 }
 
+#[async_trait]
 impl<'a, S: ImmutableReadOnlyStorage> ReadOnlyStorage for ReadsCollectorStorage<'a, S> {
     async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let value = self.storage.get(key).await?;

@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use async_trait::async_trait;
 use blake2::Blake2s;
 use digest::Digest;
 
@@ -50,6 +51,7 @@ macro_rules! define_short_key_storage {
             }
         }
 
+        #[async_trait]
         impl<S: Storage + ImmutableReadOnlyStorage> ImmutableReadOnlyStorage for $name<S> {
             async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
                 self.storage.get(&Self::small_key(key)).await
@@ -64,6 +66,7 @@ macro_rules! define_short_key_storage {
             }
         }
 
+        #[async_trait]
         impl<S: Storage> ReadOnlyStorage for $name<S> {
             async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
                 self.storage.get_mut(&Self::small_key(key)).await
@@ -83,6 +86,7 @@ macro_rules! define_short_key_storage {
             }
         }
 
+        #[async_trait]
         impl<S: Storage> Storage for $name<S> {
             type Stats = S::Stats;
             type Config = EmptyStorageConfig;

@@ -24,6 +24,7 @@ use aerospike::{
     Value,
     WritePolicy,
 };
+use async_trait::async_trait;
 
 use crate::storage_trait::{
     AsyncStorage,
@@ -130,6 +131,7 @@ impl AerospikeStorage {
     }
 }
 
+#[async_trait]
 impl ImmutableReadOnlyStorage for AerospikeStorage {
     async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let record = self
@@ -164,6 +166,7 @@ impl ImmutableReadOnlyStorage for AerospikeStorage {
     }
 }
 
+#[async_trait]
 impl ReadOnlyStorage for AerospikeStorage {
     async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         ImmutableReadOnlyStorage::get(self, key).await
@@ -174,6 +177,7 @@ impl ReadOnlyStorage for AerospikeStorage {
     }
 }
 
+#[async_trait]
 impl Storage for AerospikeStorage {
     type Stats = NoStats;
     type Config = EmptyStorageConfig;
