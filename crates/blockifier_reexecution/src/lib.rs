@@ -6,7 +6,7 @@ pub mod serde_utils;
 pub mod state_reader;
 pub mod utils;
 
-use blockifier::blockifier::config::{CairoNativeMode, ContractClassManagerConfig};
+use blockifier::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
 use blockifier::blockifier::transaction_executor::TransactionExecutionOutput;
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::StateMaps;
@@ -31,8 +31,8 @@ pub fn execute_single_transaction(
     // Initialize the contract class manager.
     let mut contract_class_manager_config = ContractClassManagerConfig::default();
     if cfg!(feature = "cairo_native") {
-        contract_class_manager_config.cairo_native_run_config.cairo_native_mode =
-            CairoNativeMode::WaitOnCompilation;
+        contract_class_manager_config.cairo_native_run_config =
+            CairoNativeRunConfig::wait_on_compilation_for_testing();
     }
     let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
 
