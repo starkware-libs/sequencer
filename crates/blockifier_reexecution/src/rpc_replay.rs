@@ -6,15 +6,27 @@ use std::time::Duration;
 use blockifier::blockifier::config::{CairoNativeMode, ContractClassManagerConfig};
 use blockifier::context::ChainInfo;
 use blockifier::state::contract_class_manager::ContractClassManager;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::{
+    calculate_block_commitments,
+    calculate_block_hash,
+    PartialBlockHashComponents,
+    TransactionHashingData,
+};
 #[cfg(feature = "cairo_native")]
 use starknet_api::contract_class::SierraVersion;
 
 use crate::errors::{RPCStateReaderError, ReexecutionError, ReexecutionResult};
 use crate::state_reader::config::RpcStateReaderConfig;
 use crate::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
+use crate::state_reader::rpc_objects::BlockHeader;
 use crate::state_reader::rpc_state_reader::ConsecutiveRpcStateReaders;
-use crate::utils::{compare_state_diffs, get_chain_info};
+use crate::utils::{commitment_state_diff_to_thin, compare_state_diffs, get_chain_info};
+
+// Block hash comparison is only valid for Starknet v0.14.0 and later.
+// Earlier blocks may have deprecated (Cairo 0) declared classes which we do not fetch from RPC,
+// and would cause the computed hash to diverge from the chain hash.
+const MIN_VERSION_FOR_BLOCK_HASH_COMPARISON: &str = "0.14.0";
 
 struct ReplayCounters {
     matched: AtomicU64,
@@ -167,7 +179,7 @@ fn replay_worker(
     }
 }
 
-/// Reexecutes a single block via RPC and compares the actual state diff against the chain.
+/// Reexecutes a single block via RPC, compares the state diff and block hash against the chain.
 fn reexecute_block(
     block_number: u64,
     config: &RpcStateReaderConfig,
@@ -185,13 +197,31 @@ fn reexecute_block(
         contract_class_manager.clone(),
     );
 
-    let (_block_state, expected_state_diff, actual_state_diff) = readers.reexecute_block()?;
+    let block_header = readers.get_next_block_header()?;
 
-    Ok(compare_state_diffs(expected_state_diff, actual_state_diff, BlockNumber(block_number)))
+    let (_block_state, expected_state_diff, actual_state_diff, txs_hashing_data) =
+        readers.reexecute_block()?;
+
+    let state_diff_matched = compare_state_diffs(
+        expected_state_diff,
+        actual_state_diff.clone(),
+        BlockNumber(block_number),
+    );
+    let block_hash_matched = compare_block_hash(
+        txs_hashing_data,
+        actual_state_diff,
+        &block_header,
+        BlockNumber(block_number),
+    );
+
+    Ok(state_diff_matched && block_hash_matched)
 }
 
 /// Reexecutes a single block twice -- once with native and once with CASM -- and compares the
-/// resulting state diffs against each other.
+/// resulting state diffs and transaction hashing data against each other.
+///
+/// Comparing transaction hashing data (execution outputs, signatures) is equivalent to comparing
+/// block hashes without the overhead of computing commitments.
 #[cfg(feature = "cairo_native")]
 fn reexecute_block_native_vs_casm(
     block_number: u64,
@@ -214,7 +244,8 @@ fn reexecute_block_native_vs_casm(
         native_manager.clone(),
     );
     native_readers.min_sierra_version_override = min_sierra_version_override.clone();
-    let (_block_state, _expected, native_state_diff) = native_readers.reexecute_block()?;
+    let (_block_state, _expected, native_state_diff, native_txs_hashing_data) =
+        native_readers.reexecute_block()?;
 
     let mut casm_readers = ConsecutiveRpcStateReaders::new(
         prev_block,
@@ -224,9 +255,103 @@ fn reexecute_block_native_vs_casm(
         casm_manager.clone(),
     );
     casm_readers.min_sierra_version_override = min_sierra_version_override;
-    let (_block_state, _expected, casm_state_diff) = casm_readers.reexecute_block()?;
+    let (_block_state, _expected, casm_state_diff, casm_txs_hashing_data) =
+        casm_readers.reexecute_block()?;
 
-    Ok(compare_state_diffs(native_state_diff, casm_state_diff, BlockNumber(block_number)))
+    let state_diff_matched =
+        compare_state_diffs(native_state_diff, casm_state_diff, BlockNumber(block_number));
+    let tx_hashing_data_matched =
+        compare_tx_hashing_data(native_txs_hashing_data, casm_txs_hashing_data, block_number);
+
+    Ok(state_diff_matched && tx_hashing_data_matched)
+}
+
+/// Computes the block hash from the reexecution output and compares it against the expected hash
+/// from the chain. Returns `true` if they match, or if the block predates v0.14.0 (skipped).
+///
+/// Uses the state root from the RPC block header (`new_root`) since the blockifier does not
+/// compute state roots. If the state diff already matched, the state root should also match.
+///
+/// Note: We assume no deprecated (Cairo 0) declared classes in any block. This assumption holds
+/// for Starknet v0.14.0+. Blocks before v0.14.0 may include such declarations and are therefore
+/// skipped.
+fn compare_block_hash(
+    txs_hashing_data: Vec<TransactionHashingData>,
+    actual_state_diff: blockifier::state::cached_state::CommitmentStateDiff,
+    block_header: &BlockHeader,
+    block_number: BlockNumber,
+) -> bool {
+    let starknet_version: starknet_api::block::StarknetVersion =
+        block_header.starknet_version.clone().try_into().expect("Failed to parse starknet version");
+
+    let min_version: starknet_api::block::StarknetVersion =
+        MIN_VERSION_FOR_BLOCK_HASH_COMPARISON.try_into().expect("Invalid min version constant.");
+    if starknet_version < min_version {
+        tracing::debug!(
+            "Block {block_number}: skipping block hash comparison (version {} < {}).",
+            block_header.starknet_version,
+            MIN_VERSION_FOR_BLOCK_HASH_COMPARISON
+        );
+        return true;
+    }
+
+    let thin_state_diff = commitment_state_diff_to_thin(actual_state_diff);
+
+    let (commitments, _measurements) =
+        tokio::runtime::Handle::current().block_on(calculate_block_commitments(
+            &txs_hashing_data,
+            thin_state_diff,
+            block_header.l1_da_mode,
+            &starknet_version,
+        ));
+
+    let block_info: BlockInfo =
+        block_header.clone().try_into().expect("Invalid block header");
+    let partial_block_hash_components = PartialBlockHashComponents::new(&block_info, commitments);
+
+    let computed_hash = calculate_block_hash(
+        &partial_block_hash_components,
+        block_header.new_root,
+        block_header.parent_hash,
+    ).expect("Failed to calculate block hash");
+
+    if computed_hash == block_header.block_hash {
+        true
+    } else {
+        tracing::warn!(
+            "Block hash mismatch for block {block_number}.\n  expected: {}\n  actual:   {}",
+            block_header.block_hash,
+            computed_hash,
+        );
+        false
+    }
+}
+
+/// Compares transaction hashing data (execution outputs and signatures) between two executions.
+/// Returns `true` if they match.
+#[cfg(feature = "cairo_native")]
+fn compare_tx_hashing_data(
+    native_txs_hashing_data: Vec<TransactionHashingData>,
+    casm_txs_hashing_data: Vec<TransactionHashingData>,
+    block_number: u64,
+) -> bool {
+    if native_txs_hashing_data == casm_txs_hashing_data {
+        return true;
+    }
+    tracing::warn!(
+        "Transaction hashing data mismatch for block {block_number} between native and CASM."
+    );
+    for (index, (native, casm)) in
+        native_txs_hashing_data.iter().zip(casm_txs_hashing_data.iter()).enumerate()
+    {
+        if native != casm {
+            tracing::warn!(
+                "  tx[{index}] ({}):\n    native: {native:?}\n    casm:   {casm:?}",
+                native.transaction_hash,
+            );
+        }
+    }
+    false
 }
 
 fn is_block_not_found(err: &ReexecutionError) -> bool {
