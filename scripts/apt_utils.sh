@@ -2,6 +2,12 @@
 
 # Common apt utilities with retry logic for CI environments.
 # This file should be sourced by other scripts.
+#
+# The retry functions self-elevate via $SUDO so callers can invoke them
+# directly without wrapping in `sudo bash -c '...'`. When already running as
+# root, $SUDO expands to empty and the apt calls run unprivileged-elevation.
+
+[[ ${UID} == "0" ]] || SUDO="sudo"
 
 # Log a step with a visible separator for CI readability.
 # Usage: log_step "script_name" "message"
@@ -22,7 +28,7 @@ function apt_update_with_retry() {
 
     while [ $attempt -le $max_attempts ]; do
         echo "apt-get update attempt $attempt of $max_attempts..."
-        if apt-get update; then
+        if $SUDO apt-get update; then
             echo "apt-get update succeeded on attempt $attempt"
             return 0
         fi
@@ -31,7 +37,7 @@ function apt_update_with_retry() {
 
         if [ $attempt -lt $max_attempts ]; then
             echo "Cleaning apt cache and retrying in ${delay}s..."
-            rm -rf /var/lib/apt/lists/*
+            $SUDO rm -rf /var/lib/apt/lists/*
             sleep $delay
             delay=$((delay * 2))
         fi
@@ -51,7 +57,7 @@ function apt_install_with_retry() {
 
     while [ $attempt -le $max_attempts ]; do
         echo "apt-get install attempt $attempt of $max_attempts..."
-        if apt-get install "$@"; then
+        if $SUDO apt-get install "$@"; then
             echo "apt-get install succeeded on attempt $attempt"
             return 0
         fi
