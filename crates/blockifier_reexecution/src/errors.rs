@@ -76,6 +76,8 @@ pub enum ReexecutionError {
     TransactionExecutionError(#[from] TransactionExecutionError),
     #[error(transparent)]
     VersionedConstants(#[from] VersionedConstantsError),
+    #[error("State prefetch simulation failed: {0}")]
+    PrefetchState(String),
 }
 
 pub type ReexecutionResult<T> = Result<T, ReexecutionError>;

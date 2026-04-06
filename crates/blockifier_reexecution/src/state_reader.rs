@@ -2,6 +2,9 @@ pub mod config;
 pub mod offline_state_reader;
 #[cfg(test)]
 mod offline_state_reader_test;
+pub mod prefetched_state_reader;
+#[cfg(test)]
+mod prefetched_state_reader_test;
 #[cfg(test)]
 mod raw_rpc_json_test;
 pub mod reexecution_state_reader;

@@ -9,7 +9,6 @@
 pub mod classes_provider;
 pub mod committer_utils;
 pub mod runner;
-pub(crate) mod serde_utils;
 pub mod storage_proofs;
 pub mod virtual_block_executor;
 
@@ -19,8 +18,6 @@ mod classes_provider_test;
 pub mod rpc_records;
 #[cfg(test)]
 mod rpc_records_test;
-#[cfg(test)]
-mod serde_utils_test;
 #[cfg(test)]
 mod storage_proofs_test;
 #[cfg(test)]
