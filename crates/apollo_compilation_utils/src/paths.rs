@@ -4,18 +4,6 @@
 
 use std::path::PathBuf;
 
-fn target_dir(out_dir: &std::path::Path) -> std::path::PathBuf {
-    out_dir
-        .ancestors()
-        .nth(3)
-        .expect("Failed to navigate up three levels from OUT_DIR")
-        .to_path_buf()
-}
-
-pub fn shared_folder_dir(out_dir: &std::path::Path) -> std::path::PathBuf {
-    target_dir(out_dir).join("shared_executables")
-}
-
 /// Returns the absolute path to `binary_name`, resolved through `$PATH` at call time.
 ///
 /// Resolving the absolute path here (rather than relying on `Command::new(binary_name)`
@@ -63,9 +51,4 @@ fn is_executable_file(path: &std::path::Path) -> bool {
 #[cfg(not(unix))]
 fn is_executable_file(path: &std::path::Path) -> bool {
     std::fs::metadata(path).is_ok_and(|metadata| metadata.is_file())
-}
-
-// TODO(Avi): Remove once build.rs callers are gone.
-pub fn legacy_binary_path(out_dir: &std::path::Path, binary_name: &str) -> std::path::PathBuf {
-    shared_folder_dir(out_dir).join(binary_name)
 }
