@@ -241,14 +241,14 @@ impl Engine {
         let claimed_nonce = unit.nonce();
         let claimed_root = unit.root();
 
-        // Track received shard.
+        // Track received unit.
         if let Some(metrics) = &self.metrics {
             metrics.shards_received.increment(1);
         }
 
         // Check if committee is registered.
         let Some(committee_data) = self.committees.get(&claimed_committee_id) else {
-            warn!(?claimed_committee_id, "Received shard for unregistered committee, dropping");
+            warn!(?claimed_committee_id, "Received unit for unregistered committee, dropping");
             return;
         };
 
@@ -282,7 +282,7 @@ impl Engine {
             let Some(publisher_public_key) =
                 committee_data.peer_public_keys.get(&claimed_publisher).cloned()
             else {
-                warn!(?claimed_publisher, "Received shard for unregistered publisher, dropping");
+                warn!(?claimed_publisher, "Received unit for unregistered publisher, dropping");
                 return;
             };
             let my_shard_index_result =
@@ -292,7 +292,7 @@ impl Engine {
                     ?claimed_publisher,
                     ?claimed_committee_id,
                     ?my_shard_index_result,
-                    "Received shard for publisher not in committee, dropping"
+                    "Received unit for publisher not in committee, dropping"
                 );
                 return;
             };
@@ -471,7 +471,7 @@ impl Engine {
         );
 
         for (unit, peer) in units.into_iter().zip(peers_in_order) {
-            trace!(index = ?unit.index(), ?peer, "[BROADCAST] Sending shard");
+            trace!(index = ?unit.index(), ?peer, "[BROADCAST] Sending unit");
             self.send_unit_to_peer(unit, peer);
         }
 
