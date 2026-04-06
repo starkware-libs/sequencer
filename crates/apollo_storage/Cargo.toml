@@ -85,7 +85,3 @@ ignored = ["papyrus_common"]
 [[bin]]
 name = "storage_cli"
 required-features = ["storage_cli"]
-
-[[bin]]
-name = "measure_tx_output_size"
-required-features = ["storage_cli"]
