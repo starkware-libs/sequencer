@@ -2372,6 +2372,7 @@ dependencies = [
  "rstest",
  "sha2 0.10.9",
  "starknet_api",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
  "tokio-stream",

@@ -18,7 +18,7 @@ use tracing::{debug, error, trace, warn};
 use crate::config::Config;
 use crate::handler::{HandlerIn, HandlerOut};
 use crate::message_processor::{EventStateManagerToEngine, MessageProcessor, UnitToValidate};
-use crate::metrics::PropellerMetrics;
+use crate::metrics::{CollectionLabel, PropellerMetrics};
 use crate::sharding::create_units_to_publish;
 use crate::signature;
 use crate::time_cache::TimeCache;
@@ -118,6 +118,12 @@ pub struct Engine {
 }
 
 impl Engine {
+    fn record_metric(&self, f: impl FnOnce(&PropellerMetrics)) {
+        if let Some(metrics) = &self.metrics {
+            f(metrics);
+        }
+    }
+
     /// Create a new engine instance.
     pub fn new(
         keypair: Keypair,
@@ -180,6 +186,12 @@ impl Engine {
             CommitteeData { schedule_manager: Arc::new(schedule_manager), peer_public_keys };
         self.committees.insert(committee_id, committee_data);
 
+        let num_committees = self.committees.len();
+        self.record_metric(|m| {
+            m.committees_registered.increment(1);
+            m.update_collection_length(CollectionLabel::RegisteredCommittees, num_committees);
+        });
+
         Ok(())
     }
 
@@ -190,6 +202,12 @@ impl Engine {
         let result = self.committees.remove(&committee_id).is_some();
         // TODO(AndrewL): Consider adding a command to MP to terminate the task.
         self.message_to_unit_tx.retain(|key, _| key.committee_id != committee_id);
+        let num_committees = self.committees.len();
+        let num_tasks = self.message_to_unit_tx.len();
+        self.record_metric(|m| {
+            m.update_collection_length(CollectionLabel::RegisteredCommittees, num_committees);
+            m.update_collection_length(CollectionLabel::ActiveProcessors, num_tasks);
+        });
         result
     }
 
@@ -227,11 +245,19 @@ impl Engine {
     /// Handle a peer connection.
     fn handle_connected(&mut self, peer_id: PeerId) {
         self.connected_peers.insert(peer_id);
+        let num_peers = self.connected_peers.len();
+        self.record_metric(|m| {
+            m.update_collection_length(CollectionLabel::ConnectedPeers, num_peers)
+        });
     }
 
     /// Handle a peer disconnection.
     fn handle_disconnected(&mut self, peer_id: PeerId) {
         self.connected_peers.remove(&peer_id);
+        let num_peers = self.connected_peers.len();
+        self.record_metric(|m| {
+            m.update_collection_length(CollectionLabel::ConnectedPeers, num_peers)
+        });
     }
 
     /// Handle an incoming unit from a peer.
@@ -241,10 +267,11 @@ impl Engine {
         let claimed_nonce = unit.nonce();
         let claimed_root = unit.root();
 
-        // Track received shard.
-        if let Some(metrics) = &self.metrics {
-            metrics.shards_received.increment(1);
-        }
+        let shard_len: usize = unit.shards().0.iter().map(|s| s.0.len()).sum();
+        self.record_metric(|m| {
+            m.shards_received.increment(1);
+            m.shard_bytes_received.increment(u64::try_from(shard_len).unwrap_or(u64::MAX));
+        });
 
         // Check if committee is registered.
         let Some(committee_data) = self.committees.get(&claimed_committee_id) else {
@@ -320,6 +347,10 @@ impl Engine {
             tokio::spawn(processor.run());
 
             self.message_to_unit_tx.insert(message_key, unit_tx);
+            let num_tasks = self.message_to_unit_tx.len();
+            self.record_metric(|m| {
+                m.update_collection_length(CollectionLabel::ActiveProcessors, num_tasks)
+            });
         }
 
         // Send unit to message processor
@@ -341,6 +372,7 @@ impl Engine {
     }
 
     fn emit_event(&mut self, event: Event) {
+        self.record_metric(|m| m.track_event(&event));
         self.to_behaviour_tx
             .send(EngineOutput::GenerateEvent(event))
             .expect("Behaviour has exited");
@@ -416,10 +448,22 @@ impl Engine {
                 if self.message_to_unit_tx.remove(&message_key).is_some() {
                     trace!(?message_key, "[ENGINE] Removed task handles");
                 }
+
+                let finalized_len = self.messages_to_ignore_shards_from.capacity();
+                let num_tasks = self.message_to_unit_tx.len();
+                self.record_metric(|m| {
+                    m.update_collection_length(CollectionLabel::FinalizedMessages, finalized_len);
+                    m.update_collection_length(CollectionLabel::ActiveProcessors, num_tasks);
+                });
             }
             EventStateManagerToEngine::SendUnitToPeers { unit, peers } => {
                 trace!(index = ?unit.index(), num_peers = peers.len(), "[ENGINE] Forwarding unit to peers");
 
+                let num_peers = u64::try_from(peers.len()).unwrap_or(u64::MAX);
+                self.record_metric(|m| {
+                    m.shard_forward_operations.increment(1);
+                    m.shards_forwarded.increment(num_peers);
+                });
                 for peer in peers {
                     self.send_unit_to_peer(unit.clone(), peer);
                 }
@@ -463,6 +507,9 @@ impl Engine {
             .schedule_manager
             .clone();
 
+        let num_units = u64::try_from(units.len()).unwrap_or(u64::MAX);
+        self.record_metric(|m| m.shards_published.increment(num_units));
+
         let peers_in_order = schedule_manager.make_broadcast_list();
         assert_eq!(
             peers_in_order.len(),
@@ -479,6 +526,11 @@ impl Engine {
     }
 
     fn send_unit_to_peer(&mut self, unit: PropellerUnit, peer: PeerId) {
+        let shard_len: usize = unit.shards().0.iter().map(|s| s.0.len()).sum();
+        self.record_metric(|m| {
+            m.shards_sent.increment(1);
+            m.shard_bytes_sent.increment(u64::try_from(shard_len).unwrap_or(u64::MAX));
+        });
         self.emit_handler_event(peer, HandlerIn::SendUnit(unit));
     }
 
