@@ -9,8 +9,6 @@
 use jsonrpsee::types::error::ErrorCode::InternalError;
 use jsonrpsee::types::error::INTERNAL_ERROR_MSG;
 use jsonrpsee::types::ErrorObjectOwned;
-use starknet_rust::providers::ProviderError;
-use starknet_rust_core::types::StarknetError;
 
 use crate::errors::{ProofProviderError, RunnerError, VirtualBlockExecutorError, VirtualSnosProverError};
 
@@ -53,15 +51,6 @@ pub fn transaction_execution_error(data: String) -> ErrorObjectOwned {
     ErrorObjectOwned::owned(41, "Transaction execution error", Some(data))
 }
 
-/// Storage proof not supported for this block (code 42).
-pub fn storage_proof_not_supported() -> ErrorObjectOwned {
-    ErrorObjectOwned::owned(
-        42,
-        "The node doesn't support storage proofs for blocks that are too far in the past",
-        None::<()>,
-    )
-}
-
 /// Creates an internal server error with the given message.
 pub fn internal_server_error(err: impl std::fmt::Display) -> ErrorObjectOwned {
     ErrorObjectOwned::owned(InternalError.code(), INTERNAL_ERROR_MSG, Some(err.to_string()))
@@ -74,9 +63,11 @@ fn runner_error_to_rpc(err: RunnerError) -> ErrorObjectOwned {
         RunnerError::VirtualBlockExecutor(
             VirtualBlockExecutorError::UpstreamExecutionError(detail),
         ) => transaction_execution_error(detail),
-        RunnerError::ProofProvider(ProofProviderError::Rpc(ProviderError::StarknetError(
-            StarknetError::StorageProofNotSupported,
-        ))) => storage_proof_not_supported(),
+        RunnerError::ProofProvider(ProofProviderError::UpstreamRpcError { code, message }) => {
+            let rpc_code =
+                i32::try_from(code).unwrap_or(InternalError.code());
+            ErrorObjectOwned::owned(rpc_code, message, None::<()>)
+        }
         other => internal_server_error(other),
     }
 }

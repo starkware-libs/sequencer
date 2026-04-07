@@ -51,6 +51,8 @@ pub enum ProofProviderError {
     InvalidStateDiff(String),
     #[error("RPC provider error: {0}")]
     Rpc(#[from] ProviderError),
+    #[error("Upstream JSON-RPC error (code {code}): {message}")]
+    UpstreamRpcError { code: i64, message: String },
     #[error(transparent)]
     SerializationError(#[from] SerializationError),
     #[error("Invalid RPC proof response: {0}")]

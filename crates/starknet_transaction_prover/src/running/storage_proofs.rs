@@ -19,8 +19,8 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
 };
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_rust::providers::jsonrpc::HttpTransport;
-use starknet_rust::providers::{JsonRpcClient, Provider};
+use starknet_rust::providers::jsonrpc::{HttpTransport, HttpTransportError, JsonRpcClientError};
+use starknet_rust::providers::{JsonRpcClient, Provider, ProviderError};
 use starknet_rust_core::types::{
     ConfirmedBlockId,
     ContractStorageKeys,
@@ -210,6 +210,23 @@ pub(crate) struct StorageProofs {
     pub(crate) commitment_infos: StateCommitmentInfos,
 }
 
+/// If the provider error wraps a raw JSON-RPC error (unrecognized by starknet-rs), extract its
+/// code and message into [`ProofProviderError::UpstreamRpcError`].  Otherwise fall back to
+/// [`ProofProviderError::Rpc`].
+fn extract_upstream_rpc_error(err: ProviderError) -> ProofProviderError {
+    if let ProviderError::Other(ref inner) = err {
+        if let Some(JsonRpcClientError::JsonRpcError(rpc_err)) =
+            inner.as_any().downcast_ref::<JsonRpcClientError<HttpTransportError>>()
+        {
+            return ProofProviderError::UpstreamRpcError {
+                code: rpc_err.code,
+                message: rpc_err.message.clone(),
+            };
+        }
+    }
+    ProofProviderError::Rpc(err)
+}
+
 /// Wrapper around `JsonRpcClient` for fetching storage proofs.
 pub(crate) struct RpcStorageProofsProvider(pub(crate) JsonRpcClient<HttpTransport>);
 
@@ -306,7 +323,8 @@ impl RpcStorageProofsProvider {
                 &contract_addresses,
                 &query.contract_storage_keys,
             )
-            .await?;
+            .await
+            .map_err(extract_upstream_rpc_error)?;
 
         Ok(storage_proof)
     }
