@@ -2,62 +2,131 @@
 //!
 //! Error codes follow Starknet RPC specification v0.10.
 //!
-//! When adding a new error type, also update:
-//! - The OpenRPC spec: `resources/proving_api_openrpc.json` (under `components/errors`)
-//! - The spec validation test: `server/rpc_spec_test.rs` (`test_error_responses_match_spec`)
+//! When adding a new error type:
+//! 1. Add a variant to [`ProverRpcError`] below.
+//! 2. Add the error to the OpenRPC spec: `resources/proving_api_openrpc.json`
+//!    (both `components/errors` and the method's `errors` array).
+//! 3. Run `test_error_responses_match_spec` — it will fail if (1) and (2) are
+//!    out of sync.
 
 use jsonrpsee::types::error::ErrorCode::InternalError;
 use jsonrpsee::types::error::INTERNAL_ERROR_MSG;
 use jsonrpsee::types::ErrorObjectOwned;
+use strum::IntoEnumIterator;
 
 use crate::errors::{ProofProviderError, RunnerError, VirtualBlockExecutorError, VirtualSnosProverError};
 
-// Starknet RPC v0.10 error codes.
+/// All documented JSON-RPC errors that `starknet_proveTransaction` can return.
+///
+/// Adding a variant here without updating the OpenRPC spec (or vice-versa) will
+/// cause `test_error_responses_match_spec` to fail.
+#[derive(strum::EnumIter)]
+pub enum ProverRpcError {
+    BlockNotFound,
+    TransactionExecutionError,
+    StorageProofNotSupported,
+    AccountValidationFailed,
+    UnsupportedTxVersion,
+    ServiceBusy,
+    InvalidTransactionInput,
+}
 
-/// Block not found (code 24).
+impl ProverRpcError {
+    /// The error code sent in the JSON-RPC response.
+    pub fn code(&self) -> i32 {
+        match self {
+            Self::BlockNotFound => 24,
+            Self::TransactionExecutionError => 41,
+            Self::StorageProofNotSupported => 42,
+            Self::AccountValidationFailed => 55,
+            Self::UnsupportedTxVersion => 61,
+            Self::ServiceBusy => -32005,
+            Self::InvalidTransactionInput => 1000,
+        }
+    }
+
+    /// The error message sent in the JSON-RPC response.
+    pub fn message(&self) -> &'static str {
+        match self {
+            Self::BlockNotFound => "Block not found",
+            Self::TransactionExecutionError => "Transaction execution error",
+            Self::StorageProofNotSupported => {
+                "The node doesn't support storage proofs for blocks that are too far in the past"
+            }
+            Self::AccountValidationFailed => "Account validation failed",
+            Self::UnsupportedTxVersion => "The transaction version is not supported",
+            Self::ServiceBusy => "Service is busy",
+            Self::InvalidTransactionInput => "Invalid transaction input",
+        }
+    }
+
+    /// Whether this error carries a `data` field in the JSON-RPC response.
+    pub fn has_data(&self) -> bool {
+        match self {
+            Self::BlockNotFound | Self::StorageProofNotSupported => false,
+            Self::TransactionExecutionError
+            | Self::AccountValidationFailed
+            | Self::UnsupportedTxVersion
+            | Self::ServiceBusy
+            | Self::InvalidTransactionInput => true,
+        }
+    }
+
+    /// The key used in the OpenRPC spec's `components/errors` object.
+    pub fn spec_key(&self) -> &'static str {
+        match self {
+            Self::BlockNotFound => "BLOCK_NOT_FOUND",
+            Self::TransactionExecutionError => "TRANSACTION_EXECUTION_ERROR",
+            Self::StorageProofNotSupported => "STORAGE_PROOF_NOT_SUPPORTED",
+            Self::AccountValidationFailed => "ACCOUNT_VALIDATION_FAILED",
+            Self::UnsupportedTxVersion => "UNSUPPORTED_TX_VERSION",
+            Self::ServiceBusy => "SERVICE_BUSY",
+            Self::InvalidTransactionInput => "INVALID_TRANSACTION_INPUT",
+        }
+    }
+
+    /// Build an [`ErrorObjectOwned`] with optional data.
+    pub fn to_error_object(&self, data: Option<String>) -> ErrorObjectOwned {
+        ErrorObjectOwned::owned(self.code(), self.message(), data)
+    }
+
+    /// Returns an iterator over all variants.
+    pub fn iter() -> ProverRpcErrorIter {
+        <Self as IntoEnumIterator>::iter()
+    }
+}
+
+// Convenience helpers used by the error-conversion logic below.
+
 pub fn block_not_found() -> ErrorObjectOwned {
-    ErrorObjectOwned::owned(24, "Block not found", None::<()>)
+    ProverRpcError::BlockNotFound.to_error_object(None)
 }
 
-/// Account validation failed (code 55).
 pub fn validation_failure(data: String) -> ErrorObjectOwned {
-    ErrorObjectOwned::owned(55, "Account validation failed", Some(data))
+    ProverRpcError::AccountValidationFailed.to_error_object(Some(data))
 }
 
-/// Unsupported transaction version (code 61).
 pub fn unsupported_tx_version(data: String) -> ErrorObjectOwned {
-    ErrorObjectOwned::owned(61, "The transaction version is not supported", Some(data))
+    ProverRpcError::UnsupportedTxVersion.to_error_object(Some(data))
 }
 
-/// Invalid transaction input (code 1000).
 pub fn invalid_transaction_input(data: String) -> ErrorObjectOwned {
-    ErrorObjectOwned::owned(1000, "Invalid transaction input", Some(data))
+    ProverRpcError::InvalidTransactionInput.to_error_object(Some(data))
 }
 
-/// Service is busy — too many concurrent proving requests (code -32005).
 pub fn service_busy(max_concurrent: usize) -> ErrorObjectOwned {
-    ErrorObjectOwned::owned(
-        -32005,
-        "Service is busy",
-        Some(format!(
-            "The proving service is at capacity ({max_concurrent} concurrent request(s)). Please \
-             retry later."
-        )),
-    )
+    ProverRpcError::ServiceBusy.to_error_object(Some(format!(
+        "The proving service is at capacity ({max_concurrent} concurrent request(s)). Please \
+         retry later."
+    )))
 }
 
-/// Transaction execution error (code 41).
 pub fn transaction_execution_error(data: String) -> ErrorObjectOwned {
-    ErrorObjectOwned::owned(41, "Transaction execution error", Some(data))
+    ProverRpcError::TransactionExecutionError.to_error_object(Some(data))
 }
 
-/// Storage proof not supported for this block (code 42).
 pub fn storage_proof_not_supported() -> ErrorObjectOwned {
-    ErrorObjectOwned::owned(
-        42,
-        "The node doesn't support storage proofs for blocks that are too far in the past",
-        None::<()>,
-    )
+    ProverRpcError::StorageProofNotSupported.to_error_object(None)
 }
 
 /// Creates an internal server error with the given message.
