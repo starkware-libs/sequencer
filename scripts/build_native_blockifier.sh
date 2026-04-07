@@ -15,6 +15,8 @@ function build() {
     source /tmp/venv/bin/activate
     rustup toolchain install
     cargo build --release -p native_blockifier --features "cairo_native" || ret=$?
+    # Install starknet-native-compile for artifact upload.
+    "$(dirname "${BASH_SOURCE[0]}")/install_compiler_binaries.sh" --native || ret=$?
     clean
     return $ret
 }
