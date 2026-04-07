@@ -39,6 +39,7 @@ starknet_os.workspace = true
 starknet_patricia.workspace = true
 starknet_patricia_storage.workspace = true
 starknet_proof_verifier.workspace = true
+strum = { workspace = true, features = ["derive"] }
 tempfile.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "process", "rt-multi-thread", "time"] }
