@@ -72,25 +72,21 @@ fn runner_error_to_rpc(err: RunnerError) -> ErrorObjectOwned {
         RunnerError::VirtualBlockExecutor(
             VirtualBlockExecutorError::UpstreamExecutionError(detail),
         ) => transaction_execution_error(detail),
+        RunnerError::VirtualBlockExecutor(
+            VirtualBlockExecutorError::TransactionReverted(_, ref reason),
+        ) if reason.contains("Out of gas") => invalid_transaction_input(
+            "Transaction reverted: out of gas. This is likely caused by \
+             l2_gas.max_amount being too low. Set it to the value from \
+             starknet_estimateFee, or use 100000000 (0x5f5e100) as a safe upper bound \
+             (sufficient for ~1 million Cairo steps)."
+                .to_string(),
+        ),
         RunnerError::ProofProvider(ProofProviderError::UpstreamRpcError { code, message }) => {
             let rpc_code =
                 i32::try_from(code).unwrap_or(InternalError.code());
             ErrorObjectOwned::owned(rpc_code, message, None::<()>)
         }
-        other => {
-            let message = other.to_string();
-            if message.contains("Out of gas") {
-                invalid_transaction_input(
-                    "Transaction reverted: out of gas. This is likely caused by \
-                     l2_gas.max_amount being too low. Set it to the value from \
-                     starknet_estimateFee, or use 100000000 (0x5f5e100) as a safe upper bound \
-                     (sufficient for ~1 million Cairo steps)."
-                        .to_string(),
-                )
-            } else {
-                internal_server_error(other)
-            }
-        }
+        other => internal_server_error(other),
     }
 }
 
