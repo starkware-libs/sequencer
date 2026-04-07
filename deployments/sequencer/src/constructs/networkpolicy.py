@@ -26,8 +26,8 @@ class NetworkPolicyConstruct(BaseConstruct):
         """Create NetworkPolicy resource."""
         np_config = self.service_config.networkPolicy
 
-        # Merge labels with common labels
-        merged_labels = {**self.labels, **np_config.labels}
+        # Merge labels with common labels, ensuring common labels take precedence
+        merged_labels = {**np_config.labels, **self.labels}
 
         # Build pod selector - use provided selector or default to pod labels
         # This ensures selector stays in sync with pod labels automatically

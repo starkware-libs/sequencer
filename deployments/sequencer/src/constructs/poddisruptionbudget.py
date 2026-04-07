@@ -29,8 +29,8 @@ class PodDisruptionBudgetConstruct(BaseConstruct):
         """Create PodDisruptionBudget resource."""
         pdb_config = self.service_config.podDisruptionBudget
 
-        # Merge labels with common labels
-        merged_labels = {**self.labels, **pdb_config.labels}
+        # Merge labels with common labels, ensuring common labels take precedence
+        merged_labels = {**pdb_config.labels, **self.labels}
 
         # Build selector - use provided selector or default to pod labels
         # This ensures selector stays in sync with pod labels automatically

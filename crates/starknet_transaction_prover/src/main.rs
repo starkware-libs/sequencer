@@ -48,6 +48,7 @@ async fn main() -> anyhow::Result<()> {
         &config.transport,
         rpc_impl.into_rpc().into(),
         config.max_connections,
+        config.max_request_body_size,
         cors_layer,
     )
     .await?;

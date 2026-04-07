@@ -111,10 +111,14 @@ curl -s -X POST http://localhost:3000 \
 ### Transaction requirements
 
 - Only INVOKE V3 transactions (`"type": "INVOKE"`, `"version": "0x3"`) are accepted.
-- Fee-related prices and tip must be zero: each resource bound (`l1_gas`, `l2_gas`, `l1_data_gas`)
-  must have `max_price_per_unit` set to `"0x0"`, and `tip` must be `"0x0"`. The `max_amount` fields
-  may be non-zero. Proving is client-side; no fees are charged. Disable this check with
-  `SKIP_FEE_FIELD_VALIDATION=true`.
+- **Prices and tip must be zero**: since proving is client-side and no fees are charged, each
+  resource bound (`l1_gas`, `l2_gas`, `l1_data_gas`) must have `max_price_per_unit` set to `"0x0"`,
+  and `tip` must be `"0x0"`. Disable this check with `SKIP_FEE_FIELD_VALIDATION=true`.
+- **`l2_gas.max_amount` must be non-zero**: this value is the gas limit the OS enforces on the
+  transaction. Set it to the value returned by `starknet_estimateFee`, or use `"0x5f5e100"`
+  (100,000,000) as a safe upper bound — this is sufficient for approximately 1 million Cairo steps.
+- **`l1_gas.max_amount` and `l1_data_gas.max_amount`** do not affect OS execution and can be any
+  value (including zero).
 - The `proof` and `proof_facts` fields are output-only and must be absent from the request (they
   are not part of the `RpcTransaction` input type).
 
@@ -163,6 +167,7 @@ and environment variables override values from the config file.
 | `PREFETCH_STATE` | `--prefetch-state` | `false` | Simulate the transaction before proving to prefetch state from the RPC node. Reduces the number of RPC calls during the actual proof run at the cost of one extra simulation. |
 | `USE_LATEST_VERSIONED_CONSTANTS` | `--use-latest-versioned-constants` | `true` | Use the latest versioned constants rather than block-version constants. Must match the OS version used by the prover. |
 | `COMPILED_CLASS_CACHE_SIZE` | `--compiled-class-cache-size` | `600` | Number of compiled Sierra contract classes to keep in an in-memory LRU cache. Higher values reduce RPC fetches for repeated contracts. |
+| `MAX_REQUEST_BODY_SIZE` | `--max-request-body-size` | `5242880` (5 MiB) | Maximum size of an incoming JSON-RPC request body in bytes. Requests exceeding this limit are rejected before parsing. |
 | `CONFIG_FILE` | `--config-file` | — | Path to a JSON config file. Fields use snake_case names matching `resources/example-config.json`. Values in the file are overridden by env vars and CLI flags. |
 | `RUST_LOG` | — | _(see Logging)_ | Controls log verbosity via `tracing-subscriber`. |
 
@@ -203,6 +208,7 @@ built-in defaults. See `resources/example-config.json` for a template.
 | `prefetch_state` | `PREFETCH_STATE` | bool |
 | `use_latest_versioned_constants` | `USE_LATEST_VERSIONED_CONSTANTS` | bool |
 | `compiled_class_cache_size` | `COMPILED_CLASS_CACHE_SIZE` | integer |
+| `max_request_body_size` | `MAX_REQUEST_BODY_SIZE` | integer (bytes) |
 | `cors_allow_origin` | `CORS_ALLOW_ORIGIN` | array of strings |
 | `tls_cert_file` | `TLS_CERT_FILE` | file path or null |
 | `tls_key_file` | `TLS_KEY_FILE` | file path or null |

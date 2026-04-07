@@ -36,11 +36,15 @@ pub async fn start_tls_server(
     key_path: &Path,
     methods: impl Into<Methods>,
     max_connections: u32,
+    max_request_body_size: u32,
     cors_layer: Option<CorsLayer>,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     let tls_acceptor = load_tls_acceptor(cert_path, key_path)?;
 
-    let server_config = ServerConfig::builder().max_connections(max_connections).build();
+    let server_config = ServerConfig::builder()
+        .max_connections(max_connections)
+        .max_request_body_size(max_request_body_size)
+        .build();
     let svc_builder = ServerBuilder::default()
         .set_config(server_config)
         .set_http_middleware(

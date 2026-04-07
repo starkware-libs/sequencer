@@ -5,6 +5,8 @@ include:
 
 name: l1
 
+metaLabels: {} # Additional labels merged with base labels
+
 replicas: 1
 
 # Config Configuration

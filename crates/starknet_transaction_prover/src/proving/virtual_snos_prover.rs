@@ -13,8 +13,10 @@ use blockifier_reexecution::utils::get_chain_info;
 #[cfg(feature = "stwo_proving")]
 use privacy_prove::{prepare_recursive_prover_precomputes, RecursiveProverPrecomputes};
 use serde::{Deserialize, Serialize};
+use starknet_api::block::GasPrice;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
-use starknet_api::transaction::fields::{Fee, Proof, ProofFacts, ValidResourceBounds};
+use starknet_api::transaction::fields::{Proof, ProofFacts, Tip};
 use starknet_api::transaction::{InvokeTransaction, MessageToL1};
 use tracing::{info, instrument};
 use url::Url;
@@ -225,7 +227,9 @@ fn extract_rpc_invoke_tx(
 ///
 /// Rejects transactions where:
 /// - `proof` or `proof_facts` are non-empty (these are output-only fields).
-/// - Max possible fee is non-zero (when `validate_zero_fee_fields` is enabled).
+/// - Any `max_price_per_unit` is non-zero or `tip` is non-zero (when `validate_zero_fee_fields` is
+///   enabled). Proving is client-side so no fees are charged.
+/// - `l2_gas.max_amount` is zero — this is the gas limit enforced by the OS.
 fn validate_transaction_input(
     tx: &RpcInvokeTransactionV3,
     validate_zero_fee_fields: bool,
@@ -241,13 +245,63 @@ fn validate_transaction_input(
         ));
     }
     if validate_zero_fee_fields {
-        let resource_bounds = ValidResourceBounds::AllResources(tx.resource_bounds);
-        let max_fee = resource_bounds.max_possible_fee(tx.tip);
-        if max_fee != Fee(0) {
-            return Err(VirtualSnosProverError::InvalidTransactionInput(format!(
-                "Max possible fee must be zero, got: {max_fee}."
-            )));
-        }
+        validate_zero_fee_resource_bounds(tx)?;
     }
+    Ok(())
+}
+
+/// Validates resource bounds for proving, collecting all violations into a single error.
+///
+/// Since proving is client-side, no fees are charged. All `max_price_per_unit` fields and `tip`
+/// must be zero. The `max_amount` fields have different semantics:
+/// - `l2_gas.max_amount`: determines the gas limit the OS enforces on the transaction. Must be
+///   non-zero. Set this to the value returned by `starknet_estimateFee`, or use a safe upper bound
+///   like 100,000,000 (sufficient for ~1 million Cairo steps).
+/// - `l1_gas.max_amount` and `l1_data_gas.max_amount`: do not affect OS execution and can be any
+///   value.
+fn validate_zero_fee_resource_bounds(
+    tx: &RpcInvokeTransactionV3,
+) -> Result<(), VirtualSnosProverError> {
+    let bounds = &tx.resource_bounds;
+    let mut violations = Vec::new();
+
+    if bounds.l1_gas.max_price_per_unit != GasPrice(0) {
+        violations
+            .push(format!("l1_gas.max_price_per_unit = {}", bounds.l1_gas.max_price_per_unit.0));
+    }
+    if bounds.l2_gas.max_price_per_unit != GasPrice(0) {
+        violations
+            .push(format!("l2_gas.max_price_per_unit = {}", bounds.l2_gas.max_price_per_unit.0));
+    }
+    if bounds.l1_data_gas.max_price_per_unit != GasPrice(0) {
+        violations.push(format!(
+            "l1_data_gas.max_price_per_unit = {}",
+            bounds.l1_data_gas.max_price_per_unit.0
+        ));
+    }
+    if tx.tip != Tip(0) {
+        violations.push(format!("tip = {}", tx.tip.0));
+    }
+
+    if !violations.is_empty() {
+        return Err(VirtualSnosProverError::InvalidTransactionInput(format!(
+            "Proving is client-side — no fees are charged. The following fields must be zero but \
+             were not: [{}]. Set all max_price_per_unit fields and tip to 0x0. Note: max_amount \
+             fields are fine to set — l2_gas.max_amount controls the gas limit enforced by the OS \
+             (use the value from starknet_estimateFee, or 100000000 as a safe upper bound). \
+             l1_gas.max_amount and l1_data_gas.max_amount do not affect OS execution.",
+            violations.join(", ")
+        )));
+    }
+
+    if bounds.l2_gas.max_amount == GasAmount(0) {
+        return Err(VirtualSnosProverError::InvalidTransactionInput(
+            "l2_gas.max_amount must be non-zero — it is the gas limit enforced by the OS on the \
+             transaction. Set this to the value returned by starknet_estimateFee, or use \
+             100000000 (0x5f5e100) as a safe upper bound (sufficient for ~1 million Cairo steps)."
+                .to_string(),
+        ));
+    }
+
     Ok(())
 }

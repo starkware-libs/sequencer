@@ -31,11 +31,15 @@ pub async fn start_server(
     transport: &TransportMode,
     methods: Methods,
     max_connections: u32,
+    max_request_body_size: u32,
     cors_layer: Option<CorsLayer>,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     match transport {
         TransportMode::Http => {
-            let server_config = ServerConfig::builder().max_connections(max_connections).build();
+            let server_config = ServerConfig::builder()
+                .max_connections(max_connections)
+                .max_request_body_size(max_request_body_size)
+                .build();
             let server = ServerBuilder::default()
                 .set_config(server_config)
                 .set_http_middleware(
@@ -55,6 +59,7 @@ pub async fn start_server(
                 tls_key_file,
                 methods,
                 max_connections,
+                max_request_body_size,
                 cors_layer,
             )
             .await

@@ -199,7 +199,9 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         COMMITMENT_MANAGER_NUM_COMMIT_RESULTS.increment(
             u64::try_from(results.len()).expect("Conversion from usize to u64 should not fail."),
         );
-        debug!("Received {} commitment results from the state committer.", results.len());
+        if !results.is_empty() {
+            debug!("Received {} commitment results from the state committer.", results.len());
+        }
         results
     }
 
