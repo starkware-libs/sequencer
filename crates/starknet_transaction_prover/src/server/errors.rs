@@ -51,6 +51,15 @@ pub fn transaction_execution_error(data: String) -> ErrorObjectOwned {
     ErrorObjectOwned::owned(41, "Transaction execution error", Some(data))
 }
 
+/// Storage proof not supported for this block (code 42).
+pub fn storage_proof_not_supported() -> ErrorObjectOwned {
+    ErrorObjectOwned::owned(
+        42,
+        "The node doesn't support storage proofs for blocks that are too far in the past",
+        None::<()>,
+    )
+}
+
 /// Creates an internal server error with the given message.
 pub fn internal_server_error(err: impl std::fmt::Display) -> ErrorObjectOwned {
     ErrorObjectOwned::owned(InternalError.code(), INTERNAL_ERROR_MSG, Some(err.to_string()))

@@ -292,6 +292,8 @@ async fn test_prove_transaction_rejects_pending_block_id(
 fn test_error_responses_match_spec() {
     let test_cases: Vec<(&str, ErrorObjectOwned)> = vec![
         ("BLOCK_NOT_FOUND", errors::block_not_found()),
+        ("TRANSACTION_EXECUTION_ERROR", errors::transaction_execution_error("test".to_string())),
+        ("STORAGE_PROOF_NOT_SUPPORTED", errors::storage_proof_not_supported()),
         ("ACCOUNT_VALIDATION_FAILED", errors::validation_failure("test".to_string())),
         ("UNSUPPORTED_TX_VERSION", errors::unsupported_tx_version("v99".to_string())),
         ("SERVICE_BUSY", errors::service_busy(2)),

@@ -60,6 +60,12 @@
                     "$ref": "#/components/errors/BLOCK_NOT_FOUND"
                 },
                 {
+                    "$ref": "#/components/errors/TRANSACTION_EXECUTION_ERROR"
+                },
+                {
+                    "$ref": "#/components/errors/STORAGE_PROOF_NOT_SUPPORTED"
+                },
+                {
                     "$ref": "#/components/errors/ACCOUNT_VALIDATION_FAILED"
                 },
                 {
@@ -384,6 +390,18 @@
             "BLOCK_NOT_FOUND": {
                 "code": 24,
                 "message": "Block not found"
+            },
+            "TRANSACTION_EXECUTION_ERROR": {
+                "code": 41,
+                "message": "Transaction execution error",
+                "data": {
+                    "type": "string",
+                    "description": "Details about the execution failure."
+                }
+            },
+            "STORAGE_PROOF_NOT_SUPPORTED": {
+                "code": 42,
+                "message": "The node doesn't support storage proofs for blocks that are too far in the past"
             },
             "ACCOUNT_VALIDATION_FAILED": {
                 "code": 55,
