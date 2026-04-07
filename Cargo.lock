@@ -12748,6 +12748,7 @@ dependencies = [
  "starknet_patricia",
  "starknet_patricia_storage",
  "starknet_proof_verifier",
+ "strum",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
