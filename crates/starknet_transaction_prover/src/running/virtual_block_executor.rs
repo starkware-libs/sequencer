@@ -19,6 +19,7 @@ use blockifier::state::state_reader_and_contract_manager::{
 };
 use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
+use blockifier_reexecution::errors::RPCStateReaderError;
 use blockifier_reexecution::state_reader::rpc_objects::{BlockHeader, BlockId};
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use serde::{Deserialize, Serialize};
@@ -35,8 +36,6 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 use tracing::{error, warn};
-
-use blockifier_reexecution::errors::RPCStateReaderError;
 
 use crate::errors::VirtualBlockExecutorError;
 use crate::running::serde_utils::deserialize_rpc_initial_reads;
@@ -537,9 +536,7 @@ impl RpcVirtualBlockExecutor {
                         .unwrap_or(&rpc_err.error.message);
                     VirtualBlockExecutorError::UpstreamExecutionError(detail.to_string())
                 }
-                other => {
-                    VirtualBlockExecutorError::ReexecutionError(Box::new(other.into()))
-                }
+                other => VirtualBlockExecutorError::ReexecutionError(Box::new(other.into())),
             })?;
 
         let initial_reads_value = result.get("initial_reads").cloned().ok_or_else(|| {

@@ -10,7 +10,12 @@ use jsonrpsee::types::error::ErrorCode::InternalError;
 use jsonrpsee::types::error::INTERNAL_ERROR_MSG;
 use jsonrpsee::types::ErrorObjectOwned;
 
-use crate::errors::{ProofProviderError, RunnerError, VirtualBlockExecutorError, VirtualSnosProverError};
+use crate::errors::{
+    ProofProviderError,
+    RunnerError,
+    VirtualBlockExecutorError,
+    VirtualSnosProverError,
+};
 
 // Starknet RPC v0.10 error codes.
 
@@ -69,21 +74,20 @@ pub fn internal_server_error(err: impl std::fmt::Display) -> ErrorObjectOwned {
 /// codes instead of hiding them behind -32603.
 fn runner_error_to_rpc(err: RunnerError) -> ErrorObjectOwned {
     match err {
-        RunnerError::VirtualBlockExecutor(
-            VirtualBlockExecutorError::UpstreamExecutionError(detail),
-        ) => transaction_execution_error(detail),
-        RunnerError::VirtualBlockExecutor(
-            VirtualBlockExecutorError::TransactionReverted(_, ref reason),
-        ) if reason.contains("Out of gas") => invalid_transaction_input(
-            "Transaction reverted: out of gas. This is likely caused by \
-             l2_gas.max_amount being too low. Set it to the value from \
-             starknet_estimateFee, or use 100000000 (0x5f5e100) as a safe upper bound \
-             (sufficient for ~1 million Cairo steps)."
+        RunnerError::VirtualBlockExecutor(VirtualBlockExecutorError::UpstreamExecutionError(
+            detail,
+        )) => transaction_execution_error(detail),
+        RunnerError::VirtualBlockExecutor(VirtualBlockExecutorError::TransactionReverted(
+            _,
+            ref reason,
+        )) if reason.contains("Out of gas") => invalid_transaction_input(
+            "Transaction reverted: out of gas. This is likely caused by l2_gas.max_amount being \
+             too low. Set it to the value from starknet_estimateFee, or use 100000000 (0x5f5e100) \
+             as a safe upper bound (sufficient for ~1 million Cairo steps)."
                 .to_string(),
         ),
         RunnerError::ProofProvider(ProofProviderError::UpstreamRpcError { code, message }) => {
-            let rpc_code =
-                i32::try_from(code).unwrap_or(InternalError.code());
+            let rpc_code = i32::try_from(code).unwrap_or(InternalError.code());
             ErrorObjectOwned::owned(rpc_code, message, None::<()>)
         }
         other => internal_server_error(other),
@@ -93,19 +97,11 @@ fn runner_error_to_rpc(err: RunnerError) -> ErrorObjectOwned {
 impl From<VirtualSnosProverError> for ErrorObjectOwned {
     fn from(err: VirtualSnosProverError) -> Self {
         match err {
-            VirtualSnosProverError::InvalidTransactionType(msg) => {
-                unsupported_tx_version(msg)
-            }
-            VirtualSnosProverError::InvalidTransactionInput(msg) => {
-                invalid_transaction_input(msg)
-            }
+            VirtualSnosProverError::InvalidTransactionType(msg) => unsupported_tx_version(msg),
+            VirtualSnosProverError::InvalidTransactionInput(msg) => invalid_transaction_input(msg),
             VirtualSnosProverError::ValidationError(msg) => {
                 // Check if it's a pending block error.
-                if msg.contains("Pending") {
-                    block_not_found()
-                } else {
-                    validation_failure(msg)
-                }
+                if msg.contains("Pending") { block_not_found() } else { validation_failure(msg) }
             }
             VirtualSnosProverError::RunnerError(e) => runner_error_to_rpc(*e),
             #[cfg(feature = "stwo_proving")]
