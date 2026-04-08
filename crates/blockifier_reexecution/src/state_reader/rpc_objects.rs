@@ -1,4 +1,3 @@
-use blockifier::blockifier::block::validated_gas_prices;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use starknet_api::block::{
@@ -8,6 +7,8 @@ use starknet_api::block::{
     BlockTimestamp,
     GasPrice,
     GasPricePerToken,
+    GasPriceVector,
+    GasPrices,
     NonzeroGasPrice,
 };
 use starknet_api::core::{
@@ -104,14 +105,18 @@ impl TryInto<BlockInfo> for BlockHeader {
             block_number: self.block_number,
             sequencer_address: self.sequencer_address,
             block_timestamp: self.timestamp,
-            gas_prices: validated_gas_prices(
-                parse_gas_price(self.l1_gas_price.price_in_wei)?,
-                parse_gas_price(self.l1_gas_price.price_in_fri)?,
-                parse_gas_price(self.l1_data_gas_price.price_in_wei)?,
-                parse_gas_price(self.l1_data_gas_price.price_in_fri)?,
-                parse_gas_price(self.l2_gas_price.price_in_wei)?,
-                parse_gas_price(self.l2_gas_price.price_in_fri)?,
-            ),
+            gas_prices: GasPrices {
+                eth_gas_prices: GasPriceVector {
+                    l1_gas_price: parse_gas_price(self.l1_gas_price.price_in_wei)?,
+                    l1_data_gas_price: parse_gas_price(self.l1_data_gas_price.price_in_wei)?,
+                    l2_gas_price: parse_gas_price(self.l2_gas_price.price_in_wei)?,
+                },
+                strk_gas_prices: GasPriceVector {
+                    l1_gas_price: parse_gas_price(self.l1_gas_price.price_in_fri)?,
+                    l1_data_gas_price: parse_gas_price(self.l1_data_gas_price.price_in_fri)?,
+                    l2_gas_price: parse_gas_price(self.l2_gas_price.price_in_fri)?,
+                },
+            },
             use_kzg_da: self.l1_da_mode.is_use_kzg_da(),
             starknet_version: self.starknet_version.try_into()?,
         })
