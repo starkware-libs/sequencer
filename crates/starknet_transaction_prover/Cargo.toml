@@ -62,6 +62,7 @@ reqwest.workspace = true
 rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
+strum = { workspace = true, features = ["derive"] }
 
 [lints]
 workspace = true
