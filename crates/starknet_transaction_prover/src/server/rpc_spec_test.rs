@@ -288,33 +288,30 @@ async fn test_prove_transaction_rejects_pending_block_id(
 }
 
 #[test]
-// TODO(Avi): Add an error enum to make this test exhastive.
 fn test_error_responses_match_spec() {
-    let test_cases: Vec<(&str, ErrorObjectOwned)> = vec![
-        ("BLOCK_NOT_FOUND", errors::block_not_found()),
-        ("TRANSACTION_EXECUTION_ERROR", errors::transaction_execution_error("test".to_string())),
-        ("STORAGE_PROOF_NOT_SUPPORTED", errors::storage_proof_not_supported()),
-        ("ACCOUNT_VALIDATION_FAILED", errors::validation_failure("test".to_string())),
-        ("UNSUPPORTED_TX_VERSION", errors::unsupported_tx_version("v99".to_string())),
-        ("SERVICE_BUSY", errors::service_busy(2)),
-        (
-            "INVALID_TRANSACTION_INPUT",
-            errors::invalid_transaction_input("test field invalid".to_string()),
-        ),
-    ];
+    let spec_errors = &SPEC["components"]["errors"];
 
-    // Completeness guard: ensure all spec errors have a test case.
-    let spec_error_keys: HashSet<&str> =
-        SPEC["components"]["errors"].as_object().unwrap().keys().map(|k| k.as_str()).collect();
-    let tested_error_keys: HashSet<&str> = test_cases.iter().map(|(key, _)| *key).collect();
-    assert_eq!(
-        tested_error_keys, spec_error_keys,
-        "Test cases don't cover all spec errors. Update the test_cases list above."
-    );
-
-    for (spec_key, actual) in &test_cases {
-        SpecError::from_spec(&SPEC["components"]["errors"][spec_key]).assert_matches(actual);
+    // Forward check: every enum variant has a matching spec entry.
+    let enum_keys: HashSet<&str> = errors::ProverRpcError::iter().map(|v| v.spec_key()).collect();
+    for variant in errors::ProverRpcError::iter() {
+        let spec_key = variant.spec_key();
+        let spec_entry = &spec_errors[spec_key];
+        assert!(
+            !spec_entry.is_null(),
+            "ProverRpcError variant {spec_key} is missing from the OpenRPC spec. Add it to \
+             resources/proving_api_openrpc.json under components/errors."
+        );
+        let sample_data = if variant.has_data() { Some("test".to_string()) } else { None };
+        SpecError::from_spec(spec_entry).assert_matches(&variant.to_error_object(sample_data));
     }
+
+    // Reverse check: every spec error has a matching enum variant.
+    let spec_keys: HashSet<&str> =
+        spec_errors.as_object().unwrap().keys().map(|k| k.as_str()).collect();
+    assert_eq!(
+        enum_keys, spec_keys,
+        "OpenRPC spec errors and ProverRpcError variants are out of sync."
+    );
 }
 
 /// Helper: sends a prove_transaction request and asserts it returns the expected error.
