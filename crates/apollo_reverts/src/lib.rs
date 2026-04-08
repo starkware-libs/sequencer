@@ -63,14 +63,17 @@ pub struct RevertComponentData {
     pub revert_metric: MetricGauge,
 }
 
-pub async fn revert_blocks_and_eternal_pending<Fut>(
+pub async fn revert_blocks_then_run_and_eternal_pending<Fut, PostRevertFn, PostRevertFut>(
     mut storage_height_marker: BlockNumber,
     revert_up_to_and_including: BlockNumber,
     mut revert_block_fn: impl FnMut(BlockNumber) -> Fut,
     component: &RevertComponentData,
+    post_revert_fn: PostRevertFn,
 ) -> Never
 where
     Fut: Future<Output = ()>,
+    PostRevertFn: FnOnce(BlockNumber) -> PostRevertFut,
+    PostRevertFut: Future<Output = ()>,
 {
     // If we revert all blocks up to height X (including), the new height marker will be X.
     let target_height_marker = revert_up_to_and_including;
@@ -112,9 +115,29 @@ where
         ),
         None => info!("There aren't any blocks saved in {component_name}'s storage!"),
     };
+    post_revert_fn(target_height_marker).await;
     info!("Starting eternal pending.");
 
     pending().await
+}
+
+pub async fn revert_blocks_and_eternal_pending<Fut>(
+    storage_height_marker: BlockNumber,
+    revert_up_to_and_including: BlockNumber,
+    revert_block_fn: impl FnMut(BlockNumber) -> Fut,
+    component: &RevertComponentData,
+) -> Never
+where
+    Fut: Future<Output = ()>,
+{
+    revert_blocks_then_run_and_eternal_pending(
+        storage_height_marker,
+        revert_up_to_and_including,
+        revert_block_fn,
+        component,
+        |_| async {},
+    )
+    .await
 }
 
 /// Reverts everything related to the block, will succeed even if there is partial information for

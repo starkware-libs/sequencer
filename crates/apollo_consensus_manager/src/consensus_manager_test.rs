@@ -16,7 +16,7 @@ use apollo_staking::committee_provider::MockCommitteeProvider;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use mockall::predicate::eq;
 use mockall::Sequence;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHash, BlockNumber};
 use tokio::sync::Mutex;
 use tokio::time::{timeout, Duration};
 
@@ -33,6 +33,22 @@ async fn revert_batcher_blocks() {
     mock_batcher_client
         .expect_get_height()
         .returning(|| Ok(GetHeightResponse { height: BATCHER_HEIGHT }));
+    mock_batcher_client
+        .expect_get_block_hash()
+        .times(1)
+        .with(eq(BlockNumber(6)))
+        .returning(|_| Ok(BlockHash(6_u32.into())));
+
+    let mut mock_state_sync_client = MockStateSyncClient::new();
+    mock_state_sync_client
+        .expect_get_latest_block_number()
+        .times(1)
+        .returning(|| Ok(Some(BlockNumber(6))));
+    mock_state_sync_client
+        .expect_get_block_hash()
+        .times(1)
+        .with(eq(BlockNumber(6)))
+        .returning(|_| Ok(BlockHash(6_u32.into())));
 
     let mut mock_voted_height_storage = MockHeightVotedStorageTrait::new();
 
@@ -65,7 +81,7 @@ async fn revert_batcher_blocks() {
         ConsensusManagerArgs {
             config: manager_config,
             batcher_client: Arc::new(mock_batcher_client),
-            state_sync_client: Arc::new(MockStateSyncClient::new()),
+            state_sync_client: Arc::new(mock_state_sync_client),
             class_manager_client: Arc::new(MockClassManagerClient::new()),
             signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
             config_manager_client: Arc::new(MockConfigManagerClient::new()),
@@ -90,6 +106,22 @@ async fn revert_voted_height_when_batcher_already_at_target() {
         .expect_get_height()
         .returning(|| Ok(GetHeightResponse { height: TARGET_HEIGHT }));
     mock_batcher_client.expect_revert_block().times(0).returning(|_| Ok(()));
+    mock_batcher_client
+        .expect_get_block_hash()
+        .times(1)
+        .with(eq(BlockNumber(6)))
+        .returning(|_| Ok(BlockHash(6_u32.into())));
+
+    let mut mock_state_sync_client = MockStateSyncClient::new();
+    mock_state_sync_client
+        .expect_get_latest_block_number()
+        .times(1)
+        .returning(|| Ok(Some(BlockNumber(6))));
+    mock_state_sync_client
+        .expect_get_block_hash()
+        .times(1)
+        .with(eq(BlockNumber(6)))
+        .returning(|_| Ok(BlockHash(6_u32.into())));
 
     let mut mock_voted_height_storage = MockHeightVotedStorageTrait::new();
     // Checking we're still reverting the consensus manager's voted height storage.
@@ -111,7 +143,7 @@ async fn revert_voted_height_when_batcher_already_at_target() {
         ConsensusManagerArgs {
             config: manager_config,
             batcher_client: Arc::new(mock_batcher_client),
-            state_sync_client: Arc::new(MockStateSyncClient::new()),
+            state_sync_client: Arc::new(mock_state_sync_client),
             class_manager_client: Arc::new(MockClassManagerClient::new()),
             signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
             config_manager_client: Arc::new(MockConfigManagerClient::new()),
@@ -155,5 +187,63 @@ async fn no_reverts_without_config() {
     });
 
     // TODO(Shahak): try to solve this better (the test will take 100 milliseconds to run).
+    timeout(Duration::from_millis(100), consensus_manager.run()).await.unwrap_err();
+}
+
+#[tokio::test]
+async fn revert_mode_diagnoses_first_divergent_hash() {
+    const BATCHER_HEIGHT: BlockNumber = BlockNumber(7);
+    const REVERT_UP_TO_AND_INCLUDING_HEIGHT: BlockNumber = BlockNumber(7);
+
+    let mut mock_batcher_client = MockBatcherClient::new();
+    mock_batcher_client
+        .expect_get_height()
+        .returning(|| Ok(GetHeightResponse { height: BATCHER_HEIGHT }));
+    mock_batcher_client.expect_revert_block().times(0).returning(|_| Ok(()));
+    mock_batcher_client.expect_get_block_hash().returning(|block_number| {
+        let base_hash = block_number.0 * 100;
+        let batcher_hash = if block_number.0 >= 4 { base_hash + 1 } else { base_hash };
+        Ok(BlockHash(batcher_hash.into()))
+    });
+
+    let mut mock_state_sync_client = MockStateSyncClient::new();
+    mock_state_sync_client
+        .expect_get_latest_block_number()
+        .times(1)
+        .returning(|| Ok(Some(BlockNumber(6))));
+    mock_state_sync_client
+        .expect_get_block_hash()
+        .returning(|block_number| Ok(BlockHash((block_number.0 * 100).into())));
+
+    let mut mock_voted_height_storage = MockHeightVotedStorageTrait::new();
+    mock_voted_height_storage
+        .expect_revert_height()
+        .times(1)
+        .with(eq(REVERT_UP_TO_AND_INCLUDING_HEIGHT))
+        .returning(|_| Ok(()));
+
+    let manager_config = ConsensusManagerConfig {
+        revert_config: RevertConfig {
+            revert_up_to_and_including: REVERT_UP_TO_AND_INCLUDING_HEIGHT,
+            should_revert: true,
+        },
+        ..Default::default()
+    };
+
+    let consensus_manager = ConsensusManager::new_with_storage(
+        ConsensusManagerArgs {
+            config: manager_config,
+            batcher_client: Arc::new(mock_batcher_client),
+            state_sync_client: Arc::new(mock_state_sync_client),
+            class_manager_client: Arc::new(MockClassManagerClient::new()),
+            signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
+            config_manager_client: Arc::new(MockConfigManagerClient::new()),
+            l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
+            proof_manager_client: Arc::new(MockProofManagerClient::new()),
+            committee_provider: Arc::new(MockCommitteeProvider::new()),
+        },
+        Arc::new(Mutex::new(mock_voted_height_storage)),
+    );
+
     timeout(Duration::from_millis(100), consensus_manager.run()).await.unwrap_err();
 }

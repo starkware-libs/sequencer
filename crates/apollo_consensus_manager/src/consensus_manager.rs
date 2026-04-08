@@ -38,7 +38,7 @@ use apollo_network::network_manager::{
 };
 use apollo_proof_manager_types::SharedProofManagerClient;
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
-use apollo_reverts::{revert_blocks_and_eternal_pending, RevertComponentData};
+use apollo_reverts::{revert_blocks_then_run_and_eternal_pending, RevertComponentData};
 use apollo_signature_manager_types::SharedSignatureManagerClient;
 use apollo_staking::committee_provider::CommitteeProvider;
 use apollo_staking::mock_staking_contract::MockStakingContract;
@@ -51,6 +51,7 @@ use async_trait::async_trait;
 use futures::channel::mpsc;
 use starknet_api::block::BlockNumber;
 use tokio::sync::Mutex;
+use tokio::time::{sleep, Duration};
 use tracing::{info, info_span, Instrument};
 
 use crate::metrics::{
@@ -359,13 +360,134 @@ impl ConsensusManager {
             name: "Batcher",
             revert_metric: CONSENSUS_REVERTED_BATCHER_UP_TO_AND_INCLUDING,
         };
-        revert_blocks_and_eternal_pending(
+        revert_blocks_then_run_and_eternal_pending(
             batcher_height_marker,
             revert_up_to_and_including,
             revert_blocks_fn,
             &BATCHER_REVERT_COMPONENT_DATA,
+            |target_height_marker| self.diagnose_post_revert_block_hashes(target_height_marker),
         )
         .await;
+    }
+
+    async fn diagnose_post_revert_block_hashes(&self, target_height_marker: BlockNumber) {
+        let latest_synced_block_number =
+            self.wait_for_state_sync_to_finish_revert(target_height_marker).await;
+
+        let Some(latest_synced_block_number) = latest_synced_block_number else {
+            info!(
+                "Skipping post-revert block-hash diagnosis because state sync has no saved blocks \
+                 after reverting to height marker {target_height_marker}."
+            );
+            return;
+        };
+
+        if self.batcher_and_state_sync_hashes_match(latest_synced_block_number).await {
+            info!(
+                "Post-revert block-hash diagnosis found no divergence: batcher and state sync \
+                 agree through block {latest_synced_block_number}."
+            );
+            return;
+        }
+
+        let first_divergent_block_number =
+            self.find_first_divergent_block_number(latest_synced_block_number).await;
+        let previous_matching_block_number = first_divergent_block_number.prev();
+
+        info!(
+            "Post-revert block-hash diagnosis found the first divergence at block \
+             {first_divergent_block_number}."
+        );
+
+        if let Some(previous_matching_block_number) = previous_matching_block_number {
+            let (state_sync_hash, batcher_hash) =
+                self.get_state_sync_and_batcher_hashes(previous_matching_block_number).await;
+            info!(
+                "Last matching block before divergence: block {previous_matching_block_number}, \
+                 state sync hash {state_sync_hash:?}, batcher hash {batcher_hash:?}."
+            );
+        } else {
+            info!("The divergence starts from genesis: block 0 already differs.");
+        }
+
+        let (state_sync_hash, batcher_hash) =
+            self.get_state_sync_and_batcher_hashes(first_divergent_block_number).await;
+        info!(
+            "First divergent block details: block {first_divergent_block_number}, state sync hash \
+             {state_sync_hash:?}, batcher hash {batcher_hash:?}."
+        );
+
+        let (latest_state_sync_hash, latest_batcher_hash) =
+            self.get_state_sync_and_batcher_hashes(latest_synced_block_number).await;
+        info!(
+            "Latest synced block after revert: block {latest_synced_block_number}, state sync \
+             hash {latest_state_sync_hash:?}, batcher hash {latest_batcher_hash:?}."
+        );
+    }
+
+    async fn wait_for_state_sync_to_finish_revert(
+        &self,
+        target_height_marker: BlockNumber,
+    ) -> Option<BlockNumber> {
+        let expected_latest_block_number = target_height_marker.prev();
+        loop {
+            let latest_block_number =
+                self.state_sync_client.get_latest_block_number().await.expect(
+                    "Failed to get latest block number from state sync during revert diagnosis",
+                );
+
+            if latest_block_number == expected_latest_block_number {
+                return latest_block_number;
+            }
+
+            info!(
+                "Waiting for state sync revert before diagnosing block hashes. Expected latest \
+                 block {expected_latest_block_number:?}, current latest block \
+                 {latest_block_number:?}."
+            );
+            sleep(Duration::from_secs(1)).await;
+        }
+    }
+
+    async fn find_first_divergent_block_number(
+        &self,
+        latest_synced_block_number: BlockNumber,
+    ) -> BlockNumber {
+        let mut left = 0;
+        let mut right = latest_synced_block_number.0;
+        while left < right {
+            let mid = left + (right - left) / 2;
+            let mid_block_number = BlockNumber(mid);
+            if self.batcher_and_state_sync_hashes_match(mid_block_number).await {
+                left = mid + 1;
+            } else {
+                right = mid;
+            }
+        }
+        BlockNumber(left)
+    }
+
+    async fn batcher_and_state_sync_hashes_match(&self, block_number: BlockNumber) -> bool {
+        let (state_sync_hash, batcher_hash) =
+            self.get_state_sync_and_batcher_hashes(block_number).await;
+        state_sync_hash == batcher_hash
+    }
+
+    async fn get_state_sync_and_batcher_hashes(
+        &self,
+        block_number: BlockNumber,
+    ) -> (starknet_api::block::BlockHash, starknet_api::block::BlockHash) {
+        let state_sync_hash = self
+            .state_sync_client
+            .get_block_hash(block_number)
+            .await
+            .expect("Failed to get block hash from state sync during revert diagnosis");
+        let batcher_hash = self
+            .batcher_client
+            .get_block_hash(block_number)
+            .await
+            .expect("Failed to get block hash from batcher during revert diagnosis");
+        (state_sync_hash, batcher_hash)
     }
 }
 
