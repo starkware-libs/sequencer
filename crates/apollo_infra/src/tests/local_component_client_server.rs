@@ -6,7 +6,7 @@ use tokio::task;
 use crate::component_client::{ClientError, ClientResult, LocalComponentClient};
 use crate::component_definitions::{ComponentClient, RequestWrapper};
 use crate::component_server::{ComponentServerStarter, LocalComponentServer, LocalServerConfig};
-use crate::tests::{
+use crate::tests::component_a_b_fixture::{
     test_a_b_functionality,
     ComponentA,
     ComponentAClientTrait,
@@ -20,9 +20,8 @@ use crate::tests::{
     ResultB,
     ValueA,
     ValueB,
-    TEST_LOCAL_CLIENT_METRICS,
-    TEST_LOCAL_SERVER_METRICS,
 };
+use crate::tests::{TEST_LOCAL_CLIENT_METRICS, TEST_LOCAL_SERVER_METRICS};
 
 type ComponentAClient = LocalComponentClient<ComponentARequest, ComponentAResponse>;
 type ComponentBClient = LocalComponentClient<ComponentBRequest, ComponentBResponse>;

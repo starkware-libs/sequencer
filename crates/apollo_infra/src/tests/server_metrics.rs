@@ -180,7 +180,7 @@ async fn setup_remote_server_test(
 
     let mut remote_server = RemoteComponentServer::new(
         local_client.clone(),
-        dummy_remote_server_config(socket.ip(), max_concurrency),
+        dummy_remote_server_config(socket.ip()),
         socket.port(),
         &TEST_REMOTE_SERVER_METRICS,
     );

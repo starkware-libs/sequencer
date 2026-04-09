@@ -3,7 +3,6 @@ use std::fmt::Debug;
 use std::future::ready;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
-use std::time::Duration;
 
 use apollo_infra_utils::run_until::run_until;
 use apollo_proc_macros::unique_u16;
@@ -29,7 +28,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::channel;
 use tokio::sync::{Mutex, Semaphore};
 use tokio::task;
-use tokio::time::{sleep, timeout};
+use tokio::time::{sleep, timeout, Duration};
 
 use crate::component_client::remote_component_client::TCP_IDLE_TIMEOUT_FACTOR;
 use crate::component_client::{
@@ -57,10 +56,7 @@ use crate::component_server::{
     RemoteServerConfig,
 };
 use crate::serde_utils::SerdeWrapper;
-use crate::tests::test_utils::client_socket_keepalive_time;
-use crate::tests::{
-    available_ports_factory,
-    dummy_remote_server_config,
+use crate::tests::component_a_b_fixture::{
     test_a_b_functionality,
     ComponentA,
     ComponentAClientTrait,
@@ -72,8 +68,13 @@ use crate::tests::{
     ComponentBResponse,
     ResultA,
     ResultB,
-    ValueA,
     ValueB,
+    VALID_VALUE_A,
+};
+use crate::tests::test_utils::client_socket_keepalive_time;
+use crate::tests::{
+    available_ports_factory,
+    dummy_remote_server_config,
     TEST_LOCAL_CLIENT_METRICS,
     TEST_LOCAL_SERVER_METRICS,
     TEST_REMOTE_CLIENT_METRICS,
@@ -88,7 +89,6 @@ const ARBITRARY_DATA: &str = "arbitrary data";
 // ServerError::RequestDeserializationFailure error message.
 const DESERIALIZE_REQ_ERROR_MESSAGE: &str = "Could not deserialize client request";
 const BAD_REQUEST_ERROR_MESSAGE: &str = "Got status code: 400 Bad Request";
-const VALID_VALUE_A: ValueA = Felt::ONE;
 const MAX_CONCURRENCY: usize = 10;
 const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
     retries: 0,
@@ -194,7 +194,7 @@ where
     )
 }
 
-/// Ensures the remote client respects the server’s concurrency cap:
+/// Ensures the remote client respects the server's concurrency cap:
 /// - Two in-flight requests exhaust the limit and a third is **immediately rejected** with `503
 ///   Service Unavailable` and the message `"Server is busy addressing previous requests"`.
 /// - After releasing permits on the shared semaphore, a subsequent request succeeds.
@@ -216,7 +216,7 @@ async fn remote_connection_concurrency() {
     // Shared semaphore used inside ComponentA::handle_request
     let semaphore = Arc::new(Semaphore::new(0));
 
-    // pass the semaphore into the server’s ComponentA
+    // pass the semaphore into the server's ComponentA
     setup_for_tests(setup_value, a_socket, b_socket, 2, Some(semaphore.clone())).await;
 
     let client1 = RemoteComponentClient::<ComponentARequest, ComponentAResponse>::new(
@@ -393,13 +393,13 @@ async fn setup_for_tests(
 
     let mut component_a_remote_server = RemoteComponentServer::new(
         a_local_client,
-        dummy_remote_server_config(a_socket.ip(), max_concurrency),
+        dummy_remote_server_config(a_socket.ip()),
         a_socket.port(),
         &TEST_REMOTE_SERVER_METRICS,
     );
     let mut component_b_remote_server = RemoteComponentServer::new(
         b_local_client,
-        dummy_remote_server_config(b_socket.ip(), max_concurrency),
+        dummy_remote_server_config(b_socket.ip()),
         b_socket.port(),
         &TEST_REMOTE_SERVER_METRICS,
     );
@@ -709,7 +709,7 @@ async fn zombie_connection_is_evicted() {
     let config = RemoteServerConfig {
         keepalive_interval_ms: KEEPALIVE_INTERVAL_MS,
         keepalive_timeout_ms: KEEPALIVE_TIMEOUT_MS,
-        ..dummy_remote_server_config(socket.ip(), MAX_CONCURRENCY)
+        ..dummy_remote_server_config(socket.ip())
     };
     let mut server = RemoteComponentServer::new(
         local_client,
