@@ -24,8 +24,8 @@ use rstest::rstest;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use starknet_types_core::felt::Felt;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::io::AsyncReadExt;
+use tokio::net::TcpListener;
 use tokio::sync::mpsc::channel;
 use tokio::sync::{Mutex, Semaphore};
 use tokio::task;
@@ -60,19 +60,23 @@ use crate::serde_utils::SerdeWrapper;
 use crate::tests::test_utils::{
     available_ports_factory,
     client_socket_keepalive_time,
+    connect_zombie,
     dummy_remote_server_config,
     test_a_b_functionality,
     ComponentA,
+    ComponentAClient,
     ComponentAClientTrait,
     ComponentARequest,
     ComponentAResponse,
     ComponentB,
+    ComponentBClient,
     ComponentBClientTrait,
     ComponentBRequest,
     ComponentBResponse,
     ResultA,
     ResultB,
     ValueB,
+    MAX_CONCURRENCY,
     TEST_LOCAL_CLIENT_METRICS,
     TEST_LOCAL_SERVER_METRICS,
     TEST_REMOTE_CLIENT_METRICS,
@@ -80,15 +84,11 @@ use crate::tests::test_utils::{
     VALID_VALUE_A,
 };
 
-type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;
-type ComponentBClient = RemoteComponentClient<ComponentBRequest, ComponentBResponse>;
-
 const MOCK_SERVER_ERROR: &str = "mock server error";
 const ARBITRARY_DATA: &str = "arbitrary data";
 // ServerError::RequestDeserializationFailure error message.
 const DESERIALIZE_REQ_ERROR_MESSAGE: &str = "Could not deserialize client request";
 const BAD_REQUEST_ERROR_MESSAGE: &str = "Got status code: 400 Bad Request";
-const MAX_CONCURRENCY: usize = 10;
 const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
     retries: 0,
     idle_connections: 0,
@@ -637,55 +637,6 @@ async fn retry_request() {
     );
     let expected_error_contained_keywords = [StatusCode::IM_A_TEAPOT.as_str()];
     verify_error(a_client_no_retry.clone(), &expected_error_contained_keywords).await;
-}
-
-/// Connects a raw TCP stream to `addr`, performs the HTTP/2 connection preface and SETTINGS
-/// exchange, then returns the stream without ever responding to PING frames — simulating a
-/// zombie connection.
-async fn connect_zombie(addr: SocketAddr) -> TcpStream {
-    let mut stream = TcpStream::connect(addr).await.unwrap();
-
-    // HTTP/2 client connection preface.
-    stream.write_all(b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n").await.unwrap();
-    // Empty SETTINGS frame: length=0, type=0x4 (SETTINGS), flags=0x0, stream_id=0.
-    stream.write_all(&[0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00]).await.unwrap();
-
-    // Read server frames, accumulating bytes to handle fragmentation. Once we see the
-    // server's SETTINGS frame, respond with SETTINGS_ACK and stop — becoming a zombie that
-    // ignores all subsequent frames (including PING).
-    let mut buf = Vec::new();
-    let mut tmp = [0u8; 4096];
-    'done: loop {
-        let n = stream.read(&mut tmp).await.unwrap();
-        if n == 0 {
-            break;
-        }
-        buf.extend_from_slice(&tmp[..n]);
-
-        let mut pos = 0;
-        while pos + 9 <= buf.len() {
-            let length = (usize::from(buf[pos]) << 16)
-                | (usize::from(buf[pos + 1]) << 8)
-                | usize::from(buf[pos + 2]);
-            if pos + 9 + length > buf.len() {
-                break; // incomplete frame, read more
-            }
-            let frame_type = buf[pos + 3];
-            let flags = buf[pos + 4];
-            if frame_type == 0x04 /* SETTINGS */ && flags & 0x01 == 0
-            // not ACK
-            {
-                // Send SETTINGS_ACK and stop responding to anything.
-                stream
-                    .write_all(&[0x00, 0x00, 0x00, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00])
-                    .await
-                    .unwrap();
-                break 'done;
-            }
-            pos += 9 + length;
-        }
-    }
-    stream
 }
 
 /// Verifies that the server closes a zombie connection after the keepalive interval and
