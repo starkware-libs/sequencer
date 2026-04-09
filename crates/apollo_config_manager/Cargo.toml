@@ -13,20 +13,13 @@ testing = []
 workspace = true
 
 [dependencies]
-apollo_batcher_config.workspace = true
-apollo_class_manager_config.workspace = true
 apollo_config.workspace = true
 apollo_config_manager_config.workspace = true
 apollo_config_manager_types.workspace = true
 apollo_consensus_config.workspace = true
-apollo_consensus_orchestrator_config.workspace = true
-apollo_http_server_config.workspace = true
 apollo_infra.workspace = true
-apollo_mempool_config.workspace = true
 apollo_metrics.workspace = true
 apollo_node_config.workspace = true
-apollo_staking_config.workspace = true
-apollo_state_sync_config.workspace = true
 async-trait.workspace = true
 notify.workspace = true
 serde_json.workspace = true
