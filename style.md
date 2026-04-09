@@ -510,6 +510,12 @@ Make sure the code inside the macro is formatted correctly.
 
 **Tip**: Temporarily copy the code outside of the macro, run `rustfmt`, and then copy it back.
 
+### Imports
+
+Always use `crate::` paths in `use` statements. Avoid using `super::` in use statements altogether.
+
+**Rationale**: `crate::` imports can be copy-pasted between files without modification, whereas `super::` imports break when moved.
+
 ### If-let-else Pattern
 
 Prefer `let-else` or `match` patterns, they are always more concise and incur less cognitive load
