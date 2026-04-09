@@ -525,6 +525,11 @@ impl From<u128> for PatriciaKey {
     }
 }
 
+/// The inclusive maximum key.
+pub const MAX_PATRICIA_KEY: PatriciaKey = PatriciaKey::from_hex_unchecked(
+    "0x07ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+);
+
 impl_from_through_intermediate!(u128, PatriciaKey, u8, u16, u32, u64);
 
 impl TryFrom<StarkHash> for PatriciaKey {
