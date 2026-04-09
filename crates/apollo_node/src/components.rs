@@ -41,10 +41,10 @@ use apollo_state_sync::{create_state_sync_and_runner, StateSync};
 use metrics_exporter_prometheus::PrometheusHandle;
 use papyrus_base_layer::cyclic_base_layer_wrapper::CyclicBaseLayerWrapper;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
-use tokio::sync::watch;
 use tracing::info;
 
 use crate::clients::SequencerNodeClients;
+use crate::communication::SequencerNodeCommunication;
 
 pub struct SequencerNodeComponents {
     pub batcher: Option<Batcher>,
@@ -75,6 +75,7 @@ pub struct SequencerNodeComponents {
 pub async fn create_node_components(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
+    channels: &mut SequencerNodeCommunication,
     prometheus_handle: Option<PrometheusHandle>,
     cli_args: Vec<String>,
 ) -> SequencerNodeComponents {
@@ -170,8 +171,7 @@ pub async fn create_node_components(
                 // TODO(Arni): remove the config_manager.
                 let config_manager =
                     ConfigManager::new(config_manager_config.clone(), node_dynamic_config.clone());
-                let (dynamic_config_tx, dynamic_config_rx) =
-                    watch::channel(node_dynamic_config.clone());
+                let dynamic_config_tx = channels.take_dynamic_config_tx();
                 let config_manager_client = clients
                     .get_config_manager_shared_client()
                     .expect("Config Manager client should be available");
@@ -179,7 +179,6 @@ pub async fn create_node_components(
                     config_manager_config.clone(),
                     config_manager_client,
                     dynamic_config_tx,
-                    dynamic_config_rx,
                     cli_args,
                 );
                 (Some(config_manager), Some(config_manager_runner))
