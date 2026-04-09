@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775395371530,
+  "lastUpdate": 1775735261618,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1257,6 +1257,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1960.82567515,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "143319383+nimrod-starkware@users.noreply.github.com",
+            "name": "nimrod-starkware",
+            "username": "nimrod-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0f53d181fa2b080aeeaa0c3ccabba427ba0f6651",
+          "message": "starknet_patricia_storage: split storage trait (#13234)",
+          "timestamp": "2026-04-09T11:11:46Z",
+          "tree_id": "5be68a20ae6d07fa638258b54d8225ab12ff1d88",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0f53d181fa2b080aeeaa0c3ccabba427ba0f6651"
+        },
+        "date": 1775735260951,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 796.34438653,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1160.17895375,
             "unit": "ms"
           }
         ]
