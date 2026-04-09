@@ -12,7 +12,7 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
-use apollo_config_manager_types::communication::MockConfigManagerClient;
+use apollo_config_manager_types::communication::MockConfigManagerReaderClient;
 use apollo_consensus::types::{ConsensusContext, Round};
 use apollo_consensus_orchestrator_config::config::{
     ContextConfig,
@@ -1255,12 +1255,13 @@ async fn change_gas_price_overrides() {
     };
 }
 
-fn make_config_manager_client(provider_config: ContextDynamicConfig) -> MockConfigManagerClient {
-    let mut config_manager_client = MockConfigManagerClient::new();
+fn make_config_manager_client(
+    provider_config: ContextDynamicConfig,
+) -> MockConfigManagerReaderClient {
+    let mut config_manager_client = MockConfigManagerReaderClient::new();
     config_manager_client
         .expect_get_context_dynamic_config()
         .returning(move || Ok(provider_config.clone()));
-    config_manager_client.expect_set_node_dynamic_config().returning(|_| Ok(()));
     config_manager_client
 }
 
@@ -1281,7 +1282,7 @@ async fn test_dynamic_config_updates_min_gas_price() {
     deps.setup_default_expectations();
 
     // Create a mock config manager client that will return dynamic config
-    let mut mock_config_manager = MockConfigManagerClient::new();
+    let mut mock_config_manager = MockConfigManagerReaderClient::new();
 
     // Mock expects get_context_dynamic_config to be called twice (once per height change)
     // This is called inside set_height_and_round() -> update_dynamic_config() ->
