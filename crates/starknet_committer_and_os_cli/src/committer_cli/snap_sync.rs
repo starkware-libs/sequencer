@@ -1,17 +1,31 @@
 use std::collections::HashMap;
 
+use apollo_committer_config::config::ApolloStorage;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::StorageReader;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
+use starknet_api::hash::StateRoots;
 use starknet_api::state::{StateNumber, StorageKey};
+use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
 use starknet_committer::block_committer::input::{
+    Input,
+    ReaderConfig,
     StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,
 };
+use starknet_committer::block_committer::measurements_util::{
+    Action,
+    MeasurementsTrait,
+    SingleBlockMeasurements,
+};
+use starknet_committer::db::forest_trait::{EmptyInitialReadContext, ForestWriterWithMetadata};
+use starknet_committer::db::index_db::{IndexDb, IndexDbReadContext};
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash as CommitterCompiledClassHash;
 use starknet_types_core::felt::Felt;
+use tokio::sync::Mutex;
+use tracing::info;
 
 #[cfg(test)]
 #[path = "snap_sync_test.rs"]
@@ -229,4 +243,50 @@ impl TreeKey for ClassHash {
             .collect();
         (StateDiff { class_hash_to_compiled_class_hash, ..Default::default() }, actual_end)
     }
+}
+
+/// Shared mutable state: the DB and running `StateRoots` threaded across all commits.
+struct CommitState {
+    committer_db: IndexDb<ApolloStorage>,
+    state_roots: StateRoots,
+    num_commits: usize,
+}
+
+/// Commits a state diff to the shared `CommitState`.
+#[expect(dead_code)]
+async fn commit_state_diff(state_diff: StateDiff, commit_state: &Mutex<CommitState>) {
+    let mut guard = commit_state.lock().await;
+    let input = Input {
+        state_diff,
+        initial_read_context: IndexDbReadContext::create_empty(),
+        config: ReaderConfig::default(),
+    };
+    let mut measurements = SingleBlockMeasurements::default();
+    measurements.start_measurement(Action::EndToEnd);
+    let (filled_forest, deleted_nodes) =
+        CommitBlockImpl::commit_block(input, &mut guard.committer_db, &mut measurements)
+            .await
+            .expect("Failed to commit batch");
+    measurements.start_measurement(Action::Write);
+    guard
+        .committer_db
+        .write_with_metadata(&filled_forest, HashMap::new(), deleted_nodes)
+        .await
+        .expect("Failed to write forest to storage");
+    measurements.attempt_to_stop_measurement(Action::Write, 0).ok();
+    measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
+    guard.state_roots = filled_forest.state_roots();
+    guard.num_commits += 1;
+    let durations = &measurements.block_measurement.durations;
+    info!(
+        "Committed batch {} (contracts root: {}, classes root: {}) in {:.0}ms (read: {:.0}ms, \
+         compute: {:.0}ms, write: {:.0}ms)",
+        guard.num_commits,
+        guard.state_roots.contracts_trie_root_hash.0.to_hex_string(),
+        guard.state_roots.classes_trie_root_hash.0.to_hex_string(),
+        durations.block * 1000.0,
+        durations.read * 1000.0,
+        durations.compute * 1000.0,
+        durations.write * 1000.0,
+    );
 }
