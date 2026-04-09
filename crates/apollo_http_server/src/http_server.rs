@@ -1,12 +1,8 @@
 use std::clone::Clone;
 use std::net::SocketAddr;
 use std::string::String;
-use std::time::Duration;
 
-use apollo_config_manager_types::communication::{
-    SharedConfigManagerClient,
-    SharedConfigManagerReaderClient,
-};
+use apollo_config_manager_types::communication::SharedConfigManagerReaderClient;
 use apollo_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -36,8 +32,6 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::serde_utils::bytes_from_hex_str;
 use starknet_api::transaction::fields::ValidResourceBounds;
 use tokio::net::TcpListener;
-use tokio::sync::watch::{channel, Receiver, Sender};
-use tokio::time;
 use tower_http::decompression::RequestDecompressionLayer;
 use tower_http::limit::RequestBodyLimitLayer;
 use tracing::{debug, info, instrument, warn};
@@ -66,52 +60,30 @@ const CLIENT_REGION_HEADER: &str = "X-Client-Region";
 pub struct HttpServer {
     config: HttpServerConfig,
     app_state: AppState,
-    // TODO(Arni): Remove this field once the deprecated SharedConfigManagerClient is removed.
-    config_manager_client: SharedConfigManagerClient,
-    dynamic_config_tx: Sender<HttpServerDynamicConfig>,
 }
 
 #[derive(Clone)]
 pub struct AppState {
     gateway_client: SharedGatewayClient,
     config_manager_reader_client: SharedConfigManagerReaderClient,
-    dynamic_config_rx: Receiver<HttpServerDynamicConfig>,
 }
 
 impl AppState {
     fn get_dynamic_config(&self) -> HttpServerDynamicConfig {
-        let config_from_reader = self.config_manager_reader_client.get_http_server_dynamic_config();
-        // `borrow()` returns a reference to the value owned by the channel, hence we clone it.
-        let config = {
-            let config = self.dynamic_config_rx.borrow();
-            config.clone()
-        };
-        let config_from_reader =
-            config_from_reader.expect("Failed to get http server dynamic config from reader");
-        if config_from_reader != config {
-            warn!(
-                "Http server dynamic config from reader differs from config from dynamic_config_rx"
-            );
-        }
-        // TODO(Arni): Remove config from dynamic_config_rx and use config_from_reader directly
-        // once the deprecated SharedConfigManagerClient is removed
-        // (done in arni/http_server/remove_deprecated_config_manager_shared_client).
-        config
+        self.config_manager_reader_client
+            .get_http_server_dynamic_config()
+            .expect("Failed to get http server dynamic config")
     }
 }
 
 impl HttpServer {
     pub fn new(
         config: HttpServerConfig,
-        config_manager_client: SharedConfigManagerClient,
         config_manager_reader_client: SharedConfigManagerReaderClient,
         gateway_client: SharedGatewayClient,
     ) -> Self {
-        let (dynamic_config_tx, dynamic_config_rx) =
-            channel::<HttpServerDynamicConfig>(config.dynamic_config.clone());
-        let app_state =
-            AppState { gateway_client, config_manager_reader_client, dynamic_config_rx };
-        HttpServer { config, app_state, config_manager_client, dynamic_config_tx }
+        let app_state = AppState { gateway_client, config_manager_reader_client };
+        HttpServer { config, app_state }
     }
 
     pub async fn run(&mut self) -> Result<(), HttpServerRunError> {
@@ -122,16 +94,6 @@ impl HttpServer {
         let addr = SocketAddr::new(ip, port);
         let app = self.app();
         info!("HttpServer running using socket: {}", addr);
-
-        tokio::spawn(dynamic_config_poll(
-            self.dynamic_config_tx.clone(),
-            self.config_manager_client.clone(),
-            self.config.static_config.dynamic_config_poll_interval,
-        ));
-
-        // TODO(Tsabary): update the http server struct to hold optional fields of the
-        // dynamic_config_tx, config_manager_client, and a JoinHandle for the polling task.
-        // Then, use `set` and `take` to move these around as needed.
 
         // Create a server that runs forever.
         let listener = TcpListener::bind(&addr).await?;
@@ -353,11 +315,10 @@ fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, re
 
 pub fn create_http_server(
     config: HttpServerConfig,
-    config_manager_client: SharedConfigManagerClient,
     config_manager_reader_client: SharedConfigManagerReaderClient,
     gateway_client: SharedGatewayClient,
 ) -> HttpServer {
-    HttpServer::new(config, config_manager_client, config_manager_reader_client, gateway_client)
+    HttpServer::new(config, config_manager_reader_client, gateway_client)
 }
 
 #[async_trait]
@@ -379,21 +340,5 @@ fn increment_failure_metrics(err: &HttpServerError) {
             GatewayError::DeprecatedGatewayError { source, .. }) if source.is_internal())
     {
         ADDED_TRANSACTIONS_INTERNAL_ERROR.increment(1);
-    }
-}
-
-async fn dynamic_config_poll(
-    tx: Sender<HttpServerDynamicConfig>,
-    config_manager_client: SharedConfigManagerClient,
-    poll_interval: Duration,
-) {
-    let mut interval = time::interval(poll_interval);
-    loop {
-        interval.tick().await;
-        let dynamic_config_result = config_manager_client.get_http_server_dynamic_config().await;
-        // Make the config available if it was successfully updated.
-        if let Ok(dynamic_config) = dynamic_config_result {
-            let _ = tx.send(dynamic_config);
-        }
     }
 }
