@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775735261618,
+  "lastUpdate": 1775736514724,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1291,6 +1291,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1160.17895375,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "99db811970c959b0e391088c441ce51f51fba8c6",
+          "message": "starknet_committer_and_os_cli: add Patricia key utilities for snap sync (#13571)\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-04-09T11:28:22Z",
+          "tree_id": "957e4f305250dca9c9a2e271f6dbee905176d56c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/99db811970c959b0e391088c441ce51f51fba8c6"
+        },
+        "date": 1775736514294,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 965.6829959600001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1443.28968231,
             "unit": "ms"
           }
         ]
