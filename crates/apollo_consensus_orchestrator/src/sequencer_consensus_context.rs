@@ -20,12 +20,10 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_batcher_types::errors::BatcherError;
 use apollo_config::behavior_mode::BehaviorMode;
-use apollo_config_manager_types::communication::{
-    ConfigManagerReaderClient,
-    LocalConfigManagerReaderClient,
-};
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
 use apollo_consensus::types::{ConsensusContext, ConsensusError, ProposalCommitment, Round};
 use apollo_consensus_orchestrator_config::config::ContextConfig;
+use apollo_infra::component_definitions::ComponentReaderClient;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
@@ -969,18 +967,10 @@ impl SequencerConsensusContext {
 
     async fn update_dynamic_config(&mut self) {
         if let Some(config_manager_client) = self.deps.config_manager_client.clone() {
-            let config_result = config_manager_client.get_context_dynamic_config();
-            match config_result {
-                Ok(config) => {
-                    self.config.dynamic_config = config;
-                }
-                Err(e) => {
-                    error!(
-                        "Failed to get dynamic config for consensus context. Config not updated. \
-                         Error: {e:?}"
-                    );
-                }
-            }
+            self.config.dynamic_config = config_manager_client
+                .get_value()
+                .context_dynamic_config
+                .expect("context_dynamic_config dynamic config is not set");
         }
     }
 }

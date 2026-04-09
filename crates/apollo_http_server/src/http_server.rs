@@ -2,10 +2,7 @@ use std::clone::Clone;
 use std::net::SocketAddr;
 use std::string::String;
 
-use apollo_config_manager_types::communication::{
-    ConfigManagerReaderClient,
-    LocalConfigManagerReaderClient,
-};
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
 use apollo_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -19,7 +16,7 @@ use apollo_gateway_types::gateway_types::{
     SUPPORTED_TRANSACTION_VERSIONS,
 };
 use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
-use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra::component_definitions::{ComponentReaderClient, ComponentStarter};
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_metrics::metrics::set_unix_now_seconds;
 use apollo_proc_macros::sequencer_latency_histogram;
@@ -74,8 +71,9 @@ pub struct AppState {
 impl AppState {
     fn get_dynamic_config(&self) -> HttpServerDynamicConfig {
         self.config_manager_reader_client
-            .get_http_server_dynamic_config()
-            .expect("Failed to get http server dynamic config")
+            .get_value()
+            .http_server_dynamic_config
+            .expect("http_server_dynamic_config dynamic config is not set")
     }
 }
 

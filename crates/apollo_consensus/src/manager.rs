@@ -12,15 +12,13 @@ mod manager_test;
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
 
-use apollo_config_manager_types::communication::{
-    ConfigManagerReaderClient,
-    LocalConfigManagerReaderClient,
-};
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
 use apollo_consensus_config::config::{
     ConsensusConfig,
     ConsensusDynamicConfig,
     FutureMsgLimitsConfig,
 };
+use apollo_infra::component_definitions::ComponentReaderClient;
 use apollo_infra_utils::debug_every_n_ms;
 use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
@@ -133,16 +131,11 @@ where
     .await;
     loop {
         if let Some(client) = &run_consensus_args.config_manager_client {
-            match client.get_consensus_dynamic_config() {
-                Ok(dynamic_cfg) => {
-                    manager.set_dynamic_config(dynamic_cfg);
-                }
-                Err(e) => {
-                    error!(
-                        "get_consensus_dynamic_config failed: {e}. Using previous dynamic config."
-                    );
-                }
-            }
+            let dynamic_cfg = client
+                .get_value()
+                .consensus_dynamic_config
+                .expect("consensus_dynamic_config dynamic config is not set");
+            manager.set_dynamic_config(dynamic_cfg);
         }
 
         match manager

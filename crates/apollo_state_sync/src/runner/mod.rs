@@ -7,11 +7,8 @@ use apollo_central_sync::sources::central::{CentralError, CentralSource};
 use apollo_central_sync::sources::pending::PendingSource;
 use apollo_central_sync::{StateSync as CentralStateSync, StateSyncError as CentralStateSyncError};
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_config_manager_types::communication::{
-    ConfigManagerReaderClient,
-    LocalConfigManagerReaderClient,
-};
-use apollo_infra::component_definitions::ComponentStarter;
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
+use apollo_infra::component_definitions::{ComponentReaderClient, ComponentStarter};
 use apollo_infra::component_server::WrapperServer;
 use apollo_network::metrics::{NetworkMetrics, SqmrNetworkMetrics};
 use apollo_network::network_manager::{NetworkError, NetworkManager};
@@ -86,8 +83,9 @@ impl DynamicConfigProvider for StateSyncDynamicConfigProvider {
     ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError> {
         let config = self
             .config_manager_client
-            .get_state_sync_dynamic_config()
-            .map_err(|e| DynamicConfigError(e.to_string()))?;
+            .get_value()
+            .state_sync_dynamic_config
+            .expect("state_sync_dynamic_config dynamic config is not set");
         Ok(config.storage_reader_server_dynamic_config)
     }
 }

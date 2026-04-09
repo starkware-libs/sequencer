@@ -6,11 +6,12 @@ use std::cmp::min;
 use std::sync::Arc;
 
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_config_manager_types::communication::{
-    ConfigManagerReaderClient,
-    LocalConfigManagerReaderClient,
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
+use apollo_infra::component_definitions::{
+    ComponentReaderClient,
+    ComponentRequestHandler,
+    ComponentStarter,
 };
-use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
 use apollo_starknet_client::reader::{StarknetFeederGatewayClient, StarknetReader};
 use apollo_state_sync_config::config::{StateSyncConfig, StateSyncDynamicConfig};
@@ -32,7 +33,6 @@ use starknet_api::state::{StateNumber, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_types_core::felt::Felt;
 use tokio::sync::RwLock;
-use tracing::error;
 
 use crate::runner::StateSyncRunner;
 
@@ -97,15 +97,13 @@ impl StateSync {
     }
 
     async fn update_dynamic_config(&self) {
-        match self.config_manager_client.get_state_sync_dynamic_config() {
-            Ok(new_config) => {
-                let mut dynamic_config = self.dynamic_config.write().await;
-                *dynamic_config = new_config;
-            }
-            Err(error) => {
-                error!("Failed to fetch state sync dynamic config: {error}");
-            }
-        }
+        let new_config = self
+            .config_manager_client
+            .get_value()
+            .state_sync_dynamic_config
+            .expect("state_sync_dynamic_config dynamic config is not set");
+        let mut dynamic_config = self.dynamic_config.write().await;
+        *dynamic_config = new_config;
     }
 }
 

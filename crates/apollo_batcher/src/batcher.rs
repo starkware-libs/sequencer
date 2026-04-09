@@ -34,11 +34,12 @@ use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_committer_types::committer_types::RevertBlockResponse;
 use apollo_committer_types::communication::SharedCommitterClient;
-use apollo_config_manager_types::communication::{
-    ConfigManagerReaderClient,
-    LocalConfigManagerReaderClient,
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
+use apollo_infra::component_definitions::{
+    default_component_start_fn,
+    ComponentReaderClient,
+    ComponentStarter,
 };
-use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_l1_events_types::errors::{L1EventsProviderClientError, L1EventsProviderError};
 use apollo_l1_events_types::{SessionState, SharedL1EventsProviderClient};
 use apollo_mempool_types::communication::SharedMempoolClient;
@@ -1422,8 +1423,9 @@ impl DynamicConfigProvider for BatcherDynamicConfigProvider {
     ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError> {
         let config = self
             .config_manager_client
-            .get_batcher_dynamic_config()
-            .map_err(|e| DynamicConfigError(e.to_string()))?;
+            .get_value()
+            .batcher_dynamic_config
+            .expect("batcher_dynamic_config dynamic config is not set");
         Ok(config.storage_reader_server_dynamic_config)
     }
 }

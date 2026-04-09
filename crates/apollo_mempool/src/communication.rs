@@ -1,11 +1,12 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_config_manager_types::communication::{
-    ConfigManagerReaderClient,
-    LocalConfigManagerReaderClient,
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
+use apollo_infra::component_definitions::{
+    ComponentReaderClient,
+    ComponentRequestHandler,
+    ComponentStarter,
 };
-use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use apollo_mempool_config::config::MempoolConfig;
 use apollo_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
@@ -114,8 +115,9 @@ impl MempoolCommunicationWrapper {
     async fn update_dynamic_config(&mut self) {
         let mempool_dynamic_config = self
             .config_manager_client
-            .get_mempool_dynamic_config()
-            .expect("Should be able to get mempool dynamic config");
+            .get_value()
+            .mempool_dynamic_config
+            .expect("mempool_dynamic_config dynamic config is not set");
         self.mempool.update_dynamic_config(mempool_dynamic_config);
     }
 

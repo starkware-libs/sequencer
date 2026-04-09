@@ -3,8 +3,7 @@ use apollo_class_manager_types::{
     ClassManagerRequestLabelValue,
     ClassManagerResponse,
 };
-use apollo_config_manager_types::communication::ConfigManagerReaderClient;
-use apollo_infra::component_definitions::ComponentRequestHandler;
+use apollo_infra::component_definitions::{ComponentReaderClient, ComponentRequestHandler};
 use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_metrics::generate_permutation_labels;
@@ -23,8 +22,9 @@ impl ComponentRequestHandler<ClassManagerRequest, ClassManagerResponse> for Clas
         let dynamic_config: apollo_class_manager_config::config::ClassManagerDynamicConfig = self
             .0
             .config_manager_client
-            .get_class_manager_dynamic_config()
-            .expect("Should be able to get class manager dynamic config");
+            .get_value()
+            .class_manager_dynamic_config
+            .expect("class_manager_dynamic_config dynamic config is not set");
         self.0.update_dynamic_config(dynamic_config);
 
         match request {

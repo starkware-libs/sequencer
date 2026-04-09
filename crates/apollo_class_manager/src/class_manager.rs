@@ -15,11 +15,12 @@ use apollo_compile_to_casm_types::{
     SharedSierraCompilerClient,
     SierraCompilerClientError,
 };
-use apollo_config_manager_types::communication::{
-    ConfigManagerReaderClient,
-    LocalConfigManagerReaderClient,
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
+use apollo_infra::component_definitions::{
+    default_component_start_fn,
+    ComponentReaderClient,
+    ComponentStarter,
 };
-use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_storage::storage_reader_server::{
     DynamicConfigError,
     DynamicConfigProvider,
@@ -203,8 +204,9 @@ impl DynamicConfigProvider for ClassManagerDynamicConfigProvider {
     ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError> {
         let config = self
             .config_manager_client
-            .get_class_manager_dynamic_config()
-            .map_err(|e| DynamicConfigError(e.to_string()))?;
+            .get_value()
+            .class_manager_dynamic_config
+            .expect("class_manager_dynamic_config dynamic config is not set");
         Ok(config.storage_reader_server_dynamic_config)
     }
 }

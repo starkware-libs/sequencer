@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -15,7 +16,7 @@ use apollo_gateway_types::gateway_types::{
     GatewayOutput,
     InvokeGatewayOutput,
 };
-use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra::component_definitions::{ComponentReaderClient, ComponentStarter};
 use apollo_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
 use apollo_mempool_types::mempool_types::AddTransactionArgs;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
@@ -99,6 +100,7 @@ impl Gateway {
         transaction_converter: Arc<TransactionConverter>,
         stateless_tx_validator: Arc<StatelessTransactionValidator>,
         proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
+        config_manager_client: LocalConfigManagerReaderClient,
     ) -> Self {
         Self(GenericGateway::new(
             config,
@@ -107,6 +109,7 @@ impl Gateway {
             transaction_converter,
             stateless_tx_validator,
             proof_archive_writer,
+            config_manager_client,
         ))
     }
 
@@ -131,6 +134,7 @@ pub struct GenericGateway<
     mempool_client: SharedMempoolClient,
     transaction_converter: Arc<TTransactionConverter>,
     proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
+    config_manager_client: LocalConfigManagerReaderClient,
 }
 
 impl<
@@ -151,6 +155,7 @@ impl<
         transaction_converter: Arc<TTransactionConverter>,
         stateless_tx_validator: Arc<TStatelessValidator>,
         proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
+        config_manager_client: LocalConfigManagerReaderClient,
     ) -> Self {
         Self {
             config: Arc::new(config.clone()),
@@ -166,6 +171,7 @@ impl<
             mempool_client,
             transaction_converter,
             proof_archive_writer,
+            config_manager_client,
         }
     }
 }
@@ -225,9 +231,15 @@ impl<
         let (internal_tx, executable_tx, proof_data) =
             self.convert_rpc_tx_to_internal_and_executable_txs(tx, &tx_signature).await?;
 
+        let native_classes_whitelist = self
+            .config_manager_client
+            .get_value()
+            .gateway_dynamic_config
+            .expect("gateway dynamic config is not set")
+            .native_classes_whitelist;
         let mut stateful_transaction_validator = self
             .stateful_tx_validator_factory
-            .instantiate_validator(self.config.dynamic_config.native_classes_whitelist.clone())
+            .instantiate_validator(native_classes_whitelist)
             .await
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
@@ -433,6 +445,7 @@ pub fn create_gateway(
     class_manager_client: SharedClassManagerClient,
     proof_manager_client: SharedProofManagerClient,
     runtime: tokio::runtime::Handle,
+    config_manager_client: LocalConfigManagerReaderClient,
 ) -> Gateway {
     let state_reader_factory = Arc::new(SyncStateReaderFactory {
         shared_state_sync_client,
@@ -465,6 +478,7 @@ pub fn create_gateway(
         transaction_converter,
         stateless_tx_validator,
         proof_archive_writer,
+        config_manager_client,
     )
 }
 

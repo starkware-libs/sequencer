@@ -2,10 +2,8 @@ use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, RwLock};
 
 use apollo_batcher_types::communication::SharedBatcherClient;
-use apollo_config_manager_types::communication::{
-    ConfigManagerReaderClient,
-    LocalConfigManagerReaderClient,
-};
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
+use apollo_infra::component_definitions::ComponentReaderClient;
 use apollo_protobuf::consensus::Round;
 use apollo_staking_config::config::{
     get_config_for_epoch,
@@ -248,15 +246,12 @@ impl StakingManager {
             return;
         };
 
-        match client.get_staking_manager_dynamic_config() {
-            Ok(new_config) => {
-                let mut dynamic_config = self.dynamic_config.write().expect("RwLock poisoned");
-                *dynamic_config = new_config;
-            }
-            Err(error) => {
-                warn!("Failed to fetch staking manager dynamic config: {error}");
-            }
-        }
+        let new_config = client
+            .get_value()
+            .staking_manager_dynamic_config
+            .expect("staking_manager_dynamic_config dynamic config is not set");
+        let mut dynamic_config = self.dynamic_config.write().expect("RwLock poisoned");
+        *dynamic_config = new_config;
     }
 
     // Returns the committee data for the given epoch.
