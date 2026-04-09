@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775738460404,
+  "lastUpdate": 1775746220294,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1359,6 +1359,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1390.8812398,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "143319383+nimrod-starkware@users.noreply.github.com",
+            "name": "nimrod-starkware",
+            "username": "nimrod-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b66cfeabf821cedf6597e7ec2ae997557932da5e",
+          "message": "starknet_patricia_storage: rename mutable getters (#13379)",
+          "timestamp": "2026-04-09T14:32:38Z",
+          "tree_id": "cd78b50e4f289cd8c1cd846085690aa11ad2445e",
+          "url": "https://github.com/starkware-libs/sequencer/commit/b66cfeabf821cedf6597e7ec2ae997557932da5e"
+        },
+        "date": 1775746219759,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 994.90137061,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1565.18114541,
             "unit": "ms"
           }
         ]
