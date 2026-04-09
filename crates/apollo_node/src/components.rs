@@ -271,9 +271,6 @@ pub async fn create_node_components(
 
     let http_server = match config.components.http_server.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
-            let config_manager_client = clients
-                .get_config_manager_shared_client()
-                .expect("Config Manager client should be available");
             let config_manager_reader_client = clients
                 .get_config_manager_reader_client()
                 .expect("Config Manager reader client should be available");
@@ -284,7 +281,6 @@ pub async fn create_node_components(
 
             Some(create_http_server(
                 http_server_config.clone(),
-                config_manager_client,
                 config_manager_reader_client,
                 gateway_client,
             ))
