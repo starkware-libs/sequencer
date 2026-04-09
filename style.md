@@ -394,7 +394,7 @@ All comments should include _additional_ information not trivially observable in
 Take extra care when using AI-generated code, which tends to include a lot of trivial comment-bloat.
 
 ```rust
-// BAD - Restates what the code already says.
+// BAD - Restates what the code trivially says.
 // Add foo to collection.
 my_vec.push(foo);
 
@@ -422,7 +422,7 @@ for tx in transactions {
 }
 ```
 
-When you find yourself adding such a title comment, consider extracting the paragraph into a helper function where it makes sense. This way, the function name serves as the documentation.
+When you find yourself adding such a title comment, consider extracting the paragraph into a helper function where it makes sense. This way, the function name serves as additional documentation.
 
 ## External Dependencies
 
