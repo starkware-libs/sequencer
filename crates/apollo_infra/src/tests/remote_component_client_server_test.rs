@@ -31,7 +31,6 @@ use tokio::sync::{Mutex, Semaphore};
 use tokio::task;
 use tokio::time::{sleep, timeout};
 
-use crate::component_client::remote_component_client::TCP_IDLE_TIMEOUT_FACTOR;
 use crate::component_client::{
     ClientError,
     ClientResult,
@@ -48,6 +47,7 @@ use crate::component_definitions::{
     APPLICATION_OCTET_STREAM,
     BUSY_PREVIOUS_REQUESTS_MSG,
     REQUEST_ID_HEADER,
+    TCP_KEEPALIVE_FACTOR,
 };
 use crate::component_server::{
     ComponentServerStarter,
@@ -688,7 +688,7 @@ async fn zombie_connection_is_evicted() {
 }
 
 /// Verifies that `TCP_KEEPIDLE` on the client's outbound socket equals
-/// `keepalive_timeout_ms * TCP_IDLE_TIMEOUT_FACTOR`, confirming the socket is armed to probe after
+/// `keepalive_timeout_ms * TCP_KEEPALIVE_FACTOR`, confirming the socket is armed to probe after
 /// exactly the expected idle period.
 ///
 /// Internally, hyper's `HttpConnector::set_keepalive` calls `SockRef::set_tcp_keepalive` via
@@ -705,11 +705,11 @@ async fn tcp_keepalive_idle_time_matches_config() {
     // configured duration must be a whole number of seconds or the comparison fails.
     const IDLE_TIMEOUT_MS: u64 = 2000;
     let expected_keepalive_idle =
-        Duration::from_millis(IDLE_TIMEOUT_MS).mul_f64(TCP_IDLE_TIMEOUT_FACTOR);
+        Duration::from_millis(IDLE_TIMEOUT_MS).mul_f64(TCP_KEEPALIVE_FACTOR);
     assert_eq!(
         expected_keepalive_idle.subsec_nanos(),
         0,
-        "IDLE_TIMEOUT_MS * TCP_IDLE_TIMEOUT_FACTOR must be a whole number of seconds"
+        "IDLE_TIMEOUT_MS * TCP_KEEPALIVE_FACTOR must be a whole number of seconds"
     );
 
     let mut ports = available_ports_factory(unique_u16!());
@@ -732,6 +732,6 @@ async fn tcp_keepalive_idle_time_matches_config() {
         .expect("SO_KEEPALIVE should be set and TCP_KEEPIDLE should be readable");
     assert_eq!(
         actual_keepalive_idle, expected_keepalive_idle,
-        "TCP_KEEPIDLE should equal keepalive_timeout_ms * TCP_IDLE_TIMEOUT_FACTOR"
+        "TCP_KEEPIDLE should equal keepalive_timeout_ms * TCP_KEEPALIVE_FACTOR"
     );
 }
