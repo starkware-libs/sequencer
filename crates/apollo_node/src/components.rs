@@ -110,8 +110,8 @@ pub async fn create_node_components(
                 .get_proof_manager_shared_client()
                 .expect("Proof Manager client should be available");
             let config_manager_client = clients
-                .get_config_manager_shared_client()
-                .expect("Config Manager client should be available");
+                .get_config_manager_reader_client()
+                .expect("Config Manager reader client should be available");
             Some(
                 create_batcher(
                     batcher_config.clone(),
@@ -137,13 +137,13 @@ pub async fn create_node_components(
             let compiler_shared_client = clients
                 .get_sierra_compiler_shared_client()
                 .expect("Sierra Compiler client should be available");
-            let config_manager_shared_client = clients
-                .get_config_manager_shared_client()
-                .expect("Config Manager client should be available");
+            let config_manager_client = clients
+                .get_config_manager_reader_client()
+                .expect("Config Manager reader client should be available");
             Some(create_class_manager(
                 class_manager_config.clone(),
                 compiler_shared_client,
-                config_manager_shared_client,
+                config_manager_client,
             ))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
@@ -215,8 +215,8 @@ pub async fn create_node_components(
                 .get_l1_gas_price_shared_client()
                 .expect("L1 gas price client should be available");
             let config_manager_client = clients
-                .get_config_manager_shared_client()
-                .expect("Config Manager client should be available");
+                .get_config_manager_reader_client()
+                .expect("Config Manager reader client should be available");
             let proof_manager_client = clients
                 .get_proof_manager_shared_client()
                 .expect("Proof Manager client should be available");
@@ -410,8 +410,8 @@ pub async fn create_node_components(
             let mempool_config =
                 config.mempool_config.as_ref().expect("Mempool config should be set");
             let config_manager_client = clients
-                .get_config_manager_shared_client()
-                .expect("Config Manager client should be available");
+                .get_config_manager_reader_client()
+                .expect("Config Manager reader client should be available");
             let mempool_p2p_propagator_client = clients
                 .get_mempool_p2p_propagator_shared_client()
                 .expect("Propagator client should be available");
@@ -546,8 +546,8 @@ pub async fn create_node_components(
                 .get_class_manager_shared_client()
                 .expect("Class Manager client should be available");
             let config_manager_client = clients
-                .get_config_manager_shared_client()
-                .expect("Config Manager client should be available");
+                .get_config_manager_reader_client()
+                .expect("Config Manager reader client should be available");
             let (state_sync, state_sync_runner) = create_state_sync_and_runner(
                 state_sync_config.clone(),
                 class_manager_client,
