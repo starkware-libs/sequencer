@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use indexmap::IndexMap;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::StorageKey;
+use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
 
 use crate::context::TransactionContext;
@@ -683,6 +683,20 @@ impl From<StateMaps> for CommitmentStateDiff {
             storage_updates: StorageDiff::from(StorageView(diff.storage)),
             class_hash_to_compiled_class_hash: IndexMap::from_iter(diff.compiled_class_hashes),
             address_to_nonce: IndexMap::from_iter(diff.nonces),
+        }
+    }
+}
+
+impl From<CommitmentStateDiff> for ThinStateDiff {
+    fn from(commitment_state_diff: CommitmentStateDiff) -> Self {
+        Self {
+            deployed_contracts: commitment_state_diff.address_to_class_hash,
+            storage_diffs: commitment_state_diff.storage_updates,
+            class_hash_to_compiled_class_hash: commitment_state_diff
+                .class_hash_to_compiled_class_hash,
+            nonces: commitment_state_diff.address_to_nonce,
+            // TODO(AlonH): Remove this when the structure of storage diffs changes.
+            deprecated_declared_classes: Vec::new(),
         }
     }
 }
