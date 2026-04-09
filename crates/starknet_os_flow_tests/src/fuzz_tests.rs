@@ -1567,7 +1567,10 @@ async fn test_daily_fuzz_seed(
     let day: u64 = now.day().into();
     let month: u64 = now.month().into();
     let year: u64 = now.year().try_into().unwrap();
-    let seed = day * 100000000 + month * 1000000 + year * 100 + inner_seed;
+    // The offset can be used to shift the daily seed. Increment if a known (rare) issue is found
+    // and is being taken care of separately, to unblock the CI.
+    let offset = 0;
+    let seed = offset * 10000000000 + day * 100000000 + month * 1000000 + year * 100 + inner_seed;
     fuzz_test_body(seed, 10, filter).await;
 }
 
