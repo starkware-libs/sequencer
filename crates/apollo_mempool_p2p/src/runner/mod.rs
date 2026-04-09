@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod test;
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
@@ -20,6 +21,7 @@ use async_trait::async_trait;
 use futures::future::BoxFuture;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
+use tokio::sync::Semaphore;
 use tokio::time::MissedTickBehavior::Delay;
 use tracing::{debug, warn};
 
@@ -58,8 +60,8 @@ impl MempoolP2pRunner {
 #[async_trait]
 impl ComponentStarter for MempoolP2pRunner {
     async fn start(&mut self) {
+        let gateway_semaphore = Arc::new(Semaphore::new(self.max_concurrent_gateway_requests));
         let mut gateway_futures = FuturesUnordered::new();
-        let mut concurrent_gateway_requests = 0;
         let mut transaction_batch_broadcast_interval =
             tokio::time::interval(self.transaction_batch_rate_millis);
         transaction_batch_broadcast_interval.set_missed_tick_behavior(Delay);
@@ -76,7 +78,6 @@ impl ComponentStarter for MempoolP2pRunner {
                     };
                 }
                 Some(result) = gateway_futures.next() => {
-                    concurrent_gateway_requests -= 1;
                     match result {
                         Ok(_) => {}
                         Err(gateway_client_error) => {
@@ -106,15 +107,24 @@ impl ComponentStarter for MempoolP2pRunner {
                             // TODO(alonl): consider calculating the tx_hash and printing it instead of the entire tx.
                             debug!("Received transaction batch from network, forwarding to gateway. Batch: {:?}", message.0);
                             for rpc_tx in message.0 {
-                                if concurrent_gateway_requests == self.max_concurrent_gateway_requests {
-                                    warn!("Rejecting transaction due to backpressure. Transaction: {:?}", rpc_tx);
-                                    continue;
-                                }
-
-                                gateway_futures.push(self.gateway_client.add_tx(
-                                    GatewayInput { rpc_tx, message_metadata: Some(broadcasted_message_metadata.clone()) }
-                                ));
-                                concurrent_gateway_requests += 1;
+                                let permit = match gateway_semaphore.clone().try_acquire_owned() {
+                                    Ok(permit) => permit,
+                                    Err(_) => {
+                                        warn!(
+                                            "Rejecting transaction due to backpressure. \
+                                             Transaction: {rpc_tx:?}"
+                                        );
+                                        continue;
+                                    }
+                                };
+                                let gateway_client = self.gateway_client.clone();
+                                let message_metadata = Some(broadcasted_message_metadata.clone());
+                                gateway_futures.push(async move {
+                                    let _permit = permit;
+                                    gateway_client.add_tx(
+                                        GatewayInput { rpc_tx, message_metadata }
+                                    ).await
+                                });
                             }
                         }
                         Err(e) => {
