@@ -8,6 +8,9 @@ use apollo_class_manager_config::config::{ClassManagerDynamicConfig, FsClassMana
 use apollo_committer_config::config::ApolloCommitterConfig;
 use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config::dumping::{
+    ConfigPointers,
+    Pointers,
+    SerializeConfig,
     generate_optional_struct_pointer,
     generate_struct_pointer,
     prepend_sub_config_name,
@@ -15,9 +18,6 @@ use apollo_config::dumping::{
     ser_param,
     ser_pointer_target_param,
     set_pointing_param_paths,
-    ConfigPointers,
-    Pointers,
-    SerializeConfig,
 };
 use apollo_config::loading::load_and_process_config;
 use apollo_config::validators::config_validate;
@@ -46,7 +46,7 @@ use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use crate::component_config::ComponentConfig;
+use crate::component_config::{ComponentConfig, ValidateTxIngestionComponentsDisabled};
 use crate::component_execution_config::ExpectedComponentConfig;
 use crate::monitoring::MonitoringConfig;
 use crate::version::VERSION_FULL;
@@ -579,25 +579,16 @@ impl SequencerNodeConfig {
         if !self.validation_only {
             return Ok(());
         }
-        if !self.components.gateway.is_disabled() {
-            return Err(ConfigError::ComponentConfigMismatch {
-                component_config_mismatch: "gateway must be disabled when validation_only is true"
-                    .to_string(),
-            });
-        }
-        if !self.components.http_server.is_disabled() {
-            return Err(ConfigError::ComponentConfigMismatch {
-                component_config_mismatch: "http_server must be disabled when validation_only is \
-                                            true"
-                    .to_string(),
-            });
-        }
-        if !self.components.mempool.is_disabled() {
-            return Err(ConfigError::ComponentConfigMismatch {
-                component_config_mismatch: "mempool must be disabled when validation_only is true"
-                    .to_string(),
-            });
-        }
+        self.components.validate_tx_ingestion_components_disabled().map_err(|e| match e {
+            ConfigError::ComponentConfigMismatch { component_config_mismatch } => {
+                ConfigError::ComponentConfigMismatch {
+                    component_config_mismatch: format!(
+                        "{component_config_mismatch} when validation_only is true"
+                    ),
+                }
+            }
+            other => other,
+        })?;
         Ok(())
     }
 }
