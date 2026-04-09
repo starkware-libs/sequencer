@@ -41,11 +41,11 @@ use indexmap::{IndexMap, IndexSet};
 use mockall::automock;
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
-    calculate_block_commitments,
     BlockCommitmentsMeasurements,
     PartialBlockHash,
     PartialBlockHashComponents,
     TransactionHashingData,
+    calculate_block_commitments,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -63,10 +63,9 @@ use tracing::{debug, error, info, trace, warn};
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
 use crate::metrics::{
-    record_block_close_reason,
-    BlockCloseReason,
     BATCHER_CLASS_CACHE_METRICS,
     BLOCK_COMMITMENT_MEASUREMENTS_COUNT,
+    BlockCloseReason,
     EVENT_COMMITMENT_COUNT,
     EVENT_COMMITMENT_LATENCY,
     PROPOSER_DEFERRED_TXS,
@@ -76,6 +75,7 @@ use crate::metrics::{
     TX_COMMITMENT_COUNT,
     TX_COMMITMENT_LATENCY,
     VALIDATOR_WASTED_TXS,
+    record_block_close_reason,
 };
 use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
@@ -156,9 +156,10 @@ impl BlockExecutionArtifacts {
         let l1_da_mode = L1DataAvailabilityMode::from_use_kzg_da(block_info.use_kzg_da);
         let transactions_data =
             prepare_txs_hashing_data(&execution_data.execution_infos_and_signatures);
+        // TODO(Ayelet): Remove the clones.
         let (header_commitments, measurements) = calculate_block_commitments(
             &transactions_data,
-            commitment_state_diff_as_thin_state_diff(&commitment_state_diff),
+            ThinStateDiff::from(commitment_state_diff.clone()),
             l1_da_mode,
             &block_info.starknet_version,
         )
@@ -195,7 +196,8 @@ impl BlockExecutionArtifacts {
     }
 
     pub fn thin_state_diff(&self) -> ThinStateDiff {
-        commitment_state_diff_as_thin_state_diff(&self.commitment_state_diff)
+        // TODO(Ayelet): Remove the clones.
+        ThinStateDiff::from(self.commitment_state_diff.clone())
     }
 
     pub fn commitment(&self) -> ProposalCommitment {
@@ -210,22 +212,6 @@ impl BlockExecutionArtifacts {
     /// Returns the [PartialBlockHashComponents] based on the execution artifacts.
     pub fn partial_block_hash_components(&self) -> PartialBlockHashComponents {
         self.partial_block_hash_components.clone()
-    }
-}
-
-fn commitment_state_diff_as_thin_state_diff(
-    commitment_state_diff: &CommitmentStateDiff,
-) -> ThinStateDiff {
-    // TODO(Ayelet): Remove the clones.
-    ThinStateDiff {
-        deployed_contracts: commitment_state_diff.address_to_class_hash.clone(),
-        storage_diffs: commitment_state_diff.storage_updates.clone(),
-        class_hash_to_compiled_class_hash: commitment_state_diff
-            .class_hash_to_compiled_class_hash
-            .clone(),
-        nonces: commitment_state_diff.address_to_nonce.clone(),
-        // TODO(AlonH): Remove this when the structure of storage diffs changes.
-        deprecated_declared_classes: Vec::new(),
     }
 }
 
