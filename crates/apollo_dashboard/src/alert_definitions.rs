@@ -2,7 +2,6 @@ use apollo_batcher::metrics::{BATCHER_INFRA_METRICS, BATCHER_L1_EVENTS_PROVIDER_
 use apollo_class_manager::metrics::CLASS_MANAGER_INFRA_METRICS;
 use apollo_committer::metrics::COMMITTER_INFRA_METRICS;
 use apollo_compile_to_casm::metrics::SIERRA_COMPILER_INFRA_METRICS;
-use apollo_config_manager::metrics::CONFIG_MANAGER_INFRA_METRICS;
 use apollo_consensus::metrics::{
     CONSENSUS_CONFLICTING_VOTES,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
@@ -572,11 +571,6 @@ fn get_all_remote_server_connection_alerts() -> Vec<Alert> {
             "committer",
             AlertGroup::Consensus,
             COMMITTER_INFRA_METRICS.get_remote_server_metrics(),
-        ),
-        get_remote_server_number_of_connections_alert(
-            "config_manager",
-            AlertGroup::General,
-            CONFIG_MANAGER_INFRA_METRICS.get_remote_server_metrics(),
         ),
         get_remote_server_number_of_connections_alert(
             "gateway",

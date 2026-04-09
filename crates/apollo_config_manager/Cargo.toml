@@ -15,7 +15,6 @@ workspace = true
 [dependencies]
 apollo_config.workspace = true
 apollo_config_manager_config.workspace = true
-apollo_config_manager_types.workspace = true
 apollo_consensus_config.workspace = true
 apollo_infra.workspace = true
 apollo_metrics.workspace = true
@@ -28,7 +27,6 @@ tracing.workspace = true
 
 [dev-dependencies]
 apollo_config.workspace = true
-apollo_config_manager_types = { workspace = true, features = ["testing"] }
 apollo_node_config = { workspace = true, features = ["testing"] }
 starknet_api.workspace = true
 tempfile.workspace = true

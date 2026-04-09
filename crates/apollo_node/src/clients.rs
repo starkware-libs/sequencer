@@ -32,14 +32,8 @@ use apollo_compile_to_casm_types::{
     SierraCompilerRequest,
     SierraCompilerResponse,
 };
-use apollo_config_manager::metrics::CONFIG_MANAGER_INFRA_METRICS;
 use apollo_config_manager_types::communication::{
-    ConfigManagerRequest,
-    ConfigManagerResponse,
-    LocalConfigManagerClient,
     LocalConfigManagerReaderClient,
-    RemoteConfigManagerClient,
-    SharedConfigManagerClient,
     SharedConfigManagerReaderClient,
 };
 use apollo_gateway::metrics::GATEWAY_INFRA_METRICS;
@@ -111,7 +105,6 @@ pub struct SequencerNodeClients {
     batcher_client: Client<BatcherRequest, BatcherResponse, ()>,
     class_manager_client: Client<ClassManagerRequest, ClassManagerResponse, ()>,
     committer_client: Client<CommitterRequest, CommitterResponse, ()>,
-    config_manager_client: Client<ConfigManagerRequest, ConfigManagerResponse, ()>,
     reader_config_manager_client: ReaderClient<NodeDynamicConfig>,
     gateway_client: Client<GatewayRequest, GatewayResponse, ()>,
     l1_events_provider_client: Client<L1EventsProviderRequest, L1EventsProviderResponse, ()>,
@@ -195,10 +188,6 @@ impl SequencerNodeClients {
 
     pub fn get_committer_shared_client(&self) -> Option<SharedCommitterClient> {
         get_shared_client!(self, committer_client)
-    }
-
-    pub fn get_config_manager_shared_client(&self) -> Option<SharedConfigManagerClient> {
-        get_shared_client!(self, config_manager_client)
     }
 
     pub fn get_config_manager_reader_client(&self) -> Option<SharedConfigManagerReaderClient> {
@@ -421,18 +410,6 @@ pub fn create_node_clients(
         &COMMITTER_INFRA_METRICS.get_remote_client_metrics()
     );
 
-    let config_manager_client = create_client!(
-        &config.components.config_manager.execution_mode,
-        LocalConfigManagerClient,
-        RemoteConfigManagerClient,
-        channels.take_config_manager_tx(),
-        &config.components.config_manager.remote_client_config,
-        &config.components.config_manager.url,
-        config.components.config_manager.port,
-        &CONFIG_MANAGER_INFRA_METRICS.get_local_client_metrics(),
-        &CONFIG_MANAGER_INFRA_METRICS.get_remote_client_metrics()
-    );
-
     let reader_config_manager_client = match config.components.config_manager.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
             Client::LocalReadOnlyClient(LocalConfigManagerReaderClient::new(
@@ -553,7 +530,6 @@ pub fn create_node_clients(
         batcher_client,
         class_manager_client,
         committer_client,
-        config_manager_client,
         reader_config_manager_client,
         gateway_client,
         l1_events_provider_client,

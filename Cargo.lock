@@ -1240,7 +1240,6 @@ version = "0.0.0"
 dependencies = [
  "apollo_config",
  "apollo_config_manager_config",
- "apollo_config_manager_types",
  "apollo_consensus_config",
  "apollo_infra",
  "apollo_metrics",
@@ -1276,15 +1275,12 @@ dependencies = [
  "apollo_http_server_config",
  "apollo_infra",
  "apollo_mempool_config",
- "apollo_metrics",
  "apollo_node_config",
  "apollo_staking_config",
  "apollo_state_sync_config",
- "async-trait",
  "mockall",
  "paste",
  "serde",
- "strum",
  "thiserror 1.0.69",
 ]
 
