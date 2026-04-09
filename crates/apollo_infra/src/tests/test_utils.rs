@@ -17,9 +17,11 @@ use serde::{Deserialize, Serialize};
 use socket2::SockRef;
 use starknet_types_core::felt::Felt;
 use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
 use tokio::sync::Semaphore;
 
-use crate::component_client::ClientResult;
+use crate::component_client::{ClientResult, RemoteComponentClient};
 use crate::component_definitions::{ComponentRequestHandler, ComponentStarter, PrioritizedRequest};
 use crate::component_server::RemoteServerConfig;
 use crate::metrics::{
@@ -35,8 +37,11 @@ pub(crate) type ValueA = Felt;
 pub(crate) type ValueB = Felt;
 pub(crate) type ResultA = ClientResult<ValueA>;
 pub(crate) type ResultB = ClientResult<ValueB>;
+pub(crate) type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;
+pub(crate) type ComponentBClient = RemoteComponentClient<ComponentBRequest, ComponentBResponse>;
 
 pub(crate) const VALID_VALUE_A: ValueA = Felt::ONE;
+pub(crate) const MAX_CONCURRENCY: usize = 10;
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(
@@ -361,4 +366,53 @@ pub(crate) fn client_socket_keepalive_time(server_addr: SocketAddr) -> Option<Du
         }
     }
     None
+}
+
+/// Connects a raw TCP stream to `addr`, performs the HTTP/2 connection preface and SETTINGS
+/// exchange, then returns the stream without ever responding to PING frames — simulating a
+/// zombie connection.
+pub(crate) async fn connect_zombie(addr: SocketAddr) -> TcpStream {
+    let mut stream = TcpStream::connect(addr).await.unwrap();
+
+    // HTTP/2 client connection preface.
+    stream.write_all(b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n").await.unwrap();
+    // Empty SETTINGS frame: length=0, type=0x4 (SETTINGS), flags=0x0, stream_id=0.
+    stream.write_all(&[0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00]).await.unwrap();
+
+    // Read server frames, accumulating bytes to handle fragmentation. Once we see the
+    // server's SETTINGS frame, respond with SETTINGS_ACK and stop — becoming a zombie that
+    // ignores all subsequent frames (including PING).
+    let mut buf = Vec::new();
+    let mut tmp = [0u8; 4096];
+    'done: loop {
+        let n = stream.read(&mut tmp).await.unwrap();
+        if n == 0 {
+            break;
+        }
+        buf.extend_from_slice(&tmp[..n]);
+
+        let mut pos = 0;
+        while pos + 9 <= buf.len() {
+            let length = (usize::from(buf[pos]) << 16)
+                | (usize::from(buf[pos + 1]) << 8)
+                | usize::from(buf[pos + 2]);
+            if pos + 9 + length > buf.len() {
+                break; // incomplete frame, read more
+            }
+            let frame_type = buf[pos + 3];
+            let flags = buf[pos + 4];
+            if frame_type == 0x04 /* SETTINGS */ && flags & 0x01 == 0
+            // not ACK
+            {
+                // Send SETTINGS_ACK and stop responding to anything.
+                stream
+                    .write_all(&[0x00, 0x00, 0x00, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00])
+                    .await
+                    .unwrap();
+                break 'done;
+            }
+            pos += 9 + length;
+        }
+    }
+    stream
 }
