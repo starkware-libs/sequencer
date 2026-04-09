@@ -1,10 +1,12 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
 use indexmap::IndexMap;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::hash::StateRoots;
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_api::{class_hash, compiled_class_hash, contract_address, nonce, storage_key};
 use starknet_committer::block_committer::input::{
@@ -12,10 +14,21 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
+use starknet_committer::db::forest_trait::StorageInitializer;
+use starknet_committer::db::index_db::IndexDb;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash as CommitterCompiledClassHash;
+use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
+use tokio::sync::Mutex;
 
-use super::{compute_actual_end, shrink_to_actual_end, TreeKey, TreeRequest};
+use super::{
+    compute_actual_end,
+    process_request,
+    shrink_to_actual_end,
+    CommitState,
+    TreeKey,
+    TreeRequest,
+};
 
 // Key positions and values shared across all scan tests.
 const ENTRY_KEY_1: u64 = 1;
@@ -252,4 +265,90 @@ fn test_storage_key_scan() {
             ..Default::default()
         },
     );
+}
+
+// --- process_request tests ---
+
+fn create_test_commit_state() -> Arc<Mutex<CommitState<MapStorage>>> {
+    Arc::new(Mutex::new(CommitState {
+        committer_db: IndexDb::new(MapStorage::default()),
+        state_roots: StateRoots::default(),
+        num_commits: 0,
+    }))
+}
+
+/// Sets up storage with `diff` at block 0, runs `process_request` for class hashes over the
+/// full key range with the given `size_limit`, and returns the resulting `StateRoots` and
+/// the total number of commits made.
+async fn run_process_request_for_class_hashes(
+    diff: ThinStateDiff,
+    size_limit: usize,
+) -> (StateRoots, usize) {
+    let ((reader, mut writer), _temp_dir_storage) = get_test_storage();
+    let mut txn = writer.begin_rw_txn().unwrap();
+    txn = txn.append_state_diff(BlockNumber(0), diff).unwrap();
+    txn.commit().unwrap();
+    let reader = Arc::new(reader);
+    let commit_state = create_test_commit_state();
+    process_request(
+        reader,
+        ClassHash::initial_request(()),
+        BlockNumber(0),
+        size_limit,
+        Arc::clone(&commit_state),
+    )
+    .await;
+    let final_state = Arc::try_unwrap(commit_state).ok().unwrap().into_inner();
+    (final_state.state_roots, final_state.num_commits)
+}
+
+/// With no entries in storage, process_request makes no commits and state_roots remain default.
+#[tokio::test]
+async fn test_process_request_empty_storage() {
+    let (state_roots, num_commits) =
+        run_process_request_for_class_hashes(ThinStateDiff::default(), 100).await;
+    assert_eq!(state_roots, StateRoots::default());
+    assert_eq!(num_commits, 0);
+}
+
+/// With entries present, process_request commits them and state_roots diverge from default.
+#[tokio::test]
+async fn test_process_request_commits_entries() {
+    let diff = ThinStateDiff {
+        class_hash_to_compiled_class_hash: [
+            (class_hash!(1_u64), compiled_class_hash!(10_u64)),
+            (class_hash!(2_u64), compiled_class_hash!(20_u64)),
+        ]
+        .into_iter()
+        .collect(),
+        ..Default::default()
+    };
+    let (state_roots, num_commits) = run_process_request_for_class_hashes(diff, 100).await;
+    assert_ne!(state_roots, StateRoots::default());
+    assert_eq!(num_commits, 1);
+}
+
+/// Validates that the global root after processing all entries with a large size_limit
+/// (single scan, one commit) equals the global root after processing with a small size_limit
+/// (multiple partial scans, multiple commits).
+#[tokio::test]
+async fn test_process_request_global_root_equals_accumulated_partial_roots() {
+    let diff = ThinStateDiff {
+        class_hash_to_compiled_class_hash: [
+            (class_hash!(1_u64), compiled_class_hash!(10_u64)),
+            (class_hash!(2_u64), compiled_class_hash!(20_u64)),
+            (class_hash!(5_u64), compiled_class_hash!(50_u64)),
+        ]
+        .into_iter()
+        .collect(),
+        ..Default::default()
+    };
+    let (root_single_scan, num_commits_single) =
+        run_process_request_for_class_hashes(diff.clone(), 100).await;
+    let (root_partial_scans, num_commits_partial) =
+        run_process_request_for_class_hashes(diff, 1).await;
+    // Single scan commits all three entries at once; partial scans commit one at a time.
+    assert_eq!(num_commits_single, 1);
+    assert_eq!(num_commits_partial, 3);
+    assert_eq!(root_single_scan, root_partial_scans);
 }

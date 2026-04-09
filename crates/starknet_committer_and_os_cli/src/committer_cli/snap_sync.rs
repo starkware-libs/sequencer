@@ -1,4 +1,7 @@
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::Arc;
 
 use apollo_committer_config::config::ApolloStorage;
 use apollo_storage::state::StateStorageReader;
@@ -19,7 +22,8 @@ use starknet_committer::block_committer::measurements_util::NoMeasurements;
 use starknet_committer::db::forest_trait::{EmptyInitialReadContext, ForestWriterWithMetadata};
 use starknet_committer::db::index_db::{IndexDb, IndexDbReadContext};
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash as CommitterCompiledClassHash;
-use starknet_types_core::felt::Felt;
+use starknet_patricia_storage::storage_trait::Storage;
+use starknet_types_core::felt::{Felt, NonZeroFelt};
 use tokio::sync::Mutex;
 use tracing::info;
 
@@ -82,7 +86,7 @@ fn shrink_to_actual_end<K: TreeKey, V>(
 ///
 /// `Context` carries any per-request metadata needed by `scan`.
 #[allow(dead_code)]
-trait TreeKey: Copy + Into<Felt> + Send + Sync + 'static {
+trait TreeKey: Copy + Default + Into<Felt> + Send + Sync + 'static {
     type Context: Clone + Send + Sync + 'static;
 
     /// Returns the inclusive maximum key value for this key type.
@@ -90,6 +94,11 @@ trait TreeKey: Copy + Into<Felt> + Send + Sync + 'static {
 
     /// Converts a `Felt` to the key type, assuming it is a valid key.
     fn from_felt(felt: Felt) -> Self;
+
+    /// Returns a request covering the full key range `[default, max_key]` for the given context.
+    fn initial_request(context: Self::Context) -> TreeRequest<Self> {
+        TreeRequest { context, start: Self::default(), end: Self::max_key() }
+    }
 
     /// Scans entries in `[start, end]` at `block_target` and returns `(state_diff, actual_end)`.
     ///
@@ -250,15 +259,22 @@ impl TreeKey for ClassHash {
 }
 
 /// Shared mutable state: the DB and running `StateRoots` threaded across all commits.
-struct CommitState {
-    committer_db: IndexDb<ApolloStorage>,
+struct CommitState<S: Storage = ApolloStorage> {
+    committer_db: IndexDb<S>,
     state_roots: StateRoots,
     num_commits: usize,
 }
 
+/// Divides a Felt by 2 (right-shift by 1).
+fn shr_one(felt: Felt) -> Felt {
+    felt.floor_div(&NonZeroFelt::TWO)
+}
+
 /// Commits a state diff to the shared `CommitState`.
-#[expect(dead_code)]
-async fn commit_state_diff(state_diff: StateDiff, commit_state: &Mutex<CommitState>) {
+async fn commit_state_diff<S: Storage + Send>(
+    state_diff: StateDiff,
+    commit_state: &Mutex<CommitState<S>>,
+) {
     if state_diff == StateDiff::default() {
         return;
     }
@@ -285,4 +301,71 @@ async fn commit_state_diff(state_diff: StateDiff, commit_state: &Mutex<CommitSta
         guard.state_roots.contracts_trie_root_hash.0.to_hex_string(),
         guard.state_roots.classes_trie_root_hash.0.to_hex_string(),
     );
+}
+
+/// Processes a tree request: scans a subtree, commits it, then either recurses linearly or
+/// splits the remaining range into two parallel sub-requests.
+///
+/// This is a boxed future because it recurses.
+#[allow(dead_code)]
+fn process_request<K: TreeKey, S: Storage + Send + 'static>(
+    reader: Arc<StorageReader>,
+    request: TreeRequest<K>,
+    block_target: BlockNumber,
+    size_limit: usize,
+    commit_state: Arc<Mutex<CommitState<S>>>,
+) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    Box::pin(async move {
+        let (state_diff, actual_end) = K::scan(&reader, &request, block_target, size_limit);
+        commit_state_diff(state_diff, &commit_state).await;
+
+        let start_felt: Felt = request.start.into();
+        let end_felt: Felt = request.end.into();
+        let remaining_start = actual_end + Felt::ONE;
+        if actual_end >= end_felt {
+            return;
+        }
+
+        let request_range_size = end_felt - start_felt + Felt::ONE;
+        let covered = actual_end - start_felt + Felt::ONE;
+
+        // If we covered ≤ 1/4 of the range, split the remainder and run both halves in parallel.
+        if covered <= shr_one(shr_one(request_range_size)) {
+            let mid = start_felt + shr_one(end_felt - start_felt);
+            let left = TreeRequest {
+                context: request.context.clone(),
+                start: K::from_felt(remaining_start),
+                end: K::from_felt(mid),
+            };
+            let right = TreeRequest {
+                context: request.context,
+                start: K::from_felt(mid + Felt::ONE),
+                end: request.end,
+            };
+            tokio::join!(
+                process_request(
+                    Arc::clone(&reader),
+                    left,
+                    block_target,
+                    size_limit,
+                    Arc::clone(&commit_state)
+                ),
+                process_request(
+                    Arc::clone(&reader),
+                    right,
+                    block_target,
+                    size_limit,
+                    Arc::clone(&commit_state)
+                ),
+            );
+        } else {
+            // Continue linearly with the next chunk.
+            let next_request = TreeRequest {
+                context: request.context,
+                start: K::from_felt(remaining_start),
+                end: request.end,
+            };
+            process_request(reader, next_request, block_target, size_limit, commit_state).await;
+        }
+    })
 }
