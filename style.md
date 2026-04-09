@@ -324,11 +324,11 @@ Every piece of information that can help debug a specific flow or be useful to k
 
 ### Logging Levels
 
-- **ERROR**: An unexpected condition that prevents the system from functioning correctly. Requires immediate attention.
+- **ERROR**: An unexpected condition that requires immediate attention.
 - **WARN**: A potentially harmful situation that the system can recover from, but that may indicate a problem.
-- **INFO**: High-level events that confirm the system is working as expected, or help convey the current state of the system.
+- **INFO**: High-level events that help convey the current state of the system or confirm it is working as expected.
 - **DEBUG**: Detailed information useful for diagnosing issues in the environment. Should not be so frequent that it drowns out other debug logs when all logs are displayed.
-- **TRACE**: Very fine-grained information, such as entering/exiting functions or loop iterations. Typically only enabled for targeted debugging.
+- **TRACE**: Any log that would be too frequent or verbose at a higher level, drowning out other logs when displayed. Typically only enabled for targeted debugging.
 
 ### Log Titles
 
