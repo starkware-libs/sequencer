@@ -382,29 +382,23 @@ When writing a TODO comment, always add an owner for that TODO inside the commen
 If it's not you, make sure the owner is aware of the TODO
 
 ### Abbreviations and Acronyms
-Abbreviations (e.g. `tx` for `transaction`) are allowed only in variables, function arguments and function names. Prefer to avoid them in function names if possible.
+Abbreviations (e.g. `tx` for `transaction`) are allowed only in variables, function arguments, struct fields and function names.
 They're **not** allowed in structs, enums, and documentation.
 
 Acronyms (e.g. `ABI` for `Application Binary Interface`) are allowed in structs/enums and in variables of that type.
 If you have a struct/enum that's an acronym, introduce it in the documentation of the struct/enum.
 
-### Trivial Comments
+### Comments
 
-All comments should include _additional_ information not readily observable in the surrounding code.
+All comments should include _additional_ information not trivially observable in the surrounding code.
 Take extra care when using AI-generated code, which tends to include a lot of trivial comment-bloat.
-
-**Rationale**: clear code is self-documenting; repeating it wastes the reader's time and adds maintenance burden, as the comment can drift out of sync with the code it describes.
 
 ```rust
 // BAD - Restates what the code already says.
 // Add foo to collection.
 my_vec.push(foo);
 
-// BAD - Restates the function signature.
-/// Returns the user's name.
-fn user_name(&self) -> &str { ... }
-
-// GOOD - Explains *why*, which isn't visible in the code.
+// GOOD - Explains *why*, which isn't obvious.
 // We reverse before sorting because the keys are stored in big-endian order.
 keys.reverse();
 keys.sort();
