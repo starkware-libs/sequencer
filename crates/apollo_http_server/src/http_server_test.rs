@@ -13,6 +13,7 @@ use apollo_gateway_types::gateway_types::{
     GatewayOutput,
     InvokeGatewayOutput,
 };
+use apollo_http_server_config::config::HttpServerDynamicConfig;
 use apollo_infra::component_client::ClientError;
 use apollo_proc_macros::unique_u16;
 use axum::body::Bytes;
@@ -35,8 +36,6 @@ use crate::test_utils::{
     deprecated_gateway_deploy_account_tx,
     deprecated_gateway_invoke_tx,
     deprecated_gateway_invoke_tx_client_side_proving,
-    get_mock_config_manager_client,
-    get_mock_config_manager_reader_client,
     rpc_invoke_tx,
     GatewayTransaction,
     HttpClientServerSetupBuilder,
@@ -102,8 +101,10 @@ async fn allow_new_txs() {
     let tx = rpc_invoke_tx();
 
     let http_client = HttpClientServerSetupBuilder::new(unique_u16!())
-        .with_mock_config_manager_client(get_mock_config_manager_client(false))
-        .with_mock_config_manager_reader_client(get_mock_config_manager_reader_client(false))
+        .with_http_server_dynamic_config(HttpServerDynamicConfig {
+            accept_new_txs: false,
+            ..Default::default()
+        })
         .build()
         .await;
 

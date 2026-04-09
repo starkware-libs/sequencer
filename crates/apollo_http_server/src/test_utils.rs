@@ -2,10 +2,6 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_config_manager_types::communication::{
-    MockConfigManagerClient,
-    MockConfigManagerReaderClient,
-};
 use apollo_gateway_types::communication::MockGatewayClient;
 use apollo_gateway_types::gateway_types::GatewayOutput;
 use apollo_http_server_config::config::{
@@ -13,7 +9,9 @@ use apollo_http_server_config::config::{
     HttpServerDynamicConfig,
     DEFAULT_MAX_SIERRA_PROGRAM_SIZE,
 };
+use apollo_infra::component_client::LocalComponentReaderClient;
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
+use apollo_node_config::node_config::NodeDynamicConfig;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use http::StatusCode;
 use mempool_test_utils::starknet_api_test_utils::{
@@ -116,8 +114,7 @@ pub fn create_http_server_config(socket: SocketAddr) -> HttpServerConfig {
 
 pub struct HttpClientServerSetupBuilder {
     http_server_config: HttpServerConfig,
-    mock_config_manager_client: Option<MockConfigManagerClient>,
-    mock_config_manager_reader_client: Option<MockConfigManagerReaderClient>,
+    http_server_dynamic_config: HttpServerDynamicConfig,
     mock_gateway_client: Option<MockGatewayClient>,
 }
 
@@ -142,8 +139,10 @@ impl HttpClientServerSetupBuilder {
     fn new_from_http_server_config(http_server_config: HttpServerConfig) -> Self {
         Self {
             http_server_config,
-            mock_config_manager_client: None,
-            mock_config_manager_reader_client: None,
+            http_server_dynamic_config: HttpServerDynamicConfig {
+                accept_new_txs: true,
+                ..Default::default()
+            },
             mock_gateway_client: None,
         }
     }
@@ -153,19 +152,8 @@ impl HttpClientServerSetupBuilder {
         self
     }
 
-    pub fn with_mock_config_manager_client(
-        mut self,
-        mock_config_manager_client: MockConfigManagerClient,
-    ) -> Self {
-        self.mock_config_manager_client = Some(mock_config_manager_client);
-        self
-    }
-
-    pub fn with_mock_config_manager_reader_client(
-        mut self,
-        mock: MockConfigManagerReaderClient,
-    ) -> Self {
-        self.mock_config_manager_reader_client = Some(mock);
+    pub fn with_http_server_dynamic_config(mut self, config: HttpServerDynamicConfig) -> Self {
+        self.http_server_dynamic_config = config;
         self
     }
 
@@ -176,13 +164,12 @@ impl HttpClientServerSetupBuilder {
 
     // Creates a client for testing the http server functionality.
     pub async fn build(self) -> HttpTestClient {
-        let config_manager_client = Arc::new(
-            self.mock_config_manager_client.unwrap_or_else(|| get_mock_config_manager_client(true)),
-        );
-        let config_manager_reader_client = Arc::new(
-            self.mock_config_manager_reader_client
-                .unwrap_or_else(|| get_mock_config_manager_reader_client(true)),
-        );
+        let node_dynamic_config = NodeDynamicConfig {
+            http_server_dynamic_config: Some(self.http_server_dynamic_config),
+            ..Default::default()
+        };
+        let (_, config_manager_reader_client) =
+            LocalComponentReaderClient::new_with_initial_value(node_dynamic_config);
         let gateway_client = Arc::new(self.mock_gateway_client.unwrap_or_default());
 
         // Spawn an http server wrapped in a retry mechanism.
@@ -191,7 +178,6 @@ impl HttpClientServerSetupBuilder {
             // Create the server struct (consumed by the spawned task).
             let mut http_server = HttpServer::new(
                 self.http_server_config.clone(),
-                config_manager_client.clone(),
                 config_manager_reader_client.clone(),
                 gateway_client.clone(),
             );
@@ -287,25 +273,4 @@ pub fn deprecated_gateway_deploy_account_tx() -> DeprecatedGatewayTransactionV3 
 
 pub fn deprecated_gateway_declare_tx() -> DeprecatedGatewayTransactionV3 {
     DeprecatedGatewayTransactionV3::from(declare_tx())
-}
-
-// A mock config manager client returning the an http server dynamic config that accepts/rejects
-// transactions for an unlimited number of requests.
-pub fn get_mock_config_manager_client(accept_new_txs: bool) -> MockConfigManagerClient {
-    let mut mock_config_manager_client = MockConfigManagerClient::new();
-    mock_config_manager_client
-        .expect_get_http_server_dynamic_config()
-        .returning(move || Ok(HttpServerDynamicConfig { accept_new_txs, ..Default::default() }));
-    mock_config_manager_client
-}
-
-// A mock config manager reader client returning an http server dynamic config that
-// accepts/rejects transactions for an unlimited number of requests.
-pub fn get_mock_config_manager_reader_client(
-    accept_new_txs: bool,
-) -> MockConfigManagerReaderClient {
-    let mut mock = MockConfigManagerReaderClient::new();
-    mock.expect_get_http_server_dynamic_config()
-        .returning(move || Ok(HttpServerDynamicConfig { accept_new_txs, ..Default::default() }));
-    mock
 }
