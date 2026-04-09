@@ -38,6 +38,7 @@ tracing.workspace = true
 
 [dev-dependencies]
 apollo_config_manager_types = { workspace = true, features = ["testing"] }
+apollo_node_config.workspace = true
 apollo_network = { workspace = true, features = ["testing"] }
 apollo_network_types = { workspace = true, features = ["testing"] }
 apollo_staking = { workspace = true, features = ["testing"] }

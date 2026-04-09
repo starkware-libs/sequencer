@@ -1,4 +1,5 @@
 use apollo_batcher_types::communication::{BatcherRequest, BatcherResponse};
+use apollo_config_manager_types::communication::ConfigManagerReaderClient;
 use apollo_infra::component_definitions::ComponentRequestHandler;
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use async_trait::async_trait;

@@ -15,7 +15,10 @@ use apollo_compile_to_casm_types::{
     SharedSierraCompilerClient,
     SierraCompilerClientError,
 };
-use apollo_config_manager_types::communication::SharedConfigManagerReaderClient;
+use apollo_config_manager_types::communication::{
+    ConfigManagerReaderClient,
+    LocalConfigManagerReaderClient,
+};
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_storage::storage_reader_server::{
     DynamicConfigError,
@@ -39,7 +42,7 @@ pub struct ClassManager<S: ClassStorage> {
     pub config: FsClassManagerConfig,
     pub compiler: SharedSierraCompilerClient,
     pub classes: CachedClassStorage<S>,
-    pub config_manager_client: SharedConfigManagerReaderClient,
+    pub config_manager_client: LocalConfigManagerReaderClient,
 }
 
 impl<S> ClassManager<S>
@@ -51,7 +54,7 @@ where
         config: FsClassManagerConfig,
         compiler: SharedSierraCompilerClient,
         storage: S,
-        config_manager_client: SharedConfigManagerReaderClient,
+        config_manager_client: LocalConfigManagerReaderClient,
     ) -> Self {
         let cached_class_storage_config =
             config.static_config.class_manager_config.cached_class_storage_config.clone();
@@ -190,7 +193,7 @@ where
 }
 
 struct ClassManagerDynamicConfigProvider {
-    config_manager_client: SharedConfigManagerReaderClient,
+    config_manager_client: LocalConfigManagerReaderClient,
 }
 
 #[async_trait]
@@ -209,7 +212,7 @@ impl DynamicConfigProvider for ClassManagerDynamicConfigProvider {
 pub fn create_class_manager(
     config: FsClassManagerConfig,
     compiler_client: SharedSierraCompilerClient,
-    config_manager_client: SharedConfigManagerReaderClient,
+    config_manager_client: LocalConfigManagerReaderClient,
 ) -> FsClassManager {
     let dynamic_config_provider: SharedDynamicConfigProvider =
         Arc::new(ClassManagerDynamicConfigProvider {

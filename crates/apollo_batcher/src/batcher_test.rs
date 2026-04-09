@@ -28,7 +28,7 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::errors::BatcherError;
 use apollo_committer_types::committer_types::CommitBlockRequest;
-use apollo_config_manager_types::communication::MockConfigManagerReaderClient;
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_events_types::errors::{L1EventsProviderClientError, L1EventsProviderError};
@@ -39,6 +39,7 @@ use apollo_mempool_types::communication::{
     SharedMempoolClient,
 };
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
+use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::db::DbError;
 use apollo_storage::test_utils::get_test_storage;
@@ -273,10 +274,11 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
     )
     .await;
 
-    let mut mock_config_manager = MockConfigManagerReaderClient::new();
-    mock_config_manager
-        .expect_get_batcher_dynamic_config()
-        .returning(|| Ok(BatcherDynamicConfig::default()));
+    let (_, config_rx) = tokio::sync::watch::channel(NodeDynamicConfig {
+        batcher_dynamic_config: Some(BatcherDynamicConfig::default()),
+        ..Default::default()
+    });
+    let config_manager_client = LocalConfigManagerReaderClient::new(config_rx);
 
     let mut batcher = Batcher::new(
         config,
@@ -285,7 +287,7 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
         committer_client,
         Arc::new(clients.l1_provider_client),
         mempool_client,
-        Arc::new(mock_config_manager),
+        config_manager_client,
         Box::new(clients.block_builder_factory),
         Box::new(clients.pre_confirmed_block_writer_factory),
         commitment_manager,
@@ -314,10 +316,11 @@ async fn new_batcher_with_mempool_override(
         committer_client.clone(),
     )
     .await;
-    let mut mock_config_manager = MockConfigManagerReaderClient::new();
-    mock_config_manager
-        .expect_get_batcher_dynamic_config()
-        .returning(|| Ok(BatcherDynamicConfig::default()));
+    let (_, config_rx) = tokio::sync::watch::channel(NodeDynamicConfig {
+        batcher_dynamic_config: Some(BatcherDynamicConfig::default()),
+        ..Default::default()
+    });
+    let config_manager_client = LocalConfigManagerReaderClient::new(config_rx);
     Batcher::new(
         deps.batcher_config,
         storage_reader,
@@ -325,7 +328,7 @@ async fn new_batcher_with_mempool_override(
         committer_client,
         Arc::new(deps.clients.l1_provider_client),
         mempool_client,
-        Arc::new(mock_config_manager),
+        config_manager_client,
         Box::new(deps.clients.block_builder_factory),
         Box::new(deps.clients.pre_confirmed_block_writer_factory),
         commitment_manager,
