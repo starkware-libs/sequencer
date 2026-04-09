@@ -521,7 +521,11 @@ pub async fn create_node_components(
     let signature_manager = match config.components.signature_manager.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(create_signature_manager())
+            let signature_manager_config = config
+                .signature_manager_config
+                .as_ref()
+                .expect("Signature Manager config should be set");
+            Some(create_signature_manager(signature_manager_config).await)
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
