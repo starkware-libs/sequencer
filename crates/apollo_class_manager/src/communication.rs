@@ -20,7 +20,7 @@ pub type RemoteClassManagerServer =
 #[async_trait]
 impl ComponentRequestHandler<ClassManagerRequest, ClassManagerResponse> for ClassManager {
     async fn handle_request(&mut self, request: ClassManagerRequest) -> ClassManagerResponse {
-        let dynamic_config: apollo_class_manager_config::config::ClassManagerDynamicConfig = self
+        let dynamic_config = self
             .0
             .config_manager_client
             .get_class_manager_dynamic_config()

@@ -243,6 +243,9 @@ pub async fn create_node_components(
             let proof_manager_client = clients
                 .get_proof_manager_shared_client()
                 .expect("Proof Manager client should be available");
+            let config_manager_client = clients
+                .get_config_manager_reader_client()
+                .expect("Config Manager client should be available");
             Some(create_gateway(
                 gateway_config.clone(),
                 state_sync_client,
@@ -250,6 +253,7 @@ pub async fn create_node_components(
                 class_manager_client,
                 proof_manager_client,
                 tokio::runtime::Handle::current(),
+                config_manager_client,
             ))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
