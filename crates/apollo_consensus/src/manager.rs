@@ -12,7 +12,10 @@ mod manager_test;
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
 
-use apollo_config_manager_types::communication::SharedConfigManagerClient;
+use apollo_config_manager_types::communication::{
+    ConfigManagerReaderClient,
+    LocalConfigManagerReaderClient,
+};
 use apollo_consensus_config::config::{
     ConsensusConfig,
     ConsensusDynamicConfig,
@@ -67,7 +70,7 @@ pub struct RunConsensusArguments {
     /// Set to Byzantine by default. Using Honest means we trust all validators. Use with caution!
     pub quorum_type: QuorumType,
     /// Optional client for fetching dynamic consensus config between heights.
-    pub config_manager_client: Option<SharedConfigManagerClient>,
+    pub config_manager_client: Option<LocalConfigManagerReaderClient>,
     /// Storage used to persist last voted consensus height.
     // See MultiHeightManager foran explanation of why we have Arc<Mutex>>.
     pub last_voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
@@ -130,7 +133,7 @@ where
     .await;
     loop {
         if let Some(client) = &run_consensus_args.config_manager_client {
-            match client.get_consensus_dynamic_config().await {
+            match client.get_consensus_dynamic_config() {
                 Ok(dynamic_cfg) => {
                     manager.set_dynamic_config(dynamic_cfg);
                 }

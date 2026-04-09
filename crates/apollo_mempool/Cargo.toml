@@ -45,6 +45,7 @@ tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+apollo_node_config.workspace = true
 apollo_config_manager_types = { workspace = true, features = ["testing"] }
 apollo_mempool_p2p_types = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }

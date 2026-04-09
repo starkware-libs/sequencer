@@ -4,7 +4,7 @@ use std::vec;
 
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
-use apollo_config_manager_types::communication::MockConfigManagerClient;
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
 use apollo_consensus_config::config::{
     ConsensusConfig,
     ConsensusDynamicConfig,
@@ -19,6 +19,7 @@ use apollo_network::network_manager::test_utils::{
     TestSubscriberChannels,
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_protobuf::consensus::{ProposalCommitment, Vote, DEFAULT_VALIDATOR_ID};
 use apollo_staking::committee_provider::{
     CommitteeProvider,
@@ -718,8 +719,6 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     // Context: H1 we sync (try_sync returns true); at H2 we run consensus as the proposer.
     let mut context = MockTestContext::new();
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
-    context.expect_try_sync().withf(move |h| *h == HEIGHT_1).times(1).returning(|_| true);
-    context.expect_try_sync().returning(|_| false);
     context.expect_broadcast().returning(move |_| Ok(()));
 
     // In this test, build_proposal should be called only when the dynamic config returns that we
@@ -744,13 +743,26 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
         })
         .times(1);
 
-    // Dynamic client mock: H1 -> VALIDATOR_ID, H2 -> PROPOSER_ID (order is important)
-    let mut mock_client = MockConfigManagerClient::new();
+    // Dynamic config: start as VALIDATOR_ID, switch to PROPOSER_ID when H1 syncs.
     let validator_config = consensus_config.dynamic_config.clone();
     let proposer_config =
         ConsensusDynamicConfig { validator_id: *PROPOSER_ID, ..validator_config.clone() };
-    mock_client.expect_get_consensus_dynamic_config().times(1).return_const(Ok(validator_config));
-    mock_client.expect_get_consensus_dynamic_config().times(1).return_const(Ok(proposer_config));
+
+    let (config_tx, config_rx) = tokio::sync::watch::channel(NodeDynamicConfig {
+        consensus_dynamic_config: Some(validator_config),
+        ..Default::default()
+    });
+    let config_tx = std::sync::Arc::new(config_tx);
+
+    // When H1 syncs, also update the config to proposer_config so H2 runs as proposer.
+    let config_tx_clone = std::sync::Arc::clone(&config_tx);
+    let proposer_config_node =
+        NodeDynamicConfig { consensus_dynamic_config: Some(proposer_config), ..Default::default() };
+    context.expect_try_sync().withf(move |h| *h == HEIGHT_1).times(1).returning(move |_| {
+        config_tx_clone.send(proposer_config_node.clone()).unwrap();
+        true
+    });
+    context.expect_try_sync().returning(|_| false);
 
     // Prepare committee provider.
     let mut committee_provider = MockCommitteeProvider::new();
@@ -769,7 +781,7 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
         start_active_height: HEIGHT_1,
         consensus_config,
         quorum_type: QuorumType::Byzantine,
-        config_manager_client: Some(Arc::new(mock_client)),
+        config_manager_client: Some(LocalConfigManagerReaderClient::new(config_rx)),
         last_voted_height_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
         committee_provider: Arc::new(committee_provider),
     };

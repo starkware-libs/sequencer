@@ -1,4 +1,5 @@
 use apollo_batcher_types::communication::{BatcherRequest, BatcherResponse};
+use apollo_config_manager_types::communication::ConfigManagerReaderClient;
 use apollo_infra::component_definitions::ComponentRequestHandler;
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use async_trait::async_trait;
@@ -14,7 +15,6 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
         let dynamic_config = self
             .config_manager_client
             .get_batcher_dynamic_config()
-            .await
             .expect("Should be able to get batcher dynamic config");
         self.update_dynamic_config(dynamic_config);
 

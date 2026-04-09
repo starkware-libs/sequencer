@@ -41,10 +41,10 @@ use apollo_state_sync::{create_state_sync_and_runner, StateSync};
 use metrics_exporter_prometheus::PrometheusHandle;
 use papyrus_base_layer::cyclic_base_layer_wrapper::CyclicBaseLayerWrapper;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
-use tokio::sync::watch;
 use tracing::info;
 
 use crate::clients::SequencerNodeClients;
+use crate::communication::SequencerNodeCommunication;
 
 pub struct SequencerNodeComponents {
     pub batcher: Option<Batcher>,
@@ -75,6 +75,7 @@ pub struct SequencerNodeComponents {
 pub async fn create_node_components(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
+    channels: &mut SequencerNodeCommunication,
     prometheus_handle: Option<PrometheusHandle>,
     cli_args: Vec<String>,
 ) -> SequencerNodeComponents {
@@ -109,7 +110,7 @@ pub async fn create_node_components(
                 .get_proof_manager_shared_client()
                 .expect("Proof Manager client should be available");
             let config_manager_client = clients
-                .get_config_manager_shared_client()
+                .get_config_manager_reader_client()
                 .expect("Config Manager client should be available");
             Some(
                 create_batcher(
@@ -137,7 +138,7 @@ pub async fn create_node_components(
                 .get_sierra_compiler_shared_client()
                 .expect("Sierra Compiler client should be available");
             let config_manager_shared_client = clients
-                .get_config_manager_shared_client()
+                .get_config_manager_reader_client()
                 .expect("Config Manager client should be available");
             Some(create_class_manager(
                 class_manager_config.clone(),
@@ -169,17 +170,11 @@ pub async fn create_node_components(
                     .expect("Config Manager config should be set");
                 // TODO(Arni): remove the config_manager.
                 let config_manager =
-                    ConfigManager::new(config_manager_config.clone(), node_dynamic_config.clone());
-                let (dynamic_config_tx, dynamic_config_rx) =
-                    watch::channel(node_dynamic_config.clone());
-                let config_manager_client = clients
-                    .get_config_manager_shared_client()
-                    .expect("Config Manager client should be available");
+                    ConfigManager::new(config_manager_config.clone(), node_dynamic_config);
+                let dynamic_config_tx = channels.take_dynamic_config_tx();
                 let config_manager_runner = ConfigManagerRunner::new(
                     config_manager_config.clone(),
-                    config_manager_client,
                     dynamic_config_tx,
-                    dynamic_config_rx,
                     cli_args,
                 );
                 (Some(config_manager), Some(config_manager_runner))
@@ -216,7 +211,7 @@ pub async fn create_node_components(
                 .get_l1_gas_price_shared_client()
                 .expect("L1 gas price client should be available");
             let config_manager_client = clients
-                .get_config_manager_shared_client()
+                .get_config_manager_reader_client()
                 .expect("Config Manager client should be available");
             let proof_manager_client = clients
                 .get_proof_manager_shared_client()
@@ -273,7 +268,7 @@ pub async fn create_node_components(
     let http_server = match config.components.http_server.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
             let config_manager_client = clients
-                .get_config_manager_shared_client()
+                .get_config_manager_reader_client()
                 .expect("Config Manager client should be available");
             let http_server_config =
                 config.http_server_config.as_ref().expect("HTTP Server config should be set");
@@ -411,7 +406,7 @@ pub async fn create_node_components(
             let mempool_config =
                 config.mempool_config.as_ref().expect("Mempool config should be set");
             let config_manager_client = clients
-                .get_config_manager_shared_client()
+                .get_config_manager_reader_client()
                 .expect("Config Manager client should be available");
             let mempool_p2p_propagator_client = clients
                 .get_mempool_p2p_propagator_shared_client()
@@ -547,7 +542,7 @@ pub async fn create_node_components(
                 .get_class_manager_shared_client()
                 .expect("Class Manager client should be available");
             let config_manager_client = clients
-                .get_config_manager_shared_client()
+                .get_config_manager_reader_client()
                 .expect("Config Manager client should be available");
             let (state_sync, state_sync_runner) = create_state_sync_and_runner(
                 state_sync_config.clone(),

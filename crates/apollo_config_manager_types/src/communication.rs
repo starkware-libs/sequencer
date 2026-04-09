@@ -39,10 +39,10 @@ pub type LocalConfigManagerClient =
     LocalComponentClient<ConfigManagerRequest, ConfigManagerResponse>;
 pub type RemoteConfigManagerClient =
     RemoteComponentClient<ConfigManagerRequest, ConfigManagerResponse>;
+pub type LocalConfigManagerReaderClient = LocalComponentReaderClient<NodeDynamicConfig>;
 pub type ConfigManagerClientResult<T> = Result<T, ConfigManagerClientError>;
 pub type ConfigManagerRequestWrapper = RequestWrapper<ConfigManagerRequest, ConfigManagerResponse>;
 pub type SharedConfigManagerClient = Arc<dyn ConfigManagerClient>;
-pub type LocalConfigManagerReaderClient = LocalComponentReaderClient<NodeDynamicConfig>;
 
 // Generates a `ConfigManagerReaderClient` method that reads a field from `NodeDynamicConfig`.
 // The method name is derived by prepending `get_` to the field name.

@@ -3,7 +3,10 @@ use std::net::SocketAddr;
 use std::string::String;
 use std::time::Duration;
 
-use apollo_config_manager_types::communication::SharedConfigManagerClient;
+use apollo_config_manager_types::communication::{
+    ConfigManagerReaderClient,
+    LocalConfigManagerReaderClient,
+};
 use apollo_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -63,7 +66,7 @@ const CLIENT_REGION_HEADER: &str = "X-Client-Region";
 pub struct HttpServer {
     config: HttpServerConfig,
     app_state: AppState,
-    config_manager_client: SharedConfigManagerClient,
+    config_manager_client: LocalConfigManagerReaderClient,
     dynamic_config_tx: Sender<HttpServerDynamicConfig>,
 }
 
@@ -87,7 +90,7 @@ impl AppState {
 impl HttpServer {
     pub fn new(
         config: HttpServerConfig,
-        config_manager_client: SharedConfigManagerClient,
+        config_manager_client: LocalConfigManagerReaderClient,
         gateway_client: SharedGatewayClient,
     ) -> Self {
         let (dynamic_config_tx, dynamic_config_rx) =
@@ -335,7 +338,7 @@ fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, re
 
 pub fn create_http_server(
     config: HttpServerConfig,
-    config_manager_client: SharedConfigManagerClient,
+    config_manager_client: LocalConfigManagerReaderClient,
     gateway_client: SharedGatewayClient,
 ) -> HttpServer {
     HttpServer::new(config, config_manager_client, gateway_client)
@@ -365,13 +368,13 @@ fn increment_failure_metrics(err: &HttpServerError) {
 
 async fn dynamic_config_poll(
     tx: Sender<HttpServerDynamicConfig>,
-    config_manager_client: SharedConfigManagerClient,
+    config_manager_client: LocalConfigManagerReaderClient,
     poll_interval: Duration,
 ) {
     let mut interval = time::interval(poll_interval);
     loop {
         interval.tick().await;
-        let dynamic_config_result = config_manager_client.get_http_server_dynamic_config().await;
+        let dynamic_config_result = config_manager_client.get_http_server_dynamic_config();
         // Make the config available if it was successfully updated.
         if let Ok(dynamic_config) = dynamic_config_result {
             let _ = tx.send(dynamic_config);

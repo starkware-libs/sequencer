@@ -1,13 +1,8 @@
 use std::fs;
-use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_config::CONFIG_FILE_ARG;
 use apollo_config_manager_config::config::ConfigManagerConfig;
-use apollo_config_manager_types::communication::{
-    MockConfigManagerClient,
-    SharedConfigManagerClient,
-};
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
@@ -15,7 +10,6 @@ use apollo_node_config::node_config::{NodeDynamicConfig, SequencerNodeConfig};
 use serde_json::Value;
 use starknet_api::core::ContractAddress;
 use tempfile::NamedTempFile;
-use tokio::sync::mpsc::channel;
 use tokio::sync::watch;
 use tokio::task::yield_now;
 use tokio::time::{interval, timeout};
@@ -88,10 +82,6 @@ fn update_config_file(temp_file: &NamedTempFile) -> String {
 #[tokio::test]
 async fn config_manager_runner_update_config_with_changed_values() {
     let (dynamic_config_tx, dynamic_config_rx) = watch::channel(NodeDynamicConfig::default());
-    // Set a mock config manager client to expect the update dynamic config request.
-    let mut mock_client = MockConfigManagerClient::new();
-    mock_client.expect_set_node_dynamic_config().times(2).return_const(Ok(()));
-    let config_manager_client: SharedConfigManagerClient = Arc::new(mock_client);
 
     // Set a config manager config.
     let config_manager_config = ConfigManagerConfig::default();
@@ -100,13 +90,8 @@ async fn config_manager_runner_update_config_with_changed_values() {
     let (temp_file, cli_args, validator_id_value) = create_temp_config_file_and_args();
 
     // Create a config manager runner and update the config.
-    let mut config_manager_runner = ConfigManagerRunner::new(
-        config_manager_config,
-        config_manager_client,
-        dynamic_config_tx,
-        dynamic_config_rx.clone(),
-        cli_args,
-    );
+    let mut config_manager_runner =
+        ConfigManagerRunner::new(config_manager_config, dynamic_config_tx, cli_args);
 
     // Helper function to convert a hex string to a u128.
     fn hex_to_u128(s: &str) -> u128 {
@@ -122,9 +107,6 @@ async fn config_manager_runner_update_config_with_changed_values() {
     assert!(first_update_config_result.is_ok(), "First update_config should succeed");
     let first_dynamic_config_from_channel = dynamic_config_rx.borrow().clone();
 
-    // Note: We do not validate the method `set_node_dynamic_config` of the mock config manager
-    // client is called with the correct config. This method is soon to be replaced by the channel
-    // client. It could be tested using `.withf` predicate on the mock config manager client.
     assert_eq!(
         first_dynamic_config_from_channel.consensus_dynamic_config.as_ref().unwrap().validator_id,
         expected_validator_id,
@@ -155,29 +137,15 @@ async fn watcher_triggers_update_on_file_change() {
     // Prepare temp config file and CLI args.
     let (temp_file, cli_args, _) = create_temp_config_file_and_args();
 
-    // Channel to observe that update_config was called.
-    let (tx, mut rx) = channel(1);
+    let (dynamic_config_tx, mut dynamic_config_rx) = watch::channel(NodeDynamicConfig::default());
 
-    let (dynamic_config_tx, dynamic_config_rx) = watch::channel(NodeDynamicConfig::default());
-    let mut mock_client = MockConfigManagerClient::new();
-    mock_client.expect_set_node_dynamic_config().times(1).returning(move |_| {
-        let _ = tx.blocking_send(());
-        Ok(())
-    });
-
-    let client: SharedConfigManagerClient = Arc::new(mock_client);
-
-    let mut runner = ConfigManagerRunner::new(
-        ConfigManagerConfig::default(),
-        client,
-        dynamic_config_tx,
-        dynamic_config_rx,
-        cli_args,
-    );
+    let mut runner =
+        ConfigManagerRunner::new(ConfigManagerConfig::default(), dynamic_config_tx, cli_args);
 
     // Spawn watcher loop in background task.
     tokio::spawn(async move {
-        let _ = runner.run_watcher_loop(interval(Duration::MAX)).await;
+        // Use a very long polling interval to rely on file-watcher events instead of polling.
+        let _ = runner.run_watcher_loop(interval(Duration::from_secs(3600))).await;
     });
 
     yield_now().await;
@@ -185,10 +153,11 @@ async fn watcher_triggers_update_on_file_change() {
     // Modify the config file to trigger an event.
     let _ = update_config_file(&temp_file);
 
-    // Wait until the update call is observed or timeout.
-    timeout(Duration::from_secs(TEST_TIMEOUT_SECS), rx.recv())
+    // Wait until the watch channel receives a config update or timeout.
+    timeout(Duration::from_secs(TEST_TIMEOUT_SECS), dynamic_config_rx.changed())
         .await
-        .expect("update_config was not called within timeout");
+        .expect("dynamic config was not updated within timeout")
+        .expect("watch channel closed unexpectedly");
 }
 
 #[traced_test]
