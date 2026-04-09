@@ -172,12 +172,8 @@ pub async fn create_node_components(
                 let config_manager =
                     ConfigManager::new(config_manager_config.clone(), node_dynamic_config.clone());
                 let dynamic_config_tx = dynamic_config_channels.take_tx();
-                let config_manager_client = clients
-                    .get_config_manager_shared_client()
-                    .expect("Config Manager client should be available");
                 let config_manager_runner = ConfigManagerRunner::new(
                     config_manager_config.clone(),
-                    config_manager_client,
                     dynamic_config_tx,
                     cli_args,
                 );
