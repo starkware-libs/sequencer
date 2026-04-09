@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use apollo_batcher_types::communication::{BatcherClientError, MockBatcherClient};
 use apollo_batcher_types::errors::BatcherError;
-use apollo_config_manager_types::communication::MockConfigManagerReaderClient;
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
+use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_staking_config::config::{
     CommitteeConfig,
     ConfiguredStaker,
@@ -295,15 +296,11 @@ async fn get_committee_applies_dynamic_config_changes(
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
     set_stakers(&mut contract, EPOCH_2, vec![STAKER_1, STAKER_2, STAKER_3]);
 
-    let mut config_manager_client = MockConfigManagerReaderClient::new();
-    config_manager_client
-        .expect_get_staking_manager_dynamic_config()
-        .times(1)
-        .return_once(|| Ok(test_config_with_committee_size(2)));
-    config_manager_client
-        .expect_get_staking_manager_dynamic_config()
-        .times(1)
-        .return_once(|| Ok(test_config_with_committee_size(1)));
+    let (config_tx, config_rx) = tokio::sync::watch::channel(NodeDynamicConfig {
+        staking_manager_dynamic_config: Some(test_config_with_committee_size(2)),
+        ..Default::default()
+    });
+    let config_manager_client = LocalConfigManagerReaderClient::new(config_rx);
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
@@ -311,11 +308,18 @@ async fn get_committee_applies_dynamic_config_changes(
         Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(make_generator_factory(0)),
         default_config,
-        Some(Arc::new(config_manager_client)),
+        Some(config_manager_client),
     );
 
     let committee = committee_manager.get_committee(E1_H1).await.unwrap();
     assert_eq!(committee.members().len(), 2);
+
+    config_tx
+        .send(NodeDynamicConfig {
+            staking_manager_dynamic_config: Some(test_config_with_committee_size(1)),
+            ..Default::default()
+        })
+        .unwrap();
 
     let committee = committee_manager.get_committee(E2_H1).await.unwrap();
     assert_eq!(committee.members().len(), 1);

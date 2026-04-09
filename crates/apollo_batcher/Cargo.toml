@@ -53,6 +53,7 @@ validator.workspace = true
 apollo_class_manager_types = { workspace = true, features = ["testing"] }
 apollo_committer_types = { workspace = true, features = ["testing"] }
 apollo_config_manager_types = { workspace = true, features = ["testing"] }
+apollo_node_config.workspace = true
 apollo_infra_utils.workspace = true
 apollo_l1_events_types = { workspace = true, features = ["testing"] }
 apollo_mempool_types = { workspace = true, features = ["testing"] }

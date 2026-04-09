@@ -2,7 +2,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_config_manager_types::communication::MockConfigManagerReaderClient;
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
 use apollo_gateway_types::communication::MockGatewayClient;
 use apollo_gateway_types::gateway_types::GatewayOutput;
 use apollo_http_server_config::config::{
@@ -11,6 +11,7 @@ use apollo_http_server_config::config::{
     DEFAULT_MAX_SIERRA_PROGRAM_SIZE,
 };
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
+use apollo_node_config::node_config::NodeDynamicConfig;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use http::StatusCode;
 use mempool_test_utils::starknet_api_test_utils::{
@@ -113,7 +114,7 @@ pub fn create_http_server_config(socket: SocketAddr) -> HttpServerConfig {
 
 pub struct HttpClientServerSetupBuilder {
     http_server_config: HttpServerConfig,
-    mock_config_manager_reader_client: Option<MockConfigManagerReaderClient>,
+    config_manager_reader_client: Option<LocalConfigManagerReaderClient>,
     mock_gateway_client: Option<MockGatewayClient>,
 }
 
@@ -136,11 +137,7 @@ impl HttpClientServerSetupBuilder {
 
     // If a custom http server config is needed, don't hesitate to make this method public.
     fn new_from_http_server_config(http_server_config: HttpServerConfig) -> Self {
-        Self {
-            http_server_config,
-            mock_config_manager_reader_client: None,
-            mock_gateway_client: None,
-        }
+        Self { http_server_config, config_manager_reader_client: None, mock_gateway_client: None }
     }
 
     pub fn with_max_request_body_size(mut self, max_request_body_size: usize) -> Self {
@@ -148,11 +145,11 @@ impl HttpClientServerSetupBuilder {
         self
     }
 
-    pub fn with_mock_config_manager_reader_client(
+    pub fn with_config_manager_reader_client(
         mut self,
-        mock: MockConfigManagerReaderClient,
+        client: LocalConfigManagerReaderClient,
     ) -> Self {
-        self.mock_config_manager_reader_client = Some(mock);
+        self.config_manager_reader_client = Some(client);
         self
     }
 
@@ -163,10 +160,9 @@ impl HttpClientServerSetupBuilder {
 
     // Creates a client for testing the http server functionality.
     pub async fn build(self) -> HttpTestClient {
-        let config_manager_reader_client = Arc::new(
-            self.mock_config_manager_reader_client
-                .unwrap_or_else(|| get_mock_config_manager_reader_client(true)),
-        );
+        let config_manager_reader_client = self
+            .config_manager_reader_client
+            .unwrap_or_else(|| get_config_manager_reader_client(true));
         let gateway_client = Arc::new(self.mock_gateway_client.unwrap_or_default());
 
         // Spawn an http server wrapped in a retry mechanism.
@@ -272,13 +268,15 @@ pub fn deprecated_gateway_declare_tx() -> DeprecatedGatewayTransactionV3 {
     DeprecatedGatewayTransactionV3::from(declare_tx())
 }
 
-// A mock config manager reader client returning an http server dynamic config that
+// A config manager reader client returning an http server dynamic config that
 // accepts/rejects transactions for an unlimited number of requests.
-pub fn get_mock_config_manager_reader_client(
-    accept_new_txs: bool,
-) -> MockConfigManagerReaderClient {
-    let mut mock = MockConfigManagerReaderClient::new();
-    mock.expect_get_http_server_dynamic_config()
-        .returning(move || Ok(HttpServerDynamicConfig { accept_new_txs, ..Default::default() }));
-    mock
+pub fn get_config_manager_reader_client(accept_new_txs: bool) -> LocalConfigManagerReaderClient {
+    let (_, rx) = tokio::sync::watch::channel(NodeDynamicConfig {
+        http_server_dynamic_config: Some(HttpServerDynamicConfig {
+            accept_new_txs,
+            ..Default::default()
+        }),
+        ..Default::default()
+    });
+    LocalConfigManagerReaderClient::new(rx)
 }

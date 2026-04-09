@@ -2,7 +2,10 @@ use std::clone::Clone;
 use std::net::SocketAddr;
 use std::string::String;
 
-use apollo_config_manager_types::communication::SharedConfigManagerReaderClient;
+use apollo_config_manager_types::communication::{
+    ConfigManagerReaderClient,
+    LocalConfigManagerReaderClient,
+};
 use apollo_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -65,7 +68,7 @@ pub struct HttpServer {
 #[derive(Clone)]
 pub struct AppState {
     gateway_client: SharedGatewayClient,
-    config_manager_reader_client: SharedConfigManagerReaderClient,
+    config_manager_reader_client: LocalConfigManagerReaderClient,
 }
 
 impl AppState {
@@ -79,7 +82,7 @@ impl AppState {
 impl HttpServer {
     pub fn new(
         config: HttpServerConfig,
-        config_manager_reader_client: SharedConfigManagerReaderClient,
+        config_manager_reader_client: LocalConfigManagerReaderClient,
         gateway_client: SharedGatewayClient,
     ) -> Self {
         let app_state = AppState { gateway_client, config_manager_reader_client };
@@ -315,7 +318,7 @@ fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, re
 
 pub fn create_http_server(
     config: HttpServerConfig,
-    config_manager_reader_client: SharedConfigManagerReaderClient,
+    config_manager_reader_client: LocalConfigManagerReaderClient,
     gateway_client: SharedGatewayClient,
 ) -> HttpServer {
     HttpServer::new(config, config_manager_reader_client, gateway_client)

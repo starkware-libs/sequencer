@@ -1989,34 +1989,6 @@
       "observer_applicable": "true"
     },
     {
-      "name": "config_manager_remote_server_number_of_connections",
-      "title": "config_manager - Remote server number of connections exceeds 80",
-      "ruleGroup": "general",
-      "expr": "sum by (namespace, pod) (config_manager_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
-      "conditions": [
-        {
-          "evaluator": {
-            "params": [
-              80.0
-            ],
-            "type": "gt"
-          },
-          "operator": {
-            "type": "and"
-          },
-          "reducer": {
-            "params": [],
-            "type": "avg"
-          },
-          "type": "query"
-        }
-      ],
-      "for": "30s",
-      "intervalSec": 30,
-      "severity": "p3",
-      "observer_applicable": "true"
-    },
-    {
       "name": "gateway_remote_server_number_of_connections",
       "title": "gateway - Remote server number of connections exceeds 80",
       "ruleGroup": "gateway",

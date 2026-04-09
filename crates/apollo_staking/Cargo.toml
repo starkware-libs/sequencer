@@ -31,6 +31,7 @@ tracing.workspace = true
 [dev-dependencies]
 apollo_batcher_types = { workspace = true, features = ["testing"] }
 apollo_config_manager_types = { workspace = true, features = ["testing"] }
+apollo_node_config.workspace = true
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
