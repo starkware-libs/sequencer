@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775746220294,
+  "lastUpdate": 1775748973283,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1393,6 +1393,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1565.18114541,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "143319383+nimrod-starkware@users.noreply.github.com",
+            "name": "nimrod-starkware",
+            "username": "nimrod-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "45316590ab6ab1d570f04b74ea0c544dfe6f8d80",
+          "message": "starknet_committer: use read only storage if possible (#13235)",
+          "timestamp": "2026-04-09T15:13:31Z",
+          "tree_id": "5f4a9a4e9e5f062dc3b3db80f5bf2e59b1146ec4",
+          "url": "https://github.com/starkware-libs/sequencer/commit/45316590ab6ab1d570f04b74ea0c544dfe6f8d80"
+        },
+        "date": 1775748972867,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 870.4492685399999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1392.27653956,
             "unit": "ms"
           }
         ]
