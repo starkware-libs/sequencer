@@ -37,6 +37,7 @@ use apollo_config_manager_types::communication::{
     ConfigManagerRequest,
     ConfigManagerResponse,
     LocalConfigManagerClient,
+    LocalConfigManagerReaderClient,
     RemoteConfigManagerClient,
     SharedConfigManagerClient,
 };
@@ -48,7 +49,7 @@ use apollo_gateway_types::communication::{
     RemoteGatewayClient,
     SharedGatewayClient,
 };
-use apollo_infra::component_client::{Client, LocalComponentClient, RpcClient};
+use apollo_infra::component_client::{Client, LocalComponentClient, ReaderClient, RpcClient};
 use apollo_l1_events::communication::{LocalL1EventsProviderClient, RemoteL1EventsProviderClient};
 use apollo_l1_events::metrics::L1_EVENTS_INFRA_METRICS;
 use apollo_l1_events_types::{
@@ -76,7 +77,7 @@ use apollo_mempool_types::communication::{
     SharedMempoolClient,
 };
 use apollo_node_config::component_execution_config::ReactiveComponentExecutionMode;
-use apollo_node_config::node_config::SequencerNodeConfig;
+use apollo_node_config::node_config::{NodeDynamicConfig, SequencerNodeConfig};
 use apollo_proof_manager::metrics::PROOF_MANAGER_INFRA_METRICS;
 use apollo_proof_manager_types::{
     LocalProofManagerClient,
@@ -103,13 +104,15 @@ use apollo_state_sync_types::communication::{
 };
 use tracing::info;
 
-use crate::communication::SequencerNodeCommunication;
+use crate::communication::{NodeDynamicConfigChannels, SequencerNodeCommunication};
 
 pub struct SequencerNodeClients {
     batcher_client: RpcClient<BatcherRequest, BatcherResponse>,
     class_manager_client: RpcClient<ClassManagerRequest, ClassManagerResponse>,
     committer_client: RpcClient<CommitterRequest, CommitterResponse>,
+    // TODO(Arni): Remove once all consumers use reader_config_manager_client.
     config_manager_client: RpcClient<ConfigManagerRequest, ConfigManagerResponse>,
+    reader_config_manager_client: ReaderClient<NodeDynamicConfig>,
     gateway_client: RpcClient<GatewayRequest, GatewayResponse>,
     l1_events_provider_client: RpcClient<L1EventsProviderRequest, L1EventsProviderResponse>,
     l1_gas_price_client: RpcClient<L1GasPriceRequest, L1GasPriceResponse>,
@@ -198,6 +201,16 @@ impl SequencerNodeClients {
 
     pub fn get_config_manager_shared_client(&self) -> Option<SharedConfigManagerClient> {
         get_shared_client!(self, config_manager_client)
+    }
+
+    pub fn get_config_manager_reader_client(&self) -> Option<LocalConfigManagerReaderClient> {
+        match &self.reader_config_manager_client {
+            Client::LocalReadOnlyClient(client) => Some(client.clone()),
+            Client::Disabled => None,
+            Client::Local(_) | Client::Remote(_) => {
+                panic!("config_manager reader client must be LocalReadOnlyClient or Disabled")
+            }
+        }
     }
 
     pub fn get_gateway_local_client(
@@ -370,6 +383,7 @@ macro_rules! create_client {
 pub fn create_node_clients(
     config: &SequencerNodeConfig,
     channels: &mut SequencerNodeCommunication,
+    dynamic_config_channels: &mut NodeDynamicConfigChannels,
 ) -> SequencerNodeClients {
     info!("Creating node clients.");
 
@@ -420,6 +434,15 @@ pub fn create_node_clients(
         &CONFIG_MANAGER_INFRA_METRICS.get_local_client_metrics(),
         &CONFIG_MANAGER_INFRA_METRICS.get_remote_client_metrics()
     );
+
+    let reader_config_manager_client = match config.components.config_manager.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
+            Client::LocalReadOnlyClient(LocalConfigManagerReaderClient::new(
+                dynamic_config_channels.take_rx(),
+            ))
+        }
+        _ => Client::Disabled,
+    };
 
     let gateway_client = create_client!(
         &config.components.gateway.execution_mode,
@@ -533,6 +556,7 @@ pub fn create_node_clients(
         class_manager_client,
         committer_client,
         config_manager_client,
+        reader_config_manager_client,
         gateway_client,
         l1_events_provider_client,
         l1_gas_price_client,
