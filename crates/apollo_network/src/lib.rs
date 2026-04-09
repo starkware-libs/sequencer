@@ -208,6 +208,9 @@ pub mod mixed_behaviour;
 #[cfg(not(any(test, feature = "testing")))]
 mod mixed_behaviour;
 pub mod network_manager;
+mod peer_access_control;
+#[cfg(test)]
+mod peer_access_control_test;
 pub mod peer_manager;
 #[cfg(any(test, feature = "testing"))]
 pub mod prune_dead_connections;
