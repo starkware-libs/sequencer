@@ -4,8 +4,10 @@ use std::sync::{Arc, LazyLock};
 
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_gateway_config::config::{
     GatewayConfig,
+    GatewayDynamicConfig,
     GatewayStaticConfig,
     ProofArchiveWriterConfig,
     StatefulTransactionValidatorConfig,
@@ -155,7 +157,14 @@ fn mock_dependencies() -> MockDependencies {
         mock_transaction_converter,
         mock_stateless_transaction_validator,
         mock_proof_archive_writer,
+        mock_config_manager_client: default_config_manager_client(),
     }
+}
+
+fn default_config_manager_client() -> MockConfigManagerClient {
+    let mut mock = MockConfigManagerClient::new();
+    mock.expect_get_gateway_dynamic_config().returning(|| Ok(GatewayDynamicConfig::default()));
+    mock
 }
 
 struct MockDependencies {
@@ -165,6 +174,7 @@ struct MockDependencies {
     mock_transaction_converter: MockTransactionConverterTrait,
     mock_stateless_transaction_validator: MockStatelessTransactionValidatorTrait,
     mock_proof_archive_writer: MockProofArchiveWriterTrait,
+    mock_config_manager_client: MockConfigManagerClient,
 }
 
 impl MockDependencies {
@@ -183,6 +193,7 @@ impl MockDependencies {
             Arc::new(self.mock_transaction_converter),
             Arc::new(self.mock_stateless_transaction_validator),
             Arc::new(self.mock_proof_archive_writer),
+            Arc::new(self.mock_config_manager_client),
         )
     }
 
@@ -745,6 +756,7 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
         proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
+        config_manager_client: Arc::new(default_config_manager_client()),
     };
 
     let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
@@ -802,6 +814,7 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
         proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
+        config_manager_client: Arc::new(default_config_manager_client()),
     };
 
     let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;

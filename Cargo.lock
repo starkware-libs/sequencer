@@ -1272,6 +1272,7 @@ dependencies = [
  "apollo_class_manager_config",
  "apollo_consensus_config",
  "apollo_consensus_orchestrator_config",
+ "apollo_gateway_config",
  "apollo_http_server_config",
  "apollo_infra",
  "apollo_mempool_config",
@@ -1515,6 +1516,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
+ "apollo_config_manager_types",
  "apollo_gateway_config",
  "apollo_gateway_types",
  "apollo_infra",

@@ -4,6 +4,7 @@ use apollo_batcher_config::config::BatcherDynamicConfig;
 use apollo_class_manager_config::config::ClassManagerDynamicConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
+use apollo_gateway_config::config::GatewayDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
 use apollo_infra::component_client::{ClientError, LocalComponentReaderClient};
 use apollo_infra::component_definitions::ComponentReaderClient;
@@ -34,6 +35,7 @@ pub trait ConfigManagerClient: Send + Sync {
         &self,
     ) -> ConfigManagerClientResult<ClassManagerDynamicConfig>;
     fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig>;
+    fn get_gateway_dynamic_config(&self) -> ConfigManagerClientResult<GatewayDynamicConfig>;
     fn get_http_server_dynamic_config(&self) -> ConfigManagerClientResult<HttpServerDynamicConfig>;
     fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig>;
     fn get_batcher_dynamic_config(&self) -> ConfigManagerClientResult<BatcherDynamicConfig>;
@@ -66,6 +68,7 @@ where
     impl_reader_client_getter!(class_manager_dynamic_config, ClassManagerDynamicConfig);
     impl_reader_client_getter!(consensus_dynamic_config, ConsensusDynamicConfig);
     impl_reader_client_getter!(context_dynamic_config, ContextDynamicConfig);
+    impl_reader_client_getter!(gateway_dynamic_config, GatewayDynamicConfig);
     impl_reader_client_getter!(http_server_dynamic_config, HttpServerDynamicConfig);
     impl_reader_client_getter!(mempool_dynamic_config, MempoolDynamicConfig);
     impl_reader_client_getter!(state_sync_dynamic_config, StateSyncDynamicConfig);
