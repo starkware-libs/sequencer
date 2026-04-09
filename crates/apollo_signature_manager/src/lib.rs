@@ -10,7 +10,7 @@ use std::ops::Deref;
 use apollo_infra::component_definitions::ComponentStarter;
 use async_trait::async_trait;
 
-use crate::signature_manager::{LocalKeyStore, SignatureManager as GenericSignatureManager};
+use crate::signature_manager::{GenericSignatureManager, LocalKeyStore};
 
 #[derive(Clone, Debug)]
 pub struct LocalKeyStoreSignatureManager(pub GenericSignatureManager<LocalKeyStore>);

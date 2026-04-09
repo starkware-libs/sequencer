@@ -9,8 +9,8 @@ use starknet_core::crypto::Signature;
 use crate::signature_manager::{
     verify_identity,
     verify_precommit_vote_signature,
+    GenericSignatureManager,
     LocalKeyStore,
-    SignatureManager,
 };
 
 #[derive(Clone, Debug)]
@@ -53,7 +53,7 @@ fn test_verify_precommit_vote_signature_invalid() {
 #[tokio::test]
 async fn test_sign_identification() {
     let key_store = LocalKeyStore::new_for_testing();
-    let signature_manager = SignatureManager::new(key_store);
+    let signature_manager = GenericSignatureManager::new(key_store);
 
     let PeerIdentity { peer_id, challenge } = PeerIdentity::new();
     let signature = signature_manager.sign_identification(peer_id, challenge).await.unwrap();
@@ -68,7 +68,7 @@ async fn test_sign_identification() {
 #[tokio::test]
 async fn test_sign_precommit_vote() {
     let key_store = LocalKeyStore::new_for_testing();
-    let signature_manager = SignatureManager::new(key_store);
+    let signature_manager = GenericSignatureManager::new(key_store);
 
     let block_hash = BlockHash(felt!("0x1234"));
     let signature = signature_manager.sign_precommit_vote(block_hash).await.unwrap();
