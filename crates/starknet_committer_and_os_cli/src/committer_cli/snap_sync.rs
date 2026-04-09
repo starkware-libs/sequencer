@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use apollo_committer_config::config::ApolloStorage;
 use apollo_storage::state::StateStorageReader;
-use apollo_storage::StorageReader;
+use apollo_storage::{StorageReader, StorageResult};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey, MAX_PATRICIA_FELT};
 use starknet_api::hash::StateRoots;
@@ -368,4 +368,16 @@ fn process_request<K: TreeKey, S: Storage + Send + 'static>(
             process_request(reader, next_request, block_target, size_limit, commit_state).await;
         }
     })
+}
+
+/// Returns the first contract address >= `start_addr` that has any storage entry,
+/// or `None` if no such contract exists.
+#[expect(dead_code)]
+fn find_next_storage_contract(
+    reader: &StorageReader,
+    start_addr: ContractAddress,
+) -> StorageResult<Option<ContractAddress>> {
+    let txn = reader.begin_ro_txn()?;
+    let state_reader = txn.get_state_reader()?;
+    state_reader.find_next_storage_contract(start_addr)
 }
