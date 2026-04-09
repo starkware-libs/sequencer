@@ -198,13 +198,7 @@ async fn append_body_state_only() {
 #[tokio::test]
 async fn revert_non_existing_body_fails(storage_scope: StorageScope) {
     let ((_, mut writer), _temp_dir) = get_test_storage_by_scope(storage_scope);
-    let (_, deleted_data) = writer
-        .begin_rw_txn()
-        .unwrap()
-        .revert_events(BlockNumber(5))
-        .unwrap()
-        .revert_body(BlockNumber(5))
-        .unwrap();
+    let (_, deleted_data) = writer.begin_rw_txn().unwrap().revert_body(BlockNumber(5)).unwrap();
     assert!(deleted_data.is_none());
 }
 
@@ -218,33 +212,16 @@ async fn revert_body_state_only(storage_scope: StorageScope) {
         .unwrap()
         .append_body(BlockNumber(0), BlockBody::default())
         .unwrap()
-        .append_events(BlockNumber(0), &[])
-        .unwrap()
         .commit()
         .unwrap();
-    writer
-        .begin_rw_txn()
-        .unwrap()
-        .revert_events(BlockNumber(0))
-        .unwrap()
-        .revert_body(BlockNumber(0))
-        .unwrap()
-        .0
-        .commit()
-        .unwrap();
+    writer.begin_rw_txn().unwrap().revert_body(BlockNumber(0)).unwrap().0.commit().unwrap();
 }
 
 #[tokio::test]
 async fn revert_old_body_fails() {
     let ((_, mut writer), _temp_dir) = get_test_storage();
     append_2_bodies(&mut writer);
-    let (_, deleted_data) = writer
-        .begin_rw_txn()
-        .unwrap()
-        .revert_events(BlockNumber(0))
-        .unwrap()
-        .revert_body(BlockNumber(0))
-        .unwrap();
+    let (_, deleted_data) = writer.begin_rw_txn().unwrap().revert_body(BlockNumber(0)).unwrap();
     assert!(deleted_data.is_none());
 }
 
@@ -258,16 +235,7 @@ async fn revert_body_updates_marker(storage_scope: StorageScope) {
     // Verify that the body marker before revert is 2.
     assert_eq!(reader.begin_ro_txn().unwrap().get_body_marker().unwrap(), BlockNumber(2));
 
-    writer
-        .begin_rw_txn()
-        .unwrap()
-        .revert_events(BlockNumber(1))
-        .unwrap()
-        .revert_body(BlockNumber(1))
-        .unwrap()
-        .0
-        .commit()
-        .unwrap();
+    writer.begin_rw_txn().unwrap().revert_body(BlockNumber(1)).unwrap().0.commit().unwrap();
     assert_eq!(reader.begin_ro_txn().unwrap().get_body_marker().unwrap(), BlockNumber(1));
 }
 
@@ -297,16 +265,7 @@ async fn get_reverted_body_returns_none() {
             .is_some()
     );
 
-    writer
-        .begin_rw_txn()
-        .unwrap()
-        .revert_events(BlockNumber(1))
-        .unwrap()
-        .revert_body(BlockNumber(1))
-        .unwrap()
-        .0
-        .commit()
-        .unwrap();
+    writer.begin_rw_txn().unwrap().revert_body(BlockNumber(1)).unwrap().0.commit().unwrap();
     assert!(
         reader.begin_ro_txn().unwrap().get_block_transactions(BlockNumber(1)).unwrap().is_none()
     );
@@ -375,16 +334,7 @@ async fn revert_transactions() {
             .is_some()
     );
 
-    writer
-        .begin_rw_txn()
-        .unwrap()
-        .revert_events(BlockNumber(0))
-        .unwrap()
-        .revert_body(BlockNumber(0))
-        .unwrap()
-        .0
-        .commit()
-        .unwrap();
+    writer.begin_rw_txn().unwrap().revert_body(BlockNumber(0)).unwrap().0.commit().unwrap();
 
     // Check that all the transactions were deleted.
     for (offset, tx_hash) in body.transaction_hashes.into_iter().enumerate() {
@@ -431,11 +381,7 @@ fn append_2_bodies(writer: &mut StorageWriter) {
         .unwrap()
         .append_body(BlockNumber(0), BlockBody::default())
         .unwrap()
-        .append_events(BlockNumber(0), &[])
-        .unwrap()
         .append_body(BlockNumber(1), BlockBody::default())
-        .unwrap()
-        .append_events(BlockNumber(1), &[])
         .unwrap()
         .commit()
         .unwrap();

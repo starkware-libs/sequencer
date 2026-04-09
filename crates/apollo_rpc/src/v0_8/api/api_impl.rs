@@ -300,12 +300,19 @@ impl JsonRpcServer for JsonRpcServerImpl {
             |txn, block_number| {
                 let transactions = get_block_txs_by_number(txn, block_number)?;
                 let transaction_hashes = get_block_tx_hashes_by_number(txn, block_number)?;
+                // Fetch all events for the block in a single cursor scan instead of N individual
+                // reads.
+                let block_events_per_tx = txn
+                    .get_block_events_per_transaction(block_number)
+                    .map_err(internal_server_error)?
+                    .ok_or_else(|| ErrorObjectOwned::from(BLOCK_NOT_FOUND))?;
                 Ok(Transactions::FullWithReceipts(
                     transactions
                         .into_iter()
                         .zip(transaction_hashes)
+                        .zip(block_events_per_tx)
                         .enumerate()
-                        .map(|(transaction_offset, (transaction, transaction_hash))| {
+                        .map(|(transaction_offset, ((transaction, transaction_hash), events))| {
                             let transaction_index = TransactionIndex(
                                 block_number,
                                 TransactionOffsetInBlock(transaction_offset),
@@ -325,6 +332,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
                                     transaction_hash,
                                     transaction_version,
                                     msg_hash,
+                                    events,
                                 )?
                                 .into(),
                             })
@@ -566,7 +574,18 @@ impl JsonRpcServer for JsonRpcServerImpl {
                 _ => None,
             };
 
-            get_non_pending_receipt(&txn, transaction_index, transaction_hash, tx_version, msg_hash)
+            let events = txn
+                .get_transaction_events(transaction_index)
+                .map_err(internal_server_error)?
+                .ok_or_else(|| ErrorObjectOwned::from(TRANSACTION_HASH_NOT_FOUND))?;
+            get_non_pending_receipt(
+                &txn,
+                transaction_index,
+                transaction_hash,
+                tx_version,
+                msg_hash,
+                events,
+            )
         } else {
             // The transaction is not in any non-pending block. Search for it in the pending block
             // and if it's not found, return error.
@@ -1716,6 +1735,7 @@ fn get_non_pending_receipt(
     transaction_hash: TransactionHash,
     tx_version: TransactionVersion,
     msg_hash: Option<L1L2MsgHash>,
+    events: Vec<starknet_api::transaction::Event>,
 ) -> RpcResult<GeneralTransactionReceipt> {
     let block_number = transaction_index.0;
     let status = get_block_status(txn, block_number)?;
@@ -1732,11 +1752,6 @@ fn get_non_pending_receipt(
 
     let output = txn
         .get_transaction_output(transaction_index)
-        .map_err(internal_server_error)?
-        .ok_or_else(|| ErrorObjectOwned::from(TRANSACTION_HASH_NOT_FOUND))?;
-
-    let events = txn
-        .get_transaction_events(transaction_index)
         .map_err(internal_server_error)?
         .ok_or_else(|| ErrorObjectOwned::from(TRANSACTION_HASH_NOT_FOUND))?;
 
