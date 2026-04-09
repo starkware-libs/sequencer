@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775748973283,
+  "lastUpdate": 1775754188173,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1427,6 +1427,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1392.27653956,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "143319383+nimrod-starkware@users.noreply.github.com",
+            "name": "nimrod-starkware",
+            "username": "nimrod-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ff2fc88134e863d67a4a177a632c17f7c4f28b15",
+          "message": "starknet_patricia_storage: introduce immutable read only storage (#13236)",
+          "timestamp": "2026-04-09T16:44:19Z",
+          "tree_id": "ddadf0de66f3c2781b01e2caaae0ffc30fd4bb3c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/ff2fc88134e863d67a4a177a632c17f7c4f28b15"
+        },
+        "date": 1775754187786,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 932.50322704,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1437.81449647,
             "unit": "ms"
           }
         ]
