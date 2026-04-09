@@ -32,8 +32,8 @@ pub struct ConfigManagerRunner {
     config_manager_client: SharedConfigManagerClient,
     dynamic_config_tx: Sender<NodeDynamicConfig>,
     // Keeps the receiver alive so the sender never observes a dead channel.
-    // TODO(Arni): Remove once LocalComponentReaderClient is held long-term (done in
-    // arni/http_server/add_client_to_server).
+    // TODO(Arni): Remove once LocalConfigManagerReaderClient is held long-term (done in
+    // arni/apollo_node/add_config_manager_reader_client_to_node).
     _dynamic_config_rx: Receiver<NodeDynamicConfig>,
     cli_args: Vec<String>,
 }
