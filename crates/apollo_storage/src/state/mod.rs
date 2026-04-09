@@ -591,6 +591,18 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         let mut cursor = self.compiled_class_hash_table.cursor(self.txn)?;
         scan_at_block(&mut cursor, start, end, block_target, limit)
     }
+
+    /// Returns the first contract address >= `start_addr` that has any storage entry,
+    /// or `None` if no such contract exists.
+    pub fn find_next_storage_contract(
+        &self,
+        start_addr: ContractAddress,
+    ) -> StorageResult<Option<ContractAddress>> {
+        let mut cursor = self.storage_table.cursor(self.txn)?;
+        Ok(cursor
+            .lower_bound(&((start_addr, StorageKey::default()), BlockNumber(0)))?
+            .map(|(((addr, _), _), _)| addr))
+    }
 }
 
 impl StateStorageWriter for StorageTxn<'_, RW> {
