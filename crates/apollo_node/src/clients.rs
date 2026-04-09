@@ -33,8 +33,8 @@ use apollo_compile_to_casm_types::{
     SierraCompilerResponse,
 };
 use apollo_config_manager_types::communication::{
-    LocalConfigManagerReaderClient,
-    SharedConfigManagerReaderClient,
+    LocalConfigManagerClient,
+    SharedConfigManagerClient,
 };
 use apollo_gateway::metrics::GATEWAY_INFRA_METRICS;
 use apollo_gateway_types::communication::{
@@ -105,7 +105,7 @@ pub struct SequencerNodeClients {
     batcher_client: RpcClient<BatcherRequest, BatcherResponse>,
     class_manager_client: RpcClient<ClassManagerRequest, ClassManagerResponse>,
     committer_client: RpcClient<CommitterRequest, CommitterResponse>,
-    reader_config_manager_client: ReaderClient<NodeDynamicConfig>,
+    config_manager_client: ReaderClient<NodeDynamicConfig>,
     gateway_client: RpcClient<GatewayRequest, GatewayResponse>,
     l1_events_provider_client: RpcClient<L1EventsProviderRequest, L1EventsProviderResponse>,
     l1_gas_price_client: RpcClient<L1GasPriceRequest, L1GasPriceResponse>,
@@ -192,10 +192,10 @@ impl SequencerNodeClients {
         get_shared_client!(self, committer_client)
     }
 
-    pub fn get_config_manager_reader_client(&self) -> Option<SharedConfigManagerReaderClient> {
-        match &self.reader_config_manager_client {
+    pub fn get_config_manager_client(&self) -> Option<SharedConfigManagerClient> {
+        match &self.config_manager_client {
             Client::LocalReadOnlyClient(client) => {
-                let reader_client: SharedConfigManagerReaderClient = Arc::new(client.clone());
+                let reader_client: SharedConfigManagerClient = Arc::new(client.clone());
                 Some(reader_client)
             }
             Client::Disabled => None,
@@ -415,9 +415,9 @@ pub fn create_node_clients(
         &COMMITTER_INFRA_METRICS.get_remote_client_metrics()
     );
 
-    let reader_config_manager_client = match config.components.config_manager.execution_mode {
+    let config_manager_client = match config.components.config_manager.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
-            Client::LocalReadOnlyClient(LocalConfigManagerReaderClient::new(
+            Client::LocalReadOnlyClient(LocalConfigManagerClient::new(
                 dynamic_config_channels.take_rx(),
             ))
         }
@@ -535,7 +535,7 @@ pub fn create_node_clients(
         batcher_client,
         class_manager_client,
         committer_client,
-        reader_config_manager_client,
+        config_manager_client,
         gateway_client,
         l1_events_provider_client,
         l1_gas_price_client,

@@ -16,10 +16,8 @@ use thiserror::Error;
 use crate::errors::ConfigManagerError;
 
 pub type ConfigManagerClientResult<T> = Result<T, ConfigManagerClientError>;
-pub type LocalConfigManagerReaderClient = LocalComponentReaderClient<NodeDynamicConfig>;
-// TODO(Arni): Rename to SharedConfigManagerClient after removing the deprecated
-// SharedConfigManagerClient.
-pub type SharedConfigManagerReaderClient = Arc<dyn ConfigManagerReaderClient>;
+pub type LocalConfigManagerClient = LocalComponentReaderClient<NodeDynamicConfig>;
+pub type SharedConfigManagerClient = Arc<dyn ConfigManagerClient>;
 
 #[derive(Clone, Debug, Error)]
 pub enum ConfigManagerClientError {
@@ -29,10 +27,8 @@ pub enum ConfigManagerClientError {
     ConfigManagerError(#[from] ConfigManagerError),
 }
 
-// TODO(Arni): Rename to ConfigManagerClient after removing the deprecated ConfigManagerClient
-// trait.
 #[cfg_attr(any(feature = "testing", test), mockall::automock)]
-pub trait ConfigManagerReaderClient: Send + Sync {
+pub trait ConfigManagerClient: Send + Sync {
     fn get_consensus_dynamic_config(&self) -> ConfigManagerClientResult<ConsensusDynamicConfig>;
     fn get_class_manager_dynamic_config(
         &self,
@@ -47,7 +43,7 @@ pub trait ConfigManagerReaderClient: Send + Sync {
     ) -> ConfigManagerClientResult<StakingManagerDynamicConfig>;
 }
 
-// Generates a `ConfigManagerReaderClient` method that reads a field from `NodeDynamicConfig`.
+// Generates a `ConfigManagerClient` method that reads a field from `NodeDynamicConfig`.
 // The method name is derived by prepending `get_` to the field name.
 macro_rules! impl_reader_client_getter {
     ($field:ident, $return_type:ty) => {
@@ -62,7 +58,7 @@ macro_rules! impl_reader_client_getter {
     };
 }
 
-impl<ComponentClientType> ConfigManagerReaderClient for ComponentClientType
+impl<ComponentClientType> ConfigManagerClient for ComponentClientType
 where
     ComponentClientType: Send + Sync + ComponentReaderClient<NodeDynamicConfig>,
 {

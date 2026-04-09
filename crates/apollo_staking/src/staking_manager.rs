@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, RwLock};
 
 use apollo_batcher_types::communication::SharedBatcherClient;
-use apollo_config_manager_types::communication::SharedConfigManagerReaderClient;
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_protobuf::consensus::Round;
 use apollo_staking_config::config::{
     get_config_for_epoch,
@@ -190,7 +190,7 @@ pub struct StakingManager {
 
     random_generator_factory: Arc<dyn BlockRandomGeneratorFactory>,
     dynamic_config: RwLock<StakingManagerDynamicConfig>,
-    config_manager_client: Option<SharedConfigManagerReaderClient>,
+    config_manager_client: Option<SharedConfigManagerClient>,
     use_only_actual_proposer_selection: bool,
     committee_member_metrics: Mutex<CommitteeMemberMetrics>,
 }
@@ -219,7 +219,7 @@ impl StakingManager {
         state_sync_client: SharedStateSyncClient,
         random_generator_factory: Arc<dyn BlockRandomGeneratorFactory>,
         config: StakingManagerConfig,
-        config_manager_client: Option<SharedConfigManagerReaderClient>,
+        config_manager_client: Option<SharedConfigManagerClient>,
     ) -> Self {
         register_metrics();
         Self {

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use apollo_batcher_types::batcher_types::{GetHeightResponse, RevertBlockInput};
 use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_class_manager_types::MockClassManagerClient;
-use apollo_config_manager_types::communication::MockConfigManagerReaderClient;
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_consensus::storage::MockHeightVotedStorageTrait;
 use apollo_consensus::test_utils::get_new_storage_config;
 use apollo_consensus_config::config::{ConsensusConfig, ConsensusStaticConfig};
@@ -68,7 +68,7 @@ async fn revert_batcher_blocks() {
             state_sync_client: Arc::new(MockStateSyncClient::new()),
             class_manager_client: Arc::new(MockClassManagerClient::new()),
             signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
-            config_manager_client: Arc::new(MockConfigManagerReaderClient::new()),
+            config_manager_client: Arc::new(MockConfigManagerClient::new()),
             l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
             proof_manager_client: Arc::new(MockProofManagerClient::new()),
             committee_provider: Arc::new(MockCommitteeProvider::new()),
@@ -114,7 +114,7 @@ async fn revert_voted_height_when_batcher_already_at_target() {
             state_sync_client: Arc::new(MockStateSyncClient::new()),
             class_manager_client: Arc::new(MockClassManagerClient::new()),
             signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
-            config_manager_client: Arc::new(MockConfigManagerReaderClient::new()),
+            config_manager_client: Arc::new(MockConfigManagerClient::new()),
             l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
             proof_manager_client: Arc::new(MockProofManagerClient::new()),
             committee_provider: Arc::new(MockCommitteeProvider::new()),
@@ -148,7 +148,7 @@ async fn no_reverts_without_config() {
         state_sync_client: Arc::new(MockStateSyncClient::new()),
         class_manager_client: Arc::new(MockClassManagerClient::new()),
         signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
-        config_manager_client: Arc::new(MockConfigManagerReaderClient::new()),
+        config_manager_client: Arc::new(MockConfigManagerClient::new()),
         l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
         proof_manager_client: Arc::new(MockProofManagerClient::new()),
         committee_provider: Arc::new(MockCommitteeProvider::new()),

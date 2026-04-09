@@ -8,7 +8,7 @@ use std::sync::Arc;
 use apollo_batcher_types::batcher_types::RevertBlockInput;
 use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_config_manager_types::communication::SharedConfigManagerReaderClient;
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::storage::{get_voted_height_storage, HeightVotedStorageTrait};
 use apollo_consensus::stream_handler::StreamHandler;
 use apollo_consensus::votes_threshold::QuorumType;
@@ -90,7 +90,7 @@ pub struct ConsensusManager {
     pub class_manager_client: SharedClassManagerClient,
     pub proof_manager_client: SharedProofManagerClient,
     pub signature_manager_client: SharedSignatureManagerClient,
-    pub config_manager_client: SharedConfigManagerReaderClient,
+    pub config_manager_client: SharedConfigManagerClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
     committee_provider: Arc<dyn CommitteeProvider>,
@@ -102,7 +102,7 @@ pub struct ConsensusManagerArgs {
     pub state_sync_client: SharedStateSyncClient,
     pub class_manager_client: SharedClassManagerClient,
     pub signature_manager_client: SharedSignatureManagerClient,
-    pub config_manager_client: SharedConfigManagerReaderClient,
+    pub config_manager_client: SharedConfigManagerClient,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     pub proof_manager_client: SharedProofManagerClient,
     pub committee_provider: Arc<dyn CommitteeProvider>,
@@ -283,7 +283,7 @@ impl ConsensusManager {
         &self,
         votes_broadcast_channels: &BroadcastTopicChannels<Vote>,
         outbound_internal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
-        config_manager_client: SharedConfigManagerReaderClient,
+        config_manager_client: SharedConfigManagerClient,
     ) -> SequencerConsensusContext {
         SequencerConsensusContext::new(
             self.config.context_config.clone(),
@@ -374,7 +374,7 @@ pub fn create_committee_provider(
     config: &ConsensusManagerConfig,
     batcher_client: SharedBatcherClient,
     state_sync_client: SharedStateSyncClient,
-    config_manager_client: SharedConfigManagerReaderClient,
+    config_manager_client: SharedConfigManagerClient,
 ) -> Arc<dyn CommitteeProvider> {
     let staking_manager_config = config.staking_manager_config.clone();
     // TODO(Asmaa/Dafna): Create StakingContract according to config.
@@ -401,7 +401,7 @@ pub fn create_consensus_manager(
     class_manager_client: SharedClassManagerClient,
     proof_manager_client: SharedProofManagerClient,
     signature_manager_client: SharedSignatureManagerClient,
-    config_manager_client: SharedConfigManagerReaderClient,
+    config_manager_client: SharedConfigManagerClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     committee_provider: Arc<dyn CommitteeProvider>,
 ) -> ConsensusManager {

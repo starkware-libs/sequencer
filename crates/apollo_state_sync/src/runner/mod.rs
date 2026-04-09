@@ -7,7 +7,7 @@ use apollo_central_sync::sources::central::{CentralError, CentralSource};
 use apollo_central_sync::sources::pending::PendingSource;
 use apollo_central_sync::{StateSync as CentralStateSync, StateSyncError as CentralStateSyncError};
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_config_manager_types::communication::SharedConfigManagerReaderClient;
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::component_server::WrapperServer;
 use apollo_network::metrics::{NetworkMetrics, SqmrNetworkMetrics};
@@ -73,7 +73,7 @@ use tracing::instrument::Instrument;
 use tracing::{debug, info_span};
 
 struct StateSyncDynamicConfigProvider {
-    config_manager_client: SharedConfigManagerReaderClient,
+    config_manager_client: SharedConfigManagerClient,
 }
 
 #[async_trait]
@@ -185,7 +185,7 @@ impl StateSyncRunner {
         config: StateSyncConfig,
         new_block_receiver: Receiver<SyncBlock>,
         class_manager_client: SharedClassManagerClient,
-        config_manager_client: SharedConfigManagerReaderClient,
+        config_manager_client: SharedConfigManagerClient,
     ) -> (Self, StorageReader) {
         let StateSyncConfig { static_config, dynamic_config } = config;
 
