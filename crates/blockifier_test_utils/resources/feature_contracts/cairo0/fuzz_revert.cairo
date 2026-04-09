@@ -30,6 +30,7 @@ const SCENARIO_CALL_UNDEPLOYED = 13;
 const SCENARIO_CALL_NON_EXISTING_ENTRY_POINT = 14;
 const SCENARIO_LIBRARY_CALL_NON_EXISTING_ENTRY_POINT = 15;
 const SCENARIO_EMIT_EVENT = 16;
+const SCENARIO_GET_BLOCK_HASH = 17;
 
 // selector_from_name("pop_front").
 const POP_FRONT_SELECTOR = 0x289c2d7d6351cd03d4f928bde75fa14d5f52e32bdbc750d5296e1b48c12f1c3;
@@ -253,6 +254,13 @@ func test_revert_fuzz{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
         let value = pop_front(orchestrator);
         FuzzEvent.emit(value);
         test_revert_fuzz();
+        return ();
+    }
+
+    if (scenario == SCENARIO_GET_BLOCK_HASH) {
+        with_attr error_message("get_block_hash_cairo0") {
+            assert 0 = 1;
+        }
         return ();
     }
 

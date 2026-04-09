@@ -517,6 +517,14 @@ impl<S: FlowTestState> TestBuilder<S> {
         self.per_block_txs.push(vec![]);
     }
 
+    /// The next tx added will be executed in this block number.
+    pub(crate) fn get_current_block_number(&self) -> BlockNumber {
+        BlockNumber(
+            self.initial_state.block_context.block_info().block_number.0
+                + u64::try_from(self.per_block_txs.len()).unwrap(),
+        )
+    }
+
     pub(crate) fn total_txs(&self) -> usize {
         self.per_block_txs.iter().map(|block| block.len()).sum()
     }
