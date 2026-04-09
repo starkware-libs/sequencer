@@ -505,6 +505,11 @@ pub struct PatriciaKey(StarkHash);
 pub const PATRICIA_KEY_UPPER_BOUND: &str =
     "0x800000000000000000000000000000000000000000000000000000000000000";
 
+pub static MAX_PATRICIA_KEY: LazyLock<PatriciaKey> = LazyLock::new(|| {
+    PatriciaKey::try_from(Felt::from_hex_unchecked(PATRICIA_KEY_UPPER_BOUND) - Felt::ONE)
+        .expect("One less than the upper bound")
+});
+
 impl PatriciaKey {
     pub const ZERO: Self = Self(StarkHash::ZERO);
     pub const ONE: Self = Self(StarkHash::ONE);
