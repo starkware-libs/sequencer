@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config::converters::{
     deserialize_comma_separated_str,
     serialize_optional_comma_separated,
@@ -18,6 +19,7 @@ use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_types_core::felt::Felt;
+use url::Url;
 use validator::Validate;
 
 use crate::compiler_version::VersionId;
@@ -37,6 +39,8 @@ pub struct GatewayStaticConfig {
     #[serde(default, deserialize_with = "deserialize_comma_separated_str")]
     pub authorized_declarer_accounts: Option<Vec<ContractAddress>>,
     pub proof_archive_writer_config: ProofArchiveWriterConfig,
+    pub behavior_mode: BehaviorMode,
+    pub recorder_url: Url,
 }
 
 impl Default for GatewayStaticConfig {
@@ -52,6 +56,10 @@ impl Default for GatewayStaticConfig {
             block_declare: false,
             authorized_declarer_accounts: None,
             proof_archive_writer_config: ProofArchiveWriterConfig::default(),
+            behavior_mode: BehaviorMode::Starknet,
+            recorder_url: "https://recorder_url"
+                .parse::<Url>()
+                .expect("recorder_url must be a valid URL"),
         }
     }
 }
@@ -89,6 +97,21 @@ impl SerializeConfig for GatewayStaticConfig {
             self.proof_archive_writer_config.dump(),
             "proof_archive_writer_config",
         ));
+        dump.extend(BTreeMap::from_iter([
+            ser_param(
+                "behavior_mode",
+                &self.behavior_mode,
+                "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "recorder_url",
+                &self.recorder_url,
+                "The URL of the recorder service (used in Echonet mode to fetch the initial \
+                 Starknet version).",
+                ParamPrivacyInput::Public,
+            ),
+        ]));
         dump
     }
 }

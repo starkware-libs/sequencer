@@ -740,6 +740,7 @@ fn central_blob() -> AerospikeBlob {
 
     let blob_parameters = BlobParameters {
         block_info: block_info(),
+        starknet_version: StarknetVersion::LATEST,
         state_diff: thin_state_diff(),
         compressed_state_diff: Some(commitment_state_diff()),
         transactions_with_execution_infos,
@@ -771,6 +772,7 @@ fn central_blob_with_empty_or_none_fields() -> AerospikeBlob {
     let mock_class_manager = MockClassManagerClient::new();
     let blob_parameters = BlobParameters {
         block_info: block_info(),
+        starknet_version: StarknetVersion::LATEST,
         state_diff: thin_state_diff(),
         compressed_state_diff: None,
         transactions_with_execution_infos: vec![],

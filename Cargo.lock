@@ -1553,7 +1553,9 @@ dependencies = [
  "num-bigint",
  "num-rational",
  "pretty_assertions",
+ "reqwest 0.12.24",
  "rstest",
+ "serde",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
@@ -1578,6 +1580,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "thiserror 1.0.69",
+ "url",
  "validator",
 ]
 

@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 #[cfg(any(test, feature = "testing"))]
 use std::path::Path;
+use std::sync::OnceLock;
 
 #[cfg(any(test, feature = "testing"))]
 use expect_test::expect_file;
@@ -19,6 +20,25 @@ use strum::IntoEnumIterator;
 
 use crate::block::StarknetVersion;
 
+/// Process-wide override for the "latest" Starknet version.
+/// Set once at startup in Echonet mode so all versioned-constants lookups use the replayed
+/// network's version instead of the compile-time LATEST.
+static EFFECTIVE_LATEST_VERSION: OnceLock<StarknetVersion> = OnceLock::new();
+
+/// Sets the effective latest Starknet version for this process.
+/// In Echonet replay mode the gateway calls this once at startup so all versioned-constants
+/// lookups use the replayed network's version rather than the compile-time LATEST.
+pub fn set_effective_latest_version(version: StarknetVersion) {
+    // Ignore if already set — this is a write-once value.
+    EFFECTIVE_LATEST_VERSION.set(version).ok();
+}
+
+/// Returns the effective latest Starknet version: the value set via
+/// `set_effective_latest_version` if in Echonet mode, otherwise the compile-time LATEST.
+pub fn effective_starknet_version() -> StarknetVersion {
+    EFFECTIVE_LATEST_VERSION.get().copied().unwrap_or(StarknetVersion::LATEST)
+}
+
 pub trait VersionedConstantsTrait: Debug {
     type Error: Debug;
 
@@ -30,7 +50,12 @@ pub trait VersionedConstantsTrait: Debug {
 
     /// Gets the constants that shipped with the current version of the Starknet.
     /// To use custom constants, initialize the struct from a file using `from_path`.
-    fn latest_constants() -> &'static Self;
+    fn latest_constants() -> &'static Self {
+        let version = effective_starknet_version();
+        Self::get(&version).unwrap_or_else(|_| {
+            Self::get(&StarknetVersion::LATEST).expect("Latest version should support VC.")
+        })
+    }
 
     /// Gets the constants for the specified Starknet version.
     fn get(version: &StarknetVersion) -> Result<&'static Self, Self::Error>;
@@ -170,11 +195,6 @@ macro_rules! define_versioned_constants_inner {
                     },)*
                     _ => Err(Self::Error::InvalidStarknetVersion(*version)),
                 }
-            }
-
-            fn latest_constants() -> &'static Self {
-                Self::get(&starknet_api::block::StarknetVersion::LATEST)
-                    .expect("Latest version should support VC.")
             }
 
             fn get(

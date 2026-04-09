@@ -10,6 +10,7 @@ description = "Configuration types for Apollo gateway"
 apollo_compilation_utils.workspace = true
 apollo_config.workspace = true
 blockifier.workspace = true
+url.workspace = true
 cairo-lang-starknet-classes.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
