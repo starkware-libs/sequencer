@@ -90,11 +90,11 @@ pub struct BlockPostV0_13_1 {
 }
 
 impl BlockPostV0_13_1 {
-    pub fn to_starknet_api_block_and_version(
+    pub fn to_starknet_api_block_and_events(
         self,
     ) -> ReaderClientResult<(starknet_api_block, Vec<Vec<Event>>)> {
         let block_or_deprecated = Block::PostV0_13_1(self);
-        block_or_deprecated.to_starknet_api_block_and_version()
+        block_or_deprecated.to_starknet_api_block_and_events()
     }
 }
 
@@ -295,8 +295,7 @@ impl Block {
         }
     }
 
-    // TODO(shahak): Rename to to_starknet_api_block.
-    pub fn to_starknet_api_block_and_version(
+    pub fn to_starknet_api_block_and_events(
         self,
     ) -> ReaderClientResult<(starknet_api_block, Vec<Vec<Event>>)> {
         // Check that the number of receipts is the same as the number of transactions.

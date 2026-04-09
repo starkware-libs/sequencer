@@ -35,17 +35,12 @@ async fn append_body() {
         transaction_outputs: vec![tx_outputs[3].clone(), tx_outputs[0].clone()],
         transaction_hashes: vec![tx_hashes[3], tx_hashes[0]],
     };
-    let body0_events = vec![vec![]; body0.transaction_outputs.len()];
     writer
         .begin_rw_txn()
         .unwrap()
         .append_body(BlockNumber(0), body0)
         .unwrap()
-        .append_events(BlockNumber(0), &body0_events)
-        .unwrap()
         .append_body(BlockNumber(1), body1)
-        .unwrap()
-        .append_events(BlockNumber(1), &[])
         .unwrap()
         .commit()
         .unwrap();
@@ -60,16 +55,7 @@ async fn append_body() {
         StorageError::MarkerMismatch { marker_kind: MarkerKind::Body, expected, found }
     if expected == BlockNumber(2) && found == BlockNumber(5));
 
-    let body2_events = vec![vec![]; body2.transaction_outputs.len()];
-    writer
-        .begin_rw_txn()
-        .unwrap()
-        .append_body(BlockNumber(2), body2)
-        .unwrap()
-        .append_events(BlockNumber(2), &body2_events)
-        .unwrap()
-        .commit()
-        .unwrap();
+    writer.begin_rw_txn().unwrap().append_body(BlockNumber(2), body2).unwrap().commit().unwrap();
 
     let Err(err) = writer.begin_rw_txn().unwrap().append_body(BlockNumber(3), body3) else {
         panic!("Unexpected Ok.");
@@ -194,14 +180,10 @@ async fn append_body() {
 async fn append_body_state_only() {
     let ((reader, mut writer), _temp_dir) = get_test_storage_by_scope(StorageScope::StateOnly);
     let block_body = get_test_block(1, Some(1), None, None).0.body;
-    let block_body_events = vec![vec![]; block_body.transaction_outputs.len()];
-
     writer
         .begin_rw_txn()
         .unwrap()
         .append_body(BlockNumber(0), block_body)
-        .unwrap()
-        .append_events(BlockNumber(0), &block_body_events)
         .unwrap()
         .commit()
         .unwrap();
@@ -350,13 +332,10 @@ async fn get_reverted_body_returns_none() {
 async fn revert_transactions() {
     let ((reader, mut writer), _temp_dir) = get_test_storage();
     let (body, _events) = get_test_body(10, None, None, None);
-    let body_events = vec![vec![]; body.transaction_outputs.len()];
     writer
         .begin_rw_txn()
         .unwrap()
         .append_body(BlockNumber(0), body.clone())
-        .unwrap()
-        .append_events(BlockNumber(0), &body_events)
         .unwrap()
         .commit()
         .unwrap();
@@ -466,16 +445,7 @@ fn append_2_bodies(writer: &mut StorageWriter) {
 fn update_offset_table() {
     let ((reader, mut writer), _temp_dir) = get_test_storage();
     let body = get_test_block(3, None, None, None).0.body;
-    let body_events = vec![vec![]; body.transaction_outputs.len()];
-    writer
-        .begin_rw_txn()
-        .unwrap()
-        .append_body(BlockNumber(0), body)
-        .unwrap()
-        .append_events(BlockNumber(0), &body_events)
-        .unwrap()
-        .commit()
-        .unwrap();
+    writer.begin_rw_txn().unwrap().append_body(BlockNumber(0), body).unwrap().commit().unwrap();
 
     let txn = reader.begin_ro_txn().unwrap();
     let file_offset_table = txn.txn.open_table(&txn.tables.file_offsets).unwrap();

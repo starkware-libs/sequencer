@@ -221,9 +221,13 @@ fn get_transaction_events_test() {
         assert_eq!(&actual_events, expected_events);
     }
 
-    // Non-existent transaction returns None.
-    let missing_index = TransactionIndex(BlockNumber(999), TransactionOffsetInBlock(0));
-    assert_eq!(txn.get_transaction_events(missing_index).unwrap(), None);
+    // Non-existent block returns None.
+    let missing_block_index = TransactionIndex(BlockNumber(999), TransactionOffsetInBlock(0));
+    assert_eq!(txn.get_transaction_events(missing_block_index).unwrap(), None);
+
+    // Existing block but out-of-range transaction offset returns None.
+    let missing_tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(999));
+    assert_eq!(txn.get_transaction_events(missing_tx_index).unwrap(), None);
 }
 
 #[test]

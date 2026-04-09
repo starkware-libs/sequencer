@@ -325,7 +325,7 @@ fn client_to_central_block(
             );
             trace!("Block: {block:#?}, signature data: {signature_data:#?}.");
             let (block, transaction_events) = block
-                .to_starknet_api_block_and_version()
+                .to_starknet_api_block_and_events()
                 .map_err(|err| CentralError::ClientError(Arc::new(err)))?;
             let signature = match signature_data {
                 BlockSignatureData::Deprecated { signature, .. } => signature,

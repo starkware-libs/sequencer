@@ -131,17 +131,17 @@ fn load_block_state_update_succeeds() {
 }
 
 #[tokio::test]
-async fn to_starknet_api_block_and_version() {
+async fn to_starknet_api_block_and_events() {
     let raw_block = read_resource_file(LATEST_BLOCK_RESOURCE);
     let block: Block = serde_json::from_str(&raw_block).unwrap();
     let expected_num_of_tx_outputs = block.transactions().len();
     let (starknet_api_block, _transaction_events) =
-        block.to_starknet_api_block_and_version().unwrap();
+        block.to_starknet_api_block_and_events().unwrap();
     assert_eq!(expected_num_of_tx_outputs, starknet_api_block.body.transaction_outputs.len());
 
     let mut err_block: BlockPostV0_13_1 = serde_json::from_str(&raw_block).unwrap();
     err_block.transaction_receipts.pop();
-    let err = err_block.to_starknet_api_block_and_version().unwrap_err();
+    let err = err_block.to_starknet_api_block_and_events().unwrap_err();
     assert_matches!(
         err,
         ReaderClientError::TransactionReceiptsError(
@@ -151,7 +151,7 @@ async fn to_starknet_api_block_and_version() {
 
     let mut err_block: BlockPostV0_13_1 = serde_json::from_str(&raw_block).unwrap();
     err_block.transaction_receipts[0].transaction_index = TransactionOffsetInBlock(1);
-    let err = err_block.to_starknet_api_block_and_version().unwrap_err();
+    let err = err_block.to_starknet_api_block_and_events().unwrap_err();
     assert_matches!(
         err,
         ReaderClientError::TransactionReceiptsError(
@@ -161,7 +161,7 @@ async fn to_starknet_api_block_and_version() {
 
     let mut err_block: BlockPostV0_13_1 = serde_json::from_str(&raw_block).unwrap();
     err_block.transaction_receipts[0].transaction_hash = tx_hash!(0x4);
-    let err = err_block.to_starknet_api_block_and_version().unwrap_err();
+    let err = err_block.to_starknet_api_block_and_events().unwrap_err();
     assert_matches!(
         err,
         ReaderClientError::TransactionReceiptsError(
@@ -174,7 +174,7 @@ async fn to_starknet_api_block_and_version() {
         transaction_hash: err_block.transactions[1].transaction_hash(),
         ..err_block.transaction_receipts[0].clone()
     };
-    let err = err_block.to_starknet_api_block_and_version().unwrap_err();
+    let err = err_block.to_starknet_api_block_and_events().unwrap_err();
     assert_matches!(
         err,
         ReaderClientError::TransactionReceiptsError(
@@ -184,12 +184,12 @@ async fn to_starknet_api_block_and_version() {
 }
 
 #[tokio::test]
-async fn to_starknet_api_block_and_version_0_13_1() {
+async fn to_starknet_api_block_and_events_0_13_1() {
     let raw_block = read_resource_file("reader/block_post_0_13_1.json");
     let block: Block = serde_json::from_str(&raw_block).unwrap();
     let expected_num_of_tx_outputs = block.transactions().len();
     let (starknet_api_block, _transaction_events) =
-        block.to_starknet_api_block_and_version().unwrap();
+        block.to_starknet_api_block_and_events().unwrap();
     assert_eq!(expected_num_of_tx_outputs, starknet_api_block.body.transaction_outputs.len());
     // Check that for pre 0.13.2 blocks, we erase their hash since it's a deprecated formula.
     assert!(starknet_api_block.header.event_commitment.is_none());

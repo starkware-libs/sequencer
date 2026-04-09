@@ -365,7 +365,6 @@ fn get_test_transaction_output(transaction: &Transaction) -> TransactionOutput {
 //////////////////////////////////////////////////////////////////////////
 
 // Returns a test block with a variable number of transactions and events.
-// Returns a test block with a variable number of transactions and events.
 pub fn get_test_block(
     transaction_count: usize,
     events_per_tx: Option<usize>,
