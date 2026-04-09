@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775736514724,
+  "lastUpdate": 1775738460404,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1325,6 +1325,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1443.28968231,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "822a369fab827e1ba05cbe6a8e9f796844ecf91e",
+          "message": "starknet_committer_and_os_cli: add TreeKey trait and TreeRequest struct for snap sync (#13609)\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-04-09T12:22:57Z",
+          "tree_id": "25bfcff12a1c386d58b5c700bf48394e4a6d23b6",
+          "url": "https://github.com/starkware-libs/sequencer/commit/822a369fab827e1ba05cbe6a8e9f796844ecf91e"
+        },
+        "date": 1775738459923,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 866.1209185700001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1390.8812398,
             "unit": "ms"
           }
         ]
