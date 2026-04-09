@@ -6,7 +6,6 @@ use apollo_class_manager::class_manager::create_class_manager;
 use apollo_class_manager::ClassManager;
 use apollo_committer::committer::ApolloCommitter;
 use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
-use apollo_config_manager::config_manager::ConfigManager;
 use apollo_config_manager::config_manager_runner::ConfigManagerRunner;
 use apollo_consensus_manager::consensus_manager::{
     create_committee_provider,
@@ -32,7 +31,7 @@ use apollo_node_config::component_execution_config::{
     ActiveComponentExecutionMode,
     ReactiveComponentExecutionMode,
 };
-use apollo_node_config::node_config::{NodeDynamicConfig, SequencerNodeConfig};
+use apollo_node_config::node_config::SequencerNodeConfig;
 use apollo_node_config::version::VERSION_FULL;
 use apollo_proof_manager::proof_manager::ProofManager;
 use apollo_signature_manager::{create_signature_manager, SignatureManager};
@@ -50,7 +49,6 @@ pub struct SequencerNodeComponents {
     pub batcher: Option<Batcher>,
     pub class_manager: Option<ClassManager>,
     pub committer: Option<ApolloCommitter>,
-    pub config_manager: Option<ConfigManager>,
     pub config_manager_runner: Option<ConfigManagerRunner>,
     pub consensus_manager: Option<ConsensusManager>,
     pub gateway: Option<Gateway>,
@@ -160,35 +158,27 @@ pub async fn create_node_components(
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
-    let (config_manager, config_manager_runner) =
-        match config.components.config_manager.execution_mode {
-            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
-                let node_dynamic_config = NodeDynamicConfig::from(config);
-                let config_manager_config = config
-                    .config_manager_config
-                    .as_ref()
-                    .expect("Config Manager config should be set");
-                // TODO(Arni): remove the config_manager.
-                let config_manager =
-                    ConfigManager::new(config_manager_config.clone(), node_dynamic_config.clone());
-                let dynamic_config_tx = dynamic_config_channels.take_tx();
-                let config_manager_runner = ConfigManagerRunner::new(
-                    config_manager_config.clone(),
-                    dynamic_config_tx,
-                    cli_args,
-                );
-                (Some(config_manager), Some(config_manager_runner))
-            }
+    let config_manager_runner = match config.components.config_manager.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
+            let config_manager_config =
+                config.config_manager_config.as_ref().expect("Config Manager config should be set");
+            let dynamic_config_tx = dynamic_config_channels.take_tx();
+            Some(ConfigManagerRunner::new(
+                config_manager_config.clone(),
+                dynamic_config_tx,
+                cli_args,
+            ))
+        }
 
-            ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
-            | ReactiveComponentExecutionMode::Remote => {
-                panic!(
-                    "ConfigManager does not support remote mode - it's a local infrastructure \
-                     component"
-                );
-            }
-            ReactiveComponentExecutionMode::Disabled => (None, None),
-        };
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
+        | ReactiveComponentExecutionMode::Remote => {
+            panic!(
+                "ConfigManager does not support remote mode - it's a local infrastructure \
+                 component"
+            );
+        }
+        ReactiveComponentExecutionMode::Disabled => None,
+    };
 
     let consensus_manager = match config.components.consensus_manager.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
@@ -560,7 +550,6 @@ pub async fn create_node_components(
         batcher,
         class_manager,
         committer,
-        config_manager,
         config_manager_runner,
         consensus_manager,
         gateway,
