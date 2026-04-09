@@ -3599,6 +3599,20 @@
     "privacy": "Public",
     "value": 5368709120
   },
+  "signature_manager_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "signature_manager_config.key_source": {
+    "description": "The source of the signing key.",
+    "privacy": "Private",
+    "value": {
+      "Local": {
+        "private_key": "0x0"
+      }
+    }
+  },
   "starknet_url": {
     "description": "URL for communicating with Starknet.",
     "privacy": "TemporaryValue",

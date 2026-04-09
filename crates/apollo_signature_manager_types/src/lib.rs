@@ -1,5 +1,8 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
@@ -18,6 +21,43 @@ use starknet_api::block::BlockHash;
 use starknet_api::crypto::utils::{Challenge, PrivateKey, RawSignature, SignatureConversionError};
 use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use thiserror::Error;
+use validator::Validate;
+
+/// Configuration for the signature manager component.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Validate)]
+pub struct SignatureManagerConfig {
+    pub key_source: KeySourceConfig,
+}
+
+impl SerializeConfig for SignatureManagerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([ser_param(
+            "key_source",
+            &self.key_source,
+            "The source of the signing key.",
+            ParamPrivacyInput::Private,
+        )])
+    }
+}
+
+/// Specifies where the signing key is sourced from.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum KeySourceConfig {
+    /// Use a locally provided private key.
+    Local { private_key: PrivateKey },
+    /// Fetch the key from Google Secret Manager on first use.
+    GoogleSecretManager {
+        /// Full GSM resource name, e.g.
+        /// "projects/my-project/secrets/validator-key/versions/latest"
+        secret_name: String,
+    },
+}
+
+impl Default for KeySourceConfig {
+    fn default() -> Self {
+        KeySourceConfig::Local { private_key: PrivateKey::default() }
+    }
+}
 
 pub type KeyStoreResult<T> = Result<T, KeyStoreError>;
 pub type SignatureManagerResult<T> = Result<T, SignatureManagerError>;
