@@ -6,7 +6,6 @@ use apollo_config::presentation::get_config_presentation;
 use apollo_config::validators::validate_path_exists;
 use apollo_config::{CONFIG_FILE_ARG, CONFIG_FILE_SHORT_ARG_NAME};
 use apollo_config_manager_config::config::ConfigManagerConfig;
-use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_infra::component_server::WrapperServer;
 use apollo_node_config::config_utils::load_and_validate_config;
@@ -17,7 +16,7 @@ use serde_json::Value;
 use tokio::sync::mpsc;
 use tokio::sync::watch::Sender;
 use tokio::time::{interval, Duration as TokioDuration, Interval};
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 use crate::metrics::{register_metrics, CONFIG_MANAGER_UPDATE_ERRORS};
 
@@ -29,7 +28,6 @@ pub mod config_manager_runner_tests;
 
 pub struct ConfigManagerRunner {
     config_manager_config: ConfigManagerConfig,
-    config_manager_client: SharedConfigManagerClient,
     dynamic_config_tx: Sender<NodeDynamicConfig>,
     cli_args: Vec<String>,
 }
@@ -59,11 +57,10 @@ impl ComponentStarter for ConfigManagerRunner {
 impl ConfigManagerRunner {
     pub fn new(
         config_manager_config: ConfigManagerConfig,
-        config_manager_client: SharedConfigManagerClient,
         dynamic_config_tx: Sender<NodeDynamicConfig>,
         cli_args: Vec<String>,
     ) -> Self {
-        Self { config_manager_config, config_manager_client, dynamic_config_tx, cli_args }
+        Self { config_manager_config, dynamic_config_tx, cli_args }
     }
 
     /// Monitors config files for changes via file system events and periodic polling.
@@ -132,24 +129,14 @@ impl ConfigManagerRunner {
                 return false;
             }
             log_config_diff(current, &node_dynamic_config);
-            // TODO(Arni): Remove this clone once the config_manager_client block below is removed.
-            *current = node_dynamic_config.clone();
+            *current = node_dynamic_config;
             true
         });
 
-        if !changed {
-            return Ok(());
+        if changed {
+            info!("Successfully updated dynamic config");
         }
-
-        debug!("Successfully sent node dynamic config to the channel");
-        // TODO(Arni): Remove this block once config_manager_client is removed from the runner.
-        match self.config_manager_client.set_node_dynamic_config(node_dynamic_config).await {
-            Ok(()) => {
-                info!("Successfully updated dynamic config");
-                Ok(())
-            }
-            Err(e) => Err(format!("Failed to update dynamic config: {:?}", e).into()),
-        }
+        Ok(())
     }
 
     /// Extracts config file paths from CLI arguments.
