@@ -1,6 +1,8 @@
 // TODO(Aviv): Delete this mod and use utils from type-rs
 mod blake_utils;
 pub mod communication;
+#[cfg(feature = "gsm")]
+pub mod gsm_key_store;
 pub mod config;
 pub mod metrics;
 pub mod signature_manager;
