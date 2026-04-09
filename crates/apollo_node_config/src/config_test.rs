@@ -115,19 +115,31 @@ fn monitoring_config(
 
 #[test]
 fn validation_only_with_gateway_enabled_fails() {
-    // gateway is running locally in the default config.
-    let config = SequencerNodeConfig { validation_only: true, ..Default::default() };
+    let config = SequencerNodeConfig {
+        validation_only: true,
+        components: ComponentConfig {
+            gateway: ReactiveComponentExecutionConfig::default(),
+            http_server: ActiveComponentExecutionConfig::default(),
+            mempool: ReactiveComponentExecutionConfig::default(),
+            mempool_p2p: ReactiveComponentExecutionConfig::default(),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
     let err = config.validate_node_config().unwrap_err();
     assert!(format!("{err:?}").contains("gateway"), "Unexpected error: {err:?}");
 }
 
 #[test]
 fn validation_only_with_http_server_enabled_fails() {
-    // Disable gateway to reach the http_server check; http_server is enabled in the default.
+    // Disable gateway to reach the http_server check.
     let config = SequencerNodeConfig {
         validation_only: true,
         components: ComponentConfig {
             gateway: ReactiveComponentExecutionConfig::disabled(),
+            http_server: ActiveComponentExecutionConfig::default(),
+            mempool: ReactiveComponentExecutionConfig::default(),
+            mempool_p2p: ReactiveComponentExecutionConfig::default(),
             ..Default::default()
         },
         gateway_config: None,
@@ -139,12 +151,14 @@ fn validation_only_with_http_server_enabled_fails() {
 
 #[test]
 fn validation_only_with_mempool_enabled_fails() {
-    // Disable gateway and http_server to reach the mempool check; mempool runs locally by default.
+    // Disable gateway and http_server to reach the mempool check.
     let config = SequencerNodeConfig {
         validation_only: true,
         components: ComponentConfig {
             gateway: ReactiveComponentExecutionConfig::disabled(),
             http_server: ActiveComponentExecutionConfig::disabled(),
+            mempool: ReactiveComponentExecutionConfig::default(),
+            mempool_p2p: ReactiveComponentExecutionConfig::default(),
             ..Default::default()
         },
         gateway_config: None,
@@ -156,6 +170,27 @@ fn validation_only_with_mempool_enabled_fails() {
 }
 
 #[test]
+fn validation_only_with_mempool_p2p_enabled_fails() {
+    // Disable gateway, http_server and mempool to reach the mempool_p2p check.
+    let config = SequencerNodeConfig {
+        validation_only: true,
+        components: ComponentConfig {
+            gateway: ReactiveComponentExecutionConfig::disabled(),
+            http_server: ActiveComponentExecutionConfig::disabled(),
+            mempool: ReactiveComponentExecutionConfig::disabled(),
+            mempool_p2p: ReactiveComponentExecutionConfig::default(),
+            ..Default::default()
+        },
+        gateway_config: None,
+        http_server_config: None,
+        mempool_config: None,
+        ..Default::default()
+    };
+    let err = config.validate_node_config().unwrap_err();
+    assert!(format!("{err:?}").contains("mempool_p2p"), "Unexpected error: {err:?}");
+}
+
+#[test]
 fn validation_only_with_tx_ingestion_disabled_succeeds() {
     let config = SequencerNodeConfig {
         validation_only: true,
@@ -163,11 +198,13 @@ fn validation_only_with_tx_ingestion_disabled_succeeds() {
             gateway: ReactiveComponentExecutionConfig::disabled(),
             http_server: ActiveComponentExecutionConfig::disabled(),
             mempool: ReactiveComponentExecutionConfig::disabled(),
+            mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
             ..Default::default()
         },
         gateway_config: None,
         http_server_config: None,
         mempool_config: None,
+        mempool_p2p_config: None,
         ..Default::default()
     };
     assert!(config.validate_node_config().is_ok());
