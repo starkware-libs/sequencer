@@ -3,8 +3,9 @@ use std::ops::Deref;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_network_types::network_types::PeerId;
 use apollo_signature_manager_types::{
-    KeyStore,
-    KeyStoreResult,
+    KeySourceConfig,
+    KeyStoreError,
+    SignatureManagerConfig,
     SignatureManagerError,
     SignatureManagerResult,
 };
@@ -19,7 +20,6 @@ use starknet_api::crypto::utils::{
 };
 use starknet_core::crypto::{ecdsa_sign, ecdsa_verify, EcdsaVerifyError};
 use starknet_core::types::Felt;
-use starknet_crypto::get_public_key;
 use thiserror::Error;
 
 use crate::blake_utils::blake2s_to_felt;
@@ -48,12 +48,22 @@ impl Deref for MessageDigest {
 /// Provides signing and signature verification functionality.
 #[derive(Clone, Debug)]
 pub struct SignatureManager {
-    pub keystore: LocalKeyStore,
+    #[allow(dead_code)]
+    config: SignatureManagerConfig,
+    private_key: PrivateKey,
 }
 
 impl SignatureManager {
-    pub fn new(keystore: LocalKeyStore) -> Self {
-        Self { keystore }
+    pub fn new(config: SignatureManagerConfig) -> Result<Self, SignatureManagerError> {
+        let private_key = match &config.key_source {
+            KeySourceConfig::Local { private_key } => *private_key,
+            KeySourceConfig::GoogleSecretManager { .. } => {
+                return Err(SignatureManagerError::KeyStore(KeyStoreError::Custom(
+                    "GSM not yet supported".into(),
+                )));
+            }
+        };
+        Ok(Self { config, private_key })
     }
 
     pub async fn sign_identification(
@@ -74,8 +84,7 @@ impl SignatureManager {
     }
 
     async fn sign(&self, message_digest: MessageDigest) -> SignatureManagerResult<RawSignature> {
-        let private_key = self.keystore.get_key().await?;
-        let signature = ecdsa_sign(&private_key, &message_digest)
+        let signature = ecdsa_sign(&self.private_key, &message_digest)
             .map_err(|e| SignatureManagerError::Sign(e.to_string()))?;
 
         Ok(signature.into())
@@ -84,39 +93,6 @@ impl SignatureManager {
 
 #[async_trait]
 impl ComponentStarter for SignatureManager {}
-
-/// A simple in-memory key store.
-#[derive(Clone, Copy, Debug)]
-pub struct LocalKeyStore {
-    pub public_key: PublicKey,
-    private_key: PrivateKey,
-}
-
-impl LocalKeyStore {
-    fn _new(private_key: PrivateKey) -> Self {
-        let public_key = PublicKey(get_public_key(&private_key));
-        Self { private_key, public_key }
-    }
-
-    pub(crate) const fn new_for_testing() -> Self {
-        // Created using `cairo-lang`.
-        const PRIVATE_KEY: PrivateKey = PrivateKey(Felt::from_hex_unchecked(
-            "0x608bf2cdb1ad4138e72d2f82b8c5db9fa182d1883868ae582ed373429b7a133",
-        ));
-        const PUBLIC_KEY: PublicKey = PublicKey(Felt::from_hex_unchecked(
-            "0x125d56b1fbba593f1dd215b7c55e384acd838cad549c4a2b9c6d32d264f4e2a",
-        ));
-
-        Self { private_key: PRIVATE_KEY, public_key: PUBLIC_KEY }
-    }
-}
-
-#[async_trait]
-impl KeyStore for LocalKeyStore {
-    async fn get_key(&self) -> KeyStoreResult<PrivateKey> {
-        Ok(self.private_key)
-    }
-}
 
 // Utils.
 // TODO(noam.s): Consider wrapping each field in fixed delimiters (e.g. parentheses or tags) to
