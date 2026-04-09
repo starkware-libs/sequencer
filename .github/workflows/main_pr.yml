@@ -54,7 +54,7 @@ jobs:
           delay: 0 # start checking immediately
           retries: 120 # 120 * 30 = 3600 seconds ( 60 minutes timeout )
           polling_interval: 0.5 # check every 30 seconds
-          fail_fast: true # If any check fails, fail the job immediately
+          fail_fast: false # Wait for all checks to complete before failing the job
           verbose: true
           show_job_summary: true
           treat_skipped_as_passed: true # If any check is skipped, treat it as passed
