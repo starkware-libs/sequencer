@@ -4,8 +4,10 @@ pub mod communication;
 pub mod metrics;
 pub mod signature_manager;
 
-pub use crate::signature_manager::{LocalKeyStore, SignatureManager};
+use apollo_signature_manager_types::SignatureManagerConfig;
 
-pub fn create_signature_manager() -> SignatureManager {
-    SignatureManager::new(LocalKeyStore::new_for_testing())
+pub use crate::signature_manager::SignatureManager;
+
+pub fn create_signature_manager(config: SignatureManagerConfig) -> SignatureManager {
+    SignatureManager::new(config).expect("Failed to create SignatureManager")
 }
