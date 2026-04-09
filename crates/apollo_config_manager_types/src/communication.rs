@@ -5,7 +5,12 @@ use apollo_class_manager_config::config::ClassManagerDynamicConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
-use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
+use apollo_infra::component_client::{
+    ClientError,
+    LocalComponentClient,
+    LocalComponentReaderClient,
+    RemoteComponentClient,
+};
 use apollo_infra::component_definitions::{
     ComponentClient,
     ComponentReaderClient,
@@ -36,6 +41,7 @@ pub type RemoteConfigManagerClient =
     RemoteComponentClient<ConfigManagerRequest, ConfigManagerResponse>;
 pub type ConfigManagerClientResult<T> = Result<T, ConfigManagerClientError>;
 pub type ConfigManagerRequestWrapper = RequestWrapper<ConfigManagerRequest, ConfigManagerResponse>;
+pub type LocalConfigManagerReaderClient = LocalComponentReaderClient<NodeDynamicConfig>;
 pub type SharedConfigManagerClient = Arc<dyn ConfigManagerClient>;
 // TODO(Arni): Rename to SharedConfigManagerClient after removing the deprecated
 // SharedConfigManagerClient.

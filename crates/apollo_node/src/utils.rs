@@ -16,7 +16,8 @@ pub async fn create_node_modules(
 
     let mut channels = create_node_channels(config);
     let clients = create_node_clients(config, &mut channels);
-    let components = create_node_components(config, &clients, prometheus_handle, cli_args).await;
+    let components =
+        create_node_components(config, &clients, &mut channels, prometheus_handle, cli_args).await;
     let servers = create_node_servers(config, &mut channels, components, &clients);
 
     (clients, servers)
