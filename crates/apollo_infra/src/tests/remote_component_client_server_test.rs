@@ -57,9 +57,9 @@ use crate::component_server::{
     RemoteServerConfig,
 };
 use crate::serde_utils::SerdeWrapper;
-use crate::tests::test_utils::client_socket_keepalive_time;
-use crate::tests::{
+use crate::tests::test_utils::{
     available_ports_factory,
+    client_socket_keepalive_time,
     dummy_remote_server_config,
     test_a_b_functionality,
     ComponentA,
@@ -72,12 +72,12 @@ use crate::tests::{
     ComponentBResponse,
     ResultA,
     ResultB,
-    ValueA,
     ValueB,
     TEST_LOCAL_CLIENT_METRICS,
     TEST_LOCAL_SERVER_METRICS,
     TEST_REMOTE_CLIENT_METRICS,
     TEST_REMOTE_SERVER_METRICS,
+    VALID_VALUE_A,
 };
 
 type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;
@@ -88,7 +88,6 @@ const ARBITRARY_DATA: &str = "arbitrary data";
 // ServerError::RequestDeserializationFailure error message.
 const DESERIALIZE_REQ_ERROR_MESSAGE: &str = "Could not deserialize client request";
 const BAD_REQUEST_ERROR_MESSAGE: &str = "Got status code: 400 Bad Request";
-const VALID_VALUE_A: ValueA = Felt::ONE;
 const MAX_CONCURRENCY: usize = 10;
 const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
     retries: 0,
