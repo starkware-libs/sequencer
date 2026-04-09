@@ -14,7 +14,7 @@ use crate::component_definitions::{
     RequestWrapper,
 };
 use crate::component_server::{ComponentServerStarter, LocalComponentServer, LocalServerConfig};
-use crate::tests::{TEST_LOCAL_CLIENT_METRICS, TEST_LOCAL_SERVER_METRICS};
+use crate::tests::test_utils::{TEST_LOCAL_CLIENT_METRICS, TEST_LOCAL_SERVER_METRICS};
 use crate::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 
 #[async_trait]

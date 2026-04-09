@@ -30,7 +30,7 @@ use crate::component_server::{
     LocalServerConfig,
     RemoteComponentServer,
 };
-use crate::tests::{
+use crate::tests::test_utils::{
     available_ports_factory,
     dummy_remote_server_config,
     TEST_LOCAL_CLIENT_METRICS,
