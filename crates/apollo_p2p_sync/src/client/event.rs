@@ -61,14 +61,16 @@ impl BlockDataStreamBuilder<(Event, TransactionHash)> for EventStreamFactory {
     ) -> BoxFuture<'a, Result<Option<Self::Output>, ParseDataError>> {
         async move {
             let txn = storage_reader.begin_ro_txn()?;
-            let header = txn
-                .get_block_header(block_number)?
-                .expect("A header with number lower than the body marker is missing");
+            let header = txn.get_block_header(block_number)?.expect(
+                "BLOCK_NUMBER_LIMIT is BodyMarker, so block_number is below the body marker, \
+                 meaning its header must exist",
+            );
             let num_events = header.n_events;
 
-            let transaction_hashes = txn
-                .get_block_transaction_hashes(block_number)?
-                .expect("Block transaction hashes missing for block below body marker");
+            let transaction_hashes = txn.get_block_transaction_hashes(block_number)?.expect(
+                "BLOCK_NUMBER_LIMIT is BodyMarker, so block_number is below the body marker, \
+                 meaning its transaction hashes must exist",
+            );
             let num_transactions = transaction_hashes.len();
 
             // Map each transaction hash to its index in the block.
@@ -87,6 +89,9 @@ impl BlockDataStreamBuilder<(Event, TransactionHash)> for EventStreamFactory {
                         type_description: Self::TYPE_DESCRIPTION,
                     }),
                 )?;
+                // A Fin at the start of the block means the peer doesn't have events for this
+                // block. A Fin in the middle means the peer transmitted partial data and is
+                // therefore a bad peer.
                 let Some((event, tx_hash)) = maybe_event?.0 else {
                     if received_events == 0 {
                         return Ok(None);
@@ -117,6 +122,7 @@ impl BlockDataStreamBuilder<(Event, TransactionHash)> for EventStreamFactory {
         storage_reader.begin_ro_txn()?.get_event_marker()
     }
 
+    // TODO(Shahak): Add transaction_events to SyncBlock and use them here instead of empty vecs.
     fn convert_sync_block_to_block_data(
         block_number: BlockNumber,
         sync_block: SyncBlock,

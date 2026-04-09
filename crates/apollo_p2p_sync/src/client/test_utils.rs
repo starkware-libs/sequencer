@@ -153,7 +153,6 @@ pub enum DataType {
     StateDiff,
     #[allow(dead_code)]
     Class,
-    #[allow(dead_code)]
     Event,
 }
 
@@ -174,6 +173,9 @@ pub enum Action {
     /// Send a class as a response to a query we got from ReceiveQuery. Will panic if didn't
     /// call ReceiveQuery with DataType::Class before.
     SendClass(DataOrFin<(ApiContractClass, ClassHash)>),
+    /// Send an event as a response to a query we got from ReceiveQuery. Will panic if didn't
+    /// call ReceiveQuery with DataType::Event before.
+    SendEvent(DataOrFin<(Event, TransactionHash)>),
     /// Perform custom validations on the storage. Returns back the storage reader it received as
     /// input
     CheckStorage(Box<dyn FnOnce(StorageReader) -> BoxFuture<'static, ()>>),
@@ -305,6 +307,11 @@ pub async fn run_test(
                         let responses_manager = class_current_query_responses_manager.as_mut()
                             .expect("Called SendClass without calling ReceiveQuery");
                         responses_manager.send_response(class_or_fin).await.unwrap();
+                    }
+                    Action::SendEvent(event_or_fin) => {
+                        let responses_manager = event_current_query_responses_manager.as_mut()
+                            .expect("Called SendEvent without calling ReceiveQuery");
+                        responses_manager.send_response(event_or_fin).await.unwrap();
                     }
                     Action::CheckStorage(check_storage_fn) => {
                         // We tried avoiding the clone here but it causes lifetime issues.

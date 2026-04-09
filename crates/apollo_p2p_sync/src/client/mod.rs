@@ -3,6 +3,8 @@ mod class;
 #[cfg(test)]
 mod class_test;
 mod event;
+#[cfg(test)]
+mod event_test;
 mod header;
 #[cfg(test)]
 mod header_test;
