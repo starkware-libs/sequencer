@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775769996984,
+  "lastUpdate": 1775851055201,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1597,6 +1597,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1518.6439006800001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "143319383+nimrod-starkware@users.noreply.github.com",
+            "name": "nimrod-starkware",
+            "username": "nimrod-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8f2baed80853d1fce700da122f2a5f2018acd0f1",
+          "message": "starknet_patricia_storage: spawn blocking tasks for rocksDB reads (#12168)",
+          "timestamp": "2026-04-10T19:41:23Z",
+          "tree_id": "e6c9704a1471661c5eaa0b9214fbec618336d668",
+          "url": "https://github.com/starkware-libs/sequencer/commit/8f2baed80853d1fce700da122f2a5f2018acd0f1"
+        },
+        "date": 1775851054872,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 907.75459433,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1358.6764189100002,
             "unit": "ms"
           }
         ]
