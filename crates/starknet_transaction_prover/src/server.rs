@@ -12,12 +12,14 @@ use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
 
 use self::config::TransportMode;
+use self::ohttp::layer::OhttpLayer;
 
 pub mod config;
 pub mod cors;
 pub mod errors;
 #[cfg(test)]
 pub mod mock_rpc;
+pub mod ohttp;
 pub mod rpc_api;
 pub mod rpc_impl;
 pub mod tls;
@@ -33,6 +35,7 @@ pub async fn start_server(
     max_connections: u32,
     max_request_body_size: u32,
     cors_layer: Option<CorsLayer>,
+    ohttp_layer: Option<OhttpLayer>,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     match transport {
         TransportMode::Http => {
@@ -43,7 +46,10 @@ pub async fn start_server(
             let server = ServerBuilder::default()
                 .set_config(server_config)
                 .set_http_middleware(
-                    ServiceBuilder::new().option_layer(cors_layer).layer(CompressionLayer::new()),
+                    ServiceBuilder::new()
+                        .option_layer(cors_layer)
+                        .layer(CompressionLayer::new())
+                        .option_layer(ohttp_layer),
                 )
                 .build(&addr)
                 .await
@@ -61,6 +67,7 @@ pub async fn start_server(
                 max_connections,
                 max_request_body_size,
                 cors_layer,
+                ohttp_layer,
             )
             .await
         }

@@ -15,6 +15,8 @@ stwo_proving = ["dep:privacy-prove"]
 [dependencies]
 anyhow.workspace = true
 apollo_infra_utils.workspace = true
+bhttp.workspace = true
+bytes.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 blockifier_reexecution.workspace = true
@@ -23,9 +25,13 @@ cairo-lang-utils.workspace = true
 cairo-vm.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
 futures.workspace = true
+hex.workspace = true
 http.workspace = true
+http-body.workspace = true
+http-body-util.workspace = true
 indexmap.workspace = true
 jsonrpsee = { workspace = true, features = ["macros", "server"] }
+ohttp = { workspace = true, features = ["client", "rust-hpke", "server"] }
 privacy-prove = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
@@ -51,6 +57,7 @@ url.workspace = true
 
 [dev-dependencies]
 apollo_starknet_os_program.workspace = true
+flate2.workspace = true
 assert_matches.workspace = true
 axum.workspace = true
 blockifier = { workspace = true, features = ["testing"] }

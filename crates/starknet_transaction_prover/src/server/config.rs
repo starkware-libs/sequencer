@@ -29,6 +29,7 @@ const DEFAULT_MAX_CONNECTIONS: u32 = 10;
 const DEFAULT_COMPILED_CLASS_CACHE_SIZE: usize = 600;
 /// 5 MiB — matches the convention used elsewhere in the sequencer.
 const DEFAULT_MAX_REQUEST_BODY_SIZE: u32 = 5 * 1024 * 1024;
+const DEFAULT_OHTTP_KEY_CACHE_MAX_AGE_SECS: u64 = 3600;
 
 /// Transport mode for the JSON-RPC server.
 #[derive(Clone, Debug)]
@@ -80,6 +81,8 @@ struct RawServiceConfig {
     tls_cert_file: Option<PathBuf>,
     tls_key_file: Option<PathBuf>,
     max_request_body_size: u32,
+    ohttp_enabled: bool,
+    ohttp_key_cache_max_age_secs: u64,
 }
 
 impl Default for RawServiceConfig {
@@ -100,6 +103,8 @@ impl Default for RawServiceConfig {
             tls_cert_file: None,
             tls_key_file: None,
             max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
+            ohttp_enabled: false,
+            ohttp_key_cache_max_age_secs: DEFAULT_OHTTP_KEY_CACHE_MAX_AGE_SECS,
         }
     }
 }
@@ -125,6 +130,12 @@ pub struct ServiceConfig {
     pub transport: TransportMode,
     /// Maximum size of an incoming JSON-RPC request body in bytes.
     pub max_request_body_size: u32,
+    /// Enable OHTTP (RFC 9458) envelope encryption. When true, the server accepts
+    /// `message/ohttp-req` requests and serves key config at `GET /ohttp-keys`.
+    /// Requires the `OHTTP_KEY` environment variable (hex-encoded 32-byte X25519 key).
+    pub ohttp_enabled: bool,
+    /// Cache-Control max-age for the `GET /ohttp-keys` response (seconds).
+    pub ohttp_key_cache_max_age_secs: u64,
 }
 
 impl ServiceConfig {
@@ -293,6 +304,20 @@ impl ServiceConfig {
             }
         }
 
+        if args.ohttp_enabled && !config.ohttp_enabled {
+            info!("CLI override: ohttp_enabled: false -> true");
+            config.ohttp_enabled = true;
+        }
+        if let Some(secs) = args.ohttp_key_cache_max_age_secs {
+            if secs != config.ohttp_key_cache_max_age_secs {
+                info!(
+                    "CLI override: ohttp_key_cache_max_age_secs: {} -> {}",
+                    config.ohttp_key_cache_max_age_secs, secs
+                );
+                config.ohttp_key_cache_max_age_secs = secs;
+            }
+        }
+
         // Validate required fields.
         if config.rpc_node_url.is_empty() {
             return Err(ConfigError::MissingRequiredField(
@@ -371,6 +396,8 @@ impl ServiceConfig {
             cors_allow_origin,
             transport,
             max_request_body_size: config.max_request_body_size,
+            ohttp_enabled: config.ohttp_enabled,
+            ohttp_key_cache_max_age_secs: config.ohttp_key_cache_max_age_secs,
         })
     }
 }
@@ -467,6 +494,14 @@ pub struct CliArgs {
     /// Maximum size of an incoming JSON-RPC request body in bytes (default: 5 MiB).
     #[arg(long, value_name = "BYTES", env = "MAX_REQUEST_BODY_SIZE")]
     pub max_request_body_size: Option<u32>,
+
+    /// Enable OHTTP (RFC 9458) envelope encryption. Requires the `OHTTP_KEY` env var.
+    #[arg(long, env = "OHTTP_ENABLED")]
+    pub ohttp_enabled: bool,
+
+    /// Cache-Control max-age (seconds) for the `GET /ohttp-keys` response (default: 3600).
+    #[arg(long, value_name = "SECS", env = "OHTTP_KEY_CACHE_MAX_AGE_SECS")]
+    pub ohttp_key_cache_max_age_secs: Option<u64>,
 
     /// Hidden escape hatch: override the embedded bouncer config (block capacity limits) with a
     /// custom JSON file. Not advertised because the embedded defaults are tuned for this prover
