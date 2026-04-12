@@ -63,7 +63,7 @@ enum ReconstructionState {
     /// Message was reconstructed but not yet delivered to the application. We keep collecting
     /// shards until the emit threshold is reached, then emit the message.
     // No need to track the unit indices after reconstruction (unit duplication already validated)
-    PostConstruction { reconstructed_message: Option<Vec<u8>>, num_held_shards: usize },
+    PostConstruction { reconstructed_message: Option<Vec<u8>>, num_held_units: usize },
 }
 
 impl ReconstructionState {
@@ -111,9 +111,9 @@ impl ReconstructionState {
             }
             // During reconstruction we broadcast our unit, so receiving it back from the
             // network should not inflate the count.
-            Self::PostConstruction { num_held_shards, .. } => {
+            Self::PostConstruction { num_held_units, .. } => {
                 if !is_my_shard {
-                    *num_held_shards += 1;
+                    *num_held_units += 1;
                 }
                 self.maybe_emit(tree_manager)
             }
@@ -122,8 +122,8 @@ impl ReconstructionState {
 
     fn maybe_emit(&mut self, tree_manager: &PropellerScheduleManager) -> AddUnitAction {
         match self {
-            Self::PostConstruction { num_held_shards, reconstructed_message } => {
-                if tree_manager.should_receive(*num_held_shards) {
+            Self::PostConstruction { num_held_units, reconstructed_message } => {
+                if tree_manager.should_receive(*num_held_units) {
                     match reconstructed_message.take() {
                         Some(msg) => AddUnitAction::Emit(msg),
                         None => AddUnitAction::NoOp,
@@ -136,8 +136,8 @@ impl ReconstructionState {
         }
     }
 
-    fn transition_to_post(&mut self, message: Vec<u8>, num_held_shards: usize) {
-        *self = Self::PostConstruction { reconstructed_message: Some(message), num_held_shards };
+    fn transition_to_post(&mut self, message: Vec<u8>, num_held_units: usize) {
+        *self = Self::PostConstruction { reconstructed_message: Some(message), num_held_units };
     }
 }
 
