@@ -418,11 +418,14 @@ impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
     {
         let rpc_state_reader = self.rpc_state_reader.clone();
         if self.config.prefetch_state {
+            // Virtual block transactions do not require fee payment.
+            let skip_fee_charge = true;
             let state_maps = simulate_and_get_initial_reads(
                 &self.rpc_state_reader,
                 block_id,
                 txs,
                 self.validate_txs,
+                skip_fee_charge,
             )
             .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e)))?;
             Ok(Box::new(SimulatedStateReader::new(state_maps, rpc_state_reader)))
