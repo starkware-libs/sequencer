@@ -708,11 +708,10 @@ pub struct BlockInfo {
 pub struct BlockSignature(pub Signature);
 
 /// Metadata for a block proposal, used in Echonet mode only.
-/// `block_number` is `None` in fee-priority mode where block numbers are not tracked.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ReplayMetadata {
     pub timestamp: UnixTimestamp,
-    pub block_number: Option<BlockNumber>,
+    pub block_number: BlockNumber,
 }
 
 /// The error type returned from the block verification functions.

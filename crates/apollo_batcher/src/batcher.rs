@@ -626,7 +626,7 @@ impl Batcher {
     }
 
     #[instrument(skip(self), err)]
-    pub async fn get_block_metadata(&self) -> BatcherResult<ReplayMetadata> {
+    pub async fn get_block_metadata(&self) -> BatcherResult<Option<ReplayMetadata>> {
         let mempool_client = self.mempool_client.as_ref().expect(
             "Mempool client must be present in non-validation-only mode. Unreachable code when \
              validation-only mode is enabled.",

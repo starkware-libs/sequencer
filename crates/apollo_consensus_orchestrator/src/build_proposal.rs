@@ -133,27 +133,26 @@ pub(crate) async fn build_proposal(
 async fn get_proposal_metadata(
     override_block_metadata: bool,
     batcher: &dyn BatcherClient,
-    clock: &dyn Clock,
-) -> ReplayMetadata {
-    if override_block_metadata {
-        match batcher.get_block_metadata().await {
-            Ok(block_metadata) => return block_metadata,
-            Err(err) => {
-                warn!("Failed to get block metadata from batcher, falling back to clock time: {err:?}");
-            }
+) -> Option<ReplayMetadata> {
+    if !override_block_metadata {
+        return None;
+    }
+    match batcher.get_block_metadata().await {
+        Ok(metadata) => metadata,
+        Err(err) => {
+            warn!("Failed to get block metadata from batcher, falling back to clock time: {err:?}");
+            None
         }
     }
-    ReplayMetadata { timestamp: clock.unix_now(), block_number: None }
 }
 
 async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResult<ProposalInit> {
     let proposal_metadata = get_proposal_metadata(
         args.override_block_metadata,
         args.deps.batcher.as_ref(),
-        args.deps.clock.as_ref(),
     )
     .await;
-    let timestamp = proposal_metadata.timestamp;
+    let timestamp = proposal_metadata.map_or_else(|| args.deps.clock.unix_now(), |m| m.timestamp);
     let (l1_prices_fri, l1_prices_wei) = get_l1_prices_in_fri_and_wei(
         args.deps.l1_gas_price_provider.clone(),
         timestamp,

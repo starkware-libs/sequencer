@@ -282,15 +282,9 @@ impl Mempool {
         matches!(self.config.static_config.behavior_mode, BehaviorMode::Echonet)
     }
 
-    pub(crate) fn resolve_block_metadata(&mut self) -> BlockMetadata {
+    pub(crate) fn resolve_block_metadata(&mut self) -> Option<BlockMetadata> {
         if !self.is_fifo() {
-            let timestamp = self.clock.unix_now();
-            debug!(
-                "Mempool resolve_block_metadata (Fee): timestamp={}. Block number is not tracked \
-                 in fee-priority mode.",
-                timestamp
-            );
-            return BlockMetadata { timestamp, block_number: None };
+            return None;
         }
 
         self.tx_queue.resolve_metadata()

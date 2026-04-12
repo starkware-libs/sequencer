@@ -10,7 +10,7 @@ use crate::mempool::TransactionReference;
 
 pub(crate) struct BlockMetadata {
     pub timestamp: UnixTimestamp,
-    pub block_number: Option<BlockNumber>,
+    pub block_number: BlockNumber,
 }
 
 // Data needed for rewinding transactions back into the queue after a block commit.
@@ -73,10 +73,9 @@ pub trait TransactionQueueTrait: Send + Sync {
     fn update_tx_block_metadata(&mut self, _tx_hash: TransactionHash, _metadata: TxBlockMetadata) {}
 
     // Returns the block metadata and may update queue-internal state.
-    // Default implementation returns timestamp=0, block_number=None for queues that don't use
-    // timestamp gating.
-    fn resolve_metadata(&mut self) -> BlockMetadata {
-        BlockMetadata { timestamp: 0, block_number: None }
+    // Returns `None` for queues that don't use block metadata (fee-priority mode).
+    fn resolve_metadata(&mut self) -> Option<BlockMetadata> {
+        None
     }
 
     // Default implementation returns empty vec.
