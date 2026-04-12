@@ -9,6 +9,7 @@ use apollo_integration_tests::integration_test_manager::{
     DEFAULT_SENDER_ACCOUNT,
 };
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
+use apollo_integration_tests::utils::NodeDescriptor;
 use strum::IntoEnumIterator;
 use tracing::info;
 
@@ -17,22 +18,16 @@ async fn main() {
     integration_test_setup("restart_service_single_node").await;
     const TIMEOUT: Duration = Duration::from_secs(30);
     const LONG_TIMEOUT: Duration = Duration::from_secs(90);
-    /// The number of consolidated local sequencers that participate in the test.
-    const N_CONSOLIDATED_SEQUENCERS: usize = 0;
-    /// The number of distributed remote sequencers that participate in the test.
-    const N_DISTRIBUTED_SEQUENCERS: usize = 0;
-    /// The number of hybrid sequencers that participate in the test.
-    const N_HYBRID_SEQUENCERS: usize = 3;
-    // The indices of the nodes that we will be shutting down.
-    // The test restarts a hybrid node's service and shuts down a non-consolidated
-    // (hybrid/distributed) node.
-    const RESTART_NODE: usize = N_HYBRID_SEQUENCERS - 1;
+    // Node layout (index → type): 0 = hybrid, 1 = hybrid, 2 = hybrid.
+    // The test restarts the last hybrid node's service.
+    const RESTART_NODE: usize = 2;
+
+    let node_descriptors =
+        vec![NodeDescriptor::hybrid(), NodeDescriptor::hybrid(), NodeDescriptor::hybrid()];
 
     // Get the sequencer configurations.
     let mut integration_test_manager = IntegrationTestManager::new(
-        N_CONSOLIDATED_SEQUENCERS,
-        N_DISTRIBUTED_SEQUENCERS,
-        N_HYBRID_SEQUENCERS,
+        node_descriptors,
         None,
         TestIdentifier::RestartServiceSingleNodeFlowIntegrationTest,
     )

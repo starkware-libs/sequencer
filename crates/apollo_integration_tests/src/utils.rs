@@ -40,6 +40,7 @@ use apollo_consensus_orchestrator_config::config::{
     ContextDynamicConfig,
     ContextStaticConfig,
 };
+use apollo_deployments::service::NodeType;
 use apollo_gateway_config::config::{
     GatewayConfig,
     GatewayStaticConfig,
@@ -124,8 +125,35 @@ use tokio::time::{sleep, timeout};
 use tracing::{debug, info, Instrument};
 use url::Url;
 
-use crate::flow_test_setup::{FlowSequencerSetup, FlowTestSetup, NUM_OF_SEQUENCERS};
+use crate::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
 use crate::state_reader::StorageTestConfig;
+
+/// Per-node configuration for setting up a sequencer in integration/flow tests.
+#[derive(Debug)]
+pub struct NodeDescriptor {
+    pub node_type: NodeType,
+    pub validation_only: bool,
+}
+
+impl NodeDescriptor {
+    pub fn consolidated() -> Self {
+        Self { node_type: NodeType::Consolidated, validation_only: false }
+    }
+
+    pub fn hybrid() -> Self {
+        Self { node_type: NodeType::Hybrid, validation_only: false }
+    }
+
+    pub fn distributed() -> Self {
+        Self { node_type: NodeType::Distributed, validation_only: false }
+    }
+
+    /// A validation-only node always runs as consolidated: it participates in consensus to
+    /// validate proposals but does not produce blocks.
+    pub fn validation_only() -> Self {
+        Self { node_type: NodeType::Consolidated, validation_only: true }
+    }
+}
 
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
@@ -234,6 +262,7 @@ pub fn create_node_config(
     block_max_capacity_gas: GasAmount,
     validator_id: ValidatorId,
     allow_bootstrap_txs: bool,
+    validation_only: bool,
 ) -> (SequencerNodeConfig, ConfigPointersMap) {
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
@@ -363,8 +392,7 @@ pub fn create_node_config(
     let state_sync_config = wrap_if_component_config_expected!(state_sync, state_sync_config);
 
     let sequencer_node_config = SequencerNodeConfig {
-        // TODO(asaf): Add a validation-only node to the integration test.
-        validation_only: false,
+        validation_only,
         base_layer_config,
         batcher_config,
         class_manager_config,
@@ -922,7 +950,11 @@ pub struct EndToEndTestScenario {
 
 pub struct EndToEndFlowArgs {
     pub test_identifier: TestIdentifier,
-    pub instance_indices: [u16; 3],
+    /// Base instance index for port allocation. The shared-resource slot uses this index, and
+    /// each node uses `instance_base + 1 + node_index`. Default is 0; set a different value
+    /// when multiple tests sharing the same `TestIdentifier` run in parallel.
+    pub instance_base: u16,
+    pub node_descriptors: Vec<NodeDescriptor>,
     pub test_scenario: EndToEndTestScenario,
     pub block_max_capacity_gas: GasAmount, // Used to max both sierra and proving gas.
     pub expecting_full_blocks: bool,
@@ -938,7 +970,8 @@ impl EndToEndFlowArgs {
     ) -> Self {
         Self {
             test_identifier,
-            instance_indices: [0, 1, 2],
+            instance_base: 0,
+            node_descriptors: vec![NodeDescriptor::consolidated(), NodeDescriptor::consolidated()],
             test_scenario,
             block_max_capacity_gas,
             expecting_full_blocks: false,
@@ -959,8 +992,12 @@ impl EndToEndFlowArgs {
         Self { allow_bootstrap_txs: true, ..self }
     }
 
-    pub fn instance_indices(self, instance_indices: [u16; 3]) -> Self {
-        Self { instance_indices, ..self }
+    pub fn instance_base(self, instance_base: u16) -> Self {
+        Self { instance_base, ..self }
+    }
+
+    pub fn node_descriptors(self, node_descriptors: Vec<NodeDescriptor>) -> Self {
+        Self { node_descriptors, ..self }
     }
 }
 
@@ -970,7 +1007,8 @@ impl EndToEndFlowArgs {
 pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     let EndToEndFlowArgs {
         test_identifier,
-        instance_indices,
+        instance_base,
+        node_descriptors,
         test_scenario,
         block_max_capacity_gas,
         expecting_full_blocks,
@@ -990,18 +1028,16 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         test_identifier.into(),
         block_max_capacity_gas,
         allow_bootstrap_txs,
-        instance_indices,
+        node_descriptors,
+        instance_base,
     )
     .await;
 
-    tokio::join!(
-        wait_for_sequencer_node(&mock_running_system.sequencer_0),
-        wait_for_sequencer_node(&mock_running_system.sequencer_1),
-    );
+    join_all(mock_running_system.sequencers.iter().map(wait_for_sequencer_node)).await;
 
-    let sequencers = [&mock_running_system.sequencer_0, &mock_running_system.sequencer_1];
+    let sequencers: Vec<&FlowSequencerSetup> = mock_running_system.sequencers.iter().collect();
     // We use only the first sequencer's gateway to test that the mempools are syncing.
-    let sequencer_to_add_txs = *sequencers.first().unwrap();
+    let sequencer_to_add_txs = sequencers[0];
     let mut expected_proposer_iter = sequencers.iter().cycle();
     // We start at height 1, so we need to skip the proposer of the initial height.
     expected_proposer_iter.next().unwrap();
@@ -1038,7 +1074,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
 
     // Each sequencer increases the same BATCHED_TRANSACTIONS metric because they are running
     // in the same process in this test.
-    total_expected_batched_txs_count += NUM_OF_SEQUENCERS * expected_batched_tx_hashes.len();
+    total_expected_batched_txs_count += sequencers.len() * expected_batched_tx_hashes.len();
     let mut current_batched_txs_count = 0;
 
     tokio::time::timeout(TEST_SCENARIO_TIMEOUT, async {

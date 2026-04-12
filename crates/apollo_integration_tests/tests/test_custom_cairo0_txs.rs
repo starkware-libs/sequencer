@@ -22,7 +22,6 @@ use starknet_api::{calldata, felt};
 
 const CUSTOM_CAIRO_0_INVOKE_TX_COUNT: usize = 9;
 
-/// The test uses 3 threads: 1 for the test's main thread and 2 for the sequencers.
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn custom_cairo0_txs() {
     end_to_end_flow(EndToEndFlowArgs::new(
