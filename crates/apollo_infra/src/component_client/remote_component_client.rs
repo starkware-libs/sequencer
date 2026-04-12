@@ -63,7 +63,7 @@ pub struct RemoteClientConfig {
     pub idle_connections: usize,
     // Determines client connection timeouts. Used plainly for HTTP/2 connections, and with a
     // `TCP_KEEPALIVE_FACTOR` for TCP connections.
-    #[validate(custom(function = "validate_tcp_exceeds_http_keepalive"))]
+    #[validate(custom(function = "validate_keepalive_timeout_ms"))]
     pub keepalive_timeout_ms: u64,
     pub attempts_per_log: usize,
     pub initial_retry_delay_ms: u64,
@@ -91,30 +91,51 @@ impl Default for RemoteClientConfig {
     }
 }
 
-/// Validates that the TCP keepalive duration (at second granularity, as the OS stores
-/// `TCP_KEEPIDLE` in whole seconds) is greater than or equal to the HTTP keepalive duration
-/// (millisecond granularity). If the configured `keepalive_timeout_ms * TCP_KEEPALIVE_FACTOR` is
-/// less than 1 second, truncation to whole seconds yields 0 s, making the TCP keepalive shorter
-/// than the HTTP keepalive.
-fn validate_tcp_exceeds_http_keepalive(keepalive_timeout_ms: u64) -> Result<(), ValidationError> {
+/// Validates that `keepalive_timeout_ms` is positive, and that the derived TCP keepalive duration
+/// (at second granularity, as the OS stores `TCP_KEEPIDLE` in whole seconds) is greater than or
+/// equal to the HTTP keepalive duration (millisecond granularity). If the configured
+/// `keepalive_timeout_ms * TCP_KEEPALIVE_FACTOR` rounds to 0 s, the kernel rejects the socket
+/// option with `EINVAL`. If it is less than `keepalive_timeout_ms`, the TCP keepalive fires before
+/// the HTTP-level timeout.
+pub(crate) fn validate_keepalive_timeout_ms(
+    keepalive_timeout_ms: u64,
+) -> Result<(), ValidationError> {
+    if keepalive_timeout_ms == 0 {
+        return Err(create_validation_error(
+            "keepalive_timeout_ms must be greater than 0".to_string(),
+            "keepalive_timeout_ms_zero",
+            "keepalive_timeout_ms must be > 0.",
+        ));
+    }
     let http_keepalive = Duration::from_millis(keepalive_timeout_ms);
     let tcp_keepalive_raw = http_keepalive.mul_f64(TCP_KEEPALIVE_FACTOR);
     // TCP_KEEPIDLE is stored in whole seconds; fractional seconds are truncated by the OS.
-    let tcp_keepalive = Duration::from_secs(tcp_keepalive_raw.as_secs());
-    if tcp_keepalive >= http_keepalive {
-        Ok(())
-    } else {
-        Err(create_validation_error(
+    let tcp_keepalive_secs = tcp_keepalive_raw.as_secs();
+    if tcp_keepalive_secs == 0 {
+        return Err(create_validation_error(
             format!(
-                "TCP keepalive ({} s) is shorter than HTTP keepalive ({keepalive_timeout_ms} ms): \
-                 increase keepalive_timeout_ms so that keepalive_timeout_ms * \
-                 {TCP_KEEPALIVE_FACTOR} rounds to at least {keepalive_timeout_ms} ms",
-                tcp_keepalive.as_secs(),
+                "TCP keepalive rounds to 0 s (keepalive_timeout_ms={keepalive_timeout_ms}, \
+                 factor={TCP_KEEPALIVE_FACTOR}): increase keepalive_timeout_ms so that \
+                 keepalive_timeout_ms * {TCP_KEEPALIVE_FACTOR} is at least 1 s",
+            ),
+            "tcp_keepalive_zero",
+            "TCP keepalive (second granularity) must be > 0 s.",
+        ));
+    }
+    let tcp_keepalive = Duration::from_secs(tcp_keepalive_secs);
+    if tcp_keepalive < http_keepalive {
+        return Err(create_validation_error(
+            format!(
+                "TCP keepalive ({tcp_keepalive_secs} s) is shorter than HTTP keepalive \
+                 ({keepalive_timeout_ms} ms): increase keepalive_timeout_ms so that \
+                 keepalive_timeout_ms * {TCP_KEEPALIVE_FACTOR} rounds to at least \
+                 {keepalive_timeout_ms} ms",
             ),
             "tcp_keepalive_shorter_than_http_keepalive",
             "TCP keepalive (second granularity) must be >= HTTP keepalive (ms granularity).",
-        ))
+        ));
     }
+    Ok(())
 }
 
 impl SerializeConfig for RemoteClientConfig {
