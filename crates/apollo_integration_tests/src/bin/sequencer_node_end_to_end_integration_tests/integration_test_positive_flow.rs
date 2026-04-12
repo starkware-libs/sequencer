@@ -1,6 +1,7 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::integration_test_manager::IntegrationTestManager;
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
+use apollo_integration_tests::utils::NodeDescriptor;
 use starknet_api::block::BlockNumber;
 use tracing::info;
 
@@ -10,18 +11,18 @@ async fn main() {
     const BLOCK_TO_WAIT_FOR: BlockNumber = BlockNumber(15);
     const N_INVOKE_TXS: usize = 50;
     const N_L1_HANDLER_TXS: usize = 2;
-    /// The number of consolidated local sequencers that participate in the test.
-    const N_CONSOLIDATED_SEQUENCERS: usize = 3;
-    /// The number of distributed remote sequencers that participate in the test.
-    const N_DISTRIBUTED_SEQUENCERS: usize = 1;
-    /// The number of hybrid sequencers that participate in the test.
-    const N_HYBRID_SEQUENCERS: usize = 1;
+
+    let node_descriptors = vec![
+        NodeDescriptor::consolidated(),
+        NodeDescriptor::consolidated(),
+        NodeDescriptor::consolidated(),
+        NodeDescriptor::distributed(),
+        NodeDescriptor::hybrid(),
+    ];
 
     // Get the sequencer configurations.
     let mut integration_test_manager = IntegrationTestManager::new(
-        N_CONSOLIDATED_SEQUENCERS,
-        N_DISTRIBUTED_SEQUENCERS,
-        N_HYBRID_SEQUENCERS,
+        node_descriptors,
         None,
         TestIdentifier::PositiveFlowIntegrationTest,
     )
