@@ -294,7 +294,10 @@ pub async fn create_node_components(
             Some(L1GasPriceProvider::new_with_oracle(l1_gas_price_provider_config.clone()))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            // TODO(tsabary): assert config is not set.
+            assert!(
+                config.l1_gas_price_provider_config.is_none(),
+                "L1 Gas Price Provider config should be set"
+            );
             None
         }
     };
@@ -320,7 +323,10 @@ pub async fn create_node_components(
             ))
         }
         ActiveComponentExecutionMode::Disabled => {
-            // TODO(tsabary): assert config is not set.
+            assert!(
+                config.l1_gas_price_scraper_config.is_none(),
+                "L1 Gas Price Scraper config should be set"
+            );
             None
         }
     };
@@ -362,7 +368,10 @@ pub async fn create_node_components(
             }
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            // TODO(tsabary): assert config is not set.
+            assert!(
+                config.l1_events_provider_config.is_none(),
+                "L1 Events Provider config should be set"
+            );
             None
         }
     };
@@ -395,7 +404,10 @@ pub async fn create_node_components(
             )
         }
         ActiveComponentExecutionMode::Disabled => {
-            // TODO(tsabary): assert config is not set.
+            assert!(
+                config.l1_events_scraper_config.is_none(),
+                "L1 Events Scraper config should be set"
+            );
             None
         }
     };
@@ -419,7 +431,7 @@ pub async fn create_node_components(
             Some(mempool)
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            // TODO(tsabary): assert config is not set.
+            assert!(config.mempool_config.is_none(), "Mempool config should be set");
             None
         }
     };
@@ -505,7 +517,7 @@ pub async fn create_node_components(
             Some(ProofManager::new(proof_manager_config.clone()))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            // TODO(tsabary): assert config is not set.
+            assert!(config.proof_manager_config.is_none(), "Proof Manager config should be set");
             None
         }
     };
@@ -520,7 +532,10 @@ pub async fn create_node_components(
             Some(create_sierra_compiler(sierra_compiler_config.clone()))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            // TODO(tsabary): assert config is not set.
+            assert!(
+                config.sierra_compiler_config.is_none(),
+                "Sierra Compiler config should be set"
+            );
             None
         }
     };
