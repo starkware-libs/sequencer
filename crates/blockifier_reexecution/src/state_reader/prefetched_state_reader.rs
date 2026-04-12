@@ -104,6 +104,7 @@ pub fn simulate_and_get_initial_reads(
     block_id: BlockId,
     txs: &[(InvokeTransaction, TransactionHash)],
     validate_txs: bool,
+    skip_fee_charge: bool,
 ) -> ReexecutionResult<StateMaps> {
     let rpc_txs: Vec<RpcTransaction> = txs
         .iter()
@@ -125,10 +126,9 @@ pub fn simulate_and_get_initial_reads(
     if !validate_txs {
         simulation_flags.push("SKIP_VALIDATE");
     }
-    // Fee charging during simulate can fail if the account lacks balance at the base
-    // block. Skip it in simulate — fee-related storage keys will be fetched via RPC
-    // fallback when needed.
-    simulation_flags.push("SKIP_FEE_CHARGE");
+    if skip_fee_charge {
+        simulation_flags.push("SKIP_FEE_CHARGE");
+    }
 
     let params = json!({
         "block_id": block_id,
@@ -215,6 +215,7 @@ impl SimulatedStateReader {
     pub fn from_rpc_state_reader(
         rpc_state_reader: RpcStateReader,
         txs: &[(Transaction, TransactionHash)],
+        skip_fee_charge: bool,
     ) -> ReexecutionResult<Self> {
         let invoke_v3_txs: Vec<_> = txs
             .iter()
@@ -235,6 +236,7 @@ impl SimulatedStateReader {
                 rpc_state_reader.block_id,
                 &invoke_v3_txs,
                 validate_txs,
+                skip_fee_charge,
             )?
         };
         Ok(Self { state_maps, rpc_state_reader })
