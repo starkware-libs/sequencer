@@ -13,7 +13,6 @@ use apollo_committer_types::communication::MockCommitterClient;
 use apollo_committer_types::test_utils::MockCommitterClientWithOffset;
 use apollo_l1_events_types::MockL1EventsProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
-use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::BlockExecutionSummary;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
@@ -259,10 +258,7 @@ impl Default for MockClients {
             .l2_gas_price
             .get();
         mempool_client.expect_update_gas_price().with(eq(expected_gas_price)).returning(|_| Ok(()));
-        mempool_client
-            .expect_commit_block()
-            .with(eq(CommitBlockArgs::default()))
-            .returning(|_| Ok(()));
+        mempool_client.expect_reset_staged().returning(|| Ok(()));
         let block_builder_factory = MockBlockBuilderFactoryTrait::new();
         let mut pre_confirmed_block_writer_factory = MockPreconfirmedBlockWriterFactoryTrait::new();
         pre_confirmed_block_writer_factory.expect_create().returning(|_, _, _| {
