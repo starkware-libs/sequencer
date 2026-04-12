@@ -81,7 +81,7 @@ use futures::FutureExt;
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHash, BlockNumber, UnixTimestamp};
+use starknet_api::block::{BlockHash, BlockNumber, ReplayMetadata};
 use starknet_api::block_hash::block_hash_calculator::{
     PartialBlockHash,
     PartialBlockHashComponents,
@@ -626,13 +626,13 @@ impl Batcher {
     }
 
     #[instrument(skip(self), err)]
-    pub async fn get_batch_timestamp(&self) -> BatcherResult<UnixTimestamp> {
+    pub async fn get_block_metadata(&self) -> BatcherResult<ReplayMetadata> {
         let mempool_client = self.mempool_client.as_ref().expect(
             "Mempool client must be present in non-validation-only mode. Unreachable code when \
              validation-only mode is enabled.",
         );
-        mempool_client.resolve_batch_timestamp().await.map_err(|err| {
-            error!("Failed to get timestamp from mempool: {err}");
+        mempool_client.resolve_block_metadata().await.map_err(|err| {
+            error!("Failed to get block metadata from mempool: {err}");
             BatcherError::InternalError
         })
     }
