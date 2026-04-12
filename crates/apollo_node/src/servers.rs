@@ -12,8 +12,7 @@ use apollo_compile_to_casm::communication::{
     RemoteSierraCompilerServer,
 };
 use apollo_compile_to_casm::metrics::SIERRA_COMPILER_INFRA_METRICS;
-use apollo_config_manager::communication::{ConfigManagerRunnerServer, LocalConfigManagerServer};
-use apollo_config_manager::metrics::CONFIG_MANAGER_INFRA_METRICS;
+use apollo_config_manager::config_manager_runner::ConfigManagerRunnerServer;
 use apollo_consensus_manager::communication::ConsensusManagerServer;
 use apollo_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use apollo_gateway::metrics::GATEWAY_INFRA_METRICS;
@@ -78,7 +77,6 @@ struct LocalServers {
     pub(crate) batcher: Option<Box<LocalBatcherServer>>,
     pub(crate) class_manager: Option<Box<LocalClassManagerServer>>,
     pub(crate) committer: Option<Box<LocalCommitterServer>>,
-    pub(crate) config_manager: Option<Box<LocalConfigManagerServer>>,
     pub(crate) gateway: Option<Box<LocalGatewayServer>>,
     pub(crate) l1_events_provider: Option<Box<LocalL1EventsProviderServer>>,
     pub(crate) l1_gas_price_provider: Option<Box<LocalL1GasPriceServer>>,
@@ -330,20 +328,6 @@ fn create_local_servers(
         &COMMITTER_INFRA_METRICS.get_local_server_metrics()
     );
 
-    let config_manager_server = create_local_server!(
-        CONCURRENT_LOCAL_SERVER,
-        &config.components.config_manager.execution_mode,
-        &mut components.config_manager,
-        &config
-            .components
-            .config_manager
-            .local_server_config
-            .as_ref()
-            .expect("Config manager local server config should be available."),
-        communication.take_config_manager_rx(),
-        &CONFIG_MANAGER_INFRA_METRICS.get_local_server_metrics(),
-    );
-
     let gateway_server = create_local_server!(
         CONCURRENT_LOCAL_SERVER,
         &config.components.gateway.execution_mode,
@@ -474,7 +458,6 @@ fn create_local_servers(
         batcher: batcher_server,
         class_manager: class_manager_server,
         committer: committer_server,
-        config_manager: config_manager_server,
         gateway: gateway_server,
         l1_events_provider: l1_events_provider_server,
         l1_gas_price_provider: l1_gas_price_provider_server,
@@ -503,7 +486,6 @@ impl LocalServers {
             server_future_and_label(self.batcher, "Local Batcher"),
             server_future_and_label(self.class_manager, "Local Class Manager"),
             server_future_and_label(self.committer, "Local Committer"),
-            server_future_and_label(self.config_manager, "Local Config Manager"),
             server_future_and_label(self.gateway, "Local Gateway"),
             server_future_and_label(self.l1_events_provider, "Local L1 Provider"),
             server_future_and_label(self.l1_gas_price_provider, "Local L1 Gas Price Provider"),
