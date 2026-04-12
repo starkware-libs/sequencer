@@ -61,7 +61,7 @@ pub trait MempoolClient: Send + Sync {
     ) -> MempoolClientResult<bool>;
     async fn update_gas_price(&self, gas_price: GasPrice) -> MempoolClientResult<()>;
     async fn get_mempool_snapshot(&self) -> MempoolClientResult<MempoolSnapshot>;
-    async fn resolve_block_metadata(&self) -> MempoolClientResult<ReplayMetadata>;
+    async fn resolve_block_metadata(&self) -> MempoolClientResult<Option<ReplayMetadata>>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -108,7 +108,7 @@ pub enum MempoolResponse {
     AccountTxInPoolOrRecentBlock(MempoolResult<bool>),
     UpdateGasPrice(MempoolResult<()>),
     GetMempoolSnapshot(MempoolResult<MempoolSnapshot>),
-    ResolveBlockMetadata(MempoolResult<ReplayMetadata>),
+    ResolveBlockMetadata(MempoolResult<Option<ReplayMetadata>>),
 }
 impl_debug_for_infra_requests_and_responses!(MempoolResponse);
 
@@ -219,7 +219,7 @@ where
         )
     }
 
-    async fn resolve_block_metadata(&self) -> MempoolClientResult<ReplayMetadata> {
+    async fn resolve_block_metadata(&self) -> MempoolClientResult<Option<ReplayMetadata>> {
         let request = MempoolRequest::ResolveBlockMetadata;
         handle_all_response_variants!(
             self,

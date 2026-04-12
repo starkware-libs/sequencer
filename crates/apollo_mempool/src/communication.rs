@@ -171,12 +171,11 @@ impl MempoolCommunicationWrapper {
         self.mempool.mempool_snapshot()
     }
 
-    fn resolve_block_metadata(&mut self) -> MempoolResult<ReplayMetadata> {
-        let block_metadata = self.mempool.resolve_block_metadata();
-        Ok(ReplayMetadata {
-            timestamp: block_metadata.timestamp,
-            block_number: block_metadata.block_number,
-        })
+    fn resolve_block_metadata(&mut self) -> MempoolResult<Option<ReplayMetadata>> {
+        Ok(self.mempool.resolve_block_metadata().map(|metadata| ReplayMetadata {
+            timestamp: metadata.timestamp,
+            block_number: metadata.block_number,
+        }))
     }
 
     // Fetches tx block metadata from recorder and updates mempool.

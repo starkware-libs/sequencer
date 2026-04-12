@@ -172,7 +172,7 @@ impl FifoTransactionQueue {
             self.current_proposal_state = Some(state);
             return BlockMetadata {
                 timestamp: state.timestamp,
-                block_number: Some(state.expected_block_number),
+                block_number: state.expected_block_number,
             };
         };
 
@@ -200,7 +200,7 @@ impl FifoTransactionQueue {
             emit_empty_block,
         };
         self.current_proposal_state = Some(state);
-        BlockMetadata { timestamp: state.timestamp, block_number: Some(state.expected_block_number) }
+        BlockMetadata { timestamp: state.timestamp, block_number: state.expected_block_number }
     }
 }
 
@@ -369,9 +369,9 @@ impl TransactionQueueTrait for FifoTransactionQueue {
         0
     }
 
-    fn resolve_metadata(&mut self) -> BlockMetadata {
+    fn resolve_metadata(&mut self) -> Option<BlockMetadata> {
         if self.queue.front().is_some() {
-            return self.sync_proposal_state_from_queue_front_tx();
+            return Some(self.sync_proposal_state_from_queue_front_tx());
         }
         // Queue is empty: reuse previous timestamp and block number if they exist.
         match self.current_proposal_state {
@@ -381,11 +381,14 @@ impl TransactionQueueTrait for FifoTransactionQueue {
                      expected_block={:?}",
                     state.timestamp, state.expected_block_number
                 );
-                BlockMetadata { timestamp: state.timestamp, block_number: Some(state.expected_block_number) }
+                Some(BlockMetadata {
+                    timestamp: state.timestamp,
+                    block_number: state.expected_block_number,
+                })
             }
             None => {
                 debug!("FIFO resolve_metadata: queue empty, no previous proposal state");
-                BlockMetadata { timestamp: 0, block_number: None }
+                None
             }
         }
     }

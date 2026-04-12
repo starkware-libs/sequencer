@@ -89,7 +89,7 @@ pub trait BatcherClient: Send + Sync {
     ) -> BatcherClientResult<SendTxsForProposalStatus>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
-    async fn get_block_metadata(&self) -> BatcherClientResult<ReplayMetadata>;
+    async fn get_block_metadata(&self) -> BatcherClientResult<Option<ReplayMetadata>>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -137,7 +137,7 @@ pub enum BatcherResponse {
     DecisionReached(BatcherResult<Box<DecisionReachedResponse>>),
     AddSyncBlock(BatcherResult<()>),
     RevertBlock(BatcherResult<()>),
-    GetBlockMetadata(BatcherResult<ReplayMetadata>),
+    GetBlockMetadata(BatcherResult<Option<ReplayMetadata>>),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherResponse);
 
@@ -322,7 +322,7 @@ where
         )
     }
 
-    async fn get_block_metadata(&self) -> BatcherClientResult<ReplayMetadata> {
+    async fn get_block_metadata(&self) -> BatcherClientResult<Option<ReplayMetadata>> {
         let request = BatcherRequest::GetBlockMetadata;
         handle_all_response_variants!(
             self,
