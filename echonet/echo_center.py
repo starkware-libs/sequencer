@@ -60,12 +60,11 @@ class _BootstrapConstants:
     """
     Values fetched once from the upstream feeder gateway at block_number.
 
-    These are then reused throughout the run (merged into every stored block, and returned
-    from /feeder_gateway/get_signature for any stored block + latest).
+    Reused throughout the run — signature_const is returned from
+    /feeder_gateway/get_signature for any stored block + latest.
     """
 
     block_number: int
-    custom_fields: JsonObject
     signature_const: JsonObject
 
 
@@ -75,20 +74,9 @@ def _fetch_bootstrap_constants(
     """
     Fetch fixed block metadata + signature from the feeder gateway using block_number.
     """
-    block = feeder_client.get_block(block_number, with_fee_market_info=True)
-
-    custom_keys = [
-        "state_root",
-        "event_commitment",
-        "receipt_commitment",
-        "state_diff_commitment",
-    ]
-    custom_fields: JsonObject = {k: block[k] for k in custom_keys}
-
     signature_const = feeder_client.get_signature(block_number)
     return _BootstrapConstants(
         block_number=int(block_number),
-        custom_fields=custom_fields,
         signature_const=signature_const,
     )
 
@@ -202,13 +190,11 @@ class BlobTransformer:
         feeder_client: FeederClient,
         shared_ctx: SharedContext,
         chain: DeterministicChain,
-        custom_fields: JsonObject,
         logger_obj: logging.Logger,
     ) -> None:
         self._feeder_client = feeder_client
         self._shared: SharedContext = shared_ctx
         self._chain = chain
-        self._custom_fields: JsonObject = dict(custom_fields)
         self._logger: logging.Logger = logger_obj
 
     @staticmethod
@@ -535,7 +521,7 @@ class BlobTransformer:
 
         Includes:
         - transactions + receipts (minimal schema expected by downstream consumers)
-        - deterministic block hash + parent hash
+        - block hash computed from real commitments and block header fields
         - fee market metadata (timestamp + gas prices)
         """
         block_number = int(blob["block_number"])
@@ -566,9 +552,8 @@ class BlobTransformer:
 
         block_document["block_hash"] = self._chain.compute_current_hash(block_number)
         block_document["parent_block_hash"] = self._resolve_parent_block_hash()
-        # Add custom fields to the block document, constant fields that are the same for all blocks.
-        block_document.update(self._custom_fields)
 
+        block_info = blob["state_diff"]["block_info"]
         tx_hashes = self.get_blob_tx_hashes(blob)
         bn_for_meta: Optional[int] = (
             self._shared.get_sent_block_number(tx_hashes[0]) if tx_hashes else None
@@ -582,9 +567,13 @@ class BlobTransformer:
             execution_infos,
         )
         block_document["status"] = source_block["status"]
-        block_document["starknet_version"] = source_block["starknet_version"]
-        block_document["sequencer_address"] = source_block["sequencer_address"]
+        block_document["starknet_version"] = block_info["starknet_version"]
+        block_document["sequencer_address"] = block_info["sequencer_address"]
         block_document["transaction_commitment"] = str(block_commitments["transaction_commitment"])
+        block_document["event_commitment"] = str(block_commitments["event_commitment"])
+        block_document["receipt_commitment"] = str(block_commitments["receipt_commitment"])
+        block_document["state_diff_commitment"] = str(block_commitments["state_diff_commitment"])
+        block_document["state_root"] = source_block["state_root"]
         block_document["l2_gas_consumed"] = blob["fee_market_info"]["l2_gas_consumed"]
         block_document["next_l2_gas_price"] = blob["fee_market_info"]["next_l2_gas_price"]
         block_document["l1_da_mode"] = (
@@ -692,7 +681,6 @@ class EchoCenterService:
             feeder_client=self.feeder_client,
             shared_ctx=self.shared,
             chain=self._chain,
-            custom_fields=self._bootstrap.custom_fields,
             logger_obj=self.logger,
         )
 
