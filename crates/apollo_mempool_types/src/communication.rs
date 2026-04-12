@@ -54,6 +54,7 @@ pub trait MempoolClient: Send + Sync {
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()>;
     async fn validate_tx(&self, args: ValidationArgs) -> MempoolClientResult<()>;
     async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()>;
+    async fn reset_staged(&self) -> MempoolClientResult<()>;
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<InternalRpcTransaction>>;
     async fn account_tx_in_pool_or_recent_block(
         &self,
@@ -74,6 +75,7 @@ pub enum MempoolRequest {
     AddTransaction(AddTransactionArgsWrapper),
     ValidateTransaction(ValidationArgs),
     CommitBlock(CommitBlockArgs),
+    ResetStaged,
     GetTransactions(usize),
     AccountTxInPoolOrRecentBlock(ContractAddress),
     // TODO(yair): Rename to `StartBlock` and add cleanup of staged txs.
@@ -86,9 +88,9 @@ impl_labeled_request!(MempoolRequest, MempoolRequestLabelValue);
 impl PrioritizedRequest for MempoolRequest {
     fn priority(&self) -> RequestPriority {
         match self {
-            MempoolRequest::CommitBlock(_) | MempoolRequest::GetTransactions(_) => {
-                RequestPriority::High
-            }
+            MempoolRequest::CommitBlock(_)
+            | MempoolRequest::ResetStaged
+            | MempoolRequest::GetTransactions(_) => RequestPriority::High,
             MempoolRequest::AddTransaction(_)
             | MempoolRequest::ValidateTransaction(_)
             | MempoolRequest::AccountTxInPoolOrRecentBlock(_)
@@ -104,6 +106,7 @@ pub enum MempoolResponse {
     AddTransaction(MempoolResult<()>),
     ValidateTransaction(MempoolResult<()>),
     CommitBlock(MempoolResult<()>),
+    ResetStaged(MempoolResult<()>),
     GetTransactions(MempoolResult<Vec<InternalRpcTransaction>>),
     AccountTxInPoolOrRecentBlock(MempoolResult<bool>),
     UpdateGasPrice(MempoolResult<()>),
@@ -158,6 +161,19 @@ where
             request,
             MempoolResponse,
             CommitBlock,
+            MempoolClientError,
+            MempoolError,
+            Direct
+        )
+    }
+
+    async fn reset_staged(&self) -> MempoolClientResult<()> {
+        let request = MempoolRequest::ResetStaged;
+        handle_all_response_variants!(
+            self,
+            request,
+            MempoolResponse,
+            ResetStaged,
             MempoolClientError,
             MempoolError,
             Direct
