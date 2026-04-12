@@ -48,7 +48,7 @@ use apollo_gateway_types::communication::{
     RemoteGatewayClient,
     SharedGatewayClient,
 };
-use apollo_infra::component_client::{Client, LocalComponentClient};
+use apollo_infra::component_client::{Client, LocalComponentClient, RpcClient};
 use apollo_l1_events::communication::{LocalL1EventsProviderClient, RemoteL1EventsProviderClient};
 use apollo_l1_events::metrics::L1_EVENTS_INFRA_METRICS;
 use apollo_l1_events_types::{
@@ -106,20 +106,20 @@ use tracing::info;
 use crate::communication::SequencerNodeCommunication;
 
 pub struct SequencerNodeClients {
-    batcher_client: Client<BatcherRequest, BatcherResponse>,
-    class_manager_client: Client<ClassManagerRequest, ClassManagerResponse>,
-    committer_client: Client<CommitterRequest, CommitterResponse>,
-    config_manager_client: Client<ConfigManagerRequest, ConfigManagerResponse>,
-    gateway_client: Client<GatewayRequest, GatewayResponse>,
-    l1_events_provider_client: Client<L1EventsProviderRequest, L1EventsProviderResponse>,
-    l1_gas_price_client: Client<L1GasPriceRequest, L1GasPriceResponse>,
-    mempool_client: Client<MempoolRequest, MempoolResponse>,
+    batcher_client: RpcClient<BatcherRequest, BatcherResponse>,
+    class_manager_client: RpcClient<ClassManagerRequest, ClassManagerResponse>,
+    committer_client: RpcClient<CommitterRequest, CommitterResponse>,
+    config_manager_client: RpcClient<ConfigManagerRequest, ConfigManagerResponse>,
+    gateway_client: RpcClient<GatewayRequest, GatewayResponse>,
+    l1_events_provider_client: RpcClient<L1EventsProviderRequest, L1EventsProviderResponse>,
+    l1_gas_price_client: RpcClient<L1GasPriceRequest, L1GasPriceResponse>,
+    mempool_client: RpcClient<MempoolRequest, MempoolResponse>,
     mempool_p2p_propagator_client:
-        Client<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>,
-    proof_manager_client: Client<ProofManagerRequest, ProofManagerResponse>,
-    sierra_compiler_client: Client<SierraCompilerRequest, SierraCompilerResponse>,
-    signature_manager_client: Client<SignatureManagerRequest, SignatureManagerResponse>,
-    state_sync_client: Client<StateSyncRequest, StateSyncResponse>,
+        RpcClient<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>,
+    proof_manager_client: RpcClient<ProofManagerRequest, ProofManagerResponse>,
+    sierra_compiler_client: RpcClient<SierraCompilerRequest, SierraCompilerResponse>,
+    signature_manager_client: RpcClient<SignatureManagerRequest, SignatureManagerResponse>,
+    state_sync_client: RpcClient<StateSyncRequest, StateSyncResponse>,
 }
 
 /// A macro to retrieve a shared client wrapped in an `Arc`. The returned client is either the local
@@ -155,6 +155,9 @@ macro_rules! get_shared_client {
     ($self:ident, $client_field:ident) => {{
         match &$self.$client_field {
             Client::Local(local_client) => Some(Arc::new(local_client.clone())),
+            Client::LocalReadOnlyClient(_) => {
+                panic!("LocalReadOnlyClient is not a shared client")
+            }
             Client::Remote(remote_client) => Some(Arc::new(remote_client.clone())),
             Client::Disabled => None,
         }
