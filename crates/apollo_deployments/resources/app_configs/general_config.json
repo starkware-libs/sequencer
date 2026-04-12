@@ -1,5 +1,7 @@
 {
+  "batcher_storage_reader_url": "",
   "behavior_mode": "starknet",
+  "bootstrap_enabled": false,
   "chain_id": "",
   "eth_fee_token_address": "",
   "native_classes_whitelist": "[]",

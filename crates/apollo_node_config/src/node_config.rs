@@ -184,6 +184,33 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                  max_cpu_time",
             ]),
         ),
+        (
+            ser_pointer_target_param(
+                "bootstrap_enabled",
+                &false,
+                "Whether bootstrap mode is enabled. When true and storage is empty, the node \
+                 will self-bootstrap by executing hardcoded declare/deploy transactions.",
+            ),
+            set_pointing_param_paths(&[
+                "batcher_config.static_config.bootstrap_config.bootstrap_enabled",
+                "gateway_config.static_config.bootstrap_enabled",
+                "http_server_config.static_config.bootstrap_enabled",
+                "mempool_config.static_config.bootstrap_enabled",
+            ]),
+        ),
+        (
+            ser_pointer_target_param(
+                "batcher_storage_reader_url",
+                &"".to_string(),
+                "URL of the batcher storage reader server for bootstrap queries. \
+                 Empty to disable.",
+            ),
+            set_pointing_param_paths(&[
+                "gateway_config.static_config.batcher_storage_reader_url",
+                "http_server_config.static_config.batcher_storage_reader_url",
+                "mempool_config.static_config.batcher_storage_reader_url",
+            ]),
+        ),
     ];
     let mut common_execution_config = generate_optional_struct_pointer::<VersionedConstantsOverrides>(
         "versioned_constants_overrides".to_owned(),
