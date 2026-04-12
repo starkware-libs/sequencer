@@ -170,6 +170,10 @@ pub enum Command {
         /// gas, ensuring a fair comparison. Requires the `cairo_native` feature.
         #[clap(long)]
         compare_native: bool,
+
+        /// Prefetch initial reads before execution with starknet_simulateTransactions.
+        #[clap(long, default_value = "true", action = clap::ArgAction::Set)]
+        prefetch_initial_reads: bool,
     },
 
     // Download all (selected) blocks from the gc bucket.

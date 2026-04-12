@@ -86,7 +86,8 @@ cargo run --release -p blockifier_reexecution [--features cairo_native] -- \
   --start-block <START_BLOCK> \
   [--end-block <END_BLOCK>] \
   --n-workers <N_WORKERS> \
-  [--compare-native]
+  [--compare-native] \
+  [--prefetch-initial-reads false]
 ```
 
 ### Cloud
@@ -110,6 +111,7 @@ Write a filled-in job manifest to `/tmp/replay-job.yaml` based on the template a
 - `END_BLOCK` value → user's end block (empty string if not provided)
 - `N_WORKERS` value → user's worker count
 - `COMPARE_NATIVE` value → `"true"` for compare-native mode, `""` otherwise
+- `PREFETCH_INITIAL_READS` value → `""` to use default (true), or `"false"` to disable
 
 Then run:
 
