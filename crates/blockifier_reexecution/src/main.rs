@@ -290,7 +290,14 @@ async fn main() {
             info!("All blocks downloaded successfully to {directory_path}.");
         }
 
-        Command::RpcReplay { rpc_args, start_block, end_block, n_workers, compare_native } => {
+        Command::RpcReplay {
+            rpc_args,
+            start_block,
+            end_block,
+            n_workers,
+            compare_native,
+            prefetch_initial_reads,
+        } => {
             let chain_id = rpc_args.parse_chain_id();
             run_rpc_replay(
                 rpc_args.node_url,
@@ -300,6 +307,7 @@ async fn main() {
                 n_workers,
                 contract_class_manager,
                 compare_native,
+                prefetch_initial_reads,
             )
             .await;
         }

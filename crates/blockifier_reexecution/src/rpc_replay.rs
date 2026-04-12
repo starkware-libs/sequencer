@@ -37,6 +37,7 @@ pub async fn run_rpc_replay(
     n_workers: usize,
     contract_class_manager: ContractClassManager,
     compare_native: bool,
+    prefetch_initial_reads: bool,
 ) {
     let rpc_state_reader_config = RpcStateReaderConfig::from_url(node_url);
     let chain_info = get_chain_info(&chain_id, None);
@@ -90,7 +91,15 @@ pub async fn run_rpc_replay(
         let counters = counters.clone();
 
         task_set.spawn_blocking(move || {
-            replay_worker(counter, end_block, &config, &chain_info, &replay_mode, &counters);
+            replay_worker(
+                counter,
+                end_block,
+                &config,
+                &chain_info,
+                &replay_mode,
+                &counters,
+                prefetch_initial_reads,
+            );
         });
     }
     task_set.join_all().await;
@@ -124,6 +133,7 @@ fn replay_worker(
     chain_info: &ChainInfo,
     replay_mode: &ReplayMode,
     counters: &ReplayCounters,
+    prefetch_initial_reads: bool,
 ) {
     loop {
         // If `end_block` is not `None`, we need to check if we've reached it.
@@ -138,9 +148,13 @@ fn replay_worker(
         // this block number (i.e., we're ahead of the chain tip), we wait and retry.
         let result = loop {
             let attempt = match replay_mode {
-                ReplayMode::Standard { contract_class_manager } => {
-                    reexecute_block(block_number, config, chain_info, contract_class_manager)
-                }
+                ReplayMode::Standard { contract_class_manager } => reexecute_block(
+                    block_number,
+                    config,
+                    chain_info,
+                    contract_class_manager,
+                    prefetch_initial_reads,
+                ),
                 #[cfg(feature = "cairo_native")]
                 ReplayMode::CompareNative { native_manager, casm_manager } => {
                     reexecute_block_native_vs_casm(
@@ -149,6 +163,7 @@ fn replay_worker(
                         chain_info,
                         native_manager,
                         casm_manager,
+                        prefetch_initial_reads,
                     )
                 }
             };
@@ -184,17 +199,19 @@ fn reexecute_block(
     config: &RpcStateReaderConfig,
     chain_info: &ChainInfo,
     contract_class_manager: &ContractClassManager,
+    prefetch_initial_reads: bool,
 ) -> ReexecutionResult<bool> {
     let prev_block = BlockNumber(block_number)
         .prev()
         .expect("Block number 0 cannot be reexecuted (no previous block).");
-    let readers = ConsecutiveRpcStateReaders::new(
+    let mut readers = ConsecutiveRpcStateReaders::new(
         prev_block,
         Some(config.clone()),
         chain_info.clone(),
         false,
         contract_class_manager.clone(),
     );
+    readers.prefetch_initial_reads = prefetch_initial_reads;
 
     let (_block_state, expected_state_diff, actual_state_diff) = readers.reexecute_block()?;
 
@@ -210,6 +227,7 @@ fn reexecute_block_native_vs_casm(
     chain_info: &ChainInfo,
     native_manager: &ContractClassManager,
     casm_manager: &ContractClassManager,
+    prefetch_initial_reads: bool,
 ) -> ReexecutionResult<bool> {
     let prev_block = BlockNumber(block_number)
         .prev()
@@ -225,6 +243,7 @@ fn reexecute_block_native_vs_casm(
         native_manager.clone(),
     );
     native_readers.min_sierra_version_override = min_sierra_version_override.clone();
+    native_readers.prefetch_initial_reads = prefetch_initial_reads;
     let (_block_state, _expected, native_state_diff) = native_readers.reexecute_block()?;
 
     let mut casm_readers = ConsecutiveRpcStateReaders::new(
@@ -235,6 +254,7 @@ fn reexecute_block_native_vs_casm(
         casm_manager.clone(),
     );
     casm_readers.min_sierra_version_override = min_sierra_version_override;
+    casm_readers.prefetch_initial_reads = prefetch_initial_reads;
     let (_block_state, _expected, casm_state_diff) = casm_readers.reexecute_block()?;
 
     Ok(compare_state_diffs(native_state_diff, casm_state_diff, BlockNumber(block_number)))
