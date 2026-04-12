@@ -9,13 +9,32 @@ use apollo_l1_events::communication::L1EventsProviderRequestWrapper;
 use apollo_l1_gas_price::communication::L1GasPriceRequestWrapper;
 use apollo_mempool_p2p_types::communication::MempoolP2pPropagatorRequestWrapper;
 use apollo_mempool_types::communication::MempoolRequestWrapper;
-use apollo_node_config::component_execution_config::ExpectedComponentConfig;
-use apollo_node_config::node_config::SequencerNodeConfig;
+use apollo_node_config::component_execution_config::{
+    ExpectedComponentConfig,
+    ReactiveComponentExecutionMode,
+};
+use apollo_node_config::node_config::{NodeDynamicConfig, SequencerNodeConfig};
 use apollo_proof_manager_types::ProofManagerRequestWrapper;
 use apollo_signature_manager_types::SignatureManagerRequestWrapper;
 use apollo_state_sync_types::communication::StateSyncRequestWrapper;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::watch;
 use tracing::info;
+
+pub struct NodeDynamicConfigChannels {
+    tx: Option<watch::Sender<NodeDynamicConfig>>,
+    rx: Option<watch::Receiver<NodeDynamicConfig>>,
+}
+
+impl NodeDynamicConfigChannels {
+    pub fn take_tx(&mut self) -> watch::Sender<NodeDynamicConfig> {
+        self.tx.take().expect("dynamic_config_tx should be available")
+    }
+
+    pub fn take_rx(&mut self) -> watch::Receiver<NodeDynamicConfig> {
+        self.rx.take().expect("dynamic_config_rx should be available")
+    }
+}
 
 pub struct SequencerNodeCommunication {
     batcher_channel: ComponentCommunication<BatcherRequestWrapper>,
@@ -139,8 +158,11 @@ impl SequencerNodeCommunication {
     }
 }
 
-pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommunication {
+pub fn create_channels(
+    config: &SequencerNodeConfig,
+) -> (SequencerNodeCommunication, NodeDynamicConfigChannels) {
     info!("Creating node channels.");
+
     let (tx_batcher, rx_batcher) =
         match config.components.batcher.execution_mode.is_running_locally() {
             true => {
@@ -366,7 +388,7 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
             false => (None, None),
         };
 
-    SequencerNodeCommunication {
+    let node_communication = SequencerNodeCommunication {
         batcher_channel: ComponentCommunication::new(tx_batcher, rx_batcher),
         class_manager_channel: ComponentCommunication::new(tx_class_manager, rx_class_manager),
         committer_channel: ComponentCommunication::new(tx_committer, rx_committer),
@@ -392,5 +414,15 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
             rx_signature_manager,
         ),
         state_sync_channel: ComponentCommunication::new(tx_state_sync, rx_state_sync),
-    }
+    };
+
+    let dynamic_config_channels = match config.components.config_manager.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
+            let (tx, rx) = watch::channel(NodeDynamicConfig::from(config));
+            NodeDynamicConfigChannels { tx: Some(tx), rx: Some(rx) }
+        }
+        _ => NodeDynamicConfigChannels { tx: None, rx: None },
+    };
+
+    (node_communication, dynamic_config_channels)
 }
