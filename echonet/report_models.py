@@ -43,6 +43,8 @@ class SnapshotModel:
     resync_causes: ResyncTriggerMap
     certain_failures: ResyncTriggerMap
     l2_gas_mismatches: list[JsonObject]
+    block_hash_mismatches: list[JsonObject]
+    transaction_commitment_mismatches: list[JsonObject]
 
     def to_dict(self) -> JsonObject:
         """
@@ -72,6 +74,8 @@ class SnapshotModel:
             "timestamp_diff_seconds": self.timestamp_diff_seconds,
             "uptime_seconds": self.uptime_seconds,
             "l2_gas_mismatches": self.l2_gas_mismatches,
+            "block_hash_mismatches": self.block_hash_mismatches,
+            "transaction_commitment_mismatches": self.transaction_commitment_mismatches,
         }
 
     @classmethod
@@ -97,4 +101,6 @@ class SnapshotModel:
             resync_causes=data["resync_causes"],
             certain_failures=data["certain_failures"],
             l2_gas_mismatches=data["l2_gas_mismatches"],
+            block_hash_mismatches=data.get("block_hash_mismatches", []),
+            transaction_commitment_mismatches=data.get("transaction_commitment_mismatches", []),
         )
