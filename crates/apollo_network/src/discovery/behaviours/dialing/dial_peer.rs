@@ -9,7 +9,15 @@ use std::time::Duration;
 use futures::Stream;
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
-use libp2p::swarm::{dummy, ConnectionHandler, ConnectionId, DialFailure, FromSwarm, ToSwarm};
+use libp2p::swarm::{
+    dummy,
+    ConnectionHandler,
+    ConnectionId,
+    DialError,
+    DialFailure,
+    FromSwarm,
+    ToSwarm,
+};
 use libp2p::{Multiaddr, PeerId};
 use tokio::time::{Instant, Sleep};
 use tokio_retry::strategy::ExponentialBackoff;
@@ -80,17 +88,21 @@ impl DialPeerStream {
             FromSwarm::ConnectionEstablished(ConnectionEstablished { peer_id, .. })
                 if peer_id == self.peer_id && !self.is_cancelled() =>
             {
-                self.state = DialState::CooldownBeforeDeletion {
-                    connection_stable_sleeper: Box::pin(tokio::time::sleep_until(
-                        Instant::now() + COOLDOWN,
-                    )),
-                };
-                self.wake();
+                self.enter_cooldown();
             }
             FromSwarm::DialFailure(DialFailure {
-                peer_id: Some(peer_id), connection_id, ..
+                peer_id: Some(peer_id),
+                connection_id,
+                error,
+                ..
             }) if peer_id == self.peer_id => {
                 if !matches!(self.state, DialState::Dialing(id) if id == connection_id) {
+                    return;
+                }
+                if matches!(error, DialError::DialPeerConditionFalse(_)) {
+                    // The peer is already connected — transition to cooldown rather than
+                    // retrying in an infinite loop.
+                    self.enter_cooldown();
                     return;
                 }
                 self.schedule_retry();
@@ -108,6 +120,15 @@ impl DialPeerStream {
             return;
         }
         self.schedule_retry();
+    }
+
+    fn enter_cooldown(&mut self) {
+        self.state = DialState::CooldownBeforeDeletion {
+            connection_stable_sleeper: Box::pin(tokio::time::sleep_until(
+                Instant::now() + COOLDOWN,
+            )),
+        };
+        self.wake();
     }
 
     fn schedule_retry(&mut self) {
@@ -131,7 +152,10 @@ impl DialPeerStream {
     fn emit_dial<T, W>(&mut self) -> ToSwarm<T, W> {
         let opts = DialOpts::peer_id(self.peer_id)
             .addresses(self.addresses.clone())
-            .condition(PeerCondition::DisconnectedAndNotDialing)
+            // Use `Disconnected` (not `DisconnectedAndNotDialing`) so that
+            // `DialPeerConditionFalse` unambiguously means the peer is already connected.
+            // This lets the DialFailure handler safely transition to CooldownBeforeDeletion.
+            .condition(PeerCondition::Disconnected)
             .build();
         self.state = DialState::Dialing(opts.connection_id());
         debug!(?self.peer_id, addresses = ?self.addresses, "Dialing peer");
