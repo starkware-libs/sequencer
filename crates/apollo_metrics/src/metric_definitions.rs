@@ -1,5 +1,8 @@
+use const_format::concatcp;
+
+pub const POD_LABEL_FILTER: &str = ", pod=~\"$pod\"";
 pub const METRIC_LABEL_FILTER: &str =
-    "{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}";
+    concatcp!("{cluster=~\"$cluster\", namespace=~\"$namespace\"", POD_LABEL_FILTER, "}");
 
 /// Macro to define all metric constants for specified scopes and store them in a collection.
 /// This generates:

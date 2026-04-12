@@ -1,4 +1,5 @@
 use apollo_infra_utils::template::Template;
+use apollo_metrics::metric_definitions::POD_LABEL_FILTER;
 use serde::{Serialize, Serializer};
 
 use crate::alerts::AlertSeverity;
@@ -157,9 +158,7 @@ impl Serialize for ExpressionOrExpressionWithPlaceholder {
         };
         // Grafana's alert evaluation does not substitute `$pod`. If we keep
         // `pod=~"$pod"` in alert PromQL, rules may evaluate to empty/no-data and stop firing.
-        // TODO(Tsabary): set the pod string as a const and use it when generating the filtering
-        // to begin with.
-        serialization.replace(", pod=~\"$pod\"", "").serialize(serializer)
+        serialization.replace(POD_LABEL_FILTER, "").serialize(serializer)
     }
 }
 
