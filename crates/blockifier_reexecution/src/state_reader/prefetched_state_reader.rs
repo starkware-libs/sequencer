@@ -8,14 +8,17 @@ use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use serde::Deserialize;
 use serde_json::json;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{InvokeTransaction, TransactionHash};
+use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
+use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_types_core::felt::Felt;
 use tracing::warn;
 
 use crate::errors::{ReexecutionError, ReexecutionResult};
+use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
 use crate::state_reader::rpc_objects::BlockId;
 use crate::state_reader::rpc_state_reader::RpcStateReader;
 
@@ -222,4 +225,41 @@ impl From<RpcInitialReads> for StateMaps {
 /// `StateMaps`.
 pub fn deserialize_rpc_initial_reads(value: serde_json::Value) -> Result<StateMaps, String> {
     serde_json::from_value::<RpcInitialReads>(value).map(Into::into).map_err(|e| e.to_string())
+}
+
+impl SimulatedStateReader {
+    /// Creates a `SimulatedStateReader` by simulating the invoke V3 transactions in `txs`
+    /// to prefetch their initial state reads. Non-V3 transactions are ignored (their state
+    /// reads will fall back to individual RPC calls).
+    pub fn from_rpc_state_reader(
+        rpc_state_reader: RpcStateReader,
+        txs: &[(Transaction, TransactionHash)],
+    ) -> ReexecutionResult<Self> {
+        let invoke_v3_txs: Vec<_> = txs
+            .iter()
+            .filter_map(|(tx, hash)| match tx {
+                Transaction::Invoke(invoke @ InvokeTransaction::V3(_)) => {
+                    Some((invoke.clone(), *hash))
+                }
+                _ => None,
+            })
+            .collect();
+        let state_maps = simulate_and_get_initial_reads(
+            &rpc_state_reader,
+            rpc_state_reader.block_id,
+            &invoke_v3_txs,
+            false,
+        )?;
+        Ok(Self { state_maps, rpc_state_reader })
+    }
+}
+
+impl ReexecutionStateReader for SimulatedStateReader {
+    fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass> {
+        self.rpc_state_reader.get_contract_class(class_hash)
+    }
+
+    fn get_old_block_hash(&self, old_block_number: BlockNumber) -> ReexecutionResult<BlockHash> {
+        self.rpc_state_reader.get_old_block_hash(old_block_number)
+    }
 }

@@ -56,6 +56,7 @@ use crate::state_reader::offline_state_reader::{
     SerializableDataPrevBlock,
     SerializableOfflineReexecutionData,
 };
+use crate::state_reader::prefetched_state_reader::SimulatedStateReader;
 use crate::state_reader::reexecution_state_reader::{
     ConsecutiveReexecutionStateReaders,
     ReexecutionStateReader,
@@ -329,32 +330,6 @@ impl RpcStateReader {
         ))
     }
 
-    pub fn get_transaction_executor(
-        self,
-        block_context_next_block: BlockContext,
-        transaction_executor_config: Option<TransactionExecutorConfig>,
-        contract_class_manager: &ContractClassManager,
-    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<RpcStateReader>>> {
-        let old_block_number = BlockNumber(
-            block_context_next_block.block_info().block_number.0
-                - constants::STORED_BLOCK_HASH_BUFFER,
-        );
-        let old_block_hash = self.get_old_block_hash(old_block_number)?;
-        // We don't collect class cache metrics for the reexecution.
-        let class_cache_metrics = None;
-        let state_reader_and_contract_manager = StateReaderAndContractManager::new(
-            self,
-            contract_class_manager.clone(),
-            class_cache_metrics,
-        );
-        Ok(TransactionExecutor::<StateReaderAndContractManager<RpcStateReader>>::pre_process_and_create(
-            state_reader_and_contract_manager,
-            block_context_next_block,
-            Some(BlockHashAndNumber { number: old_block_number, hash: old_block_hash }),
-            transaction_executor_config.unwrap_or_default(),
-        )?)
-    }
-
     /// Get the commitment state diff of the current block.
     /// Note: the commitment state diff does not include migrated_compiled_classes.
     pub fn get_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
@@ -554,6 +529,13 @@ pub struct ConsecutiveRpcStateReaders {
     /// If set, overrides `min_sierra_version_for_sierra_gas` in the block context so that all
     /// contracts with sierra version >= this value use sierra gas.
     pub min_sierra_version_override: Option<SierraVersion>,
+    /// When true, prefetch initial state reads via `starknet_simulateTransactions` before
+    /// execution. Uses `SimulatedStateReader` which serves prefetched reads from memory and
+    /// falls back to individual RPC calls on cache misses.
+    pub prefetch_initial_reads: bool,
+    /// Stored separately so `write_block_reexecution_data_to_file` can access the dumper
+    /// after the reader is boxed.
+    contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
 }
 
 impl ConsecutiveRpcStateReaders {
@@ -565,13 +547,16 @@ impl ConsecutiveRpcStateReaders {
         contract_class_manager: ContractClassManager,
     ) -> Self {
         let config = config.unwrap_or(get_rpc_state_reader_config());
+        let last_block_state_reader = RpcStateReader::new(
+            &config,
+            chain_info.clone(),
+            last_constructed_block_number,
+            dump_mode,
+        );
+        let contract_class_mapping_dumper =
+            last_block_state_reader.contract_class_mapping_dumper.clone();
         Self {
-            last_block_state_reader: RpcStateReader::new(
-                &config,
-                chain_info.clone(),
-                last_constructed_block_number,
-                dump_mode,
-            ),
+            last_block_state_reader,
             next_block_state_reader: RpcStateReader::new(
                 &config,
                 chain_info,
@@ -580,6 +565,8 @@ impl ConsecutiveRpcStateReaders {
             ),
             contract_class_manager,
             min_sierra_version_override: None,
+            prefetch_initial_reads: false,
+            contract_class_mapping_dumper,
         }
     }
 
@@ -687,6 +674,9 @@ impl ConsecutiveRpcStateReaders {
 
         let old_block_hash = self.get_old_block_hash().unwrap();
 
+        // Save the dumper Arc before `self` is consumed by `reexecute_block`.
+        let contract_class_mapping_dumper = self.contract_class_mapping_dumper.clone();
+
         // Run the reexecution and get the state maps and contract class mapping.
         let (block_state, expected_state_diff, actual_state_diff) = self.reexecute_block().unwrap();
 
@@ -696,11 +686,7 @@ impl ConsecutiveRpcStateReaders {
         let block_state = block_state.unwrap();
         let serializable_data_prev_block = SerializableDataPrevBlock {
             state_maps: block_state.get_initial_reads().unwrap(),
-            contract_class_mapping: block_state
-                .state
-                .state_reader
-                .get_contract_class_mapping_dumper()
-                .unwrap(),
+            contract_class_mapping: contract_class_mapping_dumper.lock().unwrap().clone().unwrap(),
         };
 
         // Write the reexecution data to a json file.
@@ -719,18 +705,40 @@ impl ConsecutiveRpcStateReaders {
     }
 }
 
-impl ConsecutiveReexecutionStateReaders<StateReaderAndContractManager<RpcStateReader>>
+type BoxedFetchCompiledClasses = Box<dyn FetchCompiledClasses + Send + Sync>;
+
+impl ConsecutiveReexecutionStateReaders<StateReaderAndContractManager<BoxedFetchCompiledClasses>>
     for ConsecutiveRpcStateReaders
 {
     fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
-    ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<RpcStateReader>>> {
-        self.last_block_state_reader.get_transaction_executor(
-            self.next_block_state_reader.get_block_context(self.min_sierra_version_override)?,
-            transaction_executor_config,
-            &self.contract_class_manager,
-        )
+    ) -> ReexecutionResult<
+        TransactionExecutor<StateReaderAndContractManager<BoxedFetchCompiledClasses>>,
+    > {
+        let block_context =
+            self.next_block_state_reader.get_block_context(self.min_sierra_version_override)?;
+        let old_block_number = BlockNumber(
+            block_context.block_info().block_number.0 - constants::STORED_BLOCK_HASH_BUFFER,
+        );
+        let old_block_hash = self.last_block_state_reader.get_old_block_hash(old_block_number)?;
+
+        let reader: BoxedFetchCompiledClasses = if self.prefetch_initial_reads {
+            let txs = self.next_block_state_reader.get_all_txs_in_block()?;
+            Box::new(SimulatedStateReader::from_rpc_state_reader(
+                self.last_block_state_reader,
+                &txs,
+            )?)
+        } else {
+            Box::new(self.last_block_state_reader)
+        };
+
+        Ok(TransactionExecutor::pre_process_and_create(
+            StateReaderAndContractManager::new(reader, self.contract_class_manager.clone(), None),
+            block_context,
+            Some(BlockHashAndNumber { number: old_block_number, hash: old_block_hash }),
+            transaction_executor_config.unwrap_or_default(),
+        )?)
     }
 
     fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
