@@ -151,6 +151,11 @@ impl MempoolCommunicationWrapper {
         Ok(())
     }
 
+    fn reset_staged(&mut self) -> MempoolResult<()> {
+        self.mempool.reset_staged();
+        Ok(())
+    }
+
     fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<InternalRpcTransaction>> {
         self.mempool.get_txs(n_txs)
     }
@@ -242,6 +247,7 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
             MempoolRequest::CommitBlock(args) => {
                 MempoolResponse::CommitBlock(self.commit_block(args))
             }
+            MempoolRequest::ResetStaged => MempoolResponse::ResetStaged(self.reset_staged()),
             MempoolRequest::GetTransactions(n_txs) => {
                 MempoolResponse::GetTransactions(self.get_txs(n_txs))
             }

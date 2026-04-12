@@ -3571,6 +3571,32 @@
           "extra_params": {}
         },
         {
+          "title": "reset_staged (client-side)",
+          "description": "client-side infra metrics for request type reset_staged",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"reset_staged\"}[5m])), \"label_name\", \"0.50 mempool_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"reset_staged\"}[5m])), \"label_name\", \"0.95 mempool_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"reset_staged\"}[5m])), \"label_name\", \"0.50 mempool_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"reset_staged\"}[5m])), \"label_name\", \"0.95 mempool_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"reset_staged\"}[5m])), \"label_name\", \"0.50 mempool_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"reset_staged\"}[5m])), \"label_name\", \"0.95 mempool_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "reset_staged (server-side)",
+          "description": "server-side infra metrics for request type reset_staged",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"reset_staged\"}[5m])), \"label_name\", \"0.50 mempool_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"reset_staged\"}[5m])), \"label_name\", \"0.95 mempool_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"reset_staged\"}[5m])), \"label_name\", \"0.50 mempool_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"reset_staged\"}[5m])), \"label_name\", \"0.95 mempool_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "resolve_batch_timestamp (client-side)",
           "description": "client-side infra metrics for request type resolve_batch_timestamp",
           "type": "timeseries",
