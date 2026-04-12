@@ -57,7 +57,7 @@ enum AddUnitAction {
 enum ReconstructionState {
     PreConstruction {
         received_units: Vec<PropellerUnit>,
-        did_broadcast_my_shard: bool,
+        did_broadcast_my_unit: bool,
         verified_fields: Option<VerifiedFields>,
     },
     /// Message was reconstructed but not yet delivered to the application. We keep collecting
@@ -70,14 +70,14 @@ impl ReconstructionState {
     fn new() -> Self {
         Self::PreConstruction {
             received_units: Vec::new(),
-            did_broadcast_my_shard: false,
+            did_broadcast_my_unit: false,
             verified_fields: None,
         }
     }
 
-    fn did_broadcast_my_shard(&self) -> bool {
+    fn did_broadcast_my_unit(&self) -> bool {
         match self {
-            Self::PreConstruction { did_broadcast_my_shard, .. } => *did_broadcast_my_shard,
+            Self::PreConstruction { did_broadcast_my_unit, .. } => *did_broadcast_my_unit,
             Self::PostConstruction { .. } => true,
         }
     }
@@ -92,9 +92,9 @@ impl ReconstructionState {
         let is_my_shard = unit.index() == my_shard_index;
 
         match self {
-            Self::PreConstruction { received_units, did_broadcast_my_shard, verified_fields } => {
+            Self::PreConstruction { received_units, did_broadcast_my_unit, verified_fields } => {
                 if is_my_shard {
-                    *did_broadcast_my_shard = true;
+                    *did_broadcast_my_unit = true;
                 }
                 if verified_fields.is_none() {
                     *verified_fields = Some(VerifiedFields {
@@ -243,7 +243,7 @@ impl MessageProcessor {
     /// Broadcasts our unit to peers the first time we see it. In PostConstruction this is a no-op
     /// because reconstruction already triggered the broadcast.
     fn maybe_broadcast_my_shard(&self, unit: &PropellerUnit, state: &ReconstructionState) {
-        if unit.index() == self.my_shard_index && !state.did_broadcast_my_shard() {
+        if unit.index() == self.my_shard_index && !state.did_broadcast_my_unit() {
             self.broadcast_unit(unit);
         }
     }
@@ -328,7 +328,7 @@ impl MessageProcessor {
     ) -> ControlFlow<()> {
         let ReconstructionOutput { message, my_shards, my_shard_proof } = output;
 
-        let should_broadcast = !state.did_broadcast_my_shard();
+        let should_broadcast = !state.did_broadcast_my_unit();
         if should_broadcast {
             let (signature, nonce) = match state {
                 ReconstructionState::PreConstruction { verified_fields, .. } => {
