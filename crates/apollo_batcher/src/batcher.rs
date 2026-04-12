@@ -1404,6 +1404,17 @@ pub async fn create_batcher(
     )
     .expect("Failed to open batcher's storage");
 
+    // If bootstrap is still in progress (per storage), ensure `chain_info` STRK matches the
+    // embedded bootstrap ERC20. No-op once complete, even with `bootstrap_enabled` left true.
+    let bootstrap_state = crate::bootstrap::current_bootstrap_state(
+        &config.dynamic_config.bootstrap_config,
+        &storage_reader,
+    );
+    crate::bootstrap::validate_strk_fee_token_for_active_bootstrap(
+        &config.static_config.block_builder_config.chain_info,
+        bootstrap_state,
+    );
+
     let bootstrap_config = Arc::new(config.dynamic_config.bootstrap_config.clone());
 
     let storage_reader_server = create_bootstrap_storage_reader_server(

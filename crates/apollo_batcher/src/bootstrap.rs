@@ -4,6 +4,7 @@ pub use apollo_batcher_config::config::BootstrapConfig;
 pub use apollo_batcher_types::bootstrap_types::BootstrapState;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{bootstrap_contracts, StorageReader};
+use blockifier::context::ChainInfo;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -50,23 +51,54 @@ const POST_FEE_TOKEN_SETUP_NONCE: u128 = PRE_FEE_TOKEN_SETUP_NONCE + 1;
 /// Class hash of the bootstrap account contract (not derived at runtime; update when the bundle
 /// changes).
 pub const BOOTSTRAP_ACCOUNT_CLASS_HASH: ClassHash = ClassHash(StarkHash::from_hex_unchecked(
-    "0x023f6d63bd54a867e571beb1f98b5461f7f58b7647c01b2b4fb4b00c157bc709",
+    "0x36584049d6c9c6e961ae9d87d69006f1379637b8093063b46720e499bbeb9dd",
 ));
 /// Class hash of the bootstrap ERC20 contract (not derived at runtime; update when the bundle
 /// changes).
 pub const BOOTSTRAP_ERC20_CLASS_HASH: ClassHash = ClassHash(StarkHash::from_hex_unchecked(
-    "0x0462b054af23d1f3b9da196a296ccdebfbabadee501bfb76e1c573cb93487abd",
+    "0x72c19ab0a7d7a46250611ebf7af7bfcfe1a330d60bee3e4a7784c56be043983",
 ));
 /// Deterministic address of the funded bootstrap account (deploy account: salt 0, empty calldata).
 pub const BOOTSTRAP_ACCOUNT_ADDRESS: ContractAddress =
     ContractAddress(PatriciaKey::from_hex_unchecked(
-        "0x007da0b84832f1b32dc0b99e90af24ec05d3940690a388a60cadcb610ecf4903",
+        "0x064faa09d24f6a46a5ee84ce82f10671c76a37360331198bb7eabc7eb33afda",
     ));
 /// Deterministic address of the STRK fee token (deploy from account, salt = nonce 1).
 pub const BOOTSTRAP_STRK_ADDRESS: ContractAddress =
     ContractAddress(PatriciaKey::from_hex_unchecked(
-        "0x055379e04f508603662acdde5385fa769a06bca9e73a914e6e6b4f4fea6336ec",
+        "0x00147c72fb4b344340f0ea15948cd438ad45caac3c8e8428b1e3493b13d41f00",
     ));
+
+/// When [`BootstrapState`] is not [`BootstrapState::NotInBootstrap`], ensures `chain_info` names
+/// the same STRK fee token the bootstrap deploy will create. Skips when bootstrap is finished or
+/// disabled (see `current_bootstrap_state`).
+pub(crate) fn validate_strk_fee_token_for_active_bootstrap(
+    chain_info: &ChainInfo,
+    state: BootstrapState,
+) {
+    match state {
+        BootstrapState::NotInBootstrap => {}
+        BootstrapState::DeclareContracts
+        | BootstrapState::DeployAccount
+        | BootstrapState::DeployFeeToken => {
+            let expected = bootstrap_contracts::bootstrap_strk_fee_token_contract_address();
+            let configured = chain_info.fee_token_addresses.strk_fee_token_address;
+            if configured == ContractAddress::default() {
+                panic!(
+                    "While bootstrap is in progress ({state:?}), strk_fee_token_address must be \
+                     set to the embedded bootstrap ERC20 address {expected:?} (got default/zero)."
+                );
+            }
+            if configured != expected {
+                panic!(
+                    "While bootstrap is in progress ({state:?}), strk_fee_token_address \
+                     ({configured:?}) must match the embedded bootstrap ERC20 address \
+                     ({expected:?})."
+                );
+            }
+        }
+    }
+}
 
 /// Derives the current bootstrap phase from chain storage and config.
 ///
