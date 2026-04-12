@@ -9,7 +9,15 @@ use std::time::Duration;
 use futures::Stream;
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
-use libp2p::swarm::{dummy, ConnectionHandler, ConnectionId, DialFailure, FromSwarm, ToSwarm};
+use libp2p::swarm::{
+    dummy,
+    ConnectionHandler,
+    ConnectionId,
+    DialError,
+    DialFailure,
+    FromSwarm,
+    ToSwarm,
+};
 use libp2p::{Multiaddr, PeerId};
 use tokio::time::{Instant, Sleep};
 use tokio_retry::strategy::ExponentialBackoff;
@@ -88,9 +96,23 @@ impl DialPeerStream {
                 self.wake();
             }
             FromSwarm::DialFailure(DialFailure {
-                peer_id: Some(peer_id), connection_id, ..
+                peer_id: Some(peer_id),
+                connection_id,
+                error,
+                ..
             }) if peer_id == self.peer_id => {
                 if !matches!(self.state, DialState::Dialing(id) if id == connection_id) {
+                    return;
+                }
+                // The peer is already connected or being dialed — treat as established rather
+                // than retrying in a loop against a peer we can already reach.
+                if matches!(error, DialError::DialPeerConditionFalse(_)) {
+                    self.state = DialState::CooldownBeforeDeletion {
+                        connection_stable_sleeper: Box::pin(tokio::time::sleep_until(
+                            Instant::now() + COOLDOWN,
+                        )),
+                    };
+                    self.wake();
                     return;
                 }
                 self.schedule_retry();
