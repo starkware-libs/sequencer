@@ -492,18 +492,30 @@ impl IntegrationTestManager {
     ) {
         get_node_executable_path();
         info!("Rerunning shut-down services for specified nodes: {nodes_services_to_run:?}.");
-        // TODO(Tsabary): run these in parallel.
-        nodes_services_to_run.into_iter().for_each(|(node_index, services)| {
-            let running_node = self
-                .running_nodes
-                .get_mut(&node_index)
-                .unwrap_or_else(|| panic!("Node {node_index} is not in the running map."));
 
-            // TODO(Tsabary): run these in parallel.
-            for service in services {
-                running_node.run_service(service);
-            }
-        });
+        // Spawn all services up-front. NodeSetup::run_service only needs &self, so all
+        // spawns can be issued before any handle is inserted into the map.
+        let new_handles: Vec<(usize, NodeService, AbortOnDropHandle<()>)> = nodes_services_to_run
+            .iter()
+            .flat_map(|(&node_index, services)| {
+                let node_setup = &self
+                    .running_nodes
+                    .get(&node_index)
+                    .unwrap_or_else(|| panic!("Node {node_index} is not in the running map."))
+                    .node_setup;
+                services
+                    .iter()
+                    .map(move |&service| (node_index, service, node_setup.run_service(service)))
+            })
+            .collect();
+
+        for (node_index, service, handle) in new_handles {
+            self.running_nodes
+                .get_mut(&node_index)
+                .unwrap_or_else(|| panic!("Node {node_index} is not in the running map."))
+                .executable_handles
+                .insert(service, handle);
+        }
 
         // Wait for the rerun executables to start
         self.await_alive(AWAIT_ALIVE_INTERVAL_MS, AWAIT_ALIVE_ATTEMPTS).await;
