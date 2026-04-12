@@ -152,6 +152,11 @@ class SnapshotTextReport:
                     "L2 gas mismatches",
                     f"{r.l2_gas_mismatches_count} ({_format_percent(r.l2_gas_mismatches_count, r.total_sent)})",
                 ),
+                ("Block hash mismatches", str(r.block_hash_mismatches_count)),
+                (
+                    "Transaction mismatches",
+                    str(r.transaction_commitment_mismatches_count),
+                ),
                 ("Resync triggers (first failures)", str(len(s.resync_causes))),
                 ("Certain failures (repeated triggers)", str(len(s.certain_failures))),
             ],
@@ -211,6 +216,26 @@ class SnapshotTextReport:
                     f"{meta['tx_hash']}: echo_bn={meta['echo_block']} src_bn={meta['source_block']} "
                     f"blob_total_gas_l2={meta['blob_total_gas_l2']} "
                     f"fgw_total_gas_consumed_l2={meta['fgw_total_gas_consumed_l2']}"
+                )
+
+        lines.append("")
+        lines.append("=== Block hash mismatches ===")
+        if not s.block_hash_mismatches:
+            lines.append("(none)")
+        else:
+            for entry in s.block_hash_mismatches:
+                lines.append(
+                    f"block={entry['block_number']} echonet={entry['echonet']} mainnet={entry['mainnet']}"
+                )
+
+        lines.append("")
+        lines.append("=== Transaction commitment mismatches ===")
+        if not s.transaction_commitment_mismatches:
+            lines.append("(none)")
+        else:
+            for entry in s.transaction_commitment_mismatches:
+                lines.append(
+                    f"block={entry['block_number']} echonet={entry['echonet']} mainnet={entry['mainnet']}"
                 )
 
         return "\n".join(lines).rstrip() + "\n"
@@ -515,6 +540,8 @@ class _SnapshotReportRollup:
     resync_causes_count: int
     certain_failures_count: int
     l2_gas_mismatches_count: int
+    block_hash_mismatches_count: int
+    transaction_commitment_mismatches_count: int
 
     forward_rate: str
     echonet_revert_rate_pct: float
@@ -530,6 +557,8 @@ class _SnapshotReportRollup:
     resync_causes_rows: list[dict[str, Any]]
     certain_failures_rows: list[dict[str, Any]]
     l2_gas_mismatches_rows: list[dict[str, Any]]
+    block_hash_mismatches_rows: list[dict[str, Any]]
+    transaction_commitment_mismatches_rows: list[dict[str, Any]]
 
     @classmethod
     def from_snapshot(cls, s: SnapshotModel) -> "_SnapshotReportRollup":
@@ -547,6 +576,8 @@ class _SnapshotReportRollup:
         resync_causes_count = len(s.resync_causes)
         certain_failures_count = len(s.certain_failures)
         l2_gas_mismatches_count = len(s.l2_gas_mismatches)
+        block_hash_mismatches_count = len(s.block_hash_mismatches)
+        transaction_commitment_mismatches_count = len(s.transaction_commitment_mismatches)
 
         sev = {
             "pending": (
@@ -561,6 +592,10 @@ class _SnapshotReportRollup:
             "resync_causes": ("bad" if resync_causes_count > 0 else "neutral"),
             "certain_failures": ("bad" if certain_failures_count > 0 else "neutral"),
             "l2_gas_mismatches": _severity_for_count(l2_gas_mismatches_count),
+            "block_hash_mismatches": _severity_for_count(block_hash_mismatches_count),
+            "transaction_commitment_mismatches": _severity_for_count(
+                transaction_commitment_mismatches_count
+            ),
         }
 
         pending_txs = [(tx_hash, src_bn) for tx_hash, src_bn in s.sent_tx_hashes.items()]
@@ -587,6 +622,10 @@ class _SnapshotReportRollup:
             key=lambda x: (-x["count"], x["failure_block_number"]),
         )
         l2_gas_mismatches_rows = [dict(v) for v in s.l2_gas_mismatches]
+        block_hash_mismatches_rows = [dict(v) for v in s.block_hash_mismatches]
+        transaction_commitment_mismatches_rows = [
+            dict(v) for v in s.transaction_commitment_mismatches
+        ]
         forward_rate = _format_rate(total_sent, s.uptime_seconds, unit="TPS")
         echonet_revert_rate_pct = (
             (100.0 * reverts_echonet_count / total_sent) if total_sent > 0 else 0.0
@@ -605,6 +644,8 @@ class _SnapshotReportRollup:
             resync_causes_count=resync_causes_count,
             certain_failures_count=certain_failures_count,
             l2_gas_mismatches_count=l2_gas_mismatches_count,
+            block_hash_mismatches_count=block_hash_mismatches_count,
+            transaction_commitment_mismatches_count=transaction_commitment_mismatches_count,
             forward_rate=forward_rate,
             echonet_revert_rate_pct=echonet_revert_rate_pct,
             echonet_revert_risk_0_1=echonet_revert_risk_0_1,
@@ -617,6 +658,8 @@ class _SnapshotReportRollup:
             resync_causes_rows=resync_causes_rows,
             certain_failures_rows=certain_failures_rows,
             l2_gas_mismatches_rows=l2_gas_mismatches_rows,
+            block_hash_mismatches_rows=block_hash_mismatches_rows,
+            transaction_commitment_mismatches_rows=transaction_commitment_mismatches_rows,
         )
 
 
@@ -653,6 +696,8 @@ def build_report_view_model(
             "resync_causes_count": r.resync_causes_count,
             "certain_failures_count": r.certain_failures_count,
             "l2_gas_mismatches_count": r.l2_gas_mismatches_count,
+            "block_hash_mismatches_count": r.block_hash_mismatches_count,
+            "transaction_commitment_mismatches_count": r.transaction_commitment_mismatches_count,
             "committed_pct_of_pending_total": _format_percent(r.committed, r.pending_total),
             "pending_pct_of_pending_total": _format_percent(r.pending_commission, r.pending_total),
         },
@@ -682,4 +727,6 @@ def build_report_view_model(
             "certain_failures": r.certain_failures_rows,
         },
         "l2_gas_mismatches": r.l2_gas_mismatches_rows,
+        "block_hash_mismatches": r.block_hash_mismatches_rows,
+        "transaction_commitment_mismatches": r.transaction_commitment_mismatches_rows,
     }

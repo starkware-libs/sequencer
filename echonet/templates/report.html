@@ -160,6 +160,14 @@
               data-scroll-to="l2-gas-mismatches">L2 gas
               mismatches: <span class="mono">{{ kpis.l2_gas_mismatches_count }}</span></span>
           </div>
+          <div class="pillRow">
+            <span class="pill pillLink {{ severity.block_hash_mismatches }}" role="button" tabindex="0"
+              data-scroll-to="block-hash-mismatches">Block hash mismatches:
+              <span class="mono">{{ kpis.block_hash_mismatches_count }}</span></span>
+            <span class="pill pillLink {{ severity.transaction_commitment_mismatches }}" role="button" tabindex="0"
+              data-scroll-to="tx-commitment-mismatches">Tx commitment mismatches:
+              <span class="mono">{{ kpis.transaction_commitment_mismatches_count }}</span></span>
+          </div>
           <div class="smallMuted">
             Tip: press <span class="mono">/</span> to focus filter; <span class="mono">Esc</span> clears it.
           </div>
@@ -598,6 +606,80 @@
                       title="Open source block JSON (upstream feeder)">Source&nbsp;block</a>
                   </div>
                 </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </details>
+      </section>
+
+      <section id="block-hash-mismatches">
+        <details class="card details sectionDetails" data-section-details="1" open>
+          <summary class="sectionSummary">
+            <span class="sectionSummaryLeft">Block hash mismatches <span class="countPill">{{ block_hash_mismatches |
+                length }}</span></span>
+          </summary>
+          <div class="tableMeta smallMuted" data-table-meta="block-hash-mismatches"></div>
+          {% if not block_hash_mismatches %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <table class="table filterable" data-filter-scope="diag" data-table="block-hash-mismatches">
+            <colgroup>
+              <col class="colBn" />
+              <col />
+              <col />
+            </colgroup>
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="num">Block</th>
+                <th class="sortable" data-sort="str">Echonet</th>
+                <th class="sortable" data-sort="str">Mainnet</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in block_hash_mismatches %}
+              <tr data-search="{{ row.block_number }} {{ row.echonet }} {{ row.mainnet }}">
+                <td class="mono">{{ row.block_number }}</td>
+                <td class="mono">{{ row.echonet }}</td>
+                <td class="mono">{{ row.mainnet }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </details>
+      </section>
+
+      <section id="tx-commitment-mismatches">
+        <details class="card details sectionDetails" data-section-details="1" open>
+          <summary class="sectionSummary">
+            <span class="sectionSummaryLeft">Transaction commitment mismatches <span class="countPill">{{
+                transaction_commitment_mismatches | length }}</span></span>
+          </summary>
+          <div class="tableMeta smallMuted" data-table-meta="tx-commitment-mismatches"></div>
+          {% if not transaction_commitment_mismatches %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <table class="table filterable" data-filter-scope="diag" data-table="tx-commitment-mismatches">
+            <colgroup>
+              <col class="colBn" />
+              <col />
+              <col />
+            </colgroup>
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="num">Block</th>
+                <th class="sortable" data-sort="str">Echonet</th>
+                <th class="sortable" data-sort="str">Mainnet</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in transaction_commitment_mismatches %}
+              <tr data-search="{{ row.block_number }} {{ row.echonet }} {{ row.mainnet }}">
+                <td class="mono">{{ row.block_number }}</td>
+                <td class="mono">{{ row.echonet }}</td>
+                <td class="mono">{{ row.mainnet }}</td>
               </tr>
               {% endfor %}
             </tbody>
