@@ -11,6 +11,7 @@ use tokio::task::JoinError;
 use validator::Validate;
 
 use crate::errors::DeserializationError;
+use crate::reads_collector_storage::ReadsCollectorStorage;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DbKey(pub Vec<u8>);
@@ -118,6 +119,21 @@ pub trait ImmutableReadOnlyStorage: Send + Sync {
         &self,
         keys: &[&DbKey],
     ) -> impl Future<Output = PatriciaStorageResult<Vec<Option<DbValue>>>> + Send;
+}
+
+/// Defines the output type of a [StorageTask], split out so `gather` can reference `T::Output`
+/// without requiring a lifetime parameter.
+pub trait StorageTaskOutput<S: ImmutableReadOnlyStorage>: Send {
+    type Output: Send;
+}
+
+/// A unit of work that reads from storage concurrently.
+/// Implementors hold all data needed to perform the read and produce an output.
+pub trait StorageTask<'a, S: ImmutableReadOnlyStorage + 'a>: StorageTaskOutput<S> + Send {
+    fn run_with_storage(
+        self,
+        storage: &mut ReadsCollectorStorage<'a, S>,
+    ) -> impl Future<Output = Self::Output> + Send;
 }
 
 /// A read-only view of a storage. Does not assume concurrent access is possible.
