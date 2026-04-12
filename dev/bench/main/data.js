@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775989344674,
+  "lastUpdate": 1775991734856,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1835,6 +1835,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1391.5285850799999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "143319383+nimrod-starkware@users.noreply.github.com",
+            "name": "nimrod-starkware",
+            "username": "nimrod-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9016f650148f267290b57cc1e8a3da14a40b2b66",
+          "message": "starknet_committer: create sotrage tries sequentially (#12166)",
+          "timestamp": "2026-04-12T10:38:52Z",
+          "tree_id": "815c15acb92244a86b197f2c4e5c49801a1c3c0f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/9016f650148f267290b57cc1e8a3da14a40b2b66"
+        },
+        "date": 1775991734363,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1462.58062454,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1725.1852981099998,
             "unit": "ms"
           }
         ]
