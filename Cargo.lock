@@ -1601,6 +1601,8 @@ dependencies = [
 name = "apollo_http_server"
 version = "0.18.0-rc.1"
 dependencies = [
+ "apollo_batcher",
+ "apollo_batcher_types",
  "apollo_config_manager_types",
  "apollo_gateway_types",
  "apollo_http_server_config",
