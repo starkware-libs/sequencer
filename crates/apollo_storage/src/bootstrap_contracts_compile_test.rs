@@ -44,6 +44,28 @@ fn read_expected_json(relative_to_manifest: &str) -> Value {
 fn bootstrap_erc20_cairo_matches_committed_sierra_and_casm() {
     let (sierra_bytes, casm_bytes) = compile_bootstrap_erc20();
 
+    if std::env::var("APOLLO_STORAGE_UPDATE_BOOTSTRAP_ERC20_ARTIFACTS").as_deref() == Ok("1") {
+        let sierra_path = manifest_dir()
+            .join("resources/bootstrap_contracts/cairo1/sierra/erc20_testing.sierra.json");
+        let casm_path = manifest_dir()
+            .join("resources/bootstrap_contracts/cairo1/compiled/erc20_testing.casm.json");
+        let got_sierra: Value =
+            serde_json::from_slice(&sierra_bytes).expect("compiled output is valid Sierra JSON");
+        let got_casm: Value =
+            serde_json::from_slice(&casm_bytes).expect("compiled output is valid CASM JSON");
+        std::fs::write(
+            &sierra_path,
+            serde_json::to_string_pretty(&got_sierra).expect("serialize sierra"),
+        )
+        .unwrap_or_else(|e| panic!("failed to write {}: {e}", sierra_path.display()));
+        std::fs::write(
+            &casm_path,
+            serde_json::to_string_pretty(&got_casm).expect("serialize casm"),
+        )
+        .unwrap_or_else(|e| panic!("failed to write {}: {e}", casm_path.display()));
+        return;
+    }
+
     let got_sierra: Value =
         serde_json::from_slice(&sierra_bytes).expect("compiled output is valid Sierra JSON");
     let expected_sierra =
