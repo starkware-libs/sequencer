@@ -244,6 +244,11 @@ pub fn mempool_client_result_to_gw_spec_result(
                     // mempool clients.
                     unreachable!("Unexpected mempool error in gateway context: {}", mempool_error);
                 }
+                MempoolError::BootstrapValidationFailed { .. } => {
+                    Err(GatewaySpecError::UnexpectedError {
+                        data: format!("Bootstrap validation failed: {}", mempool_error),
+                    })
+                }
             }
         }
     }
@@ -295,6 +300,11 @@ pub fn mempool_client_err_to_deprecated_gw_err(
                     // This error is not expected to happen within the gateway, only from other
                     // mempool clients.
                     unreachable!("Unexpected mempool error in gateway context: {}", mempool_error);
+                }
+                MempoolError::BootstrapValidationFailed { .. } => {
+                    StarknetErrorCode::UnknownErrorCode(
+                        "StarknetErrorCode.BOOTSTRAP_VALIDATION_FAILED".to_string(),
+                    )
                 }
             }
         }

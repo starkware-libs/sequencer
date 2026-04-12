@@ -22,6 +22,7 @@ testing = [
 workspace = true
 
 [dependencies]
+apollo_batcher.workspace = true
 apollo_config.workspace = true
 apollo_config_manager_types.workspace = true
 apollo_infra.workspace = true

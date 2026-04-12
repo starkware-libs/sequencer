@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_batcher::bootstrap_client::{BootstrapClient, BootstrapValidation};
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
@@ -29,7 +30,7 @@ use starknet_api::block::{GasPrice, UnixTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use tracing::warn;
+use tracing::{debug, info, warn};
 
 use crate::mempool::Mempool;
 use crate::metrics::register_metrics;
@@ -43,10 +44,14 @@ pub fn create_mempool(
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
     config_manager_client: SharedConfigManagerClient,
 ) -> MempoolCommunicationWrapper {
+    let bootstrap_client = BootstrapClient::new(&config.static_config.batcher_storage_reader_url);
+    let mut mempool = Mempool::new(config, Arc::new(DefaultClock));
+    mempool.bootstrap_active = bootstrap_client.is_some();
     MempoolCommunicationWrapper::new(
-        Mempool::new(config, Arc::new(DefaultClock)),
+        mempool,
         mempool_p2p_propagator_client,
         config_manager_client,
+        bootstrap_client,
     )
 }
 
@@ -56,6 +61,7 @@ pub struct MempoolCommunicationWrapper {
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
     config_manager_client: SharedConfigManagerClient,
     echonet_client: ClientWithMiddleware,
+    bootstrap_client: Option<BootstrapClient>,
 }
 
 impl MempoolCommunicationWrapper {
@@ -63,6 +69,7 @@ impl MempoolCommunicationWrapper {
         mempool: Mempool,
         mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
         config_manager_client: SharedConfigManagerClient,
+        bootstrap_client: Option<BootstrapClient>,
     ) -> Self {
         const MIN_RETRY_INTERVAL: Duration = Duration::from_millis(50);
         const MAX_RETRY_INTERVAL: Duration = Duration::from_millis(500);
@@ -82,6 +89,7 @@ impl MempoolCommunicationWrapper {
             mempool_p2p_propagator_client,
             config_manager_client,
             echonet_client: client,
+            bootstrap_client,
         }
     }
 
@@ -120,6 +128,32 @@ impl MempoolCommunicationWrapper {
         &mut self,
         args_wrapper: AddTransactionArgsWrapper,
     ) -> MempoolResult<()> {
+        // Bootstrap exit polling: only query the bootstrap server while bootstrap_active is true.
+        // Once the batcher reports NotInBootstrap, the flag flips permanently and we stop
+        // querying, so subsequent transactions skip this block entirely. During bootstrap,
+        // resource bounds validation is skipped (via should_validate_resource_bounds in Mempool).
+        if self.mempool.bootstrap_active {
+            if let Some(ref bootstrap_client) = self.bootstrap_client {
+                match bootstrap_client.validate_bootstrap_internal_tx(&args_wrapper.args.tx).await {
+                    Ok(BootstrapValidation::ValidBootstrapTx) => {
+                        debug!(
+                            "Processing bootstrap transaction in mempool, skipping resource bounds"
+                        );
+                    }
+                    Ok(BootstrapValidation::NotBootstrapping) => {
+                        info!(
+                            "Bootstrap complete, disabling bootstrap checks in mempool permanently"
+                        );
+                        self.mempool.bootstrap_active = false;
+                        self.bootstrap_client = None;
+                    }
+                    Err(e) => {
+                        return Err(MempoolError::BootstrapValidationFailed { message: e });
+                    }
+                }
+            }
+        }
+
         if self.mempool.is_fifo() {
             let tx_hash = args_wrapper.args.tx.tx_hash();
             if !self.fetch_and_update_timestamp(tx_hash).await {

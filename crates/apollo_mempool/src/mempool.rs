@@ -255,6 +255,11 @@ pub struct Mempool {
     accounts_with_gap: AccountsWithGap,
     state: MempoolState,
     clock: Arc<dyn Clock>,
+    /// Tracks whether the system is still in bootstrap mode. Starts `true` when a bootstrap client
+    /// is configured (batcher_storage_reader_url is non-empty). Flips to `false` permanently once
+    /// the batcher reports `NotInBootstrap`, and is never set back to `true`. While `true`,
+    /// resource bounds validation is skipped to allow bootstrap transactions with zero gas bounds.
+    pub(crate) bootstrap_active: bool,
 }
 
 impl Mempool {
@@ -274,6 +279,7 @@ impl Mempool {
             accounts_with_gap: AccountsWithGap::new(),
             state: MempoolState::new(config.static_config.committed_nonce_retention_block_count),
             clock,
+            bootstrap_active: false,
         }
     }
 
@@ -482,8 +488,12 @@ impl Mempool {
         Ok(())
     }
 
+    fn should_validate_resource_bounds(&self) -> bool {
+        self.config.static_config.validate_resource_bounds && !self.bootstrap_active
+    }
+
     fn insert_to_tx_queue(&mut self, tx_reference: TransactionReference) {
-        self.tx_queue.insert(tx_reference, self.config.static_config.validate_resource_bounds);
+        self.tx_queue.insert(tx_reference, self.should_validate_resource_bounds());
     }
 
     fn rewind_txs(
