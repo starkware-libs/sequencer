@@ -1087,7 +1087,7 @@ async fn proposal_startup_failure_allows_new_proposals() {
         .with(eq(expected_gas_price))
         .return_once(|_| Err(error));
     mempool_client.expect_update_gas_price().with(eq(expected_gas_price)).return_once(|_| Ok(()));
-    mempool_client.expect_commit_block().with(eq(CommitBlockArgs::default())).returning(|_| Ok(()));
+    mempool_client.expect_reset_staged().returning(|| Ok(()));
 
     let mut batcher = create_batcher(MockDependencies {
         clients: MockClients {
@@ -1306,6 +1306,14 @@ async fn add_sync_block_for_first_new_block() {
         .expect_global_root_height()
         .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
     let mut mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
+
+    mock_dependencies
+        .clients
+        .mempool_client
+        .expect_commit_block()
+        .times(1)
+        .with(eq(CommitBlockArgs::default()))
+        .returning(|_| Ok(()));
 
     // Expect setting the block hash for the last old block (i.e the parent of the first new block).
     mock_dependencies
@@ -1635,12 +1643,7 @@ async fn mempool_not_ready() {
     mock_dependencies.clients.mempool_client.expect_update_gas_price().returning(|_| {
         Err(MempoolClientError::ClientError(ClientError::CommunicationFailure("".to_string())))
     });
-    mock_dependencies
-        .clients
-        .mempool_client
-        .expect_commit_block()
-        .with(eq(CommitBlockArgs::default()))
-        .returning(|_| Ok(()));
+    mock_dependencies.clients.mempool_client.expect_reset_staged().returning(|| Ok(()));
     mock_dependencies.clients.l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
 
     let mut batcher = create_batcher(mock_dependencies).await;

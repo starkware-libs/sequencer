@@ -304,7 +304,7 @@ impl Batcher {
             "Notifying the mempool we start to work on block {}, round {}.",
             block_number, propose_block_input.proposal_round
         );
-        mempool_client.commit_block(CommitBlockArgs::default()).await.map_err(|err| {
+        mempool_client.reset_staged().await.map_err(|err| {
             error!(
                 "Mempool is not ready to start proposal {}: {}.",
                 propose_block_input.proposal_id, err
