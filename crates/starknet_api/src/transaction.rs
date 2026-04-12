@@ -172,18 +172,10 @@ impl TryFrom<(Transaction, &ChainId)> for executable_transaction::Transaction {
                     executable_transaction::InvokeTransaction { tx, tx_hash },
                 ),
             )),
-            Transaction::L1Handler(tx) => Ok(executable_transaction::Transaction::L1Handler(
-                executable_transaction::L1HandlerTransaction {
-                    tx,
-                    tx_hash,
-                    // TODO(yael): The paid fee should be an input from the l1_handler.
-                    paid_fee_on_l1: Fee(1),
-                },
-            )),
             _ => {
                 unimplemented!(
-                    "Unsupported transaction type. Only DeployAccount, Invoke and L1Handler are \
-                     currently supported. tx: {:?}",
+                    "Unsupported transaction type. Only DeployAccount and Invoke are currently \
+                     supported. tx: {:?}",
                     tx
                 )
             }
