@@ -85,6 +85,7 @@ curl -L \
             }
         });
         let port = port.unwrap_or(Self::DEFAULT_ANVIL_PORT);
+        let port = port.unwrap_or(Self::DEFAULT_ANVIL_PORT);
         let anvil_client = ProviderBuilder::new()
             .connect_anvil_with_wallet_and_config(|anvil| {
                 let anvil = anvil.port(port);
