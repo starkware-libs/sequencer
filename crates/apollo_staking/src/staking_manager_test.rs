@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use apollo_batcher_types::communication::{BatcherClientError, MockBatcherClient};
 use apollo_batcher_types::errors::BatcherError;
-use apollo_config_manager_types::communication::MockConfigManagerClient;
+use apollo_config_manager_types::communication::MockConfigManagerReaderClient;
 use apollo_staking_config::config::{
     CommitteeConfig,
     ConfiguredStaker,
@@ -295,7 +295,7 @@ async fn get_committee_applies_dynamic_config_changes(
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
     set_stakers(&mut contract, EPOCH_2, vec![STAKER_1, STAKER_2, STAKER_3]);
 
-    let mut config_manager_client = MockConfigManagerClient::new();
+    let mut config_manager_client = MockConfigManagerReaderClient::new();
     config_manager_client
         .expect_get_staking_manager_dynamic_config()
         .times(1)
