@@ -184,6 +184,16 @@ class DeterministicChain:
         return self._base.base_block_hash_hex
 
 
+def _get_fgw_block_or_upstream(
+    feeder_client: FeederClient, shared_ctx: SharedContext, block_number: int
+) -> JsonObject:
+    """Return the cached FGW block if available, otherwise fetch it from the feeder client."""
+    obj = shared_ctx.get_fgw_block(block_number)
+    if not obj:
+        obj = feeder_client.get_block(block_number, with_fee_market_info=True)
+    return dict(obj)
+
+
 class BlobTransformer:
     """Transforms blobs recieved from the sequencer into block + state_update block documents, formatted as Feeder Gateway outputs."""
 
@@ -353,11 +363,7 @@ class BlobTransformer:
         """
         if block_number is None:
             block_number = self._chain.base_block_number
-
-        obj = self._shared.get_fgw_block(block_number)
-        if obj is None:
-            obj = self._feeder_client.get_block(block_number, with_fee_market_info=True)
-        return dict(obj)
+        return _get_fgw_block_or_upstream(self._feeder_client, self._shared, block_number)
 
     @staticmethod
     def _extract_blob_block_meta(blob: JsonObject) -> JsonObject:
@@ -885,6 +891,41 @@ class EchoCenterService:
         payload = self.shared.get_sent_tx_timestamp_and_block_number(tx_hash)
         return self._json_response(payload, requests.codes.ok)
 
+    def handle_get_starknet_version(self) -> flask.Response:
+        """
+        GET /echonet/get_starknet_version
+
+        Returns the starknet_version string of the configured start block.
+        """
+        block = self.feeder_client.get_block(CONFIG.blocks.start_block)
+        return flask.Response(
+            block["starknet_version"].encode("utf-8"),
+            status=requests.codes.ok,
+            headers=[["Content-Type", "text/plain; charset=utf-8"]],
+        )
+
+    def handle_get_block_metadata(self) -> flask.Response:
+        """
+        GET /echonet/get_block_metadata?block_number=<n>
+
+        Returns metadata for the given block from the mainnet FGW.
+        """
+        logger.info(f"handle_get_block_metadata: {flask.request.args}")
+        args = flask.request.args.to_dict(flat=True)
+        block_number = int(args["block_number"])
+        block = _get_fgw_block_or_upstream(self.feeder_client, self.shared, block_number)
+        return self._json_response(
+            {
+                "timestamp": block["timestamp"],
+                "l1_gas_price_wei": block["l1_gas_price"]["price_in_wei"],
+                "l1_gas_price_fri": block["l1_gas_price"]["price_in_fri"],
+                "l1_data_gas_price_wei": block["l1_data_gas_price"]["price_in_wei"],
+                "l1_data_gas_price_fri": block["l1_data_gas_price"]["price_in_fri"],
+                "l2_gas_price_fri": block["l2_gas_price"]["price_in_fri"],
+            },
+            requests.codes.ok,
+        )
+
     def handle_block_dump(self) -> flask.Response:
         args = flask.request.args.to_dict(flat=True)
         bn = int(args["blockNumber"])
@@ -1085,6 +1126,16 @@ def report_snapshot() -> flask.Response:
 @app.route("/echonet/get_tx_block_metadata", methods=["GET"])
 def get_tx_block_metadata() -> flask.Response:
     return service.handle_get_tx_block_metadata()
+
+
+@app.route("/echonet/get_block_metadata", methods=["GET"])
+def get_block_metadata() -> flask.Response:
+    return service.handle_get_block_metadata()
+
+
+@app.route("/echonet/get_starknet_version", methods=["GET"])
+def get_starknet_version() -> flask.Response:
+    return service.handle_get_starknet_version()
 
 
 @app.route("/echonet/block_dump", methods=["GET"])
