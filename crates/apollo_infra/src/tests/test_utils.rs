@@ -21,7 +21,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::Semaphore;
 
-use crate::component_client::{ClientResult, RemoteComponentClient};
+use crate::component_client::{ClientResult, RemoteClientConfig, RemoteComponentClient};
 use crate::component_definitions::{ComponentRequestHandler, ComponentStarter, PrioritizedRequest};
 use crate::component_server::RemoteServerConfig;
 use crate::metrics::{
@@ -42,6 +42,19 @@ pub(crate) type ComponentBClient = RemoteComponentClient<ComponentBRequest, Comp
 
 pub(crate) const VALID_VALUE_A: ValueA = Felt::ONE;
 pub(crate) const MAX_CONCURRENCY: usize = 10;
+
+pub(crate) const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
+    retries: 0,
+    idle_connections: 0,
+    keepalive_timeout_ms: 0,
+    max_retry_interval_ms: 0,
+    initial_retry_delay_ms: 0,
+    attempts_per_log: 1,
+    connection_timeout_ms: 500,
+    request_timeout_ms: 1000,
+    set_tcp_nodelay: true,
+    max_response_body_bytes: usize::MAX,
+};
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(

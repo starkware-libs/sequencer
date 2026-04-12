@@ -72,6 +72,7 @@ use crate::tests::test_utils::{
     ResultA,
     ResultB,
     ValueB,
+    FAST_FAILING_CLIENT_CONFIG,
     MAX_CONCURRENCY,
     TEST_LOCAL_CLIENT_METRICS,
     TEST_LOCAL_SERVER_METRICS,
@@ -85,18 +86,6 @@ const ARBITRARY_DATA: &str = "arbitrary data";
 // ServerError::RequestDeserializationFailure error message.
 const DESERIALIZE_REQ_ERROR_MESSAGE: &str = "Could not deserialize client request";
 const BAD_REQUEST_ERROR_MESSAGE: &str = "Got status code: 400 Bad Request";
-const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
-    retries: 0,
-    idle_connections: 0,
-    keepalive_timeout_ms: 0,
-    max_retry_interval_ms: 0,
-    initial_retry_delay_ms: 0,
-    attempts_per_log: 1,
-    connection_timeout_ms: 500,
-    request_timeout_ms: 1000,
-    set_tcp_nodelay: true,
-    max_response_body_bytes: usize::MAX,
-};
 
 #[async_trait]
 impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, ComponentAResponse> {

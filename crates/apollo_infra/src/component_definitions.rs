@@ -125,6 +125,8 @@ where
 pub enum ServerError {
     #[error("Could not deserialize client request: {0}")]
     RequestDeserializationFailure(String),
+    #[error("Request body too large: {0}")]
+    RequestBodyTooLarge(String),
 }
 
 #[derive(Debug)]
