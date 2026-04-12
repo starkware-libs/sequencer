@@ -5,4 +5,5 @@ mod local_component_client_server_test;
 mod local_request_prioritization_test;
 mod remote_client_connection_eviction_test;
 mod remote_component_client_server_test;
+mod remote_server_connection_eviction_test;
 mod server_metrics_test;
