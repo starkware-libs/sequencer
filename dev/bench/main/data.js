@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775998438672,
+  "lastUpdate": 1776007037367,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1937,6 +1937,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1446.29400849,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "130282237+MohammadNassar1@users.noreply.github.com",
+            "name": "mohammad-starkware",
+            "username": "MohammadNassar1"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "80d3f45cf4d3ddd636271cf9603d0562a8d69617",
+          "message": "apollo_storage: separate events from TransactionOutput (#13462)\n\n* apollo_storage: separate events from TransactionOutput\n\nRemove events field from all TransactionOutput variant structs. Events\nnow flow through their own pipeline: callers extract events from their\nsource and pass them separately to append_events. BlockBody no longer\ncarries transaction_events — events are decoupled from the block body.\n\nChanges the central sync pipeline to propagate events alongside blocks\nthrough SyncEvent::BlockAvailable, and updates get_test_block/get_test_body\nto return (Block/BlockBody, Vec<Vec<Event>>) tuples.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>\n\n* apollo_central_sync,apollo_p2p_sync,apollo_rpc,apollo_state_sync: fix tests for separated events API\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>\n\n* apollo_rpc,apollo_storage: fix message_hash in RPC tests and add event getter tests\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>\n\n* apollo_state_sync: fix test destructuring for get_test_block tuple return\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>\n\n* apollo_starknet_client,apollo_storage,apollo_test_utils: rename to_starknet_api_block_and_events, clean up body tests\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\n\n* apollo_rpc: fetch block events in single scan for get_block_with_receipts\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-04-12T15:02:08Z",
+          "tree_id": "b3e40f4194ba0bfc78fef1747c14f1bdc54e7c03",
+          "url": "https://github.com/starkware-libs/sequencer/commit/80d3f45cf4d3ddd636271cf9603d0562a8d69617"
+        },
+        "date": 1776007037038,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 934.63007845,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1388.12887972,
             "unit": "ms"
           }
         ]
