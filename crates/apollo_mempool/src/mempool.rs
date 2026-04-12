@@ -795,7 +795,7 @@ impl Mempool {
         // values aren't expected to be large enough for this to be an issue.
         let Some(escalation_qualified_value) = existing_value
             .checked_mul(percentage)
-            .map(|v| v / 100)
+            .map(|v| (v / 100).min(1))
             .and_then(|increase| existing_value.checked_add(increase))
         else {
             // Overflow occurred during calculation; reject the transaction.
