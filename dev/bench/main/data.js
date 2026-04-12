@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775991734856,
+  "lastUpdate": 1775992638000,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1869,6 +1869,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1725.1852981099998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "guy.n@starkware.co",
+            "name": "guy-starkware",
+            "username": "guy-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "798e13bec4072dd7ab572a67268144269f38615f",
+          "message": "starknet_api: panic on unused conversion of l1_hander transaction (#13401)",
+          "timestamp": "2026-04-12T10:52:25Z",
+          "tree_id": "877ba8c67782083cdf2cd77df8bc37b6e45a4219",
+          "url": "https://github.com/starkware-libs/sequencer/commit/798e13bec4072dd7ab572a67268144269f38615f"
+        },
+        "date": 1775992637489,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 892.89790583,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1362.5506529200002,
             "unit": "ms"
           }
         ]
