@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
 use apollo_class_manager_types::MockClassManagerClient;
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
 use apollo_gateway_config::compiler_version::VersionId;
-use apollo_gateway_config::config::GatewayConfig;
+use apollo_gateway_config::config::{GatewayConfig, GatewayDynamicConfig};
 use apollo_mempool_types::communication::MockMempoolClient;
+use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_proof_manager_types::MockProofManagerClient;
 use apollo_transaction_converter::TransactionConverter;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -193,5 +195,12 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> GatewayForBenchma
         Arc::new(transaction_converter),
         stateless_tx_validator,
         proof_archive_writer,
+        {
+            let (_, rx) = tokio::sync::watch::channel(NodeDynamicConfig {
+                gateway_dynamic_config: Some(GatewayDynamicConfig::default()),
+                ..Default::default()
+            });
+            LocalConfigManagerReaderClient::new(rx)
+        },
     )
 }
