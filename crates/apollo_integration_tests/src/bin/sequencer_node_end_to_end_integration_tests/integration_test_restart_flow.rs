@@ -7,6 +7,7 @@ use apollo_integration_tests::integration_test_manager::{
     DEFAULT_SENDER_ACCOUNT,
 };
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
+use apollo_integration_tests::utils::NodeDescriptor;
 use tracing::info;
 
 #[tokio::main]
@@ -14,22 +15,20 @@ async fn main() {
     integration_test_setup("restart").await;
     const TIMEOUT: Duration = Duration::from_secs(30);
     const LONG_TIMEOUT: Duration = Duration::from_secs(90);
-    /// The number of consolidated local sequencers that participate in the test.
-    const N_CONSOLIDATED_SEQUENCERS: usize = 1;
-    /// The number of distributed remote sequencers that participate in the test.
-    const N_DISTRIBUTED_SEQUENCERS: usize = 1;
-    /// The number of hybrid sequencers that participate in the test.
-    const N_HYBRID_SEQUENCERS: usize = 1;
-    // The indices of the nodes that we will be shutting down.
+    // Node layout (index → type): 0 = consolidated, 1 = hybrid, 2 = distributed.
     // The test restarts a hybrid node and shuts down a non-consolidated (hybrid/distributed) node.
-    const RESTART_NODE: usize = N_CONSOLIDATED_SEQUENCERS;
-    const SHUTDOWN_NODE: usize = RESTART_NODE + 1;
+    const RESTART_NODE: usize = 1; // hybrid
+    const SHUTDOWN_NODE: usize = 2; // distributed
+
+    let node_descriptors = vec![
+        NodeDescriptor::consolidated(),
+        NodeDescriptor::hybrid(),
+        NodeDescriptor::distributed(),
+    ];
 
     // Get the sequencer configurations.
     let mut integration_test_manager = IntegrationTestManager::new(
-        N_CONSOLIDATED_SEQUENCERS,
-        N_DISTRIBUTED_SEQUENCERS,
-        N_HYBRID_SEQUENCERS,
+        node_descriptors,
         None,
         TestIdentifier::RestartFlowIntegrationTest,
     )
@@ -42,10 +41,7 @@ async fn main() {
 
     let mut node_indices = integration_test_manager.get_node_indices();
 
-    info!(
-        "Running all nodes: {N_CONSOLIDATED_SEQUENCERS} consolidated and \
-         {N_DISTRIBUTED_SEQUENCERS} distributed sequencers"
-    );
+    info!("Running all nodes.");
     integration_test_manager.run_nodes(node_indices.clone()).await;
 
     integration_test_manager.send_deploy_and_invoke_txs_and_verify().await;

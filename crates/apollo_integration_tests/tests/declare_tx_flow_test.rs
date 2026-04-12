@@ -10,18 +10,13 @@ use blockifier::bouncer::BouncerWeights;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use starknet_api::rpc_transaction::RpcTransaction;
 
-// Uses end_to_end_flow with test identifier EndToEndFlowTest and instance indices [0, 1, 2].
-/// Number of threads is 3 = Num of sequencer + 1 for the test thread.
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn declare_tx_flow() {
-    end_to_end_flow(
-        EndToEndFlowArgs::new(
-            TestIdentifier::EndToEndFlowTest,
-            create_test_scenarios(),
-            BouncerWeights::default().proving_gas,
-        )
-        .instance_indices([0, 1, 2]),
-    )
+    end_to_end_flow(EndToEndFlowArgs::new(
+        TestIdentifier::EndToEndFlowTest,
+        create_test_scenarios(),
+        BouncerWeights::default().proving_gas,
+    ))
     .await
 }
 
