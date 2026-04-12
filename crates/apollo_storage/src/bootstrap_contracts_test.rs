@@ -14,11 +14,11 @@ use crate::bootstrap_contracts::{
     BOOTSTRAP_ERC20_COMPILED_CLASS_HASH,
 };
 
-/// Loads embedded Sierra/CASM via the public API (parse + conversion + CASM hash) and asserts
+/// Loads hardcoded Sierra/CASM via the public API (parse + conversion + CASM hash) and asserts
 /// stable hashes. Regenerating committed JSON or changing hash rules requires updating these
 /// constants deliberately.
 #[test]
-fn bootstrap_embedded_artifacts_load_and_match_expected_hashes() {
+fn bootstrap_hardcoded_artifacts_load_and_match_expected_hashes() {
     let account_sierra = bootstrap_account_sierra();
     let erc20_sierra = bootstrap_erc20_sierra();
     assert!(!account_sierra.sierra_program.is_empty());

@@ -25,9 +25,8 @@ use crate::core::{
 };
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use crate::hash::{PoseidonHash, StarkHash};
+use crate::py_json_format::py_json_dumps;
 use crate::rpc_transaction::EntryPointByType;
-#[cfg(any(test, feature = "testing"))]
-use crate::test_utils::py_json_dumps;
 use crate::{impl_from_through_intermediate, StarknetApiError, StarknetApiResult};
 
 pub type DeclaredClasses = IndexMap<ClassHash, SierraContractClass>;
@@ -312,7 +311,6 @@ impl ContractClassComponentHashes {
     }
 }
 
-#[cfg(any(test, feature = "testing"))]
 impl From<cairo_lang_starknet_classes::contract_class::ContractClass> for SierraContractClass {
     fn from(
         cairo_lang_contract_class: cairo_lang_starknet_classes::contract_class::ContractClass,
