@@ -146,15 +146,6 @@ class DeterministicChain:
         current_int = base + offset + 1
         return format_hex(current_int), format_hex(previous_int)
 
-    def compute_current_hash(self, block_number: int) -> str:
-        """Return current block hash for `block_number`."""
-        self.refresh_base()
-        assert self._base is not None
-        current_hash, _previous_hash = self._compute_current_and_previous(
-            block_number, self._base.base_block_hash_hex
-        )
-        return current_hash
-
     def compute_current_and_previous_root(self, block_number: int) -> Tuple[str, str]:
         """Return (new_root, old_root) for `block_number`."""
         self.refresh_base()
@@ -385,9 +376,16 @@ class BlobTransformer:
                 "--output-path",
                 str(output_path),
             ]
-            subprocess.run(
-                command, cwd=repo_root, capture_output=True, text=True, check=True, timeout=30
-            )
+            try:
+                subprocess.run(
+                    command, cwd=repo_root, capture_output=True, text=True, check=True, timeout=30
+                )
+            except subprocess.CalledProcessError as exc:
+                self._logger.error(
+                    f"block-hash CLI ({subcommand}) failed (exit {exc.returncode}):\n"
+                    f"stdout: {exc.stdout}\nstderr: {exc.stderr}"
+                )
+                raise
             return json.loads(output_path.read_text(encoding="utf-8"))
 
     @staticmethod
@@ -515,6 +513,38 @@ class BlobTransformer:
             transformed_txs.append(tx_obj)
         return transformed_txs
 
+    def _compute_block_hash(
+        self,
+        blob: JsonObject,
+        block_number: int,
+        parent_block_hash: str,
+        state_root: str,
+        block_commitments: JsonObject,
+    ) -> str:
+        block_info = blob["state_diff"]["block_info"]
+        fee_market_info = blob["fee_market_info"]
+        result = self._run_block_hash_cli(
+            "block-hash",
+            {
+                "header": {
+                    "parent_hash": parent_block_hash,
+                    "block_number": block_number,
+                    "l1_gas_price": block_info["l1_gas_price"],
+                    "l1_data_gas_price": block_info["l1_data_gas_price"],
+                    "l2_gas_price": block_info["l2_gas_price"],
+                    "l2_gas_consumed": fee_market_info["l2_gas_consumed"],
+                    "next_l2_gas_price": fee_market_info["next_l2_gas_price"],
+                    "state_root": state_root,
+                    "sequencer": block_info["sequencer_address"],
+                    "timestamp": int(block_info["block_timestamp"]),
+                    "l1_da_mode": "BLOB" if block_info.get("use_kzg_da") else "CALLDATA",
+                    "starknet_version": block_info["starknet_version"],
+                },
+                "block_commitments": block_commitments,
+            },
+        )
+        return str(result)
+
     def transform_block(self, blob: JsonObject) -> JsonObject:
         """
         Build the stored "block" document from an incoming blob.
@@ -550,7 +580,6 @@ class BlobTransformer:
             "transaction_receipts": receipts,
         }
 
-        block_document["block_hash"] = self._chain.compute_current_hash(block_number)
         block_document["parent_block_hash"] = self._resolve_parent_block_hash()
 
         block_info = blob["state_diff"]["block_info"]
@@ -582,9 +611,20 @@ class BlobTransformer:
         block_document["state_diff_length"] = self._compute_state_diff_length(blob)
         block_document.update(self._extract_blob_block_meta(blob))
 
+        block_hash = self._compute_block_hash(
+            blob=blob,
+            block_number=block_number,
+            parent_block_hash=block_document["parent_block_hash"],
+            state_root=block_document["state_root"],
+            block_commitments=block_commitments,
+        )
+        block_document["block_hash"] = block_hash
+
         return block_document
 
-    def transform_state_update(self, blob: JsonObject, block_number: int) -> JsonObject:
+    def transform_state_update(
+        self, blob: JsonObject, block_number: int, block_hash: str
+    ) -> JsonObject:
         """
         Build the stored "state_update" document for a blob/block_number pair.
         """
@@ -601,7 +641,6 @@ class BlobTransformer:
             storage_diffs_out[address] = [{"key": k, "value": v} for k, v in sorted_updates]
 
         new_root, old_root = self._chain.compute_current_and_previous_root(block_number)
-        block_hash = self._chain.compute_current_hash(block_number)
 
         deployed_contracts_map: JsonObject = {
             str(addr): class_hash
@@ -771,7 +810,9 @@ class EchoCenterService:
         self.flask_logger.info(f"last_block={block_number}")
 
         to_store = self._transformer.transform_block(blob)
-        state_update = self._transformer.transform_state_update(blob, block_number)
+        state_update = self._transformer.transform_state_update(
+            blob, block_number, to_store["block_hash"]
+        )
 
         self._check_l2_gas_mismatches(to_store, echo_block_number=block_number)
 
