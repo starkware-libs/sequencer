@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_config_manager_types::communication::MockConfigManagerReaderClient;
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
 use apollo_infra::component_client::ClientError;
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig, MempoolStaticConfig};
 use apollo_mempool_p2p_types::communication::{
@@ -13,6 +13,7 @@ use apollo_mempool_types::communication::AddTransactionArgsWrapper;
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs, ValidationArgs};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use apollo_time::test_utils::FakeClock;
 use expect_test::expect;
@@ -981,12 +982,13 @@ async fn test_new_tx_sent_to_p2p(mempool: Mempool) {
         .with(eq(tx_args.tx))
         .returning(|_| Ok(()));
 
-    let mock_config_manager = MockConfigManagerReaderClient::new();
+    let (_, config_rx) = tokio::sync::watch::channel(NodeDynamicConfig::default());
+    let config_manager_client = LocalConfigManagerReaderClient::new(config_rx);
 
     let mut mempool_wrapper = MempoolCommunicationWrapper::new(
         mempool,
         Arc::new(mock_mempool_p2p_propagator_client),
-        Arc::new(mock_config_manager),
+        config_manager_client,
     );
 
     mempool_wrapper.add_tx(propagateor_args).await.unwrap();
@@ -1010,12 +1012,13 @@ async fn test_propagated_tx_sent_to_p2p(mempool: Mempool) {
         .with(eq(expected_message_metadata.clone()))
         .returning(|_| Ok(()));
 
-    let mock_config_manager = MockConfigManagerReaderClient::new();
+    let (_, config_rx) = tokio::sync::watch::channel(NodeDynamicConfig::default());
+    let config_manager_client = LocalConfigManagerReaderClient::new(config_rx);
 
     let mut mempool_wrapper = MempoolCommunicationWrapper::new(
         mempool,
         Arc::new(mock_mempool_p2p_propagator_client),
-        Arc::new(mock_config_manager),
+        config_manager_client,
     );
 
     mempool_wrapper.add_tx(propagated_args).await.unwrap();
@@ -1514,13 +1517,11 @@ async fn add_tx_tolerates_p2p_propagation_error(mempool: Mempool) {
         )))
     });
 
-    let mock_config_manager = MockConfigManagerReaderClient::new();
+    let (_, config_rx) = tokio::sync::watch::channel(NodeDynamicConfig::default());
+    let config_manager_client = LocalConfigManagerReaderClient::new(config_rx);
 
-    let mut mempool_wrapper = MempoolCommunicationWrapper::new(
-        mempool,
-        Arc::new(mock_p2p),
-        Arc::new(mock_config_manager),
-    );
+    let mut mempool_wrapper =
+        MempoolCommunicationWrapper::new(mempool, Arc::new(mock_p2p), config_manager_client);
 
     let result = mempool_wrapper.add_tx(tx_args_wrapper).await;
 

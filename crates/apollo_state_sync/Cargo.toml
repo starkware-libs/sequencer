@@ -41,6 +41,7 @@ tracing.workspace = true
 
 [dev-dependencies]
 apollo_config_manager_types = { workspace = true, features = ["testing"] }
+apollo_node_config.workspace = true
 apollo_starknet_client = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true

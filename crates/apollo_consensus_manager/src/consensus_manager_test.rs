@@ -3,12 +3,13 @@ use std::sync::Arc;
 use apollo_batcher_types::batcher_types::{GetHeightResponse, RevertBlockInput};
 use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_class_manager_types::MockClassManagerClient;
-use apollo_config_manager_types::communication::MockConfigManagerReaderClient;
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
 use apollo_consensus::storage::MockHeightVotedStorageTrait;
 use apollo_consensus::test_utils::get_new_storage_config;
 use apollo_consensus_config::config::{ConsensusConfig, ConsensusStaticConfig};
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_l1_gas_price_types::MockL1GasPriceProviderClient;
+use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_proof_manager_types::MockProofManagerClient;
 use apollo_reverts::RevertConfig;
 use apollo_signature_manager_types::MockSignatureManagerClient;
@@ -68,7 +69,10 @@ async fn revert_batcher_blocks() {
             state_sync_client: Arc::new(MockStateSyncClient::new()),
             class_manager_client: Arc::new(MockClassManagerClient::new()),
             signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
-            config_manager_client: Arc::new(MockConfigManagerReaderClient::new()),
+            config_manager_client: {
+                let (_, rx) = tokio::sync::watch::channel(NodeDynamicConfig::default());
+                LocalConfigManagerReaderClient::new(rx)
+            },
             l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
             proof_manager_client: Arc::new(MockProofManagerClient::new()),
             committee_provider: Arc::new(MockCommitteeProvider::new()),
@@ -114,7 +118,10 @@ async fn revert_voted_height_when_batcher_already_at_target() {
             state_sync_client: Arc::new(MockStateSyncClient::new()),
             class_manager_client: Arc::new(MockClassManagerClient::new()),
             signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
-            config_manager_client: Arc::new(MockConfigManagerReaderClient::new()),
+            config_manager_client: {
+                let (_, rx) = tokio::sync::watch::channel(NodeDynamicConfig::default());
+                LocalConfigManagerReaderClient::new(rx)
+            },
             l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
             proof_manager_client: Arc::new(MockProofManagerClient::new()),
             committee_provider: Arc::new(MockCommitteeProvider::new()),
@@ -148,7 +155,10 @@ async fn no_reverts_without_config() {
         state_sync_client: Arc::new(MockStateSyncClient::new()),
         class_manager_client: Arc::new(MockClassManagerClient::new()),
         signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
-        config_manager_client: Arc::new(MockConfigManagerReaderClient::new()),
+        config_manager_client: {
+            let (_, rx) = tokio::sync::watch::channel(NodeDynamicConfig::default());
+            LocalConfigManagerReaderClient::new(rx)
+        },
         l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
         proof_manager_client: Arc::new(MockProofManagerClient::new()),
         committee_provider: Arc::new(MockCommitteeProvider::new()),

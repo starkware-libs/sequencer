@@ -12,7 +12,7 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
-use apollo_config_manager_types::communication::MockConfigManagerReaderClient;
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
 use apollo_consensus::types::{ConsensusContext, Round};
 use apollo_consensus_orchestrator_config::config::{
     ContextConfig,
@@ -26,6 +26,7 @@ use apollo_l1_gas_price_types::errors::{
     L1GasPriceProviderError,
 };
 use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
+use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_protobuf::consensus::{
     BuildParam,
     CommitmentParts,
@@ -1177,7 +1178,7 @@ async fn change_gas_price_overrides() {
         ..Default::default()
     };
     let config_manager_client = make_config_manager_client(new_dynamic_config);
-    context.deps.config_manager_client = Some(Arc::new(config_manager_client));
+    context.deps.config_manager_client = Some(config_manager_client);
 
     // Validate block number 1, round 0.
     context.set_height_and_round(HEIGHT_1, ROUND_0).await.unwrap();
@@ -1205,7 +1206,7 @@ async fn change_gas_price_overrides() {
         ..Default::default()
     };
     let config_manager_client = make_config_manager_client(new_dynamic_config);
-    context.deps.config_manager_client = Some(Arc::new(config_manager_client));
+    context.deps.config_manager_client = Some(config_manager_client);
 
     // This should fail, as we have changed the config, without updating the block info.
     context.set_height_and_round(HEIGHT_1, ROUND_1).await.unwrap();
@@ -1237,7 +1238,7 @@ async fn change_gas_price_overrides() {
         ..Default::default()
     };
     let config_manager_client = make_config_manager_client(new_dynamic_config);
-    context.deps.config_manager_client = Some(Arc::new(config_manager_client));
+    context.deps.config_manager_client = Some(config_manager_client);
 
     let fin_receiver = context
         .build_proposal(BuildParam { height: BlockNumber(2), ..Default::default() }, TIMEOUT)
@@ -1257,12 +1258,12 @@ async fn change_gas_price_overrides() {
 
 fn make_config_manager_client(
     provider_config: ContextDynamicConfig,
-) -> MockConfigManagerReaderClient {
-    let mut config_manager_client = MockConfigManagerReaderClient::new();
-    config_manager_client
-        .expect_get_context_dynamic_config()
-        .returning(move || Ok(provider_config.clone()));
-    config_manager_client
+) -> LocalConfigManagerReaderClient {
+    let (_, config_rx) = tokio::sync::watch::channel(NodeDynamicConfig {
+        context_dynamic_config: Some(provider_config),
+        ..Default::default()
+    });
+    LocalConfigManagerReaderClient::new(config_rx)
 }
 
 #[tokio::test]
@@ -1281,34 +1282,27 @@ async fn test_dynamic_config_updates_min_gas_price() {
     let (mut deps, _network) = create_test_and_network_deps();
     deps.setup_default_expectations();
 
-    // Create a mock config manager client that will return dynamic config
-    let mut mock_config_manager = MockConfigManagerReaderClient::new();
-
-    // Mock expects get_context_dynamic_config to be called twice (once per height change)
-    // This is called inside set_height_and_round() -> update_dynamic_config() ->
-    // client.get_context_dynamic_config()
-
-    // First call returns config with min price at FIRST_CONFIG_HEIGHT
-    mock_config_manager.expect_get_context_dynamic_config().times(1).returning(move || {
-        Ok(ContextDynamicConfig {
-            min_l2_gas_price_per_height: vec![PricePerHeight {
-                height: FIRST_CONFIG_HEIGHT,
-                price: FIRST_CONFIG_MIN_PRICE,
-            }],
-            ..Default::default()
-        })
+    // Create a watch channel seeded with the first config. We'll update it to the second config
+    // between the two set_height_and_round() calls so the second read picks up the new values.
+    let first_context_config = ContextDynamicConfig {
+        min_l2_gas_price_per_height: vec![PricePerHeight {
+            height: FIRST_CONFIG_HEIGHT,
+            price: FIRST_CONFIG_MIN_PRICE,
+        }],
+        ..Default::default()
+    };
+    let second_context_config = ContextDynamicConfig {
+        min_l2_gas_price_per_height: vec![
+            PricePerHeight { height: FIRST_CONFIG_HEIGHT, price: FIRST_CONFIG_MIN_PRICE },
+            PricePerHeight { height: SECOND_CONFIG_HEIGHT, price: SECOND_CONFIG_MIN_PRICE },
+        ],
+        ..Default::default()
+    };
+    let (config_tx, config_rx) = tokio::sync::watch::channel(NodeDynamicConfig {
+        context_dynamic_config: Some(first_context_config),
+        ..Default::default()
     });
-
-    // Second call returns config with additional min price at SECOND_CONFIG_HEIGHT
-    mock_config_manager.expect_get_context_dynamic_config().times(1).returning(move || {
-        Ok(ContextDynamicConfig {
-            min_l2_gas_price_per_height: vec![
-                PricePerHeight { height: FIRST_CONFIG_HEIGHT, price: FIRST_CONFIG_MIN_PRICE },
-                PricePerHeight { height: SECOND_CONFIG_HEIGHT, price: SECOND_CONFIG_MIN_PRICE },
-            ],
-            ..Default::default()
-        })
-    });
+    let config_manager_client = LocalConfigManagerReaderClient::new(config_rx);
 
     // Setup batcher expectations for two heights
     // set_height_and_round() calls batcher.start_height() to notify the batcher
@@ -1316,7 +1310,7 @@ async fn test_dynamic_config_updates_min_gas_price() {
 
     // Convert TestDeps to SequencerConsensusContextDeps and add config manager
     let mut context_deps: SequencerConsensusContextDeps = deps.into();
-    context_deps.config_manager_client = Some(Arc::new(mock_config_manager));
+    context_deps.config_manager_client = Some(config_manager_client);
 
     let mut context = SequencerConsensusContext::new(
         ContextConfig {
@@ -1363,6 +1357,14 @@ async fn test_dynamic_config_updates_min_gas_price() {
         "Gas price should be exactly {} (8 Gwei + 8/333), got {}",
         expected_price_after_first, price_after_first_update
     );
+
+    // Update the watch channel to the second config before the next height
+    config_tx
+        .send(NodeDynamicConfig {
+            context_dynamic_config: Some(second_context_config),
+            ..Default::default()
+        })
+        .unwrap();
 
     // Test at SECOND_TEST_HEIGHT: Should use min price from config2
     context.set_height_and_round(BlockNumber(SECOND_TEST_HEIGHT), ROUND_0).await.unwrap();

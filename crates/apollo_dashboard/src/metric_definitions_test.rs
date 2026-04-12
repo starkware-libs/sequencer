@@ -13,10 +13,7 @@ use apollo_compile_to_casm::metrics::{
     COMPILE_TO_CASM_ALL_METRICS,
     INFRA_ALL_METRICS as COMPILE_TO_CASM_INFRA_METRICS,
 };
-use apollo_config_manager::metrics::{
-    CONFIG_MANAGER_ALL_METRICS,
-    INFRA_ALL_METRICS as CONFIG_MANAGER_INFRA_METRICS,
-};
+use apollo_config_manager::metrics::CONFIG_MANAGER_ALL_METRICS;
 use apollo_consensus::metrics::CONSENSUS_ALL_METRICS;
 use apollo_consensus_manager::metrics::CONSENSUS_MANAGER_ALL_METRICS;
 use apollo_consensus_orchestrator::metrics::CONSENSUS_ORCHESTRATOR_ALL_METRICS;
@@ -64,7 +61,6 @@ fn metric_names_no_duplications() {
         .chain(COMPILE_TO_CASM_ALL_METRICS.iter())
         .chain(COMPILE_TO_CASM_INFRA_METRICS.iter())
         .chain(CONFIG_MANAGER_ALL_METRICS.iter())
-        .chain(CONFIG_MANAGER_INFRA_METRICS.iter())
         .chain(CONSENSUS_ALL_METRICS.iter())
         .chain(CONSENSUS_MANAGER_ALL_METRICS.iter())
         .chain(CONSENSUS_ORCHESTRATOR_ALL_METRICS.iter())
