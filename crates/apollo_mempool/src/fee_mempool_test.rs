@@ -852,6 +852,38 @@ fn test_fee_escalation_valid_replacement_minimum_values() {
 }
 
 #[rstest]
+fn test_fee_escalation_small_values_require_minimum_increase() {
+    // When existing_value * percentage / 100 == 0 (integer truncation), the required increase
+    // should still be at least 1 — not zero, which would allow same-value replacement.
+    let existing_tip = 5_u64;
+    let existing_gas = 5_u128;
+    let tx = tx!(tx_hash: 0, tip: existing_tip, max_l2_gas_price: existing_gas);
+    let mempool = MempoolTestContentBuilder::new()
+        .with_pool([tx.clone()])
+        .with_fee_escalation_percentage(10) // 5 * 10 / 100 == 0 without max(1).
+        .build_full_mempool();
+
+    // Same values: should be rejected.
+    let invalid_replacement =
+        add_tx_input!(tx_hash: 1, tip: existing_tip, max_l2_gas_price: existing_gas);
+    validate_and_add_txs_and_verify_no_replacement_in_pool(
+        mempool,
+        tx.clone(),
+        [invalid_replacement],
+    );
+
+    let mempool = MempoolTestContentBuilder::new()
+        .with_pool([tx.clone()])
+        .with_fee_escalation_percentage(10)
+        .build_full_mempool();
+
+    // Increased by 1: should be accepted.
+    let valid_replacement =
+        add_tx_input!(tx_hash: 2, tip: existing_tip + 1, max_l2_gas_price: existing_gas + 1);
+    validate_and_add_tx_and_verify_replacement_in_pool(mempool, valid_replacement);
+}
+
+#[rstest]
 fn test_fee_escalation_valid_replacement_maximum_values() {
     // Setup.
     let tx = tx!(tx_hash: 0, tip: u64::MAX / 100, max_l2_gas_price: u128::MAX / 100 );
