@@ -1,7 +1,9 @@
 use std::clone::Clone;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use apollo_batcher::bootstrap_client::{BootstrapClient, BootstrapValidation};
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
@@ -29,6 +31,7 @@ use apollo_transaction_converter::{
 };
 use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
@@ -92,6 +95,7 @@ impl Gateway {
         transaction_converter: Arc<TransactionConverter>,
         stateless_tx_validator: Arc<StatelessTransactionValidator>,
         proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
+        bootstrap_client: Option<BootstrapClient>,
     ) -> Self {
         Self(GenericGateway::new(
             config,
@@ -100,6 +104,7 @@ impl Gateway {
             transaction_converter,
             stateless_tx_validator,
             proof_archive_writer,
+            bootstrap_client,
         ))
     }
 
@@ -123,6 +128,12 @@ pub(crate) struct GenericGateway<
     mempool_client: SharedMempoolClient,
     transaction_converter: Arc<TTransactionConverter>,
     proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
+    bootstrap_client: Option<BootstrapClient>,
+    /// Tracks whether the system is still in bootstrap mode. Starts `true` when a bootstrap client
+    /// is configured. Flips to `false` permanently once the batcher reports `NotInBootstrap`, and
+    /// is never set back to `true`. Used to skip bootstrap-related server calls and to dynamically
+    /// disable resource-bounds validation during bootstrap.
+    bootstrap_active: Arc<AtomicBool>,
 }
 
 impl<
@@ -137,7 +148,9 @@ impl<
         transaction_converter: Arc<TTransactionConverter>,
         stateless_tx_validator: Arc<TStatelessValidator>,
         proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
+        bootstrap_client: Option<BootstrapClient>,
     ) -> Self {
+        let bootstrap_active = Arc::new(AtomicBool::new(bootstrap_client.is_some()));
         Self {
             config: Arc::new(config.clone()),
             stateless_tx_validator,
@@ -148,10 +161,13 @@ impl<
                 contract_class_manager: ContractClassManager::start(
                     config.static_config.contract_class_manager_config.clone(),
                 ),
+                bootstrap_active: bootstrap_active.clone(),
             }),
             mempool_client,
             transaction_converter,
             proof_archive_writer,
+            bootstrap_client,
+            bootstrap_active,
         }
     }
 
@@ -185,6 +201,37 @@ impl<
     ) -> GatewayResult<GatewayOutput> {
         let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
+
+        // Bootstrap exit polling: only query the bootstrap server while bootstrap_active is true.
+        // Once the batcher reports NotInBootstrap, the flag flips permanently and we stop
+        // querying, so subsequent transactions skip this block entirely.
+        if self.bootstrap_active.load(Ordering::Relaxed) {
+            if let Some(ref bootstrap_client) = self.bootstrap_client {
+                match bootstrap_client.validate_bootstrap_tx(&tx).await {
+                    Ok(BootstrapValidation::ValidBootstrapTx) => {
+                        debug!("Processing bootstrap transaction, skipping normal validation");
+                        return self
+                            .add_bootstrap_tx(tx, p2p_message_metadata, &mut metric_counters)
+                            .await;
+                    }
+                    Ok(BootstrapValidation::NotBootstrapping) => {
+                        info!("Bootstrap complete, disabling bootstrap checks permanently");
+                        self.bootstrap_active.store(false, Ordering::Relaxed);
+                    }
+                    Err(e) => {
+                        warn!("Bootstrap validation failed: {}", e);
+                        let err = StarknetError {
+                            code: StarknetErrorCode::UnknownErrorCode(
+                                "StarknetErrorCode.BOOTSTRAP_VALIDATION_FAILED".to_string(),
+                            ),
+                            message: e,
+                        };
+                        metric_counters.record_add_tx_failure(&err);
+                        return Err(err);
+                    }
+                }
+            }
+        }
 
         if let RpcTransaction::Declare(ref declare_tx) = tx {
             if let Err(e) = self.check_declare_permissions(declare_tx) {
@@ -316,6 +363,45 @@ impl<
         }
     }
 
+    /// Processes a validated bootstrap transaction, skipping normal validation.
+    /// The transaction has already been verified against the expected bootstrap set.
+    async fn add_bootstrap_tx(
+        &self,
+        tx: RpcTransaction,
+        p2p_message_metadata: Option<BroadcastedMessageMetadata>,
+        metric_counters: &mut GatewayMetricHandle,
+    ) -> GatewayResult<GatewayOutput> {
+        let tx_signature = tx.signature().clone();
+
+        let (internal_tx, _verification_handle) =
+            self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(tx).await.map_err(
+                |e| {
+                    warn!("Failed to convert bootstrap RPC tx to internal: {}", e);
+                    transaction_converter_err_to_deprecated_gw_err(&tx_signature, e)
+                },
+            )?;
+
+        let gateway_output = create_gateway_output(&internal_tx);
+
+        // Bootstrap accounts may not exist in state yet, so use default nonce.
+        let add_tx_args = AddTransactionArgsWrapper {
+            args: AddTransactionArgs::new(internal_tx, Nonce::default()),
+            p2p_message_metadata,
+        };
+        let mempool_client_result = self.mempool_client.add_tx(add_tx_args).await;
+        match mempool_client_result_to_deprecated_gw_result(&tx_signature, mempool_client_result) {
+            Ok(()) => {}
+            Err(e) => {
+                metric_counters.record_add_tx_failure(&e);
+                return Err(e);
+            }
+        };
+
+        metric_counters.transaction_sent_to_mempool();
+
+        Ok(gateway_output)
+    }
+
     fn check_declare_permissions(
         &self,
         declare_tx: &RpcDeclareTransaction,
@@ -433,6 +519,8 @@ pub fn create_gateway(
             ))
         };
 
+    let bootstrap_client = BootstrapClient::new(&config.static_config.batcher_storage_reader_url);
+
     Gateway::new(
         config,
         state_reader_factory,
@@ -440,6 +528,7 @@ pub fn create_gateway(
         transaction_converter,
         stateless_tx_validator,
         proof_archive_writer,
+        bootstrap_client,
     )
 }
 

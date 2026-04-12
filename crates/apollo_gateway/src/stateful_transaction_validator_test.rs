@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use apollo_gateway_config::config::StatefulTransactionValidatorConfig;
@@ -139,6 +140,7 @@ async fn test_instantiate_validator() {
         chain_info: ChainInfo::create_for_testing(),
         state_reader_factory: Arc::new(state_reader_factory),
         contract_class_manager: ContractClassManager::start(ContractClassManagerConfig::default()),
+        bootstrap_active: Arc::new(AtomicBool::new(false)),
     };
 
     let validator = stateful_validator_factory.instantiate_validator().await;
