@@ -127,18 +127,25 @@ impl MempoolState {
         Ok(())
     }
 
-    /// Updates the committed nonces, and returns the addresses which need to be rewinded (i.e.
-    /// addressed which were staged but did not make to the commit).
-    fn commit(&mut self, address_to_nonce: AddressToNonce) -> Vec<ContractAddress> {
+    /// Returns the staged addresses not present in `committed_in_block` and clears all staged
+    /// nonces. Used by both `commit` and `reset_staged`.
+    fn drain_staged(&mut self, committed_in_block: &AddressToNonce) -> Vec<ContractAddress> {
         let addresses_to_rewind: Vec<_> = self
             .staged
             .keys()
-            .filter(|&key| !address_to_nonce.contains_key(key))
+            .filter(|&key| !committed_in_block.contains_key(key))
             .copied()
             .collect();
+        self.staged.clear();
+        addresses_to_rewind
+    }
+
+    /// Updates the committed nonces, and returns the addresses which need to be rewinded (i.e.
+    /// addresses which were staged but did not make it to the commit).
+    fn commit(&mut self, address_to_nonce: AddressToNonce) -> Vec<ContractAddress> {
+        let addresses_to_rewind = self.drain_staged(&address_to_nonce);
 
         self.committed.extend(address_to_nonce.clone());
-        self.staged.clear();
 
         // Add the commit event to the history.
         // If an old event has been removed (due to history size limit), delete the associated
@@ -155,6 +162,12 @@ impl MempoolState {
         }
 
         addresses_to_rewind
+    }
+
+    /// Clears staged nonces for a new proposal and returns all staged addresses for queue
+    /// rewinding. Does NOT advance the commit history ring buffer.
+    fn reset_staged(&mut self) -> Vec<ContractAddress> {
+        self.drain_staged(&AddressToNonce::new())
     }
 
     fn validate_incoming_tx(
@@ -661,6 +674,15 @@ impl Mempool {
         self.update_accounts_with_gap(account_nonce_updates);
     }
 
+    /// Rewinds all staged transactions back to the queue without advancing commit history.
+    /// Equivalent to `commit_block(CommitBlockArgs::default())` but does not consume a
+    /// `CommitHistory` slot.
+    pub fn reset_staged(&mut self) {
+        let addresses_to_rewind = self.state.reset_staged();
+        self.rewind_txs(addresses_to_rewind, &AddressToNonce::new(), &IndexSet::new());
+        self.update_state_metrics();
+    }
+
     pub fn account_tx_in_pool_or_recent_block(&self, account_address: ContractAddress) -> bool {
         self.state.contains_account(account_address)
             || self.tx_pool.contains_account(account_address)
@@ -1048,5 +1070,50 @@ impl std::fmt::Display for TransactionReference {
             "TransactionReference {{ address: {address}, nonce: {nonce}, tx_hash: {tx_hash}, tip: \
              {tip}, max_l2_gas_price: {max_l2_gas_price} }}"
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use starknet_api::{contract_address, nonce};
+
+    use super::MempoolState;
+
+    #[test]
+    fn test_reset_staged_does_not_consume_history_slot() {
+        // capacity=1: the single history slot holds the most recent real commit.
+        let mut state = MempoolState::new(1);
+
+        let addr_a = contract_address!("0x1");
+        let nonce_1 = nonce!(1);
+        let nonce_2 = nonce!(2);
+
+        // Real commit: addr_a nonce 1. The single history slot now holds {addr_a: nonce_1}.
+        state.commit(HashMap::from([(addr_a, nonce_1)]));
+        assert_eq!(state.committed.get(&addr_a), Some(&nonce_1));
+
+        // Simulate proposal: stage addr_a at nonce 2.
+        state.staged.insert(addr_a, nonce_2);
+
+        // reset_staged must NOT push to commit_history.
+        let rewound = state.reset_staged();
+
+        assert!(state.staged.is_empty(), "staged should be cleared");
+        assert_eq!(rewound, vec![addr_a], "staged addr_a should be returned for rewinding");
+        assert_eq!(
+            state.committed.get(&addr_a),
+            Some(&nonce_1),
+            "committed unchanged — no history slot consumed"
+        );
+
+        // Second real commit with capacity=1 evicts the first entry.
+        // If reset_staged had consumed a slot, addr_a would already be evicted; it is not.
+        let addr_b = contract_address!("0x2");
+        state.commit(HashMap::from([(addr_b, nonce_1)]));
+
+        assert_eq!(state.committed.get(&addr_a), None, "addr_a evicted by second real commit");
+        assert_eq!(state.committed.get(&addr_b), Some(&nonce_1));
     }
 }
