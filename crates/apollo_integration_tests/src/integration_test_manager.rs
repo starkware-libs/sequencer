@@ -78,6 +78,7 @@ use crate::utils::{
     ConsensusTxs,
     DeclareTx,
     DeployAndInvokeTxs,
+    NodeDescriptor,
     TestScenario,
     TEST_SCENARIO_TIMEOUT,
     TIME_BETWEEN_CHECKS,
@@ -387,9 +388,7 @@ pub struct IntegrationTestManager {
 
 impl IntegrationTestManager {
     pub async fn new(
-        num_of_consolidated_nodes: usize,
-        num_of_distributed_nodes: usize,
-        num_of_hybrid_nodes: usize,
+        node_descriptors: Vec<NodeDescriptor>,
         custom_paths: Option<CustomPaths>,
         test_unique_id: TestIdentifier,
     ) -> Self {
@@ -397,9 +396,7 @@ impl IntegrationTestManager {
 
         let (sequencers_setup, node_indices) = get_sequencer_setup_configs(
             &tx_generator,
-            num_of_consolidated_nodes,
-            num_of_distributed_nodes,
-            num_of_hybrid_nodes,
+            node_descriptors,
             custom_paths,
             test_unique_id,
         )
@@ -1212,33 +1209,22 @@ pub fn nonce_to_usize(nonce: Nonce) -> usize {
 
 async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
-    // TODO(Tsabary/Nadin): instead of number of nodes, this should be a vector of deployments.
-    num_of_consolidated_nodes: usize,
-    num_of_distributed_nodes: usize,
-    num_of_hybrid_nodes: usize,
+    node_descriptors: Vec<NodeDescriptor>,
     custom_paths: Option<CustomPaths>,
     test_unique_id: TestIdentifier,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let mut available_ports_generator = AvailablePortsGenerator::new(test_unique_id.into());
 
-    let mut node_component_configs = Vec::with_capacity(
-        num_of_consolidated_nodes + num_of_distributed_nodes + num_of_hybrid_nodes,
-    );
-    for _ in 0..num_of_consolidated_nodes {
-        node_component_configs
-            .push((create_consolidated_component_configs(), NodeType::Consolidated));
-    }
-    for _ in 0..num_of_hybrid_nodes {
-        node_component_configs.push((
-            create_hybrid_component_configs(&mut available_ports_generator),
-            NodeType::Hybrid,
-        ));
-    }
-    for _ in 0..num_of_distributed_nodes {
-        node_component_configs.push((
-            create_distributed_component_configs(&mut available_ports_generator),
-            NodeType::Distributed,
-        ));
+    let mut node_component_configs = Vec::with_capacity(node_descriptors.len());
+    for descriptor in &node_descriptors {
+        let node_component_config = match descriptor.node_type {
+            NodeType::Consolidated => create_consolidated_component_configs(),
+            NodeType::Hybrid => create_hybrid_component_configs(&mut available_ports_generator),
+            NodeType::Distributed => {
+                create_distributed_component_configs(&mut available_ports_generator)
+            }
+        };
+        node_component_configs.push((node_component_config, descriptor.node_type));
     }
 
     info!("Creating node configurations.");
@@ -1349,6 +1335,7 @@ async fn get_sequencer_setup_configs(
                 block_max_capacity_gas(),
                 validator_id,
                 ALLOW_BOOTSTRAP_TXS,
+                node_descriptors[node_index].validation_only,
             );
 
             let base_app_config = DeploymentBaseAppConfig::new(config, config_pointers_map);

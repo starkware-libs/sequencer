@@ -4,6 +4,7 @@ use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::integration_test_manager::IntegrationTestManager;
 use apollo_integration_tests::storage::CustomPaths;
+use apollo_integration_tests::utils::NodeDescriptor;
 use clap::Parser;
 use tokio::fs::create_dir_all;
 use tracing::info;
@@ -24,10 +25,15 @@ async fn main() {
         args.data_prefix_path.map(PathBuf::from),
     );
 
+    let node_descriptors: Vec<NodeDescriptor> =
+        std::iter::repeat_with(NodeDescriptor::consolidated)
+            .take(args.n_consolidated)
+            .chain(std::iter::repeat_with(NodeDescriptor::distributed).take(args.n_distributed))
+            .chain(std::iter::repeat_with(NodeDescriptor::hybrid).take(args.n_hybrid))
+            .collect();
+
     let test_manager = IntegrationTestManager::new(
-        args.n_consolidated,
-        args.n_distributed,
-        args.n_hybrid,
+        node_descriptors,
         Some(custom_paths),
         // TODO(Tsabary/Nadin): add a different identifier.
         TestIdentifier::PositiveFlowIntegrationTest,
