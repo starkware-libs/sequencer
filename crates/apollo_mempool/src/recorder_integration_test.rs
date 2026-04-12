@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
 use apollo_config::behavior_mode::BehaviorMode;
-use apollo_config_manager_types::communication::MockConfigManagerClient;
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
 use apollo_mempool_config::config::{MempoolConfig, MempoolStaticConfig};
 use apollo_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
 use apollo_mempool_types::communication::AddTransactionArgsWrapper;
 use apollo_mempool_types::mempool_types::TxBlockMetadata;
+use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_time::test_utils::FakeClock;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json};
@@ -57,9 +58,10 @@ fn create_mempool_communication_wrapper(recorder_url: String) -> MempoolCommunic
     let mut mock_p2p = MockMempoolP2pPropagatorClient::new();
     mock_p2p.expect_add_transaction().returning(|_| Ok(()));
 
-    let mock_config_manager = MockConfigManagerClient::new();
+    let (_, config_rx) = tokio::sync::watch::channel(NodeDynamicConfig::default());
+    let config_manager_client = LocalConfigManagerReaderClient::new(config_rx);
 
-    MempoolCommunicationWrapper::new(mempool, Arc::new(mock_p2p), Arc::new(mock_config_manager))
+    MempoolCommunicationWrapper::new(mempool, Arc::new(mock_p2p), config_manager_client)
 }
 
 #[rstest]

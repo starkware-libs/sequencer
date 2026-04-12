@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use apollo_config_manager_types::communication::MockConfigManagerClient;
+use apollo_config_manager_types::communication::LocalConfigManagerReaderClient;
 use apollo_infra::component_server::{ComponentServerStarter, LocalServerConfig};
 use apollo_infra::metrics::{LocalClientMetrics, LocalServerMetrics};
 use apollo_mempool::communication::{create_mempool, LocalMempoolServer};
@@ -18,6 +18,7 @@ use apollo_mempool_types::communication::{
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs, CommitBlockArgs};
 use apollo_metrics::metrics::{LabeledMetricHistogram, MetricCounter, MetricGauge, MetricScope};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_node_config::node_config::NodeDynamicConfig;
 use async_trait::async_trait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -214,19 +215,18 @@ impl BenchTestSetup {
         // Create minimal overhead P2P client for benchmark
         let bench_p2p_client = Arc::new(BenchMempoolP2pPropagator);
 
-        // Create mock config manager client for benchmark
-        let mut mock_config_manager = MockConfigManagerClient::new();
-        let dynamic_config = self.config.mempool_config.dynamic_config.clone();
-        mock_config_manager
-            .expect_get_mempool_dynamic_config()
-            .returning(move || Ok(dynamic_config.clone()));
-        let mock_config_manager = Arc::new(mock_config_manager);
+        // Create config manager client for benchmark
+        let (_, config_rx) = tokio::sync::watch::channel(NodeDynamicConfig {
+            mempool_dynamic_config: Some(self.config.mempool_config.dynamic_config.clone()),
+            ..Default::default()
+        });
+        let config_manager_client = LocalConfigManagerReaderClient::new(config_rx);
 
         // Create the mempool component
         let mempool_component = create_mempool(
             self.config.mempool_config.clone(),
             bench_p2p_client,
-            mock_config_manager,
+            config_manager_client,
         );
 
         // Use static metrics for benchmark

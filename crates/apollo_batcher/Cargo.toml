@@ -50,6 +50,7 @@ url = { workspace = true, features = ["serde"] }
 validator.workspace = true
 
 [dev-dependencies]
+apollo_node_config.workspace = true
 apollo_class_manager_types = { workspace = true, features = ["testing"] }
 apollo_committer_types = { workspace = true, features = ["testing"] }
 apollo_config_manager_types = { workspace = true, features = ["testing"] }

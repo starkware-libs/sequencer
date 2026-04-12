@@ -3,6 +3,7 @@ use apollo_class_manager_types::{
     ClassManagerRequestLabelValue,
     ClassManagerResponse,
 };
+use apollo_config_manager_types::communication::ConfigManagerReaderClient;
 use apollo_infra::component_definitions::ComponentRequestHandler;
 use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
@@ -23,7 +24,6 @@ impl ComponentRequestHandler<ClassManagerRequest, ClassManagerResponse> for Clas
             .0
             .config_manager_client
             .get_class_manager_dynamic_config()
-            .await
             .expect("Should be able to get class manager dynamic config");
         self.0.update_dynamic_config(dynamic_config);
 

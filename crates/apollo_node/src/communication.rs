@@ -9,12 +9,16 @@ use apollo_l1_events::communication::L1EventsProviderRequestWrapper;
 use apollo_l1_gas_price::communication::L1GasPriceRequestWrapper;
 use apollo_mempool_p2p_types::communication::MempoolP2pPropagatorRequestWrapper;
 use apollo_mempool_types::communication::MempoolRequestWrapper;
-use apollo_node_config::component_execution_config::ExpectedComponentConfig;
-use apollo_node_config::node_config::SequencerNodeConfig;
+use apollo_node_config::component_execution_config::{
+    ExpectedComponentConfig,
+    ReactiveComponentExecutionMode,
+};
+use apollo_node_config::node_config::{NodeDynamicConfig, SequencerNodeConfig};
 use apollo_proof_manager_types::ProofManagerRequestWrapper;
 use apollo_signature_manager_types::SignatureManagerRequestWrapper;
 use apollo_state_sync_types::communication::StateSyncRequestWrapper;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::watch;
 use tracing::info;
 
 pub struct SequencerNodeCommunication {
@@ -31,6 +35,8 @@ pub struct SequencerNodeCommunication {
     sierra_compiler_channel: ComponentCommunication<SierraCompilerRequestWrapper>,
     signature_manager_channel: ComponentCommunication<SignatureManagerRequestWrapper>,
     state_sync_channel: ComponentCommunication<StateSyncRequestWrapper>,
+    dynamic_config_tx: Option<watch::Sender<NodeDynamicConfig>>,
+    dynamic_config_rx: Option<watch::Receiver<NodeDynamicConfig>>,
 }
 
 impl SequencerNodeCommunication {
@@ -136,6 +142,14 @@ impl SequencerNodeCommunication {
 
     pub fn take_state_sync_rx(&mut self) -> Receiver<StateSyncRequestWrapper> {
         self.state_sync_channel.take_rx()
+    }
+
+    pub fn take_dynamic_config_tx(&mut self) -> watch::Sender<NodeDynamicConfig> {
+        self.dynamic_config_tx.take().expect("dynamic_config_tx already taken")
+    }
+
+    pub fn take_dynamic_config_rx(&mut self) -> watch::Receiver<NodeDynamicConfig> {
+        self.dynamic_config_rx.take().expect("dynamic_config_rx already taken")
     }
 }
 
@@ -366,6 +380,19 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
             false => (None, None),
         };
 
+    // ConfigManager only supports LocalExecutionWithRemoteDisabled — components.rs panics on
+    // LocalExecutionWithRemoteEnabled and Remote. Using is_running_locally() would silently
+    // create a watch channel for LocalExecutionWithRemoteEnabled, masking an invalid config.
+    let (dynamic_config_tx, dynamic_config_rx) =
+        match config.components.config_manager.execution_mode {
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
+                let node_dynamic_config = NodeDynamicConfig::from(config);
+                let (tx, rx) = watch::channel(node_dynamic_config);
+                (Some(tx), Some(rx))
+            }
+            _ => (None, None),
+        };
+
     SequencerNodeCommunication {
         batcher_channel: ComponentCommunication::new(tx_batcher, rx_batcher),
         class_manager_channel: ComponentCommunication::new(tx_class_manager, rx_class_manager),
@@ -392,5 +419,7 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
             rx_signature_manager,
         ),
         state_sync_channel: ComponentCommunication::new(tx_state_sync, rx_state_sync),
+        dynamic_config_tx,
+        dynamic_config_rx,
     }
 }
