@@ -75,19 +75,20 @@ async fn main() {
                 "Running RPC test for block number {block_number} using node url {}.",
                 rpc_args.node_url
             );
-
             let rpc_state_reader_config = RpcStateReaderConfig::from_url(rpc_args.node_url.clone());
             // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
                 let chain_info = get_chain_info(&rpc_args.parse_chain_id(), None);
+                let prefetch_initial_reads = true;
                 ConsecutiveRpcStateReaders::new(
                     BlockNumber(block_number - 1),
                     Some(rpc_state_reader_config),
                     chain_info,
                     false,
                     contract_class_manager,
+                    prefetch_initial_reads,
                 )
                 .reexecute_and_verify_correctness()
             })
@@ -111,6 +112,7 @@ async fn main() {
 
             let rpc_state_reader_config = RpcStateReaderConfig::from_url(rpc_args.node_url.clone());
             let chain_info = get_chain_info(&rpc_args.parse_chain_id(), None);
+            let prefetch_initial_reads = true;
 
             // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn_blocking)
             // for details), so should be executed in a blocking thread.
@@ -122,6 +124,7 @@ async fn main() {
                     chain_info,
                     false,
                     contract_class_manager,
+                    prefetch_initial_reads,
                 )
                 .execute_single_transaction(tx_input)
             })
@@ -144,6 +147,8 @@ async fn main() {
                 let node_url = rpc_args.node_url.clone();
                 let chain_info = get_chain_info(&rpc_args.parse_chain_id(), None);
                 let contract_class_manager = contract_class_manager.clone();
+                // Prefatching initial reads is not supported for offline reexecution.
+                let prefetch_initial_reads = false;
 
                 // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
                 // for details), so should be executed in a blocking thread.
@@ -158,6 +163,7 @@ async fn main() {
                             chain_info,
                             true,
                             contract_class_manager,
+                            prefetch_initial_reads,
                         )
                         .write_block_reexecution_data_to_file(&full_file_path)
                     })
@@ -290,7 +296,14 @@ async fn main() {
             info!("All blocks downloaded successfully to {directory_path}.");
         }
 
-        Command::RpcReplay { rpc_args, start_block, end_block, n_workers, compare_native } => {
+        Command::RpcReplay {
+            rpc_args,
+            start_block,
+            end_block,
+            n_workers,
+            compare_native,
+            prefetch_initial_reads,
+        } => {
             let chain_id = rpc_args.parse_chain_id();
             run_rpc_replay(
                 rpc_args.node_url,
@@ -300,6 +313,7 @@ async fn main() {
                 n_workers,
                 contract_class_manager,
                 compare_native,
+                prefetch_initial_reads,
             )
             .await;
         }

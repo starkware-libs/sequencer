@@ -49,6 +49,7 @@ cargo run --release -p blockifier_reexecution --features cairo_native -- \
 | `--end-block`      | Last block (inclusive). Omit to run indefinitely          |
 | `--n-workers`      | Number of parallel worker threads (default: 1)           |
 | `--compare-native` | Run native-vs-CASM comparison (requires `cairo_native`)  |
+| `--prefetch-initial-reads` | Prefetch initial reads before execution with `starknet_simulateTransactions` (default: `true`) |
 
 ## Cloud Deployment
 
@@ -97,6 +98,7 @@ All parameters are configured via environment variables in `job.yaml`:
 | `END_BLOCK`      | Last block (empty = run forever)         | (empty)            |
 | `N_WORKERS`      | Number of worker threads                 | `16`               |
 | `COMPARE_NATIVE` | Enable native-vs-CASM comparison         | (empty/disabled)   |
+| `PREFETCH_INITIAL_READS` | Prefetch initial reads via simulate (`true`/`false`) | `true` |
 
 ### Resource Sizing
 

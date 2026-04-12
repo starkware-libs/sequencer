@@ -133,6 +133,7 @@ pub fn test_state_readers_last_and_current_block(
         get_chain_info(&ChainId::Mainnet, None),
         false,
         contract_class_manager,
+        false,
     )
 }
 
