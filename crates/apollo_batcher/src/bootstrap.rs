@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 pub use apollo_batcher_config::config::BootstrapConfig;
 use apollo_storage::state::StateStorageReader;
-use apollo_storage::{StorageReader, bootstrap_contracts};
+use apollo_storage::{bootstrap_contracts, StorageReader};
 use serde::{Deserialize, Serialize};
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
@@ -35,7 +35,7 @@ use tracing::info;
 
 /// The felt representation of the string 'BOOTSTRAP', used as the sender address for bootstrap
 /// declare transactions.
-const BOOTSTRAP_SENDER_ADDRESS: u128 = 0x424f4f545354524150;
+pub(crate) const BOOTSTRAP_SENDER_ADDRESS: u128 = 0x424f4f545354524150;
 
 #[cfg(test)]
 #[path = "bootstrap_test.rs"]
