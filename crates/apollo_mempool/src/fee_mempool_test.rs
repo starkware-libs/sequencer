@@ -717,6 +717,32 @@ fn test_commit_block_includes_all_proposed_txs() {
     expected_mempool_content.assert_eq(&mempool.content());
 }
 
+// `reset_staged` tests.
+
+#[rstest]
+fn test_reset_staged_rewinds_queue() {
+    // Setup: one transaction in pool and priority queue.
+    let tx = tx!(tx_hash: 0, address: "0x0", tx_nonce: 0);
+    let tx_ref = TransactionReference::new(&tx);
+    let mut mempool = MempoolTestContentBuilder::new()
+        .with_pool([tx.clone()])
+        .with_priority_queue([tx_ref])
+        .build_full_mempool();
+
+    // Stage the transaction via get_txs.
+    mempool.get_txs(1).unwrap();
+
+    // After staging, the transaction is no longer in the queue.
+    // reset_staged must rewind it back.
+    mempool.reset_staged();
+
+    let expected = MempoolTestContentBuilder::new()
+        .with_pool([tx.clone()])
+        .with_priority_queue([tx_ref])
+        .build();
+    expected.assert_eq(&mempool.content());
+}
+
 // Fee escalation tests.
 
 #[rstest]

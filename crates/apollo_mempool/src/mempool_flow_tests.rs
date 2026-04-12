@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use apollo_mempool_config::config::MempoolConfig;
+use apollo_mempool_config::config::{MempoolConfig, MempoolStaticConfig};
 use apollo_mempool_types::errors::MempoolError;
 use apollo_time::test_utils::FakeClock;
 use rstest::{fixture, rstest};
@@ -341,4 +341,44 @@ fn mempool_state_retains_address_across_api_calls(mut mempool: Mempool) {
     // Note that in the future, the Mempool's state may be periodically cleared from records of old
     // committed transactions. Mirroring this behavior may require a modification of this test.
     assert!(mempool.account_tx_in_pool_or_recent_block(account_address));
+}
+
+#[rstest]
+fn test_reset_staged_does_not_consume_history_slot() {
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            static_config: MempoolStaticConfig {
+                // capacity=1: the single history slot holds the most recent real commit.
+                committed_nonce_retention_block_count: 1,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        Arc::new(FakeClock::default()),
+    );
+
+    // Real commit: addr_a at nonce 1. The single history slot now holds {addr_a: nonce_1}.
+    commit_block(&mut mempool, [("0x1", 1)], []);
+
+    // reset_staged must NOT consume a history slot.
+    mempool.reset_staged();
+
+    let committed = &mempool.mempool_snapshot().unwrap().mempool_state.committed;
+    assert_eq!(
+        committed.get(&contract_address!("0x1")),
+        Some(&nonce!(1)),
+        "committed unchanged after reset_staged — no history slot consumed"
+    );
+
+    // Second real commit evicts the first history slot (capacity=1).
+    // If reset_staged had consumed a slot, addr_a would already be evicted at this point.
+    commit_block(&mut mempool, [("0x2", 1)], []);
+
+    let committed = &mempool.mempool_snapshot().unwrap().mempool_state.committed;
+    assert_eq!(
+        committed.get(&contract_address!("0x1")),
+        None,
+        "addr_a evicted only after second real commit"
+    );
+    assert_eq!(committed.get(&contract_address!("0x2")), Some(&nonce!(1)));
 }
