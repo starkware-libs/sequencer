@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775979893142,
+  "lastUpdate": 1775983138629,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1665,6 +1665,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1811.29833166,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8b2cacdf9be2f36f6388a2720942d964c8f077af",
+          "message": "starknet_committer_and_os_cli: add shrink_to_actual_end for snap sync (#13610)\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-04-12T08:14:12Z",
+          "tree_id": "085daa5cd0f32c5a5397e8c63b1eb23679a447bc",
+          "url": "https://github.com/starkware-libs/sequencer/commit/8b2cacdf9be2f36f6388a2720942d964c8f077af"
+        },
+        "date": 1775983138238,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1058.270628,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1406.48693314,
             "unit": "ms"
           }
         ]
