@@ -27,7 +27,7 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 #[cfg(doc)]
 use starknet_api::transaction::TransactionOutput as starknet_api_transaction_output;
-use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
+use starknet_api::transaction::{Event, TransactionHash, TransactionOffsetInBlock};
 use starknet_types_core::felt::Felt;
 
 use crate::reader::objects::transaction::{
@@ -90,9 +90,11 @@ pub struct BlockPostV0_13_1 {
 }
 
 impl BlockPostV0_13_1 {
-    pub fn to_starknet_api_block_and_version(self) -> ReaderClientResult<starknet_api_block> {
+    pub fn to_starknet_api_block_and_events(
+        self,
+    ) -> ReaderClientResult<(starknet_api_block, Vec<Vec<Event>>)> {
         let block_or_deprecated = Block::PostV0_13_1(self);
-        block_or_deprecated.to_starknet_api_block_and_version()
+        block_or_deprecated.to_starknet_api_block_and_events()
     }
 }
 
@@ -293,8 +295,9 @@ impl Block {
         }
     }
 
-    // TODO(shahak): Rename to to_starknet_api_block.
-    pub fn to_starknet_api_block_and_version(self) -> ReaderClientResult<starknet_api_block> {
+    pub fn to_starknet_api_block_and_events(
+        self,
+    ) -> ReaderClientResult<(starknet_api_block, Vec<Vec<Event>>)> {
         // Check that the number of receipts is the same as the number of transactions.
         let num_of_txs = self.transactions().len();
         let num_of_receipts = self.transaction_receipts().len();
@@ -351,9 +354,10 @@ impl Block {
 
         let (transactions, transaction_receipts) = self.get_body();
 
-        // Get the transaction outputs and execution statuses.
+        // Get the transaction outputs, events, and execution statuses.
         let mut transaction_outputs = vec![];
         let mut transaction_hashes = vec![];
+        let mut transaction_events = vec![];
         for (i, receipt) in transaction_receipts.into_iter().enumerate() {
             let transaction = transactions.index(i);
 
@@ -398,6 +402,7 @@ impl Block {
             }
 
             transaction_hashes.push(receipt.transaction_hash);
+            transaction_events.push(receipt.events.clone());
             let tx_output = receipt.into_starknet_api_transaction_output(transaction);
             transaction_outputs.push(tx_output);
         }
@@ -417,7 +422,7 @@ impl Block {
             transaction_hashes,
         };
 
-        Ok(starknet_api_block { header, body })
+        Ok((starknet_api_block { header, body }, transaction_events))
     }
 
     fn get_body(self) -> (Vec<Transaction>, Vec<TransactionReceipt>) {

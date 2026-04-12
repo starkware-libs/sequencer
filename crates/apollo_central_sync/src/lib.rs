@@ -58,6 +58,7 @@ use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateDiff, ThinStateDiff};
+use starknet_api::transaction::Event;
 use tokio::sync::{Mutex, RwLock};
 use tokio::task::{spawn_blocking, JoinError};
 use tracing::{debug, error, info, instrument, trace, warn};
@@ -149,6 +150,7 @@ pub enum SyncEvent {
     BlockAvailable {
         block_number: BlockNumber,
         block: Block,
+        transaction_events: Vec<Vec<Event>>,
         signature: BlockSignature,
     },
     StateDiffAvailable {
@@ -329,8 +331,8 @@ impl<
     // Tries to store the incoming data.
     async fn process_sync_event(&mut self, sync_event: SyncEvent) -> StateSyncResult {
         match sync_event {
-            SyncEvent::BlockAvailable { block_number, block, signature } => {
-                self.store_block(block_number, block, signature).await
+            SyncEvent::BlockAvailable { block_number, block, transaction_events, signature } => {
+                self.store_block(block_number, block, transaction_events, signature).await
             }
             SyncEvent::StateDiffAvailable {
                 block_number,
@@ -381,6 +383,7 @@ impl<
         &mut self,
         block_number: BlockNumber,
         block: Block,
+        transaction_events: Vec<Vec<Event>>,
         signature: BlockSignature,
     ) -> StateSyncResult {
         // To prevent cases where central has forked under our feet, check incoming block's parent
@@ -397,7 +400,8 @@ impl<
                 .begin_rw_txn()?
                 .append_header(block_number, &block.header)?
                 .append_block_signature(block_number, &signature)?
-                .append_body(block_number, block.body)?;
+                .append_body(block_number, block.body)?
+                .append_events(block_number, &transaction_events)?;
             if block.header.block_header_without_hash.starknet_version
                 < STARKNET_VERSION_TO_COMPILE_FROM
             {
@@ -796,8 +800,8 @@ fn stream_new_blocks<
                 central_source.stream_new_blocks(header_marker, up_to).fuse();
             pin_mut!(block_stream);
             while let Some(maybe_block) = block_stream.next().await {
-                let (block_number, block, signature) = maybe_block?;
-                yield SyncEvent::BlockAvailable { block_number, block , signature };
+                let (block_number, block, transaction_events, signature) = maybe_block?;
+                yield SyncEvent::BlockAvailable { block_number, block, transaction_events, signature };
             }
         }
     }

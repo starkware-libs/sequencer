@@ -28,7 +28,7 @@ async fn transaction_basic_flow() {
     let block_bodies = (0..NUM_BLOCKS)
         // TODO(shahak): remove Some(0) once we separate events from transactions correctly.
         .map(|i| {
-            let mut body = get_test_body(i.try_into().unwrap(), Some(0), None, None);
+            let (mut body, _events) = get_test_body(i.try_into().unwrap(), Some(0), None, None);
             // get_test_body returns transaction hash in the range 0..num_transactions. We want to
             // avoid collisions in transaction hash.
             for transaction_hash in &mut body.transaction_hashes {

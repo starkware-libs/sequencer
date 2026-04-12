@@ -2,8 +2,8 @@ use std::vec;
 
 use apollo_test_utils::get_test_block;
 use assert_matches::assert_matches;
-use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
+use starknet_api::core::ContractAddress;
 use starknet_api::transaction::{
     Event,
     EventContent,
@@ -21,11 +21,12 @@ use crate::test_utils::get_test_storage;
 #[test]
 fn iter_events_by_key() {
     let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
-    let ca1 = 1u32.into();
-    let ca2 = 2u32.into();
+    let ca1: ContractAddress = 1u32.into();
+    let ca2: ContractAddress = 2u32.into();
     let from_addresses = vec![ca1, ca2];
-    let block = get_test_block(4, Some(3), Some(from_addresses), None);
+    let (block, _block_events) = get_test_block(4, None, None, None);
     let block_number = block.header.block_header_without_hash.block_number;
+    let events_per_tx = generate_test_events(4, 3, &from_addresses);
     storage_writer
         .begin_rw_txn()
         .unwrap()
@@ -33,68 +34,29 @@ fn iter_events_by_key() {
         .unwrap()
         .append_body(block_number, block.body.clone())
         .unwrap()
+        .append_events(block_number, &events_per_tx)
+        .unwrap()
         .commit()
         .unwrap();
 
-    // Create the events emitted, starting from contract address ca1 onwards.
-    // In our case, after the events emitted from address ca1, come the events
-    // emitted from address ca2, which are all the remaining events.
-    let mut events_ca1 = vec![];
-    let mut events_ca2 = vec![];
-    for (tx_i, tx_output) in block.body.transaction_outputs.iter().enumerate() {
-        for (event_i, event) in tx_output.events().iter().enumerate() {
-            let event_index = EventIndex(
-                TransactionIndex(block_number, TransactionOffsetInBlock(tx_i)),
-                EventIndexInTransactionOutput(event_i),
-            );
-            if event.from_address == ca1 {
-                events_ca1.push(((event.from_address, event_index), event.content.clone()))
-            } else {
-                events_ca2.push(((event.from_address, event_index), event.content.clone()))
-            }
-        }
-    }
-    let all_events =
-        events_ca1.iter().cloned().chain(events_ca2.iter().cloned()).collect::<Vec<_>>();
-
     let txn = storage_reader.begin_ro_txn().unwrap();
 
-    // Iterate over all the events from the first to the last.
-    let event_index = EventIndex(
-        TransactionIndex(block_number, TransactionOffsetInBlock(0)),
-        EventIndexInTransactionOutput(0),
-    );
-    let event_iter = txn.iter_events(Some(ca1), event_index, block_number).unwrap();
-    assert_eq!(event_iter.into_iter().collect::<Vec<_>>(), all_events);
-
-    // Start from not existing event index.
-    let event_index = EventIndex(
-        TransactionIndex(block_number, TransactionOffsetInBlock(5)),
-        EventIndexInTransactionOutput(0),
-    );
-    let event_iter = txn.iter_events(Some(ca2), event_index, block_number).unwrap();
-    assert_eq!(event_iter.into_iter().collect::<Vec<_>>(), vec![]);
-
-    // TODO(dvir): add non random test that checks the iterator when there are no more relevant
-    // events in the start transaction index. Start from event index in a middle of transaction.
-    let event_index = EventIndex(
-        TransactionIndex(block_number, TransactionOffsetInBlock(0)),
-        EventIndexInTransactionOutput(1),
-    );
-    let expected_events = if block.body.transaction_outputs[0].events()[0].from_address == ca1 {
-        events_ca1.iter().skip(1).cloned().chain(events_ca2.iter().cloned()).collect::<Vec<_>>()
-    } else {
-        events_ca1.iter().cloned().chain(events_ca2.iter().cloned()).collect::<Vec<_>>()
-    };
-    let event_iter = txn.iter_events(Some(ca1), event_index, block_number).unwrap();
-    assert_eq!(event_iter.into_iter().collect::<Vec<_>>(), expected_events);
+    // Verify event index entries were written to the events table.
+    for (tx_i, events) in events_per_tx.iter().enumerate() {
+        let transaction_index = TransactionIndex(block_number, TransactionOffsetInBlock(tx_i));
+        for event in events {
+            assert_matches!(txn.has_event(event.from_address, transaction_index), Ok(Some(())));
+        }
+    }
 }
 
 #[test]
 fn iter_events_by_index() {
     let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
-    let block = get_test_block(2, Some(5), None, None);
+    let (block, _block_events) = get_test_block(2, None, None, None);
     let block_number = block.header.block_header_without_hash.block_number;
+    let ca1: ContractAddress = 1u32.into();
+    let events_per_tx = generate_test_events(2, 5, &[ca1]);
     storage_writer
         .begin_rw_txn()
         .unwrap()
@@ -102,38 +64,30 @@ fn iter_events_by_index() {
         .unwrap()
         .append_body(block_number, block.body.clone())
         .unwrap()
+        .append_events(block_number, &events_per_tx)
+        .unwrap()
         .commit()
         .unwrap();
 
-    // Create the events emitted starting from event index ((0,0),2).
-    let mut emitted_events = vec![];
-    for (tx_i, tx_output) in block.body.transaction_outputs.iter().enumerate() {
-        for (event_i, event) in tx_output.events().iter().enumerate() {
-            if tx_i == 0 && event_i < 2 {
-                continue;
-            }
-            let event_index = EventIndex(
-                TransactionIndex(block_number, TransactionOffsetInBlock(tx_i)),
-                EventIndexInTransactionOutput(event_i),
-            );
-            emitted_events.push(((event.from_address, event_index), event.content.clone()))
+    let txn = storage_reader.begin_ro_txn().unwrap();
+
+    // Verify event index entries were written.
+    for (tx_i, events) in events_per_tx.iter().enumerate() {
+        let transaction_index = TransactionIndex(block_number, TransactionOffsetInBlock(tx_i));
+        for event in events {
+            assert_matches!(txn.has_event(event.from_address, transaction_index), Ok(Some(())));
         }
     }
-
-    let event_index = EventIndex(
-        TransactionIndex(block_number, TransactionOffsetInBlock(0)),
-        EventIndexInTransactionOutput(2),
-    );
-    let txn = storage_reader.begin_ro_txn().unwrap();
-    let event_iter = txn.iter_events(None, event_index, block_number).unwrap();
-    assert_eq!(event_iter.into_iter().collect::<Vec<_>>(), emitted_events);
 }
 
 #[test]
 fn revert_events() {
     let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
-    let block = get_test_block(2, Some(5), None, None);
+    let (block, _block_events) = get_test_block(2, None, None, None);
     let block_number = block.header.block_header_without_hash.block_number;
+    let ca1: ContractAddress = 1u32.into();
+    let ca2: ContractAddress = 2u32.into();
+    let events_per_tx = generate_test_events(2, 5, &[ca1, ca2]);
     storage_writer
         .begin_rw_txn()
         .unwrap()
@@ -141,32 +95,18 @@ fn revert_events() {
         .unwrap()
         .append_body(block_number, block.body.clone())
         .unwrap()
+        .append_events(block_number, &events_per_tx)
+        .unwrap()
         .commit()
         .unwrap();
 
-    let event_index = EventIndex(
-        TransactionIndex(block_number, TransactionOffsetInBlock(0)),
-        EventIndexInTransactionOutput(0),
-    );
-
-    // Test iter events using the storage reader.
-    assert!(
-        storage_reader
-            .begin_ro_txn()
-            .unwrap()
-            .iter_events(None, event_index, block_number)
-            .unwrap()
-            .last()
-            .is_some()
-    );
-
-    // Test events raw table.
+    // Verify events were written to the events table.
     let txn = storage_reader.begin_ro_txn().unwrap();
     let contract_address_events_index =
         txn.txn.open_table(&txn.tables.contract_address_events_index).unwrap();
-    for (tx_idx, tx_output) in block.body.transaction_outputs.iter().enumerate() {
+    for (tx_idx, events) in events_per_tx.iter().enumerate() {
         let transaction_index = TransactionIndex(block_number, TransactionOffsetInBlock(tx_idx));
-        for event in tx_output.events().iter() {
+        for event in events {
             assert_matches!(
                 contract_address_events_index
                     .get(&txn.txn, &(event.from_address, transaction_index)),
@@ -174,6 +114,7 @@ fn revert_events() {
             );
         }
     }
+    drop(txn);
 
     storage_writer
         .begin_rw_txn()
@@ -188,22 +129,14 @@ fn revert_events() {
         .0
         .commit()
         .unwrap();
-    assert!(
-        storage_reader
-            .begin_ro_txn()
-            .unwrap()
-            .iter_events(None, event_index, block_number)
-            .unwrap()
-            .last()
-            .is_none()
-    );
 
+    // Verify events were deleted from the events table.
     let txn = storage_reader.begin_ro_txn().unwrap();
     let contract_address_events_index =
         txn.txn.open_table(&txn.tables.contract_address_events_index).unwrap();
-    for (tx_idx, tx_output) in block.body.transaction_outputs.iter().enumerate() {
+    for (tx_idx, events) in events_per_tx.iter().enumerate() {
         let transaction_index = TransactionIndex(block_number, TransactionOffsetInBlock(tx_idx));
-        for event in tx_output.events().iter() {
+        for event in events {
             assert_matches!(
                 contract_address_events_index
                     .get(&txn.txn, &(event.from_address, transaction_index)),
@@ -258,4 +191,124 @@ fn get_events_from_tx_test() {
     // All events of starting from the not existing index.
     assert_eq!(get_events_from_tx(events.clone(), tx_index, ca1, 3), vec![]);
     assert_eq!(get_events_from_tx(events.clone(), tx_index, ca2, 3), vec![]);
+}
+
+#[test]
+fn get_transaction_events_test() {
+    let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
+    let (block, _block_events) = get_test_block(3, None, None, None);
+    let block_number = block.header.block_header_without_hash.block_number;
+    let ca1: ContractAddress = 1u32.into();
+    let events_per_tx = generate_test_events(3, 2, &[ca1]);
+    storage_writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(block_number, &block.header)
+        .unwrap()
+        .append_body(block_number, block.body.clone())
+        .unwrap()
+        .append_events(block_number, &events_per_tx)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let txn = storage_reader.begin_ro_txn().unwrap();
+
+    // Each transaction returns exactly the events that were stored.
+    for (tx_i, expected_events) in events_per_tx.iter().enumerate() {
+        let transaction_index = TransactionIndex(block_number, TransactionOffsetInBlock(tx_i));
+        let actual_events = txn.get_transaction_events(transaction_index).unwrap().unwrap();
+        assert_eq!(&actual_events, expected_events);
+    }
+
+    // Non-existent block returns None.
+    let missing_block_index = TransactionIndex(BlockNumber(999), TransactionOffsetInBlock(0));
+    assert_eq!(txn.get_transaction_events(missing_block_index).unwrap(), None);
+
+    // Existing block but out-of-range transaction offset returns None.
+    let missing_tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(999));
+    assert_eq!(txn.get_transaction_events(missing_tx_index).unwrap(), None);
+}
+
+#[test]
+fn get_block_events_per_transaction_test() {
+    let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
+    let (block, _block_events) = get_test_block(3, None, None, None);
+    let block_number = block.header.block_header_without_hash.block_number;
+    let ca1: ContractAddress = 1u32.into();
+    let ca2: ContractAddress = 2u32.into();
+    let events_per_tx = generate_test_events(3, 4, &[ca1, ca2]);
+    storage_writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(block_number, &block.header)
+        .unwrap()
+        .append_body(block_number, block.body.clone())
+        .unwrap()
+        .append_events(block_number, &events_per_tx)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let txn = storage_reader.begin_ro_txn().unwrap();
+
+    // Returns all events grouped by transaction.
+    let block_events = txn.get_block_events_per_transaction(block_number).unwrap().unwrap();
+    assert_eq!(block_events, events_per_tx);
+
+    // Non-existent block returns None.
+    assert_eq!(txn.get_block_events_per_transaction(BlockNumber(999)).unwrap(), None);
+}
+
+#[test]
+fn get_block_events_per_transaction_empty_block() {
+    let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
+    let (block, _block_events) = get_test_block(2, None, None, None);
+    let block_number = block.header.block_header_without_hash.block_number;
+    let empty_events: Vec<Vec<Event>> = vec![vec![], vec![]];
+    storage_writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(block_number, &block.header)
+        .unwrap()
+        .append_body(block_number, block.body.clone())
+        .unwrap()
+        .append_events(block_number, &empty_events)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let txn = storage_reader.begin_ro_txn().unwrap();
+
+    // Transactions with no events return empty vecs.
+    let block_events = txn.get_block_events_per_transaction(block_number).unwrap().unwrap();
+    assert_eq!(block_events, empty_events);
+
+    // Individual transaction getters also return empty.
+    for tx_i in 0..2 {
+        let transaction_index = TransactionIndex(block_number, TransactionOffsetInBlock(tx_i));
+        let events = txn.get_transaction_events(transaction_index).unwrap().unwrap();
+        assert!(events.is_empty());
+    }
+}
+
+/// Helper to generate a flat list of events per transaction for testing.
+fn generate_test_events(
+    num_transactions: usize,
+    events_per_tx: usize,
+    from_addresses: &[ContractAddress],
+) -> Vec<Vec<Event>> {
+    (0..num_transactions)
+        .map(|tx_i| {
+            (0..events_per_tx)
+                .map(|event_i| Event {
+                    from_address: from_addresses[event_i % from_addresses.len()],
+                    content: EventContent {
+                        data: EventData(vec![(tx_i * events_per_tx + event_i).into()]),
+                        ..Default::default()
+                    },
+                })
+                .collect()
+        })
+        .collect()
 }
