@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775987669946,
+  "lastUpdate": 1775989344674,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1801,6 +1801,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1402.3594859000002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "143319383+nimrod-starkware@users.noreply.github.com",
+            "name": "nimrod-starkware",
+            "username": "nimrod-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5f7f1ce23ff0e97b79d272461fb559e17db6d693",
+          "message": "starknet_patricia_storage: remove code dup for mget (#12175)",
+          "timestamp": "2026-04-12T10:07:41Z",
+          "tree_id": "a52d831aa7784c76c23026f6c112cfeb26d29213",
+          "url": "https://github.com/starkware-libs/sequencer/commit/5f7f1ce23ff0e97b79d272461fb559e17db6d693"
+        },
+        "date": 1775989344366,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 922.0798135499999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1391.5285850799999,
             "unit": "ms"
           }
         ]
