@@ -67,19 +67,16 @@ use crate::utils::{
     spawn_local_eth_to_strk_oracle,
     spawn_local_success_recorder,
     AccumulatedTransactions,
+    NodeDescriptor,
 };
 
-pub const NUM_OF_SEQUENCERS: usize = 2;
-const SEQUENCER_0: usize = 0;
-const SEQUENCER_1: usize = 1;
 const BUILDER_BASE_ADDRESS: Felt = Felt::from_hex_unchecked("0x42");
 
 // The number of fake transactions sent to L1 before test begins.
 const NUM_L1_TRANSACTIONS: usize = 10;
 
 pub struct FlowTestSetup {
-    pub sequencer_0: FlowSequencerSetup,
-    pub sequencer_1: FlowSequencerSetup,
+    pub sequencers: Vec<FlowSequencerSetup>,
 
     // Ethereum base layer coupled with an Anvil server instance, the server is dropped when the
     // instance is dropped.
@@ -97,36 +94,31 @@ impl FlowTestSetup {
         test_unique_index: u16,
         block_max_capacity_gas: GasAmount,
         allow_bootstrap_txs: bool,
-        instance_indices: [u16; 3],
+        node_descriptors: Vec<NodeDescriptor>,
+        instance_base: u16,
     ) -> Self {
+        let num_nodes = node_descriptors.len();
         let chain_info = ChainInfo::create_for_testing();
-        let [shared_instance_index, sequencer_0_instance_index, sequencer_1_instance_index] =
-            instance_indices;
-        let mut available_ports = AvailablePorts::new(test_unique_index, shared_instance_index);
+        let mut shared_ports = AvailablePorts::new(test_unique_index, instance_base);
 
         let accounts = tx_generator.accounts();
         let (consensus_manager_configs, consensus_proposals_channels) =
             create_consensus_manager_configs_and_channels(
-                available_ports.get_next_ports(NUM_OF_SEQUENCERS + 1),
+                shared_ports.get_next_ports(num_nodes + 1),
                 &chain_info.chain_id,
             );
-        let [sequencer_0_consensus_manager_config, sequencer_1_consensus_manager_config] =
-            consensus_manager_configs.try_into().unwrap();
 
-        let ports = available_ports.get_next_ports(NUM_OF_SEQUENCERS);
-        let mempool_p2p_configs = create_mempool_p2p_configs(chain_info.chain_id.clone(), ports);
-        let [sequencer_0_mempool_p2p_config, sequencer_1_mempool_p2p_config] =
-            mempool_p2p_configs.try_into().unwrap();
+        let mempool_p2p_configs = create_mempool_p2p_configs(
+            chain_info.chain_id.clone(),
+            shared_ports.get_next_ports(num_nodes),
+        );
 
-        let [sequencer_0_state_sync_config, sequencer_1_state_sync_config] =
-            create_state_sync_configs(
-                StorageConfig::default(),
-                available_ports.get_next_ports(NUM_OF_SEQUENCERS),
-                available_ports.get_next_ports(NUM_OF_SEQUENCERS),
-                available_ports.get_next_ports(NUM_OF_SEQUENCERS),
-            )
-            .try_into()
-            .unwrap();
+        let state_sync_configs = create_state_sync_configs(
+            StorageConfig::default(),
+            shared_ports.get_next_ports(num_nodes),
+            shared_ports.get_next_ports(num_nodes),
+            shared_ports.get_next_ports(num_nodes),
+        );
 
         let anvil_base_layer = AnvilBaseLayer::new(None, None).await;
         let base_layer_url = anvil_base_layer.get_url().await.unwrap();
@@ -154,44 +146,50 @@ impl FlowTestSetup {
 
         tokio::spawn(tx_collector_task.collect_streamd_txs().in_current_span());
 
-        // Create nodes one after the other in order to make sure the ports are not overlapping.
-        let sequencer_0 = FlowSequencerSetup::new(
-            accounts.to_vec(),
-            SEQUENCER_0,
-            chain_info.clone(),
-            base_layer_config.clone(),
-            base_layer_url.clone(),
-            sequencer_0_consensus_manager_config,
-            sequencer_0_mempool_p2p_config,
-            AvailablePorts::new(test_unique_index, sequencer_0_instance_index),
-            sequencer_0_state_sync_config,
-            block_max_capacity_gas,
-            allow_bootstrap_txs,
+        // Create nodes concurrently. Each node gets its own AvailablePorts slot derived from
+        // instance_base + 1 + node_index, guaranteeing non-overlapping port ranges across nodes.
+        let sequencers = futures::future::join_all(
+            consensus_manager_configs
+                .into_iter()
+                .zip(mempool_p2p_configs)
+                .zip(state_sync_configs)
+                .enumerate()
+                .map(
+                    |(
+                        node_index,
+                        ((consensus_manager_config, mempool_p2p_config), state_sync_config),
+                    )| {
+                        let node_ports = AvailablePorts::new(
+                            test_unique_index,
+                            instance_base
+                                + 1
+                                + u16::try_from(node_index).expect("node index fits in u16"),
+                        );
+                        FlowSequencerSetup::new(
+                            accounts.to_vec(),
+                            node_index,
+                            chain_info.clone(),
+                            base_layer_config.clone(),
+                            base_layer_url.clone(),
+                            consensus_manager_config,
+                            mempool_p2p_config,
+                            node_ports,
+                            state_sync_config,
+                            block_max_capacity_gas,
+                            allow_bootstrap_txs,
+                            node_descriptors[node_index].validation_only,
+                        )
+                    },
+                ),
         )
         .await;
 
-        let sequencer_1 = FlowSequencerSetup::new(
-            accounts.to_vec(),
-            SEQUENCER_1,
-            chain_info,
-            base_layer_config,
-            base_layer_url,
-            sequencer_1_consensus_manager_config,
-            sequencer_1_mempool_p2p_config,
-            AvailablePorts::new(test_unique_index, sequencer_1_instance_index),
-            sequencer_1_state_sync_config,
-            block_max_capacity_gas,
-            allow_bootstrap_txs,
-        )
-        .await;
-
-        Self { sequencer_0, sequencer_1, anvil_base_layer, accumulated_txs }
+        Self { sequencers, anvil_base_layer, accumulated_txs }
     }
 
     pub fn chain_id(&self) -> &ChainId {
         // TODO(Arni): Get the chain ID from a shared canonic location.
-        &self
-            .sequencer_0
+        &self.sequencers[0]
             .node_config
             .batcher_config
             .as_ref()
@@ -246,6 +244,7 @@ impl FlowSequencerSetup {
         state_sync_config: StateSyncConfig,
         block_max_capacity_gas: GasAmount,
         allow_bootstrap_txs: bool,
+        validation_only: bool,
     ) -> Self {
         let path = None;
         let StorageTestSetup { storage_config, storage_handles } =
@@ -286,6 +285,7 @@ impl FlowSequencerSetup {
             block_max_capacity_gas,
             validator_id,
             allow_bootstrap_txs,
+            validation_only,
         );
         let num_l1_txs = u64::try_from(NUM_L1_TRANSACTIONS).unwrap();
         node_config.l1_gas_price_scraper_config.as_mut().unwrap().number_of_blocks_for_mean =
