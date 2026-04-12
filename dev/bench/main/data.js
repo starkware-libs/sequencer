@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775851055201,
+  "lastUpdate": 1775979893142,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1631,6 +1631,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1358.6764189100002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ac9d25edc9dd6dd305dbdafc2515bee038fe3321",
+          "message": "workspace: update libp2p sub-crates (#13701)",
+          "timestamp": "2026-04-12T07:27:00Z",
+          "tree_id": "37d3c0eb09f956cc6d807ab9d57532291a76987f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/ac9d25edc9dd6dd305dbdafc2515bee038fe3321"
+        },
+        "date": 1775979892657,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1415.50283699,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1811.29833166,
             "unit": "ms"
           }
         ]
