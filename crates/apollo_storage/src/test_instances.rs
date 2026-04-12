@@ -81,7 +81,6 @@ auto_impl_get_test_instance! {
     pub struct TransactionMetadata{
         pub tx_hash: TransactionHash,
         pub tx_location: LocationInFile,
-        pub tx_output_location: LocationInFile,
     }
     struct TransactionIndex(pub BlockNumber, pub TransactionOffsetInBlock);
     pub struct Version{

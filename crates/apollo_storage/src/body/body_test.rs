@@ -405,8 +405,4 @@ fn update_offset_table() {
         last_tx_metadata.tx_location.next_offset(),
         file_offset_table.get(&txn.txn, &OffsetKind::Transaction).unwrap().unwrap()
     );
-    assert_eq!(
-        last_tx_metadata.tx_output_location.next_offset(),
-        file_offset_table.get(&txn.txn, &OffsetKind::TransactionOutput).unwrap().unwrap()
-    );
 }
