@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 
 use crate::config::Config;
 use crate::engine::{Engine, EngineCommand, EngineOutput, MessageKey};
-use crate::message_processor::{EventStateManagerToEngine, GoodUnitsStatus};
+use crate::message_processor::EventStateManagerToEngine;
 use crate::types::{CommitteeId, MessageRoot};
 use crate::{MerkleProof, PropellerUnit, Shard, ShardIndex, ShardsOfPeer};
 
@@ -71,7 +71,7 @@ fn finalize_message(engine: &mut Engine, publisher: PeerId, nonce: u64, root: Me
         publisher,
         nonce,
         message_root: root,
-        unit_status: GoodUnitsStatus::SomeGoodUnitsReceived,
+        had_good_units: true,
     });
 }
 

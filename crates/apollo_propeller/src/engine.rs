@@ -19,8 +19,8 @@ use crate::config::Config;
 use crate::handler::{HandlerIn, HandlerOut};
 use crate::message_processor::{
     EventStateManagerToEngine,
-    GoodUnitsStatus,
     MessageProcessor,
+    ReconstructionState,
     UnitToValidate,
 };
 use crate::metrics::PropellerMetrics;
@@ -318,7 +318,7 @@ impl Engine {
                 unit_rx,
                 engine_tx: self.state_manager_tx.clone(),
                 timeout: self.config.stale_message_timeout,
-                unit_status: GoodUnitsStatus::NoGoodUnitsReceived,
+                state: ReconstructionState::Uninitialized,
             };
 
             // TODO(AndrewL): track task handle to see if it panics or is killed.
@@ -390,7 +390,7 @@ impl Engine {
                 publisher,
                 nonce,
                 message_root,
-                unit_status,
+                had_good_units,
             } => {
                 trace!(
                     ?committee_id,
@@ -408,7 +408,7 @@ impl Engine {
                 }
 
                 // If the message process didn't have any valid shards, we don't cache it.
-                if let GoodUnitsStatus::NoGoodUnitsReceived = unit_status {
+                if !had_good_units {
                     debug!(
                         ?committee_id,
                         ?publisher,
