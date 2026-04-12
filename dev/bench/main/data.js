@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775983901797,
+  "lastUpdate": 1775985150413,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1733,6 +1733,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 2246.78783736,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "143319383+nimrod-starkware@users.noreply.github.com",
+            "name": "nimrod-starkware",
+            "username": "nimrod-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d58841a4b2d9f0f5ce329fba257b7e2556c9d270",
+          "message": "starknet_patricia_storage: add config field to rocksDB storage (#12173)\n\n* starknet_patricia_storage: add config field to rocksDB\n\n* starknet_patricia_storage: add config field to rocksDB storage",
+          "timestamp": "2026-04-12T08:53:03Z",
+          "tree_id": "ee926baea9ed5b845ac5a4f37544664e370522df",
+          "url": "https://github.com/starkware-libs/sequencer/commit/d58841a4b2d9f0f5ce329fba257b7e2556c9d270"
+        },
+        "date": 1775985150049,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 869.42858412,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1354.49455164,
             "unit": "ms"
           }
         ]
