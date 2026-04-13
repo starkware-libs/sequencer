@@ -16,6 +16,10 @@ use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
 use apollo_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
+use apollo_node_config::component_execution_config::{
+    ActiveComponentExecutionConfig,
+    ReactiveComponentExecutionConfig,
+};
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::SequencerNodeConfig;
@@ -1217,13 +1221,21 @@ async fn get_sequencer_setup_configs(
 
     let mut node_component_configs = Vec::with_capacity(node_descriptors.len());
     for descriptor in &node_descriptors {
-        let node_component_config = match descriptor.node_type {
+        let mut node_component_config = match descriptor.node_type {
             NodeType::Consolidated => create_consolidated_component_configs(),
             NodeType::Hybrid => create_hybrid_component_configs(&mut available_ports_generator),
             NodeType::Distributed => {
                 create_distributed_component_configs(&mut available_ports_generator)
             }
         };
+        if descriptor.validation_only {
+            for component_config in node_component_config.values_mut() {
+                component_config.gateway = ReactiveComponentExecutionConfig::disabled();
+                component_config.http_server = ActiveComponentExecutionConfig::disabled();
+                component_config.mempool = ReactiveComponentExecutionConfig::disabled();
+                component_config.mempool_p2p = ReactiveComponentExecutionConfig::disabled();
+            }
+        }
         node_component_configs.push((node_component_config, descriptor.node_type));
     }
 
@@ -1239,12 +1251,15 @@ async fn get_sequencer_setup_configs(
         .expect("Failed to get an AvailablePorts instance for consensus manager configs");
 
     // TODO(Nadin): pass recorder_url to this function to avoid mutating the resulting configs.
+    let can_propose_flags: Vec<bool> =
+        node_descriptors.iter().map(|d| !d.validation_only).collect();
     let mut consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
         create_connected_network_configs(
             consensus_manager_ports.get_next_ports(component_configs_len),
         ),
         component_configs_len,
         &chain_info.chain_id,
+        &can_propose_flags,
     );
 
     let node_indices: HashSet<usize> = (0..component_configs_len).collect();
