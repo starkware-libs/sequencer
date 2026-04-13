@@ -10,13 +10,20 @@ fn main() {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     use std::net::SocketAddr;
+    use std::sync::Arc;
 
+    use anyhow::Context;
     use clap::Parser;
     use starknet_transaction_prover::server::config::{CliArgs, ServiceConfig, TransportMode};
     use starknet_transaction_prover::server::cors::{build_cors_layer, cors_mode};
     use starknet_transaction_prover::server::rpc_api::ProvingRpcServer;
     use starknet_transaction_prover::server::rpc_impl::ProvingRpcServerImpl;
-    use starknet_transaction_prover::server::start_server;
+    use starknet_transaction_prover::server::{
+        start_server,
+        OhttpJsonrpseeLayer,
+        OHTTP_JSONRPSEE_BODY_BUILDER,
+    };
+    use tower_ohttp::OhttpGateway;
     use tracing::info;
     use tracing_subscriber::prelude::*;
     use tracing_subscriber::{fmt, EnvFilter};
@@ -38,6 +45,20 @@ async fn main() -> anyhow::Result<()> {
     let addr = SocketAddr::new(config.ip, config.port);
     let cors_layer = build_cors_layer(&config.cors_allow_origin)?;
 
+    // Initialize OHTTP gateway if enabled.
+    let ohttp_layer: Option<OhttpJsonrpseeLayer> = if config.ohttp_enabled {
+        let gateway = OhttpGateway::from_env().context("Failed to initialize OHTTP gateway")?;
+        info!("OHTTP envelope encryption enabled");
+        Some(OhttpJsonrpseeLayer::new(
+            Arc::new(gateway),
+            usize::try_from(config.max_request_body_size).unwrap(),
+            config.ohttp_key_cache_max_age_secs,
+            OHTTP_JSONRPSEE_BODY_BUILDER,
+        ))
+    } else {
+        None
+    };
+
     let scheme = match &config.transport {
         TransportMode::Http => "http",
         TransportMode::Https { .. } => "https",
@@ -50,6 +71,7 @@ async fn main() -> anyhow::Result<()> {
         config.max_connections,
         config.max_request_body_size,
         cors_layer,
+        ohttp_layer,
     )
     .await?;
 
@@ -60,6 +82,7 @@ async fn main() -> anyhow::Result<()> {
         max_connections = config.max_connections,
         cors_mode = cors_mode(&config.cors_allow_origin),
         cors_allow_origin = ?config.cors_allow_origin,
+        ohttp_enabled = config.ohttp_enabled,
         "JSON-RPC proving server is running."
     );
 

@@ -46,8 +46,9 @@ impl OhttpGateway {
     /// Key ID is 0.
     pub fn from_hex_key(hex_key: &str) -> Result<Self, OhttpError> {
         let hex_key = hex_key.trim();
-        let ikm = hex::decode(hex_key)
-            .map_err(|_| OhttpError::InvalidKey(format!("invalid hex: {hex_key}")))?;
+        let ikm = hex::decode(hex_key).map_err(|_| {
+            OhttpError::InvalidKey("hex decode failed (expected 64 hex characters)".to_string())
+        })?;
         let expected = kem_ikm_len(DEFAULT_KEM);
         if ikm.len() != expected {
             return Err(OhttpError::InvalidKey(format!(
@@ -120,6 +121,23 @@ mod tests {
     fn from_hex_key_rejects_invalid_hex() {
         let result = OhttpGateway::from_hex_key("zzzz");
         assert!(matches!(result, Err(OhttpError::InvalidKey(_))));
+    }
+
+    #[test]
+    fn from_hex_key_error_does_not_leak_key_material() {
+        let leaky_input = "0xDEADBEEFdeadbeefDEADBEEFdeadbeefDEADBEEFdeadbeefDEADBEEFdeadbeef";
+        let Err(error) = OhttpGateway::from_hex_key(leaky_input) else {
+            panic!("expected error for malformed input");
+        };
+        let rendered = format!("{error}");
+
+        assert!(!rendered.contains("DEADBEEF"), "raw key bytes leaked: {rendered}");
+        assert!(!rendered.contains("deadbeef"), "raw key bytes leaked: {rendered}");
+        assert!(!rendered.contains("0x"), "input prefix leaked: {rendered}");
+        assert!(
+            rendered.to_lowercase().contains("hex"),
+            "error should still mention 'hex' to communicate failure mode: {rendered}"
+        );
     }
 
     #[test]
