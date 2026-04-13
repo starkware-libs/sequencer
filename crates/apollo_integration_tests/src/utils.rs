@@ -267,7 +267,7 @@ pub fn create_node_config(
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let storage_reader_server_port = available_ports.get_next_port();
-    let batcher_config = create_batcher_config(
+    let mut batcher_config = create_batcher_config(
         storage_config.batcher_storage_config,
         chain_info.clone(),
         block_max_capacity_gas,
@@ -361,6 +361,10 @@ pub fn create_node_config(
 
     // Retain only the required configs.
     let base_layer_config = Some(base_layer_config);
+    // The batcher's own validation_only must match the node-level flag so it knows whether to
+    // expect a mempool client. The config pointer in CONFIG_POINTERS only propagates this when
+    // loading from a file; when building in code we set it directly.
+    batcher_config.static_config.validation_only = validation_only;
     let batcher_config = wrap_if_component_config_expected!(batcher, batcher_config);
     let class_manager_config =
         wrap_if_component_config_expected!(class_manager, class_manager_config);
@@ -960,6 +964,9 @@ pub struct EndToEndFlowArgs {
     pub expecting_full_blocks: bool,
     pub expecting_reverted_transactions: bool,
     pub allow_bootstrap_txs: bool,
+    /// Per-scenario timeout. Defaults to `TEST_SCENARIO_TIMEOUT`. Tests with slower consensus
+    /// (e.g. more nodes, validation-only nodes) can raise this to avoid flakiness under load.
+    pub scenario_timeout: Duration,
 }
 
 impl EndToEndFlowArgs {
@@ -977,6 +984,7 @@ impl EndToEndFlowArgs {
             expecting_full_blocks: false,
             expecting_reverted_transactions: false,
             allow_bootstrap_txs: false,
+            scenario_timeout: TEST_SCENARIO_TIMEOUT,
         }
     }
 
@@ -999,6 +1007,10 @@ impl EndToEndFlowArgs {
     pub fn node_descriptors(self, node_descriptors: Vec<NodeDescriptor>) -> Self {
         Self { node_descriptors, ..self }
     }
+
+    pub fn scenario_timeout(self, scenario_timeout: Duration) -> Self {
+        Self { scenario_timeout, ..self }
+    }
 }
 
 // Note: run integration/flow tests from separate files in `tests/`, which helps cargo ensure
@@ -1014,6 +1026,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         expecting_full_blocks,
         expecting_reverted_transactions,
         allow_bootstrap_txs,
+        scenario_timeout,
     } = args;
     configure_tracing().await;
 
@@ -1077,7 +1090,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     total_expected_batched_txs_count += sequencers.len() * expected_batched_tx_hashes.len();
     let mut current_batched_txs_count = 0;
 
-    tokio::time::timeout(TEST_SCENARIO_TIMEOUT, async {
+    tokio::time::timeout(scenario_timeout, async {
         loop {
             info!(
                 "Waiting for more txs to be batched in a block. Expected batched txs: \
@@ -1107,7 +1120,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         &global_recorder_handle,
         expecting_reverted_transactions,
     );
-    verify_block_hash_flow(&sequencers).await;
+    verify_block_hash_flow(&sequencers, scenario_timeout).await;
 }
 
 async fn get_max_batcher_height(sequencers: &[&FlowSequencerSetup]) -> BlockNumber {
@@ -1123,10 +1136,10 @@ async fn get_min_global_root_offset(sequencers: &[&FlowSequencerSetup]) -> Block
 }
 
 /// Verifies that all sequencers agree on the block hash for a recent block.
-async fn verify_block_hash_flow(sequencers: &[&FlowSequencerSetup]) {
+async fn verify_block_hash_flow(sequencers: &[&FlowSequencerSetup], scenario_timeout: Duration) {
     let target_height = get_max_batcher_height(sequencers).await;
     let mut min_global_root_offset = get_min_global_root_offset(sequencers).await;
-    timeout(TEST_SCENARIO_TIMEOUT, async {
+    timeout(scenario_timeout, async {
         while min_global_root_offset < target_height {
             info!(
                 "Waiting for min global root offset to reach: {target_height}, actual min global \
