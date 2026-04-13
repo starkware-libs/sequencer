@@ -22,6 +22,10 @@ use apollo_node::clients::SequencerNodeClients;
 use apollo_node::servers::run_component_servers;
 use apollo_node::utils::create_node_modules;
 use apollo_node_config::component_config::ComponentConfig;
+use apollo_node_config::component_execution_config::{
+    ActiveComponentExecutionConfig,
+    ReactiveComponentExecutionConfig,
+};
 use apollo_node_config::node_config::SequencerNodeConfig;
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, StreamMessageBody};
 use apollo_state_sync_config::config::StateSyncConfig;
@@ -102,16 +106,33 @@ impl FlowTestSetup {
         let mut shared_ports = AvailablePorts::new(test_unique_index, instance_base);
 
         let accounts = tx_generator.accounts();
+        let can_propose_flags: Vec<bool> =
+            node_descriptors.iter().map(|d| !d.validation_only).collect();
         let (consensus_manager_configs, consensus_proposals_channels) =
             create_consensus_manager_configs_and_channels(
                 shared_ports.get_next_ports(num_nodes + 1),
                 &chain_info.chain_id,
+                &can_propose_flags,
             );
 
-        let mempool_p2p_configs = create_mempool_p2p_configs(
+        // Only proposing nodes need mempool p2p ports; validation-only nodes get a default config.
+        let n_proposing_nodes =
+            node_descriptors.iter().filter(|descriptor| !descriptor.validation_only).count();
+        let mut proposing_mempool_p2p_configs = create_mempool_p2p_configs(
             chain_info.chain_id.clone(),
-            shared_ports.get_next_ports(num_nodes),
-        );
+            shared_ports.get_next_ports(n_proposing_nodes),
+        )
+        .into_iter();
+        let mempool_p2p_configs: Vec<MempoolP2pConfig> = node_descriptors
+            .iter()
+            .map(|descriptor| {
+                if descriptor.validation_only {
+                    MempoolP2pConfig::default()
+                } else {
+                    proposing_mempool_p2p_configs.next().unwrap()
+                }
+            })
+            .collect();
 
         let state_sync_configs = create_state_sync_configs(
             StorageConfig::default(),
@@ -211,8 +232,8 @@ pub struct FlowSequencerSetup {
     /// Used to differentiate between different sequencer nodes.
     pub node_index: usize,
 
-    // Client for adding transactions to the sequencer node.
-    pub add_tx_http_client: HttpTestClient,
+    // Client for adding transactions to the sequencer node. None for validation-only nodes.
+    pub add_tx_http_client: Option<HttpTestClient>,
 
     // Handles for the storage files, maintained so the files are not deleted.
     pub storage_handles: StorageTestHandles,
@@ -263,7 +284,17 @@ impl FlowSequencerSetup {
 
         let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
 
-        let component_config = ComponentConfig::default();
+        let component_config = if validation_only {
+            ComponentConfig {
+                gateway: ReactiveComponentExecutionConfig::disabled(),
+                http_server: ActiveComponentExecutionConfig::disabled(),
+                mempool: ReactiveComponentExecutionConfig::disabled(),
+                mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
+                ..ComponentConfig::default()
+            }
+        } else {
+            ComponentConfig::default()
+        };
 
         let monitoring_endpoint_config = MonitoringEndpointConfig {
             port: available_ports.get_next_port(),
@@ -301,8 +332,10 @@ impl FlowSequencerSetup {
             node_config.monitoring_endpoint_config.as_ref().unwrap().to_owned();
         let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
 
-        let (ip, port) = node_config.http_server_config.as_ref().unwrap().ip_and_port();
-        let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
+        let add_tx_http_client = node_config.http_server_config.as_ref().map(|config| {
+            let (ip, port) = config.ip_and_port();
+            HttpTestClient::new(SocketAddr::from((ip, port)))
+        });
 
         // Run the sequencer node.
         tokio::spawn(run_component_servers(servers));
@@ -318,7 +351,7 @@ impl FlowSequencerSetup {
     }
 
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
-        self.add_tx_http_client.assert_add_tx_success(tx).await
+        self.add_tx_http_client.as_ref().unwrap().assert_add_tx_success(tx).await
     }
 
     pub async fn batcher_height(&self) -> BlockNumber {
@@ -365,6 +398,7 @@ impl FlowSequencerSetup {
 pub fn create_consensus_manager_configs_and_channels(
     ports: Vec<u16>,
     chain_id: &ChainId,
+    can_propose_flags: &[bool],
 ) -> (
     Vec<ConsensusManagerConfig>,
     BroadcastTopicChannels<StreamMessage<ProposalPart, HeightAndRound>>,
@@ -378,6 +412,7 @@ pub fn create_consensus_manager_configs_and_channels(
         network_configs,
         n_network_configs,
         chain_id,
+        can_propose_flags,
     );
 
     for (i, config) in consensus_manager_configs.iter_mut().enumerate() {

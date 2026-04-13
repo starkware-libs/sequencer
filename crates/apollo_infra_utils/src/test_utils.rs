@@ -5,7 +5,6 @@ use num_enum::IntoPrimitive;
 use serde::Serialize;
 use socket2::{Domain, Socket, Type};
 use strum::EnumCount;
-use tracing::instrument;
 
 const PORTS_PER_INSTANCE: u16 = 80;
 pub const MAX_NUMBER_OF_INSTANCES_PER_TEST: u16 = 26;
@@ -49,6 +48,7 @@ pub enum TestIdentifier {
     L1EventsProviderUnitTests,
     AnvilStartsWithNoContractTest,
     ClassManagerUnitTests,
+    ValidationOnlyNodeNeededForQuorumTest,
 }
 
 #[derive(Debug)]
@@ -78,8 +78,8 @@ impl AvailablePorts {
         AvailablePorts { start_port: current_port, current_port, max_port }
     }
 
-    #[instrument]
     pub fn get_next_port(&mut self) -> u16 {
+        let _span = tracing::trace_span!("get_next_port").entered();
         while self.current_port < self.max_port {
             let port = self.current_port;
             self.current_port += 1;
@@ -102,8 +102,8 @@ impl AvailablePorts {
         std::iter::repeat_with(|| self.get_next_port()).take(n).collect()
     }
 
-    #[instrument]
     pub fn get_next_local_host_socket(&mut self) -> SocketAddr {
+        let _span = tracing::trace_span!("get_next_local_host_socket").entered();
         SocketAddr::new(IpAddr::from(Ipv4Addr::LOCALHOST), self.get_next_port())
     }
 }
@@ -133,8 +133,8 @@ impl AvailablePortsGenerator {
 impl Iterator for AvailablePortsGenerator {
     type Item = AvailablePorts;
 
-    #[instrument]
     fn next(&mut self) -> Option<Self::Item> {
+        let _span = tracing::trace_span!("AvailablePortsGenerator::next").entered();
         let res = Some(AvailablePorts::new(self.test_unique_id, self.instance_index));
         self.instance_index += 1;
         res
