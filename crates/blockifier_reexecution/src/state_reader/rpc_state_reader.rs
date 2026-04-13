@@ -554,6 +554,8 @@ pub struct ConsecutiveRpcStateReaders {
     /// If set, overrides `min_sierra_version_for_sierra_gas` in the block context so that all
     /// contracts with sierra version >= this value use sierra gas.
     pub min_sierra_version_override: Option<SierraVersion>,
+    /// Contract class mapping collected during RPC reads, used for offline reexecution dumps.
+    contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
 }
 
 impl ConsecutiveRpcStateReaders {
@@ -565,13 +567,16 @@ impl ConsecutiveRpcStateReaders {
         contract_class_manager: ContractClassManager,
     ) -> Self {
         let config = config.unwrap_or(get_rpc_state_reader_config());
+        let last_block_state_reader = RpcStateReader::new(
+            &config,
+            chain_info.clone(),
+            last_constructed_block_number,
+            dump_mode,
+        );
+        let contract_class_mapping_dumper =
+            last_block_state_reader.contract_class_mapping_dumper.clone();
         Self {
-            last_block_state_reader: RpcStateReader::new(
-                &config,
-                chain_info.clone(),
-                last_constructed_block_number,
-                dump_mode,
-            ),
+            last_block_state_reader,
             next_block_state_reader: RpcStateReader::new(
                 &config,
                 chain_info,
@@ -580,6 +585,7 @@ impl ConsecutiveRpcStateReaders {
             ),
             contract_class_manager,
             min_sierra_version_override: None,
+            contract_class_mapping_dumper,
         }
     }
 
@@ -687,6 +693,9 @@ impl ConsecutiveRpcStateReaders {
 
         let old_block_hash = self.get_old_block_hash().unwrap();
 
+        // Save the dumper Arc before `self` is consumed by `reexecute_block`.
+        let contract_class_mapping_dumper = self.contract_class_mapping_dumper.clone();
+
         // Run the reexecution and get the state maps and contract class mapping.
         let (block_state, expected_state_diff, actual_state_diff) = self.reexecute_block().unwrap();
 
@@ -696,11 +705,7 @@ impl ConsecutiveRpcStateReaders {
         let block_state = block_state.unwrap();
         let serializable_data_prev_block = SerializableDataPrevBlock {
             state_maps: block_state.get_initial_reads().unwrap(),
-            contract_class_mapping: block_state
-                .state
-                .state_reader
-                .get_contract_class_mapping_dumper()
-                .unwrap(),
+            contract_class_mapping: contract_class_mapping_dumper.lock().unwrap().clone().unwrap(),
         };
 
         // Write the reexecution data to a json file.
