@@ -84,7 +84,8 @@ place it in `foo/foo.rs`.
 
 For a single-file module `foo.rs`, place tests in `foo_test.rs` in the same directory.
 
-Use the `#[path]` attribute to make it a submodule of `foo`:
+Use the `#[path]` attribute to make it a submodule of `foo`, so that tests can access private items
+without having to convert the module into a directory:
 
 ```rust
 // In foo.rs
