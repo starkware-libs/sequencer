@@ -1,0 +1,32 @@
+[package]
+name = "tower_ohttp"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Framework-agnostic tower middleware for Oblivious HTTP (RFC 9458)."
+
+[features]
+# Exposes OHTTP client-side primitives (`test_gateway`,
+# `encapsulate_bhttp_request`, `decapsulate_bhttp_response`) for consumers
+# that want to write integration tests against the layer.
+testing = []
+
+[dependencies]
+bhttp.workspace = true
+bytes.workspace = true
+hex.workspace = true
+http.workspace = true
+http-body.workspace = true
+http-body-util.workspace = true
+ohttp = { workspace = true, features = ["client", "rust-hpke", "server"] }
+serde_json.workspace = true
+thiserror.workspace = true
+tower = { workspace = true, features = ["util"] }
+tracing.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+[lints]
+workspace = true
