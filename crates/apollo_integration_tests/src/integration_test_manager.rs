@@ -1239,12 +1239,15 @@ async fn get_sequencer_setup_configs(
         .expect("Failed to get an AvailablePorts instance for consensus manager configs");
 
     // TODO(Nadin): pass recorder_url to this function to avoid mutating the resulting configs.
+    let can_propose_flags: Vec<bool> =
+        node_descriptors.iter().map(|d| !d.validation_only).collect();
     let mut consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
         create_connected_network_configs(
             consensus_manager_ports.get_next_ports(component_configs_len),
         ),
         component_configs_len,
         &chain_info.chain_id,
+        &can_propose_flags,
     );
 
     let node_indices: HashSet<usize> = (0..component_configs_len).collect();
