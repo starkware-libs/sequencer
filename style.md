@@ -384,10 +384,6 @@ All textual content, including code-comments, commit messages, `expect` messages
 my_vec.push(foo)
 ```
 
-## Github Smell-Testing
-
-If you have a oneliner you suspect is a bad practice, when applicable, try searching for it in the global search bar in `github.com`, if you don't see any production-grade crates doing it consider changing it.
-
 ## External Dependencies
 
 Be conservative with helper crates, and especially avoid single-use crates --- external deps increase our compilation time, and increase potential of version clashes and sudden breaking changes (not all crates adhere to Semver properly).
