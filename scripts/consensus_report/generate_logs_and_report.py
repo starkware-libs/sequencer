@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Tuple
 
 import yaml
+from dateutil import parser
 from generate_consensus_report import generate_consensus_report
 
 # Constants
@@ -99,12 +100,16 @@ def run_stream(cmd: List[str], output_path: Optional[str] = None) -> int:
 
 def parse_local_timestamp(ts: str) -> datetime:
     """
-    Parse timestamp in format YYYY-MM-DDTHH:MM:SS and returns datetime in local timezone.
+    Parse timestamp in format YYYY-MM-DDTHH:MM:SS as in the GC Log Explorer or
+    any other format supported by dateutil package.
     """
-    ts = ts.strip()
-    dt_without_tz = datetime.fromisoformat(ts)
-    dt_with_tz = dt_without_tz.astimezone()
-    return dt_with_tz
+    try:
+        dt_without_tz = parser.parse(ts)
+        dt_with_tz = dt_without_tz.astimezone()
+        return dt_with_tz
+
+    except Exception:
+        raise ValueError(f"Invalid date: {ts}")
 
 
 def parse_rfc3339(ts: str) -> datetime:
@@ -137,9 +142,39 @@ def to_utc(local_time: datetime) -> datetime:
     return local_time.astimezone(timezone.utc)
 
 
-def get_24_hours_window() -> Tuple[datetime, datetime]:
+def get_2_hours_window() -> Tuple[datetime, datetime]:
     now = datetime.now(timezone.utc)
-    start = now - timedelta(hours=24)
+    start = now - timedelta(hours=2)
+    return start, now
+
+
+def parse_hours_minutes(duration_str: str) -> timedelta:
+    """Parse HH:MM format and return timedelta. Raises ValueError if invalid format."""
+    parts = duration_str.split(":")
+    if len(parts) != 2:
+        raise ValueError(f"Invalid duration format '{duration_str}'. Expected HH:MM")
+
+    try:
+        hours = int(parts[0])
+        minutes = int(parts[1])
+    except ValueError:
+        raise ValueError(
+            f"Invalid duration format '{duration_str}'. Hours and minutes must be integers"
+        )
+
+    if hours < 0 or minutes < 0 or minutes >= 60:
+        raise ValueError(
+            f"Invalid duration '{duration_str}'. Hours must be >= 0, minutes must be 0-59"
+        )
+
+    return timedelta(hours=hours, minutes=minutes)
+
+
+def get_last_duration_window(duration_str: str) -> Tuple[datetime, datetime]:
+    """Get time window from (now - duration) to now."""
+    duration = parse_hours_minutes(duration_str)
+    now = datetime.now(timezone.utc)
+    start = now - duration
     return start, now
 
 
@@ -249,10 +284,10 @@ def determine_search_window(
     """Determine the search time window based on provided arguments.
 
     Priority/validation:
-      - --auto, --near, --range, --last-24-hours are mutually exclusive
-      - --range requires exactly 2 arguments: start and end timestamps
-      - --last-24-hours (or no args) uses (current_time - 24 hours) to current_time window
+      - --auto, --near, --range, --last are mutually exclusive
       - --auto requires environment and common_filter_prefix parameters
+      - --range requires exactly 2 arguments: start and end timestamps
+      - no time arguments resolves to --last 02:00
     """
 
     if args.auto:
@@ -285,8 +320,9 @@ def determine_search_window(
         start_str, end_str = args.range
         return to_utc(parse_local_timestamp(start_str)), to_utc(parse_local_timestamp(end_str))
 
-    # Default: last 24 hours window
-    return get_24_hours_window()
+    # Default: last 2 hours window, or custom duration if --last is provided
+    duration = args.last or "02:00"
+    return get_last_duration_window(duration)
 
 
 def prepare_filter(args, environment) -> Tuple[str, datetime, datetime]:
@@ -362,7 +398,17 @@ def generate_report(logs_path: str, height: int, report_path: str) -> int:
 
 
 def get_args(env_map: dict[str, EnvConfig]) -> argparse.Namespace:
-    ap = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    ap = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog="""
+Notes:
+1. All timestamps are in local time and could be in format YYYY-MM-DDTHH:MM:SS as in
+    the GC Log Explorer or any other format supported by dateutil package.
+    In case its not in the GC Log Explorer format, it must be in surrounded by quotes.
+    Example: 2026-04-12T12:00:00 or "12 Apr 2026 12:00"
+2. If no time range argument is provided, --last 02:00 will be used as default.
+""",
+    )
     ap.add_argument(
         "--env",
         choices=env_map.keys(),
@@ -386,17 +432,17 @@ def get_args(env_map: dict[str, EnvConfig]) -> argparse.Namespace:
         "--range",
         nargs=2,
         metavar=("START", "END"),
-        help="Time window range in local time. Format: YYYY-MM-DDTHH:MM:SS YYYY-MM-DDTHH:MM:SS",
+        help="Time window range in local time. Format: See Notes [1]",
     )
     time_group.add_argument(
         "--near",
         metavar="TIMESTAMP",
-        help="Search near this time in local time (±2h window). Format: YYYY-MM-DDTHH:MM:SS",
+        help="Search near this time in local time (±2h window). Format: See Notes [1]",
     )
     time_group.add_argument(
-        "--last-24-hours",
-        action="store_true",
-        help="Use last 24 hours time window (default if no time args)",
+        "--last",
+        metavar="HOURS:MINUTES",
+        help="Search last HOURS:MINUTES time window). Format: HH:MM",
     )
 
     ap.add_argument(
