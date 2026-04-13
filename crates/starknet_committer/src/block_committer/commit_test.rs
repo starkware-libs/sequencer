@@ -201,3 +201,34 @@ fn get_random_state_diffs() -> [StateDiff; 2] {
     let second_state_diff = generate_random_state_diff(&mut rng, N_RANDOM_STATE_UPDATES, None);
     [first_state_diff, second_state_diff]
 }
+
+// The Patricia tree has height 251, so valid leaf keys must be in [0, 2^251 - 1].
+// A felt can hold values up to P - 1 where P = 2^251 + 17*2^192 + 1 (the Stark prime),
+// meaning felts in [2^251, P-1] are valid field elements but exceed the tree's key range.
+// Passing such a class hash to commit_block causes an out-of-range NodeIndex panic.
+#[tokio::test]
+#[should_panic(expected = "is too large")]
+async fn test_commit_block_panics_with_class_hash_above_tree_range() {
+    let storage = MapStorage::default();
+    let mut db: IndexDb<MapStorage> = IndexDb::new(storage);
+
+    // 2^251 + 1: a valid felt (< Stark prime P = 2^251 + 17*2^192 + 1) whose integer
+    // value exceeds the Patricia tree's 251-bit key space.
+    let large_class_hash = ClassHash(
+        Felt::from_hex("0x0800000000000000000000000000000000000000000000000000000000000001")
+            .unwrap(),
+    );
+    let mut declarations = HashMap::new();
+    declarations.insert(large_class_hash, CompiledClassHash(Felt::ONE));
+
+    let input = Input {
+        state_diff: StateDiff {
+            class_hash_to_compiled_class_hash: declarations,
+            ..StateDiff::default()
+        },
+        initial_read_context: IndexDbReadContext::create_empty(),
+        config: ReaderConfig::default(),
+    };
+
+    CommitBlockImpl::commit_block(input, &mut db, &mut NoMeasurements).await.unwrap();
+}
