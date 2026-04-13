@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776007737695,
+  "lastUpdate": 1776066337122,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2005,6 +2005,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1725.04176197,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "143319383+nimrod-starkware@users.noreply.github.com",
+            "name": "nimrod-starkware",
+            "username": "nimrod-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "abdc08c1e087f04f8000e03a81be2781802d8329",
+          "message": "starknet_patricia_storage: define gatherable storage trait (#13630)",
+          "timestamp": "2026-04-13T07:30:03Z",
+          "tree_id": "5775b9a0156901bec0f8e80043321a45bfab816f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/abdc08c1e087f04f8000e03a81be2781802d8329"
+        },
+        "date": 1776066336696,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 941.52338116,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1351.62618513,
             "unit": "ms"
           }
         ]
