@@ -72,6 +72,35 @@ Depends. if `Foo` can be reasoned about without having to read `Bar`, and `Foo` 
 
 Consider pushing the const inside the impl block/function if it makes sense, otherwise keep it at the top of the file.
 
+## Directory Layout
+
+Single-file modules should be in a file called `foo.rs`. Modules with submodules should be in a file called `foo/mod.rs`.
+
+`mod.rs` should not contain any code — it should only declare submodules.
+If the module truly has general-purpose code that doesn't belong to a specific submodule,
+place it in `foo/foo.rs`.
+
+### Test File Placement
+
+For a single-file module `foo.rs`, place tests in `foo_test.rs` in the same directory.
+
+Use the `#[path]` attribute to make it a submodule of `foo`, so that tests can access private items
+without having to convert the module into a directory:
+
+```rust
+// In foo.rs
+#[cfg(test)]
+#[path = "foo_test.rs"]
+mod foo_test;
+```
+
+For a module using `foo/mod.rs`, place tests in `foo/test.rs`.
+
+Multiple test files are allowed when you have different types of tests.
+They should end with a `_test` suffix.
+For single-file modules, they should also start with a `foo_` prefix
+(e.g. `foo_flow_test.rs`, `foo_regression_test.rs`).
+
 ## Error Handling & Safety
 
 Use `Result<T, E>` for recoverable errors and `panic!` only for bugs.
@@ -238,14 +267,6 @@ Struct fields should be `pub` by default, unless changing them could break invar
 If a struct field is private, document the invariant next to the field, and don't create setters for the field.
 
 Note: This rule is not strict, use discretion. For example, types that are included in a crate's API have other considerations, like making a field private so it won't be included in the crate's docs.rs entry or to prevent future breaking changes if that field is likely to change in some way.
-
-### Avoid `mod.rs`
-
-Use `submodule_name.rs`, as `mod.rs` [is considered legacy](https://doc.rust-lang.org/edition-guide/rust-2018/path-changes.html#no-more-modrs) since 2018.
-
-**Rationale**: fuzzy-finding files is harder when you have a large number of files with the same name.
-
-**Edge-case**: there are some rare use-cases where `mod.rs` is required, it's OK to use then.
 
 ## Types
 
