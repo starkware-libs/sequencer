@@ -3,7 +3,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use thiserror::Error;
 
-use super::{LocalComponentClient, RemoteComponentClient};
+use crate::component_client::{LocalComponentClient, RemoteComponentClient};
 use crate::component_definitions::ServerError;
 
 #[derive(Clone, Debug, Error, PartialEq, Eq)]

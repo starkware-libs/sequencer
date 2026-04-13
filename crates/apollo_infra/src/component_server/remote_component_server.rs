@@ -20,11 +20,13 @@ use hyper_util::rt::{TokioExecutor, TokioIo, TokioTimer};
 use hyper_util::server::conn::auto::Builder as ServerBuilder;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use socket2::{SockRef, TcpKeepalive};
 use tokio::net::TcpListener;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tracing::{debug, error, instrument, trace, warn};
 use validator::Validate;
 
+use crate::component_client::remote_component_client::validate_keepalive_timeout_ms;
 use crate::component_client::{ClientError, LocalComponentClient};
 use crate::component_definitions::{
     ComponentClient,
@@ -33,6 +35,7 @@ use crate::component_definitions::{
     APPLICATION_OCTET_STREAM,
     BUSY_PREVIOUS_REQUESTS_MSG,
     REQUEST_ID_HEADER,
+    TCP_KEEPALIVE_FACTOR,
 };
 use crate::component_server::ComponentServerStarter;
 use crate::metrics::RemoteServerMetrics;
@@ -46,6 +49,9 @@ const DEFAULT_MAX_CONCURRENCY: usize = 128;
 const DEFAULT_MAX_REQUEST_BODY_BYTES: usize = 8 * 1024 * 1024;
 const DEFAULT_KEEPALIVE_INTERVAL_MS: u64 = 30_000;
 const DEFAULT_KEEPALIVE_TIMEOUT_MS: u64 = 10_000;
+// Number of unanswered TCP keepalive probes before the OS declares the connection dead.
+// 3 probes × keepalive_interval gives a ~90 s probe window at the default interval.
+const TCP_KEEPALIVE_RETRIES: u32 = 3;
 
 macro_rules! serve_connection {
     (
@@ -80,6 +86,7 @@ pub struct RemoteServerConfig {
     pub max_concurrency: usize,
     pub max_request_body_bytes: usize,
     pub keepalive_interval_ms: u64,
+    #[validate(custom(function = "validate_keepalive_timeout_ms"))]
     pub keepalive_timeout_ms: u64,
 }
 
@@ -391,6 +398,10 @@ where
             panic!("Failed to bind remote component server socket {:#?}: {e}", bind_socket)
         });
 
+        let max_streams = self.config.max_streams_per_connection;
+        let keepalive_interval = Duration::from_millis(self.config.keepalive_interval_ms);
+        let keepalive_timeout = Duration::from_millis(self.config.keepalive_timeout_ms);
+
         loop {
             let (stream, peer_addr) = match listener.accept().await {
                 Ok(conn) => conn,
@@ -405,10 +416,15 @@ where
                 warn!("Failed to set TCP_NODELAY: {e}");
             }
 
+            let tcp_keepalive = TcpKeepalive::new()
+                .with_time(keepalive_timeout.mul_f64(TCP_KEEPALIVE_FACTOR))
+                .with_interval(keepalive_interval)
+                .with_retries(TCP_KEEPALIVE_RETRIES);
+            if let Err(e) = SockRef::from(&stream).set_tcp_keepalive(&tcp_keepalive) {
+                error!("Failed to set TCP keepalive: {e}");
+            }
+
             let io = TokioIo::new(stream);
-            let max_streams = self.config.max_streams_per_connection;
-            let keepalive_interval = Duration::from_millis(self.config.keepalive_interval_ms);
-            let keepalive_timeout = Duration::from_millis(self.config.keepalive_timeout_ms);
 
             tokio::spawn(per_connection_service(
                 io,
