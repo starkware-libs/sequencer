@@ -62,11 +62,12 @@ config:
     consensus_manager_config.staking_manager_config.dynamic_config.default_committee: "0,100:0x64,1,0x1,true"
     consensus_manager_config.staking_manager_config.dynamic_config.override_committee.#is_none: true
     consensus_manager_config.staking_manager_config.dynamic_config.override_committee: ""
-    state_sync_config.static_config.central_sync_client_config.#is_none: true
+    state_sync_config.static_config.central_sync_client_config.#is_none: false
+    state_sync_config.static_config.central_sync_client_config.central_source_config.starknet_url: "http://dummy-recorder-service.dummy-recorder.svc.cluster.local:8080"
     state_sync_config.static_config.central_sync_client_config.sync_config.store_sierras_and_casms_block_threshold: 0
     state_sync_config.static_config.network_config.#is_none: false
     state_sync_config.static_config.network_config.port: 55010
-    state_sync_config.static_config.p2p_sync_client_config.#is_none: false
+    state_sync_config.static_config.p2p_sync_client_config.#is_none: true
     state_sync_config.static_config.rpc_config.port: 8090
     state_sync_config.static_config.storage_reader_server_static_config.port: 55014
 
