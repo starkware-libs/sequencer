@@ -1879,8 +1879,8 @@
     {
       "name": "preconfirmed_block_not_written",
       "title": "Preconfirmed block not written",
-      "ruleGroup": "batcher",
-      "expr": "increase(batcher_preconfirmed_block_written{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])",
+      "ruleGroup": "consensus",
+      "expr": "increase(batcher_preconfirmed_block_written{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])",
       "conditions": [
         {
           "evaluator": {
@@ -1902,6 +1902,34 @@
       "for": "30s",
       "intervalSec": 30,
       "severity": "$$$preconfirmed_block_not_written-severity$$$",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "preconfirmed_block_write_failure",
+      "title": "Preconfirmed block write failure",
+      "ruleGroup": "consensus",
+      "expr": "sum(increase(batcher_preconfirmed_block_write_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              10.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
       "observer_applicable": "false"
     },
     {

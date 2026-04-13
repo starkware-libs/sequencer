@@ -79,7 +79,10 @@ use crate::alert_scenarios::mempool_size::{
     get_mempool_evictions_count_alert,
     get_mempool_pool_size_increase,
 };
-use crate::alert_scenarios::preconfirmed::get_preconfirmed_block_not_written;
+use crate::alert_scenarios::preconfirmed::{
+    get_preconfirmed_block_not_written,
+    get_preconfirmed_block_write_failure,
+};
 use crate::alert_scenarios::remote_server_connections::get_remote_server_number_of_connections_alert;
 use crate::alert_scenarios::sync_halt::{get_state_sync_lag, get_state_sync_stuck_vec};
 use crate::alert_scenarios::tps::{
@@ -688,6 +691,7 @@ pub fn get_apollo_alerts() -> Alerts {
     alerts.push(get_mempool_pool_size_increase());
     alerts.push(get_mempool_transaction_drop_ratio());
     alerts.push(get_preconfirmed_block_not_written());
+    alerts.push(get_preconfirmed_block_write_failure());
     alerts.append(&mut get_all_remote_server_connection_alerts());
     alerts.push(get_state_sync_lag());
     alerts.append(&mut get_state_sync_stuck_vec());
