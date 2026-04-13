@@ -494,11 +494,6 @@ Avoid iterating `HashSet` and `HashMap`, this is not deterministic in rust. Eith
 
 Use `Vec::with_capacity()` when size is known to avoid reallocations.
 
-### Arithmetic
-
-Always _consider_ using `checked_add` or `saturating_add` (depending on usage) instead of raw arithmetic operations like `+`.
-**Rationale**: On debug builds, overflows and underflows panic, but in production they saturate, which might not be the intended behavior!
-
 ### Match Ergonomics
 
 Don't use `ref` keyword, it's considered legacy, as all of its uses can be replaced more concisely with `&` on the RHS.
@@ -524,28 +519,6 @@ if let Some(n) =  &maybe_name { // `n` is of type `&String`.
 }
 
 println!("{:?}", maybe_name);
-```
-
-### Float
-
-Avoid float types unless you're sure it's necessary. If you're sure it's necessary, avoid anyway and [read this](https://stackoverflow.com/questions/3730019/why-not-use-double-or-float-to-represent-currency).
-
-**Rationale**: they have surprising results when performing arithmetic, ordering, and equality. Additionally (and consequently), they don't support casts to other types unless one uses `as` casts, which we are banning (see casting section).
-
-### Turbofish
-
-Mostly prefer type annotation a variable over turbofish, but it's OK to use sometimes for simple casts when a one-liner is preferred.
-
-```rust
-// BAD
-let parsed = "42".parse::<i32>().unwrap();
-
-// GOOD
-let parsed: i32 = "42".parse().unwrap();
-
-// OK
-let items: Vec<Result<i32,_>> = // ...<calc>
-let sum = items.into_iter().collect::<Result<Vec<_>, _>>()?.sum(); // type is i32.
 ```
 
 ### Combinators
