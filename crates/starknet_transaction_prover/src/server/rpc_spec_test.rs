@@ -50,6 +50,10 @@ static SPECS_DIR: LazyLock<(PathBuf, Option<tempfile::TempDir>)> = LazyLock::new
     if let Ok(dir) = std::env::var("STARKNET_SPECS_DIR") {
         let path = PathBuf::from(dir);
         assert!(path.join("api").exists(), "STARKNET_SPECS_DIR does not contain an api/ directory");
+        assert!(
+            path.join("proving-api").exists(),
+            "STARKNET_SPECS_DIR does not contain a proving-api/ directory"
+        );
         return (path, None);
     }
 
@@ -77,9 +81,9 @@ static SPECS_DIR: LazyLock<(PathBuf, Option<tempfile::TempDir>)> = LazyLock::new
         String::from_utf8_lossy(&output.stderr)
     );
 
-    // Sparse-checkout only the api/ directory (contains the spec JSON files).
+    // Sparse-checkout only the directories containing the spec JSON files.
     let output = std::process::Command::new("git")
-        .args(["-C", dir_str, "sparse-checkout", "set", "api"])
+        .args(["-C", dir_str, "sparse-checkout", "set", "api", "proving-api"])
         .output()
         .expect("Failed to run git sparse-checkout for starknet-specs");
     assert!(
@@ -91,26 +95,26 @@ static SPECS_DIR: LazyLock<(PathBuf, Option<tempfile::TempDir>)> = LazyLock::new
     (dir.path().to_path_buf(), Some(dir))
 });
 
-fn specs_api_path() -> PathBuf {
-    SPECS_DIR.0.join("api")
+fn specs_path() -> PathBuf {
+    SPECS_DIR.0.clone()
 }
 
-fn read_spec_file(name: &str) -> Value {
-    let path = specs_api_path().join(name);
-    let content = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("Failed to read {}: {e}", path.display()));
+fn read_spec_file(path: &str) -> Value {
+    let full_path = specs_path().join(path);
+    let content = std::fs::read_to_string(&full_path)
+        .unwrap_or_else(|e| panic!("Failed to read {}: {e}", full_path.display()));
     serde_json::from_str(&content)
-        .unwrap_or_else(|e| panic!("Failed to parse {}: {e}", path.display()))
+        .unwrap_or_else(|e| panic!("Failed to parse {}: {e}", full_path.display()))
 }
 
 static SPEC: LazyLock<Value> =
-    LazyLock::new(|| read_spec_file("starknet_proving_api_openrpc.json"));
+    LazyLock::new(|| read_spec_file("proving-api/starknet_proving_api_openrpc.json"));
 
 static MAIN_API_SPEC: LazyLock<Value> =
-    LazyLock::new(|| read_spec_file("starknet_api_openrpc.json"));
+    LazyLock::new(|| read_spec_file("api/starknet_api_openrpc.json"));
 
 static WRITE_API_SPEC: LazyLock<Value> =
-    LazyLock::new(|| read_spec_file("starknet_write_api.json"));
+    LazyLock::new(|| read_spec_file("api/starknet_write_api.json"));
 
 #[fixture]
 fn rpc_module() -> RpcModule<ProvingRpcServerImpl> {
@@ -129,7 +133,7 @@ fn mock_rpc_module() -> RpcModule<MockProvingRpc> {
 /// Compiles a JSON Schema from a `$ref` path within the spec document.
 ///
 /// Registers external spec documents so that `$ref`s like
-/// `./api/starknet_api_openrpc.json#/...` resolve correctly.
+/// `../api/starknet_api_openrpc.json#/...` resolve correctly.
 fn compile_schema_for_ref(spec: &Value, ref_path: &str) -> JSONSchema {
     let ref_uri = format!("file:///spec#/{ref_path}");
     let ref_schema: Value = serde_json::from_str(&format!(r#"{{"$ref": "{ref_uri}"}}"#)).unwrap();
