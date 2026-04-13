@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776066337122,
+  "lastUpdate": 1776075749028,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2039,6 +2039,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1351.62618513,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "106665835+Itay-Tsabary-Starkware@users.noreply.github.com",
+            "name": "Itay-Tsabary-Starkware",
+            "username": "Itay-Tsabary-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2cc85dca1a887e0c9a545c5f4fc96668035585df",
+          "message": "apollo_metrics: use consts to create filter string (#13729)",
+          "timestamp": "2026-04-13T10:05:47Z",
+          "tree_id": "783e504f7a15051e3645a1793fe6606673a56a43",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2cc85dca1a887e0c9a545c5f4fc96668035585df"
+        },
+        "date": 1776075748637,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 925.10622987,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1487.70675,
             "unit": "ms"
           }
         ]
