@@ -5,6 +5,7 @@ use std::future::Future;
 
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::{ParamPath, SerializedParam};
+use async_trait::async_trait;
 use futures::future::join_all;
 use serde::{Deserialize, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
@@ -107,7 +108,7 @@ pub trait StorageConfigTrait:
 
 /// A read-only view of a storage that does not require mutable access.
 /// Allows concurrent reads from multiple threads.
-pub trait ImmutableReadOnlyStorage: Send + Sync + 'static {
+pub trait ImmutableReadOnlyStorage: Send + Sync {
     // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
     // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
     // for details.
@@ -120,10 +121,14 @@ pub trait ImmutableReadOnlyStorage: Send + Sync + 'static {
         &self,
         keys: &[&DbKey],
     ) -> impl Future<Output = PatriciaStorageResult<Vec<Option<DbValue>>>> + Send;
+}
 
+#[async_trait]
+/// Extends [ImmutableReadOnlyStorage] with the ability to run tasks concurrently via
+/// [Self::gather].
+pub trait GatherableStorage: ImmutableReadOnlyStorage + 'static {
     /// Runs the given tasks concurrently, each with its own [ReadsCollectorStorage] snapshot.
     /// By default, discards collected reads.
-    #[expect(async_fn_in_trait)]
     async fn gather<T>(&mut self, tasks: Vec<T>) -> Vec<T::Output>
     where
         T: for<'s> StorageTask<'s, Self> + Send,
@@ -142,11 +147,9 @@ pub trait StorageTaskOutput<S: ImmutableReadOnlyStorage>: Send {
 
 /// A unit of work that reads from storage concurrently.
 /// Implementors hold all data needed to perform the read and produce an output.
+#[async_trait]
 pub trait StorageTask<'a, S: ImmutableReadOnlyStorage + 'a>: StorageTaskOutput<S> + Send {
-    fn run_with_storage(
-        self,
-        storage: &mut ReadsCollectorStorage<'a, S>,
-    ) -> impl Future<Output = Self::Output> + Send;
+    async fn run_with_storage(self, storage: &mut ReadsCollectorStorage<'a, S>) -> Self::Output;
 }
 
 /// Runs tasks concurrently, each with its own [ReadsCollectorStorage] snapshot.
