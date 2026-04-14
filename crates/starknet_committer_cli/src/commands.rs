@@ -467,7 +467,7 @@ pub async fn run_storage_benchmark<S: Storage>(
         let mut rng = SmallRng::seed_from_u64(seed + u64::try_from(block_number).unwrap());
         // TODO(Nimrod): Take `build_storage_tries_concurrently` from the command line arguments.
         let build_storage_tries_concurrently = false;
-        let warn_on_trivial_modifications = false;
+        let warn_on_trivial_modifications = true;
         let config =
             ReaderConfig::new(warn_on_trivial_modifications, build_storage_tries_concurrently);
         let input = InputImpl {
