@@ -445,7 +445,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             context_config: ContextConfig {
                 static_config: ContextStaticConfig {
                     chain_id: chain_id.clone(),
-                    builder_address: ContractAddress::from(4_u128),
+                    builder_address: ContractAddress::from(4096_u128),
                     ..Default::default()
                 },
                 dynamic_config: ContextDynamicConfig {

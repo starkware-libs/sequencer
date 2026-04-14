@@ -272,10 +272,8 @@ impl PresetTestContracts {
         .into_iter()
         .map(into_contract)
         .collect();
-
         let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
         let erc20_contract = into_contract(erc20_contract);
-
         Self { default_test_contracts, erc20_contract }
     }
 }
@@ -605,4 +603,15 @@ impl<'a> ThinStateDiffBuilder<'a> {
             nonces: self.nonces,
         }
     }
+}
+
+pub struct ProofFlowGenesisClasses {
+    pub cairo1_contract_classes: Vec<(ClassHash, (SierraContractClass, CasmContractClass))>,
+}
+
+pub fn proof_flow_chain_info() -> ChainInfo {
+    let mut chain_info = ChainInfo::create_for_testing();
+    chain_info.fee_token_addresses.strk_fee_token_address =
+        contract_address!("0x4ff17bf76a1c6cebb82601a43bcab4f9650aea543c44f28e8863f8b624e4b58");
+    chain_info
 }

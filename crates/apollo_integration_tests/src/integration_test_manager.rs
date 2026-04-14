@@ -62,7 +62,7 @@ use crate::node_component_configs::{
     create_hybrid_component_configs,
 };
 use crate::sequencer_simulator_utils::SequencerSimulator;
-use crate::state_reader::StorageTestHandles;
+use crate::state_reader::{proof_flow_chain_info, StorageTestHandles};
 use crate::storage::{get_integration_test_storage, CustomPaths};
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
@@ -1242,7 +1242,10 @@ async fn get_sequencer_setup_configs(
     }
 
     info!("Creating node configurations.");
-    let chain_info = ChainInfo::create_for_testing();
+    let chain_info = match test_unique_id {
+        TestIdentifier::ProofFlowIntegrationTest => proof_flow_chain_info(),
+        _ => ChainInfo::create_for_testing(),
+    };
     let accounts = tx_generator.accounts();
     let component_configs_len = node_component_configs.len();
 
