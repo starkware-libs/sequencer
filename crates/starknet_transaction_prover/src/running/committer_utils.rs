@@ -5,7 +5,7 @@ use blockifier::state::cached_state::{StateMaps, StorageDiff, StorageView};
 use indexmap::IndexMap;
 use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::hash::{HashOutput, StateRoots};
-use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
+use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
     Input,
     ReaderConfig,
@@ -292,10 +292,9 @@ pub async fn commit_state_diff(
         FactsDbInitialRead(StateRoots { contracts_trie_root_hash, classes_trie_root_hash });
     let input = Input { state_diff, initial_read_context, config };
 
-    let (filled_forest, _deleted_nodes) =
-        CommitBlockImpl::commit_block(input, facts_db, &mut NoMeasurements)
-            .await
-            .map_err(|e| ProofProviderError::BlockCommitmentError(e.to_string()))?;
+    let (filled_forest, _deleted_nodes) = commit_block(input, facts_db, &mut NoMeasurements)
+        .await
+        .map_err(|e| ProofProviderError::BlockCommitmentError(e.to_string()))?;
     facts_db.write(&filled_forest).await?;
 
     Ok(StateRoots {

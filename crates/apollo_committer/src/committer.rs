@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::error::Error;
-use std::marker::PhantomData;
 use std::path::PathBuf;
 
 use apollo_committer_config::config::{ApolloStorage, CommitterConfig};
@@ -18,7 +17,7 @@ use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
-use starknet_committer::block_committer::commit::CommitBlockTrait;
+use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::Input;
 use starknet_committer::block_committer::measurements_util::{
     Action,
@@ -70,10 +69,7 @@ mod committer_test;
 
 pub type ApolloCommitterDb = IndexDb<ApolloStorage>;
 
-pub struct BlockCommitter;
-impl CommitBlockTrait for BlockCommitter {}
-
-pub type ApolloCommitter = Committer<ApolloStorage, ApolloCommitterDb, BlockCommitter>;
+pub type ApolloCommitter = Committer<ApolloStorage, ApolloCommitterDb>;
 
 pub trait StorageConstructor: Storage {
     fn create_storage(db_path: PathBuf, storage_config: Self::Config) -> Self;
@@ -96,10 +92,9 @@ struct CommitStateDiffOutput {
 }
 
 /// Apollo committer. Maintains the Starknet state tries in persistent storage.
-pub struct Committer<S: Storage, ForestDB, BlockCommitter>
+pub struct Committer<S: Storage, ForestDB>
 where
     ForestDB: ForestStorageWithEmptyReadContext,
-    BlockCommitter: CommitBlockTrait,
 {
     /// Storage for forest operations.
     forest_storage: ForestDB,
@@ -107,22 +102,19 @@ where
     config: CommitterConfig<S::Config>,
     /// The next block number to commit.
     offset: BlockNumber,
-    // Allow define the generic type CB and not use it.
-    phantom: PhantomData<BlockCommitter>,
 }
 
-impl<S, ForestDB, BlockCommitter> Committer<S, ForestDB, BlockCommitter>
+impl<S, ForestDB> Committer<S, ForestDB>
 where
     S: StorageConstructor,
     ForestDB: ForestStorageWithEmptyReadContext<Storage = S>,
-    BlockCommitter: CommitBlockTrait,
 {
     pub async fn new(config: CommitterConfig<S::Config>) -> Self {
         let storage = S::create_storage(config.db_path.clone(), config.storage_config.clone());
         let mut forest_storage = ForestDB::new(storage);
         let offset = Self::load_offset_or_panic(&mut forest_storage).await;
         info!("Initializing committer with offset: {offset}");
-        Self { forest_storage, config, offset, phantom: PhantomData }
+        Self { forest_storage, config, offset }
     }
 
     fn update_offset(&mut self, offset: BlockNumber) {
@@ -405,7 +397,7 @@ where
             config: self.config.reader_config.clone(),
         };
         let (filled_forest, deleted_nodes) =
-            BlockCommitter::commit_block(input, &mut self.forest_storage, measurements)
+            commit_block(input, &mut self.forest_storage, measurements)
                 .await
                 .map_err(|err| self.map_internal_error(err))?;
         let global_root = filled_forest.state_roots().global_root();

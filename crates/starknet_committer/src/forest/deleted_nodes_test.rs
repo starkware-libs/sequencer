@@ -5,7 +5,7 @@ use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
-use crate::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
+use crate::block_committer::commit::commit_block;
 use crate::block_committer::input::{
     contract_address_into_node_index,
     Input,
@@ -23,7 +23,7 @@ const CONTRACT_ADDRESS: ContractAddress = ContractAddress(PatriciaKey::from_hex_
 
 /// Commits a block with the given leaves and value, and writes the forest to storage.
 /// Returns the deleted nodes.
-async fn commit_block(
+async fn commit_block_and_write(
     leaves: Vec<u128>,
     value: u128,
     index_db: &mut IndexDb<MapStorage>,
@@ -44,9 +44,7 @@ async fn commit_block(
     };
 
     let (filled_forest, deleted_nodes) =
-        CommitBlockImpl::commit_block(input, index_db, &mut NoMeasurements)
-            .await
-            .expect("Failed to commit block");
+        commit_block(input, index_db, &mut NoMeasurements).await.expect("Failed to commit block");
 
     // Write the forest to storage so the roots are persisted, including deleted nodes
     ForestWriterWithMetadata::write_with_metadata(
@@ -76,10 +74,10 @@ async fn verify_deleted_nodes(
     let mut index_db = IndexDb::new(MapStorage::default());
 
     // Commit block with original leaves (all non-zero)
-    commit_block(initial_leaves, 100, &mut index_db).await;
+    commit_block_and_write(initial_leaves, 100, &mut index_db).await;
 
     // Commit block with deletion leaves (all zero)
-    let deleted_nodes = commit_block(leaves_to_delete, 0, &mut index_db).await;
+    let deleted_nodes = commit_block_and_write(leaves_to_delete, 0, &mut index_db).await;
 
     // Verify the deleted nodes match the expected set.
     let storage_trie_deleted_nodes = deleted_nodes.storage_tries.get(&CONTRACT_ADDRESS);
