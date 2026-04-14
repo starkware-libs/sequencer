@@ -7,6 +7,8 @@
 pub(crate) mod prover;
 pub mod virtual_snos_prover;
 
+#[cfg(test)]
+mod blocking_check_integration_test;
 #[cfg(all(test, feature = "stwo_proving"))]
 mod prover_test;
 #[cfg(test)]

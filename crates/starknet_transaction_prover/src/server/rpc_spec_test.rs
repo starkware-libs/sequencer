@@ -299,6 +299,7 @@ fn test_error_responses_match_spec() {
             "INVALID_TRANSACTION_INPUT",
             errors::invalid_transaction_input("test field invalid".to_string()),
         ),
+        ("TRANSACTION_BLOCKED", errors::transaction_blocked()),
     ];
 
     // Completeness guard: ensure all spec errors have a test case.
