@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776154469551,
+  "lastUpdate": 1776166544801,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2107,6 +2107,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1617.94255351,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3d9f666fef01ff0c6f9859a318868736861e34ad",
+          "message": "starknet_committer_and_os_cli: add TreeKey implementations for snap sync (#13611)\n\nAdds impl TreeKey for StorageKey, ContractAddress, and ClassHash, each\nimplementing the scan method to read from apollo_storage and return a\nStateDiff covering the requested Patricia subtree range.\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-04-14T11:20:30Z",
+          "tree_id": "6d6d4ea8e49c851ffd8b387a47a414f4de9bad54",
+          "url": "https://github.com/starkware-libs/sequencer/commit/3d9f666fef01ff0c6f9859a318868736861e34ad"
+        },
+        "date": 1776166544471,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 893.62997076,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1291.49867521,
             "unit": "ms"
           }
         ]
