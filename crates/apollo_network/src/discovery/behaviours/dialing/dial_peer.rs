@@ -30,7 +30,7 @@ pub struct DialPeerStream {
 
 enum DialState {
     /// Waiting to dial (immediately or after backoff).
-    PendingDial { next_dial_time: Instant, sleeper: Option<Pin<Box<Sleep>>> },
+    PendingDial { sleeper: Pin<Box<Sleep>> },
     /// A dial attempt is in progress with the given connection id.
     Dialing(ConnectionId),
     /// Terminal state - connection was established after the request, no guarantee if it's still
@@ -43,7 +43,9 @@ impl DialPeerStream {
         Self {
             peer_id,
             addresses,
-            state: DialState::PendingDial { next_dial_time: Instant::now(), sleeper: None },
+            state: DialState::PendingDial {
+                sleeper: Box::pin(tokio::time::sleep_until(Instant::now())),
+            },
             retry_strategy: retry_config.strategy(),
             waker: None,
         }
@@ -78,8 +80,7 @@ impl DialPeerStream {
                     .next()
                     .expect("A bounded ExponentialBackoff is an infinite iterator");
                 self.state = DialState::PendingDial {
-                    next_dial_time: Instant::now() + backoff,
-                    sleeper: None,
+                    sleeper: Box::pin(tokio::time::sleep_until(Instant::now() + backoff)),
                 };
                 debug!(?self.peer_id, ?backoff, "Dial failed, scheduling retry");
                 self.wake();
@@ -117,19 +118,10 @@ impl Stream for DialPeerStream {
         match &mut self.state {
             DialState::Done => Poll::Ready(None),
             DialState::Dialing(_) => Poll::Pending,
-            DialState::PendingDial { next_dial_time, sleeper } => {
-                let now = Instant::now();
-                if *next_dial_time <= now {
-                    return Poll::Ready(Some(self.emit_dial()));
-                }
-                let target = *next_dial_time;
-                let sleeper =
-                    sleeper.get_or_insert_with(|| Box::pin(tokio::time::sleep_until(target)));
-                match sleeper.as_mut().poll(cx) {
-                    Poll::Ready(()) => Poll::Ready(Some(self.emit_dial())),
-                    Poll::Pending => Poll::Pending,
-                }
-            }
+            DialState::PendingDial { sleeper } => match sleeper.as_mut().poll(cx) {
+                Poll::Ready(()) => Poll::Ready(Some(self.emit_dial())),
+                Poll::Pending => Poll::Pending,
+            },
         }
     }
 }
