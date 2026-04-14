@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776169855703,
+  "lastUpdate": 1776171652487,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2175,6 +2175,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1645.62807445,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "61723b2da5d2375f7f14d7f6582114afae6024f6",
+          "message": "starknet_committer_and_os_cli: add snap sync scan tests (#13613)\n\nAdds run_scan_testing helper and test_class_hash_scan,\ntest_contract_address_scan, and test_storage_key_scan tests that\nverify the TreeKey::scan implementations against a two-block storage.\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-04-14T12:44:37Z",
+          "tree_id": "f3f096b585f1ad6fcd8106c910418b336267d68d",
+          "url": "https://github.com/starkware-libs/sequencer/commit/61723b2da5d2375f7f14d7f6582114afae6024f6"
+        },
+        "date": 1776171652083,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 959.50591146,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1438.72661556,
             "unit": "ms"
           }
         ]
