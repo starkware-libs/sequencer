@@ -62,13 +62,14 @@ use crate::node_component_configs::{
     create_hybrid_component_configs,
 };
 use crate::sequencer_simulator_utils::SequencerSimulator;
-use crate::state_reader::{proof_flow_chain_info, StorageTestHandles};
+use crate::state_reader::{proof_flow_chain_info, PresetTestContracts, StorageTestHandles};
 use crate::storage::{get_integration_test_storage, CustomPaths};
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
     create_integration_test_tx_generator,
     create_mempool_p2p_configs,
     create_node_config,
+    create_proof_flow_tx_generator,
     create_state_sync_configs,
     send_consensus_txs,
     send_message_to_l2_and_calculate_tx_hash,
@@ -395,7 +396,10 @@ impl IntegrationTestManager {
         custom_paths: Option<CustomPaths>,
         test_unique_id: TestIdentifier,
     ) -> Self {
-        let tx_generator = create_integration_test_tx_generator();
+        let tx_generator = match test_unique_id {
+            TestIdentifier::ProofFlowIntegrationTest => create_proof_flow_tx_generator(),
+            _ => create_integration_test_tx_generator(),
+        };
 
         let (sequencers_setup, node_indices) = get_sequencer_setup_configs(
             &tx_generator,
@@ -751,7 +755,7 @@ impl IntegrationTestManager {
     ///
     /// The function verifies the initial state, runs the test with the given number of
     /// transactions, waits for execution to complete, and then verifies the final state.
-    async fn test_and_verify(
+    pub async fn test_and_verify(
         &mut self,
         test_scenario: impl TestScenario,
         sender_account: AccountId,
@@ -1341,11 +1345,18 @@ async fn get_sequencer_setup_configs(
         let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
         let chain_info = chain_info.clone();
 
+        let preset_test_contracts =
+            if matches!(test_unique_id, TestIdentifier::ProofFlowIntegrationTest) {
+                PresetTestContracts::new_without_cairo0()
+            } else {
+                PresetTestContracts::new()
+            };
         let storage_setup = get_integration_test_storage(
             node_index,
             custom_paths.clone(),
             accounts.to_vec(),
             &chain_info,
+            preset_test_contracts,
         );
 
         // Per node, create the executables constituting it.

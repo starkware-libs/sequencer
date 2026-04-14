@@ -57,7 +57,7 @@ use tokio::sync::Mutex;
 use tracing::{debug, instrument, Instrument};
 use url::Url;
 
-use crate::state_reader::{StorageTestHandles, StorageTestSetup};
+use crate::state_reader::{PresetTestContracts, StorageTestHandles, StorageTestSetup};
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
     create_mempool_p2p_configs,
@@ -248,7 +248,7 @@ impl FlowSequencerSetup {
     ) -> Self {
         let path = None;
         let StorageTestSetup { storage_config, storage_handles } =
-            StorageTestSetup::new(accounts, &chain_info, path);
+            StorageTestSetup::new(accounts, &chain_info, path, PresetTestContracts::new());
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());

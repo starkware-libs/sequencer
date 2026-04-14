@@ -93,6 +93,10 @@ mockall.workspace = true
 rstest.workspace = true
 
 [[bin]]
+name = "integration_test_proof_flow"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_proof_flow.rs"
+
+[[bin]]
 name = "integration_test_positive_flow"
 path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_positive_flow.rs"
 
