@@ -120,11 +120,19 @@ jobs:
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
 
+      - name: Clone starknet-specs for spec tests
+        run: |
+          REV=$(cat crates/starknet_transaction_prover/resources/starknet_specs_rev.txt | tr -d '[:space:]')
+          git clone --filter=blob:none --sparse https://github.com/starkware-libs/starknet-specs.git /tmp/starknet-specs
+          git -C /tmp/starknet-specs checkout "$REV"
+          git -C /tmp/starknet-specs sparse-checkout set api proving-api
+
       - name: "Run tests"
         run: |
           scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
+          STARKNET_SPECS_DIR: /tmp/starknet-specs
 
   run-integration-tests:
     runs-on: namespace-profile-large-ubuntu-24-04-amd64

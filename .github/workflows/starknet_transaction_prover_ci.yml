@@ -86,6 +86,13 @@ jobs:
         working-directory: crates/starknet_transaction_prover
         run: rustup show
 
+      - name: Clone starknet-specs for spec tests
+        run: |
+          REV=$(cat crates/starknet_transaction_prover/resources/starknet_specs_rev.txt | tr -d '[:space:]')
+          git clone --filter=blob:none --sparse https://github.com/starkware-libs/starknet-specs.git /tmp/starknet-specs
+          git -C /tmp/starknet-specs checkout "$REV"
+          git -C /tmp/starknet-specs sparse-checkout set api proving-api
+
       - name: Run clippy with all features
         working-directory: crates/starknet_transaction_prover
         run: cargo clippy -p starknet_transaction_prover --no-deps --all-targets --all-features
@@ -94,6 +101,8 @@ jobs:
       - name: Run tests in release mode
         working-directory: crates/starknet_transaction_prover
         run: cargo test -p starknet_transaction_prover --features stwo_proving --release
+        env:
+          STARKNET_SPECS_DIR: /tmp/starknet-specs
 
       # Download RPC record fixtures from GCS for ignored integration tests.
       - id: auth
