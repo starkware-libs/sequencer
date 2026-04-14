@@ -1,6 +1,16 @@
+use std::collections::HashMap;
+
+use apollo_storage::state::StateStorageReader;
 use apollo_storage::StorageReader;
 use starknet_api::block::BlockNumber;
-use starknet_committer::block_committer::input::StateDiff;
+use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
+use starknet_api::state::{StateNumber, StorageKey};
+use starknet_committer::block_committer::input::{
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
+};
+use starknet_committer::patricia_merkle_tree::types::CompiledClassHash as CommitterCompiledClassHash;
 use starknet_types_core::felt::Felt;
 
 #[cfg(test)]
@@ -37,21 +47,19 @@ fn compute_actual_end(start: Felt, last_key: Felt) -> Felt {
 ///   that fits within the last key returned.
 ///
 /// Panics if `limit` is 0.
-#[expect(dead_code)]
 fn shrink_to_actual_end<K: TreeKey, V>(
     mut entries: Vec<(K, V)>,
-    start: K,
-    end: K,
+    start: PatriciaKey,
+    end: PatriciaKey,
     limit: usize,
 ) -> (Vec<(K, V)>, Felt) {
     // TODO(yoav): return error if limit is 0.
     assert!(limit > 0, "limit must be positive");
     if entries.len() < limit {
-        (entries, end.into())
+        (entries, *end.key())
     } else {
-        let start_felt: Felt = start.into();
         let last_key: Felt = entries.last().expect("non-empty scan has a last entry").0.into();
-        let actual_end = compute_actual_end(start_felt, last_key);
+        let actual_end = compute_actual_end(*start.key(), last_key);
         entries
             .truncate(entries.partition_point(|(key, _)| Into::<Felt>::into(*key) <= actual_end));
         (entries, actual_end)
@@ -66,8 +74,8 @@ fn shrink_to_actual_end<K: TreeKey, V>(
 trait TreeKey: Copy + Into<Felt> + Send + Sync + 'static {
     type Context: Clone + Send + Sync + 'static;
 
-    /// Converts a `Felt` to the key type, assuming it is a valid key.
-    fn from_felt(felt: Felt) -> Self;
+    /// Converts a `PatriciaKey` to the key type.
+    fn from_patricia_key(patricia_key: PatriciaKey) -> Self;
 
     /// Scans entries in `[start, end]` at `block_target` and returns `(state_diff, actual_end)`.
     ///
@@ -85,9 +93,140 @@ trait TreeKey: Copy + Into<Felt> + Send + Sync + 'static {
 ///
 /// `start` and `end` are both inclusive. For a valid subtree the range must satisfy:
 /// `size = end - start + 1` is a power of two and `start % size == 0`.
-#[allow(dead_code)]
 struct TreeRequest<K: TreeKey> {
     context: K::Context,
-    start: K,
-    end: K,
+    start: PatriciaKey,
+    end: PatriciaKey,
+}
+
+impl TreeKey for StorageKey {
+    type Context = ContractAddress;
+
+    fn from_patricia_key(patricia_key: PatriciaKey) -> Self {
+        StorageKey(patricia_key)
+    }
+
+    fn scan(
+        reader: &StorageReader,
+        request: &TreeRequest<Self>,
+        block_target: BlockNumber,
+        size_limit: usize,
+    ) -> (StateDiff, Felt) {
+        let txn =
+            reader.begin_ro_txn().expect("Storage scan: failed to begin read-only transaction");
+        let state_reader =
+            txn.get_state_reader().expect("Storage scan: failed to get state reader");
+        let raw_entries = state_reader
+            .scan_storage_keys_for_contract(
+                request.context,
+                Self::from_patricia_key(request.start),
+                Self::from_patricia_key(request.end),
+                block_target,
+                size_limit,
+            )
+            .expect("Storage scan: failed to scan storage keys for contract");
+        let (entries, actual_end) =
+            shrink_to_actual_end(raw_entries, request.start, request.end, size_limit);
+        let storage_map = entries
+            .into_iter()
+            .map(|(key, value)| (StarknetStorageKey(key), StarknetStorageValue(value)))
+            .collect();
+        (
+            StateDiff {
+                storage_updates: HashMap::from([(request.context, storage_map)]),
+                ..Default::default()
+            },
+            actual_end,
+        )
+    }
+}
+
+impl TreeKey for ContractAddress {
+    type Context = ();
+
+    fn from_patricia_key(patricia_key: PatriciaKey) -> Self {
+        ContractAddress(patricia_key)
+    }
+
+    /// Scans up to `size_limit / 2` contract-address-to-class-hash entries in
+    /// `[request.start, request.end]`, then fetches the nonce for each scanned address (assuming
+    /// every deployed contract has a nonce entry).
+    ///
+    /// Returns a `StateDiff` with `address_to_class_hash` and `address_to_nonce` populated, and
+    /// the inclusive actual end of the largest aligned Patricia subtree covered by the scan.
+    fn scan(
+        reader: &StorageReader,
+        request: &TreeRequest<Self>,
+        block_target: BlockNumber,
+        size_limit: usize,
+    ) -> (StateDiff, Felt) {
+        let txn = reader
+            .begin_ro_txn()
+            .expect("Contract class hash scan: failed to begin read-only transaction");
+        let state_reader =
+            txn.get_state_reader().expect("Contract class hash scan: failed to get state reader");
+        let raw_class_entries = state_reader
+            .scan_contract_class_hashes_in_range(
+                Self::from_patricia_key(request.start),
+                Self::from_patricia_key(request.end),
+                block_target,
+                size_limit / 2,
+            )
+            .expect("Contract class hash scan: failed to scan contract class hashes");
+        let (class_entries, actual_end) =
+            shrink_to_actual_end(raw_class_entries, request.start, request.end, size_limit / 2);
+
+        let state_number = StateNumber::unchecked_right_after_block(block_target);
+        let address_to_nonce = class_entries
+            .iter()
+            .map(|(addr, _)| {
+                let nonce = state_reader
+                    .get_nonce_at(state_number, addr)
+                    .expect("Nonce lookup failed")
+                    .unwrap_or_default();
+                (*addr, nonce)
+            })
+            .collect();
+
+        let address_to_class_hash = class_entries.into_iter().collect();
+        (StateDiff { address_to_class_hash, address_to_nonce, ..Default::default() }, actual_end)
+    }
+}
+
+impl TreeKey for ClassHash {
+    type Context = ();
+
+    fn from_patricia_key(patricia_key: PatriciaKey) -> Self {
+        ClassHash(*patricia_key.key())
+    }
+
+    fn scan(
+        reader: &StorageReader,
+        request: &TreeRequest<Self>,
+        block_target: BlockNumber,
+        size_limit: usize,
+    ) -> (StateDiff, Felt) {
+        let txn = reader
+            .begin_ro_txn()
+            .expect("Compiled class hash scan: failed to begin read-only transaction");
+        let state_reader =
+            txn.get_state_reader().expect("Compiled class hash scan: failed to get state reader");
+        let raw_entries = state_reader
+            .scan_compiled_class_hashes_in_range(
+                Self::from_patricia_key(request.start),
+                Self::from_patricia_key(request.end),
+                block_target,
+                size_limit,
+            )
+            .expect("Compiled class hash scan: failed to scan compiled class hashes");
+        let (entries, actual_end) =
+            shrink_to_actual_end(raw_entries, request.start, request.end, size_limit);
+        let class_hash_to_compiled_class_hash = entries
+            .into_iter()
+            .map(|(class_hash, compiled_class_hash)| {
+                (class_hash, CommitterCompiledClassHash(compiled_class_hash.0))
+            })
+            .collect();
+        (StateDiff { class_hash_to_compiled_class_hash, ..Default::default() }, actual_end)
+    }
 }
