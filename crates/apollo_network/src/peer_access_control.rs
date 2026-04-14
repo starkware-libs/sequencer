@@ -31,25 +31,16 @@ pub struct PeerNotAllowedError(PeerId);
 /// so all connections are denied.
 pub struct Behaviour {
     allowed_peers: HashSet<PeerId>,
-    // TODO(AndrewL): Default to true once all call-sites (e2e tests, NetworkManager bootstrap)
-    // wire `set_allowed_peers` with the correct peer set.
-    enforcement_active: bool,
     pending_disconnections: Vec<PeerId>,
     waker: Option<Waker>,
 }
 
 impl Behaviour {
     pub fn new() -> Self {
-        Self {
-            allowed_peers: HashSet::new(),
-            enforcement_active: false,
-            pending_disconnections: Vec::new(),
-            waker: None,
-        }
+        Self { allowed_peers: HashSet::new(), pending_disconnections: Vec::new(), waker: None }
     }
 
     pub fn set_allowed_peers(&mut self, peers: HashSet<PeerId>) {
-        self.enforcement_active = true;
         // Peers in the old set but not the new set should be disconnected. Requesting
         // disconnection for a peer that is not currently connected is a no-op in libp2p.
         let newly_disallowed: Vec<PeerId> =
@@ -72,7 +63,7 @@ impl Behaviour {
     }
 
     fn is_peer_allowed(&self, peer_id: &PeerId) -> bool {
-        !self.enforcement_active || self.allowed_peers.contains(peer_id)
+        self.allowed_peers.contains(peer_id)
     }
 
     fn deny_if_not_allowed(
