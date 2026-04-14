@@ -159,6 +159,7 @@ async fn get_proposal_metadata(
         l1_data_gas_price_wei: GasPrice::default(),
         l1_gas_price_fri: GasPrice::default(),
         l1_data_gas_price_fri: GasPrice::default(),
+        l2_gas_price_fri: GasPrice::default(),
     }
 }
 
@@ -202,6 +203,11 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
                 l1_prices_fri.l1_data_gas_price,
             )
         };
+    let l2_gas_price_fri = if args.override_block_metadata {
+        proposal_metadata.l2_gas_price_fri
+    } else {
+        args.l2_gas_price
+    };
     let init = ProposalInit {
         height: args.build_param.height,
         round: args.build_param.round,
@@ -210,7 +216,7 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
         builder: args.builder_address,
         timestamp,
         l1_da_mode: args.l1_da_mode,
-        l2_gas_price_fri: args.l2_gas_price,
+        l2_gas_price_fri,
         l1_gas_price_wei,
         l1_data_gas_price_wei,
         l1_gas_price_fri,

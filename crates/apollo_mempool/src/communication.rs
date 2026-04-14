@@ -28,7 +28,7 @@ use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{GasPrice, ReplayMetadata};
+use starknet_api::block::{GasPrice, ReplayMetadata, UnixTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -40,10 +40,12 @@ use crate::metrics::register_metrics;
 /// The fields returned by `echonet/get_block_metadata`.
 #[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct BlockProposalParams {
+    pub timestamp: UnixTimestamp,
     pub l1_gas_price_wei: GasPrice,
     pub l1_data_gas_price_wei: GasPrice,
     pub l1_gas_price_fri: GasPrice,
     pub l1_data_gas_price_fri: GasPrice,
+    pub l2_gas_price_fri: GasPrice,
 }
 
 pub type LocalMempoolServer =
@@ -191,6 +193,7 @@ impl MempoolCommunicationWrapper {
             l1_data_gas_price_wei: GasPrice::default(),
             l1_gas_price_fri: GasPrice::default(),
             l1_data_gas_price_fri: GasPrice::default(),
+            l2_gas_price_fri: GasPrice::default(),
         };
 
         if !self.mempool.is_fifo() {
@@ -210,10 +213,12 @@ impl MempoolCommunicationWrapper {
 
         match self.try_fetch_json::<BlockProposalParams>(&url).await {
             Ok(echonet_metadata) => Ok(ReplayMetadata {
+                timestamp: echonet_metadata.timestamp,
                 l1_gas_price_wei: echonet_metadata.l1_gas_price_wei,
                 l1_data_gas_price_wei: echonet_metadata.l1_data_gas_price_wei,
                 l1_gas_price_fri: echonet_metadata.l1_gas_price_fri,
                 l1_data_gas_price_fri: echonet_metadata.l1_data_gas_price_fri,
+                l2_gas_price_fri: echonet_metadata.l2_gas_price_fri,
                 ..default_metadata
             }),
             Err(e) => {

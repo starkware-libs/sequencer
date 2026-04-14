@@ -200,9 +200,17 @@ impl FifoTransactionQueue {
             emit_empty_block,
         };
         self.current_proposal_state = Some(state);
+        // When emitting an empty block, `expected_block_number` has already been advanced to the
+        // next position (so subsequent calls don't re-detect the gap), but the block being built
+        // RIGHT NOW is `prev_state.expected_block_number` — one less.
+        let current_block_number = if emit_empty_block {
+            prev_state.expected_block_number
+        } else {
+            state.expected_block_number
+        };
         BlockMetadata {
             timestamp: state.timestamp,
-            block_number: Some(state.expected_block_number),
+            block_number: Some(current_block_number),
         }
     }
 }

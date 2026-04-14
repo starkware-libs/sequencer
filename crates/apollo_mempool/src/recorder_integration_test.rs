@@ -131,21 +131,24 @@ async fn test_add_tx_with_recorder_integration() {
 #[rstest]
 #[tokio::test]
 async fn test_resolve_block_metadata_echonet_success() {
-    // Mempool provides timestamp and block_number via tx_metadata.
-    let timestamp = 1000;
+    let tx_timestamp = 1000;
+    let echonet_timestamp = 2000;
     let block_number = BlockNumber(1234);
-    let tx_metadata = TxBlockMetadata { timestamp, block_number };
+    let tx_metadata = TxBlockMetadata { timestamp: tx_timestamp, block_number };
 
-    // Echonet provides gas prices.
+    // Echonet provides both the canonical timestamp and gas prices.
     let l1_gas_price_wei = GasPrice(100);
     let l1_data_gas_price_wei = GasPrice(200);
     let l1_gas_price_fri = GasPrice(300);
     let l1_data_gas_price_fri = GasPrice(400);
+    let l2_gas_price_fri = GasPrice(500);
     let block_metadata = BlockProposalParams {
+        timestamp: echonet_timestamp,
         l1_gas_price_wei,
         l1_data_gas_price_wei,
         l1_gas_price_fri,
         l1_data_gas_price_fri,
+        l2_gas_price_fri,
     };
 
     let recorder_url = mock_recorder(Ok(tx_metadata), Ok(block_metadata)).await;
@@ -157,14 +160,16 @@ async fn test_resolve_block_metadata_echonet_success() {
 
     let result = wrapper.resolve_block_metadata().await.unwrap();
 
-    // timestamp and block_number come from mempool, not echonet.
-    assert_eq!(result.timestamp, timestamp);
+    // timestamp comes from echonet (canonical mainnet timestamp for the block).
+    assert_eq!(result.timestamp, echonet_timestamp);
+    // block_number comes from mempool tx metadata.
     assert_eq!(result.block_number, Some(block_number));
     // Gas prices come from echonet.
     assert_eq!(result.l1_gas_price_wei, l1_gas_price_wei);
     assert_eq!(result.l1_data_gas_price_wei, l1_data_gas_price_wei);
     assert_eq!(result.l1_gas_price_fri, l1_gas_price_fri);
     assert_eq!(result.l1_data_gas_price_fri, l1_data_gas_price_fri);
+    assert_eq!(result.l2_gas_price_fri, l2_gas_price_fri);
 }
 
 #[rstest]

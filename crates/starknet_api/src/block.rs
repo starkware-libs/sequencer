@@ -717,6 +717,7 @@ pub struct ReplayMetadata {
     pub l1_data_gas_price_wei: GasPrice,
     pub l1_gas_price_fri: GasPrice,
     pub l1_data_gas_price_fri: GasPrice,
+    pub l2_gas_price_fri: GasPrice,
 }
 
 /// The error type returned from the block verification functions.

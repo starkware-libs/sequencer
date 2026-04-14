@@ -6,6 +6,7 @@ use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig, Mempool
 use apollo_time::test_utils::FakeClock;
 use rstest::{fixture, rstest};
 use starknet_api::test_utils::valid_resource_bounds_for_testing;
+use starknet_api::block::BlockNumber;
 use starknet_api::{contract_address, declare_tx_args, tx_hash};
 
 use crate::add_tx_input;
@@ -332,6 +333,34 @@ fn test_get_txs_pauses_once_on_block_number_gap(mut mempool: Mempool) {
     // Block 5 is present.
     assert_eq!(mempool.resolve_block_metadata().timestamp, 300);
     assert_eq!(mempool.get_txs(10).unwrap(), vec![input4.tx, input5.tx]);
+}
+
+#[rstest]
+fn test_empty_block_metadata_has_correct_block_number(mut mempool: Mempool) {
+    let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let input2 = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
+
+    // Block 10 has a tx, block 11 is empty, block 12 has a tx.
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 10));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1200, 12));
+
+    add_tx(&mut mempool, &input1);
+    add_tx(&mut mempool, &input2);
+
+    // Build block 10.
+    let meta = mempool.resolve_block_metadata();
+    assert_eq!(meta.block_number, Some(BlockNumber(10)));
+    mempool.get_txs(10).unwrap();
+
+    // Build block 11 (empty). block_number must be 11, not 12.
+    let meta = mempool.resolve_block_metadata();
+    assert_eq!(meta.block_number, Some(BlockNumber(11)));
+    assert_eq!(mempool.get_txs(10).unwrap(), Vec::new());
+
+    // Build block 12 (non-empty). block_number must be 12.
+    let meta = mempool.resolve_block_metadata();
+    assert_eq!(meta.block_number, Some(BlockNumber(12)));
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input2.tx]);
 }
 
 #[rstest]
