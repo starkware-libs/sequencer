@@ -622,8 +622,8 @@ class BlobTransformer:
 
         block_info = blob["state_diff"]["block_info"]
         tx_hashes = self.get_blob_tx_hashes(blob)
-        bn_for_meta: Optional[int] = (
-            self._shared.get_sent_block_number(tx_hashes[0]) if tx_hashes else None
+        bn_for_meta: int = (
+            self._shared.get_sent_block_number(tx_hashes[0]) if tx_hashes else block_number
         )
 
         source_block = self._fetch_upstream_source_block(bn_for_meta)
