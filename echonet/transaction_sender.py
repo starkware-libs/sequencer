@@ -332,12 +332,14 @@ class TransactionSenderService:
                             gw_errors,
                             sent_tx_hashes,
                             echonet_only_reverts,
+                            block_hash_mismatch_block,
                         ) = shared.get_resync_evaluation_inputs()
                         resync_trigger = resync_policy.evaluate(
                             gateway_errors=gw_errors,
                             sent_tx_hashes=sent_tx_hashes,
                             echonet_only_reverts=echonet_only_reverts,
                             current_block=block_number,
+                            block_hash_mismatch_block=block_hash_mismatch_block,
                         )
                         if resync_trigger:
                             break
