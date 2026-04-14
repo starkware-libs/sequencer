@@ -180,9 +180,12 @@
             <span class="sectionSummaryLeft">Non-committed tx hashes (pending)</span>
           </summary>
           <div class="tableMeta smallMuted" data-table-meta="pending"></div>
-          {% if not pending_txs %}
+          {% if not pending_txs_total %}
           <div class="empty">(none)</div>
           {% else %}
+          {% if pending_txs_total > 10 %}
+          <div class="smallMuted">Showing first 10 of {{ pending_txs_total }}</div>
+          {% endif %}
           <table class="table filterable" data-filter-scope="pending" data-table="pending">
             <colgroup>
               <col class="colBn" />
