@@ -17,12 +17,11 @@ use starknet_api::state::ThinStateDiff;
 use starknet_committer::db::index_db::db::IndexDb;
 use starknet_patricia_storage::map_storage::MapStorage;
 
-use super::{BlockCommitter, Committer};
+use super::Committer;
 use crate::committer::StorageConstructor;
 
 pub type ApolloTestStorage = MapStorage;
-pub type ApolloTestCommitter =
-    Committer<ApolloTestStorage, IndexDb<ApolloTestStorage>, BlockCommitter>;
+pub type ApolloTestCommitter = Committer<ApolloTestStorage, IndexDb<ApolloTestStorage>>;
 
 impl StorageConstructor for ApolloTestStorage {
     fn create_storage(_db_path: PathBuf, _storage_config: Self::Config) -> Self {

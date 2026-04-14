@@ -11,7 +11,7 @@ use starknet_api::hash::StateRoots;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
-use crate::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
+use crate::block_committer::commit::commit_block;
 use crate::block_committer::input::{
     Input,
     ReaderConfig,
@@ -128,7 +128,7 @@ async fn test_commit_two_consecutive_blocks<Db: ForestReader + ForestWriter>(
         config: ReaderConfig::default(),
     };
     let (filled_forest, _deleted_nodes) =
-        CommitBlockImpl::commit_block(input, &mut db, &mut NoMeasurements).await.unwrap();
+        commit_block(input, &mut db, &mut NoMeasurements).await.unwrap();
     db.write(&filled_forest).await.unwrap();
 
     input = Input {
@@ -138,7 +138,7 @@ async fn test_commit_two_consecutive_blocks<Db: ForestReader + ForestWriter>(
     };
 
     let (filled_forest, _deleted_nodes) =
-        CommitBlockImpl::commit_block(input, &mut db, &mut NoMeasurements).await.unwrap();
+        commit_block(input, &mut db, &mut NoMeasurements).await.unwrap();
     db.write(&filled_forest).await.unwrap();
 
     expected_roots.assert_debug_eq(&filled_forest.state_roots());
