@@ -11,6 +11,7 @@ from enum import Enum
 from os import path
 from typing import TypeVar
 
+from deny_allow_unused import enforce_no_allow_unused
 from named_todos import enforce_named_todos
 from run_tests import BaseCommand, run_test
 from utils import run_command
@@ -119,6 +120,23 @@ class TodosCheck(Check):
         return TodosCheck(from_commit_hash=args.from_commit_hash)
 
 
+class AllowUnusedCheck(Check):
+    def __init__(self, from_commit_hash: str):
+        assert from_commit_hash, "from_commit_hash is required for allow-unused check."
+        self.from_commit_hash = from_commit_hash
+
+    def run_check(self):
+        enforce_no_allow_unused(commit_id=self.from_commit_hash)
+
+    @classmethod
+    def required_args(cls: type[TCheck]) -> set[PresubmitArg]:
+        return {PresubmitArg.FROM_COMMIT_HASH}
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace):
+        return AllowUnusedCheck(from_commit_hash=args.from_commit_hash)
+
+
 class CargoLockCheck(ExternalCommandCheck):
     def __init__(self):
         super().__init__(
@@ -181,6 +199,7 @@ def main():
     all_check_classes = [
         GitSubmodulesCheck,
         TodosCheck,
+        AllowUnusedCheck,
         CargoLockCheck,
         RustFormatCheck,
         TaploCheck,

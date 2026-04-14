@@ -68,6 +68,8 @@ jobs:
       # Run code style checks.
       - name: "Run TODO style"
         run: scripts/named_todos.py --commit_id ${{ github.event.pull_request.base.sha }}
+      - name: "Deny #[allow(unused)] (use #[expect(unused)] instead)"
+        run: scripts/deny_allow_unused.py --commit_id ${{ github.event.pull_request.base.sha }}
       - name: "Run clippy"
         run: scripts/run_tests.py --command clippy --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
       - name: "Run cargo doc"

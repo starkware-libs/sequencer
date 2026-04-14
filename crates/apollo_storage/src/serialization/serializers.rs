@@ -558,7 +558,7 @@ auto_storage_serde! {
 ////////////////////////////////////////////////////////////////////////
 //  impl StorageSerde macro.
 ////////////////////////////////////////////////////////////////////////
-#[allow(unused_macro_rules)]
+#[expect(unused_macro_rules)]
 macro_rules! auto_storage_serde {
     () => {};
     // Tuple structs (no names associated with fields) - one field.

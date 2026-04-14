@@ -152,7 +152,6 @@ impl HashableNestedIntList for NestedFeltCounts {
 
 impl NestedFeltCounts {
     /// Builds a nested structure matching `layout`, consuming values from `bytecode`.
-    #[allow(unused)]
     pub fn new(bytecode_segment_lengths: &NestedIntList, bytecode: &[BigUintAsHex]) -> Self {
         let (base_node, consumed_felts) = Self::new_inner(bytecode_segment_lengths, bytecode, 0);
         assert_eq!(consumed_felts, bytecode.len());
