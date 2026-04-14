@@ -35,6 +35,19 @@ impl NativeCompiledClassV1 {
         Self(Arc::new(contract))
     }
 
+    /// Like [`Self::new`], but additionally stores the Sierra `program` so libfunc profiling
+    /// can resolve libfunc IDs for the running entrypoint.
+    #[cfg(feature = "with-libfunc-profiling")]
+    pub fn new_with_program(
+        executor: AotContractExecutor,
+        casm: CompiledClassV1,
+        program: cairo_lang_sierra::program::Program,
+    ) -> NativeCompiledClassV1 {
+        let contract = NativeCompiledClassV1Inner::new_with_program(executor, casm, program);
+
+        Self(Arc::new(contract))
+    }
+
     pub fn get_entry_point(
         &self,
         entry_point: &EntryPointTypeAndSelector,
@@ -72,12 +85,29 @@ impl HashableCompiledClass<EntryPointV1, NestedFeltCounts> for NativeCompiledCla
 #[derive(Debug)]
 pub struct NativeCompiledClassV1Inner {
     pub executor: AotContractExecutor,
+    #[cfg(feature = "with-libfunc-profiling")]
+    pub program: Option<cairo_lang_sierra::program::Program>,
     casm: CompiledClassV1,
 }
 
 impl NativeCompiledClassV1Inner {
     fn new(executor: AotContractExecutor, casm: CompiledClassV1) -> Self {
-        NativeCompiledClassV1Inner { executor, casm }
+        NativeCompiledClassV1Inner {
+            executor,
+            #[cfg(feature = "with-libfunc-profiling")]
+            program: None,
+            casm,
+        }
+    }
+
+    #[cfg(feature = "with-libfunc-profiling")]
+    fn new_with_program(
+        executor: AotContractExecutor,
+        casm: CompiledClassV1,
+        program: cairo_lang_sierra::program::Program,
+    ) -> Self {
+        let executor = executor.into();
+        NativeCompiledClassV1Inner { executor, program: Some(program), casm }
     }
 }
 
