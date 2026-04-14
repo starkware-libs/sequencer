@@ -178,6 +178,15 @@ pub trait ForestWriterWithMetadata: ForestWriter + ForestMetadata {
     /// Serializes deleted nodes into a vector of database keys.
     fn serialize_deleted_nodes(deleted_nodes: DeletedNodes) -> Vec<DbKey>;
 
+    /// Writes only metadata entries to storage, without a filled forest.
+    async fn write_only_metadata(&mut self, metadata: HashMap<ForestMetadataType, DbValue>) {
+        let mut updates = DbHashMap::new();
+        for (metadata_type, value) in metadata {
+            Self::insert_metadata(&mut updates, metadata_type, value);
+        }
+        self.write_updates(updates_to_set_operations(updates)).await;
+    }
+
     async fn write_with_metadata(
         &mut self,
         filled_forest: &FilledForest,

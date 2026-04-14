@@ -30,12 +30,14 @@ use starknet_committer::block_committer::measurements_util::{
 };
 use starknet_committer::db::forest_trait::{
     EmptyInitialReadContext,
+    ForestMetadataType,
     ForestWriterWithMetadata,
     StorageInitializer,
 };
 use starknet_committer::db::index_db::{IndexDb, IndexDbReadContext};
+use starknet_committer::db::serde_db_utils::DbBlockNumber;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash as CommitterCompiledClassHash;
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use starknet_types_core::felt::{Felt, NonZeroFelt};
 use thiserror::Error;
 use tokio::sync::Mutex;
@@ -492,12 +494,23 @@ pub async fn run_snap_sync(
     .expect("process_request failed for classes tree");
 
     // All requests are done; unwrap the Arc to get owned CommitState.
-    let final_state = Arc::try_unwrap(commit_state)
+    let mut final_state = Arc::try_unwrap(commit_state)
         .unwrap_or_else(|_| panic!("No other Arc references should exist at this point"))
         .into_inner();
 
+    // Write the commitment offset so the committer knows where to resume.
+    let next_offset = block_target.next().expect("block_target is too high");
+    final_state
+        .committer_db
+        .write_only_metadata(HashMap::from([(
+            ForestMetadataType::CommitmentOffset,
+            DbValue(DbBlockNumber(next_offset).serialize().to_vec()),
+        )]))
+        .await;
+
     info!(
-        "Snap sync complete. Contracts tree root: {}, Classes tree root: {}",
+        "Snap sync complete. Next offset: {}, contracts tree root: {}, classes tree root: {}",
+        next_offset.0,
         final_state.state_roots.contracts_trie_root_hash.0.to_hex_string(),
         final_state.state_roots.classes_trie_root_hash.0.to_hex_string(),
     );
