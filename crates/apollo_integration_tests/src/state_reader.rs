@@ -53,7 +53,9 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::test_utils::{
     CURRENT_BLOCK_TIMESTAMP,
+    DEFAULT_ETH_L1_DATA_GAS_PRICE,
     DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
     TEST_SEQUENCER_ADDRESS,
     VALID_ACCOUNT_BALANCE,
@@ -271,7 +273,7 @@ impl PresetTestContracts {
         .map(into_contract)
         .collect();
 
-        let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo0);
+        let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
         let erc20_contract = into_contract(erc20_contract);
 
         Self { default_test_contracts, erc20_contract }
@@ -419,6 +421,7 @@ fn write_state_to_apollo_storage(
         l1_gas_price: block_header.block_header_without_hash.l1_gas_price,
         l1_data_gas_price: block_header.block_header_without_hash.l1_data_gas_price,
         l2_gas_price: block_header.block_header_without_hash.l2_gas_price,
+        sequencer: block_header.block_header_without_hash.sequencer,
         header_commitments: BlockHeaderCommitments {
             state_diff_commitment: calculate_state_diff_hash(&state_diff),
             ..Default::default()
@@ -459,8 +462,8 @@ fn test_block_header(block_number: BlockNumber, state_diff_length: usize) -> Blo
                 price_in_fri: DEFAULT_STRK_L1_GAS_PRICE.into(),
             },
             l1_data_gas_price: GasPricePerToken {
-                price_in_wei: DEFAULT_ETH_L1_GAS_PRICE.into(),
-                price_in_fri: DEFAULT_STRK_L1_GAS_PRICE.into(),
+                price_in_wei: DEFAULT_ETH_L1_DATA_GAS_PRICE.into(),
+                price_in_fri: DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
             },
             l2_gas_price: GasPricePerToken {
                 price_in_wei: VersionedConstants::latest_constants()
@@ -498,7 +501,7 @@ struct ThinStateDiffBuilder<'a> {
 
 impl<'a> ThinStateDiffBuilder<'a> {
     fn new(chain_info: &ChainInfo) -> Self {
-        let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
+        let erc20 = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
         let erc20_class_hash = erc20.get_class_hash();
 
         let deployed_contracts: IndexMap<ContractAddress, ClassHash> = FeeType::iter()
@@ -507,7 +510,7 @@ impl<'a> ThinStateDiffBuilder<'a> {
 
         Self {
             chain_info: chain_info.clone(),
-            initial_account_balance: felt!(VALID_ACCOUNT_BALANCE.0),
+            initial_account_balance: felt!(VALID_ACCOUNT_BALANCE.0 * 5),
             deployed_contracts,
             ..Default::default()
         }
