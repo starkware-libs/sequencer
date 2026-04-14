@@ -1,4 +1,4 @@
-use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
+use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::measurements_util::NoMeasurements;
 use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::db::forest_trait::StorageInitializer;
@@ -35,10 +35,9 @@ pub async fn parse_and_commit(
 
 pub async fn commit(input: FactsDbInputImpl, output_path: String, storage: MapStorage) {
     let mut facts_db = FactsDb::new(storage);
-    let (filled_forest, _deleted_nodes) =
-        CommitBlockImpl::commit_block(input, &mut facts_db, &mut NoMeasurements)
-            .await
-            .expect("Failed to commit the given block.");
+    let (filled_forest, _deleted_nodes) = commit_block(input, &mut facts_db, &mut NoMeasurements)
+        .await
+        .expect("Failed to commit the given block.");
     let output = SerializedForest(filled_forest)
         .forest_to_output()
         .await

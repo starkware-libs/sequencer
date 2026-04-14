@@ -19,7 +19,7 @@ use rand::{Rng, SeedableRng};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_api::hash::HashOutput;
-use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
+use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
     Input,
     ReaderConfig,
@@ -477,10 +477,9 @@ pub async fn run_storage_benchmark<S: Storage>(
         };
 
         measurements.start_measurement(Action::EndToEnd);
-        let (filled_forest, deleted_nodes) =
-            CommitBlockImpl::commit_block(input, &mut index_db, &mut measurements)
-                .await
-                .expect("Failed to commit the given block.");
+        let (filled_forest, deleted_nodes) = commit_block(input, &mut index_db, &mut measurements)
+            .await
+            .expect("Failed to commit the given block.");
         measurements.start_measurement(Action::Write);
         let n_new_facts = ForestWriterWithMetadata::write_with_metadata(
             &mut index_db,
