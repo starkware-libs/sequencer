@@ -175,8 +175,11 @@ class SnapshotTextReport:
         if not s.sent_tx_hashes:
             lines.append("(none)")
         else:
-            for tx_hash, src_bn in s.sent_tx_hashes.items():
+            total_pending = len(s.sent_tx_hashes)
+            for tx_hash, src_bn in list(s.sent_tx_hashes.items())[:10]:
                 lines.append(f"{tx_hash} @ {src_bn}")
+            if total_pending > 10:
+                lines.append(f"... ({total_pending} total)")
 
         lines.append("")
         lines.append("=== Resync triggers (first failures) ===")
@@ -580,11 +583,7 @@ class _SnapshotReportRollup:
         transaction_commitment_mismatches_count = len(s.transaction_commitment_mismatches)
 
         sev = {
-            "pending": (
-                "neutral"
-                if pending_commission < CONFIG.tx_sender.max_pending_txs_before_pausing
-                else "bad"
-            ),
+            "pending": "neutral",
             "committed": ("ok" if committed > 0 else "neutral"),
             "gateway_errors": _severity_for_count(gateway_errors_count),
             "reverts_mainnet": _severity_for_count(reverts_mainnet_count),
@@ -708,7 +707,8 @@ def build_report_view_model(
             "current_block": format_if_present(str, r.s.current_block),
             "blocks_processed": format_if_present(str, r.s.blocks_sent_count),
         },
-        "pending_txs": r.pending_txs,
+        "pending_txs": r.pending_txs[:10],
+        "pending_txs_total": len(r.pending_txs),
         "gateway_errors": r.gateway_errors_rows,
         "reverts": {
             "mainnet_only": {
