@@ -16,9 +16,9 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    EvaluationRate,
     ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
@@ -38,7 +38,7 @@ fn get_consensus_block_number_stuck(
     Alert::new(
         &name,
         title,
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         ExpressionOrExpressionWithPlaceholder::Placeholder(
             Template::new(expr_template_string),
             vec![format_sampling_window(&name)],
@@ -72,7 +72,7 @@ fn get_batched_transactions_stuck(title: &'static str) -> Alert {
     Alert::new(
         &name,
         title,
-        AlertGroup::Batcher,
+        EvaluationRate::Default,
         ExpressionOrExpressionWithPlaceholder::Placeholder(
             Template::new(expr_template_string),
             vec![format_sampling_window(&name)],
@@ -100,7 +100,7 @@ fn get_consensus_p2p_not_enough_peers_for_quorum(
     Alert::new(
         title.to_lowercase().replace(' ', "_"),
         title,
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!(
             "max_over_time({}[{}s])",
             CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter(),
@@ -142,7 +142,7 @@ pub(crate) fn get_consensus_round_high() -> Alert {
     Alert::new(
         ALERT_NAME,
         "Consensus round high",
-        AlertGroup::Consensus,
+        EvaluationRate::Default,
         format!("max_over_time({}[2m])", CONSENSUS_ROUND.get_name_with_filter()),
         vec![AlertCondition::new(
             AlertComparisonOp::GreaterThan,

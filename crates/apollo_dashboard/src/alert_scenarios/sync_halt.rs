@@ -11,9 +11,9 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    EvaluationRate,
     ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
@@ -25,7 +25,7 @@ pub(crate) fn get_state_sync_lag() -> Alert {
     Alert::new(
         ALERT_NAME,
         "State sync lag",
-        AlertGroup::StateSync,
+        EvaluationRate::Default,
         format!(
             "{} - {}",
             CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.get_name_with_filter(),
@@ -47,7 +47,7 @@ fn get_state_sync_stuck(
     Alert::new(
         alert_name.to_lowercase().replace(' ', "_"),
         alert_name,
-        AlertGroup::StateSync,
+        EvaluationRate::Default,
         format!(
             "increase({}[{}s])",
             STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter(),
