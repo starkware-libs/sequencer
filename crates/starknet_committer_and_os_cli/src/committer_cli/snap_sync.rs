@@ -7,7 +7,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::hash::StateRoots;
 use starknet_api::state::{StateNumber, StorageKey};
-use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
+use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
     Input,
     ReaderConfig,
@@ -264,7 +264,7 @@ async fn commit_state_diff(state_diff: StateDiff, commit_state: &Mutex<CommitSta
     let mut measurements = SingleBlockMeasurements::default();
     measurements.start_measurement(Action::EndToEnd);
     let (filled_forest, deleted_nodes) =
-        CommitBlockImpl::commit_block(input, &mut guard.committer_db, &mut measurements)
+        commit_block(input, &mut guard.committer_db, &mut measurements)
             .await
             .expect("Failed to commit batch");
     measurements.start_measurement(Action::Write);
