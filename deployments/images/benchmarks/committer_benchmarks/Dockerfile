@@ -41,7 +41,6 @@ CMD ["cached-rocksdb", \
     "--cache-size", "45000000", \
     "--checkpoint-interval", "1000", \
     "--include-inner-stats", \
-    "--build-storage-tries-concurrently", \
     "--log-level", "info", \
     "--data-path", "/mnt/data/committer_storage_benchmark", \
     "--storage-path", "/mnt/data/storage", \
