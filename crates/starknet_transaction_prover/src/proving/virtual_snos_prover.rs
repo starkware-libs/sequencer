@@ -19,6 +19,7 @@ use starknet_api::transaction::{InvokeTransaction, MessageToL1};
 use tracing::{info, instrument};
 use url::Url;
 
+use crate::blocking_check::{BlockingCheckClient, BlockingCheckResult};
 use crate::config::ProverConfig;
 use crate::errors::VirtualSnosProverError;
 use crate::running::runner::{RpcRunnerFactory, RunnerOutput, VirtualSnosRunner};
@@ -49,6 +50,8 @@ pub(crate) struct VirtualSnosProver<R: VirtualSnosRunner> {
     runner: R,
     /// Whether to validate that fee-related fields (resource bounds, tip) are zero.
     validate_zero_fee_fields: bool,
+    /// Optional client for the external blocking check service.
+    blocking_check_client: Option<BlockingCheckClient>,
     /// Precomputed data for the recursive prover, prepared once at startup.
     #[cfg(feature = "stwo_proving")]
     precomputes: Arc<RecursiveProverPrecomputes>,
@@ -74,12 +77,21 @@ impl VirtualSnosProver<RpcRunnerFactory> {
             contract_class_manager,
             prover_config.runner_config.clone(),
         );
+        let blocking_check_client = prover_config.blocking_check_url.as_ref().map(|url_str| {
+            let url = Url::parse(url_str).expect("Invalid blocking_check_url in config");
+            BlockingCheckClient::new(
+                url,
+                prover_config.blocking_check_timeout_secs,
+                prover_config.blocking_check_fail_open,
+            )
+        });
         #[cfg(feature = "stwo_proving")]
         let precomputes = prepare_recursive_prover_precomputes()
             .expect("Failed to prepare recursive prover precomputes");
         Self {
             runner,
             validate_zero_fee_fields: prover_config.validate_zero_fee_fields,
+            blocking_check_client,
             #[cfg(feature = "stwo_proving")]
             precomputes,
         }
@@ -98,6 +110,25 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
         Self {
             runner,
             validate_zero_fee_fields: true,
+            blocking_check_client: None,
+            #[cfg(feature = "stwo_proving")]
+            precomputes,
+        }
+    }
+
+    /// Creates a new VirtualSnosProver from a runner with an optional blocking check client.
+    #[allow(dead_code)]
+    pub(crate) fn from_runner_with_blocking_check(
+        runner: R,
+        blocking_check_client: Option<BlockingCheckClient>,
+    ) -> Self {
+        #[cfg(feature = "stwo_proving")]
+        let precomputes = prepare_recursive_prover_precomputes()
+            .expect("Failed to prepare recursive prover precomputes");
+        Self {
+            runner,
+            validate_zero_fee_fields: true,
+            blocking_check_client,
             #[cfg(feature = "stwo_proving")]
             precomputes,
         }
@@ -114,8 +145,8 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
     ///
     /// This method:
     /// 1. Validates and extracts the invoke transaction.
-    /// 2. Runs the Starknet OS.
-    /// 3. Generates a proof via `prove_virtual_snos_run`.
+    /// 2. Optionally races an external blocking check against proving.
+    /// 3. Runs the Starknet OS and generates a proof via `prove_virtual_snos_run`.
     #[instrument(skip(self, transaction), fields(block_id = ?block_id, tx_hash))]
     pub async fn prove_transaction(
         &self,
@@ -132,14 +163,29 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
             ));
         }
 
-        let invoke_v3 = extract_rpc_invoke_tx(transaction)?;
+        let invoke_v3 = extract_rpc_invoke_tx(transaction.clone())?;
         validate_transaction_input(&invoke_v3, self.validate_zero_fee_fields)?;
         let invoke_tx = InvokeTransaction::V3(invoke_v3.into());
 
-        // Run OS and get output.
-        let os_start = Instant::now();
+        let result = match &self.blocking_check_client {
+            None => self.run_and_prove(block_id, vec![invoke_tx]).await?,
+            Some(client) => {
+                self.prove_with_blocking_check(client, block_id, transaction, invoke_tx).await?
+            }
+        };
 
-        let txs = vec![invoke_tx];
+        info!(total_duration_ms = %start_time.elapsed().as_millis(), "prove_transaction completed");
+        Ok(result)
+    }
+
+    /// Runs the OS and generates a proof. This is the core proving pipeline extracted
+    /// so it can be raced against the blocking check.
+    async fn run_and_prove(
+        &self,
+        block_id: BlockId,
+        txs: Vec<InvokeTransaction>,
+    ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
+        let os_start = Instant::now();
         let runner_output = self
             .runner
             .run_virtual_os(block_id, txs)
@@ -151,7 +197,6 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
             "OS execution completed"
         );
 
-        // Run the prover.
         let prove_start = Instant::now();
         let result = self.prove_virtual_snos_run(runner_output).await?;
 
@@ -160,8 +205,96 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
             "Proving completed"
         );
 
-        info!(total_duration_ms = %start_time.elapsed().as_millis(), "prove_transaction completed");
         Ok(result)
+    }
+
+    /// Runs proving and the external blocking check in parallel.
+    ///
+    /// Uses `tokio::select!` to race the two futures:
+    /// - If the check completes first with `Blocked`, proving is cancelled.
+    /// - If proving completes first, the timeout and fail-open/close policy apply.
+    async fn prove_with_blocking_check(
+        &self,
+        client: &BlockingCheckClient,
+        block_id: BlockId,
+        transaction: RpcTransaction,
+        invoke_tx: InvokeTransaction,
+    ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
+        let check_future = client.check_transaction(block_id, transaction);
+        let prove_future = self.run_and_prove(block_id, vec![invoke_tx]);
+
+        tokio::pin!(check_future);
+        tokio::pin!(prove_future);
+
+        tokio::select! {
+            check_result = &mut check_future => {
+                match check_result {
+                    BlockingCheckResult::Blocked => {
+                        info!("Transaction blocked by external check");
+                        Err(VirtualSnosProverError::TransactionBlocked)
+                    }
+                    BlockingCheckResult::Allowed => {
+                        info!("Transaction allowed by external check, awaiting proof");
+                        prove_future.await
+                    }
+                    BlockingCheckResult::Inconclusive => {
+                        if client.fail_open {
+                            info!("Blocking check inconclusive (fail-open), awaiting proof");
+                            prove_future.await
+                        } else {
+                            info!("Blocking check inconclusive (fail-close), blocking");
+                            Err(VirtualSnosProverError::TransactionBlocked)
+                        }
+                    }
+                }
+            }
+            prove_result = &mut prove_future => {
+                self.handle_proof_ready_before_check(client, check_future, prove_result).await
+            }
+        }
+    }
+
+    /// Handles the case where the proof completes before the blocking check.
+    ///
+    /// Applies the timeout and fail-open/close policy to decide whether to return
+    /// the proof or block the transaction.
+    async fn handle_proof_ready_before_check(
+        &self,
+        client: &BlockingCheckClient,
+        check_future: impl std::future::Future<Output = BlockingCheckResult>,
+        prove_result: Result<ProveTransactionResult, VirtualSnosProverError>,
+    ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
+        if client.timeout_secs == 0 {
+            if client.fail_open {
+                info!("Proof ready, no timeout configured (fail-open), returning proof");
+                return prove_result;
+            } else {
+                info!("Proof ready, no timeout configured (fail-close), blocking");
+                return Err(VirtualSnosProverError::TransactionBlocked);
+            }
+        }
+
+        // Wait up to timeout for the check to complete.
+        let timeout_duration = std::time::Duration::from_secs(client.timeout_secs);
+        match tokio::time::timeout(timeout_duration, check_future).await {
+            Ok(BlockingCheckResult::Blocked) => {
+                info!("Transaction blocked by external check (after proof ready)");
+                Err(VirtualSnosProverError::TransactionBlocked)
+            }
+            Ok(BlockingCheckResult::Allowed) => {
+                info!("Transaction allowed by external check (after proof ready)");
+                prove_result
+            }
+            Ok(BlockingCheckResult::Inconclusive) | Err(_) => {
+                if client.fail_open {
+                    info!("Blocking check inconclusive/timed out (fail-open), returning proof");
+                    prove_result
+                } else {
+                    info!("Blocking check inconclusive/timed out (fail-close), blocking");
+                    Err(VirtualSnosProverError::TransactionBlocked)
+                }
+            }
+        }
     }
 
     /// Proves a Virtual Starknet OS run from its output.
