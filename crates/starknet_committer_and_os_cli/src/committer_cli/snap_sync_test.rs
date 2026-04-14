@@ -106,7 +106,7 @@ fn test_shrink_to_actual_end_fewer_than_limit() {
         vec![(class_hash!(0_u64), ()), (class_hash!(1_u64), ()), (class_hash!(2_u64), ())];
     let end: u64 = 16;
     let (result, actual_end) =
-        shrink_to_actual_end(entries.clone(), patricia_key!(0_u64), patricia_key!(end), 4);
+        shrink_to_actual_end(entries.clone(), patricia_key!(0_u64), patricia_key!(end), 4).unwrap();
     assert_eq!(result, entries);
     assert_eq!(actual_end, Felt::from(end));
 }
@@ -122,7 +122,7 @@ fn test_shrink_to_actual_end_at_limit_truncates() {
         (class_hash!(4_u64), ()),
     ];
     let (result, actual_end) =
-        shrink_to_actual_end(entries, patricia_key!(0_u64), patricia_key!(8_u64), 4);
+        shrink_to_actual_end(entries, patricia_key!(0_u64), patricia_key!(8_u64), 4).unwrap();
     assert_eq!(
         result,
         vec![(class_hash!(0_u64), ()), (class_hash!(1_u64), ()), (class_hash!(2_u64), ()),]
@@ -146,7 +146,7 @@ fn run_scan_testing<K: TreeKey>(
     txn.commit().unwrap();
 
     let request = TreeRequest { context, start: patricia_key!(0_u64), end: patricia_key!(255_u64) };
-    let (state_diff, actual_end) = K::scan(&reader, &request, BlockNumber(0), size_limit);
+    let (state_diff, actual_end) = K::scan(&reader, &request, BlockNumber(0), size_limit).unwrap();
     assert_eq!(actual_end, EXPECTED_ACTUAL_END);
     assert_eq!(state_diff, expected_state_diff);
 }
