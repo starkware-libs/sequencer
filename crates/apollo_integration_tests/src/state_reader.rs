@@ -67,6 +67,7 @@ use strum::IntoEnumIterator;
 use tempfile::TempDir;
 
 use crate::storage::StorageExecutablePaths;
+use crate::utils::create_proof_flow_tx_generator;
 
 pub type TempDirHandlePair = (TempDir, TempDir);
 type ContractClassesMap = (
@@ -261,21 +262,28 @@ struct PresetTestContracts {
 
 impl PresetTestContracts {
     pub fn new() -> Self {
+        Self::create(true)
+    }
+
+    fn new_without_cairo0() -> Self {
+        Self::create(false)
+    }
+
+    fn create(with_cairo0: bool) -> Self {
         let into_contract = |contract: FeatureContract| Contract {
             contract,
             sender_address: contract.get_instance_address(0),
         };
-        let default_test_contracts = [
-            FeatureContract::TestContract(CairoVersion::Cairo0),
-            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-        ]
-        .into_iter()
-        .map(into_contract)
-        .collect();
-
-        let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
-        let erc20_contract = into_contract(erc20_contract);
-
+        let mut default_test_contracts = Vec::new();
+        if with_cairo0 {
+            default_test_contracts
+                .push(into_contract(FeatureContract::TestContract(CairoVersion::Cairo0)));
+        }
+        default_test_contracts.push(into_contract(FeatureContract::TestContract(
+            CairoVersion::Cairo1(RunnableCairo1::Casm),
+        )));
+        let erc20_contract =
+            into_contract(FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm)));
         Self { default_test_contracts, erc20_contract }
     }
 }
@@ -605,4 +613,29 @@ impl<'a> ThinStateDiffBuilder<'a> {
             nonces: self.nonces,
         }
     }
+}
+
+pub struct ProofFlowGenesisClasses {
+    pub cairo1_contract_classes: Vec<(ClassHash, (SierraContractClass, CasmContractClass))>,
+}
+
+pub fn integration_test_chain_info() -> ChainInfo {
+    let mut chain_info = ChainInfo::create_for_testing();
+    chain_info.fee_token_addresses.strk_fee_token_address =
+        contract_address!("0x4ff17bf76a1c6cebb82601a43bcab4f9650aea543c44f28e8863f8b624e4b58");
+    chain_info
+}
+
+pub fn proof_flow_integration_genesis_data(
+    chain_info: &ChainInfo,
+) -> (ThinStateDiff, ProofFlowGenesisClasses) {
+    let preset_test_contracts = PresetTestContracts::new_without_cairo0();
+    let test_defined_accounts = create_proof_flow_tx_generator().accounts().to_vec();
+    let classes = TestClasses::new(&test_defined_accounts, preset_test_contracts.clone());
+    let thin_state_diff =
+        prepare_state_diff(chain_info, &test_defined_accounts, &preset_test_contracts);
+    (
+        thin_state_diff,
+        ProofFlowGenesisClasses { cairo1_contract_classes: classes.cairo1_contract_classes },
+    )
 }
