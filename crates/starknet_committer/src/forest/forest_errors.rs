@@ -6,6 +6,8 @@ use starknet_patricia_storage::storage_trait::PatriciaStorageError;
 use thiserror::Error;
 use tokio::task::JoinError;
 
+use crate::db::forest_trait::ForestMetadataType;
+
 pub(crate) type ForestResult<T> = Result<T, ForestError>;
 
 #[derive(Debug, Error)]
@@ -41,4 +43,6 @@ pub enum ForestError {
     JoinError(#[from] JoinError),
     #[error("Couldn't create Storage Trie: {0}")]
     StorageTrie(#[source] FilledTreeError),
+    #[error("Metadata key {0:?} is already set")]
+    MetadataKeyAlreadySet(ForestMetadataType),
 }
