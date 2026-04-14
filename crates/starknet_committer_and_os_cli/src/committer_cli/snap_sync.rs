@@ -1,4 +1,6 @@
+use std::any::type_name;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
@@ -37,12 +39,19 @@ use starknet_patricia_storage::map_storage::CachedStorage;
 use starknet_patricia_storage::rocksdb_storage::{RocksDbStorage, RocksDbStorageConfig};
 use starknet_patricia_storage::storage_trait::Storage;
 use starknet_types_core::felt::{Felt, NonZeroFelt};
+use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::info;
 
 #[cfg(test)]
 #[path = "snap_sync_test.rs"]
 mod snap_sync_test;
+
+#[derive(Debug, Error)]
+enum SnapSyncError {
+    #[error("size_limit is too small: {0}")]
+    SizeLimitTooSmall(usize),
+}
 
 /// Given the first leaf `start` and the felt of the last key seen (`last_key`), returns the
 /// inclusive end of the largest valid Patricia subtree starting at `start` that doesn't exceed
@@ -73,23 +82,24 @@ fn compute_actual_end(start: Felt, last_key: Felt) -> Felt {
 ///   `actual_end` is the inclusive end of the largest aligned Patricia subtree starting at `start`
 ///   that fits within the last key returned.
 ///
-/// Panics if `limit` is 0.
+/// Returns `Err(SnapSyncError::SizeLimitTooSmall)` if `limit` is 0.
 fn shrink_to_actual_end<K: TreeKey, V>(
     mut entries: Vec<(K, V)>,
     start: PatriciaKey,
     end: PatriciaKey,
     limit: usize,
-) -> (Vec<(K, V)>, Felt) {
-    // TODO(yoav): return error if limit is 0.
-    assert!(limit > 0, "limit must be positive");
+) -> Result<(Vec<(K, V)>, Felt), SnapSyncError> {
+    if limit == 0 {
+        return Err(SnapSyncError::SizeLimitTooSmall(limit));
+    }
     if entries.len() < limit {
-        (entries, *end.key())
+        Ok((entries, *end.key()))
     } else {
         let last_key: Felt = entries.last().expect("non-empty scan has a last entry").0.into();
         let actual_end = compute_actual_end(*start.key(), last_key);
         entries
             .truncate(entries.partition_point(|(key, _)| Into::<Felt>::into(*key) <= actual_end));
-        (entries, actual_end)
+        Ok((entries, actual_end))
     }
 }
 
@@ -98,7 +108,7 @@ fn shrink_to_actual_end<K: TreeKey, V>(
 ///
 /// `Context` carries any per-request metadata needed by `scan`.
 trait TreeKey: Copy + Into<Felt> + Send + Sync + 'static {
-    type Context: Clone + Send + Sync + 'static;
+    type Context: Clone + Debug + Send + Sync + 'static;
 
     /// Converts a `PatriciaKey` to the key type.
     fn from_patricia_key(patricia_key: PatriciaKey) -> Self;
@@ -107,12 +117,14 @@ trait TreeKey: Copy + Into<Felt> + Send + Sync + 'static {
     ///
     /// `actual_end` is the inclusive end of the largest aligned Patricia subtree starting at the
     /// leaf `start` that is fully covered by the scan. The number of entries is ≤ `size_limit`.
+    ///
+    /// Returns `Err(SnapSyncError::SizeLimitTooSmall)` if `size_limit` is too small.
     fn scan(
         reader: &StorageReader,
         request: &TreeRequest<Self>,
         block_target: BlockNumber,
         size_limit: usize,
-    ) -> (StateDiff, Felt);
+    ) -> Result<(StateDiff, Felt), SnapSyncError>;
 }
 
 /// A request to populate a subtree of a particular tree.
@@ -144,7 +156,7 @@ impl TreeKey for StorageKey {
         request: &TreeRequest<Self>,
         block_target: BlockNumber,
         size_limit: usize,
-    ) -> (StateDiff, Felt) {
+    ) -> Result<(StateDiff, Felt), SnapSyncError> {
         let txn =
             reader.begin_ro_txn().expect("Storage scan: failed to begin read-only transaction");
         let state_reader =
@@ -159,18 +171,18 @@ impl TreeKey for StorageKey {
             )
             .expect("Storage scan: failed to scan storage keys for contract");
         let (entries, actual_end) =
-            shrink_to_actual_end(raw_entries, request.start, request.end, size_limit);
+            shrink_to_actual_end(raw_entries, request.start, request.end, size_limit)?;
         let storage_map = entries
             .into_iter()
             .map(|(key, value)| (StarknetStorageKey(key), StarknetStorageValue(value)))
             .collect();
-        (
+        Ok((
             StateDiff {
                 storage_updates: HashMap::from([(request.context, storage_map)]),
                 ..Default::default()
             },
             actual_end,
-        )
+        ))
     }
 }
 
@@ -192,7 +204,10 @@ impl TreeKey for ContractAddress {
         request: &TreeRequest<Self>,
         block_target: BlockNumber,
         size_limit: usize,
-    ) -> (StateDiff, Felt) {
+    ) -> Result<(StateDiff, Felt), SnapSyncError> {
+        if size_limit < 2 {
+            return Err(SnapSyncError::SizeLimitTooSmall(size_limit));
+        }
         let txn = reader
             .begin_ro_txn()
             .expect("Contract class hash scan: failed to begin read-only transaction");
@@ -207,7 +222,7 @@ impl TreeKey for ContractAddress {
             )
             .expect("Contract class hash scan: failed to scan contract class hashes");
         let (class_entries, actual_end) =
-            shrink_to_actual_end(raw_class_entries, request.start, request.end, size_limit / 2);
+            shrink_to_actual_end(raw_class_entries, request.start, request.end, size_limit / 2)?;
 
         let state_number = StateNumber::unchecked_right_after_block(block_target);
         let address_to_nonce = class_entries
@@ -222,7 +237,10 @@ impl TreeKey for ContractAddress {
             .collect();
 
         let address_to_class_hash = class_entries.into_iter().collect();
-        (StateDiff { address_to_class_hash, address_to_nonce, ..Default::default() }, actual_end)
+        Ok((
+            StateDiff { address_to_class_hash, address_to_nonce, ..Default::default() },
+            actual_end,
+        ))
     }
 }
 
@@ -238,7 +256,7 @@ impl TreeKey for ClassHash {
         request: &TreeRequest<Self>,
         block_target: BlockNumber,
         size_limit: usize,
-    ) -> (StateDiff, Felt) {
+    ) -> Result<(StateDiff, Felt), SnapSyncError> {
         let txn = reader
             .begin_ro_txn()
             .expect("Compiled class hash scan: failed to begin read-only transaction");
@@ -253,14 +271,14 @@ impl TreeKey for ClassHash {
             )
             .expect("Compiled class hash scan: failed to scan compiled class hashes");
         let (entries, actual_end) =
-            shrink_to_actual_end(raw_entries, request.start, request.end, size_limit);
+            shrink_to_actual_end(raw_entries, request.start, request.end, size_limit)?;
         let class_hash_to_compiled_class_hash = entries
             .into_iter()
             .map(|(class_hash, compiled_class_hash)| {
                 (class_hash, CommitterCompiledClassHash(compiled_class_hash.0))
             })
             .collect();
-        (StateDiff { class_hash_to_compiled_class_hash, ..Default::default() }, actual_end)
+        Ok((StateDiff { class_hash_to_compiled_class_hash, ..Default::default() }, actual_end))
     }
 }
 
@@ -329,7 +347,10 @@ fn process_request<K: TreeKey, S: Storage + Send + 'static>(
     commit_state: Arc<Mutex<CommitState<S>>>,
 ) -> Pin<Box<dyn Future<Output = ()> + Send>> {
     Box::pin(async move {
-        let (state_diff, actual_end) = K::scan(&reader, &request, block_target, size_limit);
+        let (state_diff, actual_end) = K::scan(&reader, &request, block_target, size_limit)
+            .unwrap_or_else(|e| {
+                panic!("scan failed for {} (context: {:?}): {e}", type_name::<K>(), request.context)
+            });
         commit_state_diff(state_diff, &commit_state).await;
 
         let start_felt: Felt = *request.start.key();
