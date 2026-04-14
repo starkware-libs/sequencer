@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776173633422,
+  "lastUpdate": 1776176279126,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3093,6 +3093,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1339.28681529,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mz@bakingbad.dev",
+            "name": "Michael Zaikin",
+            "username": "m-kus"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "779e2a748f95a4dc5d80e73d3f8ef52e6d05cd2d",
+          "message": "starknet_transaction_prover: wire up tower_ohttp envelope encryption (#13742)",
+          "timestamp": "2026-04-14T13:51:59Z",
+          "tree_id": "3f1ccaf10292906194515fdf96b91f4e50e53d6b",
+          "url": "https://github.com/starkware-libs/sequencer/commit/779e2a748f95a4dc5d80e73d3f8ef52e6d05cd2d"
+        },
+        "date": 1776176278670,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 846.5931779800001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1231.60007449,
             "unit": "ms"
           }
         ]
