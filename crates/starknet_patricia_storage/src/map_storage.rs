@@ -104,10 +104,11 @@ impl Storage for MapStorage {
     }
 
     fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
-        // Return None to avoid using the MapStorage concurrently; the reads are fast anyway.
-        None::<&mut NullStorage>
+        Some(self)
     }
 }
+
+impl GatherableStorage for MapStorage {}
 
 /// A storage wrapper that adds an LRU cache to an underlying storage.
 /// Only getter methods are cached.
