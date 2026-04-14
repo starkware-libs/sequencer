@@ -41,4 +41,6 @@ pub enum ForestError {
     JoinError(#[from] JoinError),
     #[error("Couldn't create Storage Trie: {0}")]
     StorageTrie(#[source] FilledTreeError),
+    #[error("Metadata key {0:?} is already set")]
+    MetadataKeyAlreadySet(crate::db::forest_trait::ForestMetadataType),
 }
