@@ -120,11 +120,15 @@ jobs:
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
 
+      - name: Clone starknet-specs for spec tests
+        run: scripts/prepare_starknet_specs.sh /tmp/starknet-specs
+
       - name: "Run tests"
         run: |
           scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
+          STARKNET_SPECS_DIR: /tmp/starknet-specs
 
   run-integration-tests:
     runs-on: namespace-profile-large-ubuntu-24-04-amd64

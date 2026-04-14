@@ -86,6 +86,9 @@ jobs:
         working-directory: crates/starknet_transaction_prover
         run: rustup show
 
+      - name: Clone starknet-specs for spec tests
+        run: scripts/prepare_starknet_specs.sh /tmp/starknet-specs
+
       - name: Run clippy with all features
         working-directory: crates/starknet_transaction_prover
         run: cargo clippy -p starknet_transaction_prover --no-deps --all-targets --all-features
@@ -94,6 +97,8 @@ jobs:
       - name: Run tests in release mode
         working-directory: crates/starknet_transaction_prover
         run: cargo test -p starknet_transaction_prover --features stwo_proving --release
+        env:
+          STARKNET_SPECS_DIR: /tmp/starknet-specs
 
       # Download RPC record fixtures from GCS for ignored integration tests.
       - id: auth
