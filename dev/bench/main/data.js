@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776171652487,
+  "lastUpdate": 1776176577662,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2209,6 +2209,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1438.72661556,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "106665835+Itay-Tsabary-Starkware@users.noreply.github.com",
+            "name": "Itay-Tsabary-Starkware",
+            "username": "Itay-Tsabary-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4998cacfba606ee48ab883403faebcee57ab0f70",
+          "message": "apollo_metrics: remove redundant indexmap (#13744)",
+          "timestamp": "2026-04-14T14:06:11Z",
+          "tree_id": "1be51b7b57f97742f1f7f244f2372b720aef4729",
+          "url": "https://github.com/starkware-libs/sequencer/commit/4998cacfba606ee48ab883403faebcee57ab0f70"
+        },
+        "date": 1776176577205,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1008.0642922100001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1483.25158804,
             "unit": "ms"
           }
         ]
