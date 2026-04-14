@@ -34,6 +34,7 @@ pub enum TestIdentifier {
     RevertedL1HandlerTx,
     InfraUnitTests,
     PositiveFlowIntegrationTest,
+    ProofFlowIntegrationTest,
     RestartFlowIntegrationTest,
     RestartServiceMultipleNodesFlowIntegrationTest,
     RestartServiceSingleNodeFlowIntegrationTest,
