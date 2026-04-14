@@ -4,6 +4,7 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
+use std::time::Duration;
 
 use futures::Stream;
 use libp2p::swarm::behaviour::ConnectionEstablished;
@@ -16,10 +17,15 @@ use tracing::debug;
 
 use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 
+/// How long to keep a `DialPeerStream` alive after a connection is established. If a redial is
+/// requested within this window the stream reuses its accumulated backoff. If the timer expires
+/// the connection is considered stable and the stream terminates.
+const COOLDOWN: Duration = Duration::from_millis(500);
+
 /// A stream that drives a single peer's dial lifecycle with exponential backoff.
 ///
-/// The stream emits `ToSwarm::Dial` events and terminates (`None`) once a
-/// connection is established or the dial is cancelled.
+/// The stream emits `ToSwarm::Dial` events and terminates (`None`) once the
+/// dial is cancelled or a connection stabilizes (remains up through a cooldown period).
 pub struct DialPeerStream {
     peer_id: PeerId,
     addresses: Vec<Multiaddr>,
@@ -33,9 +39,12 @@ enum DialState {
     PendingDial { sleeper: Pin<Box<Sleep>> },
     /// A dial attempt is in progress with the given connection id.
     Dialing(ConnectionId),
-    /// Terminal state - connection was established after the request, no guarantee if it's still
-    /// connected.
-    Done,
+    /// Connection established, waiting for it to stabilize. If `request_redial` is called before
+    /// the timer fires the stream transitions back to `PendingDial` with accumulated backoff. If
+    /// the timer expires the connection is considered stable and the stream terminates.
+    CooldownBeforeDeletion { connection_stable_sleeper: Pin<Box<Sleep>> },
+    /// Terminal state — the stream was explicitly cancelled by the caller.
+    Cancelled,
 }
 
 impl DialPeerStream {
@@ -55,18 +64,27 @@ impl DialPeerStream {
         &self.peer_id
     }
 
+    /// Returns `true` if the stream was explicitly cancelled.
+    pub fn is_cancelled(&self) -> bool {
+        matches!(self.state, DialState::Cancelled)
+    }
+
     /// Mark this stream for termination. The next poll will return `None`.
     pub fn cancel(&mut self) {
-        self.state = DialState::Done;
+        self.state = DialState::Cancelled;
         self.wake();
     }
 
     pub fn on_swarm_event(&mut self, event: FromSwarm<'_>) {
         match event {
             FromSwarm::ConnectionEstablished(ConnectionEstablished { peer_id, .. })
-                if peer_id == self.peer_id =>
+                if peer_id == self.peer_id && !self.is_cancelled() =>
             {
-                self.state = DialState::Done;
+                self.state = DialState::CooldownBeforeDeletion {
+                    connection_stable_sleeper: Box::pin(tokio::time::sleep_until(
+                        Instant::now() + COOLDOWN,
+                    )),
+                };
                 self.wake();
             }
             FromSwarm::DialFailure(DialFailure {
@@ -75,18 +93,33 @@ impl DialPeerStream {
                 if !matches!(self.state, DialState::Dialing(id) if id == connection_id) {
                     return;
                 }
-                let backoff = self
-                    .retry_strategy
-                    .next()
-                    .expect("A bounded ExponentialBackoff is an infinite iterator");
-                self.state = DialState::PendingDial {
-                    sleeper: Box::pin(tokio::time::sleep_until(Instant::now() + backoff)),
-                };
-                debug!(?self.peer_id, ?backoff, "Dial failed, scheduling retry");
-                self.wake();
+                self.schedule_retry();
             }
             _ => {}
         }
+    }
+
+    /// Re-request dialing this peer with updated addresses. Only takes effect if the stream is in
+    /// `CooldownBeforeDeletion` (i.e., a connection was previously established). The next dial will
+    /// use the accumulated backoff from the retry strategy.
+    pub fn request_redial(&mut self, addresses: Vec<Multiaddr>) {
+        self.addresses = addresses;
+        if !matches!(self.state, DialState::CooldownBeforeDeletion { .. }) {
+            return;
+        }
+        self.schedule_retry();
+    }
+
+    fn schedule_retry(&mut self) {
+        let backoff = self
+            .retry_strategy
+            .next()
+            .expect("A bounded ExponentialBackoff is an infinite iterator");
+        self.state = DialState::PendingDial {
+            sleeper: Box::pin(tokio::time::sleep_until(Instant::now() + backoff)),
+        };
+        debug!(?self.peer_id, ?backoff, "Scheduling retry");
+        self.wake();
     }
 
     fn wake(&mut self) {
@@ -116,12 +149,18 @@ impl Stream for DialPeerStream {
         self.waker = Some(cx.waker().clone());
 
         match &mut self.state {
-            DialState::Done => Poll::Ready(None),
             DialState::Dialing(_) => Poll::Pending,
             DialState::PendingDial { sleeper } => match sleeper.as_mut().poll(cx) {
                 Poll::Ready(()) => Poll::Ready(Some(self.emit_dial())),
                 Poll::Pending => Poll::Pending,
             },
+            DialState::Cancelled => Poll::Ready(None),
+            DialState::CooldownBeforeDeletion { connection_stable_sleeper } => {
+                match connection_stable_sleeper.as_mut().poll(cx) {
+                    Poll::Ready(()) => Poll::Ready(None),
+                    Poll::Pending => Poll::Pending,
+                }
+            }
         }
     }
 }
