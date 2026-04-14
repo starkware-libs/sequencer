@@ -1,6 +1,6 @@
+use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
-use indexmap::indexmap;
 use metrics::set_default_local_recorder;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
@@ -60,44 +60,44 @@ const TEST_SET_1: &[(i32, usize)] = &[(1, 0), (100, 1), (80, 0), (50, 0), (93, 1
 static TEST_SET_1_RESULT: LazyLock<HistogramValue> = LazyLock::new(|| HistogramValue {
     sum: 324.0,
     count: 5,
-    histogram: indexmap! {
-        "0".to_string() => 1.0,
-        "0.5".to_string() => 80.00587021001003,
-        "0.9".to_string() => 92.99074853701167,
-        "0.95".to_string() => 92.99074853701167,
-        "0.99".to_string() => 92.99074853701167,
-        "0.999".to_string() => 92.99074853701167,
-        "1".to_string() => 100.0,
-    },
+    histogram: BTreeMap::from([
+        ("0".to_string(), 1.0),
+        ("0.5".to_string(), 80.00587021001003),
+        ("0.9".to_string(), 92.99074853701167),
+        ("0.95".to_string(), 92.99074853701167),
+        ("0.99".to_string(), 92.99074853701167),
+        ("0.999".to_string(), 92.99074853701167),
+        ("1".to_string(), 100.0),
+    ]),
 });
 
 const TEST_SET_2: &[(i32, usize)] = &[(1, 0), (10, 0), (20, 0), (30, 0), (80, 2)];
 static TEST_SET_2_RESULT: LazyLock<HistogramValue> = LazyLock::new(|| HistogramValue {
     sum: 221.0,
     count: 6,
-    histogram: indexmap! {
-        "0".to_string() => 1.0,
-        "0.5".to_string() => 19.999354639046004,
-        "0.9".to_string() => 80.00587021001003,
-        "0.95".to_string() => 80.00587021001003,
-        "0.99".to_string() => 80.00587021001003,
-        "0.999".to_string() => 80.00587021001003,
-        "1".to_string() => 80.0,
-    },
+    histogram: BTreeMap::from([
+        ("0".to_string(), 1.0),
+        ("0.5".to_string(), 19.999354639046004),
+        ("0.9".to_string(), 80.00587021001003),
+        ("0.95".to_string(), 80.00587021001003),
+        ("0.99".to_string(), 80.00587021001003),
+        ("0.999".to_string(), 80.00587021001003),
+        ("1".to_string(), 80.0),
+    ]),
 });
 
 static EMPTY_HISTOGRAM_VALUE: LazyLock<HistogramValue> = LazyLock::new(|| HistogramValue {
     sum: 0.0,
     count: 0,
-    histogram: indexmap! {
-        "0".to_string() => 0.0,
-        "0.5".to_string() =>  0.0,
-        "0.9".to_string() => 0.0,
-        "0.95".to_string() => 0.0,
-        "0.99".to_string() => 0.0,
-        "0.999".to_string() => 0.0,
-        "1".to_string() => 0.0,
-    },
+    histogram: BTreeMap::from([
+        ("0".to_string(), 0.0),
+        ("0.5".to_string(), 0.0),
+        ("0.9".to_string(), 0.0),
+        ("0.95".to_string(), 0.0),
+        ("0.99".to_string(), 0.0),
+        ("0.999".to_string(), 0.0),
+        ("1".to_string(), 0.0),
+    ]),
 });
 
 fn record_non_labeled_histogram_set(metric: &MetricHistogram, test_set: &[(i32, usize)]) {
