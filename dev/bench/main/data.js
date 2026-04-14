@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776075749028,
+  "lastUpdate": 1776154469551,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2073,6 +2073,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1487.70675,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "106665835+Itay-Tsabary-Starkware@users.noreply.github.com",
+            "name": "Itay-Tsabary-Starkware",
+            "username": "Itay-Tsabary-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "696bda089208f44164048424312880b451502289",
+          "message": "apollo_dashboard,apollo_deployments: add top-level intervalSec to Alerts; use it in alert builder (#13449)\n\nMove the evaluation interval from a per-alert field to a top-level field\non the Alerts struct. The interval is group-scoped in Grafana, so a single\nvalue for all alerts is the correct model.\n\nAlso restructure alert_builder.py to upload/dump per rule-group instead of\nper individual alert, using the top-level intervalSec as the group interval.\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-04-14T07:51:52Z",
+          "tree_id": "0f7cc92493a9f7f7e9aef5fc6bc62c7325836704",
+          "url": "https://github.com/starkware-libs/sequencer/commit/696bda089208f44164048424312880b451502289"
+        },
+        "date": 1776154469069,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1426.80687424,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1617.94255351,
             "unit": "ms"
           }
         ]
