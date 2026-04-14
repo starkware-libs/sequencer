@@ -72,12 +72,19 @@ impl HashableCompiledClass<EntryPointV1, NestedFeltCounts> for NativeCompiledCla
 #[derive(Debug)]
 pub struct NativeCompiledClassV1Inner {
     pub executor: AotContractExecutor,
+    #[cfg(feature = "with-libfunc-profiling")]
+    pub program: Option<cairo_lang_sierra::program::Program>,
     casm: CompiledClassV1,
 }
 
 impl NativeCompiledClassV1Inner {
     fn new(executor: AotContractExecutor, casm: CompiledClassV1) -> Self {
-        NativeCompiledClassV1Inner { executor, casm }
+        NativeCompiledClassV1Inner {
+            executor,
+            #[cfg(feature = "with-libfunc-profiling")]
+            program: None,
+            casm,
+        }
     }
 }
 
