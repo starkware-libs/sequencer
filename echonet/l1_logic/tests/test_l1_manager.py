@@ -5,6 +5,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
 
 import unittest
+from typing import Optional
 from unittest.mock import Mock, patch
 
 from test_utils import L1TestUtils
@@ -18,14 +19,27 @@ class TestL1Manager(unittest.TestCase):
     def setUp(self):
         self.mock_client = Mock(spec=L1Client)
         # get_last_proved_block callback not used in these tests (only needed for get_call).
+        # get_last_echonet_block_callback returns a high value so all gated txs are immediately exposed.
         self.manager = L1Manager(
-            l1_client=self.mock_client, get_last_proved_block_callback=lambda: (0, 0)
+            l1_client=self.mock_client,
+            get_last_proved_block_callback=lambda: (0, 0),
+            get_last_echonet_block_callback=lambda: 999_999_999,
+        )
+
+    def _make_manager_with_echonet_block(self, echonet_block: Optional[int]) -> L1Manager:
+        """Create an L1Manager that reports the given echonet block height."""
+        return L1Manager(
+            l1_client=self.mock_client,
+            get_last_proved_block_callback=lambda: (0, 0),
+            get_last_echonet_block_callback=lambda: echonet_block,
         )
 
     def get_logs_input(self, fromBlock: int, toBlock: int) -> dict:
         return {"fromBlock": hex(fromBlock), "toBlock": hex(toBlock)}
 
-    def _mock_handle_feeder_tx_and_store_l1_block(self, l1_block_number: int):
+    def _mock_handle_feeder_tx_and_store_l1_block(
+        self, l1_block_number: int, source_block_number: int = 2
+    ):
         """Simulates processing a feeder gateway transaction and storing its matched L1 block data."""
         l1_block_number_hex = hex(l1_block_number)
         with patch.object(L1Blocks, "find_l1_block_for_tx") as mock_find_l1_block_for_tx:
@@ -40,7 +54,9 @@ class TestL1Manager(unittest.TestCase):
                 "id": "1",
                 "result": [{"blockNumber": l1_block_number_hex, "data": "0x"}],
             }
-            self.manager.set_new_tx({"transaction_hash": l1_block_number_hex}, 0)
+            self.manager.set_new_tx(
+                {"transaction_hash": l1_block_number_hex}, 0, source_block_number
+            )
 
     def test_empty_queue_returns_defaults(self):
         block_number = self.manager.get_block_number()
@@ -66,7 +82,9 @@ class TestL1Manager(unittest.TestCase):
         mock_find_l1_block_for_tx.return_value = L1TestUtils.BLOCK_NUMBER
         self.mock_client.get_block_by_number.return_value = L1TestUtils.BLOCK_RPC_RESPONSE
         self.mock_client.get_logs.return_value = L1TestUtils.LOGS_RPC_RESPONSE
-        self.manager.set_new_tx(L1TestUtils.FEEDER_TX, L1TestUtils.L2_BLOCK_TIMESTAMP)
+        self.manager.set_new_tx(
+            L1TestUtils.FEEDER_TX, L1TestUtils.L2_BLOCK_TIMESTAMP, source_block_number=2
+        )
 
         # Test.
         block_number = self.manager.get_block_number()
@@ -81,7 +99,6 @@ class TestL1Manager(unittest.TestCase):
         logs = self.manager.get_logs(
             self.get_logs_input(L1TestUtils.BLOCK_NUMBER, L1TestUtils.BLOCK_NUMBER)
         )
-
         self.assertEqual(logs, L1TestUtils.LOGS_RPC_RESPONSE)
 
     def test_multiple_blocks(self):
@@ -89,11 +106,11 @@ class TestL1Manager(unittest.TestCase):
         for block_num in [10, 20, 30]:
             self._mock_handle_feeder_tx_and_store_l1_block(block_num)
 
-        # get_block_number returns latest block in manager + finality.
+        # get_block_number returns latest exposed block + finality.
         result = self.manager.get_block_number()
         self.assertEqual(result["result"], hex(30 + L1Manager.L1_SCRAPER_FINALITY_CONFIG_VALUE))
 
-        # get_logs merges all logs in range.
+        # get_logs returns logs for blocks within the queried range.
         result = self.manager.get_logs(self.get_logs_input(10, 30))
         expected_logs = {
             "jsonrpc": "2.0",
@@ -106,14 +123,13 @@ class TestL1Manager(unittest.TestCase):
         }
         self.assertEqual(result, expected_logs)
 
-        # get_logs with partial range (only 20 exists in 15-25).
-        result = self.manager.get_logs(self.get_logs_input(15, 25))
-        expected_logs = {
-            "jsonrpc": "2.0",
-            "id": "1",
-            "result": [{"blockNumber": hex(20), "data": "0x"}],
-        }
+        # Same range returns the same logs (range-based, not consumed).
+        result = self.manager.get_logs(self.get_logs_input(10, 30))
         self.assertEqual(result, expected_logs)
+
+        # Range outside stored blocks returns empty.
+        result = self.manager.get_logs(self.get_logs_input(31, 100))
+        self.assertEqual(result["result"], [])
 
     def test_cleanup_old_blocks(self):
         # Setup: add blocks 10, 20, 30.
@@ -167,6 +183,79 @@ class TestL1Manager(unittest.TestCase):
             result,
             {"jsonrpc": "2.0", "id": "1", "result": L1Manager.default_l1_block(hex(block_num))},
         )
+
+    def test_get_block_number_gated_until_threshold(self):
+        """get_block_number returns None while gated, then a stable value once exposed."""
+        source_block_number = 100
+        required_echonet_block = source_block_number - 2  # = 98
+        l1_block_number = 10
+
+        self.mock_client.get_block_by_number.return_value = {
+            "jsonrpc": "2.0",
+            "id": "1",
+            "result": {"number": hex(l1_block_number), "timestamp": "0x1"},
+        }
+        self.mock_client.get_logs.return_value = {
+            "jsonrpc": "2.0",
+            "id": "1",
+            "result": [{"blockNumber": hex(l1_block_number), "data": "0x"}],
+        }
+
+        with patch.object(L1Blocks, "find_l1_block_for_tx") as mock_find:
+            mock_find.return_value = l1_block_number
+            natural = hex(l1_block_number + L1Manager.L1_SCRAPER_FINALITY_CONFIG_VALUE)
+
+            # Echonet below threshold: block not yet exposed, get_block_number returns None.
+            manager_below = self._make_manager_with_echonet_block(required_echonet_block - 1)
+            manager_below.set_new_tx({"transaction_hash": "0xabc"}, 0, source_block_number)
+            self.assertIsNone(manager_below.get_block_number()["result"])
+            self.assertIsNone(manager_below.get_block_number()["result"])
+            self.assertIsNone(manager_below.get_block_number()["result"])
+
+            # Echonet at threshold: block exposed, get_block_number returns stable value.
+            manager_at = self._make_manager_with_echonet_block(required_echonet_block)
+            manager_at.set_new_tx({"transaction_hash": "0xdef"}, 0, source_block_number)
+            self.assertEqual(manager_at.get_block_number()["result"], natural)
+            self.assertEqual(manager_at.get_block_number()["result"], natural)
+            self.assertEqual(manager_at.get_block_number()["result"], natural)
+
+    def test_echonet_block_gate_withholds_logs_until_threshold(self):
+        """Logs are withheld until echonet reaches source_block_number - 2, then released."""
+        source_block_number = 10
+        required_echonet_block = source_block_number - 2  # = 8
+        l1_block_number = 1
+        l1_block_number_hex = hex(l1_block_number)
+
+        self.mock_client.get_block_by_number.return_value = {
+            "jsonrpc": "2.0",
+            "id": "1",
+            "result": {"number": l1_block_number_hex, "timestamp": "0x1"},
+        }
+        self.mock_client.get_logs.return_value = {
+            "jsonrpc": "2.0",
+            "id": "1",
+            "result": [{"blockNumber": l1_block_number_hex, "data": "0x"}],
+        }
+
+        with patch.object(L1Blocks, "find_l1_block_for_tx") as mock_find:
+            mock_find.return_value = l1_block_number
+
+            # Echonet below threshold: block is gated, logs are withheld.
+            manager = L1Manager(
+                l1_client=self.mock_client,
+                get_last_proved_block_callback=lambda: (0, 0),
+                get_last_echonet_block_callback=lambda: required_echonet_block - 1,
+            )
+            manager.set_new_tx({"transaction_hash": "0xabc"}, 0, source_block_number)
+            result = manager.get_logs(self.get_logs_input(0, l1_block_number))
+            self.assertEqual(result["result"], [])
+            self.assertEqual(len(manager._gated_txs), 1)
+
+            # Advance echonet to threshold: block is exposed, logs are returned.
+            manager.get_last_echonet_block_callback = lambda: required_echonet_block
+            result = manager.get_logs(self.get_logs_input(0, l1_block_number))
+            self.assertEqual(len(result["result"]), 1)
+            self.assertEqual(manager._gated_txs, [])
 
 
 if __name__ == "__main__":
