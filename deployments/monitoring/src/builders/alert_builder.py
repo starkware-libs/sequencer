@@ -282,7 +282,7 @@ def alert_builder(args: argparse.Namespace):
         # Exit cleanly without traceback
         sys.exit(1)
 
-    interval_sec = dev_alerts["intervalSec"]
+    group_intervals: dict[str, int] = {g["name"]: g["intervalSec"] for g in dev_alerts["groups"]}
 
     # group_name -> list of alert rules (preserving insertion order within each group)
     groups: dict[str, list[dict[str, any]]] = collections.defaultdict(list)
@@ -326,7 +326,7 @@ def alert_builder(args: argparse.Namespace):
     rule_groups = [
         create_rule_group(
             name=group_name,
-            interval_sec=interval_sec,
+            interval_sec=group_intervals[group_name],
             rules=sorted(rules, key=lambda a: a["name"]),
         )
         for group_name, rules in sorted(groups.items())
