@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775421932509,
+  "lastUpdate": 1776173633422,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3059,6 +3059,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1173.50433266,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mz@bakingbad.dev",
+            "name": "Michael Zaikin",
+            "username": "m-kus"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7e56d21997941e508311c29982f86a8223e44360",
+          "message": "tower_ohttp: add a crate with tower layer implementation for oblivious http (#13707)",
+          "timestamp": "2026-04-14T13:09:49Z",
+          "tree_id": "e6970ad34d6569a4cbe37f662d10e1c61180959f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/7e56d21997941e508311c29982f86a8223e44360"
+        },
+        "date": 1776173633018,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 895.55565154,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1339.28681529,
             "unit": "ms"
           }
         ]
