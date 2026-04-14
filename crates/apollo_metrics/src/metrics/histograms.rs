@@ -1,7 +1,6 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Debug;
 
-use indexmap::IndexMap;
 use metrics::{describe_histogram, histogram, IntoF64};
 #[cfg(any(feature = "testing", test))]
 use regex::{escape, Regex};
@@ -36,8 +35,7 @@ pub struct MetricHistogram {
 pub struct HistogramValue {
     pub sum: f64,
     pub count: u64,
-    // TODO(Tsabary): why is this set with an index map? Consider alternatives.
-    pub histogram: IndexMap<String, f64>,
+    pub histogram: BTreeMap<String, f64>,
 }
 
 impl PartialEq for HistogramValue {
@@ -225,7 +223,7 @@ pub(crate) fn parse_histogram_metric(
     let count_re = Regex::new(&count_pattern).expect("Invalid regex for count");
 
     // Parse quantiles and insert them into the histogram.
-    let mut histogram = IndexMap::new();
+    let mut histogram = BTreeMap::new();
     for captures in quantile_re.captures_iter(metrics_as_string) {
         let quantile = captures.get(1)?.as_str().to_string();
         let value = captures.get(2)?.as_str().parse::<f64>().ok()?;
