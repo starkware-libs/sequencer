@@ -88,8 +88,6 @@ pub enum ProvingError {
 /// Error type for the virtual SNOS prover.
 #[derive(Debug, Error)]
 pub enum VirtualSnosProverError {
-    #[error("Invalid transaction type: {0}")]
-    InvalidTransactionType(String),
     #[error("Invalid transaction input: {0}")]
     InvalidTransactionInput(String),
     #[error("Validation error: {0}")]

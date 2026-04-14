@@ -3,7 +3,7 @@
 //! Error codes follow Starknet RPC specification v0.10.
 //!
 //! When adding a new error type, also update:
-//! - The OpenRPC spec: `resources/proving_api_openrpc.json` (under `components/errors`)
+//! - The OpenRPC spec in starknet-specs: `proving-api/starknet_proving_api_openrpc.json`
 //! - The spec validation test: `server/rpc_spec_test.rs` (`test_error_responses_match_spec`)
 
 use jsonrpsee::types::error::ErrorCode::InternalError;
@@ -25,8 +25,8 @@ pub fn validation_failure(data: String) -> ErrorObjectOwned {
 }
 
 /// Unsupported transaction version (code 61).
-pub fn unsupported_tx_version(data: String) -> ErrorObjectOwned {
-    ErrorObjectOwned::owned(61, "The transaction version is not supported", Some(data))
+pub fn unsupported_tx_version() -> ErrorObjectOwned {
+    ErrorObjectOwned::owned(61, "the transaction version is not supported", None::<()>)
 }
 
 /// Invalid transaction input (code 1000).
@@ -54,9 +54,6 @@ pub fn internal_server_error(err: impl std::fmt::Display) -> ErrorObjectOwned {
 impl From<VirtualSnosProverError> for ErrorObjectOwned {
     fn from(err: VirtualSnosProverError) -> Self {
         match &err {
-            VirtualSnosProverError::InvalidTransactionType(msg) => {
-                unsupported_tx_version(msg.clone())
-            }
             VirtualSnosProverError::InvalidTransactionInput(msg) => {
                 invalid_transaction_input(msg.clone())
             }

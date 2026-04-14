@@ -212,11 +212,11 @@ fn extract_rpc_invoke_tx(
 ) -> Result<RpcInvokeTransactionV3, VirtualSnosProverError> {
     match tx {
         RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_v3)) => Ok(invoke_v3),
-        RpcTransaction::Declare(_) => Err(VirtualSnosProverError::InvalidTransactionType(
+        RpcTransaction::Declare(_) => Err(VirtualSnosProverError::InvalidTransactionInput(
             "Declare transactions are not supported; only Invoke transactions are allowed"
                 .to_string(),
         )),
-        RpcTransaction::DeployAccount(_) => Err(VirtualSnosProverError::InvalidTransactionType(
+        RpcTransaction::DeployAccount(_) => Err(VirtualSnosProverError::InvalidTransactionInput(
             "DeployAccount transactions are not supported; only Invoke transactions are allowed"
                 .to_string(),
         )),
