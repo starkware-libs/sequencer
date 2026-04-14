@@ -9,7 +9,7 @@ use std::sync::Arc;
 use apollo_committer_config::config::ApolloStorage;
 use apollo_storage::db::DbConfig;
 use apollo_storage::state::StateStorageReader;
-use apollo_storage::{open_storage, StorageConfig, StorageReader, StorageResult};
+use apollo_storage::{open_storage, StorageConfig, StorageError, StorageReader, StorageResult};
 use clap::Args;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_address;
@@ -52,6 +52,8 @@ mod snap_sync_test;
 enum SnapSyncError {
     #[error("size_limit is too small: {0}")]
     SizeLimitTooSmall(usize),
+    #[error(transparent)]
+    StorageError(#[from] StorageError),
 }
 
 /// Given the first leaf `start` and the felt of the last key seen (`last_key`), returns the
@@ -156,19 +158,15 @@ impl TreeKey for StorageKey {
         block_target: BlockNumber,
         size_limit: usize,
     ) -> Result<(StateDiff, Felt), SnapSyncError> {
-        let txn =
-            reader.begin_ro_txn().expect("Storage scan: failed to begin read-only transaction");
-        let state_reader =
-            txn.get_state_reader().expect("Storage scan: failed to get state reader");
-        let raw_entries = state_reader
-            .scan_storage_keys_for_contract(
-                request.context,
-                Self::from_patricia_key(request.start),
-                Self::from_patricia_key(request.end),
-                block_target,
-                size_limit,
-            )
-            .expect("Storage scan: failed to scan storage keys for contract");
+        let txn = reader.begin_ro_txn()?;
+        let state_reader = txn.get_state_reader()?;
+        let raw_entries = state_reader.scan_storage_keys_for_contract(
+            request.context,
+            Self::from_patricia_key(request.start),
+            Self::from_patricia_key(request.end),
+            block_target,
+            size_limit,
+        )?;
         let (entries, actual_end) =
             shrink_to_actual_end(raw_entries, request.start, request.end, size_limit)?;
         let storage_map = entries
@@ -207,19 +205,14 @@ impl TreeKey for ContractAddress {
         if size_limit < 2 {
             return Err(SnapSyncError::SizeLimitTooSmall(size_limit));
         }
-        let txn = reader
-            .begin_ro_txn()
-            .expect("Contract class hash scan: failed to begin read-only transaction");
-        let state_reader =
-            txn.get_state_reader().expect("Contract class hash scan: failed to get state reader");
-        let raw_class_entries = state_reader
-            .scan_contract_class_hashes_in_range(
-                Self::from_patricia_key(request.start),
-                Self::from_patricia_key(request.end),
-                block_target,
-                size_limit / 2,
-            )
-            .expect("Contract class hash scan: failed to scan contract class hashes");
+        let txn = reader.begin_ro_txn()?;
+        let state_reader = txn.get_state_reader()?;
+        let raw_class_entries = state_reader.scan_contract_class_hashes_in_range(
+            Self::from_patricia_key(request.start),
+            Self::from_patricia_key(request.end),
+            block_target,
+            size_limit / 2,
+        )?;
         let (class_entries, actual_end) =
             shrink_to_actual_end(raw_class_entries, request.start, request.end, size_limit / 2)?;
 
@@ -227,13 +220,9 @@ impl TreeKey for ContractAddress {
         let address_to_nonce = class_entries
             .iter()
             .map(|(addr, _)| {
-                let nonce = state_reader
-                    .get_nonce_at(state_number, addr)
-                    .expect("Nonce lookup failed")
-                    .unwrap_or_default();
-                (*addr, nonce)
+                Ok((*addr, state_reader.get_nonce_at(state_number, addr)?.unwrap_or_default()))
             })
-            .collect();
+            .collect::<Result<_, StorageError>>()?;
 
         let address_to_class_hash = class_entries.into_iter().collect();
         Ok((
@@ -256,19 +245,14 @@ impl TreeKey for ClassHash {
         block_target: BlockNumber,
         size_limit: usize,
     ) -> Result<(StateDiff, Felt), SnapSyncError> {
-        let txn = reader
-            .begin_ro_txn()
-            .expect("Compiled class hash scan: failed to begin read-only transaction");
-        let state_reader =
-            txn.get_state_reader().expect("Compiled class hash scan: failed to get state reader");
-        let raw_entries = state_reader
-            .scan_compiled_class_hashes_in_range(
-                Self::from_patricia_key(request.start),
-                Self::from_patricia_key(request.end),
-                block_target,
-                size_limit,
-            )
-            .expect("Compiled class hash scan: failed to scan compiled class hashes");
+        let txn = reader.begin_ro_txn()?;
+        let state_reader = txn.get_state_reader()?;
+        let raw_entries = state_reader.scan_compiled_class_hashes_in_range(
+            Self::from_patricia_key(request.start),
+            Self::from_patricia_key(request.end),
+            block_target,
+            size_limit,
+        )?;
         let (entries, actual_end) =
             shrink_to_actual_end(raw_entries, request.start, request.end, size_limit)?;
         let class_hash_to_compiled_class_hash = entries
