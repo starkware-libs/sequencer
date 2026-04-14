@@ -26,7 +26,7 @@ class SeverityConfig:
     bad_count_threshold: int = 11
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class BlockStoreTuning:
     """
     Tuning parameters for SharedContext's in-memory block retention.
@@ -242,7 +242,10 @@ class EchonetConfig:
                 max_pending_txs_before_pausing=max_pending_txs_before_pausing,
             ),
             block_store=BlockStoreTuning(
-                max_blocks_to_keep_in_memory=max_pending_txs_before_pausing,
+                max_blocks_to_keep_in_memory=max(
+                    BlockStoreTuning.max_blocks_to_keep_in_memory,
+                    max_pending_txs_before_pausing // 2,
+                ),
             ),
             severity=SeverityConfig(),
             paths=PathsConfig(),
