@@ -5,6 +5,7 @@ use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;
 
 use crate::committer_cli::commands::parse_and_commit;
+use crate::committer_cli::snap_sync::{run_snap_sync, SnapSyncArgs};
 use crate::committer_cli::tests::python_tests::CommitterPythonTestRunner;
 use crate::shared_utils::types::{run_python_test, IoArgs, PythonTestArg};
 
@@ -22,6 +23,8 @@ enum Command {
         io_args: IoArgs,
     },
     PythonTest(PythonTestArg),
+    /// Scans batcher MDBX storage at a synced block and computes the commitment.
+    SnapSync(SnapSyncArgs),
 }
 
 pub async fn run_committer_cli(
@@ -36,6 +39,10 @@ pub async fn run_committer_cli(
 
         Command::PythonTest(python_test_arg) => {
             run_python_test::<CommitterPythonTestRunner>(python_test_arg).await;
+        }
+
+        Command::SnapSync(snap_sync_args) => {
+            run_snap_sync(snap_sync_args).await;
         }
     }
 }
