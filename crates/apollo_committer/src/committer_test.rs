@@ -228,28 +228,47 @@ async fn commit_idempotent_test() {
 /// Commits blocks 0, 1. Reverts block 1.
 async fn revert_happy_flow() {
     let mut committer = new_test_committer().await;
-    let mut height = 0;
-    let state_diff_1 = 1;
-    let state_diff_2 = 2;
+    let height_0 = 0;
+    let height_1 = 1;
+    let class_hash = 1_u64;
+    let state_diff_1 = 1_u64;
+    let state_diff_2 = 2_u64;
+
+    // Block 0: ClassHash(1) → CompiledClassHash(1).
     let state_root = committer
-        .commit_block(commit_block_request(state_diff_1, Some(1), height))
+        .commit_block(commit_block_request(state_diff_1, Some(state_diff_1), height_0))
         .await
         .unwrap()
         .global_root;
 
-    height = 1;
-    committer.commit_block(commit_block_request(state_diff_2, Some(2), height)).await.unwrap();
-    assert_eq!(committer.offset, BlockNumber(height + 1));
+    // Block 1: ClassHash(1) → CompiledClassHash(2) (updates the same key as block 0).
+    // Using the same key ensures that reverting block 1 (restoring ClassHash(1) to
+    // CompiledClassHash(1)) brings the tree back to the exact state after block 0.
+    committer
+        .commit_block(CommitBlockRequest {
+            state_diff: ThinStateDiff {
+                class_hash_to_compiled_class_hash: indexmap! {
+                    ClassHash(class_hash.into()) => CompiledClassHash(state_diff_2.into()),
+                },
+                ..Default::default()
+            },
+            state_diff_commitment: Some(StateDiffCommitment(PoseidonHash(state_diff_2.into()))),
+            height: BlockNumber(height_1),
+        })
+        .await
+        .unwrap();
+    assert_eq!(committer.offset, BlockNumber(height_1 + 1));
 
+    // Revert block 1: restore ClassHash(1) to CompiledClassHash(1).
     let response =
-        committer.revert_block(revert_block_request(state_diff_1, height)).await.unwrap();
+        committer.revert_block(revert_block_request(state_diff_1, height_1)).await.unwrap();
 
     assert_matches!(
         response,
         RevertBlockResponse::RevertedTo(reverted_state_root)
         if reverted_state_root == state_root
     );
-    assert_eq!(committer.offset, BlockNumber(height));
+    assert_eq!(committer.offset, BlockNumber(height_1));
 }
 
 #[tokio::test]
