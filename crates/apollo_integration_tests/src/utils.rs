@@ -445,7 +445,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             context_config: ContextConfig {
                 static_config: ContextStaticConfig {
                     chain_id: chain_id.clone(),
-                    builder_address: ContractAddress::from(4_u128),
+                    builder_address: ContractAddress::from(4096_u128),
                     ..Default::default()
                 },
                 dynamic_config: ContextDynamicConfig {
@@ -570,6 +570,17 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
     let account =
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
     tx_generator.register_undeployed_account(account, ContractAddressSalt(Felt::ZERO));
+    tx_generator
+}
+
+/// Creates a multi-account transaction generator for the proof flow test with a single deployed
+/// account.
+pub fn create_proof_flow_tx_generator() -> MultiAccountTransactionGenerator {
+    let mut tx_generator: MultiAccountTransactionGenerator =
+        MultiAccountTransactionGenerator::new();
+    let account =
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    tx_generator.register_deployed_account(account);
     tx_generator
 }
 
