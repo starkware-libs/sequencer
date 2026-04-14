@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776166544801,
+  "lastUpdate": 1776169855703,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2141,6 +2141,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1291.49867521,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a5c01e29c8c92ed97536aa61e78269fc15cde298",
+          "message": "starknet_committer_and_os_cli: add shrink_to_actual_end tests (#13612)\n\n* starknet_committer_and_os_cli: add TreeKey implementations for snap sync\n\nAdds impl TreeKey for StorageKey, ContractAddress, and ClassHash, each\nimplementing the scan method to read from apollo_storage and return a\nStateDiff covering the requested Patricia subtree range.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>\n\n* starknet_committer_and_os_cli: add shrink_to_actual_end tests\n\n---------\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-04-14T12:14:01Z",
+          "tree_id": "6c380ed684b2b08e30e878620c2440dbee51162c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/a5c01e29c8c92ed97536aa61e78269fc15cde298"
+        },
+        "date": 1776169855214,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1279.4344932000001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1645.62807445,
             "unit": "ms"
           }
         ]
