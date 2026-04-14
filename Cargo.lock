@@ -12678,6 +12678,7 @@ dependencies = [
 name = "starknet_os_flow_tests"
 version = "0.18.0-rc.1"
 dependencies = [
+ "apollo_integration_tests",
  "assert_matches",
  "blockifier",
  "blockifier_test_utils",
@@ -12788,6 +12789,7 @@ dependencies = [
  "mockito",
  "privacy-circuit-verify",
  "privacy-prove",
+ "rayon",
  "reqwest 0.12.24",
  "rstest",
  "serde",

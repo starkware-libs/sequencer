@@ -29,6 +29,7 @@ http-body-util.workspace = true
 indexmap.workspace = true
 jsonrpsee = { workspace = true, features = ["macros", "server"] }
 privacy-prove = { workspace = true, optional = true }
+rayon.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 shared_execution_objects.workspace = true
@@ -75,3 +76,8 @@ tower_ohttp = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "generate_proof_flow_fixtures"
+path = "src/bin/generate_proof_flow_fixtures.rs"
+required-features = ["stwo_proving"]

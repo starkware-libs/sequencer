@@ -16,7 +16,15 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use expect_test::expect;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
-use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice};
+use starknet_api::block::{
+    BlockInfo,
+    BlockNumber,
+    BlockTimestamp,
+    GasPrice,
+    GasPriceVector,
+    GasPrices,
+    NonzeroGasPrice,
+};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{
@@ -95,6 +103,7 @@ use starknet_types_core::hash::{Pedersen, StarkHash};
 use crate::initial_state::{
     create_default_initial_state_data,
     get_deploy_contract_tx_and_address_with_salt,
+    proof_flow_integration_block_0_executable_transactions,
     InitialState,
     InitialStateData,
     OsExecutionContracts,
@@ -364,7 +373,12 @@ async fn test_encrypted_state_diff(
             FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
             calldata![Felt::ONE, Felt::TWO],
         )],
-        TestBuilderConfig { use_kzg_da, full_output, private_keys: private_keys.clone() },
+        TestBuilderConfig {
+            use_kzg_da,
+            full_output,
+            private_keys: private_keys.clone(),
+            ..Default::default()
+        },
     )
     .await;
 
@@ -3020,4 +3034,74 @@ async fn test_get_block_hash_current_block_number() {
 
     let test_output = test_builder.build_and_run().await;
     test_output.perform_default_validations();
+}
+
+/// Unix timestamp for block 0 on the integration test chain.
+/// The genesis partial-block-hash uses the default (0), not CURRENT_BLOCK_TIMESTAMP.
+pub(crate) const PROOF_FLOW_BLOCK_TIMESTAMP: BlockTimestamp = BlockTimestamp(0);
+
+/// Gas prices matching the integration test sequencer's block 0 (from `test_block_header`).
+pub(crate) const PROOF_FLOW_GAS_PRICES: GasPrices = GasPrices {
+    strk_gas_prices: GasPriceVector {
+        l1_gas_price: NonzeroGasPrice::new_unchecked(GasPrice(100_000_000_000)),
+        l1_data_gas_price: NonzeroGasPrice::new_unchecked(GasPrice(1_000_000_000)),
+        l2_gas_price: NonzeroGasPrice::new_unchecked(GasPrice(2_500_000)),
+    },
+    eth_gas_prices: GasPriceVector {
+        l1_gas_price: NonzeroGasPrice::new_unchecked(GasPrice(100_000_000_000)),
+        l1_data_gas_price: NonzeroGasPrice::new_unchecked(GasPrice(1_000_000)),
+        l2_gas_price: NonzeroGasPrice::new_unchecked(GasPrice(2_500_000)),
+    },
+};
+
+/// Generates a CairoPie fixture for the proof flow integration test.
+///
+/// Uses [`PROOF_FLOW_BLOCK_TIMESTAMP`] and [`PROOF_FLOW_GAS_PRICES`]. Genesis matches
+/// [`apollo_integration_tests::state_reader::proof_flow_integration_genesis_data`] (and
+/// `proof_flow_virtual_os_genesis_data`, which is the same): default account deployed in genesis,
+/// block 0 is a single trivial invoke. Writes the `CairoPie` zip for `generate_proof_flow_fixtures`
+/// in `starknet_transaction_prover`.
+///
+/// # Environment variables
+///
+/// - `CAIRO_PIE_PATH` — output path for the zip file (default: `/tmp/proof_flow_cairo_pie.zip`).
+///
+/// # Running
+///
+/// ```bash
+/// cargo test -p starknet_os_flow_tests generate_cairo_pie -- --ignored --nocapture
+/// ```
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn generate_cairo_pie() {
+    let proof_flow_config = TestBuilderConfig {
+        virtual_os_block_info_override: Some(BlockInfo {
+            block_number: BlockNumber(0),
+            block_timestamp: PROOF_FLOW_BLOCK_TIMESTAMP,
+            gas_prices: PROOF_FLOW_GAS_PRICES,
+            ..BlockInfo::create_for_testing()
+        }),
+        ..Default::default()
+    };
+    let (mut test_builder, _) =
+        TestBuilder::<DictStateReader>::create_proof_flow_virtual_with_config(proof_flow_config)
+            .await;
+    // Add the trivial invoke so the OS block has at least one transaction (OS requirement).
+    // The block hash still uses the genesis state_diff_commitment override (see InitialState).
+    test_builder.add_invoke_tx(
+        proof_flow_integration_block_0_executable_transactions(),
+        None,
+        None,
+    );
+
+    let test_runner = test_builder.build().await;
+    let output = test_runner.run_virtual();
+    let cairo_pie = output.runner_output.cairo_pie;
+
+    let output_path = std::env::var("CAIRO_PIE_PATH")
+        .unwrap_or_else(|_| "/tmp/proof_flow_cairo_pie.zip".to_string());
+    cairo_pie
+        .write_zip_file(std::path::Path::new(&output_path), true)
+        .expect("Failed to write CairoPie");
+    println!("CairoPie written to {output_path}");
 }

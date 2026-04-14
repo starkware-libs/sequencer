@@ -1,7 +1,16 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+use apollo_integration_tests::state_reader::{
+    proof_flow_integration_chain_info,
+    proof_flow_integration_genesis_data,
+    ProofFlowGenesisClasses,
+};
+use apollo_integration_tests::utils::create_proof_flow_tx_generator;
 use blockifier::context::BlockContext;
+use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::state::cached_state::{ContractClassMapping, StateMaps};
 use blockifier::state::state_api::UpdatableState;
+use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::generate_block_hash_storage_updates;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -10,6 +19,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{
     calculate_contract_address,
     ClassHash,
@@ -25,7 +35,8 @@ use starknet_api::executable_transaction::{
     Transaction as StarknetAPITransaction,
 };
 use starknet_api::hash::{HashOutput, StateRoots};
-use starknet_api::state::{ContractClassComponentHashes, SierraContractClass};
+use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
+use starknet_api::state::{ContractClassComponentHashes, SierraContractClass, ThinStateDiff};
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, CURRENT_BLOCK_NUMBER};
@@ -293,6 +304,111 @@ pub(crate) async fn commit_initial_state_diff(
     (state_roots, facts_db.consume_storage())
 }
 
+/// Creates the initial state to match the proof flow integration test.
+/// Returns the state data and the genesis `ThinStateDiff` for `state_diff_commitment` overriding.
+pub(crate) async fn create_proof_flow_integration_initial_state()
+-> (InitialStateData<DictStateReader>, ThinStateDiff) {
+    let chain_info = proof_flow_integration_chain_info();
+    let (thin, classes) = proof_flow_integration_genesis_data(&chain_info);
+    let class_hash_to_class = contract_class_mapping_from_proof_flow_genesis_classes(&classes);
+
+    let mut reader = DictStateReader::default();
+    for (class_hash, (sierra, _casm)) in &classes.cairo1_contract_classes {
+        reader.class_hash_to_sierra.insert(*class_hash, sierra.clone());
+    }
+
+    let state_maps = thin_state_diff_to_state_maps(&thin);
+    reader.apply_writes(&state_maps, &class_hash_to_class);
+
+    let committer_state_diff = state_maps_to_committer_state_diff(state_maps);
+    let (commitment_output, commitment_storage) =
+        commit_initial_state_diff(committer_state_diff).await;
+
+    let initial_block_number = BlockNumber(CURRENT_BLOCK_NUMBER);
+    let use_kzg_da = false;
+    let block_context = block_context_for_flow_tests(initial_block_number, use_kzg_da);
+
+    let execution_contracts = os_execution_contracts_from_proof_flow_genesis_classes(&classes);
+
+    let initial_state = InitialState {
+        updatable_state: reader,
+        commitment_storage,
+        contracts_trie_root_hash: commitment_output.contracts_trie_root_hash,
+        classes_trie_root_hash: commitment_output.classes_trie_root_hash,
+        block_context,
+    };
+
+    (
+        InitialStateData {
+            initial_state,
+            nonce_manager: NonceManager::default(),
+            execution_contracts,
+        },
+        thin,
+    )
+}
+
+fn thin_state_diff_to_state_maps(thin: &ThinStateDiff) -> StateMaps {
+    let mut storage = HashMap::new();
+    for (addr, entries) in &thin.storage_diffs {
+        for (key, val) in entries {
+            storage.insert((*addr, *key), *val);
+        }
+    }
+    let declared_contracts: HashMap<ClassHash, bool> =
+        thin.deprecated_declared_classes.iter().map(|ch| (*ch, true)).collect();
+    StateMaps {
+        nonces: thin.nonces.iter().map(|(k, v)| (*k, *v)).collect(),
+        class_hashes: thin.deployed_contracts.iter().map(|(k, v)| (*k, *v)).collect(),
+        storage,
+        compiled_class_hashes: thin
+            .class_hash_to_compiled_class_hash
+            .iter()
+            .map(|(k, v)| (*k, *v))
+            .collect(),
+        declared_contracts,
+    }
+}
+
+fn contract_class_mapping_from_proof_flow_genesis_classes(
+    classes: &ProofFlowGenesisClasses,
+) -> ContractClassMapping {
+    let mut m = ContractClassMapping::new();
+    for (class_hash, (sierra, casm)) in &classes.cairo1_contract_classes {
+        let sierra_version = sierra.get_sierra_version().unwrap();
+        let contract_class = ContractClass::V1((casm.clone(), sierra_version));
+        m.insert(
+            *class_hash,
+            RunnableCompiledClass::try_from(contract_class).expect("cairo1 class"),
+        );
+    }
+    m
+}
+
+fn os_execution_contracts_from_proof_flow_genesis_classes(
+    classes: &ProofFlowGenesisClasses,
+) -> OsExecutionContracts {
+    let mut execution_contracts = OsExecutionContracts::default();
+    for (_class_hash, (sierra, casm)) in &classes.cairo1_contract_classes {
+        execution_contracts.add_cairo1_contract(casm.clone(), sierra);
+    }
+    execution_contracts
+}
+
+/// Block 0 invoke executable (proof-flow integration: account deployed in genesis).
+pub(crate) fn proof_flow_integration_block_0_executable_transactions() -> InvokeTransaction {
+    let mut tx_generator = create_proof_flow_tx_generator();
+    let rpc_tx = tx_generator.account_with_id_mut(0).generate_trivial_rpc_invoke_tx(1);
+    match rpc_tx {
+        RpcTransaction::Invoke(RpcInvokeTransaction::V3(rpc)) => InvokeTransaction::create(
+            starknet_api::transaction::InvokeTransaction::V3(rpc.clone().into()),
+            &CHAIN_ID_FOR_TESTS,
+        )
+        .expect("invoke executable"),
+        _ => panic!("expected invoke RPC tx, got {:?}", rpc_tx),
+    }
+}
+
 pub(crate) fn get_initial_deploy_account_tx() -> DeployAccountTransaction {
     let deploy_account_tx_args = deploy_account_tx_args! {
         class_hash: FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm)).get_sierra().calculate_class_hash(),
@@ -365,7 +481,6 @@ pub(crate) fn get_deploy_contract_tx_and_address_with_salt(
     .unwrap();
     (deploy_contract_tx, contract_address)
 }
-
 pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction, ContractAddress) {
     let class_hash = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm))
         .get_sierra()

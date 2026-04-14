@@ -5,6 +5,8 @@
 
 #[cfg(feature = "stwo_proving")]
 pub(crate) mod prover;
+#[cfg(feature = "stwo_proving")]
+pub use prover::prove_cairo_pie_standalone;
 pub mod virtual_snos_prover;
 
 #[cfg(all(test, feature = "stwo_proving"))]
