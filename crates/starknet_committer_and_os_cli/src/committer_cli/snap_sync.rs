@@ -1,12 +1,17 @@
 use std::collections::HashMap;
 use std::future::Future;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use apollo_committer::committer::StorageConstructor;
+use apollo_committer_config::config::{ApolloCommitterConfig, ApolloStorage};
+use apollo_storage::db::DbConfig;
 use apollo_storage::state::StateStorageReader;
-use apollo_storage::{StorageReader, StorageResult};
+use apollo_storage::{open_storage, StorageConfig, StorageReader, StorageResult};
+use clap::Args;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey, MAX_PATRICIA_KEY};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, PatriciaKey, MAX_PATRICIA_KEY};
 use starknet_api::hash::StateRoots;
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
@@ -22,7 +27,11 @@ use starknet_committer::block_committer::measurements_util::{
     MeasurementsTrait,
     SingleBlockMeasurements,
 };
-use starknet_committer::db::forest_trait::{EmptyInitialReadContext, ForestWriterWithMetadata};
+use starknet_committer::db::forest_trait::{
+    EmptyInitialReadContext,
+    ForestWriterWithMetadata,
+    StorageInitializer,
+};
 use starknet_committer::db::index_db::{IndexDb, IndexDbReadContext};
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash as CommitterCompiledClassHash;
 use starknet_patricia_storage::storage_trait::Storage;
@@ -117,7 +126,6 @@ struct TreeRequest<K: TreeKey> {
 
 impl<K: TreeKey> TreeRequest<K> {
     /// Returns a request covering the full key range `[default, max_key]` for the given context.
-    #[cfg_attr(not(test), expect(dead_code))]
     fn initial_request(context: K::Context) -> Self {
         Self { context, start: PatriciaKey::default(), end: *MAX_PATRICIA_KEY }
     }
@@ -312,7 +320,6 @@ async fn commit_state_diff<S: Storage + Send>(
 /// splits the remaining range into two parallel sub-requests.
 ///
 /// This is a boxed future because it recurses.
-#[allow(dead_code)]
 fn process_request<K: TreeKey, S: Storage + Send + 'static>(
     reader: Arc<StorageReader>,
     request: TreeRequest<K>,
@@ -377,7 +384,6 @@ fn process_request<K: TreeKey, S: Storage + Send + 'static>(
 
 /// Returns the first contract address >= `start_addr` that has any storage entry,
 /// or `None` if no such contract exists.
-#[expect(dead_code)]
 fn find_next_storage_contract(
     reader: &StorageReader,
     start_addr: ContractAddress,
@@ -385,4 +391,110 @@ fn find_next_storage_contract(
     let txn = reader.begin_ro_txn()?;
     let state_reader = txn.get_state_reader()?;
     state_reader.find_next_storage_contract(start_addr)
+}
+
+#[derive(Args, Debug)]
+pub struct SnapSyncArgs {
+    /// The height of the last block to sync.
+    #[clap(long)]
+    pub block_target: u64,
+    /// Maximum number of non-empty cells per request.
+    #[clap(long, default_value = "1024 * 1024")]
+    pub size_limit: usize,
+    /// Path prefix of the batcher's MDBX storage directory.
+    #[clap(long, default_value_os_t = DbConfig::default().path_prefix)]
+    pub batcher_path_prefix: PathBuf,
+    /// Path for the committer's RocksDB storage.
+    #[clap(long, default_value_os_t = ApolloCommitterConfig::default().db_path)]
+    pub committer_db_path: PathBuf,
+    /// Chain ID of the Starknet network (e.g. SN_MAIN, SN_SEPOLIA).
+    #[clap(long, default_value_t = DbConfig::default().chain_id)]
+    pub chain_id: ChainId,
+}
+
+/// Runs snap sync: scans the batcher's MDBX storage at `block_target`, commits Patricia tree
+/// batches, and logs root hashes.
+///
+/// Trees are processed in order: storage trees (one per contract), contracts tree, classes tree.
+pub async fn run_snap_sync(
+    SnapSyncArgs { block_target, size_limit, batcher_path_prefix, committer_db_path, chain_id }: SnapSyncArgs,
+) {
+    let storage_config = StorageConfig {
+        db_config: DbConfig {
+            path_prefix: batcher_path_prefix,
+            chain_id,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let (reader, _writer) = open_storage(storage_config).expect("Failed to open batcher storage");
+    let reader = Arc::new(reader);
+    let block_target = BlockNumber(block_target);
+
+    let committer_config =
+        ApolloCommitterConfig { db_path: committer_db_path, ..Default::default() };
+    let commit_state = Arc::new(Mutex::new(CommitState {
+        committer_db: IndexDb::new(ApolloStorage::create_storage(
+            committer_config.db_path,
+            committer_config.storage_config,
+        )),
+        state_roots: StateRoots::default(),
+        num_commits: 0,
+    }));
+
+    info!("Starting snap sync to block {}", block_target.0);
+
+    // Storage trees: one per contract that has storage at block_target.
+    let mut next_addr = ContractAddress::default();
+    loop {
+        let Some(addr) = find_next_storage_contract(&reader, next_addr)
+            .expect("find_next_storage_contract failed")
+        else {
+            break;
+        };
+        process_request(
+            Arc::clone(&reader),
+            TreeRequest::<StorageKey>::initial_request(addr),
+            block_target,
+            size_limit,
+            Arc::clone(&commit_state),
+        )
+        .await;
+
+        let next_felt = *addr.0.key() + Felt::ONE;
+        let Ok(next) = ContractAddress::try_from(next_felt) else { break };
+        next_addr = next;
+    }
+
+    // Contracts tree.
+    process_request(
+        Arc::clone(&reader),
+        TreeRequest::<ContractAddress>::initial_request(()),
+        block_target,
+        size_limit,
+        Arc::clone(&commit_state),
+    )
+    .await;
+
+    // Classes tree.
+    process_request(
+        Arc::clone(&reader),
+        TreeRequest::<ClassHash>::initial_request(()),
+        block_target,
+        size_limit,
+        Arc::clone(&commit_state),
+    )
+    .await;
+
+    // All requests are done; unwrap the Arc to get owned CommitState.
+    let final_state = Arc::try_unwrap(commit_state)
+        .unwrap_or_else(|_| panic!("No other Arc references should exist at this point"))
+        .into_inner();
+
+    info!(
+        "Snap sync complete. Contracts tree root: {}, Classes tree root: {}",
+        final_state.state_roots.contracts_trie_root_hash.0.to_hex_string(),
+        final_state.state_roots.classes_trie_root_hash.0.to_hex_string(),
+    );
 }
