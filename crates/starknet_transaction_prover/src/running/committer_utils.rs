@@ -287,7 +287,9 @@ pub async fn commit_state_diff(
     classes_trie_root_hash: HashOutput,
     state_diff: StateDiff,
 ) -> Result<StateRoots, ProofProviderError> {
-    let config = ReaderConfig::default();
+    let warn_on_trivial_modifications = false;
+    let build_storage_tries_concurrently = false; // Map storage is used, no need for concurrency.
+    let config = ReaderConfig::new(warn_on_trivial_modifications, build_storage_tries_concurrently);
     let initial_read_context =
         FactsDbInitialRead(StateRoots { contracts_trie_root_hash, classes_trie_root_hash });
     let input = Input { state_diff, initial_read_context, config };
