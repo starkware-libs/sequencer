@@ -83,6 +83,9 @@ struct RawServiceConfig {
     max_request_body_size: u32,
     ohttp_enabled: bool,
     ohttp_key_cache_max_age_secs: u64,
+    blocking_check_url: Option<String>,
+    blocking_check_timeout_millis: u64,
+    blocking_check_fail_open: bool,
 }
 
 impl Default for RawServiceConfig {
@@ -105,6 +108,9 @@ impl Default for RawServiceConfig {
             max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
             ohttp_enabled: false,
             ohttp_key_cache_max_age_secs: DEFAULT_OHTTP_KEY_CACHE_MAX_AGE_SECS,
+            blocking_check_url: None,
+            blocking_check_timeout_millis: 2000,
+            blocking_check_fail_open: true,
         }
     }
 }
@@ -317,6 +323,41 @@ impl ServiceConfig {
                 config.ohttp_key_cache_max_age_secs = secs;
             }
         }
+        if let Some(url) = args.blocking_check_url {
+            if Some(&url) != config.blocking_check_url.as_ref() {
+                info!(
+                    "CLI override: blocking_check_url: {:?} -> {:?}",
+                    config.blocking_check_url, url
+                );
+                config.blocking_check_url = Some(url);
+            }
+        }
+        if let Some(timeout) = args.blocking_check_timeout_millis {
+            if timeout != config.blocking_check_timeout_millis {
+                info!(
+                    "CLI override: blocking_check_timeout_millis: {} -> {}",
+                    config.blocking_check_timeout_millis, timeout
+                );
+                config.blocking_check_timeout_millis = timeout;
+            }
+        }
+        if let Some(fail_open) = args.blocking_check_fail_open {
+            if fail_open != config.blocking_check_fail_open {
+                info!(
+                    "CLI override: blocking_check_fail_open: {} -> {}",
+                    config.blocking_check_fail_open, fail_open
+                );
+                config.blocking_check_fail_open = fail_open;
+            }
+        }
+
+        // Validate blocking check URL early so an invalid value surfaces as a clean config error
+        // instead of a panic at prover construction time.
+        if let Some(url_str) = &config.blocking_check_url {
+            url::Url::parse(url_str).map_err(|e| {
+                ConfigError::InvalidArgument(format!("Invalid blocking_check_url: {e}"))
+            })?;
+        }
 
         // Validate required fields.
         if config.rpc_node_url.is_empty() {
@@ -385,6 +426,9 @@ impl ServiceConfig {
             },
             strk_fee_token_address: config.strk_fee_token_address,
             validate_zero_fee_fields: config.validate_zero_fee_fields,
+            blocking_check_url: config.blocking_check_url,
+            blocking_check_timeout_millis: config.blocking_check_timeout_millis,
+            blocking_check_fail_open: config.blocking_check_fail_open,
         };
 
         Ok(ServiceConfig {
@@ -509,4 +553,19 @@ pub struct CliArgs {
     /// is carried on L2 in `proof_fact`). Exposed for debugging and testing without rebuilding.
     #[arg(long, value_name = "FILE", env = "BOUNCER_CONFIG_OVERRIDE", hide = true)]
     pub bouncer_config_override: Option<PathBuf>,
+
+    /// URL of the external blocking check JSON-RPC service (HTTPS with self-signed cert
+    /// supported).
+    #[arg(long, value_name = "URL", env = "BLOCKING_CHECK_URL")]
+    pub blocking_check_url: Option<String>,
+
+    /// Milliseconds to wait for the blocking check response before applying the
+    /// fail-open/fail-close policy (default: 2000).
+    #[arg(long, value_name = "MILLIS", env = "BLOCKING_CHECK_TIMEOUT_MILLIS")]
+    pub blocking_check_timeout_millis: Option<u64>,
+
+    /// Fail-open when blocking check is inconclusive (default: true). Set to false for
+    /// fail-close.
+    #[arg(long, env = "BLOCKING_CHECK_FAIL_OPEN")]
+    pub blocking_check_fail_open: Option<bool>,
 }

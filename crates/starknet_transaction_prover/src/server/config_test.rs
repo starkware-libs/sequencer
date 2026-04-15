@@ -56,6 +56,9 @@ fn base_args() -> CliArgs {
         max_request_body_size: None,
         ohttp_enabled: false,
         ohttp_key_cache_max_age_secs: None,
+        blocking_check_url: None,
+        blocking_check_timeout_millis: None,
+        blocking_check_fail_open: None,
     }
 }
 
@@ -141,6 +144,9 @@ fn cors_allow_origin_rejects_non_array_in_config_file() {
         max_request_body_size: None,
         ohttp_enabled: false,
         ohttp_key_cache_max_age_secs: None,
+        blocking_check_url: None,
+        blocking_check_timeout_millis: None,
+        blocking_check_fail_open: None,
     };
 
     let error = ServiceConfig::from_args(args).unwrap_err();

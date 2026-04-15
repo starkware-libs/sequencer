@@ -29,6 +29,7 @@ http-body-util.workspace = true
 indexmap.workspace = true
 jsonrpsee = { workspace = true, features = ["macros", "server"] }
 privacy-prove = { workspace = true, optional = true }
+reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 shared_execution_objects.workspace = true

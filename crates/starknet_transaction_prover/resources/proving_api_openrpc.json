@@ -70,6 +70,9 @@
                 },
                 {
                     "$ref": "#/components/errors/INVALID_TRANSACTION_INPUT"
+                },
+                {
+                    "$ref": "#/components/errors/TRANSACTION_BLOCKED"
                 }
             ]
         }
@@ -416,6 +419,10 @@
                     "type": "string",
                     "description": "Details about which input field is invalid."
                 }
+            },
+            "TRANSACTION_BLOCKED": {
+                "code": 10000,
+                "message": "Transaction blocked"
             }
         }
     }
