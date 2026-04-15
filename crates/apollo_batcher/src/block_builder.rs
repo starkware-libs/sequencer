@@ -244,6 +244,8 @@ pub struct BlockBuilderExecutionParams {
     pub deadline: tokio::time::Instant,
     pub is_validator: bool,
     pub proposer_idle_detection_delay: Duration,
+    pub n_concurrent_txs: usize,
+    pub tx_polling_interval_millis: u64,
 }
 
 pub struct BlockBuilder {
@@ -262,9 +264,6 @@ pub struct BlockBuilder {
     block_txs: Vec<InternalConsensusTransaction>,
     execution_data: BlockTransactionExecutionData,
 
-    /// Parameters to configure the block builder behavior.
-    n_concurrent_txs: usize,
-    tx_polling_interval_millis: u64,
     execution_params: BlockBuilderExecutionParams,
 
     /// Timestamp when block building started.
@@ -283,8 +282,6 @@ impl BlockBuilder {
         pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
         abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
         transaction_converter: TransactionConverter,
-        n_concurrent_txs: usize,
-        tx_polling_interval_millis: u64,
         execution_params: BlockBuilderExecutionParams,
     ) -> Self {
         let executor = Arc::new(Mutex::new(executor));
@@ -299,8 +296,6 @@ impl BlockBuilder {
             n_executed_txs: 0,
             block_txs: Vec::new(),
             execution_data: BlockTransactionExecutionData::default(),
-            n_concurrent_txs,
-            tx_polling_interval_millis,
             execution_params,
             block_building_start: tokio::time::Instant::now(),
         }
@@ -480,8 +475,8 @@ impl BlockBuilder {
     async fn add_txs_to_executor(&mut self) -> BlockBuilderResult<AddTxsToExecutorResult> {
         // Restrict the number of transactions to fetch such that the number of transactions in
         // progress is at most `n_concurrent_txs`.
-        let n_txs_to_fetch =
-            self.n_concurrent_txs - min(self.n_txs_in_progress(), self.n_concurrent_txs);
+        let n_concurrent_txs = self.execution_params.n_concurrent_txs;
+        let n_txs_to_fetch = n_concurrent_txs - min(self.n_txs_in_progress(), n_concurrent_txs);
 
         if n_txs_to_fetch == 0 {
             return Ok(AddTxsToExecutorResult::NoNewTxs);
@@ -625,8 +620,10 @@ impl BlockBuilder {
     }
 
     async fn sleep(&mut self) {
-        tokio::time::sleep(tokio::time::Duration::from_millis(self.tx_polling_interval_millis))
-            .await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(
+            self.execution_params.tx_polling_interval_millis,
+        ))
+        .await;
     }
 }
 
@@ -862,8 +859,6 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             pre_confirmed_tx_sender,
             abort_signal_receiver,
             transaction_converter,
-            self.block_builder_config.n_concurrent_txs,
-            self.block_builder_config.tx_polling_interval_millis,
             execution_params,
         ));
         Ok((block_builder, abort_signal_sender))
