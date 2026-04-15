@@ -545,10 +545,7 @@ impl SequencerNodeConfig {
         if let (Some(batcher_config), Some(consensus_manager_config)) =
             (&self.batcher_config, &self.consensus_manager_config)
         {
-            let idle_delay = batcher_config
-                .static_config
-                .block_builder_config
-                .proposer_idle_detection_delay_millis;
+            let idle_delay = batcher_config.dynamic_config.proposer_idle_detection_delay_millis;
             let proposal_timeout = consensus_manager_config
                 .consensus_manager_config
                 .dynamic_config

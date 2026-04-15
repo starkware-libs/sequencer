@@ -764,7 +764,6 @@ pub fn create_batcher_config(
                     ..Default::default()
                 },
                 execute_config: WorkerPoolConfig::create_for_testing(),
-                n_concurrent_txs: 3,
                 ..Default::default()
             },
             storage_reader_server_static_config: StorageReaderServerStaticConfig {
@@ -778,6 +777,8 @@ pub fn create_batcher_config(
         dynamic_config: BatcherDynamicConfig {
             native_classes_whitelist: NativeClassesWhitelist::All,
             storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig { enable: true },
+            n_concurrent_txs: 3,
+            ..Default::default()
         },
     }
 }
