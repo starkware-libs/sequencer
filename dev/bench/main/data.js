@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776243614461,
+  "lastUpdate": 1776247200499,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2311,6 +2311,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1437.2879873099998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "21a29341ec790bb5a50268dc3af6a0bd967170b3",
+          "message": "ci: replace allcheckspassed with starkware-libs/merge-gatekeeper (#13770)",
+          "timestamp": "2026-04-15T09:43:40Z",
+          "tree_id": "5e1f7ecd0e44d321a06040680d8292eb2f7ca7e1",
+          "url": "https://github.com/starkware-libs/sequencer/commit/21a29341ec790bb5a50268dc3af6a0bd967170b3"
+        },
+        "date": 1776247200096,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 962.61376216,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1472.59780624,
             "unit": "ms"
           }
         ]
