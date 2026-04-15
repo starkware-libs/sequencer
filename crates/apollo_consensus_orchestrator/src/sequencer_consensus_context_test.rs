@@ -37,6 +37,7 @@ use apollo_protobuf::consensus::{
     TransactionBatch,
 };
 use apollo_time::time::MockClock;
+use apollo_versioned_constants::VersionedConstants;
 use chrono::{TimeZone, Utc};
 use futures::channel::mpsc;
 use futures::channel::oneshot::Canceled;
@@ -58,7 +59,6 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::cende::MockCendeContext;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
-use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
