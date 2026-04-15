@@ -19,7 +19,7 @@ pub mod cende;
 pub mod fee_market;
 
 /// Consensus' versioned constants.
-pub mod orchestrator_versioned_constants;
+pub use apollo_versioned_constants as orchestrator_versioned_constants;
 
 #[allow(missing_docs)]
 pub mod metrics;

@@ -14,6 +14,7 @@ apollo_config.workspace = true
 apollo_config_manager_types.workspace = true
 apollo_consensus.workspace = true
 apollo_consensus_orchestrator_config.workspace = true
+apollo_versioned_constants.workspace = true
 apollo_infra_utils.workspace = true
 apollo_l1_gas_price_types.workspace = true
 apollo_metrics.workspace = true
@@ -33,7 +34,6 @@ ethnum.workspace = true
 futures.workspace = true
 indexmap.workspace = true
 num-rational.workspace = true
-paste.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 reqwest-middleware = { workspace = true, features = ["json"] }
 reqwest-retry.workspace = true
@@ -82,10 +82,6 @@ serde_json.workspace = true
 
 [lints]
 workspace = true
-
-[package.metadata.cargo-machete]
-# `paste` is used in the `define_versioned_constants!` macro but may be falsely detected as unused.
-ignored = ["paste"]
 
 [features]
 testing = []

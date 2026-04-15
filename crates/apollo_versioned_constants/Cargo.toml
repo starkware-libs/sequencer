@@ -1,0 +1,24 @@
+[package]
+name = "apollo_versioned_constants"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Versioned constants for the Apollo consensus orchestrator"
+
+[dependencies]
+paste.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+starknet_api.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+starknet_api = { workspace = true, features = ["testing"] }
+
+[lints]
+workspace = true
+
+[package.metadata.cargo-machete]
+# `paste` is used in the `define_versioned_constants!` macro but may be falsely detected as unused.
+ignored = ["paste"]
