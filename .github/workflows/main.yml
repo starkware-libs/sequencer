@@ -7,6 +7,7 @@ on:
       - reopened
       - edited
       - synchronize
+  workflow_dispatch:
 
 env:
   CI: 1
@@ -23,13 +24,18 @@ jobs:
   optimize_ci:
     runs-on: ubuntu-24.04
     outputs:
-      skip: ${{ steps.check_skip.outputs.skip }}
+      skip: ${{ steps.check_skip.outputs.skip || steps.manual_run.outputs.skip }}
     steps:
       - name: Optimize CI
         id: check_skip
+        if: github.event_name == 'pull_request'
         uses: withgraphite/graphite-ci-action@v0.0.9
         with:
           graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
+      - name: Don't skip for manual runs
+        id: manual_run
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "skip=false" >> $GITHUB_OUTPUT
 
   code_style:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
