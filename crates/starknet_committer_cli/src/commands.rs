@@ -262,6 +262,7 @@ macro_rules! generate_short_key_benchmark {
         $checkpoint_dir_arg:expr,
         $storage:expr,
         $checkpoint_interval:expr,
+        $build_storage_tries_concurrently:expr,
         $( ($size:ident, $name:ident) ),+ $(,)?
     ) => {
         match $key_size {
@@ -276,6 +277,7 @@ macro_rules! generate_short_key_benchmark {
                     $checkpoint_dir_arg,
                     $storage,
                     $checkpoint_interval,
+                    $build_storage_tries_concurrently,
                 )
                 .await
             }
@@ -292,6 +294,7 @@ macro_rules! generate_short_key_benchmark {
                         $checkpoint_dir_arg,
                         storage,
                         $checkpoint_interval,
+                        $build_storage_tries_concurrently,
                     )
                     .await
                 }
@@ -315,6 +318,7 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
         checkpoint_dir,
         key_size,
         n_updates,
+        build_storage_tries_concurrently,
         ..
     } = storage_benchmark_args.global_args();
 
@@ -351,6 +355,7 @@ pub async fn run_storage_benchmark_wrapper<S: Storage>(
         checkpoint_dir_arg,
         storage,
         *checkpoint_interval,
+        *build_storage_tries_concurrently,
         (U16, ShortKeyStorage16),
         (U17, ShortKeyStorage17),
         (U18, ShortKeyStorage18),
@@ -421,6 +426,7 @@ pub async fn run_storage_benchmark<S: Storage>(
     checkpoint_dir: Option<&str>,
     storage: S,
     checkpoint_interval: usize,
+    build_storage_tries_concurrently: bool,
 ) {
     let mut interference_task_set = JoinSet::new();
     let mut measurements =
@@ -465,8 +471,6 @@ pub async fn run_storage_benchmark<S: Storage>(
         info!("Committer storage benchmark iteration {}/{}", block_number + 1, n_iterations);
         // Seed is created from block number, to be independent of restarts using checkpoints.
         let mut rng = SmallRng::seed_from_u64(seed + u64::try_from(block_number).unwrap());
-        // TODO(Nimrod): Take `build_storage_tries_concurrently` from the command line arguments.
-        let build_storage_tries_concurrently = false;
         let warn_on_trivial_modifications = false;
         let config =
             ReaderConfig::new(warn_on_trivial_modifications, build_storage_tries_concurrently);

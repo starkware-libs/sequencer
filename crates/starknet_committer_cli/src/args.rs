@@ -165,6 +165,10 @@ pub struct GlobalArgs {
     /// will have different checkpoints)
     #[clap(long, default_value = None)]
     pub checkpoint_dir: Option<String>,
+
+    /// If set, builds the storage tries concurrently.
+    #[clap(long, action = ArgAction::SetTrue)]
+    pub build_storage_tries_concurrently: bool,
 }
 
 #[derive(Debug, Args)]
