@@ -9,8 +9,15 @@ use blockifier::blockifier::config::{
     ContractClassManagerConfig,
 };
 use blockifier::context::ChainInfo;
+use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::contract_class_manager::ContractClassManager;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::{
+    calculate_block_commitments,
+    calculate_block_hash,
+    PartialBlockHashComponents,
+    TransactionHashingData,
+};
 #[cfg(feature = "cairo_native")]
 use starknet_api::contract_class::SierraVersion;
 
@@ -20,8 +27,11 @@ use crate::state_reader::reexecution_state_reader::{
     ConsecutiveReexecutionStateReaders,
     ReexecuteBlockOutcome,
 };
+use crate::state_reader::rpc_objects::BlockHeader;
 use crate::state_reader::rpc_state_reader::ConsecutiveRpcStateReaders;
 use crate::utils::{compare_state_diffs, get_chain_info};
+// Block hash comparison is only valid for Starknet v0.14.0 and later.
+const MIN_VERSION_FOR_BLOCK_HASH_COMPARISON: &str = "0.14.0";
 
 struct ReplayCounters {
     matched: AtomicU64,
@@ -197,7 +207,7 @@ fn replay_worker(
     }
 }
 
-/// Reexecutes a single block via RPC and compares the actual state diff against the chain.
+/// Reexecutes a single block via RPC, compares the state diff and block hash against the chain.
 fn reexecute_block(
     block_number: u64,
     config: &RpcStateReaderConfig,
@@ -217,10 +227,28 @@ fn reexecute_block(
         prefetch_initial_reads,
     );
 
-    let ReexecuteBlockOutcome { expected_state_diff, actual_state_diff, .. } =
+    let block_header = readers.get_next_block_header()?;
+
+    let ReexecuteBlockOutcome { expected_state_diff, actual_state_diff, txs_hashing_data, .. } =
         readers.reexecute_block()?;
 
-    Ok(compare_state_diffs(expected_state_diff, actual_state_diff, BlockNumber(block_number)))
+    if !compare_state_diffs(expected_state_diff, actual_state_diff.clone(), BlockNumber(block_number))
+    {
+        // Block hash will certainly also mismatch; skip the expensive hash computation.
+        return Ok(false);
+    }
+
+    // `compare_block_hash` is async because it spawns parallel commitment tasks via tokio.
+    // We're on a `spawn_blocking` thread, so `block_on` is safe here — it won't block an async
+    // worker thread.
+    let block_hash_matched = tokio::runtime::Handle::current().block_on(compare_block_hash(
+        txs_hashing_data,
+        actual_state_diff,
+        &block_header,
+        BlockNumber(block_number),
+    ))?;
+
+    Ok(block_hash_matched)
 }
 
 /// Reexecutes a single block twice -- once with native and once with CASM -- and compares the
@@ -265,6 +293,63 @@ fn reexecute_block_native_vs_casm(
         casm_readers.reexecute_block()?;
 
     Ok(compare_state_diffs(native_state_diff, casm_state_diff, BlockNumber(block_number)))
+}
+
+/// Computes the block hash from the reexecution output and compares it against the expected hash
+/// from the chain. Returns `true` if they match, or if the block predates v0.14.0 (skipped).
+///
+/// Uses the state root from the RPC block header (`new_root`) since the blockifier does not
+/// compute state roots. If the state diff already matched, the state root should also match.
+///
+/// Note: Blocks before v0.14.0 may include deprecated (Cairo 0) declared classes which are not
+/// represented in [`CommitmentStateDiff`]; those blocks skip hash comparison below.
+async fn compare_block_hash(
+    txs_hashing_data: Vec<TransactionHashingData>,
+    actual_state_diff: CommitmentStateDiff,
+    block_header: &BlockHeader,
+    block_number: BlockNumber,
+) -> ReexecutionResult<bool> {
+    let starknet_version: starknet_api::block::StarknetVersion =
+        block_header.starknet_version.clone().try_into()?;
+
+    let min_version: starknet_api::block::StarknetVersion =
+        MIN_VERSION_FOR_BLOCK_HASH_COMPARISON.try_into().expect("Invalid min version constant.");
+    if starknet_version < min_version {
+        tracing::debug!(
+            "Block {block_number}: skipping block hash comparison (version {} < {}).",
+            block_header.starknet_version,
+            MIN_VERSION_FOR_BLOCK_HASH_COMPARISON
+        );
+        return Ok(true);
+    }
+
+    let (commitments, _measurements) = calculate_block_commitments(
+        &txs_hashing_data,
+        actual_state_diff.into(),
+        block_header.l1_da_mode,
+        &starknet_version,
+    )
+    .await;
+
+    let block_info: BlockInfo = block_header.clone().try_into()?;
+    let partial_block_hash_components = PartialBlockHashComponents::new(&block_info, commitments);
+
+    let computed_hash = calculate_block_hash(
+        &partial_block_hash_components,
+        block_header.new_root,
+        block_header.parent_hash,
+    )?;
+
+    if computed_hash == block_header.block_hash {
+        Ok(true)
+    } else {
+        tracing::warn!(
+            "Block hash mismatch for block {block_number}.\n  expected: {}\n  actual:   {}",
+            block_header.block_hash,
+            computed_hash,
+        );
+        Ok(false)
+    }
 }
 
 fn is_block_not_found(err: &ReexecutionError) -> bool {
