@@ -11,7 +11,7 @@ use blockifier::blockifier::config::{
 use blockifier::context::ChainInfo;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::contract_class_manager::ContractClassManager;
-use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
     calculate_block_hash,
@@ -281,10 +281,10 @@ async fn compare_block_hash(
     block_header: &BlockHeader,
     block_number: BlockNumber,
 ) -> ReexecutionResult<bool> {
-    let starknet_version: starknet_api::block::StarknetVersion =
+    let starknet_version: StarknetVersion =
         block_header.starknet_version.clone().try_into()?;
 
-    let min_version: starknet_api::block::StarknetVersion =
+    let min_version: StarknetVersion =
         MIN_VERSION_FOR_BLOCK_HASH_COMPARISON.try_into().expect("Invalid min version constant.");
     if starknet_version < min_version {
         tracing::debug!(
