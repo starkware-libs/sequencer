@@ -114,6 +114,7 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use tokio::sync::Mutex;
 use tokio::task::AbortHandle;
 use tracing::{debug, error, info, instrument, trace, warn, Instrument};
+use validator::Validate;
 
 use crate::block_builder::{
     BlockBuilderError,
@@ -275,7 +276,14 @@ impl Batcher {
     }
 
     pub(crate) fn update_dynamic_config(&mut self, dynamic_config: BatcherDynamicConfig) {
-        self.config.dynamic_config = dynamic_config;
+        let old_dynamic_config = std::mem::replace(&mut self.config.dynamic_config, dynamic_config);
+        if let Err(errors) = self.config.validate() {
+            warn!(
+                "Dynamic config update rejected due to validation errors: {errors}. Keeping \
+                 previous config."
+            );
+            self.config.dynamic_config = old_dynamic_config;
+        }
     }
 
     #[instrument(skip(self), err)]
@@ -402,9 +410,13 @@ impl Batcher {
                     is_validator: false,
                     proposer_idle_detection_delay: self
                         .config
-                        .static_config
-                        .block_builder_config
+                        .dynamic_config
                         .proposer_idle_detection_delay_millis,
+                    n_concurrent_txs: self.config.dynamic_config.n_concurrent_txs,
+                    tx_polling_interval_millis: self
+                        .config
+                        .dynamic_config
+                        .tx_polling_interval_millis,
                 },
                 self.config.dynamic_config.native_classes_whitelist.clone(),
                 Box::new(tx_provider),
@@ -491,9 +503,13 @@ impl Batcher {
                     is_validator: true,
                     proposer_idle_detection_delay: self
                         .config
-                        .static_config
-                        .block_builder_config
+                        .dynamic_config
                         .proposer_idle_detection_delay_millis,
+                    n_concurrent_txs: self.config.dynamic_config.n_concurrent_txs,
+                    tx_polling_interval_millis: self
+                        .config
+                        .dynamic_config
+                        .tx_polling_interval_millis,
                 },
                 self.config.dynamic_config.native_classes_whitelist.clone(),
                 Box::new(tx_provider),

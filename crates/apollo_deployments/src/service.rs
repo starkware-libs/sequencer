@@ -43,7 +43,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.n_events",
     "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size",
     "batcher_config.static_config.block_builder_config.execute_config.n_workers",
-    "batcher_config.static_config.block_builder_config.proposer_idle_detection_delay_millis",
+    "batcher_config.dynamic_config.proposer_idle_detection_delay_millis",
     "batcher_config.static_config.first_block_with_partial_block_hash.#is_none",
     "batcher_config.static_config.first_block_with_partial_block_hash.block_number",
     "batcher_config.static_config.first_block_with_partial_block_hash.block_hash",

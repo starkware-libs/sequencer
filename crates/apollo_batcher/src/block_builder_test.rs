@@ -713,12 +713,12 @@ async fn run_build_block(
         None,
         abort_receiver,
         transaction_converter,
-        N_CONCURRENT_TXS,
-        TX_POLLING_INTERVAL,
         BlockBuilderExecutionParams {
             deadline,
             is_validator,
             proposer_idle_detection_delay: idle_timeout_duration,
+            n_concurrent_txs: N_CONCURRENT_TXS,
+            tx_polling_interval_millis: TX_POLLING_INTERVAL,
         },
     );
 

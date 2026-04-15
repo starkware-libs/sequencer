@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use apollo_config::converters::deserialize_milliseconds_to_duration;
+use apollo_config::converters::{
+    deserialize_milliseconds_to_duration,
+    serialize_duration_as_milliseconds,
+};
 use apollo_config::dumping::{
     prepend_sub_config_name,
     ser_optional_sub_config,
@@ -32,31 +35,13 @@ pub const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
 pub const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
 
 /// Configuration for the block builder component of the batcher.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct BlockBuilderConfig {
+    // TODO(AlonH): update the default values once the actual values are known.
     pub chain_info: ChainInfo,
     pub execute_config: WorkerPoolConfig,
     pub bouncer_config: BouncerConfig,
-    pub n_concurrent_txs: usize,
-    pub tx_polling_interval_millis: u64,
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
-    pub proposer_idle_detection_delay_millis: Duration,
     pub versioned_constants_overrides: Option<VersionedConstantsOverrides>,
-}
-
-impl Default for BlockBuilderConfig {
-    fn default() -> Self {
-        Self {
-            // TODO(AlonH): update the default values once the actual values are known.
-            chain_info: ChainInfo::default(),
-            execute_config: WorkerPoolConfig::default(),
-            bouncer_config: BouncerConfig::default(),
-            n_concurrent_txs: 100,
-            tx_polling_interval_millis: 10,
-            proposer_idle_detection_delay_millis: Duration::from_millis(2000),
-            versioned_constants_overrides: None,
-        }
-    }
 }
 
 impl SerializeConfig for BlockBuilderConfig {
@@ -64,27 +49,6 @@ impl SerializeConfig for BlockBuilderConfig {
         let mut dump = prepend_sub_config_name(self.chain_info.dump(), "chain_info");
         dump.append(&mut prepend_sub_config_name(self.execute_config.dump(), "execute_config"));
         dump.append(&mut prepend_sub_config_name(self.bouncer_config.dump(), "bouncer_config"));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "n_concurrent_txs",
-            &self.n_concurrent_txs,
-            "Number of transactions in each request from the tx_provider.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "tx_polling_interval_millis",
-            &self.tx_polling_interval_millis,
-            "Time to wait (in milliseconds) between transaction requests when the previous \
-             request returned no transactions.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "proposer_idle_detection_delay_millis",
-            &self.proposer_idle_detection_delay_millis.as_millis(),
-            "Minimum time (in milliseconds) that must pass since block creation started before \
-             checking for idle state. If this delay has passed AND no transactions are currently \
-             being executed, the proposer will finish building the current block.",
-            ParamPrivacyInput::Public,
-        )]));
         dump.append(&mut ser_optional_sub_config(
             &self.versioned_constants_overrides,
             "versioned_constants_overrides",
@@ -230,7 +194,6 @@ impl SerializeConfig for FirstBlockWithPartialBlockHash {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-#[validate(schema(function = "validate_batcher_static_config"))]
 pub struct BatcherStaticConfig {
     #[validate(nested)]
     pub storage: StorageConfig,
@@ -352,9 +315,23 @@ impl Default for BatcherStaticConfig {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[validate(schema(function = "validate_batcher_dynamic_config"))]
 pub struct BatcherDynamicConfig {
     pub native_classes_whitelist: NativeClassesWhitelist,
     pub storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig,
+    /// Number of transactions in each request from the tx_provider.
+    pub n_concurrent_txs: usize,
+    /// Time to wait (in milliseconds) between transaction requests when the previous request
+    /// returned no transactions.
+    pub tx_polling_interval_millis: u64,
+    /// Minimum time (in milliseconds) that must pass since block creation started before checking
+    /// for idle state. If this delay has passed AND no transactions are currently being executed,
+    /// the proposer will finish building the current block.
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
+    pub proposer_idle_detection_delay_millis: Duration,
 }
 
 impl Default for BatcherDynamicConfig {
@@ -362,13 +339,39 @@ impl Default for BatcherDynamicConfig {
         Self {
             native_classes_whitelist: NativeClassesWhitelist::All,
             storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig::default(),
+            n_concurrent_txs: 100,
+            tx_polling_interval_millis: 10,
+            proposer_idle_detection_delay_millis: Duration::from_millis(2000),
         }
     }
 }
 
 impl SerializeConfig for BatcherDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([self.native_classes_whitelist.ser_param()]);
+        let mut dump = BTreeMap::from([
+            self.native_classes_whitelist.ser_param(),
+            ser_param(
+                "n_concurrent_txs",
+                &self.n_concurrent_txs,
+                "Number of transactions in each request from the tx_provider.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "tx_polling_interval_millis",
+                &self.tx_polling_interval_millis,
+                "Time to wait (in milliseconds) between transaction requests when the previous \
+                 request returned no transactions.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "proposer_idle_detection_delay_millis",
+                &self.proposer_idle_detection_delay_millis.as_millis(),
+                "Minimum time (in milliseconds) that must pass since block creation started \
+                 before checking for idle state. If this delay has passed AND no transactions are \
+                 currently being executed, the proposer will finish building the current block.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
         dump.append(&mut prepend_sub_config_name(
             self.storage_reader_server_dynamic_config.dump(),
             "storage_reader_server_dynamic_config",
@@ -379,6 +382,7 @@ impl SerializeConfig for BatcherDynamicConfig {
 
 /// The batcher related configuration.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+#[validate(schema(function = "validate_batcher_config"))]
 pub struct BatcherConfig {
     #[validate(nested)]
     pub static_config: BatcherStaticConfig,
@@ -395,29 +399,28 @@ impl SerializeConfig for BatcherConfig {
     }
 }
 
-fn validate_batcher_static_config(
-    batcher_static_config: &BatcherStaticConfig,
+fn validate_batcher_dynamic_config(
+    dynamic_config: &BatcherDynamicConfig,
 ) -> Result<(), ValidationError> {
-    if batcher_static_config.input_stream_content_buffer_size
-        < batcher_static_config.block_builder_config.n_concurrent_txs
-    {
-        return Err(ValidationError::new(
-            "input_stream_content_buffer_size must be at least n_concurrent_txs",
-        ));
-    }
-
     // Idle detection delay must be > polling interval to allow time for polling to find
     // transactions.
-    let idle_delay =
-        batcher_static_config.block_builder_config.proposer_idle_detection_delay_millis;
-    let polling_interval = Duration::from_millis(
-        batcher_static_config.block_builder_config.tx_polling_interval_millis,
-    );
+    let idle_delay = dynamic_config.proposer_idle_detection_delay_millis;
+    let polling_interval = Duration::from_millis(dynamic_config.tx_polling_interval_millis);
     if idle_delay <= polling_interval {
         return Err(ValidationError::new(
             "proposer_idle_detection_delay_millis must be greater than tx_polling_interval_millis",
         ));
     }
+    Ok(())
+}
 
+fn validate_batcher_config(batcher_config: &BatcherConfig) -> Result<(), ValidationError> {
+    if batcher_config.static_config.input_stream_content_buffer_size
+        < batcher_config.dynamic_config.n_concurrent_txs
+    {
+        return Err(ValidationError::new(
+            "input_stream_content_buffer_size must be at least n_concurrent_txs",
+        ));
+    }
     Ok(())
 }
