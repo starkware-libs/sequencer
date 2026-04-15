@@ -23,6 +23,15 @@ pub struct ProverConfig {
     /// Whether to validate that fee-related fields (resource bounds, tip) are zero (default:
     /// true).
     pub validate_zero_fee_fields: bool,
+    /// URL of the external blocking check JSON-RPC service. `None` disables the feature.
+    pub blocking_check_url: Option<String>,
+    /// Milliseconds to wait for the blocking check response before applying the
+    /// fail-open/fail-close policy.
+    pub blocking_check_timeout_millis: u64,
+    /// Whether to allow the transaction when the blocking check is inconclusive (non-10000 error,
+    /// timeout, network failure). `true` = fail-open (return proof), `false` = fail-close (return
+    /// error 10000).
+    pub blocking_check_fail_open: bool,
 }
 
 impl Default for ProverConfig {
@@ -34,6 +43,9 @@ impl Default for ProverConfig {
             runner_config: RunnerConfig::default(),
             strk_fee_token_address: None,
             validate_zero_fee_fields: true,
+            blocking_check_url: None,
+            blocking_check_timeout_millis: 2000,
+            blocking_check_fail_open: true,
         }
     }
 }

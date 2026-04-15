@@ -16,6 +16,7 @@
 //! * `stwo_proving` — enables in-memory Stwo proving (requires a nightly Rust toolchain).
 //! * `cairo_native` — enables Cairo Native compilation via blockifier.
 
+pub(crate) mod blocking_check;
 pub mod config;
 pub mod errors;
 pub mod proving;
