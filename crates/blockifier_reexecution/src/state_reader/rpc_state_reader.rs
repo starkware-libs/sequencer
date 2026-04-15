@@ -58,6 +58,7 @@ use crate::state_reader::offline_state_reader::{
 };
 use crate::state_reader::reexecution_state_reader::{
     ConsecutiveReexecutionStateReaders,
+    ReexecuteBlockOutcome,
     ReexecutionStateReader,
 };
 use crate::state_reader::rpc_objects::{
@@ -688,7 +689,8 @@ impl ConsecutiveRpcStateReaders {
         let old_block_hash = self.get_old_block_hash().unwrap();
 
         // Run the reexecution and get the state maps and contract class mapping.
-        let (block_state, expected_state_diff, actual_state_diff) = self.reexecute_block().unwrap();
+        let ReexecuteBlockOutcome { block_state, expected_state_diff, actual_state_diff, .. } =
+            self.reexecute_block().unwrap();
 
         // Warn if state diffs don't match, but continue writing the file.
         compare_state_diffs(expected_state_diff, actual_state_diff, block_number);

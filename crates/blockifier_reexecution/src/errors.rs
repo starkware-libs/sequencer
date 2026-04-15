@@ -62,6 +62,11 @@ pub fn serde_err_to_state_err(err: SerdeError) -> StateError {
 pub enum ReexecutionError {
     #[error("Cannot discern chain ID from URL: {0}")]
     AmbiguousChainIdFromUrl(String),
+    #[error(
+        "Block execution incomplete: {execution_info_count} execution infos for {tx_count} \
+         transactions; cannot build complete transaction hashing data for block hash comparison"
+    )]
+    IncompleteBlockExecution { tx_count: usize, execution_info_count: usize },
     #[error(transparent)]
     Rpc(#[from] RPCStateReaderError),
     #[error(transparent)]
