@@ -15,6 +15,15 @@ mod contract_types_test;
 pub(crate) const GET_STAKERS_ENTRY_POINT: &str = "get_stakers";
 pub(crate) const GET_CURRENT_EPOCH_DATA_ENTRY_POINT: &str = "get_current_epoch_data";
 pub(crate) const GET_PREVIOUS_EPOCH_DATA_ENTRY_POINT: &str = "get_previous_epoch_data";
+#[allow(dead_code)]
+pub(crate) const EPOCH_LENGTH: u64 = 100; // Number of heights in an epoch.
+
+// Represents a Cairo1 `Array` containing elements that can be deserialized to `T`.
+// `T` must implement `TryFrom<[Felt; N]>`, where `N` is the size of `T`'s Cairo equivalent.
+#[derive(Debug, PartialEq, Eq)]
+// TODO(Dafna): Remove this when we have a CairoStakingContract implementation.
+#[allow(dead_code)]
+struct ArrayRetdata<T>(Vec<T>);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) struct ContractStaker {
