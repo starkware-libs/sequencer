@@ -196,7 +196,8 @@ fn reexecute_block(
         contract_class_manager.clone(),
     );
 
-    let (_block_state, expected_state_diff, actual_state_diff) = readers.reexecute_block()?;
+    let (_block_state, expected_state_diff, actual_state_diff, _txs_hashing_data) =
+        readers.reexecute_block()?;
 
     Ok(compare_state_diffs(expected_state_diff, actual_state_diff, BlockNumber(block_number)))
 }
@@ -225,7 +226,8 @@ fn reexecute_block_native_vs_casm(
         native_manager.clone(),
     );
     native_readers.min_sierra_version_override = min_sierra_version_override.clone();
-    let (_block_state, _expected, native_state_diff) = native_readers.reexecute_block()?;
+    let (_block_state, _expected, native_state_diff, _native_txs_hashing_data) =
+        native_readers.reexecute_block()?;
 
     let mut casm_readers = ConsecutiveRpcStateReaders::new(
         prev_block,
@@ -235,7 +237,8 @@ fn reexecute_block_native_vs_casm(
         casm_manager.clone(),
     );
     casm_readers.min_sierra_version_override = min_sierra_version_override;
-    let (_block_state, _expected, casm_state_diff) = casm_readers.reexecute_block()?;
+    let (_block_state, _expected, casm_state_diff, _casm_txs_hashing_data) =
+        casm_readers.reexecute_block()?;
 
     Ok(compare_state_diffs(native_state_diff, casm_state_diff, BlockNumber(block_number)))
 }
