@@ -249,7 +249,7 @@ pub const MAX_STORAGE_ITEM_SIZE: u16 = 256;
 /// The prefix used in the calculation of a contract address.
 pub const CONTRACT_ADDRESS_PREFIX: &str = "STARKNET_CONTRACT_ADDRESS";
 /// The size of the contract address domain.
-pub const CONTRACT_ADDRESS_DOMAIN_SIZE: Felt = Felt::from_hex_unchecked(PATRICIA_KEY_UPPER_BOUND);
+pub const CONTRACT_ADDRESS_DOMAIN_SIZE: Felt = PATRICIA_KEY_UPPER_BOUND_FELT;
 /// The address upper bound; it is defined to be congruent with the storage var address upper bound.
 pub static L2_ADDRESS_UPPER_BOUND: LazyLock<NonZeroFelt> = LazyLock::new(|| {
     NonZeroFelt::try_from(CONTRACT_ADDRESS_DOMAIN_SIZE - Felt::from(MAX_STORAGE_ITEM_SIZE)).unwrap()
@@ -286,6 +286,8 @@ pub fn calculate_contract_address(
 }
 
 /// The hash of a ContractClass.
+// TODO(Dori): create a specialized type for deprecated class hashes, and then ClassHash can use a
+//   PatriciaKey instead of StarkHash as the inner type.
 #[derive(
     Debug,
     Default,
@@ -504,6 +506,9 @@ pub struct PatriciaKey(StarkHash);
 // 2**251
 pub const PATRICIA_KEY_UPPER_BOUND: &str =
     "0x800000000000000000000000000000000000000000000000000000000000000";
+pub const PATRICIA_KEY_UPPER_BOUND_FELT: Felt = Felt::from_hex_unchecked(PATRICIA_KEY_UPPER_BOUND);
+pub const PATRICIA_KEY_UPPER_BOUND_NON_ZERO_FELT: NonZeroFelt =
+    NonZeroFelt::from_felt_unchecked(PATRICIA_KEY_UPPER_BOUND_FELT);
 
 impl PatriciaKey {
     pub const ZERO: Self = Self(StarkHash::ZERO);
