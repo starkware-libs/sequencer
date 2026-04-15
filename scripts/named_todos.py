@@ -67,13 +67,13 @@ def enforce_named_todos(commit_id: Optional[str]):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Enforcing all TODO comments are properly named.")
-    parser.add_argument("--commit_id", type=str, help="GIT commit ID to compare against.")
+    parser.add_argument("--commit_id", type=str, default="main", help="GIT commit ID to compare against.")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    enforce_named_todos(commit_id=args.commit_id)
+    enforce_named_todos(commit_id=args.commit_id or "main")
 
 
 if __name__ == "__main__":

@@ -173,7 +173,7 @@ def run_test(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Presubmit script.")
     parser.add_argument("--changes_only", action="store_true", help="Only test modified crates.")
-    parser.add_argument("--commit_id", type=str, help="GIT commit ID to compare against.")
+    parser.add_argument("--commit_id", type=str, default="main", help="GIT commit ID to compare against.")
     parser.add_argument(
         "--command",
         required=True,
@@ -198,7 +198,7 @@ def main():
     args = parse_args()
     run_test(
         changes_only=args.changes_only,
-        commit_id=args.commit_id,
+        commit_id=args.commit_id or "main",
         base_command=BaseCommand(args.command),
         include_dependencies=args.include_dependencies,
         is_nightly=args.is_nightly,
