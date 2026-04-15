@@ -10,7 +10,7 @@ use crate::fee_market::{
     get_min_gas_price_for_height,
     MIN_GAS_PRICE_INCREASE_DENOMINATOR,
 };
-use crate::orchestrator_versioned_constants::VersionedConstants;
+use apollo_versioned_constants::VersionedConstants;
 
 static VERSIONED_CONSTANTS: LazyLock<&VersionedConstants> =
     LazyLock::new(VersionedConstants::latest_constants);

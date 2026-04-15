@@ -28,6 +28,9 @@ pub mod transaction_hash;
 pub mod type_utils;
 pub mod versioned_constants_logic;
 
+// Re-exported for `define_versioned_constants!` macro expansions in downstream crates.
+pub use paste;
+
 use std::num::ParseIntError;
 
 use crate::block::{BlockNumber, StarknetVersion};

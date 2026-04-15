@@ -74,7 +74,7 @@ use tokio_util::task::AbortOnDropHandle;
 
 use crate::build_proposal::ProposalBuildArguments;
 use crate::cende::MockCendeContext;
-use crate::orchestrator_versioned_constants::VersionedConstants;
+use apollo_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{
     BuiltProposals,
     SequencerConsensusContext,

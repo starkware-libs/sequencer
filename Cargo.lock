@@ -1431,6 +1431,7 @@ dependencies = [
  "apollo_test_utils",
  "apollo_time",
  "apollo_transaction_converter",
+ "apollo_versioned_constants",
  "assert_matches",
  "async-trait",
  "blockifier",
@@ -1449,7 +1450,6 @@ dependencies = [
  "mockito",
  "num-bigint",
  "num-rational",
- "paste",
  "reqwest 0.12.24",
  "reqwest-middleware 0.4.2",
  "reqwest-retry",
@@ -2886,6 +2886,16 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "apollo_versioned_constants"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -12446,6 +12456,7 @@ dependencies = [
  "json-patch",
  "num-bigint",
  "num-traits",
+ "paste",
  "pretty_assertions",
  "primitive-types",
  "rand 0.8.5",

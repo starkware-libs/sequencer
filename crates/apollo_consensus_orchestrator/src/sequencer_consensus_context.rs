@@ -84,7 +84,7 @@ use crate::metrics::{
     register_metrics,
     CONSENSUS_L2_GAS_PRICE,
 };
-use crate::orchestrator_versioned_constants::VersionedConstants;
+use apollo_versioned_constants::VersionedConstants;
 use crate::utils::{
     convert_to_sn_api_block_info,
     make_gas_price_params,

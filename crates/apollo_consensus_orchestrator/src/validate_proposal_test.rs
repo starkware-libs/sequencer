@@ -31,7 +31,7 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
 
-use crate::orchestrator_versioned_constants::VersionedConstants;
+use apollo_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::BuiltProposals;
 use crate::test_utils::{
     create_test_and_network_deps,

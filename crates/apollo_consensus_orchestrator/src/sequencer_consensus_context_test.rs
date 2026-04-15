@@ -58,7 +58,7 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::cende::MockCendeContext;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
-use crate::orchestrator_versioned_constants::VersionedConstants;
+use apollo_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
