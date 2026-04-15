@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use std::sync::LazyLock;
 
 use async_trait::async_trait;
-use starknet_api::core::{ContractAddress, PATRICIA_KEY_UPPER_BOUND};
+use starknet_api::core::{ContractAddress, PATRICIA_KEY_UPPER_BOUND_FELT};
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
@@ -60,7 +60,7 @@ use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 /// Set to 2^251 + 1 to avoid collisions with contract addresses prefixes.
 pub(crate) static FIRST_AVAILABLE_PREFIX_FELT: LazyLock<Felt> =
-    LazyLock::new(|| Felt::from_hex_unchecked(PATRICIA_KEY_UPPER_BOUND) + Felt::ONE);
+    LazyLock::new(|| PATRICIA_KEY_UPPER_BOUND_FELT + Felt::ONE);
 
 /// The db key prefix of nodes in the contracts trie.
 pub(crate) static CONTRACTS_TREE_PREFIX: LazyLock<[u8; 32]> =
