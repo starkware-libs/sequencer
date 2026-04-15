@@ -63,9 +63,9 @@ async fn run_discovery_test(num_peers: usize, timeout: Duration) {
     // Set allowed peers on all swarms so the whitelist permits connections.
     let all_peer_ids: HashSet<PeerId> =
         iter::once(bootstrap_peer_id).chain(non_bootstrap_peer_ids.iter().copied()).collect();
-    bootstrap_swarm.behaviour_mut().peer_access_control.set_allowed_peers(all_peer_ids.clone());
+    bootstrap_swarm.behaviour_mut().peer_whitelist.set_allowed_peers(all_peer_ids.clone());
     for swarm in &mut swarms {
-        swarm.behaviour_mut().peer_access_control.set_allowed_peers(all_peer_ids.clone());
+        swarm.behaviour_mut().peer_whitelist.set_allowed_peers(all_peer_ids.clone());
     }
 
     let bootstrap_network_manager = create_network_manager(bootstrap_swarm);
