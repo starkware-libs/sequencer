@@ -611,6 +611,7 @@ impl RpcBlockReexecutor {
             transactions_next_block: block_info_with_txs.transactions.clone(),
             state_diff_next_block: self.next_block_state_reader.get_state_diff()?,
             declared_classes,
+            block_header: self.get_next_block_header()?,
         })
     }
 
@@ -769,6 +770,10 @@ impl BlockReexecutor<StateReaderAndContractManager<BoxedFetchCompiledClasses>>
             Some(BlockHashAndNumber { number: old_block_number, hash: old_block_hash }),
             transaction_executor_config.unwrap_or_default(),
         )?)
+    }
+
+    fn get_block_header(&self) -> ReexecutionResult<BlockHeader> {
+        self.get_next_block_header()
     }
 
     fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
