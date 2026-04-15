@@ -1903,7 +1903,7 @@ async fn validation_only_propose_block_returns_not_supported() {
 #[should_panic(expected = "Mempool client must be present in non-validation-only mode.")]
 async fn validation_only_get_batch_timestamp_panics() {
     let batcher = create_batcher(validation_only_mock_dependencies()).await;
-    batcher.get_batch_timestamp().await.unwrap();
+    batcher.get_block_metadata().await.unwrap();
 }
 
 #[tokio::test]

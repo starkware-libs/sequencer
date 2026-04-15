@@ -17,7 +17,7 @@ use apollo_mempool_types::mempool_types::{
 use apollo_time::time::{Clock, DateTime};
 use indexmap::IndexSet;
 use rand::{thread_rng, Rng};
-use starknet_api::block::{GasPrice, UnixTimestamp};
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
@@ -45,7 +45,7 @@ use crate::metrics::{
     MEMPOOL_TRANSACTIONS_RECEIVED,
 };
 use crate::transaction_pool::TransactionPool;
-use crate::transaction_queue_trait::{RewindData, TransactionQueueTrait};
+use crate::transaction_queue_trait::{BlockMetadata, RewindData, TransactionQueueTrait};
 use crate::utils::try_increment_nonce;
 
 #[cfg(test)]
@@ -282,14 +282,18 @@ impl Mempool {
         matches!(self.config.static_config.behavior_mode, BehaviorMode::Echonet)
     }
 
-    pub fn resolve_batch_timestamp(&mut self) -> UnixTimestamp {
+    pub(crate) fn resolve_block_metadata(&mut self) -> BlockMetadata {
         if !self.is_fifo() {
             let timestamp = self.clock.unix_now();
-            debug!("Mempool resolve_batch_timestamp (Fee): timestamp={}", timestamp);
-            return timestamp;
+            debug!(
+                "Mempool resolve_block_metadata (Fee): timestamp={}. Block number is not tracked \
+                 in fee-priority mode.",
+                timestamp
+            );
+            return BlockMetadata { timestamp, block_number: None };
         }
 
-        self.tx_queue.resolve_timestamp()
+        self.tx_queue.resolve_metadata()
     }
 
     pub(crate) fn update_tx_block_metadata(
