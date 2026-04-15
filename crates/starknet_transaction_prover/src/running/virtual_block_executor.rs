@@ -211,9 +211,11 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<VirtualBlockExecutionData, VirtualBlockExecutorError> {
         let base_block_info = self.base_block_info(block_id)?;
+
+        let (txs, tx_hashes): (Vec<Transaction>, Vec<TransactionHash>) =
+            txs.into_iter().map(|(invoke, hash)| (Transaction::Invoke(invoke), hash)).unzip();
         let state_reader = self.state_reader(block_id, &txs)?;
-        let tx_hashes: Vec<TransactionHash> = txs.iter().map(|(_, h)| *h).collect();
-        let blockifier_txs = self.convert_invoke_txs(txs)?;
+        let blockifier_txs = self.convert_txs(txs, &tx_hashes)?;
 
         // Create state reader with contract manager.
         let state_reader_and_contract_manager =
@@ -305,15 +307,25 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
         })
     }
 
-    /// Converts Invoke transactions to blockifier transactions.
+    /// Converts transactions to blockifier transactions.
     ///
     /// Uses execution flags that skip strict nonce check for virtual block execution.
-    fn convert_invoke_txs(
+    /// The executor is currently Invoke-only (see trait doc above); non-Invoke variants
+    /// are unreachable because `execute()` only accepts `InvokeTransaction`.
+    fn convert_txs(
         &self,
-        txs: Vec<(InvokeTransaction, TransactionHash)>,
+        txs: Vec<Transaction>,
+        tx_hashes: &[TransactionHash],
     ) -> Result<Vec<BlockifierTransaction>, VirtualBlockExecutorError> {
         txs.into_iter()
-            .map(|(invoke_tx, tx_hash)| {
+            .zip(tx_hashes.iter().copied())
+            .map(|(tx, tx_hash)| {
+                let Transaction::Invoke(invoke_tx) = &tx else {
+                    unreachable!(
+                        "convert_txs is only reached via execute(), which wraps \
+                         InvokeTransaction; got: {tx:?}"
+                    );
+                };
                 // Execute with validation, conditional fee charging based on resource bounds,
                 // but skip strict nonce check for virtual block execution.
                 let execution_flags = ExecutionFlags {
@@ -325,7 +337,7 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
                 };
 
                 BlockifierTransaction::from_api(
-                    Transaction::Invoke(invoke_tx),
+                    tx,
                     tx_hash,
                     None, // class_info - not needed for Invoke.
                     None, // paid_fee_on_l1 - not needed for Invoke.
@@ -348,7 +360,7 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
     fn state_reader(
         &self,
         block_id: BlockId,
-        txs: &[(InvokeTransaction, TransactionHash)],
+        txs: &[Transaction],
     ) -> Result<Box<dyn FetchCompiledClasses + Send + Sync + 'static>, VirtualBlockExecutorError>;
 
     /// Returns whether transaction validation is enabled during execution.
@@ -413,7 +425,7 @@ impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
     fn state_reader(
         &self,
         block_id: BlockId,
-        txs: &[(InvokeTransaction, TransactionHash)],
+        txs: &[Transaction],
     ) -> Result<Box<dyn FetchCompiledClasses + Send + Sync + 'static>, VirtualBlockExecutorError>
     {
         let rpc_state_reader = self.rpc_state_reader.clone();
