@@ -14,11 +14,12 @@ use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
+use tokio::runtime::Handle;
 
-use crate::assert_eq_state_diff;
 use crate::compile::{legacy_to_contract_class_v0, sierra_to_versioned_contract_class_v1};
 use crate::errors::{ReexecutionError, ReexecutionResult};
-use crate::utils::contract_class_to_compiled_classes;
+use crate::state_reader::rpc_objects::BlockHeader;
+use crate::utils::{compare_block_hash, compare_state_diffs, contract_class_to_compiled_classes};
 
 // TODO(Yoni): remove the expected state diff from the outcome.
 pub struct ReexecuteBlockOutcome<S: StateReader> {
@@ -130,6 +131,8 @@ pub trait ReexecutionStateReader {
 
 /// Trait of the functions \ queries required for reexecution.
 pub trait BlockReexecutor<S: StateReader + Send + Sync + 'static>: Sized {
+    fn get_block_header(&self) -> ReexecutionResult<BlockHeader>;
+
     fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
@@ -189,12 +192,29 @@ pub trait BlockReexecutor<S: StateReader + Send + Sync + 'static>: Sized {
         })
     }
 
-    fn reexecute_and_verify_correctness(self) -> Option<CachedState<S>> {
-        let ReexecuteBlockOutcome { block_state, expected_state_diff, actual_state_diff, .. } =
-            self.reexecute_block().unwrap();
-
-        assert_eq_state_diff!(expected_state_diff, actual_state_diff);
-
-        block_state
+    /// Reexecutes a block and verifies both the state diff and block hash.
+    /// Returns `true` if all checks passed, `false` if any mismatch was detected.
+    /// Panics on execution errors.
+    ///
+    /// Must be called from a blocking context (e.g. `spawn_blocking`), since block hash
+    /// computation spawns async tasks internally.
+    fn reexecute_and_verify_correctness(self, block_number: BlockNumber) -> bool {
+        let block_header = self.get_block_header().expect("Failed to get block header");
+        let ReexecuteBlockOutcome {
+            expected_state_diff, actual_state_diff, txs_hashing_data, ..
+        } = self.reexecute_block().expect("Block reexecution failed");
+        let state_diff_matched =
+            compare_state_diffs(expected_state_diff, actual_state_diff.clone(), block_number);
+        if !state_diff_matched {
+            return false;
+        }
+        Handle::current()
+            .block_on(compare_block_hash(
+                txs_hashing_data,
+                actual_state_diff,
+                &block_header,
+                block_number,
+            ))
+            .expect("Block hash comparison failed")
     }
 }

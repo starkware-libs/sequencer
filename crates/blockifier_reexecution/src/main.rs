@@ -61,13 +61,15 @@ async fn main() {
             + RESOURCES_DIR
     };
 
-    // Initialize the contract class manager.
-    let mut contract_class_manager_config = ContractClassManagerConfig::default();
-    if cfg!(feature = "cairo_native") {
-        contract_class_manager_config.cairo_native_run_config =
-            CairoNativeRunConfig::wait_on_compilation_for_testing();
-    }
-    let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
+    let make_contract_class_manager = || {
+        let mut config = ContractClassManagerConfig::default();
+        if cfg!(feature = "cairo_native") {
+            config.cairo_native_run_config =
+                CairoNativeRunConfig::wait_on_compilation_for_testing();
+        }
+        ContractClassManager::start(config)
+    };
+    let contract_class_manager = make_contract_class_manager();
 
     match args.command {
         Command::RpcTest { block_number, rpc_args } => {
@@ -76,21 +78,24 @@ async fn main() {
                 rpc_args.node_url
             );
             let rpc_state_reader_config = RpcStateReaderConfig::from_url(rpc_args.node_url.clone());
+            let prefetch_initial_reads = true;
             // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
                 let chain_info = get_chain_info(&rpc_args.parse_chain_id(), None);
-                let prefetch_initial_reads = true;
-                RpcBlockReexecutor::new(
+                let block_reexecutor = RpcBlockReexecutor::new(
                     BlockNumber(block_number - 1),
                     Some(rpc_state_reader_config),
                     chain_info,
                     false,
                     contract_class_manager,
                     prefetch_initial_reads,
-                )
-                .reexecute_and_verify_correctness()
+                );
+                assert!(
+                    block_reexecutor.reexecute_and_verify_correctness(BlockNumber(block_number)),
+                    "Block {block_number} reexecution failed."
+                );
             })
             .await
             .unwrap();
@@ -146,8 +151,11 @@ async fn main() {
                 let full_file_path = block_full_file_path(directory_path.clone(), block_number);
                 let node_url = rpc_args.node_url.clone();
                 let chain_info = get_chain_info(&rpc_args.parse_chain_id(), None);
-                let contract_class_manager = contract_class_manager.clone();
-                // Prefatching initial reads is not supported for offline reexecution.
+                // Each block gets a fresh ContractClassManager so contract classes accessed during
+                // one block's execution are not silently served from a shared cache, which would
+                // prevent them from being recorded in that block's contract_class_mapping_dumper.
+                let contract_class_manager = make_contract_class_manager();
+                // Prefetching initial reads is not supported for write-to-file.
                 let prefetch_initial_reads = false;
 
                 // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
@@ -184,15 +192,24 @@ async fn main() {
             for block in block_numbers {
                 let full_file_path = block_full_file_path(directory_path.clone(), block);
                 let contract_class_manager = contract_class_manager.clone();
-                task_set.spawn(async move {
-                    OfflineBlockReexecutor::new_from_file(&full_file_path, contract_class_manager)
-                        .unwrap()
-                        .reexecute_and_verify_correctness();
-                    info!("Reexecution test for block {block} passed successfully.");
+                task_set.spawn_blocking(move || {
+                    let block_reexecutor = OfflineBlockReexecutor::new_from_file(
+                        &full_file_path,
+                        contract_class_manager,
+                    )
+                    .unwrap();
+                    let block_number =
+                        block_reexecutor.block_context_next_block.block_info().block_number;
+                    let matched = block_reexecutor.reexecute_and_verify_correctness(block_number);
+                    if matched {
+                        info!("Reexecution test for block {block} passed successfully.");
+                    }
+                    matched
                 });
             }
             info!("Waiting for all blocks to be processed.");
-            task_set.join_all().await;
+            let results = task_set.join_all().await;
+            assert!(results.iter().all(|&matched| matched), "Some blocks failed reexecution.");
         }
 
         // Uploading the files requires authentication; please run
