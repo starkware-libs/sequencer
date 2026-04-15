@@ -1,6 +1,7 @@
 use std::sync::LazyLock;
 
 use apollo_consensus_orchestrator_config::config::PricePerHeight;
+use apollo_versioned_constants::VersionedConstants;
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
@@ -10,7 +11,6 @@ use crate::fee_market::{
     get_min_gas_price_for_height,
     MIN_GAS_PRICE_INCREASE_DENOMINATOR,
 };
-use crate::orchestrator_versioned_constants::VersionedConstants;
 
 static VERSIONED_CONSTANTS: LazyLock<&VersionedConstants> =
     LazyLock::new(VersionedConstants::latest_constants);

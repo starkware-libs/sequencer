@@ -45,6 +45,7 @@ use apollo_transaction_converter::transaction_converter::{
     TransactionConverterError,
     TransactionConverterTrait,
 };
+use apollo_versioned_constants::VersionedConstants;
 use async_trait::async_trait;
 use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
@@ -84,7 +85,6 @@ use crate::metrics::{
     register_metrics,
     CONSENSUS_L2_GAS_PRICE,
 };
-use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::utils::{
     convert_to_sn_api_block_info,
     make_gas_price_params,
