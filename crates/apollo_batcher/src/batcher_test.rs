@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use apollo_batcher_config::config::{
     BatcherConfig,
@@ -9,6 +9,7 @@ use apollo_batcher_config::config::{
     BlockBuilderConfig,
 };
 use apollo_batcher_types::batcher_types::{
+    CallContractInput,
     DecisionReachedInput,
     DecisionReachedResponse,
     FinishProposalInput,
@@ -45,6 +46,20 @@ use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
+use blockifier::context::{BlockContext, ChainInfo};
+use blockifier::state::cached_state::CachedState;
+use blockifier::state::state_api::StateReader;
+use blockifier::test_utils::dict_state_reader::DictStateReader;
+use blockifier::test_utils::initial_test_state::test_state;
+use blockifier::test_utils::BALANCE;
+use blockifier::transaction::test_utils::{
+    default_all_resource_bounds,
+    invoke_tx_with_default_flags,
+};
+use blockifier::transaction::transactions::ExecutableTransaction;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::calldata::create_calldata;
+use blockifier_test_utils::contracts::FeatureContract;
 use indexmap::{indexmap, IndexMap, IndexSet};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::{always, eq};
@@ -65,7 +80,7 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot, Nonce};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::tx_hash;
+use starknet_api::{invoke_tx_args, tx_hash};
 use starknet_types_core::felt::Felt;
 use tempfile::TempDir;
 use validator::Validate;
@@ -78,6 +93,8 @@ use crate::batcher::{
     MockBatcherStorageReader,
     MockBatcherStorageWriter,
     StorageCommitmentBlockHash,
+    StorageViewStateReaderFactory,
+    ViewStateReaderFactory,
 };
 use crate::block_builder::{
     AbortSignalSender,
@@ -124,6 +141,23 @@ use crate::test_utils::{
     PROPOSAL_ID,
     STREAMING_CHUNK_SIZE,
 };
+
+const STAKING_CONTRACT: FeatureContract =
+    FeatureContract::MockStakingContract(RunnableCairo1::Casm);
+const ACCOUNT_CONTRACT: FeatureContract =
+    FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
+
+struct TestViewStateReaderFactory {
+    state: Arc<Mutex<CachedState<DictStateReader>>>,
+    expected_block_number: BlockNumber,
+}
+
+impl ViewStateReaderFactory for TestViewStateReaderFactory {
+    fn create(&self, block_number: BlockNumber) -> Box<dyn StateReader + Send> {
+        assert_eq!(block_number, self.expected_block_number);
+        Box::new(self.state.lock().unwrap().clone())
+    }
+}
 
 fn get_test_state_diff(
     mut keys_stream: impl Iterator<Item = u64>,
@@ -235,6 +269,7 @@ impl Default for MockDependenciesWithRealStorage {
 async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
     create_batcher_impl(
         Arc::new(mock_dependencies.storage_reader),
+        mock_dependencies.view_state_reader_factory,
         Box::new(mock_dependencies.storage_writer),
         mock_dependencies.clients,
         mock_dependencies.batcher_config,
@@ -245,8 +280,12 @@ async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
 async fn create_batcher_with_real_storage(
     mock_dependencies: MockDependenciesWithRealStorage,
 ) -> Batcher {
+    let view_state_reader_factory = Box::new(StorageViewStateReaderFactory {
+        storage_reader: mock_dependencies.storage_reader.clone(),
+    });
     create_batcher_impl(
         Arc::new(mock_dependencies.storage_reader),
+        view_state_reader_factory,
         Box::new(mock_dependencies.storage_writer),
         mock_dependencies.clients,
         mock_dependencies.batcher_config,
@@ -256,6 +295,7 @@ async fn create_batcher_with_real_storage(
 
 async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
     storage_reader: Arc<R>,
+    view_state_reader_factory: Box<dyn ViewStateReaderFactory>,
     storage_writer: Box<dyn BatcherStorageWriter>,
     clients: MockClients,
     config: BatcherConfig,
@@ -281,6 +321,7 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
     let mut batcher = Batcher::new(
         config,
         storage_reader,
+        view_state_reader_factory,
         storage_writer,
         committer_client,
         Arc::new(clients.l1_provider_client),
@@ -321,6 +362,7 @@ async fn new_batcher_with_mempool_override(
     Batcher::new(
         deps.batcher_config,
         storage_reader,
+        deps.view_state_reader_factory,
         Box::new(deps.storage_writer),
         committer_client,
         Arc::new(deps.clients.l1_provider_client),
@@ -1968,4 +2010,71 @@ async fn validation_only_flag_false_with_no_mempool_panics() {
 async fn validation_only_flag_true_with_mempool_panics() {
     let mempool: Option<SharedMempoolClient> = Some(Arc::new(MockMempoolClient::new()));
     new_batcher_with_mempool_override(validation_only_mock_dependencies(), mempool).await;
+}
+
+#[tokio::test]
+async fn call_contract_contract_not_deployed() {
+    // The factory returns an empty state with no contracts deployed.
+    let state = Arc::new(Mutex::new(CachedState::from(DictStateReader::default())));
+    let factory = TestViewStateReaderFactory { state, expected_block_number: INITIAL_HEIGHT };
+
+    let batcher = create_batcher(MockDependencies {
+        view_state_reader_factory: Box::new(factory),
+        ..Default::default()
+    })
+    .await;
+
+    let result = batcher
+        .call_contract(CallContractInput {
+            contract_address: Default::default(),
+            entry_point: "get_stakers".to_string(),
+            calldata: vec![],
+        })
+        .await;
+
+    assert_matches!(result, Err(BatcherError::ContractCallFailed { .. }));
+}
+
+#[tokio::test]
+async fn call_contract_success() {
+    let mut state = test_state(
+        &ChainInfo::create_for_testing(),
+        BALANCE,
+        &[(STAKING_CONTRACT, 1), (ACCOUNT_CONTRACT, 1)],
+    );
+
+    let expected_retdata = vec![Felt::ONE, Felt::TWO, Felt::THREE];
+
+    // Call the contract's setter entry point with the expected values.
+    let account_address = ACCOUNT_CONTRACT.get_instance_address(0);
+    let invoke_args = invoke_tx_args! {
+        sender_address: account_address,
+        calldata: create_calldata(STAKING_CONTRACT.get_instance_address(0), "set_current_epoch", &expected_retdata),
+        resource_bounds: default_all_resource_bounds(),
+        nonce: state.get_nonce_at(account_address).unwrap(),
+    };
+    let account_tx = invoke_tx_with_default_flags(invoke_args)
+        .execute(&mut state, &BlockContext::create_for_testing())
+        .unwrap();
+    assert!(!account_tx.execute_call_info.unwrap().execution.failed);
+
+    let batcher = create_batcher(MockDependencies {
+        view_state_reader_factory: Box::new(TestViewStateReaderFactory {
+            state: Arc::new(Mutex::new(state)),
+            expected_block_number: INITIAL_HEIGHT,
+        }),
+        ..Default::default()
+    })
+    .await;
+
+    let result = batcher
+        .call_contract(CallContractInput {
+            contract_address: STAKING_CONTRACT.get_instance_address(0),
+            entry_point: "get_current_epoch_data".to_string(),
+            calldata: vec![],
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(result.retdata, vec![Felt::ONE, Felt::TWO, Felt::THREE]);
 }

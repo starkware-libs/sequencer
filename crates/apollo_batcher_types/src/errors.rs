@@ -56,4 +56,6 @@ pub enum BatcherError {
     StorageHeightMarkerMismatch { marker_height: BlockNumber, requested_height: BlockNumber },
     #[error("Time to deadline is out of range. Got {deadline}.")]
     TimeToDeadlineError { deadline: chrono::DateTime<Utc> },
+    #[error("Contract call failed: {reason}")]
+    ContractCallFailed { reason: String },
 }
