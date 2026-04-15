@@ -583,6 +583,10 @@ impl ConsecutiveRpcStateReaders {
         }
     }
 
+    pub fn get_next_block_header(&self) -> ReexecutionResult<BlockHeader> {
+        self.next_block_state_reader.get_block_header()
+    }
+
     pub fn get_serializable_data_next_block(&self) -> ReexecutionResult<SerializableDataNextBlock> {
         let (transactions_next_block, declared_classes) =
             self.get_next_block_starknet_api_txs_and_declared_classes()?;
