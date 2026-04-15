@@ -22,6 +22,7 @@ use crate::core::{
     GlobalRoot,
     Nonce,
     PatriciaKey,
+    L2_ADDRESS_UPPER_BOUND,
 };
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use crate::hash::{PoseidonHash, StarkHash};
@@ -244,7 +245,7 @@ impl Default for SierraContractClass {
 impl SierraContractClass {
     pub fn calculate_class_hash(&self) -> ClassHash {
         let class_hash = Poseidon::hash_array(&self.get_component_hashes().flatten());
-        ClassHash(class_hash)
+        ClassHash(class_hash.mod_floor(&*L2_ADDRESS_UPPER_BOUND))
     }
 
     pub fn get_component_hashes(&self) -> ContractClassComponentHashes {
