@@ -41,23 +41,20 @@ jobs:
   # This job is used to check if all checks have passed before merging the PR.
   # It is a replacement candidate for merge-gatekeeper.
   # Currently running in "observer" mode.
-  all-checks-passed:
+  merge-gatekeeper-observer:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     permissions:
       checks: read
-      contents: read
       statuses: read
+      actions: read
     steps:
-      - uses: wechuli/allcheckspassed@v2
+      - uses: starkware-libs/merge-gatekeeper@v1
         with:
-          checks_exclude: "code-review/reviewable,merge-gatekeeper"
-          delay: 0 # start checking immediately
-          retries: 120 # 120 * 30 = 3600 seconds ( 60 minutes timeout )
-          polling_interval: 0.5 # check every 30 seconds
-          fail_fast: false # Wait for all checks to complete before failing the job
-          verbose: true
-          show_job_summary: true
-          treat_skipped_as_passed: true # If any check is skipped, treat it as passed
+          token: ${{ secrets.GITHUB_TOKEN }}
+          timeout: 3600
+          interval: 30
+          ignored: "code-review/reviewable,build_docker_images,merge-gatekeeper"
 
   merge-gatekeeper:
     runs-on: ubuntu-24.04
@@ -74,7 +71,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           timeout: 3600
           interval: 30
-          ignored: "code-review/reviewable,build_docker_images,all-checks-passed"
+          ignored: "code-review/reviewable,build_docker_images,merge-gatekeeper-observer"
 
       - name: Run Merge Gatekeeper on Merge Queue || push
         if: github.event_name == 'merge_group' || github.event_name == 'push'
@@ -84,4 +81,4 @@ jobs:
           ref: ${{github.ref}}
           timeout: 1800
           interval: 30
-          ignored: "code-review/reviewable,all-checks-passed"
+          ignored: "code-review/reviewable,merge-gatekeeper-observer"
