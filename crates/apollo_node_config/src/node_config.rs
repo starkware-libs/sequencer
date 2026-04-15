@@ -547,17 +547,17 @@ impl SequencerNodeConfig {
         if let (Some(batcher_config), Some(consensus_manager_config)) =
             (&self.batcher_config, &self.consensus_manager_config)
         {
-            let idle_delay = batcher_config
-                .static_config
-                .block_builder_config
-                .proposer_idle_detection_delay_millis;
+            let idle_delay =
+                batcher_config.dynamic_config.proposer_idle_detection_delay_millis;
             let proposal_timeout = consensus_manager_config
                 .consensus_manager_config
                 .dynamic_config
                 .timeouts
                 .get_proposal_timeout(0); // base timeout (round 0)
-            let build_margin =
-                consensus_manager_config.context_config.static_config.build_proposal_margin_millis;
+            let build_margin = consensus_manager_config
+                .context_config
+                .dynamic_config
+                .build_proposal_margin_millis;
             let batcher_deadline = proposal_timeout.saturating_sub(build_margin);
 
             if idle_delay >= batcher_deadline {

@@ -39,15 +39,30 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "batcher_config.dynamic_config.n_concurrent_txs": {
+    "description": "Number of transactions in each request from the tx_provider.",
+    "privacy": "Public",
+    "value": 100
+  },
   "batcher_config.dynamic_config.native_classes_whitelist": {
     "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
     "pointer_target": "native_classes_whitelist",
     "privacy": "Public"
   },
+  "batcher_config.dynamic_config.proposer_idle_detection_delay_millis": {
+    "description": "Minimum time (in milliseconds) that must pass since block creation started before checking for idle state. If this delay has passed AND no transactions are currently being executed, the proposer will finish building the current block.",
+    "privacy": "Public",
+    "value": 2000
+  },
   "batcher_config.dynamic_config.storage_reader_server_dynamic_config.enable": {
     "description": "Whether to enable the storage reader HTTP server.",
     "privacy": "Public",
     "value": false
+  },
+  "batcher_config.dynamic_config.tx_polling_interval_millis": {
+    "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions.",
+    "privacy": "Public",
+    "value": 10
   },
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
     "description": "An upper bound on the total l1_gas used in a block.",
@@ -168,21 +183,6 @@
     "description": "The thread stack size (proportional to the maximal gas of a transaction).",
     "privacy": "Public",
     "value": 62914560
-  },
-  "batcher_config.static_config.block_builder_config.n_concurrent_txs": {
-    "description": "Number of transactions in each request from the tx_provider.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "batcher_config.static_config.block_builder_config.proposer_idle_detection_delay_millis": {
-    "description": "Minimum time (in milliseconds) that must pass since block creation started before checking for idle state. If this delay has passed AND no transactions are currently being executed, the proposer will finish building the current block.",
-    "privacy": "Public",
-    "value": 2000
-  },
-  "batcher_config.static_config.block_builder_config.tx_polling_interval_millis": {
-    "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions.",
-    "privacy": "Public",
-    "value": 10
   },
   "batcher_config.static_config.block_builder_config.versioned_constants_overrides.#is_none": {
     "description": "Flag for an optional field.",
@@ -2629,6 +2629,11 @@
     "privacy": "Public",
     "value": "StateOnly"
   },
+  "consensus_manager_config.context_config.dynamic_config.build_proposal_margin_millis": {
+    "description": "Safety margin (in ms) to make sure that the batcher completes building the proposal with enough time for the Fin to be checked by validators.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "consensus_manager_config.context_config.dynamic_config.compare_retrospective_block_hash": {
     "description": "Whether to compare the retrospective block hash between the Batcher and the State Sync.",
     "privacy": "Public",
@@ -2718,11 +2723,6 @@
     "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
     "privacy": "Public",
     "value": 1
-  },
-  "consensus_manager_config.context_config.static_config.build_proposal_margin_millis": {
-    "description": "Safety margin (in ms) to make sure that the batcher completes building the proposal with enough time for the Fin to be checked by validators.",
-    "privacy": "Public",
-    "value": 1000
   },
   "consensus_manager_config.context_config.static_config.build_proposal_time_ratio_for_retrospective_block_hash": {
     "description": "The fraction (0.0 - 1.0) of the total build time allocated to waiting for the retrospective block hash to be available. The remaining time is used to build the proposal.",

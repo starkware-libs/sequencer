@@ -532,7 +532,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let (fin_sender, fin_receiver) = oneshot::channel();
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
-        assert!(timeout > self.config.static_config.build_proposal_margin_millis);
+        assert!(timeout > self.config.dynamic_config.build_proposal_margin_millis);
         let stream_id = HeightAndRound(build_param.height.0, build_param.round);
         let stream_sender = self.start_stream(stream_id).await;
 
@@ -548,7 +548,7 @@ impl ConsensusContext for SequencerConsensusContext {
 
         // The following calculations will panic on overflow/negative result.
         let total_build_proposal_time =
-            timeout - self.config.static_config.build_proposal_margin_millis;
+            timeout - self.config.dynamic_config.build_proposal_margin_millis;
         let time_now = self.deps.clock.now();
         let batcher_deadline = time_now + total_build_proposal_time;
         let retrospective_block_hash_deadline = time_now

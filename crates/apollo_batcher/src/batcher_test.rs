@@ -2,12 +2,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use apollo_batcher_config::config::{
-    BatcherConfig,
-    BatcherDynamicConfig,
-    BatcherStaticConfig,
-    BlockBuilderConfig,
-};
+use apollo_batcher_config::config::{BatcherConfig, BatcherDynamicConfig, BatcherStaticConfig};
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
@@ -1654,13 +1649,12 @@ fn validate_batcher_config_failure() {
     let config = BatcherConfig {
         static_config: BatcherStaticConfig {
             input_stream_content_buffer_size: 99,
-            block_builder_config: BlockBuilderConfig {
-                n_concurrent_txs: 100,
-                ..Default::default()
-            },
             ..Default::default()
         },
-        ..Default::default()
+        dynamic_config: BatcherDynamicConfig {
+            n_concurrent_txs: 100,
+            ..Default::default()
+        },
     };
 
     let error = config.validate().unwrap_err();
