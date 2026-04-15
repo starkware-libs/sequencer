@@ -50,6 +50,7 @@ use apollo_transaction_converter::{
     TransactionConverter,
     TransactionConverterTrait,
 };
+use apollo_versioned_constants::VersionedConstants;
 use futures::channel::mpsc;
 use futures::executor::block_on;
 use futures::SinkExt;
@@ -74,7 +75,6 @@ use tokio_util::task::AbortOnDropHandle;
 
 use crate::build_proposal::ProposalBuildArguments;
 use crate::cende::MockCendeContext;
-use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{
     BuiltProposals,
     SequencerConsensusContext,

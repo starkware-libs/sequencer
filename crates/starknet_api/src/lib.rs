@@ -30,6 +30,9 @@ pub mod versioned_constants_logic;
 
 use std::num::ParseIntError;
 
+// Re-exported for `define_versioned_constants!` macro expansions in downstream crates.
+pub use paste;
+
 use crate::block::{BlockNumber, StarknetVersion};
 use crate::core::{ClassHash, CompiledClassHash};
 use crate::transaction::TransactionVersion;

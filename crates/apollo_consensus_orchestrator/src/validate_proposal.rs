@@ -23,6 +23,7 @@ use apollo_protobuf::consensus::{ProposalFin, ProposalInit, ProposalPart, Transa
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::{Clock, ClockExt, DateTime};
 use apollo_transaction_converter::{TransactionConverterTrait, VerifyAndStoreProofTask};
+use apollo_versioned_constants::VersionedConstants;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use starknet_api::block::{BlockNumber, GasPrice};
@@ -40,7 +41,6 @@ use crate::metrics::{
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
     CONSENSUS_PROPOSAL_FIN_MISMATCH,
 };
-use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
     convert_to_sn_api_block_info,
