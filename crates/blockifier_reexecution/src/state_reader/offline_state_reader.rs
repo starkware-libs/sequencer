@@ -33,6 +33,7 @@ use crate::state_reader::reexecution_state_reader::{
     ConsecutiveReexecutionStateReaders,
     ReexecutionStateReader,
 };
+use crate::state_reader::rpc_objects::BlockHeader;
 use crate::state_reader::rpc_state_reader::StarknetContractClassMapping;
 use crate::utils::get_chain_info;
 
@@ -41,6 +42,7 @@ pub struct OfflineReexecutionData {
     block_context_next_block: BlockContext,
     transactions_next_block: Vec<BlockifierTransaction>,
     state_diff_next_block: CommitmentStateDiff,
+    block_header: BlockHeader,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -50,6 +52,8 @@ pub struct SerializableDataNextBlock {
     pub transactions_next_block: Vec<(Transaction, TransactionHash)>,
     pub state_diff_next_block: CommitmentStateDiff,
     pub declared_classes: StarknetContractClassMapping,
+    /// Block header fields needed for block hash verification.
+    pub block_header: BlockHeader,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -96,6 +100,7 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
                     transactions_next_block,
                     state_diff_next_block,
                     declared_classes,
+                    block_header,
                 },
             chain_id,
             old_block_hash,
@@ -124,6 +129,7 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
             ),
             transactions_next_block,
             state_diff_next_block,
+            block_header,
         }
     }
 }
@@ -250,6 +256,7 @@ pub struct OfflineConsecutiveStateReaders {
     pub transactions_next_block: Vec<BlockifierTransaction>,
     pub state_diff_next_block: CommitmentStateDiff,
     contract_class_manager: ContractClassManager,
+    block_header: BlockHeader,
 }
 
 impl OfflineConsecutiveStateReaders {
@@ -268,6 +275,7 @@ impl OfflineConsecutiveStateReaders {
             block_context_next_block,
             transactions_next_block,
             state_diff_next_block,
+            block_header,
         }: OfflineReexecutionData,
         contract_class_manager: ContractClassManager,
     ) -> Self {
@@ -277,7 +285,12 @@ impl OfflineConsecutiveStateReaders {
             transactions_next_block,
             state_diff_next_block,
             contract_class_manager,
+            block_header,
         }
+    }
+
+    pub fn get_block_header(&self) -> &BlockHeader {
+        &self.block_header
     }
 }
 

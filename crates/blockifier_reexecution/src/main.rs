@@ -3,6 +3,7 @@ use std::path::Path;
 
 use blockifier::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
 use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier_reexecution::assert_eq_state_diff;
 use blockifier_reexecution::cli::{
     parse_block_numbers_args,
     BlockifierReexecutionCliArgs,
@@ -10,7 +11,7 @@ use blockifier_reexecution::cli::{
     TransactionInput,
     FULL_RESOURCES_DIR,
 };
-use blockifier_reexecution::rpc_replay::run_rpc_replay;
+use blockifier_reexecution::rpc_replay::{compare_block_hash, run_rpc_replay};
 use blockifier_reexecution::state_reader::config::RpcStateReaderConfig;
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
 use blockifier_reexecution::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
@@ -82,14 +83,27 @@ async fn main() {
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
                 let chain_info = get_chain_info(&rpc_args.parse_chain_id(), None);
-                ConsecutiveRpcStateReaders::new(
+                let readers = ConsecutiveRpcStateReaders::new(
                     BlockNumber(block_number - 1),
                     Some(rpc_state_reader_config),
                     chain_info,
                     false,
                     contract_class_manager,
-                )
-                .reexecute_and_verify_correctness()
+                );
+                let block_header = readers.get_next_block_header().unwrap();
+                let (_, expected_state_diff, actual_state_diff, txs_hashing_data) =
+                    readers.reexecute_block().unwrap();
+                assert_eq_state_diff!(expected_state_diff, actual_state_diff.clone());
+                let block_hash_matched =
+                    tokio::runtime::Handle::current()
+                        .block_on(compare_block_hash(
+                            txs_hashing_data,
+                            actual_state_diff,
+                            &block_header,
+                            BlockNumber(block_number),
+                        ))
+                        .unwrap();
+                assert!(block_hash_matched, "Block hash mismatch for block {block_number}.");
             })
             .await
             .unwrap();
@@ -179,12 +193,30 @@ async fn main() {
                 let full_file_path = block_full_file_path(directory_path.clone(), block);
                 let contract_class_manager = contract_class_manager.clone();
                 task_set.spawn(async move {
-                    OfflineConsecutiveStateReaders::new_from_file(
+                    let readers = OfflineConsecutiveStateReaders::new_from_file(
                         &full_file_path,
                         contract_class_manager,
                     )
-                    .unwrap()
-                    .reexecute_and_verify_correctness();
+                    .unwrap();
+                    let block_header = readers.get_block_header().clone();
+                    let block_number =
+                        readers.block_context_next_block.block_info().block_number;
+                    let (_, expected_state_diff, actual_state_diff, txs_hashing_data) =
+                        readers.reexecute_block().unwrap();
+                    assert_eq_state_diff!(expected_state_diff, actual_state_diff.clone());
+                    let block_hash_matched =
+                        compare_block_hash(
+                            txs_hashing_data,
+                            actual_state_diff,
+                            &block_header,
+                            block_number,
+                        )
+                        .await
+                        .unwrap();
+                    assert!(
+                        block_hash_matched,
+                        "Block hash mismatch for block {block_number}."
+                    );
                     info!("Reexecution test for block {block} passed successfully.");
                 });
             }

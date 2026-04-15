@@ -597,6 +597,7 @@ impl ConsecutiveRpcStateReaders {
             transactions_next_block,
             state_diff_next_block: self.next_block_state_reader.get_state_diff()?,
             declared_classes,
+            block_header: self.get_next_block_header()?,
         })
     }
 
