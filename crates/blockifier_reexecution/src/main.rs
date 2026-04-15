@@ -65,13 +65,13 @@ async fn main() {
             + RESOURCES_DIR
     };
 
-    // Initialize the contract class manager.
+    // Initialize the contract class manager config.
     let mut contract_class_manager_config = ContractClassManagerConfig::default();
     if cfg!(feature = "cairo_native") {
         contract_class_manager_config.cairo_native_run_config =
             CairoNativeRunConfig::wait_on_compilation_for_testing();
     }
-    let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
+    let contract_class_manager = ContractClassManager::start(contract_class_manager_config.clone());
 
     match args.command {
         Command::RpcTest { block_number, rpc_args } => {
@@ -165,8 +165,12 @@ async fn main() {
                 let full_file_path = block_full_file_path(directory_path.clone(), block_number);
                 let node_url = rpc_args.node_url.clone();
                 let chain_info = get_chain_info(&rpc_args.parse_chain_id(), None);
-                let contract_class_manager = contract_class_manager.clone();
-                // Prefatching initial reads is not supported for offline reexecution.
+                // Each block gets a fresh ContractClassManager so contract classes accessed during
+                // one block's execution are not silently served from a shared cache, which would
+                // prevent them from being recorded in that block's contract_class_mapping_dumper.
+                let contract_class_manager =
+                    ContractClassManager::start(contract_class_manager_config.clone());
+                // Prefetching initial reads is not supported for write-to-file.
                 let prefetch_initial_reads = false;
 
                 // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
