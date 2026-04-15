@@ -44,7 +44,7 @@ use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use crate::component_config::{ComponentConfig, ValidateTxIngestionComponentsDisabled};
 use crate::component_execution_config::ExpectedComponentConfig;
@@ -356,6 +356,7 @@ impl Default for SequencerNodeConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate, Default)]
+#[validate(schema(function = "validate_node_dynamic_config"))]
 pub struct NodeDynamicConfig {
     #[validate(nested)]
     pub batcher_dynamic_config: Option<BatcherDynamicConfig>,
@@ -457,6 +458,22 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
     }
 }
 
+fn validate_node_dynamic_config(config: &NodeDynamicConfig) -> Result<(), ValidationError> {
+    let (Some(consensus), Some(context)) =
+        (&config.consensus_dynamic_config, &config.context_dynamic_config)
+    else {
+        return Ok(());
+    };
+    let min_timeout = consensus.timeouts.get_proposal_timeout(0);
+    let margin = context.build_proposal_margin_millis;
+    if margin >= min_timeout {
+        return Err(ValidationError::new(
+            "build_proposal_margin_millis must be less than the base proposal timeout",
+        ));
+    }
+    Ok(())
+}
+
 impl SequencerNodeConfig {
     /// Creates a config object, using the config schema and provided resources.
     pub fn load_and_process(args: Vec<String>) -> Result<Self, ConfigError> {
@@ -555,7 +572,7 @@ impl SequencerNodeConfig {
                 .timeouts
                 .get_proposal_timeout(0); // base timeout (round 0)
             let build_margin =
-                consensus_manager_config.context_config.static_config.build_proposal_margin_millis;
+                consensus_manager_config.context_config.dynamic_config.build_proposal_margin_millis;
             let batcher_deadline = proposal_timeout.saturating_sub(build_margin);
 
             if idle_delay >= batcher_deadline {

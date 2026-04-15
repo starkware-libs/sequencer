@@ -6,6 +6,7 @@ use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
     deserialize_seconds_to_duration,
+    serialize_duration_as_milliseconds,
 };
 use apollo_config::dumping::{
     prepend_sub_config_name,
@@ -159,10 +160,6 @@ pub struct ContextStaticConfig {
     pub l1_da_mode: bool,
     /// The address of the contract that builds the block.
     pub builder_address: ContractAddress,
-    /// Safety margin in milliseconds to make sure that the batcher completes building the proposal
-    /// with enough time for the Fin to be checked by validators.
-    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
-    pub build_proposal_margin_millis: Duration,
     // When validating a proposal the Context is responsible for timeout handling. The Batcher
     // though has a timeout as a defensive measure to make sure the proposal doesn't live
     // forever if the Context crashes or has a bug.
@@ -214,13 +211,6 @@ impl SerializeConfig for ContextStaticConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "build_proposal_margin_millis",
-                &self.build_proposal_margin_millis.as_millis(),
-                "Safety margin (in ms) to make sure that the batcher completes building the \
-                 proposal with enough time for the Fin to be checked by validators.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
                 "validate_proposal_margin_millis",
                 &self.validate_proposal_margin_millis.as_millis(),
                 "Safety margin (in ms) to make sure that consensus determines when to timeout \
@@ -260,7 +250,6 @@ impl Default for ContextStaticConfig {
             block_timestamp_window_seconds: 1,
             l1_da_mode: true,
             builder_address: ContractAddress::default(),
-            build_proposal_margin_millis: Duration::from_millis(1000),
             validate_proposal_margin_millis: Duration::from_millis(10_000),
             build_proposal_time_ratio_for_retrospective_block_hash: 0.7,
             retrospective_block_hash_retry_interval_millis: Duration::from_millis(500),
@@ -273,6 +262,13 @@ impl Default for ContextStaticConfig {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 #[validate(schema(function = "validate_price_per_height"))]
 pub struct ContextDynamicConfig {
+    /// Safety margin in milliseconds to make sure that the batcher completes building the proposal
+    /// with enough time for the Fin to be checked by validators.
+    #[serde(
+        deserialize_with = "deserialize_milliseconds_to_duration",
+        serialize_with = "serialize_duration_as_milliseconds"
+    )]
+    pub build_proposal_margin_millis: Duration,
     /// The minimum L1 gas price in wei.
     pub min_l1_gas_price_wei: u128,
     /// The maximum L1 gas price in wei.
@@ -310,6 +306,13 @@ pub struct ContextDynamicConfig {
 impl SerializeConfig for ContextDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::from_iter([
+            ser_param(
+                "build_proposal_margin_millis",
+                &self.build_proposal_margin_millis.as_millis(),
+                "Safety margin (in ms) to make sure that the batcher completes building the \
+                 proposal with enough time for the Fin to be checked by validators.",
+                ParamPrivacyInput::Public,
+            ),
             ser_param(
                 "min_l1_gas_price_wei",
                 &self.min_l1_gas_price_wei,
@@ -403,6 +406,7 @@ impl SerializeConfig for ContextDynamicConfig {
 impl Default for ContextDynamicConfig {
     fn default() -> Self {
         Self {
+            build_proposal_margin_millis: Duration::from_millis(1000),
             min_l1_gas_price_wei: GWEI_FACTOR,
             max_l1_gas_price_wei: 200 * GWEI_FACTOR,
             min_l1_data_gas_price_wei: 1,

@@ -6,4 +6,6 @@ use thiserror::Error;
 pub enum ConfigManagerError {
     #[error("Config file not found: {0}")]
     ConfigNotFound(String),
+    #[error("Invalid config: {0}")]
+    InvalidConfig(String),
 }
