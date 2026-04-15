@@ -11,7 +11,7 @@ use starknet_api::core::{
     ContractAddress,
     Nonce,
     PatriciaKey,
-    PATRICIA_KEY_UPPER_BOUND,
+    PATRICIA_KEY_UPPER_BOUND_FELT,
 };
 use starknet_api::hash::HashOutput;
 use starknet_patricia::felt::u256_from_felt;
@@ -196,7 +196,7 @@ random_filled_node!(ContractState);
 
 impl RandomValue for PatriciaKey {
     fn random<R: Rng>(rng: &mut R, max: Option<U256>) -> Self {
-        let upper_bound = u256_from_felt(&Felt::from_hex_unchecked(PATRICIA_KEY_UPPER_BOUND));
+        let upper_bound = u256_from_felt(&PATRICIA_KEY_UPPER_BOUND_FELT);
         let max_patricia_key = min(upper_bound, max.unwrap_or(upper_bound));
 
         Self::try_from(Felt::random(rng, Some(max_patricia_key))).unwrap()
