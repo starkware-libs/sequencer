@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776251987926,
+  "lastUpdate": 1776252461540,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2447,6 +2447,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1361.1049259400002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "92669167+dafnamatsry@users.noreply.github.com",
+            "name": "dafnamatsry",
+            "username": "dafnamatsry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "022dd6fc8545ec38c2257a295df3c0426d4b5ede",
+          "message": "apollo_batcher,apollo_batcher_types: add call_contract RPC for executing view entry points (#13318)",
+          "timestamp": "2026-04-15T11:12:33Z",
+          "tree_id": "40e86f302aa2cc60e0155e2ccc2ef8ecf80944a1",
+          "url": "https://github.com/starkware-libs/sequencer/commit/022dd6fc8545ec38c2257a295df3c0426d4b5ede"
+        },
+        "date": 1776252461187,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 896.67865083,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1341.30399249,
             "unit": "ms"
           }
         ]
