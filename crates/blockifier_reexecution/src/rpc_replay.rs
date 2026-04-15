@@ -234,7 +234,10 @@ fn reexecute_block(
 }
 
 /// Reexecutes a single block twice -- once with native and once with CASM -- and compares the
-/// resulting state diffs against each other.
+/// resulting state diffs and transaction hashing data against each other.
+///
+/// Comparing transaction hashing data (execution outputs, signatures) is equivalent to comparing
+/// block hashes without the overhead of computing commitments.
 #[cfg(feature = "cairo_native")]
 fn reexecute_block_native_vs_casm(
     block_number: u64,
@@ -257,8 +260,11 @@ fn reexecute_block_native_vs_casm(
         native_manager.clone(),
     );
     native_readers.min_sierra_version_override = min_sierra_version_override.clone();
-    let ReexecuteBlockOutcome { actual_state_diff: native_state_diff, .. } =
-        native_readers.reexecute_block()?;
+    let ReexecuteBlockOutcome {
+        actual_state_diff: native_state_diff,
+        txs_hashing_data: native_txs_hashing_data,
+        ..
+    } = native_readers.reexecute_block()?;
 
     let mut casm_readers = ConsecutiveRpcStateReaders::new(
         prev_block,
@@ -268,10 +274,60 @@ fn reexecute_block_native_vs_casm(
         casm_manager.clone(),
     );
     casm_readers.min_sierra_version_override = min_sierra_version_override;
-    let ReexecuteBlockOutcome { actual_state_diff: casm_state_diff, .. } =
-        casm_readers.reexecute_block()?;
+    let ReexecuteBlockOutcome {
+        actual_state_diff: casm_state_diff,
+        txs_hashing_data: casm_txs_hashing_data,
+        ..
+    } = casm_readers.reexecute_block()?;
 
-    Ok(compare_state_diffs(native_state_diff, casm_state_diff, BlockNumber(block_number)))
+    let state_diff_matched =
+        compare_state_diffs(native_state_diff, casm_state_diff, BlockNumber(block_number));
+    let tx_hashing_data_matched =
+        compare_tx_hashing_data(native_txs_hashing_data, casm_txs_hashing_data, block_number);
+
+    Ok(state_diff_matched && tx_hashing_data_matched)
+}
+
+/// Compares transaction hashing data (execution outputs and signatures) between two executions.
+/// Returns `true` if they match.
+#[cfg(feature = "cairo_native")]
+fn compare_tx_hashing_data(
+    native_txs_hashing_data: Vec<TransactionHashingData>,
+    casm_txs_hashing_data: Vec<TransactionHashingData>,
+    block_number: u64,
+) -> bool {
+    if native_txs_hashing_data == casm_txs_hashing_data {
+        return true;
+    }
+    let native_len = native_txs_hashing_data.len();
+    let casm_len = casm_txs_hashing_data.len();
+    tracing::warn!(
+        "Transaction hashing data mismatch for block {block_number} between native and CASM \
+         (native: {native_len} txs, casm: {casm_len} txs)."
+    );
+    for (index, (native, casm)) in
+        native_txs_hashing_data.iter().zip(casm_txs_hashing_data.iter()).enumerate()
+    {
+        if native != casm {
+            tracing::warn!(
+                "  tx[{index}] ({}):\n    native: {native:?}\n    casm:   {casm:?}",
+                native.transaction_hash,
+            );
+        }
+    }
+    for (index, tx) in native_txs_hashing_data.iter().enumerate().skip(casm_len) {
+        tracing::warn!(
+            "  tx[{index}] ({}): present in native, missing in casm.",
+            tx.transaction_hash,
+        );
+    }
+    for (index, tx) in casm_txs_hashing_data.iter().enumerate().skip(native_len) {
+        tracing::warn!(
+            "  tx[{index}] ({}): missing in native, present in casm.",
+            tx.transaction_hash,
+        );
+    }
+    false
 }
 
 /// Computes the block hash from the reexecution output and compares it against the expected hash
