@@ -544,6 +544,7 @@ impl ConsecutiveRpcStateReaders {
         chain_info: ChainInfo,
         dump_mode: bool,
         contract_class_manager: ContractClassManager,
+        prefetch_initial_reads: bool,
     ) -> Self {
         let config = config.unwrap_or(get_rpc_state_reader_config());
         let last_block_state_reader = RpcStateReader::new(
@@ -564,7 +565,7 @@ impl ConsecutiveRpcStateReaders {
             ),
             contract_class_manager,
             min_sierra_version_override: None,
-            prefetch_initial_reads: false,
+            prefetch_initial_reads,
             contract_class_mapping_dumper,
         }
     }

@@ -25,6 +25,9 @@ spec:
               if [ "${COMPARE_NATIVE}" = "true" ]; then
                 ARGS="${ARGS} --compare-native"
               fi
+              if [ -n "${PREFETCH_INITIAL_READS}" ]; then
+                ARGS="${ARGS} --prefetch-initial-reads ${PREFETCH_INITIAL_READS}"
+              fi
               # `exec` replaces the shell, making the binary PID 1. tini is not needed
               # for signal handling in a K8s Job context.
               exec /app/target/release/blockifier_reexecution ${ARGS}
@@ -42,6 +45,9 @@ spec:
               value: "16"
             # Set to "true" to run native-vs-CASM comparison.
             - name: COMPARE_NATIVE
+              value: ""
+            # Set to "false" to disable prefetching initial reads.
+            - name: PREFETCH_INITIAL_READS
               value: ""
           resources:
             requests:
