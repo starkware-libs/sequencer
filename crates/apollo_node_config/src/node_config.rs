@@ -555,7 +555,7 @@ impl SequencerNodeConfig {
                 .timeouts
                 .get_proposal_timeout(0); // base timeout (round 0)
             let build_margin =
-                consensus_manager_config.context_config.static_config.build_proposal_margin_millis;
+                consensus_manager_config.context_config.dynamic_config.build_proposal_margin_millis;
             let batcher_deadline = proposal_timeout.saturating_sub(build_margin);
 
             if idle_delay >= batcher_deadline {
