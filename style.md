@@ -480,9 +480,14 @@ All associated functions should depend on `Self`. Associated functions that don'
 
 ### Casting
 
-If you have to cast a value due to an implementation detail, like a pass-through newtype, prefer `into` over `ImplementationDetail::from`.
+If you have to cast a value use:
+* `into`/`try_into`: If the compiler can deduce the types alone
+* `from`/`try_from`: If it can't
+
+**Rationale**: `3.into()` is cleaner than `usize::from(3)`, but the latter is still cleaner than `Into::<usize>::into(3)`
 
 Avoid using `as` casts unless there is no other choice --- they are banned by the linter in our repo.
+
 **Rationale**: if `as` casts overflow or underflow, they saturate, and do so without printing or panicking --- most of the time this isn't the desired result, and can introduce silent bugs.
 
 ```rust
