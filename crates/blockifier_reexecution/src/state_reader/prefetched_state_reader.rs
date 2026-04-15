@@ -15,7 +15,6 @@ use starknet_api::state::StorageKey;
 use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_types_core::felt::Felt;
-use tracing::warn;
 
 use crate::errors::{ReexecutionError, ReexecutionResult};
 use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
@@ -48,39 +47,21 @@ impl StateReader for SimulatedStateReader {
     ) -> StateResult<Felt> {
         match self.state_maps.storage.get(&(contract_address, key)) {
             Some(value) => Ok(*value),
-            None => {
-                warn!(
-                    "Storage key not found in prefetched state, falling back to RPC \
-                     (contract_address: {contract_address}, key: {key:?})."
-                );
-                self.rpc_state_reader.get_storage_at(contract_address, key)
-            }
+            None => self.rpc_state_reader.get_storage_at(contract_address, key),
         }
     }
 
     fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
         match self.state_maps.nonces.get(&contract_address) {
             Some(value) => Ok(*value),
-            None => {
-                warn!(
-                    "Nonce not found in prefetched state, falling back to RPC (contract_address: \
-                     {contract_address})."
-                );
-                self.rpc_state_reader.get_nonce_at(contract_address)
-            }
+            None => self.rpc_state_reader.get_nonce_at(contract_address),
         }
     }
 
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
         match self.state_maps.class_hashes.get(&contract_address) {
             Some(value) => Ok(*value),
-            None => {
-                warn!(
-                    "Class hash not found in prefetched state, falling back to RPC \
-                     (contract_address: {contract_address})."
-                );
-                self.rpc_state_reader.get_class_hash_at(contract_address)
-            }
+            None => self.rpc_state_reader.get_class_hash_at(contract_address),
         }
     }
 
@@ -109,13 +90,7 @@ impl FetchCompiledClasses for SimulatedStateReader {
     fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
         match self.state_maps.declared_contracts.get(&class_hash) {
             Some(value) => Ok(*value),
-            None => {
-                warn!(
-                    "Declared contract not found in prefetched state, falling back to RPC \
-                     (class_hash: {class_hash})."
-                );
-                self.rpc_state_reader.is_declared(class_hash)
-            }
+            None => self.rpc_state_reader.is_declared(class_hash),
         }
     }
 }
