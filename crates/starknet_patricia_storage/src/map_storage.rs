@@ -5,11 +5,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use async_trait::async_trait;
 use lru::LruCache;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationErrors};
 
 use crate::storage_trait::{
+    run_tasks_and_collect_reads,
     AsyncStorage,
     DbHashMap,
     DbKey,
@@ -17,6 +19,7 @@ use crate::storage_trait::{
     DbOperationMap,
     DbValue,
     EmptyStorageConfig,
+    GatherableStorage,
     ImmutableReadOnlyStorage,
     NoStats,
     NullStorage,
@@ -25,6 +28,7 @@ use crate::storage_trait::{
     Storage,
     StorageConfigTrait,
     StorageStats,
+    StorageTask,
 };
 
 // 10M entries.
@@ -274,6 +278,21 @@ impl<S: Storage + ImmutableReadOnlyStorage> ImmutableReadOnlyStorage for CachedS
         });
 
         Ok(values)
+    }
+}
+
+#[async_trait]
+impl<S: Storage + ImmutableReadOnlyStorage + 'static> GatherableStorage for CachedStorage<S> {
+    async fn gather<T>(&mut self, tasks: Vec<T>) -> Vec<T::Output>
+    where
+        T: for<'s> StorageTask<'s, Self> + Send,
+        Self: Sized,
+    {
+        let (reads, outputs) = run_tasks_and_collect_reads(&*self, tasks).await;
+        for (key, value) in reads {
+            self.cache.put(key, Some(value));
+        }
+        outputs
     }
 }
 
