@@ -2644,6 +2644,11 @@
     "privacy": "Public",
     "value": "StateOnly"
   },
+  "consensus_manager_config.context_config.dynamic_config.build_proposal_margin_millis": {
+    "description": "Safety margin (in ms) to make sure that the batcher completes building the proposal with enough time for the Fin to be checked by validators.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "consensus_manager_config.context_config.dynamic_config.compare_retrospective_block_hash": {
     "description": "Whether to compare the retrospective block hash between the Batcher and the State Sync.",
     "privacy": "Public",
@@ -2733,11 +2738,6 @@
     "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
     "privacy": "Public",
     "value": 1
-  },
-  "consensus_manager_config.context_config.static_config.build_proposal_margin_millis": {
-    "description": "Safety margin (in ms) to make sure that the batcher completes building the proposal with enough time for the Fin to be checked by validators.",
-    "privacy": "Public",
-    "value": 1000
   },
   "consensus_manager_config.context_config.static_config.build_proposal_time_ratio_for_retrospective_block_hash": {
     "description": "The fraction (0.0 - 1.0) of the total build time allocated to waiting for the retrospective block hash to be available. The remaining time is used to build the proposal.",
