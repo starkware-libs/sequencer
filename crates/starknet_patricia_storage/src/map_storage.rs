@@ -102,6 +102,11 @@ impl Storage for MapStorage {
         // Need a concrete Option type.
         None::<NullStorage>
     }
+
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+        // Return None to avoid using the MapStorage concurrently; the reads are fast anyway.
+        None::<&mut NullStorage>
+    }
 }
 
 /// A storage wrapper that adds an LRU cache to an underlying storage.
@@ -342,7 +347,7 @@ impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
     }
 }
 
-impl<S: Storage> Storage for CachedStorage<S> {
+impl<S: Storage + ImmutableReadOnlyStorage + 'static> Storage for CachedStorage<S> {
     type Stats = CachedStorageStats<S::Stats>;
     type Config = CachedStorageConfig<S::Config>;
 
@@ -413,5 +418,9 @@ impl<S: Storage> Storage for CachedStorage<S> {
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
         // Need a concrete Option type.
         None::<NullStorage>
+    }
+
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+        Some(self)
     }
 }

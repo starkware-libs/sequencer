@@ -27,6 +27,7 @@ use crate::storage_trait::{
     DbOperation,
     DbOperationMap,
     DbValue,
+    GatherableStorage,
     ImmutableReadOnlyStorage,
     PatriciaStorageError,
     PatriciaStorageResult,
@@ -375,4 +376,10 @@ impl Storage for RocksDbStorage {
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
         Some(self.clone())
     }
+
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+        Some(self)
+    }
 }
+
+impl GatherableStorage for RocksDbStorage {}
