@@ -1,5 +1,8 @@
 {
+  "batcher_config.dynamic_config.n_concurrent_txs": 100,
+  "batcher_config.dynamic_config.proposer_idle_detection_delay_millis": "$$$_BATCHER_CONFIG-DYNAMIC_CONFIG-PROPOSER_IDLE_DETECTION_DELAY_MILLIS_$$$",
   "batcher_config.dynamic_config.storage_reader_server_dynamic_config.enable": false,
+  "batcher_config.dynamic_config.tx_polling_interval_millis": 200,
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": 4400000,
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": 3700,
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.n_events": "$$$_BATCHER_CONFIG-STATIC_CONFIG-BLOCK_BUILDER_CONFIG-BOUNCER_CONFIG-BLOCK_MAX_CAPACITY-N_EVENTS_$$$",
@@ -21,9 +24,6 @@
   "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.range_check96": 179,
   "batcher_config.static_config.block_builder_config.execute_config.n_workers": "$$$_BATCHER_CONFIG-STATIC_CONFIG-BLOCK_BUILDER_CONFIG-EXECUTE_CONFIG-N_WORKERS_$$$",
   "batcher_config.static_config.block_builder_config.execute_config.stack_size": 62914560,
-  "batcher_config.static_config.block_builder_config.n_concurrent_txs": "$$$_BATCHER_CONFIG-STATIC_CONFIG-BLOCK_BUILDER_CONFIG-N_CONCURRENT_TXS_$$$",
-  "batcher_config.static_config.block_builder_config.proposer_idle_detection_delay_millis": "$$$_BATCHER_CONFIG-STATIC_CONFIG-BLOCK_BUILDER_CONFIG-PROPOSER_IDLE_DETECTION_DELAY_MILLIS_$$$",
-  "batcher_config.static_config.block_builder_config.tx_polling_interval_millis": 200,
   "batcher_config.static_config.commitment_manager_config.panic_if_task_channel_full": false,
   "batcher_config.static_config.commitment_manager_config.results_channel_size": 1000,
   "batcher_config.static_config.commitment_manager_config.tasks_channel_size": 1000,
