@@ -338,7 +338,7 @@ fn compare_tx_hashing_data(
 ///
 /// Note: Blocks before v0.14.0 may include deprecated (Cairo 0) declared classes which are not
 /// represented in [`CommitmentStateDiff`]; those blocks skip hash comparison below.
-async fn compare_block_hash(
+pub async fn compare_block_hash(
     txs_hashing_data: Vec<TransactionHashingData>,
     actual_state_diff: CommitmentStateDiff,
     block_header: &BlockHeader,
