@@ -420,10 +420,12 @@ impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
         if self.config.prefetch_state {
             // Virtual block transactions do not require fee payment.
             let skip_fee_charge = true;
+            let txs: Vec<_> =
+                txs.iter().map(|(tx, hash)| (Transaction::Invoke(tx.clone()), *hash)).collect();
             let state_maps = simulate_and_get_initial_reads(
                 &self.rpc_state_reader,
                 block_id,
-                txs,
+                &txs,
                 self.validate_txs,
                 skip_fee_charge,
             )
