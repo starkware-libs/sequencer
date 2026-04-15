@@ -10,9 +10,20 @@ use serde::Deserialize;
 use serde_json::json;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
+use starknet_api::rpc_transaction::{
+    RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3,
+    RpcInvokeTransaction,
+    RpcInvokeTransactionV3,
+    RpcTransaction,
+};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
+use starknet_api::transaction::{
+    DeployAccountTransaction,
+    InvokeTransaction,
+    Transaction,
+    TransactionHash,
+};
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_types_core::felt::Felt;
 
@@ -98,26 +109,42 @@ impl FetchCompiledClasses for SimulatedStateReader {
 /// Calls `starknet_simulateTransactions` with `RETURN_INITIAL_READS` and returns the
 /// initial state reads as `StateMaps`.
 ///
+/// Supported transaction types: Invoke V3 and DeployAccount V3. Unsupported types
+/// (Declare, L1Handler, Deploy, pre-V3 variants) are silently skipped — their state
+/// reads will fall back to individual RPC calls.
+///
 /// Requires a v0.10+ node that supports the `RETURN_INITIAL_READS` flag.
 pub fn simulate_and_get_initial_reads(
     rpc_state_reader: &RpcStateReader,
     block_id: BlockId,
-    txs: &[(InvokeTransaction, TransactionHash)],
+    txs: &[(Transaction, TransactionHash)],
     validate_txs: bool,
     skip_fee_charge: bool,
 ) -> ReexecutionResult<StateMaps> {
     let rpc_txs: Vec<RpcTransaction> = txs
         .iter()
-        .map(|(tx, _)| match tx {
-            InvokeTransaction::V3(v3) => RpcInvokeTransactionV3::try_from(v3.clone())
-                .map(RpcInvokeTransaction::V3)
-                .map(RpcTransaction::Invoke)
-                .map_err(|e| ReexecutionError::PrefetchState(e.to_string())),
-            _ => Err(ReexecutionError::PrefetchState(
-                "Only Invoke V3 transactions are supported for simulate".to_string(),
-            )),
+        .filter_map(|(tx, tx_hash)| match tx {
+            Transaction::Invoke(InvokeTransaction::V3(v3)) => {
+                RpcInvokeTransactionV3::try_from(v3.clone())
+                    .inspect_err(|e| tracing::warn!(%tx_hash, "V3 Invoke → RPC conversion failed, skipping prefetch: {e}"))
+                    .map(RpcInvokeTransaction::V3)
+                    .map(RpcTransaction::Invoke)
+                    .ok()
+            }
+            Transaction::DeployAccount(DeployAccountTransaction::V3(v3)) => {
+                RpcDeployAccountTransactionV3::try_from(v3.clone())
+                    .inspect_err(|e| tracing::warn!(%tx_hash, "V3 DeployAccount → RPC conversion failed, skipping prefetch: {e}"))
+                    .map(RpcDeployAccountTransaction::V3)
+                    .map(RpcTransaction::DeployAccount)
+                    .ok()
+            }
+            _ => None,
         })
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect();
+
+    if rpc_txs.is_empty() {
+        return Ok(StateMaps::default());
+    }
 
     // Build simulation flags that match execution behavior as closely as possible.
     // Mismatches cause prefetch cache misses (handled by RPC fallback) but hurt
@@ -209,44 +236,31 @@ pub fn deserialize_rpc_initial_reads(value: serde_json::Value) -> Result<StateMa
 }
 
 impl SimulatedStateReader {
-    /// Creates a `SimulatedStateReader` by simulating the invoke V3 transactions in `txs`
-    /// to prefetch their initial state reads. Non-V3 transactions are ignored (their state
-    /// reads will fall back to individual RPC calls).
+    /// Creates a `SimulatedStateReader` by simulating supported V3 transactions (Invoke and
+    /// DeployAccount) in `txs` to prefetch their initial state reads. Unsupported transaction
+    /// types are silently skipped (their state reads fall back to individual RPC calls).
     pub fn from_rpc_state_reader(
         rpc_state_reader: RpcStateReader,
         txs: &[(Transaction, TransactionHash)],
         skip_fee_charge: bool,
     ) -> ReexecutionResult<Self> {
-        let invoke_v3_txs: Vec<_> = txs
-            .iter()
-            .filter_map(|(tx, hash)| match tx {
-                Transaction::Invoke(invoke @ InvokeTransaction::V3(_)) => {
-                    Some((invoke.clone(), *hash))
-                }
-                _ => None,
-            })
-            .collect();
-        let state_maps = if invoke_v3_txs.is_empty() {
+        // Skip validation in simulate — this is only for prefetching state reads.
+        let validate_txs = false;
+        let state_maps = simulate_and_get_initial_reads(
+            &rpc_state_reader,
+            rpc_state_reader.block_id,
+            txs,
+            validate_txs,
+            skip_fee_charge,
+        )
+        .unwrap_or_else(|e| {
+            tracing::warn!(
+                "State prefetch via starknet_simulateTransactions failed, falling back to \
+                 individual RPC reads (slower). Ensure the node supports Starknet spec >= \
+                 v0.10.1. Error: {e}"
+            );
             StateMaps::default()
-        } else {
-            // Skip validation in simulate — this is only for prefetching state reads.
-            let validate_txs = false;
-            simulate_and_get_initial_reads(
-                &rpc_state_reader,
-                rpc_state_reader.block_id,
-                &invoke_v3_txs,
-                validate_txs,
-                skip_fee_charge,
-            )
-            .unwrap_or_else(|e| {
-                tracing::warn!(
-                    "State prefetch via starknet_simulateTransactions failed, falling back to \
-                     individual RPC reads (slower). Ensure the node supports Starknet spec >= \
-                     v0.10.1. Error: {e}"
-                );
-                StateMaps::default()
-            })
-        };
+        });
         Ok(Self { state_maps, rpc_state_reader })
     }
 }
