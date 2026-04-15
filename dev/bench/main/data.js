@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776248938850,
+  "lastUpdate": 1776249613673,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2379,6 +2379,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1408.62053784,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6652fa0929bffd8ed2621c43c3e37f358b3a7bdf",
+          "message": "starknet_api: PATRICIA_KEY_UPPER_BOUND_FELT (#13773)\n\nSigned-off-by: Dori Medini <dori@starkware.co>",
+          "timestamp": "2026-04-15T10:25:30Z",
+          "tree_id": "146060b250c718e2cd3fc0a9d16c35434268cdcd",
+          "url": "https://github.com/starkware-libs/sequencer/commit/6652fa0929bffd8ed2621c43c3e37f358b3a7bdf"
+        },
+        "date": 1776249613292,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 843.37081521,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1278.03058605,
             "unit": "ms"
           }
         ]
