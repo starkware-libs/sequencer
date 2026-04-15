@@ -25,6 +25,7 @@ apollo_sizeof.workspace = true
 apollo_state_sync_types.workspace = true
 apollo_time = { workspace = true, features = ["tokio"] }
 apollo_transaction_converter.workspace = true
+apollo_versioned_constants.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
@@ -33,7 +34,6 @@ ethnum.workspace = true
 futures.workspace = true
 indexmap.workspace = true
 num-rational.workspace = true
-paste.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 reqwest-middleware = { workspace = true, features = ["json"] }
 reqwest-retry.workspace = true
@@ -82,10 +82,6 @@ serde_json.workspace = true
 
 [lints]
 workspace = true
-
-[package.metadata.cargo-machete]
-# `paste` is used in the `define_versioned_constants!` macro but may be falsely detected as unused.
-ignored = ["paste"]
 
 [features]
 testing = []

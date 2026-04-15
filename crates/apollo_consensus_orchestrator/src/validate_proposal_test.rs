@@ -19,6 +19,7 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
 };
+use apollo_versioned_constants::VersionedConstants;
 use assert_matches::assert_matches;
 use futures::channel::mpsc;
 use futures::SinkExt;
@@ -31,7 +32,6 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
 
-use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::BuiltProposals;
 use crate::test_utils::{
     create_test_and_network_deps,

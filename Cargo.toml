@@ -93,6 +93,7 @@ members = [
   "crates/apollo_test_utils",
   "crates/apollo_time",
   "crates/apollo_transaction_converter",
+  "crates/apollo_versioned_constants",
   "crates/bench_tools",
   "crates/blockifier",
   "crates/blockifier_reexecution",
@@ -218,6 +219,7 @@ apollo_task_executor.path = "crates/apollo_task_executor"
 apollo_test_utils.path = "crates/apollo_test_utils"
 apollo_time = { path = "crates/apollo_time", version = "0.0.0" }
 apollo_transaction_converter.path = "crates/apollo_transaction_converter"
+apollo_versioned_constants.path = "crates/apollo_versioned_constants"
 ark-bls12-381 = "0.5.0"
 ark-ec = "0.5.0"
 ark-ff = "0.5.0"

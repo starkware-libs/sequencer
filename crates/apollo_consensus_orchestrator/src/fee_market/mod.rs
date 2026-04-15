@@ -1,15 +1,13 @@
 use std::cmp::max;
 
 use apollo_consensus_orchestrator_config::config::PricePerHeight;
+use apollo_versioned_constants::VersionedConstants;
 use ethnum::U256;
-use orchestrator_versioned_constants::VersionedConstants;
 use serde::Serialize;
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use tracing::info;
-
-use crate::orchestrator_versioned_constants;
 
 #[cfg(test)]
 mod test;
@@ -43,8 +41,7 @@ pub fn get_min_gas_price_for_height(
     height: BlockNumber,
     min_l2_gas_price_per_height: &[PricePerHeight],
 ) -> GasPrice {
-    let fallback_min_gas_price =
-        orchestrator_versioned_constants::VersionedConstants::latest_constants().min_gas_price;
+    let fallback_min_gas_price = VersionedConstants::latest_constants().min_gas_price;
     min_l2_gas_price_per_height
         .iter()
         .rev()
@@ -86,8 +83,7 @@ pub fn calculate_next_base_gas_price(
     gas_target: GasAmount,
     min_gas_price: GasPrice,
 ) -> GasPrice {
-    let versioned_constants =
-        orchestrator_versioned_constants::VersionedConstants::latest_constants();
+    let versioned_constants = VersionedConstants::latest_constants();
     assert!(
         gas_target < versioned_constants.max_block_size,
         "Gas target must be lower than max block size."
