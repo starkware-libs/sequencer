@@ -59,7 +59,7 @@ fn setup(
 }
 
 #[tokio::test]
-#[should_panic(expected = "network stopped unexpectedly")]
+#[should_panic(expected = "Network manager's run should never return")]
 async fn run_panics_when_network_future_returns() {
     let network_future = ready(Ok(())).boxed();
     let gateway_client = Arc::new(MockGatewayClient::new());
@@ -74,7 +74,7 @@ async fn run_panics_when_network_future_returns() {
 }
 
 #[tokio::test]
-#[should_panic(expected = "network stopped unexpectedly")]
+#[should_panic(expected = "Mempool P2P network failed")]
 async fn run_panics_when_network_future_returns_error() {
     let network_future =
         ready(Err(NetworkError::DialError(libp2p::swarm::DialError::Aborted))).boxed();

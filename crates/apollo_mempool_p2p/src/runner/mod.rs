@@ -62,18 +62,20 @@ impl ComponentStarter for MempoolP2pRunner {
     async fn start(&mut self) {
         let gateway_semaphore = Arc::new(Semaphore::new(self.max_concurrent_gateway_requests));
         let mut gateway_futures = FuturesUnordered::new();
-        let mut broadcast_queued_txs_handle = tokio::spawn(broadcast_queued_transactions_every_tick(
-            self.mempool_p2p_propagator_client.clone(),
-            self.transaction_batch_rate_millis,
-        ));
+        let mut broadcast_queued_txs_handle =
+            tokio::spawn(broadcast_queued_transactions_every_tick(
+                self.mempool_p2p_propagator_client.clone(),
+                self.transaction_batch_rate_millis,
+            ));
         loop {
             tokio::select! {
-                _ = &mut self.network_future => {
-                    panic!("MempoolP2pRunner failed - network stopped unexpectedly");
+                res = &mut self.network_future => {
+                    res.expect("Mempool P2P network failed");
+                    unreachable!("Network manager's run should never return");
                 }
                 res = &mut broadcast_queued_txs_handle => {
-                    let _ = res.expect("Broadcast task panicked");
-                    panic!("broadcast_queued_transactions_every_tick unexpectedly stopped");
+                    res.expect("Broadcast task panicked");
+                    unreachable!("The broadcast task runs an infinite loop, so it should never return");
                 }
                 Some(result) = gateway_futures.next() => {
                     match result {
