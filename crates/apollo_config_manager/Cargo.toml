@@ -32,6 +32,7 @@ notify.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+validator.workspace = true
 
 [dev-dependencies]
 apollo_config.workspace = true
@@ -40,4 +41,3 @@ apollo_node_config = { workspace = true, features = ["testing"] }
 starknet_api.workspace = true
 tempfile.workspace = true
 tracing-test.workspace = true
-validator.workspace = true

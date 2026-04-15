@@ -5,6 +5,7 @@ use apollo_class_manager_config::config::ClassManagerDynamicConfig;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::{ConfigManagerRequest, ConfigManagerResponse};
 use apollo_config_manager_types::config_manager_types::ConfigManagerResult;
+use apollo_config_manager_types::errors::ConfigManagerError;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
@@ -16,6 +17,7 @@ use apollo_state_sync_config::config::StateSyncDynamicConfig;
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 use tracing::info;
+use validator::Validate;
 
 #[cfg(test)]
 #[path = "config_manager_tests.rs"]
@@ -59,6 +61,9 @@ impl ConfigManager {
         node_dynamic_config: NodeDynamicConfig,
     ) -> ConfigManagerResult<()> {
         info!("ConfigManager: updating node dynamic config");
+        node_dynamic_config
+            .validate()
+            .map_err(|e| ConfigManagerError::InvalidConfig(e.to_string()))?;
         let mut config = self.latest_node_dynamic_config.write().await;
         *config = node_dynamic_config;
         Ok(())
