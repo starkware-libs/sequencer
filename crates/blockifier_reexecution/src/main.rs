@@ -14,9 +14,12 @@ use blockifier_reexecution::cli::{
 use blockifier_reexecution::rpc_replay::{compare_block_hash, run_rpc_replay};
 use blockifier_reexecution::state_reader::config::RpcStateReaderConfig;
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
-use blockifier_reexecution::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
+use blockifier_reexecution::state_reader::reexecution_state_reader::{
+    ConsecutiveReexecutionStateReaders,
+    ReexecuteBlockOutcome,
+};
 use blockifier_reexecution::state_reader::rpc_state_reader::ConsecutiveRpcStateReaders;
-use blockifier_reexecution::utils::get_chain_info;
+use blockifier_reexecution::utils::{compare_state_diffs, get_chain_info};
 use clap::Parser;
 use google_cloud_storage::client::{Client, ClientConfig};
 use google_cloud_storage::http::objects::download::Range;
@@ -62,13 +65,13 @@ async fn main() {
             + RESOURCES_DIR
     };
 
-    // Initialize the contract class manager.
+    // Initialize the contract class manager config.
     let mut contract_class_manager_config = ContractClassManagerConfig::default();
     if cfg!(feature = "cairo_native") {
         contract_class_manager_config.cairo_native_run_config =
             CairoNativeRunConfig::wait_on_compilation_for_testing();
     }
-    let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
+    let contract_class_manager = ContractClassManager::start(contract_class_manager_config.clone());
 
     match args.command {
         Command::RpcTest { block_number, rpc_args } => {
@@ -91,18 +94,21 @@ async fn main() {
                     contract_class_manager,
                 );
                 let block_header = readers.get_next_block_header().unwrap();
-                let (_, expected_state_diff, actual_state_diff, txs_hashing_data) =
-                    readers.reexecute_block().unwrap();
+                let ReexecuteBlockOutcome {
+                    expected_state_diff,
+                    actual_state_diff,
+                    txs_hashing_data,
+                    ..
+                } = readers.reexecute_block().unwrap();
                 assert_eq_state_diff!(expected_state_diff, actual_state_diff.clone());
-                let block_hash_matched =
-                    tokio::runtime::Handle::current()
-                        .block_on(compare_block_hash(
-                            txs_hashing_data,
-                            actual_state_diff,
-                            &block_header,
-                            BlockNumber(block_number),
-                        ))
-                        .unwrap();
+                let block_hash_matched = tokio::runtime::Handle::current()
+                    .block_on(compare_block_hash(
+                        txs_hashing_data,
+                        actual_state_diff,
+                        &block_header,
+                        BlockNumber(block_number),
+                    ))
+                    .unwrap();
                 assert!(block_hash_matched, "Block hash mismatch for block {block_number}.");
             })
             .await
@@ -157,7 +163,11 @@ async fn main() {
                 let full_file_path = block_full_file_path(directory_path.clone(), block_number);
                 let node_url = rpc_args.node_url.clone();
                 let chain_info = get_chain_info(&rpc_args.parse_chain_id(), None);
-                let contract_class_manager = contract_class_manager.clone();
+                // Each block gets a fresh ContractClassManager so contract classes accessed during
+                // one block's execution are not silently served from a shared cache, which would
+                // prevent them from being recorded in that block's contract_class_mapping_dumper.
+                let contract_class_manager =
+                    ContractClassManager::start(contract_class_manager_config.clone());
 
                 // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
                 // for details), so should be executed in a blocking thread.
@@ -199,29 +209,35 @@ async fn main() {
                     )
                     .unwrap();
                     let block_header = readers.get_block_header().clone();
-                    let block_number =
-                        readers.block_context_next_block.block_info().block_number;
-                    let (_, expected_state_diff, actual_state_diff, txs_hashing_data) =
-                        readers.reexecute_block().unwrap();
-                    assert_eq_state_diff!(expected_state_diff, actual_state_diff.clone());
-                    let block_hash_matched =
-                        compare_block_hash(
-                            txs_hashing_data,
-                            actual_state_diff,
-                            &block_header,
-                            block_number,
-                        )
-                        .await
-                        .unwrap();
-                    assert!(
-                        block_hash_matched,
-                        "Block hash mismatch for block {block_number}."
+                    let block_number = readers.block_context_next_block.block_info().block_number;
+                    let ReexecuteBlockOutcome {
+                        expected_state_diff,
+                        actual_state_diff,
+                        txs_hashing_data,
+                        ..
+                    } = readers.reexecute_block().unwrap();
+                    let state_diff_matched = compare_state_diffs(
+                        expected_state_diff,
+                        actual_state_diff.clone(),
+                        block_number,
                     );
-                    info!("Reexecution test for block {block} passed successfully.");
+                    let block_hash_matched = compare_block_hash(
+                        txs_hashing_data,
+                        actual_state_diff,
+                        &block_header,
+                        block_number,
+                    )
+                    .await
+                    .unwrap();
+                    if state_diff_matched && block_hash_matched {
+                        info!("Reexecution test for block {block} passed successfully.");
+                    }
+                    state_diff_matched && block_hash_matched
                 });
             }
             info!("Waiting for all blocks to be processed.");
-            task_set.join_all().await;
+            let results = task_set.join_all().await;
+            assert!(results.iter().all(|&matched| matched), "Some blocks failed reexecution.");
         }
 
         // Uploading the files requires authentication; please run

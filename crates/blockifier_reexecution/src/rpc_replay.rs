@@ -214,8 +214,11 @@ fn reexecute_block(
     let ReexecuteBlockOutcome { expected_state_diff, actual_state_diff, txs_hashing_data, .. } =
         readers.reexecute_block()?;
 
-    if !compare_state_diffs(expected_state_diff, actual_state_diff.clone(), BlockNumber(block_number))
-    {
+    if !compare_state_diffs(
+        expected_state_diff,
+        actual_state_diff.clone(),
+        BlockNumber(block_number),
+    ) {
         // Block hash will certainly also mismatch; skip the expensive hash computation.
         return Ok(false);
     }
@@ -344,8 +347,7 @@ pub async fn compare_block_hash(
     block_header: &BlockHeader,
     block_number: BlockNumber,
 ) -> ReexecutionResult<bool> {
-    let starknet_version: StarknetVersion =
-        block_header.starknet_version.clone().try_into()?;
+    let starknet_version: StarknetVersion = block_header.starknet_version.clone().try_into()?;
 
     let min_version: StarknetVersion =
         MIN_VERSION_FOR_BLOCK_HASH_COMPARISON.try_into().expect("Invalid min version constant.");
