@@ -7,6 +7,7 @@ on:
       - reopened
       - edited
       - synchronize
+  workflow_dispatch:
 
 env:
   CI: 1
@@ -23,13 +24,18 @@ jobs:
   optimize_ci:
     runs-on: ubuntu-24.04
     outputs:
-      skip: ${{ steps.check_skip.outputs.skip }}
+      skip: ${{ steps.check_skip.outputs.skip || steps.manual_run.outputs.skip }}
     steps:
       - name: Optimize CI
         id: check_skip
+        if: github.event_name == 'pull_request'
         uses: withgraphite/graphite-ci-action@v0.0.9
         with:
           graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
+      - name: Don't skip for manual runs
+        id: manual_run
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "skip=false" >> $GITHUB_OUTPUT
 
   code_style:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
@@ -67,11 +73,11 @@ jobs:
 
       # Run code style checks.
       - name: "Run TODO style"
-        run: scripts/named_todos.py --commit_id ${{ github.event.pull_request.base.sha }}
+        run: scripts/named_todos.py --commit_id ${{ github.event.pull_request.base.sha || 'main' }}
       - name: "Run clippy"
-        run: scripts/run_tests.py --command clippy --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+        run: scripts/run_tests.py --command clippy --changes_only --commit_id ${{ github.event.pull_request.base.sha || 'main' }}
       - name: "Run cargo doc"
-        run: scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+        run: scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.pull_request.base.sha || 'main' }}
       - name: "Run python code style"
         run: scripts/py_code_style.py
 
@@ -122,7 +128,7 @@ jobs:
 
       - name: "Run tests"
         run: |
-          scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
+          scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha || 'main' }}
         env:
           SEED: 0
       - run: sccache --show-stats
@@ -154,7 +160,7 @@ jobs:
 
       - name: "Run integration tests"
         run: |
-          scripts/run_tests.py --command integration --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
+          scripts/run_tests.py --command integration --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha || 'main' }}
         env:
           SEED: 0
 
