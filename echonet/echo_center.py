@@ -796,6 +796,17 @@ class EchoCenterService:
         self.flask_logger.debug("Received pre-confirmed block")
         return self._empty_response(requests.codes.ok)
 
+    def handle_get_latest_received_block(self) -> flask.Response:
+        """Returns the latest received block number, or start_block - 1 if nothing has been received."""
+        latest = self.shared.get_latest_block_number()
+        block_number = (
+            latest
+            if latest
+            else self.shared.get_current_start_block(default_start_block=CONFIG.blocks.start_block)
+            - 1
+        )
+        return self._json_response({"block_number": block_number}, requests.codes.ok)
+
     def handle_report_snapshot(self) -> flask.Response:
         """Return current in-memory tx tracking snapshot."""
         snap = self.shared.get_report_snapshot()
@@ -1059,6 +1070,11 @@ def write_blob() -> flask.Response:
 @app.route("/cende_recorder/write_pre_confirmed_block", methods=["POST"])
 def write_pre_confirmed_block() -> flask.Response:
     return service.handle_write_pre_confirmed_block()
+
+
+@app.route("/cende_recorder/get_latest_received_block", methods=["GET"])
+def get_latest_received_block() -> flask.Response:
+    return service.handle_get_latest_received_block()
 
 
 @app.route("/echonet/report", methods=["GET"])
