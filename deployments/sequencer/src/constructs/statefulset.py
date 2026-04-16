@@ -69,6 +69,8 @@ class StatefulSetConstruct(BaseConstruct):
             self.monitoring_endpoint_port,
         )
 
+        selector_labels = {"service": statefulset_labels["service"]}
+
         return k8s.KubeStatefulSet(
             self,
             "statefulset",
@@ -83,7 +85,7 @@ class StatefulSetConstruct(BaseConstruct):
             spec=k8s.StatefulSetSpec(
                 service_name=f"sequencer-{self.service_config.name}-service",
                 replicas=self.service_config.replicas,
-                selector=k8s.LabelSelector(match_labels=statefulset_labels),
+                selector=k8s.LabelSelector(match_labels=selector_labels),
                 update_strategy=self._build_update_strategy(),
                 pod_management_policy=self.service_config.statefulSet.podManagementPolicy,
                 template=k8s.PodTemplateSpec(
