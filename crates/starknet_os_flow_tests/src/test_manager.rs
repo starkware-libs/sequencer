@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
-use blockifier::state::cached_state::{CachedState, StateMaps};
+use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::state_api::{StateReader, UpdatableState};
 use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
@@ -23,6 +23,7 @@ use starknet_api::block_hash::block_hash_calculator::{
     BlockHeaderCommitments,
     PartialBlockHashComponents,
 };
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{
@@ -45,7 +46,7 @@ use starknet_api::executable_transaction::{
 };
 use starknet_api::hash::StateRoots;
 use starknet_api::invoke_tx_args;
-use starknet_api::state::{SierraContractClass, StorageKey};
+use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, TEST_SEQUENCER_ADDRESS};
 use starknet_api::transaction::constants::TRANSFER_EVENT_NAME;
@@ -80,6 +81,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
     create_default_initial_state_data,
+    create_proof_flow_integration_initial_state,
     get_initial_deploy_account_tx,
     FlowTestState,
     InitialState,
@@ -444,6 +446,8 @@ pub(crate) struct TestBuilder<S: FlowTestState> {
     pub(crate) virtual_os: bool,
     pub(crate) messages_to_l1: Vec<MessageToL1>,
     pub(crate) messages_to_l2: Vec<MessageToL2>,
+    /// Overrides block 0's thin state diff.
+    genesis_thin_state_diff: Option<ThinStateDiff>,
 
     per_block_txs: Vec<Vec<FlowTestTx>>,
 }
@@ -476,6 +480,7 @@ impl<S: FlowTestState> TestBuilder<S> {
             virtual_os,
             messages_to_l1: Vec::new(),
             messages_to_l2: Vec::new(),
+            genesis_thin_state_diff: None,
             per_block_txs: vec![vec![]],
         }
     }
@@ -824,7 +829,7 @@ impl<S: FlowTestState> TestBuilder<S> {
 
     /// Builds the test runner from the current state and transactions.
     /// Returns a `TestRunner` that can be used to run the OS and get the test output.
-    pub(crate) async fn build(self) -> TestRunner<S> {
+    pub(crate) async fn build(mut self) -> TestRunner<S> {
         // TODO(Yoni): make this func sync.
         let mut os_block_inputs = vec![];
         let mut state = CachedState::new(self.initial_state.updatable_state);
@@ -880,6 +885,11 @@ impl<S: FlowTestState> TestBuilder<S> {
             let state_diff = final_state.to_state_diff().unwrap().state_maps;
             state = final_state.state;
             state.apply_writes(&state_diff, &final_state.class_hash_to_class.borrow());
+            // Optionally overrides the initial state diff.
+            let thin_state_diff =
+                self.genesis_thin_state_diff.take().filter(|_| block_index == 0).unwrap_or_else(
+                    || ThinStateDiff::from(CommitmentStateDiff::from(state_diff.clone())),
+                );
             // Commit the state diff.
             let committer_state_diff = state_maps_to_committer_state_diff(state_diff);
             let mut db = FactsDb::new(map_storage);
@@ -911,7 +921,13 @@ impl<S: FlowTestState> TestBuilder<S> {
             let old_block_number_and_hash =
                 maybe_dummy_block_hash_and_number(block_info.block_number);
             let prev_block_hash = current_block_hash;
-            let block_hash_commitments = BlockHeaderCommitments::default();
+            let state_diff_commitment = calculate_state_diff_hash(&thin_state_diff);
+            let block_hash_commitments = BlockHeaderCommitments {
+                state_diff_commitment,
+                ..BlockHeaderCommitments::default()
+            };
+            // The virtual OS uses the initial (pre-block) state root for the block hash, while
+            // the real sequencer OS uses the final (post-block) state root. Match accordingly.
             let block_hash_state_root = if self.virtual_os {
                 base_block_state_roots.global_root()
             } else {
@@ -991,6 +1007,19 @@ impl TestBuilder<DictStateReader> {
     ) -> (Self, [ContractAddress; N]) {
         Self::new_with_default_initial_state(extra_contracts, TestBuilderConfig::default(), true)
             .await
+    }
+
+    /// Virtual OS builder with the same genesis as proof-flow integration
+    /// (default account deployed in genesis; virtual OS runs one invoke on block 0).
+    pub(crate) async fn create_proof_flow_virtual(
+        block_info: BlockInfo,
+        config: TestBuilderConfig,
+    ) -> Self {
+        let (initial_state_data, genesis_thin_state_diff) =
+            create_proof_flow_integration_initial_state(block_info).await;
+        let mut builder = Self::new_with_initial_state_data(initial_state_data, config, true);
+        builder.genesis_thin_state_diff = Some(genesis_thin_state_diff);
+        builder
     }
 }
 
