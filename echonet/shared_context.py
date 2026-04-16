@@ -233,15 +233,28 @@ class _BlockHashMismatchTracker:
 
     block_hash_mismatches: List[JsonObject]
     transaction_commitment_mismatches: List[JsonObject]
+    # Earliest mismatch block since last resync; None if no mismatches since last resync.
+    pending_mismatch_block: Optional[int]
 
     @classmethod
     def empty(cls) -> "_BlockHashMismatchTracker":
-        return cls(block_hash_mismatches=[], transaction_commitment_mismatches=[])
+        return cls(
+            block_hash_mismatches=[],
+            transaction_commitment_mismatches=[],
+            pending_mismatch_block=None,
+        )
 
     def record_block_hash_mismatch(self, block_number: int, echonet: str, mainnet: str) -> None:
         self.block_hash_mismatches.append(
             {"block_number": block_number, "echonet": echonet, "mainnet": mainnet}
         )
+        if self.pending_mismatch_block is None:
+            self.pending_mismatch_block = block_number
+        else:
+            self.pending_mismatch_block = min(self.pending_mismatch_block, block_number)
+
+    def clear_pending_mismatch(self) -> None:
+        self.pending_mismatch_block = None
 
     def record_transaction_commitment_mismatch(
         self, block_number: int, echonet: str, mainnet: str
@@ -512,18 +525,20 @@ class SharedContext:
 
     def get_resync_evaluation_inputs(
         self,
-    ) -> tuple[Dict[str, JsonObject], Dict[str, int], Dict[str, RevertErrorInfo]]:
+    ) -> tuple[Dict[str, JsonObject], Dict[str, int], Dict[str, RevertErrorInfo], Optional[int]]:
         """
         Return the minimal live state needed by transaction_sender's resync policy:
         - gateway_errors_live (tx_hash -> {status, response, block_number})
         - currently_pending (tx_hash -> source block number)
         - echonet_only_reverts_live (tx_hash -> {block_number, error})
+        - pending_mismatch_block: earliest block with a hash mismatch since last resync, or None
         """
         with self._lock:
             return (
                 dict(self._errors.gateway_errors_live),
                 dict(self._tx.currently_pending),
                 dict(self._errors.echonet_only_reverts_live),
+                self._hash_mismatches.pending_mismatch_block,
             )
 
     # --- Errors ---
@@ -571,6 +586,7 @@ class SharedContext:
             self._tx.tx_block_metadata.clear()
             self._errors.clear_live()
             self._blocks.clear_live()
+            self._hash_mismatches.clear_pending_mismatch()
             self._progress.last_echo_center_block = None
             self._progress.sender_current_block = None
         _BlockStore.write_snapshot_items_to_disk(snapshot_items, base_dir=archive_dir)

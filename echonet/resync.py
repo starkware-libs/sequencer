@@ -24,11 +24,13 @@ class ResyncPolicy:
         sent_tx_hashes: Dict[str, int],
         echonet_only_reverts: Dict[str, RevertErrorInfo],
         current_block: int,
+        block_hash_mismatch_block: Optional[int] = None,
     ) -> Optional[ResyncTriggerPayload]:
         threshold_block = current_block - self._blocks_to_wait_before_failing_tx
 
         # We combine all error sources into one list so we can pick a single earliest
-        # failure trigger across gateway errors, Echonet-only reverts, and stale pending txs.
+        # failure trigger across gateway errors, Echonet-only reverts, stale pending txs,
+        # and block hash mismatches.
         candidates: list[tuple[str, int, str]] = []
 
         # Gateway errors are added.
@@ -58,6 +60,16 @@ class ResyncPolicy:
                         f"Still pending after >= {self._blocks_to_wait_before_failing_tx} blocks",
                     )
                 )
+
+        # Block hash mismatches are added using a synthetic key.
+        if block_hash_mismatch_block is not None:
+            candidates.append(
+                (
+                    f"block_hash_mismatch:{block_hash_mismatch_block}",
+                    block_hash_mismatch_block,
+                    f"Block hash mismatch at block {block_hash_mismatch_block}",
+                )
+            )
 
         # No candidates accumulated yet -> do not trigger resync.
         if not candidates:
