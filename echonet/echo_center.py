@@ -513,6 +513,49 @@ class BlobTransformer:
             transformed_txs.append(tx_obj)
         return transformed_txs
 
+    def _log_block_hash_comparison(
+        self,
+        block_number: int,
+        block_document: JsonObject,
+        source_block: JsonObject,
+    ) -> None:
+        block_hash = block_document["block_hash"]
+        mainnet_block_hash = source_block["block_hash"]
+        if block_hash == mainnet_block_hash:
+            self._logger.info(f"Block {block_number}: block hash MATCH with mainnet: {block_hash}")
+            return
+
+        self._logger.warning(
+            f"Block {block_number}: block hash MISMATCH. "
+            f"echonet={block_hash}, mainnet={mainnet_block_hash}"
+        )
+        self._shared.record_block_hash_mismatch(
+            block_number, echonet=block_hash, mainnet=mainnet_block_hash
+        )
+        mismatches = []
+        for key in [
+            "transaction_commitment",
+            "event_commitment",
+            "receipt_commitment",
+            "state_diff_commitment",
+            "parent_block_hash",
+        ]:
+            echonet = block_document[key]
+            mainnet_val = source_block[key]
+            if echonet != mainnet_val:
+                mismatches.append(f"{key}: echonet={echonet}, mainnet={mainnet_val}")
+                if key == "transaction_commitment":
+                    self._shared.record_transaction_commitment_mismatch(
+                        block_number, echonet=echonet, mainnet=mainnet_val
+                    )
+        if mismatches:
+            self._logger.info(f"Block {block_number}: mismatched fields: {'; '.join(mismatches)}")
+        else:
+            self._logger.info(
+                f"Block {block_number}: block hash mismatch with no difference in compared "
+                f"commitments or parent_block_hash (other header / hash inputs differ)."
+            )
+
     def _compute_block_hash(
         self,
         blob: JsonObject,
@@ -619,6 +662,12 @@ class BlobTransformer:
             block_commitments=block_commitments,
         )
         block_document["block_hash"] = block_hash
+
+        self._log_block_hash_comparison(
+            block_number=block_number,
+            block_document=block_document,
+            source_block=source_block,
+        )
 
         return block_document
 

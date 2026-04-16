@@ -228,6 +228,30 @@ class _ReportL2GasMismatchTracker:
 
 
 @dataclass(slots=True)
+class _BlockHashMismatchTracker:
+    """Tracks block hash and transaction commitment mismatch rows for reporting."""
+
+    block_hash_mismatches: List[JsonObject]
+    transaction_commitment_mismatches: List[JsonObject]
+
+    @classmethod
+    def empty(cls) -> "_BlockHashMismatchTracker":
+        return cls(block_hash_mismatches=[], transaction_commitment_mismatches=[])
+
+    def record_block_hash_mismatch(self, block_number: int, echonet: str, mainnet: str) -> None:
+        self.block_hash_mismatches.append(
+            {"block_number": block_number, "echonet": echonet, "mainnet": mainnet}
+        )
+
+    def record_transaction_commitment_mismatch(
+        self, block_number: int, echonet: str, mainnet: str
+    ) -> None:
+        self.transaction_commitment_mismatches.append(
+            {"block_number": block_number, "echonet": echonet, "mainnet": mainnet}
+        )
+
+
+@dataclass(slots=True)
 class _BlockStore:
     """In-memory storage for echo_center outputs and raw feeder blocks."""
 
@@ -435,6 +459,7 @@ class SharedContext:
         self._errors = _TxErrorTracker.empty()
         self._resync = _ResyncTracker.empty()
         self._l2_gas_mismatches = _ReportL2GasMismatchTracker.empty()
+        self._hash_mismatches = _BlockHashMismatchTracker.empty()
         self._blocks = _BlockStore.empty()
         self._progress = _ProgressMarkers.empty()
         self._epoch = 0
@@ -570,6 +595,19 @@ class SharedContext:
                 fgw_total_gas_consumed_l2=fgw_total_gas_consumed_l2,
             )
 
+    # --- Block hash and commitment mismatch tracking ---
+    def record_block_hash_mismatch(self, block_number: int, echonet: str, mainnet: str) -> None:
+        with self._lock:
+            self._hash_mismatches.record_block_hash_mismatch(block_number, echonet, mainnet)
+
+    def record_transaction_commitment_mismatch(
+        self, block_number: int, echonet: str, mainnet: str
+    ) -> None:
+        with self._lock:
+            self._hash_mismatches.record_transaction_commitment_mismatch(
+                block_number, echonet, mainnet
+            )
+
     # --- Block storage (echo_center output + raw FGW blocks) ---
     def store_block(
         self, block_number: int, blob: JsonObject, fgw_block: JsonObject, state_update: JsonObject
@@ -666,6 +704,10 @@ class SharedContext:
                 resync_causes=dict(self._resync.resync_causes),
                 certain_failures=dict(self._resync.certain_failures),
                 l2_gas_mismatches=list(self._l2_gas_mismatches.l2_gas_mismatches),
+                block_hash_mismatches=list(self._hash_mismatches.block_hash_mismatches),
+                transaction_commitment_mismatches=list(
+                    self._hash_mismatches.transaction_commitment_mismatches
+                ),
             )
 
     # --- Progress markers ---
