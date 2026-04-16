@@ -35,6 +35,7 @@ auto_impl_get_test_instance! {
         pub l2_gas_price: GasPricePerToken,
         pub l2_gas_consumed: GasAmount,
         pub next_l2_gas_price: GasPrice,
+        pub fee_proposal: GasPrice,
         pub state_root: GlobalRoot,
         pub sequencer: SequencerContractAddress,
         pub timestamp: BlockTimestamp,

@@ -336,6 +336,7 @@ impl Block {
                 l2_gas_price: self.l2_gas_price(),
                 l2_gas_consumed: self.l2_gas_consumed(),
                 next_l2_gas_price: self.next_l2_gas_price(),
+                fee_proposal: GasPrice::default(),
                 state_root: self.state_root(),
                 sequencer: self.sequencer_address(),
                 timestamp: self.timestamp(),

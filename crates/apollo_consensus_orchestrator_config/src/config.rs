@@ -271,7 +271,7 @@ impl Default for ContextStaticConfig {
 
 /// Dynamic configuration for the Context struct.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
-#[validate(schema(function = "validate_price_per_height"))]
+#[validate(schema(function = "validate_dynamic_config"))]
 pub struct ContextDynamicConfig {
     /// The minimum L1 gas price in wei.
     pub min_l1_gas_price_wei: u128,
@@ -442,7 +442,7 @@ where
     serializer.serialize_str(&s)
 }
 
-fn validate_price_per_height(
+fn validate_dynamic_config(
     config: &ContextDynamicConfig,
 ) -> Result<(), validator::ValidationError> {
     // Check that heights are in strictly ascending order using windows

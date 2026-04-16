@@ -2,7 +2,14 @@ use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use super::{concat_counts, extract_event_count_from_concatenated_counts};
-use crate::block::{BlockHash, BlockNumber, BlockTimestamp, GasPricePerToken, StarknetVersion};
+use crate::block::{
+    BlockHash,
+    BlockNumber,
+    BlockTimestamp,
+    GasPrice,
+    GasPricePerToken,
+    StarknetVersion,
+};
 use crate::block_hash::block_hash_calculator::{
     calculate_block_commitments,
     calculate_block_hash,
@@ -43,6 +50,7 @@ macro_rules! test_hash_changes {
                 $(
                     $partial_block_hash_components_field: $partial_block_hash_components_value,
                 )*
+                ..Default::default()
             };
             let state_root = $state_root;
             let previous_block_hash = $previous_block_hash;
@@ -99,6 +107,7 @@ async fn test_block_hash_regression(
             price_in_wei: 9_u8.into(),
         },
         l2_gas_price: GasPricePerToken { price_in_fri: 11_u8.into(), price_in_wei: 12_u8.into() },
+        fee_proposal: GasPrice::default(),
         starknet_version: block_hash_version.clone().into(),
         header_commitments: block_commitments,
     };
@@ -110,6 +119,8 @@ async fn test_block_hash_regression(
         BlockHashVersion::V0_13_4 => {
             felt!("0x3d6174623c812f5dc03fa3faa07c42c06fd90ad425629ee5f39e149df65c3ca")
         }
+        // V0_14_4 is tested separately in test_snip35_block_hash_includes_fee_proposal.
+        BlockHashVersion::V0_14_4 => unreachable!(),
     };
 
     assert_eq!(

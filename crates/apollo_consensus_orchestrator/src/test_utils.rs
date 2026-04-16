@@ -127,6 +127,7 @@ pub(crate) struct TestDeps {
     pub clock: Arc<dyn Clock>,
     pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
     pub vote_broadcast_client: BroadcastTopicClient<Vote>,
+    pub strk_price_oracle: Option<Arc<dyn apollo_l1_gas_price_types::EthToStrkOracleClientTrait>>,
 }
 
 impl From<TestDeps> for SequencerConsensusContextDeps {
@@ -141,6 +142,7 @@ impl From<TestDeps> for SequencerConsensusContextDeps {
             outbound_proposal_sender: deps.outbound_proposal_sender,
             vote_broadcast_client: deps.vote_broadcast_client,
             config_manager_client: None,
+            strk_price_oracle: deps.strk_price_oracle,
         }
     }
 }
@@ -170,6 +172,16 @@ impl TestDeps {
         self.setup_default_transaction_converter();
         self.setup_default_cende_ambassador();
         self.setup_default_gas_price_provider();
+        self.setup_default_state_sync_get_block();
+    }
+
+    /// Default get_block returns NotFound for all blocks. Used by SNIP-35 backfill on startup.
+    fn setup_default_state_sync_get_block(&mut self) {
+        self.state_sync_client.expect_get_block().returning(|block_number| {
+            Err(apollo_state_sync_types::communication::StateSyncClientError::StateSyncError(
+                apollo_state_sync_types::errors::StateSyncError::BlockNotFound(block_number),
+            ))
+        });
     }
 
     pub(crate) fn setup_deps_for_build(&mut self, args: SetupDepsArgs) {
@@ -328,17 +340,21 @@ impl TestDeps {
     }
 
     pub(crate) fn build_context(self) -> SequencerConsensusContext {
-        SequencerConsensusContext::new(
-            ContextConfig {
-                static_config: ContextStaticConfig {
-                    proposal_buffer_size: CHANNEL_SIZE,
-                    chain_id: CHAIN_ID,
-                    ..Default::default()
-                },
+        self.build_context_with_config(ContextConfig {
+            static_config: ContextStaticConfig {
+                proposal_buffer_size: CHANNEL_SIZE,
+                chain_id: CHAIN_ID,
                 ..Default::default()
             },
-            self.into(),
-        )
+            ..Default::default()
+        })
+    }
+
+    pub(crate) fn build_context_with_config(
+        self,
+        config: ContextConfig,
+    ) -> SequencerConsensusContext {
+        SequencerConsensusContext::new(config, self.into())
     }
 }
 
@@ -367,6 +383,7 @@ pub(crate) fn create_test_and_network_deps() -> (TestDeps, NetworkDependencies) 
         clock,
         outbound_proposal_sender,
         vote_broadcast_client: votes_topic_client,
+        strk_price_oracle: None,
     };
 
     let network_deps =
@@ -411,6 +428,7 @@ pub(crate) fn proposal_init(height: BlockNumber, round: u32) -> ProposalInit {
         l1_data_gas_price_wei,
         starknet_version: starknet_api::block::StarknetVersion::LATEST,
         version_constant_commitment: Default::default(),
+        fee_proposal: GasPrice::default(),
     }
 }
 
@@ -491,6 +509,8 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
             override_l2_gas_price_fri: args.override_l2_gas_price_fri,
             min_l2_gas_price_per_height: args.min_l2_gas_price_per_height,
             compare_retrospective_block_hash: args.compare_retrospective_block_hash,
+            fee_proposal: GasPrice::default(),
+            fee_actual: None,
         }
     }
 }

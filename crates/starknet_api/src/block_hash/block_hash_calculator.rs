@@ -16,6 +16,7 @@ use crate::block::{
     BlockInfo,
     BlockNumber,
     BlockTimestamp,
+    GasPrice,
     GasPricePerToken,
     StarknetVersion,
 };
@@ -47,6 +48,11 @@ static STARKNET_BLOCK_HASH0: LazyLock<Felt> = LazyLock::new(|| {
 pub static STARKNET_BLOCK_HASH1: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH1").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH1'")
 });
+// TODO(SNIP-35): Consult protocol team on the correct block hash constant name and version
+// number for SNIP-35. Using "STARKNET_BLOCK_HASH2" and V0_14_4 as placeholders.
+pub static STARKNET_BLOCK_HASH2: LazyLock<Felt> = LazyLock::new(|| {
+    ascii_as_felt("STARKNET_BLOCK_HASH2").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH2'")
+});
 pub static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_GAS_PRICES0").expect("ascii_as_felt failed for 'STARKNET_GAS_PRICES0'")
 });
@@ -56,6 +62,9 @@ pub static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
 pub enum BlockHashVersion {
     V0_13_2,
     V0_13_4,
+    // TODO(SNIP-35): Consult protocol team on the correct version for SNIP-35 block hash.
+    // V0_14_4 is a placeholder — the actual version depends on the release schedule.
+    V0_14_4,
 }
 
 impl From<BlockHashVersion> for StarknetVersion {
@@ -63,6 +72,11 @@ impl From<BlockHashVersion> for StarknetVersion {
         match value {
             BlockHashVersion::V0_13_2 => StarknetVersion::V0_13_2,
             BlockHashVersion::V0_13_4 => StarknetVersion::V0_13_4,
+            // TODO(SNIP-35): Map to the real StarknetVersion once the protocol team assigns one.
+            // For now, V0_14_4 is only used internally and never converted to StarknetVersion.
+            BlockHashVersion::V0_14_4 => {
+                panic!("V0_14_4 BlockHashVersion cannot be converted to StarknetVersion yet")
+            }
         }
     }
 }
@@ -77,6 +91,8 @@ impl TryFrom<StarknetVersion> for BlockHashVersion {
             // Starknet versions 0.13.2 and 0.13.3 both have the same block hash mechanism.
             Ok(Self::V0_13_2)
         } else {
+            // TODO(SNIP-35): When the protocol team assigns a StarknetVersion for SNIP-35,
+            // add a branch here: `else if value < V_SNIP35.into() { V0_13_4 } else { V0_14_4 }`.
             Ok(Self::V0_13_4)
         }
     }
@@ -90,6 +106,7 @@ impl From<BlockHashVersion> for BlockHashConstant {
         match block_hash_version {
             BlockHashVersion::V0_13_2 => *STARKNET_BLOCK_HASH0,
             BlockHashVersion::V0_13_4 => *STARKNET_BLOCK_HASH1,
+            BlockHashVersion::V0_14_4 => *STARKNET_BLOCK_HASH2,
         }
     }
 }
@@ -215,6 +232,8 @@ pub struct PartialBlockHashComponents {
     pub l1_gas_price: GasPricePerToken,
     pub l1_data_gas_price: GasPricePerToken,
     pub l2_gas_price: GasPricePerToken,
+    /// SNIP-35: proposer's recommended fee for future blocks.
+    pub fee_proposal: GasPrice,
     pub sequencer: SequencerContractAddress,
     pub timestamp: BlockTimestamp,
     pub starknet_version: StarknetVersion,
@@ -228,6 +247,7 @@ impl PartialBlockHashComponents {
             l1_gas_price: block_info.gas_prices.l1_gas_price_per_token(),
             l1_data_gas_price: block_info.gas_prices.l1_data_gas_price_per_token(),
             l2_gas_price: block_info.gas_prices.l2_gas_price_per_token(),
+            fee_proposal: GasPrice::default(),
             sequencer: SequencerContractAddress(block_info.sequencer_address),
             timestamp: block_info.block_timestamp,
             starknet_version: block_info.starknet_version,
@@ -250,35 +270,39 @@ pub fn calculate_block_hash(
     let block_hash_version: BlockHashVersion =
         partial_block_hash_components.starknet_version.try_into()?;
     let block_commitments = &partial_block_hash_components.header_commitments;
-    Ok(BlockHash(
-        HashChain::new()
-            .chain(&block_hash_version.clone().into())
-            .chain(&partial_block_hash_components.block_number.0.into())
-            .chain(&state_root.0)
-            .chain(&partial_block_hash_components.sequencer.0)
-            .chain(&partial_block_hash_components.timestamp.0.into())
-            .chain(&block_commitments.concatenated_counts)
-            .chain(&block_commitments.state_diff_commitment.0.0)
-            .chain(&block_commitments.transaction_commitment.0)
-            .chain(&block_commitments.event_commitment.0)
-            .chain(&block_commitments.receipt_commitment.0)
-            .chain_iter(
-                gas_prices_to_hash(
-                    &partial_block_hash_components.l1_gas_price,
-                    &partial_block_hash_components.l1_data_gas_price,
-                    &partial_block_hash_components.l2_gas_price,
-                    &block_hash_version,
-                )
-                .iter(),
+    let mut hash_chain = HashChain::new()
+        .chain(&block_hash_version.clone().into())
+        .chain(&partial_block_hash_components.block_number.0.into())
+        .chain(&state_root.0)
+        .chain(&partial_block_hash_components.sequencer.0)
+        .chain(&partial_block_hash_components.timestamp.0.into())
+        .chain(&block_commitments.concatenated_counts)
+        .chain(&block_commitments.state_diff_commitment.0.0)
+        .chain(&block_commitments.transaction_commitment.0)
+        .chain(&block_commitments.event_commitment.0)
+        .chain(&block_commitments.receipt_commitment.0)
+        .chain_iter(
+            gas_prices_to_hash(
+                &partial_block_hash_components.l1_gas_price,
+                &partial_block_hash_components.l1_data_gas_price,
+                &partial_block_hash_components.l2_gas_price,
+                &block_hash_version,
             )
-            .chain(
-                &Felt::try_from(&partial_block_hash_components.starknet_version)
-                    .expect("Expect ASCII version"),
-            )
-            .chain(&Felt::ZERO)
-            .chain(&previous_block_hash.0)
-            .get_poseidon_hash(),
-    ))
+            .iter(),
+        )
+        .chain(
+            &Felt::try_from(&partial_block_hash_components.starknet_version)
+                .expect("Expect ASCII version"),
+        )
+        .chain(&Felt::ZERO)
+        .chain(&previous_block_hash.0);
+
+    // SNIP-35: include fee_proposal in block hash for V0_14_4+.
+    if block_hash_version >= BlockHashVersion::V0_14_4 {
+        hash_chain = hash_chain.chain(&partial_block_hash_components.fee_proposal.0.into());
+    }
+
+    Ok(BlockHash(hash_chain.get_poseidon_hash()))
 }
 
 /// Calculates the commitments of the transactions data for the block hash.

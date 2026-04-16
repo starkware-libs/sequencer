@@ -87,6 +87,8 @@ pub struct StorageBlockHeader {
     pub l2_gas_consumed: GasAmount,
     /// The next L2 gas price.
     pub next_l2_gas_price: GasPrice,
+    /// SNIP-35: proposer's recommended fee for future blocks.
+    pub fee_proposal: GasPrice,
     /// The state root after this block.
     pub state_root: GlobalRoot,
     /// The sequencer address that created this block.
@@ -220,6 +222,7 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
                 l2_gas_price: block_header.l2_gas_price,
                 l2_gas_consumed: block_header.l2_gas_consumed,
                 next_l2_gas_price: block_header.next_l2_gas_price,
+                fee_proposal: block_header.fee_proposal,
                 state_root: block_header.state_root,
                 sequencer: block_header.sequencer,
                 timestamp: block_header.timestamp,
@@ -311,6 +314,7 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
             l2_gas_price: block_header.block_header_without_hash.l2_gas_price,
             l2_gas_consumed: block_header.block_header_without_hash.l2_gas_consumed,
             next_l2_gas_price: block_header.block_header_without_hash.next_l2_gas_price,
+            fee_proposal: block_header.block_header_without_hash.fee_proposal,
             state_root: block_header.block_header_without_hash.state_root,
             sequencer: block_header.block_header_without_hash.sequencer,
             timestamp: block_header.block_header_without_hash.timestamp,
@@ -424,6 +428,7 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
                     l2_gas_price: reverted_header.l2_gas_price,
                     l2_gas_consumed: reverted_header.l2_gas_consumed,
                     next_l2_gas_price: reverted_header.next_l2_gas_price,
+                    fee_proposal: reverted_header.fee_proposal,
                     state_root: reverted_header.state_root,
                     sequencer: reverted_header.sequencer,
                     timestamp: reverted_header.timestamp,

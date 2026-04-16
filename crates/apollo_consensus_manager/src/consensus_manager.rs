@@ -20,6 +20,7 @@ use apollo_consensus_orchestrator::sequencer_consensus_context::{
 };
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
+use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleClient;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::gossipsub_impl::Topic;
 use apollo_network::metrics::{
@@ -304,6 +305,11 @@ impl ConsensusManager {
                 outbound_proposal_sender: outbound_internal_sender,
                 vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
                 config_manager_client: Some(Arc::clone(&config_manager_client)),
+                // TODO(SNIP-35): Make oracle config configurable. Currently uses default
+                // EthToStrkOracleConfig. The URL must be overridden in deployment config.
+                strk_price_oracle: Some(Arc::new(EthToStrkOracleClient::new(
+                    apollo_l1_gas_price_config::config::EthToStrkOracleConfig::default(),
+                ))),
             },
         )
     }

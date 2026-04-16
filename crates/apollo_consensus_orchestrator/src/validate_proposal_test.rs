@@ -94,6 +94,7 @@ fn create_proposal_validate_arguments()
         previous_proposal_init: None,
         l1_da_mode: L1DataAvailabilityMode::Blob,
         l2_gas_price_fri: VersionedConstants::latest_constants().min_gas_price,
+        fee_actual: None,
     };
     let proposal_id = ProposalId(1);
     let timeout = TIMEOUT;

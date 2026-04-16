@@ -241,6 +241,7 @@ impl TryFrom<protobuf::ProposalInit> for ProposalInit {
             l1_data_gas_price_wei,
             starknet_version,
             version_constant_commitment,
+            fee_proposal: GasPrice(value.fee_proposal.map(u128::from).unwrap_or(0)),
         })
     }
 }
@@ -262,6 +263,7 @@ impl From<ProposalInit> for protobuf::ProposalInit {
             l1_data_gas_price_wei: Some(value.l1_data_gas_price_wei.0.into()),
             starknet_version: value.starknet_version.to_string(),
             version_constant_commitment: Some(value.version_constant_commitment.into()),
+            fee_proposal: Some(value.fee_proposal.0.into()),
         }
     }
 }
@@ -346,7 +348,12 @@ impl TryFrom<protobuf::L2GasInfo> for L2GasInfo {
         let next_l2_gas_price_fri =
             value.next_l2_gas_price_fri.ok_or(missing("next_l2_gas_price_fri"))?.into();
         let l2_gas_used = GasAmount(value.l2_gas_used);
-        Ok(L2GasInfo { next_l2_gas_price_fri: GasPrice(next_l2_gas_price_fri), l2_gas_used })
+        let fee_proposal = GasPrice(value.fee_proposal.map(u128::from).unwrap_or(0));
+        Ok(L2GasInfo {
+            next_l2_gas_price_fri: GasPrice(next_l2_gas_price_fri),
+            l2_gas_used,
+            fee_proposal,
+        })
     }
 }
 
@@ -355,6 +362,7 @@ impl From<L2GasInfo> for protobuf::L2GasInfo {
         protobuf::L2GasInfo {
             next_l2_gas_price_fri: Some(value.next_l2_gas_price_fri.0.into()),
             l2_gas_used: value.l2_gas_used.0,
+            fee_proposal: Some(value.fee_proposal.0.into()),
         }
     }
 }

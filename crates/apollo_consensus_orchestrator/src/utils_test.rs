@@ -5,7 +5,7 @@ use apollo_state_sync_types::communication::StateSyncClientError;
 use apollo_state_sync_types::errors::StateSyncError;
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber, GasPrice};
 use starknet_types_core::felt::Felt;
 
 use crate::build_proposal::ProposalBuildArguments;
@@ -47,6 +47,7 @@ async fn get_proposal_init(args: &ProposalBuildArguments) -> ProposalInit {
         l1_data_gas_price_fri: l1_prices_fri.l1_data_gas_price,
         starknet_version: starknet_api::block::StarknetVersion::LATEST,
         version_constant_commitment: Default::default(),
+        fee_proposal: GasPrice::default(),
     }
 }
 

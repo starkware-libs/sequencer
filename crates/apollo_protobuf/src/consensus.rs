@@ -122,6 +122,8 @@ pub struct ProposalInit {
     pub starknet_version: starknet_api::block::StarknetVersion,
     /// Version constant commitment.
     pub version_constant_commitment: StarkHash,
+    /// SNIP-35: proposer's recommended fee for future blocks.
+    pub fee_proposal: GasPrice,
 }
 
 /// A temporary constant to use as a validator ID. Zero is not a valid contract address.
@@ -156,6 +158,7 @@ impl Default for ProposalInit {
             l1_data_gas_price_wei: Default::default(),
             starknet_version: starknet_api::block::StarknetVersion::LATEST,
             version_constant_commitment: Default::default(),
+            fee_proposal: Default::default(),
         }
     }
 }
@@ -183,6 +186,8 @@ pub struct CommitmentParts {
 pub struct L2GasInfo {
     pub next_l2_gas_price_fri: GasPrice,
     pub l2_gas_used: GasAmount,
+    /// SNIP-35: proposer's recommended fee for future blocks.
+    pub fee_proposal: GasPrice,
 }
 
 /// Optional payload carried in ProposalFin: commitment parts and L2 gas.

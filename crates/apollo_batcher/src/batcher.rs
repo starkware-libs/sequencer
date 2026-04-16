@@ -828,6 +828,7 @@ impl Batcher {
                         l1_gas_price: block_header_without_hash.l1_gas_price,
                         l1_data_gas_price: block_header_without_hash.l1_data_gas_price,
                         l2_gas_price: block_header_without_hash.l2_gas_price,
+                        fee_proposal: block_header_without_hash.fee_proposal,
                         sequencer: block_header_without_hash.sequencer,
                         timestamp: block_header_without_hash.timestamp,
                         starknet_version: block_header_without_hash.starknet_version,

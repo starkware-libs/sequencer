@@ -78,10 +78,13 @@ use crate::test_utils::{
 };
 
 /// Expected L2GasInfo when build_proposal runs with test defaults (min gas price, l2_gas_used 0).
+/// With dynamic pricing enabled (default), fee_proposal falls back to l2_gas_price (min_gas_price)
+/// when no oracle is configured.
 fn expected_l2_gas_info_for_build_proposal_defaults() -> L2GasInfo {
     L2GasInfo {
         next_l2_gas_price_fri: VersionedConstants::latest_constants().min_gas_price,
         l2_gas_used: GasAmount(0),
+        fee_proposal: VersionedConstants::latest_constants().min_gas_price,
     }
 }
 use crate::utils::{apply_fee_transformations, make_gas_price_params};
@@ -176,7 +179,13 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
         executed_transaction_count: n_executed_txs_count.try_into().unwrap(),
         fin_payload: Some(ProposalFinPayload {
             commitment_parts: CommitmentParts::default(),
-            l2_gas_info: expected_l2_gas_info_for_build_proposal_defaults(),
+            // fee_proposal matches the validated init's fee_proposal (default 0), not the
+            // computed value from build_proposal (which would be min_gas_price).
+            l2_gas_info: L2GasInfo {
+                next_l2_gas_price_fri: VersionedConstants::latest_constants().min_gas_price,
+                l2_gas_used: GasAmount(0),
+                fee_proposal: GasPrice::default(),
+            },
         }),
     });
     content_sender.send(fin.clone()).await.unwrap();
@@ -1394,4 +1403,65 @@ async fn test_dynamic_config_updates_min_gas_price() {
         "Gas price should be exactly {} (15 Gwei + 15/333), got {}",
         expected_price_after_second, price_after_second_update
     );
+}
+
+/// E2E test: SNIP-35 oracle → fee_proposal → ProposalInit → validate → decision_reached.
+/// Verifies the full flow from STRK/USD oracle price to a fee_proposal that appears in the
+/// built proposal and passes validation.
+#[tokio::test]
+async fn snip35_fee_proposal_e2e_flow() {
+    use apollo_l1_gas_price_types::MockEthToStrkOracleClientTrait;
+
+    use crate::fee_market::{
+        compute_fee_proposal,
+        compute_fee_target,
+        FEE_PROPOSAL_MARGIN_PPT,
+        ORACLE_L2_GAS_FLOOR_MAX_FRI,
+        ORACLE_L2_GAS_FLOOR_MIN_FRI,
+        TARGET_ATTO_USD_PER_L2_GAS,
+    };
+
+    // STRK/USD rate: $0.50 with 18 decimals.
+    const STRK_USD_RATE: u128 = 500_000_000_000_000_000;
+
+    let (mut deps, mut network) = create_test_and_network_deps();
+    deps.setup_deps_for_build(SetupDepsArgs::default());
+
+    // Create a mock oracle that returns the known STRK/USD rate.
+    let mut mock_oracle = MockEthToStrkOracleClientTrait::new();
+    mock_oracle.expect_eth_to_fri_rate().returning(|_| Ok(STRK_USD_RATE));
+    deps.strk_price_oracle = Some(Arc::new(mock_oracle));
+
+    // Build context (SNIP-35 is always enabled with hardcoded constants).
+    let mut context = deps.build_context();
+
+    // Build a proposal.
+    context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
+    let _fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
+
+    // Extract ProposalInit from the network.
+    let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
+    let ProposalPart::Init(init) = receiver.next().await.unwrap() else {
+        panic!("Expected ProposalPart::Init");
+    };
+
+    // Compute the expected fee_proposal.
+    // During initiation (< 10 blocks), fee_actual falls back to l2_gas_price (min_gas_price).
+    let min_gas_price = VersionedConstants::latest_constants().min_gas_price;
+    let fee_target = compute_fee_target(
+        TARGET_ATTO_USD_PER_L2_GAS,
+        STRK_USD_RATE,
+        ORACLE_L2_GAS_FLOOR_MIN_FRI,
+        ORACLE_L2_GAS_FLOOR_MAX_FRI,
+    );
+    let expected_fee_proposal =
+        compute_fee_proposal(Some(fee_target), min_gas_price, FEE_PROPOSAL_MARGIN_PPT);
+
+    assert_eq!(
+        init.fee_proposal, expected_fee_proposal,
+        "fee_proposal in ProposalInit should match: fee_target={fee_target:?}, \
+         min_gas_price={min_gas_price:?}, expected={expected_fee_proposal:?}"
+    );
+    // Sanity: fee_proposal should be nonzero.
+    assert!(init.fee_proposal.0 > 0, "fee_proposal should be nonzero when oracle is active");
 }

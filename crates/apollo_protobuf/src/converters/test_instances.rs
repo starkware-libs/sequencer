@@ -52,6 +52,7 @@ auto_impl_get_test_instance! {
     pub struct L2GasInfo {
         pub next_l2_gas_price_fri: GasPrice,
         pub l2_gas_used: GasAmount,
+        pub fee_proposal: GasPrice,
     }
     pub struct ProposalFinPayload {
         pub commitment_parts: CommitmentParts,
@@ -80,6 +81,7 @@ auto_impl_get_test_instance! {
         pub l1_data_gas_price_wei: GasPrice,
         pub starknet_version: StarknetVersion,
         pub version_constant_commitment: StarkHash,
+        pub fee_proposal: GasPrice,
     }
     pub enum ProposalPart {
         Init(ProposalInit) = 0,

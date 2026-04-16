@@ -59,6 +59,8 @@ message ProposalInit {
     Uint128 l1_data_gas_price_wei     = 12;
     string starknet_version           = 13;
     Hash version_constant_commitment   = 14;
+    // SNIP-35: proposer's recommended fee for future blocks.
+    optional Uint128 fee_proposal      = 15;
 }
 
 message TransactionBatch {
@@ -77,6 +79,8 @@ message CommitmentParts {
 message L2GasInfo {
     Uint128 next_l2_gas_price_fri = 1;
     uint64 l2_gas_used = 2;
+    // SNIP-35: proposer's recommended fee for future blocks.
+    optional Uint128 fee_proposal = 3;
 }
 
 // Optional payload carried in ProposalFin: commitment parts and L2 gas.

@@ -6,7 +6,7 @@
 mod sequencer_consensus_context_test;
 
 use std::cmp::max;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -23,7 +23,7 @@ use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::{ConsensusContext, ConsensusError, ProposalCommitment, Round};
 use apollo_consensus_orchestrator_config::config::ContextConfig;
-use apollo_l1_gas_price_types::L1GasPriceProviderClient;
+use apollo_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderClient};
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
     BuildParam,
@@ -68,7 +68,7 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
-use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
+use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
 use crate::cende::{
@@ -77,12 +77,27 @@ use crate::cende::{
     InternalTransactionWithReceipt,
     N_BLOCK_HASHES_BACK_IN_BLOB,
 };
-use crate::fee_market::{calculate_next_l2_gas_price_for_fin, FeeMarketInfo};
+use crate::fee_market::{
+    calculate_next_l2_gas_price_for_fin,
+    compute_fee_actual,
+    compute_fee_proposal,
+    compute_fee_target,
+    FeeMarketInfo,
+    FEE_PROPOSAL_MARGIN_PPT,
+    FEE_PROPOSAL_WINDOW_SIZE,
+    ORACLE_L2_GAS_FLOOR_MAX_FRI,
+    ORACLE_L2_GAS_FLOOR_MIN_FRI,
+    TARGET_ATTO_USD_PER_L2_GAS,
+};
 use crate::metrics::{
     record_build_proposal_failure,
     record_validate_proposal_failure,
     register_metrics,
     CONSENSUS_L2_GAS_PRICE,
+    SNIP35_FEE_ACTUAL,
+    SNIP35_FEE_PROPOSAL,
+    SNIP35_FEE_TARGET,
+    SNIP35_STRK_USD_RATE,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::utils::{
@@ -228,6 +243,8 @@ pub struct SequencerConsensusContext {
     l2_gas_price: GasPrice,
     l1_da_mode: L1DataAvailabilityMode,
     previous_proposal_init: Option<PreviousProposalInitInfo>,
+    /// SNIP-35: sliding window of recent fee_proposal values (size from config).
+    fee_proposals_window: VecDeque<GasPrice>,
 }
 
 #[derive(Clone)]
@@ -244,6 +261,8 @@ pub struct SequencerConsensusContextDeps {
     // Used to broadcast votes to other consensus nodes.
     pub vote_broadcast_client: BroadcastTopicClient<Vote>,
     pub config_manager_client: Option<SharedConfigManagerClient>,
+    /// STRK/USD price oracle for SNIP-35 dynamic gas pricing. None if disabled.
+    pub strk_price_oracle: Option<Arc<dyn EthToStrkOracleClientTrait>>,
 }
 
 #[derive(thiserror::Error, PartialEq, Debug)]
@@ -262,6 +281,7 @@ impl SequencerConsensusContext {
         } else {
             L1DataAvailabilityMode::Calldata
         };
+        let fee_proposal_window_size = FEE_PROPOSAL_WINDOW_SIZE;
         Self {
             config,
             deps,
@@ -274,6 +294,7 @@ impl SequencerConsensusContext {
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
             previous_proposal_init: None,
+            fee_proposals_window: VecDeque::with_capacity(fee_proposal_window_size),
         }
     }
 
@@ -327,6 +348,7 @@ impl SequencerConsensusContext {
             l2_gas_price,
             l2_gas_consumed: l2_gas_used,
             next_l2_gas_price: self.l2_gas_price,
+            fee_proposal: init.fee_proposal,
             sequencer,
             timestamp: BlockTimestamp(init.timestamp),
             l1_da_mode: init.l1_da_mode,
@@ -348,13 +370,69 @@ impl SequencerConsensusContext {
     /// Returns the next L2 gas price without mutating context. Used when building the fin and when
     /// updating at decision time.
     fn calculate_next_l2_gas_price(&self, height: BlockNumber, l2_gas_used: GasAmount) -> GasPrice {
+        let fee_actual = self.compute_fee_actual();
         calculate_next_l2_gas_price_for_fin(
             self.l2_gas_price,
             height,
             l2_gas_used,
             self.config.dynamic_config.override_l2_gas_price_fri,
             &self.config.dynamic_config.min_l2_gas_price_per_height,
+            fee_actual,
         )
+    }
+
+    /// SNIP-35: compute fee_actual from the sliding window of fee_proposals.
+    fn compute_fee_actual(&self) -> Option<GasPrice> {
+        let proposals: Vec<GasPrice> = self.fee_proposals_window.iter().copied().collect();
+        compute_fee_actual(&proposals, FEE_PROPOSAL_WINDOW_SIZE)
+    }
+
+    /// SNIP-35: push a fee_proposal into the sliding window, evicting the oldest if full.
+    fn push_fee_proposal(&mut self, fee_proposal: GasPrice) {
+        if self.fee_proposals_window.len() >= FEE_PROPOSAL_WINDOW_SIZE {
+            self.fee_proposals_window.pop_front();
+        }
+        self.fee_proposals_window.push_back(fee_proposal);
+    }
+
+    /// SNIP-35: compute the fee_proposal this node should publish.
+    async fn compute_snip35_fee_proposal(&self, timestamp: u64) -> GasPrice {
+        // compute_fee_actual returns None for zero median or insufficient data, falling back to
+        // the current l2_gas_price. This ensures proposer and validator use the same fallback.
+        let fee_actual = self.compute_fee_actual().unwrap_or(self.l2_gas_price);
+        SNIP35_FEE_ACTUAL.set_lossy(fee_actual.0);
+
+        let fee_target = match &self.deps.strk_price_oracle {
+            Some(oracle) => match oracle.eth_to_fri_rate(timestamp).await {
+                Ok(rate) if rate > 0 => {
+                    SNIP35_STRK_USD_RATE.set_lossy(rate);
+                    let target = compute_fee_target(
+                        TARGET_ATTO_USD_PER_L2_GAS,
+                        rate,
+                        ORACLE_L2_GAS_FLOOR_MIN_FRI,
+                        ORACLE_L2_GAS_FLOOR_MAX_FRI,
+                    );
+                    SNIP35_FEE_TARGET.set_lossy(target.0);
+                    Some(target)
+                }
+                Ok(_) => {
+                    warn!("STRK/USD oracle returned zero rate, freezing fee_proposal");
+                    None
+                }
+                Err(e) => {
+                    warn!("STRK/USD oracle error: {e:?}, freezing fee_proposal");
+                    None
+                }
+            },
+            None => {
+                debug!("No STRK/USD oracle configured, freezing fee_proposal");
+                None
+            }
+        };
+
+        let proposal = compute_fee_proposal(fee_target, fee_actual, FEE_PROPOSAL_MARGIN_PPT);
+        SNIP35_FEE_PROPOSAL.set_lossy(proposal.0);
+        proposal
     }
 
     fn update_l2_gas_price(&mut self, height: BlockNumber, l2_gas_used: GasAmount) {
@@ -377,6 +455,7 @@ impl SequencerConsensusContext {
         let DecisionReachedResponse { state_diff, central_objects } = decision_reached_response;
 
         self.update_l2_gas_price(height, l2_gas_used);
+        self.push_fee_proposal(init.fee_proposal);
 
         // A hash map of (possibly failed) transactions, where the key is the transaction hash
         // and the value is the transaction itself.
@@ -554,6 +633,7 @@ impl ConsensusContext for SequencerConsensusContext {
             BehaviorMode::Echonet => true,
             BehaviorMode::Starknet => false,
         };
+        let fee_proposal = self.compute_snip35_fee_proposal(self.deps.clock.unix_now()).await;
         let round = build_param.round;
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),
@@ -587,6 +667,8 @@ impl ConsensusContext for SequencerConsensusContext {
                 .config
                 .dynamic_config
                 .compare_retrospective_block_hash,
+            fee_proposal,
+            fee_actual: self.compute_fee_actual(),
         };
 
         let handle = tokio::spawn(
@@ -652,6 +734,7 @@ impl ConsensusContext for SequencerConsensusContext {
                         .override_l2_gas_price_fri
                         .map(GasPrice)
                         .unwrap_or(self.l2_gas_price),
+                    fee_actual: self.compute_fee_actual(),
                 };
                 self.validate_current_round_proposal(
                     init,
@@ -804,6 +887,9 @@ impl ConsensusContext for SequencerConsensusContext {
             );
             return false;
         }
+        // SNIP-35: push fee_proposal from synced block into the sliding window.
+        self.push_fee_proposal(sync_block.block_header_without_hash.fee_proposal);
+
         self.previous_proposal_init =
             Some(previous_proposal_init_from_block_header(&sync_block.block_header_without_hash));
         self.interrupt_active_proposal().await;
@@ -828,6 +914,21 @@ impl ConsensusContext for SequencerConsensusContext {
         // First or a new (higher) height.
         if self.current_height.is_none_or(|h| height > h) {
             self.update_dynamic_config().await;
+            // SNIP-35: on first height (startup), backfill the fee_proposals window from stored
+            // blocks so fee_actual can be computed immediately. Sequential to maintain insertion
+            // order (oldest first).
+            if self.current_height.is_none() && self.fee_proposals_window.is_empty() {
+                #[allow(clippy::as_conversions)] // FEE_PROPOSAL_WINDOW_SIZE is a small constant.
+                let start = height.0.saturating_sub(FEE_PROPOSAL_WINDOW_SIZE as u64);
+                for h in start..height.0 {
+                    match self.deps.state_sync_client.get_block(BlockNumber(h)).await {
+                        Ok(block) => {
+                            self.push_fee_proposal(block.block_header_without_hash.fee_proposal);
+                        }
+                        Err(_) => break,
+                    }
+                }
+            }
             self.current_height = Some(height);
             self.current_round = round;
             self.queued_proposals.clear();
@@ -888,6 +989,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 .override_l2_gas_price_fri
                 .map(GasPrice)
                 .unwrap_or(self.l2_gas_price),
+            fee_actual: self.compute_fee_actual(),
         };
         self.validate_current_round_proposal(
             init,
@@ -1002,6 +1104,7 @@ async fn send_reproposal(
     stream_sender: &mut StreamSender,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> Result<(), ReproposeError> {
+    let fee_proposal = init.fee_proposal;
     stream_sender.send(ProposalPart::Init(init)).await?;
     for batch in txs.iter() {
         let transactions = futures::future::join_all(batch.iter().map(|tx| {
@@ -1023,6 +1126,7 @@ async fn send_reproposal(
         l2_gas_info: L2GasInfo {
             next_l2_gas_price_fri: next_l2_gas_price,
             l2_gas_used: finished_info.l2_gas_used,
+            fee_proposal,
         },
     };
     let fin = ProposalFin {

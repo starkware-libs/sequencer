@@ -35,6 +35,7 @@ impl BlockHashInput {
                 l1_gas_price: self.header.l1_gas_price,
                 l1_data_gas_price: self.header.l1_data_gas_price,
                 l2_gas_price: self.header.l2_gas_price,
+                fee_proposal: self.header.fee_proposal,
                 sequencer: self.header.sequencer,
                 timestamp: self.header.timestamp,
             },

@@ -236,6 +236,8 @@ pub struct BlockHeaderWithoutHash {
     pub l2_gas_price: GasPricePerToken,
     pub l2_gas_consumed: GasAmount,
     pub next_l2_gas_price: GasPrice,
+    /// SNIP-35: proposer's recommended fee for future blocks.
+    pub fee_proposal: GasPrice,
     pub state_root: GlobalRoot,
     pub sequencer: SequencerContractAddress,
     pub timestamp: BlockTimestamp,

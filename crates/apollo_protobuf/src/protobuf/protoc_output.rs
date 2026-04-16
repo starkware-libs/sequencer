@@ -479,6 +479,9 @@ pub struct ProposalInit {
     pub starknet_version: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "14")]
     pub version_constant_commitment: ::core::option::Option<Hash>,
+    /// SNIP-35: proposer's recommended fee for future blocks.
+    #[prost(message, optional, tag = "15")]
+    pub fee_proposal: ::core::option::Option<Uint128>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -508,6 +511,9 @@ pub struct L2GasInfo {
     pub next_l2_gas_price_fri: ::core::option::Option<Uint128>,
     #[prost(uint64, tag = "2")]
     pub l2_gas_used: u64,
+    /// SNIP-35: proposer's recommended fee for future blocks.
+    #[prost(message, optional, tag = "3")]
+    pub fee_proposal: ::core::option::Option<Uint128>,
 }
 /// Optional payload carried in ProposalFin: commitment parts and L2 gas.
 #[allow(clippy::derive_partial_eq_without_eq)]

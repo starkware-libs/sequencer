@@ -35,6 +35,7 @@ use strum::{EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, instrument, warn};
 
+use crate::fee_market::{FEE_PROPOSAL_MARGIN_PPT, PPT_DENOMINATOR};
 use crate::metrics::{
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
@@ -76,6 +77,8 @@ pub(crate) struct ProposalInitValidation {
     pub previous_proposal_init: Option<PreviousProposalInitInfo>,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub l2_gas_price_fri: GasPrice,
+    /// SNIP-35: fee_actual from the sliding window. None during initiation (<10 blocks).
+    pub fee_actual: Option<GasPrice>,
 }
 
 /// Parameters for deadline and cancellation handling during proposal finalization.
@@ -319,6 +322,30 @@ async fn is_proposal_init_valid(
                  l1_gas_price_margin_percent={l1_gas_price_margin_percent}"
             ),
         ));
+    }
+    // SNIP-35: validate fee_proposal is within the configured margin of fee_actual.
+    // During initiation (fee_actual is None, <window_size blocks), bounds are not enforced.
+    // This is an accepted risk: the SNIP specifies fee_actual = pre-SNIP base fee during
+    // initiation, and the proposer logic enforces this via the l2_gas_price fallback.
+    if let Some(fee_actual) = proposal_init_validation.fee_actual {
+        let fee_proposal = init_proposed.fee_proposal;
+        // fee_actual / (1 + margin) <= fee_proposal <= fee_actual * (1 + margin)
+        let margin_ppt = FEE_PROPOSAL_MARGIN_PPT;
+        let lower_bound =
+            fee_actual.0.saturating_mul(PPT_DENOMINATOR) / (PPT_DENOMINATOR + margin_ppt);
+        let upper_bound =
+            fee_actual.0.saturating_mul(PPT_DENOMINATOR + margin_ppt) / PPT_DENOMINATOR;
+        if fee_proposal.0 < lower_bound || fee_proposal.0 > upper_bound {
+            return Err(ValidateProposalError::InvalidProposalInit(
+                init_proposed.clone(),
+                proposal_init_validation.clone(),
+                format!(
+                    "Fee proposal out of SNIP-35 bounds: fee_actual={}, fee_proposal={}, allowed \
+                     range=[{lower_bound}, {upper_bound}]",
+                    fee_actual.0, fee_proposal.0
+                ),
+            ));
+        }
     }
     Ok(())
 }

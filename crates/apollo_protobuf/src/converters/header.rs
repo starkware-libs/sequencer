@@ -9,6 +9,7 @@ use starknet_api::block::{
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockSignature,
+    GasPrice,
     GasPricePerToken,
     StarknetVersion,
 };
@@ -200,6 +201,7 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
                     l2_gas_price,
                     l2_gas_consumed,
                     next_l2_gas_price,
+                    fee_proposal: GasPrice::default(),
                     state_root,
                     sequencer,
                     timestamp,
