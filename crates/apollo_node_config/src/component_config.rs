@@ -1,17 +1,24 @@
 use std::collections::BTreeMap;
 
 use apollo_config::dumping::{prepend_sub_config_name, SerializeConfig};
-use apollo_config::{ParamPath, SerializedParam};
+use apollo_config::{ConfigError, ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::component_execution_config::{
     ActiveComponentExecutionConfig,
+    ExpectedComponentConfig,
     ReactiveComponentExecutionConfig,
 };
 
 // TODO(Tsabary): consider adding hierarchical structure to the components config based on
 // active/reactive components.
+
+pub trait ValidateTxIngestionComponentsDisabled {
+    /// Validates that all tx-ingestion components (gateway, http_server, mempool, mempool_p2p) are
+    /// disabled, as required for validation-only nodes.
+    fn validate_tx_ingestion_components_disabled(&self) -> Result<(), ConfigError>;
+}
 
 /// The components configuration.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
@@ -123,6 +130,25 @@ impl ComponentConfig {
         self.sierra_compiler.set_url_to_localhost();
         self.signature_manager.set_url_to_localhost();
         self.state_sync.set_url_to_localhost();
+    }
+}
+
+impl ValidateTxIngestionComponentsDisabled for ComponentConfig {
+    fn validate_tx_ingestion_components_disabled(&self) -> Result<(), ConfigError> {
+        let checks = [
+            ("gateway", self.gateway.is_disabled()),
+            ("http_server", self.http_server.is_disabled()),
+            ("mempool", self.mempool.is_disabled()),
+            ("mempool_p2p", self.mempool_p2p.is_disabled()),
+        ];
+        for (name, disabled) in checks {
+            if !disabled {
+                return Err(ConfigError::ComponentConfigMismatch {
+                    component_config_mismatch: format!("{name} must be disabled"),
+                });
+            }
+        }
+        Ok(())
     }
 }
 
