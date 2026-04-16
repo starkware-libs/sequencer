@@ -142,7 +142,7 @@ class TxTransformer:
                 f"Observed L1_HANDLER tx={tx['transaction_hash']} "
                 f"src_bn={tx_data.source_block_number} src_ts={tx_data.source_timestamp}"
             )
-            l1_manager.set_new_tx(tx, tx_data.source_timestamp)
+            l1_manager.set_new_tx(tx, tx_data.source_timestamp, tx_data.source_block_number)
             shared.record_sent_tx(tx["transaction_hash"], tx_data.source_block_number)
             return None
 
