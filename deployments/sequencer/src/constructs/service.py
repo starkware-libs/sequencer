@@ -59,7 +59,7 @@ class ServiceConstruct(BaseConstruct):
             spec=k8s.ServiceSpec(
                 type=self._get_service_type(service_spec),
                 ports=self._get_service_ports(service_spec),
-                selector=self.labels,
+                selector={"service": self.labels["service"]},
                 cluster_ip=service_spec.clusterIP or None,
                 external_i_ps=service_spec.externalIPs or None,
                 load_balancer_ip=service_spec.loadBalancerIP or None,

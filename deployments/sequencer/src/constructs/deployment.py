@@ -29,6 +29,8 @@ class DeploymentConstruct(BaseConstruct):
             self.monitoring_endpoint_port,
         )
 
+        selector_labels = {"service": self.labels["service"]}
+
         return k8s.KubeDeployment(
             self,
             "deployment",
@@ -38,7 +40,7 @@ class DeploymentConstruct(BaseConstruct):
             ),
             spec=k8s.DeploymentSpec(
                 replicas=self.service_config.replicas,
-                selector=k8s.LabelSelector(match_labels=self.labels),
+                selector=k8s.LabelSelector(match_labels=selector_labels),
                 strategy=k8s.DeploymentStrategy(type=self.service_config.updateStrategy.type),
                 template=k8s.PodTemplateSpec(
                     metadata=k8s.ObjectMeta(
