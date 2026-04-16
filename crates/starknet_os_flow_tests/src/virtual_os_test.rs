@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use blockifier::execution::contract_class::TrackedResource;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::get_valid_virtual_os_program_hash;
@@ -7,7 +9,7 @@ use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
-use starknet_api::block::BlockTimestamp;
+use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::core::EthAddress;
 use starknet_api::test_utils::{CURRENT_BLOCK_TIMESTAMP, TEST_SEQUENCER_ADDRESS};
 use starknet_api::transaction::fields::{ProofFacts, TransactionSignature};
@@ -270,4 +272,39 @@ async fn test_reverted_tx_os_error() {
         .build()
         .await
         .run_virtual_expect_error("Reverted transactions are not supported in virtual OS mode");
+}
+
+/// Generates proof fixtures for the proof-flow integration test.
+/// To run manually: `cargo +nightly-2025-07-14 test -p starknet_os_flow_tests --features
+/// starknet_transaction_prover/stwo_proving --release generate_proof_fixtures -- --ignored`
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn generate_proof_fixtures() {
+    let block_info = BlockInfo {
+        block_number: BlockNumber(0),
+        block_timestamp: BlockTimestamp(0),
+        ..BlockInfo::create_for_testing()
+    };
+    let mut test_builder = TestBuilder::<DictStateReader>::create_virtual_with_block_info(
+        block_info,
+        TestBuilderConfig::default(),
+    )
+    .await;
+
+    test_builder.add_fund_address_tx_with_default_amount(*FUNDED_ACCOUNT_ADDRESS);
+
+    let test_runner = test_builder.build().await;
+    let output = test_runner.run_virtual().prove().await;
+
+    let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../apollo_integration_tests/resources/proof_flow");
+    std::fs::create_dir_all(&fixtures_dir).expect("create proof_flow dir");
+    let proof_facts_path = fixtures_dir.join("proof_facts.json");
+    let proof_path = fixtures_dir.join("proof.bin");
+    std::fs::write(
+        &proof_facts_path,
+        serde_json::to_string_pretty(&output.proof_facts).expect("serialize proof_facts"),
+    )
+    .expect("write proof_facts.json");
+    std::fs::write(&proof_path, output.proof.0.as_slice()).expect("write proof.bin");
 }

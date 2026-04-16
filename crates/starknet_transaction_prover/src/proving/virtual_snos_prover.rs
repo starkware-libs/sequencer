@@ -47,7 +47,7 @@ pub struct ProveTransactionResult {
 /// The prover is generic over the runner, allowing different implementations
 /// (RPC-based, mock, etc.) to be used interchangeably.
 #[derive(Clone)]
-pub(crate) struct VirtualSnosProver<R: VirtualSnosRunner> {
+pub struct VirtualSnosProver<R: VirtualSnosRunner> {
     /// Runner for executing the virtual OS.
     runner: R,
     /// Whether to validate that fee-related fields (resource bounds, tip) are zero.
@@ -60,7 +60,7 @@ pub(crate) struct VirtualSnosProver<R: VirtualSnosRunner> {
 }
 
 /// Type alias for the RPC-based virtual SNOS prover.
-pub(crate) type RpcVirtualSnosProver = VirtualSnosProver<RpcRunnerFactory>;
+pub type RpcVirtualSnosProver = VirtualSnosProver<RpcRunnerFactory>;
 
 impl VirtualSnosProver<RpcRunnerFactory> {
     /// Creates a new VirtualSnosProver from configuration.
@@ -292,24 +292,52 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
     /// Generates a proof from the given [`RunnerOutput`] and converts the program output into
     /// proof facts.
     #[cfg(feature = "stwo_proving")]
-    async fn prove_virtual_snos_run(
+    pub async fn prove_virtual_snos_run(
         &self,
         runner_output: RunnerOutput,
     ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
-        use starknet_api::transaction::fields::VIRTUAL_SNOS;
-
-        use crate::proving::prover::prove;
-
-        let prover_output = prove(runner_output.cairo_pie, self.precomputes.clone()).await?;
-        // Convert program output to proof facts using VIRTUAL_SNOS variant marker.
-        let proof_facts = prover_output.program_output.try_into_proof_facts(VIRTUAL_SNOS)?;
-
-        Ok(ProveTransactionResult {
-            proof: prover_output.proof,
-            proof_facts,
-            l2_to_l1_messages: runner_output.l2_to_l1_messages,
-        })
+        prove_virtual_snos_run_with_precomputes(runner_output, self.precomputes.clone()).await
     }
+}
+
+/// Proves a Virtual Starknet OS run fdirectly from a `RunnerOutput`.
+#[cfg(feature = "stwo_proving")]
+pub async fn prove_virtual_snos_run(
+    runner_output: RunnerOutput,
+) -> Result<ProveTransactionResult, VirtualSnosProverError> {
+    let precomputes = prepare_recursive_prover_precomputes()
+        .expect("Failed to prepare recursive prover precomputes");
+    prove_virtual_snos_run_with_precomputes(runner_output, precomputes).await
+}
+
+#[cfg(not(feature = "stwo_proving"))]
+pub async fn prove_virtual_snos_run(
+    _runner_output: RunnerOutput,
+) -> Result<ProveTransactionResult, VirtualSnosProverError> {
+    unimplemented!(
+        "In-memory proving requires the `stwo_proving` feature flag and a nightly Rust \
+         toolchain."
+    );
+}
+
+#[cfg(feature = "stwo_proving")]
+async fn prove_virtual_snos_run_with_precomputes(
+    runner_output: RunnerOutput,
+    precomputes: Arc<RecursiveProverPrecomputes>,
+) -> Result<ProveTransactionResult, VirtualSnosProverError> {
+    use starknet_api::transaction::fields::VIRTUAL_SNOS;
+
+    use crate::proving::prover::prove;
+
+    let prover_output = prove(runner_output.cairo_pie, precomputes).await?;
+    // Convert program output to proof facts using VIRTUAL_SNOS variant marker.
+    let proof_facts = prover_output.program_output.try_into_proof_facts(VIRTUAL_SNOS)?;
+
+    Ok(ProveTransactionResult {
+        proof: prover_output.proof,
+        proof_facts,
+        l2_to_l1_messages: runner_output.l2_to_l1_messages,
+    })
 }
 
 /// Extracts the RPC Invoke V3 transaction, rejecting other transaction types.
