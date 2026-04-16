@@ -14,7 +14,11 @@ COPY scripts/cargo_tool_utils.sh scripts/cargo_tool_utils.sh
 COPY scripts/requirements.txt scripts/requirements.txt
 COPY rust-toolchain.toml .
 
-RUN apt update && apt -y install \
+# If Ubuntu registry is down or slow (30s timeout), use Azure mirror instead.
+RUN (timeout 30s apt-get update \
+    || (sed -i 's%http://\(archive\|security\).ubuntu.com/%http://azure.archive.ubuntu.com/%g' /etc/apt/sources.list.d/ubuntu.sources \
+        && apt-get update)) \
+    && apt -y install \
     bzip2 \
     curl \
     tini \
