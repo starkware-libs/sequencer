@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776260909885,
+  "lastUpdate": 1776406098639,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2549,6 +2549,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1459.5934418800002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "matan.l@starkware.co",
+            "name": "Matan Lior",
+            "username": "matanl-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bc76748a37e660e700cff97b5dd1fb95d1a37c3e",
+          "message": "apollo_versioned_constants,apollo_consensus_orchestrator: extract versioned constants crate (#13777)\n\nExtract orchestrator versioned constants into `apollo_versioned_constants` and move the related JSON/diff fixtures there.\n\nMade-with: Cursor",
+          "timestamp": "2026-04-17T05:48:05Z",
+          "tree_id": "f6a199f07efea91913340aba31a97d72807a7bf8",
+          "url": "https://github.com/starkware-libs/sequencer/commit/bc76748a37e660e700cff97b5dd1fb95d1a37c3e"
+        },
+        "date": 1776406098150,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1025.66182938,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1583.3747243,
             "unit": "ms"
           }
         ]
