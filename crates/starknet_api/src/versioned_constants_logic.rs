@@ -84,7 +84,7 @@ macro_rules! define_versioned_constants {
     ) => {
         // Static (lazy) instances of the versioned constants.
         // For internal use only; for access to a static instance use the `StarknetVersion` enum.
-        paste::paste! {
+        $crate::paste::paste! {
             $(
                 /// Static instance of the versioned constants for the Starknet version.
                 pub static [<VERSIONED_CONSTANTS_ $variant:upper>]: std::sync::LazyLock<$struct_name> =
@@ -114,7 +114,7 @@ macro_rules! define_versioned_constants {
     ) => {
         // Static (lazy) instances of the versioned constants.
         // For internal use only; for access to a static instance use the `StarknetVersion` enum.
-        paste::paste! {
+        $crate::paste::paste! {
             $(
                 /// Static instance of the versioned constants for the Starknet version.
                 pub static [<VERSIONED_CONSTANTS_ $variant:upper>]: std::sync::LazyLock<$struct_name> =
@@ -147,7 +147,7 @@ macro_rules! define_versioned_constants_inner {
         $path_to_diff_dir:literal,
         $(($variant:ident, $path_to_json:expr)),* $(,)?
     ) => {
-        paste::paste! {
+        $crate::paste::paste! {
             $(
                 pub(crate) const [<VERSIONED_CONSTANTS_ $variant:upper _JSON>]: &str =
                     include_str!($path_to_json);
@@ -165,7 +165,7 @@ macro_rules! define_versioned_constants_inner {
                 version: &starknet_api::block::StarknetVersion
             ) -> Result<&'static str, Self::Error> {
                 match version {
-                    $(starknet_api::block::StarknetVersion::$variant => paste::paste! {
+                    $(starknet_api::block::StarknetVersion::$variant => $crate::paste::paste! {
                         Ok([<VERSIONED_CONSTANTS_ $variant:upper _JSON>])
                     },)*
                     _ => Err(Self::Error::InvalidStarknetVersion(*version)),
@@ -183,7 +183,7 @@ macro_rules! define_versioned_constants_inner {
                 match version {
                     $(
                         starknet_api::block::StarknetVersion::$variant => Ok(
-                            & paste::paste! { [<VERSIONED_CONSTANTS_ $variant:upper>] }
+                            & $crate::paste::paste! { [<VERSIONED_CONSTANTS_ $variant:upper>] }
                         ),
                     )*
                     _ => Err(Self::Error::InvalidStarknetVersion(*version)),
