@@ -27,7 +27,11 @@ use apollo_l1_gas_price_types::errors::{
     L1GasPriceClientError,
     L1GasPriceProviderError,
 };
-use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
+use apollo_l1_gas_price_types::{
+    MockExchangeRateOracleClientTrait,
+    MockL1GasPriceProviderClient,
+    PriceInfo,
+};
 use apollo_protobuf::consensus::{
     BuildParam,
     CommitmentParts,
@@ -89,6 +93,7 @@ fn expected_l2_gas_info_for_build_proposal_defaults() -> L2GasInfo {
         l2_gas_used: GasAmount(0),
     }
 }
+use crate::snip35::{compute_fee_actual, FEE_PROPOSAL_WINDOW_SIZE};
 use crate::utils::{apply_fee_transformations, make_gas_price_params};
 
 const TEST_PROPOSAL_COMMITMENT: ProposalCommitment = ProposalCommitment(PARTIAL_BLOCK_HASH.0);
@@ -1600,4 +1605,138 @@ async fn test_initialize_fee_proposals_window(
     let mut context = deps.build_context();
     context.initialize_fee_proposals_window(start_height).await.unwrap();
     assert_eq!(context.fee_proposals_window, expected_window);
+}
+
+#[derive(Clone)]
+enum OracleBehavior {
+    /// No oracle is configured (`strk_to_usd_oracle = None`).
+    NotConfigured,
+    /// Oracle is configured and `fetch_rate` returns `Ok(rate)`.
+    Ok(u128),
+    /// Oracle is configured and `fetch_rate` returns `Err(_)`.
+    Err,
+}
+
+// fee_actual = 10 gwei => margin bounds [9_980_039_920, 10_020_000_000].
+#[rstest]
+#[case::no_fee_actual_freezes_at_l2_gas_price(
+    None,
+    OracleBehavior::NotConfigured,
+    GasPrice(7_000_000_000),
+    GasPrice(7_000_000_000)
+)]
+#[case::no_oracle_freezes_at_fee_actual(
+    Some(GasPrice(10_000_000_000)),
+    OracleBehavior::NotConfigured,
+    GasPrice(7_000_000_000),
+    GasPrice(10_000_000_000)
+)]
+#[case::oracle_zero_rate_freezes_at_fee_actual(
+    Some(GasPrice(10_000_000_000)),
+    OracleBehavior::Ok(0),
+    GasPrice(7_000_000_000),
+    GasPrice(10_000_000_000)
+)]
+#[case::oracle_err_freezes_at_fee_actual(
+    Some(GasPrice(10_000_000_000)),
+    OracleBehavior::Err,
+    GasPrice(7_000_000_000),
+    GasPrice(10_000_000_000)
+)]
+#[case::oracle_target_in_bounds_returns_target(
+    Some(GasPrice(10_000_000_000)),
+    OracleBehavior::Ok(300_000_000_000_000_000),
+    GasPrice(7_000_000_000),
+    GasPrice(10_000_000_000)
+)]
+#[case::oracle_target_above_clamps_to_upper(
+    Some(GasPrice(10_000_000_000)),
+    OracleBehavior::Ok(1),
+    GasPrice(7_000_000_000),
+    GasPrice(10_020_000_000)
+)]
+#[case::oracle_target_below_clamps_to_lower(
+    Some(GasPrice(10_000_000_000)),
+    OracleBehavior::Ok(1_000_000_000_000_000_000_000),
+    GasPrice(7_000_000_000),
+    GasPrice(9_980_039_920)
+)]
+#[tokio::test]
+async fn test_compute_snip35_fee_proposal(
+    #[case] fee_actual: Option<GasPrice>,
+    #[case] oracle_behavior: OracleBehavior,
+    #[case] l2_gas_price: GasPrice,
+    #[case] expected_fee_proposal: GasPrice,
+) {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    deps.strk_to_usd_oracle = match oracle_behavior {
+        OracleBehavior::NotConfigured => None,
+        OracleBehavior::Ok(rate) => {
+            let mut mock = MockExchangeRateOracleClientTrait::new();
+            mock.expect_fetch_rate().returning(move |_| Ok(rate));
+            Some(Arc::new(mock))
+        }
+        OracleBehavior::Err => {
+            let mut mock = MockExchangeRateOracleClientTrait::new();
+            mock.expect_fetch_rate().returning(|_| {
+                Err(ExchangeRateOracleClientError::RequestError("test".to_string()))
+            });
+            Some(Arc::new(mock))
+        }
+    };
+
+    let mut context = deps.build_context();
+    context.l2_gas_price = l2_gas_price;
+    let proposal = context.compute_snip35_fee_proposal(fee_actual, 0).await;
+    assert_eq!(proposal, expected_fee_proposal);
+}
+
+#[tokio::test]
+async fn test_compute_snip35_fee_proposal_converges_to_oracle_target() {
+    // (strk_usd_rate, fee_target, n_blocks_until_convergence_with_buffer).
+    // 75 gwei bootstrap -> 100 gwei target at +33% reaches by block ~795.
+    // 100 gwei -> 60 gwei at -40% reaches by block ~1410.
+    let phases: [(u128, GasPrice, u64); 2] = [
+        (30_000_000_000_000_000, GasPrice(100_000_000_000), 800),
+        (50_000_000_000_000_000, GasPrice(60_000_000_000), 1420),
+    ];
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    let mut mock = MockExchangeRateOracleClientTrait::new();
+    let mut seq = mockall::Sequence::new();
+    for &(rate, _, n_blocks) in &phases {
+        mock.expect_fetch_rate()
+            .times(usize::try_from(n_blocks).unwrap())
+            .in_sequence(&mut seq)
+            .returning(move |_| Ok(rate));
+    }
+    deps.strk_to_usd_oracle = Some(Arc::new(mock));
+    let mut context = deps.build_context();
+
+    // Bootstrap the window with 75 gwei (the $0.04 target).
+    let window_size = u64::try_from(FEE_PROPOSAL_WINDOW_SIZE).unwrap();
+    for h in 0..window_size {
+        context.record_fee_proposal(BlockNumber(h), Some(GasPrice(75_000_000_000)));
+    }
+
+    let mut height = window_size;
+    for (phase_idx, (_, fee_target, n_blocks)) in phases.into_iter().enumerate() {
+        for _ in 0..n_blocks {
+            let h = BlockNumber(height);
+            let fee_actual = compute_fee_actual(&context.fee_proposals_window, h)
+                .expect("window stays complete across the loop");
+            let proposal = context.compute_snip35_fee_proposal(Some(fee_actual), 0).await;
+            context.record_fee_proposal(h, Some(proposal));
+            height += 1;
+        }
+        let final_fee_actual =
+            compute_fee_actual(&context.fee_proposals_window, BlockNumber(height))
+                .expect("window stays complete across the loop");
+        assert_eq!(
+            final_fee_actual, fee_target,
+            "phase {phase_idx}: fee_actual did not reach fee_target after {n_blocks} blocks",
+        );
+    }
 }
