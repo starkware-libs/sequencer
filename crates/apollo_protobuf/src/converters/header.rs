@@ -205,6 +205,7 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
                     timestamp,
                     l1_da_mode,
                     starknet_version,
+                    fee_proposal_fri: None,
                 },
                 state_diff_commitment,
                 state_diff_length,
