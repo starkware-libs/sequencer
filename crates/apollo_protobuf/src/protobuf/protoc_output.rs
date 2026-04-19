@@ -479,6 +479,9 @@ pub struct ProposalInit {
     pub starknet_version: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "14")]
     pub version_constant_commitment: ::core::option::Option<Hash>,
+    /// SNIP-35: proposer's recommended fee for future blocks. Present iff Starknet version >= V0_14_3.
+    #[prost(message, optional, tag = "15")]
+    pub fee_proposal_fri: ::core::option::Option<Uint128>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
