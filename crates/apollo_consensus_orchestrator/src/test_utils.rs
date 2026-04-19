@@ -429,7 +429,8 @@ pub(crate) fn proposal_init(height: BlockNumber, round: u32) -> ProposalInit {
         l1_data_gas_price_wei,
         starknet_version: starknet_api::block::StarknetVersion::LATEST,
         version_constant_commitment: Default::default(),
-        fee_proposal_fri: None,
+        // SNIP-35: required because LATEST >= V0_14_3.
+        fee_proposal_fri: Some(GasPrice::default()),
     }
 }
 
