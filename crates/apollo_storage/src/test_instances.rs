@@ -46,6 +46,7 @@ auto_impl_get_test_instance! {
         pub state_diff_length: Option<usize>,
         pub n_transactions: usize,
         pub n_events: usize,
+        pub fee_proposal: GasPrice,
     }
 
     struct EventIndex(pub TransactionIndex, pub EventIndexInTransactionOutput);
