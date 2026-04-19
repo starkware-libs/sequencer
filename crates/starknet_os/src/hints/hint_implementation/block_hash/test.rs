@@ -136,6 +136,7 @@ fn test_block_hash_cairo() {
         },
         l2_gas_price: GasPricePerToken { price_in_wei: GasPrice(14), price_in_fri: GasPrice(15) },
         starknet_version: StarknetVersion::LATEST,
+        fee_proposal: GasPrice::default(),
     };
     let state_root = Felt::from(16);
     let previous_block_hash = Felt::from(17);
