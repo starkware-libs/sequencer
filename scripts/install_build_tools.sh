@@ -112,6 +112,13 @@ for pid in "${pids[@]}"; do
 done
 (( $failed )) && exit 1
 log_step "install_build_tools" "Parallel installations completed"
+
+# Install the project-specific toolchain from rust-toolchain.toml before running
+# cargo install commands, so cargo doesn't try to use a toolchain that isn't installed yet.
+log_step "install_build_tools" "Installing project Rust toolchain from rust-toolchain.toml..."
+(cd "${SCRIPT_DIR}/.." && rustup toolchain install && rustup component add rustc cargo)
+log_step "install_build_tools" "Project Rust toolchain installed: $(rustc --version)"
+
 log_step "install_build_tools" "Running install_cargo_tools.sh..."
 ${SCRIPT_DIR}/install_cargo_tools.sh
 log_step "install_build_tools" "install_cargo_tools.sh completed"
