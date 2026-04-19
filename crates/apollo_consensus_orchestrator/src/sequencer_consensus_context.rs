@@ -6,7 +6,7 @@
 mod sequencer_consensus_context_test;
 
 use std::cmp::max;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -91,6 +91,7 @@ use crate::metrics::{
     register_metrics,
     CONSENSUS_L2_GAS_PRICE,
 };
+use crate::snip35::FEE_PROPOSAL_WINDOW_SIZE;
 use crate::utils::{
     convert_to_sn_api_block_info,
     make_gas_price_params,
@@ -234,6 +235,9 @@ pub struct SequencerConsensusContext {
     l2_gas_price: GasPrice,
     l1_da_mode: L1DataAvailabilityMode,
     previous_proposal_init: Option<PreviousProposalInitInfo>,
+    /// SNIP-35: sliding window of recent fee_proposal values (size from
+    /// `FEE_PROPOSAL_WINDOW_SIZE`).
+    fee_proposals_window: VecDeque<GasPrice>,
 }
 
 #[derive(Clone)]
@@ -284,6 +288,42 @@ impl SequencerConsensusContext {
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
             previous_proposal_init: None,
+            fee_proposals_window: VecDeque::with_capacity(FEE_PROPOSAL_WINDOW_SIZE),
+        }
+    }
+
+    /// FIFO append into the SNIP-35 sliding window.
+    fn push_fee_proposal(&mut self, fee_proposal: GasPrice) {
+        if self.fee_proposals_window.len() >= FEE_PROPOSAL_WINDOW_SIZE {
+            self.fee_proposals_window.pop_front();
+        }
+        self.fee_proposals_window.push_back(fee_proposal);
+    }
+
+    /// SNIP-35: backfill the fee_proposals window from state_sync on startup so `fee_actual` is
+    /// available immediately. Pre-V0_14_3 blocks return `Ok` with `fee_proposal_fri == None` and
+    /// contribute nothing; an `Err` from state_sync means the block could not be retrieved, so we
+    /// log and stop backfilling.
+    async fn backfill_fee_proposals_window(&mut self, height: BlockNumber) {
+        let window_size =
+            u64::try_from(FEE_PROPOSAL_WINDOW_SIZE).expect("FEE_PROPOSAL_WINDOW_SIZE fits in u64");
+        let start = height.0.saturating_sub(window_size);
+        for h in start..height.0 {
+            match self.deps.state_sync_client.get_block(BlockNumber(h)).await {
+                Ok(block) => {
+                    if let Some(fee_proposal) = block.block_header_without_hash.fee_proposal_fri {
+                        self.push_fee_proposal(fee_proposal);
+                    }
+                }
+                Err(e) => {
+                    warn!(
+                        "SNIP-35 backfill failed at block {h}: {e:?}. Window has {} / \
+                         {FEE_PROPOSAL_WINDOW_SIZE} entries.",
+                        self.fee_proposals_window.len()
+                    );
+                    break;
+                }
+            }
         }
     }
 
@@ -389,6 +429,9 @@ impl SequencerConsensusContext {
         let DecisionReachedResponse { state_diff, central_objects } = decision_reached_response;
 
         self.update_l2_gas_price(height, l2_gas_used);
+        if let Some(fee_proposal) = init.fee_proposal_fri {
+            self.push_fee_proposal(fee_proposal);
+        }
 
         // A hash map of (possibly failed) transactions, where the key is the transaction hash
         // and the value is the transaction itself.
@@ -841,6 +884,10 @@ impl ConsensusContext for SequencerConsensusContext {
             sync_block.block_header_without_hash.next_l2_gas_price,
             VersionedConstants::latest_constants().min_gas_price,
         );
+        if let Some(fee_proposal) = sync_block.block_header_without_hash.fee_proposal_fri {
+            self.push_fee_proposal(fee_proposal);
+        }
+
         // TODO(Asmaa): validate starknet_version and parent_hash when they are stored.
         let block_number = sync_block.block_header_without_hash.block_number;
         let timestamp = sync_block.block_header_without_hash.timestamp;
@@ -896,6 +943,10 @@ impl ConsensusContext for SequencerConsensusContext {
                 self.l2_gas_price = max(self.l2_gas_price, min_gas_price_for_height);
                 let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
                 CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
+            }
+            // SNIP-35: on first height, backfill the window so fee_actual is available immediately.
+            if self.current_height.is_none() && self.fee_proposals_window.is_empty() {
+                self.backfill_fee_proposals_window(height).await;
             }
             self.current_height = Some(height);
             self.current_round = round;
