@@ -116,16 +116,14 @@ log_step "install_build_tools" "Parallel installations completed"
 # Install the project-specific toolchain from rust-toolchain.toml before running
 # cargo install commands, so cargo doesn't try to use a toolchain that isn't installed yet.
 # Using pushd/popd rather than a subshell so that `set -e` can't be silently masked.
-# A plain `rustup toolchain install` is a no-op when rustup already has a partial
-# toolchain stub from its initial setup, leaving rustc/cargo missing; in that case we
-# retry with --force to pull all components declared in rust-toolchain.toml.
+# rustup creates a toolchain stub from rust-toolchain.toml during its initial setup
+# but doesn't populate components; `rustup toolchain install` (even with --force) is a
+# no-op in that case, so we explicitly add the profile=default components plus the
+# extras listed in rust-toolchain.toml ([toolchain].components) to the active toolchain.
 log_step "install_build_tools" "Installing project Rust toolchain from rust-toolchain.toml..."
 pushd "${SCRIPT_DIR}/.." > /dev/null
 rustup toolchain install
-if ! rustc --version > /dev/null 2>&1; then
-    log_step "install_build_tools" "Toolchain stub missing components; reinstalling with --force..."
-    rustup toolchain install --force
-fi
+rustup component add rustc cargo rust-std rustdoc rustfmt clippy rustc-dev
 popd > /dev/null
 log_step "install_build_tools" "Project Rust toolchain installed: $(rustc --version)"
 
