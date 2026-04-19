@@ -1,75 +1,72 @@
+use std::collections::BTreeMap;
+
 use rstest::rstest;
-use starknet_api::block::GasPrice;
+use starknet_api::block::{BlockNumber, GasPrice};
 
 use crate::snip35::{compute_fee_actual, compute_fee_proposal, compute_fee_target};
 
 const FRI_DECIMALS_SCALE: u128 = 10u128.pow(18);
-const FLOOR_MIN_FRI: u128 = 100;
-const FLOOR_MAX_FRI: u128 = 1000;
+
+fn window_from(
+    entries: impl IntoIterator<Item = (u64, Option<GasPrice>)>,
+) -> BTreeMap<BlockNumber, Option<GasPrice>> {
+    entries.into_iter().map(|(h, v)| (BlockNumber(h), v)).collect()
+}
 
 #[test]
 fn test_compute_fee_actual_random_window() {
-    // 12 values with window_size=10: takes the last 10 (indices 2..11).
-    // Excluded values at indices 0..1 are [314, 1729]; including them would shift the median.
+    // The window for height 12 is heights [2, 11]; including heights 0..1 would shift the
+    // median.
     // Sorted window: [1, 17, 42, 87, 100, 271, 999, 1024, 6000, 9999].
     // Even-length median = sorted[4] + (sorted[5] - sorted[4]) / 2 = 100 + 85 = 185.
     //
     // Buggy alternatives (for catching off-by-one or wrong-end-of-window bugs):
-    // - First 10 instead of last 10: sorted = [1, 42, 87, 100, 271, 314, 1024, 1729, 6000, 9999],
+    // - Heights 0..9 instead of 2..11: sorted = [1, 42, 87, 100, 271, 314, 1024, 1729, 6000, 9999],
     //   median = 271 + (314 - 271) / 2 = 292.
-    // - All 12 (window_size ignored): sorted[5..7] = [271, 314], median = 292.
-    let proposals = vec![
-        GasPrice(314),
-        GasPrice(1729),
-        GasPrice(42),
-        GasPrice(1024),
-        GasPrice(100),
-        GasPrice(9999),
-        GasPrice(87),
-        GasPrice(271),
-        GasPrice(1),
-        GasPrice(6000),
-        GasPrice(17),
-        GasPrice(999),
-    ];
-    assert_eq!(compute_fee_actual(&proposals, 10), Some(GasPrice(185)));
-}
-
-#[test]
-fn test_compute_fee_actual_window_size_one_returns_most_recent() {
-    let proposals = vec![GasPrice(100), GasPrice(200), GasPrice(300)];
-    assert_eq!(compute_fee_actual(&proposals, 1), Some(GasPrice(300)));
+    // - All 12 (window-size ignored): sorted[5..7] = [271, 314], median = 292.
+    let values: [u128; 12] = [314, 1729, 42, 1024, 100, 9999, 87, 271, 1, 6000, 17, 999];
+    let window = window_from((0u64..).zip(values).map(|(h, v)| (h, Some(GasPrice(v)))));
+    assert_eq!(compute_fee_actual(&window, BlockNumber(12)), Some(GasPrice(185)));
 }
 
 #[rstest]
-#[case::window_size_zero(vec![GasPrice(100); 10], 0)]
-#[case::fewer_proposals_than_window(vec![GasPrice(100); 9], 10)]
-#[case::all_zero_median(vec![GasPrice(0); 10], 10)]
+// Heights [0, 9] needed for fee_actual at height 10; height 5 is missing.
+#[case::missing_entry(
+    window_from((0u64..10).filter(|h| *h != 5).map(|h| (h, Some(GasPrice(100))))),
+    BlockNumber(10),
+)]
+// Heights [0, 9] needed; height 7 is recorded as None (pre-SNIP-35 block).
+#[case::none_entry(
+    window_from((0u64..10).map(|h| (h, (h != 7).then_some(GasPrice(100))))),
+    BlockNumber(10),
+)]
+// `current_height < FEE_PROPOSAL_WINDOW_SIZE`: the range cannot cover 10 prior heights.
+#[case::height_below_window_size(
+    window_from((0u64..5).map(|h| (h, Some(GasPrice(100))))),
+    BlockNumber(5),
+)]
 fn test_compute_fee_actual_returns_none(
-    #[case] proposals: Vec<GasPrice>,
-    #[case] window_size: usize,
+    #[case] window: BTreeMap<BlockNumber, Option<GasPrice>>,
+    #[case] height: BlockNumber,
 ) {
-    assert_eq!(compute_fee_actual(&proposals, window_size), None);
+    assert_eq!(compute_fee_actual(&window, height), None);
 }
 
 #[rstest]
 // Target: $3e-9/gas = 3_000_000_000 atto-USD. STRK at $0.50 = 500_000_000_000_000_000.
 // floor = 3_000_000_000 * 10^18 / 500_000_000_000_000_000 = 6_000_000_000.
-#[case::normal(3_000_000_000, 500_000_000_000_000_000, 0, u128::MAX, GasPrice(6_000_000_000))]
-// floor = 1 * 10^18 / 10^18 = 1, clamped up to FLOOR_MIN_FRI.
-#[case::clamp_min(1, FRI_DECIMALS_SCALE, FLOOR_MIN_FRI, u128::MAX, GasPrice(FLOOR_MIN_FRI))]
-// Very low STRK price → very high floor, clamped down to FLOOR_MAX_FRI.
-#[case::clamp_max(FRI_DECIMALS_SCALE, 1, 0, FLOOR_MAX_FRI, GasPrice(FLOOR_MAX_FRI))]
-#[case::zero_rate_returns_max(FRI_DECIMALS_SCALE, 0, 0, FLOOR_MAX_FRI, GasPrice(FLOOR_MAX_FRI))]
+#[case::normal(3_000_000_000, 500_000_000_000_000_000, GasPrice(6_000_000_000))]
+// floor = 1 * 10^18 / 10^18 = 1.
+#[case::low_target(1, FRI_DECIMALS_SCALE, GasPrice(1))]
+// Extreme target with rate=1: numerator = u128::MAX * 10^18 overflows u128;
+// `u128::try_from` saturates the result to u128::MAX.
+#[case::saturates_at_u128_max(u128::MAX, 1, GasPrice(u128::MAX))]
 fn test_compute_fee_target(
     #[case] target_atto_usd_per_l2_gas: u128,
     #[case] strk_usd_rate: u128,
-    #[case] floor_min_fri: u128,
-    #[case] floor_max_fri: u128,
     #[case] expected: GasPrice,
 ) {
-    let actual =
-        compute_fee_target(target_atto_usd_per_l2_gas, strk_usd_rate, floor_min_fri, floor_max_fri);
+    let actual = compute_fee_target(target_atto_usd_per_l2_gas, strk_usd_rate);
     assert_eq!(actual, expected);
 }
 
