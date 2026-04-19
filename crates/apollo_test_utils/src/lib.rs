@@ -450,6 +450,7 @@ auto_impl_get_test_instance! {
         pub timestamp: BlockTimestamp,
         pub l1_da_mode: L1DataAvailabilityMode,
         pub starknet_version: StarknetVersion,
+        pub fee_proposal_fri: GasPrice,
     }
     pub struct BlockHeaderCommitments {
         pub transaction_commitment: TransactionCommitment,
@@ -751,6 +752,7 @@ auto_impl_get_test_instance! {
         pub sequencer: SequencerContractAddress,
         pub timestamp: BlockTimestamp,
         pub starknet_version: StarknetVersion,
+        pub fee_proposal_fri: GasPrice,
     }
     pub struct PaymasterData(pub Vec<Felt>);
     pub struct PoseidonHash(pub Felt);
