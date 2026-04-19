@@ -1,5 +1,5 @@
 {
-  "batcher_config.dynamic_config.n_concurrent_txs": 100,
+  "batcher_config.dynamic_config.n_concurrent_txs": "$$$_BATCHER_CONFIG-DYNAMIC_CONFIG-N_CONCURRENT_TXS_$$$",
   "batcher_config.dynamic_config.proposer_idle_detection_delay_millis": "$$$_BATCHER_CONFIG-DYNAMIC_CONFIG-PROPOSER_IDLE_DETECTION_DELAY_MILLIS_$$$",
   "batcher_config.dynamic_config.storage_reader_server_dynamic_config.enable": false,
   "batcher_config.dynamic_config.tx_polling_interval_millis": 200,

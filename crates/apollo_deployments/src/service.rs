@@ -40,6 +40,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "base_layer_config.bpo2_start_block_number",
     "base_layer_config.fusaka_no_bpo_start_block_number",
     "base_layer_config.starknet_contract_address",
+    "batcher_config.dynamic_config.n_concurrent_txs",
     "batcher_config.dynamic_config.proposer_idle_detection_delay_millis",
     "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.n_events",
     "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size",
