@@ -2,6 +2,7 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 
 use starknet_api::transaction::fields::Proof;
+use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 use tokio::io::AsyncWriteExt;
@@ -13,9 +14,22 @@ mod proof_storage_test;
 #[async_trait::async_trait]
 pub trait ProofStorage: Send + Sync {
     type Error: Error;
-    async fn set_proof(&self, facts_hash: Felt, proof: Proof) -> Result<(), Self::Error>;
-    async fn get_proof(&self, facts_hash: Felt) -> Result<Option<Proof>, Self::Error>;
-    async fn contains_proof(&self, facts_hash: Felt) -> Result<bool, Self::Error>;
+    async fn set_proof(
+        &self,
+        facts_hash: Felt,
+        tx_hash: TransactionHash,
+        proof: Proof,
+    ) -> Result<(), Self::Error>;
+    async fn get_proof(
+        &self,
+        facts_hash: Felt,
+        tx_hash: TransactionHash,
+    ) -> Result<Option<Proof>, Self::Error>;
+    async fn contains_proof(
+        &self,
+        facts_hash: Felt,
+        tx_hash: TransactionHash,
+    ) -> Result<bool, Self::Error>;
 }
 
 #[derive(Debug, Error)]
@@ -40,27 +54,30 @@ impl FsProofStorage {
         Ok(Self { persistent_root })
     }
 
-    /// Returns the directory that will hold the proof of a certain proof facts hash.
-    /// For a proof facts hash: 0xa1b2c3d4... (rest of hash), the structure is:
+    /// Returns the directory that will hold the proof of a certain proof facts hash and tx hash.
+    /// For a proof facts hash: 0xa1b2c3d4... and tx hash, the structure is:
     /// a1/
     /// └── b2/
     ///     └── a1b2c3d4.../
-    fn get_proof_dir(&self, facts_hash: Felt) -> PathBuf {
-        let facts_hash = hex::encode(facts_hash.to_bytes_be());
-        let (first_msb_byte, second_msb_byte, _rest_of_bytes) =
-            (&facts_hash[..2], &facts_hash[2..4], &facts_hash[4..]);
-        PathBuf::from(first_msb_byte).join(second_msb_byte).join(facts_hash)
+    ///         └── <tx_hash_hex>/
+    fn get_proof_dir(&self, facts_hash: Felt, tx_hash: TransactionHash) -> PathBuf {
+        let facts_hash_hex = hex::encode(facts_hash.to_bytes_be());
+        let (first_msb_byte, second_msb_byte, _rest) =
+            (&facts_hash_hex[..2], &facts_hash_hex[2..4], &facts_hash_hex[4..]);
+        let tx_hash_hex = hex::encode(tx_hash.0.to_bytes_be());
+        PathBuf::from(first_msb_byte).join(second_msb_byte).join(&facts_hash_hex).join(tx_hash_hex)
     }
 
-    fn get_persistent_dir(&self, facts_hash: Felt) -> PathBuf {
-        self.persistent_root.join(self.get_proof_dir(facts_hash))
+    fn get_persistent_dir(&self, facts_hash: Felt, tx_hash: TransactionHash) -> PathBuf {
+        self.persistent_root.join(self.get_proof_dir(facts_hash, tx_hash))
     }
 
     async fn get_persistent_dir_with_create(
         &self,
         facts_hash: Felt,
+        tx_hash: TransactionHash,
     ) -> FsProofStorageResult<PathBuf> {
-        let path = self.get_persistent_dir(facts_hash);
+        let path = self.get_persistent_dir(facts_hash, tx_hash);
         if let Some(parent) = path.parent() {
             tokio::fs::create_dir_all(parent).await?;
         }
@@ -71,9 +88,10 @@ impl FsProofStorage {
     async fn create_tmp_dir(
         &self,
         facts_hash: Felt,
+        tx_hash: TransactionHash,
     ) -> FsProofStorageResult<(tempfile::TempDir, PathBuf)> {
-        // Compute the final persistent directory for this `facts_hash`
-        let persistent_dir = self.get_persistent_dir(facts_hash);
+        // Compute the final persistent directory for this `facts_hash` and `tx_hash`
+        let persistent_dir = self.get_persistent_dir(facts_hash, tx_hash);
         let parent_dir = persistent_dir
             .parent()
             .expect("Proof persistent dir should have a parent")
@@ -106,8 +124,12 @@ impl FsProofStorage {
     }
 
     /// Reads a proof from a file in binary format.
-    async fn read_proof_from_file(&self, facts_hash: Felt) -> FsProofStorageResult<Proof> {
-        let file_path = self.get_persistent_dir(facts_hash).join("proof");
+    async fn read_proof_from_file(
+        &self,
+        facts_hash: Felt,
+        tx_hash: TransactionHash,
+    ) -> FsProofStorageResult<Proof> {
+        let file_path = self.get_persistent_dir(facts_hash, tx_hash).join("proof");
         let buffer = tokio::fs::read(&file_path).await?;
         Ok(Proof::from(buffer))
     }
@@ -115,17 +137,19 @@ impl FsProofStorage {
     async fn write_proof_atomically(
         &self,
         facts_hash: Felt,
+        tx_hash: TransactionHash,
         proof: Proof,
     ) -> FsProofStorageResult<()> {
         // Write proof to a temporary directory.
-        let (_tmp_root, tmp_dir) = self.create_tmp_dir(facts_hash).await?;
+        let (_tmp_root, tmp_dir) = self.create_tmp_dir(facts_hash, tx_hash).await?;
         self.write_proof_to_file(&tmp_dir, &proof).await?;
 
         // Atomically rename directory to persistent one.
         // If a concurrent write already placed the proof at the persistent path, the rename
         // will fail (e.g. ENOTEMPTY on Linux). Since proofs are deterministic for a given
-        // facts_hash, the existing proof is identical and we can safely treat this as success.
-        let persistent_dir = self.get_persistent_dir_with_create(facts_hash).await?;
+        // facts_hash and tx_hash, the existing proof is identical and we can safely treat this as
+        // success.
+        let persistent_dir = self.get_persistent_dir_with_create(facts_hash, tx_hash).await?;
         match tokio::fs::rename(&tmp_dir, &persistent_dir).await {
             Ok(()) => Ok(()),
             Err(_)
@@ -142,16 +166,25 @@ impl FsProofStorage {
 impl ProofStorage for FsProofStorage {
     type Error = FsProofStorageError;
 
-    async fn set_proof(&self, facts_hash: Felt, proof: Proof) -> Result<(), Self::Error> {
-        self.write_proof_atomically(facts_hash, proof).await
+    async fn set_proof(
+        &self,
+        facts_hash: Felt,
+        tx_hash: TransactionHash,
+        proof: Proof,
+    ) -> Result<(), Self::Error> {
+        self.write_proof_atomically(facts_hash, tx_hash, proof).await
     }
 
-    async fn get_proof(&self, facts_hash: Felt) -> Result<Option<Proof>, Self::Error> {
-        if !self.contains_proof(facts_hash).await? {
+    async fn get_proof(
+        &self,
+        facts_hash: Felt,
+        tx_hash: TransactionHash,
+    ) -> Result<Option<Proof>, Self::Error> {
+        if !self.contains_proof(facts_hash, tx_hash).await? {
             return Ok(None);
         }
 
-        match self.read_proof_from_file(facts_hash).await {
+        match self.read_proof_from_file(facts_hash, tx_hash).await {
             Ok(proof) => Ok(Some(proof)),
             Err(FsProofStorageError::IoError(e)) if e.kind() == std::io::ErrorKind::NotFound => {
                 Ok(None)
@@ -160,7 +193,11 @@ impl ProofStorage for FsProofStorage {
         }
     }
 
-    async fn contains_proof(&self, facts_hash: Felt) -> Result<bool, Self::Error> {
-        Ok(tokio::fs::try_exists(self.get_persistent_dir(facts_hash)).await?)
+    async fn contains_proof(
+        &self,
+        facts_hash: Felt,
+        tx_hash: TransactionHash,
+    ) -> Result<bool, Self::Error> {
+        Ok(tokio::fs::try_exists(self.get_persistent_dir(facts_hash, tx_hash)).await?)
     }
 }

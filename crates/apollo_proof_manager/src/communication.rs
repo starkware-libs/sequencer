@@ -13,21 +13,25 @@ pub type RemoteProofManagerServer =
 impl ComponentRequestHandler<ProofManagerRequest, ProofManagerResponse> for ProofManager {
     async fn handle_request(&mut self, request: ProofManagerRequest) -> ProofManagerResponse {
         match request {
-            ProofManagerRequest::SetProof(proof_facts, proof) => ProofManagerResponse::SetProof(
-                self.set_proof(proof_facts, proof)
+            ProofManagerRequest::SetProof(proof_facts, tx_hash, proof) => {
+                ProofManagerResponse::SetProof(
+                    self.set_proof(proof_facts, tx_hash, proof)
+                        .await
+                        .map_err(|e| ProofManagerError::ProofStorage(e.to_string())),
+                )
+            }
+            ProofManagerRequest::GetProof(proof_facts, tx_hash) => ProofManagerResponse::GetProof(
+                self.get_proof(proof_facts, tx_hash)
                     .await
                     .map_err(|e| ProofManagerError::ProofStorage(e.to_string())),
             ),
-            ProofManagerRequest::GetProof(proof_facts) => ProofManagerResponse::GetProof(
-                self.get_proof(proof_facts)
-                    .await
-                    .map_err(|e| ProofManagerError::ProofStorage(e.to_string())),
-            ),
-            ProofManagerRequest::ContainsProof(proof_facts) => ProofManagerResponse::ContainsProof(
-                self.contains_proof(proof_facts)
-                    .await
-                    .map_err(|e| ProofManagerError::ProofStorage(e.to_string())),
-            ),
+            ProofManagerRequest::ContainsProof(proof_facts, tx_hash) => {
+                ProofManagerResponse::ContainsProof(
+                    self.contains_proof(proof_facts, tx_hash)
+                        .await
+                        .map_err(|e| ProofManagerError::ProofStorage(e.to_string())),
+                )
+            }
         }
     }
 }

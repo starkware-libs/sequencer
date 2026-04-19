@@ -192,8 +192,8 @@ impl MockDependencies {
         self.mock_transaction_converter
             .expect_store_proof_in_proof_manager()
             .once()
-            .with(eq(proof_facts), eq(proof))
-            .returning(|_, _| Ok(std::time::Duration::ZERO));
+            .withf(move |pf, _tx_hash, p| *pf == proof_facts && *p == proof)
+            .returning(|_, _, _| Ok(std::time::Duration::ZERO));
     }
 }
 

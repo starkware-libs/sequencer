@@ -21,6 +21,7 @@ mockall = { workspace = true, optional = true }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_proof_verifier.workspace = true
+strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true

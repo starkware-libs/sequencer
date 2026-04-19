@@ -128,11 +128,12 @@ async fn test_proof_verification_called_for_invoke_v3_with_proof_facts(
     );
 
     let mut mock_proof_manager_client = MockProofManagerClient::new();
+    let proof_facts_clone = proof_facts.clone();
     mock_proof_manager_client
         .expect_contains_proof()
         .once()
-        .with(eq(proof_facts.clone()))
-        .return_once(|_| Ok(false));
+        .withf(move |pf, _tx_hash| *pf == proof_facts_clone)
+        .return_once(|_, _| Ok(false));
 
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
@@ -173,18 +174,21 @@ async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof(
 
     let mut mock_proof_manager_client = MockProofManagerClient::new();
 
+    let proof_facts_clone = proof_facts.clone();
     mock_proof_manager_client
         .expect_contains_proof()
         .once()
-        .with(eq(proof_facts.clone()))
-        .return_once(|_| Ok(false));
+        .withf(move |pf, _tx_hash| *pf == proof_facts_clone)
+        .return_once(|_, _| Ok(false));
 
     // set_proof should be called only after successful verification.
+    let proof_facts_clone = proof_facts.clone();
+    let proof_clone = proof.clone();
     mock_proof_manager_client
         .expect_set_proof()
         .once()
-        .with(eq(proof_facts.clone()), eq(proof.clone()))
-        .return_once(|_, _| Ok(()));
+        .withf(move |pf, _tx_hash, p| *pf == proof_facts_clone && *p == proof_clone)
+        .return_once(|_, _, _| Ok(()));
 
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
@@ -206,18 +210,20 @@ async fn test_convert_internal_rpc_tx_to_rpc_tx_with_proof(proof_facts: ProofFac
     let mut mock_proof_manager_client = MockProofManagerClient::new();
 
     // Step 1 (RPC → Internal): Converter checks if proof exists.
+    let proof_facts_clone = proof_facts.clone();
     mock_proof_manager_client
         .expect_contains_proof()
         .once()
-        .with(eq(proof_facts.clone()))
-        .return_once(|_| Ok(false));
+        .withf(move |pf, _tx_hash| *pf == proof_facts_clone)
+        .return_once(|_, _| Ok(false));
 
     // Step 2 (Internal → RPC): Converter retrieves the proof to reconstruct the RPC tx.
+    let proof_facts_clone = proof_facts.clone();
     mock_proof_manager_client
         .expect_get_proof()
         .once()
-        .with(eq(proof_facts))
-        .return_once(move |_| Ok(Some(proof)));
+        .withf(move |pf, _tx_hash| *pf == proof_facts_clone)
+        .return_once(move |_, _| Ok(Some(proof)));
 
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 

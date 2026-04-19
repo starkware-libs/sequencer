@@ -13,7 +13,11 @@ use apollo_gateway::metrics::{
     LABEL_NAME_TX_TYPE as GATEWAY_LABEL_NAME_TX_TYPE,
 };
 use apollo_metrics::metrics::MetricQueryName;
-use apollo_transaction_converter::metrics::PROOF_VERIFICATION_LATENCY;
+use apollo_transaction_converter::metrics::{
+    LABEL_NAME_COMPONENT,
+    PROOF_VERIFICATION_COUNT,
+    PROOF_VERIFICATION_LATENCY,
+};
 
 use crate::dashboard::Row;
 use crate::panel::{Panel, PanelType, Unit};
@@ -148,6 +152,21 @@ fn get_panel_proof_verification_latency() -> Panel {
     .with_unit(Unit::Seconds)
 }
 
+fn get_panel_proof_verification_count_by_component() -> Panel {
+    Panel::new(
+        "Proof Verifications by Component",
+        "The number of proof verifications by component (gateway vs consensus) (over the selected \
+         time range)",
+        sum_by_label(
+            &PROOF_VERIFICATION_COUNT,
+            LABEL_NAME_COMPONENT,
+            DisplayMethod::Increase(RANGE_DURATION),
+            false,
+        ),
+        PanelType::Stat,
+    )
+}
+
 fn get_panel_gateway_proof_manager_store_latency() -> Panel {
     Panel::from_hist(
         &GATEWAY_PROOF_MANAGER_STORE_LATENCY,
@@ -180,6 +199,7 @@ pub(crate) fn get_gateway_row() -> Row {
             get_panel_gateway_validate_stateful_tx_storage_time(),
             get_panel_gateway_validate_stateful_tx_storage_operations(),
             get_panel_proof_verification_latency(),
+            get_panel_proof_verification_count_by_component(),
             get_panel_gateway_proof_manager_store_latency(),
         ],
     )

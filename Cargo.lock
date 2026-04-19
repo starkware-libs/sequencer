@@ -2857,6 +2857,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_proof_verifier",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
