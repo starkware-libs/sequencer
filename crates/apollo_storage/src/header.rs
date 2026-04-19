@@ -109,6 +109,8 @@ pub struct StorageBlockHeader {
     pub n_transactions: usize,
     /// The number of events in this block.
     pub n_events: usize,
+    /// SNIP-35: proposer's oracle-derived recommended fee.
+    pub fee_proposal: GasPrice,
 }
 
 type BlockHashToNumberTable<'env> =
@@ -225,7 +227,7 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
                 timestamp: block_header.timestamp,
                 l1_da_mode: block_header.l1_da_mode,
                 starknet_version,
-                fee_proposal: GasPrice::default(),
+                fee_proposal: block_header.fee_proposal,
             },
             state_diff_commitment: block_header.state_diff_commitment,
             transaction_commitment: block_header.transaction_commitment,
@@ -323,6 +325,7 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
             state_diff_length: block_header.state_diff_length,
             n_transactions: block_header.n_transactions,
             n_events: block_header.n_events,
+            fee_proposal: block_header.block_header_without_hash.fee_proposal,
         };
 
         headers_table.append(&self.txn, &block_number, &storage_block_header)?;
@@ -430,7 +433,7 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
                     timestamp: reverted_header.timestamp,
                     l1_da_mode: reverted_header.l1_da_mode,
                     starknet_version,
-                    fee_proposal: GasPrice::default(),
+                    fee_proposal: reverted_header.fee_proposal,
                 },
                 state_diff_commitment: reverted_header.state_diff_commitment,
                 transaction_commitment: reverted_header.transaction_commitment,
