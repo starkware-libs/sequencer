@@ -24,6 +24,18 @@ pub(crate) const PPT_DENOMINATOR: u128 = 1000;
 /// Number of fee_proposal values used to compute fee_actual (SNIP-35).
 pub(crate) const FEE_PROPOSAL_WINDOW_SIZE: usize = 10;
 
+/// Maximum fee_proposal change per block in parts per thousand (SNIP-35: 0.2%).
+pub(crate) const FEE_PROPOSAL_MARGIN_PPT: u128 = 2;
+
+/// Target USD cost per L2 gas unit in atto-USD ($3e-9 = 3_000_000_000 atto-USD).
+pub(crate) const TARGET_ATTO_USD_PER_L2_GAS: u128 = 3_000_000_000;
+
+/// Hard minimum for the oracle-derived floor (FRI).
+pub(crate) const ORACLE_L2_GAS_FLOOR_MIN_FRI: u128 = 8_000_000_000; // 8 gwei, matches MIN_ALLOWED_GAS_PRICE
+
+/// Hard maximum for the oracle-derived floor (FRI).
+pub(crate) const ORACLE_L2_GAS_FLOOR_MAX_FRI: u128 = u128::MAX;
+
 /// Compute fee_actual from the last `window_size` fee_proposal values (SNIP-35).
 /// Returns the average of the two middle values, rounded down.
 /// Returns `None` if fewer than `window_size` proposals are available.
