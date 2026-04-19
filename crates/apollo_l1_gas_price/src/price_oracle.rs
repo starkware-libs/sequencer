@@ -27,8 +27,8 @@ use crate::metrics::{
 };
 
 #[cfg(test)]
-#[path = "eth_to_strk_oracle_test.rs"]
-pub mod eth_to_strk_oracle_test;
+#[path = "price_oracle_test.rs"]
+pub mod price_oracle_test;
 
 pub const ORACLE_PRICE_DECIMALS: u64 = 18;
 
