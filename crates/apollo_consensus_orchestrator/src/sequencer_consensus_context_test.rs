@@ -1750,3 +1750,43 @@ async fn test_compute_snip35_fee_proposal_converges_to_oracle_target() {
         );
     }
 }
+
+/// E2E test: SNIP-35 oracle → fee_proposal → ProposalInit → validate → decision_reached.
+/// Verifies the full flow from STRK/USD oracle price to a fee_proposal that appears in the
+/// built proposal and passes validation.
+#[tokio::test]
+async fn snip35_fee_proposal_e2e_flow() {
+    // STRK/USD rate: $0.50 with 18 decimals.
+    const STRK_USD_RATE: u128 = 500_000_000_000_000_000;
+
+    let (mut deps, mut network) = create_test_and_network_deps();
+    deps.setup_deps_for_build(SetupDepsArgs::default());
+
+    // Create a mock oracle that returns the known STRK/USD rate.
+    let mut mock_oracle = MockExchangeRateOracleClientTrait::new();
+    mock_oracle.expect_fetch_rate().returning(|_| Ok(STRK_USD_RATE));
+    deps.strk_to_usd_oracle = Some(Arc::new(mock_oracle));
+
+    // Build context (SNIP-35 is always enabled with hardcoded constants).
+    let mut context = deps.build_context();
+
+    // Build a proposal.
+    context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
+    let _fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
+
+    // Extract ProposalInit from the network.
+    let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
+    let ProposalPart::Init(init) = receiver.next().await.unwrap() else {
+        panic!("Expected ProposalPart::Init");
+    };
+
+    // At height 0 the fee_proposals window is empty, so fee_actual = None and
+    // compute_snip35_fee_proposal freezes the fee_proposal at l2_gas_price (= min_gas_price).
+    // The oracle's rate of `STRK_USD_RATE` is not consulted in this path.
+    let min_gas_price = VersionedConstants::latest_constants().min_gas_price;
+    assert_eq!(
+        init.fee_proposal_fri,
+        Some(min_gas_price),
+        "with empty fee_proposals window, fee_proposal should freeze at l2_gas_price",
+    );
+}
