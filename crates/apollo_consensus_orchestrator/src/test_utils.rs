@@ -510,6 +510,8 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
             override_l2_gas_price_fri: args.override_l2_gas_price_fri,
             min_l2_gas_price_per_height: args.min_l2_gas_price_per_height,
             compare_retrospective_block_hash: args.compare_retrospective_block_hash,
+            fee_proposal: GasPrice::default(),
+            fee_actual: None,
         }
     }
 }

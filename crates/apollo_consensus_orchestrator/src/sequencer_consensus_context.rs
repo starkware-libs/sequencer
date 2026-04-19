@@ -71,7 +71,7 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
-use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
+use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
 use crate::cende::{
@@ -90,8 +90,21 @@ use crate::metrics::{
     record_validate_proposal_failure,
     register_metrics,
     CONSENSUS_L2_GAS_PRICE,
+    SNIP35_FEE_ACTUAL,
+    SNIP35_FEE_PROPOSAL,
+    SNIP35_FEE_TARGET,
+    SNIP35_STRK_USD_RATE,
 };
-use crate::snip35::FEE_PROPOSAL_WINDOW_SIZE;
+use crate::snip35::{
+    compute_fee_actual,
+    compute_fee_proposal,
+    compute_fee_target,
+    FEE_PROPOSAL_MARGIN_PPT,
+    FEE_PROPOSAL_WINDOW_SIZE,
+    ORACLE_L2_GAS_FLOOR_MAX_FRI,
+    ORACLE_L2_GAS_FLOOR_MIN_FRI,
+    TARGET_ATTO_USD_PER_L2_GAS,
+};
 use crate::utils::{
     convert_to_sn_api_block_info,
     make_gas_price_params,
@@ -353,6 +366,7 @@ impl SequencerConsensusContext {
             sequencer,
             timestamp: BlockTimestamp(init.timestamp),
             l1_da_mode: init.l1_da_mode,
+            fee_proposal: init.fee_proposal_fri.unwrap_or_default(),
             // TODO(guy.f): Figure out where/if to get the values below from and fill them.
             ..Default::default()
         };
@@ -371,14 +385,62 @@ impl SequencerConsensusContext {
     /// Returns the next L2 gas price without mutating context. Used when building the fin and when
     /// updating at decision time.
     fn calculate_next_l2_gas_price(&self, height: BlockNumber, l2_gas_used: GasAmount) -> GasPrice {
+        let fee_actual = self.compute_fee_actual();
         calculate_next_l2_gas_price_for_fin(
             self.l2_gas_price,
             height,
             l2_gas_used,
             self.config.dynamic_config.override_l2_gas_price_fri,
             &self.config.dynamic_config.min_l2_gas_price_per_height,
-            None,
+            fee_actual,
         )
+    }
+
+    /// SNIP-35: compute fee_actual from the sliding window of fee_proposals.
+    fn compute_fee_actual(&self) -> Option<GasPrice> {
+        let proposals: Vec<GasPrice> = self.fee_proposals_window.iter().copied().collect();
+        compute_fee_actual(&proposals, FEE_PROPOSAL_WINDOW_SIZE)
+    }
+
+    /// SNIP-35: compute the fee_proposal this node should publish.
+    async fn compute_snip35_fee_proposal(&self, timestamp: u64) -> GasPrice {
+        // compute_fee_actual returns None for zero median or insufficient data, falling back to
+        // the current l2_gas_price. This ensures proposer and validator use the same fallback.
+        let fee_actual = self.compute_fee_actual().unwrap_or(self.l2_gas_price);
+        SNIP35_FEE_ACTUAL.set_lossy(fee_actual.0);
+
+        // The oracle reuses ExchangeRateOracleClientTrait configured with a STRK/USD endpoint.
+        let fee_target = match &self.deps.strk_exchange_rate_oracle {
+            Some(oracle) => match oracle.eth_to_fri_rate(timestamp).await {
+                Ok(rate) if rate > 0 => {
+                    SNIP35_STRK_USD_RATE.set_lossy(rate);
+                    let target = compute_fee_target(
+                        TARGET_ATTO_USD_PER_L2_GAS,
+                        rate,
+                        ORACLE_L2_GAS_FLOOR_MIN_FRI,
+                        ORACLE_L2_GAS_FLOOR_MAX_FRI,
+                    );
+                    SNIP35_FEE_TARGET.set_lossy(target.0);
+                    Some(target)
+                }
+                Ok(_) => {
+                    warn!("STRK/USD oracle returned zero rate, freezing fee_proposal");
+                    None
+                }
+                Err(e) => {
+                    warn!("STRK/USD oracle error: {e:?}, freezing fee_proposal");
+                    None
+                }
+            },
+            None => {
+                debug!("No STRK/USD oracle configured, freezing fee_proposal");
+                None
+            }
+        };
+
+        let proposal = compute_fee_proposal(fee_target, fee_actual, FEE_PROPOSAL_MARGIN_PPT);
+        SNIP35_FEE_PROPOSAL.set_lossy(proposal.0);
+        proposal
     }
 
     fn update_l2_gas_price(&mut self, height: BlockNumber, l2_gas_used: GasAmount) {
@@ -403,7 +465,7 @@ impl SequencerConsensusContext {
         let DecisionReachedResponse { state_diff, central_objects } = decision_reached_response;
 
         self.update_l2_gas_price(height, l2_gas_used);
-        if let Some(fee_proposal) = init.fee_proposal {
+        if let Some(fee_proposal) = init.fee_proposal_fri {
             self.push_fee_proposal(fee_proposal);
         }
 
@@ -613,6 +675,7 @@ impl ConsensusContext for SequencerConsensusContext {
             BehaviorMode::Echonet => true,
             BehaviorMode::Starknet => false,
         };
+        let fee_proposal = self.compute_snip35_fee_proposal(self.deps.clock.unix_now()).await;
         let round = build_param.round;
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),
@@ -646,6 +709,8 @@ impl ConsensusContext for SequencerConsensusContext {
                 .config
                 .dynamic_config
                 .compare_retrospective_block_hash,
+            fee_proposal,
+            fee_actual: self.compute_fee_actual(),
         };
 
         let handle = tokio::spawn(
