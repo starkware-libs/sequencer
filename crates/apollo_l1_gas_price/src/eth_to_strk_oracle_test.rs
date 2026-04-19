@@ -9,7 +9,7 @@ use serde_json::json;
 use tokio::{self};
 use url::Url;
 
-use crate::eth_to_strk_oracle::{EthToStrkOracleClient, EthToStrkOracleConfig};
+use crate::eth_to_strk_oracle::{EthToStrkOracleClient, PriceOracleConfig};
 
 async fn make_server(server: &mut ServerGuard, body: serde_json::Value) -> Mock {
     server
@@ -52,7 +52,7 @@ async fn eth_to_fri_rate_uses_cache_on_quantized_hit() {
         headers: BTreeMap::new(), // No additional headers needed for this test.
     };
     let url_header_list = Some(vec![url_and_headers.into()]);
-    let config = EthToStrkOracleConfig {
+    let config = PriceOracleConfig {
         url_header_list,
         lag_interval_seconds: LAG_INTERVAL_SECONDS,
         ..Default::default()
@@ -126,7 +126,7 @@ async fn eth_to_fri_rate_uses_prev_cache_when_query_not_ready() {
         headers: BTreeMap::new(), // No additional headers needed for this test.
     };
     let url_header_list = Some(vec![url_and_headers.into()]);
-    let config = EthToStrkOracleConfig {
+    let config = PriceOracleConfig {
         url_header_list,
         lag_interval_seconds: LAG_INTERVAL_SECONDS,
         ..Default::default()
@@ -187,7 +187,7 @@ async fn eth_to_fri_rate_two_urls() {
         }
         .into(),
     ]);
-    let config = EthToStrkOracleConfig {
+    let config = PriceOracleConfig {
         url_header_list,
         lag_interval_seconds: LAG_INTERVAL_SECONDS,
         ..Default::default()

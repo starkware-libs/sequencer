@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_config::secrets::Sensitive;
-use apollo_l1_gas_price_config::config::EthToStrkOracleConfig;
+use apollo_l1_gas_price_config::config::PriceOracleConfig;
 use apollo_l1_gas_price_types::errors::PriceOracleClientError;
 use apollo_l1_gas_price_types::PriceOracleClientTrait;
 use apollo_metrics::metrics::set_unix_now_seconds;
@@ -57,7 +57,7 @@ type PriceQuery = AbortOnDropHandle<Result<u128, PriceOracleClientError>>;
 /// Client for interacting with the eth to strk Oracle API.
 #[derive(Clone, Debug)]
 pub struct EthToStrkOracleClient {
-    config: EthToStrkOracleConfig,
+    config: PriceOracleConfig,
     /// The index of the current URL in the `url_header_list`.
     /// If one URL fails, index is incremented to try the next URL.
     index: Arc<AtomicUsize>,
@@ -68,7 +68,7 @@ pub struct EthToStrkOracleClient {
 }
 
 impl EthToStrkOracleClient {
-    pub fn new(config: EthToStrkOracleConfig) -> Self {
+    pub fn new(config: PriceOracleConfig) -> Self {
         info!(
             "Creating EthToStrkOracleClient with: urls={:?} lag_interval_seconds={}",
             config.url_header_list, config.lag_interval_seconds

@@ -22,7 +22,7 @@ use url::Url;
 use validator::Validate;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
-pub struct EthToStrkOracleConfig {
+pub struct PriceOracleConfig {
     #[serde(deserialize_with = "deserialize_optional_sensitive_list_with_url_and_headers")]
     pub url_header_list: Option<Vec<Sensitive<UrlAndHeaders>>>,
     pub lag_interval_seconds: u64,
@@ -30,7 +30,7 @@ pub struct EthToStrkOracleConfig {
     pub query_timeout_sec: u64,
 }
 
-impl SerializeConfig for EthToStrkOracleConfig {
+impl SerializeConfig for PriceOracleConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
@@ -73,7 +73,7 @@ impl SerializeConfig for EthToStrkOracleConfig {
     }
 }
 
-impl Default for EthToStrkOracleConfig {
+impl Default for PriceOracleConfig {
     fn default() -> Self {
         Self {
             url_header_list: Some(vec![
@@ -102,7 +102,7 @@ pub struct L1GasPriceProviderConfig {
     // Maximum valid time gap between the requested timestamp and the last price sample in seconds.
     pub max_time_gap_seconds: u64,
     #[validate(nested)]
-    pub eth_to_strk_oracle_config: EthToStrkOracleConfig,
+    pub eth_to_strk_oracle_config: PriceOracleConfig,
 }
 
 impl Default for L1GasPriceProviderConfig {
@@ -113,7 +113,7 @@ impl Default for L1GasPriceProviderConfig {
             lag_margin_seconds: Duration::from_secs(60),
             storage_limit: usize::try_from(10 * MEAN_NUMBER_OF_BLOCKS).unwrap(),
             max_time_gap_seconds: 900, // 15 minutes
-            eth_to_strk_oracle_config: EthToStrkOracleConfig::default(),
+            eth_to_strk_oracle_config: PriceOracleConfig::default(),
         }
     }
 }

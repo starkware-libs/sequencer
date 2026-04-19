@@ -53,9 +53,9 @@ use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_l1_events_config::config::{L1EventsProviderConfig, L1EventsScraperConfig};
 use apollo_l1_gas_price::eth_to_strk_oracle::ETH_TO_STRK_QUANTIZATION;
 use apollo_l1_gas_price_config::config::{
-    EthToStrkOracleConfig,
     L1GasPriceProviderConfig,
     L1GasPriceScraperConfig,
+    PriceOracleConfig,
 };
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig, MempoolStaticConfig};
@@ -226,7 +226,7 @@ pub fn create_node_config(
     storage_config: StorageTestConfig,
     mut state_sync_config: StateSyncConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
-    eth_to_strk_oracle_config: EthToStrkOracleConfig,
+    eth_to_strk_oracle_config: PriceOracleConfig,
     mempool_p2p_config: MempoolP2pConfig,
     monitoring_endpoint_config: MonitoringEndpointConfig,
     components: ComponentConfig,
