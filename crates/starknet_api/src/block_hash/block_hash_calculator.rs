@@ -16,6 +16,7 @@ use crate::block::{
     BlockInfo,
     BlockNumber,
     BlockTimestamp,
+    GasPrice,
     GasPricePerToken,
     StarknetVersion,
 };
@@ -207,8 +208,8 @@ impl PartialBlockHash {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-/// All information required to calculate a block hash except for the state root and the parent
-/// block hash.
+/// All information required to calculate a block hash (except for the state root and the parent
+/// block hash) and to calculate the proposal commitment hash.
 pub struct PartialBlockHashComponents {
     pub header_commitments: BlockHeaderCommitments,
     pub block_number: BlockNumber,
@@ -218,6 +219,9 @@ pub struct PartialBlockHashComponents {
     pub sequencer: SequencerContractAddress,
     pub timestamp: BlockTimestamp,
     pub starknet_version: StarknetVersion,
+    /// SNIP-35: proposer's oracle-derived recommended fee. Feeds the proposal commitment hash
+    /// (`PartialBlockHash`) but not the block hash (`BlockHash`).
+    pub fee_proposal_fri: GasPrice,
 }
 
 impl PartialBlockHashComponents {
@@ -231,6 +235,7 @@ impl PartialBlockHashComponents {
             sequencer: SequencerContractAddress(block_info.sequencer_address),
             timestamp: block_info.block_timestamp,
             starknet_version: block_info.starknet_version,
+            fee_proposal_fri: GasPrice::default(),
         }
     }
 }
