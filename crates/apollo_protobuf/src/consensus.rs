@@ -122,6 +122,9 @@ pub struct ProposalInit {
     pub starknet_version: starknet_api::block::StarknetVersion,
     /// Version constant commitment.
     pub version_constant_commitment: StarkHash,
+    /// SNIP-35: proposer's oracle-derived recommended fee. Present iff
+    /// `starknet_version >= V0_14_3`.
+    pub fee_proposal: Option<GasPrice>,
 }
 
 /// A temporary constant to use as a validator ID. Zero is not a valid contract address.
@@ -156,6 +159,7 @@ impl Default for ProposalInit {
             l1_data_gas_price_wei: Default::default(),
             starknet_version: starknet_api::block::StarknetVersion::LATEST,
             version_constant_commitment: Default::default(),
+            fee_proposal: Default::default(),
         }
     }
 }

@@ -176,6 +176,7 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
         starknet_version: starknet_api::block::StarknetVersion::LATEST,
         // TODO(Asmaa): Put the real value once we have it.
         version_constant_commitment: Default::default(),
+        fee_proposal: None,
     };
 
     let retrospective_block_hash = wait_for_retrospective_block_hash(
