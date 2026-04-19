@@ -828,6 +828,7 @@ impl ConsensusContext for SequencerConsensusContext {
                         .map(GasPrice)
                         .unwrap_or(self.l2_gas_price),
                     starknet_version: StarknetVersion::LATEST,
+                    fee_actual: compute_fee_actual(&self.fee_proposals_window, init.height),
                 };
                 self.validate_current_round_proposal(
                     init,
@@ -1094,6 +1095,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 .map(GasPrice)
                 .unwrap_or(self.l2_gas_price),
             starknet_version: StarknetVersion::LATEST,
+            fee_actual: compute_fee_actual(&self.fee_proposals_window, init.height),
         };
         self.validate_current_round_proposal(
             init,
