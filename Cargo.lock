@@ -2305,6 +2305,7 @@ name = "apollo_proc_macros"
 version = "0.0.0"
 dependencies = [
  "lazy_static",
+ "metrics",
  "proc-macro2",
  "quote",
  "syn 2.0.110",
@@ -2893,7 +2894,6 @@ name = "apollo_versioned_constants"
 version = "0.0.0"
 dependencies = [
  "serde",
- "serde_json",
  "starknet_api",
  "thiserror 1.0.69",
 ]

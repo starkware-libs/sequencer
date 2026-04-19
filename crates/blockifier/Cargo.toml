@@ -103,7 +103,3 @@ harness = false
 name = "blockifier"
 path = "benches/main.rs"
 required-features = ["testing"]
-
-[package.metadata.cargo-machete]
-# `paste` is used in the `define_versioned_constants!` macro but may be falsely detected as unused.
-ignored = ["paste"]

@@ -89,7 +89,7 @@ macro_rules! define_versioned_constants {
                 /// Static instance of the versioned constants for the Starknet version.
                 pub static [<VERSIONED_CONSTANTS_ $variant:upper>]: std::sync::LazyLock<$struct_name> =
                     std::sync::LazyLock::new(|| {
-                        serde_json::from_str([<VERSIONED_CONSTANTS_ $variant:upper _JSON>])
+                        $crate::serde_json::from_str([<VERSIONED_CONSTANTS_ $variant:upper _JSON>])
                             .expect(&format!("Versioned constants {} is malformed.", $path_to_json))
                 });
             )*
@@ -119,7 +119,7 @@ macro_rules! define_versioned_constants {
                 /// Static instance of the versioned constants for the Starknet version.
                 pub static [<VERSIONED_CONSTANTS_ $variant:upper>]: std::sync::LazyLock<$struct_name> =
                     std::sync::LazyLock::new(|| {
-                        serde_json::from_str::<$intermediate_struct_name>(
+                        $crate::serde_json::from_str::<$intermediate_struct_name>(
                             [<VERSIONED_CONSTANTS_ $variant:upper _JSON>]
                         )
                         .expect(&format!("Versioned constants {} is malformed.", $path_to_json))

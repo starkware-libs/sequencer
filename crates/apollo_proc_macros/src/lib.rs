@@ -5,6 +5,8 @@ use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
 use lazy_static::lazy_static;
+// Re-export metrics crate to avoid having to depend on it in the calling crate.
+pub use metrics;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
@@ -168,11 +170,11 @@ pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
     // instead of boolean
 
     let metric_recording_logic = quote! {
-        ::metrics::histogram!(#metric_name).record(exec_time);
+        apollo_proc_macros::metrics::histogram!(#metric_name).record(exec_time);
     };
 
     let collect_metric_flag = quote! {
-        papyrus_common::metrics::COLLECT_PROFILING_METRICS
+        apollo_proc_macros::metrics::COLLECT_PROFILING_METRICS
     };
 
     create_modified_function(
