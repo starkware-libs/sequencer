@@ -104,7 +104,7 @@ pub trait L1GasPriceProviderClient: Send + Sync {
 
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
-pub trait EthToStrkOracleClientTrait: Send + Sync + Debug {
+pub trait PriceOracleClientTrait: Send + Sync + Debug {
     /// Fetches the eth to fri rate for a given timestamp.
     async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, PriceOracleClientError>;
 }

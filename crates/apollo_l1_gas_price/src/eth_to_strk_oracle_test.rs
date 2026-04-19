@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use apollo_config::converters::UrlAndHeaders;
 use apollo_l1_gas_price_types::errors::PriceOracleClientError;
-use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
+use apollo_l1_gas_price_types::PriceOracleClientTrait;
 use mockito::{Mock, ServerGuard};
 use serde_json::json;
 use tokio::{self};

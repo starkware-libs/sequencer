@@ -7,7 +7,7 @@ use std::time::Duration;
 use apollo_config::secrets::Sensitive;
 use apollo_l1_gas_price_config::config::EthToStrkOracleConfig;
 use apollo_l1_gas_price_types::errors::PriceOracleClientError;
-use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
+use apollo_l1_gas_price_types::PriceOracleClientTrait;
 use apollo_metrics::metrics::set_unix_now_seconds;
 use async_trait::async_trait;
 use futures::FutureExt;
@@ -188,7 +188,7 @@ fn resolve_query(body: String) -> Result<u128, PriceOracleClientError> {
 }
 
 #[async_trait]
-impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
+impl PriceOracleClientTrait for EthToStrkOracleClient {
     /// The HTTP response must include the following fields:
     /// - `price`: a hexadecimal string representing the price.
     /// - `decimals`: a `u64` value, must be equal to `ETH_TO_STRK_QUANTIZATION`.
