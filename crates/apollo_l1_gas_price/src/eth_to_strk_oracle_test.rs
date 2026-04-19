@@ -9,7 +9,7 @@ use serde_json::json;
 use tokio::{self};
 use url::Url;
 
-use crate::eth_to_strk_oracle::{PriceOracleClient, PriceOracleConfig};
+use crate::price_oracle::{PriceOracleClient, PriceOracleConfig};
 
 async fn make_server(server: &mut ServerGuard, body: serde_json::Value) -> Mock {
     server

@@ -16,13 +16,13 @@ use async_trait::async_trait;
 use starknet_api::block::BlockTimestamp;
 use tracing::{info, trace, warn};
 
-use crate::eth_to_strk_oracle::PriceOracleClient;
 use crate::metrics::{
     register_provider_metrics,
     L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
     L1_GAS_PRICE_LATEST_MEAN_VALUE,
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
 };
+use crate::price_oracle::PriceOracleClient;
 
 #[cfg(test)]
 #[path = "l1_gas_price_provider_test.rs"]
