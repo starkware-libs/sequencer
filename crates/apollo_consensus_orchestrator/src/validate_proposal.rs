@@ -42,7 +42,7 @@ use crate::metrics::{
     CONSENSUS_PROPOSAL_FIN_MISMATCH,
 };
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
-use crate::snip35::proposal_commitment_from;
+use crate::snip35::{fee_proposal_bounds, proposal_commitment_from, FEE_PROPOSAL_MARGIN_PPT};
 use crate::utils::{
     convert_to_sn_api_block_info,
     get_l1_prices_in_fri_and_wei,
@@ -78,6 +78,9 @@ pub(crate) struct ProposalInitValidation {
     pub l1_da_mode: L1DataAvailabilityMode,
     pub l2_gas_price_fri: GasPrice,
     pub starknet_version: StarknetVersion,
+    /// SNIP-35: fee_actual from the sliding window. `None` during initiation, before the window
+    /// has accumulated `FEE_PROPOSAL_WINDOW_SIZE` entries.
+    pub fee_actual: Option<GasPrice>,
 }
 
 /// Parameters for deadline and cancellation handling during proposal finalization.
@@ -346,6 +349,52 @@ async fn is_proposal_init_valid(
             ),
         ));
     }
+
+    // SNIP-35: fee_proposal is required iff Starknet version >= V0_14_3.
+    let snip35_active = init_proposed.starknet_version >= StarknetVersion::V0_14_3;
+    match (init_proposed.fee_proposal_fri, snip35_active) {
+        (Some(_), false) => {
+            return Err(ValidateProposalError::InvalidProposalInit(
+                init_proposed.clone(),
+                proposal_init_validation.clone(),
+                format!(
+                    "fee_proposal must be absent before V0_14_3, got Some at version {}",
+                    init_proposed.starknet_version
+                ),
+            ));
+        }
+        (None, true) => {
+            return Err(ValidateProposalError::InvalidProposalInit(
+                init_proposed.clone(),
+                proposal_init_validation.clone(),
+                format!(
+                    "fee_proposal is required at V0_14_3+, got None at version {}",
+                    init_proposed.starknet_version
+                ),
+            ));
+        }
+        _ => {}
+    }
+
+    // SNIP-35: validate fee_proposal is within the configured margin of fee_actual.
+    // During initiation (fee_actual is None, <window_size blocks), bounds are not enforced.
+    if let (Some(fee_actual), Some(fee_proposal)) =
+        (proposal_init_validation.fee_actual, init_proposed.fee_proposal_fri)
+    {
+        let (lower_bound, upper_bound) = fee_proposal_bounds(fee_actual, FEE_PROPOSAL_MARGIN_PPT);
+        if fee_proposal.0 < lower_bound || fee_proposal.0 > upper_bound {
+            return Err(ValidateProposalError::InvalidProposalInit(
+                init_proposed.clone(),
+                proposal_init_validation.clone(),
+                format!(
+                    "Fee proposal out of SNIP-35 bounds: fee_actual={}, fee_proposal={}, allowed \
+                     range=[{lower_bound}, {upper_bound}]",
+                    fee_actual.0, fee_proposal.0
+                ),
+            ));
+        }
+    }
+
     Ok(())
 }
 

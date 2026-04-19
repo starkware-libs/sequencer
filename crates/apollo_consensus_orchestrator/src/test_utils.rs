@@ -429,11 +429,12 @@ pub(crate) fn proposal_init(height: BlockNumber, round: u32) -> ProposalInit {
         l1_data_gas_price_wei,
         starknet_version: starknet_api::block::StarknetVersion::LATEST,
         version_constant_commitment: Default::default(),
-        // Match the proposer's default-fallback fee_proposal: empty sliding window →
-        // `compute_fee_actual` returns `None` → `compute_snip35_fee_proposal` falls back to
-        // `self.l2_gas_price` (= `min_gas_price` = 8 gwei). Validator-side tests reuse this
-        // helper to fabricate an init that matches what the proposer emits, so proposer and
-        // validator agree on the proposal commitment hash.
+        // SNIP-35: required because LATEST >= V0_14_3. Match the proposer's default-fallback
+        // fee_proposal: empty sliding window → `compute_fee_actual` returns `None` →
+        // `compute_snip35_fee_proposal` falls back to `self.l2_gas_price`
+        // (= `min_gas_price` = 8 gwei). Validator-side tests reuse this helper to fabricate
+        // an init that matches what the proposer emits, so proposer and validator agree on
+        // the proposal commitment hash.
         fee_proposal_fri: Some(GasPrice(8_000_000_000)),
     }
 }
