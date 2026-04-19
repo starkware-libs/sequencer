@@ -304,6 +304,7 @@ impl ConsensusManager {
                 outbound_proposal_sender: outbound_internal_sender,
                 vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
                 config_manager_client: Some(Arc::clone(&config_manager_client)),
+                strk_exchange_rate_oracle: None,
             },
         )
     }
