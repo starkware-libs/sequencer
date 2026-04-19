@@ -80,6 +80,7 @@ auto_impl_get_test_instance! {
         pub l1_data_gas_price_wei: GasPrice,
         pub starknet_version: StarknetVersion,
         pub version_constant_commitment: StarkHash,
+        pub fee_proposal_fri: Option<GasPrice>,
     }
     pub enum ProposalPart {
         Init(ProposalInit) = 0,

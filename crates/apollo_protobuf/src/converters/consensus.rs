@@ -226,6 +226,7 @@ impl TryFrom<protobuf::ProposalInit> for ProposalInit {
             .version_constant_commitment
             .ok_or(missing("version_constant_commitment"))?
             .try_into()?;
+        let fee_proposal_fri = value.fee_proposal_fri.map(|raw| GasPrice(raw.into()));
         Ok(ProposalInit {
             height,
             round,
@@ -241,6 +242,7 @@ impl TryFrom<protobuf::ProposalInit> for ProposalInit {
             l1_data_gas_price_wei,
             starknet_version,
             version_constant_commitment,
+            fee_proposal_fri,
         })
     }
 }
@@ -262,6 +264,7 @@ impl From<ProposalInit> for protobuf::ProposalInit {
             l1_data_gas_price_wei: Some(value.l1_data_gas_price_wei.0.into()),
             starknet_version: value.starknet_version.to_string(),
             version_constant_commitment: Some(value.version_constant_commitment.into()),
+            fee_proposal_fri: value.fee_proposal_fri.map(|gp| gp.0.into()),
         }
     }
 }
