@@ -2,7 +2,14 @@ use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use super::{concat_counts, extract_event_count_from_concatenated_counts};
-use crate::block::{BlockHash, BlockNumber, BlockTimestamp, GasPricePerToken, StarknetVersion};
+use crate::block::{
+    BlockHash,
+    BlockNumber,
+    BlockTimestamp,
+    GasPrice,
+    GasPricePerToken,
+    StarknetVersion,
+};
 use crate::block_hash::block_hash_calculator::{
     calculate_block_commitments,
     calculate_block_hash,
@@ -43,6 +50,7 @@ macro_rules! test_hash_changes {
                 $(
                     $partial_block_hash_components_field: $partial_block_hash_components_value,
                 )*
+                ..Default::default()
             };
             let state_root = $state_root;
             let previous_block_hash = $previous_block_hash;
@@ -101,6 +109,7 @@ async fn test_block_hash_regression(
         l2_gas_price: GasPricePerToken { price_in_fri: 11_u8.into(), price_in_wei: 12_u8.into() },
         starknet_version: block_hash_version.clone().into(),
         header_commitments: block_commitments,
+        fee_proposal_fri: GasPrice::default(),
     };
 
     let expected_hash = match block_hash_version {
