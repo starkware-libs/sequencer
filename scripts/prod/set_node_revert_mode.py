@@ -64,11 +64,12 @@ def enable_revert_mode(
     )
     post_restart_instructions = []
     for namespace in namespace_list:
-        url = get_logs_explorer_url_for_enable_revert(namespace, revert_up_to_block, project_name)
-
-        post_restart_instructions.append(
-            f"Please check logs and verify that revert has completed (both in the batcher and for sync). Logs URL: {url}"
-        )
+        if project_name is not None:
+            url = get_logs_explorer_url_for_enable_revert(namespace, revert_up_to_block, project_name)
+            instruction = f"Please check logs and verify that revert has completed (both in the batcher and for sync). Logs URL: {url}"
+        else:
+            instruction = "Please check logs and verify that revert has completed (both in the batcher and for sync)."
+        post_restart_instructions.append(instruction)
 
     namespace_and_instruction_args = NamespaceAndInstructionArgs(
         namespace_list, context_list, post_restart_instructions
@@ -171,8 +172,8 @@ Examples:
     # TODO(guy.f): Remove this when we rely on metrics for restarting.
     args_builder.add_argument(
         "--project-name",
-        required=True,
-        help="The name of the project to get logs from. If One_By_One strategy is used, this is required.",
+        default=None,
+        help="The name of the GCP project to get logs from. When provided, log explorer URLs are printed after restart.",
     )
 
     args = args_builder.build()
