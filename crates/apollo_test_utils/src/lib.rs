@@ -450,6 +450,7 @@ auto_impl_get_test_instance! {
         pub timestamp: BlockTimestamp,
         pub l1_da_mode: L1DataAvailabilityMode,
         pub starknet_version: StarknetVersion,
+        pub fee_proposal: GasPrice,
     }
     pub struct BlockHeaderCommitments {
         pub transaction_commitment: TransactionCommitment,
