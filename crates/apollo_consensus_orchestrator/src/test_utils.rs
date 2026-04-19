@@ -44,6 +44,7 @@ use apollo_protobuf::consensus::{
     Vote,
 };
 use apollo_state_sync_types::communication::MockStateSyncClient;
+use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::{Clock, DateTime, DefaultClock};
 use apollo_transaction_converter::{
     MockTransactionConverterTrait,
@@ -173,6 +174,7 @@ impl TestDeps {
         self.setup_default_transaction_converter();
         self.setup_default_cende_ambassador();
         self.setup_default_gas_price_provider();
+        self.setup_default_state_sync_get_block();
     }
 
     pub(crate) fn setup_deps_for_build(&mut self, args: SetupDepsArgs) {
@@ -324,6 +326,17 @@ impl TestDeps {
         self.l1_gas_price_provider.expect_get_rate().return_const(Ok(ETH_TO_FRI_RATE));
     }
 
+    /// Default get_block returns a pre-SNIP-35 block (no `fee_proposal_fri`). Used by SNIP-35
+    /// backfill on startup; mirrors real chain behavior where blocks before V0_14_3 exist but
+    /// don't carry the field.
+    fn setup_default_state_sync_get_block(&mut self) {
+        self.state_sync_client.expect_get_block().returning(|_| {
+            let mut sync_block = SyncBlock::default();
+            sync_block.block_header_without_hash.fee_proposal_fri = None;
+            Ok(sync_block)
+        });
+    }
+
     pub(crate) fn setup_default_batcher_get_block_hash(&mut self) {
         self.batcher.expect_get_block_hash().returning(|block_number| {
             Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(block_number)))
@@ -331,17 +344,21 @@ impl TestDeps {
     }
 
     pub(crate) fn build_context(self) -> SequencerConsensusContext {
-        SequencerConsensusContext::new(
-            ContextConfig {
-                static_config: ContextStaticConfig {
-                    proposal_buffer_size: CHANNEL_SIZE,
-                    chain_id: CHAIN_ID,
-                    ..Default::default()
-                },
+        self.build_context_with_config(ContextConfig {
+            static_config: ContextStaticConfig {
+                proposal_buffer_size: CHANNEL_SIZE,
+                chain_id: CHAIN_ID,
                 ..Default::default()
             },
-            self.into(),
-        )
+            ..Default::default()
+        })
+    }
+
+    pub(crate) fn build_context_with_config(
+        self,
+        config: ContextConfig,
+    ) -> SequencerConsensusContext {
+        SequencerConsensusContext::new(config, self.into())
     }
 }
 
