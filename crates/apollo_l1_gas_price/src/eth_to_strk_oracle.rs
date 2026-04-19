@@ -56,7 +56,7 @@ type PriceQuery = AbortOnDropHandle<Result<u128, PriceOracleClientError>>;
 
 /// Client for interacting with the eth to strk Oracle API.
 #[derive(Clone, Debug)]
-pub struct EthToStrkOracleClient {
+pub struct PriceOracleClient {
     config: PriceOracleConfig,
     /// The index of the current URL in the `url_header_list`.
     /// If one URL fails, index is incremented to try the next URL.
@@ -67,7 +67,7 @@ pub struct EthToStrkOracleClient {
     queries: Arc<Mutex<LruCache<u64, PriceQuery>>>,
 }
 
-impl EthToStrkOracleClient {
+impl PriceOracleClient {
     pub fn new(config: PriceOracleConfig) -> Self {
         info!(
             "Creating EthToStrkOracleClient with: urls={:?} lag_interval_seconds={}",
@@ -188,7 +188,7 @@ fn resolve_query(body: String) -> Result<u128, PriceOracleClientError> {
 }
 
 #[async_trait]
-impl PriceOracleClientTrait for EthToStrkOracleClient {
+impl PriceOracleClientTrait for PriceOracleClient {
     /// The HTTP response must include the following fields:
     /// - `price`: a hexadecimal string representing the price.
     /// - `decimals`: a `u64` value, must be equal to `ETH_TO_STRK_QUANTIZATION`.

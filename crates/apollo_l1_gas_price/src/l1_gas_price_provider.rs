@@ -16,7 +16,7 @@ use async_trait::async_trait;
 use starknet_api::block::BlockTimestamp;
 use tracing::{info, trace, warn};
 
-use crate::eth_to_strk_oracle::EthToStrkOracleClient;
+use crate::eth_to_strk_oracle::PriceOracleClient;
 use crate::metrics::{
     register_provider_metrics,
     L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
@@ -71,7 +71,7 @@ impl L1GasPriceProvider {
 
     pub fn new_with_oracle(config: L1GasPriceProviderConfig) -> Self {
         let eth_to_strk_oracle_client =
-            EthToStrkOracleClient::new(config.eth_to_strk_oracle_config.clone());
+            PriceOracleClient::new(config.eth_to_strk_oracle_config.clone());
         Self::new(config, Arc::new(eth_to_strk_oracle_client))
     }
 

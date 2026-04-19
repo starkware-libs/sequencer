@@ -9,7 +9,7 @@ use serde_json::json;
 use tokio::{self};
 use url::Url;
 
-use crate::eth_to_strk_oracle::{EthToStrkOracleClient, PriceOracleConfig};
+use crate::eth_to_strk_oracle::{PriceOracleClient, PriceOracleConfig};
 
 async fn make_server(server: &mut ServerGuard, body: serde_json::Value) -> Mock {
     server
@@ -57,7 +57,7 @@ async fn eth_to_fri_rate_uses_cache_on_quantized_hit() {
         lag_interval_seconds: LAG_INTERVAL_SECONDS,
         ..Default::default()
     };
-    let client = EthToStrkOracleClient::new(config.clone());
+    let client = PriceOracleClient::new(config.clone());
 
     // First request should fail because the cache is empty.
     assert!(client.eth_to_fri_rate(TIMESTAMP1).await.is_err());
@@ -131,7 +131,7 @@ async fn eth_to_fri_rate_uses_prev_cache_when_query_not_ready() {
         lag_interval_seconds: LAG_INTERVAL_SECONDS,
         ..Default::default()
     };
-    let client = EthToStrkOracleClient::new(config.clone());
+    let client = PriceOracleClient::new(config.clone());
 
     // First request should fail because the cache is empty.
     assert!(client.eth_to_fri_rate(TIMESTAMP1).await.is_err());
@@ -192,7 +192,7 @@ async fn eth_to_fri_rate_two_urls() {
         lag_interval_seconds: LAG_INTERVAL_SECONDS,
         ..Default::default()
     };
-    let client = EthToStrkOracleClient::new(config.clone());
+    let client = PriceOracleClient::new(config.clone());
     // First request should fail because the cache is empty.
     assert!(client.eth_to_fri_rate(TIMESTAMP1).await.is_err());
     // Wait for the query to resolve.
