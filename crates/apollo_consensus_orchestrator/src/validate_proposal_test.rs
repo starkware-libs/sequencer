@@ -24,7 +24,7 @@ use assert_matches::assert_matches;
 use futures::channel::mpsc;
 use futures::SinkExt;
 use rstest::rstest;
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::{BlockNumber, GasPrice, StarknetVersion};
 use starknet_api::block_hash::block_hash_calculator::{BlockHeaderCommitments, PartialBlockHash};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
@@ -94,6 +94,7 @@ fn create_proposal_validate_arguments()
         previous_proposal_init: None,
         l1_da_mode: L1DataAvailabilityMode::Blob,
         l2_gas_price_fri: VersionedConstants::latest_constants().min_gas_price,
+        starknet_version: StarknetVersion::LATEST,
     };
     let proposal_id = ProposalId(1);
     let timeout = TIMEOUT;
@@ -321,6 +322,53 @@ async fn batcher_returns_invalid_proposal() {
 
     let res = validate_proposal(proposal_args.into()).await;
     assert!(matches!(res, Err(ValidateProposalError::InvalidProposal(_))));
+}
+
+#[tokio::test]
+async fn valid_starknet_version() {
+    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
+    // init.starknet_version defaults to LATEST, matching proposal_init_validation.starknet_version.
+    proposal_args.deps.batcher.expect_validate_block().times(1).returning(|_| Ok(()));
+    proposal_args
+        .deps
+        .batcher
+        .expect_start_height()
+        .withf(|input| input.height == BlockNumber(0))
+        .return_const(Ok(()));
+    proposal_args.deps.batcher.expect_finish_proposal().times(1).returning(|input| {
+        assert_eq!(input.final_n_executed_txs, 0);
+        Ok(FinishProposalStatus::Finished(FinishedProposalInfo {
+            artifact: FinishedProposalInfoWithoutParent {
+                proposal_commitment: ProposalCommitment::default(),
+                final_n_executed_txs: 0,
+                block_header_commitments: BlockHeaderCommitments::default(),
+                l2_gas_used: GasAmount::default(),
+            },
+            parent_proposal_commitment: None,
+        }))
+    });
+    content_sender
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_commitment: ConsensusProposalCommitment::default(),
+            executed_transaction_count: 0,
+            fin_payload: None,
+        }))
+        .await
+        .unwrap();
+
+    let res = validate_proposal(proposal_args.into()).await;
+    assert_matches!(res, Ok(val) if val == ConsensusProposalCommitment::default());
+}
+
+#[tokio::test]
+async fn invalid_starknet_version() {
+    let (mut proposal_args, _content_sender) = create_proposal_validate_arguments();
+    // Proposer sends a starknet_version that doesn't match what the validator expects.
+    proposal_args.init.starknet_version = StarknetVersion::V0_13_4;
+
+    let res = validate_proposal(proposal_args.into()).await;
+    assert!(matches!(res, Err(ValidateProposalError::InvalidProposalInit(_, _, ref msg))
+        if msg.contains("starknet_version mismatch")));
 }
 
 #[rstest]
