@@ -16,6 +16,7 @@ use crate::block::{
     BlockInfo,
     BlockNumber,
     BlockTimestamp,
+    GasPrice,
     GasPricePerToken,
     StarknetVersion,
 };
@@ -218,6 +219,8 @@ pub struct PartialBlockHashComponents {
     pub sequencer: SequencerContractAddress,
     pub timestamp: BlockTimestamp,
     pub starknet_version: StarknetVersion,
+    /// SNIP-35: proposer's oracle-derived recommended fee.
+    pub fee_proposal: GasPrice,
 }
 
 impl PartialBlockHashComponents {
@@ -231,6 +234,7 @@ impl PartialBlockHashComponents {
             sequencer: SequencerContractAddress(block_info.sequencer_address),
             timestamp: block_info.block_timestamp,
             starknet_version: block_info.starknet_version,
+            fee_proposal: GasPrice::default(),
         }
     }
 }
