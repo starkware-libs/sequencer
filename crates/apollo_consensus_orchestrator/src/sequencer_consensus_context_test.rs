@@ -441,6 +441,7 @@ async fn build_proposal_cende_failure() {
         .return_once(|_height| tokio::spawn(ready(false)));
     deps.cende_ambassador = mock_cende_context;
     let mut context = deps.build_context();
+    populate_fee_proposals_window_up_to(&mut context, HEIGHT_FOR_WRITE_TESTS);
 
     let fin_receiver = context
         .build_proposal(
@@ -466,6 +467,7 @@ async fn build_proposal_cende_incomplete() {
         .return_once(|_height| tokio::spawn(pending()));
     deps.cende_ambassador = mock_cende_context;
     let mut context = deps.build_context();
+    populate_fee_proposals_window_up_to(&mut context, HEIGHT_FOR_WRITE_TESTS);
 
     let fin_receiver = context
         .build_proposal(
@@ -475,6 +477,17 @@ async fn build_proposal_cende_incomplete() {
         .await
         .unwrap();
     assert_eq!(fin_receiver.await, Err(Canceled));
+}
+
+/// Populate the SNIP-35 fee_proposals window so `build_proposal` at `target_height` passes the
+/// propose-gate (which requires every height in `[target_height - WINDOW, target_height)`).
+fn populate_fee_proposals_window_up_to(
+    context: &mut SequencerConsensusContext,
+    target_height: BlockNumber,
+) {
+    for h in 0..target_height.0 {
+        context.record_fee_proposal(BlockNumber(h), Some(GasPrice(1)));
+    }
 }
 
 #[rstest]

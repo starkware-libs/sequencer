@@ -28,7 +28,7 @@ use apollo_protobuf::consensus::{
 };
 use apollo_time::time::{Clock, DateTime};
 use apollo_transaction_converter::TransactionConverterError;
-use starknet_api::block::GasPrice;
+use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -76,6 +76,10 @@ pub(crate) struct ProposalBuildArguments {
     pub override_l2_gas_price_fri: Option<u128>,
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
     pub compare_retrospective_block_hash: bool,
+    /// SNIP-35: proposer's fee_proposal for this block.
+    pub fee_proposal: GasPrice,
+    /// SNIP-35: current fee_actual from the sliding window.
+    pub fee_actual: Option<GasPrice>,
 }
 
 type BuildProposalResult<T> = Result<T, BuildProposalError>;
@@ -108,6 +112,11 @@ pub(crate) enum BuildProposalError {
     TransactionConverterError(#[from] TransactionConverterError),
     #[error("ProposalInit conversion error: {0}")]
     ProposalInitConversion(#[from] StarknetApiError),
+    #[error(
+        "SNIP-35 fee_proposals window incomplete at height {height}: {recorded} of {window_size} \
+         heights recorded"
+    )]
+    FeeProposalsWindowIncomplete { height: BlockNumber, recorded: usize, window_size: usize },
 }
 
 // Handles building a new proposal without blocking consensus:
@@ -176,7 +185,7 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
         starknet_version: starknet_api::block::StarknetVersion::LATEST,
         // TODO(Asmaa): Put the real value once we have it.
         version_constant_commitment: Default::default(),
-        fee_proposal_fri: None,
+        fee_proposal_fri: Some(args.fee_proposal),
     };
 
     let retrospective_block_hash = wait_for_retrospective_block_hash(
@@ -319,7 +328,7 @@ async fn get_proposal_content(
                     info.l2_gas_used,
                     args.override_l2_gas_price_fri,
                     &args.min_l2_gas_price_per_height,
-                    None,
+                    args.fee_actual,
                 );
                 let fin_payload = ProposalFinPayload {
                     commitment_parts: CommitmentParts::from(&info),
