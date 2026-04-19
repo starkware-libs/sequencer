@@ -14,7 +14,7 @@ use mockito::Server;
 use starknet_api::invoke_tx_args;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
-use starknet_api::transaction::fields::{AllResourceBounds, ValidResourceBounds};
+use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::InvokeTransaction;
 use url::Url;
 
@@ -22,6 +22,7 @@ use super::virtual_snos_prover::VirtualSnosProver;
 use crate::blocking_check::BlockingCheckClient;
 use crate::errors::{RunnerError, VirtualSnosProverError};
 use crate::running::runner::{RunnerOutput, VirtualSnosRunner};
+use crate::test_utils::resource_bounds_for_client_side_tx;
 
 /// A mock runner that always returns an error.
 ///
@@ -47,7 +48,7 @@ const TEST_TIMEOUT_MILLIS: u64 = 10_000;
 
 fn test_transaction() -> RpcTransaction {
     rpc_invoke_tx(invoke_tx_args!(
-        resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds::default())
+        resource_bounds: ValidResourceBounds::AllResources(resource_bounds_for_client_side_tx())
     ))
 }
 
