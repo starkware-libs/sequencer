@@ -26,7 +26,7 @@ use apollo_transaction_converter::{TransactionConverterTrait, VerifyAndStoreProo
 use apollo_versioned_constants::VersionedConstants;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::{BlockNumber, GasPrice, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
@@ -76,6 +76,7 @@ pub(crate) struct ProposalInitValidation {
     pub previous_proposal_init: Option<PreviousProposalInitInfo>,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub l2_gas_price_fri: GasPrice,
+    pub starknet_version: StarknetVersion,
 }
 
 /// Parameters for deadline and cancellation handling during proposal finalization.
@@ -273,6 +274,16 @@ async fn is_proposal_init_valid(
                 now,
                 proposal_init_validation.block_timestamp_window_seconds,
                 init_proposed.timestamp
+            ),
+        ));
+    }
+    if init_proposed.starknet_version != proposal_init_validation.starknet_version {
+        return Err(ValidateProposalError::InvalidProposalInit(
+            init_proposed.clone(),
+            proposal_init_validation.clone(),
+            format!(
+                "starknet_version mismatch: expected={:?}, proposed={:?}",
+                proposal_init_validation.starknet_version, init_proposed.starknet_version
             ),
         ));
     }

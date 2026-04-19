@@ -24,7 +24,7 @@ use assert_matches::assert_matches;
 use futures::channel::mpsc;
 use futures::SinkExt;
 use rstest::rstest;
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::{BlockNumber, GasPrice, StarknetVersion};
 use starknet_api::block_hash::block_hash_calculator::{BlockHeaderCommitments, PartialBlockHash};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
@@ -94,6 +94,7 @@ fn create_proposal_validate_arguments()
         previous_proposal_init: None,
         l1_da_mode: L1DataAvailabilityMode::Blob,
         l2_gas_price_fri: VersionedConstants::latest_constants().min_gas_price,
+        starknet_version: StarknetVersion::LATEST,
     };
     let proposal_id = ProposalId(1);
     let timeout = TIMEOUT;
@@ -321,6 +322,17 @@ async fn batcher_returns_invalid_proposal() {
 
     let res = validate_proposal(proposal_args.into()).await;
     assert!(matches!(res, Err(ValidateProposalError::InvalidProposal(_))));
+}
+
+#[tokio::test]
+async fn invalid_starknet_version() {
+    let (mut proposal_args, _content_sender) = create_proposal_validate_arguments();
+    // Proposer sends a starknet_version that doesn't match what the validator expects.
+    proposal_args.init.starknet_version = StarknetVersion::V0_13_4;
+
+    let res = validate_proposal(proposal_args.into()).await;
+    assert!(matches!(res, Err(ValidateProposalError::InvalidProposalInit(_, _, ref msg))
+        if msg.contains("starknet_version mismatch")));
 }
 
 #[rstest]
