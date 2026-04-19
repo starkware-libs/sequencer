@@ -29,6 +29,12 @@ fn test_compute_fee_actual_random_window() {
     assert_eq!(compute_fee_actual(&proposals, 12), Some(GasPrice(292)));
 }
 
+#[test]
+fn test_compute_fee_actual_window_size_one_returns_most_recent() {
+    let proposals = vec![GasPrice(100), GasPrice(200), GasPrice(300)];
+    assert_eq!(compute_fee_actual(&proposals, 1), Some(GasPrice(300)));
+}
+
 #[rstest]
 #[case::window_size_zero(vec![GasPrice(100); 10], 0)]
 #[case::fewer_proposals_than_window(vec![GasPrice(100); 9], 10)]
