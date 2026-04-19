@@ -47,6 +47,7 @@ async fn get_proposal_init(args: &ProposalBuildArguments) -> ProposalInit {
         l1_data_gas_price_fri: l1_prices_fri.l1_data_gas_price,
         starknet_version: starknet_api::block::StarknetVersion::LATEST,
         version_constant_commitment: Default::default(),
+        fee_proposal_fri: None,
     }
 }
 
