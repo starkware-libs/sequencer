@@ -1493,15 +1493,17 @@ async fn test_first_height_keeps_sync_provided_l2_gas_price() {
     const CONFIG_MIN_PRICE_AT_250: u128 = 25_000_000_000;
 
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_default_expectations();
-    deps.batcher.expect_add_sync_block().times(1).return_once(|_| Ok(()));
-    deps.batcher.expect_start_height().times(2).returning(|_| Ok(()));
+    // Specific get_block expectation must be registered before setup_default_expectations, which
+    // installs a catch-all BlockNotFound handler for SNIP-35 backfill.
     deps.state_sync_client.expect_get_block().times(1).return_once(|height| {
         let mut sync_block = SyncBlock::default();
         sync_block.block_header_without_hash.block_number = height;
         sync_block.block_header_without_hash.next_l2_gas_price = GasPrice(SYNCED_NEXT_L2_GAS_PRICE);
         Ok(sync_block)
     });
+    deps.setup_default_expectations();
+    deps.batcher.expect_add_sync_block().times(1).return_once(|_| Ok(()));
+    deps.batcher.expect_start_height().times(2).returning(|_| Ok(()));
 
     let mut context = deps.build_context();
     context.config.dynamic_config.min_l2_gas_price_per_height =
