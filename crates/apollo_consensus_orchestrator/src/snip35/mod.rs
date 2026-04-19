@@ -12,6 +12,9 @@
 use ethnum::U256;
 use starknet_api::block::GasPrice;
 
+#[cfg(test)]
+mod test;
+
 /// Scale factor for 18-decimal fixed-point conversion (1 STRK = 10^18 FRI).
 const FRI_DECIMALS_SCALE: u128 = 10u128.pow(18);
 
