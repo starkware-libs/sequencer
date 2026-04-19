@@ -849,6 +849,7 @@ impl Batcher {
                         sequencer: block_header_without_hash.sequencer,
                         timestamp: block_header_without_hash.timestamp,
                         starknet_version: block_header_without_hash.starknet_version,
+                        fee_proposal: block_header_without_hash.fee_proposal,
                     })
                 }
                 None => return Err(BatcherError::MissingHeaderCommitments { block_number }),

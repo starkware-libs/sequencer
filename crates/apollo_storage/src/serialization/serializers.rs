@@ -381,6 +381,7 @@ auto_storage_serde! {
         pub sequencer: SequencerContractAddress,
         pub timestamp: BlockTimestamp,
         pub starknet_version: StarknetVersion,
+        pub fee_proposal: GasPrice,
     }
     pub struct PaymasterData(pub Vec<Felt>);
     pub struct PoseidonHash(pub Felt);
