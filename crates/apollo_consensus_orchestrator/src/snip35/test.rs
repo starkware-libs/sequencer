@@ -1,5 +1,7 @@
+use std::collections::BTreeMap;
+
 use rstest::rstest;
-use starknet_api::block::GasPrice;
+use starknet_api::block::{BlockNumber, GasPrice};
 
 use crate::snip35::{compute_fee_actual, compute_fee_proposal, compute_fee_target};
 
@@ -7,20 +9,24 @@ const FRI_DECIMALS_SCALE: u128 = 10u128.pow(18);
 const FLOOR_MIN_FRI: u128 = 100;
 const FLOOR_MAX_FRI: u128 = 1000;
 
+fn window_from(entries: impl IntoIterator<Item = (u64, Option<GasPrice>)>) -> BTreeMap<BlockNumber, Option<GasPrice>> {
+    entries.into_iter().map(|(h, v)| (BlockNumber(h), v)).collect()
+}
+
 #[test]
 fn test_compute_fee_actual_random_window() {
-    // 12 values with window_size=10: takes the last 10 (indices 2..11).
-    // Excluded values at indices 0..1 are [314, 1729]; including them would shift the median.
+    // The window for height 12 is heights [2, 11]; including heights 0..1 would shift the
+    // median.
     // Sorted window: [1, 17, 42, 87, 100, 271, 999, 1024, 6000, 9999].
     // Even-length median = sorted[4] + (sorted[5] - sorted[4]) / 2 = 100 + 85 = 185.
     //
     // Buggy alternatives (for catching off-by-one or wrong-end-of-window bugs):
-    // - First 10 instead of last 10: sorted = [1, 42, 87, 100, 271, 314, 1024, 1729, 6000, 9999],
-    //   median = 271 + (314 - 271) / 2 = 292.
-    // - All 12 (window_size ignored): sorted[5..7] = [271, 314], median = 292.
-    let proposals = vec![
-        GasPrice(314),
-        GasPrice(1729),
+    // - Heights 0..9 instead of 2..11: sorted =
+    //   [1, 42, 87, 100, 271, 314, 1024, 1729, 6000, 9999], median = 271 + (314 - 271) / 2 = 292.
+    // - All 12 (window-size ignored): sorted[5..7] = [271, 314], median = 292.
+    let values = [
+        GasPrice(314),  // height 0
+        GasPrice(1729), // height 1
         GasPrice(42),
         GasPrice(1024),
         GasPrice(100),
@@ -30,26 +36,33 @@ fn test_compute_fee_actual_random_window() {
         GasPrice(1),
         GasPrice(6000),
         GasPrice(17),
-        GasPrice(999),
+        GasPrice(999), // height 11
     ];
-    assert_eq!(compute_fee_actual(&proposals, 10), Some(GasPrice(185)));
+    let window =
+        window_from(values.iter().enumerate().map(|(h, v)| (u64::try_from(h).unwrap(), Some(*v))));
+    assert_eq!(compute_fee_actual(&window, BlockNumber(12)), Some(GasPrice(185)));
 }
 
 #[test]
-fn test_compute_fee_actual_window_size_one_returns_most_recent() {
-    let proposals = vec![GasPrice(100), GasPrice(200), GasPrice(300)];
-    assert_eq!(compute_fee_actual(&proposals, 1), Some(GasPrice(300)));
+fn test_compute_fee_actual_missing_entry_returns_none() {
+    // Heights [0, 9] needed for fee_actual at height 10; height 5 is missing.
+    let window = window_from(
+        (0u64..10).filter(|h| *h != 5).map(|h| (h, Some(GasPrice(100)))),
+    );
+    assert_eq!(compute_fee_actual(&window, BlockNumber(10)), None);
 }
 
-#[rstest]
-#[case::window_size_zero(vec![GasPrice(100); 10], 0)]
-#[case::fewer_proposals_than_window(vec![GasPrice(100); 9], 10)]
-#[case::all_zero_median(vec![GasPrice(0); 10], 10)]
-fn test_compute_fee_actual_returns_none(
-    #[case] proposals: Vec<GasPrice>,
-    #[case] window_size: usize,
-) {
-    assert_eq!(compute_fee_actual(&proposals, window_size), None);
+#[test]
+fn test_compute_fee_actual_none_entry_returns_none() {
+    // Heights [0, 9] needed; height 7 is recorded as None (pre-SNIP-35 block).
+    let window = window_from((0u64..10).map(|h| (h, if h == 7 { None } else { Some(GasPrice(100)) })));
+    assert_eq!(compute_fee_actual(&window, BlockNumber(10)), None);
+}
+
+#[test]
+fn test_compute_fee_actual_height_below_window_size_returns_none() {
+    let window = window_from((0u64..5).map(|h| (h, Some(GasPrice(100)))));
+    assert_eq!(compute_fee_actual(&window, BlockNumber(5)), None);
 }
 
 #[rstest]
