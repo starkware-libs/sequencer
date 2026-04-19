@@ -95,6 +95,7 @@ fn create_proposal_validate_arguments()
         l1_da_mode: L1DataAvailabilityMode::Blob,
         l2_gas_price_fri: VersionedConstants::latest_constants().min_gas_price,
         starknet_version: StarknetVersion::LATEST,
+        fee_actual: None,
     };
     let proposal_id = ProposalId(1);
     let timeout = TIMEOUT;
