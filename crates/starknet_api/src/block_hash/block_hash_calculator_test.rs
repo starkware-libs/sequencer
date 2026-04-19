@@ -50,7 +50,6 @@ macro_rules! test_hash_changes {
                 $(
                     $partial_block_hash_components_field: $partial_block_hash_components_value,
                 )*
-                ..Default::default()
             };
             let state_root = $state_root;
             let previous_block_hash = $previous_block_hash;
@@ -123,8 +122,11 @@ async fn test_block_hash_regression(
 =======
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 <<<<<<< HEAD
+=======
+>>>>>>> 4d4b9edbdd (starknet_api: add fee_proposal to block hash calculator)
         BlockHashVersion::V0_14_3 => {
             felt!("0x477e98ed084a0274e4510ab27327f08235d8e4fdb7506e46e92e9ab0c5ea459")
         }
@@ -137,12 +139,15 @@ async fn test_block_hash_regression(
 >>>>>>> e8015184bb (starknet_api: add fee_proposal to block hash calculator)
 >>>>>>> bf013ff28d (starknet_api: add fee_proposal to block hash calculator)
 >>>>>>> 519633c8f6 (starknet_api: add fee_proposal to block hash calculator)
+<<<<<<< HEAD
 =======
         BlockHashVersion::V0_14_3 => {
             felt!("0x477e98ed084a0274e4510ab27327f08235d8e4fdb7506e46e92e9ab0c5ea459")
         }
 >>>>>>> 98c068ac55 (starknet_api: add BlockHashVersion::V0_14_3 variant)
 >>>>>>> 10aaac5c3c (starknet_api: add BlockHashVersion::V0_14_3 variant)
+=======
+>>>>>>> 4d4b9edbdd (starknet_api: add fee_proposal to block hash calculator)
     };
 
     assert_eq!(
@@ -277,7 +282,8 @@ fn change_field_of_hash_input() {
             },
             l2_gas_price: GasPricePerToken { price_in_fri: 1_u8.into(), price_in_wei: 1_u8.into() },
             sequencer: SequencerContractAddress(ContractAddress::from(1_u128)),
-            timestamp: BlockTimestamp(1)
+            timestamp: BlockTimestamp(1),
+            fee_proposal: GasPrice(1)
         },
         state_root: GlobalRoot(Felt::ONE),
         previous_block_hash: BlockHash(Felt::ONE)
