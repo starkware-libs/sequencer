@@ -23,7 +23,7 @@ use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::{ConsensusContext, ConsensusError, ProposalCommitment, Round};
 use apollo_consensus_orchestrator_config::config::ContextConfig;
-use apollo_l1_gas_price_types::L1GasPriceProviderClient;
+use apollo_l1_gas_price_types::{ExchangeRateOracleClientTrait, L1GasPriceProviderClient};
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
     BuildParam,
@@ -250,6 +250,8 @@ pub struct SequencerConsensusContextDeps {
     // Used to broadcast votes to other consensus nodes.
     pub vote_broadcast_client: BroadcastTopicClient<Vote>,
     pub config_manager_client: Option<SharedConfigManagerClient>,
+    /// STRK/USD exchange rate oracle for SNIP-35 dynamic gas pricing. None if disabled.
+    pub strk_exchange_rate_oracle: Option<Arc<dyn ExchangeRateOracleClientTrait>>,
 }
 
 #[derive(thiserror::Error, PartialEq, Debug)]
