@@ -12,8 +12,11 @@
 //! See also: `fee_market` for EIP-1559-style base-fee adjustment, which receives
 //! `fee_actual` as a floor.
 
+use std::collections::BTreeMap;
+
 use ethnum::U256;
-use starknet_api::block::GasPrice;
+use starknet_api::block::{BlockNumber, GasPrice};
+use tracing::warn;
 
 #[cfg(test)]
 mod test;
@@ -28,54 +31,80 @@ pub(crate) const PPT_DENOMINATOR: u128 = 1000;
 // TODO(AndrewL): consider moving this to versioned constants.
 pub(crate) const FEE_PROPOSAL_WINDOW_SIZE: usize = 10;
 
-/// Compute fee_actual from the last `window_size` `fee_proposal` values (SNIP-35).
+/// Maximum fee_proposal change per block in parts per thousand (SNIP-35: 0.2%).
+// TODO(AndrewL): consider moving this to versioned constants.
+pub(crate) const FEE_PROPOSAL_MARGIN_PPT: u128 = 2;
+
+/// Target USD cost per L2 gas unit in atto-USD ($3e-9 = 3_000_000_000 atto-USD).
+// TODO(AndrewL): consider moving this to a dynamic config.
+pub(crate) const TARGET_ATTO_USD_PER_L2_GAS: u128 = 3_000_000_000;
+
+/// Compute fee_actual for `height` as the median of the `fee_proposal` values
+/// recorded for heights `[height - FEE_PROPOSAL_WINDOW_SIZE, height - 1]` (SNIP-35).
 ///
-/// Median rule: for even `window_size`, the average of the two middle values rounded
-/// down; for odd `window_size`, the single middle value.
+/// Returns `None` (after logging a warning) when any of those heights is missing from
+/// `fee_proposals_window` or recorded as `None` (e.g., pre-SNIP-35 blocks). The `None`
+/// case triggers the `l2_gas_price` fallback in both proposer and validator paths.
 ///
-/// Returns `None` if `window_size == 0`, fewer than `window_size` proposals are
-/// available, or the median is zero (e.g., pre-SNIP-35 blocks with `fee_proposal == 0`).
-/// The `None` case triggers the `l2_gas_price` fallback in both proposer and validator
-/// paths.
-pub fn compute_fee_actual(proposals: &[GasPrice], window_size: usize) -> Option<GasPrice> {
-    if window_size == 0 {
+/// Median rule for even `FEE_PROPOSAL_WINDOW_SIZE`: average of the two middle values
+/// rounded down; for odd: the single middle value.
+pub fn compute_fee_actual(
+    fee_proposals_window: &BTreeMap<BlockNumber, Option<GasPrice>>,
+    height: BlockNumber,
+) -> Option<GasPrice> {
+    let window_size =
+        u64::try_from(FEE_PROPOSAL_WINDOW_SIZE).expect("FEE_PROPOSAL_WINDOW_SIZE fits in u64");
+    let Some(start) = height.0.checked_sub(window_size) else {
+        warn!(
+            "Cannot compute fee_actual for height {height}: height is below \
+             FEE_PROPOSAL_WINDOW_SIZE ({FEE_PROPOSAL_WINDOW_SIZE})"
+        );
         return None;
+    };
+    let mut window = Vec::with_capacity(FEE_PROPOSAL_WINDOW_SIZE);
+    for source_height in (start..height.0).map(BlockNumber) {
+        match fee_proposals_window.get(&source_height) {
+            Some(Some(price)) => window.push(*price),
+            Some(None) | None => {
+                warn!(
+                    "Cannot compute fee_actual for height {height}: fee_proposals_window has no \
+                     recorded fee_proposal for height {source_height}"
+                );
+                return None;
+            }
+        }
     }
-    let start = proposals.len().checked_sub(window_size)?;
-    let window = proposals.get(start..)?;
-    let mut sorted: Vec<GasPrice> = window.to_vec();
-    sorted.sort();
-    let mid = window_size / 2;
-    let median = if window_size.is_multiple_of(2) {
+    window.sort();
+    let mid = FEE_PROPOSAL_WINDOW_SIZE / 2;
+    let median = if FEE_PROPOSAL_WINDOW_SIZE.is_multiple_of(2) {
         // Even: average of the two middle values, rounded down.
         // Overflow-safe averaging: a + (b - a) / 2 (safe because sorted, so b >= a).
-        GasPrice(sorted[mid - 1].0 + (sorted[mid].0 - sorted[mid - 1].0) / 2)
+        GasPrice(window[mid - 1].0 + (window[mid].0 - window[mid - 1].0) / 2)
     } else {
-        sorted[mid]
+        window[mid]
     };
-    if median.0 == 0 { None } else { Some(median) }
+    Some(median)
 }
 
 /// Compute the fee target from STRK/USD price and a USD cost target (SNIP-35).
 ///
 /// `target_atto_usd_per_l2_gas` is in atto-USD (atto = 10⁻¹⁸; so a value of
 /// `3_000_000_000` means 3·10⁻⁹ USD = 3 nanodollars per L2 gas unit).
-/// `strk_usd_rate` is the STRK/USD price with 18 decimals (from the oracle).
-/// Result is in FRI, clamped to `[floor_min_fri, floor_max_fri]`.
+/// `strk_usd_rate` is the STRK/USD price with 18 decimals (from the oracle); a rate of `0`
+/// returns `None` (treat as oracle failure: callers freeze at `fee_actual`).
+/// Returns the target in FRI; the multiplicative margin clamp in `compute_fee_proposal`
+/// keeps the published proposal bounded relative to `fee_actual`.
 pub fn compute_fee_target(
     target_atto_usd_per_l2_gas: u128,
     strk_usd_rate: u128,
-    floor_min_fri: u128,
-    floor_max_fri: u128,
-) -> GasPrice {
+) -> Option<GasPrice> {
     if strk_usd_rate == 0 {
-        return GasPrice(floor_max_fri);
+        return None;
     }
     // floor_fri = target_atto_usd_per_l2_gas * 10^18 / strk_usd_rate
     let numerator = U256::from(target_atto_usd_per_l2_gas) * U256::from(FRI_DECIMALS_SCALE);
     let floor = numerator / U256::from(strk_usd_rate);
-    let floor_u128 = u128::try_from(floor).unwrap_or(u128::MAX);
-    GasPrice(floor_u128.clamp(floor_min_fri, floor_max_fri))
+    Some(GasPrice(u128::try_from(floor).unwrap_or(u128::MAX)))
 }
 
 /// Compute the fee_proposal an honest proposer should publish (SNIP-35).
