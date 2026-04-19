@@ -21,6 +21,9 @@ const FRI_DECIMALS_SCALE: u128 = 10u128.pow(18);
 /// Denominator for parts-per-thousand calculations in SNIP-35 fee_proposal bounds.
 pub(crate) const PPT_DENOMINATOR: u128 = 1000;
 
+/// Number of fee_proposal values used to compute fee_actual (SNIP-35).
+pub(crate) const FEE_PROPOSAL_WINDOW_SIZE: usize = 10;
+
 /// Compute fee_actual from the last `window_size` fee_proposal values (SNIP-35).
 /// Returns the average of the two middle values, rounded down.
 /// Returns `None` if fewer than `window_size` proposals are available.
