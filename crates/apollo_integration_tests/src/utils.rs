@@ -51,7 +51,7 @@ use apollo_http_server::test_utils::create_http_server_config;
 use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_l1_events_config::config::{L1EventsProviderConfig, L1EventsScraperConfig};
-use apollo_l1_gas_price::eth_to_strk_oracle::ETH_TO_STRK_QUANTIZATION;
+use apollo_l1_gas_price::price_oracle::ORACLE_PRICE_DECIMALS;
 use apollo_l1_gas_price_config::config::{
     L1GasPriceProviderConfig,
     L1GasPriceScraperConfig,
@@ -532,7 +532,8 @@ async fn get_price(Query(query): Query<EthToStrkOracleQuery>) -> Json<serde_json
     // TODO(Asmaa): Retrun timestamp as price once we start mocking out time in the
     // tests.
     let price = format!("0x{DEFAULT_ETH_TO_FRI_RATE:x}");
-    let response = json!({ "timestamp": query.timestamp ,"price": price, "decimals": ETH_TO_STRK_QUANTIZATION });
+    let response =
+        json!({ "timestamp": query.timestamp ,"price": price, "decimals": ORACLE_PRICE_DECIMALS });
     Json(response)
 }
 

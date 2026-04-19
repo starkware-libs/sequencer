@@ -30,7 +30,7 @@ use crate::metrics::{
 #[path = "eth_to_strk_oracle_test.rs"]
 pub mod eth_to_strk_oracle_test;
 
-pub const ETH_TO_STRK_QUANTIZATION: u64 = 18;
+pub const ORACLE_PRICE_DECIMALS: u64 = 18;
 
 fn btreemap_to_headermap(hash_map: BTreeMap<String, String>) -> HeaderMap {
     let mut header_map = HeaderMap::new();
@@ -175,11 +175,8 @@ fn resolve_query(body: String) -> Result<u128, PriceOracleClientError> {
             return Err(PriceOracleClientError::MissingFieldError("decimals".to_string(), body));
         }
     };
-    if decimals != ETH_TO_STRK_QUANTIZATION {
-        return Err(PriceOracleClientError::InvalidDecimalsError(
-            ETH_TO_STRK_QUANTIZATION,
-            decimals,
-        ));
+    if decimals != ORACLE_PRICE_DECIMALS {
+        return Err(PriceOracleClientError::InvalidDecimalsError(ORACLE_PRICE_DECIMALS, decimals));
     }
     ETH_TO_STRK_SUCCESS_COUNT.increment(1);
     set_unix_now_seconds(&ETH_TO_STRK_LAST_SUCCESS_TIMESTAMP_SECONDS);
