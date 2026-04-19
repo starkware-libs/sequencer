@@ -706,8 +706,7 @@ fn execute_transactions(
     };
 
     let mut res = vec![];
-    for (transaction_index, (tx, tx_hash)) in txs.into_iter().zip(tx_hashes.into_iter()).enumerate()
-    {
+    for (transaction_index, (tx, tx_hash)) in txs.into_iter().zip(tx_hashes).enumerate() {
         let transaction_version = tx.transaction_version();
         // TODO(DanB): consider supporting match instead.
         let price_unit = if transaction_version == TransactionVersion::ZERO

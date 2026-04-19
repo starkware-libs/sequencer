@@ -42,7 +42,7 @@ pub(crate) fn get_component_infra_row(row_name: impl ToString, metrics: &InfraMe
     );
     // Add the client and server panels for each request type, next to each other.
     for (request_type_client_panel, request_type_server_panel) in
-        labeled_client_panels.into_iter().zip(labeled_server_panels.into_iter())
+        labeled_client_panels.into_iter().zip(labeled_server_panels)
     {
         panels.push(request_type_client_panel);
         panels.push(request_type_server_panel);

@@ -154,23 +154,19 @@ impl NetworkBehaviour for Behaviour {
         match event {
             FromSwarm::ConnectionEstablished(ConnectionEstablished {
                 peer_id,
-                other_established,
+                other_established: 0,
                 ..
             }) => {
-                if other_established == 0 {
-                    let command = EngineCommand::HandleConnected { peer_id };
-                    self.engine_commands_tx.send(command).expect("Engine task has exited");
-                }
+                let command = EngineCommand::HandleConnected { peer_id };
+                self.engine_commands_tx.send(command).expect("Engine task has exited");
             }
             FromSwarm::ConnectionClosed(ConnectionClosed {
                 peer_id,
-                remaining_established,
+                remaining_established: 0,
                 ..
             }) => {
-                if remaining_established == 0 {
-                    let command = EngineCommand::HandleDisconnected { peer_id };
-                    self.engine_commands_tx.send(command).expect("Engine task has exited");
-                }
+                let command = EngineCommand::HandleDisconnected { peer_id };
+                self.engine_commands_tx.send(command).expect("Engine task has exited");
             }
             _ => {}
         }

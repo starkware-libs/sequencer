@@ -34,12 +34,19 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractEntryPoint {
     ) -> VmUtilsResult<Relocatable> {
         // Allocate a segment for the builtin list.
         let builtin_list_base = vm.add_memory_segment();
-        let mut next_builtin_address = builtin_list_base;
-        // Insert the builtin list.
-        for builtin in self.builtins.iter() {
-            let builtin_as_felt = Felt::from_bytes_be_slice(builtin.as_bytes());
-            vm.insert_value(next_builtin_address, builtin_as_felt)?;
-            next_builtin_address += 1;
+        // Clippy incorrectly warns about `next_builtin_address` being an explicit counter loop.
+        // `for (next_builtin_address, builtin) in (builtin_list_base..).zip(self.builtins.iter())`
+        // is not possible because `builtin_list_base` is a `Relocatable` and does not implement
+        // `Step`.
+        #[expect(clippy::explicit_counter_loop)]
+        {
+            let mut next_builtin_address = builtin_list_base;
+            // Insert the builtin list.
+            for builtin in self.builtins.iter() {
+                let builtin_as_felt = Felt::from_bytes_be_slice(builtin.as_bytes());
+                vm.insert_value(next_builtin_address, builtin_as_felt)?;
+                next_builtin_address += 1;
+            }
         }
         // Insert the fields.
         let nested_fields_and_value = [
