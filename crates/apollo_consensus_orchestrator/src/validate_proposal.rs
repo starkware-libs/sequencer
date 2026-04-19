@@ -28,6 +28,7 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use starknet_api::block::{BlockNumber, GasPrice, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
+use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
@@ -72,6 +73,7 @@ pub(crate) struct ProposalValidateArguments {
 #[derive(Clone, Debug)]
 pub(crate) struct ProposalInitValidation {
     pub height: BlockNumber,
+    pub builder_address: ContractAddress,
     pub block_timestamp_window_seconds: u64,
     pub previous_proposal_init: Option<PreviousProposalInitInfo>,
     pub l1_da_mode: L1DataAvailabilityMode,
@@ -295,6 +297,16 @@ async fn is_proposal_init_valid(
             init_proposed.clone(),
             proposal_init_validation.clone(),
             "ProposalInit validation failed".to_string(),
+        ));
+    }
+    if init_proposed.builder != proposal_init_validation.builder_address {
+        return Err(ValidateProposalError::InvalidProposalInit(
+            init_proposed.clone(),
+            proposal_init_validation.clone(),
+            format!(
+                "Builder address mismatch: expected={}, proposed={}",
+                proposal_init_validation.builder_address, init_proposed.builder
+            ),
         ));
     }
     let (l1_gas_prices_fri, _l1_gas_prices_wei) = get_l1_prices_in_fri_and_wei(

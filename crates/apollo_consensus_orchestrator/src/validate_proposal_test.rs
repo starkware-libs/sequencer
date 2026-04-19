@@ -26,6 +26,7 @@ use futures::SinkExt;
 use rstest::rstest;
 use starknet_api::block::{BlockNumber, GasPrice, StarknetVersion};
 use starknet_api::block_hash::block_hash_calculator::{BlockHeaderCommitments, PartialBlockHash};
+use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
@@ -90,6 +91,7 @@ fn create_proposal_validate_arguments()
     let init = proposal_init(BlockNumber(0), 0);
     let proposal_init_validation = ProposalInitValidation {
         height: BlockNumber(0),
+        builder_address: ContractAddress::default(),
         block_timestamp_window_seconds: 60,
         previous_proposal_init: None,
         l1_da_mode: L1DataAvailabilityMode::Blob,
