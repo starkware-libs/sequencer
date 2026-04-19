@@ -123,7 +123,7 @@ log_step "install_build_tools" "Parallel installations completed"
 log_step "install_build_tools" "Installing project Rust toolchain from rust-toolchain.toml..."
 pushd "${SCRIPT_DIR}/.." > /dev/null
 rustup toolchain install
-rustup component add rustc cargo rust-std rustdoc rustfmt clippy rustc-dev
+rustup component add rustc cargo rust-std rust-docs rustfmt clippy rustc-dev
 popd > /dev/null
 log_step "install_build_tools" "Project Rust toolchain installed: $(rustc --version)"
 
