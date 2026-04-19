@@ -22,9 +22,9 @@ use apollo_consensus_orchestrator_config::config::{
     PricePerHeight,
 };
 use apollo_l1_gas_price_types::errors::{
-    EthToStrkOracleClientError,
     L1GasPriceClientError,
     L1GasPriceProviderError,
+    PriceOracleClientError,
 };
 use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
 use apollo_protobuf::consensus::{
@@ -852,8 +852,8 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
             })
         });
         l1_prices_oracle_client.expect_get_eth_to_fri_rate().times(1).return_once(|_| {
-            Err(L1GasPriceClientError::EthToStrkOracleClientError(
-                EthToStrkOracleClientError::MissingFieldError("".to_string(), "".to_string()),
+            Err(L1GasPriceClientError::PriceOracleClientError(
+                PriceOracleClientError::MissingFieldError("".to_string(), "".to_string()),
             ))
         });
         deps.l1_gas_price_provider = l1_prices_oracle_client;
@@ -951,8 +951,8 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
             .return_once(|_| Ok(ETH_TO_FRI_RATE));
         // Set the eth_to_fri_rate to fail on second block.
         l1_prices_oracle_client.expect_get_eth_to_fri_rate().times(1).return_once(|_| {
-            Err(L1GasPriceClientError::EthToStrkOracleClientError(
-                EthToStrkOracleClientError::MissingFieldError("".to_string(), "".to_string()),
+            Err(L1GasPriceClientError::PriceOracleClientError(
+                PriceOracleClientError::MissingFieldError("".to_string(), "".to_string()),
             ))
         });
         deps.l1_gas_price_provider = l1_prices_oracle_client;

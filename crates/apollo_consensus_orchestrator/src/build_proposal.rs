@@ -15,7 +15,7 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_consensus::types::{ProposalCommitment, Round};
 use apollo_consensus_orchestrator_config::config::PricePerHeight;
-use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
+use apollo_l1_gas_price_types::errors::{L1GasPriceClientError, PriceOracleClientError};
 use apollo_protobuf::consensus::{
     BuildParam,
     CommitmentParts,
@@ -94,7 +94,7 @@ pub(crate) enum BuildProposalError {
     #[error("Failed to send proposal part: {0}")]
     SendError(String),
     #[error("EthToStrkOracle error: {0}")]
-    EthToStrkOracle(#[from] EthToStrkOracleClientError),
+    EthToStrkOracle(#[from] PriceOracleClientError),
     #[error("L1GasPriceProvider error: {0}")]
     L1GasPriceProvider(#[from] L1GasPriceClientError),
     #[error("Proposal interrupted.")]

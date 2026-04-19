@@ -18,7 +18,7 @@ pub enum L1GasPriceProviderError {
     )]
     StaleL1GasPricesError { current_timestamp: u64, last_valid_price_timestamp: u64 },
     #[error(transparent)]
-    EthToStrkOracleClientError(#[from] EthToStrkOracleClientError),
+    PriceOracleClientError(#[from] PriceOracleClientError),
 }
 
 #[derive(Clone, Debug, Error)]
@@ -28,11 +28,11 @@ pub enum L1GasPriceClientError {
     #[error(transparent)]
     L1GasPriceProviderError(#[from] L1GasPriceProviderError),
     #[error(transparent)]
-    EthToStrkOracleClientError(#[from] EthToStrkOracleClientError),
+    PriceOracleClientError(#[from] PriceOracleClientError),
 }
 
 #[derive(Clone, Debug, Error, Serialize, Deserialize, PartialEq, Eq)]
-pub enum EthToStrkOracleClientError {
+pub enum PriceOracleClientError {
     #[error("Join error: {0}")]
     JoinError(String),
     #[error("Request error: {0}")]
@@ -49,8 +49,8 @@ pub enum EthToStrkOracleClientError {
     AllUrlsFailedError(u64, usize),
 }
 
-impl From<reqwest::Error> for EthToStrkOracleClientError {
+impl From<reqwest::Error> for PriceOracleClientError {
     fn from(value: reqwest::Error) -> Self {
-        EthToStrkOracleClientError::RequestError(value.to_string())
+        PriceOracleClientError::RequestError(value.to_string())
     }
 }

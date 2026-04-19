@@ -188,7 +188,7 @@ impl L1GasPriceProvider {
         self.eth_to_strk_oracle_client
             .eth_to_fri_rate(timestamp)
             .await
-            .map_err(L1GasPriceProviderError::EthToStrkOracleClientError)
+            .map_err(L1GasPriceProviderError::PriceOracleClientError)
     }
 }
 

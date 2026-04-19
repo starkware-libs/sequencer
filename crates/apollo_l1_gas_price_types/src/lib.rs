@@ -12,7 +12,7 @@ use apollo_infra::{
 };
 use apollo_metrics::generate_permutation_labels;
 use async_trait::async_trait;
-use errors::{EthToStrkOracleClientError, L1GasPriceClientError, L1GasPriceProviderError};
+use errors::{L1GasPriceClientError, L1GasPriceProviderError, PriceOracleClientError};
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use papyrus_base_layer::L1BlockNumber;
@@ -106,7 +106,7 @@ pub trait L1GasPriceProviderClient: Send + Sync {
 #[async_trait]
 pub trait EthToStrkOracleClientTrait: Send + Sync + Debug {
     /// Fetches the eth to fri rate for a given timestamp.
-    async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, EthToStrkOracleClientError>;
+    async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, PriceOracleClientError>;
 }
 
 #[async_trait]

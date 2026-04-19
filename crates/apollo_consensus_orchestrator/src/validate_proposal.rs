@@ -17,7 +17,7 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_batcher_types::errors::BatcherError;
 use apollo_consensus::types::ProposalCommitment;
-use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
+use apollo_l1_gas_price_types::errors::{L1GasPriceClientError, PriceOracleClientError};
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_protobuf::consensus::{ProposalFin, ProposalInit, ProposalPart, TransactionBatch};
 use apollo_state_sync_types::communication::SharedStateSyncClient;
@@ -111,7 +111,7 @@ pub(crate) enum ValidateProposalError {
     #[error("Failed to send commitment to consensus: {0}")]
     SendError(ProposalCommitment),
     #[error("EthToStrkOracle error: {0}")]
-    EthToStrkOracle(#[from] EthToStrkOracleClientError),
+    EthToStrkOracle(#[from] PriceOracleClientError),
     #[error("L1GasPriceProvider error: {0}")]
     L1GasPriceProvider(#[from] L1GasPriceClientError),
     #[error("ProposalInit conversion error: {0}")]

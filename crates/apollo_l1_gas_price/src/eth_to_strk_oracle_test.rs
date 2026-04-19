@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use apollo_config::converters::UrlAndHeaders;
-use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
+use apollo_l1_gas_price_types::errors::PriceOracleClientError;
 use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
 use mockito::{Mock, ServerGuard};
 use serde_json::json;
@@ -211,8 +211,8 @@ async fn eth_to_fri_rate_two_urls() {
     loop {
         match client.eth_to_fri_rate(TIMESTAMP2).await {
             Ok(_) => panic!("Both servers should be returning bad JSON!"),
-            Err(EthToStrkOracleClientError::QueryNotReadyError(_)) => {}
-            Err(EthToStrkOracleClientError::AllUrlsFailedError(_, index)) => {
+            Err(PriceOracleClientError::QueryNotReadyError(_)) => {}
+            Err(PriceOracleClientError::AllUrlsFailedError(_, index)) => {
                 assert!(index == 1, "Last error should be index 1 (server2).");
                 break; // This is the expected error, since server1 and 2 returned bad JSON.
             }
