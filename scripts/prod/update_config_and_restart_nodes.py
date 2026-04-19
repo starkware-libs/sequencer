@@ -150,6 +150,15 @@ Examples:
     args = args_builder.build()
     config_overrides = parse_config_overrides(args.config_overrides)
 
+    restart_strategy_colors = {
+        "all_at_once": Colors.RED,
+        "one_by_one": Colors.YELLOW,
+        "no_restart": Colors.GREEN,
+    }
+    strategy_color = restart_strategy_colors[args.restart_strategy.value]
+    print(f"\nRestart strategy: ", end="")
+    print_colored(args.restart_strategy.value, strategy_color)
+
     if config_overrides:
         print_colored(f"\nConfig overrides to apply:")
         for key, value in config_overrides.items():
