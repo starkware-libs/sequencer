@@ -145,7 +145,7 @@ pub(crate) async fn get_l1_prices_in_fri_and_wei_and_conversion_rate(
 
     // Get the eth to fri rate from the oracle, and the L1 gas price (in wei) from the provider.
     let (eth_to_fri_rate, price_info) = tokio::join!(
-        l1_gas_price_provider_client.get_eth_to_fri_rate(timestamp),
+        l1_gas_price_provider_client.get_price(timestamp),
         l1_gas_price_provider_client.get_price_info(BlockTimestamp(timestamp))
     );
     if price_info.is_err() {

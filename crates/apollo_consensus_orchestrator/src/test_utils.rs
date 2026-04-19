@@ -318,7 +318,7 @@ impl TestDeps {
             base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
             blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
         }));
-        self.l1_gas_price_provider.expect_get_eth_to_fri_rate().return_const(Ok(ETH_TO_FRI_RATE));
+        self.l1_gas_price_provider.expect_get_price().return_const(Ok(ETH_TO_FRI_RATE));
     }
 
     pub(crate) fn setup_default_batcher_get_block_hash(&mut self) {

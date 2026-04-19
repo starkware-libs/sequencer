@@ -99,7 +99,7 @@ pub trait L1GasPriceProviderClient: Send + Sync {
         timestamp: BlockTimestamp,
     ) -> L1GasPriceProviderClientResult<PriceInfo>;
 
-    async fn get_eth_to_fri_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128>;
+    async fn get_price(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128>;
 }
 
 #[cfg_attr(any(feature = "testing", test), automock)]
@@ -157,7 +157,7 @@ where
         )
     }
     #[instrument(skip(self))]
-    async fn get_eth_to_fri_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128> {
+    async fn get_price(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128> {
         let request = L1GasPriceRequest::GetEthToFriRate(timestamp);
         handle_all_response_variants!(
             self,
