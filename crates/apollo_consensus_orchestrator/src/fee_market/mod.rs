@@ -57,6 +57,7 @@ pub fn calculate_next_l2_gas_price_for_fin(
     l2_gas_used: GasAmount,
     override_l2_gas_price_fri: Option<u128>,
     min_l2_gas_price_per_height: &[PricePerHeight],
+    fee_actual: Option<GasPrice>,
 ) -> GasPrice {
     if let Some(override_value) = override_l2_gas_price_fri {
         info!(
@@ -66,8 +67,12 @@ pub fn calculate_next_l2_gas_price_for_fin(
         return GasPrice(override_value);
     }
     let gas_target = VersionedConstants::latest_constants().gas_target;
-    let min_gas_price = get_min_gas_price_for_height(height, min_l2_gas_price_per_height);
-    calculate_next_base_gas_price(current_l2_gas_price, l2_gas_used, gas_target, min_gas_price)
+    let config_min = get_min_gas_price_for_height(height, min_l2_gas_price_per_height);
+    let effective_min = match fee_actual {
+        Some(fa) => GasPrice(max(config_min.0, fa.0)),
+        None => config_min,
+    };
+    calculate_next_base_gas_price(current_l2_gas_price, l2_gas_used, gas_target, effective_min)
 }
 
 /// Calculate the base gas price for the next block according to EIP-1559.

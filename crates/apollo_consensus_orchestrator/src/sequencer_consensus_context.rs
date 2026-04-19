@@ -377,6 +377,7 @@ impl SequencerConsensusContext {
             l2_gas_used,
             self.config.dynamic_config.override_l2_gas_price_fri,
             &self.config.dynamic_config.min_l2_gas_price_per_height,
+            None,
         )
     }
 
