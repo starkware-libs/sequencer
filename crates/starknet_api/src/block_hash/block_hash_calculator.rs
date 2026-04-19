@@ -262,35 +262,39 @@ pub fn calculate_block_hash(
     let block_hash_version: BlockHashVersion =
         partial_block_hash_components.starknet_version.try_into()?;
     let block_commitments = &partial_block_hash_components.header_commitments;
-    Ok(BlockHash(
-        HashChain::new()
-            .chain(&block_hash_version.clone().into())
-            .chain(&partial_block_hash_components.block_number.0.into())
-            .chain(&state_root.0)
-            .chain(&partial_block_hash_components.sequencer.0)
-            .chain(&partial_block_hash_components.timestamp.0.into())
-            .chain(&block_commitments.concatenated_counts)
-            .chain(&block_commitments.state_diff_commitment.0.0)
-            .chain(&block_commitments.transaction_commitment.0)
-            .chain(&block_commitments.event_commitment.0)
-            .chain(&block_commitments.receipt_commitment.0)
-            .chain_iter(
-                gas_prices_to_hash(
-                    &partial_block_hash_components.l1_gas_price,
-                    &partial_block_hash_components.l1_data_gas_price,
-                    &partial_block_hash_components.l2_gas_price,
-                    &block_hash_version,
-                )
-                .iter(),
+    let mut hash_chain = HashChain::new()
+        .chain(&block_hash_version.clone().into())
+        .chain(&partial_block_hash_components.block_number.0.into())
+        .chain(&state_root.0)
+        .chain(&partial_block_hash_components.sequencer.0)
+        .chain(&partial_block_hash_components.timestamp.0.into())
+        .chain(&block_commitments.concatenated_counts)
+        .chain(&block_commitments.state_diff_commitment.0.0)
+        .chain(&block_commitments.transaction_commitment.0)
+        .chain(&block_commitments.event_commitment.0)
+        .chain(&block_commitments.receipt_commitment.0)
+        .chain_iter(
+            gas_prices_to_hash(
+                &partial_block_hash_components.l1_gas_price,
+                &partial_block_hash_components.l1_data_gas_price,
+                &partial_block_hash_components.l2_gas_price,
+                &block_hash_version,
             )
-            .chain(
-                &Felt::try_from(&partial_block_hash_components.starknet_version)
-                    .expect("Expect ASCII version"),
-            )
-            .chain(&Felt::ZERO)
-            .chain(&previous_block_hash.0)
-            .get_poseidon_hash(),
-    ))
+            .iter(),
+        )
+        .chain(
+            &Felt::try_from(&partial_block_hash_components.starknet_version)
+                .expect("Expect ASCII version"),
+        )
+        .chain(&Felt::ZERO)
+        .chain(&previous_block_hash.0);
+
+    // SNIP-35: include fee_proposal in the hash chain only for V0_14_3 and later.
+    if block_hash_version >= BlockHashVersion::V0_14_3 {
+        hash_chain = hash_chain.chain(&partial_block_hash_components.fee_proposal.0.into());
+    }
+
+    Ok(BlockHash(hash_chain.get_poseidon_hash()))
 }
 
 /// Calculates the commitments of the transactions data for the block hash.

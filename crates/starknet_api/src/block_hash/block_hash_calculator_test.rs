@@ -76,7 +76,7 @@ macro_rules! test_hash_changes {
 #[rstest]
 #[tokio::test]
 async fn test_block_hash_regression(
-    #[values(BlockHashVersion::V0_13_2, BlockHashVersion::V0_13_4)]
+    #[values(BlockHashVersion::V0_13_2, BlockHashVersion::V0_13_4, BlockHashVersion::V0_14_3)]
     block_hash_version: BlockHashVersion,
 ) {
     let state_root = GlobalRoot(Felt::from(2_u8));
@@ -118,6 +118,9 @@ async fn test_block_hash_regression(
         }
         BlockHashVersion::V0_13_4 => {
             felt!("0x3d6174623c812f5dc03fa3faa07c42c06fd90ad425629ee5f39e149df65c3ca")
+        }
+        BlockHashVersion::V0_14_3 => {
+            felt!("0x4364050fc0f671d5f4241a619ca2c74ddec796894f9bd2ef36476f88837af9b")
         }
     };
 
