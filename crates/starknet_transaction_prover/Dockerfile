@@ -58,7 +58,7 @@ COPY crates/starknet_transaction_prover/rust-toolchain.toml rust-toolchain.toml
 # the nightly defined in rust-toolchain.toml.
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain none \
     && rustup toolchain install \
-    && cargo install cargo-chef \
+    && cargo install --locked cargo-chef \
     && rm rust-toolchain.toml
 
 # Create Python venv and install cairo-lang (required for compiling Starknet OS).

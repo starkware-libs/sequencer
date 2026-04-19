@@ -58,7 +58,7 @@ ENV PATH="${RUSTUP_HOME}/bin:${PATH}"
 COPY rust-toolchain.toml rust-toolchain.toml
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain none \
     && rustup toolchain install \
-    && cargo install cargo-chef \
+    && cargo install --locked cargo-chef \
     && rm rust-toolchain.toml
 
 # =============================================================================
