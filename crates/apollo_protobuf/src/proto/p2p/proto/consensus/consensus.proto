@@ -59,6 +59,8 @@ message ProposalInit {
     Uint128 l1_data_gas_price_wei     = 12;
     string starknet_version           = 13;
     Hash version_constant_commitment   = 14;
+    // SNIP-35: proposer's recommended fee for future blocks. Present iff Starknet version >= V0_14_3.
+    optional Uint128 fee_proposal     = 15;
 }
 
 message TransactionBatch {
