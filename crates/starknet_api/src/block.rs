@@ -241,6 +241,8 @@ pub struct BlockHeaderWithoutHash {
     pub timestamp: BlockTimestamp,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub starknet_version: StarknetVersion,
+    /// SNIP-35: proposer's oracle-derived recommended fee.
+    pub fee_proposal: GasPrice,
 }
 
 /// The [transactions](`crate::transaction::Transaction`) and their
