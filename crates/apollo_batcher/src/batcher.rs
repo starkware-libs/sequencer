@@ -563,7 +563,7 @@ impl Batcher {
 
         // The proposal is no longer active, cannot accept more transactions.
         let proposal_result =
-            self.get_completed_proposal_result(proposal_id).await.expect("Proposal should exist.");
+            self.get_completed_proposal_result(proposal_id).await?.expect("Proposal should exist.");
         match proposal_result {
             Ok(_) => panic!("Proposal finished validation before all transactions were sent."),
             Err(err) => match proposal_status_from(err)? {
@@ -597,7 +597,7 @@ impl Batcher {
         }
 
         let proposal_result =
-            self.get_completed_proposal_result(proposal_id).await.expect("Proposal should exist.");
+            self.get_completed_proposal_result(proposal_id).await?.expect("Proposal should exist.");
         let response = match proposal_result {
             Ok(info) => FinishProposalStatus::Finished(info),
             Err(err) => match proposal_status_from(err)? {
@@ -765,7 +765,7 @@ impl Batcher {
         self.propose_tx_streams.remove(&proposal_id);
         let finished_proposal_info = self
             .get_completed_proposal_result(proposal_id)
-            .await
+            .await?
             .expect("Proposal should exist.")
             .map_err(|err| {
                 error!("Failed to get commitment: {}", err);
@@ -1165,16 +1165,18 @@ impl Batcher {
     async fn get_completed_proposal_result(
         &self,
         proposal_id: ProposalId,
-    ) -> Option<ProposalResult<FinishedProposalInfo>> {
+    ) -> BatcherResult<Option<ProposalResult<FinishedProposalInfo>>> {
         let guard = self.executed_proposals.lock().await;
         let artifact_derived = match guard.get(&proposal_id) {
             Some(Ok(artifacts)) => finished_proposal_info_from_artifacts(artifacts),
-            Some(Err(e)) => return Some(Err(e.clone())),
-            None => return None,
+            Some(Err(e)) => return Ok(Some(Err(e.clone()))),
+            None => return Ok(None),
         };
-        let parent_proposal_commitment =
-            self.active_height.and_then(|h| self.get_parent_proposal_commitment(h).ok().flatten());
-        Some(Ok(FinishedProposalInfo::new(artifact_derived, parent_proposal_commitment)))
+        let parent_proposal_commitment = match self.active_height {
+            None => None,
+            Some(height) => self.get_parent_proposal_commitment(height)?,
+        };
+        Ok(Some(Ok(FinishedProposalInfo::new(artifact_derived, parent_proposal_commitment))))
     }
 
     // Ends the current active proposal.
