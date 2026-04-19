@@ -71,7 +71,7 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
-use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
+use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
 use crate::cende::{
@@ -90,8 +90,21 @@ use crate::metrics::{
     record_validate_proposal_failure,
     register_metrics,
     CONSENSUS_L2_GAS_PRICE,
+    SNIP35_FEE_ACTUAL,
+    SNIP35_FEE_PROPOSAL,
+    SNIP35_FEE_TARGET,
+    SNIP35_STRK_USD_RATE,
 };
-use crate::snip35::FEE_PROPOSAL_WINDOW_SIZE;
+use crate::snip35::{
+    compute_fee_actual,
+    compute_fee_proposal,
+    compute_fee_target,
+    FEE_PROPOSAL_MARGIN_PPT,
+    FEE_PROPOSAL_WINDOW_SIZE,
+    ORACLE_L2_GAS_FLOOR_MAX_FRI,
+    ORACLE_L2_GAS_FLOOR_MIN_FRI,
+    TARGET_ATTO_USD_PER_L2_GAS,
+};
 use crate::utils::{
     convert_to_sn_api_block_info,
     make_gas_price_params,
@@ -385,6 +398,7 @@ impl SequencerConsensusContext {
             sequencer,
             timestamp: BlockTimestamp(init.timestamp),
             l1_da_mode: init.l1_da_mode,
+            fee_proposal_fri: init.fee_proposal_fri,
             // TODO(guy.f): Figure out where/if to get the values below from and fill them.
             ..Default::default()
         };
@@ -403,14 +417,77 @@ impl SequencerConsensusContext {
     /// Returns the next L2 gas price without mutating context. Used when building the fin and when
     /// updating at decision time.
     fn calculate_next_l2_gas_price(&self, height: BlockNumber, l2_gas_used: GasAmount) -> GasPrice {
+        let fee_actual = self.compute_fee_actual();
         calculate_next_l2_gas_price_for_fin(
             self.l2_gas_price,
             height,
             l2_gas_used,
             self.config.dynamic_config.override_l2_gas_price_fri,
             &self.config.dynamic_config.min_l2_gas_price_per_height,
-            None,
+            fee_actual,
         )
+    }
+
+    /// SNIP-35: compute fee_actual from the sliding window of fee_proposals. Heights
+    /// recorded as `None` (pre-V0_14_3) are filtered out; if fewer than
+    /// `FEE_PROPOSAL_WINDOW_SIZE` `Some` values remain, `compute_fee_actual` returns
+    /// `None` and callers fall back to `l2_gas_price`.
+    fn compute_fee_actual(&self) -> Option<GasPrice> {
+        let proposals: Vec<GasPrice> =
+            self.fee_proposals_window.values().filter_map(|v| *v).collect();
+        compute_fee_actual(&proposals, FEE_PROPOSAL_WINDOW_SIZE)
+    }
+
+    /// SNIP-35: window covers every height in `[target_height - WINDOW, target_height)`.
+    /// Used as a propose-gate: a proposer that lacks any of those heights would compute
+    /// a `fee_actual` that disagrees with caught-up peers.
+    fn is_fee_proposals_window_complete_for(&self, target_height: BlockNumber) -> bool {
+        let window_size =
+            u64::try_from(FEE_PROPOSAL_WINDOW_SIZE).expect("FEE_PROPOSAL_WINDOW_SIZE fits in u64");
+        let start = target_height.0.saturating_sub(window_size);
+        (start..target_height.0).all(|h| self.fee_proposals_window.contains_key(&BlockNumber(h)))
+    }
+
+    /// SNIP-35: compute the fee_proposal this node should publish.
+    async fn compute_snip35_fee_proposal(&self, timestamp: u64) -> GasPrice {
+        // compute_fee_actual returns None for zero median or insufficient data, falling back to
+        // the current l2_gas_price. This ensures proposer and validator use the same fallback.
+        let fee_actual = self.compute_fee_actual().unwrap_or(self.l2_gas_price);
+        SNIP35_FEE_ACTUAL.set_lossy(fee_actual.0);
+
+        // The instance held in `strk_to_usd_oracle` is configured with a STRK/USD endpoint;
+        // the trait method is generic and the rate semantics are labeled by the field.
+        let fee_target = match &self.deps.strk_to_usd_oracle {
+            Some(oracle) => match oracle.fetch_rate(timestamp).await {
+                Ok(rate) if rate > 0 => {
+                    SNIP35_STRK_USD_RATE.set_lossy(rate);
+                    let target = compute_fee_target(
+                        TARGET_ATTO_USD_PER_L2_GAS,
+                        rate,
+                        ORACLE_L2_GAS_FLOOR_MIN_FRI,
+                        ORACLE_L2_GAS_FLOOR_MAX_FRI,
+                    );
+                    SNIP35_FEE_TARGET.set_lossy(target.0);
+                    Some(target)
+                }
+                Ok(_) => {
+                    warn!("STRK/USD oracle returned zero rate, freezing fee_proposal");
+                    None
+                }
+                Err(e) => {
+                    warn!("STRK/USD oracle error: {e:?}, freezing fee_proposal");
+                    None
+                }
+            },
+            None => {
+                debug!("No STRK/USD oracle configured, freezing fee_proposal");
+                None
+            }
+        };
+
+        let proposal = compute_fee_proposal(fee_target, fee_actual, FEE_PROPOSAL_MARGIN_PPT);
+        SNIP35_FEE_PROPOSAL.set_lossy(proposal.0);
+        proposal
     }
 
     fn update_l2_gas_price(&mut self, height: BlockNumber, l2_gas_used: GasAmount) {
@@ -606,6 +683,31 @@ impl ConsensusContext for SequencerConsensusContext {
 
         // Handles interrupting an active proposal from a previous height/round
         self.set_height_and_round(build_param.height, build_param.round).await?;
+
+        // SNIP-35 propose-gate: refuse to build if the fee_proposals window does not cover the
+        // heights needed to compute `fee_actual` for this height. A proposer with a partial
+        // window would compute a `fee_actual` that disagrees with caught-up peers, so the
+        // proposal would be rejected anyway. Surface the warmup state through the existing
+        // PROPOSAL_FAILED path rather than building a doomed proposal.
+        if !self.is_fee_proposals_window_complete_for(build_param.height) {
+            let window_size = u64::try_from(FEE_PROPOSAL_WINDOW_SIZE)
+                .expect("FEE_PROPOSAL_WINDOW_SIZE fits in u64");
+            let start = build_param.height.0.saturating_sub(window_size);
+            let recorded =
+                self.fee_proposals_window.range(BlockNumber(start)..build_param.height).count();
+            let error = BuildProposalError::FeeProposalsWindowIncomplete {
+                height: build_param.height,
+                recorded,
+                window_size: FEE_PROPOSAL_WINDOW_SIZE,
+            };
+            warn!("PROPOSAL_FAILED: Proposal failed as proposer. Error: {error:?}");
+            record_build_proposal_failure(error.into());
+            // Drop the sender so the consensus engine observes a canceled receiver, the same
+            // signal it would get from any other build failure.
+            let (_, fin_receiver) = oneshot::channel();
+            return Ok(fin_receiver);
+        }
+
         assert!(
             self.active_proposal.is_none(),
             "We should not have an existing active proposal for the (height, round) when \
@@ -643,6 +745,7 @@ impl ConsensusContext for SequencerConsensusContext {
             BehaviorMode::Echonet => true,
             BehaviorMode::Starknet => false,
         };
+        let fee_proposal = self.compute_snip35_fee_proposal(self.deps.clock.unix_now()).await;
         let round = build_param.round;
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),
@@ -676,6 +779,8 @@ impl ConsensusContext for SequencerConsensusContext {
                 .config
                 .dynamic_config
                 .compare_retrospective_block_hash,
+            fee_proposal,
+            fee_actual: self.compute_fee_actual(),
         };
 
         let handle = tokio::spawn(
