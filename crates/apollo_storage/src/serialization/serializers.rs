@@ -183,6 +183,7 @@ auto_storage_serde! {
         pub state_diff_length: Option<usize>,
         pub n_transactions: usize,
         pub n_events: usize,
+        pub fee_proposal_fri: GasPrice,
     }
     pub struct BlockHeaderCommitments {
         pub transaction_commitment: TransactionCommitment,
@@ -380,6 +381,7 @@ auto_storage_serde! {
         pub sequencer: SequencerContractAddress,
         pub timestamp: BlockTimestamp,
         pub starknet_version: StarknetVersion,
+        pub fee_proposal_fri: GasPrice,
     }
     pub struct PaymasterData(pub Vec<Felt>);
     pub struct PoseidonHash(pub Felt);
