@@ -183,6 +183,7 @@ auto_storage_serde! {
         pub state_diff_length: Option<usize>,
         pub n_transactions: usize,
         pub n_events: usize,
+        pub fee_proposal: GasPrice,
     }
     pub struct BlockHeaderCommitments {
         pub transaction_commitment: TransactionCommitment,
