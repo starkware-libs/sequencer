@@ -32,7 +32,7 @@ function install_cargo_tool_if_needed() {
         else
             log_step "install_build_tools" "Installing $crate $version..."
         fi
-        cargo install "$crate" --version "$version" --force
+        cargo install "$crate" --version "$version" --force --locked
         log_step "install_build_tools" "$crate installed successfully"
     fi
 }
