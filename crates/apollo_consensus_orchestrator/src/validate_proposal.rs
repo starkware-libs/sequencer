@@ -110,8 +110,8 @@ pub(crate) enum ValidateProposalError {
     // Consensus may exit early (e.g. sync).
     #[error("Failed to send commitment to consensus: {0}")]
     SendError(ProposalCommitment),
-    #[error("EthToStrkOracle error: {0}")]
-    EthToStrkOracle(#[from] PriceOracleClientError),
+    #[error("PriceOracle error: {0}")]
+    PriceOracle(#[from] PriceOracleClientError),
     #[error("L1GasPriceProvider error: {0}")]
     L1GasPriceProvider(#[from] L1GasPriceClientError),
     #[error("ProposalInit conversion error: {0}")]

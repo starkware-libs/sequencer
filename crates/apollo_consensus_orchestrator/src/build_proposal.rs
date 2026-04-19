@@ -93,8 +93,8 @@ pub(crate) enum BuildProposalError {
     RetrospectiveBlockHashError(#[from] RetrospectiveBlockHashError),
     #[error("Failed to send proposal part: {0}")]
     SendError(String),
-    #[error("EthToStrkOracle error: {0}")]
-    EthToStrkOracle(#[from] PriceOracleClientError),
+    #[error("PriceOracle error: {0}")]
+    PriceOracle(#[from] PriceOracleClientError),
     #[error("L1GasPriceProvider error: {0}")]
     L1GasPriceProvider(#[from] L1GasPriceClientError),
     #[error("Proposal interrupted.")]

@@ -70,7 +70,7 @@ pub struct PriceOracleClient {
 impl PriceOracleClient {
     pub fn new(config: PriceOracleConfig) -> Self {
         info!(
-            "Creating EthToStrkOracleClient with: urls={:?} lag_interval_seconds={}",
+            "Creating PriceOracleClient with: urls={:?} lag_interval_seconds={}",
             config.url_header_list, config.lag_interval_seconds
         );
         register_eth_to_strk_metrics();
