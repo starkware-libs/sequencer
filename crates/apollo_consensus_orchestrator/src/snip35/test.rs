@@ -128,10 +128,15 @@ fn test_compute_fee_proposal_fee_actual_zero_clamps_to_zero() {
 }
 
 #[test]
-fn test_compute_fee_actual_window_size_below_minimum_returns_none() {
+fn test_compute_fee_actual_window_size_zero_returns_none() {
     let proposals: Vec<GasPrice> = vec![GasPrice(100); 10];
     assert_eq!(compute_fee_actual(&proposals, 0), None);
-    assert_eq!(compute_fee_actual(&proposals, 1), None);
+}
+
+#[test]
+fn test_compute_fee_actual_window_size_one_returns_most_recent() {
+    let proposals = vec![GasPrice(100), GasPrice(200), GasPrice(300)];
+    assert_eq!(compute_fee_actual(&proposals, 1), Some(GasPrice(300)));
 }
 
 #[test]
