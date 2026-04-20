@@ -17,6 +17,7 @@ use cairo_lang_starknet_classes::allowed_libfuncs::{
     BUILTIN_AUDITED_LIBFUNCS_LIST,
 };
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
+use expect_test::expect;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use pretty_assertions::assert_eq;
 use regex::Regex;
@@ -195,3 +196,45 @@ fn test_max_memory_usage() {
 
 // TODO(Noamsp): Add a test to ensure that applying resource limits doesn't corrupt the
 // compilation process output.
+
+/// Regression tests: verify that compiler error messages are clean (no resource limit setup noise,
+/// no stack backtrace frames). Uses `expect!` snapshots for exact matching.
+///
+/// If these tests break after a compiler or error-formatting change, run with `UPDATE_EXPECT=1`:
+///   UPDATE_EXPECT=1 cargo test -p apollo_compile_to_casm -- faulty_contract_error_message
+///   UPDATE_EXPECT=1 cargo test -p apollo_compile_to_casm -- memory_limit_error_message
+/// This auto-updates the inline snapshots. Review the diff to confirm the new message is clean.
+#[test]
+fn faulty_contract_error_message() {
+    let compiler = compiler();
+    let contract_class = get_faulty_test_contract();
+
+    let error_message = match compiler.compile(contract_class) {
+        Err(CompilationUtilError::CompilationError(msg)) => msg,
+        other => panic!("Expected CompilationError, got: {other:?}"),
+    };
+
+    let expected = expect!["Error: Invalid input for deserialization."];
+    expected.assert_eq(&error_message);
+}
+
+#[test]
+fn memory_limit_error_message() {
+    let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
+        max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
+        max_memory_usage: 8 * 1024 * 1024,
+        max_cpu_time: DEFAULT_MAX_CPU_TIME,
+        audited_libfuncs_only: false,
+    });
+    let contract_class = get_test_contract();
+
+    let error_message = match compiler.compile(contract_class) {
+        Err(CompilationUtilError::CompilationError(msg)) => msg,
+        other => panic!("Expected CompilationError, got: {other:?}"),
+    };
+
+    let expected = expect![[r#"
+            memory allocation of 142960 bytes failed
+            note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace (process terminated by signal 6)"#]];
+    expected.assert_eq(&error_message);
+}

@@ -9,5 +9,6 @@
   "validate_zero_fee_fields": true,
   "prefetch_state": true,
   "use_latest_versioned_constants": true,
-  "compiled_class_cache_size": 600
+  "compiled_class_cache_size": 600,
+  "max_request_body_size": 5242880
 }

@@ -51,7 +51,7 @@ impl Default for BlockBuilderConfig {
             chain_info: ChainInfo::default(),
             execute_config: WorkerPoolConfig::default(),
             bouncer_config: BouncerConfig::default(),
-            n_concurrent_txs: 100,
+            n_concurrent_txs: 20,
             tx_polling_interval_millis: 10,
             proposer_idle_detection_delay_millis: Duration::from_millis(2000),
             versioned_constants_overrides: None,

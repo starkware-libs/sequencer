@@ -10,6 +10,7 @@ use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::StateResult;
 use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
+use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
@@ -165,6 +166,25 @@ impl From<CommitmentStateDiff> for ComparableStateDiff {
             ),
         }
     }
+}
+
+/// Compares two state diffs, Returns `true` if they match.
+/// On mismatch, logs a detailed diff.
+pub fn compare_state_diffs(
+    expected_state_diff: CommitmentStateDiff,
+    actual_state_diff: CommitmentStateDiff,
+    block_number: BlockNumber,
+) -> bool {
+    let expected = ComparableStateDiff::from(expected_state_diff);
+    let actual = ComparableStateDiff::from(actual_state_diff);
+    let is_match = expected == actual;
+    if !is_match {
+        let expected_str = format!("{expected:#?}");
+        let actual_str = format!("{actual:#?}");
+        let diff = pretty_assertions::StrComparison::new(&expected_str, &actual_str);
+        tracing::warn!("State diff mismatch for block {block_number}.\n{diff}");
+    }
+    is_match
 }
 
 /// Asserts equality between two `CommitmentStateDiff` structs, ignoring insertion order.

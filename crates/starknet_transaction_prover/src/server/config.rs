@@ -27,6 +27,9 @@ const DEFAULT_PORT: u16 = 3000;
 const DEFAULT_MAX_CONCURRENT_REQUESTS: usize = 2;
 const DEFAULT_MAX_CONNECTIONS: u32 = 10;
 const DEFAULT_COMPILED_CLASS_CACHE_SIZE: usize = 600;
+/// 5 MiB — matches the convention used elsewhere in the sequencer.
+const DEFAULT_MAX_REQUEST_BODY_SIZE: u32 = 5 * 1024 * 1024;
+const DEFAULT_OHTTP_KEY_CACHE_MAX_AGE_SECS: u64 = 3600;
 
 /// Transport mode for the JSON-RPC server.
 #[derive(Clone, Debug)]
@@ -80,6 +83,9 @@ struct RawServiceConfig {
     blocking_check_url: Option<String>,
     blocking_check_timeout_millis: u64,
     blocking_check_fail_open: bool,
+    max_request_body_size: u32,
+    ohttp_enabled: bool,
+    ohttp_key_cache_max_age_secs: u64,
 }
 
 impl Default for RawServiceConfig {
@@ -102,6 +108,9 @@ impl Default for RawServiceConfig {
             blocking_check_url: None,
             blocking_check_timeout_millis: 2000,
             blocking_check_fail_open: true,
+            max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
+            ohttp_enabled: false,
+            ohttp_key_cache_max_age_secs: DEFAULT_OHTTP_KEY_CACHE_MAX_AGE_SECS,
         }
     }
 }
@@ -125,6 +134,14 @@ pub struct ServiceConfig {
     pub cors_allow_origin: Vec<String>,
     /// Transport mode (HTTP or HTTPS with TLS).
     pub transport: TransportMode,
+    /// Maximum size of an incoming JSON-RPC request body in bytes.
+    pub max_request_body_size: u32,
+    /// Enable OHTTP (RFC 9458) envelope encryption. When true, the server accepts
+    /// `message/ohttp-req` requests and serves key config at `GET /ohttp-keys`.
+    /// Requires the `OHTTP_KEY` environment variable (hex-encoded 32-byte X25519 key).
+    pub ohttp_enabled: bool,
+    /// Cache-Control max-age for the `GET /ohttp-keys` response (seconds).
+    pub ohttp_key_cache_max_age_secs: u64,
 }
 
 impl ServiceConfig {
@@ -318,6 +335,29 @@ impl ServiceConfig {
                 ConfigError::InvalidArgument(format!("Invalid blocking_check_url: {e}"))
             })?;
         }
+        if let Some(max_request_body_size) = args.max_request_body_size {
+            if max_request_body_size != config.max_request_body_size {
+                info!(
+                    "CLI override: max_request_body_size: {} -> {}",
+                    config.max_request_body_size, max_request_body_size
+                );
+                config.max_request_body_size = max_request_body_size;
+            }
+        }
+
+        if args.ohttp_enabled && !config.ohttp_enabled {
+            info!("CLI override: ohttp_enabled: false -> true");
+            config.ohttp_enabled = true;
+        }
+        if let Some(secs) = args.ohttp_key_cache_max_age_secs {
+            if secs != config.ohttp_key_cache_max_age_secs {
+                info!(
+                    "CLI override: ohttp_key_cache_max_age_secs: {} -> {}",
+                    config.ohttp_key_cache_max_age_secs, secs
+                );
+                config.ohttp_key_cache_max_age_secs = secs;
+            }
+        }
 
         // Validate required fields.
         if config.rpc_node_url.is_empty() {
@@ -333,6 +373,11 @@ impl ServiceConfig {
         if config.max_connections == 0 {
             return Err(ConfigError::InvalidArgument(
                 "max_connections must be at least 1".to_string(),
+            ));
+        }
+        if config.max_request_body_size == 0 {
+            return Err(ConfigError::InvalidArgument(
+                "max_request_body_size must be at least 1".to_string(),
             ));
         }
         let transport = TransportMode::new(config.tls_cert_file, config.tls_key_file)?;
@@ -394,6 +439,9 @@ impl ServiceConfig {
             max_connections: config.max_connections,
             cors_allow_origin,
             transport,
+            max_request_body_size: config.max_request_body_size,
+            ohttp_enabled: config.ohttp_enabled,
+            ohttp_key_cache_max_age_secs: config.ohttp_key_cache_max_age_secs,
         })
     }
 }
@@ -487,10 +535,22 @@ pub struct CliArgs {
     #[arg(long, value_name = "N", env = "COMPILED_CLASS_CACHE_SIZE")]
     pub compiled_class_cache_size: Option<usize>,
 
+    /// Maximum size of an incoming JSON-RPC request body in bytes (default: 5 MiB).
+    #[arg(long, value_name = "BYTES", env = "MAX_REQUEST_BODY_SIZE")]
+    pub max_request_body_size: Option<u32>,
+
+    /// Enable OHTTP (RFC 9458) envelope encryption. Requires the `OHTTP_KEY` env var.
+    #[arg(long, env = "OHTTP_ENABLED")]
+    pub ohttp_enabled: bool,
+
+    /// Cache-Control max-age (seconds) for the `GET /ohttp-keys` response (default: 3600).
+    #[arg(long, value_name = "SECS", env = "OHTTP_KEY_CACHE_MAX_AGE_SECS")]
+    pub ohttp_key_cache_max_age_secs: Option<u64>,
+
     /// Hidden escape hatch: override the embedded bouncer config (block capacity limits) with a
-    /// custom JSON file. Not advertised because the embedded defaults are tuned to match the
-    /// hardcoded Stwo prover for this version. Exposed only for debugging and testing scenarios
-    /// where the limits need temporary adjustment without rebuilding the binary.
+    /// custom JSON file. Not advertised because the embedded defaults are tuned for this prover
+    /// (including high `l1_gas` / `message_segment_length`: virtual OS output is not L1-bound; it
+    /// is carried on L2 in `proof_fact`). Exposed for debugging and testing without rebuilding.
     #[arg(long, value_name = "FILE", env = "BOUNCER_CONFIG_OVERRIDE", hide = true)]
     pub bouncer_config_override: Option<PathBuf>,
 

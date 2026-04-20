@@ -148,6 +148,34 @@ pub enum Command {
         directory_path: Option<String>,
     },
 
+    /// Continuously reexecute blocks via RPC and verify state diff correctness.
+    RpcReplay {
+        #[clap(flatten)]
+        rpc_args: RpcArgs,
+
+        /// First block to reexecute.
+        #[clap(long)]
+        start_block: u64,
+
+        /// Last block to reexecute (inclusive). If omitted, runs forever.
+        #[clap(long)]
+        end_block: Option<u64>,
+
+        /// Number of parallel worker threads.
+        #[clap(long, default_value = "1")]
+        n_workers: usize,
+
+        /// Run each block twice (native and CASM) and compare the resulting state diffs.
+        /// Overrides `min_sierra_version_for_sierra_gas` to `0.0.0` so all contracts use sierra
+        /// gas, ensuring a fair comparison. Requires the `cairo_native` feature.
+        #[clap(long)]
+        compare_native: bool,
+
+        /// Prefetch initial reads before execution with starknet_simulateTransactions.
+        #[clap(long, default_value = "true", action = clap::ArgAction::Set)]
+        prefetch_initial_reads: bool,
+    },
+
     // Download all (selected) blocks from the gc bucket.
     DownloadFiles {
         /// Block numbers. If not specified, blocks are retrieved from

@@ -2225,19 +2225,19 @@
         }
       ],
       "for": "30s",
-      "severity": "p2",
+      "severity": "p4",
       "observer_applicable": "true"
     },
     {
-      "name": "pod_state_high_disk_utilization",
-      "title": "Pod High Disk Utilization ( >70% )",
+      "name": "pod_state_disk_filling_soon",
+      "title": "Pod Disk Filling Soon (predicted full within 2 weeks)",
       "ruleGroup": "evaluation_rate_low",
-      "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}))*100",
+      "expr": "max by (namespace,persistentvolumeclaim) (predict_linear(kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2d], 1209600)) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}))",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              70.0
+              1.0
             ],
             "type": "gt"
           },
@@ -2252,7 +2252,7 @@
         }
       ],
       "for": "30s",
-      "severity": "p3",
+      "severity": "p4",
       "observer_applicable": "true"
     }
   ]

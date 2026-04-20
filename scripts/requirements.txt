@@ -56,8 +56,8 @@ pluggy==1.6.0
 prometheus_client==0.25.0
 propcache==0.4.1
 pycryptodome==3.23.0
-pydantic==2.12.5
-pydantic_core==2.41.5
+pydantic==2.11.7
+pydantic_core==2.33.2
 pyflakes==3.4.0
 Pygments==2.20.0
 pytest==8.4.2

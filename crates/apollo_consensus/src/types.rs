@@ -98,6 +98,7 @@ pub trait ConsensusContext {
         height: BlockNumber,
         round: Round,
         commitment: ProposalCommitment,
+        wait_for_last_commitment: bool,
     ) -> Result<(), ConsensusError>;
 
     /// Attempt to learn of a decision from the sync protocol.
