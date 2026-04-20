@@ -22,7 +22,7 @@ pub enum Event {
         error: ReconstructionError,
     },
     /// Failed to send a shard to a peer.
-    ShardSendFailed { sent_from: Option<PeerId>, sent_to: Option<PeerId>, error: ShardPublishError },
+    ShardSendFailed { sent_from: Option<PeerId>, sent_to: Option<PeerId>, error: UnitPublishError },
     /// Failed to verify shard
     ShardValidationFailed {
         /// The sender of the shard that filed verification. They should be reported.
@@ -84,9 +84,9 @@ pub enum ScheduleError {
     LocalPeerIsPublisher,
 }
 
-/// Errors that can occur when sending a shard.
+/// Errors that can occur when sending a unit.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
-pub enum ShardPublishError {
+pub enum UnitPublishError {
     #[error("Local peer not in peer weights")]
     LocalPeerNotInPeerWeights,
     #[error(

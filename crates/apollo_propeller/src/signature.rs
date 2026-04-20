@@ -5,7 +5,7 @@
 
 use libp2p::identity::{Keypair, PeerId, PublicKey};
 
-use crate::types::{CommitteeId, MessageRoot, ShardPublishError, ShardSignatureVerificationError};
+use crate::types::{CommitteeId, MessageRoot, ShardSignatureVerificationError, UnitPublishError};
 
 // TODO(AndrewL): Consider removing these (consult gossipsub code )
 pub const SIGNING_PREFIX: &[u8] = b"<propeller>";
@@ -19,10 +19,10 @@ pub fn sign_message_id(
     committee_id: CommitteeId,
     nonce: u64,
     keypair: &Keypair,
-) -> Result<Vec<u8>, ShardPublishError> {
+) -> Result<Vec<u8>, UnitPublishError> {
     let msg = build_signed_payload(message_id, committee_id, nonce);
     // TODO(AndrewL): Use a transparent error type for this.
-    keypair.sign(&msg).map_err(|e| ShardPublishError::SigningFailed(e.to_string()))
+    keypair.sign(&msg).map_err(|e| UnitPublishError::SigningFailed(e.to_string()))
 }
 
 pub fn verify_message_id_signature(
