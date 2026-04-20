@@ -18,6 +18,9 @@ pub mod cende;
 /// Fee market logic.
 pub mod fee_market;
 
+/// SNIP-35 dynamic L2 gas pricing (consensus-level fee mechanism).
+pub mod snip35;
+
 #[allow(missing_docs)]
 pub mod metrics;
 
