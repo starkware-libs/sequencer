@@ -101,17 +101,29 @@ log_step "install_build_tools" "Starting build tools installation..."
 
 install_common_packages
 
-log_step "install_build_tools" "Starting parallel installations (PyPy, Rust)..."
-pids=()
-install_pypy & pids+=($!)
-install_rust & pids+=($!)
-# Wait for all processes, fail if at least one failed.
-failed=0
-for pid in "${pids[@]}"; do
-    wait "$pid" || failed=1
-done
-(( $failed )) && exit 1
-log_step "install_build_tools" "Parallel installations completed"
+log_step "install_build_tools" "Installing PyPy and Rust..."
+# Intentionally serial: rustup-init's multi-threaded component downloader has a
+# known race (`thread 'CloseHandle' panicked at src/diskio/mod.rs: RecvError`)
+# that's triggered or aggravated by concurrent I/O from parallel installers.
+# When the race fires, rustup leaves a partial toolchain stub behind and later
+# `cargo install` calls fail with "'cargo' is not installed for the toolchain".
+install_pypy
+install_rust
+log_step "install_build_tools" "PyPy and Rust installed"
+
+# Belt-and-suspenders: rustup can still leave the pinned toolchain partially
+# installed (the `rust-toolchain.toml`-pinned channel as a stub without its
+# components). Probe with `cargo --version` against the active toolchain; if it
+# fails, force a reinstall to get the full component set.
+log_step "install_build_tools" "Verifying project Rust toolchain is usable..."
+pushd "${SCRIPT_DIR}/.." > /dev/null
+if ! cargo --version > /dev/null 2>&1; then
+    log_step "install_build_tools" "Project toolchain stub is missing components; forcing reinstall..."
+    rustup toolchain install --force
+fi
+popd > /dev/null
+log_step "install_build_tools" "Project Rust toolchain ready: $(rustc --version)"
+
 log_step "install_build_tools" "Running install_cargo_tools.sh..."
 ${SCRIPT_DIR}/install_cargo_tools.sh
 log_step "install_build_tools" "install_cargo_tools.sh completed"
