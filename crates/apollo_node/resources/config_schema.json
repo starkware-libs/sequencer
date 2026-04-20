@@ -2514,6 +2514,11 @@
     "privacy": "Public",
     "value": false
   },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.use_committee_weight": {
+    "description": "When true, use each validator's staking weight from the committee for vote counting; otherwise each vote counts as 1.",
+    "privacy": "Public",
+    "value": false
+  },
   "consensus_manager_config.consensus_manager_config.dynamic_config.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
     "privacy": "Public",
