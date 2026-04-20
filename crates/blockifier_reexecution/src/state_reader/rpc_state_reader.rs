@@ -734,9 +734,13 @@ impl ConsecutiveReexecutionStateReaders<StateReaderAndContractManager<BoxedFetch
             // TODO(Aviv): this duplicates the get_all_txs_in_block call in reexecute_block;
             // consider caching or passing txs through the trait to avoid the extra RPC round trip.
             let txs = self.next_block_state_reader.get_all_txs_in_block()?;
+            // Don't skip fee charge — reexecution replays real blocks where fee
+            // charging succeeded, so we want those state reads prefetched.
+            let skip_fee_charge = false;
             Box::new(SimulatedStateReader::from_rpc_state_reader(
                 self.last_block_state_reader,
                 &txs,
+                skip_fee_charge,
             )?)
         } else {
             Box::new(self.last_block_state_reader)

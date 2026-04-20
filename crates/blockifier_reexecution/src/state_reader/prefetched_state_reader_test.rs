@@ -65,7 +65,13 @@ async fn test_simulate_and_get_initial_reads() {
     let tx_hash = TransactionHash::default();
 
     let state_maps = tokio::task::spawn_blocking(move || {
-        simulate_and_get_initial_reads(&rpc_state_reader, BlockId::Latest, &[(tx, tx_hash)], false)
+        simulate_and_get_initial_reads(
+            &rpc_state_reader,
+            BlockId::Latest,
+            &[(tx, tx_hash)],
+            false,
+            false,
+        )
     })
     .await
     .unwrap()
