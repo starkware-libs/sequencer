@@ -142,3 +142,45 @@ fn test_compute_fee_proposal_custom_margin() {
     let proposal_down = compute_fee_proposal(Some(GasPrice(1)), GasPrice(10000), 10);
     assert_eq!(proposal_down, GasPrice(9900));
 }
+
+#[test]
+fn test_compute_fee_actual_u128_max_does_not_overflow() {
+    // Naive (a+b)/2 would overflow when a and b are near u128::MAX.
+    let proposals = vec![GasPrice(u128::MAX); 10];
+    assert_eq!(compute_fee_actual(&proposals, 10), Some(GasPrice(u128::MAX)));
+}
+
+#[test]
+fn test_compute_fee_target_extreme_values_do_not_panic() {
+    // The U256 internal arithmetic must saturate, not panic.
+    let _ = compute_fee_target(u128::MAX, u128::MAX, 0, u128::MAX);
+    let _ = compute_fee_target(u128::MAX, 1, 0, u128::MAX);
+    let _ = compute_fee_target(1, u128::MAX, 0, u128::MAX);
+}
+
+#[test]
+fn test_compute_fee_proposal_saturating_on_extreme_actual() {
+    // actual near u128::MAX: saturating_mul must prevent overflow.
+    let _ = compute_fee_proposal(Some(GasPrice(1)), GasPrice(u128::MAX), 2);
+    let _ = compute_fee_proposal(Some(GasPrice(u128::MAX)), GasPrice(u128::MAX), 2);
+}
+
+#[test]
+fn test_compute_fee_target_monotonic_in_strk_price() {
+    // As STRK/USD rises, fewer FRI needed → fee_target monotonically decreases.
+    let target = 3_000_000_000;
+    let mut prev = compute_fee_target(target, 10u128.pow(17), 0, u128::MAX);
+    for exp in 17..=21 {
+        let curr = compute_fee_target(target, 10u128.pow(exp), 0, u128::MAX);
+        assert!(curr.0 <= prev.0, "not monotonic: prev={} curr={}", prev.0, curr.0);
+        prev = curr;
+    }
+}
+
+#[test]
+fn test_compute_fee_actual_lone_adversary_cannot_skew_median() {
+    // With 9 honest values and 1 outlier, median resists the adversary.
+    let mut window = vec![GasPrice(1_000_000); 9];
+    window.push(GasPrice(u128::MAX / 2));
+    assert_eq!(compute_fee_actual(&window, 10), Some(GasPrice(1_000_000)));
+}
