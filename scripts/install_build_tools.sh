@@ -102,21 +102,24 @@ log_step "install_build_tools" "Starting build tools installation..."
 install_common_packages
 
 log_step "install_build_tools" "Installing PyPy..."
-# Intentionally serial: rustup-init's multi-threaded component downloader has a
-# known race (`thread 'CloseHandle' panicked at src/diskio/mod.rs: RecvError`,
-# rust-lang/rustup#2926) that's triggered or aggravated by concurrent I/O from
-# parallel installers. When the race fires, rustup leaves a partial toolchain
-# stub behind and later `cargo install` calls fail with "'cargo' is not
-# installed for the toolchain".
+# Run PyPy and Rust installers serially. Concurrent disk I/O from a sibling
+# installer is a known trigger for rustup-init's multi-threaded downloader to
+# hit a `CloseHandle`/`RecvError` panic (see rust-lang/rustup#2926), and more
+# generally any mid-install failure can leave rustup with a partial toolchain
+# (the rust-toolchain.toml channel registered as a stub but its components
+# never fully downloaded). Serial execution removes one cheap trigger; the
+# verification step below handles any partial-install state regardless of
+# cause.
 install_pypy
 log_step "install_build_tools" "PyPy installed. Installing Rust..."
 install_rust
 log_step "install_build_tools" "Rust installed."
 
-# Belt-and-suspenders: rustup can still leave the pinned toolchain partially
-# installed (the `rust-toolchain.toml`-pinned channel as a stub without its
-# components). Probe with `cargo --version` against the active toolchain; if it
-# fails, force a reinstall to get the full component set.
+# Verify the pinned toolchain is actually usable. `cargo --version` in the
+# project dir resolves through rustup's proxy to the toml-pinned channel; on a
+# healthy install this is a ~10ms no-op. If it fails, the toolchain was left
+# in a partial state (stub registered without the cargo/rustc components) and
+# we force a reinstall.
 log_step "install_build_tools" "Verifying project Rust toolchain is usable..."
 pushd "${SCRIPT_DIR}/.." > /dev/null
 if ! cargo --version > /dev/null 2>&1; then
