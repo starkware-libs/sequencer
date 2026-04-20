@@ -101,15 +101,17 @@ log_step "install_build_tools" "Starting build tools installation..."
 
 install_common_packages
 
-log_step "install_build_tools" "Installing PyPy and Rust..."
+log_step "install_build_tools" "Installing PyPy..."
 # Intentionally serial: rustup-init's multi-threaded component downloader has a
-# known race (`thread 'CloseHandle' panicked at src/diskio/mod.rs: RecvError`)
-# that's triggered or aggravated by concurrent I/O from parallel installers.
-# When the race fires, rustup leaves a partial toolchain stub behind and later
-# `cargo install` calls fail with "'cargo' is not installed for the toolchain".
+# known race (`thread 'CloseHandle' panicked at src/diskio/mod.rs: RecvError`,
+# rust-lang/rustup#2926) that's triggered or aggravated by concurrent I/O from
+# parallel installers. When the race fires, rustup leaves a partial toolchain
+# stub behind and later `cargo install` calls fail with "'cargo' is not
+# installed for the toolchain".
 install_pypy
+log_step "install_build_tools" "PyPy installed. Installing Rust..."
 install_rust
-log_step "install_build_tools" "PyPy and Rust installed"
+log_step "install_build_tools" "Rust installed."
 
 # Belt-and-suspenders: rustup can still leave the pinned toolchain partially
 # installed (the `rust-toolchain.toml`-pinned channel as a stub without its
