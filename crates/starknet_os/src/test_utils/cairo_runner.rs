@@ -230,7 +230,7 @@ fn perform_basic_validations_on_explicit_args(
         })?;
     }
 
-    expected_explicit_args.sort_by(|a, b| a.offset.cmp(&b.offset));
+    expected_explicit_args.sort_by_key(|a| a.offset);
     for (index, actual_arg) in explicit_args.iter().enumerate() {
         let expected_arg = expected_explicit_args.get(index).unwrap();
         perform_basic_validations_on_endpoint_arg(index, expected_arg, actual_arg)?;
@@ -288,7 +288,7 @@ fn perform_basic_validations_on_implicit_args(
         .map(|(k, v)| (k.to_string(), v.clone()))
         .collect();
 
-    expected_implicit_args.sort_by(|a, b| a.1.offset.cmp(&b.1.offset));
+    expected_implicit_args.sort_by_key(|a| a.1.offset);
     if expected_implicit_args.len() != implicit_args.len() {
         Err(ImplicitArgError::WrongNumberOfArgs {
             expected: expected_implicit_args.clone(),

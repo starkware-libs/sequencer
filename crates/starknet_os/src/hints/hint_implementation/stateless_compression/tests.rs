@@ -348,8 +348,13 @@ fn test_unpack_felts(
     );
     let (cairo_unpacked, resources) = cairo_unpack_felts(&compressed, elm_bound, n_elms);
     assert_eq!(elm_felts, cairo_unpacked);
-    if n_elms > 0 {
-        assert_eq!(resources.n_steps / n_elms, expected_n_steps_per_elm.unwrap());
+    match expected_n_steps_per_elm {
+        Some(expected_n_steps_per_elm) => {
+            assert_eq!(resources.n_steps.checked_div(n_elms).unwrap(), expected_n_steps_per_elm);
+        }
+        None => {
+            assert_eq!(n_elms, 0);
+        }
     }
 }
 

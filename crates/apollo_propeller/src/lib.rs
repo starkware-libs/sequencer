@@ -49,8 +49,8 @@ pub use types::{
     ReconstructionError,
     ScheduleError,
     ShardIndex,
-    ShardPublishError,
-    ShardValidationError,
+    UnitPublishError,
+    UnitValidationError,
 };
 pub use unit::{PropellerUnit, Shard, ShardsOfPeer};
 pub use unit_validator::UnitValidator;

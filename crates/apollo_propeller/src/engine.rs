@@ -23,7 +23,7 @@ use crate::sharding::create_units_to_publish;
 use crate::signature;
 use crate::time_cache::TimeCache;
 use crate::tree::PropellerScheduleManager;
-use crate::types::{CommitteeId, CommitteeSetupError, Event, MessageRoot, ShardPublishError};
+use crate::types::{CommitteeId, CommitteeSetupError, Event, MessageRoot, UnitPublishError};
 use crate::unit::PropellerUnit;
 
 #[cfg(test)]
@@ -34,8 +34,8 @@ mod engine_test;
 // Must be much bigger than the number of peers we expect to work with (2*committee_size).
 const PEER_NONCE_CACHE_SIZE: usize = 1000;
 
-type BroadcastResponseTx = oneshot::Sender<Result<(), ShardPublishError>>;
-type BroadcastResult = (Result<Vec<PropellerUnit>, ShardPublishError>, BroadcastResponseTx);
+type BroadcastResponseTx = oneshot::Sender<Result<(), UnitPublishError>>;
+type BroadcastResult = (Result<Vec<PropellerUnit>, UnitPublishError>, BroadcastResponseTx);
 
 // TODO(guyn): since the nonce is part of the MessageKey, there's a risk that getting a bad nonce
 // will cause a message processor to start working on a bad message, which later takes up resources
@@ -203,7 +203,7 @@ impl Engine {
         let Some(schedule_manager) =
             self.committees.get(&committee_id).map(|data| data.schedule_manager.clone())
         else {
-            let _ = response_tx.send(Err(ShardPublishError::CommitteeNotRegistered(committee_id)));
+            let _ = response_tx.send(Err(UnitPublishError::CommitteeNotRegistered(committee_id)));
             return;
         };
 
@@ -243,7 +243,7 @@ impl Engine {
 
         // Track received unit.
         if let Some(metrics) = &self.metrics {
-            metrics.shards_received.increment(1);
+            metrics.units_received.increment(1);
         }
 
         // Check if committee is registered.
@@ -336,7 +336,7 @@ impl Engine {
         self.emit_event(Event::ShardSendFailed {
             sent_from: None,
             sent_to: Some(peer_id),
-            error: ShardPublishError::HandlerError(error),
+            error: UnitPublishError::HandlerError(error),
         });
     }
 
@@ -352,7 +352,7 @@ impl Engine {
             self.emit_event(Event::ShardSendFailed {
                 sent_from: None,
                 sent_to: Some(peer_id),
-                error: ShardPublishError::NotConnectedToPeer(peer_id),
+                error: UnitPublishError::NotConnectedToPeer(peer_id),
             });
             return;
         }
@@ -363,7 +363,7 @@ impl Engine {
 
     fn handle_broadcaster_result(
         &mut self,
-        result: Result<Vec<PropellerUnit>, ShardPublishError>,
+        result: Result<Vec<PropellerUnit>, UnitPublishError>,
         response: BroadcastResponseTx,
     ) {
         if let Err(error) = result.and_then(|units| self.broadcast_prepared_units(units)) {
@@ -449,7 +449,7 @@ impl Engine {
     fn broadcast_prepared_units(
         &mut self,
         units: Vec<PropellerUnit>,
-    ) -> Result<(), ShardPublishError> {
+    ) -> Result<(), UnitPublishError> {
         let Some(first_unit) = units.first() else {
             return Ok(());
         };
@@ -459,7 +459,7 @@ impl Engine {
         let schedule_manager = self
             .committees
             .get(&committee_id)
-            .ok_or(ShardPublishError::CommitteeNotRegistered(committee_id))?
+            .ok_or(UnitPublishError::CommitteeNotRegistered(committee_id))?
             .schedule_manager
             .clone();
 

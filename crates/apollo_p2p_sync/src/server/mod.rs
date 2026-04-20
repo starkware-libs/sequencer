@@ -283,8 +283,8 @@ impl FetchBlockData for FullTransaction {
         let mut result: Vec<FullTransaction> = Vec::new();
         for (transaction, transaction_output, transaction_hash) in transactions
             .into_iter()
-            .zip(transaction_outputs.into_iter())
-            .zip(transaction_hashes.into_iter())
+            .zip(transaction_outputs)
+            .zip(transaction_hashes)
             .map(|((a, b), c)| (a, b, c))
         {
             result.push(FullTransaction { transaction, transaction_output, transaction_hash });

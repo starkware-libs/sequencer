@@ -3,7 +3,7 @@ use rstest::rstest;
 use starknet_api::staking::StakingWeight;
 
 use crate::tree::PropellerScheduleManager;
-use crate::types::{CommitteeSetupError, ScheduleError, ShardIndex, ShardValidationError};
+use crate::types::{CommitteeSetupError, ScheduleError, ShardIndex, UnitValidationError};
 
 // TODO(AndrewL): Move this to test_utils crate.
 pub fn get_peer_id(index: u8) -> PeerId {
@@ -103,7 +103,7 @@ fn get_result_for_validate_origin(
     sender_index: u8,
     publisher_index: u8,
     shard_index: u64,
-) -> Result<(), ShardValidationError> {
+) -> Result<(), UnitValidationError> {
     let schedule_manager = make_schedule_manager(local_index, num_nodes);
     let get_peer = |i: u8| {
         if i == u8::MAX {

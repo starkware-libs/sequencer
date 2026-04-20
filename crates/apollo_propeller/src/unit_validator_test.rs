@@ -15,8 +15,8 @@ use crate::{
     PropellerUnit,
     Shard,
     ShardIndex,
-    ShardValidationError,
     ShardsOfPeer,
+    UnitValidationError,
     UnitValidator,
 };
 
@@ -128,7 +128,7 @@ fn test_validation_fails_with_wrong_signature() {
     let unit = custom_unit(&env, env.local_peer, true);
     assert!(matches!(
         env.validator.validate_unit(env.publisher, &unit),
-        Err(ShardValidationError::SignatureVerificationFailed(
+        Err(UnitValidationError::SignatureVerificationFailed(
             ShardSignatureVerificationError::VerificationFailed
         ))
     ));
@@ -141,7 +141,7 @@ fn test_duplicate_shard_rejected() {
     env.validator.validate_unit(env.publisher, &unit).unwrap();
     assert!(matches!(
         env.validator.validate_unit(env.publisher, &unit),
-        Err(ShardValidationError::DuplicateShard)
+        Err(UnitValidationError::DuplicateShard)
     ));
 }
 
@@ -225,7 +225,7 @@ fn test_unequal_shard_lengths_rejected() {
     let mut unit = unit(&env, env.local_peer);
     unit.shards_mut().0[1].0.push(0xFF);
 
-    assert_eq!(unit.validate_shard_lengths(), Err(ShardValidationError::UnequalShardLengths));
+    assert_eq!(unit.validate_shard_lengths(), Err(UnitValidationError::UnequalShardLengths));
 }
 
 #[rstest]
@@ -235,7 +235,7 @@ fn test_unexpected_shard_count_rejected() {
 
     assert_eq!(
         env.validator.validate_unit(env.publisher, &unit),
-        Err(ShardValidationError::UnexpectedShardCount {
+        Err(UnitValidationError::UnexpectedShardCount {
             expected_shard_count: 1,
             actual_shard_count: 2,
         })
