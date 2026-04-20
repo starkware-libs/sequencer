@@ -161,7 +161,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         let rng_seed = Self::rng_seed(&os_block_inputs, &os_hints_config.rng_seed_salt);
         let execution_helpers = os_block_inputs
             .into_iter()
-            .zip(state_readers.into_iter())
+            .zip(state_readers)
             .map(|(os_block_input, state_reader)| {
                 OsExecutionHelper::new(
                     os_block_input,

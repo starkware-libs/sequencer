@@ -672,7 +672,7 @@ async fn collect_execution_results_and_stream_txs(
         "The number of results match the number of transactions."
     );
 
-    for (input_tx, result) in tx_chunk.iter().zip(results.into_iter()) {
+    for (input_tx, result) in tx_chunk.iter().zip(results) {
         let optional_l1_handler_tx =
             if let InternalConsensusTransaction::L1Handler(l1_handler_tx) = input_tx {
                 Some(l1_handler_tx.tx.clone())
@@ -968,18 +968,15 @@ fn record_and_log_block_commitment_measurements(
 
     // Log the measurements.
     let height = height.0;
-    let tx_commitment_per_tx_latency_string =
-        if n_txs > 0 { format!("{} µs", tx_commitment_latency / n_txs) } else { "?".to_string() };
-    let event_commitment_per_event_latency_string = if n_events > 0 {
-        format!("{} µs", event_commitment_latency / n_events)
-    } else {
-        "?".to_string()
-    };
-    let state_diff_commitment_per_state_diff_length_latency_string = if state_diff_length > 0 {
-        format!("{} µs", state_diff_commitment_latency / state_diff_length)
-    } else {
-        "?".to_string()
-    };
+    let tx_commitment_per_tx_latency_string = tx_commitment_latency
+        .checked_div(n_txs)
+        .map_or("?".to_string(), |latency| format!("{latency} µs"));
+    let event_commitment_per_event_latency_string = event_commitment_latency
+        .checked_div(n_events)
+        .map_or("?".to_string(), |latency| format!("{latency} µs"));
+    let state_diff_commitment_per_state_diff_length_latency_string = state_diff_commitment_latency
+        .checked_div(state_diff_length)
+        .map_or("?".to_string(), |latency| format!("{latency} µs"));
 
     debug!(
         "Block {height} commitments latencies: tx/event/receipt/state_diff in µs: \

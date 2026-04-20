@@ -240,16 +240,15 @@ impl FactTopology {
     ) -> Vec<usize> {
         // Make sure the pages are adjacent to each other.
 
-        // The first page id is expected to be 1.
-        let mut expected_page_id = 1;
         // We don't expect anything on its start value.
         let mut expected_page_start = None;
         // The size of page 0 is output_size if there are no other pages, or the start of page 1
         // otherwise.
         let mut page0_size = output_size;
 
-        for (page_id, page_start, page_size) in
-            pages.iter().map(|(page_id, page)| (*page_id, page.start, page.size)).sorted()
+        // The first page id is expected to be 1.
+        for (expected_page_id, (page_id, page_start, page_size)) in (1..)
+            .zip(pages.iter().map(|(page_id, page)| (*page_id, page.start, page.size)).sorted())
         {
             assert_eq!(
                 page_id, expected_page_id,
@@ -274,7 +273,6 @@ impl FactTopology {
                  size is {output_size}."
             );
             expected_page_start = Some(page_start + page_size);
-            expected_page_id += 1;
         }
 
         if !pages.is_empty() {

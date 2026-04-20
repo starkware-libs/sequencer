@@ -85,7 +85,7 @@ where
     while !current_subtrees.is_empty() {
         let filled_roots =
             get_roots_from_storage::<L, Layout>(&current_subtrees, storage, key_context).await?;
-        for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.into_iter()) {
+        for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees) {
             if subtree.is_unmodified() {
                 handle_unmodified_subtree(skeleton_tree, &mut next_subtrees, filled_root, subtree);
                 continue;
