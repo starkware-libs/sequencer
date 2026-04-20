@@ -28,3 +28,6 @@ pub(crate) mod utils;
 
 #[cfg(test)]
 pub(crate) mod test_utils;
+
+#[cfg(test)]
+mod snip35_integration_test;
