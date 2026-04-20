@@ -262,6 +262,8 @@ pub struct VersionedConstants {
     pub block_direct_execute_call: bool,
     pub ignore_inner_event_resources: bool,
     pub disable_deploy_in_validation_mode: bool,
+    #[cfg(feature = "reexecution")]
+    pub ignore_user_l2_gas_bound: bool,
 
     // Compiler settings.
     pub enable_reverts: bool,
@@ -304,6 +306,8 @@ impl From<RawVersionedConstants> for VersionedConstants {
             block_direct_execute_call: raw_vc.block_direct_execute_call,
             ignore_inner_event_resources: raw_vc.ignore_inner_event_resources,
             disable_deploy_in_validation_mode: raw_vc.disable_deploy_in_validation_mode,
+            #[cfg(feature = "reexecution")]
+            ignore_user_l2_gas_bound: false,
             enable_reverts: raw_vc.enable_reverts,
             enable_casm_hash_migration: raw_vc.enable_casm_hash_migration,
             block_casm_hash_v1_declares: raw_vc.block_casm_hash_v1_declares,
@@ -836,7 +840,7 @@ impl SyscallGasCost {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "reexecution"), derive(Clone))]
 #[derive(Debug, Default, PartialEq)]
 pub struct SyscallGasCosts {
     pub call_contract: SyscallGasCost,
@@ -915,7 +919,7 @@ impl SyscallGasCosts {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
+#[cfg_attr(any(test, feature = "testing", feature = "reexecution"), derive(Clone, Copy))]
 #[derive(Debug, Default, PartialEq)]
 pub struct BaseGasCosts {
     pub step_gas_cost: u64,
@@ -989,7 +993,7 @@ impl BuiltinGasCosts {
 }
 
 /// Gas cost constants. For more documentation see in core/os/constants.cairo.
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "reexecution"), derive(Clone))]
 #[derive(Debug, Default, PartialEq)]
 pub struct GasCosts {
     pub base: BaseGasCosts,
@@ -1130,7 +1134,7 @@ impl GasCosts {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "reexecution"), derive(Clone))]
 #[derive(Debug, Default, PartialEq)]
 pub struct OsConstants {
     pub gas_costs: GasCosts,
