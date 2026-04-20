@@ -16,7 +16,7 @@ use assert_matches::assert_matches;
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use rstest::{fixture, rstest};
-use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::block::BlockNumber;
 use starknet_api::class_hash;
 use starknet_api::core::ChainId;
 use starknet_api::transaction::{
@@ -111,7 +111,7 @@ pub fn test_state_reader() -> RpcStateReader {
 
 #[fixture]
 pub fn test_block_number(test_state_reader: RpcStateReader) -> BlockNumber {
-    test_state_reader.get_block_info().unwrap().block_number
+    test_state_reader.get_block_info_with_txs().unwrap().block_info.block_number
 }
 
 #[fixture]
@@ -139,17 +139,6 @@ pub fn test_state_readers_last_and_current_block(
     )
 }
 
-/// Test that the block info can be retrieved from the RPC server.
-#[rstest]
-pub fn test_get_block_info(test_state_reader: RpcStateReader) {
-    assert_matches!(test_state_reader.get_block_info(), Ok(BlockInfo { .. }));
-}
-
-#[rstest]
-pub fn test_get_starknet_version(test_state_reader: RpcStateReader) {
-    test_state_reader.get_starknet_version().unwrap();
-}
-
 #[rstest]
 pub fn test_get_contract_class(test_state_reader: RpcStateReader, test_block_number: BlockNumber) {
     // An example of existing class hash in Mainnet.
@@ -174,13 +163,6 @@ pub fn test_get_contract_class(test_state_reader: RpcStateReader, test_block_num
         // This contract class is deprecated.
         Sierra(_) => panic!("Expected a legacy contract class"),
     }
-}
-
-#[rstest]
-pub fn test_get_tx_hashes(test_state_reader: RpcStateReader) {
-    test_state_reader.get_tx_hashes().unwrap_or_else(|err| {
-        panic!("Error retrieving txs hash: {err}");
-    });
 }
 
 #[rstest]
@@ -255,38 +237,19 @@ pub fn test_get_statediff_rpc(test_state_reader: RpcStateReader) {
 }
 
 #[rstest]
-#[case(test_block_number(test_state_reader()).0)]
-#[case(EXAMPLE_DECLARE_V1_BLOCK_NUMBER)]
-#[case(EXAMPLE_DECLARE_V2_BLOCK_NUMBER)]
-#[case(EXAMPLE_DECLARE_V3_BLOCK_NUMBER)]
-pub fn test_get_all_blockifier_tx_in_block(#[case] block_number: u64) {
-    let state_reader = RpcStateReader::new_for_testing(BlockNumber(block_number));
-    state_reader
-        .api_txs_to_blockifier_txs_next_block(state_reader.get_all_txs_in_block().unwrap())
-        .unwrap();
-}
-
-#[rstest]
-pub fn test_get_versioned_constants(test_state_reader: RpcStateReader) {
-    test_state_reader.get_versioned_constants().unwrap();
-}
-
-#[rstest]
-pub fn test_get_block_info_with_txs() {
-    let block_number = BlockNumber(EXAMPLE_DEPLOY_ACCOUNT_V1_BLOCK_NUMBER);
+#[case(EXAMPLE_DEPLOY_ACCOUNT_V1_BLOCK_NUMBER, EXAMPLE_DEPLOY_ACCOUNT_V1_TX_HASH)]
+#[case(EXAMPLE_DECLARE_V1_BLOCK_NUMBER, EXAMPLE_DECLARE_V1_TX_HASH)]
+#[case(EXAMPLE_DECLARE_V2_BLOCK_NUMBER, EXAMPLE_DECLARE_V2_TX_HASH)]
+#[case(EXAMPLE_DECLARE_V3_BLOCK_NUMBER, EXAMPLE_DECLARE_V3_TX_HASH)]
+pub fn test_get_block_info_with_txs(#[case] block_number: u64, #[case] expected_tx_hash: &str) {
+    let block_number = BlockNumber(block_number);
     let state_reader = RpcStateReader::new_for_testing(block_number);
     let block_info_with_txs = state_reader.get_block_info_with_txs().unwrap();
     assert_eq!(block_info_with_txs.block_info.block_number, block_number);
-    let expected_tx_hash =
-        TransactionHash(Felt::from_hex_unchecked(EXAMPLE_DEPLOY_ACCOUNT_V1_TX_HASH));
+    let expected_tx_hash = TransactionHash(Felt::from_hex_unchecked(expected_tx_hash));
     assert!(
         block_info_with_txs.transactions.iter().any(|(_, tx_hash)| *tx_hash == expected_tx_hash)
     );
-}
-
-#[rstest]
-pub fn test_get_block_context(test_state_reader: RpcStateReader) {
-    test_state_reader.get_block_context(None).unwrap();
 }
 
 #[rstest]

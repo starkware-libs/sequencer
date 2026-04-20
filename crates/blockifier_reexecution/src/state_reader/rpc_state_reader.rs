@@ -26,7 +26,7 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use reqwest::blocking::Client as BlockingClient;
 use serde::Serialize;
 use serde_json::{json, Value};
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
@@ -260,38 +260,6 @@ impl RpcStateReader {
         Ok(serde_json::from_value::<BlockHeader>(json)?)
     }
 
-    /// Get the block info of the current block.
-    pub fn get_block_info(&self) -> ReexecutionResult<BlockInfo> {
-        Ok(self.get_block_header()?.try_into()?)
-    }
-
-    pub fn get_starknet_version(&self) -> ReexecutionResult<StarknetVersion> {
-        let raw_version: String = serde_json::from_value(
-            retry_request!(self.retry_config, || {
-                self.send_rpc_request(
-                    "starknet_getBlockWithTxHashes",
-                    GetBlockWithTxHashesParams { block_id: self.block_id },
-                )
-            })?["starknet_version"]
-                .clone(),
-        )?;
-        Ok(StarknetVersion::try_from(raw_version.as_str())?)
-    }
-
-    /// Get all transaction hashes in the current block.
-    pub fn get_tx_hashes(&self) -> ReexecutionResult<Vec<String>> {
-        let raw_tx_hashes = serde_json::from_value(
-            retry_request!(self.retry_config, || {
-                self.send_rpc_request(
-                    "starknet_getBlockWithTxHashes",
-                    &GetBlockWithTxHashesParams { block_id: self.block_id },
-                )
-            })?["transactions"]
-                .clone(),
-        )?;
-        Ok(serde_json::from_value(raw_tx_hashes)?)
-    }
-
     pub fn get_tx_by_hash(&self, tx_hash: &str) -> ReexecutionResult<Transaction> {
         Ok(deserialize_transaction_json_to_starknet_api_tx(retry_request!(
             self.retry_config,
@@ -302,16 +270,6 @@ impl RpcStateReader {
                 )
             }
         )?)?)
-    }
-
-    pub fn get_all_txs_in_block(&self) -> ReexecutionResult<Vec<(Transaction, TransactionHash)>> {
-        self.get_tx_hashes()?
-            .iter()
-            .map(|tx_hash| match self.get_tx_by_hash(tx_hash) {
-                Err(error) => Err(error),
-                Ok(tx) => Ok((tx, TransactionHash(Felt::from_hex_unchecked(tx_hash)))),
-            })
-            .collect::<Result<_, _>>()
     }
 
     /// Fetches the block's header and full transactions in a single `starknet_getBlockWithTxs`
@@ -340,24 +298,7 @@ impl RpcStateReader {
         Ok(BlockInfoWithTxs { block_info, transactions })
     }
 
-    pub fn get_versioned_constants(&self) -> ReexecutionResult<VersionedConstants> {
-        let mut vc = VersionedConstants::get(&self.get_starknet_version()?)?.clone();
-        // Casm hash migration is not supported. It requires compiled class hashes, and the
-        // reexecution state readers do not have them.
-        vc.enable_casm_hash_migration = false;
-        Ok(vc)
-    }
-
-    pub fn get_block_context(
-        &self,
-        min_sierra_version_for_sierra_gas: Option<SierraVersion>,
-    ) -> ReexecutionResult<BlockContext> {
-        self.build_block_context(self.get_block_info()?, min_sierra_version_for_sierra_gas)
-    }
-
-    /// Builds a `BlockContext` from a pre-fetched `BlockInfo` without issuing RPC calls. Used by
-    /// callers that already have the block info (e.g., from `get_block_info_with_txs`) and want
-    /// to avoid the redundant header fetches that `get_block_context` would otherwise make.
+    /// Builds a `BlockContext` from a pre-fetched `BlockInfo` without issuing RPC calls.
     pub fn build_block_context(
         &self,
         block_info: BlockInfo,
