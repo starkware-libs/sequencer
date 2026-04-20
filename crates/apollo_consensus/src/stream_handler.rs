@@ -257,7 +257,9 @@ where
             Some((key, Some(msg))) => self.broadcast(key, msg).await,
             Some((key, None)) => self.broadcast_fin(key).await,
             None => {
-                panic!("StreamHashMap should never be closed")
+                panic!(
+                    "StreamMap should never yield None. When it's empty, it should yield Pending"
+                )
             }
         }
     }
@@ -290,13 +292,16 @@ where
             // If this is the first message, send the receiver to the application.
             // Note: By this point, messages must be unique. Duplicate message IDs should
             // have been discarded earlier.
-            let receiver = data.receiver.take().expect("Receiver should exist");
+            let receiver = data.receiver.take().expect(
+                "There can't be two messages with message_id=0, as we make sure messages come in \
+                 order into here",
+            );
 
             // Send the receiver to the application.
             let send_result = self.inbound_channel_sender.try_send(receiver);
             if let Err(e) = send_result {
                 if e.is_disconnected() {
-                    panic!("Receiver was unexpectedly dropped");
+                    panic!("Application dropped inbound_channel_sender's receiver");
                 } else {
                     // The channel is full.
                     warn!(
@@ -322,7 +327,9 @@ where
             stream_id: stream_id.clone(),
             message_id: *self.outbound_stream_number.get(&stream_id).unwrap_or(&0),
         };
-        self.outbound_sender.broadcast_message(message).await.expect("Send should succeed");
+        if let Err(e) = self.outbound_sender.broadcast_message(message).await {
+            warn!(%stream_id, "Failed to broadcast outbound stream message: {e:?}. Dropping the message.");
+        }
         self.outbound_stream_number.insert(
             stream_id.clone(),
             self.outbound_stream_number.get(&stream_id).unwrap_or(&0) + 1,
@@ -336,7 +343,9 @@ where
             stream_id: stream_id.clone(),
             message_id: *self.outbound_stream_number.get(&stream_id).unwrap_or(&0),
         };
-        self.outbound_sender.broadcast_message(message).await.expect("Send should succeed");
+        if let Err(e) = self.outbound_sender.broadcast_message(message).await {
+            warn!(%stream_id, "Failed to broadcast outbound stream Fin: {e:?}. Dropping the message.");
+        }
         self.outbound_stream_number.remove(&stream_id);
         CONSENSUS_OUTBOUND_STREAM_FINISHED.increment(1);
         info!(%stream_id, "Outbound stream finished.");
