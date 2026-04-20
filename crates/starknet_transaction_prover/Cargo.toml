@@ -6,11 +6,16 @@ repository.workspace = true
 license-file.workspace = true
 description = "Standalone service that proves individual Starknet transactions using the virtual Starknet OS and Stwo prover."
 
+[[bin]]
+name = "generate_proof_flow_fixtures"
+path = "src/bin/generate_proof_flow_fixtures.rs"
+required-features = ["stwo_proving"]
+
 [features]
 cairo_native = ["blockifier/cairo_native"]
 # Enables in-memory stwo proving.  Requires a nightly Rust toolchain because the
 # stwo prover crate uses unstable features (array_chunks, portable_simd, …).
-stwo_proving = ["dep:privacy-prove"]
+stwo_proving = ["dep:privacy-prove", "dep:rayon"]
 
 [dependencies]
 anyhow.workspace = true
@@ -29,6 +34,7 @@ http-body-util.workspace = true
 indexmap.workspace = true
 jsonrpsee = { workspace = true, features = ["macros", "server"] }
 privacy-prove = { workspace = true, optional = true }
+rayon = { version = "1.11", optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 shared_execution_objects.workspace = true

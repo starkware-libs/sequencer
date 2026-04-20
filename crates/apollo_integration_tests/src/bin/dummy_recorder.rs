@@ -11,7 +11,7 @@ async fn main() {
     configure_tracing().await;
 
     let socket_address = SocketAddr::from(([0, 0, 0, 0], RECORDER_PORT));
-    let join_handle = spawn_success_recorder(socket_address);
+    let join_handle = spawn_success_recorder(socket_address, 0);
     info!("Spawned the dummy success Recorder successfully!");
 
     join_handle.await.expect("The dummy success Recorder has panicked!!! :(");

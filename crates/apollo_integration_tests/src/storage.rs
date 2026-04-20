@@ -5,6 +5,7 @@ use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
 
 use crate::executable_setup::NodeExecutableId;
 use crate::state_reader::{
+    GenesisParams,
     StorageTestConfig,
     StorageTestSetup,
     BATCHER_DB_PATH_SUFFIX,
@@ -117,13 +118,14 @@ pub fn get_integration_test_storage(
     custom_paths: Option<CustomPaths>,
     accounts: Vec<AccountTransactionGenerator>,
     chain_info: &ChainInfo,
+    genesis_params: GenesisParams,
 ) -> StorageTestSetup {
     let storage_exec_paths = custom_paths.as_ref().and_then(|paths| {
         paths.get_db_base().map(|db_base| StorageExecutablePaths::new(db_base, node_index))
     });
 
     let StorageTestSetup { mut storage_config, storage_handles } =
-        StorageTestSetup::new(accounts, chain_info, storage_exec_paths);
+        StorageTestSetup::new(accounts, chain_info, storage_exec_paths, genesis_params);
 
     // Allow overriding the path with a custom prefix for Docker mode in system tests.
     if let Some(paths) = custom_paths {

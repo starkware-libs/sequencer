@@ -22,11 +22,15 @@ NIGHTLY_FEATURES_PACKAGES: Set[str] = {"starknet_transaction_prover"}
 SEQUENCER_BINARY_NAME: str = "apollo_node"
 
 # List of sequencer node integration test binary names. Stored as a list to maintain order.
+# Note: integration_test_proof_flow is intentionally excluded from this list. It requires
+# pre-generated fixture files (proof_facts.json, proof.bin) that are not yet committed to the
+# repository. Run it manually via sequencer_integration_test.sh once the fixtures are in place.
 SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
     "integration_test_restart_flow",
     "integration_test_positive_flow",
     "integration_test_restart_service_multiple_nodes_flow",
     "integration_test_revert_flow",
+    "integration_test_proof_flow",
 ]
 NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
     # TODO(AndrewL): Try adding these tests to CI as well

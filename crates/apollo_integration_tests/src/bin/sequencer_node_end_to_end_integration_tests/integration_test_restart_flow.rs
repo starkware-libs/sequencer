@@ -7,6 +7,7 @@ use apollo_integration_tests::integration_test_manager::{
     DEFAULT_SENDER_ACCOUNT,
 };
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
+use apollo_integration_tests::state_reader::GenesisParams;
 use tracing::info;
 
 #[tokio::main]
@@ -32,6 +33,7 @@ async fn main() {
         N_HYBRID_SEQUENCERS,
         None,
         TestIdentifier::RestartFlowIntegrationTest,
+        GenesisParams::default(),
     )
     .await;
 

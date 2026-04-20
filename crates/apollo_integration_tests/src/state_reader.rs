@@ -6,9 +6,12 @@ use apollo_class_manager::{ClassStorage, FsClassStorage};
 use apollo_class_manager_config::config::FsClassStorageConfig;
 use apollo_proof_manager::test_utils::FsProofStorageBuilderForTesting;
 use apollo_proof_manager_config::config::ProofManagerConfig;
+use apollo_storage::block_hash::BlockHashStorageWriter;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class::ClassStorageWriter;
+use apollo_storage::class_manager::ClassManagerStorageWriter;
 use apollo_storage::compiled_class::CasmStorageWriter;
+use apollo_storage::global_root_marker::GlobalRootMarkerStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::StateStorageWriter;
@@ -25,6 +28,7 @@ use mempool_test_utils::starknet_api_test_utils::{AccountTransactionGenerator, C
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{
     BlockBody,
+    BlockHash,
     BlockHeader,
     BlockHeaderWithoutHash,
     BlockNumber,
@@ -71,6 +75,12 @@ type ContractClassesMap = (
     Vec<(ClassHash, DeprecatedContractClass)>,
     Vec<(ClassHash, (SierraContractClass, CasmContractClass))>,
 );
+
+#[derive(Clone, Default)]
+pub struct GenesisParams {
+    pub initial_block_number: BlockNumber,
+    pub block_hash_seeds: Vec<(BlockNumber, BlockHash)>,
+}
 
 pub(crate) const BATCHER_DB_PATH_SUFFIX: &str = "batcher";
 pub(crate) const CLASS_MANAGER_DB_PATH_SUFFIX: &str = "class_manager";
@@ -152,6 +162,7 @@ impl StorageTestSetup {
         test_defined_accounts: Vec<AccountTransactionGenerator>,
         chain_info: &ChainInfo,
         storage_exec_paths: Option<StorageExecutablePaths>,
+        genesis_params: GenesisParams,
     ) -> Self {
         let preset_test_contracts = PresetTestContracts::new();
         // TODO(yair): Avoid cloning.
@@ -170,6 +181,7 @@ impl StorageTestSetup {
             &test_defined_accounts,
             preset_test_contracts.clone(),
             &classes,
+            &genesis_params,
         );
 
         let state_sync_db_path =
@@ -188,6 +200,7 @@ impl StorageTestSetup {
             &test_defined_accounts,
             preset_test_contracts,
             &classes,
+            &genesis_params,
         );
 
         let fs_class_storage_db_path =
@@ -230,6 +243,24 @@ impl StorageTestSetup {
             storage_exec_paths.as_ref().map(|p| p.get_committer_path_with_db_suffix());
         let (committer_db_path, committer_storage_handle) =
             create_dir_for_testing(committer_db_path);
+
+        // The committer's RocksDB starts at offset 0. When the genesis block is > 0, pre-initialize
+        // the offset so the committer accepts commitment requests starting at initial_block_number.
+        if genesis_params.initial_block_number.0 > 0 {
+            let db_path = committer_db_path.clone();
+            let initial_block_number = genesis_params.initial_block_number;
+            std::thread::spawn(move || {
+                tokio::runtime::Builder::new_current_thread().build().unwrap().block_on(
+                    apollo_committer::test_utils::initialize_committer_storage(
+                        db_path,
+                        initial_block_number,
+                    ),
+                );
+            })
+            .join()
+            .unwrap();
+        }
+
         Self {
             storage_config: StorageTestConfig::new(
                 batcher_storage_config,
@@ -334,16 +365,27 @@ fn initialize_papyrus_test_state(
     test_defined_accounts: &[AccountTransactionGenerator],
     preset_test_contracts: PresetTestContracts,
     classes: &TestClasses,
+    genesis_params: &GenesisParams,
 ) {
-    let state_diff = prepare_state_diff(chain_info, test_defined_accounts, &preset_test_contracts);
-
-    write_state_to_apollo_storage(storage_writer, state_diff, classes)
+    let state_diff = prepare_state_diff(
+        chain_info,
+        test_defined_accounts,
+        &preset_test_contracts,
+        &genesis_params.block_hash_seeds,
+    );
+    write_state_to_apollo_storage(
+        storage_writer,
+        state_diff,
+        classes,
+        genesis_params.initial_block_number,
+    )
 }
 
 fn prepare_state_diff(
     chain_info: &ChainInfo,
     test_defined_accounts: &[AccountTransactionGenerator],
     preset_test_contracts: &PresetTestContracts,
+    block_hash_seeds: &[(BlockNumber, BlockHash)],
 ) -> ThinStateDiff {
     let mut state_diff_builder = ThinStateDiffBuilder::new(chain_info);
     let PresetTestContracts { default_test_contracts, erc20_contract } = preset_test_contracts;
@@ -375,7 +417,21 @@ fn prepare_state_diff(
     state_diff_builder
         .inject_undeployed_accounts_into_state(undeployed_accounts_contracts.as_slice());
 
-    state_diff_builder.build()
+    let mut state_diff = state_diff_builder.build();
+
+    if !block_hash_seeds.is_empty() {
+        let block_hash_contract_address = VersionedConstants::latest_constants()
+            .os_constants
+            .os_contract_addresses
+            .block_hash_contract_address();
+        let seeds_entry = state_diff.storage_diffs.entry(block_hash_contract_address).or_default();
+        for (block_number, block_hash) in block_hash_seeds {
+            let key = StorageKey::from(block_number.0);
+            seeds_entry.insert(key, block_hash.0);
+        }
+    }
+
+    state_diff
 }
 
 fn prepare_contract_classes(
@@ -408,8 +464,45 @@ fn write_state_to_apollo_storage(
     storage_writer: &mut StorageWriter,
     state_diff: ThinStateDiff,
     classes: &TestClasses,
+    initial_block_number: BlockNumber,
 ) {
-    let block_number = BlockNumber(0);
+    // Storage requires sequential block writes from 0. When initial_block_number > 0, write
+    // empty placeholder blocks first so that all markers reach initial_block_number.
+    if initial_block_number.0 > 0 {
+        let mut write_txn = storage_writer.begin_rw_txn().unwrap();
+        for placeholder_block_number in (0..initial_block_number.0).map(BlockNumber) {
+            let placeholder_header = BlockHeader {
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    block_number: placeholder_block_number,
+                    ..Default::default()
+                },
+                // Use block_number + 1 as a unique stand-in for the block hash, avoiding 0x0
+                // which is reserved for the genesis block's default hash.
+                block_hash: BlockHash((placeholder_block_number.0 + 1).into()),
+                ..Default::default()
+            };
+            write_txn = write_txn
+                .append_header(placeholder_block_number, &placeholder_header)
+                .unwrap()
+                .append_body(placeholder_block_number, BlockBody::default())
+                .unwrap()
+                .append_state_diff(placeholder_block_number, ThinStateDiff::default())
+                .unwrap()
+                .append_classes(placeholder_block_number, &[], &[])
+                .unwrap()
+                // Populate the block_hashes table used by the batcher for retrospective block hash
+                // lookups when proposing new blocks.
+                .set_block_hash(&placeholder_block_number, placeholder_header.block_hash)
+                .unwrap()
+                // Advance the global root marker so the batcher skips commitment
+                // tasks for placeholder blocks on startup.
+                .checked_increment_global_root_marker(placeholder_block_number)
+                .unwrap();
+        }
+        write_txn.commit().unwrap();
+    }
+
+    let block_number = initial_block_number;
     let block_header = test_block_header(block_number, state_diff.len());
     let TestClasses { cairo0_contract_classes, cairo1_contract_classes } = classes;
     let cairo0_contract_classes: Vec<_> =
@@ -444,6 +537,18 @@ fn write_state_to_apollo_storage(
         .append_classes(block_number, &sierras, &cairo0_contract_classes)
         .unwrap()
         .set_partial_block_hash_components(&block_number, &partial_block_hash)
+        .unwrap()
+        // Advance the class manager marker past the pre-populated genesis block so the p2p sync
+        // class stream starts from the first newly-produced block rather than re-processing
+        // placeholder blocks from 0 (which would stall sync height for large initial_block_number
+        // values).
+        .update_class_manager_block_marker(&block_number.unchecked_next())
+        .unwrap()
+        // Reset the compiled class marker to 0: placeholder block initialization advances it to
+        // initial_block_number (the first block with class declarations), but p2p sync never
+        // updates STATE_SYNC_COMPILED_CLASS_MARKER at runtime — it is expected to start at 0 so
+        // the sync-height computation filters it out. Resetting ensures the metric stays at 0.
+        .update_compiled_class_marker(&BlockNumber(0))
         .unwrap()
         .commit()
         .unwrap();

@@ -3021,3 +3021,40 @@ async fn test_get_block_hash_current_block_number() {
     let test_output = test_builder.build_and_run().await;
     test_output.perform_default_validations();
 }
+
+/// Generates a CairoPie fixture for the proof flow integration test.
+///
+/// Runs a `balanceOf` invoke transaction via the virtual OS and writes the resulting
+/// `CairoPie` to a zip file. Feed this file to the `generate_proof_flow_fixtures`
+/// binary in `starknet_transaction_prover` to produce the final proof fixtures.
+///
+/// # Environment variables
+///
+/// - `CAIRO_PIE_PATH` — output path for the zip file
+///   (default: `/tmp/proof_flow_cairo_pie.zip`).
+///
+/// # Running
+///
+/// ```bash
+/// cargo test -p starknet_os_flow_tests generate_cairo_pie -- --ignored --nocapture
+/// ```
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn generate_cairo_pie() {
+    let (mut test_builder, _) = TestBuilder::<DictStateReader>::create_standard_virtual([]).await;
+
+    let calldata =
+        create_calldata(*STRK_FEE_TOKEN_ADDRESS, "balanceOf", &[(*FUNDED_ACCOUNT_ADDRESS).into()]);
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    let test_runner = test_builder.build().await;
+    let output = test_runner.run_virtual();
+    let cairo_pie = output.runner_output.cairo_pie;
+
+    let output_path = std::env::var("CAIRO_PIE_PATH")
+        .unwrap_or_else(|_| "/tmp/proof_flow_cairo_pie.zip".to_string());
+    cairo_pie
+        .write_zip_file(std::path::Path::new(&output_path), true)
+        .expect("Failed to write CairoPie");
+    println!("CairoPie written to {output_path}");
+}

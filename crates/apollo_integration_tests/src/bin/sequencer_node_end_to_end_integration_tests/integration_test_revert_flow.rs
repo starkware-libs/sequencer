@@ -4,6 +4,7 @@ use std::time::Duration;
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::integration_test_manager::IntegrationTestManager;
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
+use apollo_integration_tests::state_reader::GenesisParams;
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::SequencerNodeConfig;
 use serde_json::Value;
@@ -40,6 +41,7 @@ async fn main() {
         N_HYBRID_SEQUENCERS,
         None,
         TestIdentifier::RevertFlowIntegrationTest,
+        GenesisParams::default(),
     )
     .await;
 
