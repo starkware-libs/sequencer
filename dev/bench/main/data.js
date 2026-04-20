@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776406098639,
+  "lastUpdate": 1776680289503,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2583,6 +2583,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1583.3747243,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3f50d36089dbed4d3b8f769ed1954143436909c9",
+          "message": "release: upgrade rust to 1.95 (#13788)\n\n* release: upgrade rust to 1.95\n\nSigned-off-by: Dori Medini <dori@starkware.co>\n\n* release: clippy --fix\n\nSigned-off-by: Dori Medini <dori@starkware.co>\n\n---------\n\nSigned-off-by: Dori Medini <dori@starkware.co>",
+          "timestamp": "2026-04-20T09:53:36Z",
+          "tree_id": "6b00f88aa70d3a37cff356e974b4646c00ff7497",
+          "url": "https://github.com/starkware-libs/sequencer/commit/3f50d36089dbed4d3b8f769ed1954143436909c9"
+        },
+        "date": 1776680289091,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 878.0036136699999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1333.319153,
             "unit": "ms"
           }
         ]
