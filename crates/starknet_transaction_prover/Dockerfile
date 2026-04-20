@@ -59,7 +59,7 @@ COPY crates/starknet_transaction_prover/rust-toolchain.toml rust-toolchain.toml
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain none \
     && rustup toolchain install \
     && cargo install --locked cargo-chef \
-    && RUSTC_WRAPPER="" cargo install sccache --version 0.14.0 \
+    && RUSTC_WRAPPER="" cargo install --locked sccache --version 0.14.0 \
     && rm rust-toolchain.toml
 
 # Create Python venv and install cairo-lang (required for compiling Starknet OS).
