@@ -104,6 +104,8 @@ pub enum VirtualSnosProverError {
     ProvingError(#[from] ProvingError),
     #[error(transparent)]
     OutputParseError(#[from] OsOutputError),
+    #[error("Transaction blocked by external check")]
+    TransactionBlocked,
 }
 
 /// Errors that can occur during configuration.
