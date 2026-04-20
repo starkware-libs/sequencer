@@ -417,7 +417,7 @@ service:
 # Sequencer config (deep merged with service-specific config)
 config:
   sequencerConfig:
-    chain_id: "SN_MAINNET"
+    chain_id: "SN_MAIN"
     monitoring_endpoint_config_port: 8082
 ```
 
