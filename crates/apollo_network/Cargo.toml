@@ -64,6 +64,10 @@ tokio-stream.workspace = true
 waker-fn.workspace = true
 
 [[test]]
+name = "e2e_broadcast_test"
+required-features = ["testing"]
+
+[[test]]
 name = "e2e_discovery_test"
 required-features = ["testing"]
 

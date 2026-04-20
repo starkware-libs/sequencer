@@ -1,20 +1,19 @@
 use std::collections::HashSet;
 use std::time::Duration;
 
+use apollo_network::discovery::DiscoveryConfig;
+use apollo_network::gossipsub_impl::Topic;
+use apollo_network::mixed_behaviour::MixedBehaviour;
+use apollo_network::network_manager::{BroadcastTopicClientTrait, GenericNetworkManager};
+use apollo_network::peer_manager::PeerManagerConfig;
+use apollo_network::prune_dead_connections::{DEFAULT_PING_INTERVAL, DEFAULT_PING_TIMEOUT};
+use apollo_network::{sqmr, Bytes};
 use futures::{FutureExt, StreamExt};
 use libp2p::core::multiaddr::Protocol;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{Multiaddr, PeerId, Swarm};
 use libp2p_swarm_test::SwarmExt;
 use starknet_api::core::ChainId;
-
-use crate::discovery::DiscoveryConfig;
-use crate::gossipsub_impl::Topic;
-use crate::mixed_behaviour::MixedBehaviour;
-use crate::network_manager::{BroadcastTopicClientTrait, GenericNetworkManager};
-use crate::peer_manager::PeerManagerConfig;
-use crate::prune_dead_connections::{DEFAULT_PING_INTERVAL, DEFAULT_PING_TIMEOUT};
-use crate::{sqmr, Bytes};
 
 const TIMEOUT: Duration = Duration::from_secs(5);
 
