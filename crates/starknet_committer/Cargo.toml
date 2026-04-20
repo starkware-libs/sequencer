@@ -14,7 +14,6 @@ apollo_config.workspace = true
 async-trait.workspace = true
 derive_more = { workspace = true, features = ["as_ref", "from", "into"] }
 ethnum.workspace = true
-hex.workspace = true
 pretty_assertions.workspace = true
 rand.workspace = true
 rand_distr.workspace = true
@@ -33,6 +32,7 @@ tracing.workspace = true
 [dev-dependencies]
 async-recursion.workspace = true
 expect-test.workspace = true
+hex.workspace = true
 rstest.workspace = true
 rstest_reuse.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
@@ -40,8 +40,3 @@ starknet_patricia = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true
-
-# Optional dependencies required for tests and the testing feature.
-# See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
-[package.metadata.cargo-machete]
-ignored = ["hex"]
