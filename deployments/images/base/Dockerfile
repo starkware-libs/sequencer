@@ -26,7 +26,7 @@ ENV PATH=$PATH:${RUSTUP_HOME}/bin
 
 RUN scripts/install_build_tools.sh
 RUN rustup toolchain install
-RUN cargo install cargo-chef
+RUN cargo install --locked cargo-chef
 
 ENV LLVM_SYS_191_PREFIX="/usr/lib/llvm-19/"
 ENV MLIR_SYS_190_PREFIX="/usr/lib/llvm-19/"

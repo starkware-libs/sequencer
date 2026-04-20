@@ -59,8 +59,8 @@ class SecretConstruct(BaseConstruct):
         return {"secrets.json": json.dumps(secret_data, indent=2)}
 
     def _create_secret(self) -> k8s.KubeSecret:
-        # Merge secret labels with common labels
-        secret_labels = {**self.labels, **self.service_config.secret.labels}
+        # Merge secret labels with common labels, ensuring common labels take precedence
+        secret_labels = {**self.service_config.secret.labels, **self.labels}
 
         # Load secret from file if specified
         file_string_data = self._load_secret_file()

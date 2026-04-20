@@ -36,8 +36,8 @@ class PodMonitoringConstruct(BaseConstruct):
         """Create PodMonitoring resource."""
         pod_monitoring_config = self.service_config.podMonitoring
 
-        # Merge labels with common labels
-        merged_labels = {**self.labels, **pod_monitoring_config.labels}
+        # Merge labels with common labels, ensuring common labels take precedence
+        merged_labels = {**pod_monitoring_config.labels, **self.labels}
 
         # Build selector - use provided selector or default to pod labels
         # This ensures selector stays in sync with pod labels automatically

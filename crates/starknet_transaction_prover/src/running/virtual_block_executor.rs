@@ -8,36 +8,31 @@ use blockifier::blockifier::transaction_executor::{
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo};
-use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::{CachedState, StateMaps};
 use blockifier::state::contract_class_manager::ContractClassManager;
-use blockifier::state::global_cache::CompiledClasses;
-use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::{
     FetchCompiledClasses,
     StateReaderAndContractManager,
 };
 use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
+use blockifier_reexecution::state_reader::prefetched_state_reader::{
+    simulate_and_get_initial_reads,
+    SimulatedStateReader,
+};
 use blockifier_reexecution::state_reader::rpc_objects::{BlockHeader, BlockId};
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use starknet_api::block::{BlockHash, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::{concat_counts, BlockHeaderCommitments};
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
-use starknet_api::state::StorageKey;
+use starknet_api::core::ClassHash;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{InvokeTransaction, MessageToL1, Transaction, TransactionHash};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use starknet_api::StarknetApiError;
-use starknet_types_core::felt::Felt;
-use tracing::{error, warn};
+use tracing::error;
 
 use crate::errors::VirtualBlockExecutorError;
-use crate::running::serde_utils::deserialize_rpc_initial_reads;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct RpcVirtualBlockExecutorConfig {
@@ -46,7 +41,10 @@ pub(crate) struct RpcVirtualBlockExecutorConfig {
     #[serde(default)]
     pub(crate) prefetch_state: bool,
     /// Bouncer configuration for virtual block capacity limits.
-    /// Client-side limits may differ from Starknet limits.
+    ///
+    /// This path runs a **virtual OS**: execution output is not posted to L1. The proof carries
+    /// the result on L2 via `proof_fact`, so `l1_gas` and `message_segment_length` in the bouncer
+    /// must not mimic real L1 DA constraints—embedded defaults set those caps high.
     #[serde(default)]
     // TODO(Aviv): Decide on the default value.
     pub(crate) bouncer_config: BouncerConfig,
@@ -357,99 +355,6 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
     fn validate_txs_enabled(&self) -> Result<bool, VirtualBlockExecutorError>;
 }
 
-/// State reader backed by prefetched `StateMaps` from simulate.
-///
-/// Serves storage, nonce, class hash, and declared contract reads from the prefetched state.
-/// Falls back to the inner `RpcStateReader` when a key is missing from the prefetched state
-/// (e.g., when simulate uses different flags than execution).
-/// Delegates compiled class lookups to the inner `RpcStateReader` since simulate responses
-/// do not include classes.
-#[allow(dead_code)]
-pub(crate) struct SimulatedStateReader {
-    state_maps: StateMaps,
-    rpc_state_reader: RpcStateReader,
-}
-
-impl StateReader for SimulatedStateReader {
-    fn get_storage_at(
-        &self,
-        contract_address: ContractAddress,
-        key: StorageKey,
-    ) -> StateResult<Felt> {
-        match self.state_maps.storage.get(&(contract_address, key)) {
-            Some(value) => Ok(*value),
-            None => {
-                warn!(
-                    "Storage key not found in prefetched state, falling back to RPC \
-                     (contract_address: {contract_address}, key: {key:?})."
-                );
-                self.rpc_state_reader.get_storage_at(contract_address, key)
-            }
-        }
-    }
-
-    fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
-        match self.state_maps.nonces.get(&contract_address) {
-            Some(value) => Ok(*value),
-            None => {
-                warn!(
-                    "Nonce not found in prefetched state, falling back to RPC (contract_address: \
-                     {contract_address})."
-                );
-                self.rpc_state_reader.get_nonce_at(contract_address)
-            }
-        }
-    }
-
-    fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
-        match self.state_maps.class_hashes.get(&contract_address) {
-            Some(value) => Ok(*value),
-            None => {
-                warn!(
-                    "Class hash not found in prefetched state, falling back to RPC \
-                     (contract_address: {contract_address})."
-                );
-                self.rpc_state_reader.get_class_hash_at(contract_address)
-            }
-        }
-    }
-
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        self.rpc_state_reader.get_compiled_class(class_hash)
-    }
-
-    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        self.rpc_state_reader.get_compiled_class_hash(class_hash)
-    }
-
-    fn get_compiled_class_hash_v2(
-        &self,
-        class_hash: ClassHash,
-        compiled_class: &RunnableCompiledClass,
-    ) -> StateResult<CompiledClassHash> {
-        self.rpc_state_reader.get_compiled_class_hash_v2(class_hash, compiled_class)
-    }
-}
-
-impl FetchCompiledClasses for SimulatedStateReader {
-    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
-        self.rpc_state_reader.get_compiled_classes(class_hash)
-    }
-
-    fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
-        match self.state_maps.declared_contracts.get(&class_hash) {
-            Some(value) => Ok(*value),
-            None => {
-                warn!(
-                    "Declared contract not found in prefetched state, falling back to RPC \
-                     (class_hash: {class_hash})."
-                );
-                self.rpc_state_reader.is_declared(class_hash)
-            }
-        }
-    }
-}
-
 #[allow(dead_code)]
 pub(crate) struct RpcVirtualBlockExecutor {
     /// The state reader for the virtual block executor.
@@ -474,69 +379,6 @@ impl RpcVirtualBlockExecutor {
             config,
         }
     }
-
-    /// Calls `starknet_simulateTransactions` with `RETURN_INITIAL_READS` and returns the
-    /// initial state reads as `StateMaps`.
-    ///
-    /// Requires a v0.10+ node that supports the `RETURN_INITIAL_READS` flag.
-    #[allow(dead_code)]
-    pub(crate) fn simulate_and_get_initial_reads(
-        &self,
-        block_id: BlockId,
-        txs: &[(InvokeTransaction, TransactionHash)],
-    ) -> Result<StateMaps, VirtualBlockExecutorError> {
-        let rpc_txs: Vec<RpcTransaction> = txs
-            .iter()
-            .map(|(tx, _)| match tx {
-                InvokeTransaction::V3(v3) => RpcInvokeTransactionV3::try_from(v3.clone())
-                    .map(RpcInvokeTransaction::V3)
-                    .map(RpcTransaction::Invoke)
-                    .map_err(|e: StarknetApiError| {
-                        VirtualBlockExecutorError::TransactionExecutionError(e.to_string())
-                    }),
-                _ => Err(VirtualBlockExecutorError::TransactionExecutionError(
-                    "Only Invoke V3 transactions are supported for simulate".to_string(),
-                )),
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-
-        // Build simulation flags that match execution behavior as closely as possible.
-        // Mismatches cause prefetch cache misses (handled by RPC fallback) but hurt
-        // performance.
-        let mut simulation_flags = vec!["RETURN_INITIAL_READS"];
-        if !self.validate_txs {
-            simulation_flags.push("SKIP_VALIDATE");
-        }
-        // Fee charging during simulate can fail if the account lacks balance at the base
-        // block. Skip it in simulate — fee-related storage keys will be fetched via RPC
-        // fallback when needed.
-        simulation_flags.push("SKIP_FEE_CHARGE");
-
-        let params = json!({
-            "block_id": block_id,
-            "transactions": rpc_txs,
-            "simulation_flags": simulation_flags
-        });
-
-        let result = self
-            .rpc_state_reader
-            .send_rpc_request("starknet_simulateTransactions", params)
-            .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e.into())))?;
-
-        let initial_reads_value = result.get("initial_reads").cloned().ok_or_else(|| {
-            VirtualBlockExecutorError::TransactionExecutionError(
-                "simulateTransactions response missing initial_reads (ensure RETURN_INITIAL_READS \
-                 and v0.10 endpoint)"
-                    .to_string(),
-            )
-        })?;
-
-        deserialize_rpc_initial_reads(initial_reads_value).map_err(|e| {
-            VirtualBlockExecutorError::TransactionExecutionError(format!(
-                "Failed to deserialize initial_reads: {e}"
-            ))
-        })
-    }
 }
 
 /// RPC-based virtual block executor.
@@ -559,7 +401,7 @@ impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
             self.config.use_latest_versioned_constants,
         )?;
 
-        // Client-side bouncer limits may differ from Starknet network limits.
+        // Override with client-side caps (see `RpcVirtualBlockExecutorConfig::bouncer_config`).
         base_block_info.block_context.bouncer_config = self.config.bouncer_config.clone();
 
         Ok(base_block_info)
@@ -576,8 +418,14 @@ impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
     {
         let rpc_state_reader = self.rpc_state_reader.clone();
         if self.config.prefetch_state {
-            let state_maps = self.simulate_and_get_initial_reads(block_id, txs)?;
-            Ok(Box::new(SimulatedStateReader { state_maps, rpc_state_reader }))
+            let state_maps = simulate_and_get_initial_reads(
+                &self.rpc_state_reader,
+                block_id,
+                txs,
+                self.validate_txs,
+            )
+            .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e)))?;
+            Ok(Box::new(SimulatedStateReader::new(state_maps, rpc_state_reader)))
         } else {
             Ok(Box::new(rpc_state_reader))
         }

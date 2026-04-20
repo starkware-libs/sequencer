@@ -175,52 +175,6 @@ fn construct_privacy_invoke() -> (InvokeTransaction, TransactionHash) {
     (tx, tx_hash)
 }
 
-/// Unit test for `simulate_and_get_initial_reads`.
-///
-/// Calls `starknet_simulateTransactions` with `RETURN_INITIAL_READS` against a pathfinder
-/// v0.10 node and verifies the returned `StateMaps` is non-empty.
-///
-/// # Running
-///
-/// ```bash
-/// # Record:
-/// RECORD_RPC_RECORDS=1 NODE_URL=http://<privacy-env-node>/rpc/v0_10 \
-///     cargo test -p starknet_transaction_prover test_simulate_and_get_initial_reads
-///
-/// # Offline (after recording):
-/// cargo test -p starknet_transaction_prover test_simulate_and_get_initial_reads
-/// ```
-#[tokio::test(flavor = "multi_thread")]
-async fn test_simulate_and_get_initial_reads() {
-    let test_mode = resolve_test_mode("test_simulate_and_get_initial_reads").await;
-    let rpc_url = test_mode.rpc_url();
-
-    let state_maps = tokio::task::spawn_blocking(move || {
-        let chain_info = get_chain_info(&ChainId::IntegrationSepolia, None);
-        let block_id = BlockId::Latest;
-
-        let executor = RpcVirtualBlockExecutor::new(
-            rpc_url,
-            chain_info,
-            block_id,
-            RpcVirtualBlockExecutorConfig::default(),
-        );
-
-        let (tx, tx_hash) = construct_privacy_invoke();
-
-        executor
-            .simulate_and_get_initial_reads(block_id, &[(tx, tx_hash)])
-            .expect("simulate_and_get_initial_reads should succeed")
-    })
-    .await
-    .unwrap();
-    assert!(!state_maps.nonces.is_empty(), "initial_reads should contain nonces");
-    assert!(!state_maps.class_hashes.is_empty(), "initial_reads should contain class_hashes");
-    assert!(!state_maps.storage.is_empty(), "initial_reads should contain storage entries");
-
-    test_mode.finalize();
-}
-
 /// Integration test for executing a transaction with simulate-based state prefetch.
 ///
 /// Runs `execute` with `prefetch_state: true`, which calls `starknet_simulateTransactions`

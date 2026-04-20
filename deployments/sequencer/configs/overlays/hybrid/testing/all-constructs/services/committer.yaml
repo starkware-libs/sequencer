@@ -4,13 +4,15 @@ include:
 
 name: committer
 
+metaLabels:
+  node-service-label: "true"
+
 # StatefulSet enabled (committer uses StatefulSet)
 statefulSet:
   enabled: true
   annotations:
     statefulset-type: "committer"
-  labels:
-    service: "committer"
+  labels: {}
   podManagementPolicy: "OrderedReady"
   updateStrategy:
     type: "RollingUpdate"

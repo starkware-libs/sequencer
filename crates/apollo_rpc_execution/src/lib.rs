@@ -27,7 +27,7 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::{StorageError, StorageReader};
-use blockifier::blockifier::block::{pre_process_block, validated_gas_prices};
+use blockifier::blockifier::block::pre_process_block;
 use blockifier::blockifier_versioned_constants::{VersionedConstants, VersionedConstantsError};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
@@ -57,6 +57,8 @@ use starknet_api::block::{
     BlockHashAndNumber,
     BlockInfo,
     BlockNumber,
+    GasPriceVector,
+    GasPrices,
     NonzeroGasPrice,
     StarknetVersion,
 };
@@ -375,14 +377,24 @@ fn create_block_context(
         use_kzg_da,
         block_number,
         // TODO(yair): What to do about blocks pre 0.13.1 where the data gas price were 0?
-        gas_prices: validated_gas_prices(
-            NonzeroGasPrice::new(l1_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),
-            NonzeroGasPrice::new(l1_gas_price.price_in_fri).unwrap_or(NonzeroGasPrice::MIN),
-            NonzeroGasPrice::new(l1_data_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),
-            NonzeroGasPrice::new(l1_data_gas_price.price_in_fri).unwrap_or(NonzeroGasPrice::MIN),
-            NonzeroGasPrice::new(l2_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),
-            NonzeroGasPrice::new(l2_gas_price.price_in_fri).unwrap_or(NonzeroGasPrice::MIN),
-        ),
+        gas_prices: GasPrices {
+            eth_gas_prices: GasPriceVector {
+                l1_gas_price: NonzeroGasPrice::new(l1_gas_price.price_in_wei)
+                    .unwrap_or(NonzeroGasPrice::MIN),
+                l1_data_gas_price: NonzeroGasPrice::new(l1_data_gas_price.price_in_wei)
+                    .unwrap_or(NonzeroGasPrice::MIN),
+                l2_gas_price: NonzeroGasPrice::new(l2_gas_price.price_in_wei)
+                    .unwrap_or(NonzeroGasPrice::MIN),
+            },
+            strk_gas_prices: GasPriceVector {
+                l1_gas_price: NonzeroGasPrice::new(l1_gas_price.price_in_fri)
+                    .unwrap_or(NonzeroGasPrice::MIN),
+                l1_data_gas_price: NonzeroGasPrice::new(l1_data_gas_price.price_in_fri)
+                    .unwrap_or(NonzeroGasPrice::MIN),
+                l2_gas_price: NonzeroGasPrice::new(l2_gas_price.price_in_fri)
+                    .unwrap_or(NonzeroGasPrice::MIN),
+            },
+        },
         starknet_version,
     };
     let chain_info = ChainInfo {

@@ -19,7 +19,11 @@ use crate::context::BlockContext;
 use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::{get_fee_by_gas_vector, GasVectorToL1GasForFee};
-use crate::fee::gas_usage::{get_da_gas_cost, get_message_segment_length};
+use crate::fee::gas_usage::{
+    estimate_minimal_gas_vector,
+    get_da_gas_cost,
+    get_message_segment_length,
+};
 use crate::fee::resources::{
     ComputationResources,
     StarknetResources,
@@ -27,7 +31,7 @@ use crate::fee::resources::{
     TransactionResources,
 };
 use crate::state::cached_state::StateChangesCount;
-use crate::test_utils::get_extended_vm_resource_usage;
+use crate::test_utils::{create_valid_proof_facts_for_testing, get_extended_vm_resource_usage};
 use crate::transaction::test_utils::invoke_tx_with_default_flags;
 use crate::utils::u64_from_usize;
 
@@ -447,4 +451,27 @@ fn test_gas_computation_regression_test(
         "Unexpected gas computation result for tx resources. If this is intentional please fix \
          this test."
     );
+}
+
+#[rstest]
+// Proof facts increase extended_calldata_length, which feeds into OS steps and L2 gas cost.
+fn test_estimate_minimal_gas_vector_proof_facts_increase_l2_gas() {
+    let mut block_context = BlockContext::create_for_testing();
+    // Use a high step cost so that the small step difference from proof facts is visible in L2 gas.
+    block_context.versioned_constants.vm_resource_fee_cost = Arc::new(VmResourceCosts {
+        builtins: block_context.versioned_constants.vm_resource_fee_cost.builtins.clone(),
+        n_steps: Ratio::new(1, 1),
+    });
+    let gas_mode = GasVectorComputationMode::All;
+
+    let tx_without_proof = invoke_tx_with_default_flags(invoke_tx_args! {});
+    let gas_without_proof =
+        estimate_minimal_gas_vector(&block_context, &tx_without_proof, &gas_mode);
+
+    let tx_with_proof = invoke_tx_with_default_flags(invoke_tx_args! {
+        proof_facts: create_valid_proof_facts_for_testing()
+    });
+    let gas_with_proof = estimate_minimal_gas_vector(&block_context, &tx_with_proof, &gas_mode);
+
+    assert!(gas_with_proof.l2_gas > gas_without_proof.l2_gas);
 }

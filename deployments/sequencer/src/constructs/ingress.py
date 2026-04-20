@@ -28,9 +28,9 @@ class IngressConstruct(BaseConstruct):
         """Create a Kubernetes Ingress resource directly from the config."""
         ingress_config = self.service_config.ingress
 
-        # Merge Ingress labels with common labels
+        # Merge Ingress labels with common labels, ensuring common labels take precedence
         ingress_labels = (
-            {**self.labels, **ingress_config.labels} if ingress_config.labels else self.labels
+            {**ingress_config.labels, **self.labels} if ingress_config.labels else self.labels
         )
 
         # Get backend service name (use custom if provided, otherwise default)

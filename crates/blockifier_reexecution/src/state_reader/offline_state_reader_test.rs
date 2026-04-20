@@ -1,4 +1,4 @@
-use blockifier::blockifier::config::{CairoNativeMode, ContractClassManagerConfig};
+use blockifier::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use rstest::rstest;
 use starknet_api::block::BlockNumber;
@@ -15,8 +15,8 @@ fn reexecute_block_for_testing(block_number: u64) {
     // Initialize the contract class manager.
     let mut contract_class_manager_config = ContractClassManagerConfig::default();
     if cfg!(feature = "cairo_native") {
-        contract_class_manager_config.cairo_native_run_config.cairo_native_mode =
-            CairoNativeMode::WaitOnCompilation;
+        contract_class_manager_config.cairo_native_run_config =
+            CairoNativeRunConfig::wait_on_compilation_for_testing();
     }
     let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
 

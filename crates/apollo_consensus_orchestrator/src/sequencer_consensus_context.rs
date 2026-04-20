@@ -67,6 +67,7 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use tokio::task::JoinHandle;
+use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
@@ -78,7 +79,11 @@ use crate::cende::{
     InternalTransactionWithReceipt,
     N_BLOCK_HASHES_BACK_IN_BLOB,
 };
-use crate::fee_market::{calculate_next_l2_gas_price_for_fin, FeeMarketInfo};
+use crate::fee_market::{
+    calculate_next_l2_gas_price_for_fin,
+    get_min_gas_price_for_height,
+    FeeMarketInfo,
+};
 use crate::metrics::{
     record_build_proposal_failure,
     record_validate_proposal_failure,
@@ -362,6 +367,7 @@ impl SequencerConsensusContext {
         let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
         CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
     }
+
     #[allow(clippy::too_many_arguments)]
     async fn finalize_decision(
         &mut self,
@@ -373,6 +379,7 @@ impl SequencerConsensusContext {
         decision_reached_response: DecisionReachedResponse,
         block_header_commitments: BlockHeaderCommitments,
         l2_gas_used: GasAmount,
+        wait_for_last_commitment: bool,
     ) {
         let DecisionReachedResponse { state_diff, central_objects } = decision_reached_response;
 
@@ -433,6 +440,11 @@ impl SequencerConsensusContext {
             warn!("Failed to update state sync with new block at height {height}: {e:?}");
         }
 
+        // At stop height, block N's hash may not yet be available; wait before preparing the blob.
+        if wait_for_last_commitment {
+            self.wait_for_block_hash(height).await;
+        }
+
         if let Err(e) = self
             .deps
             .cende_ambassador
@@ -468,8 +480,33 @@ impl SequencerConsensusContext {
         &self.config
     }
 
+    /// Waits until the batcher has computed the hash for `block_number`.
+    /// Used at stop height to ensure block N's hash is included in the blob before it is written.
+    async fn wait_for_block_hash(&self, block_number: BlockNumber) {
+        let retry_interval =
+            self.config.static_config.retrospective_block_hash_retry_interval_millis;
+        info!("Waiting for block hash of {block_number} before writing blob at stop height.");
+        loop {
+            match self.deps.batcher.get_block_hash(block_number).await {
+                Ok(_) => {
+                    info!("Block hash of {block_number} is available.");
+                    return;
+                }
+                Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(_))) => {
+                    info!("Block hash of {block_number} not yet available, retrying.");
+                }
+                Err(err) => {
+                    warn!(
+                        "Unexpected error while waiting for block hash of {block_number}: {err:?}"
+                    );
+                }
+            }
+            sleep(retry_interval).await;
+        }
+    }
+
     /// Collects the recent block hashes from the batcher.
-    /// Returns computed block hashes in range [height - N_RECENT_BLOCK_HASHES_IN_BLOB, height].
+    /// Returns computed block hashes in range [height - N_BLOCK_HASHES_BACK_IN_BLOB, height].
     async fn collect_recent_block_hashes(&self, height: BlockNumber) -> Vec<BlockHashAndNumber> {
         let mut recent_block_hashes = Vec::with_capacity(
             usize::try_from(N_BLOCK_HASHES_BACK_IN_BLOB)
@@ -732,6 +769,7 @@ impl ConsensusContext for SequencerConsensusContext {
         height: BlockNumber,
         round: Round,
         commitment: ProposalCommitment,
+        wait_for_last_commitment: bool,
     ) -> Result<(), ConsensusError> {
         info!("Finished consensus for height: {height}. Agreed on block: {:#066x}", commitment.0);
 
@@ -759,10 +797,30 @@ impl ConsensusContext for SequencerConsensusContext {
             decision_reached_response,
             finished_info.block_header_commitments.clone(),
             finished_info.l2_gas_used,
+            wait_for_last_commitment,
         )
         .await;
 
+<<<<<<< HEAD
         self.previous_proposal_init = Some(PreviousProposalInitInfo::from(&init));
+||||||| 48d0c0ee17
+        self.previous_block_info = Some(PreviousBlockInfo::from(&init));
+=======
+        // At stop height, immediately write the blob instead of waiting for the next proposal
+        // build.
+        if wait_for_last_commitment
+            && !self
+                .deps
+                .cende_ambassador
+                .write_prev_height_blob(height.unchecked_next())
+                .await
+                .unwrap_or(false)
+        {
+            error!("Failed to write blob at stop height {height}.");
+        }
+
+        self.previous_block_info = Some(PreviousBlockInfo::from(&init));
+>>>>>>> origin/main-v0.14.2
 
         Ok(())
     }
@@ -825,9 +883,20 @@ impl ConsensusContext for SequencerConsensusContext {
         height: BlockNumber,
         round: Round,
     ) -> Result<(), ConsensusError> {
-        // First or a new (higher) height.
+        // First height or a new (higher) height.
         if self.current_height.is_none_or(|h| height > h) {
             self.update_dynamic_config().await;
+            // On first height: initialize l2_gas_price to the configured minimum for this height,
+            // ensuring correct startup after restart/revert.
+            if self.current_height.is_none() {
+                let min_gas_price_for_height = get_min_gas_price_for_height(
+                    height,
+                    &self.config.dynamic_config.min_l2_gas_price_per_height,
+                );
+                self.l2_gas_price = max(self.l2_gas_price, min_gas_price_for_height);
+                let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
+                CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
+            }
             self.current_height = Some(height);
             self.current_round = round;
             self.queued_proposals.clear();

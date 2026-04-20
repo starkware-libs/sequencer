@@ -18,12 +18,14 @@ apollo_infra_utils.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 blockifier_reexecution.workspace = true
+bytes.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
 futures.workspace = true
 http.workspace = true
+http-body-util.workspace = true
 indexmap.workspace = true
 jsonrpsee = { workspace = true, features = ["macros", "server"] }
 privacy-prove = { workspace = true, optional = true }
@@ -45,7 +47,13 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "process", "rt-multi-thread", "time"] }
 tokio-rustls.workspace = true
 tower = { workspace = true, features = ["util"] }
-tower-http = { workspace = true, features = ["compression-full", "cors"] }
+tower-http = { workspace = true, features = [
+  "compression-full",
+  "cors",
+  "map-request-body",
+  "map-response-body",
+] }
+tower_ohttp.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url.workspace = true
@@ -56,6 +64,7 @@ assert_matches.workspace = true
 axum.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
+flate2.workspace = true
 jsonschema.workspace = true
 mockito.workspace = true
 privacy-circuit-verify.workspace = true
@@ -63,6 +72,7 @@ reqwest.workspace = true
 rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
+tower_ohttp = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true
