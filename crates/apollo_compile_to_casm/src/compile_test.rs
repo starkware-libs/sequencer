@@ -233,7 +233,8 @@ fn memory_limit_error_message() {
         other => panic!("Expected CompilationError, got: {other:?}"),
     };
 
-    let expected =
-        expect!["memory allocation of 49152 bytes failed (process terminated by signal 6)"];
+    let expected = expect![[r#"
+            memory allocation of 142960 bytes failed
+            note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace (process terminated by signal 6)"#]];
     expected.assert_eq(&error_message);
 }
