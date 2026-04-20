@@ -77,6 +77,8 @@ metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
 mockito.workspace = true
 num-bigint.workspace = true
+rand.workspace = true
+rand_chacha.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
 
