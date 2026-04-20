@@ -13,7 +13,7 @@ use libp2p::core::PeerId;
 use prost::Message;
 
 use crate::types::{CommitteeId, MessageRoot, ShardIndex};
-use crate::{MerkleHash, MerkleProof, ShardValidationError};
+use crate::{MerkleHash, MerkleProof, UnitValidationError};
 
 /// A single erasure-coded fragment.
 #[derive(Debug, PartialEq, Clone)]
@@ -125,10 +125,10 @@ impl PropellerUnit {
     pub fn validate_shard_count(
         &self,
         expected_shard_count: usize,
-    ) -> Result<(), ShardValidationError> {
+    ) -> Result<(), UnitValidationError> {
         let actual_shard_count = self.shards.0.len();
         if actual_shard_count != expected_shard_count {
-            return Err(ShardValidationError::UnexpectedShardCount {
+            return Err(UnitValidationError::UnexpectedShardCount {
                 expected_shard_count,
                 actual_shard_count,
             });
@@ -136,13 +136,13 @@ impl PropellerUnit {
         Ok(())
     }
 
-    pub fn validate_shard_lengths(&self) -> Result<(), ShardValidationError> {
+    pub fn validate_shard_lengths(&self) -> Result<(), UnitValidationError> {
         let Some(first) = self.shards.0.first() else {
             return Ok(());
         };
         let expected_len = first.0.len();
         if self.shards.0.iter().any(|s| s.0.len() != expected_len) {
-            return Err(ShardValidationError::UnequalShardLengths);
+            return Err(UnitValidationError::UnequalShardLengths);
         }
         Ok(())
     }
@@ -150,7 +150,7 @@ impl PropellerUnit {
     pub fn validate_merkle_proof(
         &self,
         num_total_shards: usize,
-    ) -> Result<(), ShardValidationError> {
+    ) -> Result<(), UnitValidationError> {
         let proof = self.proof();
         let index = self.index().0.try_into().expect("u64 could not be converted to usize");
         // Encode as proto bytes because the Merkle tree leaves are the proto-encoded bytes
@@ -159,7 +159,7 @@ impl PropellerUnit {
         if proof.verify(&self.root().0, &leaf_data, index, num_total_shards) {
             Ok(())
         } else {
-            Err(ShardValidationError::MerkleProofVerificationFailed)
+            Err(UnitValidationError::MerkleProofVerificationFailed)
         }
     }
 }
