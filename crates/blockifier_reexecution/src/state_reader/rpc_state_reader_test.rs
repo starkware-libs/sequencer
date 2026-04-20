@@ -23,9 +23,11 @@ use starknet_api::transaction::{
     DeclareTransaction,
     DeployAccountTransaction,
     Transaction,
+    TransactionHash,
     TransactionVersion,
 };
 use starknet_core::types::ContractClass::{Legacy, Sierra};
+use starknet_types_core::felt::Felt;
 
 use crate::cli::guess_chain_id_from_node_url;
 use crate::compile::legacy_to_contract_class_v0;
@@ -267,6 +269,19 @@ pub fn test_get_all_blockifier_tx_in_block(#[case] block_number: u64) {
 #[rstest]
 pub fn test_get_versioned_constants(test_state_reader: RpcStateReader) {
     test_state_reader.get_versioned_constants().unwrap();
+}
+
+#[rstest]
+pub fn test_get_block_info_with_txs() {
+    let block_number = BlockNumber(EXAMPLE_DEPLOY_ACCOUNT_V1_BLOCK_NUMBER);
+    let state_reader = RpcStateReader::new_for_testing(block_number);
+    let block_info_with_txs = state_reader.get_block_info_with_txs().unwrap();
+    assert_eq!(block_info_with_txs.block_info.block_number, block_number);
+    let expected_tx_hash =
+        TransactionHash(Felt::from_hex_unchecked(EXAMPLE_DEPLOY_ACCOUNT_V1_TX_HASH));
+    assert!(
+        block_info_with_txs.transactions.iter().any(|(_, tx_hash)| *tx_hash == expected_tx_hash)
+    );
 }
 
 #[rstest]
