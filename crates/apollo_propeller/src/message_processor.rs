@@ -233,7 +233,7 @@ impl MessageProcessor {
         // TODO(AndrewL): track task handle to abort the task if the timeout is reached or
         // finalization occurs.
         tokio::task::spawn_blocking(move || {
-            let result = validator.validate_shard(sender, &unit);
+            let result = validator.validate_unit(sender, &unit);
             (result, validator, unit)
         })
         .await
