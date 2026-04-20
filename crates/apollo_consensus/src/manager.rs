@@ -1020,11 +1020,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             }
             SMRequest::BroadcastVote(vote) => {
                 trace!("Writing voted height {} to storage", height);
-                self.voted_height_storage
-                    .lock()
-                    .await
-                    .set_prev_voted_height(height)
-                    .expect("Failed to write voted height {self.height} to storage");
+                self.voted_height_storage.lock().await.set_prev_voted_height(height).expect(
+                    "Failed to write voted height {self.height} to storage. Crashing before \
+                     sending vote to avoid risk of equivocation",
+                );
                 context.broadcast(vote.clone()).await?;
                 // Schedule a rebroadcast after the appropriate timeout.
                 let duration = match vote.vote_type {
