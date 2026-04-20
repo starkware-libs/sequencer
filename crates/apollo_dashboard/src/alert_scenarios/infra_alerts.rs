@@ -145,19 +145,9 @@ const DISK_FILLING_HORIZON_SECONDS: u64 = 14 * 24 * 3600;
 
 fn get_pod_disk_utilization_alert() -> Alert {
     Alert::new(
-<<<<<<< HEAD
-        name,
-        title,
-        EvaluationRate::Low,
-||||||| 48d0c0ee17
-        name,
-        title,
-        AlertGroup::General,
-=======
         "pod_state_critical_disk_utilization",
         "Pod Critical Disk Utilization ( >90% )",
-        AlertGroup::General,
->>>>>>> origin/main-v0.14.2
+        EvaluationRate::Low,
         format!(
             "max by (namespace,persistentvolumeclaim) ({}) / (min by \
              (namespace,persistentvolumeclaim) ({}) + max by (namespace,persistentvolumeclaim) \
@@ -168,13 +158,6 @@ fn get_pod_disk_utilization_alert() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 90.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-<<<<<<< HEAD
-        severity,
-||||||| 48d0c0ee17
-        EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity,
-=======
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::Applicable,
     )
@@ -184,7 +167,7 @@ fn get_pod_disk_filling_soon_alert() -> Alert {
     Alert::new(
         "pod_state_disk_filling_soon",
         "Pod Disk Filling Soon (predicted full within 2 weeks)",
-        AlertGroup::General,
+        EvaluationRate::Low,
         format!(
             // Projects disk usage {horizon} seconds ahead using linear regression over the last
             // 2 days of used_bytes samples. The result is divided by the total provisioned
@@ -202,9 +185,7 @@ fn get_pod_disk_filling_soon_alert() -> Alert {
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
->>>>>>> origin/main-v0.14.2
         ObserverApplicability::Applicable,
     )
 }
