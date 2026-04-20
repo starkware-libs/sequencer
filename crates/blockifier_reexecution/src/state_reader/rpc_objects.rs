@@ -76,6 +76,20 @@ pub struct GetBlockWithTxHashesParams {
     pub block_id: BlockId,
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct GetBlockWithTxsParams {
+    pub block_id: BlockId,
+}
+
+/// Response of `starknet_getBlockWithTxs`: all `BlockHeader` fields plus the block's full
+/// transactions (each including its `transaction_hash`).
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct BlockWithTxs {
+    #[serde(flatten)]
+    pub header: BlockHeader,
+    pub transactions: Vec<Value>,
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct BlockHeader {
     pub block_hash: BlockHash,

@@ -65,7 +65,9 @@ use crate::state_reader::reexecution_state_reader::{
 use crate::state_reader::rpc_objects::{
     BlockHeader,
     BlockId,
+    BlockWithTxs,
     GetBlockWithTxHashesParams,
+    GetBlockWithTxsParams,
     GetClassHashAtParams,
     GetNonceParams,
     GetStorageAtParams,
@@ -96,6 +98,13 @@ pub type StarknetContractClassMapping = HashMap<ClassHash, StarknetContractClass
 #[derive(Serialize)]
 pub struct GetTransactionByHashParams {
     pub transaction_hash: String,
+}
+
+/// The block's `BlockInfo` paired with its full transactions
+/// (each with its `TransactionHash`).
+pub struct BlockInfoWithTxs {
+    pub block_info: BlockInfo,
+    pub transactions: Vec<(Transaction, TransactionHash)>,
 }
 
 // TODO(Aviv): Consider refactoring after merging rpc state readers.
@@ -305,6 +314,32 @@ impl RpcStateReader {
                 Ok(tx) => Ok((tx, TransactionHash(Felt::from_hex_unchecked(tx_hash)))),
             })
             .collect::<Result<_, _>>()
+    }
+
+    /// Fetches the block's header and full transactions in a single `starknet_getBlockWithTxs`
+    /// call.
+    pub fn get_block_info_with_txs(&self) -> ReexecutionResult<BlockInfoWithTxs> {
+        let block_with_txs: BlockWithTxs =
+            serde_json::from_value(retry_request!(self.retry_config, || {
+                self.send_rpc_request(
+                    "starknet_getBlockWithTxs",
+                    GetBlockWithTxsParams { block_id: self.block_id },
+                )
+            })?)?;
+
+        let transactions = block_with_txs
+            .transactions
+            .into_iter()
+            .map(|raw_tx| {
+                let tx_hash: TransactionHash =
+                    serde_json::from_value(raw_tx["transaction_hash"].clone())?;
+                let tx = deserialize_transaction_json_to_starknet_api_tx(raw_tx)?;
+                Ok((tx, tx_hash))
+            })
+            .collect::<serde_json::Result<Vec<_>>>()?;
+
+        let block_info: BlockInfo = block_with_txs.header.try_into()?;
+        Ok(BlockInfoWithTxs { block_info, transactions })
     }
 
     pub fn get_versioned_constants(&self) -> ReexecutionResult<VersionedConstants> {
