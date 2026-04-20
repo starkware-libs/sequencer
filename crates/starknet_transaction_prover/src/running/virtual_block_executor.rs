@@ -427,7 +427,14 @@ impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
                 self.validate_txs,
                 skip_fee_charge,
             )
-            .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e)))?;
+            .unwrap_or_else(|e| {
+                tracing::warn!(
+                    "State prefetch via starknet_simulateTransactions failed, falling back to \
+                     individual RPC reads (slower). Ensure the node supports Starknet spec >= \
+                     v0.10.1. Error: {e}"
+                );
+                StateMaps::default()
+            });
             Ok(Box::new(SimulatedStateReader::new(state_maps, rpc_state_reader)))
         } else {
             Ok(Box::new(rpc_state_reader))

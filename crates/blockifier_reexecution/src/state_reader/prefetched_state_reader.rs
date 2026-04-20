@@ -237,7 +237,15 @@ impl SimulatedStateReader {
                 &invoke_v3_txs,
                 validate_txs,
                 skip_fee_charge,
-            )?
+            )
+            .unwrap_or_else(|e| {
+                tracing::warn!(
+                    "State prefetch via starknet_simulateTransactions failed, falling back to \
+                     individual RPC reads (slower). Ensure the node supports Starknet spec >= \
+                     v0.10.1. Error: {e}"
+                );
+                StateMaps::default()
+            })
         };
         Ok(Self { state_maps, rpc_state_reader })
     }
