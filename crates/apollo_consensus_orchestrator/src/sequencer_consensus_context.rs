@@ -801,11 +801,6 @@ impl ConsensusContext for SequencerConsensusContext {
         )
         .await;
 
-<<<<<<< HEAD
-        self.previous_proposal_init = Some(PreviousProposalInitInfo::from(&init));
-||||||| 48d0c0ee17
-        self.previous_block_info = Some(PreviousBlockInfo::from(&init));
-=======
         // At stop height, immediately write the blob instead of waiting for the next proposal
         // build.
         if wait_for_last_commitment
@@ -819,8 +814,7 @@ impl ConsensusContext for SequencerConsensusContext {
             error!("Failed to write blob at stop height {height}.");
         }
 
-        self.previous_block_info = Some(PreviousBlockInfo::from(&init));
->>>>>>> origin/main-v0.14.2
+        self.previous_proposal_init = Some(PreviousProposalInitInfo::from(&init));
 
         Ok(())
     }

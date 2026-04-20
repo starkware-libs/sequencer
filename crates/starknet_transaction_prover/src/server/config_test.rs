@@ -53,16 +53,12 @@ fn base_args() -> CliArgs {
         use_latest_versioned_constants: None,
         compiled_class_cache_size: None,
         bouncer_config_override: None,
-<<<<<<< HEAD
         blocking_check_url: None,
         blocking_check_timeout_millis: None,
         blocking_check_fail_open: None,
-||||||| 48d0c0ee17
-=======
         max_request_body_size: None,
         ohttp_enabled: false,
         ohttp_key_cache_max_age_secs: None,
->>>>>>> origin/main-v0.14.2
     }
 }
 
@@ -145,16 +141,12 @@ fn cors_allow_origin_rejects_non_array_in_config_file() {
         use_latest_versioned_constants: None,
         compiled_class_cache_size: None,
         bouncer_config_override: None,
-<<<<<<< HEAD
         blocking_check_url: None,
         blocking_check_timeout_millis: None,
         blocking_check_fail_open: None,
-||||||| 48d0c0ee17
-=======
         max_request_body_size: None,
         ohttp_enabled: false,
         ohttp_key_cache_max_age_secs: None,
->>>>>>> origin/main-v0.14.2
     };
 
     let error = ServiceConfig::from_args(args).unwrap_err();

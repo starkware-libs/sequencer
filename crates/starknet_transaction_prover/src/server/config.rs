@@ -80,16 +80,12 @@ struct RawServiceConfig {
     cors_allow_origin: Vec<String>,
     tls_cert_file: Option<PathBuf>,
     tls_key_file: Option<PathBuf>,
-<<<<<<< HEAD
     blocking_check_url: Option<String>,
     blocking_check_timeout_millis: u64,
     blocking_check_fail_open: bool,
-||||||| 48d0c0ee17
-=======
     max_request_body_size: u32,
     ohttp_enabled: bool,
     ohttp_key_cache_max_age_secs: u64,
->>>>>>> origin/main-v0.14.2
 }
 
 impl Default for RawServiceConfig {
@@ -109,16 +105,12 @@ impl Default for RawServiceConfig {
             cors_allow_origin: Vec::new(),
             tls_cert_file: None,
             tls_key_file: None,
-<<<<<<< HEAD
             blocking_check_url: None,
             blocking_check_timeout_millis: 2000,
             blocking_check_fail_open: true,
-||||||| 48d0c0ee17
-=======
             max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
             ohttp_enabled: false,
             ohttp_key_cache_max_age_secs: DEFAULT_OHTTP_KEY_CACHE_MAX_AGE_SECS,
->>>>>>> origin/main-v0.14.2
         }
     }
 }
@@ -308,7 +300,6 @@ impl ServiceConfig {
                 config.compiled_class_cache_size = compiled_class_cache_size;
             }
         }
-<<<<<<< HEAD
         if let Some(url) = args.blocking_check_url {
             if Some(&url) != config.blocking_check_url.as_ref() {
                 info!(
@@ -344,8 +335,6 @@ impl ServiceConfig {
                 ConfigError::InvalidArgument(format!("Invalid blocking_check_url: {e}"))
             })?;
         }
-||||||| 48d0c0ee17
-=======
         if let Some(max_request_body_size) = args.max_request_body_size {
             if max_request_body_size != config.max_request_body_size {
                 info!(
@@ -369,7 +358,6 @@ impl ServiceConfig {
                 config.ohttp_key_cache_max_age_secs = secs;
             }
         }
->>>>>>> origin/main-v0.14.2
 
         // Validate required fields.
         if config.rpc_node_url.is_empty() {

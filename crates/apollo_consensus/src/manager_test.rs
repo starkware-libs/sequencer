@@ -1255,8 +1255,8 @@ async fn cache_future_vote_deduplication(consensus_config: ConsensusConfig) {
     context.expect_broadcast().returning(move |_| Ok(()));
     context
         .expect_decision_reached()
-        .withf(move |_, _, c| *c == ProposalCommitment(Felt::ZERO))
-        .return_once(move |_, _, _| Ok(()));
+        .withf(move |_, _, c, _| *c == ProposalCommitment(Felt::ZERO))
+        .return_once(move |_, _, _, _| Ok(()));
     let committee_provider =
         mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
     let mut manager = MultiHeightManager::new(
