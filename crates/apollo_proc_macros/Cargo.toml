@@ -8,6 +8,7 @@ description = "Wrapper crate for the apollo_proc_macros_lib"
 
 [dependencies]
 apollo_proc_macros_lib.workspace = true
+metrics.workspace = true
 
 [lints]
 workspace = true
