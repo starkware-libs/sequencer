@@ -1014,7 +1014,6 @@ dependencies = [
  "futures-util",
  "indexmap 2.12.0",
  "lru 0.12.5",
- "metrics",
  "mockall",
  "papyrus_base_layer",
  "papyrus_common",
@@ -2279,7 +2278,6 @@ dependencies = [
  "futures",
  "indexmap 2.12.0",
  "lazy_static",
- "metrics",
  "mockall",
  "papyrus_common",
  "rand 0.8.5",
@@ -2307,6 +2305,7 @@ name = "apollo_proc_macros"
 version = "0.0.0"
 dependencies = [
  "apollo_proc_macros_lib",
+ "metrics",
 ]
 
 [[package]]
