@@ -172,7 +172,7 @@ pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     let collect_metric_flag = quote! {
-        papyrus_common::metrics::COLLECT_PROFILING_METRICS
+        apollo_proc_macros::COLLECT_PROFILING_METRICS
     };
 
     create_modified_function(

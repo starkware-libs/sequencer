@@ -7,8 +7,8 @@ license-file.workspace = true
 description = "A storage implementation for a Starknet node."
 
 [features]
-testing = ["reqwest", "starknet_api/testing", "tempfile", "tower"]
 storage_cli = ["clap", "reqwest"]
+testing = ["reqwest", "starknet_api/testing", "tempfile", "tower"]
 
 [dependencies]
 apollo_config.workspace = true
@@ -31,14 +31,13 @@ memmap2.workspace = true
 metrics.workspace = true
 num-bigint.workspace = true
 page_size.workspace = true
-papyrus_common.workspace = true
 parity-scale-codec.workspace = true
 primitive-types.workspace = true
 reqwest = { workspace = true, features = ["json"], optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
-starknet_api.workspace = true
 starknet-types-core = { workspace = true, features = ["papyrus-serialization"] }
+starknet_api.workspace = true
 tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
@@ -76,10 +75,6 @@ tower = { workspace = true, features = ["util"] }
 
 [lints]
 workspace = true
-
-# Used in apollo_proc_macros for latency_histogram.
-[package.metadata.cargo-machete]
-ignored = ["papyrus_common"]
 
 
 [[bin]]
