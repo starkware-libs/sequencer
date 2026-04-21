@@ -42,6 +42,7 @@ const CRATES_FOR_PUBLISH_REGRESSION: Expect = expect![[r#"
         "apollo_infra_utils",
         "apollo_metrics",
         "apollo_proc_macros",
+        "apollo_proc_macros_lib",
         "apollo_sizeof",
         "apollo_sizeof_macros",
         "apollo_starknet_os_program",

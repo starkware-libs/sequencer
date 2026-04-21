@@ -2306,6 +2306,13 @@ dependencies = [
 name = "apollo_proc_macros"
 version = "0.0.0"
 dependencies = [
+ "apollo_proc_macros_lib",
+]
+
+[[package]]
+name = "apollo_proc_macros_lib"
+version = "0.0.0"
+dependencies = [
  "lazy_static",
  "proc-macro2",
  "quote",
