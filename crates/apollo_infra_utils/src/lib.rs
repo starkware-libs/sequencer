@@ -17,3 +17,6 @@ pub mod type_name;
 pub mod url;
 
 pub extern crate apollo_proc_macros as _apollo_proc_macros;
+
+// Re-export tikv-jemallocator for the [set_global_allocator] macro in downstream crates.
+pub use tikv_jemallocator;

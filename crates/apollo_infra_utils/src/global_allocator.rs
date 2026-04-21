@@ -3,6 +3,6 @@
 macro_rules! set_global_allocator {
     () => {
         #[global_allocator]
-        static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+        static ALLOC: $crate::tikv_jemallocator::Jemalloc = $crate::tikv_jemallocator::Jemalloc;
     };
 }
