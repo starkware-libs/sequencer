@@ -7,8 +7,8 @@ license-file.workspace = true
 description = "Protocol buffer definitions and serialization for P2P communication."
 
 [features]
-testing = ["apollo_test_utils", "rand", "rand_chacha"]
 bin-deps = ["prost-build", "protoc-prebuilt", "tracing-subscriber"]
+testing = ["apollo_test_utils", "rand", "rand_chacha"]
 
 [[bin]]
 name = "generate_protoc_output"
@@ -49,10 +49,6 @@ rand.workspace = true
 rand_chacha.workspace = true
 rstest.workspace = true
 tempfile.workspace = true
-
-[package.metadata.cargo-machete]
-# The `rand` and `rand_chacha` crates are used in the `testing` feature, which is optional.
-ignored = ["rand", "rand_chacha"]
 
 [lints]
 workspace = true

@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "A client implementation that can communicate with Starknet."
 
 [features]
-testing = ["apollo_test_utils", "enum-iterator", "mockall", "rand", "rand_chacha"]
+testing = ["apollo_test_utils", "enum-iterator", "mockall"]
 
 [dependencies]
 apollo_config.workspace = true
@@ -19,8 +19,6 @@ indexmap = { workspace = true, features = ["serde"] }
 mockall = { workspace = true, optional = true }
 os_info.workspace = true
 papyrus_common.workspace = true
-rand = { workspace = true, optional = true }
-rand_chacha = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["blocking", "json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
@@ -41,14 +39,8 @@ enum-iterator.workspace = true
 mockall.workspace = true
 mockito.workspace = true
 pretty_assertions.workspace = true
-rand.workspace = true
-rand_chacha.workspace = true
 simple_logger.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
-
-[package.metadata.cargo-machete]
-# The `rand` and `rand_chacha` crates are used in the `testing` feature, which is optional.
-ignored = ["rand", "rand_chacha"]
 
 [lints]
 workspace = true
