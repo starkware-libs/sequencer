@@ -2803,7 +2803,6 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "page_size",
- "papyrus_common",
  "parity-scale-codec",
  "paste",
  "pretty_assertions",
