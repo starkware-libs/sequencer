@@ -168,7 +168,7 @@ pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
     // instead of boolean
 
     let metric_recording_logic = quote! {
-        ::metrics::histogram!(#metric_name).record(exec_time);
+        apollo_proc_macros::metrics::histogram!(#metric_name).record(exec_time);
     };
 
     let collect_metric_flag = quote! {

@@ -6,3 +6,5 @@ use std::sync::OnceLock;
 pub static COLLECT_PROFILING_METRICS: OnceLock<bool> = OnceLock::new();
 
 pub use apollo_proc_macros_lib::*;
+// Re-export for use in downstream crates.
+pub use metrics;
