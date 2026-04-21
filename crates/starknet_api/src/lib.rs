@@ -32,6 +32,7 @@ use std::num::ParseIntError;
 
 // Re-exported for `define_versioned_constants!` macro expansions in downstream crates.
 pub use paste;
+pub use serde_json;
 
 use crate::block::{BlockNumber, StarknetVersion};
 use crate::core::{ClassHash, CompiledClassHash};
