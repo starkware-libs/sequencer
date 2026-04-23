@@ -30,7 +30,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use serde::de::Error;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use url::Url;
 
 use crate::secrets::Sensitive;
@@ -42,6 +42,14 @@ where
 {
     let millis: u64 = Deserialize::deserialize(de)?;
     Ok(Duration::from_millis(millis))
+}
+
+/// Serializes a duration object to milliseconds.
+pub fn serialize_duration_as_milliseconds<S>(duration: &Duration, se: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    se.serialize_u64(u64::try_from(duration.as_millis()).unwrap_or(u64::MAX))
 }
 
 /// Deserializes seconds to duration object.
