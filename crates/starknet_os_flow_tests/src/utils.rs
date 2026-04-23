@@ -16,10 +16,9 @@ use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
-use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::declare_tx_args;
-use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::executable_transaction::{AccountTransaction, DeclareTransaction};
 use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::{test_block_hash, NonceManager, CHAIN_ID_FOR_TESTS};
@@ -139,9 +138,12 @@ pub(crate) fn create_declare_tx(
         }
     };
     let account_declare_tx = declare_tx(declare_args);
-    let class_info = get_class_info_of_feature_contract(feature_contract);
-    let tx =
-        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    let tx = DeclareTransaction::create(
+        account_declare_tx,
+        feature_contract.get_class_info(),
+        &CHAIN_ID_FOR_TESTS,
+    )
+    .unwrap();
     AccountTransaction::Declare(tx)
 }
 
@@ -190,33 +192,6 @@ pub(crate) fn divide_vec_into_n_parts<T>(mut vec: Vec<T>, n: usize) -> Vec<Vec<T
     }
     assert_eq!(n, items_per_part.len(), "Number of parts does not match.");
     items_per_part
-}
-
-pub(crate) fn get_class_info_of_cairo0_contract(
-    contract_class: DeprecatedContractClass,
-) -> ClassInfo {
-    let abi_length = contract_class.abi.as_ref().unwrap().len();
-    ClassInfo {
-        contract_class: ContractClass::V0(contract_class),
-        sierra_program_length: 0,
-        abi_length,
-        sierra_version: SierraVersion::DEPRECATED,
-    }
-}
-
-pub(crate) fn get_class_info_of_feature_contract(feature_contract: FeatureContract) -> ClassInfo {
-    match feature_contract.get_class() {
-        ContractClass::V0(contract_class) => get_class_info_of_cairo0_contract(contract_class),
-        ContractClass::V1((contract_class, sierra_version)) => {
-            let sierra = feature_contract.get_sierra();
-            ClassInfo {
-                contract_class: ContractClass::V1((contract_class, sierra_version.clone())),
-                sierra_program_length: sierra.sierra_program.len(),
-                abi_length: sierra.abi.len(),
-                sierra_version,
-            }
-        }
-    }
 }
 
 pub(crate) fn get_class_hash_of_feature_contract(feature_contract: FeatureContract) -> ClassHash {
