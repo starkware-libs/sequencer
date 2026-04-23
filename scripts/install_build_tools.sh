@@ -101,17 +101,34 @@ log_step "install_build_tools" "Starting build tools installation..."
 
 install_common_packages
 
-log_step "install_build_tools" "Starting parallel installations (PyPy, Rust)..."
-pids=()
-install_pypy & pids+=($!)
-install_rust & pids+=($!)
-# Wait for all processes, fail if at least one failed.
-failed=0
-for pid in "${pids[@]}"; do
-    wait "$pid" || failed=1
-done
-(( $failed )) && exit 1
-log_step "install_build_tools" "Parallel installations completed"
+log_step "install_build_tools" "Installing PyPy..."
+# Run PyPy and Rust installers serially. Concurrent disk I/O from a sibling
+# installer is a known trigger for rustup-init's multi-threaded downloader to
+# hit a `CloseHandle`/`RecvError` panic (see rust-lang/rustup#2926), and more
+# generally any mid-install failure can leave rustup with a partial toolchain
+# (the rust-toolchain.toml channel registered as a stub but its components
+# never fully downloaded). Serial execution removes one cheap trigger; the
+# verification step below handles any partial-install state regardless of
+# cause.
+install_pypy
+log_step "install_build_tools" "PyPy installed. Installing Rust..."
+install_rust
+log_step "install_build_tools" "Rust installed."
+
+# Verify the pinned toolchain is actually usable. `cargo --version` in the
+# project dir resolves through rustup's proxy to the toml-pinned channel; on a
+# healthy install this is a ~10ms no-op. If it fails, the toolchain was left
+# in a partial state (stub registered without the cargo/rustc components) and
+# we force a reinstall.
+log_step "install_build_tools" "Verifying project Rust toolchain is usable..."
+pushd "${SCRIPT_DIR}/.." > /dev/null
+if ! cargo --version > /dev/null 2>&1; then
+    log_step "install_build_tools" "Project toolchain stub is missing components; forcing reinstall..."
+    rustup toolchain install --force
+fi
+popd > /dev/null
+log_step "install_build_tools" "Project Rust toolchain ready: $(rustc --version)"
+
 log_step "install_build_tools" "Running install_cargo_tools.sh..."
 ${SCRIPT_DIR}/install_cargo_tools.sh
 log_step "install_build_tools" "install_cargo_tools.sh completed"
