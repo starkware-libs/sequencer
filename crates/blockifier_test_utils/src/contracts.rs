@@ -75,6 +75,7 @@ const MOCK_STAKING_CONTRACT_BASE: u32 = 18 * CLASS_HASH_BASE;
 const FUZZ_TEST_BASE: u32 = 19 * CLASS_HASH_BASE;
 const FUZZ_TEST2_BASE: u32 = 20 * CLASS_HASH_BASE;
 const FUZZ_TEST_ORCHESTRATOR_BASE: u32 = 21 * CLASS_HASH_BASE;
+const ACCOUNT_WITH_REAL_VALIDATE_BASE: u32 = 22 * CLASS_HASH_BASE;
 
 // Contract names.
 const ACCOUNT_LONG_VALIDATE_NAME: &str = "account_with_long_validate";
@@ -97,6 +98,7 @@ const TX_INFO_WRITER_CONTRACT_NAME: &str = "tx_info_writer";
 const FUZZ_TEST_NAME: &str = "fuzz_revert";
 const FUZZ_TEST2_NAME: &str = "fuzz_revert_2";
 const FUZZ_TEST_ORCHESTRATOR_NAME: &str = "fuzz_revert_orchestrator";
+const ACCOUNT_WITH_REAL_VALIDATE_NAME: &str = "account_with_real_validate";
 // ERC20 contract is in a unique location.
 const ERC20_CAIRO0_CONTRACT_SOURCE_PATH: &str =
     "./resources/ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/ERC20.cairo";
@@ -138,6 +140,7 @@ pub enum FeatureContract {
     FuzzTest(CairoVersion),
     FuzzTest2(RunnableCairo1),
     FuzzTestOrchestrator(RunnableCairo1),
+    AccountWithRealValidate(RunnableCairo1),
 }
 
 impl FeatureContract {
@@ -163,7 +166,8 @@ impl FeatureContract {
             | Self::EmptyAccount(runnable_version)
             | Self::MockStakingContract(runnable_version)
             | Self::FuzzTest2(runnable_version)
-            | Self::FuzzTestOrchestrator(runnable_version) => {
+            | Self::FuzzTestOrchestrator(runnable_version)
+            | Self::AccountWithRealValidate(runnable_version) => {
                 CairoVersion::Cairo1(*runnable_version)
             }
         }
@@ -184,7 +188,8 @@ impl FeatureContract {
             | Self::EmptyAccount(rv)
             | Self::MockStakingContract(rv)
             | Self::FuzzTest2(rv)
-            | Self::FuzzTestOrchestrator(rv) => match version {
+            | Self::FuzzTestOrchestrator(rv)
+            | Self::AccountWithRealValidate(rv) => match version {
                 CairoVersion::Cairo0 => panic!("{self:?} must be Cairo1"),
                 CairoVersion::Cairo1(runnable) => *rv = runnable,
             },
@@ -325,6 +330,7 @@ impl FeatureContract {
                 Self::FuzzTest(_) => FUZZ_TEST_BASE,
                 Self::FuzzTest2(_) => FUZZ_TEST2_BASE,
                 Self::FuzzTestOrchestrator(_) => FUZZ_TEST_ORCHESTRATOR_BASE,
+                Self::AccountWithRealValidate(_) => ACCOUNT_WITH_REAL_VALIDATE_BASE,
             }
     }
 
@@ -358,6 +364,7 @@ impl FeatureContract {
             Self::FuzzTest(_) => FUZZ_TEST_NAME,
             Self::FuzzTest2(_) => FUZZ_TEST2_NAME,
             Self::FuzzTestOrchestrator(_) => FUZZ_TEST_ORCHESTRATOR_NAME,
+            Self::AccountWithRealValidate(_) => ACCOUNT_WITH_REAL_VALIDATE_NAME,
             Self::ERC20(_) => unreachable!(),
         }
     }
@@ -467,7 +474,8 @@ impl FeatureContract {
                     | FeatureContract::MockStakingContract(_)
                     | FeatureContract::FuzzTest(_)
                     | FeatureContract::FuzzTest2(_)
-                    | FeatureContract::FuzzTestOrchestrator(_) => None,
+                    | FeatureContract::FuzzTestOrchestrator(_)
+                    | FeatureContract::AccountWithRealValidate(_) => None,
                     FeatureContract::ERC20(_) | FeatureContract::Experimental => unreachable!(),
                 };
                 cairo0_compile(self.get_source_path(), extra_arg, false)
@@ -515,7 +523,8 @@ impl FeatureContract {
             | Self::EmptyAccount(_)
             | Self::MockStakingContract(_)
             | Self::FuzzTest2(_)
-            | Self::FuzzTestOrchestrator(_) => {
+            | Self::FuzzTestOrchestrator(_)
+            | Self::AccountWithRealValidate(_) => {
                 #[cfg(not(feature = "cairo_native"))]
                 {
                     vec![*self]
