@@ -111,6 +111,24 @@ pub enum AccountTransaction {
     Invoke(InvokeTransaction),
 }
 
+impl From<DeclareTransaction> for AccountTransaction {
+    fn from(declare_tx: DeclareTransaction) -> Self {
+        Self::Declare(declare_tx)
+    }
+}
+
+impl From<DeployAccountTransaction> for AccountTransaction {
+    fn from(deploy_account_tx: DeployAccountTransaction) -> Self {
+        Self::DeployAccount(deploy_account_tx)
+    }
+}
+
+impl From<InvokeTransaction> for AccountTransaction {
+    fn from(invoke_tx: InvokeTransaction) -> Self {
+        Self::Invoke(invoke_tx)
+    }
+}
+
 impl AccountTransaction {
     implement_account_tx_inner_getters!(
         (resource_bounds, ValidResourceBounds),
