@@ -37,48 +37,60 @@ use starknet_api::block_hash::block_hash_calculator::{
     PartialBlockHashComponents,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::contract_address;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::{ChainId, Nonce, OsChainInfo};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableAccountTx,
     DeclareTransaction as ExecutableDeclareTransaction,
+    DeployAccountTransaction as ExecutableDeployAccountTx,
 };
 use starknet_api::hash::StateRoots;
 use starknet_api::rpc_transaction::{
     InternalRpcDeclareTransactionV3,
+    InternalRpcDeployAccountTransaction,
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
+    RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3,
 };
 use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::TEST_SEQUENCER_ADDRESS;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
+    ContractAddressSalt,
     PaymasterData,
     Tip,
     TransactionSignature,
 };
 use starknet_api::transaction::{
+    CalculateContractAddress,
     DeclareTransaction,
+    DeployAccountTransaction,
+    TransactionHash,
     TransactionHasher,
     TransactionOffsetInBlock,
     TransactionVersion,
 };
+use starknet_api::{calldata, contract_address};
 use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_committer::db::forest_trait::StorageInitializer;
+use starknet_core::crypto::ecdsa_sign;
+use starknet_crypto::get_public_key;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_transaction_prover::running::committer_utils::{
     commit_state_diff,
     state_maps_to_committer_state_diff,
 };
+use starknet_types_core::felt::Felt;
 
 const N_TXS_PER_BLOCK: usize = 1;
 static CHAIN_ID: LazyLock<ChainId> =
     LazyLock::new(|| ChainId::Other("SN_PREINTEGRATION_SEPOLIA".to_string()));
 static CHAIN_INFO: LazyLock<ChainInfo> =
     LazyLock::new(|| ChainInfo { chain_id: CHAIN_ID.clone(), ..ChainInfo::create_for_testing() });
+const OPERATOR_PRIVATE_KEY: Felt = Felt::THREE;
 
 const CHAIN_INFO_PATH: &str = "../resources/chain_info.json";
 const BLOB_LIST_PATH: &str = "../resources/blobs.json";
@@ -87,6 +99,11 @@ const PRECONFIRMED_BLOCK_PATH: &str = "../resources/preconfirmed_block.json";
 // =====================
 // Tx generation
 // =====================
+
+fn sign_tx(tx_hash: TransactionHash, private_key: Felt) -> TransactionSignature {
+    let sig = ecdsa_sign(&private_key, &tx_hash.0).unwrap();
+    TransactionSignature(Arc::new(vec![sig.r, sig.s]))
+}
 
 fn boostrap_declare_tx(
     class_manager: &mut MockClassManagerClient,
@@ -146,13 +163,62 @@ fn boostrap_declare_tx(
     (executable.into(), internal)
 }
 
+fn make_free_deploy_account_tx(
+    account: FeatureContract,
+) -> (ExecutableAccountTx, InternalConsensusTransaction) {
+    let class_hash = account.get_sierra().calculate_class_hash();
+    let public_key = get_public_key(&OPERATOR_PRIVATE_KEY);
+    let constructor_calldata = calldata![public_key];
+    let contract_address_salt = ContractAddressSalt::default();
+    // Build with placeholder signature to compute the hash (signature excluded from hash).
+    let rpc_tx_unsigned = RpcDeployAccountTransactionV3 {
+        signature: TransactionSignature::default(),
+        resource_bounds: AllResourceBounds::new_unlimited_gas_no_fee_enforcement(),
+        tip: Tip::default(),
+        contract_address_salt,
+        class_hash,
+        constructor_calldata: constructor_calldata.clone(),
+        nonce: Nonce::default(),
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+        paymaster_data: PaymasterData::default(),
+    };
+    let contract_address = rpc_tx_unsigned.calculate_contract_address().unwrap();
+    let without_hash_unsigned =
+        InternalRpcTransactionWithoutTxHash::DeployAccount(InternalRpcDeployAccountTransaction {
+            tx: RpcDeployAccountTransaction::V3(rpc_tx_unsigned.clone()),
+            contract_address,
+        });
+    let tx_hash = without_hash_unsigned.calculate_transaction_hash(&CHAIN_ID).unwrap();
+    let signature = sign_tx(tx_hash, OPERATOR_PRIVATE_KEY);
+
+    let mut rpc_tx_signed = rpc_tx_unsigned;
+    rpc_tx_signed.signature = signature;
+    let without_hash =
+        InternalRpcTransactionWithoutTxHash::DeployAccount(InternalRpcDeployAccountTransaction {
+            tx: RpcDeployAccountTransaction::V3(rpc_tx_signed.clone()),
+            contract_address,
+        });
+
+    let executable = ExecutableDeployAccountTx::create(
+        DeployAccountTransaction::V3(rpc_tx_signed.into()),
+        &CHAIN_ID,
+    )
+    .unwrap();
+    let internal = InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
+        tx: without_hash,
+        tx_hash,
+    });
+    (executable.into(), internal)
+}
+
 fn make_txs() -> (MockClassManagerClient, Vec<(ExecutableAccountTx, InternalConsensusTransaction)>)
 {
     // Create the list of transactions to be included in the blobs:
     // 1. bootstrap declare of an ERC20 contract.
     // 2. bootstrap declare of an account with real validate.
-    // TODO(Dori): the rest of the txs.
     // 3. deploy account (with zero fees).
+    // TODO(Dori): the rest of the txs.
     // 4. deploy ERC20 contract from the account (with zero fees), while minting some tokens to the
     //    sender account.
     // (from this point - all txs include non-zero fees, and no more bootstrap declares)
@@ -166,10 +232,17 @@ fn make_txs() -> (MockClassManagerClient, Vec<(ExecutableAccountTx, InternalCons
     let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let account_with_real_validate = FeatureContract::AccountWithRealValidate(RunnableCairo1::Casm);
 
+    // Bootstrap declares.
     let erc20_declare_tx = boostrap_declare_tx(&mut class_manager, erc20_contract);
     let account_with_real_validate_declare_tx =
         boostrap_declare_tx(&mut class_manager, account_with_real_validate);
-    (class_manager, vec![erc20_declare_tx, account_with_real_validate_declare_tx])
+
+    // Free deploy-account.
+    let deploy_operator_account_tx = make_free_deploy_account_tx(account_with_real_validate);
+    (
+        class_manager,
+        vec![erc20_declare_tx, account_with_real_validate_declare_tx, deploy_operator_account_tx],
+    )
 }
 
 // =====================
