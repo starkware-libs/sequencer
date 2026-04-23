@@ -6,7 +6,7 @@ use libp2p::PeerId;
 use rstest::rstest;
 use starknet_api::staking::StakingWeight;
 
-use crate::types::ShardSignatureVerificationError;
+use crate::types::SignatureVerificationError;
 use crate::{
     CommitteeId,
     MerkleTree,
@@ -129,7 +129,7 @@ fn test_validation_fails_with_wrong_signature() {
     assert!(matches!(
         env.validator.validate_unit(env.publisher, &unit),
         Err(UnitValidationError::SignatureVerificationFailed(
-            ShardSignatureVerificationError::VerificationFailed
+            SignatureVerificationError::VerificationFailed
         ))
     ));
 }
