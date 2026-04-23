@@ -4858,6 +4858,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "central_systest_blobs"
+version = "0.0.0"
+dependencies = [
+ "apollo_batcher",
+ "apollo_class_manager_types",
+ "apollo_consensus",
+ "apollo_consensus_orchestrator",
+ "blockifier",
+ "blockifier_test_utils",
+ "expect-test",
+ "mockall",
+ "serde_json",
+ "starknet_api",
+ "starknet_committer",
+ "starknet_patricia_storage",
+ "starknet_transaction_prover",
+ "tokio",
+]
+
+[[package]]
 name = "cesu8"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
