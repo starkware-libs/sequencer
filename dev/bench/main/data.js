@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776949269146,
+  "lastUpdate": 1776950324856,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2821,6 +2821,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1387.20459702,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f7e42cd89ea6144768d6828d06fe03bd78435469",
+          "message": "starknet_committer_and_os_cli: add process_request with tests (#13703)",
+          "timestamp": "2026-04-23T12:55:25Z",
+          "tree_id": "7fb9628574bce67b96cb8d712fb24c2ca36be67d",
+          "url": "https://github.com/starkware-libs/sequencer/commit/f7e42cd89ea6144768d6828d06fe03bd78435469"
+        },
+        "date": 1776950324466,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 962.96557329,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1423.12795334,
             "unit": "ms"
           }
         ]
