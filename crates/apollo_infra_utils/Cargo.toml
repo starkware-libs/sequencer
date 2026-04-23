@@ -24,6 +24,7 @@ socket2 = { workspace = true, optional = true }
 strum = { workspace = true, optional = true, features = ["derive"] }
 tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
+tikv-jemallocator.workspace = true
 tokio = { workspace = true, features = ["process", "rt", "time"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
