@@ -270,6 +270,20 @@ impl<V: ValueSerde, Mode: TransactionKind> Reader<V> for FileHandler<V, Mode> {
     }
 }
 
+#[cfg(feature = "storage_analyzer")]
+impl<V: ValueSerde, Mode: TransactionKind> FileHandler<V, Mode> {
+    /// Returns the raw serialized bytes at the given location without deserializing.
+    pub fn get_raw_bytes(&self, location: LocationInFile) -> MmapFileResult<Vec<u8>> {
+        let bytes = unsafe {
+            std::slice::from_raw_parts(
+                self.memory_ptr.offset(location.offset.try_into()?),
+                location.len,
+            )
+        };
+        Ok(bytes.to_vec())
+    }
+}
+
 /// Stats for a memory mapped file.
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord)]
 pub struct MMapFileStats {
