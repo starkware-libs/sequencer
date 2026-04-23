@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776951580583,
+  "lastUpdate": 1776952157492,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2889,6 +2889,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1504.71921437,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5a5570f29ac2065b71cc4435f30a6d8bc3c662a0",
+          "message": "apollo_storage,starknet_committer_and_os_cli: add find_next_storage_contract for snap sync (#13708)",
+          "timestamp": "2026-04-23T13:33:04Z",
+          "tree_id": "2fd718907bec30e42fe778ebda133dc6c80ad447",
+          "url": "https://github.com/starkware-libs/sequencer/commit/5a5570f29ac2065b71cc4435f30a6d8bc3c662a0"
+        },
+        "date": 1776952157071,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 949.5898666100001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1448.6661399000002,
             "unit": "ms"
           }
         ]
