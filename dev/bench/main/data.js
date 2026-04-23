@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776699305827,
+  "lastUpdate": 1776931592427,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2651,6 +2651,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1538.93764291,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "matan.l@starkware.co",
+            "name": "Matan Lior",
+            "username": "matanl-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "254301faca682fc9a36ad57022bcbba50b130521",
+          "message": "apollo_consensus_orchestrator: validate starknet_version in proposal init (#13798)\n\nValidators now reject proposals whose starknet_version does not match\nStarknetVersion::LATEST, preventing a malicious proposer from forcing an\nincorrect version into the block hash.\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-04-23T07:49:36Z",
+          "tree_id": "0ef736c268750d29eb68e22f78cb06b524085a23",
+          "url": "https://github.com/starkware-libs/sequencer/commit/254301faca682fc9a36ad57022bcbba50b130521"
+        },
+        "date": 1776931591978,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 951.56195251,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1445.09936816,
             "unit": "ms"
           }
         ]
