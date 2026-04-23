@@ -362,6 +362,12 @@ pub enum ValidResourceBounds {
     AllResources(AllResourceBounds),
 }
 
+impl From<AllResourceBounds> for ValidResourceBounds {
+    fn from(value: AllResourceBounds) -> Self {
+        Self::AllResources(value)
+    }
+}
+
 impl ValidResourceBounds {
     pub fn get_l1_bounds(&self) -> ResourceBounds {
         match self {
