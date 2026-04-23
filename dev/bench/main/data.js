@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776958251592,
+  "lastUpdate": 1776967059093,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2957,6 +2957,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1504.17502532,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e4ba62d762d583d128ba42dfc3c1ba722383ac09",
+          "message": "apollo_proc_macros: wrap crate in a non-proc-macro crate for reexports (#13847)\n\n* starknet_committer: fix wrong definition of dependency on 'hex' crate\n\n* starknet_committer_and_os_cli: remove redundant machete ignore\n\n* ci: remove redundant ignores of rand and rand_chacha\n\n* starknet_api: re-export serde_json for macro usage\n\n* apollo_infra_utils: re-export tikv_jemallocator for downstream macro usage\n\n* apollo_proc_macros: wrap crate in a non-proc-macro crate for reexports",
+          "timestamp": "2026-04-23T17:29:50Z",
+          "tree_id": "a53846cce6408f1f73b740de38cb6d4f1f5a4a43",
+          "url": "https://github.com/starkware-libs/sequencer/commit/e4ba62d762d583d128ba42dfc3c1ba722383ac09"
+        },
+        "date": 1776967058704,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 982.0249258099999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1496.38357049,
             "unit": "ms"
           }
         ]
