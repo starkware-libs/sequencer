@@ -14,12 +14,12 @@ apollo_storage = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 criterion = { workspace = true, features = ["html_reports"] }
 futures.workspace = true
+indexmap.workspace = true
 pretty_assertions.workspace = true
 tempfile.workspace = true
 
 # TODO(Amos): Add `testing` feature and move Python test dependencies under it.
 [dependencies]
-apollo_committer_config.workspace = true
 apollo_infra_utils.workspace = true
 apollo_storage.workspace = true
 # The 'test_programs' feature should be moved under `testing` feature, when it exists.
