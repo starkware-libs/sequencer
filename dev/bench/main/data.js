@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776950324856,
+  "lastUpdate": 1776951580583,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2855,6 +2855,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1423.12795334,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "793259033446e2d200ee3d30763fb61dfdfe502f",
+          "message": "starknet_api: re-export serde_json for macro usage (#13845)\n\n* starknet_committer: fix wrong definition of dependency on 'hex' crate\n\n* starknet_committer_and_os_cli: remove redundant machete ignore\n\n* ci: remove redundant ignores of rand and rand_chacha\n\n* starknet_api: re-export serde_json for macro usage",
+          "timestamp": "2026-04-23T13:15:52Z",
+          "tree_id": "630e77f88fcb13f327f17eb494edc2094e1840ad",
+          "url": "https://github.com/starkware-libs/sequencer/commit/793259033446e2d200ee3d30763fb61dfdfe502f"
+        },
+        "date": 1776951580201,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 906.6404749,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1504.71921437,
             "unit": "ms"
           }
         ]
