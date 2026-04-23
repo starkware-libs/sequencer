@@ -5,7 +5,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
-use starknet_api::contract_class::{ContractClass, EntryPointType};
+use starknet_api::contract_class::{ClassInfo, ContractClass, EntryPointType, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
@@ -22,6 +22,7 @@ use crate::test_utils::struct_impls::LoadContractFromFile;
 pub trait FeatureContractTrait {
     fn get_class(&self) -> ContractClass;
     fn get_runnable_class(&self) -> RunnableCompiledClass;
+    fn get_class_info(&self) -> ClassInfo;
 
     /// Fetch PC locations from the compiled contract to compute the expected PC locations in the
     /// traceback. Computation is not robust, but as long as the cairo function itself is not
@@ -92,9 +93,34 @@ fn get_class_for_feature_contract(feature_contract: FeatureContract) -> Contract
     }
 }
 
+pub fn get_class_info_of_cairo0_contract(contract_class: DeprecatedContractClass) -> ClassInfo {
+    let abi_length = contract_class.abi.as_ref().unwrap().len();
+    ClassInfo {
+        contract_class: ContractClass::V0(contract_class),
+        sierra_program_length: 0,
+        abi_length,
+        sierra_version: SierraVersion::DEPRECATED,
+    }
+}
+
 impl FeatureContractTrait for FeatureContract {
     fn get_class(&self) -> ContractClass {
         get_class_for_feature_contract(*self)
+    }
+
+    fn get_class_info(&self) -> ClassInfo {
+        match self.get_class() {
+            ContractClass::V0(contract_class) => get_class_info_of_cairo0_contract(contract_class),
+            ContractClass::V1((contract_class, sierra_version)) => {
+                let sierra = self.get_sierra();
+                ClassInfo {
+                    contract_class: ContractClass::V1((contract_class, sierra_version.clone())),
+                    sierra_program_length: sierra.sierra_program.len(),
+                    abi_length: sierra.abi.len(),
+                    sierra_version,
+                }
+            }
+        }
     }
 
     fn get_runnable_class(&self) -> RunnableCompiledClass {
