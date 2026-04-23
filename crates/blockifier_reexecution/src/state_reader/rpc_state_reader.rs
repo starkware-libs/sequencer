@@ -135,6 +135,10 @@ pub struct RpcStateReader {
     pub chain_info: ChainInfo,
     #[allow(dead_code)]
     pub(crate) contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
+    /// Shared HTTP client so a single connection pool is reused across RPC calls —
+    /// avoids re-establishing TCP + TLS on every request. `reqwest::blocking::Client`
+    /// is internally `Arc`-ed, so cloning `RpcStateReader` shares the pool too.
+    pub(crate) client: BlockingClient,
 }
 
 impl Default for RpcStateReader {
@@ -146,6 +150,7 @@ impl Default for RpcStateReader {
             retry_config: RetryConfig::default(),
             chain_info: get_chain_info(&ChainId::Mainnet, None),
             contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
+            client: BlockingClient::new(),
         }
     }
 }
@@ -167,6 +172,7 @@ impl RpcStateReader {
             retry_config: RetryConfig::default(),
             chain_info,
             contract_class_mapping_dumper,
+            client: BlockingClient::new(),
         }
     }
 
@@ -184,6 +190,7 @@ impl RpcStateReader {
             retry_config: RetryConfig::default(),
             chain_info,
             contract_class_mapping_dumper,
+            client: BlockingClient::new(),
         }
     }
 
@@ -210,8 +217,8 @@ impl RpcStateReader {
             "params": json!(params),
         });
 
-        let client = BlockingClient::new();
-        let response = client
+        let response = self
+            .client
             .post(self.config.url.clone())
             .header("Content-Type", "application/json")
             .json(&request_body)

@@ -25,6 +25,7 @@ fn rpc_state_reader_from_latest(config: &RpcStateReaderConfig) -> RpcStateReader
         retry_config: RetryConfig::default(),
         chain_info: get_chain_info(&ChainId::Mainnet, None),
         contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
+        client: reqwest::blocking::Client::new(),
     }
 }
 

@@ -58,6 +58,7 @@ async fn test_simulate_and_get_initial_reads() {
         retry_config: RetryConfig::default(),
         chain_info: get_chain_info(&ChainId::Mainnet, None),
         contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
+        client: reqwest::blocking::Client::new(),
     };
 
     let invoke_args = invoke_tx_args!();
