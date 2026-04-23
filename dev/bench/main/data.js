@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776934283525,
+  "lastUpdate": 1776944555768,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2719,6 +2719,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1338.2769015899999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "569494611a7f3397860e90cf6dcfe0cb2ba136d6",
+          "message": "apollo_integration_tests: make node allocation and setup dynamic (#13734)",
+          "timestamp": "2026-04-23T11:07:00Z",
+          "tree_id": "0f2900edef4cf2b3ac50fce686e809f3d4a32139",
+          "url": "https://github.com/starkware-libs/sequencer/commit/569494611a7f3397860e90cf6dcfe0cb2ba136d6"
+        },
+        "date": 1776944555393,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 849.6576381799999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1310.44945534,
             "unit": "ms"
           }
         ]
