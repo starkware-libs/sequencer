@@ -3,6 +3,7 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::time::Duration;
 
 use clap::Parser;
+use message::METADATA_SIZE;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use tokio_metrics::RuntimeMetricsReporterBuilder;
 use tracing::Level;
@@ -12,13 +13,15 @@ mod message_test;
 
 mod handlers;
 mod message;
+mod message_index_tracker;
 pub mod metrics;
 mod protocol;
 mod stress_test_node;
 
 use apollo_network_benchmark::node_args::NodeArgs;
 use metrics::register_metrics;
-use stress_test_node::BroadcastNetworkStressTestNode;
+use stress_test_node::StressTestNode;
+use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -35,9 +38,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::subscriber::set_global_default(
         tracing_subscriber::FmtSubscriber::builder().with_max_level(level).finish(),
     )
-    .expect("Failed to set global default subscriber");
+    .expect("set_global_default only fails if another subscriber was already installed");
 
-    println!("Starting network stress test with args:\n{args:?}");
+    info!("Starting network stress test with args: {args:?}");
+
+    if args.user.message_size_bytes < *METADATA_SIZE {
+        return Err(format!(
+            "--message-size-bytes must be at least {} (the metadata header size); got {}",
+            *METADATA_SIZE, args.user.message_size_bytes
+        )
+        .into());
+    }
+
+    // tokio::time::interval panics on zero period; reject up-front with a clear error
+    // instead of letting the panic surface inside the broadcast task.
+    if args.user.heartbeat_millis == 0 {
+        return Err("--heartbeat-millis must be greater than 0".into());
+    }
 
     // Set up metrics
     let builder = PrometheusBuilder::new().with_http_listener(SocketAddr::V4(SocketAddrV4::new(
@@ -57,6 +74,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Create and run the stress test node
-    let stress_test_node = BroadcastNetworkStressTestNode::new(args).await;
+    let stress_test_node = StressTestNode::new(args);
     stress_test_node.run().await
 }

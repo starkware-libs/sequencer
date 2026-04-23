@@ -2139,8 +2139,11 @@ dependencies = [
 name = "apollo_network_benchmark"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "apollo_metrics",
  "apollo_network",
+ "assert_matches",
+ "chrono",
  "clap",
  "futures",
  "lazy_static",
@@ -2148,8 +2151,10 @@ dependencies = [
  "metrics-exporter-prometheus",
  "rstest",
  "serde",
+ "serde_json",
  "tokio",
  "tokio-metrics",
+ "tokio-stream",
  "tracing",
  "tracing-subscriber",
 ]
