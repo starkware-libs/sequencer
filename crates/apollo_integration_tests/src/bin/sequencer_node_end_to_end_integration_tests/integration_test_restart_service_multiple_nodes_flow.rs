@@ -5,8 +5,8 @@ use apollo_deployments::service::NodeService;
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::integration_test_manager::IntegrationTestManager;
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
+use apollo_integration_tests::utils::NodeDescriptor;
 use starknet_api::block::BlockNumber;
-use static_assertions::const_assert;
 use strum::IntoEnumIterator;
 use tracing::info;
 
@@ -17,22 +17,18 @@ async fn main() {
     const BLOCK_TO_WAIT_FOR_INCREMENT: usize = 5;
     const N_INVOKE_TXS: usize = 20;
     const N_L1_HANDLER_TXS: usize = 1;
-    /// The number of consolidated local sequencers that participate in the test.
-    const N_CONSOLIDATED_SEQUENCERS: usize = 0;
-    /// The number of distributed remote sequencers that participate in the test.
-    const N_DISTRIBUTED_SEQUENCERS: usize = 0;
-    /// The number of hybrid sequencers that participate in the test.
-    const N_HYBRID_SEQUENCERS: usize = 5;
 
-    // This test assumes that there are no consolidated or distributed sequencers.
-    const_assert!(N_CONSOLIDATED_SEQUENCERS == 0);
-    const_assert!(N_DISTRIBUTED_SEQUENCERS == 0);
+    let node_descriptors = vec![
+        NodeDescriptor::hybrid(),
+        NodeDescriptor::hybrid(),
+        NodeDescriptor::hybrid(),
+        NodeDescriptor::hybrid(),
+        NodeDescriptor::hybrid(),
+    ];
 
     // Get the sequencer configurations.
     let mut integration_test_manager = IntegrationTestManager::new(
-        N_CONSOLIDATED_SEQUENCERS,
-        N_DISTRIBUTED_SEQUENCERS,
-        N_HYBRID_SEQUENCERS,
+        node_descriptors,
         None,
         TestIdentifier::RestartServiceMultipleNodesFlowIntegrationTest,
     )

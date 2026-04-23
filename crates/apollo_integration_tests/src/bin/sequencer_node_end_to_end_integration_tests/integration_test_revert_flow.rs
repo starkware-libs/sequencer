@@ -4,6 +4,7 @@ use std::time::Duration;
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::integration_test_manager::IntegrationTestManager;
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
+use apollo_integration_tests::utils::NodeDescriptor;
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::SequencerNodeConfig;
 use serde_json::Value;
@@ -22,22 +23,22 @@ async fn main() {
 
     const N_INVOKE_TXS: usize = 50;
     const N_L1_HANDLER_TXS: usize = 5;
-    /// The number of consolidated local sequencers that participate in the test.
-    const N_CONSOLIDATED_SEQUENCERS: usize = 5;
-    /// The number of hybrid sequencers that participate in the test.
-    const N_HYBRID_SEQUENCERS: usize = 0;
-    /// The number of distributed remote sequencers that participate in the test.
-    const N_DISTRIBUTED_SEQUENCERS: usize = 0;
 
     const AWAIT_REVERT_INTERVAL_MS: u64 = 500;
     const MAX_ATTEMPTS: usize = 50;
     const AWAIT_REVERT_TIMEOUT_DURATION: Duration = Duration::from_secs(15);
 
+    let node_descriptors = vec![
+        NodeDescriptor::consolidated(),
+        NodeDescriptor::consolidated(),
+        NodeDescriptor::consolidated(),
+        NodeDescriptor::consolidated(),
+        NodeDescriptor::consolidated(),
+    ];
+
     // Get the sequencer configurations.
     let mut integration_test_manager = IntegrationTestManager::new(
-        N_CONSOLIDATED_SEQUENCERS,
-        N_DISTRIBUTED_SEQUENCERS,
-        N_HYBRID_SEQUENCERS,
+        node_descriptors,
         None,
         TestIdentifier::RevertFlowIntegrationTest,
     )

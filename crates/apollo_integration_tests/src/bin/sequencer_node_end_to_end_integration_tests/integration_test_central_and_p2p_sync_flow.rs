@@ -1,6 +1,7 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::integration_test_manager::IntegrationTestManager;
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
+use apollo_integration_tests::utils::NodeDescriptor;
 use apollo_node_config::component_execution_config::{
     ActiveComponentExecutionMode,
     ReactiveComponentExecutionMode,
@@ -14,18 +15,14 @@ use tracing::info;
 async fn main() {
     integration_test_setup("sync").await;
     const BLOCK_TO_WAIT_FOR: BlockNumber = BlockNumber(20);
-    /// The number of consolidated local sequencers that participate in the test.
-    const N_CONSOLIDATED_SEQUENCERS: usize = 2;
-    /// The number of distributed remote sequencers that participate in the test.
-    const N_DISTRIBUTED_SEQUENCERS: usize = 0;
-    /// The number of hybrid sequencers that participate in the test.
-    const N_HYBRID_SEQUENCERS: usize = 0;
+    // Node layout (index → type): 0 = consolidated, 1 = consolidated.
+    // Node 1 is configured as the central sync node.
     const CENTRAL_SYNC_NODE: usize = 1;
 
+    let node_descriptors = vec![NodeDescriptor::consolidated(), NodeDescriptor::consolidated()];
+
     let mut integration_test_manager = IntegrationTestManager::new(
-        N_CONSOLIDATED_SEQUENCERS,
-        N_DISTRIBUTED_SEQUENCERS,
-        N_HYBRID_SEQUENCERS,
+        node_descriptors,
         None,
         TestIdentifier::SyncFlowIntegrationTest,
     )
