@@ -71,7 +71,7 @@ pub type CendeAmbassadorResult<T> = Result<T, CendeAmbassadorError>;
 
 /// A chunk of all the data to write to Aersopike.
 #[derive(Debug, Serialize)]
-pub(crate) struct AerospikeBlob {
+pub struct AerospikeBlob {
     block_number: BlockNumber,
     state_diff: CentralStateDiff,
     // The batcher may return a `None` compressed state diff if it is disabled in the
@@ -356,24 +356,24 @@ pub struct InternalTransactionWithReceipt {
 
 #[derive(Debug, Default)]
 pub struct BlobParameters {
-    pub(crate) block_info: BlockInfo,
-    pub(crate) state_diff: ThinStateDiff,
-    pub(crate) compressed_state_diff: Option<CommitmentStateDiff>,
-    pub(crate) bouncer_weights: BouncerWeights,
-    pub(crate) fee_market_info: FeeMarketInfo,
-    pub(crate) transactions_with_execution_infos: Vec<InternalTransactionWithReceipt>,
-    pub(crate) casm_hash_computation_data_sierra_gas: CasmHashComputationData,
-    pub(crate) casm_hash_computation_data_proving_gas: CasmHashComputationData,
+    pub block_info: BlockInfo,
+    pub state_diff: ThinStateDiff,
+    pub compressed_state_diff: Option<CommitmentStateDiff>,
+    pub bouncer_weights: BouncerWeights,
+    pub fee_market_info: FeeMarketInfo,
+    pub transactions_with_execution_infos: Vec<InternalTransactionWithReceipt>,
+    pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
+    pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
     // TODO(dvir): consider passing the execution_infos from the batcher as a string that
     // serialized in the correct format from the batcher.
-    pub(crate) compiled_class_hashes_for_migration: CompiledClassHashesForMigration,
-    pub(crate) proposal_commitment: ProposalCommitment,
-    pub(crate) parent_proposal_commitment: Option<ProposalCommitment>,
-    pub(crate) recent_block_hashes: Vec<BlockHashAndNumber>,
+    pub compiled_class_hashes_for_migration: CompiledClassHashesForMigration,
+    pub proposal_commitment: ProposalCommitment,
+    pub parent_proposal_commitment: Option<ProposalCommitment>,
+    pub recent_block_hashes: Vec<BlockHashAndNumber>,
 }
 
 impl AerospikeBlob {
-    async fn from_blob_parameters_and_class_manager(
+    pub async fn from_blob_parameters_and_class_manager(
         blob_parameters: BlobParameters,
         class_manager: SharedClassManagerClient,
     ) -> CendeAmbassadorResult<Self> {
