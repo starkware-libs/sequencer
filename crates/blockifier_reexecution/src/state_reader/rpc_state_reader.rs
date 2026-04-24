@@ -344,9 +344,7 @@ impl RpcStateReader {
 
     pub fn get_versioned_constants(&self) -> ReexecutionResult<VersionedConstants> {
         let mut vc = VersionedConstants::get(&self.get_starknet_version()?)?.clone();
-        // Casm hash migration is not supported. It requires compiled class hashes, and the
-        // reexecution state readers do not have them.
-        vc.enable_casm_hash_migration = false;
+        vc.disable_casm_hash_migration();
         Ok(vc)
     }
 

@@ -127,7 +127,7 @@ impl BaseBlockInfo {
                 .clone()
         };
         // Disable casm hash migration for virtual block execution.
-        versioned_constants.enable_casm_hash_migration = false;
+        versioned_constants.disable_casm_hash_migration();
         // Enable Sierra gas for all Cairo 1 contracts.
         // Version (0, 0, 0) is reserved for Cairo 0, so set to (0, 0, 1) for Cairo 1.
         versioned_constants.min_sierra_version_for_sierra_gas = SierraVersion::new(0, 0, 1);

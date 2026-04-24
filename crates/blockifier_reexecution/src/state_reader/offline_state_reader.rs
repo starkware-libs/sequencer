@@ -110,9 +110,8 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
                 .api_txs_to_blockifier_txs_next_block(transactions_next_block)
                 .expect("Failed to convert starknet-api transactions to blockifier transactions.");
 
-        // Disable casm hash migration for reexecution.
         let mut versioned_constants = VersionedConstants::get(&starknet_version).unwrap().clone();
-        versioned_constants.enable_casm_hash_migration = false;
+        versioned_constants.disable_casm_hash_migration();
 
         Self {
             offline_state_reader_prev_block,
