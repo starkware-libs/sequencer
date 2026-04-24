@@ -379,9 +379,9 @@ fn make_txs() -> (MockClassManagerClient, Vec<TxPair>) {
     //    sender account.
     // (from this point - all txs include non-zero fees, and no more bootstrap declares)
     // 5. declare the test contract.
-    // TODO(Dori): the rest of the txs.
     // 6. deploy the test contract.
     // 7. deploy another instance of the test contract.
+    // TODO(Dori): the rest of the txs.
     // 8. invoke the test contract: something with a state change.
     // 9. invoke the test contract: test syscalls.
 
@@ -430,6 +430,20 @@ fn make_txs() -> (MockClassManagerClient, Vec<TxPair>) {
         &mut nonce_manager,
     );
 
+    // Deploy the test contract, twice.
+    let (_test_contract_address_0, deploy_test_contract_tx_0) = make_operator_deploy_tx(
+        test_contract,
+        calldata![Felt::ZERO, Felt::ZERO],
+        &mut nonce_manager,
+        true,
+    );
+    let (_test_contract_address_1, deploy_test_contract_tx_1) = make_operator_deploy_tx(
+        test_contract,
+        calldata![Felt::ZERO, Felt::ZERO],
+        &mut nonce_manager,
+        true,
+    );
+
     (
         class_manager,
         vec![
@@ -438,6 +452,8 @@ fn make_txs() -> (MockClassManagerClient, Vec<TxPair>) {
             deploy_operator_account_tx,
             deploy_erc20_tx,
             test_contract_declare_tx,
+            deploy_test_contract_tx_0,
+            deploy_test_contract_tx_1,
         ],
     )
 }
