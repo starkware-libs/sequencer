@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776967059093,
+  "lastUpdate": 1777023036489,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2991,6 +2991,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1496.38357049,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "21861c4fce19d4e9219d079e5b3743503044de99",
+          "message": "apollo_proc_macros: move COLLECT_PROFILING_METRICS out of papyrus_common (#13848)",
+          "timestamp": "2026-04-24T09:04:24Z",
+          "tree_id": "b6cb75bf78800df486a552530d90f9a52412e9c6",
+          "url": "https://github.com/starkware-libs/sequencer/commit/21861c4fce19d4e9219d079e5b3743503044de99"
+        },
+        "date": 1777023036086,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 931.73995201,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1310.30664015,
             "unit": "ms"
           }
         ]
