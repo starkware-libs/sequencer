@@ -642,3 +642,22 @@ impl From<StateMaps> for StarknetClientStateDiff {
         })
     }
 }
+
+#[cfg(any(test, feature = "testing"))]
+impl StarknetClientStateDiff {
+    pub fn sort(&mut self) {
+        // Storage diffs also need inner sorting: sort each address diffs, then sort the addresses.
+        self.0.storage_diffs.sort_by_key(|address, _| *address);
+        for (_, address_diffs) in self.0.storage_diffs.iter_mut() {
+            address_diffs.sort();
+        }
+        self.0.deployed_contracts.sort_by_key(|deployed_contract| deployed_contract.address);
+        self.0.declared_classes.sort_by_key(|declared_class| declared_class.class_hash);
+        self.0.old_declared_contracts.sort();
+        self.0.nonces.sort_by_key(|address, _nonce| *address);
+        self.0.replaced_classes.sort_by_key(|replaced_class| replaced_class.address);
+        self.0
+            .migrated_compiled_classes
+            .sort_by_key(|migrated_compiled_class| migrated_compiled_class.class_hash);
+    }
+}

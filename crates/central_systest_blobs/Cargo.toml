@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "Keeps blob JSONs for centralized system test, and tests for regression"
 
 [dev-dependencies]
-apollo_batcher.workspace = true
+apollo_batcher = { workspace = true, features = ["testing"] }
 apollo_class_manager_types = { workspace = true, features = ["testing"] }
 apollo_consensus.workspace = true
 apollo_consensus_orchestrator.workspace = true
