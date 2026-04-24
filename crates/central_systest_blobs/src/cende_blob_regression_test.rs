@@ -35,6 +35,7 @@ use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use expect_test::{expect, expect_file, Expect};
 use mockall::predicate::eq;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
@@ -447,31 +448,61 @@ fn make_txs() -> (MockClassManagerClient, Vec<TxPair>) {
     );
 
     // Deploy the test contract, twice.
-    let (_test_contract_address_0, deploy_test_contract_tx_0) = make_operator_deploy_tx(
+    let (test_contract_address_0, deploy_test_contract_tx_0) = make_operator_deploy_tx(
         test_contract,
         calldata![Felt::ZERO, Felt::ZERO],
         &mut nonce_manager,
         true,
     );
-    let (_test_contract_address_1, deploy_test_contract_tx_1) = make_operator_deploy_tx(
+    let (test_contract_address_1, deploy_test_contract_tx_1) = make_operator_deploy_tx(
         test_contract,
         calldata![Felt::ZERO, Felt::ZERO],
         &mut nonce_manager,
         true,
     );
 
-    (
-        class_manager,
-        vec![
-            erc20_declare_tx,
-            account_with_real_validate_declare_tx,
-            deploy_operator_account_tx,
-            deploy_erc20_tx,
-            test_contract_declare_tx,
-            deploy_test_contract_tx_0,
-            deploy_test_contract_tx_1,
-        ],
-    )
+    let init_txs = vec![
+        erc20_declare_tx,
+        account_with_real_validate_declare_tx,
+        deploy_operator_account_tx,
+        deploy_erc20_tx,
+        test_contract_declare_tx,
+        deploy_test_contract_tx_0,
+        deploy_test_contract_tx_1,
+    ];
+
+    // Create some interesting invokes.
+    let mut make_invoke = |contract_address: ContractAddress,
+                           function_name: &str,
+                           calldata: &[Felt]| {
+        make_operator_invoke_tx(contract_address, function_name, calldata, &mut nonce_manager, true)
+    };
+    let invokes = vec![
+        make_invoke(test_contract_address_0, "test_increment", &[Felt::ZERO; 3]),
+        make_invoke(test_contract_address_1, "test_storage_read_write", &[Felt::ONE, Felt::TWO]),
+        make_invoke(test_contract_address_1, "test_storage_write", &[Felt::THREE, Felt::ONE]),
+        make_invoke(test_contract_address_0, "write_and_revert", &[Felt::from(7u8), Felt::ONE]),
+        make_invoke(
+            test_contract_address_1,
+            "test_call_contract",
+            &[
+                **test_contract_address_0,
+                selector_from_name("test_storage_read_write").0,
+                Felt::TWO, // calldata length.
+                Felt::from(0x1000),
+                Felt::from(0x1000),
+            ],
+        ),
+        // "write_1" also emits an event and sends an L1 message, so it's interesting.
+        make_invoke(test_contract_address_1, "write_1", &[Felt::TWO]),
+        make_invoke(
+            test_contract_address_0,
+            "catch_write_revert_panic",
+            &[**test_contract_address_1, Felt::from(0x2000)],
+        ),
+    ];
+
+    (class_manager, [init_txs, invokes].concat())
 }
 
 // =====================
