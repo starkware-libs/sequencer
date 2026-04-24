@@ -247,7 +247,7 @@ def dashboard_builder(args: argparse.Namespace) -> None:
             output_dir = f"{args.out_dir}/dashboards"
             os.makedirs(output_dir, exist_ok=True)
             dashboard_full_path = dashboard_file_name(output_dir, dashboard_name)
-            json_data = json.dumps(dashboard, indent=1, ensure_ascii=False)
+            json_data = json.dumps(dashboard, separators=(",", ":"), ensure_ascii=False)
             assert len(json_data) < MAX_ALLOWED_JSON_SIZE, "Grafana dashboard JSON is too large"
             with open(dashboard_full_path, "w", encoding="utf-8") as f:
                 f.write(json_data)
