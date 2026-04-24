@@ -31,6 +31,7 @@ use blockifier::transaction::account_transaction::AccountTransaction as Blockifi
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTx;
 use blockifier::transaction::transactions::ExecutableTransaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use expect_test::expect_file;
 use mockall::predicate::eq;
@@ -44,30 +45,42 @@ use starknet_api::block_hash::block_hash_calculator::{
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
-use starknet_api::core::{ChainId, Nonce, OsChainInfo};
+use starknet_api::core::{ChainId, ContractAddress, Nonce, OsChainInfo};
 use starknet_api::data_availability::{DataAvailabilityMode, L1DataAvailabilityMode};
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableAccountTx,
     DeclareTransaction as ExecutableDeclareTransaction,
     DeployAccountTransaction as ExecutableDeployAccountTx,
+    InvokeTransaction as ExecutableInvokeTx,
     Transaction as ExecutableTx,
 };
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StateRoots;
 use starknet_api::rpc_transaction::{
     InternalRpcDeclareTransactionV3,
     InternalRpcDeployAccountTransaction,
+    InternalRpcInvokeTransactionV3,
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
 };
 use starknet_api::state::ThinStateDiff;
-use starknet_api::test_utils::TEST_SEQUENCER_ADDRESS;
+use starknet_api::test_utils::{
+    NonceManager,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    DEFAULT_STRK_L2_GAS_PRICE,
+    TEST_SEQUENCER_ADDRESS,
+};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
+    Calldata,
     ContractAddressSalt,
     PaymasterData,
+    ProofFacts,
+    ResourceBounds,
     Tip,
     TransactionSignature,
 };
@@ -75,6 +88,7 @@ use starknet_api::transaction::{
     CalculateContractAddress,
     DeclareTransaction,
     DeployAccountTransaction,
+    InvokeTransaction,
     TransactionHash,
     TransactionHasher,
     TransactionOffsetInBlock,
@@ -105,6 +119,22 @@ const PRECONFIRMED_BLOCK_PATH: &str = "../resources/preconfirmed_block.json";
 
 type TxPair = (ExecutableAccountTx, InternalConsensusTransaction);
 
+static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<AllResourceBounds> =
+    LazyLock::new(|| AllResourceBounds {
+        l1_gas: ResourceBounds {
+            max_amount: GasAmount(100_000_000),
+            max_price_per_unit: DEFAULT_STRK_L1_GAS_PRICE.into(),
+        },
+        l2_gas: ResourceBounds {
+            max_amount: GasAmount(100_000_000_000_000_000),
+            max_price_per_unit: DEFAULT_STRK_L2_GAS_PRICE.into(),
+        },
+        l1_data_gas: ResourceBounds {
+            max_amount: GasAmount(100_000),
+            max_price_per_unit: DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
+        },
+    });
+
 // =====================
 // Tx generation
 // =====================
@@ -112,6 +142,15 @@ type TxPair = (ExecutableAccountTx, InternalConsensusTransaction);
 fn sign_tx(tx_hash: TransactionHash, private_key: Felt) -> TransactionSignature {
     let sig = ecdsa_sign(&private_key, &tx_hash.0).unwrap();
     TransactionSignature(Arc::new(vec![sig.r, sig.s]))
+}
+
+fn single_multicall_data(
+    sender: ContractAddress,
+    function_name: &str,
+    calldata: &[Felt],
+) -> Calldata {
+    let single_calldata = create_calldata(sender, function_name, calldata);
+    Calldata(Arc::new([vec![Felt::ONE], single_calldata.0.as_slice().to_vec()].concat()))
 }
 
 fn boostrap_declare_tx(
@@ -172,7 +211,10 @@ fn boostrap_declare_tx(
     (executable.into(), internal)
 }
 
-fn make_free_deploy_account_tx(account: FeatureContract) -> TxPair {
+fn make_free_deploy_account_tx(
+    nonce_manager: &mut NonceManager,
+    account: FeatureContract,
+) -> (ContractAddress, TxPair) {
     let class_hash = account.get_sierra().calculate_class_hash();
     let public_key = get_public_key(&OPERATOR_PRIVATE_KEY);
     let constructor_calldata = calldata![public_key];
@@ -199,6 +241,9 @@ fn make_free_deploy_account_tx(account: FeatureContract) -> TxPair {
     let tx_hash = without_hash_unsigned.calculate_transaction_hash(&CHAIN_ID).unwrap();
     let signature = sign_tx(tx_hash, OPERATOR_PRIVATE_KEY);
 
+    // Bump nonce for next txs.
+    nonce_manager.next(contract_address);
+
     let mut rpc_tx_signed = rpc_tx_unsigned;
     rpc_tx_signed.signature = signature;
     let without_hash =
@@ -216,6 +261,63 @@ fn make_free_deploy_account_tx(account: FeatureContract) -> TxPair {
         tx: without_hash,
         tx_hash,
     });
+    (contract_address, (executable.into(), internal))
+}
+
+fn make_operator_deploy_tx(
+    operator_address: ContractAddress,
+    contract_to_deploy: FeatureContract,
+    constructor_calldata: Calldata,
+    nonce_manager: &mut NonceManager,
+    with_fee_charge: bool,
+) -> (ExecutableAccountTx, InternalConsensusTransaction) {
+    let class_hash = contract_to_deploy.get_sierra().calculate_class_hash();
+    let contract_address_salt = ContractAddressSalt::default();
+    let nonce = nonce_manager.next(operator_address);
+    let resource_bounds = if with_fee_charge {
+        NON_TRIVIAL_RESOURCE_BOUNDS.clone()
+    } else {
+        AllResourceBounds::new_unlimited_gas_no_fee_enforcement()
+    };
+    let calldata = single_multicall_data(
+        operator_address,
+        "deploy_contract",
+        &[
+            vec![
+                *class_hash,
+                contract_address_salt.0,
+                Felt::try_from(constructor_calldata.0.len()).unwrap(),
+            ],
+            constructor_calldata.0.as_slice().to_vec(),
+            vec![false.into()], // Deploy from zero.
+        ]
+        .concat(),
+    );
+    let rpc_tx_unsigned = InternalRpcInvokeTransactionV3 {
+        sender_address: operator_address,
+        calldata,
+        signature: TransactionSignature::default(),
+        resource_bounds,
+        tip: Tip::default(),
+        nonce,
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+        account_deployment_data: AccountDeploymentData::default(),
+        paymaster_data: PaymasterData::default(),
+        proof_facts: ProofFacts::default(),
+    };
+    let tx_hash =
+        rpc_tx_unsigned.calculate_transaction_hash(&CHAIN_ID, &TransactionVersion::THREE).unwrap();
+    let signature = sign_tx(tx_hash, OPERATOR_PRIVATE_KEY);
+    let mut rpc_tx_signed = rpc_tx_unsigned;
+    rpc_tx_signed.signature = signature;
+    let without_hash = InternalRpcTransactionWithoutTxHash::Invoke(rpc_tx_signed.clone());
+    let executable =
+        ExecutableInvokeTx::create(InvokeTransaction::V3(rpc_tx_signed.into()), &CHAIN_ID).unwrap();
+    let internal = InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
+        tx: without_hash,
+        tx_hash,
+    });
     (executable.into(), internal)
 }
 
@@ -224,16 +326,17 @@ fn make_txs() -> (MockClassManagerClient, Vec<TxPair>) {
     // 1. bootstrap declare of an ERC20 contract.
     // 2. bootstrap declare of an account with real validate.
     // 3. deploy account (with zero fees).
-    // TODO(Dori): the rest of the txs.
     // 4. deploy ERC20 contract from the account (with zero fees), while minting some tokens to the
     //    sender account.
     // (from this point - all txs include non-zero fees, and no more bootstrap declares)
+    // TODO(Dori): the rest of the txs.
     // 5. declare the test contract.
     // 6. deploy the test contract.
     // 7. deploy another instance of the test contract.
     // 8. invoke the test contract: something with a state change.
     // 9. invoke the test contract: test syscalls.
 
+    let mut nonce_manager = NonceManager::default();
     let mut class_manager = MockClassManagerClient::new();
     let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let account_with_real_validate = FeatureContract::AccountWithRealValidate(RunnableCairo1::Casm);
@@ -244,10 +347,36 @@ fn make_txs() -> (MockClassManagerClient, Vec<TxPair>) {
         boostrap_declare_tx(&mut class_manager, account_with_real_validate);
 
     // Free deploy-account.
-    let deploy_operator_account_tx = make_free_deploy_account_tx(account_with_real_validate);
+    let (operator_address, deploy_operator_account_tx) =
+        make_free_deploy_account_tx(&mut nonce_manager, account_with_real_validate);
+
+    // Deploy ERC20 contract from the account (with zero fees), while minting some tokens to the
+    // sender account.
+    let deploy_erc20_tx = make_operator_deploy_tx(
+        operator_address,
+        erc20_contract,
+        calldata![
+            Felt::from_bytes_be_slice(b"StarkNet Token"),
+            Felt::from_bytes_be_slice(b"STRK"),
+            Felt::from(18u8),
+            u128::MAX.into(),   // initial supply lsb
+            0.into(),           // initial supply msb
+            **operator_address, // recipient address
+            **operator_address, // permitted minter
+            **operator_address, // provisional_governance_admin
+            10.into()           // upgrade delay
+        ],
+        &mut nonce_manager,
+        false,
+    );
     (
         class_manager,
-        vec![erc20_declare_tx, account_with_real_validate_declare_tx, deploy_operator_account_tx],
+        vec![
+            erc20_declare_tx,
+            account_with_real_validate_declare_tx,
+            deploy_operator_account_tx,
+            deploy_erc20_tx,
+        ],
     )
 }
 
@@ -446,11 +575,13 @@ fn make_preconfirmed_block(
             &execution_info,
             None,
         ));
-        let tx_state_diff = StarknetClientStateDiff::from(state_changes.state_maps).0;
+        let mut tx_state_diff = StarknetClientStateDiff::from(state_changes.state_maps);
+        // To keep the output deterministic, sort the state diff.
+        tx_state_diff.sort();
 
         transactions.push(CendePreconfirmedTransaction::from(internal.clone()));
         transaction_receipts.push(Some(receipt));
-        transaction_state_diffs.push(Some(tx_state_diff));
+        transaction_state_diffs.push(Some(tx_state_diff.0));
     }
 
     CendeWritePreconfirmedBlock {
