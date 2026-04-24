@@ -24,7 +24,6 @@ futures.workspace = true
 futures-util.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 lru.workspace = true
-metrics.workspace = true
 papyrus_base_layer.workspace = true
 papyrus_common.workspace = true
 reqwest = { workspace = true, features = ["blocking", "json"] }
@@ -42,13 +41,9 @@ assert_matches.workspace = true
 mockall.workspace = true
 pretty_assertions.workspace = true
 simple_logger.workspace = true
-starknet_api = { workspace = true, features = ["testing"] }
 starknet-types-core.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
 tokio-stream.workspace = true
-
-[package.metadata.cargo-machete]
-# `metrics` is used in `latency_histogram` but is falsely detected as unused.
-ignored = ["metrics"]
 
 [lints]
 workspace = true
