@@ -421,6 +421,38 @@ async fn make_data() -> (Vec<AerospikeBlob>, CendeWritePreconfirmedBlock) {
     (blobs, preconfirmed_block)
 }
 
+/// Sorts arrays of HashSet-backed fields that have non-deterministic iteration order.
+/// Object keys are already deterministic because serde_json::Value uses BTreeMap.
+fn normalize_set_arrays(value: &mut serde_json::Value) {
+    const SET_FIELDS: &[&str] =
+        &["accessed_blocks", "accessed_contract_addresses", "accessed_storage_keys"];
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, val) in map.iter_mut() {
+                if SET_FIELDS.contains(&key.as_str()) {
+                    if let serde_json::Value::Array(arr) = val {
+                        arr.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+                    }
+                } else {
+                    normalize_set_arrays(val);
+                }
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for item in arr.iter_mut() {
+                normalize_set_arrays(item);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn to_normalized_json(value: &impl serde::Serialize) -> String {
+    let mut json_value = serde_json::to_value(value).unwrap();
+    normalize_set_arrays(&mut json_value);
+    format!("{}\n", serde_json::to_string_pretty(&json_value).unwrap())
+}
+
 // =====================
 // Test
 // =====================
@@ -431,7 +463,6 @@ async fn test_make_data() {
     expect_file![CHAIN_INFO_PATH].assert_eq(
         &serde_json::to_string_pretty(&OsChainInfo::from(&*CHAIN_INFO).to_hex_hashmap()).unwrap(),
     );
-    expect_file![BLOB_LIST_PATH].assert_eq(&serde_json::to_string_pretty(&blobs).unwrap());
-    expect_file![PRECONFIRMED_BLOCK_PATH]
-        .assert_eq(&serde_json::to_string_pretty(&preconfirmed_block).unwrap());
+    expect_file![BLOB_LIST_PATH].assert_eq(&to_normalized_json(&blobs));
+    expect_file![PRECONFIRMED_BLOCK_PATH].assert_eq(&to_normalized_json(&preconfirmed_block));
 }

@@ -4869,6 +4869,7 @@ dependencies = [
  "blockifier_test_utils",
  "expect-test",
  "mockall",
+ "serde",
  "serde_json",
  "starknet_api",
  "starknet_committer",
