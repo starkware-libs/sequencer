@@ -56351,5 +56351,295 @@
         }
       }
     ]
+  },
+  {
+    "block_number": 2,
+    "bouncer_weights": {
+      "l1_gas": 2500000,
+      "message_segment_length": 3700,
+      "n_events": 5000,
+      "n_txs": 600,
+      "proving_gas": 5000000000,
+      "sierra_gas": 5000000000,
+      "state_diff_size": 4000
+    },
+    "casm_hash_computation_data_proving_gas": {
+      "class_hash_to_casm_hash_computation_gas": {},
+      "gas_without_casm_hash_computation": 0
+    },
+    "casm_hash_computation_data_sierra_gas": {
+      "class_hash_to_casm_hash_computation_gas": {},
+      "gas_without_casm_hash_computation": 0
+    },
+    "compiled_class_hashes_for_migration": [],
+    "compiled_classes": [],
+    "compressed_state_diff": {
+      "address_to_class_hash": {
+        "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955": "0x77fcf11f339d18db724aa522729b4c0e4e04aa85a6f104c10b469c020207dc1"
+      },
+      "block_info": {
+        "block_number": 2,
+        "block_timestamp": 1002,
+        "l1_data_gas_price": {
+          "price_in_fri": "0x1",
+          "price_in_wei": "0x1"
+        },
+        "l1_gas_price": {
+          "price_in_fri": "0x1",
+          "price_in_wei": "0x1"
+        },
+        "l2_gas_price": {
+          "price_in_fri": "0x1",
+          "price_in_wei": "0x1"
+        },
+        "sequencer_address": "0x1000",
+        "starknet_version": "0.14.3",
+        "use_kzg_da": false
+      },
+      "class_hash_to_compiled_class_hash": {},
+      "nonces": {
+        "L1": {
+          "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955": "0x1"
+        }
+      },
+      "storage_updates": {
+        "L1": {
+          "0x2": {
+            "0x0": "0x82",
+            "0x3b28019ccfdbd30ffc65951d94bb85c9e2b8434111a000b5afd533ce65f57a4": "0x80",
+            "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955": "0x81"
+          },
+          "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955": {
+            "0x3b28019ccfdbd30ffc65951d94bb85c9e2b8434111a000b5afd533ce65f57a4": "0x411494b501a98abd8262b0da1351e17899a0c4ef23dd2f96fec5ba847310b20"
+          }
+        }
+      }
+    },
+    "contract_classes": [],
+    "execution_infos": [
+      {
+        "actual_fee": "0xf8a7b",
+        "actual_resources": {
+          "n_steps": 4602,
+          "pedersen_builtin": 12,
+          "poseidon_builtin": 12,
+          "range_check_builtin": 93
+        },
+        "da_gas": {
+          "l1_data_gas": 0,
+          "l1_gas": 3305,
+          "l2_gas": 0
+        },
+        "execute_call_info": {
+          "builtin_counters": {
+            "range_check": 3
+          },
+          "call": {
+            "call_type": "Call",
+            "calldata": [
+              "0x411494b501a98abd8262b0da1351e17899a0c4ef23dd2f96fec5ba847310b20"
+            ],
+            "caller_address": "0x0",
+            "class_hash": "0x77fcf11f339d18db724aa522729b4c0e4e04aa85a6f104c10b469c020207dc1",
+            "code_address": null,
+            "entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",
+            "entry_point_type": "CONSTRUCTOR",
+            "initial_gas": 100000000,
+            "storage_address": "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955"
+          },
+          "execution": {
+            "cairo_native": false,
+            "events": [],
+            "failed": false,
+            "gas_consumed": 48710,
+            "l2_to_l1_messages": [],
+            "retdata": []
+          },
+          "inner_calls": [],
+          "resources": {
+            "builtin_instance_counter": {},
+            "n_memory_holes": 0,
+            "n_steps": 0
+          },
+          "storage_access_tracker": {
+            "accessed_blocks": [],
+            "accessed_contract_addresses": [],
+            "accessed_storage_keys": [
+              "0x3b28019ccfdbd30ffc65951d94bb85c9e2b8434111a000b5afd533ce65f57a4"
+            ],
+            "read_block_hash_values": [],
+            "read_class_hash_values": [],
+            "storage_read_values": []
+          },
+          "syscalls_usage": {
+            "StorageWrite": {
+              "call_count": 1,
+              "linear_factor": 0
+            }
+          },
+          "tracked_resource": "SierraGas"
+        },
+        "fee_transfer_call_info": null,
+        "revert_error": null,
+        "total_gas": {
+          "l1_data_gas": 0,
+          "l1_gas": 3856,
+          "l2_gas": 1014635
+        },
+        "validate_call_info": {
+          "builtin_counters": {
+            "ec_op": 3,
+            "range_check": 12
+          },
+          "call": {
+            "call_type": "Call",
+            "calldata": [
+              "0x77fcf11f339d18db724aa522729b4c0e4e04aa85a6f104c10b469c020207dc1",
+              "0x0",
+              "0x411494b501a98abd8262b0da1351e17899a0c4ef23dd2f96fec5ba847310b20"
+            ],
+            "caller_address": "0x0",
+            "class_hash": "0x77fcf11f339d18db724aa522729b4c0e4e04aa85a6f104c10b469c020207dc1",
+            "code_address": null,
+            "entry_point_selector": "0x36fcbf06cd96843058359e1a75928beacfac10727dab22a3972f0af8aa92895",
+            "entry_point_type": "EXTERNAL",
+            "initial_gas": 100000000,
+            "storage_address": "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955"
+          },
+          "execution": {
+            "cairo_native": false,
+            "events": [],
+            "failed": false,
+            "gas_consumed": 68565,
+            "l2_to_l1_messages": [],
+            "retdata": [
+              "0x56414c4944"
+            ]
+          },
+          "inner_calls": [],
+          "resources": {
+            "builtin_instance_counter": {},
+            "n_memory_holes": 0,
+            "n_steps": 0
+          },
+          "storage_access_tracker": {
+            "accessed_blocks": [],
+            "accessed_contract_addresses": [],
+            "accessed_storage_keys": [
+              "0x3b28019ccfdbd30ffc65951d94bb85c9e2b8434111a000b5afd533ce65f57a4"
+            ],
+            "read_block_hash_values": [],
+            "read_class_hash_values": [],
+            "storage_read_values": [
+              "0x411494b501a98abd8262b0da1351e17899a0c4ef23dd2f96fec5ba847310b20"
+            ]
+          },
+          "syscalls_usage": {
+            "GetExecutionInfo": {
+              "call_count": 1,
+              "linear_factor": 0
+            },
+            "StorageRead": {
+              "call_count": 1,
+              "linear_factor": 0
+            }
+          },
+          "tracked_resource": "SierraGas"
+        }
+      }
+    ],
+    "fee_market_info": {
+      "l2_gas_consumed": 0,
+      "next_l2_gas_price": "0x0"
+    },
+    "parent_proposal_commitment": "0x19a222cdf0462f1480d7c1da85cf54893508cf39d9a9a461fb44a7e5ce49588",
+    "proposal_commitment": "0x29f84e7d4cbd3ca14a00415639491c8de34c3ef7a65c8a8031ecaf124417850",
+    "recent_block_hashes": [
+      {
+        "block_hash": "0x4f16e5db379024004e213c8e1c3ede5077e7d935ec02f5f6e45a630885f0d03",
+        "block_number": 1
+      }
+    ],
+    "state_diff": {
+      "address_to_class_hash": {
+        "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955": "0x77fcf11f339d18db724aa522729b4c0e4e04aa85a6f104c10b469c020207dc1"
+      },
+      "block_info": {
+        "block_number": 2,
+        "block_timestamp": 1002,
+        "l1_data_gas_price": {
+          "price_in_fri": "0x1",
+          "price_in_wei": "0x1"
+        },
+        "l1_gas_price": {
+          "price_in_fri": "0x1",
+          "price_in_wei": "0x1"
+        },
+        "l2_gas_price": {
+          "price_in_fri": "0x1",
+          "price_in_wei": "0x1"
+        },
+        "sequencer_address": "0x1000",
+        "starknet_version": "0.14.3",
+        "use_kzg_da": false
+      },
+      "class_hash_to_compiled_class_hash": {},
+      "nonces": {
+        "L1": {
+          "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955": "0x1"
+        }
+      },
+      "storage_updates": {
+        "L1": {
+          "0x2": {
+            "0x0": "0x82",
+            "0x3b28019ccfdbd30ffc65951d94bb85c9e2b8434111a000b5afd533ce65f57a4": "0x80",
+            "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955": "0x81"
+          },
+          "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955": {
+            "0x3b28019ccfdbd30ffc65951d94bb85c9e2b8434111a000b5afd533ce65f57a4": "0x411494b501a98abd8262b0da1351e17899a0c4ef23dd2f96fec5ba847310b20"
+          }
+        }
+      }
+    },
+    "transactions": [
+      {
+        "time_created": 1002,
+        "tx": {
+          "class_hash": "0x77fcf11f339d18db724aa522729b4c0e4e04aa85a6f104c10b469c020207dc1",
+          "constructor_calldata": [
+            "0x411494b501a98abd8262b0da1351e17899a0c4ef23dd2f96fec5ba847310b20"
+          ],
+          "contract_address_salt": "0x0",
+          "fee_data_availability_mode": 0,
+          "hash_value": "0x3eb7b9db643a241dbb7bb6fcef605d767e2cd3acd626284587afac4507e52de",
+          "nonce": "0x0",
+          "nonce_data_availability_mode": 0,
+          "paymaster_data": [],
+          "resource_bounds": {
+            "L1_DATA_GAS": {
+              "max_amount": "0x0",
+              "max_price_per_unit": "0x1"
+            },
+            "L1_GAS": {
+              "max_amount": "0x0",
+              "max_price_per_unit": "0x1"
+            },
+            "L2_GAS": {
+              "max_amount": "0x2540be400",
+              "max_price_per_unit": "0x0"
+            }
+          },
+          "sender_address": "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955",
+          "signature": [
+            "0x4bf92970c40634da1a0452af752326723ae810809c676aa06fa5ef76e77cc26",
+            "0x715137c17ff9a873f7d05def6648c93ee7fe0715ad3f21fbb1b59ed76bb1193"
+          ],
+          "tip": "0x0",
+          "type": "DEPLOY_ACCOUNT",
+          "version": "0x3"
+        }
+      }
+    ]
   }
 ]
