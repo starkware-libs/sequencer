@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777023036489,
+  "lastUpdate": 1777026599504,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3025,6 +3025,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1310.30664015,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8a80b28ddd2be410fc7f98d9c2ae070c424e765b",
+          "message": "apollo_proc_macros: re-export metrics crate for downstream usage (#13849)",
+          "timestamp": "2026-04-24T10:14:17Z",
+          "tree_id": "2f86a09983ccbe2a3205c9c741cb7b43a4b08b83",
+          "url": "https://github.com/starkware-libs/sequencer/commit/8a80b28ddd2be410fc7f98d9c2ae070c424e765b"
+        },
+        "date": 1777026599121,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 849.75486333,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1320.15328743,
             "unit": "ms"
           }
         ]
