@@ -22,7 +22,7 @@ use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
-use blockifier::context::{BlockContext, ChainInfo};
+use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::state_api::UpdatableState;
 use blockifier::test_utils::contracts::FeatureContractTrait;
@@ -33,7 +33,7 @@ use blockifier::transaction::transactions::ExecutableTransaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
-use expect_test::expect_file;
+use expect_test::{expect, expect_file, Expect};
 use mockall::predicate::eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::block_hash::block_hash_calculator::{
@@ -45,7 +45,13 @@ use starknet_api::block_hash::block_hash_calculator::{
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
-use starknet_api::core::{ChainId, ContractAddress, Nonce, OsChainInfo};
+use starknet_api::core::{
+    calculate_contract_address,
+    ChainId,
+    ContractAddress,
+    Nonce,
+    OsChainInfo,
+};
 use starknet_api::data_availability::{DataAvailabilityMode, L1DataAvailabilityMode};
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableAccountTx,
@@ -109,8 +115,14 @@ use starknet_types_core::felt::Felt;
 const N_TXS_PER_BLOCK: usize = 1;
 static CHAIN_ID: LazyLock<ChainId> =
     LazyLock::new(|| ChainId::Other("SN_PREINTEGRATION_SEPOLIA".to_string()));
-static CHAIN_INFO: LazyLock<ChainInfo> =
-    LazyLock::new(|| ChainInfo { chain_id: CHAIN_ID.clone(), ..ChainInfo::create_for_testing() });
+static CHAIN_INFO: LazyLock<ChainInfo> = LazyLock::new(|| ChainInfo {
+    chain_id: CHAIN_ID.clone(),
+    fee_token_addresses: FeeTokenAddresses {
+        strk_fee_token_address: FEE_TOKEN_ADDRESS.clone(),
+        eth_fee_token_address: FEE_TOKEN_ADDRESS.clone(),
+    },
+    is_l3: false,
+});
 const OPERATOR_PRIVATE_KEY: Felt = Felt::THREE;
 
 const CHAIN_INFO_PATH: &str = "../resources/chain_info.json";
@@ -134,6 +146,15 @@ static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<AllResourceBounds> =
             max_price_per_unit: DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
         },
     });
+
+const EXPECTED_OPERATOR_ADDRESS: Expect =
+    expect!["0x00f99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955"];
+const EXPECTED_FEE_TOKEN_ADDRESS: Expect =
+    expect!["0x06bd1d71a2fb67a567618584ca31da288dbc2e1a8421e4045e05f52c19bfab83"];
+static OPERATOR_ADDRESS: LazyLock<ContractAddress> =
+    LazyLock::new(|| contract_address!(EXPECTED_OPERATOR_ADDRESS.data));
+static FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> =
+    LazyLock::new(|| contract_address!(EXPECTED_FEE_TOKEN_ADDRESS.data));
 
 // =====================
 // Tx generation
@@ -265,22 +286,28 @@ fn make_free_deploy_account_tx(
 }
 
 fn make_operator_deploy_tx(
-    operator_address: ContractAddress,
     contract_to_deploy: FeatureContract,
     constructor_calldata: Calldata,
     nonce_manager: &mut NonceManager,
     with_fee_charge: bool,
-) -> (ExecutableAccountTx, InternalConsensusTransaction) {
+) -> (ContractAddress, (ExecutableAccountTx, InternalConsensusTransaction)) {
     let class_hash = contract_to_deploy.get_sierra().calculate_class_hash();
     let contract_address_salt = ContractAddressSalt::default();
-    let nonce = nonce_manager.next(operator_address);
+    let contract_address = calculate_contract_address(
+        contract_address_salt,
+        class_hash,
+        &constructor_calldata,
+        OPERATOR_ADDRESS.clone(),
+    )
+    .unwrap();
+    let nonce = nonce_manager.next(OPERATOR_ADDRESS.clone());
     let resource_bounds = if with_fee_charge {
         NON_TRIVIAL_RESOURCE_BOUNDS.clone()
     } else {
         AllResourceBounds::new_unlimited_gas_no_fee_enforcement()
     };
     let calldata = single_multicall_data(
-        operator_address,
+        OPERATOR_ADDRESS.clone(),
         "deploy_contract",
         &[
             vec![
@@ -294,7 +321,7 @@ fn make_operator_deploy_tx(
         .concat(),
     );
     let rpc_tx_unsigned = InternalRpcInvokeTransactionV3 {
-        sender_address: operator_address,
+        sender_address: OPERATOR_ADDRESS.clone(),
         calldata,
         signature: TransactionSignature::default(),
         resource_bounds,
@@ -318,7 +345,7 @@ fn make_operator_deploy_tx(
         tx: without_hash,
         tx_hash,
     });
-    (executable.into(), internal)
+    (contract_address, (executable.into(), internal))
 }
 
 fn make_txs() -> (MockClassManagerClient, Vec<TxPair>) {
@@ -349,26 +376,28 @@ fn make_txs() -> (MockClassManagerClient, Vec<TxPair>) {
     // Free deploy-account.
     let (operator_address, deploy_operator_account_tx) =
         make_free_deploy_account_tx(&mut nonce_manager, account_with_real_validate);
+    EXPECTED_OPERATOR_ADDRESS.assert_eq(&operator_address.to_string());
 
     // Deploy ERC20 contract from the account (with zero fees), while minting some tokens to the
     // sender account.
-    let deploy_erc20_tx = make_operator_deploy_tx(
-        operator_address,
+    let (token_address, deploy_erc20_tx) = make_operator_deploy_tx(
         erc20_contract,
         calldata![
             Felt::from_bytes_be_slice(b"StarkNet Token"),
             Felt::from_bytes_be_slice(b"STRK"),
             Felt::from(18u8),
-            u128::MAX.into(),   // initial supply lsb
-            0.into(),           // initial supply msb
-            **operator_address, // recipient address
-            **operator_address, // permitted minter
-            **operator_address, // provisional_governance_admin
-            10.into()           // upgrade delay
+            u128::MAX.into(),    // initial supply lsb
+            0.into(),            // initial supply msb
+            ***OPERATOR_ADDRESS, // recipient address
+            ***OPERATOR_ADDRESS, // permitted minter
+            ***OPERATOR_ADDRESS, // provisional_governance_admin
+            10.into()            // upgrade delay
         ],
         &mut nonce_manager,
         false,
     );
+    EXPECTED_FEE_TOKEN_ADDRESS.assert_eq(&token_address.to_string());
+
     (
         class_manager,
         vec![
