@@ -165,19 +165,34 @@ fn single_multicall_data(
     Calldata(Arc::new([vec![Felt::ONE], single_calldata.0.as_slice().to_vec()].concat()))
 }
 
-fn boostrap_declare_tx(
+/// If the sender address is None, create a bootstrap declare tx.
+/// Otherwise, create a regular declare tx (with fees).
+fn make_declare_tx(
     class_manager: &mut MockClassManagerClient,
     contract: FeatureContract,
+    sender: Option<ContractAddress>,
+    nonce_manager: &mut NonceManager,
 ) -> (ExecutableAccountTx, InternalConsensusTransaction) {
-    let sender_address = ExecutableDeclareTransaction::bootstrap_address();
+    let (bootstrap_mode, sender_address, resource_bounds, nonce) = match sender {
+        None => (
+            true,
+            ExecutableDeclareTransaction::bootstrap_address(),
+            AllResourceBounds::new_unlimited_gas_no_fee_enforcement(),
+            Nonce::default(),
+        ),
+        Some(sender_address) => (
+            false,
+            sender_address,
+            *NON_TRIVIAL_RESOURCE_BOUNDS,
+            nonce_manager.next(sender_address),
+        ),
+    };
     let sierra = contract.get_sierra();
     let class_hash = sierra.calculate_class_hash();
     let compiled_class_hash = contract.get_compiled_class_hash(&HashVersion::V2);
-    let resource_bounds = AllResourceBounds::new_unlimited_gas_no_fee_enforcement();
-    let nonce = Nonce::default();
 
     // Create internal tx.
-    let internal_declare_without_hash = InternalRpcDeclareTransactionV3 {
+    let mut internal_declare_without_hash = InternalRpcDeclareTransactionV3 {
         sender_address,
         nonce,
         class_hash,
@@ -193,6 +208,13 @@ fn boostrap_declare_tx(
     let tx_hash = internal_declare_without_hash
         .calculate_transaction_hash(&CHAIN_ID, &TransactionVersion::THREE)
         .unwrap();
+    // If not bootrap mode, sign the tx.
+    let signature = if !bootstrap_mode {
+        sign_tx(tx_hash, OPERATOR_PRIVATE_KEY)
+    } else {
+        TransactionSignature::default()
+    };
+    internal_declare_without_hash.signature = signature;
     let internal = InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
         tx: InternalRpcTransactionWithoutTxHash::Declare(internal_declare_without_hash.clone()),
         tx_hash,
@@ -348,8 +370,8 @@ fn make_txs() -> (MockClassManagerClient, Vec<(ExecutableAccountTx, InternalCons
     // 4. deploy ERC20 contract from the account (with zero fees), while minting some tokens to the
     //    sender account.
     // (from this point - all txs include non-zero fees, and no more bootstrap declares)
-    // TODO(Dori): the rest of the txs.
     // 5. declare the test contract.
+    // TODO(Dori): the rest of the txs.
     // 6. deploy the test contract.
     // 7. deploy another instance of the test contract.
     // 8. invoke the test contract: something with a state change.
@@ -359,11 +381,13 @@ fn make_txs() -> (MockClassManagerClient, Vec<(ExecutableAccountTx, InternalCons
     let mut class_manager = MockClassManagerClient::new();
     let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let account_with_real_validate = FeatureContract::AccountWithRealValidate(RunnableCairo1::Casm);
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
     // Bootstrap declares.
-    let erc20_declare_tx = boostrap_declare_tx(&mut class_manager, erc20_contract);
+    let erc20_declare_tx =
+        make_declare_tx(&mut class_manager, erc20_contract, None, &mut nonce_manager);
     let account_with_real_validate_declare_tx =
-        boostrap_declare_tx(&mut class_manager, account_with_real_validate);
+        make_declare_tx(&mut class_manager, account_with_real_validate, None, &mut nonce_manager);
 
     // Free deploy-account.
     let (operator_address, deploy_operator_account_tx) =
@@ -390,6 +414,14 @@ fn make_txs() -> (MockClassManagerClient, Vec<(ExecutableAccountTx, InternalCons
     );
     EXPECTED_FEE_TOKEN_ADDRESS.assert_eq(&token_address.to_string());
 
+    // Declare the test contract.
+    let test_contract_declare_tx = make_declare_tx(
+        &mut class_manager,
+        test_contract,
+        Some(operator_address),
+        &mut nonce_manager,
+    );
+
     (
         class_manager,
         vec![
@@ -397,6 +429,7 @@ fn make_txs() -> (MockClassManagerClient, Vec<(ExecutableAccountTx, InternalCons
             account_with_real_validate_declare_tx,
             deploy_operator_account_tx,
             deploy_erc20_tx,
+            test_contract_declare_tx,
         ],
     )
 }
