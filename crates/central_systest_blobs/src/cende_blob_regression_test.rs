@@ -298,41 +298,20 @@ fn make_free_deploy_account_tx(
     (contract_address, (executable.into(), internal))
 }
 
-fn make_operator_deploy_tx(
-    contract_to_deploy: FeatureContract,
-    constructor_calldata: Calldata,
+fn make_operator_invoke_tx(
+    address: ContractAddress,
+    function_name: &str,
+    calldata: &[Felt],
     nonce_manager: &mut NonceManager,
     with_fee_charge: bool,
-) -> (ContractAddress, (ExecutableAccountTx, InternalConsensusTransaction)) {
-    let class_hash = contract_to_deploy.get_sierra().calculate_class_hash();
-    let contract_address_salt = ContractAddressSalt::default();
-    let contract_address = calculate_contract_address(
-        contract_address_salt,
-        class_hash,
-        &constructor_calldata,
-        OPERATOR_ADDRESS.clone(),
-    )
-    .unwrap();
+) -> (ExecutableAccountTx, InternalConsensusTransaction) {
     let nonce = nonce_manager.next(OPERATOR_ADDRESS.clone());
     let resource_bounds = if with_fee_charge {
         NON_TRIVIAL_RESOURCE_BOUNDS.clone()
     } else {
         AllResourceBounds::new_unlimited_gas_no_fee_enforcement()
     };
-    let calldata = single_multicall_data(
-        OPERATOR_ADDRESS.clone(),
-        "deploy_contract",
-        &[
-            vec![
-                *class_hash,
-                contract_address_salt.0,
-                Felt::try_from(constructor_calldata.0.len()).unwrap(),
-            ],
-            constructor_calldata.0.as_slice().to_vec(),
-            vec![false.into()], // Deploy from zero.
-        ]
-        .concat(),
-    );
+    let calldata = single_multicall_data(address, function_name, calldata);
     let rpc_tx_unsigned = InternalRpcInvokeTransactionV3 {
         sender_address: OPERATOR_ADDRESS.clone(),
         calldata,
@@ -358,7 +337,44 @@ fn make_operator_deploy_tx(
         tx: without_hash,
         tx_hash,
     });
-    (contract_address, (executable.into(), internal))
+    (executable.into(), internal)
+}
+
+fn make_operator_deploy_tx(
+    contract_to_deploy: FeatureContract,
+    constructor_calldata: Calldata,
+    nonce_manager: &mut NonceManager,
+    with_fee_charge: bool,
+) -> (ContractAddress, (ExecutableAccountTx, InternalConsensusTransaction)) {
+    let class_hash = contract_to_deploy.get_sierra().calculate_class_hash();
+    let contract_address_salt = ContractAddressSalt::default();
+    let contract_address = calculate_contract_address(
+        contract_address_salt,
+        class_hash,
+        &constructor_calldata,
+        OPERATOR_ADDRESS.clone(),
+    )
+    .unwrap();
+    let calldata = [
+        vec![
+            *class_hash,
+            contract_address_salt.0,
+            Felt::try_from(constructor_calldata.0.len()).unwrap(),
+        ],
+        constructor_calldata.0.as_slice().to_vec(),
+        vec![false.into()], // Deploy from zero.
+    ]
+    .concat();
+    (
+        contract_address,
+        make_operator_invoke_tx(
+            OPERATOR_ADDRESS.clone(),
+            "deploy_contract",
+            &calldata,
+            nonce_manager,
+            with_fee_charge,
+        ),
+    )
 }
 
 fn make_txs() -> (MockClassManagerClient, Vec<(ExecutableAccountTx, InternalConsensusTransaction)>)
