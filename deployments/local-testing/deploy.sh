@@ -403,7 +403,7 @@ build_images() {
     # Note: sequencer-simulator Docker image is NOT needed - simulator runs as Python script locally
     local images=(
         "dummy-recorder:deployments/images/sequencer/dummy_recorder.Dockerfile"
-        "dummy-eth-to-strk-oracle:deployments/images/sequencer/dummy_eth_to_strk_oracle.Dockerfile"
+        "dummy-price-oracle:deployments/images/sequencer/dummy_price_oracle.Dockerfile"
         "sequencer:deployments/images/sequencer/Dockerfile"
     )
     
@@ -821,7 +821,7 @@ prepare_box() {
     
     local images=(
         "dummy-recorder:deployments/images/sequencer/dummy_recorder.Dockerfile"
-        "dummy-eth-to-strk-oracle:deployments/images/sequencer/dummy_eth_to_strk_oracle.Dockerfile"
+        "dummy-price-oracle:deployments/images/sequencer/dummy_price_oracle.Dockerfile"
         "sequencer:deployments/images/sequencer/Dockerfile"
     )
     
@@ -1044,7 +1044,7 @@ generate_cdk8s_manifests() {
     # Format: "directory_name:output_subdir:image_name"
     local services=(
         "dummy_recorder:dummy-recorder:${REGISTRY_URL}/dummy-recorder:local"
-        "dummy_eth2strk_oracle:dummy-eth2strk-oracle:${REGISTRY_URL}/dummy-eth-to-strk-oracle:local"
+        "dummy_eth2strk_oracle:dummy-eth2strk-oracle:${REGISTRY_URL}/dummy-price-oracle:local"
     )
     
     for service_spec in "${services[@]}"; do

@@ -96,8 +96,8 @@ jobs:
             dockerfile: Dockerfile
           - svc: dummy_recorder
             dockerfile: dummy_recorder.Dockerfile
-          - svc: dummy_eth_to_strk_oracle
-            dockerfile: dummy_eth_to_strk_oracle.Dockerfile
+          - svc: dummy_price_oracle
+            dockerfile: dummy_price_oracle.Dockerfile
     steps:
       - uses: actions/checkout@v6
 
@@ -225,7 +225,7 @@ jobs:
           echo "Deploying Dummy Eth2Strk Oracle..."
           pipenv install
           cdk8s import
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_eth_to_strk_namespace }} --image ${{ env.NSC_CONTAINER_REGISTRY }}/dummy_eth_to_strk_oracle:${{ github.sha }}"
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_eth_to_strk_namespace }} --image ${{ env.NSC_CONTAINER_REGISTRY }}/dummy_price_oracle:${{ github.sha }}"
           kubectl create namespace ${{ env.dummy_eth_to_strk_namespace }}
           kubectl apply -R -f ./dist
           echo "⏳ Waiting for Dummy Eth2Strk Oracle to become ready..."
