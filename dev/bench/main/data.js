@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777193693641,
+  "lastUpdate": 1777198081689,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3093,6 +3093,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 2218.82578415,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "960f06982f384ec3aae34550e753a6f329891ea9",
+          "message": "apollo_network_benchmark: add network benchmark (#13853)",
+          "timestamp": "2026-04-26T09:47:11Z",
+          "tree_id": "355dea6366e6aa5f72d2a40379b1b2c2a412ae36",
+          "url": "https://github.com/starkware-libs/sequencer/commit/960f06982f384ec3aae34550e753a6f329891ea9"
+        },
+        "date": 1777198081209,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1404.90290637,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1978.43688051,
             "unit": "ms"
           }
         ]
