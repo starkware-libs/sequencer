@@ -237,12 +237,6 @@ A getter for the field `foo` should be `fn foo`, rather than `fn get_foo`
 
 The same is also encouraged for non-field getters, except for in cases where `get*` really improves readability.
 
-### `self` Mutability in Getters
-
-Getter methods should always be `&self`, never `&mut self` --- use interior mutability if mutating self is necessary for maintenance like caching.
-
-**Rationale**: aligning to user's expectation for getters, preventing borrow-checker surprises.
-
 ### Types in API
 
 Types appearing _in the API_ should strongly prefer `std` types, primitives, or types exposed by the crate for external use.
