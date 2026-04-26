@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776694184612,
+  "lastUpdate": 1777210959350,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3161,6 +3161,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1442.55275605,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bc190955353b771e0520e117152c491e08e38de8",
+          "message": "blockifier: add benchmarking and only-native feature flags (#13541)\n\nAdds two new feature flags:\n- \\`benchmarking\\`: gates time/call_counter fields on CallInfo and\n  EntryPointExecutionContext for execution profiling\n- \\`only-native\\`: forces native execution path even when tracked\n  resource is CairoSteps\n\nZero behavior change without flags enabled.",
+          "timestamp": "2026-04-26T13:07:03Z",
+          "tree_id": "d1ea92e3d7780123c18ebfcf40e28fb92161cc54",
+          "url": "https://github.com/starkware-libs/sequencer/commit/bc190955353b771e0520e117152c491e08e38de8"
+        },
+        "date": 1777210958962,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1336.9606806099998,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1472.50703854,
             "unit": "ms"
           }
         ]
