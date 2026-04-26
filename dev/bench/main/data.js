@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777198081689,
+  "lastUpdate": 1777213419627,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3127,6 +3127,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1978.43688051,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "52abc644c965848632ae1f23f254822c013e39b9",
+          "message": "starknet_committer_and_os_cli: return Result from scan and shrink_to_actual_end (#13745)\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-04-26T13:56:53Z",
+          "tree_id": "324609c2f0fa32e0a65904969ca04b4f5129611d",
+          "url": "https://github.com/starkware-libs/sequencer/commit/52abc644c965848632ae1f23f254822c013e39b9"
+        },
+        "date": 1777213419190,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1400.06579132,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1950.26126324,
             "unit": "ms"
           }
         ]
