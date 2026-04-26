@@ -5,9 +5,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_config::secrets::Sensitive;
-use apollo_l1_gas_price_config::config::EthToStrkOracleConfig;
-use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
-use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
+use apollo_l1_gas_price_config::config::ExchangeRateOracleConfig;
+use apollo_l1_gas_price_types::errors::ExchangeRateOracleClientError;
+use apollo_l1_gas_price_types::ExchangeRateOracleClientTrait;
 use apollo_metrics::metrics::set_unix_now_seconds;
 use async_trait::async_trait;
 use futures::FutureExt;
@@ -27,10 +27,10 @@ use crate::metrics::{
 };
 
 #[cfg(test)]
-#[path = "eth_to_strk_oracle_test.rs"]
-pub mod eth_to_strk_oracle_test;
+#[path = "exchange_rate_oracle_test.rs"]
+pub mod exchange_rate_oracle_test;
 
-pub const ETH_TO_STRK_QUANTIZATION: u64 = 18;
+pub const EXCHANGE_RATE_DECIMALS: u64 = 18;
 
 fn btreemap_to_headermap(hash_map: BTreeMap<String, String>) -> HeaderMap {
     let mut header_map = HeaderMap::new();
@@ -52,12 +52,12 @@ pub struct UrlAndHeaderMap {
     pub headers: Sensitive<HeaderMap>,
 }
 
-type PriceQuery = AbortOnDropHandle<Result<u128, EthToStrkOracleClientError>>;
+type PriceQuery = AbortOnDropHandle<Result<u128, ExchangeRateOracleClientError>>;
 
 /// Client for interacting with the eth to strk Oracle API.
 #[derive(Clone, Debug)]
-pub struct EthToStrkOracleClient {
-    config: EthToStrkOracleConfig,
+pub struct ExchangeRateOracleClient {
+    config: ExchangeRateOracleConfig,
     /// The index of the current URL in the `url_header_list`.
     /// If one URL fails, index is incremented to try the next URL.
     index: Arc<AtomicUsize>,
@@ -67,10 +67,10 @@ pub struct EthToStrkOracleClient {
     queries: Arc<Mutex<LruCache<u64, PriceQuery>>>,
 }
 
-impl EthToStrkOracleClient {
-    pub fn new(config: EthToStrkOracleConfig) -> Self {
+impl ExchangeRateOracleClient {
+    pub fn new(config: ExchangeRateOracleConfig) -> Self {
         info!(
-            "Creating EthToStrkOracleClient with: urls={:?} lag_interval_seconds={}",
+            "Creating ExchangeRateOracleClient with: urls={:?} lag_interval_seconds={}",
             config.url_header_list, config.lag_interval_seconds
         );
         register_eth_to_strk_metrics();
@@ -101,7 +101,7 @@ impl EthToStrkOracleClient {
     fn spawn_query(
         &self,
         quantized_timestamp: u64,
-    ) -> AbortOnDropHandle<Result<u128, EthToStrkOracleClientError>> {
+    ) -> AbortOnDropHandle<Result<u128, ExchangeRateOracleClientError>> {
         assert!(
             self.config.lag_interval_seconds > 0,
             "lag_interval_seconds should be greater than 0"
@@ -127,7 +127,7 @@ impl EthToStrkOracleClient {
                         .await?;
                     let body = response.text().await?;
                     let rate = resolve_query(body)?;
-                    Ok::<_, EthToStrkOracleClientError>(rate)
+                    Ok::<_, ExchangeRateOracleClientError>(rate)
                 })
                 .await;
 
@@ -148,15 +148,18 @@ impl EthToStrkOracleClient {
                 ETH_TO_STRK_ERROR_COUNT.increment(1);
             }
             warn!("All {list_len} URLs in the list failed for timestamp {adjusted_timestamp}");
-            Err(EthToStrkOracleClientError::AllUrlsFailedError(adjusted_timestamp, initial_index))
+            Err(ExchangeRateOracleClientError::AllUrlsFailedError(
+                adjusted_timestamp,
+                initial_index,
+            ))
         };
         AbortOnDropHandle::new(tokio::spawn(future))
     }
 }
 
-fn resolve_query(body: String) -> Result<u128, EthToStrkOracleClientError> {
+fn resolve_query(body: String) -> Result<u128, ExchangeRateOracleClientError> {
     let Ok(json): Result<serde_json::Value, _> = serde_json::from_str(&body) else {
-        return Err(EthToStrkOracleClientError::ParseError(format!(
+        return Err(ExchangeRateOracleClientError::ParseError(format!(
             "Failed to parse JSON: {body}"
         )));
     };
@@ -164,25 +167,28 @@ fn resolve_query(body: String) -> Result<u128, EthToStrkOracleClientError> {
     let price = match json.get("price").and_then(|v| v.as_str()) {
         Some(price) => price,
         None => {
-            return Err(EthToStrkOracleClientError::MissingFieldError("price".to_string(), body));
+            return Err(ExchangeRateOracleClientError::MissingFieldError(
+                "price".to_string(),
+                body,
+            ));
         }
     };
     let rate = u128::from_str_radix(price.trim_start_matches("0x"), 16).map_err(|e| {
-        EthToStrkOracleClientError::ParseError(format!("Failed to parse price {price}: {e}"))
+        ExchangeRateOracleClientError::ParseError(format!("Failed to parse price {price}: {e}"))
     })?;
     // Extract decimals from API response. Also returns MissingFieldError if value is not a number.
     let decimals = match json.get("decimals").and_then(|v| v.as_u64()) {
         Some(decimals) => decimals,
         None => {
-            return Err(EthToStrkOracleClientError::MissingFieldError(
+            return Err(ExchangeRateOracleClientError::MissingFieldError(
                 "decimals".to_string(),
                 body,
             ));
         }
     };
-    if decimals != ETH_TO_STRK_QUANTIZATION {
-        return Err(EthToStrkOracleClientError::InvalidDecimalsError(
-            ETH_TO_STRK_QUANTIZATION,
+    if decimals != EXCHANGE_RATE_DECIMALS {
+        return Err(ExchangeRateOracleClientError::InvalidDecimalsError(
+            EXCHANGE_RATE_DECIMALS,
             decimals,
         ));
     }
@@ -193,12 +199,12 @@ fn resolve_query(body: String) -> Result<u128, EthToStrkOracleClientError> {
 }
 
 #[async_trait]
-impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
+impl ExchangeRateOracleClientTrait for ExchangeRateOracleClient {
     /// The HTTP response must include the following fields:
     /// - `price`: a hexadecimal string representing the price.
     /// - `decimals`: a `u64` value, must be equal to `ETH_TO_STRK_QUANTIZATION`.
     #[instrument(skip(self))]
-    async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, EthToStrkOracleClientError> {
+    async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, ExchangeRateOracleClientError> {
         const NUMBER_OF_TIMESTAMPS_BACK: u64 = 1;
         let quantized_timestamp = (timestamp - self.config.lag_interval_seconds)
             .checked_div(self.config.lag_interval_seconds)
@@ -229,7 +235,7 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
                 return Ok(*rate);
             }
             // If not, return a query not ready error.
-            return Err(EthToStrkOracleClientError::QueryNotReadyError(timestamp));
+            return Err(ExchangeRateOracleClientError::QueryNotReadyError(timestamp));
         }
         let result = handle.now_or_never().expect("Handle must be finished if we got here");
         let rate = match result {
@@ -245,7 +251,7 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
                 ETH_TO_STRK_ERROR_COUNT.increment(1);
                 // Must remove failed query from the cache, to avoid re-polling it.
                 queries.pop(&quantized_timestamp);
-                return Err(EthToStrkOracleClientError::JoinError(e.to_string()));
+                return Err(ExchangeRateOracleClientError::JoinError(e.to_string()));
             }
         };
 

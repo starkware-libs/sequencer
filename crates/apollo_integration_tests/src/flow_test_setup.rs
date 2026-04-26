@@ -8,7 +8,7 @@ use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_infra::metrics::{metrics_recorder, MetricsConfig};
 use apollo_infra_utils::test_utils::AvailablePorts;
-use apollo_l1_gas_price_config::config::EthToStrkOracleConfig;
+use apollo_l1_gas_price_config::config::ExchangeRateOracleConfig;
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
@@ -257,7 +257,7 @@ impl FlowSequencerSetup {
 
         let (eth_to_strk_oracle_url_headers, _join_handle) =
             spawn_local_eth_to_strk_oracle(available_ports.get_next_port());
-        let eth_to_strk_oracle_config = EthToStrkOracleConfig {
+        let eth_to_strk_oracle_config = ExchangeRateOracleConfig {
             url_header_list: Some(vec![eth_to_strk_oracle_url_headers.into()]),
             ..Default::default()
         };
