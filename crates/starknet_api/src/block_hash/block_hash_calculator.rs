@@ -42,11 +42,17 @@ use crate::{StarknetApiError, StarknetApiResult};
 #[path = "block_hash_calculator_test.rs"]
 mod block_hash_calculator_test;
 
-static STARKNET_BLOCK_HASH0: LazyLock<Felt> = LazyLock::new(|| {
+// The prefix constant for the block hash calculation.
+type BlockHashConstant = Felt;
+
+static STARKNET_BLOCK_HASH0: LazyLock<BlockHashConstant> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH0").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH0'")
 });
-pub static STARKNET_BLOCK_HASH1: LazyLock<Felt> = LazyLock::new(|| {
+pub static STARKNET_BLOCK_HASH1: LazyLock<BlockHashConstant> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH1").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH1'")
+});
+pub static STARKNET_BLOCK_HASH2: LazyLock<BlockHashConstant> = LazyLock::new(|| {
+    ascii_as_felt("STARKNET_BLOCK_HASH2").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH2'")
 });
 pub static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_GAS_PRICES0").expect("ascii_as_felt failed for 'STARKNET_GAS_PRICES0'")
@@ -57,6 +63,7 @@ pub static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
 pub enum BlockHashVersion {
     V0_13_2,
     V0_13_4,
+    V0_14_3,
 }
 
 impl From<BlockHashVersion> for StarknetVersion {
@@ -64,6 +71,7 @@ impl From<BlockHashVersion> for StarknetVersion {
         match value {
             BlockHashVersion::V0_13_2 => StarknetVersion::V0_13_2,
             BlockHashVersion::V0_13_4 => StarknetVersion::V0_13_4,
+            BlockHashVersion::V0_14_3 => StarknetVersion::V0_14_3,
         }
     }
 }
@@ -77,20 +85,20 @@ impl TryFrom<StarknetVersion> for BlockHashVersion {
         } else if value < Self::V0_13_4.into() {
             // Starknet versions 0.13.2 and 0.13.3 both have the same block hash mechanism.
             Ok(Self::V0_13_2)
-        } else {
+        } else if value < Self::V0_14_3.into() {
             Ok(Self::V0_13_4)
+        } else {
+            Ok(Self::V0_14_3)
         }
     }
 }
-
-// The prefix constant for the block hash calculation.
-type BlockHashConstant = Felt;
 
 impl From<BlockHashVersion> for BlockHashConstant {
     fn from(block_hash_version: BlockHashVersion) -> Self {
         match block_hash_version {
             BlockHashVersion::V0_13_2 => *STARKNET_BLOCK_HASH0,
             BlockHashVersion::V0_13_4 => *STARKNET_BLOCK_HASH1,
+            BlockHashVersion::V0_14_3 => *STARKNET_BLOCK_HASH2,
         }
     }
 }
@@ -275,6 +283,14 @@ pub fn calculate_block_hash(
                 )
                 .iter(),
             )
+            // SNIP-35: include fee_proposal_fri in the hash chain only for V0_14_3 and later.
+            .chain_if_fn(|| {
+                if block_hash_version >= BlockHashVersion::V0_14_3 {
+                    Some(partial_block_hash_components.fee_proposal_fri.0.into())
+                } else {
+                    None
+                }
+            })
             .chain(
                 &Felt::try_from(&partial_block_hash_components.starknet_version)
                     .expect("Expect ASCII version"),
