@@ -1,5 +1,5 @@
 {
-  "mempool_p2p_config.max_concurrent_gateway_requests": 10000,
+  "mempool_p2p_config.max_concurrent_gateway_requests": 100,
   "mempool_p2p_config.max_transaction_batch_size": 75,
   "mempool_p2p_config.network_buffer_size": 10000,
   "mempool_p2p_config.network_config.advertised_multiaddr": "$$$_MEMPOOL_P2P_CONFIG-NETWORK_CONFIG-ADVERTISED_MULTIADDR_$$$",
