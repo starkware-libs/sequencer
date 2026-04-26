@@ -3,7 +3,7 @@ from starkware.cairo.common.hash_state_poseidon import hash_finalize, hash_init,
 from starkware.starknet.common.new_syscalls import BlockInfo
 
 // The latest block hash version.
-const BLOCK_HASH_VERSION = 'STARKNET_BLOCK_HASH1';
+const BLOCK_HASH_VERSION = 'STARKNET_BLOCK_HASH2';
 
 struct BlockHeaderCommitments {
     transaction_commitment: felt,
