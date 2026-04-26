@@ -25,6 +25,7 @@
   "state_sync_config.static_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": 2,
   "state_sync_config.static_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": 5,
   "state_sync_config.static_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": 5,
+  "state_sync_config.static_config.network_config.discovery_config.bootstrap_dial_retry_config.new_connection_stabilization_millis": 2000,
   "state_sync_config.static_config.network_config.discovery_config.heartbeat_interval": 100,
   "state_sync_config.static_config.network_config.idle_connection_timeout": 120,
   "state_sync_config.static_config.network_config.peer_manager_config.malicious_timeout_seconds": 1,

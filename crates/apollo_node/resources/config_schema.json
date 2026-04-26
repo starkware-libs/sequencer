@@ -2819,6 +2819,11 @@
     "privacy": "Public",
     "value": 5
   },
+  "consensus_manager_config.network_config.discovery_config.bootstrap_dial_retry_config.new_connection_stabilization_millis": {
+    "description": "Milliseconds to wait on a new connection before treating it as stable.",
+    "privacy": "Public",
+    "value": 2000
+  },
   "consensus_manager_config.network_config.discovery_config.heartbeat_interval": {
     "description": "The interval between each discovery (Kademlia) query in milliseconds.",
     "privacy": "Public",
@@ -3469,6 +3474,11 @@
     "privacy": "Public",
     "value": 5
   },
+  "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.new_connection_stabilization_millis": {
+    "description": "Milliseconds to wait on a new connection before treating it as stable.",
+    "privacy": "Public",
+    "value": 2000
+  },
   "mempool_p2p_config.network_config.discovery_config.heartbeat_interval": {
     "description": "The interval between each discovery (Kademlia) query in milliseconds.",
     "privacy": "Public",
@@ -3773,6 +3783,11 @@
     "description": "The maximum delay in seconds for the exponential backoff strategy.",
     "privacy": "Public",
     "value": 5
+  },
+  "state_sync_config.static_config.network_config.discovery_config.bootstrap_dial_retry_config.new_connection_stabilization_millis": {
+    "description": "Milliseconds to wait on a new connection before treating it as stable.",
+    "privacy": "Public",
+    "value": 2000
   },
   "state_sync_config.static_config.network_config.discovery_config.heartbeat_interval": {
     "description": "The interval between each discovery (Kademlia) query in milliseconds.",
