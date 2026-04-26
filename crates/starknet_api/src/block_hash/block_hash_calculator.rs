@@ -194,7 +194,8 @@ impl PartialBlockHash {
 
     /// Hash of [`PartialBlockHashComponents`].
     /// Uses the same formula as [`calculate_block_hash`] with the fixed constants above for the
-    /// state root and parent hash.
+    /// state root and parent hash, then SNIP-35 chains `fee_proposal_fri` so that the proposal
+    /// commitment binds to the proposer's fee_proposal without changing the block hash.
     pub fn from_partial_block_hash_components(
         partial_block_hash_components: &PartialBlockHashComponents,
     ) -> StarknetApiResult<Self> {
@@ -203,7 +204,11 @@ impl PartialBlockHash {
             Self::GLOBAL_ROOT_FOR_PARTIAL_BLOCK_HASH,
             Self::PARENT_HASH_FOR_PARTIAL_BLOCK_HASH,
         )?;
-        Ok(Self(block_hash.0))
+        let proposal_commitment = HashChain::new()
+            .chain(&block_hash.0)
+            .chain(&partial_block_hash_components.fee_proposal_fri.0.into())
+            .get_poseidon_hash();
+        Ok(Self(proposal_commitment))
     }
 }
 

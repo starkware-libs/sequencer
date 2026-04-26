@@ -15,6 +15,7 @@ use crate::block_hash::block_hash_calculator::{
     calculate_block_hash,
     BlockHashVersion,
     BlockHeaderCommitments,
+    PartialBlockHash,
     PartialBlockHashComponents,
     TransactionHashingData,
 };
@@ -252,10 +253,38 @@ fn change_field_of_hash_input() {
             },
             l2_gas_price: GasPricePerToken { price_in_fri: 1_u8.into(), price_in_wei: 1_u8.into() },
             sequencer: SequencerContractAddress(ContractAddress::from(1_u128)),
-            timestamp: BlockTimestamp(1)
+            timestamp: BlockTimestamp(1),
         },
         state_root: GlobalRoot(Felt::ONE),
         previous_block_hash: BlockHash(Felt::ONE)
     )
     // TODO(Aviv, 10/06/2024): add tests that changes the first hash input, and the const zero.
+}
+
+/// SNIP-35: `fee_proposal_fri` must change the proposal commitment hash (`PartialBlockHash`) but
+/// must not change the block hash (`BlockHash`).
+#[test]
+fn fee_proposal_fri_affects_partial_block_hash_but_not_block_hash() {
+    let base = PartialBlockHashComponents {
+        starknet_version: BlockHashVersion::V0_13_4.into(),
+        fee_proposal_fri: GasPrice(0),
+        ..Default::default()
+    };
+    let modified = PartialBlockHashComponents { fee_proposal_fri: GasPrice(1), ..base.clone() };
+
+    let base_block_hash =
+        calculate_block_hash(&base, GlobalRoot::default(), BlockHash::default()).unwrap();
+    let modified_block_hash =
+        calculate_block_hash(&modified, GlobalRoot::default(), BlockHash::default()).unwrap();
+    assert_eq!(
+        base_block_hash, modified_block_hash,
+        "BlockHash must not depend on fee_proposal_fri"
+    );
+
+    let base_partial = PartialBlockHash::from_partial_block_hash_components(&base).unwrap();
+    let modified_partial = PartialBlockHash::from_partial_block_hash_components(&modified).unwrap();
+    assert_ne!(
+        base_partial, modified_partial,
+        "PartialBlockHash (proposal commitment) must depend on fee_proposal_fri"
+    );
 }
