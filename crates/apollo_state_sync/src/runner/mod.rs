@@ -494,9 +494,8 @@ fn create_new_block_receiver_future_dev_null(
     mut new_block_receiver: Receiver<SyncBlock>,
 ) -> BoxFuture<'static, Never> {
     async move {
-        loop {
-            let _sync_block = new_block_receiver.next().await;
-        }
+        while new_block_receiver.next().await.is_some() {}
+        pending().await
     }
     .boxed()
 }
