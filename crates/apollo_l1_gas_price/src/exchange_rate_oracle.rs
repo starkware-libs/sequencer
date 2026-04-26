@@ -24,8 +24,6 @@ use crate::metrics::ExchangeRateOracleMetrics;
 #[path = "exchange_rate_oracle_test.rs"]
 pub mod exchange_rate_oracle_test;
 
-pub const EXCHANGE_RATE_DECIMALS: u64 = 18;
-
 fn btreemap_to_headermap(hash_map: BTreeMap<String, String>) -> HeaderMap {
     let mut header_map = HeaderMap::new();
     for (key, value) in hash_map {
@@ -106,6 +104,7 @@ impl ExchangeRateOracleClient {
         );
         let adjusted_timestamp = quantized_timestamp * self.config.lag_interval_seconds;
         let query_timeout_sec = self.config.query_timeout_sec;
+        let expected_decimals = self.config.exchange_rate_decimals;
         let client = self.client.clone();
         let index_clone = self.index.clone();
         let url_header_list = self.url_header_list.clone();
@@ -132,7 +131,7 @@ impl ExchangeRateOracleClient {
                         )));
                     }
                     let body = response.text().await?;
-                    let rate = resolve_query(body, &metrics)?;
+                    let rate = resolve_query(body, expected_decimals, &metrics)?;
                     Ok::<_, ExchangeRateOracleClientError>(rate)
                 })
                 .await;
@@ -165,6 +164,7 @@ impl ExchangeRateOracleClient {
 
 fn resolve_query(
     body: String,
+    expected_decimals: u64,
     metrics: &ExchangeRateOracleMetrics,
 ) -> Result<u128, ExchangeRateOracleClientError> {
     let Ok(json): Result<serde_json::Value, _> = serde_json::from_str(&body) else {
@@ -195,9 +195,9 @@ fn resolve_query(
             ));
         }
     };
-    if decimals != EXCHANGE_RATE_DECIMALS {
+    if decimals != expected_decimals {
         return Err(ExchangeRateOracleClientError::InvalidDecimalsError(
-            EXCHANGE_RATE_DECIMALS,
+            expected_decimals,
             decimals,
         ));
     }
@@ -211,7 +211,7 @@ fn resolve_query(
 impl ExchangeRateOracleClientTrait for ExchangeRateOracleClient {
     /// The HTTP response must include the following fields:
     /// - `price`: a hexadecimal string representing the price.
-    /// - `decimals`: a `u64` value, must be equal to `EXCHANGE_RATE_DECIMALS`.
+    /// - `decimals`: a `u64` value, must be equal to `config.exchange_rate_decimals`.
     #[instrument(skip(self))]
     async fn fetch_rate(&self, timestamp: u64) -> Result<u128, ExchangeRateOracleClientError> {
         const NUMBER_OF_TIMESTAMPS_BACK: u64 = 1;
