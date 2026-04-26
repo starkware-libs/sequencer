@@ -141,7 +141,7 @@ impl FlowTestSetup {
             shared_ports.get_next_ports(num_nodes),
         );
 
-        let anvil_base_layer = AnvilBaseLayer::new(None, None).await;
+        let anvil_base_layer = AnvilBaseLayer::new(None, Some(shared_ports.get_next_port())).await;
         let base_layer_url = anvil_base_layer.get_url().await.unwrap();
         let base_layer_config = anvil_base_layer.ethereum_base_layer.config.clone();
 
