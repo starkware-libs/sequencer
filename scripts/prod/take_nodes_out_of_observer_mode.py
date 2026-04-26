@@ -100,8 +100,8 @@ Examples:
     # TODO(guy.f): Remove this when we rely on metrics for restarting.
     args_builder.add_argument(
         "--project-name",
-        required=True,
-        help="The name of the project to get logs from.",
+        default=None,
+        help="The name of the GCP project to get logs from. When provided, log explorer URLs are printed after restart.",
     )
 
     args_builder.add_argument(
@@ -127,16 +127,17 @@ Examples:
     post_restart_instructions = []
 
     for namespace, context in zip(namespace_list, context_list or [None] * len(namespace_list)):
-        url = get_logs_explorer_url_for_proposal(
-            namespace,
-            get_validator_id(namespace, context),
-            # Feeder could be behind by up to 10 blocks, so we add 10 to the current block number.
-            current_block_number + 10,
-            args.project_name,
-        )
-        post_restart_instructions.append(
-            f"Please check logs and verify that the node has proposed a block that was accepted. Logs URL: {url}"
-        )
+        instruction = "Please check logs and verify that the nodes have proposed a block that was accepted"
+        if args.project_name is not None:
+            url = get_logs_explorer_url_for_proposal(
+                namespace,
+                get_validator_id(namespace, context),
+                # Feeder could be behind by up to 10 blocks, so we add 10 to the current block number.
+                current_block_number + 10,
+                args.project_name,
+            )
+            instruction = f"{instruction}. Logs URL: {url}"
+        post_restart_instructions.append(instruction)
 
     namespace_and_instruction_args = NamespaceAndInstructionArgs(
         namespace_list,
