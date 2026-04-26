@@ -52,9 +52,9 @@ use apollo_http_server::test_utils::create_http_server_config;
 use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_l1_events_config::config::{L1EventsProviderConfig, L1EventsScraperConfig};
-use apollo_l1_gas_price::eth_to_strk_oracle::ETH_TO_STRK_QUANTIZATION;
+use apollo_l1_gas_price::exchange_rate_oracle::EXCHANGE_RATE_DECIMALS;
 use apollo_l1_gas_price_config::config::{
-    EthToStrkOracleConfig,
+    ExchangeRateOracleConfig,
     L1GasPriceProviderConfig,
     L1GasPriceScraperConfig,
 };
@@ -254,7 +254,7 @@ pub fn create_node_config(
     storage_config: StorageTestConfig,
     mut state_sync_config: StateSyncConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
-    eth_to_strk_oracle_config: EthToStrkOracleConfig,
+    eth_to_strk_oracle_config: ExchangeRateOracleConfig,
     mempool_p2p_config: MempoolP2pConfig,
     monitoring_endpoint_config: MonitoringEndpointConfig,
     components: ComponentConfig,
@@ -563,7 +563,7 @@ struct EthToStrkOracleQuery {
 }
 
 /// Returns a fake eth to fri rate response.
-async fn get_price(Query(query): Query<EthToStrkOracleQuery>) -> Json<serde_json::Value> {
+async fn get_rate(Query(query): Query<EthToStrkOracleQuery>) -> Json<serde_json::Value> {
     // This value must be large enough so that conversion for ETH to STRK is not zero (e.g. for gas
     // prices). We set a value a bit higher than the min needed to avoid test failures due to
     // small changes.
@@ -571,14 +571,15 @@ async fn get_price(Query(query): Query<EthToStrkOracleQuery>) -> Json<serde_json
     // TODO(Asmaa): Retrun timestamp as price once we start mocking out time in the
     // tests.
     let price = format!("0x{DEFAULT_ETH_TO_FRI_RATE:x}");
-    let response = json!({ "timestamp": query.timestamp ,"price": price, "decimals": ETH_TO_STRK_QUANTIZATION });
+    let response =
+        json!({ "timestamp": query.timestamp ,"price": price, "decimals": EXCHANGE_RATE_DECIMALS });
     Json(response)
 }
 
 /// Spawns a local fake eth to fri oracle server.
 pub fn spawn_eth_to_strk_oracle_server(socket_address: SocketAddr) -> JoinHandle<()> {
     tokio::spawn(async move {
-        let router = Router::new().route(ETH_TO_STRK_ORACLE_PATH, get(get_price));
+        let router = Router::new().route(ETH_TO_STRK_ORACLE_PATH, get(get_rate));
         let listener = TcpListener::bind(socket_address).await.unwrap();
         serve(listener, router).await.unwrap();
     })
