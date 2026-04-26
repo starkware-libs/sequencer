@@ -22,8 +22,15 @@ async fn test_time_cache_basic() {
     assert!(cache.contains(&KEY1));
     assert!(!cache.contains(&KEY2));
 
+    // Past TTL but no insert has happened — entry remains contained until eviction runs.
     tokio::time::advance(PAST_EXPIRATION).await;
+    assert!(cache.contains(&KEY1));
+
+    // Inserting a new key triggers eviction of the expired entry.
+    let expired = cache.insert_and_get_expired(KEY2);
+    assert_eq!(expired, vec![KEY1]);
     assert!(!cache.contains(&KEY1));
+    assert!(cache.contains(&KEY2));
 }
 
 #[tokio::test]
@@ -39,10 +46,11 @@ async fn test_time_cache_cleanup() {
 
     tokio::time::advance(PAST_EXPIRATION).await;
 
-    assert!(!cache.contains(&KEY1));
-    assert!(!cache.contains(&KEY2));
-    // Expired entries haven't been evicted yet (eviction is lazy, on insert).
-    assert_eq!(cache.capacity(), 2);
+    // Expired entries haven't been evicted yet (eviction is lazy, on insert) — they remain
+    // contained until the next insert.
+    assert!(cache.contains(&KEY1));
+    assert!(cache.contains(&KEY2));
+    assert_eq!(cache.len(), 2);
 
     // Insert triggers cleanup of expired entries.
     let mut expired = cache.insert_and_get_expired(KEY3);
@@ -51,7 +59,7 @@ async fn test_time_cache_cleanup() {
     assert!(cache.contains(&KEY3));
     assert!(!cache.contains(&KEY1));
     assert!(!cache.contains(&KEY2));
-    assert_eq!(cache.capacity(), 1);
+    assert_eq!(cache.len(), 1);
 }
 
 #[tokio::test]

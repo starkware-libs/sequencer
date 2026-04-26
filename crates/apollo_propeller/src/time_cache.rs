@@ -3,6 +3,13 @@
 //! This module provides a simple cache that automatically expires entries after a specified TTL.
 //! Cleanup is amortized O(1) per insert by exploiting the fact that all entries share the same
 //! TTL, so entries in the insertion-order queue expire monotonically.
+//!
+//! The `contains` method checks for *membership* in the cache, not *freshness* (TTL compliance).
+//! Expired entries remain "contained" until they are lazily evicted during the next insert. This
+//! design simplifies the cache by separating membership tracking from TTL enforcement, avoiding
+//! a race condition in systems (like nonce tracking) that synchronize state based on cache
+//! containment: if the cache reported "not contained" before explicit removal, nonce-protected
+//! state could fall out of sync.
 
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
@@ -34,12 +41,10 @@ where
         }
     }
 
-    /// Check if a key exists in the cache and has not expired.
+    /// Check if a key is in the cache. Entries past the TTL remain "contained" until the next
+    /// [`insert_and_get_expired`](Self::insert_and_get_expired) call evicts them.
     pub fn contains(&self, key: &K) -> bool {
-        match self.key_to_last_insert_time.get(key) {
-            Some(&inserted_at) => Instant::now().duration_since(inserted_at) < self.ttl,
-            None => false,
-        }
+        self.key_to_last_insert_time.contains_key(key)
     }
 
     /// Insert a key into the cache with the current timestamp.
@@ -54,10 +59,14 @@ where
         expired_keys
     }
 
-    /// Return the number of entries in the cache, including expired entries that haven't been
-    /// lazily evicted yet. For an accurate liveness check, use [`contains`](Self::contains).
-    pub fn capacity(&self) -> usize {
+    /// Return the number of entries currently in the cache. Includes entries past their TTL that
+    /// haven't been lazily evicted yet.
+    pub fn len(&self) -> usize {
         self.key_to_last_insert_time.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.key_to_last_insert_time.is_empty()
     }
 
     /// Evict expired entries from the front of the insertion-order queue. Return the keys that were
