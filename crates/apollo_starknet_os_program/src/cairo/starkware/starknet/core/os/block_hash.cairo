@@ -3,7 +3,7 @@ from starkware.cairo.common.hash_state_poseidon import hash_finalize, hash_init,
 from starkware.starknet.common.new_syscalls import BlockInfo
 
 // The latest block hash version.
-const BLOCK_HASH_VERSION = 'STARKNET_BLOCK_HASH1';
+const BLOCK_HASH_VERSION = 'STARKNET_BLOCK_HASH2';
 
 struct BlockHeaderCommitments {
     transaction_commitment: felt,
@@ -20,6 +20,7 @@ func calculate_block_hash{poseidon_ptr: PoseidonBuiltin*}(
     block_info: BlockInfo*,
     header_commitments: BlockHeaderCommitments*,
     gas_prices_hash: felt,
+    fee_proposal_fri: felt,
     state_root: felt,
     previous_block_hash: felt,
     starknet_version: felt,
@@ -40,6 +41,8 @@ func calculate_block_hash{poseidon_ptr: PoseidonBuiltin*}(
         hash_update_single(header_commitments.event_commitment);
         hash_update_single(header_commitments.receipt_commitment);
         hash_update_single(gas_prices_hash);
+        // SNIP-35: include the proposer's recommended fee.
+        hash_update_single(fee_proposal_fri);
         hash_update_single(starknet_version);
         hash_update_single(0);
         hash_update_single(previous_block_hash);
@@ -67,10 +70,12 @@ func get_block_hashes{poseidon_ptr: PoseidonBuiltin*}(block_info: BlockInfo*, st
 
     %{ GetBlockHashes %}
 
+    // TODO(SNIP-35): plumb the proposer's fee_proposal_fri through the OS input.
     let block_hash = calculate_block_hash(
         block_info=block_info,
         header_commitments=header_commitments,
         gas_prices_hash=gas_prices_hash,
+        fee_proposal_fri=0,
         state_root=state_root,
         previous_block_hash=previous_block_hash,
         starknet_version=starknet_version,
