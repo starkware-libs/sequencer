@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777026599504,
+  "lastUpdate": 1777193693641,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3059,6 +3059,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1320.15328743,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4dc20821d19c5f8105eb67a7d591105f66f65142",
+          "message": "starknet_committer_and_os_cli: add snap sync command (#13710)\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-04-26T08:25:50Z",
+          "tree_id": "32e7a3ba2e8bf627efe7572afe5f89dd0fc7e8bf",
+          "url": "https://github.com/starkware-libs/sequencer/commit/4dc20821d19c5f8105eb67a7d591105f66f65142"
+        },
+        "date": 1777193693240,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1424.4154481500002,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 2218.82578415,
             "unit": "ms"
           }
         ]
