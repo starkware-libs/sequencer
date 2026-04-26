@@ -7,7 +7,7 @@ use apollo_infra_utils::info_every_n_ms;
 use apollo_l1_gas_price_config::config::L1GasPriceProviderConfig;
 use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
 use apollo_l1_gas_price_types::{
-    EthToStrkOracleClientTrait,
+    ExchangeRateOracleClientTrait,
     GasPriceData,
     L1GasPriceProviderResult,
     PriceInfo,
@@ -16,7 +16,7 @@ use async_trait::async_trait;
 use starknet_api::block::BlockTimestamp;
 use tracing::{info, trace, warn};
 
-use crate::eth_to_strk_oracle::EthToStrkOracleClient;
+use crate::exchange_rate_oracle::ExchangeRateOracleClient;
 use crate::metrics::{
     register_provider_metrics,
     L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
@@ -58,20 +58,20 @@ pub struct L1GasPriceProvider {
     config: L1GasPriceProviderConfig,
     // If received data before initialization (is None), it means the scraper has restarted.
     price_samples_by_block: Option<RingBuffer<GasPriceData>>,
-    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+    eth_to_strk_oracle_client: Arc<dyn ExchangeRateOracleClientTrait>,
 }
 
 impl L1GasPriceProvider {
     pub fn new(
         config: L1GasPriceProviderConfig,
-        eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+        eth_to_strk_oracle_client: Arc<dyn ExchangeRateOracleClientTrait>,
     ) -> Self {
         Self { config, price_samples_by_block: None, eth_to_strk_oracle_client }
     }
 
     pub fn new_with_oracle(config: L1GasPriceProviderConfig) -> Self {
         let eth_to_strk_oracle_client =
-            EthToStrkOracleClient::new(config.eth_to_strk_oracle_config.clone());
+            ExchangeRateOracleClient::new(config.eth_to_strk_oracle_config.clone());
         Self::new(config, Arc::new(eth_to_strk_oracle_client))
     }
 
@@ -188,7 +188,7 @@ impl L1GasPriceProvider {
         self.eth_to_strk_oracle_client
             .eth_to_fri_rate(timestamp)
             .await
-            .map_err(L1GasPriceProviderError::EthToStrkOracleClientError)
+            .map_err(L1GasPriceProviderError::ExchangeRateOracleClientError)
     }
 }
 

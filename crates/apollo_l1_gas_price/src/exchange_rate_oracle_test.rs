@@ -2,14 +2,14 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use apollo_config::converters::UrlAndHeaders;
-use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
-use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
+use apollo_l1_gas_price_types::errors::ExchangeRateOracleClientError;
+use apollo_l1_gas_price_types::ExchangeRateOracleClientTrait;
 use mockito::{Mock, ServerGuard};
 use serde_json::json;
 use tokio::{self};
 use url::Url;
 
-use crate::eth_to_strk_oracle::{EthToStrkOracleClient, EthToStrkOracleConfig};
+use crate::exchange_rate_oracle::{ExchangeRateOracleClient, ExchangeRateOracleConfig};
 
 async fn make_server(server: &mut ServerGuard, body: serde_json::Value) -> Mock {
     server
@@ -52,12 +52,12 @@ async fn eth_to_fri_rate_uses_cache_on_quantized_hit() {
         headers: BTreeMap::new(), // No additional headers needed for this test.
     };
     let url_header_list = Some(vec![url_and_headers.into()]);
-    let config = EthToStrkOracleConfig {
+    let config = ExchangeRateOracleConfig {
         url_header_list,
         lag_interval_seconds: LAG_INTERVAL_SECONDS,
         ..Default::default()
     };
-    let client = EthToStrkOracleClient::new(config.clone());
+    let client = ExchangeRateOracleClient::new(config.clone());
 
     // First request should fail because the cache is empty.
     assert!(client.eth_to_fri_rate(TIMESTAMP1).await.is_err());
@@ -126,12 +126,12 @@ async fn eth_to_fri_rate_uses_prev_cache_when_query_not_ready() {
         headers: BTreeMap::new(), // No additional headers needed for this test.
     };
     let url_header_list = Some(vec![url_and_headers.into()]);
-    let config = EthToStrkOracleConfig {
+    let config = ExchangeRateOracleConfig {
         url_header_list,
         lag_interval_seconds: LAG_INTERVAL_SECONDS,
         ..Default::default()
     };
-    let client = EthToStrkOracleClient::new(config.clone());
+    let client = ExchangeRateOracleClient::new(config.clone());
 
     // First request should fail because the cache is empty.
     assert!(client.eth_to_fri_rate(TIMESTAMP1).await.is_err());
@@ -187,12 +187,12 @@ async fn eth_to_fri_rate_two_urls() {
         }
         .into(),
     ]);
-    let config = EthToStrkOracleConfig {
+    let config = ExchangeRateOracleConfig {
         url_header_list,
         lag_interval_seconds: LAG_INTERVAL_SECONDS,
         ..Default::default()
     };
-    let client = EthToStrkOracleClient::new(config.clone());
+    let client = ExchangeRateOracleClient::new(config.clone());
     // First request should fail because the cache is empty.
     assert!(client.eth_to_fri_rate(TIMESTAMP1).await.is_err());
     // Wait for the query to resolve.
@@ -211,8 +211,8 @@ async fn eth_to_fri_rate_two_urls() {
     loop {
         match client.eth_to_fri_rate(TIMESTAMP2).await {
             Ok(_) => panic!("Both servers should be returning bad JSON!"),
-            Err(EthToStrkOracleClientError::QueryNotReadyError(_)) => {}
-            Err(EthToStrkOracleClientError::AllUrlsFailedError(_, index)) => {
+            Err(ExchangeRateOracleClientError::QueryNotReadyError(_)) => {}
+            Err(ExchangeRateOracleClientError::AllUrlsFailedError(_, index)) => {
                 assert!(index == 1, "Last error should be index 1 (server2).");
                 break; // This is the expected error, since server1 and 2 returned bad JSON.
             }

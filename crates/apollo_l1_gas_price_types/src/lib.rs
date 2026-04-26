@@ -12,7 +12,7 @@ use apollo_infra::{
 };
 use apollo_metrics::generate_permutation_labels;
 use async_trait::async_trait;
-use errors::{EthToStrkOracleClientError, L1GasPriceClientError, L1GasPriceProviderError};
+use errors::{ExchangeRateOracleClientError, L1GasPriceClientError, L1GasPriceProviderError};
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use papyrus_base_layer::L1BlockNumber;
@@ -99,14 +99,14 @@ pub trait L1GasPriceProviderClient: Send + Sync {
         timestamp: BlockTimestamp,
     ) -> L1GasPriceProviderClientResult<PriceInfo>;
 
-    async fn get_eth_to_fri_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128>;
+    async fn get_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128>;
 }
 
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
-pub trait EthToStrkOracleClientTrait: Send + Sync + Debug {
+pub trait ExchangeRateOracleClientTrait: Send + Sync + Debug {
     /// Fetches the eth to fri rate for a given timestamp.
-    async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, EthToStrkOracleClientError>;
+    async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, ExchangeRateOracleClientError>;
 }
 
 #[async_trait]
@@ -157,7 +157,7 @@ where
         )
     }
     #[instrument(skip(self))]
-    async fn get_eth_to_fri_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128> {
+    async fn get_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128> {
         let request = L1GasPriceRequest::GetEthToFriRate(timestamp);
         handle_all_response_variants!(
             self,
