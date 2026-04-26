@@ -318,6 +318,24 @@ pub use <some_3rd_party_crate>::some::type::Bar;
 
 The above internalizes `Bar` as an inner type of the re-exporting crate. This by-itself can be nice-to-have sometimes due to [APIs](#APIs), however this will also internalize all `impl trait for Bar` into the current crate, which almost always isn't what we want.
 
+## Logging
+
+Every piece of information that can help debug a specific flow or be useful to know the state of the system should be logged.
+
+### Logging Levels
+
+- **ERROR**: An unexpected condition that requires immediate attention.
+- **WARN**: A potentially harmful situation that the system can recover from, but that may indicate a problem.
+- **INFO**: High-level events that help convey the current state of the system or confirm it is working as expected.
+- **DEBUG**: Detailed information useful for diagnosing issues in the environment. Should not be so frequent that it drowns out other debug logs when all logs are displayed.
+- **TRACE**: Any log that would be too frequent or verbose at a higher level, drowning out other logs when displayed. Typically only enabled for targeted debugging.
+
+### Log Titles
+
+For logs that are frequently searched, add a title in `ALL_CAPS` at the beginning of the message. Once introduced, the title should not be changed.
+
+This gives log viewers a stable search term that doesn't break when the rest of the message is reworded.
+
 ## Types
 
 ### Type Safety
