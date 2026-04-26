@@ -34,12 +34,10 @@ where
         }
     }
 
-    /// Check if a key exists in the cache and has not expired.
+    /// Check if a key is in the cache. Entries past the TTL remain "contained" until the next
+    /// [`insert_and_get_expired`](Self::insert_and_get_expired) call evicts them.
     pub fn contains(&self, key: &K) -> bool {
-        match self.key_to_last_insert_time.get(key) {
-            Some(&inserted_at) => Instant::now().duration_since(inserted_at) < self.ttl,
-            None => false,
-        }
+        self.key_to_last_insert_time.contains_key(key)
     }
 
     /// Insert a key into the cache with the current timestamp.
@@ -54,10 +52,14 @@ where
         expired_keys
     }
 
-    /// Return the number of entries in the cache, including expired entries that haven't been
-    /// lazily evicted yet. For an accurate liveness check, use [`contains`](Self::contains).
-    pub fn capacity(&self) -> usize {
+    /// Return the number of entries currently in the cache. Includes entries past their TTL that
+    /// haven't been lazily evicted yet.
+    pub fn len(&self) -> usize {
         self.key_to_last_insert_time.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.key_to_last_insert_time.is_empty()
     }
 
     /// Evict expired entries from the front of the insertion-order queue. Return the keys that were
