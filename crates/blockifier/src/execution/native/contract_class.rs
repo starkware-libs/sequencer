@@ -36,12 +36,13 @@ impl NativeCompiledClassV1 {
     }
 
     /// Like [`Self::new`], but additionally stores the Sierra `program` so libfunc profiling
-    /// can resolve libfunc IDs for the running entrypoint.
+    /// can resolve libfunc IDs for the running entrypoint. The program is shared via `Arc`
+    /// across every profile entry, avoiding per-call deep clones.
     #[cfg(feature = "with-libfunc-profiling")]
     pub fn new_with_program(
         executor: AotContractExecutor,
         casm: CompiledClassV1,
-        program: cairo_lang_sierra::program::Program,
+        program: Arc<cairo_lang_sierra::program::Program>,
     ) -> NativeCompiledClassV1 {
         let contract = NativeCompiledClassV1Inner::new_with_program(executor, casm, program);
 
@@ -86,7 +87,7 @@ impl HashableCompiledClass<EntryPointV1, NestedFeltCounts> for NativeCompiledCla
 pub struct NativeCompiledClassV1Inner {
     pub executor: AotContractExecutor,
     #[cfg(feature = "with-libfunc-profiling")]
-    pub program: Option<cairo_lang_sierra::program::Program>,
+    pub program: Option<Arc<cairo_lang_sierra::program::Program>>,
     casm: CompiledClassV1,
 }
 
@@ -104,8 +105,12 @@ impl NativeCompiledClassV1Inner {
     fn new_with_program(
         executor: AotContractExecutor,
         casm: CompiledClassV1,
-        program: cairo_lang_sierra::program::Program,
+        program: Arc<cairo_lang_sierra::program::Program>,
     ) -> Self {
+        // Forward-compat: `executor` becomes the `ContractExecutor` enum in #13542 with
+        // `From<AotContractExecutor>`. Going through `.into()` keeps this constructor
+        // compiling unchanged once that lands. On this branch alone it's the blanket
+        // identity conversion.
         let executor = executor.into();
         NativeCompiledClassV1Inner { executor, program: Some(program), casm }
     }

@@ -285,11 +285,12 @@ fn process_compilation_request(
     let sierra_for_compilation = into_contract_class_for_compilation(sierra.as_ref());
 
     // The Sierra program is needed by libfunc profiling to map runtime libfunc IDs back to
-    // declarations. Extract it before `compile` consumes `sierra_for_compilation`.
+    // declarations. Extract it before `compile` consumes `sierra_for_compilation`. Wrap in
+    // `Arc` so the cached compiled class and every per-call profile share a single allocation.
     #[cfg(feature = "with-libfunc-profiling")]
     let program_for_profiling = sierra_for_compilation
         .extract_sierra_program(false)
-        .map(|extracted| extracted.program)
+        .map(|extracted| Arc::new(extracted.program))
         .map_err(|err| {
             log::warn!(
                 "Failed to extract Sierra program for profiling (class hash: {:#066x}): {err}",
