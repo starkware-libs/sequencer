@@ -18,6 +18,11 @@ cairo_native = [
 ]
 benchmarking = []
 only-native = ["cairo_native"]
+with-libfunc-profiling = [
+  "cairo-native/with-libfunc-profiling",
+  "cairo_native",
+  "dep:cairo-lang-sierra",
+]
 mocks = []
 native_blockifier = []
 node_api = []
@@ -44,6 +49,7 @@ blockifier_test_utils = { workspace = true, optional = true }
 cached.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }
 cairo-lang-runner.workspace = true
+cairo-lang-sierra = { workspace = true, optional = true }
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-native = { workspace = true, optional = true }

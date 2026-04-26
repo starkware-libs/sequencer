@@ -59,6 +59,26 @@ pub fn execute_entry_point_call(
         .checked_sub(initial_budget)
         .ok_or(PreExecutionError::InsufficientEntryPointGas)?;
 
+    #[cfg(feature = "with-libfunc-profiling")]
+    let execution_result = match &compiled_class.program {
+        Some(program) => crate::execution::native::profiling::run_profiled(
+            &compiled_class.executor,
+            program,
+            entry_point.selector.0,
+            &syscall_handler.base.call.calldata.0.clone(),
+            call_initial_gas,
+            Some(builtin_costs),
+            &mut syscall_handler,
+        ),
+        None => compiled_class.executor.run(
+            entry_point.selector.0,
+            &syscall_handler.base.call.calldata.0.clone(),
+            call_initial_gas,
+            Some(builtin_costs),
+            &mut syscall_handler,
+        ),
+    };
+    #[cfg(not(feature = "with-libfunc-profiling"))]
     let execution_result = compiled_class.executor.run(
         entry_point.selector.0,
         &syscall_handler.base.call.calldata.0.clone(),

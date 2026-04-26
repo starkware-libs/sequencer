@@ -283,6 +283,22 @@ fn process_compilation_request(
         return Ok(());
     }
     let sierra_for_compilation = into_contract_class_for_compilation(sierra.as_ref());
+
+    // The Sierra program is needed by libfunc profiling to map runtime libfunc IDs back to
+    // declarations. Extract it before `compile` consumes `sierra_for_compilation`. Wrap in
+    // `Arc` so the cached compiled class and every per-call profile share a single allocation.
+    #[cfg(feature = "with-libfunc-profiling")]
+    let program_for_profiling = sierra_for_compilation
+        .extract_sierra_program(false)
+        .map(|extracted| Arc::new(extracted.program))
+        .map_err(|err| {
+            log::warn!(
+                "Failed to extract Sierra program for profiling (class hash: {:#066x}): {err}",
+                class_hash.0
+            );
+        })
+        .ok();
+
     let start = Instant::now();
     let compilation_result = compiler.compile(sierra_for_compilation);
     let duration = start.elapsed();
@@ -293,6 +309,14 @@ fn process_compilation_request(
     );
     match compilation_result {
         Ok(executor) => {
+            #[cfg(feature = "with-libfunc-profiling")]
+            let native_compiled_class = match program_for_profiling {
+                Some(program) => {
+                    NativeCompiledClassV1::new_with_program(executor, casm, program)
+                }
+                None => NativeCompiledClassV1::new(executor, casm),
+            };
+            #[cfg(not(feature = "with-libfunc-profiling"))]
             let native_compiled_class = NativeCompiledClassV1::new(executor, casm);
             class_cache.set(
                 class_hash,
