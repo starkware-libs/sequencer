@@ -33,13 +33,14 @@ use crate::{felt, tx_hash};
 /// and asserts that the block hash changes as a result.
 macro_rules! test_hash_changes {
     (
+        block_hash_version: $block_hash_version:expr,
         PartialBlockHashComponents { $($partial_block_hash_components_field:ident: $partial_block_hash_components_value:expr),* $(,)? },
         state_root: $state_root:expr,
         previous_block_hash: $previous_block_hash:expr
     ) => {
         {
             let partial_block_hash_components = PartialBlockHashComponents {
-                starknet_version: BlockHashVersion::V0_13_4.into(),
+                starknet_version: $block_hash_version.into(),
                 $(
                     $partial_block_hash_components_field: $partial_block_hash_components_value,
                 )*
@@ -68,7 +69,7 @@ macro_rules! test_hash_changes {
 #[rstest]
 #[tokio::test]
 async fn test_block_hash_regression(
-    #[values(BlockHashVersion::V0_13_2, BlockHashVersion::V0_13_4)]
+    #[values(BlockHashVersion::V0_13_2, BlockHashVersion::V0_13_4, BlockHashVersion::V0_14_3)]
     block_hash_version: BlockHashVersion,
 ) {
     let state_root = GlobalRoot(Felt::from(2_u8));
@@ -109,6 +110,9 @@ async fn test_block_hash_regression(
         }
         BlockHashVersion::V0_13_4 => {
             felt!("0x3d6174623c812f5dc03fa3faa07c42c06fd90ad425629ee5f39e149df65c3ca")
+        }
+        BlockHashVersion::V0_14_3 => {
+            felt!("0x477e98ed084a0274e4510ab27327f08235d8e4fdb7506e46e92e9ab0c5ea459")
         }
     };
 
@@ -222,11 +226,15 @@ fn extract_event_count_from_concatenated_counts_test(
 }
 
 /// Test that if one of the input to block hash changes, the hash changes.
-#[test]
-fn change_field_of_hash_input() {
+#[rstest]
+fn change_field_of_hash_input(
+    #[values(BlockHashVersion::V0_13_4, BlockHashVersion::V0_14_3)]
+    block_hash_version: BlockHashVersion,
+) {
     // Set non-default values for the header and the commitments fields. Test that changing any of
     // these fields changes the hash.
     test_hash_changes!(
+        block_hash_version: block_hash_version,
         PartialBlockHashComponents {
             header_commitments: BlockHeaderCommitments {
                 transaction_commitment: TransactionCommitment(Felt::ONE),
