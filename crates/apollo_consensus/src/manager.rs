@@ -1047,7 +1047,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     .lock()
                     .await
                     .set_prev_voted_height(height)
-                    .expect("Failed to write voted height {self.height} to storage");
+                    .unwrap_or_else(|error| {
+                        panic!(
+                            "Failed to write voted height {height} to storage: {error}. Crashing \
+                             before sending vote to avoid risk of equivocation"
+                        )
+                    });
                 context.broadcast(vote.clone()).await?;
                 // Schedule a rebroadcast after the appropriate timeout.
                 let duration = match vote.vote_type {
