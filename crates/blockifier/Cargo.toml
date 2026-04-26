@@ -18,6 +18,9 @@ cairo_native = [
 ]
 benchmarking = []
 only-native = ["cairo_native"]
+# Enables the sierra-emu execution path of `cairo_native::ContractExecutor`. Pulls in
+# cairo-native's `sierra-emu` feature which compiles `SierraEmuSyscallBridge`.
+sierra-emu = ["cairo_native", "cairo-native/sierra-emu"]
 mocks = []
 native_blockifier = []
 node_api = []
