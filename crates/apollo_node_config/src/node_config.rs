@@ -39,6 +39,7 @@ use apollo_reverts::RevertConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
 use apollo_state_sync_config::config::{StateSyncConfig, StateSyncDynamicConfig};
+use apollo_storage::StorageScope;
 use blockifier::blockifier::config::NativeClassesWhitelist;
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use clap::Command;
@@ -603,6 +604,15 @@ impl SequencerNodeConfig {
             }
             other => other,
         })?;
+        if let Some(state_sync_config) = &self.state_sync_config {
+            if state_sync_config.static_config.storage_config.scope != StorageScope::StateOnly {
+                return Err(ConfigError::ComponentConfigMismatch {
+                    component_config_mismatch: "state_sync storage scope must be StateOnly when \
+                                                validation_only is true"
+                        .to_string(),
+                });
+            }
+        }
         Ok(())
     }
 }
