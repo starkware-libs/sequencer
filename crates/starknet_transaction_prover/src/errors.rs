@@ -7,6 +7,7 @@ use starknet_os::errors::StarknetOsError;
 use starknet_os::io::os_output::OsOutputError;
 use starknet_patricia_storage::errors::SerializationError;
 use starknet_proof_verifier::ProgramOutputError;
+use starknet_rust::providers::jsonrpc::{HttpTransportError, JsonRpcClientError};
 use starknet_rust::providers::ProviderError;
 use thiserror::Error;
 
@@ -48,13 +49,34 @@ pub enum ProofProviderError {
     #[error("Invalid state diff: {0}")]
     InvalidStateDiff(String),
     #[error("RPC provider error: {0}")]
-    Rpc(#[from] ProviderError),
+    Rpc(ProviderError),
+    #[error("Upstream JSON-RPC error (code {code}): {message}")]
+    UpstreamRpcError { code: i64, message: String },
     #[error(transparent)]
     SerializationError(#[from] SerializationError),
     #[error("Invalid RPC proof response: {0}")]
     InvalidProofResponse(String),
     #[error("Block commitment error: {0}")]
     BlockCommitmentError(String),
+}
+
+/// If the provider error wraps a raw JSON-RPC error (unrecognized by starknet-rs), surface it as
+/// [`ProofProviderError::UpstreamRpcError`] so the original code and message are forwarded.
+/// Otherwise fall back to [`ProofProviderError::Rpc`].
+impl From<ProviderError> for ProofProviderError {
+    fn from(err: ProviderError) -> Self {
+        if let ProviderError::Other(ref inner) = err {
+            if let Some(JsonRpcClientError::JsonRpcError(rpc_err)) =
+                inner.as_any().downcast_ref::<JsonRpcClientError<HttpTransportError>>()
+            {
+                return ProofProviderError::UpstreamRpcError {
+                    code: rpc_err.code,
+                    message: rpc_err.message.clone(),
+                };
+            }
+        }
+        ProofProviderError::Rpc(err)
+    }
 }
 
 #[derive(Debug, Error)]
