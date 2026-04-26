@@ -19,7 +19,7 @@ use starknet_api::block_hash::block_hash_calculator::{
     BlockHashVersion,
     BlockHeaderCommitments,
     PartialBlockHashComponents,
-    STARKNET_BLOCK_HASH1,
+    STARKNET_BLOCK_HASH2,
 };
 use starknet_api::core::{
     EventCommitment,
@@ -90,6 +90,7 @@ fn cairo_calculate_block_hash(
         block_info_arg,
         header_commitments_arg,
         EndpointArg::from(gas_prices_hash),
+        EndpointArg::from(Felt::from(components.fee_proposal_fri.0)),
         EndpointArg::from(state_root),
         EndpointArg::from(previous_block_hash),
         EndpointArg::from(Felt::try_from(&components.starknet_version).unwrap()),
@@ -162,7 +163,7 @@ fn test_block_hash_version() {
     // NOTE: if these checks fail, it means the block hash version in the OS program is not the
     // latest, and a backward-compatibility flow must be added for the transition.
     assert_eq!(
-        *STARKNET_BLOCK_HASH1, latest_block_hash_version,
+        *STARKNET_BLOCK_HASH2, latest_block_hash_version,
         "Latest block hash version constant mismatch"
     );
     assert_eq!(
