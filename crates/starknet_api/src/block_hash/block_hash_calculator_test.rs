@@ -46,11 +46,10 @@ macro_rules! test_hash_changes {
     ) => {
         {
             let partial_block_hash_components = PartialBlockHashComponents {
-                starknet_version: BlockHashVersion::V0_13_4.into(),
+                starknet_version: BlockHashVersion::V0_14_3.into(),
                 $(
                     $partial_block_hash_components_field: $partial_block_hash_components_value,
                 )*
-                ..Default::default()
             };
             let state_root = $state_root;
             let previous_block_hash = $previous_block_hash;
@@ -76,7 +75,7 @@ macro_rules! test_hash_changes {
 #[rstest]
 #[tokio::test]
 async fn test_block_hash_regression(
-    #[values(BlockHashVersion::V0_13_2, BlockHashVersion::V0_13_4)]
+    #[values(BlockHashVersion::V0_13_2, BlockHashVersion::V0_13_4, BlockHashVersion::V0_14_3)]
     block_hash_version: BlockHashVersion,
 ) {
     let state_root = GlobalRoot(Felt::from(2_u8));
@@ -119,6 +118,36 @@ async fn test_block_hash_regression(
         BlockHashVersion::V0_13_4 => {
             felt!("0x3d6174623c812f5dc03fa3faa07c42c06fd90ad425629ee5f39e149df65c3ca")
         }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> 4d4b9edbdd (starknet_api: add fee_proposal to block hash calculator)
+        BlockHashVersion::V0_14_3 => {
+            felt!("0x477e98ed084a0274e4510ab27327f08235d8e4fdb7506e46e92e9ab0c5ea459")
+        }
+=======
+<<<<<<< HEAD
+=======
+        BlockHashVersion::V0_14_3 => {
+            felt!("0x4364050fc0f671d5f4241a619ca2c74ddec796894f9bd2ef36476f88837af9b")
+        }
+>>>>>>> e8015184bb (starknet_api: add fee_proposal to block hash calculator)
+>>>>>>> bf013ff28d (starknet_api: add fee_proposal to block hash calculator)
+>>>>>>> 519633c8f6 (starknet_api: add fee_proposal to block hash calculator)
+<<<<<<< HEAD
+=======
+        BlockHashVersion::V0_14_3 => {
+            felt!("0x477e98ed084a0274e4510ab27327f08235d8e4fdb7506e46e92e9ab0c5ea459")
+        }
+>>>>>>> 98c068ac55 (starknet_api: add BlockHashVersion::V0_14_3 variant)
+>>>>>>> 10aaac5c3c (starknet_api: add BlockHashVersion::V0_14_3 variant)
+=======
+>>>>>>> 4d4b9edbdd (starknet_api: add fee_proposal to block hash calculator)
     };
 
     assert_eq!(
@@ -231,6 +260,7 @@ fn extract_event_count_from_concatenated_counts_test(
 }
 
 /// Test that if one of the input to block hash changes, the hash changes.
+// TODO(AndrewL): add fee_proposal to the test.
 #[test]
 fn change_field_of_hash_input() {
     // Set non-default values for the header and the commitments fields. Test that changing any of
@@ -252,7 +282,8 @@ fn change_field_of_hash_input() {
             },
             l2_gas_price: GasPricePerToken { price_in_fri: 1_u8.into(), price_in_wei: 1_u8.into() },
             sequencer: SequencerContractAddress(ContractAddress::from(1_u128)),
-            timestamp: BlockTimestamp(1)
+            timestamp: BlockTimestamp(1),
+            fee_proposal: GasPrice(1)
         },
         state_root: GlobalRoot(Felt::ONE),
         previous_block_hash: BlockHash(Felt::ONE)

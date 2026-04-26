@@ -23,8 +23,11 @@ func check_is_reverted(is_reverted: felt) {
 
 // Returns TRUE if the given virtual OS program hash is allowed, FALSE otherwise.
 func is_program_hash_allowed(program_hash: felt) -> felt {
-    static_assert ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN == 1;
+    static_assert ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN == 2;
     if (program_hash == ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0) {
+        return TRUE;
+    }
+    if (program_hash == ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_1) {
         return TRUE;
     }
     return FALSE;
