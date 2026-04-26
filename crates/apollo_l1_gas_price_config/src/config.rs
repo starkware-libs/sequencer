@@ -28,6 +28,7 @@ pub struct ExchangeRateOracleConfig {
     pub lag_interval_seconds: u64,
     pub max_cache_size: usize,
     pub query_timeout_sec: u64,
+    pub exchange_rate_decimals: u64,
 }
 
 impl SerializeConfig for ExchangeRateOracleConfig {
@@ -69,6 +70,13 @@ impl SerializeConfig for ExchangeRateOracleConfig {
                 "The timeout (seconds) for the query to the eth to strk oracle.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "exchange_rate_decimals",
+                &self.exchange_rate_decimals,
+                "The expected `decimals` value returned in oracle API responses. Responses with a \
+                 different `decimals` value are rejected as invalid. ETH/STRK feeds use 18.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -86,6 +94,7 @@ impl Default for ExchangeRateOracleConfig {
             lag_interval_seconds: 1,
             max_cache_size: 100,
             query_timeout_sec: 10,
+            exchange_rate_decimals: 18,
         }
     }
 }
