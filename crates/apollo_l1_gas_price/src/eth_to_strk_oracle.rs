@@ -125,6 +125,13 @@ impl EthToStrkOracleClient {
                         .headers(headers.peek_secret().clone())
                         .send()
                         .await?;
+                    if !response.status().is_success() {
+                        return Err(EthToStrkOracleClientError::RequestError(format!(
+                            "Request failed with status {}: {}",
+                            response.status(),
+                            response.text().await?
+                        )));
+                    }
                     let body = response.text().await?;
                     let rate = resolve_query(body)?;
                     Ok::<_, EthToStrkOracleClientError>(rate)
