@@ -2774,25 +2774,50 @@
     "privacy": "Public",
     "value": 10000
   },
-  "consensus_manager_config.network_config.advertised_multiaddr": {
-    "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
-    "privacy": "Public",
-    "value": ""
-  },
   "consensus_manager_config.network_config.advertised_multiaddr.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus_manager_config.network_config.bootstrap_peer_multiaddr": {
-    "description": "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
+  "consensus_manager_config.network_config.advertised_multiaddr.domain": {
+    "description": "The domain to use.",
     "privacy": "Public",
     "value": ""
+  },
+  "consensus_manager_config.network_config.advertised_multiaddr.peer_id": {
+    "description": "The peer id to use. If not provided, the multiaddr will not contain a peer id.",
+    "privacy": "Public",
+    "value": "11"
+  },
+  "consensus_manager_config.network_config.advertised_multiaddr.peer_id.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "consensus_manager_config.network_config.advertised_multiaddr.port": {
+    "description": "The port to use.",
+    "privacy": "Public",
+    "value": 0
   },
   "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
+  },
+  "consensus_manager_config.network_config.bootstrap_peer_multiaddr.domain": {
+    "description": "The domain to use.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "consensus_manager_config.network_config.bootstrap_peer_multiaddr.peer_id": {
+    "description": "The peer id to use.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "consensus_manager_config.network_config.bootstrap_peer_multiaddr.port": {
+    "description": "The port to use.",
+    "privacy": "Public",
+    "value": ""
   },
   "consensus_manager_config.network_config.broadcasted_message_metadata_buffer_size": {
     "description": "The size of the buffer that holds the metadata of the broadcasted messages.",
@@ -3424,25 +3449,50 @@
     "privacy": "Public",
     "value": 10000
   },
-  "mempool_p2p_config.network_config.advertised_multiaddr": {
-    "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
-    "privacy": "Public",
-    "value": ""
-  },
   "mempool_p2p_config.network_config.advertised_multiaddr.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "mempool_p2p_config.network_config.bootstrap_peer_multiaddr": {
-    "description": "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
+  "mempool_p2p_config.network_config.advertised_multiaddr.domain": {
+    "description": "The domain to use.",
     "privacy": "Public",
     "value": ""
+  },
+  "mempool_p2p_config.network_config.advertised_multiaddr.peer_id": {
+    "description": "The peer id to use. If not provided, the multiaddr will not contain a peer id.",
+    "privacy": "Public",
+    "value": "11"
+  },
+  "mempool_p2p_config.network_config.advertised_multiaddr.peer_id.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "mempool_p2p_config.network_config.advertised_multiaddr.port": {
+    "description": "The port to use.",
+    "privacy": "Public",
+    "value": 0
   },
   "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
+  },
+  "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.domain": {
+    "description": "The domain to use.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.peer_id": {
+    "description": "The peer id to use.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.port": {
+    "description": "The port to use.",
+    "privacy": "Public",
+    "value": ""
   },
   "mempool_p2p_config.network_config.broadcasted_message_metadata_buffer_size": {
     "description": "The size of the buffer that holds the metadata of the broadcasted messages.",
@@ -3729,25 +3779,50 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "state_sync_config.static_config.network_config.advertised_multiaddr": {
-    "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
-    "privacy": "Public",
-    "value": ""
-  },
   "state_sync_config.static_config.network_config.advertised_multiaddr.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "state_sync_config.static_config.network_config.bootstrap_peer_multiaddr": {
-    "description": "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
+  "state_sync_config.static_config.network_config.advertised_multiaddr.domain": {
+    "description": "The domain to use.",
     "privacy": "Public",
     "value": ""
+  },
+  "state_sync_config.static_config.network_config.advertised_multiaddr.peer_id": {
+    "description": "The peer id to use. If not provided, the multiaddr will not contain a peer id.",
+    "privacy": "Public",
+    "value": "11"
+  },
+  "state_sync_config.static_config.network_config.advertised_multiaddr.peer_id.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "state_sync_config.static_config.network_config.advertised_multiaddr.port": {
+    "description": "The port to use.",
+    "privacy": "Public",
+    "value": 0
   },
   "state_sync_config.static_config.network_config.bootstrap_peer_multiaddr.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
+  },
+  "state_sync_config.static_config.network_config.bootstrap_peer_multiaddr.domain": {
+    "description": "The domain to use.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "state_sync_config.static_config.network_config.bootstrap_peer_multiaddr.peer_id": {
+    "description": "The peer id to use.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "state_sync_config.static_config.network_config.bootstrap_peer_multiaddr.port": {
+    "description": "The port to use.",
+    "privacy": "Public",
+    "value": ""
   },
   "state_sync_config.static_config.network_config.broadcasted_message_metadata_buffer_size": {
     "description": "The size of the buffer that holds the metadata of the broadcasted messages.",

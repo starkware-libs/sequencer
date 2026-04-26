@@ -56,9 +56,13 @@ config:
     consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri.#is_none: true
     consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri: 0
     consensus_manager_config.network_config.advertised_multiaddr.#is_none: true
-    consensus_manager_config.network_config.advertised_multiaddr: ""
+    consensus_manager_config.network_config.advertised_multiaddr.domain: ""
+    consensus_manager_config.network_config.advertised_multiaddr.peer_id: null
+    consensus_manager_config.network_config.advertised_multiaddr.port: 0
     consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none: true
-    consensus_manager_config.network_config.bootstrap_peer_multiaddr: ""
+    consensus_manager_config.network_config.bootstrap_peer_multiaddr.domain: ""
+    consensus_manager_config.network_config.bootstrap_peer_multiaddr.peer_id: ""
+    consensus_manager_config.network_config.bootstrap_peer_multiaddr.port: ""
     consensus_manager_config.network_config.port: 53080
     consensus_manager_config.staking_manager_config.dynamic_config.default_committee: "0,100:0x64,1,0x1,true"
     consensus_manager_config.staking_manager_config.dynamic_config.override_committee.#is_none: true

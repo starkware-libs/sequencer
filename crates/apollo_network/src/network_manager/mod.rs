@@ -1256,7 +1256,7 @@ impl NetworkManager {
                 metrics.as_mut()
                     .and_then(|m| m.latency_metrics.take()),
                 key.clone(),
-                bootstrap_peer_multiaddr,
+                bootstrap_peer_multiaddr.map(|b| b.try_into().expect("bootstrap_peer_multiaddr was validated when config loaded")),
                 chain_id,
                 node_version,
                 prune_dead_connections_ping_interval,
@@ -1271,7 +1271,8 @@ impl NetworkManager {
             .unwrap_or_else(|_| panic!("Error while binding to {listen_address}"));
 
         let advertised_multiaddr = advertised_multiaddr.map(|address| {
-            address
+            Multiaddr::try_from(address)
+                .expect("advertised_multiaddr was validated when config loaded")
                 .with_p2p(*swarm.local_peer_id())
                 .expect("advertised_multiaddr has a peer id different than the local peer id")
         });

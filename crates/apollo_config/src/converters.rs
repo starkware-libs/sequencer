@@ -281,9 +281,9 @@ where
     Ok(Some(vector))
 }
 
-/// Serializes a `&[Url]` into a single space-separated string.
-pub fn serialize_slice<T: AsRef<str>>(vector: &[T]) -> String {
-    vector.iter().map(|item| item.as_ref()).collect::<Vec<_>>().join(" ")
+/// Serializes a `&[T]` into a single space-separated string. T must implement `ToString`.
+pub fn serialize_slice<T: ToString>(vector: &[T]) -> String {
+    vector.iter().map(|item| item.to_string()).collect::<Vec<_>>().join(" ")
 }
 
 /// Deserializes a space-separated string into a `Vec<T>`.
