@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777213419627,
+  "lastUpdate": 1777279055073,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3161,6 +3161,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1950.26126324,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ca76ca4ae36b78f6c12f352dedc2fbff53d257b2",
+          "message": "starknet_committer_and_os_cli: propagate StorageError through scan Result (#13746)\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-04-27T08:18:47Z",
+          "tree_id": "06ddd4febd2707121a36676ec9c0d038cc4a2190",
+          "url": "https://github.com/starkware-libs/sequencer/commit/ca76ca4ae36b78f6c12f352dedc2fbff53d257b2"
+        },
+        "date": 1777279054557,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1419.98482872,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1666.39803615,
             "unit": "ms"
           }
         ]
