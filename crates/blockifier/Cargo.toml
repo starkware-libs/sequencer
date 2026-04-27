@@ -21,6 +21,13 @@ only-native = ["cairo_native"]
 # Enables the sierra-emu execution path of `cairo_native::ContractExecutor`. Pulls in
 # cairo-native's `sierra-emu` feature which compiles `SierraEmuSyscallBridge`.
 sierra-emu = ["cairo_native", "cairo-native/sierra-emu"]
+# Enables libfunc-level profiling for native execution. Pulls in cairo-native's
+# `with-libfunc-profiling` so `ContractExecutor::run_with_profile` is available.
+with-libfunc-profiling = [
+  "cairo_native",
+  "cairo-native/with-libfunc-profiling",
+  "dep:cairo-lang-sierra",
+]
 mocks = []
 native_blockifier = []
 node_api = []
@@ -47,6 +54,7 @@ blockifier_test_utils = { workspace = true, optional = true }
 cached.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }
 cairo-lang-runner.workspace = true
+cairo-lang-sierra = { workspace = true, optional = true }
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-native = { workspace = true, optional = true }

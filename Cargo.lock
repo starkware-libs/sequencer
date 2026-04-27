@@ -3766,6 +3766,7 @@ dependencies = [
  "cached",
  "cairo-lang-casm",
  "cairo-lang-runner",
+ "cairo-lang-sierra",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "cairo-native",
@@ -4741,6 +4742,7 @@ dependencies = [
 [[package]]
 name = "cairo-native"
 version = "0.9.0-rc.6"
+source = "git+https://github.com/starkware-libs/cairo_native.git?rev=78bf3e4b01a085261f61367c29391e98deb98460#78bf3e4b01a085261f61367c29391e98deb98460"
 dependencies = [
  "aquamarine",
  "ark-ec",
@@ -4758,6 +4760,7 @@ dependencies = [
  "cairo-lang-starknet",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
+ "cairo-starknet-syscalls",
  "educe 0.5.11",
  "itertools 0.14.0",
  "keccak",
@@ -4807,6 +4810,15 @@ dependencies = [
  "thiserror 1.0.69",
  "thiserror-no-std",
  "tracing",
+]
+
+[[package]]
+name = "cairo-starknet-syscalls"
+version = "0.9.0-rc.6"
+source = "git+https://github.com/starkware-libs/cairo_native.git?rev=78bf3e4b01a085261f61367c29391e98deb98460#78bf3e4b01a085261f61367c29391e98deb98460"
+dependencies = [
+ "serde",
+ "starknet-types-core",
 ]
 
 [[package]]
@@ -11977,6 +11989,7 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 [[package]]
 name = "sierra-emu"
 version = "0.9.0-rc.6"
+source = "git+https://github.com/starkware-libs/cairo_native.git?rev=78bf3e4b01a085261f61367c29391e98deb98460#78bf3e4b01a085261f61367c29391e98deb98460"
 dependencies = [
  "cairo-lang-compiler",
  "cairo-lang-filesystem",
@@ -11990,6 +12003,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-lang-test-plugin",
  "cairo-lang-utils",
+ "cairo-starknet-syscalls",
  "clap",
  "generic-array",
  "k256",
