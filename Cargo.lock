@@ -4875,6 +4875,7 @@ dependencies = [
  "blockifier",
  "blockifier_test_utils",
  "expect-test",
+ "mockall",
  "serde_json",
  "starknet_api",
  "starknet_patricia_storage",
