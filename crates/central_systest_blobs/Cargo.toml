@@ -7,10 +7,18 @@ license-file.workspace = true
 description = "Keeps blob JSONs for centralized system test, and tests for regression"
 
 [dev-dependencies]
+apollo_batcher.workspace = true
+apollo_batcher_types.workspace = true
+apollo_class_manager_types = { workspace = true, features = ["testing"] }
+apollo_consensus.workspace = true
+apollo_consensus_orchestrator.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
+blockifier_test_utils.workspace = true
 expect-test.workspace = true
 serde_json.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+starknet_patricia_storage = { workspace = true, features = ["testing"] }
+tokio.workspace = true
 
 [lints]
 workspace = true
