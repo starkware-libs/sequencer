@@ -16,11 +16,12 @@ use apollo_consensus_orchestrator::cende::{
     BlobParameters,
     InternalTransactionWithReceipt,
 };
+use apollo_consensus_orchestrator::fee_market::FeeMarketInfo;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
-use blockifier::bouncer::BouncerConfig;
+use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
 use blockifier::context::{BlockContext, ChainInfo};
-use blockifier::state::cached_state::{CachedState, StateMaps};
+use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::state_api::UpdatableState;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
@@ -31,7 +32,10 @@ use blockifier_test_utils::contracts::FeatureContract;
 use expect_test::expect_file;
 use mockall::predicate::eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, BlockTimestamp};
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
+use starknet_api::block_hash::block_hash_calculator::{
+    PartialBlockHash,
+    PartialBlockHashComponents,
+};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_address;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
@@ -192,13 +196,13 @@ fn execute_block(
     (vec![], StateMaps::default())
 }
 
-#[expect(dead_code)]
 async fn compute_block_hash_components(
     _block_info: &BlockInfo,
     _state_diff: &ThinStateDiff,
     _txs: &[InternalTransactionWithReceipt],
 ) -> PartialBlockHashComponents {
-    unimplemented!()
+    // TODO(Dori): implement.
+    PartialBlockHashComponents::default()
 }
 
 /// Given previous state and partial components, commits the changes and finalizes the block hash.
@@ -220,16 +224,50 @@ async fn compute_block_commitments(
 /// Returns the current proposal commitment and the block hash components (for use in block hash
 /// computation of the current block).
 async fn make_blob_parameters(
-    _block_context: &BlockContext,
-    _txs_with_exec: Vec<InternalTransactionWithReceipt>,
-    _state_maps: &StateMaps,
-    _parent_data: (BlockHash, ProposalCommitment),
+    block_context: &BlockContext,
+    txs_with_exec: Vec<InternalTransactionWithReceipt>,
+    state_maps: &StateMaps,
+    parent_data: (BlockHash, ProposalCommitment),
 ) -> (BlobParameters, PartialBlockHashComponents, ProposalCommitment) {
-    // TODO(Dori): implement.
+    let commitment_state_diff = CommitmentStateDiff::from(state_maps.clone());
+    let state_diff = ThinStateDiff::from(commitment_state_diff.clone());
+    let block_info = block_context.block_info().clone();
+    let block_hash_components =
+        compute_block_hash_components(&block_info, &state_diff, &txs_with_exec).await;
+    let proposal_commitment = ProposalCommitment(
+        PartialBlockHash::from_partial_block_hash_components(&block_hash_components).unwrap().0,
+    );
+
+    let (recent_block_hashes, parent_proposal_commitment) = if block_info.block_number.0 > 0 {
+        let (parent_block_hash, parent_proposal_commitment) = parent_data;
+        (
+            vec![BlockHashAndNumber {
+                number: BlockNumber(block_info.block_number.0 - 1),
+                hash: parent_block_hash,
+            }],
+            Some(parent_proposal_commitment),
+        )
+    } else {
+        (vec![], None)
+    };
+
     (
-        BlobParameters::default(),
-        PartialBlockHashComponents::default(),
-        ProposalCommitment::default(),
+        BlobParameters {
+            block_info,
+            state_diff,
+            compressed_state_diff: Some(commitment_state_diff),
+            transactions_with_execution_infos: txs_with_exec,
+            bouncer_weights: BouncerWeights::default(),
+            fee_market_info: FeeMarketInfo::default(),
+            casm_hash_computation_data_sierra_gas: CasmHashComputationData::default(),
+            casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
+            compiled_class_hashes_for_migration: vec![],
+            proposal_commitment,
+            parent_proposal_commitment,
+            recent_block_hashes,
+        },
+        block_hash_components,
+        proposal_commitment,
     )
 }
 
