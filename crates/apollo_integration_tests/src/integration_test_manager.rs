@@ -11,7 +11,7 @@ use apollo_http_server::test_utils::HttpTestClient;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
-use apollo_l1_gas_price_config::config::{EthToStrkOracleConfig, L1GasPriceScraperConfig};
+use apollo_l1_gas_price_config::config::{ExchangeRateOracleConfig, L1GasPriceScraperConfig};
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
@@ -1337,7 +1337,7 @@ async fn get_sequencer_setup_configs(
         let state_sync_config = state_sync_configs.remove(0);
 
         consensus_manager_config.cende_config.recorder_url = recorder_url.clone();
-        let eth_to_strk_oracle_config = EthToStrkOracleConfig {
+        let eth_to_strk_oracle_config = ExchangeRateOracleConfig {
             url_header_list: Some(vec![eth_to_strk_oracle_url.clone().into()]),
             ..Default::default()
         };
