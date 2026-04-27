@@ -18,7 +18,9 @@ expect-test.workspace = true
 mockall.workspace = true
 serde_json.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+starknet_committer.workspace = true
 starknet_patricia_storage = { workspace = true, features = ["testing"] }
+starknet_transaction_prover.workspace = true
 tokio.workspace = true
 
 [lints]
