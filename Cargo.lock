@@ -4877,7 +4877,9 @@ dependencies = [
  "mockall",
  "serde_json",
  "starknet_api",
+ "starknet_committer",
  "starknet_patricia_storage",
+ "starknet_transaction_prover",
  "tokio",
 ]
 
