@@ -117,6 +117,7 @@ use tracing::{debug, error, info, instrument, trace, warn, Instrument};
 use validator::Validate;
 
 use crate::block_builder::{
+    BlockBuilderChannels,
     BlockBuilderError,
     BlockBuilderExecutionParams,
     BlockBuilderFactory,
@@ -422,9 +423,11 @@ impl Batcher {
                 },
                 self.config.dynamic_config.native_classes_whitelist.clone(),
                 Box::new(tx_provider),
-                Some(output_tx_sender),
-                Some(candidate_tx_sender),
-                Some(pre_confirmed_tx_sender),
+                BlockBuilderChannels {
+                    output_content_sender: Some(output_tx_sender),
+                    candidate_tx_sender: Some(candidate_tx_sender),
+                    pre_confirmed_tx_sender: Some(pre_confirmed_tx_sender),
+                },
                 tokio::runtime::Handle::current(),
             )
             .map_err(|err| {
@@ -515,9 +518,11 @@ impl Batcher {
                 },
                 self.config.dynamic_config.native_classes_whitelist.clone(),
                 Box::new(tx_provider),
-                None,
-                None,
-                None,
+                BlockBuilderChannels {
+                    output_content_sender: None,
+                    candidate_tx_sender: None,
+                    pre_confirmed_tx_sender: None,
+                },
                 tokio::runtime::Handle::current(),
             )
             .map_err(|err| {

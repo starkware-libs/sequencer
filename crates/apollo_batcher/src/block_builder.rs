@@ -248,6 +248,14 @@ pub struct BlockBuilderExecutionParams {
     pub tx_polling_interval_millis: u64,
 }
 
+/// The optional channel senders used during block proposal (not validation).
+pub struct BlockBuilderChannels {
+    pub output_content_sender:
+        Option<tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>>,
+    pub candidate_tx_sender: Option<CandidateTxSender>,
+    pub pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
+}
+
 pub struct BlockBuilder {
     // TODO(Yael 14/10/2024): make the executor thread safe and delete this mutex.
     executor: Arc<Mutex<dyn TransactionExecutorTrait>>,
@@ -753,19 +761,13 @@ pub type BatcherWorkerPool = Arc<WorkerPool<CachedState<ApolloStateReaderAndCont
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
 #[cfg_attr(test, automock)]
 pub trait BlockBuilderFactoryTrait: Send + Sync {
-    // TODO(noamsp): Investigate and remove this clippy warning.
-    #[allow(clippy::too_many_arguments)]
     fn create_block_builder(
         &self,
         block_metadata: BlockMetadata,
         execution_params: BlockBuilderExecutionParams,
         native_classes_whitelist: NativeClassesWhitelist,
         tx_provider: Box<dyn TransactionProvider>,
-        output_content_sender: Option<
-            tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
-        >,
-        candidate_tx_sender: Option<CandidateTxSender>,
-        pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
+        channels: BlockBuilderChannels,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
 }
@@ -780,7 +782,6 @@ pub struct BlockBuilderFactory {
 }
 
 impl BlockBuilderFactory {
-    // TODO(noamsp): Investigate and remove this clippy warning.
     fn preprocess_and_create_transaction_executor(
         &self,
         block_metadata: BlockMetadata,
@@ -833,11 +834,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         execution_params: BlockBuilderExecutionParams,
         native_classes_whitelist: NativeClassesWhitelist,
         tx_provider: Box<dyn TransactionProvider>,
-        output_content_sender: Option<
-            tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
-        >,
-        candidate_tx_sender: Option<CandidateTxSender>,
-        pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
+        channels: BlockBuilderChannels,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
         let executor = self.preprocess_and_create_transaction_executor(
@@ -854,9 +851,9 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         let block_builder = Box::new(BlockBuilder::new(
             executor,
             tx_provider,
-            output_content_sender,
-            candidate_tx_sender,
-            pre_confirmed_tx_sender,
+            channels.output_content_sender,
+            channels.candidate_tx_sender,
+            channels.pre_confirmed_tx_sender,
             abort_signal_receiver,
             transaction_converter,
             execution_params,
