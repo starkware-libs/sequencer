@@ -4863,6 +4863,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "central_systest_blobs"
+version = "0.0.0"
+dependencies = [
+ "blockifier",
+ "expect-test",
+ "serde_json",
+ "starknet_api",
+]
+
+[[package]]
 name = "cesu8"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
