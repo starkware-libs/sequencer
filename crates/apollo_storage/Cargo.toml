@@ -80,3 +80,7 @@ workspace = true
 [[bin]]
 name = "storage_cli"
 required-features = ["storage_cli"]
+
+[[bin]]
+name = "storage_analyzer"
+required-features = ["storage_cli"]

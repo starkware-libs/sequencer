@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: storage-analyzer
+  namespace: echonet-committer
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    node.kubernetes.io/instance-type: c4d-standard-8
+  tolerations:
+  - key: "key"
+    operator: "Equal"
+    value: "apollo-core-service-c4d-standard-8"
+    effect: "NoSchedule"
+  - key: "role"
+    operator: "Exists"
+    effect: "NoSchedule"
+  containers:
+  - name: analyzer
+    image: rust:1.87-bookworm
+    command: ["sleep", "infinity"]
+    resources:
+      requests:
+        memory: "4Gi"
+        cpu: "2"
+      limits:
+        memory: "8Gi"
+        cpu: "4"
+    volumeMounts:
+    - name: storage-vol
+      mountPath: /data
+      readOnly: true
+    - name: build-cache
+      mountPath: /usr/local/cargo/registry
+  volumes:
+  - name: storage-vol
+    persistentVolumeClaim:
+      claimName: sequencer-node-data
+  - name: build-cache
+    emptyDir: {}
