@@ -61,6 +61,7 @@ fn new_shc(id: ValidatorId, is_observer: bool) -> SingleHeightConsensus {
 
 #[track_caller]
 fn assert_start_build_proposal(reqs: &mut VecDeque<SMRequest>) {
+    assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Propose, ROUND_0)));
     assert_matches!(reqs.pop_front(), Some(SMRequest::StartBuildProposal(ROUND_0)));
     assert!(reqs.is_empty(), "unexpected requests: {:?}", reqs);
 }
