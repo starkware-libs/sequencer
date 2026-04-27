@@ -33,15 +33,17 @@ use expect_test::expect_file;
 use mockall::predicate::eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::block_hash::block_hash_calculator::{
+    calculate_block_commitments,
     calculate_block_hash,
     PartialBlockHash,
     PartialBlockHashComponents,
+    TransactionHashingData,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_address;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::{ChainId, Nonce, OsChainInfo};
-use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::data_availability::{DataAvailabilityMode, L1DataAvailabilityMode};
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableAccountTx,
     DeclareTransaction as ExecutableDeclareTransaction,
@@ -204,12 +206,27 @@ fn execute_block(
 }
 
 async fn compute_block_hash_components(
-    _block_info: &BlockInfo,
-    _state_diff: &ThinStateDiff,
-    _txs: &[InternalTransactionWithReceipt],
+    block_info: &BlockInfo,
+    state_diff: &ThinStateDiff,
+    txs: &[InternalTransactionWithReceipt],
 ) -> PartialBlockHashComponents {
-    // TODO(Dori): implement.
-    PartialBlockHashComponents::default()
+    let transaction_hashing_data: Vec<_> = txs
+        .iter()
+        .map(|tx| TransactionHashingData {
+            transaction_signature: tx.transaction.tx_signature_for_commitment().unwrap(),
+            transaction_output: tx.execution_info.output_for_hashing(),
+            transaction_hash: tx.transaction.tx_hash(),
+        })
+        .collect();
+    let l1_da_mode = L1DataAvailabilityMode::default();
+    let (block_header_commitments, _) = calculate_block_commitments(
+        &transaction_hashing_data,
+        state_diff.clone(),
+        l1_da_mode,
+        &block_info.starknet_version,
+    )
+    .await;
+    PartialBlockHashComponents::new(block_info, block_header_commitments)
 }
 
 /// Given previous state and partial components, commits the changes and finalizes the block hash.
