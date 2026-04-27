@@ -12,8 +12,8 @@
       "class_hash_to_compiled_class_hash": {},
       "block_info": {
         "block_number": 0,
-        "block_timestamp": 0,
-        "sequencer_address": "0x0",
+        "block_timestamp": 1000,
+        "sequencer_address": "0x1000",
         "l1_gas_price": {
           "price_in_wei": "0x1",
           "price_in_fri": "0x1"
@@ -30,7 +30,35 @@
         "starknet_version": "0.14.3"
       }
     },
-    "compressed_state_diff": null,
+    "compressed_state_diff": {
+      "address_to_class_hash": {},
+      "nonces": {
+        "L1": {}
+      },
+      "storage_updates": {
+        "L1": {}
+      },
+      "class_hash_to_compiled_class_hash": {},
+      "block_info": {
+        "block_number": 0,
+        "block_timestamp": 1000,
+        "sequencer_address": "0x1000",
+        "l1_gas_price": {
+          "price_in_wei": "0x1",
+          "price_in_fri": "0x1"
+        },
+        "l1_data_gas_price": {
+          "price_in_wei": "0x1",
+          "price_in_fri": "0x1"
+        },
+        "l2_gas_price": {
+          "price_in_wei": "0x1",
+          "price_in_fri": "0x1"
+        },
+        "use_kzg_da": false,
+        "starknet_version": "0.14.3"
+      }
+    },
     "bouncer_weights": {
       "l1_gas": 2500000,
       "message_segment_length": 3700,
@@ -57,7 +85,7 @@
       "gas_without_casm_hash_computation": 0
     },
     "compiled_class_hashes_for_migration": [],
-    "proposal_commitment": "0x0",
+    "proposal_commitment": "0x2d11c5fc826e158918cd2b276b62a02ede83be42dc5b6505c68de496366c3f2",
     "parent_proposal_commitment": null,
     "recent_block_hashes": []
   }
