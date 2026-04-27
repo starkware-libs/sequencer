@@ -85,7 +85,7 @@
       "gas_without_casm_hash_computation": 0
     },
     "compiled_class_hashes_for_migration": [],
-    "proposal_commitment": "0x2d11c5fc826e158918cd2b276b62a02ede83be42dc5b6505c68de496366c3f2",
+    "proposal_commitment": "0x6103583fb40c412d6eba89a1b2aff6d03620222c2c7937a04b09afe142c2346",
     "parent_proposal_commitment": null,
     "recent_block_hashes": []
   }
