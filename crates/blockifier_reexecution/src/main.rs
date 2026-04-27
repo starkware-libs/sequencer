@@ -12,9 +12,9 @@ use blockifier_reexecution::cli::{
 };
 use blockifier_reexecution::rpc_replay::run_rpc_replay;
 use blockifier_reexecution::state_reader::config::RpcStateReaderConfig;
-use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
-use blockifier_reexecution::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
-use blockifier_reexecution::state_reader::rpc_state_reader::ConsecutiveRpcStateReaders;
+use blockifier_reexecution::state_reader::offline_state_reader::OfflineBlockReexecutor;
+use blockifier_reexecution::state_reader::reexecution_state_reader::BlockReexecutor;
+use blockifier_reexecution::state_reader::rpc_state_reader::RpcBlockReexecutor;
 use blockifier_reexecution::utils::get_chain_info;
 use clap::Parser;
 use google_cloud_storage::client::{Client, ClientConfig};
@@ -82,7 +82,7 @@ async fn main() {
             tokio::task::spawn_blocking(move || {
                 let chain_info = get_chain_info(&rpc_args.parse_chain_id(), None);
                 let prefetch_initial_reads = true;
-                ConsecutiveRpcStateReaders::new(
+                RpcBlockReexecutor::new(
                     BlockNumber(block_number - 1),
                     Some(rpc_state_reader_config),
                     chain_info,
@@ -118,7 +118,7 @@ async fn main() {
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
-                ConsecutiveRpcStateReaders::new(
+                RpcBlockReexecutor::new(
                     BlockNumber(block_number - 1),
                     Some(rpc_state_reader_config),
                     chain_info,
@@ -157,7 +157,7 @@ async fn main() {
                 task_set.spawn(async move {
                     info!("Computing reexecution data for block {block_number}.");
                     tokio::task::spawn_blocking(move || {
-                        ConsecutiveRpcStateReaders::new(
+                        RpcBlockReexecutor::new(
                             block_number.prev().expect("Should not run with block 0"),
                             Some(rpc_state_reader_config),
                             chain_info,
@@ -185,12 +185,9 @@ async fn main() {
                 let full_file_path = block_full_file_path(directory_path.clone(), block);
                 let contract_class_manager = contract_class_manager.clone();
                 task_set.spawn(async move {
-                    OfflineConsecutiveStateReaders::new_from_file(
-                        &full_file_path,
-                        contract_class_manager,
-                    )
-                    .unwrap()
-                    .reexecute_and_verify_correctness();
+                    OfflineBlockReexecutor::new_from_file(&full_file_path, contract_class_manager)
+                        .unwrap()
+                        .reexecute_and_verify_correctness();
                     info!("Reexecution test for block {block} passed successfully.");
                 });
             }

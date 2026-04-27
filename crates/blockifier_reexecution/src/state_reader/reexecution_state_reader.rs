@@ -129,9 +129,7 @@ pub trait ReexecutionStateReader {
 }
 
 /// Trait of the functions \ queries required for reexecution.
-pub trait ConsecutiveReexecutionStateReaders<S: StateReader + Send + Sync + 'static>:
-    Sized
-{
+pub trait BlockReexecutor<S: StateReader + Send + Sync + 'static>: Sized {
     fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,

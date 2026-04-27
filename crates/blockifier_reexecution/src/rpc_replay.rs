@@ -23,12 +23,9 @@ use starknet_api::contract_class::SierraVersion;
 
 use crate::errors::{RPCStateReaderError, ReexecutionError, ReexecutionResult};
 use crate::state_reader::config::RpcStateReaderConfig;
-use crate::state_reader::reexecution_state_reader::{
-    ConsecutiveReexecutionStateReaders,
-    ReexecuteBlockOutcome,
-};
+use crate::state_reader::reexecution_state_reader::{BlockReexecutor, ReexecuteBlockOutcome};
 use crate::state_reader::rpc_objects::BlockHeader;
-use crate::state_reader::rpc_state_reader::ConsecutiveRpcStateReaders;
+use crate::state_reader::rpc_state_reader::RpcBlockReexecutor;
 use crate::utils::{compare_state_diffs, get_chain_info};
 // Block hash comparison is only valid for Starknet v0.14.0 and later.
 const MIN_VERSION_FOR_BLOCK_HASH_COMPARISON: &str = "0.14.0";
@@ -218,7 +215,7 @@ fn reexecute_block(
     let prev_block = BlockNumber(block_number)
         .prev()
         .expect("Block number 0 cannot be reexecuted (no previous block).");
-    let readers = ConsecutiveRpcStateReaders::new(
+    let readers = RpcBlockReexecutor::new(
         prev_block,
         Some(config.clone()),
         chain_info.clone(),
@@ -274,7 +271,7 @@ fn reexecute_block_native_vs_casm(
 
     let min_sierra_version_override = Some(SierraVersion::new(0, 0, 0));
 
-    let mut native_readers = ConsecutiveRpcStateReaders::new(
+    let mut native_readers = RpcBlockReexecutor::new(
         prev_block,
         Some(config.clone()),
         chain_info.clone(),
@@ -289,7 +286,7 @@ fn reexecute_block_native_vs_casm(
         ..
     } = native_readers.reexecute_block()?;
 
-    let mut casm_readers = ConsecutiveRpcStateReaders::new(
+    let mut casm_readers = RpcBlockReexecutor::new(
         prev_block,
         Some(config.clone()),
         chain_info.clone(),
