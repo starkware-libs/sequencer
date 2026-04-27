@@ -10,7 +10,7 @@ use crate::state_reader::reexecution_state_reader::BlockReexecutor;
 /// Reexecutes a block from a pre-saved JSON file and verifies correctness.
 fn reexecute_block_for_testing(block_number: u64) {
     // In tests we are already in the blockifier_reexecution directory.
-    let full_file_path = format!("./resources/block_{block_number}/reexecution_data.json");
+    let full_file_path = format!("./resources/block_{block_number}/reexecution_data_v2.json");
 
     // Initialize the contract class manager.
     let mut contract_class_manager_config = ContractClassManagerConfig::default();

@@ -26,7 +26,7 @@ use tracing::info;
 
 const BUCKET: &str = "reexecution_artifacts";
 const RESOURCES_DIR: &str = "/resources";
-const FILE_NAME: &str = "/reexecution_data.json";
+const FILE_NAME: &str = "/reexecution_data_v2.json";
 const OFFLINE_PREFIX_FILE: &str = "/offline_reexecution_files_prefix";
 
 /// Main entry point of the blockifier reexecution CLI.
@@ -83,7 +83,7 @@ async fn main() {
                 let chain_info = get_chain_info(&rpc_args.parse_chain_id(), None);
                 let prefetch_initial_reads = true;
                 RpcBlockReexecutor::new(
-                    BlockNumber(block_number - 1),
+                    BlockNumber(block_number),
                     Some(rpc_state_reader_config),
                     chain_info,
                     false,
@@ -119,7 +119,7 @@ async fn main() {
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
                 RpcBlockReexecutor::new(
-                    BlockNumber(block_number - 1),
+                    BlockNumber(block_number),
                     Some(rpc_state_reader_config),
                     chain_info,
                     false,
@@ -158,7 +158,7 @@ async fn main() {
                     info!("Computing reexecution data for block {block_number}.");
                     tokio::task::spawn_blocking(move || {
                         RpcBlockReexecutor::new(
-                            block_number.prev().expect("Should not run with block 0"),
+                            block_number,
                             Some(rpc_state_reader_config),
                             chain_info,
                             true,

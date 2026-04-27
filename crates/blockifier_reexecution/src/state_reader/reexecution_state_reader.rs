@@ -60,7 +60,7 @@ pub trait ReexecutionStateReader {
     }
 
     // TODO(Aner): extract this function out of the state reader.
-    fn api_txs_to_blockifier_txs_next_block(
+    fn api_txs_to_blockifier_txs(
         &self,
         txs_and_hashes: Vec<(Transaction, TransactionHash)>,
     ) -> ReexecutionResult<Vec<BlockifierTransaction>> {
@@ -135,27 +135,27 @@ pub trait BlockReexecutor<S: StateReader + Send + Sync + 'static>: Sized {
         transaction_executor_config: Option<TransactionExecutorConfig>,
     ) -> ReexecutionResult<TransactionExecutor<S>>;
 
-    fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>>;
+    fn get_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>>;
 
-    fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff>;
+    fn get_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff>;
 
     /// Reexecutes a block and returns the block state, the expected and actual state diffs, and
     /// the transaction hashing data needed to compute the block hash.
     /// Does not verify that the state diffs match.
     fn reexecute_block(self) -> ReexecutionResult<ReexecuteBlockOutcome<S>> {
-        let expected_state_diff = self.get_next_block_state_diff()?;
+        let expected_state_diff = self.get_block_state_diff()?;
 
-        let all_txs_in_next_block = self.get_next_block_txs()?;
+        let block_txs = self.get_block_txs()?;
 
         let mut transaction_executor = self.pre_process_and_create_executor(None)?;
 
         let execution_infos = transaction_executor
-            .execute_txs(&all_txs_in_next_block, None)
+            .execute_txs(&block_txs, None)
             .into_iter()
             .map(|result| result.map(|(execution_info, _state_maps)| execution_info))
             .collect::<Result<Vec<_>, _>>()?;
 
-        let tx_count = all_txs_in_next_block.len();
+        let tx_count = block_txs.len();
         let execution_info_count = execution_infos.len();
         if execution_info_count < tx_count {
             return Err(ReexecutionError::IncompleteBlockExecution {
@@ -164,7 +164,7 @@ pub trait BlockReexecutor<S: StateReader + Send + Sync + 'static>: Sized {
             });
         }
 
-        let txs_hashing_data = all_txs_in_next_block
+        let txs_hashing_data = block_txs
             .iter()
             .zip(execution_infos.iter())
             .map(|(blockifier_tx, execution_info)| TransactionHashingData {

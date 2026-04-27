@@ -212,11 +212,8 @@ fn reexecute_block(
     contract_class_manager: &ContractClassManager,
     prefetch_initial_reads: bool,
 ) -> ReexecutionResult<bool> {
-    let prev_block = BlockNumber(block_number)
-        .prev()
-        .expect("Block number 0 cannot be reexecuted (no previous block).");
     let readers = RpcBlockReexecutor::new(
-        prev_block,
+        BlockNumber(block_number),
         Some(config.clone()),
         chain_info.clone(),
         false,
@@ -224,7 +221,7 @@ fn reexecute_block(
         prefetch_initial_reads,
     );
 
-    let block_header = readers.get_next_block_header()?;
+    let block_header = readers.get_block_header()?;
 
     let ReexecuteBlockOutcome { expected_state_diff, actual_state_diff, txs_hashing_data, .. } =
         readers.reexecute_block()?;
@@ -265,14 +262,10 @@ fn reexecute_block_native_vs_casm(
     casm_manager: &ContractClassManager,
     prefetch_initial_reads: bool,
 ) -> ReexecutionResult<bool> {
-    let prev_block = BlockNumber(block_number)
-        .prev()
-        .expect("Block number 0 cannot be reexecuted (no previous block).");
-
     let min_sierra_version_override = Some(SierraVersion::new(0, 0, 0));
 
     let mut native_readers = RpcBlockReexecutor::new(
-        prev_block,
+        BlockNumber(block_number),
         Some(config.clone()),
         chain_info.clone(),
         false,
@@ -287,7 +280,7 @@ fn reexecute_block_native_vs_casm(
     } = native_readers.reexecute_block()?;
 
     let mut casm_readers = RpcBlockReexecutor::new(
-        prev_block,
+        BlockNumber(block_number),
         Some(config.clone()),
         chain_info.clone(),
         false,
