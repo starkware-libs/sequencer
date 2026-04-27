@@ -411,17 +411,7 @@ impl ValidResourceBounds {
     }
 
     pub fn new_unlimited_gas_no_fee_enforcement() -> Self {
-        let default_l2_gas_amount = GasAmount(HIGH_GAS_AMOUNT); // Sufficient to avoid out of gas errors.
-        let default_resource =
-            ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(1) };
-        Self::AllResources(AllResourceBounds {
-            l1_gas: default_resource,
-            l2_gas: ResourceBounds {
-                max_amount: default_l2_gas_amount,
-                max_price_per_unit: GasPrice(0), // Set to zero for no enforce_fee mechanism.
-            },
-            l1_data_gas: default_resource,
-        })
+        Self::AllResources(AllResourceBounds::new_unlimited_gas_no_fee_enforcement())
     }
 
     #[cfg(any(feature = "testing", test))]
@@ -488,6 +478,20 @@ impl AllResourceBounds {
         let resource_bounds =
             ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(1) };
         Self { l1_gas: resource_bounds, l2_gas: resource_bounds, l1_data_gas: resource_bounds }
+    }
+
+    pub fn new_unlimited_gas_no_fee_enforcement() -> Self {
+        let default_l2_gas_amount = GasAmount(HIGH_GAS_AMOUNT); // Sufficient to avoid out of gas errors.
+        let default_resource =
+            ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(1) };
+        Self {
+            l1_gas: default_resource,
+            l2_gas: ResourceBounds {
+                max_amount: default_l2_gas_amount,
+                max_price_per_unit: GasPrice(0), // Set to zero for no enforce_fee mechanism.
+            },
+            l1_data_gas: default_resource,
+        }
     }
 }
 
