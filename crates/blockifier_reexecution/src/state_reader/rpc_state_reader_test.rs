@@ -22,6 +22,7 @@ use starknet_api::core::ChainId;
 use starknet_api::transaction::{
     DeclareTransaction,
     DeployAccountTransaction,
+    InvokeTransaction,
     Transaction,
     TransactionHash,
     TransactionVersion,
@@ -70,6 +71,13 @@ const EXAMPLE_DECLARE_V3_TX_HASH: &str =
 const EXAMPLE_L1_HANDLER_BLOCK_NUMBER: u64 = 868429;
 const EXAMPLE_L1_HANDLER_TX_HASH: &str =
     "0x02315145ae0290b7d49ea3f509b1084b5fcd70d0fea8bed04b83aa8af33e4d7e";
+
+/// Mainnet v0.14.2 block containing a privacy-pool `apply_actions` tx whose
+/// `tx_info.proof_facts` is non-empty (validated by the privacy contract's
+/// `validate_proof`). Exercises the `INCLUDE_PROOF_FACTS` response flag end-to-end.
+const EXAMPLE_INVOKE_V3_WITH_PROOF_FACTS_BLOCK_NUMBER: u64 = 9023035;
+const EXAMPLE_INVOKE_V3_WITH_PROOF_FACTS_TX_HASH: &str =
+    "0x3f600e8af3f94178298d7f56a396b81a8083db1b2cc0f16eaa09f5d79221730";
 
 /// Retrieves the test URL from the `TEST_URL` environment variable,
 /// falling back to a default URL if not provided.
@@ -169,6 +177,25 @@ pub fn test_get_contract_class(test_state_reader: RpcStateReader, test_block_num
 pub fn test_get_invoke_tx_by_hash(test_state_reader: RpcStateReader) {
     let actual_tx = test_state_reader.get_tx_by_hash(EXAMPLE_INVOKE_TX_HASH).unwrap();
     assert_matches!(actual_tx, Transaction::Invoke(..));
+}
+
+/// Verifies that the RPC `INCLUDE_PROOF_FACTS` response flag is honoured: fetching a
+/// privacy-pool `apply_actions` tx round-trips a non-empty `proof_facts` field.
+#[test]
+pub fn test_get_invoke_v3_with_proof_facts_tx_by_hash() {
+    let state_reader = RpcStateReader::new_for_testing(BlockNumber(
+        EXAMPLE_INVOKE_V3_WITH_PROOF_FACTS_BLOCK_NUMBER,
+    ));
+    let tx = state_reader.get_tx_by_hash(EXAMPLE_INVOKE_V3_WITH_PROOF_FACTS_TX_HASH).unwrap();
+    let invoke_v3 = assert_matches!(
+        tx,
+        Transaction::Invoke(InvokeTransaction::V3(invoke_v3)) => invoke_v3
+    );
+    assert!(
+        !invoke_v3.proof_facts.0.is_empty(),
+        "Expected proof_facts to be populated; got empty. Did the request omit \
+         response_flags=[INCLUDE_PROOF_FACTS]?"
+    );
 }
 
 #[rstest]

@@ -76,9 +76,19 @@ pub struct GetBlockWithTxHashesParams {
     pub block_id: BlockId,
 }
 
+/// Flags controlling additional fields in transaction responses (see Starknet RPC spec
+/// `TXN_RESPONSE_FLAG`). Only `INCLUDE_PROOF_FACTS` is defined as of RPC v0.10.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub enum TxResponseFlag {
+    #[serde(rename = "INCLUDE_PROOF_FACTS")]
+    IncludeProofFacts,
+}
+
 #[derive(Deserialize, Serialize)]
 pub struct GetBlockWithTxsParams {
     pub block_id: BlockId,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub response_flags: Vec<TxResponseFlag>,
 }
 
 /// Response of `starknet_getBlockWithTxs`: all `BlockHeader` fields plus the block's full
