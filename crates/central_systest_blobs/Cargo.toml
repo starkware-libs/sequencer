@@ -1,0 +1,16 @@
+[package]
+name = "central_systest_blobs"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Keeps blob JSONs for centralized system test, and tests for regression"
+
+[dev-dependencies]
+blockifier = { workspace = true, features = ["testing"] }
+expect-test.workspace = true
+serde_json.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
+
+[lints]
+workspace = true
