@@ -268,6 +268,12 @@ fn open_storage_internal(
         compiled_class_hash: db_writer.create_common_prefix_table("compiled_class_hash")?,
         stateless_compiled_class_hash_v2: db_writer
             .create_simple_table("stateless_compiled_class_hash_v2")?,
+
+        // Flat state tables — always created regardless of flat_state config.
+        flat_contract_storage: db_writer.create_common_prefix_table("flat_contract_storage")?,
+        flat_nonces: db_writer.create_simple_table("flat_nonces")?,
+        flat_deployed_contracts: db_writer.create_simple_table("flat_deployed_contracts")?,
+        flat_compiled_class_hash: db_writer.create_simple_table("flat_compiled_class_hash")?,
     });
     let (file_writers, file_readers) = open_storage_files(
         &storage_config.db_config,
@@ -701,12 +707,20 @@ struct_field_names! {
 
         // Compiled class hashes.
         compiled_class_hash: TableIdentifier<(ClassHash, BlockNumber), VersionZeroWrapper<CompiledClassHash>, CommonPrefix>,
-        stateless_compiled_class_hash_v2: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>
+        stateless_compiled_class_hash_v2: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>,
+
+        // Flat state tables (no BlockNumber in key — store only latest value).
+        flat_contract_storage: TableIdentifier<(ContractAddress, StorageKey), NoVersionValueWrapper<Felt>, CommonPrefix>,
+        flat_nonces: TableIdentifier<ContractAddress, NoVersionValueWrapper<Nonce>, SimpleTable>,
+        flat_deployed_contracts: TableIdentifier<ContractAddress, NoVersionValueWrapper<ClassHash>, SimpleTable>,
+        flat_compiled_class_hash: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>
     }
 }
 
 macro_rules! struct_field_names {
     (struct $name:ident { $($fname:ident : $ftype:ty),* }) => {
+        // TODO(dan): remove allow(dead_code) once flat state reads are wired up.
+        #[allow(dead_code)]
         pub(crate) struct $name {
             $($fname : $ftype),*
         }
