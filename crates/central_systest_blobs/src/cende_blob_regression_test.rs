@@ -16,6 +16,7 @@ use apollo_consensus_orchestrator::cende::{
     BlobParameters,
     InternalTransactionWithReceipt,
 };
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo};
@@ -181,14 +182,14 @@ fn make_block_context(block_number: usize) -> BlockContext {
 }
 
 /// Executes the transactions and applies the changes to the state.
-#[expect(dead_code)]
 fn execute_block(
     _state: &mut DictStateReader,
     _block_context: &BlockContext,
     _old_block_number_and_hash: Option<BlockHashAndNumber>,
     _txs: &[TxPair],
 ) -> (Vec<InternalTransactionWithReceipt>, StateMaps) {
-    unimplemented!()
+    // TODO(Dori): implement.
+    (vec![], StateMaps::default())
 }
 
 #[expect(dead_code)]
@@ -202,7 +203,6 @@ async fn compute_block_hash_components(
 
 /// Given previous state and partial components, commits the changes and finalizes the block hash.
 /// Returns the block hash, the new state roots and the updated committer storage.
-#[expect(dead_code)]
 async fn compute_block_commitments(
     _committer_storage: MapStorage,
     _prev_state_roots: &StateRoots,
@@ -210,7 +210,8 @@ async fn compute_block_commitments(
     _block_hash_components: PartialBlockHashComponents,
     _prev_block_hash: BlockHash,
 ) -> (BlockHash, StateRoots, MapStorage) {
-    unimplemented!()
+    // TODO(Dori): implement.
+    (BlockHash::default(), StateRoots::default(), MapStorage::default())
 }
 
 /// Creates a blob for the given block.
@@ -218,14 +219,18 @@ async fn compute_block_commitments(
 /// recent block hashes with the last block hash (of the previous block).
 /// Returns the current proposal commitment and the block hash components (for use in block hash
 /// computation of the current block).
-#[expect(dead_code)]
 async fn make_blob_parameters(
     _block_context: &BlockContext,
     _txs_with_exec: Vec<InternalTransactionWithReceipt>,
     _state_maps: &StateMaps,
     _parent_data: (BlockHash, ProposalCommitment),
 ) -> (BlobParameters, PartialBlockHashComponents, ProposalCommitment) {
-    unimplemented!()
+    // TODO(Dori): implement.
+    (
+        BlobParameters::default(),
+        PartialBlockHashComponents::default(),
+        ProposalCommitment::default(),
+    )
 }
 
 /// Creates a preconfirmed block for the given block. Should be called for the last block only - no
@@ -285,12 +290,77 @@ fn make_preconfirmed_block(
 /// Given a list of blocks (block number and contents), executes the transactions and creates the
 /// blobs.
 async fn make_blobs(
-    _blocks_to_commit: &[(usize, &[TxPair])],
-    _state: &mut DictStateReader,
-    _shared_class_manager: SharedClassManagerClient,
+    blocks_to_commit: &[(usize, &[TxPair])],
+    state: &mut DictStateReader,
+    shared_class_manager: SharedClassManagerClient,
 ) -> Vec<AerospikeBlob> {
-    // TODO(Dori): implement.
-    vec![]
+    let mut prev_block_hash = BlockHash::GENESIS_PARENT_HASH;
+    let mut prev_state_roots = StateRoots::default();
+    let mut prev_proposal_commitment = ProposalCommitment::default();
+    let mut committer_storage = MapStorage::default();
+
+    // "Mapping" from block number to block hash.
+    let mut block_hashes = vec![];
+
+    // Iterate over all except the last block.
+    let mut blobs = vec![];
+    for (block_number, txs_for_block) in blocks_to_commit {
+        let block_context = make_block_context(*block_number);
+        let u64_block_number = u64::try_from(*block_number).unwrap();
+
+        // If the block number is after the block hash buffer, set the previous block hash and
+        // number, so they appear in the state diff.
+        let prev_block_hash_and_number = if u64_block_number < STORED_BLOCK_HASH_BUFFER {
+            None
+        } else {
+            let old_block_number = u64_block_number - STORED_BLOCK_HASH_BUFFER;
+            Some(BlockHashAndNumber {
+                number: BlockNumber(old_block_number),
+                hash: block_hashes[usize::try_from(old_block_number).unwrap()],
+            })
+        };
+
+        // Execute the block.
+        let (txs_with_exec, state_maps) =
+            execute_block(state, &block_context, prev_block_hash_and_number, txs_for_block);
+
+        // Create a blob, with the previous block hash and proposal commitment.
+        let (blob_parameters, block_hash_components, proposal_commitment) = make_blob_parameters(
+            &block_context,
+            txs_with_exec,
+            &state_maps,
+            (prev_block_hash, prev_proposal_commitment),
+        )
+        .await;
+
+        // Commit the block and compute block hash for the next block.
+        (prev_block_hash, prev_state_roots, committer_storage) = compute_block_commitments(
+            committer_storage,
+            &prev_state_roots,
+            &state_maps,
+            block_hash_components,
+            prev_block_hash,
+        )
+        .await;
+
+        // Update the previous proposal commitment for the next block.
+        prev_proposal_commitment = proposal_commitment;
+
+        // Update block hash list.
+        assert_eq!(block_hashes.len(), *block_number);
+        block_hashes.push(prev_block_hash);
+
+        // Push the new blob.
+        blobs.push(
+            AerospikeBlob::from_blob_parameters_and_class_manager(
+                blob_parameters,
+                shared_class_manager.clone(),
+            )
+            .await
+            .unwrap(),
+        );
+    }
+    blobs
 }
 
 /// Generates a fixed set of blob data, and one preconfirmed block, with a deterministic list of
