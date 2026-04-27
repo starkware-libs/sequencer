@@ -1,5 +1,5 @@
 {
-  "block_number": 4,
+  "block_number": 6,
   "pre_confirmed_block": {
     "l1_da_mode": "CALLDATA",
     "l1_data_gas_price": {
@@ -17,16 +17,16 @@
     "sequencer_address": "0x1000",
     "starknet_version": "0.14.3",
     "status": "PRE_CONFIRMED",
-    "timestamp": 1004,
+    "timestamp": 1006,
     "transaction_receipts": [
       {
-        "actual_fee": "0x6d1f42b7",
+        "actual_fee": "0xe7c6d",
         "events": [
           {
             "data": [
               "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955",
               "0x1000",
-              "0x6d1f42b7",
+              "0xe7c6d",
               "0x0"
             ],
             "from_address": "0x6bd1d71a2fb67a567618584ca31da288dbc2e1a8421e4045e05f52c19bfab83",
@@ -38,40 +38,36 @@
         "execution_resources": {
           "builtin_instance_counter": {
             "pedersen_builtin": 4,
-            "poseidon_builtin": 15,
-            "range_check_builtin": 72
+            "poseidon_builtin": 17,
+            "range_check_builtin": 90
           },
           "data_availability": {
             "l1_data_gas": 0,
-            "l1_gas": 2754,
+            "l1_gas": 1652,
             "l2_gas": 0
           },
           "n_memory_holes": 0,
-          "n_steps": 3523,
+          "n_steps": 4403,
           "total_gas_consumed": {
             "l1_data_gas": 0,
-            "l1_gas": 2754,
-            "l2_gas": 1830762485
+            "l1_gas": 1652,
+            "l2_gas": 947705
           }
         },
-        "execution_status": "SUCCEEDED",
+        "execution_status": "REVERTED",
         "l2_to_l1_messages": [],
-        "transaction_hash": "0x5243be6398910bcd98bfbec1271759489364e2e35a73c1f42c0a83482c61aca",
+        "revert_error": "Transaction execution has failed:\n0: Error in the called contract (contract address: 0x00f99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955, class hash: 0x077fcf11f339d18db724aa522729b4c0e4e04aa85a6f104c10b469c020207dc1, selector: 0x015d40a3d6ca2ac30f4031e42be28da9b056fef9bb7357ac5e85627ee876e5ad):\nError at pc=0:1543:\nCairo traceback (most recent call last):\nUnknown location (pc=0:854)\n\n1: Error in the called contract (contract address: 0x00f99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955, class hash: 0x077fcf11f339d18db724aa522729b4c0e4e04aa85a6f104c10b469c020207dc1, selector: 0x02730079d734ee55315f4f141eaed376bddd8c2133523d223a344c5604e0f7f8):\nError at pc=0:154:\n2: Error in the contract class constructor (contract address: 0x03d275d3e01ff9dca442ca4aa77b00d6581ad890e3df054932a6851a5166e94d, class hash: 0x04b0dc3014cc21eeeeba97610d8fb3eaf61c428c513a2e9bfcf1b7beb9cb99c0, selector: UNKNOWN):\nDeployment failed: contract already deployed at address 0x03d275d3e01ff9dca442ca4aa77b00d6581ad890e3df054932a6851a5166e94d\n",
+        "transaction_hash": "0x1e50fef3a5e353081f444bedb6e69c60eafbc156c7117ccb5c3b31644685afb",
         "transaction_index": 0
       }
     ],
     "transaction_state_diffs": [
       {
-        "declared_classes": [
-          {
-            "class_hash": "0x4b0dc3014cc21eeeeba97610d8fb3eaf61c428c513a2e9bfcf1b7beb9cb99c0",
-            "compiled_class_hash": "0x50cb22f072d8c735911ff906272d7f4256b8fa8aea1c8c624f879f343694870"
-          }
-        ],
+        "declared_classes": [],
         "deployed_contracts": [],
         "migrated_compiled_classes": [],
         "nonces": {
-          "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955": "0x3"
+          "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955": "0x5"
         },
         "old_declared_contracts": [],
         "replaced_classes": [],
@@ -79,11 +75,11 @@
           "0x6bd1d71a2fb67a567618584ca31da288dbc2e1a8421e4045e05f52c19bfab83": [
             {
               "key": "0x6fba6554adab51d0272b896b6f41768bd0491e5ad59c39fab38e65767974793",
-              "value": "0xffffffffffffffffffffffff92e0bd48"
+              "value": "0xffffffffffffffffffffffff92c2ddaf"
             },
             {
               "key": "0x723973208639b7839ce298f7ffea61e3f9533872defd7abdb91023db4658812",
-              "value": "0x6d1f42b7"
+              "value": "0x6d3d2250"
             }
           ]
         }
@@ -92,12 +88,23 @@
     "transactions": [
       {
         "account_deployment_data": [],
-        "class_hash": "0x4b0dc3014cc21eeeeba97610d8fb3eaf61c428c513a2e9bfcf1b7beb9cb99c0",
-        "compiled_class_hash": "0x50cb22f072d8c735911ff906272d7f4256b8fa8aea1c8c624f879f343694870",
+        "calldata": [
+          "0x1",
+          "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955",
+          "0x2730079d734ee55315f4f141eaed376bddd8c2133523d223a344c5604e0f7f8",
+          "0x6",
+          "0x4b0dc3014cc21eeeeba97610d8fb3eaf61c428c513a2e9bfcf1b7beb9cb99c0",
+          "0x0",
+          "0x2",
+          "0x0",
+          "0x0",
+          "0x0"
+        ],
         "fee_data_availability_mode": 0,
-        "nonce": "0x2",
+        "nonce": "0x4",
         "nonce_data_availability_mode": 0,
         "paymaster_data": [],
+        "proof_facts": [],
         "resource_bounds": {
           "L1_DATA_GAS": {
             "max_amount": "0x186a0",
@@ -114,12 +121,12 @@
         },
         "sender_address": "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955",
         "signature": [
-          "0x147f1b7ec5f3836d7bd3be39af5136cb75f113deebcf7d1962da19ef00d8719",
-          "0x4d083fb99ab11fb5a577a559c27f9e65c4de397a735054cd6e038716434b53b"
+          "0x1a9d1d64516f897f11f2d451b19b382e572647e5aa68ef67bc7663f0907f031",
+          "0x1f707b0da2c1b69b7dacb3b85d0d86b90c6d6a060e0dc1823f4aa0e6bbe84ce"
         ],
         "tip": "0x0",
-        "transaction_hash": "0x5243be6398910bcd98bfbec1271759489364e2e35a73c1f42c0a83482c61aca",
-        "type": "DECLARE",
+        "transaction_hash": "0x1e50fef3a5e353081f444bedb6e69c60eafbc156c7117ccb5c3b31644685afb",
+        "type": "INVOKE_FUNCTION",
         "version": "0x3"
       }
     ]
