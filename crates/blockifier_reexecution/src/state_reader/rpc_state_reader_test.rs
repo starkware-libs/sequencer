@@ -121,12 +121,12 @@ pub fn contract_class_manager() -> ContractClassManager {
 }
 
 #[fixture]
-pub fn test_state_readers_last_and_current_block(
-    last_constructed_block: BlockNumber,
+pub fn test_block_reexecutor(
+    test_block_number: BlockNumber,
     contract_class_manager: ContractClassManager,
 ) -> RpcBlockReexecutor {
     RpcBlockReexecutor::new(
-        last_constructed_block,
+        test_block_number,
         None,
         get_chain_info(&ChainId::Mainnet, None),
         false,

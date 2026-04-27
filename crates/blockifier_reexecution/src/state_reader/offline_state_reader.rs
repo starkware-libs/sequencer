@@ -34,31 +34,31 @@ use crate::state_reader::rpc_state_reader::StarknetContractClassMapping;
 use crate::utils::get_chain_info;
 
 pub struct OfflineReexecutionData {
-    offline_state_reader_prev_block: OfflineStateReader,
-    block_context_next_block: BlockContext,
-    transactions_next_block: Vec<BlockifierTransaction>,
-    state_diff_next_block: CommitmentStateDiff,
+    base_block_state_reader: OfflineStateReader,
+    reexecuted_block_context: BlockContext,
+    reexecuted_block_transactions: Vec<BlockifierTransaction>,
+    reexecuted_block_state_diff: CommitmentStateDiff,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct SerializableDataNextBlock {
-    pub block_info_next_block: BlockInfo,
+pub struct SerializableDataReexecutedBlock {
+    pub reexecuted_block_info: BlockInfo,
     pub starknet_version: StarknetVersion,
-    pub transactions_next_block: Vec<(Transaction, TransactionHash)>,
-    pub state_diff_next_block: CommitmentStateDiff,
+    pub reexecuted_block_transactions: Vec<(Transaction, TransactionHash)>,
+    pub reexecuted_block_state_diff: CommitmentStateDiff,
     pub declared_classes: StarknetContractClassMapping,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct SerializableDataPrevBlock {
+pub struct SerializableDataBaseBlock {
     pub state_maps: StateMaps,
     pub contract_class_mapping: StarknetContractClassMapping,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializableOfflineReexecutionData {
-    pub serializable_data_prev_block: SerializableDataPrevBlock,
-    pub serializable_data_next_block: SerializableDataNextBlock,
+    pub serializable_data_base_block: SerializableDataBaseBlock,
+    pub serializable_data_reexecuted_block: SerializableDataReexecutedBlock,
     pub chain_id: ChainId,
     pub old_block_hash: BlockHash,
 }
@@ -84,42 +84,42 @@ impl SerializableOfflineReexecutionData {
 impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
     fn from(value: SerializableOfflineReexecutionData) -> Self {
         let SerializableOfflineReexecutionData {
-            serializable_data_prev_block:
-                SerializableDataPrevBlock { state_maps, contract_class_mapping },
-            serializable_data_next_block:
-                SerializableDataNextBlock {
-                    block_info_next_block,
+            serializable_data_base_block:
+                SerializableDataBaseBlock { state_maps, contract_class_mapping },
+            serializable_data_reexecuted_block:
+                SerializableDataReexecutedBlock {
+                    reexecuted_block_info,
                     starknet_version,
-                    transactions_next_block,
-                    state_diff_next_block,
+                    reexecuted_block_transactions,
+                    reexecuted_block_state_diff,
                     declared_classes,
                 },
             chain_id,
             old_block_hash,
         } = value;
 
-        let offline_state_reader_prev_block =
+        let base_block_state_reader =
             OfflineStateReader { state_maps, contract_class_mapping, old_block_hash };
 
-        // Use the declared classes from the next block to allow retrieving the class info.
-        let transactions_next_block =
+        // Use the declared classes from the reexecuted block to allow retrieving the class info.
+        let reexecuted_block_transactions =
             OfflineStateReader { contract_class_mapping: declared_classes, ..Default::default() }
-                .api_txs_to_blockifier_txs_next_block(transactions_next_block)
+                .api_txs_to_blockifier_txs(reexecuted_block_transactions)
                 .expect("Failed to convert starknet-api transactions to blockifier transactions.");
 
         let mut versioned_constants = VersionedConstants::get(&starknet_version).unwrap().clone();
         versioned_constants.disable_casm_hash_migration();
 
         Self {
-            offline_state_reader_prev_block,
-            block_context_next_block: BlockContext::new(
-                block_info_next_block,
+            base_block_state_reader,
+            reexecuted_block_context: BlockContext::new(
+                reexecuted_block_info,
                 get_chain_info(&chain_id, None),
                 versioned_constants,
                 BouncerConfig::max(),
             ),
-            transactions_next_block,
-            state_diff_next_block,
+            reexecuted_block_transactions,
+            reexecuted_block_state_diff,
         }
     }
 }
@@ -214,13 +214,13 @@ impl FetchCompiledClasses for OfflineStateReader {
 impl OfflineStateReader {
     pub fn get_transaction_executor(
         self,
-        block_context_next_block: BlockContext,
+        reexecuted_block_context: BlockContext,
         transaction_executor_config: Option<TransactionExecutorConfig>,
         contract_class_manager: &ContractClassManager,
     ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<OfflineStateReader>>>
     {
         let old_block_number = BlockNumber(
-            block_context_next_block.block_info().block_number.0
+            reexecuted_block_context.block_info().block_number.0
                 - constants::STORED_BLOCK_HASH_BUFFER,
         );
         let hash = self.old_block_hash;
@@ -233,7 +233,7 @@ impl OfflineStateReader {
         );
         Ok(TransactionExecutor::<StateReaderAndContractManager<OfflineStateReader>>::pre_process_and_create(
             state_reader_and_contract_manager,
-            block_context_next_block,
+            reexecuted_block_context,
             Some(BlockHashAndNumber { number: old_block_number, hash }),
             transaction_executor_config.unwrap_or_default(),
         )?)
@@ -241,10 +241,10 @@ impl OfflineStateReader {
 }
 
 pub struct OfflineBlockReexecutor {
-    pub offline_state_reader_prev_block: OfflineStateReader,
-    pub block_context_next_block: BlockContext,
-    pub transactions_next_block: Vec<BlockifierTransaction>,
-    pub state_diff_next_block: CommitmentStateDiff,
+    pub base_block_state_reader: OfflineStateReader,
+    pub reexecuted_block_context: BlockContext,
+    pub reexecuted_block_transactions: Vec<BlockifierTransaction>,
+    pub reexecuted_block_state_diff: CommitmentStateDiff,
     contract_class_manager: ContractClassManager,
 }
 
@@ -260,18 +260,18 @@ impl OfflineBlockReexecutor {
 
     pub fn new(
         OfflineReexecutionData {
-            offline_state_reader_prev_block,
-            block_context_next_block,
-            transactions_next_block,
-            state_diff_next_block,
+            base_block_state_reader,
+            reexecuted_block_context,
+            reexecuted_block_transactions,
+            reexecuted_block_state_diff,
         }: OfflineReexecutionData,
         contract_class_manager: ContractClassManager,
     ) -> Self {
         Self {
-            offline_state_reader_prev_block,
-            block_context_next_block,
-            transactions_next_block,
-            state_diff_next_block,
+            base_block_state_reader,
+            reexecuted_block_context,
+            reexecuted_block_transactions,
+            reexecuted_block_state_diff,
             contract_class_manager,
         }
     }
@@ -283,18 +283,18 @@ impl BlockReexecutor<StateReaderAndContractManager<OfflineStateReader>> for Offl
         transaction_executor_config: Option<TransactionExecutorConfig>,
     ) -> ReexecutionResult<TransactionExecutor<StateReaderAndContractManager<OfflineStateReader>>>
     {
-        self.offline_state_reader_prev_block.get_transaction_executor(
-            self.block_context_next_block,
+        self.base_block_state_reader.get_transaction_executor(
+            self.reexecuted_block_context,
             transaction_executor_config,
             &self.contract_class_manager,
         )
     }
 
-    fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
-        Ok(self.transactions_next_block.clone())
+    fn get_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
+        Ok(self.reexecuted_block_transactions.clone())
     }
 
-    fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
-        Ok(self.state_diff_next_block.clone())
+    fn get_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
+        Ok(self.reexecuted_block_state_diff.clone())
     }
 }
