@@ -359,7 +359,7 @@ impl FlowSequencerSetup {
     }
 
     pub async fn batcher_height(&self) -> BlockNumber {
-        self.clients.get_batcher_shared_client().unwrap().get_height().await.unwrap().height
+        self.clients.get_batcher_shared_client().unwrap().get_next_height().await.unwrap().height
     }
 
     pub async fn get_block_hash(&self, block_number: BlockNumber) -> BlockHash {

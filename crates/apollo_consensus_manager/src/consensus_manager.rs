@@ -166,7 +166,7 @@ impl ConsensusManager {
         );
 
         let current_height =
-            self.batcher_client.get_height().await.expect("Failed to get height from batcher");
+            self.batcher_client.get_next_height().await.expect("Failed to get height from batcher");
         let run_consensus_args = self.create_run_consensus_args(current_height.height);
 
         let network_task =
@@ -334,7 +334,7 @@ impl ConsensusManager {
         // If we revert all blocks up to height X (including), the new height marker will be X.
         let batcher_height_marker = self
             .batcher_client
-            .get_height()
+            .get_next_height()
             .await
             .expect("Failed to get batcher_height_marker from batcher")
             .height;

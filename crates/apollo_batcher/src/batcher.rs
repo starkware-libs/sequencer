@@ -294,7 +294,7 @@ impl Batcher {
             return Err(BatcherError::HeightInProgress);
         }
 
-        let storage_height = self.get_height_from_storage()?;
+        let storage_height = self.get_next_height_from_storage()?;
         if storage_height != input.height {
             return Err(BatcherError::StorageHeightMarkerMismatch {
                 marker_height: storage_height,
@@ -655,7 +655,7 @@ impl Batcher {
         }
     }
 
-    fn get_height_from_storage(&self) -> BatcherResult<BlockNumber> {
+    fn get_next_height_from_storage(&self) -> BatcherResult<BlockNumber> {
         self.storage_reader.state_diff_height().map_err(|err| {
             error!("Failed to get height from storage: {}", err);
             BatcherError::InternalError
@@ -698,8 +698,8 @@ impl Batcher {
     }
 
     #[instrument(skip(self), err)]
-    pub async fn get_height(&self) -> BatcherResult<GetHeightResponse> {
-        let height = self.get_height_from_storage()?;
+    pub async fn get_next_height(&self) -> BatcherResult<GetHeightResponse> {
+        let height = self.get_next_height_from_storage()?;
         Ok(GetHeightResponse { height })
     }
 
@@ -811,7 +811,7 @@ impl Batcher {
         } = sync_block;
         let block_number = block_header_without_hash.block_number;
 
-        let height = self.get_height_from_storage()?;
+        let height = self.get_next_height_from_storage()?;
         if height != block_number {
             return Err(BatcherError::StorageHeightMarkerMismatch {
                 marker_height: height,
@@ -1285,7 +1285,7 @@ impl Batcher {
     // This function will panic if there is a storage failure to revert the block.
     pub async fn revert_block(&mut self, input: RevertBlockInput) -> BatcherResult<()> {
         info!("Reverting block at height {}.", input.height);
-        let height = self.get_height_from_storage()?.prev().ok_or(
+        let height = self.get_next_height_from_storage()?.prev().ok_or(
             BatcherError::StorageHeightMarkerMismatch {
                 marker_height: BlockNumber(0),
                 requested_height: input.height,

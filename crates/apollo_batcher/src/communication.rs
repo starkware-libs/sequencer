@@ -26,7 +26,7 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
                 BatcherResponse::GetBlockHash(self.get_block_hash(block_number))
             }
             BatcherRequest::GetCurrentHeight => {
-                BatcherResponse::GetCurrentHeight(self.get_height().await)
+                BatcherResponse::GetCurrentHeight(self.get_next_height().await)
             }
             BatcherRequest::GetProposalContent(input) => {
                 BatcherResponse::GetProposalContent(self.get_proposal_content(input).await)

@@ -349,7 +349,7 @@ pub async fn create_node_components(
                         "L1 provider's dummy mode initialization requires the batcher to be set \
                          up in order to align to its height",
                     )
-                    .get_height()
+                    .get_next_height()
                     .await
                     .unwrap()
                     .height

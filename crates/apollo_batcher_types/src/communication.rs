@@ -55,7 +55,7 @@ pub trait BatcherClient: Send + Sync {
     /// Gets the block hash for a given block number.
     async fn get_block_hash(&self, block_number: BlockNumber) -> BatcherClientResult<BlockHash>;
     /// Gets the first height that is not written in the storage yet.
-    async fn get_height(&self) -> BatcherClientResult<GetHeightResponse>;
+    async fn get_next_height(&self) -> BatcherClientResult<GetHeightResponse>;
     /// Gets the next available content from the proposal stream (only relevant when building a
     /// proposal).
     async fn get_proposal_content(
@@ -264,7 +264,7 @@ where
         )
     }
 
-    async fn get_height(&self) -> BatcherClientResult<GetHeightResponse> {
+    async fn get_next_height(&self) -> BatcherClientResult<GetHeightResponse> {
         let request = BatcherRequest::GetCurrentHeight;
         handle_all_response_variants!(
             self,

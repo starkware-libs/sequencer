@@ -31,7 +31,7 @@ async fn revert_batcher_blocks() {
 
     let mut mock_batcher_client = MockBatcherClient::new();
     mock_batcher_client
-        .expect_get_height()
+        .expect_get_next_height()
         .returning(|| Ok(GetHeightResponse { height: BATCHER_HEIGHT }));
 
     let mut mock_voted_height_storage = MockHeightVotedStorageTrait::new();
@@ -87,7 +87,7 @@ async fn revert_voted_height_when_batcher_already_at_target() {
     let mut mock_batcher_client = MockBatcherClient::new();
     // Batcher is already at the target height — no blocks to revert.
     mock_batcher_client
-        .expect_get_height()
+        .expect_get_next_height()
         .returning(|| Ok(GetHeightResponse { height: TARGET_HEIGHT }));
     mock_batcher_client.expect_revert_block().times(0).returning(|_| Ok(()));
 
@@ -130,7 +130,9 @@ async fn revert_voted_height_when_batcher_already_at_target() {
 async fn no_reverts_without_config() {
     let mut mock_batcher = MockBatcherClient::new();
     mock_batcher.expect_revert_block().times(0).returning(|_| Ok(()));
-    mock_batcher.expect_get_height().returning(|| Ok(GetHeightResponse { height: BlockNumber(0) }));
+    mock_batcher
+        .expect_get_next_height()
+        .returning(|| Ok(GetHeightResponse { height: BlockNumber(0) }));
 
     let config = ConsensusManagerConfig {
         consensus_manager_config: ConsensusConfig {
