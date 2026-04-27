@@ -85,7 +85,7 @@ async fn main() {
             tokio::task::spawn_blocking(move || {
                 let chain_info = get_chain_info(&rpc_args.parse_chain_id(), None);
                 let block_reexecutor = RpcBlockReexecutor::new(
-                    BlockNumber(block_number - 1),
+                    BlockNumber(block_number),
                     Some(rpc_state_reader_config),
                     chain_info,
                     false,
@@ -124,7 +124,7 @@ async fn main() {
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
                 RpcBlockReexecutor::new(
-                    BlockNumber(block_number - 1),
+                    BlockNumber(block_number),
                     Some(rpc_state_reader_config),
                     chain_info,
                     false,
@@ -166,7 +166,7 @@ async fn main() {
                     info!("Computing reexecution data for block {block_number}.");
                     tokio::task::spawn_blocking(move || {
                         RpcBlockReexecutor::new(
-                            block_number.prev().expect("Should not run with block 0"),
+                            block_number,
                             Some(rpc_state_reader_config),
                             chain_info,
                             true,
@@ -199,7 +199,7 @@ async fn main() {
                     )
                     .unwrap();
                     let block_number =
-                        block_reexecutor.block_context_next_block.block_info().block_number;
+                        block_reexecutor.reexecuted_block_context.block_info().block_number;
                     let matched = block_reexecutor.reexecute_and_verify_correctness(block_number);
                     if matched {
                         info!("Reexecution test for block {block} passed successfully.");
