@@ -75,6 +75,8 @@ const MOCK_STAKING_CONTRACT_BASE: u32 = 18 * CLASS_HASH_BASE;
 const FUZZ_TEST_BASE: u32 = 19 * CLASS_HASH_BASE;
 const FUZZ_TEST2_BASE: u32 = 20 * CLASS_HASH_BASE;
 const FUZZ_TEST_ORCHESTRATOR_BASE: u32 = 21 * CLASS_HASH_BASE;
+const DUMMY_ACCOUNT_BASE: u32 = 22 * CLASS_HASH_BASE;
+const ERC20_TESTING_BASE: u32 = 23 * CLASS_HASH_BASE;
 
 // Contract names.
 const ACCOUNT_LONG_VALIDATE_NAME: &str = "account_with_long_validate";
@@ -97,6 +99,8 @@ const TX_INFO_WRITER_CONTRACT_NAME: &str = "tx_info_writer";
 const FUZZ_TEST_NAME: &str = "fuzz_revert";
 const FUZZ_TEST2_NAME: &str = "fuzz_revert_2";
 const FUZZ_TEST_ORCHESTRATOR_NAME: &str = "fuzz_revert_orchestrator";
+const DUMMY_ACCOUNT_NAME: &str = "dummy_account";
+const ERC20_TESTING_NAME: &str = "erc20_testing";
 // ERC20 contract is in a unique location.
 const ERC20_CAIRO0_CONTRACT_SOURCE_PATH: &str =
     "./resources/ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/ERC20.cairo";
@@ -138,6 +142,8 @@ pub enum FeatureContract {
     FuzzTest(CairoVersion),
     FuzzTest2(RunnableCairo1),
     FuzzTestOrchestrator(RunnableCairo1),
+    DummyAccount(RunnableCairo1),
+    ERC20Testing(RunnableCairo1),
 }
 
 impl FeatureContract {
@@ -163,9 +169,9 @@ impl FeatureContract {
             | Self::EmptyAccount(runnable_version)
             | Self::MockStakingContract(runnable_version)
             | Self::FuzzTest2(runnable_version)
-            | Self::FuzzTestOrchestrator(runnable_version) => {
-                CairoVersion::Cairo1(*runnable_version)
-            }
+            | Self::FuzzTestOrchestrator(runnable_version)
+            | Self::DummyAccount(runnable_version)
+            | Self::ERC20Testing(runnable_version) => CairoVersion::Cairo1(*runnable_version),
         }
     }
 
@@ -184,7 +190,9 @@ impl FeatureContract {
             | Self::EmptyAccount(rv)
             | Self::MockStakingContract(rv)
             | Self::FuzzTest2(rv)
-            | Self::FuzzTestOrchestrator(rv) => match version {
+            | Self::FuzzTestOrchestrator(rv)
+            | Self::DummyAccount(rv)
+            | Self::ERC20Testing(rv) => match version {
                 CairoVersion::Cairo0 => panic!("{self:?} must be Cairo1"),
                 CairoVersion::Cairo1(runnable) => *rv = runnable,
             },
@@ -325,6 +333,8 @@ impl FeatureContract {
                 Self::FuzzTest(_) => FUZZ_TEST_BASE,
                 Self::FuzzTest2(_) => FUZZ_TEST2_BASE,
                 Self::FuzzTestOrchestrator(_) => FUZZ_TEST_ORCHESTRATOR_BASE,
+                Self::DummyAccount(_) => DUMMY_ACCOUNT_BASE,
+                Self::ERC20Testing(_) => ERC20_TESTING_BASE,
             }
     }
 
@@ -358,6 +368,8 @@ impl FeatureContract {
             Self::FuzzTest(_) => FUZZ_TEST_NAME,
             Self::FuzzTest2(_) => FUZZ_TEST2_NAME,
             Self::FuzzTestOrchestrator(_) => FUZZ_TEST_ORCHESTRATOR_NAME,
+            Self::DummyAccount(_) => DUMMY_ACCOUNT_NAME,
+            Self::ERC20Testing(_) => ERC20_TESTING_NAME,
             Self::ERC20(_) => unreachable!(),
         }
     }
@@ -468,7 +480,10 @@ impl FeatureContract {
                     | FeatureContract::FuzzTest(_)
                     | FeatureContract::FuzzTest2(_)
                     | FeatureContract::FuzzTestOrchestrator(_) => None,
-                    FeatureContract::ERC20(_) | FeatureContract::Experimental => unreachable!(),
+                    FeatureContract::ERC20(_)
+                    | FeatureContract::Experimental
+                    | FeatureContract::DummyAccount(_)
+                    | FeatureContract::ERC20Testing(_) => unreachable!(),
                 };
                 cairo0_compile(self.get_source_path(), extra_arg, false)
             }
@@ -515,7 +530,9 @@ impl FeatureContract {
             | Self::EmptyAccount(_)
             | Self::MockStakingContract(_)
             | Self::FuzzTest2(_)
-            | Self::FuzzTestOrchestrator(_) => {
+            | Self::FuzzTestOrchestrator(_)
+            | Self::DummyAccount(_)
+            | Self::ERC20Testing(_) => {
                 #[cfg(not(feature = "cairo_native"))]
                 {
                     vec![*self]

@@ -34,6 +34,7 @@ apollo_storage.workspace = true
 apollo_transaction_converter.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
+blockifier_test_utils.workspace = true
 cairo-vm.workspace = true
 chrono.workspace = true
 futures.workspace = true
