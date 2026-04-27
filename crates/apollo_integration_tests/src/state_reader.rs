@@ -15,7 +15,6 @@ use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::{create_dir_for_testing, TestStorageBuilder};
 use apollo_storage::{StorageConfig, StorageScope, StorageWriter};
 use assert_matches::assert_matches;
-use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -55,12 +54,13 @@ use starknet_api::test_utils::{
     CURRENT_BLOCK_TIMESTAMP,
     DEFAULT_ETH_L1_DATA_GAS_PRICE,
     DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_ETH_L2_GAS_PRICE,
     DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
+    DEFAULT_STRK_L2_GAS_PRICE,
     TEST_SEQUENCER_ADDRESS,
     VALID_ACCOUNT_BALANCE,
 };
-use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
@@ -466,10 +466,8 @@ fn test_block_header(block_number: BlockNumber, state_diff_length: usize) -> Blo
                 price_in_fri: DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
             },
             l2_gas_price: GasPricePerToken {
-                price_in_wei: VersionedConstants::latest_constants()
-                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE.into()),
-                price_in_fri: VersionedConstants::latest_constants()
-                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE.into()),
+                price_in_wei: DEFAULT_ETH_L2_GAS_PRICE.into(),
+                price_in_fri: DEFAULT_STRK_L2_GAS_PRICE.into(),
             },
             timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             ..Default::default()
