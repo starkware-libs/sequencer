@@ -10,7 +10,7 @@ use crate::{
     MessageRoot,
     PropellerScheduleManager,
     PropellerUnit,
-    ShardIndex,
+    UnitIndex,
     UnitValidationError,
 };
 
@@ -29,7 +29,7 @@ pub struct UnitValidator {
     /// The tree manager to use.
     schedule_manager: Arc<PropellerScheduleManager>,
     /// The indices of the received units.
-    received_indices: HashSet<ShardIndex>,
+    received_indices: HashSet<UnitIndex>,
 }
 
 impl UnitValidator {
@@ -93,7 +93,7 @@ impl UnitValidator {
         assert_eq!(self.message_root, unit.root(), "Message root mismatch");
 
         if self.received_indices.contains(&unit.index()) {
-            return Err(UnitValidationError::DuplicateShard);
+            return Err(UnitValidationError::DuplicateUnit);
         }
 
         self.schedule_manager.validate_origin(sender, unit.publisher(), unit.index())?;
@@ -101,7 +101,7 @@ impl UnitValidator {
         // once reconstruction supports multiple shards per peer.
         unit.validate_shard_count(1)?;
         unit.validate_shard_lengths()?;
-        unit.validate_merkle_proof(self.schedule_manager.num_shards())?;
+        unit.validate_merkle_proof(self.schedule_manager.num_units())?;
         self.verify_signature(unit).map_err(UnitValidationError::SignatureVerificationFailed)?;
 
         // add for next time we see this unit's index

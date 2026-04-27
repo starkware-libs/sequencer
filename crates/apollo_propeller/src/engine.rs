@@ -41,7 +41,7 @@ type BroadcastResult = (Result<Vec<PropellerUnit>, UnitPublishError>, BroadcastR
 // will cause a message processor to start working on a bad message, which later takes up resources
 // or blocks legitimate messages. To prevent this we must make sure that message processors that
 // never get a correct signature (with the right nonce) are not counted in the
-// messages_to_ignore_shards_from cache, and don't update the nonce tracked for each peer.
+// messages_to_ignore_units_from cache, and don't update the nonce tracked for each peer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct MessageKey {
     committee_id: CommitteeId,
@@ -103,7 +103,7 @@ pub struct Engine {
     /// Registry of per-message unit senders to their message processors.
     message_to_unit_tx: HashMap<MessageKey, mpsc::UnboundedSender<UnitToValidate>>,
     /// Messages that have already been encountered and processed (for deduplication).
-    messages_to_ignore_shards_from: TimeCache<MessageKey>,
+    messages_to_ignore_units_from: TimeCache<MessageKey>,
     // TODO(guyn): track nonces separately for each committee.
     /// Nonce per peer. LRU cache is used as a passive garbage collection mechanism.
     peer_nonce: LruCache<PeerId, u64>,
@@ -130,7 +130,7 @@ impl Engine {
         let (state_manager_tx, state_manager_rx) = mpsc::unbounded_channel();
         let (broadcaster_results_tx, broadcaster_results_rx) = mpsc::unbounded_channel();
 
-        let messages_to_ignore_shards_from = TimeCache::new(config.stale_message_timeout);
+        let messages_to_ignore_units_from = TimeCache::new(config.stale_message_timeout);
 
         Self {
             committees: HashMap::new(),
@@ -139,7 +139,7 @@ impl Engine {
             keypair,
             local_peer_id,
             message_to_unit_tx: HashMap::new(),
-            messages_to_ignore_shards_from,
+            messages_to_ignore_units_from,
             peer_nonce: LruCache::new(
                 NonZeroUsize::new(PEER_NONCE_CACHE_SIZE).expect("Cache size must be non-zero"),
             ),
@@ -260,7 +260,7 @@ impl Engine {
             root: claimed_root,
         };
 
-        if self.messages_to_ignore_shards_from.contains(&message_key) {
+        if self.messages_to_ignore_units_from.contains(&message_key) {
             trace!(?message_key, "Message already finalized, dropping unit");
             return;
         }
@@ -285,13 +285,13 @@ impl Engine {
                 warn!(?claimed_publisher, "Received unit for unregistered publisher, dropping");
                 return;
             };
-            let my_shard_index_result =
-                schedule_manager.get_my_shard_index_given_publisher(&claimed_publisher);
-            let Ok(my_shard_index) = my_shard_index_result else {
+            let my_unit_index_result =
+                schedule_manager.get_my_unit_index_given_publisher(&claimed_publisher);
+            let Ok(my_unit_index) = my_unit_index_result else {
                 warn!(
                     ?claimed_publisher,
                     ?claimed_committee_id,
-                    ?my_shard_index_result,
+                    ?my_unit_index_result,
                     "Received unit for publisher not in committee, dropping"
                 );
                 return;
@@ -306,7 +306,7 @@ impl Engine {
                 publisher: claimed_publisher,
                 nonce: claimed_nonce,
                 message_root: claimed_root,
-                my_shard_index,
+                my_unit_index,
                 publisher_public_key,
                 tree_manager: Arc::clone(&schedule_manager),
                 local_peer_id: self.local_peer_id,
@@ -396,7 +396,7 @@ impl Engine {
                 // Mark as finalized
                 let message_key = MessageKey { committee_id, publisher, nonce, root: message_root };
                 let expired_keys =
-                    self.messages_to_ignore_shards_from.insert_and_get_expired(message_key);
+                    self.messages_to_ignore_units_from.insert_and_get_expired(message_key);
 
                 if !expired_keys.is_empty() {
                     trace!(?expired_keys, "[ENGINE] Removed expired messages from TTL cache");

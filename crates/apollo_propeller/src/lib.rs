@@ -48,7 +48,7 @@ pub use types::{
     MessageRoot,
     ReconstructionError,
     ScheduleError,
-    ShardIndex,
+    UnitIndex,
     UnitPublishError,
     UnitValidationError,
 };

@@ -30,11 +30,11 @@ message ShardsOfPeer {
 message PropellerUnit {
     // The shards assigned to this unit's peer.
     ShardsOfPeer shards = 1;
-    // The position of this shard in the erasure coding scheme.
+    // The position of this unit in the erasure coding scheme.
     uint64 index = 2;
-    // The Merkle root of all shards, used to verify shard integrity.
+    // The Merkle root of all units, used to verify unit integrity.
     Hash256 merkle_root = 3;
-    // The Merkle proof that this shard belongs to the tree with the given root.
+    // The Merkle proof that this unit belongs to the tree with the given root.
     MerkleProof merkle_proof = 4;
     // The peer ID of the original publisher who created and signed this unit.
     PeerID publisher = 5;

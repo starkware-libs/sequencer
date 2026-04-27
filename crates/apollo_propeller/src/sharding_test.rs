@@ -6,7 +6,7 @@ use crate::types::{CommitteeId, ReconstructionError};
 const NUM_DATA_SHARDS: usize = 5;
 const NUM_CODING_SHARDS: usize = 5;
 const MESSAGE_LEN: usize = 103;
-const MY_SHARD_INDEX: usize = 2;
+const MY_UNIT_INDEX: usize = 2;
 const COMMITTEE_ID: CommitteeId = CommitteeId([42u8; 32]);
 
 // Statically assert that MESSAGE_LEN is not divisible by NUM_DATA_SHARDS, to exercise padding.
@@ -50,20 +50,20 @@ fn test_reconstruct_data_shards_success() {
     .unwrap();
     let message_root = units[0].root();
 
-    // Pick an arbitrary subset of shards (not just the first N).
+    // Pick an arbitrary subset of units (not just the first N).
     let received_indices: Vec<usize> = vec![1, 3, 5, 7, 9];
     let received_units: Vec<_> = received_indices.iter().map(|&i| units[i].clone()).collect();
 
     let (reconstructed_message, my_shards, proof) = reconstruct_data_shards(
         received_units,
         message_root,
-        MY_SHARD_INDEX,
+        MY_UNIT_INDEX,
         NUM_DATA_SHARDS,
         NUM_CODING_SHARDS,
     )
     .unwrap();
     assert_eq!(reconstructed_message, message);
-    assert_eq!(&my_shards, units[MY_SHARD_INDEX].shards());
+    assert_eq!(&my_shards, units[MY_UNIT_INDEX].shards());
     assert!(!proof.siblings.is_empty());
 }
 
@@ -82,7 +82,7 @@ fn test_reconstruct_data_shards_wrong_root() {
     let result = reconstruct_data_shards(
         received_units,
         wrong_root,
-        MY_SHARD_INDEX,
+        MY_UNIT_INDEX,
         NUM_DATA_SHARDS,
         NUM_CODING_SHARDS,
     );

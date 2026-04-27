@@ -3,7 +3,7 @@ use rstest::rstest;
 use starknet_api::staking::StakingWeight;
 
 use crate::tree::PropellerScheduleManager;
-use crate::types::{CommitteeSetupError, ScheduleError, ShardIndex, UnitValidationError};
+use crate::types::{CommitteeSetupError, ScheduleError, UnitIndex, UnitValidationError};
 
 // TODO(AndrewL): Move this to test_utils crate.
 pub fn get_peer_id(index: u8) -> PeerId {
@@ -79,18 +79,18 @@ fn test_new_schedule_manager_without_local_peer() {
 }
 
 #[rstest]
-#[case::shard_0_published_by_peer1_maps_to_peer0(ShardIndex(0), Ok(0))]
-#[case::shard_1_published_by_peer1_maps_to_peer2(ShardIndex(1), Ok(2))]
-#[case::shard_2_published_by_peer1_maps_to_peer3(ShardIndex(2), Ok(3))]
-#[case::shard_3_out_of_bounds(ShardIndex(3), Err(ScheduleError::ShardIndexOutOfBounds { shard_index: ShardIndex(3) }))]
-#[case::shard_4_out_of_bounds(ShardIndex(4), Err(ScheduleError::ShardIndexOutOfBounds { shard_index: ShardIndex(4) }))]
-fn test_get_peer_for_shard_id(
-    #[case] shard_index: ShardIndex,
+#[case::unit_0_published_by_peer1_maps_to_peer0(UnitIndex(0), Ok(0))]
+#[case::unit_1_published_by_peer1_maps_to_peer2(UnitIndex(1), Ok(2))]
+#[case::unit_2_published_by_peer1_maps_to_peer3(UnitIndex(2), Ok(3))]
+#[case::unit_3_out_of_bounds(UnitIndex(3), Err(ScheduleError::UnitIndexOutOfBounds { unit_index: UnitIndex(3) }))]
+#[case::unit_4_out_of_bounds(UnitIndex(4), Err(ScheduleError::UnitIndexOutOfBounds { unit_index: UnitIndex(4) }))]
+fn test_get_peer_for_unit_index(
+    #[case] unit_index: UnitIndex,
     #[case] expected_result: Result<usize, ScheduleError>,
 ) {
     let schedule_manager = make_schedule_manager(0, 4);
     let publisher = schedule_manager.get_nodes()[1].0; // Use peer1 as publisher
-    let result = schedule_manager.get_peer_for_shard_index(&publisher, shard_index);
+    let result = schedule_manager.get_peer_for_unit_index(&publisher, unit_index);
     assert_eq!(
         result,
         expected_result.map(|peer_index| schedule_manager.get_nodes()[peer_index].0)
@@ -102,7 +102,7 @@ fn get_result_for_validate_origin(
     local_index: u8,
     sender_index: u8,
     publisher_index: u8,
-    shard_index: u64,
+    unit_index: u64,
 ) -> Result<(), UnitValidationError> {
     let schedule_manager = make_schedule_manager(local_index, num_nodes);
     let get_peer = |i: u8| {
@@ -114,7 +114,7 @@ fn get_result_for_validate_origin(
     };
     let sender = get_peer(sender_index);
     let publisher = get_peer(publisher_index);
-    schedule_manager.validate_origin(sender, publisher, ShardIndex(shard_index))
+    schedule_manager.validate_origin(sender, publisher, UnitIndex(unit_index))
 }
 
 #[rstest]
@@ -127,41 +127,41 @@ fn get_result_for_validate_origin(
 #[case::seven_peers_peer2_receives_from_peer3(7, 2, 3, 2)]
 #[case::ten_peers_peer5_receives_from_peer3(10, 5, 3, 4)]
 #[case::hundred_peers_large_network(100, 50, 25, 49)]
-fn test_validate_origin_my_shard_from_publisher(
+fn test_validate_origin_my_unit_from_publisher(
     #[case] num_nodes: u8,
     #[case] local_index: u8,
     #[case] publisher_index: u8,
-    #[case] shard_index: u64,
+    #[case] unit_index: u64,
 ) {
     get_result_for_validate_origin(
         num_nodes,
         local_index,
         publisher_index,
         publisher_index,
-        shard_index,
+        unit_index,
     )
     .unwrap();
 }
 
 #[rstest]
 #[case::three_peers_relay(3, 0, 2, 1, 1)]
-#[case::four_peers_relay_shard1_via_peer2(4, 0, 2, 1, 1)]
-#[case::four_peers_relay_shard0_via_peer0(4, 2, 0, 1, 0)]
-#[case::seven_peers_relay_shard1_via_peer1(7, 2, 1, 3, 1)]
-#[case::ten_peers_relay_shard5_via_peer6(10, 5, 6, 3, 5)]
-fn test_validate_origin_from_shard_owner(
+#[case::four_peers_relay_unit1_via_peer2(4, 0, 2, 1, 1)]
+#[case::four_peers_relay_unit0_via_peer0(4, 2, 0, 1, 0)]
+#[case::seven_peers_relay_unit1_via_peer1(7, 2, 1, 3, 1)]
+#[case::ten_peers_relay_unit5_via_peer6(10, 5, 6, 3, 5)]
+fn test_validate_origin_from_unit_owner(
     #[case] num_nodes: u8,
     #[case] local_index: u8,
     #[case] sender_index: u8,
     #[case] publisher_index: u8,
-    #[case] shard_index: u64,
+    #[case] unit_index: u64,
 ) {
     get_result_for_validate_origin(
         num_nodes,
         local_index,
         sender_index,
         publisher_index,
-        shard_index,
+        unit_index,
     )
     .unwrap();
 }
@@ -172,36 +172,36 @@ fn test_validate_origin_from_shard_owner(
 #[case::self_publish_four_peers(4, 0, 1, 0, 0)]
 #[case::wrong_sender_four_peers(4, 0, 2, 1, 0)]
 #[case::wrong_sender_seven_peers(7, 2, 5, 3, 0)]
-#[case::hop1_wrong_shard_four_peers(4, 0, 1, 1, 1)]
-#[case::hop1_wrong_shard_seven_peers(7, 2, 1, 1, 0)]
-#[case::malicious_publisher_wrong_shard(7, 3, 2, 2, 0)]
+#[case::hop1_wrong_unit_four_peers(4, 0, 1, 1, 1)]
+#[case::hop1_wrong_unit_seven_peers(7, 2, 1, 1, 0)]
+#[case::malicious_publisher_wrong_unit(7, 3, 2, 2, 0)]
 #[case::relay_attack_wrong_broadcaster(4, 2, 3, 1, 0)]
 #[case::hop_confusion_should_relay(7, 0, 3, 3, 1)]
 #[case::unknown_sender(4, 0, u8::MAX, 1, 0)]
 #[case::unknown_publisher(4, 0, 1, u8::MAX, 0)]
-#[case::shard_at_boundary(4, 0, 1, 1, 3)]
-#[case::shard_just_over_boundary(4, 0, 1, 1, 4)]
-#[case::shard_out_of_bounds(4, 0, 1, 1, 100)]
-#[case::shard_index_u64_max(4, 0, 1, 1, u64::MAX)]
+#[case::unit_at_boundary(4, 0, 1, 1, 3)]
+#[case::unit_just_over_boundary(4, 0, 1, 1, 4)]
+#[case::unit_out_of_bounds(4, 0, 1, 1, 100)]
+#[case::unit_index_u64_max_value(4, 0, 1, 1, u64::MAX)]
 fn test_validate_origin_failures(
     #[case] num_nodes: u8,
     #[case] local_index: u8,
     #[case] sender_index: u8,
     #[case] publisher_index: u8,
-    #[case] shard_index: u64,
+    #[case] unit_index: u64,
 ) {
     get_result_for_validate_origin(
         num_nodes,
         local_index,
         sender_index,
         publisher_index,
-        shard_index,
+        unit_index,
     )
     .unwrap_err();
 }
 
 #[test]
-fn test_get_my_shard_index_given_publisher() {
+fn test_get_my_unit_index_given_publisher() {
     let mut peers: Vec<_> = (0..4).map(get_peer_id).collect();
     peers.sort();
     let (peer0, peer1, peer2, peer3) = (peers[0], peers[1], peers[2], peers[3]);
@@ -215,25 +215,25 @@ fn test_get_my_shard_index_given_publisher() {
         ],
     )
     .unwrap();
-    // When peer0 is publisher, peer2 is at sorted position 2, so shard index is 1
-    assert_eq!(manager.get_my_shard_index_given_publisher(&peer0).unwrap(), ShardIndex(1));
+    // When peer0 is publisher, peer2 is at sorted position 2, so unit index is 1
+    assert_eq!(manager.get_my_unit_index_given_publisher(&peer0).unwrap(), UnitIndex(1));
 
-    // When peer1 is publisher, peer2 is at sorted position 2, so shard index is 1
-    assert_eq!(manager.get_my_shard_index_given_publisher(&peer1).unwrap(), ShardIndex(1));
+    // When peer1 is publisher, peer2 is at sorted position 2, so unit index is 1
+    assert_eq!(manager.get_my_unit_index_given_publisher(&peer1).unwrap(), UnitIndex(1));
 
-    // When peer3 is publisher, peer2 is at sorted position 2, so shard index is 2
-    assert_eq!(manager.get_my_shard_index_given_publisher(&peer3).unwrap(), ShardIndex(2));
+    // When peer3 is publisher, peer2 is at sorted position 2, so unit index is 2
+    assert_eq!(manager.get_my_unit_index_given_publisher(&peer3).unwrap(), UnitIndex(2));
 
     // When local peer (peer2) is publisher, should return error
     assert!(matches!(
-        manager.get_my_shard_index_given_publisher(&peer2),
+        manager.get_my_unit_index_given_publisher(&peer2),
         Err(ScheduleError::LocalPeerIsPublisher)
     ));
 
     // When publisher is not in committee, should return error
     let unknown_peer = get_peer_id(99);
     assert!(matches!(
-        manager.get_my_shard_index_given_publisher(&unknown_peer),
+        manager.get_my_unit_index_given_publisher(&unknown_peer),
         Err(ScheduleError::PublisherNotInCommittee { .. })
     ));
 }

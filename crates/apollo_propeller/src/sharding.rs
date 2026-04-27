@@ -11,11 +11,11 @@ use libp2p::identity::{Keypair, PeerId};
 
 use crate::padding::{pad_message, unpad_message};
 use crate::reed_solomon::{combine_data_shards, generate_coding_shards, split_data_into_shards};
-use crate::types::{CommitteeId, ReconstructionError, ShardIndex, UnitPublishError};
+use crate::types::{CommitteeId, ReconstructionError, UnitIndex, UnitPublishError};
 use crate::unit::{PropellerUnit, Shard, ShardsOfPeer};
 use crate::{signature, MerkleProof, MerkleTree, MessageRoot};
 
-/// Rebuild a message from received shards using erasure coding.
+/// Rebuild a message from received units using erasure coding.
 ///
 /// Returns the reconstructed message, the caller's shards, and the Merkle proof.
 // TODO(AndrewL): Use the fact that ECC is systematic (i.e. data shards are embedded verbatim in
@@ -26,17 +26,17 @@ use crate::{signature, MerkleProof, MerkleTree, MessageRoot};
 // reconstructing data shards and then regenerating coding shards separately.
 // <github.com/AndersTrier/reed-solomon-simd/issues/65>
 pub fn reconstruct_data_shards(
-    received_shards: Vec<PropellerUnit>,
+    received_units: Vec<PropellerUnit>,
     message_root: MessageRoot,
-    my_shard_index: usize,
+    my_unit_index: usize,
     data_count: usize,
     coding_count: usize,
 ) -> Result<(Vec<u8>, ShardsOfPeer, MerkleProof), ReconstructionError> {
-    let shards_for_reconstruction: Vec<(usize, Vec<u8>)> = received_shards
+    let shards_for_reconstruction: Vec<(usize, Vec<u8>)> = received_units
         .into_iter()
         .map(|mut msg| {
             let index: usize =
-                msg.index().0.try_into().expect("failed converting u64 ShardIndex to usize");
+                msg.index().0.try_into().expect("failed converting u64 unit index to usize");
             // TODO(AndrewL): Support multiple shards per peer once reconstruction handles it.
             let [shard] = <[Shard; 1]>::try_from(std::mem::take(&mut msg.shards_mut().0)).map_err(
                 |shards| ReconstructionError::UnexpectedShardCount {
@@ -70,11 +70,11 @@ pub fn reconstruct_data_shards(
         return Err(ReconstructionError::MismatchedMessageRoot);
     }
 
-    let total_shards = all_shards.len();
-    if my_shard_index >= total_shards {
+    let total_units = all_shards.len();
+    if my_unit_index >= total_units {
         return Err(ReconstructionError::ErasureReconstructionFailed(format!(
-            "my_shard_index {} is out of bounds (total shards: {})",
-            my_shard_index, total_shards
+            "my_unit_index {} is out of bounds (total units: {})",
+            my_unit_index, total_units
         )));
     }
 
@@ -82,11 +82,11 @@ pub fn reconstruct_data_shards(
     let un_padded_message =
         unpad_message(message).map_err(ReconstructionError::MessagePaddingError)?;
     // TODO(AndrewL): Support multiple shards per peer once reconstruction handles it.
-    let my_shards = ShardsOfPeer(vec![Shard(std::mem::take(&mut all_shards[my_shard_index]))]);
+    let my_shards = ShardsOfPeer(vec![Shard(std::mem::take(&mut all_shards[my_unit_index]))]);
     Ok((
         un_padded_message,
         my_shards,
-        merkle_tree.prove(my_shard_index).expect("my_shard_index was already bounds-checked"),
+        merkle_tree.prove(my_unit_index).expect("my_unit_index was already bounds-checked"),
     ))
 }
 
@@ -128,7 +128,7 @@ pub fn create_units_to_publish(
             publisher,
             message_root,
             signature.clone(),
-            ShardIndex(u64::try_from(index).expect("shard index exceeds u64::MAX")),
+            UnitIndex(u64::try_from(index).expect("unit index exceeds u64::MAX")),
             // TODO(AndrewL): Support multiple shards per peer once reconstruction handles it.
             ShardsOfPeer(vec![Shard(shard)]),
             proof,

@@ -1,16 +1,14 @@
 //! Dynamic propeller tree computation logic.
 //!
 //! This module implements the core tree topology algorithm inspired by Solana's Turbine protocol.
-//! The tree is computed dynamically for each shard using deterministic seeded randomization
-//! based on the publisher and shard ID, making the network resilient to targeted attacks.
 
 use libp2p::identity::PeerId;
 use starknet_api::staking::StakingWeight;
 
-use crate::types::{CommitteeSetupError, ScheduleError, ShardIndex};
+use crate::types::{CommitteeSetupError, ScheduleError, UnitIndex};
 use crate::UnitValidationError;
 
-// TODO(AndrewL): add the concept of shard_owner when naming
+// TODO(AndrewL): add the concept of unit_owner when naming
 
 /// Propeller tree manager that computes tree topology on-demand for each publisher.
 ///
@@ -18,9 +16,9 @@ use crate::UnitValidationError;
 /// - num_data_shards = floor((N-1)/3) where N is total number of nodes
 /// - num_data_shards represents both max faulty nodes AND number of data shards
 /// - Total shards = N-1 (num_data_shards data shards + (N-1-num_data_shards) coding shards)
-/// - Message is "built" when num_data_shards shards received (can reconstruct)
-/// - Message is "received" when 2*num_data_shards shards received (guarantees gossip property)
-/// - Each peer broadcasts received shards to all other peers (full mesh)
+/// - Message is "built" when num_data_shards units received (can reconstruct)
+/// - Message is "received" when 2*num_data_shards units received (guarantees gossip property)
+/// - Each peer broadcasts received units to all other peers (full mesh)
 #[derive(Debug, Clone)]
 pub struct PropellerScheduleManager {
     /// All nodes in the committee with their stake, sorted by peer_id
@@ -92,47 +90,47 @@ impl PropellerScheduleManager {
         self.num_coding_shards
     }
 
-    pub fn num_shards(&self) -> usize {
+    pub fn num_units(&self) -> usize {
         self.num_data_shards + self.num_coding_shards
     }
 
-    pub fn should_build(&self, shard_count: usize) -> bool {
-        shard_count >= self.num_data_shards
+    pub fn should_build(&self, unit_count: usize) -> bool {
+        unit_count >= self.num_data_shards
     }
 
-    pub fn should_receive(&self, shard_count: usize) -> bool {
+    pub fn should_receive(&self, unit_count: usize) -> bool {
         if self.get_node_count() <= 3 {
-            return self.should_build(shard_count);
+            return self.should_build(unit_count);
         }
-        shard_count >= 2 * self.num_data_shards
+        unit_count >= 2 * self.num_data_shards
     }
 
-    /// Returns the peer responsible for broadcasting a specific shard.
+    /// Returns the peer responsible for broadcasting a specific unit.
     ///
-    /// In the Propeller protocol, each shard is assigned to a specific peer (excluding the
-    /// publisher). This method maps a shard index to its designated broadcaster.
+    /// In the Propeller protocol, each unit is assigned to a specific peer (excluding the
+    /// publisher). This method maps a unit index to its designated broadcaster.
     ///
     /// # Arguments
     ///
     /// * `publisher` - The peer ID of the node that published the original message
-    /// * `shard_index` - The index of the shard (0-based, ranges from 0 to total_shards-1)
-    pub fn get_peer_for_shard_index(
+    /// * `unit_index` - The index of the unit (0-based, ranges from 0 to total_units-1)
+    pub fn get_peer_for_unit_index(
         &self,
         publisher: &PeerId,
-        shard_index: ShardIndex,
+        unit_index: UnitIndex,
     ) -> Result<PeerId, ScheduleError> {
-        let original_shard_index = shard_index;
-        let shard_index: usize = shard_index.0.try_into().expect("Failed converting u64 to usize");
+        let original_unit_index = unit_index;
+        let unit_index: usize = unit_index.0.try_into().expect("Failed converting u64 to usize");
         let publisher_index = self
             .committee_nodes
             .binary_search_by_key(&publisher, |(peer_id, _)| peer_id)
             .map_err(|_| ScheduleError::PublisherNotInCommittee { publisher: *publisher })?;
         let index =
-            if shard_index < publisher_index { shard_index } else { shard_index.saturating_add(1) };
+            if unit_index < publisher_index { unit_index } else { unit_index.saturating_add(1) };
         self.committee_nodes
             .get(index)
             .map(|(peer, _)| *peer)
-            .ok_or(ScheduleError::ShardIndexOutOfBounds { shard_index: original_shard_index })
+            .ok_or(ScheduleError::UnitIndexOutOfBounds { unit_index: original_unit_index })
     }
 
     /// Validates that a unit was received from the expected sender.
@@ -148,7 +146,7 @@ impl PropellerScheduleManager {
         &self,
         sender: PeerId,
         stated_publisher: PeerId,
-        stated_index: ShardIndex,
+        stated_index: UnitIndex,
     ) -> Result<(), UnitValidationError> {
         let local_peer_id = self.get_local_peer_id();
         if local_peer_id == sender {
@@ -156,15 +154,15 @@ impl PropellerScheduleManager {
         }
 
         if stated_publisher == local_peer_id {
-            return Err(UnitValidationError::ReceivedSelfPublishedShard);
+            return Err(UnitValidationError::ReceivedSelfPublishedUnit);
         }
 
         let expected_broadcaster_for_index = self
-            .get_peer_for_shard_index(&stated_publisher, stated_index)
+            .get_peer_for_unit_index(&stated_publisher, stated_index)
             .map_err(UnitValidationError::ScheduleManagerError)?;
 
         if expected_broadcaster_for_index == local_peer_id && sender == stated_publisher {
-            // I received my shard from the publisher
+            // I received my unit from the publisher
             return Ok(());
         }
         if sender == expected_broadcaster_for_index {
@@ -174,11 +172,11 @@ impl PropellerScheduleManager {
         // distinguishing between the two cases.
         Err(UnitValidationError::UnexpectedSender {
             expected_sender: expected_broadcaster_for_index,
-            shard_index: stated_index,
+            unit_index: stated_index,
         })
     }
 
-    /// Create the initial broadcast list for message sharding.
+    /// Create the initial broadcast list for unit distribution.
     /// Returns a list of peer IDs for all peers except the publisher (local peer).
     pub fn make_broadcast_list(&self) -> Vec<PeerId> {
         let publisher = self.get_local_peer_id();
@@ -189,15 +187,15 @@ impl PropellerScheduleManager {
             .collect()
     }
 
-    /// Get the shard ID that the local peer is responsible for when the given peer is the
+    /// Get the unit index that the local peer is responsible for when the given peer is the
     /// publisher.
     ///
     /// Returns an error if the local peer is the publisher (not in tree) or if the local peer
     /// is not found in the node list.
-    pub fn get_my_shard_index_given_publisher(
+    pub fn get_my_unit_index_given_publisher(
         &self,
         publisher: &PeerId,
-    ) -> Result<ShardIndex, ScheduleError> {
+    ) -> Result<UnitIndex, ScheduleError> {
         if self.local_peer_id == *publisher {
             return Err(ScheduleError::LocalPeerIsPublisher);
         }
@@ -207,12 +205,12 @@ impl PropellerScheduleManager {
             .binary_search_by_key(&publisher, |(peer_id, _)| peer_id)
             .map_err(|_| ScheduleError::PublisherNotInCommittee { publisher: *publisher })?;
 
-        let shard_id = if self.local_peer_index < publisher_index {
+        let unit_index = if self.local_peer_index < publisher_index {
             self.local_peer_index
         } else {
             self.local_peer_index - 1
         };
 
-        Ok(ShardIndex(shard_id.try_into().unwrap()))
+        Ok(UnitIndex(unit_index.try_into().unwrap()))
     }
 }

@@ -12,7 +12,7 @@ use apollo_protobuf::protobuf::{
 use libp2p::core::PeerId;
 use prost::Message;
 
-use crate::types::{CommitteeId, MessageRoot, ShardIndex};
+use crate::types::{CommitteeId, MessageRoot, UnitIndex};
 use crate::{MerkleHash, MerkleProof, UnitValidationError};
 
 /// A single erasure-coded fragment.
@@ -61,7 +61,7 @@ pub struct PropellerUnit {
     publisher: PeerId,
     root: MessageRoot,
     signature: Vec<u8>,
-    index: ShardIndex,
+    index: UnitIndex,
     shards: ShardsOfPeer,
     proof: MerkleProof,
     /// Any strictly increasing number.
@@ -78,7 +78,7 @@ impl PropellerUnit {
         publisher: PeerId,
         root: MessageRoot,
         signature: Vec<u8>,
-        index: ShardIndex,
+        index: UnitIndex,
         shards: ShardsOfPeer,
         proof: MerkleProof,
         nonce: u64,
@@ -98,7 +98,7 @@ impl PropellerUnit {
         &self.signature
     }
 
-    pub fn index(&self) -> ShardIndex {
+    pub fn index(&self) -> UnitIndex {
         self.index
     }
 
@@ -147,16 +147,13 @@ impl PropellerUnit {
         Ok(())
     }
 
-    pub fn validate_merkle_proof(
-        &self,
-        num_total_shards: usize,
-    ) -> Result<(), UnitValidationError> {
+    pub fn validate_merkle_proof(&self, num_total_units: usize) -> Result<(), UnitValidationError> {
         let proof = self.proof();
         let index = self.index().0.try_into().expect("u64 could not be converted to usize");
         // Encode as proto bytes because the Merkle tree leaves are the proto-encoded bytes
         // of `ShardsOfPeer`, ensuring cross-language determinism.
         let leaf_data = self.shards.encode_to_proto_bytes();
-        if proof.verify(&self.root().0, &leaf_data, index, num_total_shards) {
+        if proof.verify(&self.root().0, &leaf_data, index, num_total_units) {
             Ok(())
         } else {
             Err(UnitValidationError::MerkleProofVerificationFailed)
@@ -208,7 +205,7 @@ impl TryFrom<ProtoPropellerUnit> for PropellerUnit {
                 }
             })?,
             signature: msg.signature,
-            index: ShardIndex(msg.index),
+            index: UnitIndex(msg.index),
             shards: ShardsOfPeer::from(proto_shards),
             proof: merkle_proof.try_into()?,
             nonce: msg.nonce,
