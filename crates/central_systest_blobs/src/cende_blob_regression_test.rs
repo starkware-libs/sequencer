@@ -33,6 +33,7 @@ use expect_test::expect_file;
 use mockall::predicate::eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::block_hash::block_hash_calculator::{
+    calculate_block_hash,
     PartialBlockHash,
     PartialBlockHashComponents,
 };
@@ -66,7 +67,13 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionVersion,
 };
+use starknet_committer::db::facts_db::db::FactsDb;
+use starknet_committer::db::forest_trait::StorageInitializer;
 use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_transaction_prover::running::committer_utils::{
+    commit_state_diff,
+    state_maps_to_committer_state_diff,
+};
 
 const N_TXS_PER_BLOCK: usize = 1;
 static CHAIN_ID: LazyLock<ChainId> =
@@ -208,14 +215,32 @@ async fn compute_block_hash_components(
 /// Given previous state and partial components, commits the changes and finalizes the block hash.
 /// Returns the block hash, the new state roots and the updated committer storage.
 async fn compute_block_commitments(
-    _committer_storage: MapStorage,
-    _prev_state_roots: &StateRoots,
-    _state_maps: &StateMaps,
-    _block_hash_components: PartialBlockHashComponents,
-    _prev_block_hash: BlockHash,
+    committer_storage: MapStorage,
+    prev_state_roots: &StateRoots,
+    state_maps: &StateMaps,
+    block_hash_components: PartialBlockHashComponents,
+    prev_block_hash: BlockHash,
 ) -> (BlockHash, StateRoots, MapStorage) {
-    // TODO(Dori): implement.
-    (BlockHash::default(), StateRoots::default(), MapStorage::default())
+    // Commit the state diff.
+    let committer_state_diff = state_maps_to_committer_state_diff(state_maps.clone());
+    let mut db = FactsDb::new(committer_storage);
+    let new_state_roots = commit_state_diff(
+        &mut db,
+        prev_state_roots.contracts_trie_root_hash,
+        prev_state_roots.classes_trie_root_hash,
+        committer_state_diff,
+    )
+    .await
+    .expect("Failed to commit state diff.");
+
+    // Compute the block hash.
+    let block_hash = calculate_block_hash(
+        &block_hash_components,
+        new_state_roots.global_root(),
+        prev_block_hash,
+    )
+    .unwrap();
+    (block_hash, new_state_roots, db.consume_storage())
 }
 
 /// Creates a blob for the given block.
