@@ -8,6 +8,7 @@ use apollo_config::validators::create_validation_error;
 use apollo_config::{ConfigError, ParamPath, SerializedParam, FIELD_SEPARATOR, IS_NONE_MARK};
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
+use clap::error::ErrorKind;
 use serde_json::{Map, Value};
 use tracing::{error, info};
 use validator::ValidationError;
@@ -212,6 +213,12 @@ pub fn load_and_validate_config(
 ) -> Result<SequencerNodeConfig, ConfigError> {
     let config_load_result = SequencerNodeConfig::load_and_process(args);
     if let Err(error) = config_load_result {
+        if let ConfigError::CommandInput(clap_err) = &error {
+            if matches!(clap_err.kind(), ErrorKind::DisplayHelp | ErrorKind::DisplayVersion) {
+                // --help and --version should print to stdout and exit cleanly.
+                clap_err.exit();
+            }
+        }
         error!("Failed loading configuration: {error}");
         return Err(error);
     }
