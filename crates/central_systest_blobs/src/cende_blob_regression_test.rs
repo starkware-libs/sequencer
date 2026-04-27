@@ -1,6 +1,12 @@
 use std::sync::{Arc, LazyLock};
 
-use apollo_batcher::cende_client_types::{CendeBlockMetadata, CendePreconfirmedBlock};
+use apollo_batcher::cende_client_types::{
+    CendeBlockMetadata,
+    CendePreconfirmedBlock,
+    CendePreconfirmedTransaction,
+    StarknetClientStateDiff,
+    StarknetClientTransactionReceipt,
+};
 use apollo_batcher::pre_confirmed_cende_client::CendeWritePreconfirmedBlock;
 use apollo_batcher_types::batcher_types::Round;
 use apollo_class_manager_types::{MockClassManagerClient, SharedClassManagerClient};
@@ -13,9 +19,12 @@ use apollo_consensus_orchestrator::cende::{
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo};
-use blockifier::state::cached_state::StateMaps;
+use blockifier::state::cached_state::{CachedState, StateMaps};
+use blockifier::state::state_api::UpdatableState;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use blockifier::transaction::account_transaction::AccountTransaction as BlockifierAccountTx;
+use blockifier::transaction::transactions::ExecutableTransaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use expect_test::expect_file;
@@ -46,7 +55,12 @@ use starknet_api::transaction::fields::{
     Tip,
     TransactionSignature,
 };
-use starknet_api::transaction::{DeclareTransaction, TransactionHasher, TransactionVersion};
+use starknet_api::transaction::{
+    DeclareTransaction,
+    TransactionHasher,
+    TransactionOffsetInBlock,
+    TransactionVersion,
+};
 use starknet_patricia_storage::map_storage::MapStorage;
 
 const N_TXS_PER_BLOCK: usize = 1;
@@ -152,7 +166,6 @@ fn make_txs() -> (MockClassManagerClient, Vec<TxPair>) {
 // Data generation
 // =====================
 
-#[expect(dead_code)]
 fn make_block_context(block_number: usize) -> BlockContext {
     BlockContext::new(
         BlockInfo {
@@ -219,19 +232,52 @@ async fn make_blob_parameters(
 /// commitment is computed.
 fn make_preconfirmed_block(
     block_number: usize,
-    _state: &mut DictStateReader,
-    _txs: &[TxPair],
+    state: &mut DictStateReader,
+    txs: &[TxPair],
 ) -> CendeWritePreconfirmedBlock {
-    // TODO(Dori): implement.
+    let block_context = make_block_context(block_number);
+
+    let mut transactions = vec![];
+    let mut transaction_receipts = vec![];
+    let mut transaction_state_diffs = vec![];
+
+    for (tx_index, (executable, internal)) in txs.into_iter().enumerate() {
+        let tx_hash = match &internal {
+            InternalConsensusTransaction::RpcTransaction(tx) => tx.tx_hash,
+            InternalConsensusTransaction::L1Handler(_) => panic!("unexpected L1Handler in test"),
+        };
+
+        let mut tx_state = CachedState::new(state.clone());
+        let execution_info = BlockifierAccountTx::new_for_sequencing(executable.clone())
+            .execute(&mut tx_state, &block_context)
+            .unwrap();
+
+        let state_changes = tx_state.to_state_diff().unwrap();
+        let class_mapping = tx_state.class_hash_to_class.borrow().clone();
+        state.apply_writes(&state_changes.state_maps, &class_mapping);
+
+        let receipt = StarknetClientTransactionReceipt::from((
+            tx_hash,
+            TransactionOffsetInBlock(tx_index),
+            &execution_info,
+            None,
+        ));
+        let tx_state_diff = StarknetClientStateDiff::from(state_changes.state_maps).0;
+
+        transactions.push(CendePreconfirmedTransaction::from(internal.clone()));
+        transaction_receipts.push(Some(receipt));
+        transaction_state_diffs.push(Some(tx_state_diff));
+    }
+
     CendeWritePreconfirmedBlock {
         block_number: BlockNumber(u64::try_from(block_number).unwrap()),
         round: Round::default(),
         write_iteration: 0,
         pre_confirmed_block: CendePreconfirmedBlock {
-            metadata: CendeBlockMetadata::new(BlockInfo::default()),
-            transactions: vec![],
-            transaction_receipts: vec![],
-            transaction_state_diffs: vec![],
+            metadata: CendeBlockMetadata::new(block_context.block_info().clone()),
+            transactions,
+            transaction_receipts,
+            transaction_state_diffs,
         },
     }
 }
