@@ -59,9 +59,50 @@ pub fn execute_entry_point_call(
         .checked_sub(initial_budget)
         .ok_or(PreExecutionError::InsufficientEntryPointGas)?;
 
+    let selector = entry_point.selector.0;
+    let calldata = syscall_handler.base.call.calldata.0.clone();
+
+    #[cfg(feature = "with-libfunc-profiling")]
+    let execution_result = {
+        // If the executor is the `AotWithProgram` variant, route through `run_with_profile`
+        // so the captured `Profile` lands in the blockifier-side `LIBFUNC_PROFILES_MAP`.
+        // For other variants, `run_with_profile` falls through to `run` and the closure
+        // is never invoked.
+        let program_for_profiling = match &compiled_class.executor {
+            cairo_native::executor::ContractExecutor::AotWithProgram(awp) => {
+                Some(std::sync::Arc::clone(&awp.program))
+            }
+            _ => None,
+        };
+        match program_for_profiling {
+            Some(program) => {
+                let on_profile = crate::execution::native::profiling::record_profile_for(
+                    &syscall_handler,
+                    selector,
+                    program,
+                );
+                compiled_class.executor.run_with_profile(
+                    selector,
+                    &calldata,
+                    call_initial_gas,
+                    Some(builtin_costs),
+                    &mut syscall_handler,
+                    on_profile,
+                )
+            }
+            None => compiled_class.executor.run(
+                selector,
+                &calldata,
+                call_initial_gas,
+                Some(builtin_costs),
+                &mut syscall_handler,
+            ),
+        }
+    };
+    #[cfg(not(feature = "with-libfunc-profiling"))]
     let execution_result = compiled_class.executor.run(
-        entry_point.selector.0,
-        &syscall_handler.base.call.calldata.0.clone(),
+        selector,
+        &calldata,
         call_initial_gas,
         Some(builtin_costs),
         &mut syscall_handler,
