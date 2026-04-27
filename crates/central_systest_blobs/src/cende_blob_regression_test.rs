@@ -18,6 +18,8 @@ use apollo_consensus_orchestrator::cende::{
 };
 use apollo_consensus_orchestrator::fee_market::FeeMarketInfo;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
+use blockifier::blockifier::config::TransactionExecutorConfig;
+use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
 use blockifier::context::{BlockContext, ChainInfo};
@@ -26,6 +28,7 @@ use blockifier::state::state_api::UpdatableState;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::transaction::account_transaction::AccountTransaction as BlockifierAccountTx;
+use blockifier::transaction::transaction_execution::Transaction as BlockifierTx;
 use blockifier::transaction::transactions::ExecutableTransaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -47,6 +50,7 @@ use starknet_api::data_availability::{DataAvailabilityMode, L1DataAvailabilityMo
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableAccountTx,
     DeclareTransaction as ExecutableDeclareTransaction,
+    Transaction as ExecutableTx,
 };
 use starknet_api::hash::StateRoots;
 use starknet_api::rpc_transaction::{
@@ -196,13 +200,37 @@ fn make_block_context(block_number: usize) -> BlockContext {
 
 /// Executes the transactions and applies the changes to the state.
 fn execute_block(
-    _state: &mut DictStateReader,
-    _block_context: &BlockContext,
-    _old_block_number_and_hash: Option<BlockHashAndNumber>,
-    _txs: &[TxPair],
+    state: &mut DictStateReader,
+    block_context: &BlockContext,
+    old_block_number_and_hash: Option<BlockHashAndNumber>,
+    txs: &[TxPair],
 ) -> (Vec<InternalTransactionWithReceipt>, StateMaps) {
-    // TODO(Dori): implement.
-    (vec![], StateMaps::default())
+    let state_clone = state.clone();
+    let mut executor = TransactionExecutor::pre_process_and_create(
+        state_clone,
+        block_context.clone(),
+        old_block_number_and_hash,
+        TransactionExecutorConfig::create_for_testing(false),
+    )
+    .unwrap();
+
+    let mut txs_with_exec = Vec::new();
+
+    for (executable, internal) in txs {
+        let (execution_info, _state_changes) = executor
+            .execute(&BlockifierTx::new_for_sequencing(ExecutableTx::Account(executable.clone())))
+            .unwrap();
+
+        txs_with_exec
+            .push(InternalTransactionWithReceipt { transaction: internal.clone(), execution_info });
+    }
+
+    let summary = executor.non_consuming_finalize().unwrap();
+    let final_state_maps = summary.state_diff.into();
+    let class_mapping = executor.block_state.unwrap().class_hash_to_class.borrow().clone();
+    state.apply_writes(&final_state_maps, &class_mapping);
+
+    (txs_with_exec, final_state_maps)
 }
 
 async fn compute_block_hash_components(
