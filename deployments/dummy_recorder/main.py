@@ -74,6 +74,11 @@ class DummyRecorder(Chart):
             self,
             "service",
             spec=k8s.ServiceSpec(
+                metadata=k8s.ObjectMeta(
+                    annotations={
+                        "cloud.google.com/neg": '{"ingress":true}',
+                    },
+                ),
                 type="ClusterIP",
                 ports=[
                     k8s.ServicePort(
@@ -117,10 +122,13 @@ class DummyRecorder(Chart):
             metadata=k8s.ObjectMeta(
                 name=f"{self.node.id}-ingress",
                 labels=self.label,
-                annotations={"nginx.ingress.kubernetes.io/rewrite-target": "/"},
+                annotations={
+                    "external-dns.alpha.kubernetes.io/hostname": host,
+                    "external-dns.alpha.kubernetes.io/ingress-hostname-source": "annotation-only",
+                },
             ),
             spec=k8s.IngressSpec(
-                ingress_class_name="nginx",
+                ingress_class_name=None,
                 rules=[
                     k8s.IngressRule(
                         host=host,
@@ -128,7 +136,7 @@ class DummyRecorder(Chart):
                             paths=[
                                 k8s.HttpIngressPath(
                                     path="/",
-                                    path_type="ImplementationSpecific",
+                                    path_type="Prefix",
                                     backend=k8s.IngressBackend(
                                         service=k8s.IngressServiceBackend(
                                             name=f"{self.node.id}-service",
