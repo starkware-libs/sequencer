@@ -5,7 +5,7 @@ use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::execution::call_info::OpcodeName;
-use blockifier::test_utils::contracts::FeatureContractTrait;
+use blockifier::test_utils::contracts::{get_class_info_of_cairo0_contract, FeatureContractTrait};
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::{get_valid_virtual_os_program_hash, ALIAS_CONTRACT_ADDRESS};
 use blockifier::transaction::test_utils::ExpectedExecutionInfo;
@@ -117,8 +117,6 @@ use crate::test_manager::{
 use crate::utils::{
     divide_vec_into_n_parts,
     get_class_hash_of_feature_contract,
-    get_class_info_of_cairo0_contract,
-    get_class_info_of_feature_contract,
     maybe_dummy_block_hash_and_number,
     update_expected_storage,
     update_expected_storage_updates_for_block_hash_contract,
@@ -194,7 +192,7 @@ async fn declare_deploy_scenario(
         nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
     };
     let account_declare_tx = declare_tx(declare_tx_args);
-    let class_info = get_class_info_of_feature_contract(test_contract);
+    let class_info = test_contract.get_class_info();
     let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     // Add the transaction to the test manager.
     test_builder.add_cairo1_declare_tx(tx, &test_contract_sierra);
@@ -514,7 +512,7 @@ async fn test_os_logic(
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
     };
     let account_declare_tx = declare_tx(declare_args);
-    let class_info = get_class_info_of_feature_contract(cairo0_test_contract);
+    let class_info = cairo0_test_contract.get_class_info();
     let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_builder
         .add_cairo0_declare_tx(tx, get_class_hash_of_feature_contract(cairo0_test_contract));
@@ -719,7 +717,7 @@ async fn test_os_logic(
         class_hash: delegate_proxy_class_hash,
         max_fee: Fee(1_000_000_000_000_000),
     });
-    let class_info = get_class_info_of_feature_contract(delegate_proxy_contract);
+    let class_info = delegate_proxy_contract.get_class_info();
     let tx = DeclareTransaction::create(delegate_proxy_declare_tx, class_info, chain_id).unwrap();
     test_builder.add_cairo0_declare_tx(tx, delegate_proxy_class_hash);
 
@@ -840,7 +838,7 @@ async fn test_os_logic(
         class_hash: test_contract2_class_hash,
         max_fee: Fee(1_000_000_000_000_000),
     });
-    let class_info = get_class_info_of_feature_contract(test_contract2);
+    let class_info = test_contract2.get_class_info();
     let tx = DeclareTransaction::create(test_contract2_declare_tx, class_info, chain_id).unwrap();
     test_builder.add_cairo0_declare_tx(tx, test_contract2_class_hash);
 
@@ -1226,7 +1224,7 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
         compiled_class_hash: experimental_compiled_class_hash,
     };
     let account_declare_tx = declare_tx(declare_tx_args);
-    let class_info = get_class_info_of_feature_contract(experimental_contract);
+    let class_info = experimental_contract.get_class_info();
     let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_builder.add_cairo1_declare_tx(tx, &experimental_contract_sierra);
 
@@ -1309,7 +1307,7 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
         nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
     };
     let account_declare_tx = declare_tx(declare_tx_args);
-    let class_info = get_class_info_of_feature_contract(faulty_account);
+    let class_info = faulty_account.get_class_info();
     let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_builder.add_cairo1_declare_tx(tx, &faulty_account_sierra);
 
@@ -1368,7 +1366,7 @@ async fn test_new_account_flow(#[values(true, false)] use_kzg_da: bool) {
         signature: TransactionSignature(Arc::new(vec![valid])),
     };
     let account_declare_tx = declare_tx(declare_tx_args);
-    let class_info = get_class_info_of_feature_contract(empty_contract);
+    let class_info = empty_contract.get_class_info();
     let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_builder.add_cairo1_declare_tx(tx, &empty_contract_sierra);
     // The faulty account's __execute__ sends a message to L1.
@@ -1777,7 +1775,7 @@ async fn test_deprecated_tx_info() {
         nonce: test_builder.next_nonce(tx_info_account_address),
     };
     let account_declare_tx = declare_tx(declare_tx_args);
-    let class_info = get_class_info_of_feature_contract(empty_contract);
+    let class_info = empty_contract.get_class_info();
     let declare_tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_builder.add_cairo1_declare_tx(declare_tx.clone(), &empty_contract_sierra);
 
@@ -2036,7 +2034,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
     );
 
     // Declare the block info contract.
-    let class_info = get_class_info_of_feature_contract(test_contract);
+    let class_info = test_contract.get_class_info();
     if is_cairo0 {
         let declare_args = declare_tx_args! {
             version: TransactionVersion::ZERO,
@@ -2108,7 +2106,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
         nonce: test_builder.next_nonce(block_info_account_address),
     };
     let account_declare_tx = declare_tx(declare_tx_args);
-    let class_info = get_class_info_of_feature_contract(empty_contract);
+    let class_info = empty_contract.get_class_info();
     let declare_tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_builder.add_cairo1_declare_tx(declare_tx, &empty_contract.get_sierra());
 
@@ -2784,7 +2782,7 @@ async fn test_declare_and_deploy_in_separate_blocks() {
         nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
     };
     let account_declare_tx = declare_tx(declare_tx_args);
-    let class_info = get_class_info_of_feature_contract(test_contract);
+    let class_info = test_contract.get_class_info();
     let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
     test_builder.add_cairo1_declare_tx(tx, &test_contract_sierra);
 
