@@ -10,7 +10,7 @@ use crate::config::Config;
 use crate::engine::{Engine, EngineCommand, EngineOutput, MessageKey};
 use crate::message_processor::EventStateManagerToEngine;
 use crate::types::{CommitteeId, MessageRoot};
-use crate::{MerkleProof, PropellerUnit, Shard, ShardIndex, ShardsOfPeer};
+use crate::{MerkleProof, PropellerUnit, Shard, ShardsOfPeer, UnitIndex};
 
 const TEST_COMMITTEE_ID: CommitteeId = CommitteeId([1; 32]);
 const BASE_NONCE: u64 = 1_000_000;
@@ -54,7 +54,7 @@ fn make_unit(publisher: PeerId, nonce: u64, root: MessageRoot) -> PropellerUnit 
         publisher,
         root,
         vec![0; 64],
-        ShardIndex(0),
+        UnitIndex(0),
         ShardsOfPeer(vec![Shard(vec![1, 2, 3])]),
         MerkleProof { siblings: vec![] },
         nonce,

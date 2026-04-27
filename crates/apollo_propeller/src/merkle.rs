@@ -1,7 +1,7 @@
 //! Merkle tree implementation for efficient data integrity verification.
 //!
 //! This module provides a simple and efficient Merkle tree implementation that can be used
-//! to create cryptographic proofs for shards in the propeller protocol.
+//! to create cryptographic proofs for units in the propeller protocol.
 
 use sha2::{Digest, Sha256};
 

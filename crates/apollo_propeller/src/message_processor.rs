@@ -19,7 +19,7 @@ use crate::types::{
 };
 use crate::unit::{PropellerUnit, ShardsOfPeer};
 use crate::unit_validator::UnitValidator;
-use crate::{MerkleProof, ShardIndex};
+use crate::{MerkleProof, UnitIndex};
 
 pub type UnitToValidate = (PeerId, PropellerUnit);
 type ValidationResult = (Result<(), UnitValidationError>, UnitValidator, PropellerUnit);
@@ -44,7 +44,7 @@ pub enum EventStateManagerToEngine {
 struct ReconstructionOutput {
     message: Vec<u8>,
     my_shards: ShardsOfPeer,
-    my_shard_proof: MerkleProof,
+    my_unit_proof: MerkleProof,
 }
 
 enum AddUnitAction {
@@ -61,7 +61,7 @@ enum ReconstructionState {
         verified_fields: Option<VerifiedFields>,
     },
     /// Message was reconstructed but not yet delivered to the application. We keep collecting
-    /// shards until the emit threshold is reached, then emit the message.
+    /// units until the emit threshold is reached, then emit the message.
     // No need to track the unit indices after reconstruction (unit duplication already validated)
     PostConstruction { reconstructed_message: Option<Vec<u8>>, num_held_units: usize },
 }
@@ -86,14 +86,14 @@ impl ReconstructionState {
     fn add_unit(
         &mut self,
         unit: PropellerUnit,
-        my_shard_index: ShardIndex,
+        my_unit_index: UnitIndex,
         tree_manager: &PropellerScheduleManager,
     ) -> AddUnitAction {
-        let is_my_shard = unit.index() == my_shard_index;
+        let is_my_unit = unit.index() == my_unit_index;
 
         match self {
             Self::PreConstruction { received_units, did_broadcast_my_unit, verified_fields } => {
-                if is_my_shard {
+                if is_my_unit {
                     *did_broadcast_my_unit = true;
                 }
                 if verified_fields.is_none() {
@@ -112,7 +112,7 @@ impl ReconstructionState {
             // During reconstruction we broadcast our unit, so receiving it back from the
             // network should not inflate the count.
             Self::PostConstruction { num_held_units, .. } => {
-                if !is_my_shard {
+                if !is_my_unit {
                     *num_held_units += 1;
                 }
                 self.maybe_emit(tree_manager)
@@ -147,7 +147,7 @@ pub struct MessageProcessor {
     pub publisher: PeerId,
     pub nonce: u64,
     pub message_root: MessageRoot,
-    pub my_shard_index: ShardIndex,
+    pub my_unit_index: UnitIndex,
 
     pub publisher_public_key: PublicKey,
     pub tree_manager: Arc<PropellerScheduleManager>,
@@ -208,7 +208,7 @@ impl MessageProcessor {
 
             self.maybe_broadcast_my_unit(&unit, &state);
 
-            let action = state.add_unit(unit, self.my_shard_index, &self.tree_manager);
+            let action = state.add_unit(unit, self.my_unit_index, &self.tree_manager);
             if self.handle_action(action, &mut state).await.is_break() {
                 return;
             }
@@ -243,7 +243,7 @@ impl MessageProcessor {
     /// Broadcasts our unit to peers the first time we see it. In PostConstruction this is a no-op
     /// because reconstruction already triggered the broadcast.
     fn maybe_broadcast_my_unit(&self, unit: &PropellerUnit, state: &ReconstructionState) {
-        if unit.index() == self.my_shard_index && !state.did_broadcast_my_unit() {
+        if unit.index() == self.my_unit_index && !state.did_broadcast_my_unit() {
             self.broadcast_unit(unit);
         }
     }
@@ -298,21 +298,21 @@ impl MessageProcessor {
     }
 
     /// Offloads erasure-coding reconstruction to a blocking thread.
-    async fn reconstruct_blocking(&self, shards: Vec<PropellerUnit>) -> ReconstructionResult {
+    async fn reconstruct_blocking(&self, units: Vec<PropellerUnit>) -> ReconstructionResult {
         let message_root = self.message_root;
         let my_index: usize =
-            self.my_shard_index.0.try_into().expect("Shard index could not be converted to usize");
+            self.my_unit_index.0.try_into().expect("Unit index could not be converted to usize");
         let data_count = self.tree_manager.num_data_shards();
         let coding_count = self.tree_manager.num_coding_shards();
 
         // TODO(AndrewL): track task handle to abort the task if the timeout is reached or
         // finalization occurs.
         tokio::task::spawn_blocking(move || {
-            reconstruct_data_shards(shards, message_root, my_index, data_count, coding_count).map(
-                |(message, my_shards, my_shard_proof)| ReconstructionOutput {
+            reconstruct_data_shards(units, message_root, my_index, data_count, coding_count).map(
+                |(message, my_shards, my_unit_proof)| ReconstructionOutput {
                     message,
                     my_shards,
-                    my_shard_proof,
+                    my_unit_proof,
                 },
             )
         })
@@ -323,10 +323,10 @@ impl MessageProcessor {
     fn handle_reconstruction_output(
         &self,
         output: ReconstructionOutput,
-        shard_count: usize,
+        unit_count: usize,
         state: &mut ReconstructionState,
     ) -> ControlFlow<()> {
-        let ReconstructionOutput { message, my_shards, my_shard_proof } = output;
+        let ReconstructionOutput { message, my_shards, my_unit_proof } = output;
 
         let should_broadcast = !state.did_broadcast_my_unit();
         if should_broadcast {
@@ -344,16 +344,16 @@ impl MessageProcessor {
                 self.publisher,
                 self.message_root,
                 signature,
-                self.my_shard_index,
+                self.my_unit_index,
                 my_shards,
-                my_shard_proof,
+                my_unit_proof,
                 nonce,
             );
             self.broadcast_unit(&reconstructed_unit);
         }
 
-        let total_shards = shard_count + usize::from(should_broadcast);
-        state.transition_to_post(message, total_shards);
+        let total_units = unit_count + usize::from(should_broadcast);
+        state.transition_to_post(message, total_units);
 
         match state.maybe_emit(&self.tree_manager) {
             AddUnitAction::Emit(message) => {

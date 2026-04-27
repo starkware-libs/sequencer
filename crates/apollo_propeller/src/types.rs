@@ -13,9 +13,9 @@ use crate::MerkleHash;
 /// Events emitted by the Propeller protocol to the application layer.
 #[derive(Debug, Clone)]
 pub enum Event {
-    /// A complete message has been reconstructed from shards.
+    /// A complete message has been reconstructed from units.
     MessageReceived { publisher: PeerId, message_root: MessageRoot, message: Vec<u8> },
-    /// Failed to reconstruct a message from shards.
+    /// Failed to reconstruct a message from units.
     MessageReconstructionFailed {
         message_root: MessageRoot,
         publisher: PeerId,
@@ -41,7 +41,7 @@ pub enum Event {
 pub struct CommitteeId(pub [u8; 32]);
 
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
-pub struct ShardIndex(pub u64);
+pub struct UnitIndex(pub u64);
 
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
 pub struct MessageRoot(pub MerkleHash);
@@ -59,10 +59,10 @@ pub struct VerifiedFields {
 pub enum SignatureVerificationError {
     #[error(
         "We could not find a public key for signer/publisher {0}. This suggests that the public \
-         key cannot be extracted form the peer ID and needs to be provided explicitly."
+         key cannot be extracted from the peer ID and needs to be provided explicitly."
     )]
     NoPublicKeyAvailable(PeerId),
-    #[error("Received a shard with an invalid signature. Sender should be reported...")]
+    #[error("Received a unit with an invalid signature. Sender should be reported...")]
     VerificationFailed,
 }
 
@@ -76,10 +76,10 @@ pub enum ScheduleError {
     #[error("Cannot generate tree: the local peer is not included in the committee")]
     LocalPeerNotInCommittee,
     #[error(
-        "Cannot generate tree: shard index {:?} is out of bounds. Might be out of sync with peers.",
-        .shard_index
+        "Cannot generate tree: unit index {:?} is out of bounds. Might be out of sync with peers.",
+        .unit_index
     )]
-    ShardIndexOutOfBounds { shard_index: ShardIndex },
+    UnitIndexOutOfBounds { unit_index: UnitIndex },
     #[error("Cannot generate tree: the local peer is the publisher.")]
     LocalPeerIsPublisher,
 }
@@ -135,25 +135,25 @@ pub enum CommitteeSetupError {
     DuplicatePeerIds,
 }
 
-/// Specific errors that can occur during shard verification.
+/// Specific errors that can occur during unit verification.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum UnitValidationError {
-    #[error("Self received a shard from myself (libp2p should not allow this)")]
+    #[error("Self received a unit from myself (libp2p should not allow this)")]
     SelfSending,
-    #[error("Publisher should not receive their own shard")]
-    ReceivedSelfPublishedShard,
-    #[error("Received shard that is already in cache (duplicate)")]
-    DuplicateShard,
-    #[error("Received shard but error getting parent in tree topology: {0}")]
+    #[error("Publisher should not receive their own unit")]
+    ReceivedSelfPublishedUnit,
+    #[error("Received unit that is already in cache (duplicate)")]
+    DuplicateUnit,
+    #[error("Received unit but error getting parent in tree topology: {0}")]
     ScheduleManagerError(ScheduleError),
     #[error(
-        "Shard failed parent verification (expected sender = {expected_sender}, shard index = \
-         {shard_index:?})"
+        "Unit failed parent verification (expected sender = {expected_sender}, unit index = \
+         {unit_index:?})"
     )]
-    UnexpectedSender { expected_sender: PeerId, shard_index: ShardIndex },
-    #[error("Shard failed signature verification: {0}")]
+    UnexpectedSender { expected_sender: PeerId, unit_index: UnitIndex },
+    #[error("Unit failed signature verification: {0}")]
     SignatureVerificationFailed(SignatureVerificationError),
-    #[error("Shard failed Merkle proof verification")]
+    #[error("Unit failed Merkle proof verification")]
     MerkleProofVerificationFailed,
     #[error("Shards have inconsistent lengths")]
     UnequalShardLengths,

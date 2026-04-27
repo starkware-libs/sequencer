@@ -14,8 +14,8 @@ use crate::{
     PropellerScheduleManager,
     PropellerUnit,
     Shard,
-    ShardIndex,
     ShardsOfPeer,
+    UnitIndex,
     UnitValidationError,
     UnitValidator,
 };
@@ -29,7 +29,7 @@ struct TestEnv {
     local_peer: PeerId,
     other_peers: Vec<PeerId>,
     merkle_tree: MerkleTree,
-    peer_to_index: HashMap<PeerId, ShardIndex>,
+    peer_to_index: HashMap<PeerId, UnitIndex>,
     shards_of_peer: ShardsOfPeer,
 }
 const TEST_NONCE: u64 = 1_700_000_000_000_000_000;
@@ -57,8 +57,8 @@ fn build_env(num_shards_per_peer: usize) -> TestEnv {
     for i in 0..(NUM_PEERS - 1) {
         // TODO(AndrewL): Instead of testing that you use schedule_manager properly by calling its
         // functions in the test, use automock and dependency injection
-        let index = ShardIndex(i.try_into().unwrap());
-        let peer = schedule_manager.get_peer_for_shard_index(&publisher, index).unwrap();
+        let index = UnitIndex(i.try_into().unwrap());
+        let peer = schedule_manager.get_peer_for_unit_index(&publisher, index).unwrap();
         peer_to_index.insert(peer, index);
     }
 
@@ -90,7 +90,7 @@ fn build_env(num_shards_per_peer: usize) -> TestEnv {
 }
 
 fn custom_unit(env: &TestEnv, owner: PeerId, tampered_signature: bool) -> PropellerUnit {
-    let index: ShardIndex = *env.peer_to_index.get(&owner).unwrap();
+    let index: UnitIndex = *env.peer_to_index.get(&owner).unwrap();
     let mut correct_signature = env.signature.clone();
     let signature = if tampered_signature {
         *correct_signature.last_mut().unwrap() += 1;
@@ -135,13 +135,13 @@ fn test_validation_fails_with_wrong_signature() {
 }
 
 #[rstest]
-fn test_duplicate_shard_rejected() {
+fn test_duplicate_unit_rejected() {
     let mut env = build_env(1);
     let unit = unit(&env, env.local_peer);
     env.validator.validate_unit(env.publisher, &unit).unwrap();
     assert!(matches!(
         env.validator.validate_unit(env.publisher, &unit),
-        Err(UnitValidationError::DuplicateShard)
+        Err(UnitValidationError::DuplicateUnit)
     ));
 }
 
