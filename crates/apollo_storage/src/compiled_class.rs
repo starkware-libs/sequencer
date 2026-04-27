@@ -102,6 +102,10 @@ where
     /// Stores the Cairo assembly of a class, mapped to its class hash.
     // To enforce that no commit happen after a failure, we consume and return Self on success.
     fn append_casm(self, class_hash: &ClassHash, casm: &CasmContractClass) -> StorageResult<Self>;
+
+    /// Updates the compiled class marker to the given block number.
+    // To enforce that no commit happen after a failure, we consume and return Self on success.
+    fn update_compiled_class_marker(self, block_number: &BlockNumber) -> StorageResult<Self>;
 }
 
 impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
@@ -160,6 +164,12 @@ impl CasmStorageWriter for StorageTxn<'_, RW> {
             self.file_handlers.clone(),
             class_hash,
         )?;
+        Ok(self)
+    }
+
+    fn update_compiled_class_marker(self, block_number: &BlockNumber) -> StorageResult<Self> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        markers_table.upsert(&self.txn, &MarkerKind::CompiledClass, block_number)?;
         Ok(self)
     }
 }
