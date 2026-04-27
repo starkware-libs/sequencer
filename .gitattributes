@@ -9,3 +9,7 @@ crates/starknet_os/resources/hint_coverage/*.json -diff
 crates/starknet_transaction_prover/resources/*.json -diff
 crates/starknet_transaction_prover/resources/*.bin -diff
 crates/starknet_transaction_prover/resources/*.zip -diff
+
+# Starknet system tests resources - large binary/JSON files.
+crates/central_systest_blobs/resources/blobs.json -diff
+crates/central_systest_blobs/resources/preconfirmed_block.json -diff
