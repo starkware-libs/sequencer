@@ -76,6 +76,10 @@ pub(crate) struct ProposalBuildArguments {
     pub override_l2_gas_price_fri: Option<u128>,
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
     pub compare_retrospective_block_hash: bool,
+    /// SNIP-35: proposer's fee_proposal for this block.
+    pub fee_proposal: GasPrice,
+    /// SNIP-35: current fee_actual from the sliding window.
+    pub fee_actual: Option<GasPrice>,
 }
 
 type BuildProposalResult<T> = Result<T, BuildProposalError>;
@@ -176,7 +180,7 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
         starknet_version: starknet_api::block::StarknetVersion::LATEST,
         // TODO(Asmaa): Put the real value once we have it.
         version_constant_commitment: Default::default(),
-        fee_proposal_fri: None,
+        fee_proposal_fri: Some(args.fee_proposal),
     };
 
     let retrospective_block_hash = wait_for_retrospective_block_hash(
@@ -319,7 +323,7 @@ async fn get_proposal_content(
                     info.l2_gas_used,
                     args.override_l2_gas_price_fri,
                     &args.min_l2_gas_price_per_height,
-                    None,
+                    args.fee_actual,
                 );
                 let fin_payload = ProposalFinPayload {
                     commitment_parts: CommitmentParts::from(&info),
