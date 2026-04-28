@@ -12,6 +12,9 @@ use tracing::info;
 #[cfg(test)]
 mod test;
 
+#[cfg(test)]
+mod snip35_stress_test;
+
 // Denominator for the maximum gas price increase per block when price is below minimum.
 // This controls how quickly the gas price can rise towards the minimum.
 //
