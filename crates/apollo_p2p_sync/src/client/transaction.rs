@@ -45,7 +45,6 @@ impl BlockData for (BlockBody, BlockNumber) {
 pub(crate) struct TransactionStreamFactory;
 
 impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
-    // TODO(Eitan): Add events protocol to BlockBody or split their write to storage
     type Output = (BlockBody, BlockNumber);
 
     const TYPE_DESCRIPTION: &'static str = "transactions";

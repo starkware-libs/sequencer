@@ -3854,6 +3854,11 @@
     "privacy": "Public",
     "value": 100
   },
+  "state_sync_config.static_config.p2p_sync_client_config.num_block_events_per_query": {
+    "description": "The maximum amount of blocks to ask their events from peers in each iteration.",
+    "privacy": "Public",
+    "value": 100
+  },
   "state_sync_config.static_config.p2p_sync_client_config.num_block_state_diffs_per_query": {
     "description": "The maximum amount of block's state diffs to ask from peers in each iteration.",
     "privacy": "Public",
