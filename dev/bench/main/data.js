@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777279055073,
+  "lastUpdate": 1777364606534,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3195,6 +3195,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1666.39803615,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "93282e82e14a21c769092a3f3f121317efc18293",
+          "message": "starknet_committer,starknet_committer_and_os_cli: write CommitmentOffset metadata after snap sync (#13764)\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-04-28T08:06:29Z",
+          "tree_id": "775cd003cdc734162573d307e1859791a071705c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/93282e82e14a21c769092a3f3f121317efc18293"
+        },
+        "date": 1777364606134,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 818.4230370399999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1275.37840465,
             "unit": "ms"
           }
         ]
