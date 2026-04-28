@@ -62,3 +62,7 @@ crates/blockifier_test_utils/resources/feature_contracts/cairo1/sierra/*.json
 # Claude Code local config
 .claude*.local*
 .claude/*.local*
+
+# Validation node generated config and saved choices (contain user secrets)
+deployments/docker/validation_node/config/validation_node.json
+deployments/docker/validation_node/config/.last_choices.json

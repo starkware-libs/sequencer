@@ -1,0 +1,12 @@
+{
+  "chain_id": "SN_SEPOLIA",
+  "eth_fee_token_address": "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
+  "strk_fee_token_address": "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
+  "starknet_url": "https://feeder.alpha-sepolia.starknet.io/",
+  "starknet_contract_address": "0xE2Bb56ee936fd6433DC0F6e7e3b8365C906AA057",
+  "bpo1_start_block_number": 9456501,
+  "bpo2_start_block_number": 9504747,
+  "fusaka_no_bpo_start_block_number": 9408577,
+  "consensus_bootstrap_peer_multiaddr": "/dns/sequencer-core-service.apollo-sepolia-alpha-0.starknet.io/tcp/53080/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5,/dns/sequencer-core-service.apollo-sepolia-alpha-1.starknet.io/tcp/53080/p2p/12D3KooWCPzcTZ4ymgyveYaFfZ4bfWsBEh2KxuxM3Rmy7MunqHwe,/dns/sequencer-core-service.apollo-sepolia-alpha-2.starknet.io/tcp/53080/p2p/12D3KooWT3eoCYeMPrSNnF1eQHimWFDiqPkna7FUD6XKBw8oPiMp,/dns/sequencer-core-service.apollo-sepolia-alpha-3.starknet.io/tcp/53080/p2p/12D3KooWFdTjV6DXVJfQFisTXadCsqGzCbEnJJWzc6mXSPwy9g54,/dns/sequencer-core-service.apollo-sepolia-alpha-4.starknet.io/tcp/53080/p2p/12D3KooWJMukrrip9sUyto28eiofqxyXiw9sfTJuZeQfHUujWPX8,/dns/sequencer-core-service.apollo-sepolia-alpha-5.starknet.io/tcp/53080/p2p/12D3KooWMqkzSDGNQg9WDDPdu7nQgAPpqTY3YqZ2XUYqJzmUhmVu",
+  "default_committee": "0,10:0x64,1,0x1,true;0x65,1,0x1,true;0x66,1,0x1,true;0x67,1,0x1,true;0x68,1,0x1,true"
+}
