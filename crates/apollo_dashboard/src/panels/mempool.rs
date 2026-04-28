@@ -1,9 +1,11 @@
 use apollo_mempool::metrics::{
     LABEL_NAME_DROP_REASON,
+    MEMPOOL_ACCOUNTS_WITH_GAP,
     MEMPOOL_DELAYED_DECLARES_SIZE,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
+    MEMPOOL_STUCK_TXS,
     MEMPOOL_TOTAL_SIZE_BYTES,
     MEMPOOL_TRANSACTIONS_COMMITTED,
     MEMPOOL_TRANSACTIONS_DROPPED,
@@ -97,6 +99,26 @@ fn get_panel_mempool_delayed_declares_size() -> Panel {
         PanelType::TimeSeries,
     )
 }
+fn get_panel_mempool_accounts_with_gap() -> Panel {
+    Panel::new(
+        "Accounts With Nonce Gap",
+        "Number of accounts whose lowest pool nonce exceeds the account nonce, making them unable \
+         to provide any transaction for batching",
+        MEMPOOL_ACCOUNTS_WITH_GAP.get_name_with_filter().to_string(),
+        PanelType::TimeSeries,
+    )
+    .with_log_query("has a nonce gap")
+}
+fn get_panel_mempool_stuck_txs() -> Panel {
+    Panel::new(
+        "Stuck Transactions (Nonce Gap)",
+        "Number of transactions in the pool belonging to accounts whose lowest pool nonce exceeds \
+         the account nonce",
+        MEMPOOL_STUCK_TXS.get_name_with_filter().to_string(),
+        PanelType::TimeSeries,
+    )
+    .with_log_query("has a nonce gap")
+}
 fn get_panel_mempool_transaction_time_spent_until_batched() -> Panel {
     Panel::from_hist(
         &TRANSACTION_TIME_SPENT_UNTIL_BATCHED,
@@ -126,6 +148,8 @@ pub(crate) fn get_mempool_row() -> Row {
             get_panel_mempool_priority_queue_size(),
             get_panel_mempool_pending_queue_size(),
             get_panel_mempool_delayed_declares_size(),
+            get_panel_mempool_accounts_with_gap(),
+            get_panel_mempool_stuck_txs(),
             get_panel_mempool_transaction_time_spent_until_batched(),
             get_panel_mempool_transaction_time_spent_until_committed(),
         ],
