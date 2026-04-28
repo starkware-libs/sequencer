@@ -74,7 +74,7 @@ Consider pushing the const inside the impl block/function if it makes sense, oth
 
 ## Directory Layout
 
-Single-file modules should be in a file called `foo.rs`. Modules with submodules should be in a file called `foo/mod.rs`.
+Single-file modules should be in a file called `foo.rs`. Modules with submodules should be declared in a file called `foo/mod.rs`.
 
 `mod.rs` should not contain any code — it should only declare submodules.
 If the module truly has general-purpose code that doesn't belong to a specific submodule,
