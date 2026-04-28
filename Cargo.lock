@@ -1777,6 +1777,7 @@ dependencies = [
  "starknet_api",
  "starknet_committer",
  "starknet_patricia_storage",
+ "starknet_proof_verifier",
  "static_assertions",
  "strum",
  "tempfile",
