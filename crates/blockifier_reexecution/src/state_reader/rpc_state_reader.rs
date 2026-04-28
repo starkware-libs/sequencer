@@ -71,6 +71,7 @@ use crate::state_reader::rpc_objects::{
     GetNonceParams,
     GetStorageAtParams,
     RpcResponse,
+    TxResponseFlag,
     RPC_CLASS_HASH_NOT_FOUND,
     RPC_ERROR_BLOCK_NOT_FOUND,
     RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
@@ -97,6 +98,8 @@ pub type StarknetContractClassMapping = HashMap<ClassHash, StarknetContractClass
 #[derive(Serialize)]
 pub struct GetTransactionByHashParams {
     pub transaction_hash: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub response_flags: Vec<TxResponseFlag>,
 }
 
 /// The block's `BlockInfo` paired with its full transactions
@@ -266,7 +269,10 @@ impl RpcStateReader {
             || {
                 self.send_rpc_request(
                     "starknet_getTransactionByHash",
-                    GetTransactionByHashParams { transaction_hash: tx_hash.to_string() },
+                    GetTransactionByHashParams {
+                        transaction_hash: tx_hash.to_string(),
+                        response_flags: vec![TxResponseFlag::IncludeProofFacts],
+                    },
                 )
             }
         )?)?)
@@ -279,7 +285,10 @@ impl RpcStateReader {
             serde_json::from_value(retry_request!(self.retry_config, || {
                 self.send_rpc_request(
                     "starknet_getBlockWithTxs",
-                    GetBlockWithTxsParams { block_id: self.block_id },
+                    GetBlockWithTxsParams {
+                        block_id: self.block_id,
+                        response_flags: vec![TxResponseFlag::IncludeProofFacts],
+                    },
                 )
             })?)?;
 
