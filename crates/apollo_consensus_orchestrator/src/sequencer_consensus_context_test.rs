@@ -620,6 +620,38 @@ async fn gas_price_fri_out_of_range() {
     // TODO(guyn): How to check that the rejection is due to the l1_gas_price_fri mismatch?
 }
 
+#[tokio::test]
+async fn gas_price_wei_out_of_range() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+
+    deps.batcher
+        .expect_start_height()
+        .times(1)
+        .withf(|input| input.height == HEIGHT_0)
+        .return_const(Ok(()));
+    let mut context = deps.build_context();
+    context.set_height_and_round(HEIGHT_0, ROUND_0).await.unwrap();
+
+    // Receive a block info with l1_gas_price_wei that is outside the margin of error.
+    let (_content_sender, content_receiver) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
+    let mut init_1 = proposal_init(HEIGHT_0, ROUND_0);
+    init_1.l1_gas_price_wei = init_1.l1_gas_price_wei.checked_mul_u128(2).unwrap();
+    // Use a large enough timeout to ensure fin_receiver was canceled due to invalid init,
+    // not due to a timeout.
+    let fin_receiver = context.validate_proposal(init_1, TIMEOUT * 100, content_receiver).await;
+    assert_eq!(fin_receiver.await, Err(Canceled));
+
+    // Do the same for data gas price.
+    let (_content_sender, content_receiver) =
+        mpsc::channel(context.config.static_config.proposal_buffer_size);
+    let mut init_2 = proposal_init(HEIGHT_0, ROUND_0);
+    init_2.l1_data_gas_price_wei = init_2.l1_data_gas_price_wei.checked_mul_u128(2).unwrap();
+    let fin_receiver = context.validate_proposal(init_2, TIMEOUT * 100, content_receiver).await;
+    assert_eq!(fin_receiver.await, Err(Canceled));
+}
+
 #[rstest]
 #[case::maximum(true)]
 #[case::minimum(false)]
@@ -1314,9 +1346,9 @@ async fn change_gas_price_overrides() {
     // Add the new overrides so validation passes.
     let mut modified_init = proposal_init(HEIGHT_1, ROUND_1);
     modified_init.l1_data_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
-    // Note that the eth to fri conversion rate by default is 10^18 so we can just replace wei to
-    // fri 1:1.
-    modified_init.l1_data_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
+    // The wei price is derived from the fri price using the eth to fri conversion rate.
+    modified_init.l1_data_gas_price_wei =
+        GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE).fri_to_wei(ETH_TO_FRI_RATE).unwrap();
 
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
     let fin_receiver = context.validate_proposal(modified_init, TIMEOUT, content_receiver).await;
