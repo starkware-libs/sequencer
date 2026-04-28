@@ -254,6 +254,35 @@ async fn rapid_reconnect_does_not_emit_stale_request_dial(
     assert_no_event(&mut behaviour);
 }
 
+/// Demonstrates that BootstrappingBehaviour emits RequestDial on every ConnectionClosed,
+/// regardless of connection duration. The backoff protection against tight retry loops lives
+/// in DialingBehaviour (which applies reconnection backoff for short-lived connections),
+/// not here.
+#[tokio::test]
+async fn bootstrapping_emits_request_dial_on_every_connection_close() {
+    const NUM_CYCLES: usize = 5;
+
+    let bootstrap_peers = get_peers(1);
+    let (peer_id, peer_address) = bootstrap_peers[0].clone();
+    let mut behaviour =
+        BootstrappingBehaviour::new(get_peer_id(LOCAL_PEER_ID_INDEX), bootstrap_peers.clone());
+
+    // Consume the initial RequestDial.
+    consume_request_dial_events(&mut behaviour, bootstrap_peers.clone()).await;
+    assert_no_event(&mut behaviour);
+
+    for _ in 0..NUM_CYCLES {
+        // ConnectionEstablished → emits FoundListenAddresses
+        accept_dial_attempt(&mut behaviour, peer_id, 0);
+        consume_found_listen_address_events(&mut behaviour, bootstrap_peers.clone()).await;
+
+        // ConnectionClosed → emits RequestDial (always, no backoff here)
+        close_connection(&mut behaviour, peer_id, peer_address.clone(), 0);
+        consume_request_dial_events(&mut behaviour, bootstrap_peers.clone()).await;
+        assert_no_event(&mut behaviour);
+    }
+}
+
 #[tokio::test]
 async fn returns_pending_if_empty_bootstrap_nodes() {
     let local_peer_id = get_peer_id(LOCAL_PEER_ID_INDEX);
