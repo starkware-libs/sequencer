@@ -319,6 +319,7 @@ async fn get_proposal_content(
                     info.l2_gas_used,
                     args.override_l2_gas_price_fri,
                     &args.min_l2_gas_price_per_height,
+                    None,
                 );
                 let fin_payload = ProposalFinPayload {
                     commitment_parts: CommitmentParts::from(&info),
