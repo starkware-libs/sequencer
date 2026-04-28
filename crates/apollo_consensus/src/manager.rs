@@ -44,6 +44,7 @@ use crate::metrics::{
     CONSENSUS_MAX_CACHED_BLOCK_NUMBER,
     CONSENSUS_PROPOSALS_RECEIVED,
     CONSENSUS_REPROPOSALS,
+    IS_OBSERVER,
 };
 use crate::single_height_consensus::{Requests, SingleHeightConsensus};
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
@@ -616,6 +617,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
 
         let validators: Vec<_> = committee.members().iter().map(|s| s.address).collect();
         let is_observer = !validators.contains(&self.consensus_config.dynamic_config.validator_id);
+        IS_OBSERVER.set(if is_observer { 1.0 } else { 0.0 });
         info!(
             "START_HEIGHT: running consensus for height {:?}. is_observer: {}, validators: {:?}",
             height, is_observer, validators,
