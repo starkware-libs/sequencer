@@ -20,6 +20,7 @@ use apollo_consensus_orchestrator::sequencer_consensus_context::{
 };
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
+use apollo_l1_gas_price::exchange_rate_oracle::ExchangeRateOracleClient;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::gossipsub_impl::Topic;
 use apollo_network::metrics::{
@@ -304,7 +305,15 @@ impl ConsensusManager {
                 outbound_proposal_sender: outbound_internal_sender,
                 vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
                 config_manager_client: Some(Arc::clone(&config_manager_client)),
-                strk_exchange_rate_oracle: None,
+                // TODO(SNIP-35): consider threading `ExchangeRateOracleConfig` through
+                // `ConsensusManagerConfig` so it can be configured per-deployment. For now we
+                // instantiate the default, whose `url_header_list` points at a placeholder URL;
+                // **deployments must override `url_header_list` via their config overlay** or the
+                // oracle will fail every request and `fee_proposal` will freeze at `fee_actual`
+                // (safe but static).
+                strk_exchange_rate_oracle: Some(Arc::new(ExchangeRateOracleClient::new(
+                    apollo_l1_gas_price_config::config::ExchangeRateOracleConfig::default(),
+                ))),
             },
         )
     }
