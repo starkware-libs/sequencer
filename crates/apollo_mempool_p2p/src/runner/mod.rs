@@ -62,20 +62,20 @@ impl ComponentStarter for MempoolP2pRunner {
     async fn start(&mut self) {
         let gateway_semaphore = Arc::new(Semaphore::new(self.max_concurrent_gateway_requests));
         let mut gateway_futures = FuturesUnordered::new();
-        let mut transaction_batch_broadcast_interval =
-            tokio::time::interval(self.transaction_batch_rate_millis);
-        transaction_batch_broadcast_interval.set_missed_tick_behavior(Delay);
-        transaction_batch_broadcast_interval.tick().await; // The first tick is ready immediately so we consume it.
+        let mut broadcast_queued_txs_handle =
+            tokio::spawn(broadcast_queued_transactions_every_tick(
+                self.mempool_p2p_propagator_client.clone(),
+                self.transaction_batch_rate_millis,
+            ));
         loop {
             tokio::select! {
-                _ = &mut self.network_future => {
-                    panic!("MempoolP2pRunner failed - network stopped unexpectedly");
+                res = &mut self.network_future => {
+                    res.expect("Mempool P2P network failed");
+                    unreachable!("Network manager's run should never return");
                 }
-                _ = transaction_batch_broadcast_interval.tick() => {
-                    let result = self.mempool_p2p_propagator_client.broadcast_queued_transactions().await;
-                    if result.is_err() {
-                        warn!("MempoolP2pPropagatorClient denied BroadcastQueuedTransactions request: {result:?}");
-                    };
+                res = &mut broadcast_queued_txs_handle => {
+                    res.expect("Broadcast task panicked");
+                    unreachable!("The broadcast task runs an infinite loop, so it should never return");
                 }
                 Some(result) = gateway_futures.next() => {
                     match result {
@@ -141,3 +141,22 @@ impl ComponentStarter for MempoolP2pRunner {
 }
 
 pub type MempoolP2pRunnerServer = WrapperServer<MempoolP2pRunner>;
+
+async fn broadcast_queued_transactions_every_tick(
+    client: SharedMempoolP2pPropagatorClient,
+    rate: Duration,
+) {
+    let mut interval = tokio::time::interval(rate);
+    interval.set_missed_tick_behavior(Delay);
+    interval.tick().await; // The first tick is ready immediately so we consume it.
+    loop {
+        interval.tick().await;
+        let result = client.broadcast_queued_transactions().await;
+        if let Err(err) = result {
+            warn!(
+                "MempoolP2pPropagatorClient denied BroadcastQueuedTransactions request. Will \
+                 retry at the next interval. Error: {err:?}"
+            );
+        }
+    }
+}

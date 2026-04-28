@@ -58,9 +58,9 @@ fn setup(
     (mempool_p2p_runner, mock_network)
 }
 
-#[test]
-#[should_panic]
-fn run_panics_when_network_future_returns() {
+#[tokio::test]
+#[should_panic(expected = "Network manager's run should never return")]
+async fn run_panics_when_network_future_returns() {
     let network_future = ready(Ok(())).boxed();
     let gateway_client = Arc::new(MockGatewayClient::new());
     let (mut mempool_p2p_runner, _) = setup(
@@ -70,12 +70,12 @@ fn run_panics_when_network_future_returns() {
         MAX_TRANSACTION_BATCH_RATE,
         MAX_CONCURRENT_GATEWAY_REQUESTS,
     );
-    mempool_p2p_runner.start().now_or_never().unwrap();
+    mempool_p2p_runner.start().await;
 }
 
-#[test]
-#[should_panic]
-fn run_panics_when_network_future_returns_error() {
+#[tokio::test]
+#[should_panic(expected = "Mempool P2P network failed")]
+async fn run_panics_when_network_future_returns_error() {
     let network_future =
         ready(Err(NetworkError::DialError(libp2p::swarm::DialError::Aborted))).boxed();
     let gateway_client = Arc::new(MockGatewayClient::new());
@@ -86,7 +86,7 @@ fn run_panics_when_network_future_returns_error() {
         MAX_TRANSACTION_BATCH_RATE,
         MAX_CONCURRENT_GATEWAY_REQUESTS,
     );
-    mempool_p2p_runner.start().now_or_never().unwrap();
+    mempool_p2p_runner.start().await;
 }
 
 #[tokio::test]
