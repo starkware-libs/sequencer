@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777364606534,
+  "lastUpdate": 1777372778894,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3229,6 +3229,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1275.37840465,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2bdace14b1493c495b29409c2340145329c7f3ab",
+          "message": "apollo_node_config: validation only node uses state only storage config (#13879)",
+          "timestamp": "2026-04-28T10:23:57Z",
+          "tree_id": "c0be0352bfde22f2ed5aa894acd606dfc520bea1",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2bdace14b1493c495b29409c2340145329c7f3ab"
+        },
+        "date": 1777372778490,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 837.59591184,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1358.0284744100002,
             "unit": "ms"
           }
         ]
