@@ -45,7 +45,7 @@ fn setup() -> (StateSync, StorageWriter) {
 async fn test_get_block() {
     let (mut state_sync, mut storage_writer) = setup();
 
-    let (Block { header: expected_header, body: expected_body }, expected_events) =
+    let Block { header: expected_header, body: expected_body } =
         get_test_block(1, None, None, None);
     let expected_state_diff = ThinStateDiff::from(get_test_state_diff());
 
@@ -60,8 +60,6 @@ async fn test_get_block() {
         )
         .unwrap()
         .append_body(expected_header.block_header_without_hash.block_number, expected_body.clone())
-        .unwrap()
-        .append_events(expected_header.block_header_without_hash.block_number, &expected_events)
         .unwrap()
         .commit()
         .unwrap();
@@ -90,7 +88,7 @@ async fn test_get_block() {
 async fn test_get_block_hash() {
     let (mut state_sync, mut storage_writer) = setup();
 
-    let (Block { header: mut expected_header, body: expected_body }, expected_events) =
+    let Block { header: mut expected_header, body: expected_body } =
         get_test_block(1, None, None, None);
 
     // get_test_block returns a block with parent_hash == block_hash. Need to change that to make
@@ -109,8 +107,6 @@ async fn test_get_block_hash() {
         )
         .unwrap()
         .append_body(expected_header.block_header_without_hash.block_number, expected_body.clone())
-        .unwrap()
-        .append_events(expected_header.block_header_without_hash.block_number, &expected_events)
         .unwrap()
         .commit()
         .unwrap();
@@ -185,8 +181,6 @@ async fn test_get_storage_at() {
         .unwrap()
         .append_body(header.block_header_without_hash.block_number, Default::default())
         .unwrap()
-        .append_events(header.block_header_without_hash.block_number, &[])
-        .unwrap()
         .commit()
         .unwrap();
 
@@ -227,8 +221,6 @@ async fn test_get_nonce_at() {
         .unwrap()
         .append_body(header.block_header_without_hash.block_number, Default::default())
         .unwrap()
-        .append_events(header.block_header_without_hash.block_number, &[])
-        .unwrap()
         .commit()
         .unwrap();
 
@@ -266,8 +258,6 @@ async fn get_class_hash_at() {
         .append_state_diff(header.block_header_without_hash.block_number, diff.clone())
         .unwrap()
         .append_body(header.block_header_without_hash.block_number, Default::default())
-        .unwrap()
-        .append_events(header.block_header_without_hash.block_number, &[])
         .unwrap()
         .commit()
         .unwrap();
@@ -365,8 +355,6 @@ async fn test_contract_not_found() {
         .append_state_diff(header.block_header_without_hash.block_number, diff)
         .unwrap()
         .append_body(header.block_header_without_hash.block_number, Default::default())
-        .unwrap()
-        .append_events(header.block_header_without_hash.block_number, &[])
         .unwrap()
         .commit()
         .unwrap();
