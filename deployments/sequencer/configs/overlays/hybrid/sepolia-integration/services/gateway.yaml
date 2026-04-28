@@ -1,0 +1,7 @@
+config:
+  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_gateway.json
+  sequencerConfig:
+    gateway_config.static_config.authorized_declarer_accounts: ''
+    gateway_config.static_config.authorized_declarer_accounts.#is_none: true
+    gateway_config.static_config.stateful_tx_validator_config.max_allowed_nonce_gap: 200
+    gateway_config.static_config.stateless_tx_validator_config.min_gas_price: 8000000000
