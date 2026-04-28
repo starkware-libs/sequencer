@@ -73,12 +73,12 @@ class DummyEth2StrkOracle(Chart):
         return k8s.KubeService(
             self,
             "service",
+            metadata=k8s.ObjectMeta(
+                annotations={
+                    "cloud.google.com/neg": '{"ingress":true}',
+                },
+            ),
             spec=k8s.ServiceSpec(
-                metadata=k8s.ObjectMeta(
-                    annotations={
-                        "cloud.google.com/neg": '{"ingress":true}',
-                    },
-                ),
                 type="ClusterIP",
                 ports=[
                     k8s.ServicePort(

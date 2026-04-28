@@ -10,6 +10,9 @@ on:
       - ".github/workflows/sequencer_cdk8s-test.yml"
       - "crates/apollo_deployments/**"
       - "deployments/sequencer/**"
+      - "deployments/anvil/**"
+      - "deployments/dummy_eth2strk_oracle/**"
+      - "deployments/dummy_recorder/**"
 
 jobs:
   # https://graphite.com/docs/stacking-and-ci
@@ -110,4 +113,81 @@ jobs:
 
       - name: kubectl validation test for version 1.34
         run: kubectl validate ${{ env.dist1_path }} ${{ env.dist2_path }} --local-crds ${{ env.crds_path }} --version 1.34
+        continue-on-error: false
+
+  prepare-dummy-services:
+    runs-on: ubuntu-24.04
+    needs: optimize_ci
+    if: needs.optimize_ci.outputs.skip == 'false'
+    strategy:
+      matrix:
+        service: [anvil, dummy_eth2strk_oracle, dummy_recorder]
+    env:
+      namespace: test
+      service_path: ${{ github.workspace }}/deployments/${{ matrix.service }}
+    steps:
+      - name: Checkout sequencer
+        uses: actions/checkout@v6
+
+      - name: Setup python
+        uses: actions/setup-python@v5.4.0
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4.2.0
+        with:
+          node-version: 22
+
+      - name: Install pip dependencies
+        run: python3 -m pip install black pipenv
+
+      - name: Install cdk8s-cli
+        run: npm install -g cdk8s-cli@2.198.334
+
+      - name: CDK8s synth
+        working-directory: ${{ env.service_path }}
+        run: |
+          echo "Importing CDK8s ${{ matrix.service }} app..."
+          cdk8s import
+          echo "Installing pip dependencies..."
+          pipenv install
+          echo "Synthesizing CDK8s ${{ matrix.service }} app..."
+          cdk8s synth --app "pipenv run python -m main --namespace ${{ env.namespace }}"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdk8s-${{ matrix.service }}-artifacts
+          path: ${{ env.service_path }}/dist
+
+  validate-dummy-services:
+    runs-on: ubuntu-24.04
+    needs: [prepare-dummy-services, optimize_ci]
+    if: success() && needs.optimize_ci.outputs.skip == 'false'
+    strategy:
+      matrix:
+        service: [anvil, dummy_eth2strk_oracle, dummy_recorder]
+    steps:
+      - name: Setup go lang
+        uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+
+      - name: Setup kubectl-validate
+        run: go install sigs.k8s.io/kubectl-validate@latest
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: cdk8s-${{ matrix.service }}-artifacts
+          path: dist
+
+      - name: kubectl validation test for version 1.33
+        run: kubectl validate ./dist --version 1.33
+        continue-on-error: false
+
+      - name: kubectl validation test for version 1.34
+        run: kubectl validate ./dist --version 1.34
         continue-on-error: false
