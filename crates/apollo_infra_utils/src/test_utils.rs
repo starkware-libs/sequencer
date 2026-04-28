@@ -41,6 +41,7 @@ pub enum TestIdentifier {
     RevertFlowIntegrationTest,
     HttpServerUnitTests,
     SyncFlowIntegrationTest,
+    ProofFlowIntegrationTest,
     StorageReaderServerUnitTests,
     StorageReaderTypesUnitTests,
     L1EventsScraperEndToEndTest,

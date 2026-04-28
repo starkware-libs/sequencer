@@ -26,6 +26,7 @@ declare -A TEST_ALIASES=(
   [restart_single_node]="integration_test_restart_service_single_node_flow"
   [revert]="integration_test_revert_flow"
   [sync]="integration_test_central_and_p2p_sync_flow"
+  [proof]="integration_test_proof_flow"
 )
 
 # Set default test if none provided

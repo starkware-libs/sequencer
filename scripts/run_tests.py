@@ -27,6 +27,7 @@ SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
     "integration_test_positive_flow",
     "integration_test_restart_service_multiple_nodes_flow",
     "integration_test_revert_flow",
+    "integration_test_proof_flow",
 ]
 NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
     # TODO(AndrewL): Try adding these tests to CI as well

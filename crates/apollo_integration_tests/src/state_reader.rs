@@ -155,8 +155,8 @@ impl StorageTestSetup {
         test_defined_accounts: Vec<AccountTransactionGenerator>,
         chain_info: &ChainInfo,
         storage_exec_paths: Option<StorageExecutablePaths>,
+        preset_test_contracts: PresetTestContracts,
     ) -> Self {
-        let preset_test_contracts = PresetTestContracts::new();
         // TODO(yair): Avoid cloning.
         let classes = TestClasses::new(&test_defined_accounts, preset_test_contracts.clone());
 
@@ -255,17 +255,17 @@ impl StorageTestSetup {
 }
 
 #[derive(Clone)]
-struct PresetTestContracts {
+pub struct PresetTestContracts {
     pub default_test_contracts: Vec<Contract>,
     pub erc20_contract: Contract,
 }
 
 impl PresetTestContracts {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self::create(true)
     }
 
-    fn new_without_cairo0() -> Self {
+    pub(crate) fn new_without_cairo0() -> Self {
         Self::create(false)
     }
 
