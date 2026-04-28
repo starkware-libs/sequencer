@@ -67,10 +67,7 @@ use crate::stateful_transaction_validator::{
     StatefulTransactionValidatorFactoryTrait,
     StatefulTransactionValidatorTrait,
 };
-use crate::stateless_transaction_validator::{
-    StatelessTransactionValidator,
-    StatelessTransactionValidatorTrait,
-};
+use crate::stateless_transaction_validator::StatelessTransactionValidator;
 use crate::sync_state_reader::SyncStateReaderFactory;
 
 #[cfg(test)]
@@ -85,7 +82,6 @@ type ProofArchiveHandle =
 #[derive(Clone)]
 pub struct Gateway(
     GenericGateway<
-        StatelessTransactionValidator,
         TransactionConverter,
         StatefulTransactionValidatorFactory<SyncStateReaderFactory>,
     >,
@@ -97,7 +93,6 @@ impl Gateway {
         state_reader_factory: Arc<SyncStateReaderFactory>,
         mempool_client: SharedMempoolClient,
         transaction_converter: Arc<TransactionConverter>,
-        stateless_tx_validator: Arc<StatelessTransactionValidator>,
         proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
     ) -> Self {
         Self(GenericGateway::new(
@@ -105,7 +100,6 @@ impl Gateway {
             state_reader_factory,
             mempool_client,
             transaction_converter,
-            stateless_tx_validator,
             proof_archive_writer,
         ))
     }
@@ -121,37 +115,30 @@ impl Gateway {
 
 #[derive(Clone)]
 pub struct GenericGateway<
-    TStatelessValidator: StatelessTransactionValidatorTrait,
     TTransactionConverter: TransactionConverterTrait,
     TStatefulValidatorFactory: StatefulTransactionValidatorFactoryTrait,
 > {
     config: Arc<GatewayConfig>,
-    stateless_tx_validator: Arc<TStatelessValidator>,
+    stateless_tx_validator: Arc<StatelessTransactionValidator>,
     stateful_tx_validator_factory: Arc<TStatefulValidatorFactory>,
     mempool_client: SharedMempoolClient,
     transaction_converter: Arc<TTransactionConverter>,
     proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
 }
 
-impl<
-    TStatelessValidator: StatelessTransactionValidatorTrait,
-    TTransactionConverter: TransactionConverterTrait,
-    TStateReaderFactory: StateReaderFactory,
->
-    GenericGateway<
-        TStatelessValidator,
-        TTransactionConverter,
-        StatefulTransactionValidatorFactory<TStateReaderFactory>,
-    >
+impl<TTransactionConverter: TransactionConverterTrait, TStateReaderFactory: StateReaderFactory>
+    GenericGateway<TTransactionConverter, StatefulTransactionValidatorFactory<TStateReaderFactory>>
 {
     pub(crate) fn new(
         config: GatewayConfig,
         state_reader_factory: Arc<TStateReaderFactory>,
         mempool_client: SharedMempoolClient,
         transaction_converter: Arc<TTransactionConverter>,
-        stateless_tx_validator: Arc<TStatelessValidator>,
         proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
     ) -> Self {
+        let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
+            config: config.static_config.stateless_tx_validator_config.clone(),
+        });
         Self {
             config: Arc::new(config.clone()),
             stateless_tx_validator,
@@ -170,10 +157,9 @@ impl<
     }
 }
 impl<
-    TStatelessValidator: StatelessTransactionValidatorTrait,
     TTransactionConverter: TransactionConverterTrait,
     TStatefulValidatorFactory: StatefulTransactionValidatorFactoryTrait,
-> GenericGateway<TStatelessValidator, TTransactionConverter, TStatefulValidatorFactory>
+> GenericGateway<TTransactionConverter, TStatefulValidatorFactory>
 {
     pub async fn start(&self) {
         register_metrics();
@@ -444,9 +430,6 @@ pub fn create_gateway(
         proof_manager_client,
         config.static_config.chain_info.chain_id.clone(),
     ));
-    let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
-        config: config.static_config.stateless_tx_validator_config.clone(),
-    });
 
     // Create proof archive writer: use NoOp if bucket name is empty, otherwise use real GCS.
     let proof_archive_writer: Arc<dyn ProofArchiveWriterTrait> =
@@ -463,7 +446,6 @@ pub fn create_gateway(
         state_reader_factory,
         mempool_client,
         transaction_converter,
-        stateless_tx_validator,
         proof_archive_writer,
     )
 }
