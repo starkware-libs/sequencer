@@ -83,6 +83,23 @@ pub struct StateDiff {
         HashMap<ContractAddress, HashMap<StarknetStorageKey, StarknetStorageValue>>,
 }
 
+impl StateDiff {
+    pub fn len(&self) -> usize {
+        let mut result = 0usize;
+        result += self.address_to_class_hash.len();
+        result += self.address_to_nonce.len();
+        result += self.class_hash_to_compiled_class_hash.len();
+        for storage_map in self.storage_updates.values() {
+            result += storage_map.len();
+        }
+        result
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
 impl From<ThinStateDiff> for StateDiff {
     fn from(
         ThinStateDiff {
