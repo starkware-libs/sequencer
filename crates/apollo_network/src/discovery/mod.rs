@@ -26,6 +26,8 @@ mod behaviours;
 mod discovery_test;
 pub mod identify_impl;
 pub mod kad_impl;
+#[cfg(test)]
+mod testing_utils;
 
 use std::collections::BTreeMap;
 use std::time::Duration;

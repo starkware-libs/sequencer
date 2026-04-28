@@ -185,3 +185,7 @@ impl Stream for DialPeerStream {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "dial_peer_test.rs"]
+mod dial_peer_test;

@@ -24,7 +24,7 @@ use libp2p::swarm::{
 use libp2p::{Multiaddr, PeerId};
 use tokio::time::timeout;
 
-use super::{Behaviour, DiscoveryConfig, RetryConfig, ToOtherBehaviourEvent};
+use super::{testing_utils, Behaviour, DiscoveryConfig, RetryConfig, ToOtherBehaviourEvent};
 
 const TIMEOUT: Duration = Duration::from_secs(1);
 const SMALL_SLEEP_MILLIS: u64 = 1000;
@@ -199,8 +199,7 @@ async fn discovery_ignores_dial_failure_from_other_connection_id(
     let dial_connection_id = expect_dial_from_peer(&mut behaviour, bootstrap_peer_id).await;
 
     // Send a dial failure with a different connection id — should be ignored.
-    let other_connection_id =
-        ConnectionId::new_unchecked(format!("{dial_connection_id}").parse::<usize>().unwrap() + 1);
+    let other_connection_id = testing_utils::next_connection_id(dial_connection_id);
     behaviour.on_swarm_event(FromSwarm::DialFailure(DialFailure {
         peer_id: Some(bootstrap_peer_id),
         error: &DialError::Aborted,
