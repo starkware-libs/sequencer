@@ -1771,6 +1771,7 @@ dependencies = [
  "apollo_protobuf",
  "apollo_rpc",
  "apollo_sierra_compilation_config",
+ "apollo_signature_manager",
  "apollo_staking_config",
  "apollo_state_sync_config",
  "apollo_state_sync_metrics",
@@ -2246,6 +2247,7 @@ dependencies = [
  "apollo_proof_manager_config",
  "apollo_reverts",
  "apollo_sierra_compilation_config",
+ "apollo_signature_manager",
  "apollo_staking_config",
  "apollo_state_sync_config",
  "blockifier",
@@ -2545,6 +2547,7 @@ dependencies = [
 name = "apollo_signature_manager"
 version = "0.0.0"
 dependencies = [
+ "apollo_config",
  "apollo_infra",
  "apollo_metrics",
  "apollo_network_types",
@@ -2554,12 +2557,14 @@ dependencies = [
  "digest 0.10.7",
  "expect-test",
  "hex",
+ "serde",
  "starknet-core",
  "starknet-crypto 0.8.1",
  "starknet-types-core",
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",
+ "validator",
 ]
 
 [[package]]

@@ -40,17 +40,8 @@ pub enum ComponentConfigInService {
 // TODO(Tsabary): consider moving from `vec` to a single element.
 impl ComponentConfigInService {
     pub fn get_component_config_names(&self) -> Vec<String> {
-        match self {
-            // Signature manager does not have a separate config sub-struct in
-            // `SequencerNodeConfig`. Keep this empty to avoid generating
-            // `signature_manager_config.#is_none` flags.
-            // TODO(Nadin): TAL add refactor this temp fix.
-            ComponentConfigInService::SignatureManager => vec![],
-            _ => {
-                let base = self.as_ref();
-                vec![format!("{base}_config")]
-            }
-        }
+        let base = self.as_ref();
+        vec![format!("{base}_config")]
     }
 
     pub fn get_component_config_file_paths(&self) -> Vec<String> {

@@ -72,6 +72,7 @@ use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use apollo_rpc::RpcConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
+use apollo_signature_manager::config::SignatureManagerConfig;
 use apollo_staking_config::config::{
     CommitteeConfig,
     ConfiguredStaker,
@@ -317,6 +318,7 @@ pub fn create_node_config(
 
     let l1_gas_price_scraper_config = L1GasPriceScraperConfig::default();
     let sierra_compiler_config = SierraCompilationConfig::default();
+    let signature_manager_config = SignatureManagerConfig::default();
 
     // Update config pointer values.
     let mut config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
@@ -393,6 +395,8 @@ pub fn create_node_config(
         wrap_if_component_config_expected!(proof_manager, proof_manager_config);
     let sierra_compiler_config =
         wrap_if_component_config_expected!(sierra_compiler, sierra_compiler_config);
+    let signature_manager_config =
+        wrap_if_component_config_expected!(signature_manager, signature_manager_config);
     let state_sync_config = wrap_if_component_config_expected!(state_sync, state_sync_config);
 
     let sequencer_node_config = SequencerNodeConfig {
@@ -416,6 +420,7 @@ pub fn create_node_config(
         monitoring_config,
         proof_manager_config,
         sierra_compiler_config,
+        signature_manager_config,
         state_sync_config,
     };
 
