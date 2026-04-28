@@ -33,7 +33,7 @@ pub enum EventStateManagerToEngine {
         publisher: PeerId,
         nonce: u64,
         message_root: MessageRoot,
-        unit_status: GoodUnitsStatus,
+        had_good_units: bool,
     },
     SendUnitToPeers {
         unit: PropellerUnit,
@@ -55,7 +55,9 @@ enum AddUnitAction {
 }
 
 /// Tracks reconstruction progress for a single message.
-enum ReconstructionState {
+pub enum ReconstructionState {
+    /// No valid units have been received yet.
+    Uninitialized,
     PreConstruction {
         received_units: Vec<PropellerUnit>,
         did_broadcast_my_unit: bool,
@@ -68,16 +70,9 @@ enum ReconstructionState {
 }
 
 impl ReconstructionState {
-    fn new() -> Self {
-        Self::PreConstruction {
-            received_units: Vec::new(),
-            did_broadcast_my_unit: false,
-            verified_fields: None,
-        }
-    }
-
     fn did_broadcast_my_unit(&self) -> bool {
         match self {
+            Self::Uninitialized => false,
             Self::PreConstruction { did_broadcast_my_unit, .. } => *did_broadcast_my_unit,
             Self::PostConstruction { .. } => true,
         }
@@ -90,9 +85,18 @@ impl ReconstructionState {
         my_unit_index: UnitIndex,
         tree_manager: &PropellerScheduleManager,
     ) -> AddUnitAction {
+        if matches!(self, Self::Uninitialized) {
+            *self = Self::PreConstruction {
+                received_units: Vec::new(),
+                did_broadcast_my_unit: false,
+                verified_fields: None,
+            };
+        }
+
         let is_my_unit = unit.index() == my_unit_index;
 
         match self {
+            Self::Uninitialized => unreachable!("just promoted to PreConstruction"),
             Self::PreConstruction { received_units, did_broadcast_my_unit, verified_fields } => {
                 if is_my_unit {
                     *did_broadcast_my_unit = true;
@@ -142,15 +146,6 @@ impl ReconstructionState {
     }
 }
 
-// TODO(guyn): consider adding AllGoodShardsReceived to the enum.
-// TODO(guyn): consider adding the number of received shards to the enum.
-#[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
-pub enum GoodUnitsStatus {
-    #[default]
-    NoGoodUnitsReceived,
-    SomeGoodUnitsReceived,
-}
-
 /// Message processor that handles validation and state management for a single message.
 pub struct MessageProcessor {
     pub committee_id: CommitteeId,
@@ -169,7 +164,7 @@ pub struct MessageProcessor {
     pub engine_tx: mpsc::UnboundedSender<EventStateManagerToEngine>,
 
     pub timeout: Duration,
-    pub unit_status: GoodUnitsStatus,
+    pub state: ReconstructionState,
 }
 
 impl MessageProcessor {
@@ -199,7 +194,6 @@ impl MessageProcessor {
             self.message_root,
             Arc::clone(&self.tree_manager),
         );
-        let mut state = ReconstructionState::new();
 
         while let Some((sender, unit)) = self.unit_rx.recv().await {
             // TODO(AndrewL): finalize immediately if first validation fails (DOS attack vector)
@@ -217,13 +211,10 @@ impl MessageProcessor {
                 continue;
             }
 
-            // We got at least one good shard.
-            self.unit_status = GoodUnitsStatus::SomeGoodUnitsReceived;
+            self.maybe_broadcast_my_unit(&unit);
 
-            self.maybe_broadcast_my_unit(&unit, &state);
-
-            let action = state.add_unit(unit, self.my_unit_index, &self.tree_manager);
-            if self.handle_action(action, &mut state).await.is_break() {
+            let action = self.state.add_unit(unit, self.my_unit_index, &self.tree_manager);
+            if self.handle_action(action).await.is_break() {
                 return;
             }
         }
@@ -256,8 +247,8 @@ impl MessageProcessor {
 
     /// Broadcasts our unit to peers the first time we see it. In PostConstruction this is a no-op
     /// because reconstruction already triggered the broadcast.
-    fn maybe_broadcast_my_unit(&self, unit: &PropellerUnit, state: &ReconstructionState) {
-        if unit.index() == self.my_unit_index && !state.did_broadcast_my_unit() {
+    fn maybe_broadcast_my_unit(&self, unit: &PropellerUnit) {
+        if unit.index() == self.my_unit_index && !self.state.did_broadcast_my_unit() {
             self.broadcast_unit(unit);
         }
     }
@@ -278,11 +269,7 @@ impl MessageProcessor {
             .expect("Engine task has exited");
     }
 
-    async fn handle_action(
-        &self,
-        action: AddUnitAction,
-        state: &mut ReconstructionState,
-    ) -> ControlFlow<()> {
+    async fn handle_action(&mut self, action: AddUnitAction) -> ControlFlow<()> {
         match action {
             AddUnitAction::NoOp => ControlFlow::Continue(()),
             AddUnitAction::Emit(message) => {
@@ -297,7 +284,7 @@ impl MessageProcessor {
                 let unit_count = units.len();
                 trace!("[MSG_PROC] Starting reconstruction with {} units", unit_count);
                 match self.reconstruct_blocking(units).await {
-                    Ok(output) => self.handle_reconstruction_output(output, unit_count, state),
+                    Ok(output) => self.handle_reconstruction_output(output, unit_count),
                     Err(e) => {
                         error!("[MSG_PROC] Reconstruction failed: {:?}", e);
                         self.emit_and_finalize(Event::MessageReconstructionFailed {
@@ -335,22 +322,24 @@ impl MessageProcessor {
     }
 
     fn handle_reconstruction_output(
-        &self,
+        &mut self,
         output: ReconstructionOutput,
         unit_count: usize,
-        state: &mut ReconstructionState,
     ) -> ControlFlow<()> {
         let ReconstructionOutput { message, my_shards, my_unit_proof } = output;
 
-        let should_broadcast = !state.did_broadcast_my_unit();
+        let should_broadcast = !self.state.did_broadcast_my_unit();
         if should_broadcast {
-            let (signature, nonce) = match state {
+            let (signature, nonce) = match &self.state {
                 ReconstructionState::PreConstruction { verified_fields, .. } => {
                     let parts = verified_fields.as_ref().expect("Verified fields must exist");
                     (parts.signature.clone(), parts.nonce)
                 }
                 ReconstructionState::PostConstruction { .. } => {
                     unreachable!("Cannot be PostConstruction before transition")
+                }
+                ReconstructionState::Uninitialized => {
+                    unreachable!("Cannot be Uninitialized at reconstruction time")
                 }
             };
             let reconstructed_unit = PropellerUnit::new(
@@ -367,9 +356,9 @@ impl MessageProcessor {
         }
 
         let total_units = unit_count + usize::from(should_broadcast);
-        state.transition_to_post(message, total_units);
+        self.state.transition_to_post(message, total_units);
 
-        match state.maybe_emit(&self.tree_manager) {
+        match self.state.maybe_emit(&self.tree_manager) {
             AddUnitAction::Emit(message) => {
                 trace!("[MSG_PROC] Emit threshold reached, emitting message");
                 self.emit_and_finalize(Event::MessageReceived {
@@ -411,7 +400,7 @@ impl MessageProcessor {
                 publisher: self.publisher,
                 nonce: self.nonce,
                 message_root: self.message_root,
-                unit_status: self.unit_status,
+                had_good_units: !matches!(self.state, ReconstructionState::Uninitialized),
             })
             .expect("Engine task has exited");
     }
