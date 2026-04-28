@@ -127,6 +127,8 @@ pub(crate) struct TestDeps {
     pub clock: Arc<dyn Clock>,
     pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
     pub vote_broadcast_client: BroadcastTopicClient<Vote>,
+    pub strk_exchange_rate_oracle:
+        Option<Arc<dyn apollo_l1_gas_price_types::ExchangeRateOracleClientTrait>>,
 }
 
 impl From<TestDeps> for SequencerConsensusContextDeps {
@@ -141,6 +143,7 @@ impl From<TestDeps> for SequencerConsensusContextDeps {
             outbound_proposal_sender: deps.outbound_proposal_sender,
             vote_broadcast_client: deps.vote_broadcast_client,
             config_manager_client: None,
+            strk_exchange_rate_oracle: deps.strk_exchange_rate_oracle,
         }
     }
 }
@@ -367,6 +370,7 @@ pub(crate) fn create_test_and_network_deps() -> (TestDeps, NetworkDependencies) 
         clock,
         outbound_proposal_sender,
         vote_broadcast_client: votes_topic_client,
+        strk_exchange_rate_oracle: None,
     };
 
     let network_deps =
