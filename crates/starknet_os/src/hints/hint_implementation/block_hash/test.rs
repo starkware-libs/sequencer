@@ -19,7 +19,7 @@ use starknet_api::block_hash::block_hash_calculator::{
     BlockHashVersion,
     BlockHeaderCommitments,
     PartialBlockHashComponents,
-    STARKNET_BLOCK_HASH1,
+    STARKNET_BLOCK_HASH2,
 };
 use starknet_api::core::{
     EventCommitment,
@@ -162,7 +162,7 @@ fn test_block_hash_version() {
     // NOTE: if these checks fail, it means the block hash version in the OS program is not the
     // latest, and a backward-compatibility flow must be added for the transition.
     assert_eq!(
-        *STARKNET_BLOCK_HASH1, latest_block_hash_version,
+        *STARKNET_BLOCK_HASH2, latest_block_hash_version,
         "Latest block hash version constant mismatch"
     );
     assert_eq!(
