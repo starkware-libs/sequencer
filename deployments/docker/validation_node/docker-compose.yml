@@ -1,0 +1,46 @@
+services:
+  validation-node:
+    image: ${IMAGE_REGISTRY:-ghcr.io/starkware-libs/sequencer}/sequencer:${IMAGE_TAG:-latest}
+    container_name: validation-node
+    restart: unless-stopped
+    environment:
+      - RUST_LOG=${RUST_LOG:-info}
+      - RUST_BACKTRACE=${RUST_BACKTRACE:-1}
+    command:
+      - "--config_file"
+      - "/config/validation_node.json"
+    volumes:
+      - ./config/validation_node.json:/config/validation_node.json:ro
+      - ${DATA_DIR:-./data}/validation_node:/data
+    ports:
+      - "8082:8082"                                          # monitoring endpoint
+      - "${CONSENSUS_P2P_PORT:-10000}:${CONSENSUS_P2P_PORT:-10000}/tcp"  # consensus P2P
+      - "53140:53140/tcp"                                    # state sync P2P
+    networks:
+      - validation-network
+    depends_on:
+      signature-manager:
+        condition: service_started
+
+  signature-manager:
+    image: ${IMAGE_REGISTRY:-ghcr.io/starkware-libs/sequencer}/sequencer:${IMAGE_TAG:-latest}
+    container_name: signature-manager
+    restart: unless-stopped
+    environment:
+      - RUST_LOG=${RUST_LOG:-info}
+      - RUST_BACKTRACE=${RUST_BACKTRACE:-1}
+    command:
+      - "--config_file"
+      - "/config/signature_manager.json"
+    volumes:
+      - ./config/signature_manager.json:/config/signature_manager.json:ro
+    ports:
+      - "8083:8082"    # monitoring endpoint (remapped to avoid host conflict)
+    expose:
+      - "9090"         # signature manager HTTP server (internal only)
+    networks:
+      - validation-network
+
+networks:
+  validation-network:
+    driver: bridge
