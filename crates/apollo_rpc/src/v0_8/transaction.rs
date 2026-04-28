@@ -25,7 +25,7 @@ use starknet_api::core::{
 };
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::hash::L1L2MsgHash;
+use starknet_api::hash::EthL1L2MessageHash;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -861,7 +861,7 @@ pub struct L1HandlerTransactionOutput {
     #[serde(flatten)]
     pub execution_status: TransactionExecutionStatus,
     pub execution_resources: ExecutionResources,
-    pub message_hash: L1L2MsgHash,
+    pub message_hash: EthL1L2MessageHash,
 }
 
 // Note: This is not the same as the Builtins in starknet_api, the serialization of SegmentArena is
@@ -1052,18 +1052,22 @@ impl TransactionOutput {
     }
 }
 
-impl From<(starknet_api::transaction::TransactionOutput, TransactionVersion, Option<L1L2MsgHash>)>
-    for TransactionOutput
+impl
+    From<(
+        starknet_api::transaction::TransactionOutput,
+        TransactionVersion,
+        Option<EthL1L2MessageHash>,
+    )> for TransactionOutput
 {
     #[cfg_attr(coverage_nightly, coverage_attribute)]
     fn from(
         tx_output_msg_hash: (
             starknet_api::transaction::TransactionOutput,
             TransactionVersion,
-            Option<L1L2MsgHash>,
+            Option<EthL1L2MessageHash>,
         ),
     ) -> Self {
-        let (tx_output, tx_version, maybe_msg_hash) = tx_output_msg_hash;
+        let (tx_output, tx_version, maybe_eth_msg_hash) = tx_output_msg_hash;
         // TODO(DanB): consider supporting match instead.
         let actual_fee = if tx_version == TransactionVersion::ZERO
             || tx_version == TransactionVersion::ONE
@@ -1121,7 +1125,7 @@ impl From<(starknet_api::transaction::TransactionOutput, TransactionVersion, Opt
                     events: l1_handler_tx_output.events,
                     execution_status: l1_handler_tx_output.execution_status,
                     execution_resources: l1_handler_tx_output.execution_resources.into(),
-                    message_hash: maybe_msg_hash
+                    message_hash: maybe_eth_msg_hash
                         .expect("Missing message hash to construct L1Handler output."),
                 })
             }

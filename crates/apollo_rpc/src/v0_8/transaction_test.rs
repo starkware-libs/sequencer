@@ -5,10 +5,8 @@ use apollo_test_utils::{
     get_rng,
     GetTestInstance,
 };
-use pretty_assertions::assert_eq;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::hash::L1L2MsgHash;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
@@ -19,8 +17,7 @@ use starknet_api::transaction::fields::{
     Tip,
     TransactionSignature,
 };
-use starknet_api::transaction::{L1HandlerTransaction, Transaction};
-use starknet_api::{calldata, contract_address, felt, nonce};
+use starknet_api::transaction::Transaction;
 
 use super::{
     DeployAccountTransaction,
@@ -35,31 +32,6 @@ use super::{
     TransactionVersion1,
     TransactionVersion3,
 };
-
-lazy_static::lazy_static! {
-    // A transaction from MAINNET with tx hash 0x439e12f67962c353182d72b4af12c3f11eaba4b36e552aebcdcd6db66971bdb.
-    static ref L1_HANDLER_TX: L1HandlerTransaction = L1HandlerTransaction {
-        version: L1HandlerTransaction::VERSION,
-        nonce: nonce!(0x18e94d),
-        contract_address: contract_address!(
-            "0x73314940630fd6dcda0d772d4c972c4e0a9946bef9dabf4ef84eda8ef542b82"
-        ),
-        entry_point_selector: EntryPointSelector(felt!(
-            "0x1b64b1b3b690b43b9b514fb81377518f4039cd3e4f4914d8a6bdf01d679fb19"
-        )),
-        calldata: calldata![
-            felt!("0xae0ee0a63a2ce6baeeffe56e7714fb4efe48d419"),
-            felt!("0x455448"),
-            felt!("0xc27947400e26e534e677afc2e9b2ec1bab14fc89"),
-            felt!("0x4af4754baf89f1b8b449215a8ea7ce558824a33a5393eaa3829658549f2bfa2"),
-            felt!("0x9184e72a000"),
-            felt!("0x0")
-        ],
-    };
-}
-
-// The msg hash of the L1Handler transaction.
-const MSG_HASH: &str = "0x99b2a7830e1c860734b308d90bb05b0e09ecda0a2b243ecddb12c50bdebaa3a9";
 
 auto_impl_get_test_instance! {
     pub enum DeployAccountTransaction {
@@ -217,19 +189,4 @@ fn test_invoke_transaction_to_client_transaction() {
 
     let _invoke_transaction: client_transaction::InvokeTransaction =
         InvokeTransactionV3::get_test_instance(&mut get_rng()).into();
-}
-
-#[test]
-fn l1handler_msg_hash() {
-    let msg_hash = format!("{}", L1_HANDLER_TX.calc_msg_hash());
-    assert_eq!(msg_hash, MSG_HASH);
-}
-
-#[test]
-fn l1handler_msg_hash_serde() {
-    let ser = serde_json::to_string(MSG_HASH).unwrap();
-    assert_eq!(ser, "\"0x99b2a7830e1c860734b308d90bb05b0e09ecda0a2b243ecddb12c50bdebaa3a9\"");
-    let des = serde_json::from_str::<L1L2MsgHash>(&ser).unwrap();
-    let expected_hash = L1_HANDLER_TX.calc_msg_hash();
-    assert_eq!(des, expected_hash);
 }

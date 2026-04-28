@@ -241,9 +241,9 @@ impl L1Provider {
                     "Returned L1Handler txs: {:?}",
                     txs.iter()
                         .map(|tx| format!(
-                            "L2 tx hash: {}, L1-L2 msg hash: {}",
+                            "L2 tx hash: {}, Eth msg hash: {}",
                             tx.tx_hash,
-                            tx.tx.calc_msg_hash()
+                            tx.tx.calc_eth_msg_hash()
                         ))
                         .collect::<Vec<_>>()
                 );

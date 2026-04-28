@@ -100,7 +100,7 @@ use starknet_api::deprecated_contract_class::{
     FunctionAbiEntry,
     FunctionStateMutability,
 };
-use starknet_api::hash::{l1_handler_message_hash, L1L2MsgHash};
+use starknet_api::hash::EthL1L2MessageHash;
 use starknet_api::state::{SierraContractClass as StarknetApiContractClass, StateDiff};
 use starknet_api::transaction::{
     Event as StarknetApiEvent,
@@ -1266,11 +1266,13 @@ async fn get_transaction_status() {
         StarknetApiTransaction::L1Handler(tx) => tx.version,
     };
     let tx = block.body.transaction_outputs.index(0).clone();
-    let msg_hash = match tx {
-        starknet_api::transaction::TransactionOutput::L1Handler(_) => Some(L1L2MsgHash::default()),
+    let eth_msg_hash = match tx {
+        starknet_api::transaction::TransactionOutput::L1Handler(_) => {
+            Some(EthL1L2MessageHash::default())
+        }
         _ => None,
     };
-    let output = TransactionOutput::from((tx, transaction_version, msg_hash));
+    let output = TransactionOutput::from((tx, transaction_version, eth_msg_hash));
     let expected_status = TransactionStatus {
         finality_status: TransactionFinalityStatus::AcceptedOnL2,
         execution_status: output.execution_status().clone(),
@@ -1385,14 +1387,14 @@ async fn get_transaction_receipt() {
         StarknetApiTransaction::L1Handler(tx) => tx.version,
     };
     let tx = block.body.transactions.index(0).clone();
-    let msg_hash = match tx {
-        starknet_api::transaction::Transaction::L1Handler(tx) => Some(tx.calc_msg_hash()),
+    let eth_msg_hash = match tx {
+        starknet_api::transaction::Transaction::L1Handler(tx) => Some(tx.calc_eth_msg_hash()),
         _ => None,
     };
     let output = TransactionOutput::from((
         block.body.transaction_outputs.index(0).clone(),
         transaction_version,
-        msg_hash,
+        eth_msg_hash,
     ));
     let expected_receipt = TransactionReceipt {
         finality_status: TransactionFinalityStatus::AcceptedOnL2,
@@ -2216,21 +2218,16 @@ fn generate_client_transaction_client_receipt_rpc_transaction_and_rpc_receipt(
         let starknet_api_output = client_transaction_receipt
             .clone()
             .into_starknet_api_transaction_output(&client_transaction);
-        let msg_hash = match &client_transaction {
+        let eth_msg_hash = match &client_transaction {
             apollo_starknet_client::reader::objects::transaction::Transaction::L1Handler(tx) => {
-                Some(l1_handler_message_hash(
-                    &tx.contract_address,
-                    tx.nonce,
-                    &tx.entry_point_selector,
-                    &tx.calldata,
-                ))
+                Some(tx.calc_eth_msg_hash())
             }
             _ => None,
         };
         let maybe_output = PendingTransactionOutput::try_from(TransactionOutput::from((
             starknet_api_output,
             client_transaction.transaction_version(),
-            msg_hash,
+            eth_msg_hash,
         )));
         let Ok(output) = maybe_output else {
             continue;

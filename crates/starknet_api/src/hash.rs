@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "hash_test.rs"]
+mod hash_test;
+
 use std::fmt::{Debug, Display, Formatter};
 
 use serde::{Deserialize, Serialize};
@@ -112,24 +116,24 @@ impl StateRoots {
     }
 }
 
-/// The hash of a L1 -> L2 message.
+/// The hash of a L1 -> L2 message, as it's stored on the Starknet Solidity contract.
 // The hash is Keccak256, so it doesn't fit in a Felt.
 #[derive(Clone, Default, Eq, PartialEq, Hash, PartialOrd, Ord)]
-pub struct L1L2MsgHash(pub [u8; 32]);
+pub struct EthL1L2MessageHash(pub [u8; 32]);
 
-impl Display for L1L2MsgHash {
+impl Display for EthL1L2MessageHash {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         write!(formatter, "0x{}", hex::encode(self.0))
     }
 }
 
-impl Debug for L1L2MsgHash {
+impl Debug for EthL1L2MessageHash {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         Display::fmt(self, formatter)
     }
 }
 
-impl Serialize for L1L2MsgHash {
+impl Serialize for EthL1L2MessageHash {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -138,7 +142,7 @@ impl Serialize for L1L2MsgHash {
     }
 }
 
-impl<'de> Deserialize<'de> for L1L2MsgHash {
+impl<'de> Deserialize<'de> for EthL1L2MessageHash {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -149,8 +153,8 @@ impl<'de> Deserialize<'de> for L1L2MsgHash {
 }
 
 impl L1HandlerTransaction {
-    pub fn calc_msg_hash(&self) -> L1L2MsgHash {
-        l1_handler_message_hash(
+    pub fn calc_eth_msg_hash(&self) -> EthL1L2MessageHash {
+        eth_l1_handler_message_hash(
             &self.contract_address,
             self.nonce,
             &self.entry_point_selector,
@@ -160,13 +164,12 @@ impl L1HandlerTransaction {
 }
 
 /// Calculating the message hash of L1 -> L2 message.
-/// For more info: <https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/messaging-mechanism/#structure_and_hashing_l1-l2>
-pub fn l1_handler_message_hash(
+pub fn eth_l1_handler_message_hash(
     contract_address: &ContractAddress,
     nonce: Nonce,
     entry_point_selector: &EntryPointSelector,
     calldata: &Calldata,
-) -> L1L2MsgHash {
+) -> EthL1L2MessageHash {
     let (from_address, payload) =
         calldata.0.split_first().expect("Invalid calldata, expected at least from_address");
 
@@ -186,5 +189,5 @@ pub fn l1_handler_message_hash(
 
     let mut keccak = Keccak256::default();
     keccak.update(&encoded);
-    L1L2MsgHash(keccak.finalize().into())
+    EthL1L2MessageHash(keccak.finalize().into())
 }

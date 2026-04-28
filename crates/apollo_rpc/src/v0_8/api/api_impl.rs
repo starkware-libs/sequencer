@@ -50,7 +50,7 @@ use starknet_api::core::{
     BLOCK_HASH_TABLE_ADDRESS,
 };
 use starknet_api::execution_utils::format_panic_data;
-use starknet_api::hash::{l1_handler_message_hash, L1L2MsgHash};
+use starknet_api::hash::EthL1L2MessageHash;
 use starknet_api::state::{StateNumber, StorageKey, ThinStateDiff as StarknetApiThinStateDiff};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
@@ -310,9 +310,9 @@ impl JsonRpcServer for JsonRpcServerImpl {
                                 block_number,
                                 TransactionOffsetInBlock(transaction_offset),
                             );
-                            let msg_hash = match &transaction {
+                            let eth_msg_hash = match &transaction {
                                 Transaction::L1Handler(l1_handler_tx) => {
-                                    Some(l1_handler_tx.calc_msg_hash())
+                                    Some(l1_handler_tx.calc_eth_msg_hash())
                                 }
                                 _ => None,
                             };
@@ -324,7 +324,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
                                     transaction_index,
                                     transaction_hash,
                                     transaction_version,
-                                    msg_hash,
+                                    eth_msg_hash,
                                 )?
                                 .into(),
                             })
@@ -559,14 +559,20 @@ impl JsonRpcServer for JsonRpcServerImpl {
                 StarknetApiTransaction::L1Handler(tx) => tx.version,
             };
 
-            let msg_hash = match tx {
+            let eth_msg_hash = match tx {
                 StarknetApiTransaction::L1Handler(l1_handler_tx) => {
-                    Some(l1_handler_tx.calc_msg_hash())
+                    Some(l1_handler_tx.calc_eth_msg_hash())
                 }
                 _ => None,
             };
 
-            get_non_pending_receipt(&txn, transaction_index, transaction_hash, tx_version, msg_hash)
+            get_non_pending_receipt(
+                &txn,
+                transaction_index,
+                transaction_hash,
+                tx_version,
+                eth_msg_hash,
+            )
         } else {
             // The transaction is not in any non-pending block. Search for it in the pending block
             // and if it's not found, return error.
@@ -1715,7 +1721,7 @@ fn get_non_pending_receipt<Mode: TransactionKind>(
     transaction_index: TransactionIndex,
     transaction_hash: TransactionHash,
     tx_version: TransactionVersion,
-    msg_hash: Option<L1L2MsgHash>,
+    eth_msg_hash: Option<EthL1L2MessageHash>,
 ) -> RpcResult<GeneralTransactionReceipt> {
     let block_number = transaction_index.0;
     let status = get_block_status(txn, block_number)?;
@@ -1735,7 +1741,7 @@ fn get_non_pending_receipt<Mode: TransactionKind>(
         .map_err(internal_server_error)?
         .ok_or_else(|| ErrorObjectOwned::from(TRANSACTION_HASH_NOT_FOUND))?;
 
-    let output = TransactionOutput::from((output, tx_version, msg_hash));
+    let output = TransactionOutput::from((output, tx_version, eth_msg_hash));
 
     Ok(GeneralTransactionReceipt::TransactionReceipt(TransactionReceipt {
         finality_status: status.into(),
@@ -1753,19 +1759,14 @@ fn client_receipt_to_rpc_pending_receipt(
     let transaction_hash = client_transaction.transaction_hash();
     let starknet_api_output =
         client_transaction_receipt.into_starknet_api_transaction_output(client_transaction);
-    let msg_hash = match client_transaction {
-        ClientTransaction::L1Handler(tx) => Some(l1_handler_message_hash(
-            &tx.contract_address,
-            tx.nonce,
-            &tx.entry_point_selector,
-            &tx.calldata,
-        )),
+    let eth_msg_hash = match client_transaction {
+        ClientTransaction::L1Handler(tx) => Some(tx.calc_eth_msg_hash()),
         _ => None,
     };
     let output = PendingTransactionOutput::try_from(TransactionOutput::from((
         starknet_api_output,
         client_transaction.transaction_version(),
-        msg_hash,
+        eth_msg_hash,
     )))?;
     Ok(GeneralTransactionReceipt::PendingTransactionReceipt(PendingTransactionReceipt {
         // ACCEPTED_ON_L2 is the only finality status of a pending transaction.

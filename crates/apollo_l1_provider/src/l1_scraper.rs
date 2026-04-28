@@ -317,24 +317,20 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
                     .map_err(L1ScraperError::HashCalculationError)
             })
             .collect::<L1ScraperResult<Vec<_>, _>>()?;
-        // Used for debug. Collect the L2 hashes for events that are L1 handler transactions.
-        let l2_hashes = events.iter().filter_map(|event| match event {
-            Event::L1HandlerTransaction { l1_handler_tx, .. } => Some(l1_handler_tx.tx_hash),
-            _ => None,
-        });
-        // Collect the L1-L2 message hashes (keccak) for L1 handler transactions.
-        let l1_msg_hashes = events.iter().filter_map(|event| match event {
+        // Used for debug. Collect the L2 tx hashes and eth message hashes (keccak) for L1
+        // handler transactions.
+        let l2_tx_and_eth_msg_hashes = events.iter().filter_map(|event| match event {
             Event::L1HandlerTransaction { l1_handler_tx, .. } => {
-                Some(l1_handler_tx.tx.calc_msg_hash())
+                Some((l1_handler_tx.tx_hash, l1_handler_tx.tx.calc_eth_msg_hash()))
             }
             _ => None,
         });
 
-        let formatted_pairs = zip_eq(zip_eq(l1_messages_info, l2_hashes), l1_msg_hashes)
-            .map(|(((l1_hash, timestamp), l2_hash), l1_msg_hash)| {
+        let formatted_pairs = zip_eq(l1_messages_info, l2_tx_and_eth_msg_hashes)
+            .map(|((l1_hash, timestamp), (l2_hash, eth_msg_hash))| {
                 format!(
                     "L1 tx hash: {l1_hash:?}, L1 timestamp: {timestamp}, L2 tx hash: {l2_hash}, \
-                     L1-L2 msg hash: {l1_msg_hash}"
+                     Eth msg hash: {eth_msg_hash}"
                 )
             })
             .collect::<Vec<_>>();
