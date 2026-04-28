@@ -7,14 +7,13 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetErrorCode,
 };
 use apollo_mempool_types::communication::MockMempoolClient;
-use blockifier::blockifier::config::{ContractClassManagerConfig, NativeClassesWhitelist};
+use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::ChainInfo;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::transaction::test_utils::calculate_class_info_for_testing;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
-use mockall::predicate::eq;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::block::{BlockInfo, GasPrice, GasPriceVector, GasPrices, NonzeroGasPrice};
@@ -27,51 +26,21 @@ use starknet_api::transaction::fields::{AllResourceBounds, ResourceBounds, Valid
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 
 use crate::gateway_fixed_block_state_reader::MockGatewayFixedBlockStateReader;
-use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReader};
-use crate::stateful_transaction_validator::{
-    StatefulTransactionValidator,
-    StatefulTransactionValidatorFactory,
-    StatefulTransactionValidatorFactoryTrait,
-    StatefulTransactionValidatorTrait,
-};
+use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
+use crate::stateful_transaction_validator::StatefulTransactionValidator;
 
-#[tokio::test]
-async fn test_get_nonce_fail_on_extract_state_nonce_and_run_validations() {
-    let executable_tx = executable_invoke_tx(invoke_tx_args!());
-    let mut mock_gateway_fixed_block = MockGatewayFixedBlockStateReader::new();
-    mock_gateway_fixed_block
-        .expect_get_nonce()
-        .with(eq(executable_tx.sender_address()))
-        .return_once(|_| {
-            Err(StarknetError {
-                code: StarknetErrorCode::UnknownErrorCode(
-                    "StarknetErrorCode.InternalError".to_string(),
-                ),
-                message: "Internal error".to_string(),
-            })
-        });
-
-    let mempool_client = Arc::new(MockMempoolClient::new());
-    let mut stateful_validator: StatefulTransactionValidator<TestStateReader, _> =
-        StatefulTransactionValidator {
-            config: StatefulTransactionValidatorConfig::default(),
-            chain_info: ChainInfo::create_for_testing(),
-            state_reader_and_contract_manager: None,
-            gateway_fixed_block_state_reader: mock_gateway_fixed_block,
-        };
-
-    let result = stateful_validator
-        .extract_state_nonce_and_run_validations(&executable_tx, mempool_client)
-        .await;
-    assert_eq!(
-        result,
-        Err(StarknetError {
-            code: StarknetErrorCode::UnknownErrorCode(
-                "StarknetErrorCode.InternalError".to_string()
-            ),
-            message: "Internal error".to_string(),
-        })
-    );
+fn validator_for_testing(
+    config: StatefulTransactionValidatorConfig,
+) -> StatefulTransactionValidator<TestStateReaderFactory> {
+    StatefulTransactionValidator {
+        config,
+        chain_info: ChainInfo::create_for_testing(),
+        state_reader_factory: Arc::new(local_test_state_reader_factory(
+            CairoVersion::Cairo1(RunnableCairo1::Casm),
+            true,
+        )),
+        contract_class_manager: ContractClassManager::start(ContractClassManagerConfig::default()),
+    }
 }
 
 // TODO(Arni): consider testing declare and deploy account.
@@ -104,14 +73,6 @@ async fn test_run_pre_validation_checks(
     let mut mock_gateway_fixed_block = MockGatewayFixedBlockStateReader::new();
     mock_gateway_fixed_block.expect_get_block_info().returning(|| Ok(BlockInfo::default()));
 
-    let stateful_validator: StatefulTransactionValidator<TestStateReader, _> =
-        StatefulTransactionValidator {
-            config: StatefulTransactionValidatorConfig::default(),
-            chain_info: ChainInfo::create_for_testing(),
-            state_reader_and_contract_manager: None,
-            gateway_fixed_block_state_reader: mock_gateway_fixed_block,
-        };
-
     let resource_bounds = if zero_gas_fee {
         ValidResourceBounds::AllResources(AllResourceBounds {
             l2_gas: ResourceBounds { max_price_per_unit: 0_u128.into(), ..Default::default() },
@@ -122,30 +83,16 @@ async fn test_run_pre_validation_checks(
     };
     let executable_tx: AccountTransaction = executable_invoke_tx(invoke_tx_args!(resource_bounds));
 
-    let result = stateful_validator
-        .run_pre_validation_checks(&executable_tx, account_nonce, mempool_client)
+    let validator = validator_for_testing(StatefulTransactionValidatorConfig::default());
+    let result = validator
+        .run_pre_validation_checks(
+            &mock_gateway_fixed_block,
+            &executable_tx,
+            account_nonce,
+            mempool_client,
+        )
         .await;
     assert_eq!(result, expected_result);
-}
-
-#[rstest]
-#[tokio::test]
-async fn test_instantiate_validator() {
-    let state_reader_factory =
-        local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), false);
-
-    let stateful_validator_factory = StatefulTransactionValidatorFactory {
-        config: StatefulTransactionValidatorConfig::default(),
-        chain_info: ChainInfo::create_for_testing(),
-        state_reader_factory: Arc::new(state_reader_factory),
-        contract_class_manager: ContractClassManager::start(ContractClassManagerConfig::default()),
-    };
-    // The whitelist is irrelevant for the test.
-    let native_classes_whitelist = NativeClassesWhitelist::All;
-
-    let validator =
-        stateful_validator_factory.instantiate_validator(native_classes_whitelist).await;
-    assert!(validator.is_ok());
 }
 
 #[rstest]
@@ -202,25 +149,20 @@ async fn test_skip_validate(
     mock_mempool_client.expect_validate_tx().returning(|_| Ok(()));
     let mempool_client = Arc::new(mock_mempool_client);
 
-    // Configure gateway state reader to return the provided sender/account nonce.
-    let mut mock_gateway_fixed_block = MockGatewayFixedBlockStateReader::new();
-    mock_gateway_fixed_block
-        .expect_get_nonce()
-        .with(eq(executable_tx.sender_address()))
-        .return_once(move |_| Ok(sender_nonce));
-    let stateful_validator: StatefulTransactionValidator<TestStateReader, _> =
-        StatefulTransactionValidator {
-            config: StatefulTransactionValidatorConfig {
-                validate_resource_bounds: false,
-                ..Default::default()
-            },
-            chain_info: ChainInfo::create_for_testing(),
-            state_reader_and_contract_manager: None,
-            gateway_fixed_block_state_reader: mock_gateway_fixed_block,
-        };
+    // validate_resource_bounds is false, so the reader is never read.
+    let mock_gateway_fixed_block = MockGatewayFixedBlockStateReader::new();
 
-    let skip_validate = stateful_validator
-        .run_pre_validation_checks(&executable_tx, sender_nonce, mempool_client)
+    let validator = validator_for_testing(StatefulTransactionValidatorConfig {
+        validate_resource_bounds: false,
+        ..Default::default()
+    });
+    let skip_validate = validator
+        .run_pre_validation_checks(
+            &mock_gateway_fixed_block,
+            &executable_tx,
+            sender_nonce,
+            mempool_client,
+        )
         .await
         .unwrap();
     assert_eq!(skip_validate, !should_validate);
@@ -285,7 +227,7 @@ async fn test_skip_validate(
     })
 )]
 #[tokio::test]
-async fn validate_resource_bounds(
+async fn test_validate_resource_bounds(
     #[case] prev_l2_gas_price: NonzeroGasPrice,
     #[case] min_gas_price_percentage: u8,
     #[case] tx_gas_price_per_unit: GasPrice,
@@ -311,19 +253,13 @@ async fn validate_resource_bounds(
         })
     });
 
-    let stateful_validator: StatefulTransactionValidator<TestStateReader, _> =
-        StatefulTransactionValidator {
-            config: StatefulTransactionValidatorConfig {
-                validate_resource_bounds: true,
-                min_gas_price_percentage,
-                ..Default::default()
-            },
-            chain_info: ChainInfo::create_for_testing(),
-            state_reader_and_contract_manager: None,
-            gateway_fixed_block_state_reader: mock_gateway_fixed_block,
-        };
-
-    let result = stateful_validator.validate_resource_bounds(&executable_tx).await;
+    let validator = validator_for_testing(StatefulTransactionValidatorConfig {
+        validate_resource_bounds: true,
+        min_gas_price_percentage,
+        ..Default::default()
+    });
+    let result =
+        validator.validate_resource_bounds(&mock_gateway_fixed_block, &executable_tx).await;
     assert_eq!(result, expected_result);
 }
 
@@ -417,27 +353,24 @@ async fn run_pre_validation_checks_test(
     max_allowed_nonce_gap: u32,
     expected_result: Result<bool, StarknetErrorCode>,
 ) {
-    let mut mock_gateway_fixed_block = MockGatewayFixedBlockStateReader::new();
-    mock_gateway_fixed_block
-        .expect_get_nonce()
-        .with(eq(executable_tx.sender_address()))
-        .return_once(move |_| Ok(account_nonce));
-    let stateful_validator: StatefulTransactionValidator<TestStateReader, _> =
-        StatefulTransactionValidator {
-            config: StatefulTransactionValidatorConfig {
-                max_allowed_nonce_gap,
-                validate_resource_bounds: false,
-                ..Default::default()
-            },
-            chain_info: ChainInfo::create_for_testing(),
-            state_reader_and_contract_manager: None,
-            gateway_fixed_block_state_reader: mock_gateway_fixed_block,
-        };
+    // validate_resource_bounds is false, so the reader is never read.
+    let mock_gateway_fixed_block = MockGatewayFixedBlockStateReader::new();
 
     let mut mempool_client = MockMempoolClient::new();
     mempool_client.expect_validate_tx().returning(|_| Ok(()));
-    let result = stateful_validator
-        .run_pre_validation_checks(&executable_tx, account_nonce, Arc::new(mempool_client))
+
+    let validator = validator_for_testing(StatefulTransactionValidatorConfig {
+        max_allowed_nonce_gap,
+        validate_resource_bounds: false,
+        ..Default::default()
+    });
+    let result = validator
+        .run_pre_validation_checks(
+            &mock_gateway_fixed_block,
+            &executable_tx,
+            account_nonce,
+            Arc::new(mempool_client),
+        )
         .await
         .map_err(|err| err.code);
     assert_eq!(result, expected_result);

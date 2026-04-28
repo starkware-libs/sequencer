@@ -33,7 +33,6 @@ use starknet_types_core::felt::Felt;
 use crate::gateway::GenericGateway;
 use crate::proof_archive_writer::MockProofArchiveWriterTrait;
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
-use crate::stateful_transaction_validator::StatefulTransactionValidatorFactory;
 
 pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
     ResourceBounds { max_amount: GasAmount(1), max_price_per_unit: GasPrice(1) };
@@ -159,10 +158,7 @@ pub fn rpc_tx_for_testing(
     }
 }
 
-pub type GatewayForBenchmark = GenericGateway<
-    TransactionConverter,
-    StatefulTransactionValidatorFactory<TestStateReaderFactory>,
->;
+pub type GatewayForBenchmark = GenericGateway<TransactionConverter, TestStateReaderFactory>;
 
 pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> GatewayForBenchmark {
     let cairo_version = CairoVersion::Cairo1(RunnableCairo1::Casm);

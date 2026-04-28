@@ -62,11 +62,7 @@ use crate::proof_archive_writer::{
     ProofArchiveWriterTrait,
 };
 use crate::state_reader::StateReaderFactory;
-use crate::stateful_transaction_validator::{
-    StatefulTransactionValidatorFactory,
-    StatefulTransactionValidatorFactoryTrait,
-    StatefulTransactionValidatorTrait,
-};
+use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 use crate::sync_state_reader::SyncStateReaderFactory;
 
@@ -80,12 +76,7 @@ type ProofArchiveHandle =
     Option<(JoinHandle<(Felt, Result<(), ProofArchiveError>)>, TransactionHash)>;
 
 #[derive(Clone)]
-pub struct Gateway(
-    GenericGateway<
-        TransactionConverter,
-        StatefulTransactionValidatorFactory<SyncStateReaderFactory>,
-    >,
-);
+pub struct Gateway(GenericGateway<TransactionConverter, SyncStateReaderFactory>);
 
 impl Gateway {
     fn new(
@@ -116,18 +107,20 @@ impl Gateway {
 #[derive(Clone)]
 pub struct GenericGateway<
     TTransactionConverter: TransactionConverterTrait,
-    TStatefulValidatorFactory: StatefulTransactionValidatorFactoryTrait,
+    TStateReaderFactory: StateReaderFactory,
 > {
     config: Arc<GatewayConfig>,
     stateless_tx_validator: Arc<StatelessTransactionValidator>,
-    stateful_tx_validator_factory: Arc<TStatefulValidatorFactory>,
+    stateful_tx_validator: Arc<StatefulTransactionValidator<TStateReaderFactory>>,
     mempool_client: SharedMempoolClient,
     transaction_converter: Arc<TTransactionConverter>,
     proof_archive_writer: Arc<dyn ProofArchiveWriterTrait>,
 }
 
-impl<TTransactionConverter: TransactionConverterTrait, TStateReaderFactory: StateReaderFactory>
-    GenericGateway<TTransactionConverter, StatefulTransactionValidatorFactory<TStateReaderFactory>>
+impl<
+    TTransactionConverter: TransactionConverterTrait,
+    TStateReaderFactory: StateReaderFactory + 'static,
+> GenericGateway<TTransactionConverter, TStateReaderFactory>
 {
     pub(crate) fn new(
         config: GatewayConfig,
@@ -139,28 +132,24 @@ impl<TTransactionConverter: TransactionConverterTrait, TStateReaderFactory: Stat
         let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
             config: config.static_config.stateless_tx_validator_config.clone(),
         });
+        let stateful_tx_validator = Arc::new(StatefulTransactionValidator {
+            config: config.static_config.stateful_tx_validator_config.clone(),
+            chain_info: config.static_config.chain_info.clone(),
+            state_reader_factory,
+            contract_class_manager: ContractClassManager::start(
+                config.static_config.contract_class_manager_config.clone(),
+            ),
+        });
         Self {
-            config: Arc::new(config.clone()),
+            config: Arc::new(config),
             stateless_tx_validator,
-            stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
-                config: config.static_config.stateful_tx_validator_config.clone(),
-                chain_info: config.static_config.chain_info.clone(),
-                state_reader_factory,
-                contract_class_manager: ContractClassManager::start(
-                    config.static_config.contract_class_manager_config.clone(),
-                ),
-            }),
+            stateful_tx_validator,
             mempool_client,
             transaction_converter,
             proof_archive_writer,
         }
     }
-}
-impl<
-    TTransactionConverter: TransactionConverterTrait,
-    TStatefulValidatorFactory: StatefulTransactionValidatorFactoryTrait,
-> GenericGateway<TTransactionConverter, TStatefulValidatorFactory>
-{
+
     pub async fn start(&self) {
         register_metrics();
         self.proof_archive_writer.connect().await;
@@ -211,14 +200,13 @@ impl<
         let (internal_tx, executable_tx, proof_data) =
             self.convert_rpc_tx_to_internal_and_executable_txs(tx, &tx_signature).await?;
 
-        let mut stateful_transaction_validator = self
-            .stateful_tx_validator_factory
-            .instantiate_validator(self.config.dynamic_config.native_classes_whitelist.clone())
-            .await
-            .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
-
-        let nonce = stateful_transaction_validator
-            .extract_state_nonce_and_run_validations(&executable_tx, self.mempool_client.clone())
+        let nonce = self
+            .stateful_tx_validator
+            .validate_stateful_tx(
+                &executable_tx,
+                self.mempool_client.clone(),
+                self.config.dynamic_config.native_classes_whitelist.clone(),
+            )
             .await
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 

@@ -11,11 +11,7 @@ use apollo_gateway_config::config::{
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
-use apollo_gateway_types::deprecated_gateway_error::{
-    KnownStarknetErrorCode,
-    StarknetError,
-    StarknetErrorCode,
-};
+use apollo_gateway_types::deprecated_gateway_error::{KnownStarknetErrorCode, StarknetErrorCode};
 use apollo_gateway_types::gateway_types::{
     DeclareGatewayOutput,
     DeployAccountGatewayOutput,
@@ -104,23 +100,6 @@ use crate::metrics::{
 };
 use crate::proof_archive_writer::MockProofArchiveWriterTrait;
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
-use crate::stateful_transaction_validator::{
-    MockStatefulTransactionValidatorFactoryTrait,
-    MockStatefulTransactionValidatorTrait,
-    StatefulTransactionValidatorFactory,
-};
-use crate::stateless_transaction_validator::StatelessTransactionValidator;
-
-#[fixture]
-fn mock_stateful_transaction_validator() -> MockStatefulTransactionValidatorTrait {
-    MockStatefulTransactionValidatorTrait::new()
-}
-
-#[fixture]
-fn mock_stateful_transaction_validator_factory() -> MockStatefulTransactionValidatorFactoryTrait {
-    MockStatefulTransactionValidatorFactoryTrait::new()
-}
-
 #[fixture]
 fn mock_dependencies() -> MockDependencies {
     let config = GatewayConfig {
@@ -161,12 +140,7 @@ struct MockDependencies {
 }
 
 impl MockDependencies {
-    fn gateway(
-        self,
-    ) -> GenericGateway<
-        MockTransactionConverterTrait,
-        StatefulTransactionValidatorFactory<TestStateReaderFactory>,
-    > {
+    fn gateway(self) -> GenericGateway<MockTransactionConverterTrait, TestStateReaderFactory> {
         register_metrics();
         GenericGateway::new(
             self.config,
@@ -691,58 +665,26 @@ fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
 }
 
 #[rstest]
-#[case::validate_failure(StarknetErrorCode::KnownErrorCode(
-    KnownStarknetErrorCode::ValidateFailure
-))]
-#[case::invalid_nonce(StarknetErrorCode::KnownErrorCode(
-    KnownStarknetErrorCode::InvalidTransactionNonce
-))]
-#[case::gas_price_too_low(
-    StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.GAS_PRICE_TOO_LOW".into())
-)]
-#[case::internal_error(
-    StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into())
-)]
 #[tokio::test]
-async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails(
-    #[case] error_code: StarknetErrorCode,
-    mut mock_stateful_transaction_validator: MockStatefulTransactionValidatorTrait,
-    mut mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+async fn add_tx_returns_error_when_stateful_validation_fails(
     mut mock_dependencies: MockDependencies,
 ) {
-    let expected_error = StarknetError {
-        code: error_code.clone(),
-        message: "placeholder".into(), // Message is not checked
-    };
+    // The state reader returns account_nonce=0 for any sender, and max_allowed_nonce_gap defaults
+    // to 200, so a tx with nonce 1000 is rejected by validate_nonce.
+    let mut tx_args = invoke_args();
+    tx_args.nonce = nonce!(1000);
+    let internal_tx = tx_args.get_internal_tx();
+    tx_args.tx_hash = internal_tx.tx.calculate_transaction_hash(&CHAIN_ID_FOR_TESTS).unwrap();
 
-    mock_stateful_transaction_validator
-        .expect_extract_state_nonce_and_run_validations()
-        .return_once(|_, _| Err(expected_error));
-
-    mock_stateful_transaction_validator_factory
-        .expect_instantiate_validator()
-        .return_once(|_| Ok(Box::new(mock_stateful_transaction_validator)));
-
-    let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
-    let gateway = GenericGateway::<
-        MockTransactionConverterTrait,
-        MockStatefulTransactionValidatorFactoryTrait,
-    > {
-        config: Arc::new(mock_dependencies.config.clone()),
-        stateless_tx_validator: Arc::new(StatelessTransactionValidator {
-            config: mock_dependencies.config.static_config.stateless_tx_validator_config.clone(),
-        }),
-        stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
-        mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
-        transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
-        proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
-    };
 
+    let gateway = mock_dependencies.gateway();
     let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
 
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err().code, error_code);
+    assert_eq!(
+        result.unwrap_err().code,
+        StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidTransactionNonce),
+    );
 }
 
 #[rstest]
@@ -756,43 +698,6 @@ async fn stateless_transaction_validator_error(mut mock_dependencies: MockDepend
     tx_args.signature = TransactionSignature(vec![Felt::ZERO].into());
 
     let gateway = mock_dependencies.gateway();
-    let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
-
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err().code, error_code);
-}
-
-#[rstest]
-#[tokio::test]
-async fn add_tx_returns_error_when_instantiating_validator_fails(
-    mut mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
-    mut mock_dependencies: MockDependencies,
-) {
-    let error_code = StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into());
-    let expected_error = StarknetError {
-        code: error_code.clone(),
-        message: "placeholder".into(), // Message is not checked
-    };
-    mock_stateful_transaction_validator_factory
-        .expect_instantiate_validator()
-        .return_once(|_| Err(expected_error));
-
-    let tx_args = invoke_args();
-    setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
-    let gateway = GenericGateway::<
-        MockTransactionConverterTrait,
-        MockStatefulTransactionValidatorFactoryTrait,
-    > {
-        config: Arc::new(mock_dependencies.config.clone()),
-        stateless_tx_validator: Arc::new(StatelessTransactionValidator {
-            config: mock_dependencies.config.static_config.stateless_tx_validator_config.clone(),
-        }),
-        stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
-        mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
-        transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
-        proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
-    };
-
     let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
 
     assert!(result.is_err());
