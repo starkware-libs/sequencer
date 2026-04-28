@@ -88,7 +88,7 @@ Source: `alert_scenarios/block_production_halt.rs`
 
 Source: `alert_scenarios/block_production_delay.rs`
 
-- `[TODO]` `cende_write_blob_failure` (configurable per env, p4 for testnet and integration)
+- `[done]` [`cende_write_blob_failure`](cende_write_blob_failure.md) (configurable per env, p4 for testnet and integration)
 - `[TODO]` `cende_write_blob_failure_once` (p5)
 - `[TODO]` `consensus_block_number_progress_is_slow` (configurable per env, p4 for testnet and integration)
 - `[TODO]` `consensus_p2p_peer_down` (configurable per env, p4 for testnet and integration)
