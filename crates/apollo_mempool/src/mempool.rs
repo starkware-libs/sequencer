@@ -127,18 +127,25 @@ impl MempoolState {
         Ok(())
     }
 
-    /// Updates the committed nonces, and returns the addresses which need to be rewinded (i.e.
-    /// addressed which were staged but did not make to the commit).
-    fn commit(&mut self, address_to_nonce: AddressToNonce) -> Vec<ContractAddress> {
+    /// Returns the staged addresses not present in `committed_in_block` and clears all staged
+    /// nonces.
+    fn drain_staged(&mut self, committed_in_block: &AddressToNonce) -> Vec<ContractAddress> {
         let addresses_to_rewind: Vec<_> = self
             .staged
             .keys()
-            .filter(|&key| !address_to_nonce.contains_key(key))
+            .filter(|&key| !committed_in_block.contains_key(key))
             .copied()
             .collect();
+        self.staged.clear();
+        addresses_to_rewind
+    }
+
+    /// Updates the committed nonces, and returns the addresses which need to be rewinded (i.e.
+    /// addresses which were staged but did not make it to the commit).
+    fn commit(&mut self, address_to_nonce: AddressToNonce) -> Vec<ContractAddress> {
+        let addresses_to_rewind = self.drain_staged(&address_to_nonce);
 
         self.committed.extend(address_to_nonce.clone());
-        self.staged.clear();
 
         // Add the commit event to the history.
         // If an old event has been removed (due to history size limit), delete the associated
@@ -155,6 +162,12 @@ impl MempoolState {
         }
 
         addresses_to_rewind
+    }
+
+    /// Clears staged nonces for a new proposal and returns all staged addresses for queue
+    /// rewinding. Does NOT advance the commit history ring buffer.
+    fn reset_staged(&mut self) -> Vec<ContractAddress> {
+        self.drain_staged(&AddressToNonce::new())
     }
 
     fn validate_incoming_tx(
@@ -659,6 +672,15 @@ impl Mempool {
 
         self.update_state_metrics();
         self.update_accounts_with_gap(account_nonce_updates);
+    }
+
+    /// Rewinds all staged transactions back to the queue without advancing commit history.
+    /// Equivalent to `commit_block(CommitBlockArgs::default())` but does not consume a
+    /// `CommitHistory` slot.
+    pub fn reset_staged(&mut self) {
+        let addresses_to_rewind = self.state.reset_staged();
+        self.rewind_txs(addresses_to_rewind, &AddressToNonce::new(), &IndexSet::new());
+        self.update_state_metrics();
     }
 
     pub fn account_tx_in_pool_or_recent_block(&self, account_address: ContractAddress) -> bool {
