@@ -3048,7 +3048,11 @@ async fn generate_cairo_pie() {
         TestBuilderConfig::default(),
     )
     .await;
-    test_builder.add_invoke_tx(proof_flow_integration_initial_transaction(), None, None);
+    test_builder.add_invoke_tx(
+        proof_flow_integration_initial_transaction(),
+        None,
+        None,
+    );
 
     let test_runner = test_builder.build().await;
     let output = test_runner.run_virtual();
