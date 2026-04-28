@@ -6,14 +6,15 @@ use apollo_proof_manager_config::config::ProofManagerConfig;
 use async_trait::async_trait;
 use lru::LruCache;
 use starknet_api::transaction::fields::{Proof, ProofFacts};
+use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
 use crate::proof_storage::{FsProofStorage, FsProofStorageError, ProofStorage};
 
-/// In-memory LRU cache for proofs, keyed by the hash of the proof facts.
+/// In-memory LRU cache for proofs, keyed by the (proof facts hash, tx hash) pair.
 #[derive(Clone)]
 pub struct ProofCache {
-    cache: Arc<Mutex<LruCache<Felt, Proof>>>,
+    cache: Arc<Mutex<LruCache<(Felt, TransactionHash), Proof>>>,
 }
 
 impl ProofCache {
@@ -21,19 +22,19 @@ impl ProofCache {
         Self { cache: Arc::new(Mutex::new(LruCache::new(capacity))) }
     }
 
-    pub fn get(&self, facts_hash: &Felt) -> Option<Proof> {
+    pub fn get(&self, key: &(Felt, TransactionHash)) -> Option<Proof> {
         let mut guard = self.cache.lock().expect("Failed to lock proof cache.");
-        guard.get(facts_hash).cloned()
+        guard.get(key).cloned()
     }
 
-    pub fn insert(&self, facts_hash: Felt, proof: Proof) {
+    pub fn insert(&self, key: (Felt, TransactionHash), proof: Proof) {
         let mut guard = self.cache.lock().expect("Failed to lock proof cache.");
-        guard.put(facts_hash, proof);
+        guard.put(key, proof);
     }
 
-    pub fn contains(&self, facts_hash: &Felt) -> bool {
+    pub fn contains(&self, key: &(Felt, TransactionHash)) -> bool {
         let guard = self.cache.lock().expect("Failed to lock proof cache.");
-        guard.contains(facts_hash)
+        guard.contains(key)
     }
 }
 
@@ -54,30 +55,32 @@ impl ProofManager {
     pub async fn set_proof(
         &self,
         proof_facts: ProofFacts,
+        tx_hash: TransactionHash,
         proof: Proof,
     ) -> Result<(), FsProofStorageError> {
-        if self.contains_proof(proof_facts.clone()).await? {
+        if self.contains_proof(proof_facts.clone(), tx_hash).await? {
             return Ok(());
         }
-        let facts_hash = proof_facts.hash();
-        self.proof_storage.set_proof(facts_hash, proof.clone()).await?;
-        self.cache.insert(facts_hash, proof);
+        let key = (proof_facts.hash(), tx_hash);
+        self.proof_storage.set_proof(key.0, tx_hash, proof.clone()).await?;
+        self.cache.insert(key, proof);
         Ok(())
     }
 
     pub async fn get_proof(
         &self,
         proof_facts: ProofFacts,
+        tx_hash: TransactionHash,
     ) -> Result<Option<Proof>, FsProofStorageError> {
-        let facts_hash = proof_facts.hash();
+        let key = (proof_facts.hash(), tx_hash);
         // Check cache first.
-        if let Some(proof) = self.cache.get(&facts_hash) {
+        if let Some(proof) = self.cache.get(&key) {
             return Ok(Some(proof));
         }
         // Fallback to filesystem.
-        let proof = self.proof_storage.get_proof(facts_hash).await?;
+        let proof = self.proof_storage.get_proof(key.0, tx_hash).await?;
         if let Some(proof) = &proof {
-            self.cache.insert(facts_hash, proof.clone());
+            self.cache.insert(key, proof.clone());
         }
         Ok(proof)
     }
@@ -85,14 +88,15 @@ impl ProofManager {
     pub async fn contains_proof(
         &self,
         proof_facts: ProofFacts,
+        tx_hash: TransactionHash,
     ) -> Result<bool, FsProofStorageError> {
-        let facts_hash = proof_facts.hash();
+        let key = (proof_facts.hash(), tx_hash);
         // Check cache first.
-        if self.cache.contains(&facts_hash) {
+        if self.cache.contains(&key) {
             return Ok(true);
         }
         // Fallback to filesystem.
-        self.proof_storage.contains_proof(facts_hash).await
+        self.proof_storage.contains_proof(key.0, tx_hash).await
     }
 }
 

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use starknet_api::transaction::fields::{Proof, ProofFacts};
+use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
 use crate::proof_storage::{FsProofStorage, ProofStorage};
@@ -23,12 +24,17 @@ fn sample_proof() -> Proof {
     Proof::from(vec![1_u8, 2_u8, 3_u8, 4_u8, 5_u8])
 }
 
+fn sample_tx_hash() -> TransactionHash {
+    TransactionHash(starknet_types_core::felt::Felt::from(0xabcd_u64))
+}
+
 #[tokio::test]
 async fn fs_proof_storage_get_before_set_returns_none() {
     let storage = new_fs_proof_storage();
     let facts_hash = sample_facts_hash();
+    let tx_hash = sample_tx_hash();
 
-    let res = storage.get_proof(facts_hash).await;
+    let res = storage.get_proof(facts_hash, tx_hash).await;
     assert!(res.is_ok());
     assert!(res.unwrap().is_none());
 }
@@ -38,9 +44,10 @@ async fn fs_proof_storage_roundtrip() {
     let storage = new_fs_proof_storage();
     let proof = sample_proof();
     let facts_hash = sample_facts_hash();
+    let tx_hash = sample_tx_hash();
 
-    storage.set_proof(facts_hash, proof.clone()).await.unwrap();
+    storage.set_proof(facts_hash, tx_hash, proof.clone()).await.unwrap();
 
-    let retrieved = storage.get_proof(facts_hash).await.unwrap();
+    let retrieved = storage.get_proof(facts_hash, tx_hash).await.unwrap();
     assert_eq!(retrieved, Some(proof));
 }

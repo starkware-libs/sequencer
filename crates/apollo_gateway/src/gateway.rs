@@ -249,7 +249,7 @@ impl<
         // validation, to avoid storing proofs for rejected transactions.
         let store_result = self
             .transaction_converter
-            .store_proof_in_proof_manager(proof_facts.clone(), proof.clone())
+            .store_proof_in_proof_manager(proof_facts.clone(), tx_hash, proof.clone())
             .await;
         match store_result {
             Ok(proof_manager_store_duration) => {

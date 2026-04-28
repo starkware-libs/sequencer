@@ -1051,6 +1051,15 @@
           }
         },
         {
+          "title": "Proof Verifications by Component",
+          "description": "The number of proof verifications by component (gateway vs consensus) (over the selected time range)",
+          "type": "stat",
+          "exprs": [
+            "sum by (component) (increase(proof_verification_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "Proof Manager Store Latency",
           "description": "The time it takes to store a proof in the proof manager",
           "type": "timeseries",
