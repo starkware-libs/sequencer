@@ -119,8 +119,6 @@ pub fn prepare_storage(mut storage_writer: StorageWriter) {
         .unwrap()
         .append_body(BlockNumber(0), BlockBody::default())
         .unwrap()
-        .append_events(BlockNumber(0), &[])
-        .unwrap()
         .append_state_diff(
             BlockNumber(0),
             ThinStateDiff {
@@ -185,8 +183,6 @@ pub fn prepare_storage(mut storage_writer: StorageWriter) {
         )
         .unwrap()
         .append_body(BlockNumber(1), BlockBody::default())
-        .unwrap()
-        .append_events(BlockNumber(1), &[])
         .unwrap()
         .append_state_diff(BlockNumber(1), ThinStateDiff::default())
         .unwrap()
