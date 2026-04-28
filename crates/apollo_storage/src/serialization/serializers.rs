@@ -370,9 +370,8 @@ auto_storage_serde! {
         DeprecatedContractClass = 3,
         TransactionOutput = 4,
         Transaction = 5,
-        Events = 6,
         #[cfg(feature = "os_input")]
-        AccessedKeys = 7,
+        AccessedKeys = 6,
     }
     pub struct PartialBlockHashComponents {
         pub header_commitments: BlockHeaderCommitments,
