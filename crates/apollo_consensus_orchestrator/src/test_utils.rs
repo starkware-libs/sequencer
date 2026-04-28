@@ -173,6 +173,7 @@ impl TestDeps {
         self.setup_default_transaction_converter();
         self.setup_default_cende_ambassador();
         self.setup_default_gas_price_provider();
+        self.setup_default_state_sync_get_block();
     }
 
     pub(crate) fn setup_deps_for_build(&mut self, args: SetupDepsArgs) {
@@ -324,6 +325,15 @@ impl TestDeps {
         self.l1_gas_price_provider.expect_get_rate().return_const(Ok(ETH_TO_FRI_RATE));
     }
 
+    /// Default get_block returns NotFound for all blocks. Used by SNIP-35 backfill on startup.
+    fn setup_default_state_sync_get_block(&mut self) {
+        self.state_sync_client.expect_get_block().returning(|block_number| {
+            Err(apollo_state_sync_types::communication::StateSyncClientError::StateSyncError(
+                apollo_state_sync_types::errors::StateSyncError::BlockNotFound(block_number),
+            ))
+        });
+    }
+
     pub(crate) fn setup_default_batcher_get_block_hash(&mut self) {
         self.batcher.expect_get_block_hash().returning(|block_number| {
             Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(block_number)))
@@ -331,17 +341,21 @@ impl TestDeps {
     }
 
     pub(crate) fn build_context(self) -> SequencerConsensusContext {
-        SequencerConsensusContext::new(
-            ContextConfig {
-                static_config: ContextStaticConfig {
-                    proposal_buffer_size: CHANNEL_SIZE,
-                    chain_id: CHAIN_ID,
-                    ..Default::default()
-                },
+        self.build_context_with_config(ContextConfig {
+            static_config: ContextStaticConfig {
+                proposal_buffer_size: CHANNEL_SIZE,
+                chain_id: CHAIN_ID,
                 ..Default::default()
             },
-            self.into(),
-        )
+            ..Default::default()
+        })
+    }
+
+    pub(crate) fn build_context_with_config(
+        self,
+        config: ContextConfig,
+    ) -> SequencerConsensusContext {
+        SequencerConsensusContext::new(config, self.into())
     }
 }
 
