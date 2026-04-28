@@ -27,6 +27,7 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::BlockContext;
+use crate::execution::call_info::OpcodeName;
 use crate::fee::fee_checks::{FeeCheckError, FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::{get_extended_vm_resources_cost, get_fee_by_gas_vector};
 use crate::fee::receipt::TransactionReceipt;
@@ -49,8 +50,7 @@ fn test_simple_get_vm_resource_usage(
     let mut vm_resource_usage = get_extended_vm_resource_usage();
     let n_reverted_steps = 15;
 
-    // Positive flow.
-    // Verify calculation - in our case, n_steps is the heaviest resource.
+    // Positive flow, n_steps is the heaviest resource.
     let vm_usage_in_l1_gas = (versioned_constants.vm_resource_fee_cost().n_steps
         * (u64_from_usize(vm_resource_usage.vm_resources.n_steps + n_reverted_steps)))
     .ceil()
@@ -71,22 +71,40 @@ fn test_simple_get_vm_resource_usage(
         )
     );
 
-    // Another positive flow, this time the heaviest resource is range_check_builtin.
+    // Another positive flow, this time the heaviest resource is the range_check builtin.
+    // Set n_steps just below range_check count, and clear opcodes so only builtins compete.
     let n_reverted_steps = 0;
-    vm_resource_usage.vm_resources.n_steps = vm_resource_usage
+    let range_check_count = *vm_resource_usage
         .vm_resources
         .builtin_instance_counter
         .get(&BuiltinName::range_check)
-        .unwrap()
-        - 1;
-    let vm_usage_in_l1_gas = u64_from_usize(
-        *vm_resource_usage
-            .vm_resources
-            .builtin_instance_counter
-            .get(&BuiltinName::range_check)
-            .unwrap(),
-    )
-    .into();
+        .unwrap();
+    vm_resource_usage.vm_resources.n_steps = range_check_count - 1;
+    vm_resource_usage.opcode_instance_counter.clear();
+    // In create_for_account_testing all builtin costs = 1, so gas equals the raw count.
+    let vm_usage_in_l1_gas = u64_from_usize(range_check_count).into();
+    let expected_gas_vector = gas_vector_from_vm_usage(
+        vm_usage_in_l1_gas,
+        &gas_vector_computation_mode,
+        &versioned_constants,
+    );
+    assert_eq!(
+        expected_gas_vector,
+        get_extended_vm_resources_cost(
+            &versioned_constants,
+            &vm_resource_usage,
+            n_reverted_steps,
+            &gas_vector_computation_mode
+        )
+    );
+
+    // Another positive flow, this time the heaviest resource is the blake opcode.
+    // Blake is priced in sierra gas and converted to L1 gas, unlike VM builtins which have
+    // a direct L1 gas price in the versioned constants.
+    vm_resource_usage.opcode_instance_counter.insert(OpcodeName::blake, 1);
+    let blake_sierra_gas_cost = versioned_constants.os_constants.gas_costs.builtins.blake;
+    let vm_usage_in_l1_gas =
+        versioned_constants.sierra_gas_to_l1_gas_amount_round_up(GasAmount(blake_sierra_gas_cost));
     let expected_gas_vector = gas_vector_from_vm_usage(
         vm_usage_in_l1_gas,
         &gas_vector_computation_mode,

@@ -53,7 +53,12 @@ use strum::EnumCount;
 
 use crate::abi::constants;
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::execution::call_info::{ExecutionSummary, ExtendedExecutionResources, OpcodeCounterMap};
+use crate::execution::call_info::{
+    ExecutionSummary,
+    ExtendedExecutionResources,
+    OpcodeCounterMap,
+    OpcodeName,
+};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::vm_syscall_utils::{
@@ -430,8 +435,7 @@ pub fn get_extended_vm_resource_usage() -> ExtendedExecutionResources {
                 (BuiltinName::poseidon, 1),
             ]),
         },
-        // TODO(AvivG): test with non-default opcode instance counter.
-        opcode_instance_counter: OpcodeCounterMap::default(),
+        opcode_instance_counter: OpcodeCounterMap::from([(OpcodeName::blake, 1)]),
     }
 }
 
