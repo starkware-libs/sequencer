@@ -25,7 +25,7 @@ use crate::db::serde_db_utils::DbBlockNumber;
 use crate::db::trie_traversal::{create_classes_trie, create_contracts_trie, create_storage_tries};
 use crate::forest::deleted_nodes::DeletedNodes;
 use crate::forest::filled_forest::FilledForest;
-use crate::forest::forest_errors::ForestResult;
+use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
@@ -177,6 +177,27 @@ pub trait ForestWriter: Send {
 pub trait ForestWriterWithMetadata: ForestWriter + ForestMetadata {
     /// Serializes deleted nodes into a vector of database keys.
     fn serialize_deleted_nodes(deleted_nodes: DeletedNodes) -> Vec<DbKey>;
+
+    /// Writes only metadata entries to storage, without a filled forest.
+    /// Returns an error if any of the metadata keys are already set.
+    /// May overwrite existing metadata in case of a write race (existence check and writing are not
+    /// a single atomic operation).
+    async fn try_write_metadata(
+        &mut self,
+        metadata: HashMap<ForestMetadataType, DbValue>,
+    ) -> ForestResult<()> {
+        let mut updates = DbHashMap::new();
+        for (metadata_type, value) in metadata {
+            // Another thread may change this existence before the updates are written.
+            let existing = self.read_metadata(metadata_type.clone()).await?;
+            if existing.is_some() {
+                return Err(ForestError::MetadataKeyAlreadySet(metadata_type));
+            }
+            Self::insert_metadata(&mut updates, metadata_type, value);
+        }
+        self.write_updates(updates_to_set_operations(updates)).await;
+        Ok(())
+    }
 
     async fn write_with_metadata(
         &mut self,
