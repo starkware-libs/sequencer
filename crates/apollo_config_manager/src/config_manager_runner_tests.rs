@@ -16,11 +16,12 @@ use serde_json::Value;
 use starknet_api::core::ContractAddress;
 use tempfile::NamedTempFile;
 use tokio::sync::mpsc::channel;
+use tokio::sync::watch;
 use tokio::task::yield_now;
 use tokio::time::{interval, timeout};
 use tracing_test::traced_test;
 
-use crate::config_manager_runner::ConfigManagerRunner;
+use crate::config_manager_runner::{log_config_diff, ConfigManagerRunner};
 
 // An arbitrary hex-str config entry to be replaced.
 const VALIDATOR_ID_CONFIG_ENTRY: &str = "validator_id";
@@ -86,9 +87,10 @@ fn update_config_file(temp_file: &NamedTempFile) -> String {
 
 #[tokio::test]
 async fn config_manager_runner_update_config_with_changed_values() {
+    let (dynamic_config_tx, dynamic_config_rx) = watch::channel(NodeDynamicConfig::default());
     // Set a mock config manager client to expect the update dynamic config request.
     let mut mock_client = MockConfigManagerClient::new();
-    mock_client.expect_set_node_dynamic_config().times(1..).return_const(Ok(()));
+    mock_client.expect_set_node_dynamic_config().times(2).return_const(Ok(()));
     let config_manager_client: SharedConfigManagerClient = Arc::new(mock_client);
 
     // Set a config manager config.
@@ -97,13 +99,12 @@ async fn config_manager_runner_update_config_with_changed_values() {
     // Create a temporary config file and get the validator id value.
     let (temp_file, cli_args, validator_id_value) = create_temp_config_file_and_args();
 
-    let node_dynamic_config = NodeDynamicConfig::default();
-
     // Create a config manager runner and update the config.
     let mut config_manager_runner = ConfigManagerRunner::new(
         config_manager_config,
         config_manager_client,
-        node_dynamic_config,
+        dynamic_config_tx,
+        dynamic_config_rx.clone(),
         cli_args,
     );
 
@@ -117,13 +118,18 @@ async fn config_manager_runner_update_config_with_changed_values() {
     let expected_validator_id = ContractAddress::from(hex_to_u128(validator_id_value.as_str()));
 
     let first_update_config_result = config_manager_runner.update_config().await;
-    let first_dynamic_config =
-        first_update_config_result.expect("First update_config should succeed");
+
+    assert!(first_update_config_result.is_ok(), "First update_config should succeed");
+    let first_dynamic_config_from_channel = dynamic_config_rx.borrow().clone();
+
+    // Note: We do not validate the method `set_node_dynamic_config` of the mock config manager
+    // client is called with the correct config. This method is soon to be replaced by the channel
+    // client. It could be tested using `.withf` predicate on the mock config manager client.
     assert_eq!(
-        first_dynamic_config.consensus_dynamic_config.as_ref().unwrap().validator_id,
+        first_dynamic_config_from_channel.consensus_dynamic_config.as_ref().unwrap().validator_id,
         expected_validator_id,
         "First update_config: Validator id mismatch: {} != {}",
-        first_dynamic_config.consensus_dynamic_config.as_ref().unwrap().validator_id,
+        first_dynamic_config_from_channel.consensus_dynamic_config.as_ref().unwrap().validator_id,
         expected_validator_id
     );
 
@@ -132,13 +138,14 @@ async fn config_manager_runner_update_config_with_changed_values() {
     let expected_validator_id = ContractAddress::from(hex_to_u128(new_validator_id.as_str()));
 
     let second_update_config_result = config_manager_runner.update_config().await;
-    let second_dynamic_config =
-        second_update_config_result.expect("Second update_config should succeed");
+    assert!(second_update_config_result.is_ok(), "Second update_config should succeed");
+
+    let second_dynamic_config_from_channel = dynamic_config_rx.borrow().clone();
     assert_eq!(
-        second_dynamic_config.consensus_dynamic_config.as_ref().unwrap().validator_id,
+        second_dynamic_config_from_channel.consensus_dynamic_config.as_ref().unwrap().validator_id,
         expected_validator_id,
         "Second update_config: Validator id mismatch: {} != {}",
-        second_dynamic_config.consensus_dynamic_config.as_ref().unwrap().validator_id,
+        second_dynamic_config_from_channel.consensus_dynamic_config.as_ref().unwrap().validator_id,
         expected_validator_id
     );
 }
@@ -151,6 +158,7 @@ async fn watcher_triggers_update_on_file_change() {
     // Channel to observe that update_config was called.
     let (tx, mut rx) = channel(1);
 
+    let (dynamic_config_tx, dynamic_config_rx) = watch::channel(NodeDynamicConfig::default());
     let mut mock_client = MockConfigManagerClient::new();
     mock_client.expect_set_node_dynamic_config().times(1).returning(move |_| {
         let _ = tx.blocking_send(());
@@ -162,7 +170,8 @@ async fn watcher_triggers_update_on_file_change() {
     let mut runner = ConfigManagerRunner::new(
         ConfigManagerConfig::default(),
         client,
-        NodeDynamicConfig::default(),
+        dynamic_config_tx,
+        dynamic_config_rx,
         cli_args,
     );
 
@@ -201,15 +210,7 @@ fn log_config_diff_changes() {
         ..Default::default()
     };
 
-    let mock_client = MockConfigManagerClient::new();
-    let runner = ConfigManagerRunner::new(
-        ConfigManagerConfig::default(),
-        Arc::new(mock_client),
-        old_dynamic_config.clone(),
-        Vec::<String>::new(),
-    );
-
-    runner.log_config_diff(&old_dynamic_config, &new_dynamic_config);
+    log_config_diff(&old_dynamic_config, &new_dynamic_config);
 
     assert!(logs_contain("consensus_dynamic_config changed from"));
     assert!(logs_contain(r#""validator_id":"0x1""#));
