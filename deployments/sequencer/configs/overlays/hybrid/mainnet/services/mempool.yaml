@@ -1,0 +1,4 @@
+config:
+  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_mempool.json
+  sequencerConfig:
+    mempool_config.dynamic_config.transaction_ttl: 300
