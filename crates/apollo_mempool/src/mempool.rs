@@ -37,10 +37,12 @@ use crate::metrics::{
     metric_count_rejected_txs,
     metric_set_get_txs_size,
     LABEL_NAME_TX_TYPE,
+    MEMPOOL_ACCOUNTS_WITH_GAP,
     MEMPOOL_DELAYED_DECLARES_SIZE,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
+    MEMPOOL_STUCK_TXS,
     MEMPOOL_TOTAL_SIZE_BYTES,
     MEMPOOL_TRANSACTIONS_RECEIVED,
 };
@@ -254,6 +256,9 @@ pub struct Mempool {
     // Accounts whose lowest transaction nonce is greater than the account nonce, which are
     // therefore candidates for eviction.
     accounts_with_gap: AccountsWithGap,
+    // Total number of transactions in the pool that belong to accounts in `accounts_with_gap`.
+    // Maintained incrementally to allow O(1) metric reporting.
+    n_stuck_txs: usize,
     state: MempoolState,
     clock: Arc<dyn Clock>,
 }
@@ -273,6 +278,7 @@ impl Mempool {
             tx_pool: TransactionPool::new(clock.clone()),
             tx_queue,
             accounts_with_gap: AccountsWithGap::new(),
+            n_stuck_txs: 0,
             state: MempoolState::new(config.static_config.committed_nonce_retention_block_count),
             clock,
         }
@@ -563,6 +569,11 @@ impl Mempool {
 
         let tx_reference = TransactionReference::new(&tx);
 
+        // If this account already has a nonce gap, the new tx is stuck from the start.
+        if self.accounts_with_gap.contains(&account_state.address) {
+            self.n_stuck_txs += 1;
+        }
+
         self.tx_pool
             .insert(tx)
             .expect("Duplicate transactions should cause an error during the validation stage.");
@@ -631,6 +642,9 @@ impl Mempool {
             // Remove from pool.
             let n_removed_txs = self.tx_pool.remove_up_to_nonce_when_committed(address, next_nonce);
             metric_count_committed_txs(n_removed_txs);
+            if self.accounts_with_gap.contains(&address) {
+                self.n_stuck_txs -= n_removed_txs;
+            }
 
             // Close nonce gap, if exists.
             // In FIFO mode, we handle gap filling when rewinding transactions.
@@ -820,6 +834,13 @@ impl Mempool {
         let removed_txs = self
             .tx_pool
             .remove_txs_older_than(self.config.dynamic_config.transaction_ttl, &self.state.staged);
+
+        for tx_ref in &removed_txs {
+            if self.accounts_with_gap.contains(&tx_ref.address) {
+                self.n_stuck_txs -= 1;
+            }
+        }
+
         let queued_txs = self.tx_queue.remove_txs(&removed_txs);
 
         self.log_and_count_expired_txs(&removed_txs);
@@ -858,6 +879,9 @@ impl Mempool {
                 self.tx_pool
                     .remove(tx.tx_hash)
                     .expect("Transaction hash from queue must appear in pool.");
+                if self.accounts_with_gap.contains(&tx.address) {
+                    self.n_stuck_txs -= 1;
+                }
                 (tx.address, self.state.resolve_nonce(tx.address, tx.nonce))
             })
             .collect();
@@ -893,7 +917,9 @@ impl Mempool {
             // If a delayed declare transaction exists at the account nonce, it is next to execute,
             // so no gap exists.
             if self.delayed_declares.contains(address, account_nonce) {
-                self.accounts_with_gap.swap_remove(&address);
+                if self.accounts_with_gap.swap_remove(&address) {
+                    self.n_stuck_txs -= self.tx_pool.n_txs_for_address(address);
+                }
                 continue;
             }
 
@@ -905,9 +931,14 @@ impl Mempool {
 
             // Update the eviction tracking set accordingly.
             if gap_exists {
-                self.accounts_with_gap.insert(address);
-            } else {
-                self.accounts_with_gap.swap_remove(&address);
+                if self.accounts_with_gap.insert(address) {
+                    // Newly entered gap: all current pool txs for this account are now stuck.
+                    self.n_stuck_txs += self.tx_pool.n_txs_for_address(address);
+                }
+                // Stayed in gap: per-tx deltas were already applied at add/remove sites.
+            } else if self.accounts_with_gap.swap_remove(&address) {
+                // Left gap: remaining pool txs for this account are no longer stuck.
+                self.n_stuck_txs -= self.tx_pool.n_txs_for_address(address);
             }
         }
     }
@@ -939,6 +970,8 @@ impl Mempool {
                     .expect("Transaction must exist in the pool.");
                 total_space_freed += tx.total_bytes();
                 metric_count_evicted_txs(1);
+                // All evicted txs come from gap accounts; each one is a stuck tx.
+                self.n_stuck_txs -= 1;
                 if total_space_freed >= required_space {
                     break;
                 }
@@ -947,6 +980,7 @@ impl Mempool {
             // Clean up if account is now empty.
             if !self.tx_pool.contains_account(address) {
                 self.accounts_with_gap.swap_remove(&address);
+                // n_stuck_txs is already correct: decremented once per evicted tx above.
             }
         }
 
@@ -986,12 +1020,19 @@ impl Mempool {
         &self.accounts_with_gap
     }
 
+    #[cfg(test)]
+    pub(crate) fn n_stuck_txs(&self) -> usize {
+        self.n_stuck_txs
+    }
+
     fn update_state_metrics(&self) {
         MEMPOOL_POOL_SIZE.set_lossy(self.tx_pool.len());
         MEMPOOL_PRIORITY_QUEUE_SIZE.set_lossy(self.tx_queue.priority_queue_len());
         MEMPOOL_PENDING_QUEUE_SIZE.set_lossy(self.tx_queue.pending_queue_len());
         MEMPOOL_DELAYED_DECLARES_SIZE.set_lossy(self.delayed_declares.len());
         MEMPOOL_TOTAL_SIZE_BYTES.set_lossy(self.size_in_bytes());
+        MEMPOOL_ACCOUNTS_WITH_GAP.set_lossy(self.accounts_with_gap.len());
+        MEMPOOL_STUCK_TXS.set_lossy(self.n_stuck_txs);
     }
 }
 
