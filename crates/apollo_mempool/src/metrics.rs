@@ -23,6 +23,8 @@ define_metrics!(
         MetricGauge { MEMPOOL_GET_TXS_SIZE, "mempool_get_txs_size", "The number of transactions returned in the last get_txs() api call" },
         MetricGauge { MEMPOOL_DELAYED_DECLARES_SIZE, "mempool_delayed_declare_size", "The number of declare transactions that are being delayed" },
         MetricGauge { MEMPOOL_TOTAL_SIZE_BYTES, "mempool_total_size_bytes", "The total size in bytes of the transactions in the mempool"},
+        MetricGauge { MEMPOOL_ACCOUNTS_WITH_GAP, "mempool_accounts_with_gap", "The number of accounts whose lowest pool nonce exceeds the account nonce, making them unable to provide any transaction for batching" },
+        MetricGauge { MEMPOOL_STUCK_TXS, "mempool_stuck_txs", "The number of transactions in the pool belonging to accounts whose lowest pool nonce exceeds the account nonce" },
         MetricHistogram { TRANSACTION_TIME_SPENT_UNTIL_BATCHED, "mempool_transaction_time_spent_until_batched", "The time (seconds) a transaction spent in the mempool until it was batched for execution" },
         MetricHistogram { TRANSACTION_TIME_SPENT_UNTIL_COMMITTED, "mempool_transaction_time_spent_until_committed", "The time (seconds) a transaction spent in the mempool until it was committed" },
     },
@@ -91,6 +93,8 @@ pub(crate) fn register_metrics() {
     MEMPOOL_GET_TXS_SIZE.register();
     MEMPOOL_DELAYED_DECLARES_SIZE.register();
     MEMPOOL_TOTAL_SIZE_BYTES.register();
+    MEMPOOL_ACCOUNTS_WITH_GAP.register();
+    MEMPOOL_STUCK_TXS.register();
     // Register Histograms.
     TRANSACTION_TIME_SPENT_UNTIL_BATCHED.register();
     TRANSACTION_TIME_SPENT_UNTIL_COMMITTED.register();

@@ -216,6 +216,10 @@ impl TransactionPool {
         self.account_txs_sorted_by_nonce(address).next().map(|tx_ref| tx_ref.nonce)
     }
 
+    pub fn n_txs_for_address(&self, address: ContractAddress) -> usize {
+        self.txs_by_account.n_txs_for_address(address)
+    }
+
     fn remove_from_main_mapping(&mut self, removed_txs: &Vec<TransactionReference>) {
         for TransactionReference { tx_hash, .. } in removed_txs {
             let tx = self.tx_pool.remove(tx_hash).unwrap_or_else(|| {
@@ -321,6 +325,10 @@ impl AccountTransactionIndex {
 
     fn contains(&self, address: ContractAddress) -> bool {
         self.0.contains_key(&address)
+    }
+
+    fn n_txs_for_address(&self, address: ContractAddress) -> usize {
+        self.0.get(&address).map_or(0, |btree| btree.len())
     }
 }
 
