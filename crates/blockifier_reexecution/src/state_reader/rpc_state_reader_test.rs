@@ -35,11 +35,7 @@ use crate::compile::legacy_to_contract_class_v0;
 use crate::state_reader::config::RpcStateReaderConfig;
 use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
 use crate::state_reader::rpc_objects::BlockId;
-use crate::state_reader::rpc_state_reader::{
-    ConsecutiveRpcStateReaders,
-    RetryConfig,
-    RpcStateReader,
-};
+use crate::state_reader::rpc_state_reader::{RetryConfig, RpcBlockReexecutor, RpcStateReader};
 use crate::utils::{get_chain_info, RPC_NODE_URL};
 
 const EXAMPLE_INVOKE_TX_HASH: &str =
@@ -136,8 +132,8 @@ pub fn contract_class_manager() -> ContractClassManager {
 pub fn test_state_readers_last_and_current_block(
     last_constructed_block: BlockNumber,
     contract_class_manager: ContractClassManager,
-) -> ConsecutiveRpcStateReaders {
-    ConsecutiveRpcStateReaders::new(
+) -> RpcBlockReexecutor {
+    RpcBlockReexecutor::new(
         last_constructed_block,
         None,
         get_chain_info(&ChainId::Mainnet, None),

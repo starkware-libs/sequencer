@@ -4,8 +4,8 @@ use rstest::rstest;
 use starknet_api::block::BlockNumber;
 
 use crate::cli::get_block_numbers_for_reexecution;
-use crate::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
-use crate::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
+use crate::state_reader::offline_state_reader::OfflineBlockReexecutor;
+use crate::state_reader::reexecution_state_reader::BlockReexecutor;
 
 /// Reexecutes a block from a pre-saved JSON file and verifies correctness.
 fn reexecute_block_for_testing(block_number: u64) {
@@ -20,7 +20,7 @@ fn reexecute_block_for_testing(block_number: u64) {
     }
     let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
 
-    OfflineConsecutiveStateReaders::new_from_file(&full_file_path, contract_class_manager)
+    OfflineBlockReexecutor::new_from_file(&full_file_path, contract_class_manager)
         .unwrap()
         .reexecute_and_verify_correctness();
 

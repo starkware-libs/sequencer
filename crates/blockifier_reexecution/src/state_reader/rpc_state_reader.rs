@@ -57,7 +57,7 @@ use crate::state_reader::offline_state_reader::{
 };
 use crate::state_reader::prefetched_state_reader::SimulatedStateReader;
 use crate::state_reader::reexecution_state_reader::{
-    ConsecutiveReexecutionStateReaders,
+    BlockReexecutor,
     ReexecuteBlockOutcome,
     ReexecutionStateReader,
 };
@@ -529,7 +529,7 @@ impl ReexecutionStateReader for RpcStateReader {
     }
 }
 
-pub struct ConsecutiveRpcStateReaders {
+pub struct RpcBlockReexecutor {
     pub last_block_state_reader: RpcStateReader,
     pub next_block_state_reader: RpcStateReader,
     contract_class_manager: ContractClassManager,
@@ -546,7 +546,7 @@ pub struct ConsecutiveRpcStateReaders {
     next_block_info_with_txs_cache: OnceLock<BlockInfoWithTxs>,
 }
 
-impl ConsecutiveRpcStateReaders {
+impl RpcBlockReexecutor {
     pub fn new(
         last_constructed_block_number: BlockNumber,
         config: Option<RpcStateReaderConfig>,
@@ -725,8 +725,8 @@ impl ConsecutiveRpcStateReaders {
 
 type BoxedFetchCompiledClasses = Box<dyn FetchCompiledClasses + Send + Sync>;
 
-impl ConsecutiveReexecutionStateReaders<StateReaderAndContractManager<BoxedFetchCompiledClasses>>
-    for ConsecutiveRpcStateReaders
+impl BlockReexecutor<StateReaderAndContractManager<BoxedFetchCompiledClasses>>
+    for RpcBlockReexecutor
 {
     fn pre_process_and_create_executor(
         self,
