@@ -90,6 +90,11 @@ def run_autoflake(fix: bool):
         print(f"Autoflake found issues:\n{error.output.decode()}")
         raise error
 
+def dami_check():
+    print "dami"
+    thisShouldFail=True
+    
+    return -1
 
 def main():
     args = parse_args()
