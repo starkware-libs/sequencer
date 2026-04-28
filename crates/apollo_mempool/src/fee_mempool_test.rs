@@ -158,6 +158,7 @@ impl MempoolTestContentBuilder {
                 self.gas_price_threshold,
             )),
             accounts_with_gap: AccountsWithGap::new(),
+            n_stuck_txs: 0,
             state: MempoolState::new(
                 self.config.static_config.committed_nonce_retention_block_count,
             ),
@@ -1903,4 +1904,161 @@ fn rejects_or_accepts_tx_based_on_freed_space(
     // Transactions tx1 and tx2 are evicted regardless of whether large_tx is accepted or rejected.
     // We do not revert the eviction attempt even if adding large_tx ultimately fails.
     assert!(!mempool.tx_pool.contains_account(contract_address!("0x1")));
+}
+
+// Stuck-tx counter tests.
+
+fn assert_gap_metrics(mempool: &Mempool, expected_accounts: usize, expected_stuck_txs: usize) {
+    assert_eq!(mempool.accounts_with_gap().len(), expected_accounts, "accounts_with_gap mismatch");
+    assert_eq!(mempool.n_stuck_txs(), expected_stuck_txs, "n_stuck_txs mismatch");
+}
+
+#[rstest]
+fn stuck_txs_counter_gap_created_and_closed_by_add_tx(mut mempool: Mempool) {
+    assert_gap_metrics(&mempool, 0, 0);
+
+    // Adding nonce 1 with account nonce 0 creates a gap; the single pool tx is stuck.
+    let tx_nonce_1 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 0);
+    add_tx(&mut mempool, &tx_nonce_1);
+    assert_gap_metrics(&mempool, 1, 1);
+
+    // Adding nonce 2 to the already-gapped account: both txs are stuck.
+    let tx_nonce_2 = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 2, account_nonce: 0);
+    add_tx(&mut mempool, &tx_nonce_2);
+    assert_gap_metrics(&mempool, 1, 2);
+
+    // Filling the gap (nonce 0) resolves it; no more stuck txs.
+    let tx_nonce_0 = add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 0, account_nonce: 0);
+    add_tx(&mut mempool, &tx_nonce_0);
+    assert_gap_metrics(&mempool, 0, 0);
+}
+
+#[rstest]
+fn stuck_txs_counter_tx_inserted_between_existing_stuck_txs(mut mempool: Mempool) {
+    // Nonces 1 and 3 in pool; gap at 0. Both are stuck.
+    let tx_nonce_1 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 0);
+    let tx_nonce_3 = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 3, account_nonce: 0);
+    for tx in [&tx_nonce_1, &tx_nonce_3] {
+        add_tx(&mut mempool, tx);
+    }
+    assert_gap_metrics(&mempool, 1, 2);
+
+    // Inserting nonce 2 into the gap account (gap at 0 persists): all three txs are stuck.
+    let tx_nonce_2 = add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 2, account_nonce: 0);
+    add_tx(&mut mempool, &tx_nonce_2);
+    assert_gap_metrics(&mempool, 1, 3);
+
+    // Filling the primary gap (nonce 0) resolves everything.
+    let tx_nonce_0 = add_tx_input!(tx_hash: 4, address: "0x0", tx_nonce: 0, account_nonce: 0);
+    add_tx(&mut mempool, &tx_nonce_0);
+    assert_gap_metrics(&mempool, 0, 0);
+}
+
+#[rstest]
+fn stuck_txs_counter_account_becomes_unstuck_once_leading_gap_is_filled(mut mempool: Mempool) {
+    // Nonces 1 and 3 in pool; gap at 0. Account is fully blocked: lowest pool nonce (1) >
+    // account nonce (0), so neither tx can be batched yet.
+    let tx_nonce_1 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 0);
+    let tx_nonce_3 = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 3, account_nonce: 0);
+    for tx in [&tx_nonce_1, &tx_nonce_3] {
+        add_tx(&mut mempool, tx);
+    }
+    assert_gap_metrics(&mempool, 1, 2);
+
+    // Adding nonce 0 aligns lowest_pool_nonce with account_nonce: the account can now make
+    // progress (nonces 0 and 1 will be batched). It exits accounts_with_gap and the metric
+    // drops to 0. Nonce 3 will be re-detected as stuck once nonces 0 and 1 are committed
+    // and account_nonce catches up to 2 (which is still missing).
+    let tx_nonce_0 = add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 0, account_nonce: 0);
+    add_tx(&mut mempool, &tx_nonce_0);
+    assert_gap_metrics(&mempool, 0, 0);
+
+    // Committing nonces 0 and 1 (next_nonce=2) removes them from the pool and advances
+    // account_nonce to 2. Pool is now [3]; lowest_pool_nonce (3) > account_nonce (2), so the
+    // gap is re-detected and nonce 3 is the sole stuck tx.
+    commit_block(&mut mempool, [("0x0", 2)], []);
+    assert_gap_metrics(&mempool, 1, 1);
+}
+
+#[rstest]
+fn stuck_txs_counter_resolved_by_commit_block(mut mempool: Mempool) {
+    let tx_nonce_1 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 0);
+    add_tx(&mut mempool, &tx_nonce_1);
+    assert_gap_metrics(&mempool, 1, 1);
+
+    // Committing nonce 1 removes the pool tx and advances account nonce; gap is resolved.
+    commit_block(&mut mempool, [("0x0", 2)], []);
+    assert_gap_metrics(&mempool, 0, 0);
+}
+
+#[rstest]
+fn stuck_txs_counter_commit_block_advances_past_some_stuck_txs(mut mempool: Mempool) {
+    // Gap account: nonces 3 and 5 in pool (gap at 0, 1, 2).
+    let tx_nonce_3 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 3, account_nonce: 0);
+    let tx_nonce_5 = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 5, account_nonce: 0);
+    for tx in [&tx_nonce_3, &tx_nonce_5] {
+        add_tx(&mut mempool, tx);
+    }
+    assert_gap_metrics(&mempool, 1, 2);
+
+    // Commit next_nonce=4: removes nonce 3 (< 4) from pool; nonce 5 stays.
+    // account_nonce=4, lowest_pool_nonce=5 → gap persists with 1 stuck tx.
+    commit_block(&mut mempool, [("0x0", 4)], []);
+    assert_gap_metrics(&mempool, 1, 1);
+}
+
+#[test]
+fn stuck_txs_counter_expiry_decrements_count() {
+    let fake_clock = Arc::new(FakeClock::default());
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            dynamic_config: MempoolDynamicConfig { transaction_ttl: Duration::from_secs(60) },
+            ..Default::default()
+        },
+        fake_clock.clone(),
+    );
+
+    // Gap account: nonces 2 and 3 (gap at 0 and 1). Both are stuck.
+    let tx_nonce_2 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 2, account_nonce: 0);
+    add_tx(&mut mempool, &tx_nonce_2);
+    fake_clock.advance(Duration::from_secs(30));
+    let tx_nonce_3 = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 3, account_nonce: 0);
+    add_tx(&mut mempool, &tx_nonce_3);
+    assert_gap_metrics(&mempool, 1, 2);
+
+    // Expire nonce 2 (older than TTL) while nonce 3 stays alive.
+    fake_clock.advance(Duration::from_secs(35));
+
+    // Trigger expiry cleanup via a new tx for a different address.
+    let trigger = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    add_tx(&mut mempool, &trigger);
+
+    // Account remains in gap (nonce 3 still present); stuck count decreased by 1.
+    assert_gap_metrics(&mempool, 1, 1);
+}
+
+#[test]
+fn stuck_txs_counter_eviction_decrements_count() {
+    let tx_gap = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 2, account_nonce: 0);
+    let capacity = tx_gap.tx.total_bytes();
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            static_config: MempoolStaticConfig {
+                capacity_in_bytes: capacity,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        Arc::new(FakeClock::default()),
+    );
+
+    add_tx(&mut mempool, &tx_gap);
+    assert_gap_metrics(&mempool, 1, 1);
+
+    // Adding a tx for a different address triggers eviction of the gap account's tx.
+    let new_tx = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    add_tx(&mut mempool, &new_tx);
+
+    // Gap account was fully evicted; both counters are zero.
+    assert_gap_metrics(&mempool, 0, 0);
 }
