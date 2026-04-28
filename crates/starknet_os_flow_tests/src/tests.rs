@@ -95,6 +95,7 @@ use starknet_types_core::hash::{Pedersen, StarkHash};
 use crate::initial_state::{
     create_default_initial_state_data,
     get_deploy_contract_tx_and_address_with_salt,
+    proof_flow_integration_initial_transaction,
     InitialState,
     InitialStateData,
     OsExecutionContracts,
@@ -3020,4 +3021,43 @@ async fn test_get_block_hash_current_block_number() {
 
     let test_output = test_builder.build_and_run().await;
     test_output.perform_default_validations();
+}
+
+/// Generates a CairoPie fixture for the proof flow integration test.
+///
+/// # Environment variables
+///
+/// - `CAIRO_PIE_PATH` — output path for the zip file (default: `/tmp/proof_flow_cairo_pie.zip`).
+///
+/// # Running
+///
+/// ```bash
+/// cargo test -p starknet_os_flow_tests generate_cairo_pie -- --ignored --nocapture
+/// ```
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn generate_cairo_pie() {
+    // The genesis partial-block-hash uses the default timestamp (0), not CURRENT_BLOCK_TIMESTAMP.
+    let block_info = BlockInfo {
+        block_number: BlockNumber(0),
+        block_timestamp: BlockTimestamp(0),
+        ..BlockInfo::create_for_testing()
+    };
+    let mut test_builder = TestBuilder::<DictStateReader>::create_proof_flow_virtual(
+        block_info,
+        TestBuilderConfig::default(),
+    )
+    .await;
+    test_builder.add_invoke_tx(proof_flow_integration_initial_transaction(), None, None);
+
+    let test_runner = test_builder.build().await;
+    let output = test_runner.run_virtual();
+    let cairo_pie = output.runner_output.cairo_pie;
+
+    let output_path = std::env::var("CAIRO_PIE_PATH")
+        .unwrap_or_else(|_| "/tmp/proof_flow_cairo_pie.zip".to_string());
+    cairo_pie
+        .write_zip_file(std::path::Path::new(&output_path), true)
+        .expect("Failed to write CairoPie");
+    println!("CairoPie written to {output_path}");
 }

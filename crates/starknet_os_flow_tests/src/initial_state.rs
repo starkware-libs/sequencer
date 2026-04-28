@@ -1,15 +1,24 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+use apollo_integration_tests::state_reader::{
+    integration_test_chain_info,
+    proof_flow_integration_genesis_data,
+};
+use apollo_integration_tests::utils::create_proof_flow_tx_generator;
 use blockifier::context::BlockContext;
+use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::state::cached_state::{ContractClassMapping, StateMaps};
 use blockifier::state::state_api::UpdatableState;
+use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::generate_block_hash_storage_updates;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{
     calculate_contract_address,
     ClassHash,
@@ -25,12 +34,14 @@ use starknet_api::executable_transaction::{
     Transaction as StarknetAPITransaction,
 };
 use starknet_api::hash::{HashOutput, StateRoots};
-use starknet_api::state::{ContractClassComponentHashes, SierraContractClass};
+use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
+use starknet_api::state::{ContractClassComponentHashes, SierraContractClass, ThinStateDiff};
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, CURRENT_BLOCK_NUMBER};
 use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidResourceBounds};
+use starknet_api::transaction::InvokeTransaction as APIInvokeTransaction;
 use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::StateDiff;
 use starknet_committer::db::facts_db::FactsDb;
@@ -291,6 +302,92 @@ pub(crate) async fn commit_initial_state_diff(
     .await
     .expect("Failed to commit initial state diff.");
     (state_roots, facts_db.consume_storage())
+}
+
+/// Creates the initial state to match the proof flow integration test.
+pub(crate) async fn create_proof_flow_integration_initial_state(
+    block_info: BlockInfo,
+) -> (InitialStateData<DictStateReader>, ThinStateDiff) {
+    let chain_info = integration_test_chain_info();
+    let (thin, classes) = proof_flow_integration_genesis_data(&chain_info);
+
+    let mut class_hash_to_class = ContractClassMapping::new();
+    let mut execution_contracts = OsExecutionContracts::default();
+    let mut reader = DictStateReader::default();
+    for (class_hash, (sierra, casm)) in &classes.cairo1_contract_classes {
+        reader.class_hash_to_sierra.insert(*class_hash, sierra.clone());
+        let sierra_version = sierra.get_sierra_version().unwrap();
+        let contract_class = ContractClass::V1((casm.clone(), sierra_version));
+        class_hash_to_class.insert(
+            *class_hash,
+            RunnableCompiledClass::try_from(contract_class).expect("cairo1 class"),
+        );
+        execution_contracts.add_cairo1_contract(casm.clone(), sierra);
+    }
+
+    let state_maps = thin_state_diff_to_state_maps(&thin);
+    reader.apply_writes(&state_maps, &class_hash_to_class);
+
+    let committer_state_diff = state_maps_to_committer_state_diff(state_maps);
+    let (commitment_output, commitment_storage) =
+        commit_initial_state_diff(committer_state_diff).await;
+
+    let default_ctx = block_context_for_flow_tests(BlockNumber(CURRENT_BLOCK_NUMBER), false);
+    let block_context = BlockContext::new(
+        block_info,
+        default_ctx.chain_info().clone(),
+        default_ctx.versioned_constants().clone(),
+        default_ctx.bouncer_config.clone(),
+    );
+
+    let initial_state = InitialState {
+        updatable_state: reader,
+        commitment_storage,
+        contracts_trie_root_hash: commitment_output.contracts_trie_root_hash,
+        classes_trie_root_hash: commitment_output.classes_trie_root_hash,
+        block_context,
+    };
+
+    (
+        InitialStateData {
+            initial_state,
+            nonce_manager: NonceManager::default(),
+            execution_contracts,
+        },
+        thin,
+    )
+}
+
+fn thin_state_diff_to_state_maps(thin: &ThinStateDiff) -> StateMaps {
+    let mut storage = HashMap::new();
+    for (addr, entries) in &thin.storage_diffs {
+        for (key, val) in entries {
+            storage.insert((*addr, *key), *val);
+        }
+    }
+    let declared_contracts: HashMap<ClassHash, bool> =
+        thin.deprecated_declared_classes.iter().map(|ch| (*ch, true)).collect();
+    StateMaps {
+        nonces: thin.nonces.iter().map(|(k, v)| (*k, *v)).collect(),
+        class_hashes: thin.deployed_contracts.iter().map(|(k, v)| (*k, *v)).collect(),
+        storage,
+        compiled_class_hashes: thin
+            .class_hash_to_compiled_class_hash
+            .iter()
+            .map(|(k, v)| (*k, *v))
+            .collect(),
+        declared_contracts,
+    }
+}
+
+pub(crate) fn proof_flow_integration_initial_transaction() -> InvokeTransaction {
+    let RpcTransaction::Invoke(RpcInvokeTransaction::V3(rpc)) =
+        create_proof_flow_tx_generator().account_with_id_mut(0).generate_trivial_rpc_invoke_tx(1)
+    else {
+        panic!("expected invoke V3 RPC tx");
+    };
+    InvokeTransaction::create(APIInvokeTransaction::V3(rpc.into()), &CHAIN_ID_FOR_TESTS)
+        .expect("invoke executable")
 }
 
 pub(crate) fn get_initial_deploy_account_tx() -> DeployAccountTransaction {
