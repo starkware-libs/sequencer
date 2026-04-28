@@ -172,8 +172,14 @@ where
                     e,
                 )
             })?;
-        let skip_validate =
-            self.run_pre_validation_checks(executable_tx, account_nonce, mempool_client).await?;
+        let skip_validate = run_pre_validation_checks(
+            &self.config,
+            &self.gateway_fixed_block_state_reader,
+            executable_tx,
+            account_nonce,
+            mempool_client,
+        )
+        .await?;
         self.run_validate_entry_point(executable_tx, skip_validate).await?;
         Ok(account_nonce)
     }
@@ -208,95 +214,6 @@ where
         &mut self,
     ) -> StateReaderAndContractManager<TGatewayStateReaderWithCompiledClasses> {
         self.state_reader_and_contract_manager.take().expect("Validator was already consumed")
-    }
-
-    async fn validate_state_preconditions(
-        &self,
-        executable_tx: &ExecutableTransaction,
-        account_nonce: Nonce,
-    ) -> StatefulTransactionValidatorResult<()> {
-        self.validate_resource_bounds(executable_tx).await?;
-        self.validate_nonce(executable_tx, account_nonce)?;
-        Ok(())
-    }
-
-    async fn validate_resource_bounds(
-        &self,
-        executable_tx: &ExecutableTransaction,
-    ) -> StatefulTransactionValidatorResult<()> {
-        // Skip this validation during the systems bootstrap phase.
-        if self.config.validate_resource_bounds {
-            // TODO(Arni): getnext_l2_gas_price from the block header.
-            let previous_block_l2_gas_price = self
-                .gateway_fixed_block_state_reader
-                .get_block_info()
-                .await?
-                .gas_prices
-                .strk_gas_prices
-                .l2_gas_price;
-            self.validate_tx_l2_gas_price_within_threshold(
-                executable_tx.resource_bounds(),
-                previous_block_l2_gas_price,
-            )?;
-        }
-        Ok(())
-    }
-
-    fn validate_nonce(
-        &self,
-        executable_tx: &ExecutableTransaction,
-        account_nonce: Nonce,
-    ) -> StatefulTransactionValidatorResult<()> {
-        let incoming_tx_nonce = executable_tx.nonce();
-
-        let create_error = |message: String| {
-            debug!("{message}");
-            StarknetError {
-                code: StarknetErrorCode::KnownErrorCode(
-                    KnownStarknetErrorCode::InvalidTransactionNonce,
-                ),
-                message,
-            }
-        };
-
-        match executable_tx {
-            // Declare transactions must have the same nonce as the account nonce.
-            ExecutableTransaction::Declare(_) if self.config.reject_future_declare_txs => {
-                if incoming_tx_nonce != account_nonce {
-                    return Err(create_error(format!(
-                        "Invalid transaction nonce. Expected: nonce = {account_nonce}, got: \
-                         {incoming_tx_nonce}."
-                    )));
-                }
-            }
-            // Deploy account transactions must have nonce 0.
-            ExecutableTransaction::DeployAccount(_) => {
-                if account_nonce != Nonce(Felt::ZERO) {
-                    return Err(create_error(format!(
-                        "Invalid deploy account transaction. Account is already deployed \
-                         (nonce={account_nonce})."
-                    )));
-                }
-                if incoming_tx_nonce != Nonce(Felt::ZERO) {
-                    return Err(create_error(format!(
-                        "Invalid transaction nonce. Expected: nonce = 0, got: {incoming_tx_nonce}."
-                    )));
-                }
-            }
-            // Other transactions must be within the allowed nonce range.
-            _ => {
-                let max_allowed_nonce =
-                    Nonce(account_nonce.0 + Felt::from(self.config.max_allowed_nonce_gap));
-                if !(account_nonce <= incoming_tx_nonce && incoming_tx_nonce <= max_allowed_nonce) {
-                    return Err(create_error(format!(
-                        "Invalid transaction nonce. Expected: {account_nonce} <= nonce <= \
-                         {max_allowed_nonce}, got: {incoming_tx_nonce}."
-                    )));
-                }
-            }
-        }
-
-        Ok(())
     }
 
     #[sequencer_latency_histogram(GATEWAY_VALIDATE_TX_LATENCY, true)]
@@ -355,58 +272,11 @@ where
         Ok(())
     }
 
-    // TODO(Arni): Consider running this validation for all gas prices.
-    fn validate_tx_l2_gas_price_within_threshold(
-        &self,
-        tx_resource_bounds: ValidResourceBounds,
-        previous_block_l2_gas_price: NonzeroGasPrice,
-    ) -> StatefulTransactionValidatorResult<()> {
-        match tx_resource_bounds {
-            ValidResourceBounds::AllResources(tx_resource_bounds) => {
-                let tx_l2_gas_price = tx_resource_bounds.l2_gas.max_price_per_unit;
-                let gas_price_threshold_multiplier =
-                    Ratio::new(self.config.min_gas_price_percentage.into(), 100_u128);
-                let threshold = (gas_price_threshold_multiplier
-                    * previous_block_l2_gas_price.get().0)
-                    .to_integer();
-                if tx_l2_gas_price.0 < threshold {
-                    return Err(StarknetError {
-                        // We didn't have this kind of an error.
-                        code: StarknetErrorCode::UnknownErrorCode(
-                            "StarknetErrorCode.GAS_PRICE_TOO_LOW".to_string(),
-                        ),
-                        message: format!(
-                            "Transaction L2 gas price {tx_l2_gas_price} is below the required \
-                             threshold {threshold}.",
-                        ),
-                    });
-                }
-            }
-            ValidResourceBounds::L1Gas(_) => {
-                // No validation required for legacy transactions.
-            }
-        }
-        Ok(())
-    }
-
     async fn get_nonce_from_state(
         &self,
         contract_address: ContractAddress,
     ) -> StatefulTransactionValidatorResult<Nonce> {
         self.gateway_fixed_block_state_reader.get_nonce(contract_address).await
-    }
-
-    async fn run_pre_validation_checks(
-        &self,
-        executable_tx: &ExecutableTransaction,
-        account_nonce: Nonce,
-        mempool_client: SharedMempoolClient,
-    ) -> StatefulTransactionValidatorResult<bool> {
-        self.validate_state_preconditions(executable_tx, account_nonce).await?;
-        validate_by_mempool(executable_tx, account_nonce, mempool_client.clone()).await?;
-        let skip_validate =
-            skip_stateful_validations(executable_tx, account_nonce, mempool_client.clone()).await?;
-        Ok(skip_validate)
     }
 }
 
@@ -458,4 +328,148 @@ async fn skip_stateful_validations(
     }
 
     Ok(false)
+}
+
+pub(crate) async fn run_pre_validation_checks(
+    config: &StatefulTransactionValidatorConfig,
+    gateway_fixed_block_state_reader: &impl GatewayFixedBlockStateReader,
+    executable_tx: &ExecutableTransaction,
+    account_nonce: Nonce,
+    mempool_client: SharedMempoolClient,
+) -> StatefulTransactionValidatorResult<bool> {
+    validate_state_preconditions(
+        config,
+        gateway_fixed_block_state_reader,
+        executable_tx,
+        account_nonce,
+    )
+    .await?;
+    validate_by_mempool(executable_tx, account_nonce, mempool_client.clone()).await?;
+    let skip_validate =
+        skip_stateful_validations(executable_tx, account_nonce, mempool_client.clone()).await?;
+    Ok(skip_validate)
+}
+
+async fn validate_state_preconditions(
+    config: &StatefulTransactionValidatorConfig,
+    gateway_fixed_block_state_reader: &impl GatewayFixedBlockStateReader,
+    executable_tx: &ExecutableTransaction,
+    account_nonce: Nonce,
+) -> StatefulTransactionValidatorResult<()> {
+    validate_resource_bounds(config, gateway_fixed_block_state_reader, executable_tx).await?;
+    validate_nonce(config, executable_tx, account_nonce)?;
+    Ok(())
+}
+
+pub(crate) async fn validate_resource_bounds(
+    config: &StatefulTransactionValidatorConfig,
+    gateway_fixed_block_state_reader: &impl GatewayFixedBlockStateReader,
+    executable_tx: &ExecutableTransaction,
+) -> StatefulTransactionValidatorResult<()> {
+    // Skip this validation during the systems bootstrap phase.
+    if config.validate_resource_bounds {
+        // TODO(Arni): getnext_l2_gas_price from the block header.
+        let previous_block_l2_gas_price = gateway_fixed_block_state_reader
+            .get_block_info()
+            .await?
+            .gas_prices
+            .strk_gas_prices
+            .l2_gas_price;
+        validate_tx_l2_gas_price_within_threshold(
+            config,
+            executable_tx.resource_bounds(),
+            previous_block_l2_gas_price,
+        )?;
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_nonce(
+    config: &StatefulTransactionValidatorConfig,
+    executable_tx: &ExecutableTransaction,
+    account_nonce: Nonce,
+) -> StatefulTransactionValidatorResult<()> {
+    let incoming_tx_nonce = executable_tx.nonce();
+
+    let create_error = |message: String| {
+        debug!("{message}");
+        StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(
+                KnownStarknetErrorCode::InvalidTransactionNonce,
+            ),
+            message,
+        }
+    };
+
+    match executable_tx {
+        // Declare transactions must have the same nonce as the account nonce.
+        ExecutableTransaction::Declare(_) if config.reject_future_declare_txs => {
+            if incoming_tx_nonce != account_nonce {
+                return Err(create_error(format!(
+                    "Invalid transaction nonce. Expected: nonce = {account_nonce}, got: \
+                     {incoming_tx_nonce}."
+                )));
+            }
+        }
+        // Deploy account transactions must have nonce 0.
+        ExecutableTransaction::DeployAccount(_) => {
+            if account_nonce != Nonce(Felt::ZERO) {
+                return Err(create_error(format!(
+                    "Invalid deploy account transaction. Account is already deployed \
+                     (nonce={account_nonce})."
+                )));
+            }
+            if incoming_tx_nonce != Nonce(Felt::ZERO) {
+                return Err(create_error(format!(
+                    "Invalid transaction nonce. Expected: nonce = 0, got: {incoming_tx_nonce}."
+                )));
+            }
+        }
+        // Other transactions must be within the allowed nonce range.
+        _ => {
+            let max_allowed_nonce =
+                Nonce(account_nonce.0 + Felt::from(config.max_allowed_nonce_gap));
+            if !(account_nonce <= incoming_tx_nonce && incoming_tx_nonce <= max_allowed_nonce) {
+                return Err(create_error(format!(
+                    "Invalid transaction nonce. Expected: {account_nonce} <= nonce <= \
+                     {max_allowed_nonce}, got: {incoming_tx_nonce}."
+                )));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+// TODO(Arni): Consider running this validation for all gas prices.
+fn validate_tx_l2_gas_price_within_threshold(
+    config: &StatefulTransactionValidatorConfig,
+    tx_resource_bounds: ValidResourceBounds,
+    previous_block_l2_gas_price: NonzeroGasPrice,
+) -> StatefulTransactionValidatorResult<()> {
+    match tx_resource_bounds {
+        ValidResourceBounds::AllResources(tx_resource_bounds) => {
+            let tx_l2_gas_price = tx_resource_bounds.l2_gas.max_price_per_unit;
+            let gas_price_threshold_multiplier =
+                Ratio::new(config.min_gas_price_percentage.into(), 100_u128);
+            let threshold =
+                (gas_price_threshold_multiplier * previous_block_l2_gas_price.get().0).to_integer();
+            if tx_l2_gas_price.0 < threshold {
+                return Err(StarknetError {
+                    // We didn't have this kind of an error.
+                    code: StarknetErrorCode::UnknownErrorCode(
+                        "StarknetErrorCode.GAS_PRICE_TOO_LOW".to_string(),
+                    ),
+                    message: format!(
+                        "Transaction L2 gas price {tx_l2_gas_price} is below the required \
+                         threshold {threshold}.",
+                    ),
+                });
+            }
+        }
+        ValidResourceBounds::L1Gas(_) => {
+            // No validation required for legacy transactions.
+        }
+    }
+    Ok(())
 }
