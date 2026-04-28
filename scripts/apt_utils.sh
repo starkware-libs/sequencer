@@ -15,19 +15,27 @@ function log_step() {
 }
 
 # Retry apt-get update with cache cleanup to handle transient mirror sync issues.
+# On first failure, falls back to the Azure Ubuntu mirror before retrying.
 function apt_update_with_retry() {
     local max_attempts=5
     local attempt=1
     local delay=5
+    local azure_fallback_applied=0
 
     while [ $attempt -le $max_attempts ]; do
         echo "apt-get update attempt $attempt of $max_attempts..."
-        if apt-get update; then
+        if timeout 30s apt-get update; then
             echo "apt-get update succeeded on attempt $attempt"
             return 0
         fi
 
         echo "apt-get update failed on attempt $attempt"
+
+        if [ $azure_fallback_applied -eq 0 ] && [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+            echo "Switching to Azure Ubuntu mirror..."
+            sed -i 's%http://\(archive\|security\).ubuntu.com/%http://azure.archive.ubuntu.com/%g' /etc/apt/sources.list.d/ubuntu.sources
+            azure_fallback_applied=1
+        fi
 
         if [ $attempt -lt $max_attempts ]; then
             echo "Cleaning apt cache and retrying in ${delay}s..."

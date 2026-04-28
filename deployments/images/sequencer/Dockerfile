@@ -41,9 +41,11 @@ FROM ubuntu:24.04 AS final_stage
 ARG BUILD_MODE=release
 ENV BUILD_MODE=${BUILD_MODE}
 
-# Required for https requests: ca-certificates
-# Required for starknet-native-compile: binutils libc6-dev
-RUN apt-get update && apt-get install -y ca-certificates binutils libc6-dev
+# If Ubuntu registry is down or slow (30s timeout), use Azure mirror instead.
+RUN (timeout 30s apt-get update \
+    || (sed -i 's%http://\(archive\|security\).ubuntu.com/%http://azure.archive.ubuntu.com/%g' /etc/apt/sources.list.d/ubuntu.sources \
+        && apt-get update)) \
+    && apt-get install -y ca-certificates binutils libc6-dev
 
 ENV ID=1001
 WORKDIR /app
