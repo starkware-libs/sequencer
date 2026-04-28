@@ -34,7 +34,6 @@ use crate::gateway::GenericGateway;
 use crate::proof_archive_writer::MockProofArchiveWriterTrait;
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::StatefulTransactionValidatorFactory;
-use crate::stateless_transaction_validator::StatelessTransactionValidator;
 
 pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
     ResourceBounds { max_amount: GasAmount(1), max_price_per_unit: GasPrice(1) };
@@ -161,7 +160,6 @@ pub fn rpc_tx_for_testing(
 }
 
 pub type GatewayForBenchmark = GenericGateway<
-    StatelessTransactionValidator,
     TransactionConverter,
     StatefulTransactionValidatorFactory<TestStateReaderFactory>,
 >;
@@ -179,9 +177,6 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> GatewayForBenchma
         proof_manager_client.clone(),
         gateway_config.static_config.chain_info.chain_id.clone(),
     );
-    let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
-        config: gateway_config.static_config.stateless_tx_validator_config.clone(),
-    });
     mempool_client.expect_add_tx().returning(|_| Ok(()));
     mempool_client.expect_validate_tx().returning(|_| Ok(()));
     mempool_client.expect_account_tx_in_pool_or_recent_block().returning(|_| Ok(false));
@@ -191,7 +186,6 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> GatewayForBenchma
         Arc::new(state_reader_factory),
         Arc::new(mempool_client),
         Arc::new(transaction_converter),
-        stateless_tx_validator,
         proof_archive_writer,
     )
 }

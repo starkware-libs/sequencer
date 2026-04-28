@@ -89,7 +89,7 @@ use starknet_types_core::felt::Felt;
 use strum::VariantNames;
 use tempfile::TempDir;
 
-use crate::errors::{GatewayResult, StatelessTransactionValidatorError};
+use crate::errors::GatewayResult;
 use crate::gateway::GenericGateway;
 use crate::metrics::{
     register_metrics,
@@ -109,7 +109,7 @@ use crate::stateful_transaction_validator::{
     MockStatefulTransactionValidatorTrait,
     StatefulTransactionValidatorFactory,
 };
-use crate::stateless_transaction_validator::MockStatelessTransactionValidatorTrait;
+use crate::stateless_transaction_validator::StatelessTransactionValidator;
 
 #[fixture]
 fn mock_stateful_transaction_validator() -> MockStatefulTransactionValidatorTrait {
@@ -122,17 +122,13 @@ fn mock_stateful_transaction_validator_factory() -> MockStatefulTransactionValid
 }
 
 #[fixture]
-fn mock_stateless_transaction_validator() -> MockStatelessTransactionValidatorTrait {
-    let mut mock_stateless_transaction_validator = MockStatelessTransactionValidatorTrait::new();
-    mock_stateless_transaction_validator.expect_validate().return_once(|_| Ok(()));
-    mock_stateless_transaction_validator
-}
-
-#[fixture]
 fn mock_dependencies() -> MockDependencies {
     let config = GatewayConfig {
         static_config: GatewayStaticConfig {
-            stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
+            stateless_tx_validator_config: StatelessTransactionValidatorConfig {
+                allow_client_side_proving: true,
+                ..Default::default()
+            },
             stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
             contract_class_manager_config: ContractClassManagerConfig::default(),
             chain_info: ChainInfo::create_for_testing(),
@@ -146,14 +142,12 @@ fn mock_dependencies() -> MockDependencies {
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), true);
     let mock_mempool_client = MockMempoolClient::new();
     let mock_transaction_converter = MockTransactionConverterTrait::new();
-    let mock_stateless_transaction_validator = mock_stateless_transaction_validator();
     let mock_proof_archive_writer = MockProofArchiveWriterTrait::new();
     MockDependencies {
         config,
         state_reader_factory,
         mock_mempool_client,
         mock_transaction_converter,
-        mock_stateless_transaction_validator,
         mock_proof_archive_writer,
     }
 }
@@ -163,7 +157,6 @@ struct MockDependencies {
     state_reader_factory: TestStateReaderFactory,
     mock_mempool_client: MockMempoolClient,
     mock_transaction_converter: MockTransactionConverterTrait,
-    mock_stateless_transaction_validator: MockStatelessTransactionValidatorTrait,
     mock_proof_archive_writer: MockProofArchiveWriterTrait,
 }
 
@@ -171,7 +164,6 @@ impl MockDependencies {
     fn gateway(
         self,
     ) -> GenericGateway<
-        MockStatelessTransactionValidatorTrait,
         MockTransactionConverterTrait,
         StatefulTransactionValidatorFactory<TestStateReaderFactory>,
     > {
@@ -181,7 +173,6 @@ impl MockDependencies {
             Arc::new(self.state_reader_factory),
             Arc::new(self.mock_mempool_client),
             Arc::new(self.mock_transaction_converter),
-            Arc::new(self.mock_stateless_transaction_validator),
             Arc::new(self.mock_proof_archive_writer),
         )
     }
@@ -735,12 +726,13 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
     let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
     let gateway = GenericGateway::<
-        MockStatelessTransactionValidatorTrait,
         MockTransactionConverterTrait,
         MockStatefulTransactionValidatorFactoryTrait,
     > {
-        config: Arc::new(mock_dependencies.config),
-        stateless_tx_validator: Arc::new(mock_dependencies.mock_stateless_transaction_validator),
+        config: Arc::new(mock_dependencies.config.clone()),
+        stateless_tx_validator: Arc::new(StatelessTransactionValidator {
+            config: mock_dependencies.config.static_config.stateless_tx_validator_config.clone(),
+        }),
         stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
@@ -756,19 +748,15 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
 #[rstest]
 #[tokio::test]
 async fn stateless_transaction_validator_error(mut mock_dependencies: MockDependencies) {
-    let arbitrary_validation_error = Err(StatelessTransactionValidatorError::SignatureTooLong {
-        signature_length: 5001,
-        max_signature_length: 4000,
-    });
     let error_code =
         StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.SIGNATURE_TOO_LONG".into());
-    let mut mock_stateless_transaction_validator = MockStatelessTransactionValidatorTrait::new();
-    mock_stateless_transaction_validator
-        .expect_validate()
-        .return_once(|_| arbitrary_validation_error);
-    mock_dependencies.mock_stateless_transaction_validator = mock_stateless_transaction_validator;
+    mock_dependencies.config.static_config.stateless_tx_validator_config.max_signature_length = 0;
+
+    let mut tx_args = invoke_args();
+    tx_args.signature = TransactionSignature(vec![Felt::ZERO].into());
+
     let gateway = mock_dependencies.gateway();
-    let result = gateway.add_tx(invoke_args().get_rpc_tx(), None).await;
+    let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().code, error_code);
@@ -792,12 +780,13 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
     let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
     let gateway = GenericGateway::<
-        MockStatelessTransactionValidatorTrait,
         MockTransactionConverterTrait,
         MockStatefulTransactionValidatorFactoryTrait,
     > {
-        config: Arc::new(mock_dependencies.config),
-        stateless_tx_validator: Arc::new(mock_dependencies.mock_stateless_transaction_validator),
+        config: Arc::new(mock_dependencies.config.clone()),
+        stateless_tx_validator: Arc::new(StatelessTransactionValidator {
+            config: mock_dependencies.config.static_config.stateless_tx_validator_config.clone(),
+        }),
         stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
