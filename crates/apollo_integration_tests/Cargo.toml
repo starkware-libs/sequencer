@@ -94,6 +94,7 @@ futures.workspace = true
 metrics.workspace = true
 mockall.workspace = true
 rstest.workspace = true
+starknet_proof_verifier.workspace = true
 
 [[bin]]
 name = "integration_test_proof_flow"
