@@ -232,14 +232,14 @@ impl TestScenario for DeployAndInvokeTxs {
     }
 }
 
-fn load_proof_flow_proof_facts() -> ProofFacts {
+pub fn load_proof_flow_proof_facts() -> ProofFacts {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/resources/proof_flow/proof_facts.json");
     let json = std::fs::read_to_string(path)
         .expect("Failed to read proof_facts.json — run the fixture generator first");
     serde_json::from_str(&json).expect("Failed to parse proof_facts.json")
 }
 
-fn load_proof_flow_proof() -> Proof {
+pub fn load_proof_flow_proof() -> Proof {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/resources/proof_flow/proof.bin");
     let bytes =
         std::fs::read(path).expect("Failed to read proof.bin — run the fixture generator first");
