@@ -62,7 +62,7 @@ use crate::node_component_configs::{
     create_hybrid_component_configs,
 };
 use crate::sequencer_simulator_utils::SequencerSimulator;
-use crate::state_reader::StorageTestHandles;
+use crate::state_reader::{proof_flow_chain_info, StorageTestHandles};
 use crate::storage::{get_integration_test_storage, CustomPaths};
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
@@ -380,6 +380,8 @@ pub struct IntegrationTestManager {
     idle_nodes: HashMap<usize, NodeSetup>,
     running_nodes: HashMap<usize, RunningNode>,
     tx_generator: MultiAccountTransactionGenerator,
+    // Nonce of each account at construction time.
+    initial_account_nonces: HashMap<AccountId, usize>,
     // Ethereum base layer coupled with an Anvil server instance, the server is dropped when the
     // instance is dropped.
     anvil_base_layer: AnvilBaseLayer,
@@ -439,7 +441,21 @@ impl IntegrationTestManager {
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();
 
-        Self { node_indices, idle_nodes, running_nodes, tx_generator, anvil_base_layer }
+        let initial_account_nonces = tx_generator
+            .accounts()
+            .iter()
+            .enumerate()
+            .map(|(account_id, account)| (account_id, nonce_to_usize(account.get_nonce())))
+            .collect();
+
+        Self {
+            node_indices,
+            idle_nodes,
+            running_nodes,
+            tx_generator,
+            initial_account_nonces,
+            anvil_base_layer,
+        }
     }
 
     pub fn get_idle_nodes(&self) -> &HashMap<usize, NodeSetup> {
@@ -926,7 +942,10 @@ impl IntegrationTestManager {
         // We use state syncs processed txs metric via its monitoring client to verify that the
         // transactions were accepted.
         let account = self.tx_generator.account_with_id(sender_account);
-        let expected_n_accepted_account_txs = nonce_to_usize(account.get_nonce());
+        let initial_nonce = *self.initial_account_nonces.get(&sender_account).unwrap_or(&0);
+        // Subtract the initial nonce so that pre-deployed accounts (whose nonce starts at 1)
+        // don't inflate the expected count before any test transactions are submitted.
+        let expected_n_accepted_account_txs = nonce_to_usize(account.get_nonce()) - initial_nonce;
         let expected_n_l1_handler_txs = self.tx_generator.n_l1_txs();
         let expected_n_accepted_txs = expected_n_accepted_account_txs + expected_n_l1_handler_txs;
 
@@ -1242,7 +1261,10 @@ async fn get_sequencer_setup_configs(
     }
 
     info!("Creating node configurations.");
-    let chain_info = ChainInfo::create_for_testing();
+    let chain_info = match test_unique_id {
+        TestIdentifier::ProofFlowIntegrationTest => proof_flow_chain_info(),
+        _ => ChainInfo::create_for_testing(),
+    };
     let accounts = tx_generator.accounts();
     let component_configs_len = node_component_configs.len();
 
