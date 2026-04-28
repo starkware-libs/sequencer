@@ -47,12 +47,12 @@ impl Deref for MessageDigest {
 
 /// Provides signing and signature verification functionality.
 #[derive(Clone, Debug)]
-pub struct SignatureManager<KS: KeyStore> {
-    pub keystore: KS,
+pub struct SignatureManager {
+    pub keystore: LocalKeyStore,
 }
 
-impl<KS: KeyStore> SignatureManager<KS> {
-    pub fn new(keystore: KS) -> Self {
+impl SignatureManager {
+    pub fn new(keystore: LocalKeyStore) -> Self {
         Self { keystore }
     }
 
@@ -83,7 +83,7 @@ impl<KS: KeyStore> SignatureManager<KS> {
 }
 
 #[async_trait]
-impl<KS: KeyStore> ComponentStarter for SignatureManager<KS> {}
+impl ComponentStarter for SignatureManager {}
 
 /// A simple in-memory key store.
 #[derive(Clone, Copy, Debug)]
