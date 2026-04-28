@@ -639,3 +639,22 @@ pub fn proof_flow_integration_genesis_data(
         ProofFlowGenesisClasses { cairo1_contract_classes: classes.cairo1_contract_classes },
     )
 }
+
+pub fn proof_flow_integration_partial_block_hash_components() -> PartialBlockHashComponents {
+    let chain_info = proof_flow_chain_info();
+    let (state_diff, _classes) = proof_flow_integration_genesis_data(&chain_info);
+    let block_number = BlockNumber(0);
+    let block_header = test_block_header(block_number, state_diff.len());
+    PartialBlockHashComponents {
+        block_number,
+        l1_gas_price: block_header.block_header_without_hash.l1_gas_price,
+        l1_data_gas_price: block_header.block_header_without_hash.l1_data_gas_price,
+        l2_gas_price: block_header.block_header_without_hash.l2_gas_price,
+        sequencer: block_header.block_header_without_hash.sequencer,
+        header_commitments: BlockHeaderCommitments {
+            state_diff_commitment: calculate_state_diff_hash(&state_diff),
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}

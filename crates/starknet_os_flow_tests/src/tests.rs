@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
+use apollo_integration_tests::state_reader::proof_flow_integration_partial_block_hash_components;
+use apollo_integration_tests::utils::load_proof_flow_snos_facts;
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
@@ -17,6 +19,10 @@ use expect_test::expect;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice};
+use starknet_api::block_hash::block_hash_calculator::{
+    calculate_block_hash,
+    PartialBlockHashComponents,
+};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{
@@ -36,7 +42,7 @@ use starknet_api::executable_transaction::{
     TransactionType,
 };
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::hash::HashOutput;
+use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
@@ -3023,6 +3029,26 @@ async fn test_get_block_hash_current_block_number() {
     test_output.perform_default_validations();
 }
 
+/// The `BlockInfo` used by the proof flow integration test for block 0.
+fn proof_flow_block_0_block_info() -> BlockInfo {
+    // The genesis partial-block-hash uses the default timestamp (0), not CURRENT_BLOCK_TIMESTAMP.
+    BlockInfo {
+        block_number: BlockNumber(0),
+        block_timestamp: BlockTimestamp(0),
+        ..BlockInfo::create_for_testing()
+    }
+}
+
+async fn proof_flow_test_builder() -> TestBuilder<DictStateReader> {
+    let mut test_builder = TestBuilder::<DictStateReader>::create_proof_flow_virtual(
+        proof_flow_block_0_block_info(),
+        TestBuilderConfig::default(),
+    )
+    .await;
+    test_builder.add_invoke_tx(proof_flow_integration_initial_transaction(), None, None);
+    test_builder
+}
+
 /// Generates a CairoPie fixture for the proof flow integration test.
 ///
 /// # Environment variables
@@ -3037,20 +3063,7 @@ async fn test_get_block_hash_current_block_number() {
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
 async fn generate_cairo_pie() {
-    // The genesis partial-block-hash uses the default timestamp (0), not CURRENT_BLOCK_TIMESTAMP.
-    let block_info = BlockInfo {
-        block_number: BlockNumber(0),
-        block_timestamp: BlockTimestamp(0),
-        ..BlockInfo::create_for_testing()
-    };
-    let mut test_builder = TestBuilder::<DictStateReader>::create_proof_flow_virtual(
-        block_info,
-        TestBuilderConfig::default(),
-    )
-    .await;
-    test_builder.add_invoke_tx(proof_flow_integration_initial_transaction(), None, None);
-
-    let test_runner = test_builder.build().await;
+    let test_runner = proof_flow_test_builder().await.build().await;
     let output = test_runner.run_virtual();
     let cairo_pie = output.runner_output.cairo_pie;
 
@@ -3060,4 +3073,130 @@ async fn generate_cairo_pie() {
         .write_zip_file(std::path::Path::new(&output_path), true)
         .expect("Failed to write CairoPie");
     println!("CairoPie written to {output_path}");
+}
+
+/// Block-0 hash regression for the proof-flow fixtures.
+///
+/// Compares the components of the block hash
+#[tokio::test(flavor = "multi_thread")]
+async fn proof_flow_block_0_hash_regression() {
+    // Build the same setup as `generate_cairo_pie`, but without running the prover.
+    let test_runner = proof_flow_test_builder().await.build().await;
+
+    let os_block_input = test_runner
+        .os_hints
+        .os_input
+        .os_block_inputs
+        .first()
+        .expect("OS flow path must produce at least one block input");
+    let os_components = PartialBlockHashComponents::new(
+        &os_block_input.block_info,
+        os_block_input.block_hash_commitments.clone(),
+    );
+
+    let os_state_root = StateRoots {
+        contracts_trie_root_hash: os_block_input.contract_state_commitment_info.previous_root,
+        classes_trie_root_hash: os_block_input.contract_class_commitment_info.previous_root,
+    }
+    .global_root();
+    let os_prev_block_hash = os_block_input.prev_block_hash;
+    let os_block_hash = os_block_input.new_block_hash;
+
+    let integration_test_components = proof_flow_integration_partial_block_hash_components();
+
+    // Check each component of the block hash is the same between the proof flow integration test
+    // and the virtual OS run.
+    assert_eq!(
+        integration_test_components.block_number, os_components.block_number,
+        "block_number mismatch: proof flow integration test={:?}, virtual os={:?}. ",
+        integration_test_components.block_number, os_components.block_number,
+    );
+    assert_eq!(
+        integration_test_components.timestamp, os_components.timestamp,
+        "block_timestamp mismatch: proof flow integration test={:?}, virtual OS={:?}",
+        integration_test_components.timestamp, os_components.timestamp,
+    );
+    assert_eq!(
+        integration_test_components.sequencer, os_components.sequencer,
+        "sequencer_address mismatch: proof flow integration test={:?}, virtual OS={:?}",
+        integration_test_components.sequencer, os_components.sequencer,
+    );
+    assert_eq!(
+        integration_test_components.l1_gas_price, os_components.l1_gas_price,
+        "l1_gas_price mismatch: proof flow integration test={:?}, virtual OS={:?}",
+        integration_test_components.l1_gas_price, os_components.l1_gas_price,
+    );
+    assert_eq!(
+        integration_test_components.l1_data_gas_price, os_components.l1_data_gas_price,
+        "l1_data_gas_price mismatch: proof flow integration test={:?}, virtual OS={:?}.",
+        integration_test_components.l1_data_gas_price, os_components.l1_data_gas_price,
+    );
+    assert_eq!(
+        integration_test_components.l2_gas_price, os_components.l2_gas_price,
+        "l2_gas_price mismatch: proof flow integration test={:?}, virtual OS={:?}.",
+        integration_test_components.l2_gas_price, os_components.l2_gas_price,
+    );
+    assert_eq!(
+        integration_test_components.starknet_version, os_components.starknet_version,
+        "starknet_version mismatch: proof flow integration test={:?}, virtual OS={:?}. \
+         `StarknetVersion::LATEST` likely bumped.",
+        integration_test_components.starknet_version, os_components.starknet_version,
+    );
+    assert_eq!(
+        integration_test_components.header_commitments.state_diff_commitment,
+        os_components.header_commitments.state_diff_commitment,
+        "state_diff_commitment mismatch: the genesis state diff produced by \
+         `proof_flow_integration_genesis_data` differs from what the virtual OS executes. proof \
+         flow integration test={:?}, virtual OS={:?}.",
+        integration_test_components.header_commitments.state_diff_commitment,
+        os_components.header_commitments.state_diff_commitment,
+    );
+    assert_eq!(
+        integration_test_components.header_commitments.transaction_commitment,
+        os_components.header_commitments.transaction_commitment,
+        "transaction_commitment mismatch: proof flow integration test={:?}, virtual OS={:?}.",
+        integration_test_components.header_commitments.transaction_commitment,
+        os_components.header_commitments.transaction_commitment,
+    );
+    assert_eq!(
+        integration_test_components.header_commitments.event_commitment,
+        os_components.header_commitments.event_commitment,
+        "event_commitment mismatch: proof flow integration test={:?}, virtual OS={:?}.",
+        integration_test_components.header_commitments.event_commitment,
+        os_components.header_commitments.event_commitment,
+    );
+    assert_eq!(
+        integration_test_components.header_commitments.receipt_commitment,
+        os_components.header_commitments.receipt_commitment,
+        "receipt_commitment mismatch: proof flow integration test={:?}, virtual OS={:?}.",
+        integration_test_components.header_commitments.receipt_commitment,
+        os_components.header_commitments.receipt_commitment,
+    );
+    assert_eq!(
+        integration_test_components.header_commitments.concatenated_counts,
+        os_components.header_commitments.concatenated_counts,
+        "concatenated_counts mismatch: proof flow integration test={:?}, virtual OS={:?}.",
+        integration_test_components.header_commitments.concatenated_counts,
+        os_components.header_commitments.concatenated_counts,
+    );
+
+    let integration_test_block_hash =
+        calculate_block_hash(&integration_test_components, os_state_root, os_prev_block_hash)
+            .unwrap();
+    assert_eq!(
+        integration_test_block_hash, os_block_hash,
+        "block hash mismatch between proof flow integration test (={:?}) and virtual OS (={:?}) \
+         even though the partial-block-hash components above matched. This indicates a \
+         hashing-algorithm-level discrepancy.",
+        integration_test_block_hash, os_block_hash,
+    );
+
+    let fixture_block_hash = load_proof_flow_snos_facts().block_hash;
+    assert_eq!(
+        os_block_hash, fixture_block_hash,
+        "block hash from current code (={:?}) does not match the block_hash baked into \
+         `proof_facts.json` (={:?}). The fixtures are stale.
+        Rerun `./scripts/generate_proof_flow_fixtures.sh` to regenerate the proof flow fixtures.",
+        os_block_hash, fixture_block_hash,
+    );
 }
