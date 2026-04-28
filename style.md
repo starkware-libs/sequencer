@@ -78,9 +78,7 @@ the former will display the error, and the latter will simply say `expected True
 -   Avoid doing too many things in one test with a single assert at the end, unless other tests exist that cover enough parts of the test separately so that finding the source will be simple.
 
 ### Integration and Flow Tests
-Use unit tests for short (< 1 sec) and threadsafe tests, otherwise use cargo integration tests:
-
-Put these tests in `tests/` at the crate root. Benefits of `tests/`:
+Use unit tests for short (< 1 sec) and threadsafe tests, otherwise put these tests in `tests/` at the crate root. Benefits of `tests/`:
 
 - Runs without `cfg(test)`, simulating real usage.
 - Each test file runs sequentially, avoiding thread-safety issues.
@@ -90,8 +88,8 @@ If the integration test needs features of this crate, use a dedicated integratio
 
 ### Binary Tests
 
-To test binary crates, add a `lib.rs` and call its main from `main.rs` and from the test.
-
+Prefer not to test binaries by running them as executables.
+Instead, refactor the main logic into a function and unit-test it.
 ### Dependency Injection
 
 Dependency injection allows you to test a component in isolation by mocking its dependencies. This focuses the test on a single unit of code without relying on external services or complex setup.
