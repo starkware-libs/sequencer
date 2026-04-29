@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777458987663,
+  "lastUpdate": 1777462660522,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3399,6 +3399,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1369.48580118,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f2d7709a4e00eb90425e15afffe75783e1b4d000",
+          "message": "central_systest_blobs: initial placeholder functions (#13890)",
+          "timestamp": "2026-04-29T11:22:59Z",
+          "tree_id": "d859dae95333106ecf5cf5fa772e11cc6db87276",
+          "url": "https://github.com/starkware-libs/sequencer/commit/f2d7709a4e00eb90425e15afffe75783e1b4d000"
+        },
+        "date": 1777462660167,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 880.52727977,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1283.8486222000001,
             "unit": "ms"
           }
         ]
