@@ -16,6 +16,12 @@ pub struct ResourcesMapping(pub HashMap<String, usize>);
 
 impl From<TransactionReceipt> for ResourcesMapping {
     fn from(receipt: TransactionReceipt) -> ResourcesMapping {
+        ResourcesMapping::from(&receipt)
+    }
+}
+
+impl From<&TransactionReceipt> for ResourcesMapping {
+    fn from(receipt: &TransactionReceipt) -> ResourcesMapping {
         let vm_resources = &receipt.resources.computation.total_extended_vm_resources();
         let mut resources = HashMap::from([(
             abi_constants::N_STEPS_RESOURCE.to_string(),
@@ -39,7 +45,7 @@ impl From<TransactionReceipt> for ResourcesMapping {
 }
 
 /// The TransactionExecutionInfo object as used by the Python code.
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, Clone))]
 #[derive(Debug, Serialize)]
 pub struct CentralTransactionExecutionInfo {
     pub validate_call_info: Option<CallInfo>,
@@ -53,16 +59,31 @@ pub struct CentralTransactionExecutionInfo {
 }
 
 impl From<TransactionExecutionInfo> for CentralTransactionExecutionInfo {
-    fn from(tx_execution_info: TransactionExecutionInfo) -> CentralTransactionExecutionInfo {
+    fn from(info: TransactionExecutionInfo) -> CentralTransactionExecutionInfo {
         CentralTransactionExecutionInfo {
-            validate_call_info: tx_execution_info.validate_call_info,
-            execute_call_info: tx_execution_info.execute_call_info,
-            fee_transfer_call_info: tx_execution_info.fee_transfer_call_info,
-            actual_fee: tx_execution_info.receipt.fee,
-            da_gas: tx_execution_info.receipt.da_gas,
-            revert_error: tx_execution_info.revert_error.map(|error| error.to_string()),
-            total_gas: tx_execution_info.receipt.gas,
-            actual_resources: tx_execution_info.receipt.into(),
+            validate_call_info: info.validate_call_info,
+            execute_call_info: info.execute_call_info,
+            fee_transfer_call_info: info.fee_transfer_call_info,
+            actual_fee: info.receipt.fee,
+            da_gas: info.receipt.da_gas,
+            revert_error: info.revert_error.map(|error| error.to_string()),
+            total_gas: info.receipt.gas,
+            actual_resources: info.receipt.into(),
+        }
+    }
+}
+
+impl From<&TransactionExecutionInfo> for CentralTransactionExecutionInfo {
+    fn from(info: &TransactionExecutionInfo) -> CentralTransactionExecutionInfo {
+        CentralTransactionExecutionInfo {
+            validate_call_info: info.validate_call_info.clone(),
+            execute_call_info: info.execute_call_info.clone(),
+            fee_transfer_call_info: info.fee_transfer_call_info.clone(),
+            actual_fee: info.receipt.fee,
+            da_gas: info.receipt.da_gas,
+            revert_error: info.revert_error.as_ref().map(|error| error.to_string()),
+            total_gas: info.receipt.gas,
+            actual_resources: ResourcesMapping::from(&info.receipt),
         }
     }
 }
