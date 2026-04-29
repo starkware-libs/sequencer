@@ -55,5 +55,7 @@ jobs:
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      - run: cargo build -p apollo_storage --features os_input
+      - run: cargo build -p apollo_batcher --features os_input
+      - run: cargo test -p apollo_batcher --features os_input
+      - run: cargo test -p apollo_reverts --features os_input
       - run: cargo test -p apollo_storage --features os_input
