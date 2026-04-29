@@ -71,6 +71,8 @@ use apollo_storage::storage_reader_types::{
     StorageReaderRequest,
     StorageReaderResponse,
 };
+#[cfg(feature = "os_input")]
+use apollo_storage::tx_execution_info::TxExecutionInfoStorageWriter;
 use apollo_storage::{
     open_storage_with_metric_and_server,
     StorageError,
@@ -86,6 +88,7 @@ use blockifier::context::BlockContext;
 use blockifier::execution::entry_point::call_view_entry_point;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_api::StateReader;
+use blockifier::transaction::objects::TransactionExecutionInfo;
 use futures::FutureExt;
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
@@ -956,12 +959,22 @@ impl Batcher {
         )
         .await?;
 
-        let execution_infos = block_execution_artifacts
-            .execution_data
-            .execution_infos_and_signatures
-            .into_iter()
-            .map(|(tx_hash, (info, _))| (tx_hash, info))
-            .collect();
+        let execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo> =
+            block_execution_artifacts
+                .execution_data
+                .execution_infos_and_signatures
+                .into_iter()
+                .map(|(tx_hash, (info, _))| (tx_hash, info))
+                .collect();
+
+        #[cfg(feature = "os_input")]
+        // TODO(Yoav): Remove the clone here.
+        self.storage_writer
+            .write_tx_execution_infos(height, execution_infos.values().cloned().collect())
+            .map_err(|err| {
+                error!("Failed to write tx execution infos to storage: {}", err);
+                BatcherError::InternalError
+            })?;
 
         LAST_BATCHED_BLOCK_HEIGHT.set_lossy(height.0);
         BATCHED_TRANSACTIONS.increment(n_txs);
@@ -1784,6 +1797,13 @@ pub trait BatcherStorageWriter: Send + Sync {
     ) -> StorageResult<()>;
 
     fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()>;
+
+    #[cfg(feature = "os_input")]
+    fn write_tx_execution_infos(
+        &mut self,
+        height: BlockNumber,
+        tx_execution_infos: Vec<TransactionExecutionInfo>,
+    ) -> StorageResult<()>;
 }
 
 impl BatcherStorageWriter for StorageWriter {
@@ -1836,6 +1856,15 @@ impl BatcherStorageWriter for StorageWriter {
 
     fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()> {
         self.begin_rw_txn()?.set_block_hash(&height, block_hash)?.commit()
+    }
+
+    #[cfg(feature = "os_input")]
+    fn write_tx_execution_infos(
+        &mut self,
+        height: BlockNumber,
+        tx_execution_infos: Vec<TransactionExecutionInfo>,
+    ) -> StorageResult<()> {
+        self.begin_rw_txn()?.append_tx_execution_infos(height, tx_execution_infos)?.commit()
     }
 }
 

@@ -8,6 +8,7 @@ description = "Block building and transaction batching component for the Starkne
 
 [features]
 cairo_native = ["blockifier/cairo_native"]
+os_input = ["apollo_reverts/os_input", "apollo_storage/os_input"]
 testing = []
 
 [lints]
