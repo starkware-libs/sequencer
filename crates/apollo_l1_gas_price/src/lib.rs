@@ -6,8 +6,8 @@
 //! - **L1 gas prices (WEI)** — mean `base_fee_per_gas` and `blob_fee` over the last N Ethereum
 //!   blocks, maintained by [`l1_gas_price_provider`].
 //! - **ETH→STRK rate** — current market rate from one of several oracle endpoints, queried by
-//!   [`eth_to_strk_oracle`]. Multiple URLs are tried in round-robin; if the in-flight query for the
-//!   current time bucket hasn't resolved yet, the previous bucket's cached rate is used.
+//!   [`exchange_rate_oracle`]. Multiple URLs are tried in round-robin; if the in-flight query for
+//!   the current time bucket hasn't resolved yet, the previous bucket's cached rate is used.
 //!
 //! When combining these in `apollo_consensus_orchestrator`, the fallback chain is:
 //!

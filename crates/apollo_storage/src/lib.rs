@@ -90,6 +90,8 @@ pub mod global_root_marker;
 pub mod metrics;
 pub mod partial_block_hash;
 pub mod storage_metrics;
+#[cfg(feature = "os_input")]
+pub mod tx_execution_info;
 // TODO(yair): Make the compression_utils module pub(crate) or extract it from the crate.
 #[doc(hidden)]
 pub mod compression_utils;
@@ -181,6 +183,8 @@ use crate::storage_reader_server::{
     StorageReaderServer,
     StorageReaderServerHandler,
 };
+#[cfg(feature = "os_input")]
+use crate::tx_execution_info::TxExecutionInfos;
 use crate::version::{VersionStorageReader, VersionStorageWriter};
 
 // For more details on the storage version, see the module documentation.
@@ -268,6 +272,8 @@ fn open_storage_internal(
         compiled_class_hash: db_writer.create_common_prefix_table("compiled_class_hash")?,
         stateless_compiled_class_hash_v2: db_writer
             .create_simple_table("stateless_compiled_class_hash_v2")?,
+        #[cfg(feature = "os_input")]
+        tx_execution_infos: db_writer.create_simple_table("tx_execution_infos")?,
     });
     let (file_writers, file_readers) = open_storage_files(
         &storage_config.db_config,
@@ -701,19 +707,23 @@ struct_field_names! {
 
         // Compiled class hashes.
         compiled_class_hash: TableIdentifier<(ClassHash, BlockNumber), VersionZeroWrapper<CompiledClassHash>, CommonPrefix>,
-        stateless_compiled_class_hash_v2: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>
+        stateless_compiled_class_hash_v2: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>,
+
+        #[cfg(feature = "os_input")]
+        tx_execution_infos: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>
     }
 }
 
 macro_rules! struct_field_names {
-    (struct $name:ident { $($fname:ident : $ftype:ty),* }) => {
+    (struct $name:ident { $($(#[$attr:meta])* $fname:ident : $ftype:ty),* }) => {
+        #[allow(dead_code)]
         pub(crate) struct $name {
-            $($fname : $ftype),*
+            $($(#[$attr])* $fname : $ftype),*
         }
 
         impl $name {
             fn field_names() -> &'static [&'static str] {
-                static NAMES: &'static [&'static str] = &[$(stringify!($fname)),*];
+                static NAMES: &'static [&'static str] = &[$($(#[$attr])* stringify!($fname)),*];
                 NAMES
             }
         }
@@ -866,6 +876,8 @@ struct FileHandlers<Mode: TransactionKind> {
     transaction_output: FileHandler<VersionZeroWrapper<TransactionOutput>, Mode>,
     transaction: FileHandler<VersionZeroWrapper<Transaction>, Mode>,
     events: FileHandler<VersionZeroWrapper<Vec<Event>>, Mode>,
+    #[cfg(feature = "os_input")]
+    tx_execution_infos: FileHandler<VersionZeroWrapper<TxExecutionInfos>, Mode>,
 }
 
 impl FileHandlers<RW> {
@@ -908,6 +920,12 @@ impl FileHandlers<RW> {
         self.clone().events.append(events)
     }
 
+    #[cfg(feature = "os_input")]
+    #[expect(dead_code)]
+    fn append_tx_execution_infos(&self, tx_execution_infos: &TxExecutionInfos) -> LocationInFile {
+        self.clone().tx_execution_infos.append(tx_execution_infos)
+    }
+
     // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.
     #[latency_histogram("storage_file_handler_flush_latency_seconds", false)]
     fn flush(&self) {
@@ -919,6 +937,8 @@ impl FileHandlers<RW> {
         self.transaction_output.flush();
         self.transaction.flush();
         self.events.flush();
+        #[cfg(feature = "os_input")]
+        self.tx_execution_infos.flush();
     }
 }
 
@@ -933,6 +953,8 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             ("transaction_output".to_string(), self.transaction_output.stats()),
             ("transaction".to_string(), self.transaction.stats()),
             ("events".to_string(), self.events.stats()),
+            #[cfg(feature = "os_input")]
+            ("tx_execution_infos".to_string(), self.tx_execution_infos.stats()),
         ])
     }
 
@@ -998,6 +1020,19 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             msg: format!("Events at location {location:?} not found."),
         })
     }
+
+    #[cfg(feature = "os_input")]
+    #[expect(dead_code)]
+    // Returns the transaction execution infos at the given location or an error in case they don't
+    // exist.
+    pub(crate) fn get_tx_execution_infos_unchecked(
+        &self,
+        location: LocationInFile,
+    ) -> StorageResult<TxExecutionInfos> {
+        self.tx_execution_infos.get(location)?.ok_or(StorageError::DBInconsistency {
+            msg: format!("TxExecutionInfos at location {location:?} not found."),
+        })
+    }
 }
 
 fn open_storage_files(
@@ -1034,6 +1069,9 @@ fn open_storage_files(
         open_storage_file!("transaction_output", TransactionOutput)?;
     let (transaction_writer, transaction_reader) = open_storage_file!("transaction", Transaction)?;
     let (events_writer, events_reader) = open_storage_file!("events", Events)?;
+    #[cfg(feature = "os_input")]
+    let (tx_execution_infos_writer, tx_execution_infos_reader) =
+        open_storage_file!("tx_execution_infos", TxExecutionInfo)?;
 
     Ok((
         FileHandlers {
@@ -1044,6 +1082,8 @@ fn open_storage_files(
             transaction_output: transaction_output_writer,
             transaction: transaction_writer,
             events: events_writer,
+            #[cfg(feature = "os_input")]
+            tx_execution_infos: tx_execution_infos_writer,
         },
         FileHandlers {
             thin_state_diff: thin_state_diff_reader,
@@ -1053,6 +1093,8 @@ fn open_storage_files(
             transaction_output: transaction_output_reader,
             transaction: transaction_reader,
             events: events_reader,
+            #[cfg(feature = "os_input")]
+            tx_execution_infos: tx_execution_infos_reader,
         },
     ))
 }
@@ -1074,4 +1116,7 @@ pub enum OffsetKind {
     Transaction,
     /// An events file.
     Events,
+    /// A tx execution info file.
+    #[cfg(feature = "os_input")]
+    TxExecutionInfo,
 }
