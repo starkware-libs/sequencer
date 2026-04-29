@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777462660522,
+  "lastUpdate": 1777470498236,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3433,6 +3433,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1283.8486222000001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4c01f7669ea399c6612af6714f9a31458f2175b5",
+          "message": "starknet_committer,starknet_committer_and_os_cli: log snap-sync progress per request (#13920)\n\nAdds StateDiff::len/is_empty and logs context, range, and leaf count\nfor each processed request in process_request.",
+          "timestamp": "2026-04-29T13:31:59Z",
+          "tree_id": "02ab44f4c67dbf3bb74bd24684f1f6ca583157dd",
+          "url": "https://github.com/starkware-libs/sequencer/commit/4c01f7669ea399c6612af6714f9a31458f2175b5"
+        },
+        "date": 1777470497743,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 932.64782327,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1421.92849703,
             "unit": "ms"
           }
         ]
