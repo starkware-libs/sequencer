@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777451165065,
+  "lastUpdate": 1777458987663,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3365,6 +3365,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1284.6001781500001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "10a2c7e88ac7ea439412b773c4e19565a7671d65",
+          "message": "central_systest_blobs: initial crate, with chain info regression (#13889)",
+          "timestamp": "2026-04-29T10:20:15Z",
+          "tree_id": "17c809373f51e9f12adcf53108d7ed82eefaca25",
+          "url": "https://github.com/starkware-libs/sequencer/commit/10a2c7e88ac7ea439412b773c4e19565a7671d65"
+        },
+        "date": 1777458987246,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 880.38173802,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1369.48580118,
             "unit": "ms"
           }
         ]
