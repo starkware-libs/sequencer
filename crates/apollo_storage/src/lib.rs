@@ -716,7 +716,6 @@ struct_field_names! {
 
 macro_rules! struct_field_names {
     (struct $name:ident { $($(#[$attr:meta])* $fname:ident : $ftype:ty),* }) => {
-        #[expect(dead_code)]
         pub(crate) struct $name {
             $($(#[$attr])* $fname : $ftype),*
         }
@@ -921,7 +920,6 @@ impl FileHandlers<RW> {
     }
 
     #[cfg(feature = "os_input")]
-    #[expect(dead_code)]
     fn append_tx_execution_infos(&self, tx_execution_infos: &TxExecutionInfos) -> LocationInFile {
         self.clone().tx_execution_infos.append(tx_execution_infos)
     }
@@ -1022,7 +1020,6 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
     }
 
     #[cfg(feature = "os_input")]
-    #[expect(dead_code)]
     // Returns the transaction execution infos at the given location or an error in case they don't
     // exist.
     pub(crate) fn get_tx_execution_infos_unchecked(
