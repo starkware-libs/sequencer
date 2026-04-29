@@ -41,6 +41,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "base_layer_config.fusaka_no_bpo_start_block_number",
     "base_layer_config.starknet_contract_address",
     "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.n_events",
+    "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.receipt_l2_gas",
     "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size",
     "batcher_config.static_config.block_builder_config.execute_config.n_workers",
     "batcher_config.static_config.block_builder_config.n_concurrent_txs",
