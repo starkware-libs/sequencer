@@ -7,6 +7,7 @@ license-file.workspace = true
 description = "A storage implementation for a Starknet node."
 
 [features]
+os_input = []
 storage_cli = ["clap", "reqwest"]
 testing = ["reqwest", "starknet_api/testing", "tempfile", "tower"]
 
@@ -16,6 +17,7 @@ apollo_metrics.workspace = true
 apollo_proc_macros.workspace = true
 async-trait.workspace = true
 axum.workspace = true
+blockifier = { workspace = true, features = ["transaction_serde"] }
 byteorder.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }
 cairo-lang-starknet-classes.workspace = true
