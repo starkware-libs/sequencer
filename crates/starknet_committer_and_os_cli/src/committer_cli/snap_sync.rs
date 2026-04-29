@@ -331,6 +331,13 @@ fn process_request<K: TreeKey, S: Storage + Send + 'static>(
 ) -> Pin<Box<dyn Future<Output = Result<(), SnapSyncError>> + Send>> {
     Box::pin(async move {
         let (state_diff, actual_end) = K::scan(&reader, &request, block_target, size_limit)?;
+        info!(
+            "context={:?} range=[{}, {}] leaves={}",
+            request.context,
+            request.start.key().to_hex_string(),
+            actual_end.to_hex_string(),
+            state_diff.len()
+        );
         commit_state_diff(state_diff, &commit_state).await;
 
         let start_felt: Felt = *request.start.key();
