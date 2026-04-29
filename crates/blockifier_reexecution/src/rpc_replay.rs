@@ -207,7 +207,7 @@ fn reexecute_block(
     let prev_block = BlockNumber(block_number)
         .prev()
         .expect("Block number 0 cannot be reexecuted (no previous block).");
-    let readers = RpcBlockReexecutor::new(
+    let block_reexecutor = RpcBlockReexecutor::new(
         prev_block,
         Some(config.clone()),
         chain_info.clone(),
@@ -216,10 +216,10 @@ fn reexecute_block(
         prefetch_initial_reads,
     );
 
-    let block_header = readers.get_next_block_header()?;
+    let block_header = block_reexecutor.get_next_block_header()?;
 
     let ReexecuteBlockOutcome { expected_state_diff, actual_state_diff, txs_hashing_data, .. } =
-        readers.reexecute_block()?;
+        block_reexecutor.reexecute_block()?;
 
     if !compare_state_diffs(
         expected_state_diff,

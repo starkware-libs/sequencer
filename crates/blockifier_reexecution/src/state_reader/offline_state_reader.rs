@@ -30,6 +30,7 @@ use starknet_types_core::felt::Felt;
 use crate::compile::{legacy_to_contract_class_v0, sierra_to_versioned_contract_class_v1};
 use crate::errors::ReexecutionResult;
 use crate::state_reader::reexecution_state_reader::{BlockReexecutor, ReexecutionStateReader};
+use crate::state_reader::rpc_objects::BlockHeader;
 use crate::state_reader::rpc_state_reader::StarknetContractClassMapping;
 use crate::utils::get_chain_info;
 
@@ -38,6 +39,7 @@ pub struct OfflineReexecutionData {
     block_context_next_block: BlockContext,
     transactions_next_block: Vec<BlockifierTransaction>,
     state_diff_next_block: CommitmentStateDiff,
+    block_header: BlockHeader,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -47,6 +49,8 @@ pub struct SerializableDataNextBlock {
     pub transactions_next_block: Vec<(Transaction, TransactionHash)>,
     pub state_diff_next_block: CommitmentStateDiff,
     pub declared_classes: StarknetContractClassMapping,
+    /// Block header fields needed for block hash verification.
+    pub block_header: BlockHeader,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -93,6 +97,7 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
                     transactions_next_block,
                     state_diff_next_block,
                     declared_classes,
+                    block_header,
                 },
             chain_id,
             old_block_hash,
@@ -120,6 +125,7 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
             ),
             transactions_next_block,
             state_diff_next_block,
+            block_header,
         }
     }
 }
@@ -246,6 +252,7 @@ pub struct OfflineBlockReexecutor {
     pub transactions_next_block: Vec<BlockifierTransaction>,
     pub state_diff_next_block: CommitmentStateDiff,
     contract_class_manager: ContractClassManager,
+    block_header: BlockHeader,
 }
 
 impl OfflineBlockReexecutor {
@@ -264,6 +271,7 @@ impl OfflineBlockReexecutor {
             block_context_next_block,
             transactions_next_block,
             state_diff_next_block,
+            block_header,
         }: OfflineReexecutionData,
         contract_class_manager: ContractClassManager,
     ) -> Self {
@@ -273,11 +281,16 @@ impl OfflineBlockReexecutor {
             transactions_next_block,
             state_diff_next_block,
             contract_class_manager,
+            block_header,
         }
     }
 }
 
 impl BlockReexecutor<StateReaderAndContractManager<OfflineStateReader>> for OfflineBlockReexecutor {
+    fn get_block_header(&self) -> ReexecutionResult<BlockHeader> {
+        Ok(self.block_header.clone())
+    }
+
     fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
