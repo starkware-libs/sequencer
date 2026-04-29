@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777409611019,
+  "lastUpdate": 1777451165065,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3331,6 +3331,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1526.58198666,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "99e370faef5488048c28746ac04cb77512b3a219",
+          "message": "starknet_api: impl conversions from inner structs to AccountTransaction enum (#13862)\n\n* blockifier_test_utils: add account contract with real signature validation\n\n* starknet_api: move definition of new_unlimited_gas_no_fee_enforcement\n\n* blockifier: add get_class_info for feature contract trait\n\n* starknet_api: impl From<allResourceBounds> for ValidResourceBounds\n\n* starknet_api: impl conversions from inner structs to AccountTransaction enum",
+          "timestamp": "2026-04-29T08:01:33Z",
+          "tree_id": "71d029c93451997b570c05b95f09126e0a688be3",
+          "url": "https://github.com/starkware-libs/sequencer/commit/99e370faef5488048c28746ac04cb77512b3a219"
+        },
+        "date": 1777451164699,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 859.17744987,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1284.6001781500001,
             "unit": "ms"
           }
         ]
