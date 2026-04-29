@@ -61,7 +61,7 @@ pub(crate) trait OrderedItem: Sized {
 }
 
 // TODO(Arni): Consider rename `OrderedEvent` to `OrderableEvent`.
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "transaction_serde"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct OrderedEvent {
@@ -81,7 +81,7 @@ impl OrderedItem for OrderedEvent {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "transaction_serde"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct MessageToL1 {
@@ -89,7 +89,7 @@ pub struct MessageToL1 {
     pub payload: L2ToL1Payload,
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "transaction_serde"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct OrderedL2ToL1Message {
@@ -121,7 +121,7 @@ impl OrderedItem for OrderedL2ToL1Message {
 }
 
 /// Represents the effects of executing a single entry point.
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "transaction_serde"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CallExecution {
@@ -423,7 +423,7 @@ pub fn cairo_primitive_counter_map<T: Into<CairoPrimitiveName>>(
     cairo_primitives.into_iter().map(|(name, count)| (name.into(), count)).collect()
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "transaction_serde"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct StorageAccessTracker {
@@ -438,7 +438,7 @@ pub struct StorageAccessTracker {
 }
 
 /// Represents the full effects of executing an entry point, including the inner calls it invoked.
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "transaction_serde"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CallInfo {
