@@ -101,8 +101,9 @@ jobs:
         with:
           credentials_json: ${{ secrets.SA_STARKNET_OS_RUNNER_ARTIFACTS }}
       - uses: "google-github-actions/setup-gcloud@v2"
+      - run: echo "RPC_RECORDS_PREFIX=$(cat ./crates/starknet_transaction_prover/resources/rpc_records_prefix)" >> $GITHUB_ENV
       - run: mkdir -p ./crates/starknet_transaction_prover/resources/rpc_records
-      - run: gcloud storage cp -r gs://starknet-os-runner-artifacts/rpc_records/* ./crates/starknet_transaction_prover/resources/rpc_records/
+      - run: gcloud storage cp -r gs://starknet-os-runner-artifacts/$RPC_RECORDS_PREFIX/rpc_records/* ./crates/starknet_transaction_prover/resources/rpc_records/
 
       # Run tests sequentially (no parallelism) since proving is a heavy CPU and memory intensive task
       - name: Run proving integration tests
