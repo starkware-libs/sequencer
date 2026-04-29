@@ -43,7 +43,7 @@ impl PreambleType {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "transaction_serde"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, PartialEq)]
 pub struct EntryPointErrorFrame {
@@ -77,7 +77,7 @@ impl From<&EntryPointErrorFrame> for String {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "transaction_serde"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, PartialEq)]
 pub struct VmExceptionFrame {
@@ -102,7 +102,7 @@ impl From<&VmExceptionFrame> for String {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "transaction_serde"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, PartialEq, derive_more::From)]
 pub enum ErrorStackSegment {
@@ -150,7 +150,7 @@ impl Display for ErrorStackHeader {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(any(test, feature = "testing", feature = "transaction_serde"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Default, PartialEq)]
 pub struct ErrorStack {
