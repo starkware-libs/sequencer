@@ -2819,6 +2819,7 @@ dependencies = [
  "schemars 1.1.0",
  "serde",
  "serde_json",
+ "shared_execution_objects",
  "simple_logger",
  "starknet-types-core",
  "starknet_api",

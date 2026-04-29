@@ -9,6 +9,7 @@ description = "A storage implementation for a Starknet node."
 [features]
 storage_cli = ["clap", "reqwest"]
 testing = ["reqwest", "starknet_api/testing", "tempfile", "tower"]
+os_input = []
 
 [dependencies]
 apollo_config.workspace = true
@@ -36,6 +37,7 @@ primitive-types.workspace = true
 reqwest = { workspace = true, features = ["json"], optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
+shared_execution_objects = { workspace = true, features = ["deserialize"] }
 starknet-types-core = { workspace = true, features = ["papyrus-serialization"] }
 starknet_api.workspace = true
 tempfile = { workspace = true, optional = true }
