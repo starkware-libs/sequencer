@@ -370,6 +370,7 @@ auto_storage_serde! {
         TransactionOutput = 4,
         Transaction = 5,
         Events = 6,
+        TxExecutionInfo = 7,
     }
     pub struct PartialBlockHashComponents {
         pub header_commitments: BlockHeaderCommitments,
