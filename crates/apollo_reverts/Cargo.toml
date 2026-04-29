@@ -6,6 +6,9 @@ license.workspace = true
 repository.workspace = true
 description = "Handles blockchain revert detection and management."
 
+[features]
+os_input = ["apollo_storage/os_input"]
+
 [lints]
 workspace = true
 
