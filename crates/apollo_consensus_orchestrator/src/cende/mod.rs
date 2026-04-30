@@ -70,6 +70,7 @@ pub(crate) const N_BLOCK_HASHES_BACK_IN_BLOB: u64 = STORED_BLOCK_HASH_BUFFER;
 pub type CendeAmbassadorResult<T> = Result<T, CendeAmbassadorError>;
 
 /// A chunk of all the data to write to Aersopike.
+#[cfg_attr(any(feature = "testing", test), derive(Deserialize, PartialEq))]
 #[derive(Debug, Serialize)]
 pub struct AerospikeBlob {
     block_number: BlockNumber,
