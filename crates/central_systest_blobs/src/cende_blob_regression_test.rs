@@ -820,9 +820,9 @@ async fn test_make_data() {
     //    sender account.
     // (from this point - all txs include non-zero fees, and no more bootstrap declares)
     // 5. declare the test contract.
-    // TODO(Dori): the rest of the txs.
     // 6. deploy the test contract.
     // 7. deploy another instance of the test contract.
+    // TODO(Dori): the rest of the txs.
     // 8. invoke the test contract: something with a state change.
     // 9. invoke the test contract: test syscalls.
     let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
@@ -853,6 +853,18 @@ async fn test_make_data() {
     EXPECTED_FEE_TOKEN_ADDRESS.assert_eq(&token_address.to_string());
     blob_factory.close_block().await;
     blob_factory.make_declare_tx(test_contract, Some(*OPERATOR_ADDRESS));
+    blob_factory.close_block().await;
+    let _test_contract_address_0 = blob_factory.make_operator_deploy_tx(
+        test_contract,
+        calldata![Felt::ZERO, Felt::ZERO],
+        true, // charge fee
+    );
+    blob_factory.close_block().await;
+    let _test_contract_address_1 = blob_factory.make_operator_deploy_tx(
+        test_contract,
+        calldata![Felt::ONE, Felt::ONE],
+        true, // charge fee
+    );
 
     let (blobs, preconfirmed_block) = blob_factory.finalize().await;
     expect_file![CHAIN_INFO_PATH].assert_eq(&serde_json::to_string_pretty(&chain_info).unwrap());
