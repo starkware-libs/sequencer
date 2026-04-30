@@ -25,7 +25,7 @@ use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
-use blockifier::context::{BlockContext, ChainInfo};
+use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::state_api::UpdatableState;
 use blockifier::test_utils::contracts::FeatureContractTrait;
@@ -36,7 +36,7 @@ use blockifier::transaction::transactions::ExecutableTransaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
-use expect_test::expect_file;
+use expect_test::{expect, expect_file, Expect};
 use google_cloud_storage::client::{Client, ClientConfig};
 use google_cloud_storage::http::error::ErrorResponse;
 use google_cloud_storage::http::objects::download::Range;
@@ -54,7 +54,13 @@ use starknet_api::block_hash::block_hash_calculator::{
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
-use starknet_api::core::{ChainId, ContractAddress, Nonce, OsChainInfo};
+use starknet_api::core::{
+    calculate_contract_address,
+    ChainId,
+    ContractAddress,
+    Nonce,
+    OsChainInfo,
+};
 use starknet_api::data_availability::{DataAvailabilityMode, L1DataAvailabilityMode};
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableAccountTx,
@@ -126,6 +132,15 @@ static CHAIN_ID: LazyLock<ChainId> =
 
 const CHAIN_INFO_PATH: &str = "../resources/chain_info.json";
 const PRECONFIRMED_BLOCK_PATH: &str = "../resources/preconfirmed_block.json";
+
+const EXPECTED_OPERATOR_ADDRESS: Expect =
+    expect!["0x00f99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955"];
+const EXPECTED_FEE_TOKEN_ADDRESS: Expect =
+    expect!["0x06bd1d71a2fb67a567618584ca31da288dbc2e1a8421e4045e05f52c19bfab83"];
+static OPERATOR_ADDRESS: LazyLock<ContractAddress> =
+    LazyLock::new(|| contract_address!(EXPECTED_OPERATOR_ADDRESS.data));
+static FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> =
+    LazyLock::new(|| contract_address!(EXPECTED_FEE_TOKEN_ADDRESS.data));
 
 static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<AllResourceBounds> =
     LazyLock::new(|| AllResourceBounds {
@@ -239,8 +254,14 @@ impl BlobFactory {
     const OPERATOR_PRIVATE_KEY: Felt = Felt::THREE;
 
     pub fn new() -> Self {
-        let chain_info =
-            ChainInfo { chain_id: CHAIN_ID.clone(), ..ChainInfo::create_for_testing() };
+        let chain_info = ChainInfo {
+            chain_id: CHAIN_ID.clone(),
+            fee_token_addresses: FeeTokenAddresses {
+                strk_fee_token_address: *FEE_TOKEN_ADDRESS,
+                eth_fee_token_address: *FEE_TOKEN_ADDRESS,
+            },
+            is_l3: false,
+        };
         Self {
             chain_info,
             class_manager: MockClassManagerClient::default(),
@@ -527,21 +548,27 @@ impl BlobFactory {
 
     fn make_operator_deploy_tx(
         &mut self,
-        operator_address: ContractAddress,
         contract_to_deploy: FeatureContract,
         constructor_calldata: Calldata,
         with_fee_charge: bool,
-    ) {
+    ) -> ContractAddress {
         let class_hash = contract_to_deploy.get_sierra().calculate_class_hash();
         let contract_address_salt = ContractAddressSalt::default();
-        let nonce = self.nonce_manager.next(operator_address);
+        let contract_address = calculate_contract_address(
+            contract_address_salt,
+            class_hash,
+            &constructor_calldata,
+            *OPERATOR_ADDRESS,
+        )
+        .unwrap();
+        let nonce = self.nonce_manager.next(*OPERATOR_ADDRESS);
         let resource_bounds = if with_fee_charge {
             *NON_TRIVIAL_RESOURCE_BOUNDS
         } else {
             AllResourceBounds::new_unlimited_gas_no_fee_enforcement()
         };
         let calldata = Self::single_multicall_data(
-            operator_address,
+            *OPERATOR_ADDRESS,
             "deploy_contract",
             &[
                 vec![
@@ -555,7 +582,7 @@ impl BlobFactory {
             .concat(),
         );
         let rpc_tx_unsigned = InternalRpcInvokeTransactionV3 {
-            sender_address: operator_address,
+            sender_address: *OPERATOR_ADDRESS,
             calldata,
             signature: TransactionSignature::default(),
             resource_bounds,
@@ -582,6 +609,7 @@ impl BlobFactory {
             tx_hash,
         });
         self.next_txs.push((executable.into(), internal));
+        contract_address
     }
 
     // =====================
@@ -789,9 +817,9 @@ async fn test_make_data() {
     blob_factory.boostrap_declare_tx(account_with_real_validate);
     blob_factory.close_block().await;
     let operator_address = blob_factory.make_free_deploy_account_tx(account_with_real_validate);
+    EXPECTED_OPERATOR_ADDRESS.assert_eq(&operator_address.to_string());
     blob_factory.close_block().await;
-    blob_factory.make_operator_deploy_tx(
-        operator_address,
+    let token_address = blob_factory.make_operator_deploy_tx(
         erc20_contract,
         calldata![
             Felt::from_bytes_be_slice(b"StarkNet Token"),
@@ -806,6 +834,7 @@ async fn test_make_data() {
         ],
         false, // charge fee
     );
+    EXPECTED_FEE_TOKEN_ADDRESS.assert_eq(&token_address.to_string());
 
     let (blobs, preconfirmed_block) = blob_factory.finalize().await;
     expect_file![CHAIN_INFO_PATH].assert_eq(&serde_json::to_string_pretty(&chain_info).unwrap());

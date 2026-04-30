@@ -20,7 +20,7 @@
     "timestamp": 1003,
     "transaction_receipts": [
       {
-        "actual_fee": "0x64355d",
+        "actual_fee": "0x642df9",
         "events": [
           {
             "data": [
@@ -76,14 +76,14 @@
           },
           "data_availability": {
             "l1_data_gas": 0,
-            "l1_gas": 15115,
+            "l1_gas": 13223,
             "l2_gas": 0
           },
           "n_memory_holes": 0,
           "n_steps": 4442,
           "total_gas_consumed": {
             "l1_data_gas": 0,
-            "l1_gas": 21176,
+            "l1_gas": 19284,
             "l2_gas": 6546085
           }
         },
