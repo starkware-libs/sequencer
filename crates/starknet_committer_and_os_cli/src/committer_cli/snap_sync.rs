@@ -9,7 +9,14 @@ use apollo_committer::committer::StorageConstructor;
 use apollo_committer_config::config::{ApolloCommitterConfig, ApolloStorage};
 use apollo_storage::db::DbConfig;
 use apollo_storage::state::StateStorageReader;
-use apollo_storage::{open_storage, StorageConfig, StorageError, StorageReader, StorageResult};
+use apollo_storage::{
+    open_storage,
+    StorageConfig,
+    StorageError,
+    StorageReader,
+    StorageResult,
+    StorageScope,
+};
 use clap::Args;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, PatriciaKey, MAX_PATRICIA_KEY};
@@ -411,7 +418,7 @@ pub struct SnapSyncArgs {
     #[clap(long)]
     pub block_target: u64,
     /// Maximum number of non-empty cells per request.
-    #[clap(long, default_value = "1024 * 1024")]
+    #[clap(long, default_value = "1048576")] // 2^20.
     pub size_limit: usize,
     /// Path prefix of the batcher's MDBX storage directory.
     #[clap(long, default_value_os_t = DbConfig::default().path_prefix)]
@@ -433,6 +440,7 @@ pub async fn run_snap_sync(
 ) {
     let storage_config = StorageConfig {
         db_config: DbConfig { path_prefix: batcher_path_prefix, chain_id, ..Default::default() },
+        scope: StorageScope::StateOnly,
         ..Default::default()
     };
 
