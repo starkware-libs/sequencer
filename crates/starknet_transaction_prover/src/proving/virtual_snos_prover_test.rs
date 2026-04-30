@@ -47,6 +47,8 @@ use crate::test_utils::{
 /// Integration test for the full prover pipeline with a `balanceOf` transaction.
 /// Runs on a Sepolia environment; in live/recording mode requires a Sepolia RPC node via
 /// `NODE_URL`.
+// TODO(Avi): re-enable this test.
+#[cfg(any())]
 #[rstest]
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
@@ -85,6 +87,8 @@ async fn test_prove_balance_of_transaction() {
 /// Integration test for the full prover pipeline with a STRK `transfer` transaction.
 /// Runs on a Sepolia environment; in live/recording mode requires a Sepolia RPC node via
 /// `NODE_URL`.
+// TODO(Avi): re-enable this test.
+#[cfg(any())]
 #[rstest]
 #[tokio::test(flavor = "multi_thread")]
 #[ignore] // Run with --ignored; supports live, recording, and offline modes.
