@@ -13,6 +13,8 @@ use apollo_committer_types::committer_types::{
 use apollo_committer_types::communication::CommitterRequestLabelValue;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::GlobalRoot;
+#[cfg(feature = "os_input")]
+use starknet_os::commitment_infos::StateCommitmentInfos;
 use tracing::warn;
 
 /// Input for commitment tasks.
@@ -92,6 +94,8 @@ pub(crate) struct FinalBlockCommitment {
     // cannot be finalized.
     pub(crate) block_hash: Option<BlockHash>,
     pub(crate) global_root: GlobalRoot,
+    #[cfg(feature = "os_input")]
+    pub(crate) state_commitment_infos: StateCommitmentInfos,
 }
 
 pub(crate) struct TaskTimer {

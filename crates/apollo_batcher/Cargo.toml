@@ -8,7 +8,7 @@ description = "Block building and transaction batching component for the Starkne
 
 [features]
 cairo_native = ["blockifier/cairo_native"]
-os_input = ["apollo_reverts/os_input", "apollo_storage/os_input"]
+os_input = ["apollo_committer_types/os_input", "apollo_storage/os_input", "dep:starknet_os", "starknet_os/os_input"]
 testing = []
 
 [lints]
@@ -43,6 +43,7 @@ lru.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true
 starknet_api.workspace = true
+starknet_os = { workspace = true, optional = true }
 strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio.workspace = true

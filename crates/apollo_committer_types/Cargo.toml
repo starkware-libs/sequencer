@@ -8,6 +8,7 @@ description = "Type definitions and interfaces for the Apollo committer componen
 
 [features]
 testing = ["mockall", "tokio"]
+os_input = ["dep:starknet_os", "starknet_os/os_input"]
 
 [dependencies]
 apollo_infra.workspace = true
@@ -17,6 +18,7 @@ mockall = { workspace = true, optional = true }
 serde.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true
+starknet_os = { workspace = true, optional = true }
 strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio = { workspace = true, optional = true }

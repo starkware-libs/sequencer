@@ -59,6 +59,8 @@ use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageWriter,
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
+#[cfg(feature = "os_input")]
+use apollo_storage::state_commitment_infos::StateCommitmentInfosStorageWriter;
 use apollo_storage::storage_reader_server::{
     DynamicConfigError,
     DynamicConfigProvider,
@@ -114,6 +116,8 @@ use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+#[cfg(feature = "os_input")]
+use starknet_os::commitment_infos::StateCommitmentInfos;
 use tokio::sync::Mutex;
 use tokio::task::AbortHandle;
 use tracing::{debug, error, info, instrument, trace, warn, Instrument};
@@ -1322,6 +1326,16 @@ impl Batcher {
         self.revert_commitment(height).await;
 
         self.storage_writer.revert_block(height);
+        #[cfg(feature = "os_input")]
+        self.storage_writer.revert_tx_execution_infos(height).map_err(|err| {
+            error!("Failed to revert tx execution infos from storage: {}", err);
+            BatcherError::InternalError
+        })?;
+        #[cfg(feature = "os_input")]
+        self.storage_writer.revert_state_commitment_infos(height).map_err(|err| {
+            error!("Failed to revert state commitment infos from storage: {}", err);
+            BatcherError::InternalError
+        })?;
         BUILDING_HEIGHT.decrement(1);
         GLOBAL_ROOT_HEIGHT.decrement(1);
         REVERTED_BLOCKS.increment(1);
@@ -1803,8 +1817,21 @@ pub trait BatcherStorageWriter: Send + Sync {
     fn write_tx_execution_infos(
         &mut self,
         height: BlockNumber,
-        tx_execution_infos: &TxExecutionInfos,
+        tx_execution_infos: Vec<TransactionExecutionInfo>,
     ) -> StorageResult<()>;
+
+    #[cfg(feature = "os_input")]
+    fn revert_tx_execution_infos(&mut self, height: BlockNumber) -> StorageResult<()>;
+
+    #[cfg(feature = "os_input")]
+    fn write_state_commitment_infos(
+        &mut self,
+        height: BlockNumber,
+        state_commitment_infos: StateCommitmentInfos,
+    ) -> StorageResult<()>;
+
+    #[cfg(feature = "os_input")]
+    fn revert_state_commitment_infos(&mut self, height: BlockNumber) -> StorageResult<()>;
 }
 
 impl BatcherStorageWriter for StorageWriter {
@@ -1863,9 +1890,29 @@ impl BatcherStorageWriter for StorageWriter {
     fn write_tx_execution_infos(
         &mut self,
         height: BlockNumber,
-        tx_execution_infos: &TxExecutionInfos,
+        tx_execution_infos: Vec<TransactionExecutionInfo>,
     ) -> StorageResult<()> {
         self.begin_rw_txn()?.append_tx_execution_infos(height, tx_execution_infos)?.commit()
+    }
+
+    #[cfg(feature = "os_input")]
+    fn revert_tx_execution_infos(&mut self, height: BlockNumber) -> StorageResult<()> {
+        use apollo_storage::tx_execution_info::TxExecutionInfoStorageWriter;
+        self.begin_rw_txn()?.revert_tx_execution_infos(height)?.commit()
+    }
+
+    #[cfg(feature = "os_input")]
+    fn write_state_commitment_infos(
+        &mut self,
+        height: BlockNumber,
+        state_commitment_infos: StateCommitmentInfos,
+    ) -> StorageResult<()> {
+        self.begin_rw_txn()?.append_state_commitment_infos(height, state_commitment_infos)?.commit()
+    }
+
+    #[cfg(feature = "os_input")]
+    fn revert_state_commitment_infos(&mut self, height: BlockNumber) -> StorageResult<()> {
+        self.begin_rw_txn()?.revert_state_commitment_infos(height)?.commit()
     }
 }
 

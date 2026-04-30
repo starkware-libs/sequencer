@@ -196,7 +196,12 @@ where
             }
             // Returns the precomputed global root.
             let db_global_root = self.load_global_root(height).await?;
-            return Ok(CommitBlockResponse { global_root: db_global_root });
+            return Ok(CommitBlockResponse {
+                global_root: db_global_root,
+                // TODO(Yoav): Consider what to do with state commitment infos for old blocks.
+                #[cfg(feature = "os_input")]
+                state_commitment_infos: Default::default(),
+            });
         }
 
         // Happy flow. Commits the state diff and returns the computed global root.
@@ -235,7 +240,11 @@ where
         block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
         update_metrics(height, &block_measurements.block_measurement);
         self.update_offset(next_offset);
-        Ok(CommitBlockResponse { global_root })
+        Ok(CommitBlockResponse {
+            global_root,
+            #[cfg(feature = "os_input")]
+            state_commitment_infos: Default::default(),
+        })
     }
 
     /// Applies the given state diff to revert the changes of the given height.

@@ -13,6 +13,7 @@ deserialize = [
   "starknet-types-core/serde",
   "starknet_patricia/deserialize",
 ]
+os_input = ["deserialize"]
 include_program_output = []
 testing = [
   "blockifier/testing",

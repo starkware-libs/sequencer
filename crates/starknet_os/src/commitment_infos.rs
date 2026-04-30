@@ -21,8 +21,9 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
+#[cfg_attr(feature = "deserialize", derive(Clone, Eq, PartialEq))]
 #[derive(Debug)]
 pub struct CommitmentInfo {
     pub previous_root: HashOutput,
@@ -36,7 +37,7 @@ pub struct CommitmentInfo {
     pub commitment_facts: HashMap<HashOutput, Vec<Felt>>,
 }
 
-#[cfg(any(feature = "testing", test))]
+#[cfg(any(feature = "testing", feature = "os_input", test))]
 impl Default for CommitmentInfo {
     fn default() -> CommitmentInfo {
         CommitmentInfo {
@@ -50,6 +51,10 @@ impl Default for CommitmentInfo {
 
 // TODO(Aviv): Use this struct in `OsBlockInput`
 /// Contains all commitment information for a block's state trees.
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "deserialize", derive(Clone, Eq, PartialEq))]
+#[cfg_attr(feature = "os_input", derive(Default))]
+#[derive(Debug)]
 pub struct StateCommitmentInfos {
     pub contracts_trie_commitment_info: CommitmentInfo,
     pub classes_trie_commitment_info: CommitmentInfo,

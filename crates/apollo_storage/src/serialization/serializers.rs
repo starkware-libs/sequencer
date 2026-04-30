@@ -373,6 +373,8 @@ auto_storage_serde! {
         Events = 6,
         #[cfg(feature = "os_input")]
         TxExecutionInfo = 7,
+        #[cfg(feature = "os_input")]
+        StateCommitmentInfos = 8,
     }
     pub struct PartialBlockHashComponents {
         pub header_commitments: BlockHeaderCommitments,

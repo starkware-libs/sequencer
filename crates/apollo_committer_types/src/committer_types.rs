@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::state::ThinStateDiff;
+#[cfg(feature = "os_input")]
+use starknet_os::commitment_infos::StateCommitmentInfos;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CommitBlockRequest {
@@ -11,9 +13,11 @@ pub struct CommitBlockRequest {
     pub height: BlockNumber,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct CommitBlockResponse {
     pub global_root: GlobalRoot,
+    #[cfg(feature = "os_input")]
+    pub state_commitment_infos: StateCommitmentInfos,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
