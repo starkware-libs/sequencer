@@ -16,6 +16,7 @@ use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::StateMaps;
+use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier_test_utils::contracts::FeatureContract;
 use expect_test::expect_file;
@@ -25,14 +26,33 @@ use google_cloud_storage::http::objects::download::Range;
 use google_cloud_storage::http::objects::get::GetObjectRequest;
 use google_cloud_storage::http::objects::upload::{Media, UploadObjectRequest, UploadType};
 use google_cloud_storage::http::Error as GcsError;
+use mockall::predicate::eq;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_address;
-use starknet_api::core::{ChainId, OsChainInfo};
-use starknet_api::executable_transaction::AccountTransaction as ExecutableAccountTx;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
+use starknet_api::core::{ChainId, Nonce, OsChainInfo};
+use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::executable_transaction::{
+    AccountTransaction as ExecutableAccountTx,
+    DeclareTransaction as ExecutableDeclareTransaction,
+};
 use starknet_api::hash::StateRoots;
+use starknet_api::rpc_transaction::{
+    InternalRpcDeclareTransactionV3,
+    InternalRpcTransaction,
+    InternalRpcTransactionWithoutTxHash,
+};
 use starknet_api::test_utils::TEST_SEQUENCER_ADDRESS;
+use starknet_api::transaction::fields::{
+    AccountDeploymentData,
+    AllResourceBounds,
+    PaymasterData,
+    Tip,
+    TransactionSignature,
+};
+use starknet_api::transaction::{DeclareTransaction, TransactionHasher, TransactionVersion};
 use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::db::forest_trait::StorageInitializer;
 use starknet_patricia_storage::map_storage::MapStorage;
@@ -78,14 +98,12 @@ struct BlockData {
 
 struct BlobFactory {
     chain_info: ChainInfo,
-    #[expect(dead_code)]
     class_manager: MockClassManagerClient,
 
     // Finalized blocks.
     blocks: Vec<BlockData>,
 
     // Transactions for the next block.
-    #[expect(dead_code)]
     next_txs: Vec<TxPair>,
 
     // Context.
@@ -142,8 +160,59 @@ impl BlobFactory {
     // =====================
 
     #[expect(dead_code)]
-    fn boostrap_declare_tx(&mut self, _contract: FeatureContract) {
-        unimplemented!()
+    fn boostrap_declare_tx(&mut self, contract: FeatureContract) {
+        let sender_address = ExecutableDeclareTransaction::bootstrap_address();
+        let sierra = contract.get_sierra();
+        let class_hash = sierra.calculate_class_hash();
+        let compiled_class_hash = contract.get_compiled_class_hash(&HashVersion::V2);
+        let resource_bounds = AllResourceBounds::new_unlimited_gas_no_fee_enforcement();
+        let nonce = Nonce::default();
+
+        // Create internal tx.
+        let internal_declare_without_hash = InternalRpcDeclareTransactionV3 {
+            sender_address,
+            nonce,
+            class_hash,
+            compiled_class_hash,
+            resource_bounds,
+            signature: TransactionSignature::default(),
+            tip: Tip::default(),
+            paymaster_data: PaymasterData::default(),
+            account_deployment_data: AccountDeploymentData::default(),
+            nonce_data_availability_mode: DataAvailabilityMode::L1,
+            fee_data_availability_mode: DataAvailabilityMode::L1,
+        };
+        let tx_hash = internal_declare_without_hash
+            .calculate_transaction_hash(&CHAIN_ID, &TransactionVersion::THREE)
+            .unwrap();
+        let internal_tx = InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
+            tx: InternalRpcTransactionWithoutTxHash::Declare(internal_declare_without_hash.clone()),
+            tx_hash,
+        });
+
+        // Create executable tx.
+        let executable = ExecutableDeclareTransaction::create(
+            DeclareTransaction::V3(internal_declare_without_hash.into()),
+            contract.get_class_info(),
+            &CHAIN_ID,
+        )
+        .unwrap();
+
+        // Mock the class manager.
+        // The class manager methods may not be called if a blob is not created with this declare.
+        self.class_manager
+            .expect_get_sierra()
+            .with(eq(class_hash))
+            .times(..=1)
+            .returning(move |_| Ok(Some(sierra.clone())));
+        self.class_manager
+            .expect_get_executable()
+            .with(eq(class_hash))
+            .times(..=1)
+            .returning(move |_| Ok(Some(contract.get_class())));
+
+        // Return the transactions.
+        self.next_txs.push((executable.into(), internal_tx));
     }
 
     // =====================
