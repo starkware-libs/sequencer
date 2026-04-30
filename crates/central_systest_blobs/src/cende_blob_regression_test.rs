@@ -532,11 +532,13 @@ impl BlobFactory {
                 &execution_info,
                 None,
             ));
-            let tx_state_diff = StarknetClientStateDiff::from(state_changes.state_maps).0;
+            let mut tx_state_diff = StarknetClientStateDiff::from(state_changes.state_maps);
+            // To keep the output deterministic, sort the state diff.
+            tx_state_diff.sort();
 
             transactions.push(CendePreconfirmedTransaction::from(internal));
             transaction_receipts.push(Some(receipt));
-            transaction_state_diffs.push(Some(tx_state_diff));
+            transaction_state_diffs.push(Some(tx_state_diff.0));
         }
 
         CendeWritePreconfirmedBlock {
