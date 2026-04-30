@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777534258559,
+  "lastUpdate": 1777553948424,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3501,6 +3501,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1213.67327116,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0282258f0487c2f3756fe3238fe699ce3e4b92d8",
+          "message": "starknet_committer_and_os_cli: fix snap-sync command (#13921)",
+          "timestamp": "2026-04-30T12:31:58Z",
+          "tree_id": "04767e1846e2f4b9b1eaf6bedc897774a6eeca6d",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0282258f0487c2f3756fe3238fe699ce3e4b92d8"
+        },
+        "date": 1777553947923,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 973.0563278,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1459.8880866,
             "unit": "ms"
           }
         ]
