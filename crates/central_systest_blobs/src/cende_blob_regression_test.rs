@@ -1,4 +1,6 @@
+use std::env::current_dir;
 use std::sync::{Arc, LazyLock};
+use std::{env, fs};
 
 use apollo_batcher::cende_client_types::{CendeBlockMetadata, CendePreconfirmedBlock};
 use apollo_batcher::pre_confirmed_cende_client::CendeWritePreconfirmedBlock;
@@ -17,6 +19,10 @@ use blockifier::state::cached_state::StateMaps;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier_test_utils::contracts::FeatureContract;
 use expect_test::expect_file;
+use google_cloud_storage::client::{google_cloud_auth, Client, ClientConfig};
+use google_cloud_storage::http::objects::download::Range;
+use google_cloud_storage::http::objects::get::GetObjectRequest;
+use google_cloud_storage::http::objects::upload::{Media, UploadObjectRequest, UploadType};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -28,6 +34,10 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::TEST_SEQUENCER_ADDRESS;
 use starknet_patricia_storage::map_storage::MapStorage;
 
+const BLOBS_BUCKET_NAME: &str = "apollo-central-systest-blobs";
+const BLOBS_FILE_NAME: &str = "blobs.json";
+const BLOBS_GENERATION_FILE: &str = "resources/blob_file_generation";
+
 const N_TXS_PER_BLOCK: usize = 1;
 static CHAIN_ID: LazyLock<ChainId> =
     LazyLock::new(|| ChainId::Other("SN_PREINTEGRATION_SEPOLIA".to_string()));
@@ -35,10 +45,23 @@ static CHAIN_INFO: LazyLock<ChainInfo> =
     LazyLock::new(|| ChainInfo { chain_id: CHAIN_ID.clone(), ..ChainInfo::create_for_testing() });
 
 const CHAIN_INFO_PATH: &str = "../resources/chain_info.json";
-const BLOB_LIST_PATH: &str = "../resources/blobs.json";
 const PRECONFIRMED_BLOCK_PATH: &str = "../resources/preconfirmed_block.json";
 
 type TxPair = (ExecutableAccountTx, InternalConsensusTransaction);
+
+/// ID of the current blobs file.
+fn current_generation() -> usize {
+    let path = current_dir().unwrap().join(BLOBS_GENERATION_FILE);
+    fs::read_to_string(path.clone())
+        .unwrap_or_else(|error| panic!("Failed to read file {path:?}: {error}"))
+        .trim()
+        .parse()
+        .unwrap()
+}
+
+fn blobs_object_path(generation: usize) -> String {
+    format!("{generation}/{BLOBS_FILE_NAME}")
+}
 
 // =====================
 // Tx generation
@@ -183,6 +206,75 @@ async fn make_data() -> (Vec<AerospikeBlob>, CendeWritePreconfirmedBlock) {
 }
 
 // =====================
+// Blob file storage
+// =====================
+
+async fn gcs_client() -> Client {
+    // Try ADC first (CI service accounts, or `gcloud auth application-default login`).
+    // Fall back to user credentials from `gcloud auth login`.
+    let client_config = if let Ok(config) = ClientConfig::default().with_auth().await {
+        config
+    } else {
+        let account = String::from_utf8(
+            std::process::Command::new("gcloud")
+                .args(["config", "get-value", "account"])
+                .output()
+                .expect("failed to run `gcloud config get-value account`")
+                .stdout,
+        )
+        .expect("gcloud output is not UTF-8")
+        .trim()
+        .to_string();
+        let home = std::env::var("HOME").expect("HOME not set");
+        let creds_path = format!("{home}/.config/gcloud/legacy_credentials/{account}/adc.json");
+        let creds = google_cloud_auth::credentials::CredentialsFile::new_from_file(creds_path)
+            .await
+            .expect("Failed to load gcloud user credentials. Run `gcloud auth login`.");
+        ClientConfig::default()
+            .with_credentials(creds)
+            .await
+            .expect("Failed to create GCS client config. Did you run `gcloud auth login`?")
+    };
+    Client::new(client_config)
+}
+
+/// Pushes the blobs to GCS.
+async fn bump_generation_and_store_blob_file(blobs: &[AerospikeBlob], client: &Client) {
+    let blobs_json = serde_json::to_string_pretty(blobs).unwrap();
+    let next_generation = current_generation() + 1;
+    client
+        .upload_object(
+            &UploadObjectRequest {
+                bucket: BLOBS_BUCKET_NAME.to_string(),
+                // Don't overwrite any existing file.
+                if_generation_match: Some(0),
+                ..Default::default()
+            },
+            blobs_json.into_bytes(),
+            &UploadType::Simple(Media::new(blobs_object_path(next_generation))),
+        )
+        .await
+        .unwrap();
+    fs::write(BLOBS_GENERATION_FILE, next_generation.to_string()).unwrap();
+}
+
+/// Fetches the blobs from GCS.
+async fn fetch_blob_file(client: &Client) -> Vec<AerospikeBlob> {
+    let blobs_json = client
+        .download_object(
+            &GetObjectRequest {
+                bucket: BLOBS_BUCKET_NAME.to_string(),
+                object: blobs_object_path(current_generation()),
+                ..Default::default()
+            },
+            &Range::default(),
+        )
+        .await
+        .unwrap();
+    serde_json::from_slice(&blobs_json).unwrap()
+}
+
+// =====================
 // Test
 // =====================
 
@@ -191,7 +283,18 @@ async fn test_make_data() {
     let (blobs, preconfirmed_block) = make_data().await;
     let chain_info = OsChainInfo::from(&*CHAIN_INFO).to_hex_map();
     expect_file![CHAIN_INFO_PATH].assert_eq(&serde_json::to_string_pretty(&chain_info).unwrap());
-    expect_file![BLOB_LIST_PATH].assert_eq(&serde_json::to_string_pretty(&blobs).unwrap());
     expect_file![PRECONFIRMED_BLOCK_PATH]
         .assert_eq(&serde_json::to_string_pretty(&preconfirmed_block).unwrap());
+
+    // Upload or download blobs depending on the fix mode.
+    let client = gcs_client().await;
+    if env::var("UPDATE_EXPECT").is_ok() {
+        bump_generation_and_store_blob_file(&blobs, &client).await;
+    } else {
+        let fetched_blobs = fetch_blob_file(&client).await;
+        assert_eq!(
+            blobs, fetched_blobs,
+            "Blobs mismatch. To fix, run the test with UPDATE_EXPECT=1."
+        );
+    }
 }
