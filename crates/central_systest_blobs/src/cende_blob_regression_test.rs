@@ -560,41 +560,20 @@ impl BlobFactory {
         contract_address
     }
 
-    fn make_operator_deploy_tx(
+    fn make_operator_invoke_tx(
         &mut self,
-        contract_to_deploy: FeatureContract,
-        constructor_calldata: Calldata,
+        address: ContractAddress,
+        function_name: &str,
+        calldata: &[Felt],
         with_fee_charge: bool,
-    ) -> ContractAddress {
-        let class_hash = contract_to_deploy.get_sierra().calculate_class_hash();
-        let contract_address_salt = ContractAddressSalt::default();
-        let contract_address = calculate_contract_address(
-            contract_address_salt,
-            class_hash,
-            &constructor_calldata,
-            *OPERATOR_ADDRESS,
-        )
-        .unwrap();
+    ) {
         let nonce = self.nonce_manager.next(*OPERATOR_ADDRESS);
         let resource_bounds = if with_fee_charge {
             *NON_TRIVIAL_RESOURCE_BOUNDS
         } else {
             AllResourceBounds::new_unlimited_gas_no_fee_enforcement()
         };
-        let calldata = Self::single_multicall_data(
-            *OPERATOR_ADDRESS,
-            "deploy_contract",
-            &[
-                vec![
-                    *class_hash,
-                    contract_address_salt.0,
-                    Felt::from(constructor_calldata.0.len()),
-                ],
-                constructor_calldata.0.as_slice().to_vec(),
-                vec![false.into()], // Deploy from zero.
-            ]
-            .concat(),
-        );
+        let calldata = Self::single_multicall_data(address, function_name, calldata);
         let rpc_tx_unsigned = InternalRpcInvokeTransactionV3 {
             sender_address: *OPERATOR_ADDRESS,
             calldata,
@@ -623,6 +602,35 @@ impl BlobFactory {
             tx_hash,
         });
         self.next_txs.push((executable.into(), internal));
+    }
+
+    fn make_operator_deploy_tx(
+        &mut self,
+        contract_to_deploy: FeatureContract,
+        constructor_calldata: Calldata,
+        with_fee_charge: bool,
+    ) -> ContractAddress {
+        let class_hash = contract_to_deploy.get_sierra().calculate_class_hash();
+        let contract_address_salt = ContractAddressSalt::default();
+        let contract_address = calculate_contract_address(
+            contract_address_salt,
+            class_hash,
+            &constructor_calldata,
+            *OPERATOR_ADDRESS,
+        )
+        .unwrap();
+        let calldata = [
+            vec![*class_hash, contract_address_salt.0, Felt::from(constructor_calldata.0.len())],
+            constructor_calldata.0.as_slice().to_vec(),
+            vec![false.into()], // Deploy from zero.
+        ]
+        .concat();
+        self.make_operator_invoke_tx(
+            *OPERATOR_ADDRESS,
+            "deploy_contract",
+            &calldata,
+            with_fee_charge,
+        );
         contract_address
     }
 
