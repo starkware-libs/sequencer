@@ -687,6 +687,28 @@ impl From<StateMaps> for CommitmentStateDiff {
     }
 }
 
+#[cfg(any(test, feature = "testing"))]
+impl From<CommitmentStateDiff> for StateMaps {
+    fn from(commitment_state_diff: CommitmentStateDiff) -> Self {
+        Self {
+            class_hashes: commitment_state_diff.address_to_class_hash.into_iter().collect(),
+            nonces: commitment_state_diff.address_to_nonce.into_iter().collect(),
+            compiled_class_hashes: commitment_state_diff
+                .class_hash_to_compiled_class_hash
+                .into_iter()
+                .collect(),
+            storage: commitment_state_diff
+                .storage_updates
+                .into_iter()
+                .flat_map(|(address, storage)| {
+                    storage.into_iter().map(move |(key, value)| ((address, key), value))
+                })
+                .collect(),
+            declared_contracts: Default::default(),
+        }
+    }
+}
+
 impl From<CommitmentStateDiff> for ThinStateDiff {
     fn from(commitment_state_diff: CommitmentStateDiff) -> Self {
         Self {
