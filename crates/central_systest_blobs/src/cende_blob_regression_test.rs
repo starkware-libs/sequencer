@@ -498,6 +498,38 @@ impl BlobFactory {
 // Blob file storage
 // =====================
 
+/// Sorts arrays of HashSet-backed fields that have non-deterministic iteration order.
+/// Object keys are already deterministic because serde_json::Value uses BTreeMap.
+fn normalize_set_arrays(value: &mut serde_json::Value) {
+    const SET_FIELDS: &[&str] =
+        &["accessed_blocks", "accessed_contract_addresses", "accessed_storage_keys"];
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, val) in map.iter_mut() {
+                if SET_FIELDS.contains(&key.as_str()) {
+                    if let serde_json::Value::Array(arr) = val {
+                        arr.sort_by_key(|a| a.to_string());
+                    }
+                } else {
+                    normalize_set_arrays(val);
+                }
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for item in arr.iter_mut() {
+                normalize_set_arrays(item);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn to_normalized_json(value: &impl serde::Serialize) -> String {
+    let mut json_value = serde_json::to_value(value).unwrap();
+    normalize_set_arrays(&mut json_value);
+    format!("{}\n", serde_json::to_string_pretty(&json_value).unwrap())
+}
+
 async fn gcs_client() -> Client {
     Client::new(ClientConfig::default().with_auth().await.expect(
         "Failed to create GCS client config. Did you run `gcloud auth application-default login`?",
@@ -538,8 +570,8 @@ async fn fetch_raw_blobs_at_generation(
 }
 
 /// Pushes the blobs to GCS.
-async fn bump_generation_and_store_blob_file(blobs: &[AerospikeBlob], client: &Client) {
-    let blobs_json = serde_json::to_string_pretty(blobs).unwrap();
+async fn bump_generation_and_store_blob_file(blobs: Vec<AerospikeBlob>, client: &Client) {
+    let blobs_json = to_normalized_json(&blobs);
     let next_generation = find_next_available_blobs_generation(client).await;
     client
         .upload_object(
@@ -574,13 +606,12 @@ async fn test_make_data() {
     // TODO(Dori): create txs.
     let (blobs, preconfirmed_block) = blob_factory.finalize().await;
     expect_file![CHAIN_INFO_PATH].assert_eq(&serde_json::to_string_pretty(&chain_info).unwrap());
-    expect_file![PRECONFIRMED_BLOCK_PATH]
-        .assert_eq(&serde_json::to_string_pretty(&preconfirmed_block).unwrap());
+    expect_file![PRECONFIRMED_BLOCK_PATH].assert_eq(&to_normalized_json(&preconfirmed_block));
 
     // Upload or download blobs depending on the fix mode.
     let client = gcs_client().await;
     if env::var("UPDATE_EXPECT").is_ok() {
-        bump_generation_and_store_blob_file(&blobs, &client).await;
+        bump_generation_and_store_blob_file(blobs, &client).await;
     } else {
         let fetched_blobs = fetch_blob_file(&client).await;
         assert_eq!(
