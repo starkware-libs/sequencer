@@ -4876,6 +4876,7 @@ dependencies = [
  "blockifier",
  "blockifier_test_utils",
  "expect-test",
+ "google-cloud-storage",
  "serde_json",
  "starknet_api",
  "starknet_patricia_storage",
