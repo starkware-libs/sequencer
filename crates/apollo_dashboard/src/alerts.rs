@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use apollo_consensus::metrics::IS_OBSERVER;
+use apollo_metrics::metrics::MetricQueryName;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use strum::{EnumIter, IntoEnumIterator};
@@ -227,8 +229,6 @@ pub(crate) struct Alert {
     pending_duration: String,
     // The severity level of the alert.
     severity: SeverityValueOrPlaceholder,
-    // Indicates if relevant for observer nodes.
-    observer_applicable: ObserverApplicability,
     #[serde(skip)]
     placeholder_names: HashSet<String>,
 }
@@ -237,18 +237,6 @@ pub(crate) struct Alert {
 pub(crate) enum ObserverApplicability {
     Applicable,
     NotApplicable,
-}
-
-impl Serialize for ObserverApplicability {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            ObserverApplicability::Applicable => serializer.serialize_str("true"),
-            ObserverApplicability::NotApplicable => serializer.serialize_str("false"),
-        }
-    }
 }
 
 impl Alert {
@@ -283,6 +271,19 @@ impl Alert {
             })
             .unwrap_or_else(|duplicate| panic!("Duplicate placeholder name found: {duplicate}"));
 
+        // Encode the observer-applicability directly into the expression, so the alert condition
+        // itself filters out observer nodes.
+        let expr = match observer_applicable {
+            ObserverApplicability::Applicable => expr,
+            ObserverApplicability::NotApplicable => {
+                ExpressionOrExpressionWithPlaceholder::ConcreteValue(format!(
+                    "({}) and ({} == 0)",
+                    expr.to_alert_promql(),
+                    IS_OBSERVER.get_name_with_filter(),
+                ))
+            }
+        };
+
         Self {
             name: name.to_string(),
             title: title.to_string(),
@@ -291,7 +292,6 @@ impl Alert {
             conditions,
             pending_duration: pending_duration.to_string(),
             severity,
-            observer_applicable,
             placeholder_names,
         }
     }
