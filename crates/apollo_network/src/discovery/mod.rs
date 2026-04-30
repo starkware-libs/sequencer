@@ -200,7 +200,7 @@ pub struct RetryConfig {
 
 impl Default for RetryConfig {
     fn default() -> Self {
-        Self { base_delay_millis: 2, max_delay_seconds: Duration::from_secs(5), factor: 5 }
+        Self { base_delay_millis: 1000, max_delay_seconds: Duration::from_secs(5), factor: 5 }
     }
 }
 
