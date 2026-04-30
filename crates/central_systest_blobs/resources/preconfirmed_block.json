@@ -1,16 +1,12 @@
 {
   "block_number": 0,
-  "round": 0,
-  "write_iteration": 0,
   "pre_confirmed_block": {
-    "status": "PRE_CONFIRMED",
-    "starknet_version": "0.14.3",
     "l1_da_mode": "CALLDATA",
-    "l1_gas_price": {
+    "l1_data_gas_price": {
       "price_in_fri": "0x1",
       "price_in_wei": "0x1"
     },
-    "l1_data_gas_price": {
+    "l1_gas_price": {
       "price_in_fri": "0x1",
       "price_in_wei": "0x1"
     },
@@ -18,10 +14,14 @@
       "price_in_fri": "0x1",
       "price_in_wei": "0x1"
     },
-    "timestamp": 1000,
     "sequencer_address": "0x1000",
-    "transactions": [],
+    "starknet_version": "0.14.3",
+    "status": "PRE_CONFIRMED",
+    "timestamp": 1000,
     "transaction_receipts": [],
-    "transaction_state_diffs": []
-  }
+    "transaction_state_diffs": [],
+    "transactions": []
+  },
+  "round": 0,
+  "write_iteration": 0
 }
