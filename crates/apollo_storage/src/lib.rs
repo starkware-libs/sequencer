@@ -858,6 +858,7 @@ pub(crate) type MarkersTable<'env> =
 
 #[derive(Clone, Debug)]
 struct FileHandlers<Mode: TransactionKind> {
+    // TODO(Yoav): Try removing derive(Clone) from the inner types.
     thin_state_diff: FileHandler<VersionZeroWrapper<ThinStateDiff>, Mode>,
     contract_class: FileHandler<VersionZeroWrapper<SierraContractClass>, Mode>,
     casm: FileHandler<VersionZeroWrapper<CasmContractClass>, Mode>,
