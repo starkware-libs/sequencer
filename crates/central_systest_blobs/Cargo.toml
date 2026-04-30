@@ -11,10 +11,11 @@ apollo_batcher.workspace = true
 apollo_batcher_types.workspace = true
 apollo_class_manager_types = { workspace = true, features = ["testing"] }
 apollo_consensus.workspace = true
-apollo_consensus_orchestrator.workspace = true
+apollo_consensus_orchestrator = { workspace = true, features = ["testing"] }
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 expect-test.workspace = true
+google-cloud-storage.workspace = true
 serde_json.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 starknet_patricia_storage = { workspace = true, features = ["testing"] }

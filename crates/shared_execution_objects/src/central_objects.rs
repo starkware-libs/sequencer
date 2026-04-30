@@ -39,7 +39,7 @@ impl From<TransactionReceipt> for ResourcesMapping {
 }
 
 /// The TransactionExecutionInfo object as used by the Python code.
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, PartialEq))]
 #[derive(Debug, Serialize)]
 pub struct CentralTransactionExecutionInfo {
     pub validate_call_info: Option<CallInfo>,
