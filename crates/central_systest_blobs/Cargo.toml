@@ -17,6 +17,7 @@ blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 expect-test.workspace = true
 google-cloud-storage.workspace = true
+mockall.workspace = true
 serde_json.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 starknet_committer = { workspace = true, features = ["testing"] }
