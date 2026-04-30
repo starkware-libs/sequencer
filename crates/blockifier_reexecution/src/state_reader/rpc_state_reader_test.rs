@@ -115,7 +115,7 @@ pub fn test_state_reader() -> RpcStateReader {
 
 #[fixture]
 pub fn test_block_number(test_state_reader: RpcStateReader) -> BlockNumber {
-    test_state_reader.get_block_info_with_txs().unwrap().block_info.block_number
+    test_state_reader.get_block_with_txs().unwrap().block_info.block_number
 }
 
 #[fixture]
@@ -264,15 +264,14 @@ pub fn test_get_statediff_rpc(test_state_reader: RpcStateReader) {
 #[case(EXAMPLE_DECLARE_V1_BLOCK_NUMBER, EXAMPLE_DECLARE_V1_TX_HASH)]
 #[case(EXAMPLE_DECLARE_V2_BLOCK_NUMBER, EXAMPLE_DECLARE_V2_TX_HASH)]
 #[case(EXAMPLE_DECLARE_V3_BLOCK_NUMBER, EXAMPLE_DECLARE_V3_TX_HASH)]
-pub fn test_get_block_info_with_txs(#[case] block_number: u64, #[case] expected_tx_hash: &str) {
+pub fn test_get_block_with_txs(#[case] block_number: u64, #[case] expected_tx_hash: &str) {
     let block_number = BlockNumber(block_number);
     let state_reader = RpcStateReader::new_for_testing(block_number);
-    let block_info_with_txs = state_reader.get_block_info_with_txs().unwrap();
-    assert_eq!(block_info_with_txs.block_info.block_number, block_number);
+    let block_with_txs = state_reader.get_block_with_txs().unwrap();
+    assert_eq!(block_with_txs.block_header.block_number, block_number);
+    assert_eq!(block_with_txs.block_info.block_number, block_number);
     let expected_tx_hash = TransactionHash(Felt::from_hex_unchecked(expected_tx_hash));
-    assert!(
-        block_info_with_txs.transactions.iter().any(|(_, tx_hash)| *tx_hash == expected_tx_hash)
-    );
+    assert!(block_with_txs.transactions.iter().any(|(_, tx_hash)| *tx_hash == expected_tx_hash));
 }
 
 #[rstest]
