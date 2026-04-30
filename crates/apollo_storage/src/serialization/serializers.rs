@@ -646,12 +646,13 @@ macro_rules! auto_storage_serde {
         auto_storage_serde!($($rest)*);
     };
     // enums.
-    ($(pub)? enum $name:ident { $($variant:ident $( ($ty:ty) )? = $num:expr ,)* } $($rest:tt)*) => {
+    ($(pub)? enum $name:ident { $($(#[$attr:meta])* $variant:ident $( ($ty:ty) )? = $num:expr ,)* } $($rest:tt)*) => {
         impl StorageSerde for $name {
             fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
                 #[allow(clippy::as_conversions)]
                 match self {
                     $(
+                        $(#[$attr])*
                         variant!( value, $variant $( ($ty) )?) => {
                             res.write_all(&[$num as u8])?;
                             $(
@@ -667,6 +668,7 @@ macro_rules! auto_storage_serde {
                 bytes.read_exact(&mut kind).ok()?;
                 match kind[0] {
                     $(
+                        $(#[$attr])*
                         $num => {
                             Some(Self::$variant $( (<$ty>::deserialize_from(bytes)?) )? )
                         },
