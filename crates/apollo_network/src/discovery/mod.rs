@@ -200,7 +200,11 @@ pub struct RetryConfig {
 
 impl Default for RetryConfig {
     fn default() -> Self {
-        Self { base_delay_millis: 2, max_delay_seconds: Duration::from_secs(5), factor: 5 }
+        // Base is set so that `base * factor` already saturates `max_delay_seconds`, making the
+        // first retry land at the cap. This makes the strategy reset on `ConnectionEstablished`
+        // a no-op in practice and prevents a re-dial storm when a bootstrap peer accepts a
+        // connection and immediately closes it.
+        Self { base_delay_millis: 1000, max_delay_seconds: Duration::from_secs(5), factor: 5 }
     }
 }
 

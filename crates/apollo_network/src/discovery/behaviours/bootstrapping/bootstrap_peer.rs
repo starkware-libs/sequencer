@@ -84,7 +84,14 @@ impl BootstrapPeerEventStream {
             }) if peer_id == self.peer_id && remaining_established == 0 => {
                 self.dial_mode = DialMode::Disconnected;
                 self.should_add_peer_to_kad_routing_table = true;
-                self.time_for_next_bootstrap_dial = now;
+                let delta_duration = self
+                    .dial_retry_strategy
+                    .next()
+                    .expect("Dial sleep strategy ended even though it's an infinite iterator.");
+                self.time_for_next_bootstrap_dial = now + delta_duration;
+                // Drop any sleeper armed for the previous deadline so poll_next builds a fresh
+                // one against the new time_for_next_bootstrap_dial.
+                self.sleeper = None;
                 self.wake_if_needed();
             }
             FromSwarm::AddressChange(AddressChange { peer_id, .. }) if peer_id == self.peer_id => {
