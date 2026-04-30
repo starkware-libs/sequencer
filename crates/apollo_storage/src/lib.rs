@@ -130,7 +130,13 @@ use apollo_proc_macros::{latency_histogram, sequencer_latency_histogram};
 use body::events::EventIndex;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use db::db_stats::{DbTableStats, DbWholeStats};
-use db::serialization::{Key, NoVersionValueWrapper, ValueSerde, VersionZeroWrapper};
+use db::serialization::{
+    Key,
+    NoVersionValueWrapper,
+    ValueSerde,
+    VersionWrapper,
+    VersionZeroWrapper,
+};
 use db::table_types::{CommonPrefix, NoValue, Table, TableType};
 use mmap_file::{
     open_file,
@@ -187,7 +193,7 @@ use crate::version::{VersionStorageReader, VersionStorageWriter};
 /// The current version of the storage state code.
 pub const STORAGE_VERSION_STATE: Version = Version { major: 6, minor: 0 };
 /// The current version of the storage blocks code.
-pub const STORAGE_VERSION_BLOCKS: Version = Version { major: 6, minor: 0 };
+pub const STORAGE_VERSION_BLOCKS: Version = Version { major: 6, minor: 1 };
 
 /// Opens a storage and returns a [`StorageReader`] and a [`StorageWriter`].
 pub fn open_storage(
@@ -681,11 +687,11 @@ struct_field_names! {
         deployed_contracts: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<ClassHash>, SimpleTable>,
         contract_address_events_index: TableIdentifier<(ContractAddress, TransactionIndex), NoVersionValueWrapper<NoValue>, CommonPrefix>,
         // TODO(Shahak): Remove the block hashes from this table and use block hash tables instead.
-        headers: TableIdentifier<BlockNumber, VersionZeroWrapper<StorageBlockHeader>, SimpleTable>,
+        headers: TableIdentifier<BlockNumber, VersionWrapper<StorageBlockHeader, 1>, SimpleTable>,
         last_voted_marker: TableIdentifier<(), VersionZeroWrapper<LastVotedMarker>, SimpleTable>,
         markers: TableIdentifier<MarkerKind, VersionZeroWrapper<BlockNumber>, SimpleTable>,
         nonces: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<Nonce>, CommonPrefix>,
-        partial_block_hashes_components: TableIdentifier<BlockNumber, VersionZeroWrapper<PartialBlockHashComponents>, SimpleTable>,
+        partial_block_hashes_components: TableIdentifier<BlockNumber, VersionWrapper<PartialBlockHashComponents, 1>, SimpleTable>,
         file_offsets: TableIdentifier<OffsetKind, NoVersionValueWrapper<usize>, SimpleTable>,
         state_diffs: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>,
         transaction_hash_to_idx: TableIdentifier<TransactionHash, NoVersionValueWrapper<TransactionIndex>, SimpleTable>,
