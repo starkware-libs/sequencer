@@ -6,6 +6,9 @@ repository.workspace = true
 license-file.workspace = true
 description = "Implements the consensus context and orchestrates the node's components accordingly"
 
+[features]
+testing = ["shared_execution_objects/deserialize"]
+
 [dependencies]
 apollo_batcher.workspace = true
 apollo_batcher_types.workspace = true
@@ -82,6 +85,3 @@ serde_json.workspace = true
 
 [lints]
 workspace = true
-
-[features]
-testing = []
