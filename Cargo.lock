@@ -4881,6 +4881,7 @@ dependencies = [
  "google-cloud-storage",
  "serde_json",
  "starknet_api",
+ "starknet_committer",
  "starknet_patricia_storage",
  "tokio",
 ]
