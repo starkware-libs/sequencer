@@ -4879,6 +4879,7 @@ dependencies = [
  "blockifier_test_utils",
  "expect-test",
  "google-cloud-storage",
+ "mockall",
  "serde_json",
  "starknet_api",
  "starknet_committer",
