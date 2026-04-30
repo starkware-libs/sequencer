@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777470498236,
+  "lastUpdate": 1777534258559,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3467,6 +3467,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1421.92849703,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "95771004180a9e394f927354d2559e6445aacb02",
+          "message": "apollo_propeller: added metrics to engine (#13033)",
+          "timestamp": "2026-04-30T06:58:32Z",
+          "tree_id": "3d838e4d93ed25f0e241b1863c5e86fbe0295407",
+          "url": "https://github.com/starkware-libs/sequencer/commit/95771004180a9e394f927354d2559e6445aacb02"
+        },
+        "date": 1777534258074,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 788.16934524,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1213.67327116,
             "unit": "ms"
           }
         ]
