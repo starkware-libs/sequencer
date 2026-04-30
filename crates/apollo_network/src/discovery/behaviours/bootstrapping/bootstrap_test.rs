@@ -337,6 +337,7 @@ async fn bootstrapping_redials_when_all_connections_closed(
     let (bootstrap_peers, mut behaviour) = make_and_connect_bootstrap_nodes(peer_count).await;
 
     close_all_connections(&mut behaviour, &bootstrap_peers, 0);
+    assert_no_event_happens_before_duration(&mut behaviour, BOOTSTRAP_DIAL_SLEEP_BASE).await;
     consume_dial_events(&mut behaviour, bootstrap_peers.clone()).await;
     assert_no_event_happens_before_duration(&mut behaviour, BOOTSTRAP_DIAL_SLEEP_MAX * 2).await;
 }
@@ -373,17 +374,17 @@ async fn bootstrapping_redials_in_accordance_with_strategy_when_all_connections_
     consume_found_listen_address_events(&mut behaviour, bootstrap_peers.clone()).await;
     assert_no_event_happens_before_duration(&mut behaviour, BOOTSTRAP_DIAL_SLEEP_MAX * 2).await;
 
+    // Strategy is not reset on ConnectionEstablished, and ConnectionClosed advances it.
+    // After the first loop the strategy is already at its cap, so every subsequent dial waits
+    // BOOTSTRAP_DIAL_SLEEP_MAX.
     close_all_connections(&mut behaviour, &bootstrap_peers, 0);
+    assert_no_event_happens_before_duration(&mut behaviour, BOOTSTRAP_DIAL_SLEEP_MAX).await;
     consume_dial_events(&mut behaviour, bootstrap_peers.clone()).await;
-    assert_no_event_happens_before_duration(&mut behaviour, BOOTSTRAP_DIAL_SLEEP_MAX * 2).await;
+    assert_no_event(&mut behaviour);
 
-    for i in 1..=NUMBER_OF_DIAL_RETRIES {
+    for _ in 1..=NUMBER_OF_DIAL_RETRIES {
         fail_all_dial_attempts(&mut behaviour, &bootstrap_peers);
-        let current_retry_duration = min(
-            BOOTSTRAP_DIAL_SLEEP_MAX,
-            Duration::from_millis(BOOTSTRAP_DIAL_SLEEP_BASE_MILLIS.pow(i)),
-        );
-        assert_no_event_happens_before_duration(&mut behaviour, current_retry_duration).await;
+        assert_no_event_happens_before_duration(&mut behaviour, BOOTSTRAP_DIAL_SLEEP_MAX).await;
         consume_dial_events(&mut behaviour, bootstrap_peers.clone()).await;
         assert_no_event(&mut behaviour);
     }
