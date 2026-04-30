@@ -2,7 +2,13 @@ use std::path::PathBuf;
 use std::sync::LazyLock;
 use std::{env, fs};
 
-use apollo_batcher::cende_client_types::{CendeBlockMetadata, CendePreconfirmedBlock};
+use apollo_batcher::cende_client_types::{
+    CendeBlockMetadata,
+    CendePreconfirmedBlock,
+    CendePreconfirmedTransaction,
+    StarknetClientStateDiff,
+    StarknetClientTransactionReceipt,
+};
 use apollo_batcher::pre_confirmed_cende_client::CendeWritePreconfirmedBlock;
 use apollo_batcher_types::batcher_types::Round;
 use apollo_class_manager_types::MockClassManagerClient;
@@ -15,9 +21,11 @@ use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo};
-use blockifier::state::cached_state::StateMaps;
+use blockifier::state::cached_state::{CachedState, StateMaps};
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use blockifier::transaction::account_transaction::AccountTransaction as BlockifierAccountTx;
+use blockifier::transaction::transactions::ExecutableTransaction;
 use blockifier_test_utils::contracts::FeatureContract;
 use expect_test::expect_file;
 use google_cloud_storage::client::{Client, ClientConfig};
@@ -52,7 +60,12 @@ use starknet_api::transaction::fields::{
     Tip,
     TransactionSignature,
 };
-use starknet_api::transaction::{DeclareTransaction, TransactionHasher, TransactionVersion};
+use starknet_api::transaction::{
+    DeclareTransaction,
+    TransactionHasher,
+    TransactionOffsetInBlock,
+    TransactionVersion,
+};
 use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::db::forest_trait::StorageInitializer;
 use starknet_patricia_storage::map_storage::MapStorage;
@@ -107,7 +120,6 @@ struct BlobFactory {
     next_txs: Vec<TxPair>,
 
     // Context.
-    #[expect(dead_code)]
     state: DictStateReader,
     #[expect(dead_code)]
     committer_storage: FactsDb<MapStorage>,
@@ -219,11 +231,6 @@ impl BlobFactory {
     // Data generation
     // =====================
 
-    fn next_block_number(&self) -> usize {
-        self.blocks.len()
-    }
-
-    #[expect(dead_code)]
     fn next_block_context(&self) -> BlockContext {
         let block_number = BlockNumber(u64::try_from(self.blocks.len()).unwrap());
         BlockContext::new(
@@ -252,16 +259,49 @@ impl BlobFactory {
     /// Creates a preconfirmed block for the given block. Should be called for the last block only -
     /// no commitment is computed.
     fn make_preconfirmed_block_from_remaining_txs(&self) -> CendeWritePreconfirmedBlock {
-        // TODO(Dori): implement.
+        let block_context = self.next_block_context();
+        let block_info = block_context.block_info().clone();
+        let mut transactions = vec![];
+        let mut transaction_receipts = vec![];
+        let mut transaction_state_diffs = vec![];
+
+        for (tx_index, (executable, internal)) in self.next_txs.iter().enumerate() {
+            let tx_hash = match &internal {
+                InternalConsensusTransaction::RpcTransaction(tx) => tx.tx_hash,
+                InternalConsensusTransaction::L1Handler(_) => {
+                    panic!("unexpected L1Handler in test")
+                }
+            };
+
+            let mut tx_state = CachedState::new(self.state.clone());
+            let execution_info = BlockifierAccountTx::new_for_sequencing(executable.clone())
+                .execute(&mut tx_state, &block_context)
+                .unwrap();
+
+            let state_changes = tx_state.to_state_diff().unwrap();
+
+            let receipt = StarknetClientTransactionReceipt::from((
+                tx_hash,
+                TransactionOffsetInBlock(tx_index),
+                &execution_info,
+                None,
+            ));
+            let tx_state_diff = StarknetClientStateDiff::from(state_changes.state_maps).0;
+
+            transactions.push(CendePreconfirmedTransaction::from(internal.clone()));
+            transaction_receipts.push(Some(receipt));
+            transaction_state_diffs.push(Some(tx_state_diff));
+        }
+
         CendeWritePreconfirmedBlock {
-            block_number: BlockNumber(u64::try_from(self.next_block_number()).unwrap()),
+            block_number: block_info.block_number,
             round: Round::default(),
             write_iteration: 0,
             pre_confirmed_block: CendePreconfirmedBlock {
-                metadata: CendeBlockMetadata::new(BlockInfo::default()),
-                transactions: vec![],
-                transaction_receipts: vec![],
-                transaction_state_diffs: vec![],
+                metadata: CendeBlockMetadata::new(block_info),
+                transactions,
+                transaction_receipts,
+                transaction_state_diffs,
             },
         }
     }
