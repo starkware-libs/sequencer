@@ -44,6 +44,7 @@ use google_cloud_storage::http::objects::get::GetObjectRequest;
 use google_cloud_storage::http::objects::upload::{Media, UploadObjectRequest, UploadType};
 use google_cloud_storage::http::Error as GcsError;
 use mockall::predicate::eq;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
@@ -844,19 +845,9 @@ async fn test_make_data() {
     let mut blob_factory = BlobFactory::new();
     let chain_info = OsChainInfo::from(&blob_factory.chain_info).to_hex_map();
 
-    // Create the list of transactions to be included in the blobs:
-    // 1. bootstrap declare of an ERC20 contract.
-    // 2. bootstrap declare of an account with real validate.
-    // 3. deploy account (with zero fees).
-    // 4. deploy ERC20 contract from the account (with zero fees), while minting some tokens to the
-    //    sender account.
-    // (from this point - all txs include non-zero fees, and no more bootstrap declares)
-    // 5. declare the test contract.
-    // 6. deploy the test contract.
-    // 7. deploy another instance of the test contract.
-    // TODO(Dori): the rest of the txs.
-    // 8. invoke the test contract: something with a state change.
-    // 9. invoke the test contract: test syscalls.
+    // Create the list of transactions to be included in the blobs.
+    // Block closing point is arbitrary, although it is preferable not to close after the last tx
+    // (to ensure the preconfirmed block is not empty).
     let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let account_with_real_validate = FeatureContract::AccountWithRealValidate(RunnableCairo1::Casm);
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
@@ -886,16 +877,78 @@ async fn test_make_data() {
     blob_factory.close_block().await;
     blob_factory.make_declare_tx(test_contract, Some(*OPERATOR_ADDRESS));
     blob_factory.close_block().await;
-    let _test_contract_address_0 = blob_factory.make_operator_deploy_tx(
+    let test_contract_address_0 = blob_factory.make_operator_deploy_tx(
         test_contract,
         calldata![Felt::ZERO, Felt::ZERO],
         true, // charge fee
     );
     blob_factory.close_block().await;
-    let _test_contract_address_1 = blob_factory.make_operator_deploy_tx(
+    let test_contract_address_1 = blob_factory.make_operator_deploy_tx(
         test_contract,
         calldata![Felt::ONE, Felt::ONE],
         true, // charge fee
+    );
+    blob_factory.close_block().await;
+    blob_factory.make_operator_invoke_tx(
+        test_contract_address_0,
+        "test_increment",
+        &[Felt::ZERO; 3],
+        true,  // charge fee
+        false, // should not revert
+    );
+    blob_factory.close_block().await;
+    blob_factory.make_operator_invoke_tx(
+        test_contract_address_1,
+        "test_storage_read_write",
+        &[Felt::ONE, Felt::TWO],
+        true,  // charge fee
+        false, // should not revert
+    );
+    blob_factory.close_block().await;
+    blob_factory.make_operator_invoke_tx(
+        test_contract_address_1,
+        "test_storage_write",
+        &[Felt::THREE, Felt::ONE],
+        true,  // charge fee
+        false, // should not revert
+    );
+    blob_factory.close_block().await;
+    blob_factory.make_operator_invoke_tx(
+        test_contract_address_0,
+        "write_and_revert",
+        &[Felt::from(7u8), Felt::ONE],
+        true, // charge fee
+        true, // should revert
+    );
+    blob_factory.close_block().await;
+    blob_factory.make_operator_invoke_tx(
+        test_contract_address_1,
+        "test_call_contract",
+        &[
+            **test_contract_address_0,
+            selector_from_name("test_storage_read_write").0,
+            Felt::TWO,
+            Felt::from(0x1000),
+            Felt::from(0x1000),
+        ],
+        true,  // charge fee
+        false, // should not revert
+    );
+    blob_factory.close_block().await;
+    blob_factory.make_operator_invoke_tx(
+        test_contract_address_1,
+        "write_1",
+        &[Felt::TWO],
+        true,  // charge fee
+        false, // should not revert
+    );
+    blob_factory.close_block().await;
+    blob_factory.make_operator_invoke_tx(
+        test_contract_address_0,
+        "catch_write_revert_panic",
+        &[**test_contract_address_1, Felt::from(0x2000)],
+        true, // charge fee
+        true, // should revert
     );
 
     let (blobs, preconfirmed_block) = blob_factory.finalize().await;
