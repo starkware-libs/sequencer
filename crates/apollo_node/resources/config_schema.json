@@ -2537,7 +2537,7 @@
   "consensus_manager_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": {
     "description": "The base delay in milliseconds for the exponential backoff strategy.",
     "privacy": "Public",
-    "value": 2
+    "value": 1000
   },
   "consensus_manager_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": {
     "description": "The factor for the exponential backoff strategy.",
@@ -3177,7 +3177,7 @@
   "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": {
     "description": "The base delay in milliseconds for the exponential backoff strategy.",
     "privacy": "Public",
-    "value": 2
+    "value": 1000
   },
   "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": {
     "description": "The factor for the exponential backoff strategy.",
@@ -3477,7 +3477,7 @@
   "state_sync_config.static_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": {
     "description": "The base delay in milliseconds for the exponential backoff strategy.",
     "privacy": "Public",
-    "value": 2
+    "value": 1000
   },
   "state_sync_config.static_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": {
     "description": "The factor for the exponential backoff strategy.",
