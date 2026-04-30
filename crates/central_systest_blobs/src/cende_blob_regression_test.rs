@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 use std::{env, fs};
 
 use apollo_batcher::cende_client_types::{
@@ -12,17 +12,19 @@ use apollo_batcher::cende_client_types::{
 use apollo_batcher::pre_confirmed_cende_client::CendeWritePreconfirmedBlock;
 use apollo_batcher_types::batcher_types::Round;
 use apollo_class_manager_types::MockClassManagerClient;
+use apollo_consensus::types::ProposalCommitment;
 use apollo_consensus_orchestrator::cende::{
     AerospikeBlob,
     BlobParameters,
     InternalTransactionWithReceipt,
 };
+use apollo_consensus_orchestrator::fee_market::FeeMarketInfo;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
-use blockifier::bouncer::BouncerConfig;
+use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::state_api::UpdatableState;
@@ -44,6 +46,7 @@ use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber,
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
     calculate_block_hash,
+    PartialBlockHash,
     PartialBlockHashComponents,
     TransactionHashingData,
 };
@@ -113,14 +116,65 @@ fn blobs_object_path(generation: usize) -> String {
     format!("{generation}/{BLOBS_FILE_NAME}")
 }
 
-#[expect(dead_code)]
 struct BlockData {
     block_context: BlockContext,
     transactions_with_receipts: Vec<InternalTransactionWithReceipt>,
     partial_block_hash_components: PartialBlockHashComponents,
+    parent_partial_block_hash_components: Option<PartialBlockHashComponents>,
     block_hash: BlockHash,
+    parent_block_hash: BlockHash,
     state_maps: StateMaps,
     state_roots: StateRoots,
+}
+
+impl From<BlockData> for BlobParameters {
+    /// If this is not the first block, also sets the parent proposal commitment and populates the
+    /// recent block hashes with the last block hash (of the previous block).
+    fn from(block: BlockData) -> Self {
+        let commitment_state_diff = CommitmentStateDiff::from(block.state_maps.clone());
+        let state_diff = ThinStateDiff::from(commitment_state_diff.clone());
+        let block_info = block.block_context.block_info().clone();
+        let proposal_commitment = ProposalCommitment(
+            PartialBlockHash::from_partial_block_hash_components(
+                &block.partial_block_hash_components,
+            )
+            .unwrap()
+            .0,
+        );
+
+        let (recent_block_hashes, parent_proposal_commitment) = if block_info.block_number.0 > 0 {
+            (
+                vec![BlockHashAndNumber {
+                    number: BlockNumber(block_info.block_number.0 - 1),
+                    hash: block.parent_block_hash,
+                }],
+                Some(ProposalCommitment(
+                    PartialBlockHash::from_partial_block_hash_components(
+                        &block.parent_partial_block_hash_components.unwrap(),
+                    )
+                    .unwrap()
+                    .0,
+                )),
+            )
+        } else {
+            (vec![], None)
+        };
+
+        BlobParameters {
+            block_info,
+            state_diff,
+            compressed_state_diff: Some(commitment_state_diff),
+            transactions_with_execution_infos: block.transactions_with_receipts,
+            bouncer_weights: BouncerWeights::default(),
+            fee_market_info: FeeMarketInfo::default(),
+            casm_hash_computation_data_sierra_gas: CasmHashComputationData::default(),
+            casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
+            compiled_class_hashes_for_migration: vec![],
+            proposal_commitment,
+            parent_proposal_commitment,
+            recent_block_hashes,
+        }
+    }
 }
 
 struct BlobFactory {
@@ -236,10 +290,12 @@ impl BlobFactory {
         .await;
         let partial_block_hash_components =
             PartialBlockHashComponents::new(&block_info, block_header_commitments);
+        let parent_block_hash = self.parent_block_hash();
+        let parent_partial_block_hash_components = self.parent_partial_block_hash_components();
         let block_hash = calculate_block_hash(
             &partial_block_hash_components,
             state_roots.global_root(),
-            self.parent_block_hash(),
+            parent_block_hash,
         )
         .unwrap();
 
@@ -248,7 +304,9 @@ impl BlobFactory {
             block_context,
             transactions_with_receipts,
             partial_block_hash_components,
+            parent_partial_block_hash_components,
             block_hash,
+            parent_block_hash,
             state_maps,
             state_roots,
         });
@@ -258,17 +316,41 @@ impl BlobFactory {
     /// Creates blobs for all finalized blocks, and a preconfirmed block with the remaining txs that
     /// were not included in a block. See [Self::close_block] for details on how to close a block.
     async fn finalize(self) -> (Vec<AerospikeBlob>, CendeWritePreconfirmedBlock) {
-        // TODO(Dori): Create the blob vector.
-        let blobs = vec![];
+        let preconfirmed_block_context = self.next_block_context();
+        let Self { blocks, class_manager, next_txs, state, .. } = self;
+        let mut blobs = vec![];
+        let shared_class_manager = Arc::new(class_manager);
 
         // For the last block, create a preconfirmed block.
-        let preconfirmed_block = self.make_preconfirmed_block_from_remaining_txs();
+        let preconfirmed_block = Self::make_preconfirmed_block_from_remaining_txs(
+            preconfirmed_block_context,
+            next_txs,
+            state,
+        );
+
+        for block in blocks.into_iter() {
+            blobs.push(
+                AerospikeBlob::from_blob_parameters_and_class_manager(
+                    block.into(),
+                    shared_class_manager.clone(),
+                )
+                .await
+                .unwrap(),
+            );
+        }
 
         (blobs, preconfirmed_block)
     }
 
     fn parent_block_hash(&self) -> BlockHash {
         self.blocks.last().map(|block| block.block_hash).unwrap_or(BlockHash::GENESIS_PARENT_HASH)
+    }
+
+    fn parent_partial_block_hash_components(&self) -> Option<PartialBlockHashComponents> {
+        self.blocks
+            .last()
+            .map(|block| Some(block.partial_block_hash_components.clone()))
+            .unwrap_or(None)
     }
 
     fn current_state_roots(&self) -> StateRoots {
@@ -354,26 +436,19 @@ impl BlobFactory {
         )
     }
 
-    /// Creates a blob for the given block.
-    /// If this is not the first block, also sets the parent proposal commitment and populates the
-    /// recent block hashes with the last block hash (of the previous block).
-    /// Returns the current proposal commitment and the block hash components (for use in block hash
-    /// computation of the current block).
-    #[expect(dead_code)]
-    async fn make_blob_parameters(&self, _block: &BlockData) -> BlobParameters {
-        unimplemented!()
-    }
-
     /// Creates a preconfirmed block for the given block. Should be called for the last block only -
     /// no commitment is computed.
-    fn make_preconfirmed_block_from_remaining_txs(&self) -> CendeWritePreconfirmedBlock {
-        let block_context = self.next_block_context();
+    fn make_preconfirmed_block_from_remaining_txs(
+        block_context: BlockContext,
+        txs: Vec<TxPair>,
+        state: DictStateReader,
+    ) -> CendeWritePreconfirmedBlock {
         let block_info = block_context.block_info().clone();
         let mut transactions = vec![];
         let mut transaction_receipts = vec![];
         let mut transaction_state_diffs = vec![];
 
-        for (tx_index, (executable, internal)) in self.next_txs.iter().enumerate() {
+        for (tx_index, (executable, internal)) in txs.into_iter().enumerate() {
             let tx_hash = match &internal {
                 InternalConsensusTransaction::RpcTransaction(tx) => tx.tx_hash,
                 InternalConsensusTransaction::L1Handler(_) => {
@@ -381,8 +456,8 @@ impl BlobFactory {
                 }
             };
 
-            let mut tx_state = CachedState::new(self.state.clone());
-            let execution_info = BlockifierAccountTx::new_for_sequencing(executable.clone())
+            let mut tx_state = CachedState::new(state.clone());
+            let execution_info = BlockifierAccountTx::new_for_sequencing(executable)
                 .execute(&mut tx_state, &block_context)
                 .unwrap();
 
@@ -396,7 +471,7 @@ impl BlobFactory {
             ));
             let tx_state_diff = StarknetClientStateDiff::from(state_changes.state_maps).0;
 
-            transactions.push(CendePreconfirmedTransaction::from(internal.clone()));
+            transactions.push(CendePreconfirmedTransaction::from(internal));
             transaction_receipts.push(Some(receipt));
             transaction_state_diffs.push(Some(tx_state_diff));
         }
