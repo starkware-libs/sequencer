@@ -34,6 +34,7 @@ use blockifier::transaction::account_transaction::AccountTransaction as Blockifi
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTx;
 use blockifier::transaction::transactions::ExecutableTransaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use expect_test::expect_file;
 use google_cloud_storage::client::{Client, ClientConfig};
@@ -53,30 +54,42 @@ use starknet_api::block_hash::block_hash_calculator::{
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
-use starknet_api::core::{ChainId, Nonce, OsChainInfo};
+use starknet_api::core::{ChainId, ContractAddress, Nonce, OsChainInfo};
 use starknet_api::data_availability::{DataAvailabilityMode, L1DataAvailabilityMode};
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableAccountTx,
     DeclareTransaction as ExecutableDeclareTransaction,
     DeployAccountTransaction as ExecutableDeployAccountTx,
+    InvokeTransaction as ExecutableInvokeTx,
     Transaction as ExecutableTx,
 };
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StateRoots;
 use starknet_api::rpc_transaction::{
     InternalRpcDeclareTransactionV3,
     InternalRpcDeployAccountTransaction,
+    InternalRpcInvokeTransactionV3,
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
 };
 use starknet_api::state::ThinStateDiff;
-use starknet_api::test_utils::TEST_SEQUENCER_ADDRESS;
+use starknet_api::test_utils::{
+    NonceManager,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    DEFAULT_STRK_L2_GAS_PRICE,
+    TEST_SEQUENCER_ADDRESS,
+};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
+    Calldata,
     ContractAddressSalt,
     PaymasterData,
+    ProofFacts,
+    ResourceBounds,
     Tip,
     TransactionSignature,
 };
@@ -84,6 +97,7 @@ use starknet_api::transaction::{
     CalculateContractAddress,
     DeclareTransaction,
     DeployAccountTransaction,
+    InvokeTransaction,
     TransactionHash,
     TransactionHasher,
     TransactionOffsetInBlock,
@@ -112,6 +126,22 @@ static CHAIN_ID: LazyLock<ChainId> =
 
 const CHAIN_INFO_PATH: &str = "../resources/chain_info.json";
 const PRECONFIRMED_BLOCK_PATH: &str = "../resources/preconfirmed_block.json";
+
+static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<AllResourceBounds> =
+    LazyLock::new(|| AllResourceBounds {
+        l1_gas: ResourceBounds {
+            max_amount: GasAmount(100_000_000),
+            max_price_per_unit: DEFAULT_STRK_L1_GAS_PRICE.into(),
+        },
+        l2_gas: ResourceBounds {
+            max_amount: GasAmount(100_000_000_000_000_000),
+            max_price_per_unit: DEFAULT_STRK_L2_GAS_PRICE.into(),
+        },
+        l1_data_gas: ResourceBounds {
+            max_amount: GasAmount(100_000),
+            max_price_per_unit: DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
+        },
+    });
 
 type TxPair = (ExecutableAccountTx, InternalConsensusTransaction);
 
@@ -200,6 +230,7 @@ struct BlobFactory {
     next_txs: Vec<TxPair>,
 
     // Context.
+    nonce_manager: NonceManager,
     state: DictStateReader,
     committer_storage: FactsDb<MapStorage>,
 }
@@ -215,6 +246,7 @@ impl BlobFactory {
             class_manager: MockClassManagerClient::default(),
             blocks: vec![],
             next_txs: vec![],
+            nonce_manager: NonceManager::default(),
             state: DictStateReader::default(),
             committer_storage: FactsDb::new(MapStorage::default()),
         }
@@ -379,6 +411,15 @@ impl BlobFactory {
         TransactionSignature(Arc::new(vec![sig.r, sig.s]))
     }
 
+    fn single_multicall_data(
+        address: ContractAddress,
+        function_name: &str,
+        calldata: &[Felt],
+    ) -> Calldata {
+        let single_calldata = create_calldata(address, function_name, calldata);
+        Calldata(Arc::new([vec![Felt::ONE], single_calldata.0.as_slice().to_vec()].concat()))
+    }
+
     fn boostrap_declare_tx(&mut self, contract: FeatureContract) {
         let sender_address = ExecutableDeclareTransaction::bootstrap_address();
         let sierra = contract.get_sierra();
@@ -434,7 +475,7 @@ impl BlobFactory {
         self.next_txs.push((executable.into(), internal_tx));
     }
 
-    fn make_free_deploy_account_tx(&mut self, account: FeatureContract) {
+    fn make_free_deploy_account_tx(&mut self, account: FeatureContract) -> ContractAddress {
         let class_hash = account.get_sierra().calculate_class_hash();
         let public_key = get_public_key(&Self::OPERATOR_PRIVATE_KEY);
         let constructor_calldata = calldata![public_key];
@@ -462,6 +503,9 @@ impl BlobFactory {
         let tx_hash = without_hash_unsigned.calculate_transaction_hash(&CHAIN_ID).unwrap();
         let signature = Self::sign_tx(tx_hash);
 
+        // Bump nonce for next txs.
+        self.nonce_manager.next(contract_address);
+
         let mut rpc_tx_signed = rpc_tx_unsigned;
         rpc_tx_signed.signature = signature;
         let without_hash = InternalRpcTransactionWithoutTxHash::DeployAccount(
@@ -476,6 +520,66 @@ impl BlobFactory {
             &CHAIN_ID,
         )
         .unwrap();
+        let internal = InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
+            tx: without_hash,
+            tx_hash,
+        });
+        self.next_txs.push((executable.into(), internal));
+        contract_address
+    }
+
+    fn make_operator_deploy_tx(
+        &mut self,
+        operator_address: ContractAddress,
+        contract_to_deploy: FeatureContract,
+        constructor_calldata: Calldata,
+        with_fee_charge: bool,
+    ) {
+        let class_hash = contract_to_deploy.get_sierra().calculate_class_hash();
+        let contract_address_salt = ContractAddressSalt::default();
+        let nonce = self.nonce_manager.next(operator_address);
+        let resource_bounds = if with_fee_charge {
+            NON_TRIVIAL_RESOURCE_BOUNDS.clone()
+        } else {
+            AllResourceBounds::new_unlimited_gas_no_fee_enforcement()
+        };
+        let calldata = Self::single_multicall_data(
+            operator_address,
+            "deploy_contract",
+            &[
+                vec![
+                    *class_hash,
+                    contract_address_salt.0,
+                    Felt::try_from(constructor_calldata.0.len()).unwrap(),
+                ],
+                constructor_calldata.0.as_slice().to_vec(),
+                vec![false.into()], // Deploy from zero.
+            ]
+            .concat(),
+        );
+        let rpc_tx_unsigned = InternalRpcInvokeTransactionV3 {
+            sender_address: operator_address,
+            calldata,
+            signature: TransactionSignature::default(),
+            resource_bounds,
+            tip: Tip::default(),
+            nonce,
+            nonce_data_availability_mode: DataAvailabilityMode::L1,
+            fee_data_availability_mode: DataAvailabilityMode::L1,
+            account_deployment_data: AccountDeploymentData::default(),
+            paymaster_data: PaymasterData::default(),
+            proof_facts: ProofFacts::default(),
+        };
+        let tx_hash = rpc_tx_unsigned
+            .calculate_transaction_hash(&CHAIN_ID, &TransactionVersion::THREE)
+            .unwrap();
+        let signature = Self::sign_tx(tx_hash);
+        let mut rpc_tx_signed = rpc_tx_unsigned;
+        rpc_tx_signed.signature = signature;
+        let without_hash = InternalRpcTransactionWithoutTxHash::Invoke(rpc_tx_signed.clone());
+        let executable =
+            ExecutableInvokeTx::create(InvokeTransaction::V3(rpc_tx_signed.into()), &CHAIN_ID)
+                .unwrap();
         let internal = InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
             tx: without_hash,
             tx_hash,
@@ -667,9 +771,9 @@ async fn test_make_data() {
     // 1. bootstrap declare of an ERC20 contract.
     // 2. bootstrap declare of an account with real validate.
     // 3. deploy account (with zero fees).
-    // TODO(Dori): the rest of the txs.
     // 4. deploy ERC20 contract from the account (with zero fees), while minting some tokens to the
     //    sender account.
+    // TODO(Dori): the rest of the txs.
     // (from this point - all txs include non-zero fees, and no more bootstrap declares)
     // 5. declare the test contract.
     // 6. deploy the test contract.
@@ -682,7 +786,24 @@ async fn test_make_data() {
     blob_factory.close_block().await;
     blob_factory.boostrap_declare_tx(account_with_real_validate);
     blob_factory.close_block().await;
-    blob_factory.make_free_deploy_account_tx(account_with_real_validate);
+    let operator_address = blob_factory.make_free_deploy_account_tx(account_with_real_validate);
+    blob_factory.close_block().await;
+    blob_factory.make_operator_deploy_tx(
+        operator_address,
+        erc20_contract,
+        calldata![
+            Felt::from_bytes_be_slice(b"StarkNet Token"),
+            Felt::from_bytes_be_slice(b"STRK"),
+            Felt::from(18u8),
+            u128::MAX.into(),   // initial supply lsb
+            0.into(),           // initial supply msb
+            **operator_address, // recipient address
+            **operator_address, // permitted minter
+            **operator_address, // provisional_governance_admin
+            10.into()           // upgrade delay
+        ],
+        false, // charge fee
+    );
 
     let (blobs, preconfirmed_block) = blob_factory.finalize().await;
     expect_file![CHAIN_INFO_PATH].assert_eq(&serde_json::to_string_pretty(&chain_info).unwrap());
