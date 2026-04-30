@@ -94,7 +94,7 @@ pub struct GetBlockWithTxsParams {
 /// Response of `starknet_getBlockWithTxs`: all `BlockHeader` fields plus the block's full
 /// transactions (each including its `transaction_hash`).
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct BlockWithTxs {
+pub struct RpcBlockWithTxs {
     #[serde(flatten)]
     pub header: BlockHeader,
     pub transactions: Vec<Value>,

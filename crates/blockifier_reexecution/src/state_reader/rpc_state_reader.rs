@@ -64,12 +64,12 @@ use crate::state_reader::reexecution_state_reader::{
 use crate::state_reader::rpc_objects::{
     BlockHeader,
     BlockId,
-    BlockWithTxs,
     GetBlockWithTxHashesParams,
     GetBlockWithTxsParams,
     GetClassHashAtParams,
     GetNonceParams,
     GetStorageAtParams,
+    RpcBlockWithTxs,
     RpcResponse,
     TxResponseFlag,
     RPC_CLASS_HASH_NOT_FOUND,
@@ -102,9 +102,11 @@ pub struct GetTransactionByHashParams {
     pub response_flags: Vec<TxResponseFlag>,
 }
 
-/// The block's `BlockInfo` paired with its full transactions
-/// (each with its `TransactionHash`).
-pub struct BlockInfoWithTxs {
+/// Block payload from `starknet_getBlockWithTxs`: full RPC `BlockHeader`, derived `BlockInfo`,
+/// and parsed transactions. The header is the same object used for block-hash verification when
+/// routed through `RpcBlockReexecutor`'s cache.
+pub struct BlockWithTxs {
+    pub block_header: BlockHeader,
     pub block_info: BlockInfo,
     pub transactions: Vec<(Transaction, TransactionHash)>,
 }
@@ -278,10 +280,10 @@ impl RpcStateReader {
         )?)?)
     }
 
-    /// Fetches the block's header and full transactions in a single `starknet_getBlockWithTxs`
-    /// call.
-    pub fn get_block_info_with_txs(&self) -> ReexecutionResult<BlockInfoWithTxs> {
-        let block_with_txs: BlockWithTxs =
+    /// Fetches the block header, derived block info, and full transactions in a single
+    /// `starknet_getBlockWithTxs` call.
+    pub fn get_block_with_txs(&self) -> ReexecutionResult<BlockWithTxs> {
+        let rpc_block: RpcBlockWithTxs =
             serde_json::from_value(retry_request!(self.retry_config, || {
                 self.send_rpc_request(
                     "starknet_getBlockWithTxs",
@@ -292,7 +294,7 @@ impl RpcStateReader {
                 )
             })?)?;
 
-        let transactions = block_with_txs
+        let transactions = rpc_block
             .transactions
             .into_iter()
             .map(|raw_tx| {
@@ -303,8 +305,9 @@ impl RpcStateReader {
             })
             .collect::<serde_json::Result<Vec<_>>>()?;
 
-        let block_info: BlockInfo = block_with_txs.header.try_into()?;
-        Ok(BlockInfoWithTxs { block_info, transactions })
+        let block_header = rpc_block.header;
+        let block_info: BlockInfo = block_header.clone().try_into()?;
+        Ok(BlockWithTxs { block_header, block_info, transactions })
     }
 
     /// Builds a `BlockContext` from a pre-fetched `BlockInfo` without issuing RPC calls.
@@ -547,8 +550,8 @@ pub struct RpcBlockReexecutor {
     pub prefetch_initial_reads: bool,
     /// Contract class mapping collected during RPC reads, used for offline reexecution dumps.
     contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
-    /// Lazily-fetched `BlockInfoWithTxs` for the reexecuted block.
-    reexecuted_block_info_with_txs_cache: OnceLock<BlockInfoWithTxs>,
+    /// Lazily-fetched `BlockWithTxs` for the reexecuted block (single `starknet_getBlockWithTxs`).
+    reexecuted_block_with_txs_cache: OnceLock<BlockWithTxs>,
 }
 
 impl RpcBlockReexecutor {
@@ -579,50 +582,50 @@ impl RpcBlockReexecutor {
             min_sierra_version_override: None,
             prefetch_initial_reads,
             contract_class_mapping_dumper,
-            reexecuted_block_info_with_txs_cache: OnceLock::new(),
+            reexecuted_block_with_txs_cache: OnceLock::new(),
         }
     }
 
-    /// Returns the reexecuted block's `BlockInfoWithTxs`, fetching it on first call. Subsequent
+    /// Returns the reexecuted block's `BlockWithTxs`, fetching it on first call. Subsequent
     /// calls reuse the cached value. All consumers in this struct route through here so a single
     /// `starknet_getBlockWithTxs` call serves the whole reexecution attempt.
-    pub fn reexecuted_block_info_with_txs(&self) -> ReexecutionResult<&BlockInfoWithTxs> {
-        if let Some(info) = self.reexecuted_block_info_with_txs_cache.get() {
-            return Ok(info);
+    pub fn reexecuted_block_with_txs(&self) -> ReexecutionResult<&BlockWithTxs> {
+        if let Some(cached) = self.reexecuted_block_with_txs_cache.get() {
+            return Ok(cached);
         }
-        let info = self.reexecuted_block_artifacts_reader.get_block_info_with_txs()?;
-        Ok(self.reexecuted_block_info_with_txs_cache.get_or_init(|| info))
+        let block_with_txs = self.reexecuted_block_artifacts_reader.get_block_with_txs()?;
+        Ok(self.reexecuted_block_with_txs_cache.get_or_init(|| block_with_txs))
     }
 
     pub fn get_block_header(&self) -> ReexecutionResult<BlockHeader> {
-        self.reexecuted_block_artifacts_reader.get_block_header()
+        Ok(self.reexecuted_block_with_txs()?.block_header.clone())
     }
 
     pub fn get_serializable_data_reexecuted_block(
         &self,
     ) -> ReexecutionResult<SerializableDataReexecutedBlock> {
-        let block_info_with_txs = self.reexecuted_block_info_with_txs()?;
+        let block_with_txs = self.reexecuted_block_with_txs()?;
         // Trigger api → blockifier conversion so the contract_class_mapping_dumper picks up every
         // declared class referenced by these transactions.
         self.reexecuted_block_artifacts_reader
-            .api_txs_to_blockifier_txs(block_info_with_txs.transactions.clone())?;
+            .api_txs_to_blockifier_txs(block_with_txs.transactions.clone())?;
         let declared_classes =
             self.reexecuted_block_artifacts_reader.get_contract_class_mapping_dumper().ok_or(
                 StateError::StateReadError("Contract class mapping dumper is None.".to_string()),
             )?;
         Ok(SerializableDataReexecutedBlock {
-            reexecuted_block_info: block_info_with_txs.block_info.clone(),
-            starknet_version: block_info_with_txs.block_info.starknet_version,
-            reexecuted_block_transactions: block_info_with_txs.transactions.clone(),
+            reexecuted_block_info: block_with_txs.block_info.clone(),
+            starknet_version: block_with_txs.block_info.starknet_version,
+            reexecuted_block_transactions: block_with_txs.transactions.clone(),
             reexecuted_block_state_diff: self.reexecuted_block_artifacts_reader.get_state_diff()?,
             declared_classes,
-            block_header: self.get_block_header()?,
+            block_header: block_with_txs.block_header.clone(),
         })
     }
 
     pub fn get_old_block_hash(&self) -> ReexecutionResult<BlockHash> {
         self.base_block_state_reader.get_old_block_hash(BlockNumber(
-            self.reexecuted_block_info_with_txs()?.block_info.block_number.0
+            self.reexecuted_block_with_txs()?.block_info.block_number.0
                 - constants::STORED_BLOCK_HASH_BUFFER,
         ))
     }
@@ -691,7 +694,7 @@ impl RpcBlockReexecutor {
     /// Writes the reexecution data required to reexecute a block to a JSON file.
     pub fn write_block_reexecution_data_to_file(self, full_file_path: &str) {
         let chain_id = self.reexecuted_block_artifacts_reader.chain_info.chain_id.clone();
-        let block_number = self.reexecuted_block_info_with_txs().unwrap().block_info.block_number;
+        let block_number = self.reexecuted_block_with_txs().unwrap().block_info.block_number;
 
         let serializable_data_reexecuted_block =
             self.get_serializable_data_reexecuted_block().unwrap();
@@ -746,7 +749,7 @@ impl BlockReexecutor<StateReaderAndContractManager<BoxedFetchCompiledClasses>>
     ) -> ReexecutionResult<
         TransactionExecutor<StateReaderAndContractManager<BoxedFetchCompiledClasses>>,
     > {
-        let block_info = self.reexecuted_block_info_with_txs()?.block_info.clone();
+        let block_info = self.reexecuted_block_with_txs()?.block_info.clone();
         let block_context = self
             .reexecuted_block_artifacts_reader
             .build_block_context(block_info.clone(), self.min_sierra_version_override.clone())?;
@@ -755,10 +758,10 @@ impl BlockReexecutor<StateReaderAndContractManager<BoxedFetchCompiledClasses>>
         let old_block_hash = self.base_block_state_reader.get_old_block_hash(old_block_number)?;
 
         let should_prefetch = self.prefetch_initial_reads
-            && !self.reexecuted_block_info_with_txs()?.transactions.is_empty();
+            && !self.reexecuted_block_with_txs()?.transactions.is_empty();
         let reader: BoxedFetchCompiledClasses = if should_prefetch {
             let txs: Vec<Transaction> = self
-                .reexecuted_block_info_with_txs()?
+                .reexecuted_block_with_txs()?
                 .transactions
                 .iter()
                 .map(|(tx, _hash)| tx.clone())
@@ -785,7 +788,7 @@ impl BlockReexecutor<StateReaderAndContractManager<BoxedFetchCompiledClasses>>
 
     fn get_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
         self.reexecuted_block_artifacts_reader
-            .api_txs_to_blockifier_txs(self.reexecuted_block_info_with_txs()?.transactions.clone())
+            .api_txs_to_blockifier_txs(self.reexecuted_block_with_txs()?.transactions.clone())
     }
 
     fn get_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
