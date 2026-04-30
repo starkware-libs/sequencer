@@ -24,7 +24,6 @@ use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 /// A stream that handles the bootstrapping with a bootstrap peer.
 /// This stream will automatically dial the bootstrap peer if not already connected.
 pub struct BootstrapPeerEventStream {
-    dial_retry_config: RetryConfig,
     peer_address: Multiaddr,
     peer_id: PeerId,
     dial_mode: DialMode,
@@ -73,8 +72,6 @@ impl BootstrapPeerEventStream {
                 if peer_id == self.peer_id =>
             {
                 self.dial_mode = DialMode::Connected;
-                // Reset retry dial strategy to original values since we succeeded in dialing
-                self.dial_retry_strategy = self.dial_retry_config.strategy();
                 self.wake_if_needed();
             }
             FromSwarm::ConnectionClosed(ConnectionClosed {
@@ -84,7 +81,11 @@ impl BootstrapPeerEventStream {
             }) if peer_id == self.peer_id && remaining_established == 0 => {
                 self.dial_mode = DialMode::Disconnected;
                 self.should_add_peer_to_kad_routing_table = true;
-                self.time_for_next_bootstrap_dial = now;
+                let delta_duration = self
+                    .dial_retry_strategy
+                    .next()
+                    .expect("Dial sleep strategy ended even though it's an infinite iterator.");
+                self.time_for_next_bootstrap_dial = now + delta_duration;
                 self.wake_if_needed();
             }
             FromSwarm::AddressChange(AddressChange { peer_id, .. }) if peer_id == self.peer_id => {
@@ -101,7 +102,6 @@ impl BootstrapPeerEventStream {
     ) -> Self {
         let bootstrap_dial_retry_strategy = bootstrap_dial_retry_config.strategy();
         Self {
-            dial_retry_config: bootstrap_dial_retry_config,
             peer_id: bootstrap_peer_id,
             peer_address: bootstrap_peer_address,
             dial_mode: DialMode::Disconnected,
