@@ -12,8 +12,12 @@
 //! See also: `fee_market` for EIP-1559-style base-fee adjustment, which receives
 //! `fee_actual` as a floor.
 
+use apollo_consensus::types::ProposalCommitment;
 use ethnum::U256;
 use starknet_api::block::GasPrice;
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHash;
+use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::{Poseidon, StarkHash};
 
 #[cfg(test)]
 mod test;
@@ -125,4 +129,24 @@ pub(crate) fn fee_proposal_bounds(fee_actual: GasPrice, margin_ppt: u128) -> (u1
     let upper = u128::try_from(fee_actual_u256 * scaled / denom).unwrap_or(u128::MAX);
     let lower = u128::try_from(fee_actual_u256 * denom / scaled).unwrap_or(0);
     (lower, upper)
+}
+
+/// SNIP-35: bind `fee_proposal_fri` to the proposal commitment hash.
+///
+/// Pre-V0_14_3 blocks have `fee_proposal = None` and the commitment is just `partial.0`,
+/// preserving on-chain behavior. From V0_14_3 onward, the commitment is
+/// `Poseidon(partial.0, fee_proposal_fri)`, so a proposer cannot equivocate on
+/// `fee_proposal_fri` without changing the commitment that consensus signs over.
+///
+/// This computation lives in the orchestrator (not in `starknet_api`) because the
+/// fee_proposal is a consensus-time signal — `starknet_api`'s block-hash primitives
+/// remain unaware of it, and `BlockHash` is unaffected.
+pub(crate) fn proposal_commitment_from(
+    partial: PartialBlockHash,
+    fee_proposal: Option<GasPrice>,
+) -> ProposalCommitment {
+    let Some(fee_proposal) = fee_proposal else {
+        return ProposalCommitment(partial.0);
+    };
+    ProposalCommitment(Poseidon::hash_array(&[partial.0, Felt::from(fee_proposal.0)]))
 }
