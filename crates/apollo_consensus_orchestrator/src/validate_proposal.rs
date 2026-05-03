@@ -42,6 +42,7 @@ use crate::metrics::{
     CONSENSUS_PROPOSAL_FIN_MISMATCH,
 };
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
+use crate::snip35::proposal_commitment_from;
 use crate::utils::{
     convert_to_sn_api_block_info,
     get_l1_prices_in_fri_and_wei,
@@ -197,6 +198,7 @@ pub(crate) async fn validate_proposal(
                     &mut verify_and_store_proof_tasks,
                     args.deps.transaction_converter.clone(),
                     &deadline_params,
+                    args.init.fee_proposal_fri,
                 ).await {
                     HandledProposalPart::Finished(built_block, received_fin, finished_info) => {
                         break (built_block, received_fin, finished_info);
@@ -408,6 +410,7 @@ async fn await_verify_and_store_proof_task(task: VerifyAndStoreProofTask) -> Res
 /// 1. Receives the proposal part from the network.
 /// 2. Pass this to the batcher.
 /// 3. Once finished, receive the commitment from the batcher.
+#[allow(clippy::too_many_arguments)]
 async fn handle_proposal_part(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
@@ -416,6 +419,7 @@ async fn handle_proposal_part(
     verify_and_store_proof_tasks: &mut Vec<VerifyAndStoreProofTask>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
     deadline_params: &ProposalDeadlineParams,
+    fee_proposal: Option<GasPrice>,
 ) -> HandledProposalPart {
     match proposal_part {
         None => {
@@ -488,8 +492,10 @@ async fn handle_proposal_part(
                     return HandledProposalPart::Invalid(err);
                 }
             };
-            let batcher_block_commitment =
-                ProposalCommitment(finished_info.proposal_commitment.partial_block_hash.0);
+            let batcher_block_commitment = proposal_commitment_from(
+                finished_info.proposal_commitment.partial_block_hash,
+                fee_proposal,
+            );
 
             info!(
                 network_block_commitment = ?fin.proposal_commitment,
