@@ -80,6 +80,7 @@ use crate::sequencer_consensus_context::{
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
 };
+use crate::snip35::proposal_commitment_from;
 use crate::utils::{make_gas_price_params, GasPriceParams, PreviousProposalInitInfo, StreamSender};
 
 pub(crate) const TIMEOUT: Duration = Duration::from_millis(1200);
@@ -429,7 +430,12 @@ pub(crate) fn proposal_init(height: BlockNumber, round: u32) -> ProposalInit {
         l1_data_gas_price_wei,
         starknet_version: starknet_api::block::StarknetVersion::LATEST,
         version_constant_commitment: Default::default(),
-        fee_proposal_fri: None,
+        // Match the proposer's default-fallback fee_proposal: empty sliding window →
+        // `compute_fee_actual` returns `None` → `compute_snip35_fee_proposal` falls back to
+        // `self.l2_gas_price` (= `min_gas_price` = 8 gwei). Validator-side tests reuse this
+        // helper to fabricate an init that matches what the proposer emits, so proposer and
+        // validator agree on the proposal commitment hash.
+        fee_proposal_fri: Some(GasPrice(8_000_000_000)),
     }
 }
 
@@ -444,9 +450,14 @@ pub(crate) async fn send_proposal_to_validator_context(
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
         .await
         .unwrap();
+    // Match the validator's computed commitment: `proposal_init` emits
+    // `fee_proposal_fri = Some(8 gwei)` (the default-test fee_proposal value), and the
+    // validator chains that into the proposal commitment via `proposal_commitment_from`.
+    let expected_commitment =
+        proposal_commitment_from(PARTIAL_BLOCK_HASH, Some(GasPrice(8_000_000_000)));
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: ProtoProposalCommitment(PARTIAL_BLOCK_HASH.0),
+            proposal_commitment: ProtoProposalCommitment(expected_commitment.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
             fin_payload: None,
         }))

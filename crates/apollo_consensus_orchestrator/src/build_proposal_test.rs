@@ -8,16 +8,17 @@ use apollo_batcher_types::batcher_types::{
     ProposalCommitment,
 };
 use apollo_batcher_types::communication::BatcherClientError;
-use apollo_consensus::types::ProposalCommitment as ConsensusProposalCommitment;
 use apollo_infra::component_client::ClientError;
 use apollo_transaction_converter::{MockTransactionConverterTrait, TransactionConverterError};
 use assert_matches::assert_matches;
+use starknet_api::block::GasPrice;
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
 use tokio_util::task::AbortOnDropHandle;
 
 use crate::build_proposal::{build_proposal, BuildProposalError};
+use crate::snip35::proposal_commitment_from;
 use crate::test_utils::{create_proposal_build_arguments, INTERNAL_TX_BATCH, PARTIAL_BLOCK_HASH};
 
 #[tokio::test]
@@ -44,7 +45,7 @@ async fn build_proposal_succeed() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let res = build_proposal(proposal_args.into()).await.unwrap();
-    assert_eq!(res, ConsensusProposalCommitment(PARTIAL_BLOCK_HASH.0));
+    assert_eq!(res, proposal_commitment_from(PARTIAL_BLOCK_HASH, Some(GasPrice::default())));
 }
 
 #[tokio::test]
