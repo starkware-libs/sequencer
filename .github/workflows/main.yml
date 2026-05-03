@@ -86,6 +86,10 @@ jobs:
 
       - name: "Run taplo"
         run: scripts/taplo.sh
+
+      - name: "Check overlay YAML configs are sorted"
+        run: python3 scripts/check_overlays_sorted.py
+        
       - name: Run Machete (detect unused dependencies)
         run: cargo machete
 
