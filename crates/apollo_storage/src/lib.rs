@@ -1009,54 +1009,31 @@ fn open_storage_files(
     let db_transaction = db_reader.begin_ro_txn()?;
     let table = db_transaction.open_table(file_offsets_table)?;
 
-    // TODO(dvir): consider using a loop here to avoid code duplication.
-    let thin_state_diff_offset =
-        table.get(&db_transaction, &OffsetKind::ThinStateDiff)?.unwrap_or_default();
-    let (thin_state_diff_writer, thin_state_diff_reader) = open_file(
-        mmap_file_config.clone(),
-        db_config.path().join("thin_state_diff.dat"),
-        thin_state_diff_offset,
-    )?;
+    // Opens a single mmap file, returning (writer, reader) handles.
+    // $name: string literal used as the file name without the `.dat` suffix.
+    // $kind: OffsetKind variant.
+    macro_rules! open_storage_file {
+        ($name:literal, $kind:ident) => {{
+            let offset = table.get(&db_transaction, &OffsetKind::$kind)?.unwrap_or_default();
+            open_file(
+                mmap_file_config.clone(),
+                db_config.path().join(concat!($name, ".dat")),
+                offset,
+            )
+        }};
+    }
 
-    let contract_class_offset =
-        table.get(&db_transaction, &OffsetKind::ContractClass)?.unwrap_or_default();
-    let (contract_class_writer, contract_class_reader) = open_file(
-        mmap_file_config.clone(),
-        db_config.path().join("contract_class.dat"),
-        contract_class_offset,
-    )?;
-
-    let casm_offset = table.get(&db_transaction, &OffsetKind::Casm)?.unwrap_or_default();
-    let (casm_writer, casm_reader) =
-        open_file(mmap_file_config.clone(), db_config.path().join("casm.dat"), casm_offset)?;
-
-    let deprecated_contract_class_offset =
-        table.get(&db_transaction, &OffsetKind::DeprecatedContractClass)?.unwrap_or_default();
-    let (deprecated_contract_class_writer, deprecated_contract_class_reader) = open_file(
-        mmap_file_config.clone(),
-        db_config.path().join("deprecated_contract_class.dat"),
-        deprecated_contract_class_offset,
-    )?;
-
-    let transaction_output_offset =
-        table.get(&db_transaction, &OffsetKind::TransactionOutput)?.unwrap_or_default();
-    let (transaction_output_writer, transaction_output_reader) = open_file(
-        mmap_file_config.clone(),
-        db_config.path().join("transaction_output.dat"),
-        transaction_output_offset,
-    )?;
-
-    let transaction_offset =
-        table.get(&db_transaction, &OffsetKind::Transaction)?.unwrap_or_default();
-    let (transaction_writer, transaction_reader) = open_file(
-        mmap_file_config.clone(),
-        db_config.path().join("transaction.dat"),
-        transaction_offset,
-    )?;
-
-    let events_offset = table.get(&db_transaction, &OffsetKind::Events)?.unwrap_or_default();
-    let (events_writer, events_reader) =
-        open_file(mmap_file_config, db_config.path().join("events.dat"), events_offset)?;
+    let (thin_state_diff_writer, thin_state_diff_reader) =
+        open_storage_file!("thin_state_diff", ThinStateDiff)?;
+    let (contract_class_writer, contract_class_reader) =
+        open_storage_file!("contract_class", ContractClass)?;
+    let (casm_writer, casm_reader) = open_storage_file!("casm", Casm)?;
+    let (deprecated_contract_class_writer, deprecated_contract_class_reader) =
+        open_storage_file!("deprecated_contract_class", DeprecatedContractClass)?;
+    let (transaction_output_writer, transaction_output_reader) =
+        open_storage_file!("transaction_output", TransactionOutput)?;
+    let (transaction_writer, transaction_reader) = open_storage_file!("transaction", Transaction)?;
+    let (events_writer, events_reader) = open_storage_file!("events", Events)?;
 
     Ok((
         FileHandlers {
