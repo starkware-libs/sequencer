@@ -41,6 +41,7 @@ use tracing::{debug, info, trace, warn};
 
 use crate::fee_market::calculate_next_l2_gas_price_for_fin;
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
+use crate::snip35::proposal_commitment_from;
 use crate::utils::{
     convert_to_sn_api_block_info,
     get_l1_prices_in_fri_and_wei,
@@ -274,8 +275,10 @@ async fn get_proposal_content(
                     })?;
             }
             GetProposalContent::Finished(info) => {
-                let proposal_commitment =
-                    ProposalCommitment(info.proposal_commitment.partial_block_hash.0);
+                let proposal_commitment = proposal_commitment_from(
+                    info.proposal_commitment.partial_block_hash,
+                    Some(args.fee_proposal),
+                );
                 content = truncate_to_executed_txs(&mut content, info.final_n_executed_txs);
 
                 info!(
