@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777553948424,
+  "lastUpdate": 1777829481028,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3535,6 +3535,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1459.8880866,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "57b515daa43e47e4549ecb5ae7649359720f4dbd",
+          "message": "apollo_storage: add tx_execution_infos table and file handler infrastructure (#13925)\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-03T17:16:26Z",
+          "tree_id": "a18f21eb69e5dfb6381a4a23563d3f8bf0b32daf",
+          "url": "https://github.com/starkware-libs/sequencer/commit/57b515daa43e47e4549ecb5ae7649359720f4dbd"
+        },
+        "date": 1777829480612,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 867.12996848,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1346.47129096,
             "unit": "ms"
           }
         ]
