@@ -84,4 +84,4 @@ serde_json.workspace = true
 workspace = true
 
 [features]
-testing = []
+testing = ["shared_execution_objects/deserialize", "shared_execution_objects/testing"]

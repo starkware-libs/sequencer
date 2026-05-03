@@ -8,6 +8,7 @@ description = "Python-compatible representation of execution objects of the Star
 
 [features]
 deserialize = ["blockifier/transaction_serde"]
+testing = []
 
 [dependencies]
 blockifier.workspace = true
