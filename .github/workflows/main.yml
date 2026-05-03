@@ -87,6 +87,14 @@ jobs:
 
       - name: "Run taplo"
         run: scripts/taplo.sh
+
+      - name: "Install yq"
+        run: |
+          wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          chmod +x /usr/local/bin/yq
+      - name: "Check overlay YAML configs are sorted"
+        run: python3 scripts/check_overlays_sorted.py
+
       - name: Run Machete (detect unused dependencies)
         run: cargo machete
 
