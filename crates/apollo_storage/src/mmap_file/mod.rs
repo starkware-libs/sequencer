@@ -200,11 +200,18 @@ pub(crate) fn open_file<V: ValueSerde>(
 }
 
 /// A wrapper around `MMapFile` that provides both write and read interfaces.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(crate) struct FileHandler<V: ValueSerde, Mode: TransactionKind> {
     memory_ptr: *const u8,
     mmap_file: Arc<Mutex<MMapFile<V>>>,
     _mode: PhantomData<Mode>,
+}
+
+// Manual impl so that V: Clone is not required.
+impl<V: ValueSerde, Mode: TransactionKind> Clone for FileHandler<V, Mode> {
+    fn clone(&self) -> Self {
+        Self { memory_ptr: self.memory_ptr, mmap_file: self.mmap_file.clone(), _mode: PhantomData }
+    }
 }
 
 unsafe impl<V: ValueSerde, Mode: TransactionKind> Send for FileHandler<V, Mode> {}
