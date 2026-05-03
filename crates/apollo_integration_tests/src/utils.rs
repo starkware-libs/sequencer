@@ -1,5 +1,7 @@
+use std::collections::HashMap;
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::path::PathBuf;
 use std::time::Duration;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
@@ -19,7 +21,8 @@ use apollo_class_manager_config::config::{
     FsClassManagerConfig,
     FsClassStorageConfig,
 };
-use apollo_committer_config::config::ApolloCommitterConfig;
+use apollo_committer::committer::StorageConstructor;
+use apollo_committer_config::config::{ApolloCommitterConfig, ApolloStorage};
 use apollo_config::converters::UrlAndHeaders;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::{
@@ -118,6 +121,15 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::staking::StakingWeight;
 use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, TransactionHasher};
+use starknet_committer::db::forest_trait::{
+    ForestMetadata,
+    ForestMetadataType,
+    ForestWriter,
+    StorageInitializer,
+};
+use starknet_committer::db::index_db::IndexDb;
+use starknet_committer::db::serde_db_utils::DbBlockNumber;
+use starknet_patricia_storage::storage_trait::DbValue;
 use starknet_types_core::felt::Felt;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
@@ -235,6 +247,7 @@ pub fn create_node_config(
     block_max_capacity_gas: GasAmount,
     validator_id: ValidatorId,
     allow_bootstrap_txs: bool,
+    verify_state_diff_hash: bool,
 ) -> (SequencerNodeConfig, ConfigPointersMap) {
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
@@ -247,6 +260,7 @@ pub fn create_node_config(
     );
     let committer_config = ApolloCommitterConfig {
         db_path: storage_config.committer_db_path.clone(),
+        verify_state_diff_hash,
         ..Default::default()
     };
     let validate_non_zero_resource_bounds = !allow_bootstrap_txs;
@@ -714,6 +728,7 @@ pub fn create_gateway_config(
         validate_resource_bounds: validate_non_zero_resource_bounds,
         max_calldata_length: 19,
         max_signature_length: 2,
+        allow_client_side_proving: true,
         ..Default::default()
     };
     let stateful_tx_validator_config = StatefulTransactionValidatorConfig {
@@ -1176,4 +1191,19 @@ pub fn validate_tx_count(
         "Expected {expected_count} txs, but found {tx_hashes_len} txs.",
     );
     tx_hashes.to_vec()
+}
+
+pub async fn seed_committer_offset(db_path: PathBuf, commitment_offset: BlockNumber) {
+    if commitment_offset.0 == 0 {
+        return;
+    }
+    let storage = ApolloStorage::create_storage(db_path, Default::default());
+    let mut forest_storage = IndexDb::<ApolloStorage>::new(storage);
+    let mut updates = HashMap::new();
+    IndexDb::<ApolloStorage>::insert_metadata(
+        &mut updates,
+        ForestMetadataType::CommitmentOffset,
+        DbValue(DbBlockNumber(commitment_offset).serialize().to_vec()),
+    );
+    forest_storage.write_updates(updates).await;
 }

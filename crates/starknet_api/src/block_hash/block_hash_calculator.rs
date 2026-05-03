@@ -247,6 +247,10 @@ pub fn calculate_block_hash(
     state_root: GlobalRoot,
     previous_block_hash: BlockHash,
 ) -> StarknetApiResult<BlockHash> {
+    println!(
+        "EINAT calculate_block_hash: state_root: {:?}, previous_block_hash: {:?}",
+        state_root, previous_block_hash
+    );
     let block_hash_version: BlockHashVersion =
         partial_block_hash_components.starknet_version.try_into()?;
     let block_commitments = &partial_block_hash_components.header_commitments;
