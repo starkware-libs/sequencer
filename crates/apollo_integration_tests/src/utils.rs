@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
@@ -117,9 +118,9 @@ use serde_json::{json, to_value};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::staking::StakingWeight;
-use starknet_api::transaction::fields::ContractAddressSalt;
+use starknet_api::transaction::fields::{ContractAddressSalt, Proof, ProofFacts};
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, TransactionHasher};
 use starknet_committer::db::forest_trait::{
     ForestMetadata,
@@ -228,6 +229,51 @@ impl TestScenario for DeployAndInvokeTxs {
 
     fn n_txs(&self) -> usize {
         N_TXS_IN_FIRST_BLOCK
+    }
+}
+
+fn load_proof_flow_proof_facts() -> ProofFacts {
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/resources/proof_flow/proof_facts.json");
+    let json = std::fs::read_to_string(path)
+        .expect("Failed to read proof_facts.json — run the fixture generator first");
+    serde_json::from_str(&json).expect("Failed to parse proof_facts.json")
+}
+
+fn load_proof_flow_proof() -> Proof {
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/resources/proof_flow/proof.bin");
+    let bytes =
+        std::fs::read(path).expect("Failed to read proof.bin — run the fixture generator first");
+    Proof(Arc::new(bytes))
+}
+
+pub struct ProofFlowTxs {
+    proof_facts: ProofFacts,
+    proof: Proof,
+}
+
+impl ProofFlowTxs {
+    pub fn new() -> Self {
+        Self { proof_facts: load_proof_flow_proof_facts(), proof: load_proof_flow_proof() }
+    }
+}
+
+impl TestScenario for ProofFlowTxs {
+    fn create_txs(
+        &self,
+        tx_generator: &mut MultiAccountTransactionGenerator,
+        account_id: AccountId,
+    ) -> (Vec<RpcTransaction>, Vec<L1HandlerTransaction>) {
+        let tx = tx_generator.account_with_id_mut(account_id).generate_trivial_rpc_invoke_tx(1);
+        let RpcTransaction::Invoke(RpcInvokeTransaction::V3(mut inner)) = tx else {
+            panic!("Expected RpcInvokeTransactionV3")
+        };
+        inner.proof_facts = self.proof_facts.clone();
+        inner.proof = self.proof.clone();
+        (vec![RpcTransaction::Invoke(RpcInvokeTransaction::V3(inner))], vec![])
+    }
+
+    fn n_txs(&self) -> usize {
+        1
     }
 }
 
