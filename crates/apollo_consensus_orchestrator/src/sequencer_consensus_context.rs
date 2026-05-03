@@ -99,6 +99,7 @@ use crate::snip35::{
     compute_fee_actual,
     compute_fee_proposal,
     compute_fee_target,
+    proposal_commitment_from,
     Snip35Info,
     FEE_PROPOSAL_MARGIN_PPT,
     FEE_PROPOSAL_WINDOW_SIZE,
@@ -182,8 +183,10 @@ impl BuiltProposals {
         proposal_id: &ProposalId,
         finished_info: FinishedProposalInfo,
     ) {
-        let proposal_commitment =
-            ProposalCommitment(finished_info.proposal_commitment.partial_block_hash.0);
+        let proposal_commitment = proposal_commitment_from(
+            finished_info.proposal_commitment.partial_block_hash,
+            init.fee_proposal_fri,
+        );
 
         let height = init.height;
         let round = init.round;
@@ -589,9 +592,13 @@ impl SequencerConsensusContext {
                 compiled_class_hashes_for_migration: central_objects
                     .compiled_class_hashes_for_migration,
                 proposal_commitment: commitment,
+                // TODO(SNIP-35): plumb the parent block's `fee_proposal_fri` here once
+                // `central_objects.parent_proposal_commitment` carries it (or read from
+                // BlockHeaderWithoutHash storage). Today we pass `None`, which means
+                // pre-V0_14_3 commitments — correct for non-SNIP-35 deployments only.
                 parent_proposal_commitment: central_objects
                     .parent_proposal_commitment
-                    .map(|commitment| ProposalCommitment(commitment.partial_block_hash.0)),
+                    .map(|c| proposal_commitment_from(c.partial_block_hash, None)),
                 recent_block_hashes: self.collect_recent_block_hashes(height).await,
             })
             .await
