@@ -344,7 +344,7 @@ where
                             trace!(remote_addr = %client_peer, "remote component TCP connection closed");
                         }
                         Err(_) => {
-                            trace!("Too many connections, denying a new connection");
+                            debug!("Too many connections, denying a new connection");
                             // Marked `async` to conform to the expected `Service` trait, requiring
                             // the handler to return a `Future`.
                             let reject_request_service =
