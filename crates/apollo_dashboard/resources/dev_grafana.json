@@ -1220,6 +1220,28 @@
           "extra_params": {}
         },
         {
+          "title": "Accounts With Nonce Gap",
+          "description": "Number of accounts whose lowest pool nonce exceeds the account nonce, making them unable to provide any transaction for batching",
+          "type": "timeseries",
+          "exprs": [
+            "mempool_accounts_with_gap{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {
+            "log_query": "\"has a nonce gap\""
+          }
+        },
+        {
+          "title": "Stuck Transactions (Nonce Gap)",
+          "description": "Number of transactions in the pool belonging to accounts whose lowest pool nonce exceeds the account nonce",
+          "type": "timeseries",
+          "exprs": [
+            "mempool_stuck_txs{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {
+            "log_query": "\"has a nonce gap\""
+          }
+        },
+        {
           "title": "Transaction Time Spent In Mempool Until Batched",
           "description": "The time a transaction spends in the mempool until it is batched (5m window)",
           "type": "timeseries",

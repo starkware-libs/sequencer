@@ -942,7 +942,12 @@ impl Mempool {
             if gap_exists {
                 if self.accounts_with_gap.insert(address) {
                     // Newly entered gap: all current pool txs for this account are now stuck.
-                    self.n_stuck_txs += self.tx_pool.n_txs_for_address(address);
+                    let n_stuck = self.tx_pool.n_txs_for_address(address);
+                    self.n_stuck_txs += n_stuck;
+                    warn!(
+                        "Account {address} has a nonce gap; {n_stuck} transaction(s) are now \
+                         stuck."
+                    );
                 }
                 // Stayed in gap: per-tx deltas were already applied at add/remove sites.
             } else {
