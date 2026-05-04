@@ -2,13 +2,7 @@ use apollo_test_utils::{get_rng, GetTestInstance};
 
 use crate::sync::{DataOrFin, HeaderQuery, SignedBlockHeader};
 
-// TODO(AndrewL): the sync proto's `SignedBlockHeader` does not carry `fee_proposal_fri`,
-// so the field is dropped on roundtrip and the equality assertion fails. Remove the
-// `#[should_panic]` (and this comment) in the follow-up PR that adds `fee_proposal_fri = 22`
-// to `apollo_protobuf/src/proto/p2p/proto/sync/header.proto` and plumbs it through the
-// converter at `apollo_protobuf/src/converters/header.rs`.
 #[test]
-#[should_panic(expected = "fee_proposal_fri")]
 fn block_header_to_bytes_and_back() {
     let mut rng = get_rng();
     let signed_block_header = SignedBlockHeader::get_test_instance(&mut rng);
@@ -18,9 +12,7 @@ fn block_header_to_bytes_and_back() {
     assert_eq!(res_data, data);
 }
 
-// TODO(AndrewL): see the TODO above `block_header_to_bytes_and_back`.
 #[test]
-#[should_panic(expected = "fee_proposal_fri")]
 fn block_header_without_commitments_to_bytes_and_back() {
     let mut rng = get_rng();
     let mut signed_block_header = SignedBlockHeader::get_test_instance(&mut rng);
