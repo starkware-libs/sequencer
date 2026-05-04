@@ -1,7 +1,9 @@
 //! Storage for transaction execution info per block (input to the starknet OS).
 
 use blockifier::transaction::objects::TransactionExecutionInfo;
+use indexmap::IndexMap;
 use starknet_api::block::BlockNumber;
+use starknet_api::transaction::TransactionHash;
 
 use crate::compression_utils::{compress, decompress};
 use crate::db::serialization::{StorageSerde, StorageSerdeError};
@@ -9,21 +11,20 @@ use crate::db::table_types::Table;
 use crate::db::{TransactionKind, RW};
 use crate::{OffsetKind, StorageResult, StorageTxn};
 
-/// Per-block container of transaction execution infos, stored as a compressed JSON blob.
-#[derive(Debug)]
-pub(crate) struct TxExecutionInfos(pub Vec<TransactionExecutionInfo>);
+/// Per-block map from transaction hash to its execution info, stored as a compressed JSON blob.
+pub type TransactionExecutionInfos = IndexMap<TransactionHash, TransactionExecutionInfo>;
 
-impl StorageSerde for TxExecutionInfos {
+impl StorageSerde for TransactionExecutionInfos {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
-        let bytes = serde_json::to_vec(&self.0)?;
-        let compressed = compress(bytes.as_slice())?;
+        let bytes = serde_json::to_vec(self)?;
+        let compressed = compress(&bytes)?;
         compressed.serialize_into(res)
     }
 
     fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
         let compressed = Vec::<u8>::deserialize_from(bytes)?;
         let data = decompress(compressed.as_slice()).ok()?;
-        serde_json::from_slice(&data).ok().map(TxExecutionInfos)
+        serde_json::from_slice(&data).ok()
     }
 }
 
@@ -33,7 +34,7 @@ pub trait TxExecutionInfoStorageReader<Mode: TransactionKind> {
     fn get_tx_execution_infos(
         &self,
         block_number: BlockNumber,
-    ) -> StorageResult<Option<Vec<TransactionExecutionInfo>>>;
+    ) -> StorageResult<Option<TransactionExecutionInfos>>;
 }
 
 /// Interface for writing transaction execution infos to storage.
@@ -45,7 +46,7 @@ where
     fn append_tx_execution_infos(
         self,
         block_number: BlockNumber,
-        tx_execution_infos: Vec<TransactionExecutionInfo>,
+        tx_execution_infos: &TransactionExecutionInfos,
     ) -> StorageResult<Self>;
 
     /// Removes the transaction execution infos for the given block from storage.
@@ -57,12 +58,12 @@ impl<Mode: TransactionKind> TxExecutionInfoStorageReader<Mode> for StorageTxn<'_
     fn get_tx_execution_infos(
         &self,
         block_number: BlockNumber,
-    ) -> StorageResult<Option<Vec<TransactionExecutionInfo>>> {
+    ) -> StorageResult<Option<TransactionExecutionInfos>> {
         let table = self.open_table(&self.tables.tx_execution_infos)?;
         let Some(location) = table.get(&self.txn, &block_number)? else {
             return Ok(None);
         };
-        Ok(Some(self.file_handlers.get_tx_execution_infos_unchecked(location)?.0))
+        Ok(Some(self.file_handlers.get_tx_execution_infos_unchecked(location)?))
     }
 }
 
@@ -70,13 +71,12 @@ impl TxExecutionInfoStorageWriter for StorageTxn<'_, RW> {
     fn append_tx_execution_infos(
         self,
         block_number: BlockNumber,
-        tx_execution_infos: Vec<TransactionExecutionInfo>,
+        tx_execution_infos: &TransactionExecutionInfos,
     ) -> StorageResult<Self> {
         let file_offset_table = self.txn.open_table(&self.tables.file_offsets)?;
         let tx_execution_infos_table = self.open_table(&self.tables.tx_execution_infos)?;
 
-        let infos = TxExecutionInfos(tx_execution_infos);
-        let location = self.file_handlers.append_tx_execution_infos(&infos);
+        let location = self.file_handlers.append_tx_execution_infos(tx_execution_infos);
         tx_execution_infos_table.upsert(&self.txn, &block_number, &location)?;
         file_offset_table.upsert(
             &self.txn,

@@ -184,7 +184,7 @@ use crate::storage_reader_server::{
     StorageReaderServerHandler,
 };
 #[cfg(feature = "os_input")]
-use crate::tx_execution_info::TxExecutionInfos;
+use crate::tx_execution_info::TransactionExecutionInfos;
 use crate::version::{VersionStorageReader, VersionStorageWriter};
 
 // For more details on the storage version, see the module documentation.
@@ -877,7 +877,7 @@ struct FileHandlers<Mode: TransactionKind> {
     transaction: FileHandler<VersionZeroWrapper<Transaction>, Mode>,
     events: FileHandler<VersionZeroWrapper<Vec<Event>>, Mode>,
     #[cfg(feature = "os_input")]
-    tx_execution_infos: FileHandler<VersionZeroWrapper<TxExecutionInfos>, Mode>,
+    tx_execution_infos: FileHandler<VersionZeroWrapper<TransactionExecutionInfos>, Mode>,
 }
 
 impl FileHandlers<RW> {
@@ -921,7 +921,10 @@ impl FileHandlers<RW> {
     }
 
     #[cfg(feature = "os_input")]
-    fn append_tx_execution_infos(&self, tx_execution_infos: &TxExecutionInfos) -> LocationInFile {
+    fn append_tx_execution_infos(
+        &self,
+        tx_execution_infos: &TransactionExecutionInfos,
+    ) -> LocationInFile {
         self.clone().tx_execution_infos.append(tx_execution_infos)
     }
 
@@ -1026,7 +1029,7 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
     pub(crate) fn get_tx_execution_infos_unchecked(
         &self,
         location: LocationInFile,
-    ) -> StorageResult<TxExecutionInfos> {
+    ) -> StorageResult<TransactionExecutionInfos> {
         self.tx_execution_infos.get(location)?.ok_or(StorageError::DBInconsistency {
             msg: format!("TxExecutionInfos at location {location:?} not found."),
         })
