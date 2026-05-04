@@ -9,6 +9,7 @@ use starknet_api::block::{
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockSignature,
+    GasPrice,
     GasPricePerToken,
     StarknetVersion,
 };
@@ -175,6 +176,7 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
             value.next_l2_gas_price.ok_or(missing("SignedBlockHeader::next_l2_gas_price"))?,
         )
         .into();
+        let fee_proposal_fri = value.fee_proposal_fri.map(|v| GasPrice(u128::from(v)));
 
         let receipt_commitment = value
             .receipts
@@ -205,7 +207,7 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
                     timestamp,
                     l1_da_mode,
                     starknet_version,
-                    fee_proposal_fri: None,
+                    fee_proposal_fri,
                 },
                 state_diff_commitment,
                 state_diff_length,
@@ -287,6 +289,10 @@ impl From<(BlockHeader, Vec<BlockSignature>)> for protobuf::SignedBlockHeader {
             ),
             l2_gas_consumed: header.block_header_without_hash.l2_gas_consumed.0,
             next_l2_gas_price: Some(header.block_header_without_hash.next_l2_gas_price.0.into()),
+            fee_proposal_fri: header
+                .block_header_without_hash
+                .fee_proposal_fri
+                .map(|gp| gp.0.into()),
             signatures: signatures.iter().map(|signature| (*signature).into()).collect(),
         }
     }

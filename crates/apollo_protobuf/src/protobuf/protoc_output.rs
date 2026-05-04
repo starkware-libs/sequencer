@@ -1218,10 +1218,14 @@ pub struct SignedBlockHeader {
     #[prost(enumeration = "L1DataAvailabilityMode", tag = "20")]
     pub l1_data_availability_mode: i32,
     /// for now, we assume a small consensus, so this fits in 1M. Else, these will be repeated and extracted from this message.
-    ///
-    /// can be more explicit here about the signature structure as this is not part of account abstraction
     #[prost(message, repeated, tag = "21")]
     pub signatures: ::prost::alloc::vec::Vec<ConsensusSignature>,
+    /// SNIP-35: proposer's oracle-derived recommended fee. Absent for pre-V0_14_3 blocks.
+    /// WARNING: this field is currently not part of the block hash, so the value must be trusted.
+    ///
+    /// can be more explicit here about the signature structure as this is not part of account abstraction
+    #[prost(message, optional, tag = "22")]
+    pub fee_proposal_fri: ::core::option::Option<Uint128>,
 }
 /// sent to all peers (except the ones this was received from, if any).
 /// for a fraction of peers, also send the GetBlockHeaders response (as if they asked for it for this block)
