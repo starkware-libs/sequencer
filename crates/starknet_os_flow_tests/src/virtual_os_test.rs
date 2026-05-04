@@ -1,5 +1,9 @@
 use std::path::Path;
 
+use apollo_integration_tests::state_reader::{
+    EXPECTED_PROOF_FLOW_GENESIS_GLOBAL_ROOT,
+    EXPECTED_PROOF_FLOW_STRK_FEE_TOKEN_ADDRESS,
+};
 use blockifier::execution::contract_class::TrackedResource;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::get_valid_virtual_os_program_hash;
@@ -11,6 +15,7 @@ use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::core::EthAddress;
+use starknet_api::hash::StateRoots;
 use starknet_api::test_utils::{CURRENT_BLOCK_TIMESTAMP, TEST_SEQUENCER_ADDRESS};
 use starknet_api::transaction::fields::{ProofFacts, TransactionSignature};
 use starknet_api::transaction::{
@@ -22,7 +27,9 @@ use starknet_api::transaction::{
 use starknet_api::{calldata, contract_address, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
+use crate::initial_state::create_default_initial_state_data;
 use crate::test_manager::{
+    block_context_for_flow_tests,
     EventPredicateExpectation,
     TestBuilder,
     TestBuilderConfig,
@@ -307,4 +314,37 @@ async fn generate_proof_fixtures() {
     )
     .expect("write proof_facts.json");
     std::fs::write(&proof_path, output.proof.0.as_slice()).expect("write proof.bin");
+}
+
+/// Guards against drift between the STRK fee token address used by the proof-flow integration
+/// test and the one produced by the virtual OS test pipeline. Run with `UPDATE_EXPECT=1` to refresh
+/// the constant in `apollo_integration_tests::state_reader`, then regenerate the proof fixtures by
+/// running `cargo +nightly-2025-07-14 test -p starknet_os_flow_tests --features
+/// starknet_transaction_prover/stwo_proving --release generate_proof_fixtures -- --ignored`.
+#[test]
+fn proof_flow_chain_info_matches_virtual_os_test() {
+    let virtual_os_strk_fee_token_address = block_context_for_flow_tests(BlockNumber(0), false)
+        .chain_info()
+        .fee_token_addresses
+        .strk_fee_token_address;
+    EXPECTED_PROOF_FLOW_STRK_FEE_TOKEN_ADDRESS
+        .assert_eq(&virtual_os_strk_fee_token_address.to_hex_string());
+}
+
+/// Guards against drift between the genesis global root the proof-flow integration test seeds into
+/// storage and the initial global root produced by the virtual OS test pipeline. Run with
+/// `UPDATE_EXPECT=1` to refresh the constant in `apollo_integration_tests::state_reader`, then
+/// regenerate the proof fixtures by running `cargo +nightly-2025-07-14 test -p
+/// starknet_os_flow_tests --features starknet_transaction_prover/stwo_proving --release
+/// generate_proof_fixtures -- --ignored`.
+#[tokio::test(flavor = "multi_thread")]
+async fn proof_flow_global_root_matches_virtual_os_test() {
+    let (initial_state_data, []) =
+        create_default_initial_state_data::<DictStateReader, 0>([]).await;
+    let virtual_os_global_root = StateRoots {
+        contracts_trie_root_hash: initial_state_data.initial_state.contracts_trie_root_hash,
+        classes_trie_root_hash: initial_state_data.initial_state.classes_trie_root_hash,
+    }
+    .global_root();
+    EXPECTED_PROOF_FLOW_GENESIS_GLOBAL_ROOT.assert_eq(&virtual_os_global_root.0.to_hex_string());
 }
