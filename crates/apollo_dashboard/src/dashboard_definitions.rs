@@ -29,6 +29,7 @@ use crate::panels::consensus::{
     get_panel_consensus_block_number_diff_from_sync,
     get_panel_consensus_decisions_reached_as_proposer_counter,
     get_panel_consensus_round,
+    get_snip35_row,
 };
 use crate::panels::gateway::{get_gateway_row, get_panel_gateway_add_tx_failure_by_reason};
 use crate::panels::http_server::{
@@ -100,6 +101,7 @@ pub fn get_apollo_dashboard() -> Dashboard {
             get_upgrade_row(),
             get_l1_events_row(),
             get_l1_gas_price_row(),
+            get_snip35_row(),
             get_blockifier_row(),
             get_compile_to_casm_row(),
             get_consensus_p2p_row(),
