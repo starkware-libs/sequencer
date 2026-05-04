@@ -493,10 +493,10 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         CommitmentTaskOutput { response: CommitBlockResponse { global_root }, height }: CommitmentTaskOutput,
         should_finalize_block_hash: bool,
     ) -> CommitmentManagerResult<FinalBlockCommitment> {
-        match should_finalize_block_hash {
+        let finalized_block_hash = match should_finalize_block_hash {
             false => {
                 debug!("Finalized commitment for block {height} without calculating block hash.");
-                Ok(FinalBlockCommitment { height, block_hash: None, global_root })
+                None
             }
             true => {
                 debug!("Finalizing commitment for block {height} with calculating block hash.");
@@ -512,19 +512,17 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                     .ok_or(CommitmentManagerError::MissingPartialBlockHashComponents(height))?;
                 debug!(
                     "Calculating block hash for block {height} with partial block hash \
-                     components: {partial_block_hash_components:?}"
+                     components: {partial_block_hash_components:?}, global root: {global_root:?}, \
+                     previous block hash: {previous_block_hash:?}"
                 );
-                debug!(
-                    "Global root: {global_root:?}, previous block hash: {previous_block_hash:?}"
-                );
-                let block_hash = calculate_block_hash(
+                Some(calculate_block_hash(
                     &partial_block_hash_components,
                     global_root,
                     previous_block_hash,
-                )?;
-                Ok(FinalBlockCommitment { height, block_hash: Some(block_hash), global_root })
+                )?)
             }
-        }
+        };
+        Ok(FinalBlockCommitment { height, block_hash: finalized_block_hash, global_root })
     }
 
     fn update_task_duration_metric(
