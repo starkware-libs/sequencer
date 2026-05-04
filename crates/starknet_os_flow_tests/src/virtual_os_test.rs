@@ -1,5 +1,9 @@
 use std::path::Path;
 
+use apollo_integration_tests::state_reader::{
+    integration_test_genesis_global_root,
+    proof_flow_chain_info,
+};
 use blockifier::execution::contract_class::TrackedResource;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::get_valid_virtual_os_program_hash;
@@ -11,6 +15,7 @@ use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::core::EthAddress;
+use starknet_api::hash::StateRoots;
 use starknet_api::test_utils::{CURRENT_BLOCK_TIMESTAMP, TEST_SEQUENCER_ADDRESS};
 use starknet_api::transaction::fields::{ProofFacts, TransactionSignature};
 use starknet_api::transaction::{
@@ -22,7 +27,9 @@ use starknet_api::transaction::{
 use starknet_api::{calldata, contract_address, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
+use crate::initial_state::create_default_initial_state_data;
 use crate::test_manager::{
+    block_context_for_flow_tests,
     EventPredicateExpectation,
     TestBuilder,
     TestBuilderConfig,
@@ -307,4 +314,43 @@ async fn generate_proof_fixtures() {
     )
     .expect("write proof_facts.json");
     std::fs::write(&proof_path, output.proof.0.as_slice()).expect("write proof.bin");
+}
+
+/// Guards against drift between the chain info used by the proof-flow integration test.
+#[test]
+fn proof_flow_chain_info_matches_virtual_os_test() {
+    let virtual_os_chain_info =
+        block_context_for_flow_tests(BlockNumber(0), false).chain_info().clone();
+    let integration_test_chain_info = proof_flow_chain_info();
+    assert_eq!(
+        virtual_os_chain_info.fee_token_addresses.strk_fee_token_address,
+        integration_test_chain_info.fee_token_addresses.strk_fee_token_address,
+        "The proof flow integration test uses a different STRK fee token address than the virtual \
+         OS test. Please update the STRK fee token address in the proof flow integration test to \
+         match the virtual OS test and regenerate the proof fixtures (run `cargo \
+         +nightly-2025-07-14 test -p starknet_os_flow_tests --features stwo_proving --release \
+         generate_proof_fixtures -- --ignored`).",
+    );
+}
+
+/// Guards against drift between the genesis global root the proof-flow integration test seeds into
+/// storage and the initial global root produced used to generate the proof fixtures.
+#[tokio::test(flavor = "multi_thread")]
+async fn proof_flow_global_root_matches_virtual_os_test() {
+    let (initial_state_data, []) =
+        create_default_initial_state_data::<DictStateReader, 0>([]).await;
+    let virtual_os_global_root = StateRoots {
+        contracts_trie_root_hash: initial_state_data.initial_state.contracts_trie_root_hash,
+        classes_trie_root_hash: initial_state_data.initial_state.classes_trie_root_hash,
+    }
+    .global_root();
+    let integration_test_global_root = integration_test_genesis_global_root();
+    assert_eq!(
+        virtual_os_global_root, integration_test_global_root,
+        "The proof flow integration test uses a different global root than the virtual
+         OS test. Please update the global root in the proof flow integration test to match the \
+         virtual OS test and regenerate the proof fixtures (run `cargo +nightly-2025-07-14 test \
+         -p starknet_os_flow_tests --features stwo_proving --release generate_proof_fixtures -- \
+         --ignored`)."
+    );
 }

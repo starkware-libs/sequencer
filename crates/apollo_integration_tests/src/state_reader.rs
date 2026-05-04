@@ -376,7 +376,7 @@ fn initialize_papyrus_test_state(
 }
 
 /// Global root that matches the proof flow fixtures.
-fn integration_test_genesis_global_root() -> GlobalRoot {
+pub fn integration_test_genesis_global_root() -> GlobalRoot {
     GlobalRoot(felt!("0x68fed6a062d385db8d1dd9096060e822196feb311fc3bb4f0018635461ca85e"))
 }
 
