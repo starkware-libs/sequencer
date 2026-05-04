@@ -7,6 +7,7 @@ use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use blockifier_test_utils::fee_token_addresses::EXPECTED_STRK_FEE_TOKEN_ADDRESS;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
@@ -44,7 +45,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::test_manager::{
     block_context_for_flow_tests,
-    EXPECTED_STRK_FEE_TOKEN_ADDRESS,
     FUNDED_ACCOUNT_ADDRESS,
     STRK_FEE_TOKEN_ADDRESS,
 };
@@ -388,6 +388,6 @@ pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction,
         nonce,
         ValidResourceBounds::create_for_testing_no_fee_enforcement(),
     );
-    EXPECTED_STRK_FEE_TOKEN_ADDRESS.assert_debug_eq(&**address);
+    EXPECTED_STRK_FEE_TOKEN_ADDRESS.assert_debug_eq(&address.to_hex_string());
     (tx, address)
 }
