@@ -31,6 +31,8 @@ message SignedBlockHeader {
     L1DataAvailabilityMode l1_data_availability_mode = 20;
     // for now, we assume a small consensus, so this fits in 1M. Else, these will be repeated and extracted from this message.
     repeated ConsensusSignature signatures = 21;
+    // SNIP-35: proposer's oracle-derived recommended fee. Absent for pre-V0_14_3 blocks.
+    optional Uint128 fee_proposal_fri = 22;
     // can be more explicit here about the signature structure as this is not part of account abstraction
 }
 
