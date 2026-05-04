@@ -64,6 +64,7 @@ blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
 clap = { workspace = true, features = ["derive"] }
+expect-test.workspace = true
 futures.workspace = true
 hex.workspace = true
 http.workspace = true
