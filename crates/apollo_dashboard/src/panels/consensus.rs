@@ -56,6 +56,10 @@ use apollo_consensus_orchestrator::metrics::{
     LABEL_BUILD_PROPOSAL_FAILURE_REASON,
     LABEL_CENDE_FAILURE_REASON,
     LABEL_VALIDATE_PROPOSAL_FAILURE_REASON,
+    SNIP35_FEE_ACTUAL,
+    SNIP35_FEE_PROPOSAL,
+    SNIP35_FEE_TARGET,
+    SNIP35_STRK_USD_RATE,
 };
 use apollo_metrics::metrics::MetricQueryName;
 use apollo_network::metrics::{LABEL_NAME_BROADCAST_DROP_REASON, LABEL_NAME_EVENT_TYPE};
@@ -704,6 +708,54 @@ pub(crate) fn get_cende_row() -> Row {
             get_panel_cende_last_prepared_blob_block_number(),
             get_panel_cende_write_preconfirmed_block(),
             get_panel_cende_write_preconfirmed_block_failure(),
+        ],
+    )
+}
+
+fn get_panel_snip35_fee_actual() -> Panel {
+    Panel::new(
+        "SNIP-35 fee_actual (GFri)",
+        "Median of recent fee_proposals over the sliding window, in GFri",
+        format!("{} / 1e9", SNIP35_FEE_ACTUAL.get_name_with_filter()),
+        PanelType::TimeSeries,
+    )
+}
+
+fn get_panel_snip35_fee_proposal() -> Panel {
+    Panel::new(
+        "SNIP-35 fee_proposal (GFri)",
+        "fee_proposal this node published in the latest block, in GFri",
+        format!("{} / 1e9", SNIP35_FEE_PROPOSAL.get_name_with_filter()),
+        PanelType::TimeSeries,
+    )
+}
+
+fn get_panel_snip35_fee_target() -> Panel {
+    Panel::new(
+        "SNIP-35 fee_target (GFri)",
+        "fee_target computed from the STRK/USD oracle, in GFri",
+        format!("{} / 1e9", SNIP35_FEE_TARGET.get_name_with_filter()),
+        PanelType::TimeSeries,
+    )
+}
+
+fn get_panel_snip35_strk_usd_rate() -> Panel {
+    Panel::new(
+        "SNIP-35 STRK/USD rate (USD)",
+        "STRK/USD rate from the oracle, in USD (raw value has 18 decimals)",
+        format!("{} / 1e18", SNIP35_STRK_USD_RATE.get_name_with_filter()),
+        PanelType::TimeSeries,
+    )
+}
+
+pub(crate) fn get_snip35_row() -> Row {
+    Row::new(
+        "SNIP-35",
+        vec![
+            get_panel_snip35_fee_actual(),
+            get_panel_snip35_fee_proposal(),
+            get_panel_snip35_fee_target(),
+            get_panel_snip35_strk_usd_rate(),
         ],
     )
 }
