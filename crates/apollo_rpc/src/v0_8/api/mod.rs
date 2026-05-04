@@ -59,10 +59,7 @@ use super::transaction::{
     MessageFromL1,
     TransactionStatus,
     TransactionWithHash,
-    TypedDeployAccountTransaction,
-    TypedInvokeTransaction,
 };
-use super::write_api_result::{AddDeclareOkResult, AddDeployAccountOkResult, AddInvokeOkResult};
 use crate::api::{BlockId, CallRequest};
 use crate::syncing_state::SyncingState;
 use crate::{internal_server_error, ContinuationTokenAsStruct};
@@ -196,27 +193,6 @@ pub trait JsonRpc {
     /// returns the result (Retdata).
     #[method(name = "call")]
     async fn call(&self, request: CallRequest, block_id: BlockId) -> RpcResult<Vec<Felt>>;
-
-    /// Submits a new invoke transaction to be added to the chain.
-    #[method(name = "addInvokeTransaction")]
-    async fn add_invoke_transaction(
-        &self,
-        invoke_transaction: TypedInvokeTransaction,
-    ) -> RpcResult<AddInvokeOkResult>;
-
-    /// Submits a new deploy account transaction to be added to the chain.
-    #[method(name = "addDeployAccountTransaction")]
-    async fn add_deploy_account_transaction(
-        &self,
-        deploy_account_transaction: TypedDeployAccountTransaction,
-    ) -> RpcResult<AddDeployAccountOkResult>;
-
-    /// Submits a new declare transaction to be added to the chain.
-    #[method(name = "addDeclareTransaction")]
-    async fn add_declare_transaction(
-        &self,
-        declare_transaction: BroadcastedDeclareTransaction,
-    ) -> RpcResult<AddDeclareOkResult>;
 
     /// Estimates the fee of a series of transactions.
     #[method(name = "estimateFee")]

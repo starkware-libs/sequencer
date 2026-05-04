@@ -1,4 +1,3 @@
-use apollo_starknet_client::writer::objects::transaction as client_transaction;
 use apollo_test_utils::{
     auto_impl_get_test_instance,
     get_number_of_variants,
@@ -208,15 +207,6 @@ fn test_gateway_trascation_from_starknet_api_transaction() {
     )
     .try_into()
     .unwrap();
-}
-
-#[test]
-fn test_invoke_transaction_to_client_transaction() {
-    let _invoke_transaction: client_transaction::InvokeTransaction =
-        InvokeTransactionV1::get_test_instance(&mut get_rng()).into();
-
-    let _invoke_transaction: client_transaction::InvokeTransaction =
-        InvokeTransactionV3::get_test_instance(&mut get_rng()).into();
 }
 
 #[test]
