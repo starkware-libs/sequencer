@@ -1,5 +1,5 @@
 use starknet_api::hash::HashOutput;
-use starknet_patricia::patricia_merkle_tree::external_test_utils::AdditionHash;
+use starknet_patricia::patricia_merkle_tree::external_test_utils::{AdditionHash, MockLeaf};
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::NodeData;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use starknet_types_core::hash::StarkHash;
@@ -48,6 +48,16 @@ impl TreeHashFunction<IndexLayoutStarknetStorageValue> for MockTreeHashFunction 
     fn compute_node_hash(
         node_data: &NodeData<IndexLayoutStarknetStorageValue, HashOutput>,
     ) -> HashOutput {
+        Self::compute_node_hash_with_inner_hash_function::<PedersenHashFunction>(node_data)
+    }
+}
+
+impl TreeHashFunction<MockLeaf> for MockTreeHashFunction {
+    fn compute_leaf_hash(leaf: &MockLeaf) -> HashOutput {
+        HashOutput(leaf.0)
+    }
+
+    fn compute_node_hash(node_data: &NodeData<MockLeaf, HashOutput>) -> HashOutput {
         Self::compute_node_hash_with_inner_hash_function::<PedersenHashFunction>(node_data)
     }
 }

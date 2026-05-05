@@ -3,8 +3,10 @@ use std::collections::HashMap;
 use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use rstest_reuse::{apply, template};
 use serde::Deserialize;
 use starknet_api::hash::HashOutput;
+use starknet_patricia::db_layout::NodeLayout;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     create_binary_entry,
     create_binary_entry_from_u128,
@@ -26,16 +28,19 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     PreimageMap,
 };
 use starknet_patricia::patricia_merkle_tree::traversal::SubTreeTrait;
-use starknet_patricia::patricia_merkle_tree::types::{SortedLeafIndices, SubTreeHeight};
+use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Pedersen;
 
-use super::fetch_patricia_paths_inner;
 use crate::db::facts_db::types::FactsSubTree;
 use crate::db::facts_db::FactsNodeLayout;
+use crate::db::index_db::test_utils::traverse_and_convert;
+use crate::db::index_db::IndexNodeLayout;
+use crate::db::trie_traversal::fetch_patricia_paths_inner;
+use crate::hash_function::mock_hash::MockTreeHashFunction;
 
 fn to_preimage_map(raw_preimages: HashMap<u32, Vec<u32>>) -> PreimageMap {
     raw_preimages
@@ -52,15 +57,12 @@ fn to_preimage_map(raw_preimages: HashMap<u32, Vec<u32>>) -> PreimageMap {
         .collect()
 }
 
-async fn test_fetch_patricia_paths_inner_impl(
-    storage: MapStorage,
-    root_hash: HashOutput,
-    leaf_indices: Vec<u128>,
+fn compute_expected_leaves(
+    storage: &MapStorage,
+    leaf_indices: &[u128],
     height: SubTreeHeight,
-    expected_nodes: PreimageMap,
-) {
-    let mut storage = storage;
-    let expected_fetched_leaves = leaf_indices
+) -> HashMap<NodeIndex, MockLeaf> {
+    leaf_indices
         .iter()
         .map(|&idx| {
             let leaf = if storage.0.contains_key(&create_leaf_patricia_key::<MockLeaf>(idx)) {
@@ -70,21 +72,57 @@ async fn test_fetch_patricia_paths_inner_impl(
             };
             (small_tree_index_to_full(U256::from(idx), height), leaf)
         })
-        .collect::<HashMap<_, _>>();
+        .collect()
+}
 
-    let mut leaf_indices = leaf_indices
+async fn convert_trie_to_index_storage(
+    facts_storage: &mut MapStorage,
+    root_hash: HashOutput,
+    root_index: NodeIndex,
+) -> MapStorage {
+    let mut index_storage = MapStorage(DbHashMap::new());
+    let subtree = FactsSubTree::create(SortedLeafIndices::default(), root_index, root_hash);
+    traverse_and_convert::<MockLeaf, MockLeaf, EmptyKeyContext>(
+        facts_storage,
+        &mut index_storage,
+        subtree,
+        &EmptyKeyContext,
+        &mut None,
+        false,
+    )
+    .await;
+    index_storage
+}
+
+/// Runs [`fetch_patricia_paths_inner`] on a small subtree of height `height`,
+/// then checks that every expected preimage appears in the result and that leaf values match.
+async fn fetch_patricia_paths_inner_tester<Layout>(
+    mut storage: MapStorage,
+    root_hash: HashOutput,
+    leaf_indices: Vec<u128>,
+    height: SubTreeHeight,
+    expected_nodes: PreimageMap,
+    expected_fetched_leaves: HashMap<NodeIndex, MockLeaf>,
+) where
+    for<'a> Layout: NodeLayout<'a, MockLeaf>,
+{
+    let root_index = small_tree_index_to_full(U256::ONE, height);
+
+    // Map indices from a small tree to a height 251 tree.
+    let mut leaf_indices_full = leaf_indices
         .iter()
         .map(|&idx| small_tree_index_to_full(U256::from(idx), height))
         .collect::<Vec<_>>();
-    let main_subtree = FactsSubTree::create(
-        SortedLeafIndices::new(&mut leaf_indices),
-        small_tree_index_to_full(U256::ONE, height),
-        root_hash,
+
+    let main_subtree = <Layout as NodeLayout<'_, MockLeaf>>::SubTree::create(
+        SortedLeafIndices::new(&mut leaf_indices_full),
+        root_index,
+        root_hash.into(),
     );
     let mut nodes = HashMap::new();
     let mut fetched_leaves = HashMap::new();
 
-    fetch_patricia_paths_inner::<MockLeaf, FactsNodeLayout>(
+    fetch_patricia_paths_inner::<MockLeaf, Layout>(
         &mut storage,
         vec![main_subtree],
         &mut nodes,
@@ -106,7 +144,7 @@ async fn test_fetch_patricia_paths_inner_impl(
     assert_eq!(fetched_leaves, expected_fetched_leaves);
 }
 
-#[tokio::test]
+#[template]
 #[rstest]
 // Some cases uses addition hash and others (generated in python) use pedersen hash.
 // For convenience, the leaves values are their NodeIndices.
@@ -547,15 +585,59 @@ async fn test_fetch_patricia_paths_inner_impl(
         })),
     ]),
 )]
-async fn test_fetch_patricia_paths_inner(
+fn fetch_patricia_paths_inner_cases(
+    #[case] _storage: MapStorage,
+    #[case] _root_hash: HashOutput,
+    #[case] _leaf_indices: Vec<u128>,
+    #[case] _height: SubTreeHeight,
+    #[case] _expected_nodes: PreimageMap,
+) {
+}
+
+#[apply(fetch_patricia_paths_inner_cases)]
+#[rstest]
+#[tokio::test]
+async fn test_fetch_patricia_paths_inner_facts_layout(
     #[case] storage: MapStorage,
     #[case] root_hash: HashOutput,
     #[case] leaf_indices: Vec<u128>,
     #[case] height: SubTreeHeight,
     #[case] expected_nodes: PreimageMap,
 ) {
-    test_fetch_patricia_paths_inner_impl(storage, root_hash, leaf_indices, height, expected_nodes)
-        .await;
+    let expected_fetched_leaves = compute_expected_leaves(&storage, &leaf_indices, height);
+    fetch_patricia_paths_inner_tester::<FactsNodeLayout>(
+        storage,
+        root_hash,
+        leaf_indices,
+        height,
+        expected_nodes,
+        expected_fetched_leaves,
+    )
+    .await;
+}
+
+#[apply(fetch_patricia_paths_inner_cases)]
+#[rstest]
+#[tokio::test]
+async fn test_fetch_patricia_paths_inner_index_layout(
+    #[case] mut storage: MapStorage,
+    #[case] root_hash: HashOutput,
+    #[case] leaf_indices: Vec<u128>,
+    #[case] height: SubTreeHeight,
+    #[case] expected_nodes: PreimageMap,
+) {
+    let expected_fetched_leaves = compute_expected_leaves(&storage, &leaf_indices, height);
+    let root_index = small_tree_index_to_full(U256::ONE, height);
+    let index_storage = convert_trie_to_index_storage(&mut storage, root_hash, root_index).await;
+    fetch_patricia_paths_inner_tester::<IndexNodeLayout<MockTreeHashFunction>>(
+        index_storage,
+        root_hash,
+        leaf_indices,
+        height,
+        expected_nodes,
+        expected_fetched_leaves,
+    )
+    .await;
 }
 
 #[derive(Deserialize, Debug)]
@@ -568,21 +650,19 @@ struct TestPatriciaPathsInput {
     expected_nodes: HashMap<Felt, Vec<Felt>>,
 }
 
-#[tokio::test]
-#[rstest]
-/// Test cases generated using Python `PatriciaTree.update()`.
-/// The files names indicate the tree height, number of initial leaves and number of modified
-/// leaves. The hash function used in the python tests is Pedersen.
-/// The leaves values are their NodeIndices.
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_10_200_50.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_10_5_2.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_10_100_30.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_8_120_70.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_delete_leaves_10_200_50.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_delete_leaves_10_5_2.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_delete_leaves_10_100_30.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_delete_leaves_8_120_70.json"))]
-async fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
+/// Deserializes a Python-generated `PatriciaTree.update()`.
+///
+/// Returns, in order:
+/// 1. `MapStorage` — facts-db entries: inner nodes decoded from JSON preimages plus leaf rows for
+///    `initial_leaves`.
+/// 2. `Vec<u128>` — `modified_leaves_indices` shifted from Python bottom-layer-relative indices to
+///    absolute full-tree indices (each value plus `2^height`).
+/// 3. `HashOutput` — subtree root hash.
+/// 4. `SubTreeHeight` — tree height.
+/// 5. `PreimageMap` — expected fetched node preimages keyed by hash, for asserting traversal.
+fn parse_json_test_input(
+    input_data: &str,
+) -> (MapStorage, Vec<u128>, HashOutput, SubTreeHeight, PreimageMap) {
     let input: TestPatriciaPathsInput = serde_json::from_str(input_data)
         .unwrap_or_else(|error| panic!("JSON was not well-formatted: {error:?}"));
 
@@ -623,12 +703,65 @@ async fn test_fetch_patricia_paths_inner_from_json(#[case] input_data: &str) {
         })
         .collect();
 
-    test_fetch_patricia_paths_inner_impl(
+    (
         MapStorage(DbHashMap::from(storage)),
-        HashOutput(input.root_hash),
         leaf_indices,
+        HashOutput(input.root_hash),
         SubTreeHeight::new(input.height),
         expected_nodes,
+    )
+}
+
+#[template]
+#[rstest]
+/// Test cases generated using Python `PatriciaTree.update()`.
+/// The files names indicate the tree height, number of initial leaves and number of modified
+/// leaves. The hash function used in the python tests is Pedersen.
+/// The leaves values are their NodeIndices.
+#[case(include_str!("../../../resources/fetch_patricia_paths_test_10_200_50.json"))]
+#[case(include_str!("../../../resources/fetch_patricia_paths_test_10_5_2.json"))]
+#[case(include_str!("../../../resources/fetch_patricia_paths_test_10_100_30.json"))]
+#[case(include_str!("../../../resources/fetch_patricia_paths_test_8_120_70.json"))]
+#[case(include_str!("../../../resources/fetch_patricia_paths_test_delete_leaves_10_200_50.json"))]
+#[case(include_str!("../../../resources/fetch_patricia_paths_test_delete_leaves_10_5_2.json"))]
+#[case(include_str!("../../../resources/fetch_patricia_paths_test_delete_leaves_10_100_30.json"))]
+#[case(include_str!("../../../resources/fetch_patricia_paths_test_delete_leaves_8_120_70.json"))]
+fn fetch_patricia_paths_inner_from_json_cases(#[case] _input_data: &str) {}
+
+#[apply(fetch_patricia_paths_inner_from_json_cases)]
+#[rstest]
+#[tokio::test]
+async fn test_fetch_patricia_paths_inner_from_json_facts_layout(#[case] input_data: &str) {
+    let (storage, leaf_indices, root_hash, height, expected_nodes) =
+        parse_json_test_input(input_data);
+    let expected_fetched_leaves = compute_expected_leaves(&storage, &leaf_indices, height);
+    fetch_patricia_paths_inner_tester::<FactsNodeLayout>(
+        storage,
+        root_hash,
+        leaf_indices,
+        height,
+        expected_nodes,
+        expected_fetched_leaves,
+    )
+    .await;
+}
+
+#[apply(fetch_patricia_paths_inner_from_json_cases)]
+#[rstest]
+#[tokio::test]
+async fn test_fetch_patricia_paths_inner_from_json_index_layout(#[case] input_data: &str) {
+    let (mut storage, leaf_indices, root_hash, height, expected_nodes) =
+        parse_json_test_input(input_data);
+    let expected_fetched_leaves = compute_expected_leaves(&storage, &leaf_indices, height);
+    let root_index = small_tree_index_to_full(U256::ONE, height);
+    let index_storage = convert_trie_to_index_storage(&mut storage, root_hash, root_index).await;
+    fetch_patricia_paths_inner_tester::<IndexNodeLayout<MockTreeHashFunction>>(
+        index_storage,
+        root_hash,
+        leaf_indices,
+        height,
+        expected_nodes,
+        expected_fetched_leaves,
     )
     .await;
 }
