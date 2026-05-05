@@ -362,23 +362,23 @@ pub(crate) async fn retrospective_block_hash(
     let block_number = BlockNumber(block_number);
 
     // First try from state sync - assuming it takes longer to this one to be ready.
-    let state_sync_block_hash = state_sync_client.get_block_hash(block_number).await?;
+    // let state_sync_block_hash = state_sync_client.get_block_hash(block_number).await?;
 
     // Then try from batcher.
     let batcher_block_hash = batcher_client.get_block_hash(block_number).await?;
 
-    if compare_retrospective_block_hash && state_sync_block_hash != batcher_block_hash {
-        warn!(
-            "Retrospective block hashes mismatch for block {block_number}: state sync block hash: \
-             {state_sync_block_hash:?}, batcher block hash: {batcher_block_hash:?}"
-        );
-        CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH.increment(1);
-        return Err(RetrospectiveBlockHashError::HashMismatch {
-            block_number,
-            state_sync_block_hash,
-            batcher_block_hash,
-        });
-    }
+    // if compare_retrospective_block_hash && state_sync_block_hash != batcher_block_hash {
+    //     warn!(
+    //         "Retrospective block hashes mismatch for block {block_number}: state sync block hash:
+    // \          {state_sync_block_hash:?}, batcher block hash: {batcher_block_hash:?}"
+    //     );
+    //     CONSENSUS_RETROSPECTIVE_BLOCK_HASH_MISMATCH.increment(1);
+    //     return Err(RetrospectiveBlockHashError::HashMismatch {
+    //         block_number,
+    //         state_sync_block_hash,
+    //         batcher_block_hash,
+    //     });
+    // }
     Ok(Some(BlockHashAndNumber { number: block_number, hash: batcher_block_hash }))
 }
 
