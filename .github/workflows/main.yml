@@ -126,6 +126,13 @@ jobs:
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
 
+      # Auth with GCS for tests to download artifacts.
+      - id: auth
+        uses: "google-github-actions/auth@v2"
+        with:
+          credentials_json: ${{ secrets.SYSTEST_BLOBS_READ_ACCESS_KEY }}
+      - uses: "google-github-actions/setup-gcloud@v2"
+
       - name: "Run tests"
         run: |
           scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha || 'origin/main' }}
