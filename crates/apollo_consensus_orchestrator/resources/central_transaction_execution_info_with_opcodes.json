@@ -1,7 +1,7 @@
 {
   "actual_fee": "0x26fe9d250e000",
   "actual_resources": {
-    "blake_opcode": 5,
+    "blake_opcode": 20,
     "n_steps": 4,
     "pedersen_builtin": 4,
     "range_check_builtin": 31

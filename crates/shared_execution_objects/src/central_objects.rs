@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use blockifier::abi::constants as abi_constants;
 use blockifier::execution::call_info::{CairoPrimitiveName, CallInfo, CallInfoIter};
-use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use serde::Serialize;
 use starknet_api::execution_resources::GasVector;
@@ -14,28 +13,33 @@ use starknet_api::transaction::fields::Fee;
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct ResourcesMapping(pub HashMap<String, usize>);
 
-impl From<TransactionReceipt> for ResourcesMapping {
-    fn from(receipt: TransactionReceipt) -> ResourcesMapping {
-        let vm_resources = &receipt.resources.computation.total_extended_vm_resources();
-        let mut resources = HashMap::from([(
-            abi_constants::N_STEPS_RESOURCE.to_string(),
-            vm_resources.vm_resources.total_n_steps()
-                + receipt.resources.computation.n_reverted_steps,
-        )]);
-        resources.extend(vm_resources.prover_cairo_primitives().iter().map(
-            |(primitive, value)| {
-                let name = match primitive {
-                    CairoPrimitiveName::Builtin(builtin) => {
-                        builtin.to_str_with_suffix().to_string()
-                    }
-                    CairoPrimitiveName::Opcode(opcode) => opcode.to_str_with_suffix().to_string(),
-                };
-                (name, *value)
-            },
-        ));
+fn build_actual_resources(tx_execution_info: &TransactionExecutionInfo) -> ResourcesMapping {
+    let computation = &tx_execution_info.receipt.resources.computation;
+    let vm_resources = computation.total_extended_vm_resources().vm_resources;
+    let mut resources = HashMap::from([(
+        abi_constants::N_STEPS_RESOURCE.to_string(),
+        vm_resources.total_n_steps() + computation.n_reverted_steps,
+    )]);
+    resources.extend(
+        vm_resources
+            .prover_builtins()
+            .into_iter()
+            .map(|(builtin, count)| (builtin.to_str_with_suffix().to_string(), count)),
+    );
 
-        ResourcesMapping(resources)
+    // Opcode counters live in `CallInfo.builtin_counters` for SierraGas-tracked
+    // calls (Cairo 1 in CASM and Native), where `resources.opcode_instance_counter`
+    // is intentionally zeroed to avoid double-charging Sierra gas. Pull them in
+    // from `summarize_builtins()` — the same source the bouncer's proving-gas
+    // path uses — so the count is reported even when the receipt's
+    // `opcode_instance_counter` is empty.
+    for (primitive, count) in tx_execution_info.summarize_builtins() {
+        if let CairoPrimitiveName::Opcode(opcode) = primitive {
+            *resources.entry(opcode.to_str_with_suffix().to_string()).or_insert(0) += count;
+        }
     }
+
+    ResourcesMapping(resources)
 }
 
 /// The TransactionExecutionInfo object as used by the Python code.
@@ -54,6 +58,7 @@ pub struct CentralTransactionExecutionInfo {
 
 impl From<TransactionExecutionInfo> for CentralTransactionExecutionInfo {
     fn from(tx_execution_info: TransactionExecutionInfo) -> CentralTransactionExecutionInfo {
+        let actual_resources = build_actual_resources(&tx_execution_info);
         CentralTransactionExecutionInfo {
             validate_call_info: tx_execution_info.validate_call_info,
             execute_call_info: tx_execution_info.execute_call_info,
@@ -62,7 +67,7 @@ impl From<TransactionExecutionInfo> for CentralTransactionExecutionInfo {
             da_gas: tx_execution_info.receipt.da_gas,
             revert_error: tx_execution_info.revert_error.map(|error| error.to_string()),
             total_gas: tx_execution_info.receipt.gas,
-            actual_resources: tx_execution_info.receipt.into(),
+            actual_resources,
         }
     }
 }
