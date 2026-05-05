@@ -158,7 +158,11 @@ static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<AllResourceBounds> =
         },
     });
 
-type TxPair = (ExecutableAccountTx, InternalConsensusTransaction);
+struct TxPair {
+    executable: ExecutableAccountTx,
+    internal: InternalConsensusTransaction,
+    should_revert: bool,
+}
 
 /// ID of the current blobs file.
 fn current_generation() -> usize {
@@ -303,11 +307,18 @@ impl BlobFactory {
         .unwrap();
         let mut transactions_with_receipts = Vec::new();
         // Consume the transactions list (next block starts empty).
-        for (executable, internal) in std::mem::take(&mut self.next_txs).into_iter() {
+        for TxPair { executable, internal, should_revert } in
+            std::mem::take(&mut self.next_txs).into_iter()
+        {
             let (execution_info, _state_changes) = executor
                 .execute(&BlockifierTx::new_for_sequencing(ExecutableTx::Account(executable)))
                 .unwrap();
-            assert!(!execution_info.is_reverted(), "Got a reverted tx: {execution_info:?}");
+            assert_eq!(
+                execution_info.is_reverted(),
+                should_revert,
+                "Execution result does not match expected (should_revert={should_revert}): \
+                 {execution_info:?}"
+            );
 
             transactions_with_receipts
                 .push(InternalTransactionWithReceipt { transaction: internal, execution_info });
@@ -504,7 +515,11 @@ impl BlobFactory {
             .returning(move |_| Ok(Some(contract.get_class())));
 
         // Return the transactions.
-        self.next_txs.push((executable.into(), internal_tx));
+        self.next_txs.push(TxPair {
+            executable: executable.into(),
+            internal: internal_tx,
+            should_revert: false,
+        });
     }
 
     fn make_free_deploy_account_tx(&mut self, account: FeatureContract) -> ContractAddress {
@@ -556,7 +571,11 @@ impl BlobFactory {
             tx: without_hash,
             tx_hash,
         });
-        self.next_txs.push((executable.into(), internal));
+        self.next_txs.push(TxPair {
+            executable: executable.into(),
+            internal,
+            should_revert: false,
+        });
         contract_address
     }
 
@@ -566,6 +585,7 @@ impl BlobFactory {
         function_name: &str,
         calldata: &[Felt],
         with_fee_charge: bool,
+        should_revert: bool,
     ) {
         let nonce = self.nonce_manager.next(*OPERATOR_ADDRESS);
         let resource_bounds = if with_fee_charge {
@@ -601,7 +621,7 @@ impl BlobFactory {
             tx: without_hash,
             tx_hash,
         });
-        self.next_txs.push((executable.into(), internal));
+        self.next_txs.push(TxPair { executable: executable.into(), internal, should_revert });
     }
 
     fn make_operator_deploy_tx(
@@ -630,6 +650,7 @@ impl BlobFactory {
             "deploy_contract",
             &calldata,
             with_fee_charge,
+            false, // should not revert
         );
         contract_address
     }
@@ -665,7 +686,7 @@ impl BlobFactory {
         let mut transaction_receipts = vec![];
         let mut transaction_state_diffs = vec![];
 
-        for (tx_index, (executable, internal)) in txs.into_iter().enumerate() {
+        for (tx_index, TxPair { executable, internal, .. }) in txs.into_iter().enumerate() {
             let tx_hash = match &internal {
                 InternalConsensusTransaction::RpcTransaction(tx) => tx.tx_hash,
                 InternalConsensusTransaction::L1Handler(_) => {
