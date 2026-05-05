@@ -426,7 +426,7 @@ impl BlobFactory {
     }
 
     fn last_finalized_state_roots(&self) -> StateRoots {
-        self.blocks.last().map(|block| block.state_roots).unwrap_or_default()
+        self.blocks.last().map(|block| block.state_roots).unwrap_or(StateRoots::EMPTY)
     }
 
     // =====================
