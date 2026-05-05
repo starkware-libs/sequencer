@@ -54,8 +54,8 @@ use crate::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 #[cfg(test)]
-#[path = "facts_db/traversal_test.rs"]
-mod traversal_test;
+#[path = "fetch_patricia_paths_tests.rs"]
+mod fetch_patricia_paths_tests;
 
 /// Logs out a warning of a trivial modification.
 macro_rules! log_trivial_modification {
