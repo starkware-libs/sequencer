@@ -225,7 +225,6 @@ fn create_call_info(
             (cairo_vm::types::builtin_name::BuiltinName::pedersen, 5),
         ]),
         syscalls_usage: HashMap::new(),
-        ..Default::default()
     }
 }
 
