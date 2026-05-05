@@ -136,7 +136,7 @@ where
 
 /// Recursively traverses a Facts-layout trie and converts each node to Index-layout.
 #[async_recursion]
-async fn traverse_and_convert<FactsLeaf, IndexLeaf, KeyContext>(
+pub(crate) async fn traverse_and_convert<FactsLeaf, IndexLeaf, KeyContext>(
     facts_storage: &mut MapStorage,
     index_layout_storage: &mut MapStorage,
     subtree: FactsSubTree<'async_recursion>,
