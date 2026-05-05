@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777829481028,
+  "lastUpdate": 1777988943142,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3569,6 +3569,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1346.47129096,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b7ebc4501153162e2d39bb2b029f09625ed3d3f4",
+          "message": "central_systest_blobs: move blobs.json storage out of git, into GCS (#13946)",
+          "timestamp": "2026-05-05T13:20:07Z",
+          "tree_id": "92d8e551be12a0d4e3c8edbb425c5242e4939b61",
+          "url": "https://github.com/starkware-libs/sequencer/commit/b7ebc4501153162e2d39bb2b029f09625ed3d3f4"
+        },
+        "date": 1777988942620,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1331.1871919,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1482.0090823,
             "unit": "ms"
           }
         ]
