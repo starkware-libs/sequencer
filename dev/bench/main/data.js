@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777988943142,
+  "lastUpdate": 1777990084444,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3603,6 +3603,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1482.0090823,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f5db38755caaac7d9a336ce1a338c69f38e4a988",
+          "message": "central_systest_blobs: refactor skeleton into structured factory (#13962)",
+          "timestamp": "2026-05-05T13:51:07Z",
+          "tree_id": "f704cf6b105d19e2fb33fe390e7f84cbfe7f6c00",
+          "url": "https://github.com/starkware-libs/sequencer/commit/f5db38755caaac7d9a336ce1a338c69f38e4a988"
+        },
+        "date": 1777990084002,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 967.8708023300001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1474.7144277,
             "unit": "ms"
           }
         ]
