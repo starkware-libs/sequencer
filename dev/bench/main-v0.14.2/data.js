@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777210959350,
+  "lastUpdate": 1777980224271,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3195,6 +3195,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1472.50703854,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "einat@starkware.co",
+            "name": "einat-starkware",
+            "username": "einat-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d3164c73efad4bf1940a02ff5d50d6c00c80666c",
+          "message": "starknet_os_flow_tests: generate proof fixtures for the integration tests (#13781)",
+          "timestamp": "2026-05-05T10:58:19Z",
+          "tree_id": "3e90d3a6a4357ffdffc9c788ab482149514b67e5",
+          "url": "https://github.com/starkware-libs/sequencer/commit/d3164c73efad4bf1940a02ff5d50d6c00c80666c"
+        },
+        "date": 1777980223895,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 852.60353416,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1259.6958288800001,
             "unit": "ms"
           }
         ]
