@@ -992,6 +992,23 @@ impl TestBuilder<DictStateReader> {
         Self::new_with_default_initial_state(extra_contracts, TestBuilderConfig::default(), true)
             .await
     }
+
+    /// Virtual OS builder that overrides the block context.
+    pub(crate) async fn create_virtual_with_block_info(
+        block_info: BlockInfo,
+        config: TestBuilderConfig,
+    ) -> Self {
+        let (mut initial_state_data, []) =
+            create_default_initial_state_data::<DictStateReader, 0>([]).await;
+        let block_context = &initial_state_data.initial_state.block_context;
+        initial_state_data.initial_state.block_context = BlockContext::new(
+            block_info,
+            block_context.chain_info().clone(),
+            block_context.versioned_constants().clone(),
+            block_context.bouncer_config.clone(),
+        );
+        Self::new_with_initial_state_data(initial_state_data, config, true)
+    }
 }
 
 /// Returns a BlockContext of the given block number with the with the STRK fee token address that
