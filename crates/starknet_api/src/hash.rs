@@ -91,17 +91,20 @@ impl HashOutput {
 }
 
 /// Output of committing a state.
-#[derive(Clone, Copy, Debug, Deserialize, Default, PartialEq, Eq, Hash, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Hash, Serialize)]
 pub struct StateRoots {
     pub contracts_trie_root_hash: HashOutput,
     pub classes_trie_root_hash: HashOutput,
 }
 
 impl StateRoots {
+    pub const EMPTY: Self = Self {
+        contracts_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+        classes_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+    };
+
     pub fn global_root(&self) -> GlobalRoot {
-        if self.contracts_trie_root_hash == HashOutput::ROOT_OF_EMPTY_TREE
-            && self.classes_trie_root_hash == HashOutput::ROOT_OF_EMPTY_TREE
-        {
+        if self == &Self::EMPTY {
             return GlobalRoot::ROOT_OF_EMPTY_STATE;
         }
         GlobalRoot(Poseidon::hash_array(&[

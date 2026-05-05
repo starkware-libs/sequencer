@@ -290,7 +290,7 @@ fn test_storage_key_scan() {
 fn create_test_commit_state() -> Arc<Mutex<CommitState<MapStorage>>> {
     Arc::new(Mutex::new(CommitState {
         committer_db: IndexDb::new(MapStorage::default()),
-        state_roots: StateRoots::default(),
+        state_roots: StateRoots::EMPTY,
         num_commits: 0,
     }))
 }
@@ -324,7 +324,7 @@ async fn run_process_request_for_class_hashes(
 async fn test_process_request_empty_storage() {
     let (state_roots, num_commits) =
         run_process_request_for_class_hashes(ThinStateDiff::default(), 100).await;
-    assert_eq!(state_roots, StateRoots::default());
+    assert_eq!(state_roots, StateRoots::EMPTY);
     assert_eq!(num_commits, 1);
 }
 
@@ -341,7 +341,7 @@ async fn test_process_request_commits_entries() {
         ..Default::default()
     };
     let (state_roots, num_commits) = run_process_request_for_class_hashes(diff, 100).await;
-    assert_ne!(state_roots, StateRoots::default());
+    assert_ne!(state_roots, StateRoots::EMPTY);
     assert_eq!(num_commits, 1);
 }
 
