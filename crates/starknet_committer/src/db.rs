@@ -8,3 +8,6 @@ pub mod forest_trait;
 pub mod index_db;
 pub mod serde_db_utils;
 pub mod trie_traversal;
+
+#[cfg(test)]
+mod fetch_patricia_paths_tests;
