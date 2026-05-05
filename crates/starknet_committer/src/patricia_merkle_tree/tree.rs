@@ -14,7 +14,8 @@ use crate::block_committer::input::{
     StarknetStorageKey,
     StarknetStorageValue,
 };
-use crate::db::facts_db::traversal::fetch_patricia_paths;
+use crate::db::facts_db::FactsNodeLayout;
+use crate::db::trie_traversal::fetch_patricia_paths;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::{
     class_hash_into_node_index,
@@ -80,7 +81,7 @@ async fn fetch_all_patricia_paths(
 
     // Classes trie - no need to fetch the leaves.
     let leaves = None;
-    let classes_trie_proof = fetch_patricia_paths::<CompiledClassHash>(
+    let classes_trie_proof = fetch_patricia_paths::<CompiledClassHash, FactsNodeLayout>(
         storage,
         classes_trie_root_hash,
         class_sorted_leaf_indices,
@@ -91,7 +92,7 @@ async fn fetch_all_patricia_paths(
 
     // Contracts trie - the leaves are required.
     let mut leaves = HashMap::new();
-    let contracts_proof_nodes = fetch_patricia_paths::<ContractState>(
+    let contracts_proof_nodes = fetch_patricia_paths::<ContractState, FactsNodeLayout>(
         storage,
         contracts_trie_root_hash,
         contract_sorted_leaf_indices,
@@ -122,7 +123,7 @@ async fn fetch_all_patricia_paths(
         };
         // No need to fetch the leaves.
         let leaves = None;
-        let proof = fetch_patricia_paths::<StarknetStorageValue>(
+        let proof = fetch_patricia_paths::<StarknetStorageValue, FactsNodeLayout>(
             storage,
             storage_root_hash,
             *sorted_leaf_indices,
