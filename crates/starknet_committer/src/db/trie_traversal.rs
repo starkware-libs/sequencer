@@ -54,8 +54,8 @@ use crate::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 #[cfg(test)]
-#[path = "facts_db/traversal_test.rs"]
-mod traversal_test;
+#[path = "fetch_patricia_paths_tests.rs"]
+mod fetch_patricia_paths_tests;
 
 /// Returns the Patricia inner nodes ([PreimageMap]) in the paths to the given `leaf_indices` in the
 /// given tree according to the `root_hash` (including siblings).
