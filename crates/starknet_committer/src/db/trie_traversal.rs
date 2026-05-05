@@ -12,6 +12,9 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
     NodeData,
+    PathToBottom,
+    Preimage,
+    PreimageMap,
 };
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
@@ -49,6 +52,281 @@ use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
+
+#[cfg(test)]
+#[path = "facts_db/traversal_test.rs"]
+mod traversal_test;
+
+/// Returns the Patricia inner nodes ([PreimageMap]) in the paths to the given `leaf_indices` in the
+/// given tree according to the `root_hash` (including siblings).
+/// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
+/// provided map.
+pub async fn fetch_patricia_paths<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
+    storage: &mut impl ReadOnlyStorage,
+    root_hash: HashOutput,
+    sorted_leaf_indices: SortedLeafIndices<'a>,
+    leaves: Option<&mut HashMap<NodeIndex, L>>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
+) -> TraversalResult<PreimageMap> {
+    let mut witnesses = PreimageMap::new();
+
+    if sorted_leaf_indices.is_empty() || root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
+        return Ok(witnesses);
+    }
+
+    let main_subtree =
+        Layout::SubTree::create(sorted_leaf_indices, NodeIndex::ROOT, root_hash.into());
+
+    fetch_patricia_paths_inner::<L, Layout>(
+        storage,
+        vec![main_subtree],
+        &mut witnesses,
+        leaves,
+        key_context,
+    )
+    .await?;
+    Ok(witnesses)
+}
+
+/// Fetches the inner nodes [HashOutput] and [Preimage] in the paths to modified leaves.
+/// Required for `patricia_update` function in Cairo.
+/// Extra preimages (more than the data required to verify merkle paths) are required to verify
+/// correctness of final tree topology; for more details see 'traverse_edge' in 'patricia.cairo'.
+/// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
+/// inner nodes in their paths and their siblings.
+/// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
+/// provided map.
+pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
+    storage: &mut impl ReadOnlyStorage,
+    subtrees: Vec<Layout::SubTree>,
+    witnesses: &mut PreimageMap,
+    mut leaves: Option<&mut HashMap<NodeIndex, L>>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
+) -> TraversalResult<()> {
+    // Hashes collected so far, keyed by node index.
+    let mut hash_by_index: HashMap<NodeIndex, HashOutput> = HashMap::new();
+    // Pending binary preimage entries: (node_hash, left_index, right_index).
+    let mut pending_binary: Vec<(HashOutput, NodeIndex, NodeIndex)> = Vec::new();
+    // Pending edge preimage entries: (node_hash, path, bottom_index).
+    let mut pending_edge: Vec<(HashOutput, PathToBottom, NodeIndex)> = Vec::new();
+
+    // `current_traversal`: subtrees requiring full processing (preimage building + traversal).
+    // `current_hash_only`: unmodified subtrees pushed solely to collect their hash (no traversal).
+    let mut current_traversal = subtrees;
+    let mut current_hash_only: Vec<Layout::SubTree> = Vec::new();
+    let mut next_traversal: Vec<Layout::SubTree> = Vec::new();
+    let mut next_hash_only: Vec<Layout::SubTree> = Vec::new();
+
+    while !current_traversal.is_empty() || !current_hash_only.is_empty() {
+        read_hashes::<L, Layout>(&current_hash_only, storage, key_context, &mut hash_by_index)
+            .await?;
+
+        // Process full-traversal subtrees: build preimage entries and schedule children.
+        if !current_traversal.is_empty() {
+            let filled_roots =
+                get_roots_from_storage::<L, Layout>(&current_traversal, storage, key_context)
+                    .await?;
+            for (filled_root, subtree) in filled_roots.into_iter().zip(current_traversal.iter()) {
+                hash_by_index.insert(subtree.get_root_index(), filled_root.hash);
+                match filled_root.data {
+                    NodeData::Binary(BinaryData { left_data, right_data }) => {
+                        let (left_subtree, right_subtree) =
+                            subtree.get_children_subtrees(left_data.clone(), right_data.clone());
+                        let left_index = left_subtree.get_root_index();
+                        let right_index = right_subtree.get_root_index();
+
+                        let left_hash = schedule_binary_child::<L, Layout>(
+                            left_data,
+                            left_subtree,
+                            &mut hash_by_index,
+                            &mut next_traversal,
+                            &mut next_hash_only,
+                        );
+                        let right_hash = schedule_binary_child::<L, Layout>(
+                            right_data,
+                            right_subtree,
+                            &mut hash_by_index,
+                            &mut next_traversal,
+                            &mut next_hash_only,
+                        );
+
+                        if let (Some(left_hash), Some(right_hash)) = (left_hash, right_hash) {
+                            witnesses.insert(
+                                filled_root.hash,
+                                Preimage::Binary(BinaryData {
+                                    left_data: left_hash,
+                                    right_data: right_hash,
+                                }),
+                            );
+                        } else {
+                            pending_binary.push((filled_root.hash, left_index, right_index));
+                        }
+                    }
+                    NodeData::Edge(EdgeData { bottom_data, path_to_bottom }) => {
+                        let (bottom_subtree, empty_leaves_indices) =
+                            subtree.get_bottom_subtree(&path_to_bottom, bottom_data.clone());
+                        let bottom_index = bottom_subtree.get_root_index();
+
+                        if let Some(ref mut leaves_map) = leaves {
+                            for index in empty_leaves_indices {
+                                leaves_map.insert(*index, L::default());
+                            }
+                        }
+
+                        let bottom_hash = schedule_edge_child::<L, Layout>(
+                            bottom_data,
+                            bottom_subtree,
+                            &mut hash_by_index,
+                            &mut next_traversal,
+                        );
+
+                        match bottom_hash {
+                            Some(hash) => {
+                                witnesses.insert(
+                                    filled_root.hash,
+                                    Preimage::Edge(EdgeData { bottom_data: hash, path_to_bottom }),
+                                );
+                            }
+                            None => {
+                                pending_edge.push((filled_root.hash, path_to_bottom, bottom_index));
+                            }
+                        }
+                    }
+                    NodeData::Leaf(leaf_data) => {
+                        if let Some(ref mut leaves_map) = leaves {
+                            if !subtree.is_unmodified() {
+                                leaves_map.insert(subtree.get_root_index(), leaf_data);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        clear_pending_nodes(&mut pending_binary, &mut pending_edge, &hash_by_index, witnesses);
+
+        current_traversal = next_traversal;
+        current_hash_only = next_hash_only;
+        next_traversal = Vec::new();
+        next_hash_only = Vec::new();
+    }
+
+    Ok(())
+}
+
+/// Loads root hashes for hash-only subtrees into `hash_by_index` (no preimage or child scheduling).
+async fn read_hashes<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
+    hash_only_subtrees: &[Layout::SubTree],
+    storage: &mut impl ReadOnlyStorage,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
+    hash_by_index: &mut HashMap<NodeIndex, HashOutput>,
+) -> TraversalResult<()> {
+    if hash_only_subtrees.is_empty() {
+        return Ok(());
+    }
+    let filled_roots =
+        get_roots_from_storage::<L, Layout>(hash_only_subtrees, storage, key_context).await?;
+    for (filled_root, subtree) in filled_roots.into_iter().zip(hash_only_subtrees.iter()) {
+        hash_by_index.insert(subtree.get_root_index(), filled_root.hash);
+    }
+    Ok(())
+}
+
+/// Flushes [`PreimageMap`] entries that were waiting on child hashes from storage.
+fn clear_pending_nodes(
+    pending_binary: &mut Vec<(HashOutput, NodeIndex, NodeIndex)>,
+    pending_edge: &mut Vec<(HashOutput, PathToBottom, NodeIndex)>,
+    hash_by_index: &HashMap<NodeIndex, HashOutput>,
+    witnesses: &mut PreimageMap,
+) {
+    pending_binary.retain(|&(node_hash, left_index, right_index)| {
+        match (hash_by_index.get(&left_index), hash_by_index.get(&right_index)) {
+            (Some(&left_hash), Some(&right_hash)) => {
+                witnesses.insert(
+                    node_hash,
+                    Preimage::Binary(BinaryData { left_data: left_hash, right_data: right_hash }),
+                );
+                false
+            }
+            _ => true,
+        }
+    });
+    pending_edge.retain(|&(node_hash, path_to_bottom, bottom_index)| {
+        if let Some(&bottom_hash) = hash_by_index.get(&bottom_index) {
+            witnesses.insert(
+                node_hash,
+                Preimage::Edge(EdgeData { bottom_data: bottom_hash, path_to_bottom }),
+            );
+            false
+        } else {
+            true
+        }
+    });
+}
+
+/// Handles a left/right child under a binary node in [`fetch_patricia_paths_inner`].
+///
+/// On [`UnmodifiedChildTraversal::Skip`], pushes the child onto `next_traversal` when the subtree
+/// is modified.
+///
+/// On [`UnmodifiedChildTraversal::Traverse`], unmodified subtrees added to the `next_hash_only`
+/// queue; modified subtrees use enqueued for further traversal.
+///
+/// Returns the child hash if immediately available, or `None` if the child must be read first.
+fn schedule_binary_child<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
+    node_data: Layout::NodeData,
+    subtree: Layout::SubTree,
+    hash_by_index: &mut HashMap<NodeIndex, HashOutput>,
+    next_traversal: &mut Vec<Layout::SubTree>,
+    next_hash_only: &mut Vec<Layout::SubTree>,
+) -> Option<HashOutput> {
+    match Layout::SubTree::should_traverse_unmodified_child(node_data) {
+        UnmodifiedChildTraversal::Skip(hash) => {
+            hash_by_index.insert(subtree.get_root_index(), hash);
+            if !subtree.is_unmodified() {
+                next_traversal.push(subtree);
+            }
+            Some(hash)
+        }
+        UnmodifiedChildTraversal::Traverse => {
+            if subtree.is_unmodified() {
+                next_hash_only.push(subtree);
+            } else {
+                next_traversal.push(subtree);
+            }
+            None
+        }
+    }
+}
+
+/// Handles the bottom child under an edge node in [`fetch_patricia_paths_inner`].
+///
+/// On [`UnmodifiedChildTraversal::Skip`], pushes onto `next_traversal` (unless it's an unmodified
+/// leaf), as we always need the bottom preimage.
+///
+/// On [`UnmodifiedChildTraversal::Traverse`], enqueues for further traversal.
+///
+/// Returns the child hash if immediately available, or `None` if the child must be read first.
+fn schedule_edge_child<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
+    node_data: Layout::NodeData,
+    subtree: Layout::SubTree,
+    hash_by_index: &mut HashMap<NodeIndex, HashOutput>,
+    next_traversal: &mut Vec<Layout::SubTree>,
+) -> Option<HashOutput> {
+    match Layout::SubTree::should_traverse_unmodified_child(node_data) {
+        UnmodifiedChildTraversal::Skip(hash) => {
+            hash_by_index.insert(subtree.get_root_index(), hash);
+            if !subtree.is_unmodified() || !subtree.is_leaf() {
+                next_traversal.push(subtree);
+            }
+            Some(hash)
+        }
+        UnmodifiedChildTraversal::Traverse => {
+            next_traversal.push(subtree);
+            None
+        }
+    }
+}
 
 /// Logs out a warning of a trivial modification.
 macro_rules! log_trivial_modification {
