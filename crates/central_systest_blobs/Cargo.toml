@@ -20,6 +20,7 @@ google-cloud-storage.workspace = true
 http.workspace = true
 serde_json.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+starknet_committer = { workspace = true, features = ["testing"] }
 starknet_patricia_storage = { workspace = true, features = ["testing"] }
 tokio.workspace = true
 
