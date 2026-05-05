@@ -33,8 +33,9 @@ use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Pedersen;
 
-use crate::db::facts_db::traversal::fetch_patricia_paths_inner;
+use super::fetch_patricia_paths_inner;
 use crate::db::facts_db::types::FactsSubTree;
+use crate::db::facts_db::FactsNodeLayout;
 
 fn to_preimage_map(raw_preimages: HashMap<u32, Vec<u32>>) -> PreimageMap {
     raw_preimages
@@ -83,7 +84,7 @@ async fn test_fetch_patricia_paths_inner_impl(
     let mut nodes = HashMap::new();
     let mut fetched_leaves = HashMap::new();
 
-    fetch_patricia_paths_inner::<MockLeaf>(
+    fetch_patricia_paths_inner::<MockLeaf, FactsNodeLayout>(
         &mut storage,
         vec![main_subtree],
         &mut nodes,
