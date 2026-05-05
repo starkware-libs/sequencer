@@ -53,10 +53,6 @@ use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
-#[cfg(test)]
-#[path = "facts_db/traversal_test.rs"]
-mod traversal_test;
-
 /// Logs out a warning of a trivial modification.
 macro_rules! log_trivial_modification {
     ($index:expr, $value:expr) => {

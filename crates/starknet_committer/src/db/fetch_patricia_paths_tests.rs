@@ -703,14 +703,14 @@ fn parse_json_test_input(
 /// The files names indicate the tree height, number of initial leaves and number of modified
 /// leaves. The hash function used in the python tests is Pedersen.
 /// The leaves values are their NodeIndices.
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_10_200_50.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_10_5_2.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_10_100_30.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_8_120_70.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_delete_leaves_10_200_50.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_delete_leaves_10_5_2.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_delete_leaves_10_100_30.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_delete_leaves_8_120_70.json"))]
+#[case(include_str!("../../resources/fetch_patricia_paths_test_10_200_50.json"))]
+#[case(include_str!("../../resources/fetch_patricia_paths_test_10_5_2.json"))]
+#[case(include_str!("../../resources/fetch_patricia_paths_test_10_100_30.json"))]
+#[case(include_str!("../../resources/fetch_patricia_paths_test_8_120_70.json"))]
+#[case(include_str!("../../resources/fetch_patricia_paths_test_delete_leaves_10_200_50.json"))]
+#[case(include_str!("../../resources/fetch_patricia_paths_test_delete_leaves_10_5_2.json"))]
+#[case(include_str!("../../resources/fetch_patricia_paths_test_delete_leaves_10_100_30.json"))]
+#[case(include_str!("../../resources/fetch_patricia_paths_test_delete_leaves_8_120_70.json"))]
 async fn test_fetch_patricia_paths_inner_from_json_facts_layout(#[case] input_data: &str) {
     let (storage, leaf_indices, root_hash, height, expected_nodes) =
         parse_json_test_input(input_data);
@@ -732,14 +732,14 @@ async fn test_fetch_patricia_paths_inner_from_json_facts_layout(#[case] input_da
 /// The files names indicate the tree height, number of initial leaves and number of modified
 /// leaves. The hash function used in the python tests is Pedersen.
 /// The leaves values are their NodeIndices.
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_10_200_50.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_10_5_2.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_10_100_30.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_8_120_70.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_delete_leaves_10_200_50.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_delete_leaves_10_5_2.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_delete_leaves_10_100_30.json"))]
-#[case(include_str!("../../../resources/fetch_patricia_paths_test_delete_leaves_8_120_70.json"))]
+#[case(include_str!("../../resources/fetch_patricia_paths_test_10_200_50.json"))]
+#[case(include_str!("../../resources/fetch_patricia_paths_test_10_5_2.json"))]
+#[case(include_str!("../../resources/fetch_patricia_paths_test_10_100_30.json"))]
+#[case(include_str!("../../resources/fetch_patricia_paths_test_8_120_70.json"))]
+#[case(include_str!("../../resources/fetch_patricia_paths_test_delete_leaves_10_200_50.json"))]
+#[case(include_str!("../../resources/fetch_patricia_paths_test_delete_leaves_10_5_2.json"))]
+#[case(include_str!("../../resources/fetch_patricia_paths_test_delete_leaves_10_100_30.json"))]
+#[case(include_str!("../../resources/fetch_patricia_paths_test_delete_leaves_8_120_70.json"))]
 async fn test_fetch_patricia_paths_inner_from_json_index_layout(#[case] input_data: &str) {
     let (mut storage, leaf_indices, root_hash, height, expected_nodes) =
         parse_json_test_input(input_data);
