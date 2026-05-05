@@ -168,6 +168,9 @@ and environment variables override values from the config file.
 | `USE_LATEST_VERSIONED_CONSTANTS` | `--use-latest-versioned-constants` | `true` | Use the latest versioned constants rather than block-version constants. Must match the OS version used by the prover. |
 | `COMPILED_CLASS_CACHE_SIZE` | `--compiled-class-cache-size` | `600` | Number of compiled Sierra contract classes to keep in an in-memory LRU cache. Higher values reduce RPC fetches for repeated contracts. |
 | `MAX_REQUEST_BODY_SIZE` | `--max-request-body-size` | `5242880` (5 MiB) | Maximum size of an incoming JSON-RPC request body in bytes. Requests exceeding this limit are rejected before parsing. |
+| `OHTTP_ENABLED` | `--ohttp-enabled` | `false` | Enable OHTTP (RFC 9458) envelope encryption. When `true`, the server accepts `message/ohttp-req` requests and serves the key config at `GET /ohttp-keys`. Requires `OHTTP_KEY` to be set. |
+| `OHTTP_KEY` | — | _(required when OHTTP enabled)_ | Hex-encoded 32-byte X25519 private key used by the OHTTP gateway. Read directly from the environment by the gateway; has no CLI flag or JSON-config equivalent. Treat as a secret. |
+| `OHTTP_KEY_CACHE_MAX_AGE_SECS` | `--ohttp-key-cache-max-age-secs` | `3600` | `Cache-Control: max-age` (in seconds) sent with the `GET /ohttp-keys` response. Controls how long clients/relays may cache the OHTTP key config. |
 | `CONFIG_FILE` | `--config-file` | — | Path to a JSON config file. Fields use snake_case names matching `resources/example-config.json`. Values in the file are overridden by env vars and CLI flags. |
 | `RUST_LOG` | — | _(see Logging)_ | Controls log verbosity via `tracing-subscriber`. |
 
@@ -212,6 +215,8 @@ built-in defaults. See `resources/example-config.json` for a template.
 | `cors_allow_origin` | `CORS_ALLOW_ORIGIN` | array of strings |
 | `tls_cert_file` | `TLS_CERT_FILE` | file path or null |
 | `tls_key_file` | `TLS_KEY_FILE` | file path or null |
+| `ohttp_enabled` | `OHTTP_ENABLED` | bool |
+| `ohttp_key_cache_max_age_secs` | `OHTTP_KEY_CACHE_MAX_AGE_SECS` | integer (seconds) |
 
 ### Docker example with common options
 
