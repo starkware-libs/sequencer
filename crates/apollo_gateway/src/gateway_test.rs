@@ -96,13 +96,14 @@ use crate::metrics::{
     GatewayMetricHandle,
     SourceLabelValue,
     GATEWAY_ADD_TX_LATENCY,
+    GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE,
     GATEWAY_TRANSACTIONS_FAILED,
     GATEWAY_TRANSACTIONS_RECEIVED,
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE,
 };
-use crate::proof_archive_writer::MockProofArchiveWriterTrait;
+use crate::proof_archive_writer::{MockProofArchiveWriterTrait, ProofArchiveError};
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 use crate::stateful_transaction_validator::{
     MockStatefulTransactionValidatorFactoryTrait,
@@ -200,6 +201,19 @@ impl MockDependencies {
             .once()
             .with(eq(proof_facts), eq(proof))
             .returning(|_, _| Ok(std::time::Duration::ZERO));
+    }
+
+    fn expect_set_proof(
+        &mut self,
+        proof_facts: ProofFacts,
+        proof: Proof,
+        result: Result<(), ProofArchiveError>,
+    ) {
+        self.mock_proof_archive_writer
+            .expect_set_proof()
+            .once()
+            .with(eq(proof_facts), eq(proof))
+            .return_once(|_, _| result);
     }
 }
 
@@ -366,6 +380,7 @@ async fn setup_mock_state(
     mock_dependencies: &mut MockDependencies,
     tx_args: &impl TestingTxArgs,
     expected_mempool_result: Result<(), MempoolClientError>,
+    expected_proof_archive_result: Result<(), ProofArchiveError>,
 ) {
     let input_tx = tx_args.get_rpc_tx();
     let expected_internal_tx = tx_args.get_internal_tx();
@@ -386,11 +401,18 @@ async fn setup_mock_state(
     let block_hash_state_maps = generate_block_hash_storage_updates();
     state_reader.storage_view.extend(block_hash_state_maps.storage);
 
-    // If the transaction has proof facts, expect set_proof to be called on the proof manager.
+    // If the transaction has proof facts, expect set_proof to be called on the proof manager and
+    // the proof archive writer.
+    let proof_archive_will_succeed = expected_proof_archive_result.is_ok();
     if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref invoke_tx)) = input_tx {
         if !invoke_tx.proof_facts.is_empty() {
             mock_dependencies
                 .expect_store_proof(invoke_tx.proof_facts.clone(), invoke_tx.proof.clone());
+            mock_dependencies.expect_set_proof(
+                invoke_tx.proof_facts.clone(),
+                invoke_tx.proof.clone(),
+                expected_proof_archive_result,
+            );
         }
     }
 
@@ -399,13 +421,18 @@ async fn setup_mock_state(
         account_state: AccountState { address, nonce: *input_tx.nonce() },
     };
     let validation_args = ValidationArgs::from(&mempool_add_tx_args);
-    mock_dependencies.expect_add_tx(
-        AddTransactionArgsWrapper {
-            args: mempool_add_tx_args,
-            p2p_message_metadata: p2p_message_metadata(),
-        },
-        expected_mempool_result,
-    );
+    if proof_archive_will_succeed {
+        mock_dependencies.expect_add_tx(
+            AddTransactionArgsWrapper {
+                args: mempool_add_tx_args,
+                p2p_message_metadata: p2p_message_metadata(),
+            },
+            expected_mempool_result,
+        );
+    } else {
+        // When archive fails the gateway must not forward the tx to the mempool.
+        mock_dependencies.mock_mempool_client.expect_add_tx().never();
+    }
 
     mock_dependencies.expect_validate_tx(validation_args, Ok(()))
 }
@@ -463,7 +490,7 @@ async fn test_add_tx_negative(
     #[case] expected_mempool_result: Result<(), MempoolClientError>,
     #[case] expected_error_code: StarknetErrorCode,
 ) {
-    setup_mock_state(&mut mock_dependencies, &tx_args, expected_mempool_result).await;
+    setup_mock_state(&mut mock_dependencies, &tx_args, expected_mempool_result, Ok(())).await;
 
     let AddTxResults { result, metric_handle_for_queries, metrics } =
         run_add_tx_and_extract_metrics(mock_dependencies, &tx_args).await;
@@ -491,7 +518,7 @@ async fn test_add_tx_positive(
     )]
     tx_args: impl TestingTxArgs,
 ) {
-    setup_mock_state(&mut mock_dependencies, &tx_args, Ok(())).await;
+    setup_mock_state(&mut mock_dependencies, &tx_args, Ok(()), Ok(())).await;
 
     let AddTxResults { result, metric_handle_for_queries, metrics } =
         run_add_tx_and_extract_metrics(mock_dependencies, &tx_args).await;
@@ -505,6 +532,20 @@ async fn test_add_tx_positive(
         1
     );
     check_positive_add_tx_result(tx_args, result.unwrap());
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_add_tx_fails_when_proof_archive_write_fails(mut mock_dependencies: MockDependencies) {
+    let tx_args = invoke_args_with_client_side_proving();
+    let expected_proof_archive_result: Result<(), ProofArchiveError> =
+        Err(ProofArchiveError::WriteError("failed upload".to_string()));
+    setup_mock_state(&mut mock_dependencies, &tx_args, Ok(()), expected_proof_archive_result).await;
+
+    let AddTxResults { result, metrics, .. } =
+        run_add_tx_and_extract_metrics(mock_dependencies, &tx_args).await;
+    assert!(result.unwrap_err().is_internal());
+    assert_eq!(GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.parse_numeric_metric::<u64>(&metrics), Some(1),);
 }
 
 #[rstest]

@@ -245,6 +245,13 @@ impl<
             args: AddTransactionArgs::new(internal_tx, nonce),
             p2p_message_metadata,
         };
+
+        // Await as late as possible for proof archiving before sending the transaction to the
+        // mempool.
+        Self::await_proof_archiving(proof_archive_handle)
+            .await
+            .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
+
         let mempool_client_result = self.mempool_client.add_tx(add_tx_args).await;
         match mempool_client_result_to_deprecated_gw_result(&tx_signature, mempool_client_result) {
             Ok(()) => {}
@@ -255,10 +262,6 @@ impl<
         };
 
         metric_counters.transaction_sent_to_mempool();
-
-        // We await proof archiving only after the transaction is sent to the mempool to avoid
-        // delays.
-        Self::await_proof_archiving(proof_archive_handle).await;
 
         Ok(gateway_output)
     }
@@ -306,9 +309,10 @@ impl<
         Some((handle, tx_hash))
     }
 
-    async fn await_proof_archiving(proof_archive_handle: ProofArchiveHandle) {
+    /// Awaits the spawned GCS archive task with a hard timeout.
+    async fn await_proof_archiving(proof_archive_handle: ProofArchiveHandle) -> GatewayResult<()> {
         let Some((handle, tx_hash)) = proof_archive_handle else {
-            return;
+            return Ok(());
         };
 
         let abort_handle = handle.abort_handle();
@@ -318,25 +322,35 @@ impl<
                     "Proof archived successfully. proof_facts_hash: {proof_facts_hash:?}, \
                      tx_hash: {tx_hash:?}"
                 );
+                Ok(())
             }
             Ok(Ok((proof_facts_hash, Err(e)))) => {
                 GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
-                error!(
-                    "Failed to archive proof to GCS. proof_facts_hash: {proof_facts_hash:?}, \
-                     tx_hash: {tx_hash:?}, error: {e}"
-                );
+                Err(StarknetError::internal_with_logging(
+                    &format!(
+                        "Failed to archive proof to GCS. proof_facts_hash: {proof_facts_hash:?}, \
+                         tx_hash: {tx_hash:?}"
+                    ),
+                    e,
+                ))
             }
             Ok(Err(e)) => {
                 GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
-                error!("Proof archive writer task panicked. tx_hash: {tx_hash:?}, error: {e}");
+                Err(StarknetError::internal_with_logging(
+                    &format!("Proof archive writer task panicked. tx_hash: {tx_hash:?}"),
+                    e,
+                ))
             }
-            Err(_) => {
+            Err(elapsed) => {
                 abort_handle.abort();
                 GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
-                error!(
-                    "Proof archive writer timed out after {PROOF_ARCHIVE_WRITE_TIMEOUT:?}. \
-                     tx_hash: {tx_hash:?}"
-                );
+                Err(StarknetError::internal_with_logging(
+                    &format!(
+                        "Proof archive writer timed out after {PROOF_ARCHIVE_WRITE_TIMEOUT:?}. \
+                         tx_hash: {tx_hash:?}"
+                    ),
+                    elapsed,
+                ))
             }
         }
     }
