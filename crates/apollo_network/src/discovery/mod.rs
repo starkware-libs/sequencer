@@ -213,18 +213,12 @@ pub struct RetryConfig {
 
 impl Default for RetryConfig {
     fn default() -> Self {
-<<<<<<< HEAD
         Self {
             base_delay_millis: 2,
             max_delay_seconds: Duration::from_secs(5),
             factor: 5,
             new_connection_stabilization_millis: Duration::from_millis(2000),
         }
-||||||| 777fe8dbc3
-        Self { base_delay_millis: 2, max_delay_seconds: Duration::from_secs(5), factor: 5 }
-=======
-        Self { base_delay_millis: 1000, max_delay_seconds: Duration::from_secs(5), factor: 5 }
->>>>>>> origin/main-v0.14.2
     }
 }
 
