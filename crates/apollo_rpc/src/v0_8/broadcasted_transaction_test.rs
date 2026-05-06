@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use apollo_starknet_client::writer::objects::transaction::DeprecatedContractClass;
 use apollo_test_utils::{
     auto_impl_get_test_instance,
     get_number_of_variants,
@@ -37,6 +36,7 @@ use super::{
     BroadcastedDeclareV2Transaction,
     BroadcastedDeclareV3Transaction,
     DeclareType,
+    DeprecatedContractClass,
     ResourceBoundsMapping,
 };
 use crate::test_utils::{get_starknet_spec_api_schema_for_components, SpecFile};

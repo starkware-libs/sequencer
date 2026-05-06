@@ -10,10 +10,16 @@
 #[path = "broadcasted_transaction_test.rs"]
 mod broadcasted_transaction_test;
 
-use apollo_starknet_client::writer::objects::transaction::DeprecatedContractClass;
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::deprecated_contract_class::{
+    ContractClassAbiEntry as DeprecatedContractClassAbiEntry,
+    EntryPointV0 as DeprecatedEntryPoint,
+};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Fee,
@@ -24,6 +30,17 @@ use starknet_api::transaction::fields::{
 
 use super::state::ContractClass;
 use super::transaction::{DeployAccountTransaction, InvokeTransaction, ResourceBoundsMapping};
+
+/// A Cairo-v0 (deprecated) contract class as received in a broadcasted declare transaction.
+#[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct DeprecatedContractClass {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub abi: Option<Vec<DeprecatedContractClassAbiEntry>>,
+    #[serde(rename = "program")]
+    pub compressed_program: String,
+    pub entry_points_by_type: HashMap<EntryPointType, Vec<DeprecatedEntryPoint>>,
+}
 
 /// Transactions that are ready to be broadcasted to the network and are not included in a block.
 #[derive(Clone, Debug, Serialize, Deserialize)]
