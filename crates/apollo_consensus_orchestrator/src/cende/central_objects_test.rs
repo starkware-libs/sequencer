@@ -139,6 +139,7 @@ use super::{
     CentralDeclareTransaction,
     CentralDeployAccountTransaction,
     CentralFeeMarketInfo,
+    CentralFeeProposalInfo,
     CentralInvokeTransaction,
     CentralSierraContractClass,
     CentralStateDiff,
@@ -415,6 +416,10 @@ fn central_bouncer_weights() -> CentralBouncerWeights {
 
 fn central_fee_market_info() -> CentralFeeMarketInfo {
     CentralFeeMarketInfo { l2_gas_consumed: GasAmount(150000), next_l2_gas_price: GasPrice(100000) }
+}
+
+fn central_fee_proposal_info() -> CentralFeeProposalInfo {
+    CentralFeeProposalInfo { fee_proposal_fri: Some(GasPrice(100000)) }
 }
 
 fn entry_point(idx: usize, selector: u8) -> EntryPoint {
@@ -745,6 +750,7 @@ fn central_blob() -> AerospikeBlob {
         transactions_with_execution_infos,
         bouncer_weights: test_bouncer_weights(),
         fee_market_info: central_fee_market_info(),
+        fee_proposal_info: central_fee_proposal_info(),
         casm_hash_computation_data_sierra_gas: central_casm_hash_computation_data(),
         casm_hash_computation_data_proving_gas: central_casm_hash_computation_data(),
         compiled_class_hashes_for_migration: central_compiled_class_hashes_for_migration(),
@@ -776,6 +782,7 @@ fn central_blob_with_empty_or_none_fields() -> AerospikeBlob {
         transactions_with_execution_infos: vec![],
         bouncer_weights: test_bouncer_weights(),
         fee_market_info: central_fee_market_info(),
+        fee_proposal_info: central_fee_proposal_info(),
         casm_hash_computation_data_sierra_gas: central_casm_hash_computation_data(),
         casm_hash_computation_data_proving_gas: central_casm_hash_computation_data(),
         compiled_class_hashes_for_migration: vec![],
