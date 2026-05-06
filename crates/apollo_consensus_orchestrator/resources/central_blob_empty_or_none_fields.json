@@ -54,6 +54,9 @@
     "l2_gas_consumed": 150000,
     "next_l2_gas_price": "0x186a0"
   },
+  "fee_proposal_info": {
+    "fee_proposal_fri": "0x186a0"
+  },
   "transactions": [],
   "execution_infos": [],
   "contract_classes": [],
