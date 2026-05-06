@@ -86,9 +86,6 @@ struct RawServiceConfig {
     max_request_body_size: u32,
     ohttp_enabled: bool,
     ohttp_key_cache_max_age_secs: u64,
-    blocking_check_url: Option<String>,
-    blocking_check_timeout_millis: u64,
-    blocking_check_fail_open: bool,
 }
 
 impl Default for RawServiceConfig {
