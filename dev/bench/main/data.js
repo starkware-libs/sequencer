@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777990084444,
+  "lastUpdate": 1778052178650,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3637,6 +3637,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1474.7144277,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "matan.l@starkware.co",
+            "name": "Matan Lior",
+            "username": "matanl-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "78088366bcd64da1022cbfaceb1c3c4fb608c6ad",
+          "message": "apollo_http_server,apollo_dashboard: propagate tracing span into tokio::spawn in add_tx_inner (#13981)\n\ntokio::spawn does not inherit the caller's tracing span, so logs emitted\ninside the spawned task were orphaned from the add_tx instrument span.\nFix by attaching the current span via .instrument(tracing::Span::current()).\n\nCo-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-06T07:02:19Z",
+          "tree_id": "c49d50f8e263472255db875479869e724223a036",
+          "url": "https://github.com/starkware-libs/sequencer/commit/78088366bcd64da1022cbfaceb1c3c4fb608c6ad"
+        },
+        "date": 1778052178244,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 886.81655473,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1319.38749019,
             "unit": "ms"
           }
         ]
