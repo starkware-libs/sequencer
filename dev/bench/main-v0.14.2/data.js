@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777980224271,
+  "lastUpdate": 1778056820940,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3229,6 +3229,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1259.6958288800001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "einat@starkware.co",
+            "name": "einat-starkware",
+            "username": "einat-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d87e217d3d9285fdc01914f04e5a0838472d24ed",
+          "message": "apollo_integration_tests: add shared proof-flow infrastructure (#13760)",
+          "timestamp": "2026-05-06T08:14:03Z",
+          "tree_id": "f32e7dc6cdc4f9b807baf3d8696814f340f8cf02",
+          "url": "https://github.com/starkware-libs/sequencer/commit/d87e217d3d9285fdc01914f04e5a0838472d24ed"
+        },
+        "date": 1778056820480,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 877.08120116,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1339.04730049,
             "unit": "ms"
           }
         ]
