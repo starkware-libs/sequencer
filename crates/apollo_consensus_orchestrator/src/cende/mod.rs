@@ -23,6 +23,7 @@ use central_objects::{
     CentralCompiledClassHashesForMigration,
     CentralCompressedStateDiff,
     CentralFeeMarketInfo,
+    CentralFeeProposalInfo,
     CentralSierraContractClassEntry,
     CentralStateDiff,
     CentralTransactionWritten,
@@ -53,6 +54,7 @@ use crate::metrics::{
     CENDE_WRITE_BLOB_SUCCESS,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
 };
+use crate::snip35::FeeProposalInfo;
 
 #[derive(thiserror::Error, Debug)]
 pub enum CendeAmbassadorError {
@@ -80,6 +82,7 @@ pub struct AerospikeBlob {
     compressed_state_diff: Option<CentralCompressedStateDiff>,
     bouncer_weights: CentralBouncerWeights,
     fee_market_info: CentralFeeMarketInfo,
+    fee_proposal_info: CentralFeeProposalInfo,
     transactions: Vec<CentralTransactionWritten>,
     execution_infos: Vec<CentralTransactionExecutionInfo>,
     contract_classes: Vec<CentralSierraContractClassEntry>,
@@ -362,6 +365,7 @@ pub struct BlobParameters {
     pub compressed_state_diff: Option<CommitmentStateDiff>,
     pub bouncer_weights: BouncerWeights,
     pub fee_market_info: FeeMarketInfo,
+    pub fee_proposal_info: FeeProposalInfo,
     pub transactions_with_execution_infos: Vec<InternalTransactionWithReceipt>,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
@@ -412,6 +416,7 @@ impl AerospikeBlob {
             compressed_state_diff,
             bouncer_weights: blob_parameters.bouncer_weights.into(),
             fee_market_info: blob_parameters.fee_market_info,
+            fee_proposal_info: blob_parameters.fee_proposal_info,
             transactions: central_transactions,
             execution_infos,
             contract_classes,
