@@ -91,6 +91,7 @@ pub(crate) fn get_panel_gateway_add_tx_failure_by_reason() -> Panel {
         ),
         PanelType::Stat,
     )
+    .with_log_query("Error while adding transaction")
 }
 
 fn get_panel_gateway_transactions_failure_rate() -> Panel {

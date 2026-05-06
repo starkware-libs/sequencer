@@ -37,7 +37,7 @@ use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::time;
 use tower_http::decompression::RequestDecompressionLayer;
 use tower_http::limit::RequestBodyLimitLayer;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, info, instrument, warn, Instrument};
 
 use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
 use crate::errors::{HttpServerError, HttpServerRunError};
@@ -299,14 +299,17 @@ async fn add_tx_inner(
         .and_then(|region| region.to_str().ok())
         .unwrap_or("N/A")
         .to_string();
-    let add_tx_result = tokio::spawn(async move {
-        let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
-            debug!("Error while adding transaction: {}", e);
-            HttpServerError::from(Box::new(e))
-        });
-        record_added_transactions(&add_tx_result, &region);
-        add_tx_result
-    })
+    let add_tx_result = tokio::spawn(
+        async move {
+            let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
+                debug!("Error while adding transaction: {}", e);
+                HttpServerError::from(Box::new(e))
+            });
+            record_added_transactions(&add_tx_result, &region);
+            add_tx_result
+        }
+        .instrument(tracing::Span::current()),
+    )
     .await
     .expect("Should be able to get add_tx result");
 
