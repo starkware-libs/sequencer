@@ -19,7 +19,7 @@
   "gateway_config.static_config.stateful_tx_validator_config.reject_future_declare_txs": true,
   "gateway_config.static_config.stateless_tx_validator_config.allow_client_side_proving": true,
   "gateway_config.static_config.stateless_tx_validator_config.max_calldata_length": 5000,
-  "gateway_config.static_config.stateless_tx_validator_config.max_contract_bytecode_size": 81920,
+  "gateway_config.static_config.stateless_tx_validator_config.max_contract_bytecode_size": "$$$_GATEWAY_CONFIG-STATIC_CONFIG-STATELESS_TX_VALIDATOR_CONFIG-MAX_CONTRACT_BYTECODE_SIZE_$$$",
   "gateway_config.static_config.stateless_tx_validator_config.max_contract_class_object_size": 4089446,
   "gateway_config.static_config.stateless_tx_validator_config.max_l2_gas_amount": 1200000000,
   "gateway_config.static_config.stateless_tx_validator_config.max_proof_size": 480000,
