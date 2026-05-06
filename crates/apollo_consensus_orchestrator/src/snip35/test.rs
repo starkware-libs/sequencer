@@ -3,13 +3,48 @@ use std::collections::BTreeMap;
 use rstest::rstest;
 use starknet_api::block::{BlockNumber, GasPrice};
 
-use crate::snip35::{compute_fee_actual, compute_fee_proposal, compute_fee_target};
+use crate::snip35::{
+    compute_fee_actual,
+    compute_fee_proposal,
+    compute_fee_target,
+    FeeProposalInfo,
+};
+
+#[test]
+fn fee_proposal_info_serializes_field_by_name() {
+    // The cende blob's wire shape must agree with the Python `FeeProposalInfo` Marshmallow
+    // dataclass — same field name (`fee_proposal_fri`), same JSON shape. If a refactor here
+    // accidentally renames or restructures the field, the centralized recorder would silently
+    // fail to load the Marshmallow schema on the new blob shape.
+    let info = FeeProposalInfo { fee_proposal_fri: Some(GasPrice(0x1dcd65000)) };
+    let json = serde_json::to_value(&info).unwrap();
+    assert_eq!(json["fee_proposal_fri"], serde_json::Value::String("0x1dcd65000".to_string()));
+
+    let info_none = FeeProposalInfo { fee_proposal_fri: None };
+    let json_none = serde_json::to_value(&info_none).unwrap();
+    assert_eq!(json_none["fee_proposal_fri"], serde_json::Value::Null);
+}
+
+#[test]
+fn fee_proposal_info_round_trips_through_serde_json() {
+    let original = FeeProposalInfo { fee_proposal_fri: Some(GasPrice(0xDEAD_BEEF)) };
+    let bytes = serde_json::to_vec(&original).unwrap();
+    let reparsed: FeeProposalInfo = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(reparsed, original);
+
+    let original_none = FeeProposalInfo { fee_proposal_fri: None };
+    let bytes_none = serde_json::to_vec(&original_none).unwrap();
+    let reparsed_none: FeeProposalInfo = serde_json::from_slice(&bytes_none).unwrap();
+    assert_eq!(reparsed_none, original_none);
+}
 
 const FRI_DECIMALS_SCALE: u128 = 10u128.pow(18);
 const FLOOR_MIN_FRI: u128 = 100;
 const FLOOR_MAX_FRI: u128 = 1000;
 
-fn window_from(entries: impl IntoIterator<Item = (u64, Option<GasPrice>)>) -> BTreeMap<BlockNumber, Option<GasPrice>> {
+fn window_from(
+    entries: impl IntoIterator<Item = (u64, Option<GasPrice>)>,
+) -> BTreeMap<BlockNumber, Option<GasPrice>> {
     entries.into_iter().map(|(h, v)| (BlockNumber(h), v)).collect()
 }
 
@@ -21,8 +56,8 @@ fn test_compute_fee_actual_random_window() {
     // Even-length median = sorted[4] + (sorted[5] - sorted[4]) / 2 = 100 + 85 = 185.
     //
     // Buggy alternatives (for catching off-by-one or wrong-end-of-window bugs):
-    // - Heights 0..9 instead of 2..11: sorted =
-    //   [1, 42, 87, 100, 271, 314, 1024, 1729, 6000, 9999], median = 271 + (314 - 271) / 2 = 292.
+    // - Heights 0..9 instead of 2..11: sorted = [1, 42, 87, 100, 271, 314, 1024, 1729, 6000, 9999],
+    //   median = 271 + (314 - 271) / 2 = 292.
     // - All 12 (window-size ignored): sorted[5..7] = [271, 314], median = 292.
     let values = [
         GasPrice(314),  // height 0
@@ -46,16 +81,15 @@ fn test_compute_fee_actual_random_window() {
 #[test]
 fn test_compute_fee_actual_missing_entry_returns_none() {
     // Heights [0, 9] needed for fee_actual at height 10; height 5 is missing.
-    let window = window_from(
-        (0u64..10).filter(|h| *h != 5).map(|h| (h, Some(GasPrice(100)))),
-    );
+    let window = window_from((0u64..10).filter(|h| *h != 5).map(|h| (h, Some(GasPrice(100)))));
     assert_eq!(compute_fee_actual(&window, BlockNumber(10)), None);
 }
 
 #[test]
 fn test_compute_fee_actual_none_entry_returns_none() {
     // Heights [0, 9] needed; height 7 is recorded as None (pre-SNIP-35 block).
-    let window = window_from((0u64..10).map(|h| (h, if h == 7 { None } else { Some(GasPrice(100)) })));
+    let window =
+        window_from((0u64..10).map(|h| (h, if h == 7 { None } else { Some(GasPrice(100)) })));
     assert_eq!(compute_fee_actual(&window, BlockNumber(10)), None);
 }
 

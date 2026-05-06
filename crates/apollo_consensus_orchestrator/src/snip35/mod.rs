@@ -15,11 +15,24 @@
 use std::collections::BTreeMap;
 
 use ethnum::U256;
+use serde::Serialize;
 use starknet_api::block::{BlockNumber, GasPrice};
 use tracing::warn;
 
 #[cfg(test)]
 mod test;
+
+/// SNIP-35 proposer-stated fee value for a block, as it travels in the cende blob to the
+/// centralized recorder. Mirrors the `FeeProposalInfo` Marshmallow dataclass on the centralized
+/// (Python) side; the wire JSON shape must agree across the language boundary.
+#[cfg_attr(any(feature = "testing", test), derive(serde::Deserialize, PartialEq))]
+#[derive(Debug, Default, Serialize)]
+pub struct FeeProposalInfo {
+    /// `None` for pre-V0_14_3 blocks (no value stated by the proposer); `Some(...)` for SNIP-35
+    /// era blocks. The centralized side persists this independently of `FeeMarketInfo` so
+    /// existing fee market storage blobs are untouched.
+    pub fee_proposal_fri: Option<GasPrice>,
+}
 
 /// Scale factor for 18-decimal fixed-point conversion (1 STRK = 10^18 FRI).
 const FRI_DECIMALS_SCALE: u128 = 10u128.pow(18);
@@ -71,8 +84,8 @@ pub fn compute_fee_actual(
             Some(Some(price)) => window.push(*price),
             Some(None) | None => {
                 warn!(
-                    "Cannot compute fee_actual for height {height}: fee_proposals_window has \
-                     no recorded fee_proposal for height {source_height}"
+                    "Cannot compute fee_actual for height {height}: fee_proposals_window has no \
+                     recorded fee_proposal for height {source_height}"
                 );
                 return None;
             }
