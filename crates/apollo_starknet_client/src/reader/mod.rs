@@ -52,7 +52,27 @@ pub use crate::reader::objects::state::{
 pub use crate::reader::objects::transaction::TransactionReceipt;
 use crate::retry::{Retry, RetryConfig};
 use crate::starknet_error::{KnownStarknetErrorCode, StarknetError, StarknetErrorCode};
-use crate::{ClientCreationError, ClientError, RetryErrorCode};
+use crate::{ClientCreationError, RetryErrorCode};
+
+/// Errors that may be returned by a client.
+#[derive(thiserror::Error, Debug)]
+pub enum ClientError {
+    /// A client error representing bad status http responses.
+    #[error("Bad response status code: {:?} message: {:?}.", code, message)]
+    BadResponseStatus { code: StatusCode, message: String },
+    /// A client error representing http request errors.
+    #[error(transparent)]
+    RequestError(#[from] reqwest::Error),
+    /// A client error representing errors that might be solved by retrying mechanism.
+    #[error("Retry error code: {:?}, message: {:?}.", code, message)]
+    RetryError { code: RetryErrorCode, message: String },
+    /// A client error representing deserialization errors.
+    #[error(transparent)]
+    SerdeError(#[from] serde_json::Error),
+    /// A client error representing errors returned by the starknet client.
+    #[error(transparent)]
+    StarknetError(#[from] StarknetError),
+}
 
 /// Errors that may be returned from a reader client.
 #[derive(thiserror::Error, Debug)]
