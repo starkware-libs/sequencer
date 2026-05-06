@@ -50,6 +50,7 @@ use starknet_types_core::felt::Felt;
 
 use super::{CendeAmbassadorError, CendeAmbassadorResult};
 use crate::fee_market::FeeMarketInfo;
+use crate::snip35::Snip35Info;
 
 /// Central objects are required in order to continue processing the block by the centralized
 /// Python pipline. These objects are written to the Aerospike database and are used by python
@@ -86,6 +87,7 @@ impl From<BouncerWeights> for CentralBouncerWeights {
     }
 }
 pub(crate) type CentralFeeMarketInfo = FeeMarketInfo;
+pub(crate) type CentralSnip35Info = Snip35Info;
 pub(crate) type CentralCompressedStateDiff = CentralStateDiff;
 pub(crate) type CentralSierraContractClassEntry = (ClassHash, CentralSierraContractClass);
 pub(crate) type CentralCasmContractClassEntry = (CompiledClassHash, CentralCasmContractClass);
