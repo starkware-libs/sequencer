@@ -3909,21 +3909,6 @@
     "pointer_target": "revert_config.should_revert",
     "privacy": "Public"
   },
-  "state_sync_config.static_config.rpc_config.apollo_gateway_retry_config.max_retries": {
-    "description": "For communicating with Starknet gateway, maximum number of retries before the node stops retrying.",
-    "privacy": "Public",
-    "value": 5
-  },
-  "state_sync_config.static_config.rpc_config.apollo_gateway_retry_config.retry_base_millis": {
-    "description": "For communicating with Starknet gateway, base waiting time after a failed request. After that, the time increases exponentially.",
-    "privacy": "Public",
-    "value": 50
-  },
-  "state_sync_config.static_config.rpc_config.apollo_gateway_retry_config.retry_max_delay_millis": {
-    "description": "For communicating with Starknet gateway, max waiting time after a failed request.",
-    "privacy": "Public",
-    "value": 1000
-  },
   "state_sync_config.static_config.rpc_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
@@ -3968,11 +3953,6 @@
     "description": "The JSON RPC server port.",
     "privacy": "Public",
     "value": 8090
-  },
-  "state_sync_config.static_config.rpc_config.starknet_url": {
-    "description": "URL for communicating with Starknet in write_api methods.",
-    "pointer_target": "starknet_url",
-    "privacy": "Public"
   },
   "state_sync_config.static_config.storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
