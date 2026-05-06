@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778065746898,
+  "lastUpdate": 1778079836816,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3705,6 +3705,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1404.02573876,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4964fd718e3c08ad1514589dc75e6722356826df",
+          "message": "starknet_api: add fee_proposal_fri to BlockHeaderWithoutHash (#13822)",
+          "timestamp": "2026-05-06T14:46:31Z",
+          "tree_id": "669af6dc31c6aefb25f130f5e4d4bf5ec6f3da25",
+          "url": "https://github.com/starkware-libs/sequencer/commit/4964fd718e3c08ad1514589dc75e6722356826df"
+        },
+        "date": 1778079836283,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1114.19375273,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1558.73197199,
             "unit": "ms"
           }
         ]
