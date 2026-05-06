@@ -60,16 +60,14 @@ async fn eth_to_fri_rate_uses_cache_on_quantized_hit() {
     let client = ExchangeRateOracleClient::new(config.clone());
 
     // First request should fail because the cache is empty.
-    assert!(client.eth_to_fri_rate(TIMESTAMP1).await.is_err());
+    assert!(client.fetch_rate(TIMESTAMP1).await.is_err());
     // Wait for the query to resolve.
-    while client.eth_to_fri_rate(TIMESTAMP1).await.is_err() {
+    while client.fetch_rate(TIMESTAMP1).await.is_err() {
         tokio::task::yield_now().await; // Don't block the executor.
     }
-    let rate1 = client.eth_to_fri_rate(TIMESTAMP1).await.unwrap();
-    let rate2 = client
-        .eth_to_fri_rate(TIMESTAMP2)
-        .await
-        .expect("Should resolve immediately due to the cache");
+    let rate1 = client.fetch_rate(TIMESTAMP1).await.unwrap();
+    let rate2 =
+        client.fetch_rate(TIMESTAMP2).await.expect("Should resolve immediately due to the cache");
     assert_eq!(rate1, rate2);
 }
 
@@ -134,20 +132,20 @@ async fn eth_to_fri_rate_uses_prev_cache_when_query_not_ready() {
     let client = ExchangeRateOracleClient::new(config.clone());
 
     // First request should fail because the cache is empty.
-    assert!(client.eth_to_fri_rate(TIMESTAMP1).await.is_err());
+    assert!(client.fetch_rate(TIMESTAMP1).await.is_err());
     // Wait for the query to resolve.
-    while client.eth_to_fri_rate(TIMESTAMP1).await.is_err() {
+    while client.fetch_rate(TIMESTAMP1).await.is_err() {
         tokio::task::yield_now().await; // Don't block the executor.
     }
-    let rate1 = client.eth_to_fri_rate(TIMESTAMP1).await.unwrap();
+    let rate1 = client.fetch_rate(TIMESTAMP1).await.unwrap();
     assert_eq!(rate1, EXPECTED_RATE);
     // Second request should resolve immediately due to the cache.
-    let rate2 = client.eth_to_fri_rate(TIMESTAMP2).await.unwrap();
+    let rate2 = client.fetch_rate(TIMESTAMP2).await.unwrap();
     assert_eq!(rate2, EXPECTED_RATE);
 
     // Wait for the query to resolve, and the price to be updated.
     for _ in 0..100 {
-        let current_rate = client.eth_to_fri_rate(TIMESTAMP2).await.unwrap();
+        let current_rate = client.fetch_rate(TIMESTAMP2).await.unwrap();
         if current_rate > EXPECTED_RATE {
             break;
         }
@@ -155,7 +153,7 @@ async fn eth_to_fri_rate_uses_prev_cache_when_query_not_ready() {
     }
 
     // Third request should already successfully get the query from the server.
-    let rate3 = client.eth_to_fri_rate(TIMESTAMP2).await.unwrap();
+    let rate3 = client.fetch_rate(TIMESTAMP2).await.unwrap();
     assert_eq!(rate3, different_rate);
 }
 
@@ -194,22 +192,22 @@ async fn eth_to_fri_rate_two_urls() {
     };
     let client = ExchangeRateOracleClient::new(config.clone());
     // First request should fail because the cache is empty.
-    assert!(client.eth_to_fri_rate(TIMESTAMP1).await.is_err());
+    assert!(client.fetch_rate(TIMESTAMP1).await.is_err());
     // Wait for the query to resolve.
-    while client.eth_to_fri_rate(TIMESTAMP1).await.is_err() {
+    while client.fetch_rate(TIMESTAMP1).await.is_err() {
         tokio::task::yield_now().await; // Don't block the executor.
     }
-    let rate1 = client.eth_to_fri_rate(TIMESTAMP1).await.unwrap();
+    let rate1 = client.fetch_rate(TIMESTAMP1).await.unwrap();
     assert_eq!(rate1, EXPECTED_RATE);
 
     // Note this server fails on missing "decimals", not "price".
     let _mock_response3 =
         make_server(&mut server2, json!({"price": &expected_rate_hex, "bar": 18})).await;
     // First request should fail because the cache is empty.
-    assert!(client.eth_to_fri_rate(TIMESTAMP2).await.is_err());
+    assert!(client.fetch_rate(TIMESTAMP2).await.is_err());
     // Wait for the query to resolve.
     loop {
-        match client.eth_to_fri_rate(TIMESTAMP2).await {
+        match client.fetch_rate(TIMESTAMP2).await {
             Ok(_) => panic!("Both servers should be returning bad JSON!"),
             Err(ExchangeRateOracleClientError::QueryNotReadyError(_)) => {}
             Err(ExchangeRateOracleClientError::AllUrlsFailedError(_, index)) => {

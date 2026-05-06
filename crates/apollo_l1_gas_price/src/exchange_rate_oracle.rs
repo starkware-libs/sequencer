@@ -204,7 +204,7 @@ impl ExchangeRateOracleClientTrait for ExchangeRateOracleClient {
     /// - `price`: a hexadecimal string representing the price.
     /// - `decimals`: a `u64` value, must be equal to `EXCHANGE_RATE_DECIMALS`.
     #[instrument(skip(self))]
-    async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, ExchangeRateOracleClientError> {
+    async fn fetch_rate(&self, timestamp: u64) -> Result<u128, ExchangeRateOracleClientError> {
         const NUMBER_OF_TIMESTAMPS_BACK: u64 = 1;
         let quantized_timestamp = (timestamp - self.config.lag_interval_seconds)
             .checked_div(self.config.lag_interval_seconds)

@@ -186,7 +186,7 @@ impl L1GasPriceProvider {
 
     pub async fn eth_to_fri_rate(&self, timestamp: u64) -> L1GasPriceProviderResult<u128> {
         self.eth_to_strk_oracle_client
-            .eth_to_fri_rate(timestamp)
+            .fetch_rate(timestamp)
             .await
             .map_err(L1GasPriceProviderError::ExchangeRateOracleClientError)
     }
