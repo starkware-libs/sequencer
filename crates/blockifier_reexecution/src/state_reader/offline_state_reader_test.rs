@@ -4,8 +4,8 @@ use rstest::rstest;
 use starknet_api::block::BlockNumber;
 
 use crate::cli::get_block_numbers_for_reexecution;
-use crate::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
-use crate::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
+use crate::state_reader::offline_state_reader::OfflineBlockReexecutor;
+use crate::state_reader::reexecution_state_reader::BlockReexecutor;
 
 /// Reexecutes a block from a pre-saved JSON file and verifies correctness.
 fn reexecute_block_for_testing(block_number: u64) {
@@ -20,10 +20,10 @@ fn reexecute_block_for_testing(block_number: u64) {
     }
     let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
 
-    OfflineConsecutiveStateReaders::new_from_file(&full_file_path, contract_class_manager)
+    let matched = OfflineBlockReexecutor::new_from_file(&full_file_path, contract_class_manager)
         .unwrap()
-        .reexecute_and_verify_correctness();
-
+        .reexecute_and_verify_correctness(BlockNumber(block_number));
+    assert!(matched, "Reexecution failed for block {block_number}.");
     println!("Reexecution test for block {block_number} passed successfully.");
 }
 
@@ -39,6 +39,7 @@ fn reexecute_block_for_testing(block_number: u64) {
 #[case::v_0_13_6(1743490)]
 #[case::v_0_14_0(2509604)]
 #[case::v_0_14_1(4448394)]
+#[case::v_0_14_2_with_proof_facts(9023035)]
 #[case::first_v_0_13_5_rpc_v8(1400000)]
 #[case::second_v_0_13_5_rpc_v8(1450000)]
 #[case::invoke_with_replace_class_syscall(780008)]
@@ -49,12 +50,13 @@ fn reexecute_block_for_testing(block_number: u64) {
 #[case::example_declare_v2(822636)]
 #[case::example_declare_v3(825013)]
 #[case::example_l1_handler(868429)]
+#[tokio::test]
 #[ignore = "Requires downloading JSON files prior to running; Long test, run with --release flag."]
-fn test_block_reexecution(#[case] block_number: u64) {
+async fn test_block_reexecution(#[case] block_number: u64) {
     // Assert that the block number exists in the json file.
     assert!(
         get_block_numbers_for_reexecution(Some("../../".to_owned()))
             .contains(&BlockNumber(block_number))
     );
-    reexecute_block_for_testing(block_number);
+    tokio::task::spawn_blocking(move || reexecute_block_for_testing(block_number)).await.unwrap();
 }

@@ -72,6 +72,27 @@ fn deserialize_invoke_txs() {
     assert_matches!(invoke_tx_v3, Transaction::Invoke(InvokeTransaction::V3(..)));
 }
 
+/// Verifies that a raw `INVOKE_TXN_V3` RPC response containing the optional `proof_facts`
+/// field (returned only when the request includes `response_flags: ["INCLUDE_PROOF_FACTS"]`,
+/// per Starknet RPC v0.10) round-trips into an `InvokeTransactionV3` with non-empty
+/// `proof_facts`.
+#[test]
+fn deserialize_invoke_v3_with_proof_facts() {
+    let raw_transactions =
+        read_json_file::<_, serde_json::Value>("raw_rpc_json_objects/transactions.json");
+    let raw = raw_transactions["invoke_v3_with_proof_facts"].clone();
+    let expected_proof_facts_len = raw["proof_facts"].as_array().expect("proof_facts array").len();
+
+    let tx = deserialize_transaction_json_to_starknet_api_tx(raw)
+        .expect("Failed to deserialize invoke v3 tx with proof_facts");
+
+    let invoke_v3 = assert_matches!(
+        tx,
+        Transaction::Invoke(InvokeTransaction::V3(invoke_v3)) => invoke_v3
+    );
+    assert_eq!(invoke_v3.proof_facts.0.len(), expected_proof_facts_len);
+}
+
 #[rstest]
 fn deserialize_deploy_account_txs(
     #[values("deploy_account_v1", "deploy_account_v3")] deploy_account_version: &str,

@@ -47,7 +47,7 @@ impl PyValidator {
             py_versioned_constants_overrides.into(),
         ));
         // The validation of a transaction is not affected by the casm hash migration.
-        versioned_constants.enable_casm_hash_migration = false;
+        versioned_constants.disable_casm_hash_migration();
         let block_context = BlockContext::new(
             next_block_info.try_into().expect("Failed to convert block info."),
             os_config.into_chain_info(),

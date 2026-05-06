@@ -10,6 +10,7 @@ description = "The transaction-executing component in the Starknet sequencer."
 workspace = true
 
 [features]
+benchmarking = []
 cairo_native = [
   "blockifier_test_utils/cairo_native",
   "dep:apollo_compilation_utils",
@@ -19,6 +20,7 @@ cairo_native = [
 mocks = []
 native_blockifier = []
 node_api = []
+only-native = ["cairo_native"]
 reexecution = ["transaction_serde"]
 testing = ["blockifier_test_utils", "rand", "rstest", "rstest_reuse", "starknet_api/testing"]
 tracing = []

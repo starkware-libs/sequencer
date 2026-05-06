@@ -155,7 +155,7 @@ WORKDIR /app
 # Copy the binary.
 COPY --from=builder /app/target/${BUILD_MODE}/starknet_transaction_prover ./target/${BUILD_MODE}/starknet_transaction_prover
 
-# Copy resources needed by the service (includes bootloader).
+# Copy resources needed by the service.
 COPY --from=builder /app/crates/starknet_transaction_prover/resources ./crates/starknet_transaction_prover/resources
 
 # Copy starknet-sierra-compile binary required for Sierra to Casm compilation.
