@@ -345,6 +345,7 @@ fn create_random_sync_block(
         sequencer,
         l1_da_mode,
         starknet_version,
+        fee_proposal_fri,
     } = BlockHeaderWithoutHash::get_test_instance(&mut rng);
     let block_header_without_hash = BlockHeaderWithoutHash {
         block_number,
@@ -359,6 +360,7 @@ fn create_random_sync_block(
         sequencer,
         l1_da_mode,
         starknet_version,
+        fee_proposal_fri,
     };
     let block_header_commitments = BlockHeaderCommitments::get_test_instance(&mut rng);
     SyncBlock {
