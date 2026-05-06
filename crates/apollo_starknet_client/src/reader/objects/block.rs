@@ -87,6 +87,12 @@ pub struct BlockPostV0_13_1 {
     // `withFeeMarketInfo=true`.
     pub l2_gas_consumed: GasAmount,
     pub next_l2_gas_price: GasPrice,
+
+    // SNIP-35: proposer-stated fee value. Returned by the feeder gateway only when the
+    // request includes `withFeeProposalInfo=true`. Defaulted (`None`) for older blocks and for
+    // gateway responses that don't carry the field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fee_proposal_fri: Option<GasPrice>,
 }
 
 impl BlockPostV0_13_1 {
@@ -295,6 +301,12 @@ impl Block {
         }
     }
 
+    pub fn fee_proposal_fri(&self) -> Option<GasPrice> {
+        match self {
+            Block::PostV0_13_1(block) => block.fee_proposal_fri,
+        }
+    }
+
     pub fn to_starknet_api_block_and_events(
         self,
     ) -> ReaderClientResult<(starknet_api_block, Vec<Vec<Event>>)> {
@@ -342,7 +354,7 @@ impl Block {
                 l1_data_gas_price: self.l1_data_gas_price(),
                 l1_da_mode: self.l1_da_mode(),
                 starknet_version: self.starknet_version(),
-                fee_proposal_fri: None,
+                fee_proposal_fri: self.fee_proposal_fri(),
             },
             state_diff_commitment: self.state_diff_commitment(),
             transaction_commitment,
