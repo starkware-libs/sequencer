@@ -3,7 +3,7 @@ use indexmap::IndexMap;
 use papyrus_common::state::MigratedCompiledClassHashEntry;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
-use starknet_api::block::BlockHash;
+use starknet_api::block::{BlockHash, GasPrice};
 use starknet_api::core::{CompiledClassHash, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::TransactionOffsetInBlock;
@@ -23,15 +23,17 @@ use crate::reader::objects::transaction::TransactionReceipt;
 use crate::reader::ReaderClientError;
 use crate::test_utils::read_resource::read_resource_file;
 
-const LATEST_BLOCK_RESOURCE: &str = "reader/block_post_0_14_2.json";
+const LATEST_BLOCK_RESOURCE: &str = "reader/block_post_0_14_3.json";
 
-// To add a new block version: fetch from any feeder gateway with `&withFeeMarketInfo=true`, save to
+// To add a new block version: fetch from any feeder gateway with
+// `&withFeeMarketInfo=true&withFeeProposalInfo=true`, save to
 // `resources/reader/block_post_<version>.json`, add to the list below, and update
 // LATEST_BLOCK_RESOURCE.
 #[test]
 fn load_block_succeeds() {
     for block_path in [
         LATEST_BLOCK_RESOURCE,
+        "reader/block_post_0_14_2.json",
         "reader/block_post_0_14_0.json",
         "reader/block_post_0_13_4.json",
         "reader/block_post_0_13_3.json",
@@ -44,6 +46,32 @@ fn load_block_succeeds() {
             panic!("Failed loading block in path {block_path}. Error: {err}")
         });
     }
+}
+
+#[test]
+fn block_post_0_14_3_carries_fee_proposal_fri() {
+    let block: Block =
+        serde_json::from_str(&read_resource_file("reader/block_post_0_14_3.json")).unwrap();
+    assert_eq!(block.fee_proposal_fri(), Some(GasPrice(0x1dcd65000)));
+}
+
+#[test]
+fn block_post_0_14_2_has_no_fee_proposal_fri() {
+    // Backward-compat: pre-SNIP-35 fixtures don't carry the field; serde(default) yields None.
+    let block: Block =
+        serde_json::from_str(&read_resource_file("reader/block_post_0_14_2.json")).unwrap();
+    assert_eq!(block.fee_proposal_fri(), None);
+}
+
+#[test]
+fn fee_proposal_fri_round_trips_through_starknet_api_block() {
+    let block: Block =
+        serde_json::from_str(&read_resource_file("reader/block_post_0_14_3.json")).unwrap();
+    let (api_block, _) = block.to_starknet_api_block_and_events().unwrap();
+    assert_eq!(
+        api_block.header.block_header_without_hash.fee_proposal_fri,
+        Some(GasPrice(0x1dcd65000)),
+    );
 }
 
 #[test]
