@@ -245,6 +245,13 @@ impl<
             args: AddTransactionArgs::new(internal_tx, nonce),
             p2p_message_metadata,
         };
+
+        // Await as late as possible for proof archiving before sending the transaction to the
+        // mempool.
+        Self::await_proof_archiving(proof_archive_handle)
+            .await
+            .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
+
         let mempool_client_result = self.mempool_client.add_tx(add_tx_args).await;
         match mempool_client_result_to_deprecated_gw_result(&tx_signature, mempool_client_result) {
             Ok(()) => {}
@@ -256,10 +263,6 @@ impl<
 
         metric_counters.transaction_sent_to_mempool();
 
-        // We await proof archiving only after the transaction is sent to the mempool to avoid
-        // delays.
-        Self::await_proof_archiving(proof_archive_handle).await;
-
         Ok(gateway_output)
     }
 
@@ -270,12 +273,28 @@ impl<
     ) -> ProofArchiveHandle {
         let (proof_facts, proof) = proof_data?;
 
+        // TODO(Einat): Avoid archiving in P2P gateways.
+        // Spawn the GCS archive write before the proof-manager store so the two run in parallel
+        // — the proof-manager store is the dominant latency and there's no point serializing them.
+        let proof_archive_writer = self.proof_archive_writer.clone();
+        let archive_proof_facts = proof_facts.clone();
+        let archive_proof = proof.clone();
+        let handle = tokio::spawn(async move {
+            let proof_facts_hash = archive_proof_facts.hash();
+            let proof_archive_writer_start = Instant::now();
+            let result = proof_archive_writer.set_proof(archive_proof_facts, archive_proof).await;
+            let proof_archive_writer_duration = proof_archive_writer_start.elapsed();
+            info!(
+                "Proof archive writer took: {proof_archive_writer_duration:?} for tx hash: \
+                 {tx_hash:?}"
+            );
+            (proof_facts_hash, result)
+        });
+
         // Proof is verified during conversion to internal tx. It is stored here, after
         // validation, to avoid storing proofs for rejected transactions.
-        let store_result = self
-            .transaction_converter
-            .store_proof_in_proof_manager(proof_facts.clone(), proof.clone())
-            .await;
+        let store_result =
+            self.transaction_converter.store_proof_in_proof_manager(proof_facts, proof).await;
         match store_result {
             Ok(proof_manager_store_duration) => {
                 GATEWAY_PROOF_MANAGER_STORE_LATENCY
@@ -290,25 +309,13 @@ impl<
             }
         }
 
-        let proof_archive_writer = self.proof_archive_writer.clone();
-        let handle = tokio::spawn(async move {
-            let proof_facts_hash = proof_facts.hash();
-            let proof_archive_writer_start = Instant::now();
-            let result = proof_archive_writer.set_proof(proof_facts, proof).await;
-            let proof_archive_writer_duration = proof_archive_writer_start.elapsed();
-            info!(
-                "Proof archive writer took: {proof_archive_writer_duration:?} for tx hash: \
-                 {tx_hash:?}"
-            );
-            (proof_facts_hash, result)
-        });
-
         Some((handle, tx_hash))
     }
 
-    async fn await_proof_archiving(proof_archive_handle: ProofArchiveHandle) {
+    /// Awaits the spawned GCS archive task with a hard timeout.
+    async fn await_proof_archiving(proof_archive_handle: ProofArchiveHandle) -> GatewayResult<()> {
         let Some((handle, tx_hash)) = proof_archive_handle else {
-            return;
+            return Ok(());
         };
 
         let abort_handle = handle.abort_handle();
@@ -318,25 +325,35 @@ impl<
                     "Proof archived successfully. proof_facts_hash: {proof_facts_hash:?}, \
                      tx_hash: {tx_hash:?}"
                 );
+                Ok(())
             }
             Ok(Ok((proof_facts_hash, Err(e)))) => {
                 GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
-                error!(
-                    "Failed to archive proof to GCS. proof_facts_hash: {proof_facts_hash:?}, \
-                     tx_hash: {tx_hash:?}, error: {e}"
-                );
+                Err(StarknetError::internal_with_logging(
+                    &format!(
+                        "Failed to archive proof to GCS. proof_facts_hash: {proof_facts_hash:?}, \
+                         tx_hash: {tx_hash:?}"
+                    ),
+                    e,
+                ))
             }
             Ok(Err(e)) => {
                 GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
-                error!("Proof archive writer task panicked. tx_hash: {tx_hash:?}, error: {e}");
+                Err(StarknetError::internal_with_logging(
+                    &format!("Proof archive writer task panicked. tx_hash: {tx_hash:?}"),
+                    e,
+                ))
             }
-            Err(_) => {
+            Err(elapsed) => {
                 abort_handle.abort();
                 GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
-                error!(
-                    "Proof archive writer timed out after {PROOF_ARCHIVE_WRITE_TIMEOUT:?}. \
-                     tx_hash: {tx_hash:?}"
-                );
+                Err(StarknetError::internal_with_logging(
+                    &format!(
+                        "Proof archive writer timed out after {PROOF_ARCHIVE_WRITE_TIMEOUT:?}. \
+                         tx_hash: {tx_hash:?}"
+                    ),
+                    elapsed,
+                ))
             }
         }
     }
