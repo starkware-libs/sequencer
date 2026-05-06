@@ -99,6 +99,7 @@ use crate::snip35::{
     compute_fee_actual,
     compute_fee_proposal,
     compute_fee_target,
+    Snip35Info,
     FEE_PROPOSAL_MARGIN_PPT,
     FEE_PROPOSAL_WINDOW_SIZE,
     ORACLE_L2_GAS_FLOOR_MAX_FRI,
@@ -580,6 +581,11 @@ impl SequencerConsensusContext {
                     l2_gas_consumed: l2_gas_used,
                     next_l2_gas_price: self.l2_gas_price,
                 },
+                // SNIP-35: forward the proposer's stated fee_proposal_fri (from ProposalInit)
+                // to the centralized cende pipeline. The centralized side persists this in
+                // its own storage namespace, separate from FeeMarketInfo. Pre-V0_14_3 blocks
+                // have `init.fee_proposal_fri == None`.
+                snip35_info: Snip35Info { fee_proposal_fri: init.fee_proposal_fri },
                 compiled_class_hashes_for_migration: central_objects
                     .compiled_class_hashes_for_migration,
                 proposal_commitment: commitment,
