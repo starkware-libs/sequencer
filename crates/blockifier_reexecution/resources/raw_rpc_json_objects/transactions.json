@@ -70,6 +70,70 @@
         "type": "INVOKE",
         "version": "0x3"
     },
+    "invoke_v3_with_proof_facts": {
+        "account_deployment_data": [],
+        "calldata": [
+            "0x1",
+            "0x40337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a",
+            "0x246333a752c1ac637ff1591c5c885e27d56060d241a29aad8475072da0777db",
+            "0x11",
+            "0x3",
+            "0x0",
+            "0x3281798780c9e6efc0ee82884b785d68842631b3f2803619bf7507d6065f4fb",
+            "0x1",
+            "0x30b5bc96ceb941beb82123f24621c4973884cb60a7679cc4a1ed633cca491ce",
+            "0x0",
+            "0x419f54c4dbeda02c50bee99eebbc316821ed92e3cc53ac41d18a5852c8c31b1",
+            "0x3",
+            "0x1eed60b8d483b3bede62d1cc0f32874aea30747e6943437c858359b41801bf7",
+            "0x579a974f400c4f6a633117462be5470f01ccffb6ad70448bc3cd649097ea73f",
+            "0x6669cc2d160a654555944c71584d9058265b6e8a686f497f43bddab8a2592d3",
+            "0x4",
+            "0x51258c78dba24ee15c3aed60fb6fbbfb91a7cb2f739c82e39871847823aa410",
+            "0x30b5bc96ceb941beb82123f24621c4973884cb60a7679cc4a1ed633cca491ce",
+            "0x1eed60b8d483b3bede62d1cc0f32874aea30747e6943437c858359b41801bf7",
+            "0x579a974f400c4f6a633117462be5470f01ccffb6ad70448bc3cd649097ea73f",
+            "0x6669cc2d160a654555944c71584d9058265b6e8a686f497f43bddab8a2592d3"
+        ],
+        "fee_data_availability_mode": "L1",
+        "nonce": "0x2",
+        "nonce_data_availability_mode": "L1",
+        "paymaster_data": [],
+        "proof_facts": [
+            "0x50524f4f4630",
+            "0x5649525455414c5f534e4f53",
+            "0x3e98c2d7703b03a7edb73ed7f075f97f1dcbaa8f717cdf6e1a57bf058265473",
+            "0x5649525455414c5f534e4f5330",
+            "0x89ae2e",
+            "0x397ebc55c4146288c6abca9bec8d3b3cc308ba73ac4ddac1fb6f8605d603d9c",
+            "0x70c7b342f93155315d1cb2da7a4e13a3c2430f51fb5696c1b224c3da5508dfb",
+            "0x1",
+            "0xbc200cc5fc8d6d0b0d7331c76d3416a75f4a527b24dae1a80c60329a54e347"
+        ],
+        "resource_bounds": {
+            "l1_data_gas": {
+                "max_amount": "0x360",
+                "max_price_per_unit": "0x4c0e358c66"
+            },
+            "l1_gas": {
+                "max_amount": "0x0",
+                "max_price_per_unit": "0x816b7355ba6f"
+            },
+            "l2_gas": {
+                "max_amount": "0x700c740",
+                "max_price_per_unit": "0x861c46800"
+            }
+        },
+        "sender_address": "0x51258c78dba24ee15c3aed60fb6fbbfb91a7cb2f739c82e39871847823aa410",
+        "signature": [
+            "0x1aaa12c6a41ebffd162d9e7e1b98da9554dd279d608fd575f333c5d81fa497b",
+            "0x39126a03ac1e6d7061a1cb482672f6733584faddc624cfb170ad5258600def3"
+        ],
+        "tip": "0x0",
+        "transaction_hash": "0x3f600e8af3f94178298d7f56a396b81a8083db1b2cc0f16eaa09f5d79221730",
+        "type": "INVOKE",
+        "version": "0x3"
+    },
     "deploy_account_v1": {
         "transaction_hash": "0x2a2e13cd94f911ea18c20a81e853314e37de58d49d13aa3a92370accd4338e8",
         "type": "DEPLOY_ACCOUNT",
