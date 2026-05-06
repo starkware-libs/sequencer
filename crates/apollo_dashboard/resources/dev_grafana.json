@@ -63,7 +63,9 @@
           "exprs": [
             "sum by (add_tx_failure_reason) (increase(gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range])) > 0"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Error while adding transaction\""
+          }
         }
       ],
       "collapsed": false
@@ -1081,7 +1083,9 @@
           "exprs": [
             "sum by (add_tx_failure_reason) (increase(gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range])) > 0"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Error while adding transaction\""
+          }
         },
         {
           "title": "Transactions Sent to Mempool by Type",
