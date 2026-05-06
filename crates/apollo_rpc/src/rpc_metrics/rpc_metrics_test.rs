@@ -166,7 +166,6 @@ async fn server_metrics() {
         get_test_pending_data(),
         get_test_pending_classes(),
         storage_reader,
-        "NODE VERSION",
         None,
     )
     .await

@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use std::fmt::Debug;
 use std::iter;
 use std::net::SocketAddr;
 use std::ops::Index;
@@ -31,7 +30,6 @@ use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::StorageScope;
 use apollo_test_utils::{
     auto_impl_get_test_instance,
-    get_number_of_variants,
     get_rng,
     get_test_block,
     get_test_body,
@@ -51,7 +49,6 @@ use papyrus_common::pending_classes::{ApiContractClass, PendingClassesTrait};
 use pretty_assertions::assert_eq;
 use rand::{random, RngCore};
 use rand_chacha::ChaCha8Rng;
-use serde::{Deserialize, Serialize};
 use starknet_api::block::{
     Block as StarknetApiBlock,
     BlockHash,
@@ -124,10 +121,8 @@ use super::super::state::{
     ThinStateDiff,
 };
 use super::super::transaction::{
-    DeployAccountTransaction,
     Event,
     GeneralTransactionReceipt,
-    InvokeTransaction,
     PendingTransactionFinalityStatus,
     PendingTransactionOutput,
     PendingTransactionReceipt,
@@ -164,14 +159,7 @@ use crate::test_utils::{
 };
 use crate::v0_8::api::CompiledContractClass;
 use crate::version_config::VERSION_0_8 as VERSION;
-use crate::{
-    internal_server_error,
-    internal_server_error_with_msg,
-    run_server,
-    ContinuationTokenAsStruct,
-};
-
-const NODE_VERSION: &str = "NODE VERSION";
+use crate::{internal_server_error_with_msg, run_server, ContinuationTokenAsStruct};
 
 #[tokio::test]
 async fn spec_version() {
@@ -329,7 +317,6 @@ async fn syncing() {
 
     let shared_highest_block = get_test_highest_block();
     let (module, _) = get_test_rpc_server_and_storage_writer_from_params::<JsonRpcServerImpl>(
-        None,
         Some(shared_highest_block.clone()),
         None,
         None,
@@ -365,7 +352,7 @@ async fn get_block_transaction_count() {
     let pending_data = get_test_pending_data();
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data.clone()), None, None);
+    >(None, Some(pending_data.clone()), None, None);
     let transaction_count = 5;
     let block = get_test_block(transaction_count, None, None, None);
     storage_writer
@@ -456,7 +443,7 @@ async fn get_block_w_full_transactions() {
     let pending_data = get_test_pending_data();
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data.clone()), None, None);
+    >(None, Some(pending_data.clone()), None, None);
 
     let mut block = get_test_block(1, None, None, None);
     let block_hash = BlockHash(random::<u64>().into());
@@ -642,7 +629,7 @@ async fn get_block_w_full_transactions_and_receipts() {
     let pending_data = get_test_pending_data();
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data.clone()), None, None);
+    >(None, Some(pending_data.clone()), None, None);
 
     let mut block = get_test_block(1, None, None, None);
     let block_hash = BlockHash(random::<u64>().into());
@@ -844,7 +831,7 @@ async fn get_block_w_transaction_hashes() {
     let pending_data = get_test_pending_data();
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data.clone()), None, None);
+    >(None, Some(pending_data.clone()), None, None);
 
     let mut block = get_test_block(1, None, None, None);
     let block_hash = BlockHash(random::<u64>().into());
@@ -1031,7 +1018,7 @@ async fn get_class() {
     let pending_classes = get_test_pending_classes();
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, None, Some(pending_classes.clone()), None);
+    >(None, None, Some(pending_classes.clone()), None);
     let parent_header = BlockHeader::default();
     let header = BlockHeader {
         block_hash: BlockHash(felt!("0x1")),
@@ -1213,7 +1200,7 @@ async fn get_transaction_status() {
     let pending_data = get_test_pending_data();
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data.clone()), None, None);
+    >(None, Some(pending_data.clone()), None, None);
     let block = get_test_block(1, None, None, None);
     storage_writer
         .begin_rw_txn()
@@ -1332,7 +1319,7 @@ async fn get_transaction_receipt() {
     let pending_data = get_test_pending_data();
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data.clone()), None, None);
+    >(None, Some(pending_data.clone()), None, None);
     let block = get_test_block(1, None, None, None);
     storage_writer
         .begin_rw_txn()
@@ -1457,7 +1444,6 @@ async fn get_class_at() {
     let pending_classes = get_test_pending_classes();
     let (module, mut storage_writer) =
         get_test_rpc_server_and_storage_writer_from_params::<JsonRpcServerImpl>(
-            None,
             None,
             Some(pending_data.clone()),
             Some(pending_classes.clone()),
@@ -1671,7 +1657,7 @@ async fn get_class_hash_at() {
     let pending_data = get_test_pending_data();
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data.clone()), None, None);
+    >(None, Some(pending_data.clone()), None, None);
     let header = BlockHeader::default();
     let diff = starknet_api::state::ThinStateDiff::from(get_test_state_diff());
     storage_writer
@@ -1834,7 +1820,7 @@ async fn get_nonce() {
     let pending_data = get_test_pending_data();
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data.clone()), None, None);
+    >(None, Some(pending_data.clone()), None, None);
     let header = BlockHeader::default();
     let diff = starknet_api::state::ThinStateDiff::from(get_test_state_diff());
     storage_writer
@@ -1978,7 +1964,7 @@ async fn get_storage_at() {
     let pending_data = get_test_pending_data();
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data.clone()), None, None);
+    >(None, Some(pending_data.clone()), None, None);
     let header = BlockHeader::default();
     let diff = starknet_api::state::ThinStateDiff::from(get_test_state_diff());
     storage_writer
@@ -2248,7 +2234,7 @@ async fn get_transaction_by_hash() {
     let pending_data = get_test_pending_data();
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data.clone()), None, None);
+    >(None, Some(pending_data.clone()), None, None);
     let mut block = get_test_block(1, None, None, None);
     // Change the transaction hash from 0 to a random value, so that later on we can add a
     // transaction with 0 hash to the pending block.
@@ -2322,7 +2308,6 @@ async fn get_transaction_by_hash_state_only() {
         None,
         None,
         None,
-        None,
         Some(StorageScope::StateOnly),
     );
 
@@ -2339,7 +2324,7 @@ async fn get_transaction_by_block_id_and_index() {
     let pending_data = get_test_pending_data();
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data.clone()), None, None);
+    >(None, Some(pending_data.clone()), None, None);
     let block = get_test_block(1, None, None, None);
     storage_writer
         .begin_rw_txn()
@@ -2472,7 +2457,7 @@ async fn get_state_update() {
     let pending_data = get_test_pending_data();
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data.clone()), None, None);
+    >(None, Some(pending_data.clone()), None, None);
     let parent_header = BlockHeader::default();
     let expected_pending_old_root = GlobalRoot(felt!("0x1234"));
     let header = BlockHeader {
@@ -2638,7 +2623,7 @@ async fn get_state_update_with_replaced_class() {
     let pending_data = get_test_pending_data();
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data.clone()), None, None);
+    >(None, Some(pending_data.clone()), None, None);
     let parent_header = BlockHeader::default();
     let expected_pending_old_root = GlobalRoot(felt!("0x1234"));
     let header = BlockHeader {
@@ -2722,7 +2707,7 @@ async fn get_state_update_with_empty_storage_diff() {
     let pending_data = get_test_pending_data();
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data.clone()), None, None);
+    >(None, Some(pending_data.clone()), None, None);
     let state_diff = starknet_api::state::ThinStateDiff {
         storage_diffs: indexmap!(ContractAddress::default() => indexmap![]),
         ..Default::default()
@@ -2861,7 +2846,7 @@ async fn test_get_events(
     let pending_data = get_test_pending_data();
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data.clone()), None, None);
+    >(None, Some(pending_data.clone()), None, None);
     let mut rng = get_rng();
 
     let mut event_index_to_event = HashMap::<EventIndex, Event>::new();
@@ -3533,7 +3518,6 @@ async fn serialize_returns_valid_json() {
         get_test_pending_data(),
         get_test_pending_classes(),
         storage_reader,
-        NODE_VERSION,
         None,
     )
     .await
@@ -3744,7 +3728,7 @@ async fn get_compiled_class() {
     let method_name = "starknet_V0_8_getCompiledContractClass";
     let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, None, None, None);
+    >(None, None, None, None);
     let cairo1_contract_class = CasmContractClass::get_test_instance(&mut get_rng());
     // We need to save the Sierra component of the Cairo 1 contract in storage to maintain
     // consistency.

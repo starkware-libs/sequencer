@@ -20,7 +20,6 @@ use apollo_starknet_client::reader::objects::transaction::{
     TransactionReceipt as ClientTransactionReceipt,
 };
 use apollo_starknet_client::reader::PendingData;
-use apollo_starknet_client::writer::StarknetWriter;
 use apollo_storage::body::events::{EventIndex, EventsReader};
 use apollo_storage::body::{BodyStorageReader, TransactionIndex};
 use apollo_storage::compiled_class::CasmStorageReader;
@@ -151,7 +150,6 @@ pub struct JsonRpcServerImpl {
     pub shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
     pub pending_data: Arc<RwLock<PendingData>>,
     pub pending_classes: Arc<RwLock<PendingClasses>>,
-    pub writer_client: Arc<dyn StarknetWriter>,
     pub class_manager_client: Option<SharedClassManagerClient>,
 }
 
@@ -1723,7 +1721,6 @@ impl JsonRpcServerTrait for JsonRpcServerImpl {
         shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
         pending_data: Arc<RwLock<PendingData>>,
         pending_classes: Arc<RwLock<PendingClasses>>,
-        writer_client: Arc<dyn StarknetWriter>,
         class_manager_client: Option<SharedClassManagerClient>,
     ) -> Self {
         Self {
@@ -1736,7 +1733,6 @@ impl JsonRpcServerTrait for JsonRpcServerImpl {
             shared_highest_block,
             pending_data,
             pending_classes,
-            writer_client,
             class_manager_client,
         }
     }

@@ -334,7 +334,7 @@ async fn pending_execution_call() {
     let (module, storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
     >(
-        None, None, Some(pending_data), Some(pending_classes), None
+        None, Some(pending_data), Some(pending_classes), None
     );
     write_empty_block(storage_writer);
 
@@ -516,7 +516,7 @@ async fn pending_call_estimate_fee() {
     let (module, storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
     >(
-        None, None, Some(pending_data), Some(pending_classes), None
+        None, Some(pending_data), Some(pending_classes), None
     );
     write_empty_block(storage_writer);
 
@@ -571,7 +571,7 @@ async fn pending_call_simulate() {
     let (module, storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
     >(
-        None, None, Some(pending_data), Some(pending_classes), None
+        None, Some(pending_data), Some(pending_classes), None
     );
     write_empty_block(storage_writer);
 
@@ -915,7 +915,7 @@ async fn trace_block_transactions_regular_and_pending() {
 
     let (module, storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data), None, None);
+    >(None, Some(pending_data), None, None);
 
     prepare_storage_for_execution(storage_writer);
 
@@ -1167,7 +1167,7 @@ async fn pending_trace_block_transactions_and_trace_transaction_execution_contex
 
     let (module, storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
         JsonRpcServerImpl,
-    >(None, None, Some(pending_data), None, None);
+    >(None, Some(pending_data), None, None);
 
     prepare_storage_for_execution(storage_writer);
 
