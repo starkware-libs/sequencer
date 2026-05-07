@@ -91,6 +91,14 @@ struct CommitStateDiffOutput {
     pub global_root: GlobalRoot,
 }
 
+/// Classification of a commit request's `height` w.r.t the committer offset.
+enum CommitBlockHeightPlan {
+    /// `height` is already committed; return the stored global root without writing.
+    Historical { global_root: GlobalRoot },
+    /// `height` is the next uncommitted offset; inputs are validated and ready to commit.
+    CommitTip { state_diff_commitment: StateDiffCommitment },
+}
+
 /// Apollo committer. Maintains the Starknet state tries in persistent storage.
 pub struct Committer<S: Storage, ForestDB>
 where
@@ -152,6 +160,63 @@ where
             "Received request to commit block number {height} with state diff \
              {state_diff_commitment:?}"
         );
+
+        match self.commit_or_load(&state_diff, state_diff_commitment, height).await? {
+            CommitBlockHeightPlan::Historical { global_root } => {
+                Ok(CommitBlockResponse { global_root })
+            }
+            CommitBlockHeightPlan::CommitTip { state_diff_commitment } => {
+                // Happy flow. Commits the state diff and returns the computed global root.
+                debug!(
+                    "Committing block number {height} with state diff {state_diff_commitment:?}"
+                );
+                let mut block_measurements = SingleBlockMeasurements::default();
+                block_measurements.start_measurement(Action::EndToEnd);
+                let CommitStateDiffOutput { filled_forest, global_root, deleted_nodes } =
+                    self.commit_state_diff(state_diff, &mut block_measurements).await?;
+                let next_offset = height.unchecked_next();
+                let metadata = HashMap::from([
+                    (
+                        ForestMetadataType::CommitmentOffset,
+                        DbValue(DbBlockNumber(next_offset).serialize().to_vec()),
+                    ),
+                    (
+                        ForestMetadataType::StateRoot(DbBlockNumber(height)),
+                        serialize_felt_no_packing(global_root.0),
+                    ),
+                    (
+                        ForestMetadataType::StateDiffHash(DbBlockNumber(height)),
+                        serialize_felt_no_packing(state_diff_commitment.0.0),
+                    ),
+                ]);
+                info!(
+                    "For block number {height}, writing filled forest to storage with metadata: \
+                     {metadata:?}, delete {} nodes",
+                    deleted_nodes.len()
+                );
+                block_measurements.start_measurement(Action::Write);
+                let n_write_entries = self
+                    .forest_storage
+                    .write_with_metadata(&filled_forest, metadata, deleted_nodes)
+                    .await
+                    .map_err(|err| self.map_internal_error(err))?;
+                block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
+                block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
+                update_metrics(height, &block_measurements.block_measurement);
+                self.update_offset(next_offset);
+                Ok(CommitBlockResponse { global_root })
+            }
+        }
+    }
+
+    /// Either load the committed global root for a past `height`, or validate inputs and return
+    /// the state-diff commitment for committing the chain tip at `self.offset`.
+    async fn commit_or_load(
+        &mut self,
+        state_diff: &ThinStateDiff,
+        state_diff_commitment: Option<StateDiffCommitment>,
+        height: BlockNumber,
+    ) -> CommitterResult<CommitBlockHeightPlan> {
         if height > self.offset {
             // Request to commit a future height.
             // Returns an error, indicating the committer has a hole in the state diff series.
@@ -164,7 +229,7 @@ where
         let state_diff_commitment = match state_diff_commitment {
             Some(commitment) => {
                 if self.config.verify_state_diff_hash {
-                    let calculated_commitment = calculate_state_diff_hash(&state_diff);
+                    let calculated_commitment = calculate_state_diff_hash(state_diff);
                     if commitment != calculated_commitment {
                         return Err(CommitterError::StateDiffHashMismatch {
                             provided_commitment: commitment,
@@ -175,8 +240,9 @@ where
                 }
                 commitment
             }
-            None => calculate_state_diff_hash(&state_diff),
+            None => calculate_state_diff_hash(state_diff),
         };
+
         if height < self.offset {
             // Request to commit an old height.
             // Might be ok if the caller didn't get the results properly.
@@ -196,46 +262,10 @@ where
             }
             // Returns the precomputed global root.
             let db_global_root = self.load_global_root(height).await?;
-            return Ok(CommitBlockResponse { global_root: db_global_root });
+            return Ok(CommitBlockHeightPlan::Historical { global_root: db_global_root });
         }
 
-        // Happy flow. Commits the state diff and returns the computed global root.
-        debug!("Committing block number {height} with state diff {state_diff_commitment:?}");
-        let mut block_measurements = SingleBlockMeasurements::default();
-        block_measurements.start_measurement(Action::EndToEnd);
-        let CommitStateDiffOutput { filled_forest, global_root, deleted_nodes } =
-            self.commit_state_diff(state_diff, &mut block_measurements).await?;
-        let next_offset = height.unchecked_next();
-        let metadata = HashMap::from([
-            (
-                ForestMetadataType::CommitmentOffset,
-                DbValue(DbBlockNumber(next_offset).serialize().to_vec()),
-            ),
-            (
-                ForestMetadataType::StateRoot(DbBlockNumber(height)),
-                serialize_felt_no_packing(global_root.0),
-            ),
-            (
-                ForestMetadataType::StateDiffHash(DbBlockNumber(height)),
-                serialize_felt_no_packing(state_diff_commitment.0.0),
-            ),
-        ]);
-        info!(
-            "For block number {height}, writing filled forest to storage with metadata: \
-             {metadata:?}, delete {} nodes",
-            deleted_nodes.len()
-        );
-        block_measurements.start_measurement(Action::Write);
-        let n_write_entries = self
-            .forest_storage
-            .write_with_metadata(&filled_forest, metadata, deleted_nodes)
-            .await
-            .map_err(|err| self.map_internal_error(err))?;
-        block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
-        block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
-        update_metrics(height, &block_measurements.block_measurement);
-        self.update_offset(next_offset);
-        Ok(CommitBlockResponse { global_root })
+        Ok(CommitBlockHeightPlan::CommitTip { state_diff_commitment })
     }
 
     /// Applies the given state diff to revert the changes of the given height.
