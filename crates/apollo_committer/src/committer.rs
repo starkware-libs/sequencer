@@ -91,6 +91,11 @@ struct CommitStateDiffOutput {
     pub global_root: GlobalRoot,
 }
 
+enum CommitBlockHeightPlan {
+    Historical { global_root: GlobalRoot },
+    CommitTip { state_diff_commitment: StateDiffCommitment },
+}
+
 /// Apollo committer. Maintains the Starknet state tries in persistent storage.
 pub struct Committer<S: Storage, ForestDB>
 where
@@ -120,6 +125,59 @@ where
     fn update_offset(&mut self, offset: BlockNumber) {
         self.offset = offset;
         COMMITTER_OFFSET.set_lossy(offset.0);
+    }
+
+    /// Either load the committed global root for a past `height`, or validate inputs and return
+    /// the state-diff commitment for committing the chain tip at `self.offset`.
+    async fn commit_or_load(
+        &mut self,
+        state_diff: &ThinStateDiff,
+        state_diff_commitment: Option<StateDiffCommitment>,
+        height: BlockNumber,
+    ) -> CommitterResult<CommitBlockHeightPlan> {
+        if height > self.offset {
+            return Err(CommitterError::CommitHeightHole {
+                input_height: height,
+                committer_offset: self.offset,
+            });
+        }
+
+        let state_diff_commitment = match state_diff_commitment {
+            Some(commitment) => {
+                if self.config.verify_state_diff_hash {
+                    let calculated_commitment = calculate_state_diff_hash(state_diff);
+                    if commitment != calculated_commitment {
+                        return Err(CommitterError::StateDiffHashMismatch {
+                            provided_commitment: commitment,
+                            calculated_commitment,
+                            height,
+                        });
+                    }
+                }
+                commitment
+            }
+            None => calculate_state_diff_hash(state_diff),
+        };
+
+        if height < self.offset {
+            warn!(
+                "Received request to commit an old block number {height}. The committer offset is \
+                 {0}.",
+                self.offset
+            );
+            let stored_state_diff_commitment = self.load_state_diff_commitment(height).await?;
+            if state_diff_commitment != stored_state_diff_commitment {
+                return Err(CommitterError::InvalidStateDiffCommitment {
+                    input_commitment: state_diff_commitment,
+                    stored_commitment: stored_state_diff_commitment,
+                    height,
+                });
+            }
+            let db_global_root = self.load_global_root(height).await?;
+            return Ok(CommitBlockHeightPlan::Historical { global_root: db_global_root });
+        }
+
+        Ok(CommitBlockHeightPlan::CommitTip { state_diff_commitment })
     }
 
     /// Commits a block to the forest.
@@ -152,55 +210,15 @@ where
             "Received request to commit block number {height} with state diff \
              {state_diff_commitment:?}"
         );
-        if height > self.offset {
-            // Request to commit a future height.
-            // Returns an error, indicating the committer has a hole in the state diff series.
-            return Err(CommitterError::CommitHeightHole {
-                input_height: height,
-                committer_offset: self.offset,
-            });
-        }
 
-        let state_diff_commitment = match state_diff_commitment {
-            Some(commitment) => {
-                if self.config.verify_state_diff_hash {
-                    let calculated_commitment = calculate_state_diff_hash(&state_diff);
-                    if commitment != calculated_commitment {
-                        return Err(CommitterError::StateDiffHashMismatch {
-                            provided_commitment: commitment,
-                            calculated_commitment,
-                            height,
-                        });
-                    }
-                }
-                commitment
-            }
-            None => calculate_state_diff_hash(&state_diff),
-        };
-        if height < self.offset {
-            // Request to commit an old height.
-            // Might be ok if the caller didn't get the results properly.
-            warn!(
-                "Received request to commit an old block number {height}. The committer offset is \
-                 {0}.",
-                self.offset
-            );
-            let stored_state_diff_commitment = self.load_state_diff_commitment(height).await?;
-            // Verify the input state diff matches the stored one by comparing the commitments.
-            if state_diff_commitment != stored_state_diff_commitment {
-                return Err(CommitterError::InvalidStateDiffCommitment {
-                    input_commitment: state_diff_commitment,
-                    stored_commitment: stored_state_diff_commitment,
-                    height,
-                });
-            }
-            // Returns the precomputed global root.
-            let db_global_root = self.load_global_root(height).await?;
-            return Ok(CommitBlockResponse { global_root: db_global_root });
+        match self.commit_or_load(&state_diff, state_diff_commitment, height).await? {
+            CommitBlockHeightPlan::Historical { global_root } => {
+                Ok(CommitBlockResponse { global_root })
         }
-
-        // Happy flow. Commits the state diff and returns the computed global root.
-        debug!("Committing block number {height} with state diff {state_diff_commitment:?}");
+            CommitBlockHeightPlan::CommitTip { state_diff_commitment } => {
+                debug!(
+                    "Committing block number {height} with state diff {state_diff_commitment:?}"
+                );
         let mut block_measurements = SingleBlockMeasurements::default();
         block_measurements.start_measurement(Action::EndToEnd);
         let CommitStateDiffOutput { filled_forest, global_root, deleted_nodes } =
@@ -236,6 +254,8 @@ where
         update_metrics(height, &block_measurements.block_measurement);
         self.update_offset(next_offset);
         Ok(CommitBlockResponse { global_root })
+            }
+        }
     }
 
     /// Applies the given state diff to revert the changes of the given height.
