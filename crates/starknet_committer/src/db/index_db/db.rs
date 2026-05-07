@@ -50,6 +50,7 @@ use crate::db::index_db::types::{
     IndexLayoutSubTree,
     IndexNodeContext,
 };
+use crate::db::serde_db_utils::DbBlockNumber;
 use crate::forest::deleted_nodes::DeletedNodes;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
@@ -83,6 +84,10 @@ static STATE_DIFF_HASH_METADATA_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
 static STATE_ROOT_METADATA_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
     (Felt::from_bytes_be(&STATE_DIFF_HASH_METADATA_PREFIX) + Felt::ONE).to_bytes_be()
 });
+
+/// Prefix for accessed-keys digest metadata (committed per block).
+pub(crate) static ACCESSED_KEYS_DIGEST_METADATA_PREFIX: LazyLock<[u8; 32]> =
+    LazyLock::new(|| (Felt::from_bytes_be(&STATE_ROOT_METADATA_PREFIX) + Felt::ONE).to_bytes_be());
 
 pub struct IndexDb<S: Storage, H = TreeHashFunctionImpl> {
     storage: S,
@@ -267,28 +272,26 @@ impl<S: Storage> ForestWriter for IndexDb<S> {
 #[async_trait]
 impl<S: Storage> ForestMetadata for IndexDb<S> {
     fn metadata_key(metadata_type: ForestMetadataType) -> DbKey {
-        let mut key = Vec::with_capacity(64);
-        match metadata_type {
-            // Padding to 64byte keys to keep the 32byte prefix aligned between metadata and
-            // patricia nodes.
+        // Padding to 64byte keys to keep the 32byte prefix aligned between metadata and
+        // patricia nodes.
+        DbKey(match metadata_type {
             ForestMetadataType::CommitmentOffset => {
+                let mut key = Vec::with_capacity(64);
                 key.extend_from_slice(&*COMMITMENT_OFFSET_METADATA_PREFIX);
                 key.extend_from_slice(&[0u8; 32]);
+                key
             }
             ForestMetadataType::StateDiffHash(block_number) => {
-                key.extend_from_slice(&*STATE_DIFF_HASH_METADATA_PREFIX);
-                let block_number_bytes: [u8; 8] = block_number.serialize();
-                key.extend_from_slice(&block_number_bytes);
-                key.extend_from_slice(&[0u8; 24]);
+                metadata_block_number_key(&STATE_DIFF_HASH_METADATA_PREFIX, block_number)
             }
             ForestMetadataType::StateRoot(block_number) => {
-                key.extend_from_slice(&*STATE_ROOT_METADATA_PREFIX);
-                let block_number_bytes: [u8; 8] = block_number.serialize();
-                key.extend_from_slice(&block_number_bytes);
-                key.extend_from_slice(&[0u8; 24]);
+                metadata_block_number_key(&STATE_ROOT_METADATA_PREFIX, block_number)
             }
-        }
-        DbKey(key)
+            #[cfg(feature = "os_input")]
+            ForestMetadataType::AccessedKeysDigest(block_number) => {
+                metadata_block_number_key(&ACCESSED_KEYS_DIGEST_METADATA_PREFIX, block_number)
+            }
+        })
     }
 
     async fn get_from_storage(&mut self, db_key: DbKey) -> ForestResult<Option<DbValue>> {
@@ -318,6 +321,14 @@ impl<S: Storage> ForestWriterWithMetadata for IndexDb<S> {
             }))
             .collect()
     }
+}
+
+fn metadata_block_number_key(prefix: &[u8; 32], block_number: DbBlockNumber) -> Vec<u8> {
+    let mut key = Vec::with_capacity(64);
+    key.extend_from_slice(prefix);
+    key.extend_from_slice(&block_number.serialize());
+    key.extend_from_slice(&[0u8; 24]);
+    key
 }
 
 fn extract_root_hash<L: Leaf>(root: &Option<DbValue>) -> Result<HashOutput, DeserializationError>
