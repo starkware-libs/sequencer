@@ -600,8 +600,8 @@ pub struct CendePreconfirmedBlock {
     #[serde(flatten)]
     pub metadata: CendeBlockMetadata,
     pub transactions: Vec<CendePreconfirmedTransaction>,
-    pub transaction_receipts: Vec<Option<StarknetClientTransactionReceipt>>,
-    pub transaction_state_diffs: Vec<Option<StateDiff>>,
+    pub transaction_receipts: Vec<StarknetClientTransactionReceipt>,
+    pub transaction_state_diffs: Vec<StateDiff>,
 }
 
 pub struct StarknetClientStateDiff(pub StateDiff);

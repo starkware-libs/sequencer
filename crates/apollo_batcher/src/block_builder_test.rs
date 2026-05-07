@@ -710,7 +710,6 @@ async fn run_build_block(
         Box::new(tx_provider),
         output_sender,
         None,
-        None,
         abort_receiver,
         transaction_converter,
         N_CONCURRENT_TXS,
