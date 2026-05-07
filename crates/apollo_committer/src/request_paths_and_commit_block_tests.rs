@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use apollo_committer_types::committer_types::{
+    AccessedKeys,
     CommitBlockRequest,
     ReadPathsAndCommitBlockRequest,
     RevertBlockRequest,
@@ -13,16 +14,12 @@ use starknet_api::hash::HashOutput;
 use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::input::{
     contract_address_into_node_index,
-    AccessedKeys,
     StarknetStorageKey,
     StarknetStorageValue,
 };
 use starknet_committer::db::facts_db::db::{FactDbFilledNode, FactsNodeLayout};
-use starknet_committer::db::forest_trait::{
-    EmptyInitialReadContext,
-    ForestReader,
-    ForestReaderWithWitnesses,
-};
+use starknet_committer::db::forest_trait::forest_trait_witnesses::ForestReaderWithWitnesses;
+use starknet_committer::db::forest_trait::{EmptyInitialReadContext, ForestReader};
 use starknet_committer::db::index_db::IndexDbReadContext;
 use starknet_committer::db::trie_traversal::fetch_patricia_paths;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
@@ -80,12 +77,12 @@ fn accessed_storage_key_2() -> StarknetStorageKey {
 
 fn accessed_keys() -> AccessedKeys {
     AccessedKeys {
-        class_hashes: vec![accessed_class_hash()],
-        contract_addresses: vec![accessed_contract_1(), accessed_contract_2()],
-        contract_storage_keys: HashMap::from([
-            (accessed_contract_1(), vec![accessed_storage_key_1()]),
-            (accessed_contract_2(), vec![accessed_storage_key_2()]),
+        storage_keys: BTreeSet::from([
+            (accessed_contract_1(), accessed_storage_key_1().0),
+            (accessed_contract_2(), accessed_storage_key_2().0),
         ]),
+        accessed_contracts: BTreeSet::from([accessed_contract_1(), accessed_contract_2()]),
+        accessed_class_hashes: BTreeSet::from([accessed_class_hash()]),
     }
 }
 
@@ -429,7 +426,7 @@ async fn verify_witness_patricia_paths(
     let contract_root_hashes = [HashOutput::ROOT_OF_EMPTY_TREE, contracts_trie_root];
 
     let mut class_leaf_indices: Vec<NodeIndex> =
-        accessed_keys.class_hashes.iter().map(class_hash_into_node_index).collect();
+        accessed_keys.accessed_class_hashes.iter().map(class_hash_into_node_index).collect();
     verify_preimage_map_paths_exist::<CommitterCompiledClassHash>(
         &patricia_proofs.classes_trie_proof,
         &class_root_hashes,
@@ -440,7 +437,7 @@ async fn verify_witness_patricia_paths(
     .await;
 
     let mut contract_leaf_indices: Vec<NodeIndex> =
-        accessed_keys.contract_addresses.iter().map(contract_address_into_node_index).collect();
+        accessed_keys.accessed_contracts.iter().map(contract_address_into_node_index).collect();
     verify_preimage_map_paths_exist::<ContractState>(
         &patricia_proofs.contracts_trie_proof.nodes,
         &contract_root_hashes,
@@ -453,7 +450,7 @@ async fn verify_witness_patricia_paths(
     )
     .await;
 
-    for contract_address in &accessed_keys.contract_addresses {
+    for contract_address in &accessed_keys.accessed_contracts {
         let storage_proof = patricia_proofs
             .contracts_trie_storage_proofs
             .get(contract_address)
@@ -463,10 +460,13 @@ async fn verify_witness_patricia_paths(
             .leaves
             .get(contract_address)
             .unwrap_or_else(|| panic!("missing contracts trie leaf for {contract_address:?}"));
-        let storage_keys = accessed_keys
-            .contract_storage_keys
-            .get(contract_address)
-            .unwrap_or_else(|| panic!("missing accessed storage keys for {contract_address:?}"));
+        let storage_keys: Vec<_> = accessed_keys
+            .storage_keys
+            .iter()
+            .filter(|(address, _)| address == contract_address)
+            .map(|(_, key)| StarknetStorageKey(*key))
+            .collect();
+        assert!(!storage_keys.is_empty(), "missing accessed storage keys for {contract_address:?}");
         let mut storage_leaf_indices: Vec<NodeIndex> =
             storage_keys.iter().map(NodeIndex::from).collect();
         let storage_root_hashes =
