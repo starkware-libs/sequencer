@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778056820940,
+  "lastUpdate": 1778137504556,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3263,6 +3263,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1339.04730049,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3eb55733b7a3a5aa00a22618fc619272a17e7943",
+          "message": "starknet_proof_verifier: bump stwo crates (#13932)",
+          "timestamp": "2026-05-07T06:37:16Z",
+          "tree_id": "0bf449a130f286fa372d0add5a7b047112fa7aa7",
+          "url": "https://github.com/starkware-libs/sequencer/commit/3eb55733b7a3a5aa00a22618fc619272a17e7943"
+        },
+        "date": 1778137504184,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 826.47215572,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1368.9184685999999,
             "unit": "ms"
           }
         ]
