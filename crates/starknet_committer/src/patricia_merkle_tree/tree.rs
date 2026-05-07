@@ -91,6 +91,16 @@ impl LeavesRequest {
             contract_storage_leaf_indices,
         }
     }
+
+    /// Total number of trie leaves requested (classes, contracts, and storage slots).
+    pub fn len(&self) -> usize {
+        self.class_leaf_indices.len()
+            + self.contract_leaf_indices.len()
+            + self
+                .contract_storage_leaf_indices
+                .values()
+                .fold(0, |count, leaf_indices| count + leaf_indices.len())
+    }
 }
 
 impl<'a> From<&'a mut LeavesRequest> for SortedLeavesRequest<'a> {
