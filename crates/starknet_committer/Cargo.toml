@@ -7,12 +7,15 @@ license.workspace = true
 description = "Computes and manages Starknet state."
 
 [features]
+os_input = ["dep:blake2", "dep:digest"]
 testing = ["starknet_patricia/testing"]
 
 [dependencies]
 apollo_config.workspace = true
 async-trait.workspace = true
+blake2 = { workspace = true, optional = true }
 derive_more = { workspace = true, features = ["as_ref", "from", "into"] }
+digest = { workspace = true, optional = true }
 ethnum.workspace = true
 pretty_assertions.workspace = true
 rand.workspace = true
