@@ -8,6 +8,7 @@ description = "State root commitment computation component for the Starknet sequ
 
 [features]
 testing = []
+os_input = ["apollo_committer_types/os_input", "starknet_committer/os_input"]
 
 [dependencies]
 apollo_committer_config.workspace = true
