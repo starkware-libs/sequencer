@@ -84,6 +84,11 @@ static STATE_ROOT_METADATA_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
     (Felt::from_bytes_be(&STATE_DIFF_HASH_METADATA_PREFIX) + Felt::ONE).to_bytes_be()
 });
 
+/// Prefix for accessed-keys digest metadata (committed per block).
+#[cfg(feature = "os_input")]
+pub(crate) static ACCESSED_KEYS_DIGEST_METADATA_PREFIX: LazyLock<[u8; 32]> =
+    LazyLock::new(|| (Felt::from_bytes_be(&STATE_ROOT_METADATA_PREFIX) + Felt::ONE).to_bytes_be());
+
 pub struct IndexDb<S: Storage, H = TreeHashFunctionImpl> {
     storage: S,
     phantom: PhantomData<H>,
@@ -283,6 +288,13 @@ impl<S: Storage> ForestMetadata for IndexDb<S> {
             }
             ForestMetadataType::StateRoot(block_number) => {
                 key.extend_from_slice(&*STATE_ROOT_METADATA_PREFIX);
+                let block_number_bytes: [u8; 8] = block_number.serialize();
+                key.extend_from_slice(&block_number_bytes);
+                key.extend_from_slice(&[0u8; 24]);
+            }
+            #[cfg(feature = "os_input")]
+            ForestMetadataType::AccessedKeysDigest(block_number) => {
+                key.extend_from_slice(&*ACCESSED_KEYS_DIGEST_METADATA_PREFIX);
                 let block_number_bytes: [u8; 8] = block_number.serialize();
                 key.extend_from_slice(&block_number_bytes);
                 key.extend_from_slice(&[0u8; 24]);
