@@ -398,11 +398,26 @@ where
              to {last_committed_block}"
         );
         block_measurements.start_measurement(Action::Write);
-        let n_write_entries = self
-            .forest_storage
-            .write_with_metadata(&filled_forest, metadata, deleted_nodes)
-            .await
-            .map_err(|err| self.map_internal_error(err))?;
+        let n_write_entries = {
+            #[cfg(not(feature = "os_input"))]
+            {
+                self.forest_storage
+                    .write_with_metadata(&filled_forest, metadata, deleted_nodes)
+                    .await
+            }
+            #[cfg(feature = "os_input")]
+            {
+                self.forest_storage
+                    .write_with_metadata_and_witnesses(
+                        &filled_forest,
+                        metadata,
+                        deleted_nodes,
+                        PatriciaProofsUpdate::Delete(height),
+                    )
+                    .await
+            }
+        }
+        .map_err(|err| self.map_internal_error(err))?;
         block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
         block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
         update_metrics(height, &block_measurements.block_measurement);
