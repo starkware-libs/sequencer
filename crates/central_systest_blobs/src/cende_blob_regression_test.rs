@@ -728,8 +728,8 @@ impl BlobFactory {
             tx_state_diff.sort();
 
             transactions.push(CendePreconfirmedTransaction::from(internal));
-            transaction_receipts.push(Some(receipt));
-            transaction_state_diffs.push(Some(tx_state_diff.0));
+            transaction_receipts.push(receipt);
+            transaction_state_diffs.push(tx_state_diff.0);
 
             // Update the state for the next tx.
             state = tx_state.state;
