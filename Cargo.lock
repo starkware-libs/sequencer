@@ -4757,7 +4757,7 @@ dependencies = [
 [[package]]
 name = "cairo-program-runner-lib"
 version = "1.1.0"
-source = "git+https://github.com/starkware-libs/proving-utils?rev=0305dbe#0305dbec6471bb57b8bdccd000b0a189d6c955a9"
+source = "git+https://github.com/starkware-libs/proving-utils?rev=580135e#580135ebc86cd4ece92e44e78e54e49e22bec323"
 dependencies = [
  "anyhow",
  "cairo-lang-casm",
@@ -10170,7 +10170,7 @@ dependencies = [
 [[package]]
 name = "privacy-circuit-verify"
 version = "1.1.0"
-source = "git+https://github.com/starkware-libs/proving-utils?rev=0305dbe#0305dbec6471bb57b8bdccd000b0a189d6c955a9"
+source = "git+https://github.com/starkware-libs/proving-utils?rev=580135e#580135ebc86cd4ece92e44e78e54e49e22bec323"
 dependencies = [
  "anyhow",
  "cairo-air",
@@ -10200,7 +10200,7 @@ dependencies = [
 [[package]]
 name = "privacy-prove"
 version = "1.1.0"
-source = "git+https://github.com/starkware-libs/proving-utils?rev=0305dbe#0305dbec6471bb57b8bdccd000b0a189d6c955a9"
+source = "git+https://github.com/starkware-libs/proving-utils?rev=580135e#580135ebc86cd4ece92e44e78e54e49e22bec323"
 dependencies = [
  "anyhow",
  "cairo-air",
