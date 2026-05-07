@@ -173,6 +173,29 @@ impl StarknetForestProofs {
     }
 }
 
+#[cfg(feature = "os_input")]
+impl serde::Serialize for StarknetForestProofs {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let encoded = Self::serialize(self).map_err(serde::ser::Error::custom)?;
+        serializer.serialize_bytes(&encoded.0)
+    }
+}
+
+#[cfg(feature = "os_input")]
+impl<'de> serde::Deserialize<'de> for StarknetForestProofs {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+        let bytes = <Vec<u8>>::deserialize(deserializer)?;
+        Self::deserialize(&DbValue(bytes)).map_err(Error::custom)
+    }
+}
+
 pub struct RootHashes {
     pub previous_root_hash: HashOutput,
     pub new_root_hash: HashOutput,

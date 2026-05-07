@@ -1,7 +1,16 @@
+#[cfg(feature = "os_input")]
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
+#[cfg(feature = "os_input")]
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::state::ThinStateDiff;
+#[cfg(feature = "os_input")]
+use starknet_committer::block_committer::input::StarknetStorageKey;
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::StarknetForestProofs;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CommitBlockRequest {
@@ -31,4 +40,22 @@ pub enum RevertBlockResponse {
     RevertedTo(GlobalRoot),
     // Nothing to revert. A future block that has not been committed.
     Uncommitted,
+}
+
+/// Commit a block and return merged Patricia witness proofs for OS input (pre- and post-commit
+/// paths).
+#[cfg(feature = "os_input")]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ReadPathsAndCommitBlockRequest {
+    pub commit: CommitBlockRequest,
+    pub class_hashes: Vec<ClassHash>,
+    pub contract_addresses: Vec<ContractAddress>,
+    pub contract_storage_keys: HashMap<ContractAddress, Vec<StarknetStorageKey>>,
+}
+
+#[cfg(feature = "os_input")]
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ReadPathsAndCommitBlockResponse {
+    pub global_root: GlobalRoot,
+    pub patricia_proofs: StarknetForestProofs,
 }

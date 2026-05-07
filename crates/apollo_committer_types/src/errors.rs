@@ -48,6 +48,20 @@ pub enum CommitterError {
         calculated_commitment: StateDiffCommitment,
         height: BlockNumber,
     },
+    /// Patricia trie path collection for OS input failed.
+    #[cfg(feature = "os_input")]
+    #[error("Failed Patricia paths collection at block {height}: {message}")]
+    PatriciaPathsCollectionFailed { height: BlockNumber, message: String },
+    /// Stored accessed-keys digest does not match the request (or no digest was stored).
+    #[cfg(feature = "os_input")]
+    #[error(
+        "Accessed-keys digest mismatch at block {height}: expected {expected:?}, stored {stored:?}"
+    )]
+    AccessedKeysDigestMismatch { height: BlockNumber, stored: Option<[u8; 32]>, expected: [u8; 32] },
+    /// Merged Patricia witness paths are missing for replay.
+    #[cfg(feature = "os_input")]
+    #[error("Missing Patricia paths for block {height}")]
+    MissingPatriciaPaths { height: BlockNumber },
 }
 
 pub type CommitterResult<T> = Result<T, CommitterError>;
