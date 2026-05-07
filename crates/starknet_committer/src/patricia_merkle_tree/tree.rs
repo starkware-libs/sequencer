@@ -63,6 +63,7 @@ pub struct LeavesRequest {
 pub struct SortedLeavesRequest<'a> {
     pub class_sorted: SortedLeafIndices<'a>,
     pub contract_sorted: SortedLeafIndices<'a>,
+    // TODO: use BTreeMap here and in fetch_all_patricia_paths.
     pub storage_sorted: HashMap<NodeIndex, SortedLeafIndices<'a>>,
 }
 
