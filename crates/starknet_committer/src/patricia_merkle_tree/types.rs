@@ -36,11 +36,13 @@ pub type ClassesTrie = FilledTreeImpl<CompiledClassHash>;
 pub type ContractsTrie = FilledTreeImpl<ContractState>;
 pub type StorageTrieMap = HashMap<ContractAddress, StorageTrie>;
 
+#[derive(Debug, PartialEq)]
 pub struct ContractsTrieProof {
     pub nodes: PreimageMap,
     pub leaves: HashMap<ContractAddress, ContractState>,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct StarknetForestProofs {
     pub classes_trie_proof: PreimageMap,
     pub contracts_trie_proof: ContractsTrieProof,
@@ -48,7 +50,7 @@ pub struct StarknetForestProofs {
 }
 
 impl StarknetForestProofs {
-    pub(crate) fn extend(&mut self, other: Self) {
+    pub fn extend(&mut self, other: Self) {
         self.classes_trie_proof.extend(other.classes_trie_proof);
         self.contracts_trie_proof.nodes.extend(other.contracts_trie_proof.nodes);
         self.contracts_trie_proof.leaves.extend(other.contracts_trie_proof.leaves);

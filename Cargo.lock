@@ -12879,6 +12879,7 @@ dependencies = [
  "apollo_config",
  "async-recursion",
  "async-trait",
+ "bincode 1.3.3",
  "blake2",
  "derive_more",
  "digest 0.10.7",
@@ -12901,6 +12902,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "zstd",
 ]
 
 [[package]]
