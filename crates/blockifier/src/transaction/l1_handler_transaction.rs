@@ -97,6 +97,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
                 match fee_check_report {
                     Ok(()) => {
                         // Post-execution check passed, commit the execution.
+                        // TODO(Dori): why commit here instead of first checking the paid fee?
                         execution_state.commit();
                         // TODO(Arni): Consider removing this check. It is covered by the starknet
                         // core contract.

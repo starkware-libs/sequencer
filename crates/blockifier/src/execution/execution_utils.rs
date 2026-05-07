@@ -339,7 +339,7 @@ pub fn execute_deployment(
 
     context.revert_infos.0.push(EntryPointRevertInfo::new(
         deployed_contract_address,
-        current_class_hash,
+        ClassHash::default(),
         context.n_emitted_events,
         context.n_sent_messages_to_l1,
     ));

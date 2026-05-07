@@ -456,6 +456,10 @@ impl<'state> SyscallHandlerBase<'state> {
             let reverted_call = &mut self.inner_calls.last_mut().unwrap();
             let mut stack: Vec<&mut CallInfo> = vec![reverted_call];
             while let Some(call_info) = stack.pop() {
+                // TODO(Dori): consider not clearing at all, and simply rely on the failed flag to
+                // compute the correct events and l2_to_l1_messages in a subtree. Or, we can simply
+                // clear these when the tx execution is finalized, once, and not per failure point.
+                // Or, just document this properly...
                 call_info.execution.events.clear();
                 call_info.execution.l2_to_l1_messages.clear();
                 // Add inner calls that did not fail to the stack.
