@@ -1121,6 +1121,7 @@ dependencies = [
  "async-trait",
  "mockall",
  "serde",
+ "starknet-types-core",
  "starknet_api",
  "starknet_committer",
  "strum",

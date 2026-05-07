@@ -74,6 +74,15 @@ impl From<u128> for StarknetStorageKey {
 #[derive(Clone, Copy, Default, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct StarknetStorageValue(pub Felt);
 
+/// Trie leaves read during block execution (classes, contracts, and per-contract storage slots).
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg(feature = "os_input")]
+pub struct AccessedKeys {
+    pub class_hashes: Vec<ClassHash>,
+    pub contract_addresses: Vec<ContractAddress>,
+    pub contract_storage_keys: HashMap<ContractAddress, Vec<StarknetStorageKey>>,
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct StateDiff {
     pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
