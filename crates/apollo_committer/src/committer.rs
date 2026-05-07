@@ -47,6 +47,7 @@ use starknet_committer::db::forest_trait::{
     EmptyInitialReadContext,
     ForestMetadataType,
     ForestStorageWithEmptyReadContext,
+    ForestWriterWithMetadataAndWitnesses,
 };
 use starknet_committer::db::index_db::IndexDb;
 #[cfg(feature = "os_input")]
@@ -402,8 +403,8 @@ where
             #[cfg(not(feature = "os_input"))]
             {
                 self.forest_storage
-            .write_with_metadata(&filled_forest, metadata, deleted_nodes)
-            .await
+                    .write_with_metadata(&filled_forest, metadata, deleted_nodes)
+                    .await
             }
             #[cfg(feature = "os_input")]
             {
@@ -417,7 +418,7 @@ where
                     .await
             }
         }
-            .map_err(|err| self.map_internal_error(err))?;
+        .map_err(|err| self.map_internal_error(err))?;
         block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
         block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
         update_metrics(height, &block_measurements.block_measurement);

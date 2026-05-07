@@ -7,8 +7,8 @@ license.workspace = true
 description = "State root commitment computation component for the Starknet sequencer."
 
 [features]
-testing = []
 os_input = ["apollo_committer_types/os_input", "starknet_committer/os_input"]
+testing = []
 
 [dependencies]
 apollo_committer_config.workspace = true
@@ -17,7 +17,7 @@ apollo_infra.workspace = true
 apollo_metrics.workspace = true
 async-trait.workspace = true
 starknet_api.workspace = true
-starknet_committer.workspace = true
+starknet_committer = { workspace = true, features = ["os_input"] }
 starknet_patricia_storage = { workspace = true, features = ["rocksdb_storage"] }
 tracing.workspace = true
 
