@@ -12,6 +12,7 @@ on:
       - ".github/workflows/apollo_storage_os_input_ci.yml"
       - "Cargo.lock"
       - "Cargo.toml"
+      - "crates/apollo_committer/**"
       - "crates/apollo_committer_types/**"
       - "crates/apollo_storage/**"
       - "crates/apollo_config/**"
@@ -61,6 +62,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
       - run: cargo test -p starknet_committer --features os_input
       - run: cargo test -p apollo_committer_types --features os_input
+      - run: cargo test -p apollo_committer --features os_input
       - run: cargo build -p apollo_batcher --features os_input
       - run: cargo test -p apollo_batcher --features os_input
       - run: cargo test -p apollo_reverts --features os_input
