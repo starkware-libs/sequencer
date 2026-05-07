@@ -9,6 +9,11 @@ use apollo_committer_types::committer_types::{
     RevertBlockRequest,
     RevertBlockResponse,
 };
+#[cfg(feature = "os_input")]
+use apollo_committer_types::committer_types::{
+    ReadPathsAndCommitBlockRequest,
+    ReadPathsAndCommitBlockResponse,
+};
 use apollo_committer_types::errors::{CommitterError, CommitterResult};
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use async_trait::async_trait;
@@ -27,12 +32,18 @@ use starknet_committer::block_committer::measurements_util::{
     MeasurementsTrait,
     SingleBlockMeasurements,
 };
+#[cfg(feature = "os_input")]
+use starknet_committer::db::forest_trait::ForestStorageWithWitnesses;
+#[cfg(feature = "os_input")]
+use starknet_committer::db::forest_trait::PatriciaProofsUpdates;
 use starknet_committer::db::forest_trait::{
     EmptyInitialReadContext,
     ForestMetadataType,
     ForestStorageWithEmptyReadContext,
 };
 use starknet_committer::db::index_db::IndexDb;
+#[cfg(feature = "os_input")]
+use starknet_committer::db::serde_db_utils::accessed_keys_digest;
 use starknet_committer::db::serde_db_utils::{
     deserialize_felt_no_packing,
     serialize_felt_no_packing,
@@ -40,8 +51,14 @@ use starknet_committer::db::serde_db_utils::{
 };
 use starknet_committer::forest::deleted_nodes::DeletedNodes;
 use starknet_committer::forest::filled_forest::FilledForest;
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::tree::{LeavesRequest, SortedLeavesRequest};
+#[cfg(feature = "os_input")]
+use starknet_patricia_storage::errors::SerializationError;
 use starknet_patricia_storage::map_storage::CachedStorage;
 use starknet_patricia_storage::rocksdb_storage::RocksDbStorage;
+#[cfg(feature = "os_input")]
+use starknet_patricia_storage::storage_trait::ImmutableReadOnlyStorage;
 use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use tracing::{debug, error, info, warn};
 
@@ -239,33 +256,33 @@ where
         match self.commit_or_load(&state_diff, state_diff_commitment, height).await? {
             CommitBlockHeightPlan::Historical { global_root } => {
                 Ok(CommitBlockResponse { global_root })
-        }
+            }
             CommitBlockHeightPlan::CommitTip { state_diff_commitment } => {
                 debug!(
                     "Committing block number {height} with state diff {state_diff_commitment:?}"
                 );
-        let mut block_measurements = SingleBlockMeasurements::default();
-        block_measurements.start_measurement(Action::EndToEnd);
-        let CommitStateDiffOutput { filled_forest, global_root, deleted_nodes } =
-            self.commit_state_diff(state_diff, &mut block_measurements).await?;
+                let mut block_measurements = SingleBlockMeasurements::default();
+                block_measurements.start_measurement(Action::EndToEnd);
+                let CommitStateDiffOutput { filled_forest, global_root, deleted_nodes } =
+                    self.commit_state_diff(state_diff, &mut block_measurements).await?;
                 let (metadata, next_offset) =
                     commit_tip_metadata_bundle(height, global_root, state_diff_commitment);
-        info!(
-            "For block number {height}, writing filled forest to storage with metadata: \
-             {metadata:?}, delete {} nodes",
-            deleted_nodes.len()
-        );
-        block_measurements.start_measurement(Action::Write);
-        let n_write_entries = self
-            .forest_storage
-            .write_with_metadata(&filled_forest, metadata, deleted_nodes)
-            .await
-            .map_err(|err| self.map_internal_error(err))?;
-        block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
-        block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
-        update_metrics(height, &block_measurements.block_measurement);
-        self.update_offset(next_offset);
-        Ok(CommitBlockResponse { global_root })
+                info!(
+                    "For block number {height}, writing filled forest to storage with metadata: \
+                     {metadata:?}, delete {} nodes",
+                    deleted_nodes.len()
+                );
+                block_measurements.start_measurement(Action::Write);
+                let n_write_entries = self
+                    .forest_storage
+                    .write_with_metadata(&filled_forest, metadata, deleted_nodes)
+                    .await
+                    .map_err(|err| self.map_internal_error(err))?;
+                block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
+                block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
+                update_metrics(height, &block_measurements.block_measurement);
+                self.update_offset(next_offset);
+                Ok(CommitBlockResponse { global_root })
             }
         }
     }
@@ -440,6 +457,164 @@ where
         let error_message = format!("{err:?}: {err}");
         error!("Error committing block number {0}. {error_message}.", self.offset);
         CommitterError::Internal { height: self.offset, message: error_message }
+    }
+}
+
+#[cfg(feature = "os_input")]
+impl<S, ForestDB> Committer<S, ForestDB>
+where
+    S: StorageConstructor + ImmutableReadOnlyStorage + 'static,
+    ForestDB: ForestStorageWithWitnesses<Storage = S>,
+{
+    async fn load_witnesses_digest(
+        &mut self,
+        block_number: BlockNumber,
+    ) -> CommitterResult<Option<[u8; 32]>> {
+        Ok(
+            match self
+                .forest_storage
+                .read_metadata(ForestMetadataType::AccessedKeysDigest(DbBlockNumber(block_number)))
+                .await
+                .map_err(|e| self.map_internal_error(e))?
+            {
+                None => None,
+                Some(v) => {
+                    let s = v.0.as_slice();
+                    let arr: [u8; 32] = s.try_into().map_err(|_| CommitterError::Internal {
+                        height: block_number,
+                        message: format!(
+                            "Invalid OS-input witness digest length {} (expected 32)",
+                            s.len()
+                        ),
+                    })?;
+                    Some(arr)
+                }
+            },
+        )
+    }
+
+    /// Commits the next block and returns merged Patricia witness facts for OS input, persisting
+    /// digest + payload for idempotent replay.
+    pub async fn read_paths_and_commit_block(
+        &mut self,
+        ReadPathsAndCommitBlockRequest {
+            commit: CommitBlockRequest { state_diff, state_diff_commitment, height },
+            class_hashes,
+            contract_addresses,
+            contract_storage_keys,
+        }: ReadPathsAndCommitBlockRequest,
+    ) -> CommitterResult<ReadPathsAndCommitBlockResponse> {
+        let mut leaves_request = LeavesRequest::from_accessed_leaves(
+            &class_hashes,
+            &contract_addresses,
+            &contract_storage_keys,
+        );
+        let sorted_leaves: SortedLeavesRequest<'_> = (&mut leaves_request).into();
+        let digest = accessed_keys_digest(&sorted_leaves);
+        info!(
+            "read_paths_and_commit_block: block {height} with {} class hashes, {} contract \
+             addresses",
+            class_hashes.len(),
+            contract_addresses.len()
+        );
+
+        match self.commit_or_load(&state_diff, state_diff_commitment, height).await? {
+            CommitBlockHeightPlan::Historical { global_root } => {
+                let stored_digest = self.load_witnesses_digest(height).await?;
+                if stored_digest != Some(digest) {
+                    return Err(CommitterError::AccessedKeysDigestMismatch {
+                        height,
+                        stored: stored_digest,
+                        expected: digest,
+                    });
+                }
+                let proofs = self
+                    .forest_storage
+                    .read_witnesses(height)
+                    .await
+                    .map_err(|e| self.map_internal_error(e))?;
+                let proofs = proofs.ok_or(CommitterError::MissingPatriciaPaths { height })?;
+                Ok(ReadPathsAndCommitBlockResponse { global_root, patricia_proofs: proofs })
+            }
+            CommitBlockHeightPlan::CommitTip { state_diff_commitment } => {
+                let pre_roots = self
+                    .forest_storage
+                    .read_roots(ForestDB::InitialReadContext::create_empty())
+                    .await
+                    .map_err(|e| self.map_internal_error(e))?;
+                let proof_before = self
+                    .forest_storage
+                    .fetch_patricia_witnesses(
+                        pre_roots.classes_trie_root_hash,
+                        pre_roots.contracts_trie_root_hash,
+                        sorted_leaves.class_sorted,
+                        sorted_leaves.contract_sorted,
+                        &sorted_leaves.storage_sorted,
+                        None,
+                    )
+                    .await
+                    .map_err(|e| CommitterError::PatriciaPathsCollectionFailed {
+                        height,
+                        message: format!("pre-commit witness paths: {e:?}"),
+                    })?;
+
+                let mut block_measurements = SingleBlockMeasurements::default();
+                block_measurements.start_measurement(Action::EndToEnd);
+                let CommitStateDiffOutput { filled_forest, global_root, deleted_nodes } =
+                    self.commit_state_diff(state_diff, &mut block_measurements).await?;
+                let post_roots = filled_forest.state_roots();
+
+                let forest_updates = ForestDB::serialize_forest(&filled_forest)
+                    .map_err(|e| self.map_internal_error(e))?;
+
+                let proof_after = self
+                    .forest_storage
+                    .fetch_patricia_witnesses(
+                        post_roots.classes_trie_root_hash,
+                        post_roots.contracts_trie_root_hash,
+                        sorted_leaves.class_sorted,
+                        sorted_leaves.contract_sorted,
+                        &sorted_leaves.storage_sorted,
+                        Some(forest_updates),
+                    )
+                    .await
+                    .map_err(|e| CommitterError::PatriciaPathsCollectionFailed {
+                        height,
+                        message: format!("post-commit witness paths: {e:?}"),
+                    })?;
+
+                let mut patricia_proofs = proof_before;
+                patricia_proofs.extend(proof_after);
+
+                let (metadata, next_offset) =
+                    commit_tip_metadata_bundle(height, global_root, state_diff_commitment);
+                info!(
+                    "For block number {height}, writing filled forest and witnesses to storage \
+                     with metadata: {metadata:?}, delete {} nodes",
+                    deleted_nodes.len()
+                );
+                block_measurements.start_measurement(Action::Write);
+                let n_write_entries = self
+                    .forest_storage
+                    .write_with_metadata_and_witnesses(
+                        &filled_forest,
+                        metadata,
+                        deleted_nodes,
+                        PatriciaProofsUpdates::Set {
+                            height,
+                            keys_digest: digest,
+                            witnesses: patricia_proofs.clone(),
+                        },
+                    )
+                    .await
+                    .map_err(|e: SerializationError| self.map_internal_error(e))?;
+                block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
+                block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
+                update_metrics(height, &block_measurements.block_measurement);
+                self.update_offset(next_offset);
+                Ok(ReadPathsAndCommitBlockResponse { global_root, patricia_proofs })
+            }
+        }
     }
 }
 
