@@ -10,12 +10,22 @@ use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
+#[cfg(feature = "os_input")]
+use starknet_patricia::patricia_merkle_tree::traversal::TraversalResult;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::{DeserializationError, SerializationResult};
+#[cfg(feature = "os_input")]
+use starknet_patricia_storage::map_storage::MapStorage;
 #[cfg(any(feature = "testing", test))]
 use starknet_patricia_storage::storage_trait::AsyncStorage;
+#[cfg(feature = "os_input")]
+use starknet_patricia_storage::storage_trait::DbOperation;
+#[cfg(feature = "os_input")]
+use starknet_patricia_storage::storage_trait::ImmutableReadOnlyStorage;
+#[cfg(feature = "os_input")]
+use starknet_patricia_storage::storage_trait::PatriciaStorageError;
 use starknet_patricia_storage::storage_trait::{
     DbHashMap,
     DbKey,
@@ -24,10 +34,19 @@ use starknet_patricia_storage::storage_trait::{
     PatriciaStorageResult,
     Storage,
 };
+#[cfg(feature = "os_input")]
+use starknet_patricia_storage::two_layer_storage::TwoLayerStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
 use crate::db::db_layout::DbLayout;
+#[cfg(feature = "os_input")]
+use crate::db::forest_trait::forest_trait_witnesses::{
+    ForestReaderWithWitnesses,
+    ForestWriterWithMetadataAndWitnesses,
+    PatriciaProofsUpdate,
+    PatriciaProofsWrite,
+};
 use crate::db::forest_trait::{
     read_forest,
     serialize_forest,
@@ -56,11 +75,17 @@ use crate::db::index_db::types::{
 use crate::db::serde_db_utils::DbBlockNumber;
 use crate::forest::deleted_nodes::DeletedNodes;
 use crate::forest::filled_forest::FilledForest;
+#[cfg(feature = "os_input")]
+use crate::forest::forest_errors::ForestError;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+#[cfg(feature = "os_input")]
+use crate::patricia_merkle_tree::tree::{fetch_all_patricia_paths, SortedLeafIndices};
 use crate::patricia_merkle_tree::types::CompiledClassHash;
+#[cfg(feature = "os_input")]
+use crate::patricia_merkle_tree::types::StarknetForestProofs;
 
 /// Set to 2^251 + 1 to avoid collisions with contract addresses prefixes.
 pub(crate) static FIRST_AVAILABLE_PREFIX_FELT: LazyLock<Felt> =
@@ -93,7 +118,6 @@ pub(crate) static ACCESSED_KEYS_DIGEST_METADATA_PREFIX: LazyLock<[u8; 32]> =
     LazyLock::new(|| (Felt::from_bytes_be(&STATE_ROOT_METADATA_PREFIX) + Felt::ONE).to_bytes_be());
 
 /// Prefix for Patricia proofs payload (per block).
-#[allow(dead_code)]
 pub(crate) static PATRICIA_PATHS_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
     (Felt::from_bytes_be(&ACCESSED_KEYS_DIGEST_METADATA_PREFIX) + Felt::ONE).to_bytes_be()
 });
@@ -102,7 +126,6 @@ pub(crate) static PATRICIA_PATHS_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
 ///
 /// Key structure: Prefix (32 bytes) || BlockNumber (8 bytes) || Padding (24 bytes).
 #[cfg(feature = "os_input")]
-#[allow(dead_code)]
 pub(crate) fn patricia_proofs_db_key(height: BlockNumber) -> DbKey {
     let mut key = Vec::with_capacity(64);
     key.extend_from_slice(&*PATRICIA_PATHS_PREFIX);
@@ -352,6 +375,107 @@ fn metadata_block_number_key(prefix: &[u8; 32], block_number: DbBlockNumber) -> 
     key.extend_from_slice(&block_number.serialize());
     key.extend_from_slice(&[0u8; 24]);
     key
+}
+
+#[cfg(feature = "os_input")]
+#[async_trait]
+impl<S: Storage + ImmutableReadOnlyStorage + Sync + Send + 'static> ForestReaderWithWitnesses
+    for IndexDb<S>
+{
+    async fn read_witnesses(
+        &mut self,
+        height: BlockNumber,
+    ) -> ForestResult<Option<StarknetForestProofs>> {
+        let db_key = patricia_proofs_db_key(height);
+
+        Ok(match self.get_from_storage(db_key).await? {
+            None => None,
+            Some(DbValue(bytes)) => {
+                Some(StarknetForestProofs::deserialize(&DbValue(bytes)).map_err(|e| {
+                    ForestError::PatriciaStorage(PatriciaStorageError::Deserialization(e))
+                })?)
+            }
+        })
+    }
+
+    async fn fetch_patricia_witnesses(
+        &mut self,
+        classes_trie_root_hash: HashOutput,
+        contracts_trie_root_hash: HashOutput,
+        class_sorted_leaf_indices: SortedLeafIndices<'_>,
+        contract_sorted_leaf_indices: SortedLeafIndices<'_>,
+        contract_storage_sorted_leaf_indices: &HashMap<NodeIndex, SortedLeafIndices<'_>>,
+        staged_serialized_forest: Option<DbHashMap>,
+    ) -> TraversalResult<StarknetForestProofs> {
+        match staged_serialized_forest {
+            None => {
+                fetch_all_patricia_paths::<IndexNodeLayout>(
+                    &mut self.storage,
+                    classes_trie_root_hash,
+                    contracts_trie_root_hash,
+                    class_sorted_leaf_indices,
+                    contract_sorted_leaf_indices,
+                    contract_storage_sorted_leaf_indices,
+                )
+                .await
+            }
+            Some(modifications) => {
+                let mut overlay = MapStorage::default();
+                overlay.mset(modifications).await?;
+                let mut layered = TwoLayerStorage::new(overlay, &self.storage);
+                fetch_all_patricia_paths::<IndexNodeLayout>(
+                    &mut layered,
+                    classes_trie_root_hash,
+                    contracts_trie_root_hash,
+                    class_sorted_leaf_indices,
+                    contract_sorted_leaf_indices,
+                    contract_storage_sorted_leaf_indices,
+                )
+                .await
+            }
+        }
+    }
+}
+
+#[cfg(feature = "os_input")]
+#[async_trait]
+impl<S: Storage + Send> ForestWriterWithMetadataAndWitnesses for IndexDb<S> {
+    async fn write_with_metadata_and_witnesses(
+        &mut self,
+        filled_forest: &FilledForest,
+        metadata: HashMap<ForestMetadataType, DbValue>,
+        deleted_nodes: DeletedNodes,
+        patricia_proofs_update: PatriciaProofsUpdate,
+    ) -> SerializationResult<usize> {
+        let mut operations = DbOperationMap::new();
+        Self::append_forest_and_metadata(&mut operations, filled_forest, metadata, deleted_nodes)?;
+        match patricia_proofs_update {
+            PatriciaProofsUpdate::Delete(block_number) => {
+                operations.insert(
+                    Self::metadata_key(ForestMetadataType::AccessedKeysDigest(DbBlockNumber(
+                        block_number,
+                    ))),
+                    DbOperation::Delete,
+                );
+                operations.insert(patricia_proofs_db_key(block_number), DbOperation::Delete);
+            }
+            PatriciaProofsUpdate::Write(PatriciaProofsWrite {
+                block_number,
+                keys_digest,
+                witnesses,
+            }) => {
+                let encoded = witnesses.serialize()?;
+                operations.insert(
+                    Self::metadata_key(ForestMetadataType::AccessedKeysDigest(DbBlockNumber(
+                        block_number,
+                    ))),
+                    DbOperation::Set(DbValue(keys_digest.to_vec())),
+                );
+                operations.insert(patricia_proofs_db_key(block_number), DbOperation::Set(encoded));
+            }
+        }
+        Ok(self.write_updates(operations).await)
+    }
 }
 
 fn extract_root_hash<L: Leaf>(root: &Option<DbValue>) -> Result<HashOutput, DeserializationError>
