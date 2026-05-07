@@ -80,12 +80,6 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
         let round = pre_confirmed_block.round;
         let write_iteration = pre_confirmed_block.write_iteration;
         let number_of_txs = pre_confirmed_block.pre_confirmed_block.transactions.len();
-        let number_of_preconfirmed_txs = pre_confirmed_block
-            .pre_confirmed_block
-            .transaction_receipts
-            .iter()
-            .filter(|opt| opt.is_some())
-            .count();
 
         let request_builder =
             self.client.post(self.write_pre_confirmed_block_url.clone()).json(&pre_confirmed_block);
@@ -93,8 +87,7 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
         trace!(
             "Sending write_pre_confirmed_block request to Cende recorder. \
              block_number={block_number}, round={round}, write_iteration={write_iteration}. The \
-             block contains {number_of_txs} transactions and {number_of_preconfirmed_txs} \
-             preconfirmed transactions.",
+             block contains {number_of_txs} transactions.",
         );
 
         let response = request_builder.send().await.inspect_err(|err| {
@@ -111,7 +104,7 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
             debug!(
                 "write_pre_confirmed_block request succeeded. block_number={block_number}, \
                  round={round}, write_iteration={write_iteration}, status={response_status}, \
-                 n_txs={number_of_txs}, n_preconfirmed_txs={number_of_preconfirmed_txs}",
+                 n_txs={number_of_txs}",
             );
             PRECONFIRMED_BLOCK_WRITTEN.increment(1);
             Ok(())

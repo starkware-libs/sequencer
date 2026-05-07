@@ -290,8 +290,8 @@ impl BlobFactory {
             let tx_state_diff = StarknetClientStateDiff::from(state_changes.state_maps).0;
 
             transactions.push(CendePreconfirmedTransaction::from(internal.clone()));
-            transaction_receipts.push(Some(receipt));
-            transaction_state_diffs.push(Some(tx_state_diff));
+            transaction_receipts.push(receipt);
+            transaction_state_diffs.push(tx_state_diff);
 
             // Update the state for the next tx.
             state = tx_state.state;

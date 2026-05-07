@@ -58,7 +58,7 @@ use thiserror::Error;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{Mutex, MutexGuard};
 use tokio::task::spawn_blocking;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
@@ -77,7 +77,7 @@ use crate::metrics::{
     TX_COMMITMENT_LATENCY,
     VALIDATOR_WASTED_TXS,
 };
-use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender};
+use crate::pre_confirmed_block_writer::PreconfirmedTxSender;
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
 
@@ -253,8 +253,7 @@ pub struct BlockBuilder {
     executor: Arc<Mutex<dyn TransactionExecutorTrait>>,
     tx_provider: Box<dyn TransactionProvider>,
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>>,
-    /// The senders are utilized only during block proposal and not during block validation.
-    candidate_tx_sender: Option<CandidateTxSender>,
+    /// The sender is utilized only during block proposal and not during block validation.
     pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
     abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     transaction_converter: TransactionConverter,
@@ -278,7 +277,6 @@ impl BlockBuilder {
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
-        candidate_tx_sender: Option<CandidateTxSender>,
         pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
         abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
         transaction_converter: TransactionConverter,
@@ -289,7 +287,6 @@ impl BlockBuilder {
             executor,
             tx_provider,
             output_content_sender,
-            candidate_tx_sender,
             pre_confirmed_tx_sender,
             abort_signal_receiver,
             transaction_converter,
@@ -509,8 +506,6 @@ impl BlockBuilder {
             self.block_txs.len() + n_txs
         );
 
-        self.send_candidate_txs(&next_txs);
-
         self.block_txs.extend(next_txs.iter().cloned());
 
         let tx_convert_futures = next_txs.iter().map(|tx| async {
@@ -565,46 +560,6 @@ impl BlockBuilder {
             &mut self.pre_confirmed_tx_sender,
         )
         .await
-    }
-
-    fn send_candidate_txs(&mut self, next_tx_chunk: &[InternalConsensusTransaction]) {
-        // Skip sending candidate transactions during validation flow or if the channel was closed.
-        // In validate flow candidate_tx_sender is None.
-        let Some(candidate_tx_sender) = &self.candidate_tx_sender else {
-            return;
-        };
-
-        let txs = next_tx_chunk.to_vec();
-        let num_txs = txs.len();
-
-        trace!(
-            "Attempting to send a candidate transaction chunk with {num_txs} transactions to the \
-             PreconfirmedBlockWriter.",
-        );
-
-        match candidate_tx_sender.try_send(txs) {
-            Ok(_) => {
-                info!(
-                    "Successfully sent a candidate transaction chunk with {num_txs} transactions \
-                     to the PreconfirmedBlockWriter.",
-                );
-            }
-            Err(TrySendError::Closed(_)) => {
-                warn!(
-                    "Candidate transaction channel was closed. Further candidate transactions \
-                     will not be sent. This is not critical for the block building process."
-                );
-                self.candidate_tx_sender = None;
-            }
-            Err(err) => {
-                warn!(
-                    "Failed to send a candidate transaction chunk with {num_txs} transactions to \
-                     the PreconfirmedBlockWriter: {:?}. This is not critical for the block \
-                     building process.",
-                    err
-                );
-            }
-        }
     }
 
     fn should_finish_due_to_timeout_while_propose(&self) -> bool {
@@ -764,7 +719,6 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
-        candidate_tx_sender: Option<CandidateTxSender>,
         pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
@@ -836,7 +790,6 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
-        candidate_tx_sender: Option<CandidateTxSender>,
         pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
@@ -855,7 +808,6 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             executor,
             tx_provider,
             output_content_sender,
-            candidate_tx_sender,
             pre_confirmed_tx_sender,
             abort_signal_receiver,
             transaction_converter,

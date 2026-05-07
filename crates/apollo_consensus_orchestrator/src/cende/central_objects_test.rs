@@ -589,7 +589,6 @@ fn build_call_info(include_opcodes: bool) -> CallInfo {
             (SyscallSelector::StorageWrite, SyscallUsage { call_count: 4, linear_factor: 0 }),
             (SyscallSelector::EmitEvent, SyscallUsage { call_count: 2, linear_factor: 0 }),
         ]),
-        ..Default::default()
     }
 }
 
@@ -969,7 +968,7 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
         }),
     ];
 
-    let transaction_receipts = vec![Some(StarknetClientTransactionReceipt {
+    let transaction_receipts = vec![StarknetClientTransactionReceipt {
         transaction_index: TransactionOffsetInBlock(16),
         transaction_hash: TransactionHash(felt!(
             "0xa07cd0a966655216edb9bf3982e8c3ee6321c7fb7a218c5c25e30c462f3f39"
@@ -1058,9 +1057,9 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
         actual_fee: Fee(0xa6d5102756880),
         execution_status: TransactionExecutionStatus::Succeeded,
         revert_error: None,
-    })];
+    }];
 
-    let transaction_state_diffs = vec![Some(StateDiff {
+    let transaction_state_diffs = vec![StateDiff {
         storage_diffs: indexmap! {
             0x1u64.into() => vec![StorageEntry{
                 key: 0xc5c06_u64.into(),
@@ -1082,7 +1081,7 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
             }
         },
         ..Default::default()
-    })];
+    }];
 
     CendePreconfirmedBlock { metadata, transactions, transaction_receipts, transaction_state_diffs }
 }
