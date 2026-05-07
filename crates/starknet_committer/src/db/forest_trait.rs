@@ -2,10 +2,16 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "os_input")]
+use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
+#[cfg(feature = "os_input")]
+use starknet_api::hash::HashOutput;
 use starknet_api::hash::StateRoots;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
+#[cfg(feature = "os_input")]
+use starknet_patricia::patricia_merkle_tree::traversal::TraversalResult;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::errors::SerializationResult;
@@ -28,13 +34,30 @@ use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+#[cfg(feature = "os_input")]
+use crate::patricia_merkle_tree::tree::SortedLeafIndices;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
+#[cfg(feature = "os_input")]
+use crate::patricia_merkle_tree::types::StarknetForestProofs;
+
+/// How Patricia proofs and read-keys digest metadata are updated in the same batch as a forest
+/// write.
+#[cfg(feature = "os_input")]
+pub enum PatriciaProofsUpdates {
+    /// Remove read-keys digest + Patricia proofs on revert.
+    Delete(BlockNumber),
+    /// Persist read-keys digest + Patricia proofs for this block.
+    Set { height: BlockNumber, keys_digest: [u8; 32], witnesses: StarknetForestProofs },
+}
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Hash, Serialize)]
 pub enum ForestMetadataType {
     CommitmentOffset,
     StateDiffHash(DbBlockNumber),
     StateRoot(DbBlockNumber),
+    /// BLAKE2s digest of the canonical accessed-keys set for the block.
+    #[cfg(feature = "os_input")]
+    AccessedKeysDigest(DbBlockNumber),
 }
 
 #[async_trait]
@@ -85,6 +108,31 @@ pub trait ForestReader {
         &mut self,
         initial_read_context: Self::InitialReadContext,
     ) -> PatriciaStorageResult<StateRoots>;
+}
+
+/// Reads committed OS-input witness payload (structured [`StarknetForestProofs`]) for a block
+/// height.
+#[cfg(feature = "os_input")]
+#[async_trait]
+pub trait ForestReaderWithWitnesses:
+    ForestReader<InitialReadContext: EmptyInitialReadContext> + Send
+{
+    async fn read_witnesses(
+        &mut self,
+        height: BlockNumber,
+    ) -> ForestResult<Option<StarknetForestProofs>>;
+
+    /// Fetches Patricia witness paths for OS input, optionally staging serialized trie node KVs on
+    /// an in-memory overlay so reads match post-commit state before the forest is persisted.
+    async fn fetch_patricia_witnesses(
+        &mut self,
+        classes_trie_root_hash: HashOutput,
+        contracts_trie_root_hash: HashOutput,
+        class_sorted_leaf_indices: SortedLeafIndices<'_>,
+        contract_sorted_leaf_indices: SortedLeafIndices<'_>,
+        contract_storage_sorted_leaf_indices: &HashMap<NodeIndex, SortedLeafIndices<'_>>,
+        staged_serialized_forest: Option<DbHashMap>,
+    ) -> TraversalResult<StarknetForestProofs>;
 }
 
 /// Helper function containing layout-common read logic.
@@ -219,6 +267,20 @@ pub trait ForestWriterWithMetadata: ForestWriter + ForestMetadata {
     }
 }
 
+/// Writes forest + metadata + deleted nodes, and optionally applies [`PatriciaProofsUpdates`] in
+/// the same batch.
+#[cfg(feature = "os_input")]
+#[async_trait]
+pub trait ForestWriterWithMetadataAndWitnesses: ForestWriterWithMetadata + Send {
+    async fn write_with_metadata_and_witnesses(
+        &mut self,
+        filled_forest: &FilledForest,
+        metadata: HashMap<ForestMetadataType, DbValue>,
+        deleted_nodes: DeletedNodes,
+        patricia_proofs_updates: PatriciaProofsUpdates,
+    ) -> SerializationResult<usize>;
+}
+
 pub trait StorageInitializer {
     type Storage: Storage;
     fn new(storage: Self::Storage) -> Self;
@@ -255,5 +317,18 @@ pub trait ForestStorageWithEmptyReadContext:
 
 impl<T> ForestStorageWithEmptyReadContext for T where
     T: ForestReaderWithEmptyContext + ForestWriterWithMetadata + StorageInitializer
+{
+}
+
+/// Forest storage with empty [`ForestReader::InitialReadContext`] plus OS-input witness read/write.
+#[cfg(feature = "os_input")]
+pub trait ForestStorageWithWitnesses:
+    ForestReaderWithWitnesses + ForestWriterWithMetadataAndWitnesses + StorageInitializer
+{
+}
+
+#[cfg(feature = "os_input")]
+impl<T> ForestStorageWithWitnesses for T where
+    T: ForestReaderWithWitnesses + ForestWriterWithMetadataAndWitnesses + StorageInitializer
 {
 }
