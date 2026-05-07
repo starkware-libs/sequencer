@@ -43,7 +43,6 @@ pub enum RevertBlockResponse {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ReadPathsAndCommitBlockRequest {
     pub commit: CommitBlockRequest,
-    pub accessed_keys: AccessedKeys,
 }
 
 #[cfg(feature = "os_input")]
