@@ -12716,6 +12716,7 @@ dependencies = [
  "apollo_config",
  "async-recursion",
  "async-trait",
+ "bincode 1.3.3",
  "blake2",
  "derive_more",
  "digest 0.10.7",
