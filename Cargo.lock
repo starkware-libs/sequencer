@@ -1119,6 +1119,7 @@ dependencies = [
  "apollo_infra",
  "apollo_metrics",
  "async-trait",
+ "blockifier",
  "mockall",
  "serde",
  "starknet_api",

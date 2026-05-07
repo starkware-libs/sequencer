@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use serde::de::Error as DeError;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
@@ -122,6 +123,26 @@ impl StarknetForestProofs {
             })?;
 
         Ok(Self { classes_trie_proof, contracts_trie_proof, contracts_trie_storage_proofs })
+    }
+}
+
+impl serde::Serialize for StarknetForestProofs {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let encoded = Self::serialize(self).map_err(serde::ser::Error::custom)?;
+        encoded.0.serialize(serializer)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for StarknetForestProofs {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let bytes = Vec::<u8>::deserialize(deserializer)?;
+        Self::deserialize(&DbValue(bytes)).map_err(DeError::custom)
     }
 }
 
