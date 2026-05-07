@@ -14,6 +14,7 @@ use crate::block_committer::input::{
     StarknetStorageKey,
     StarknetStorageValue,
 };
+use crate::db::db_layout::DbLayout;
 use crate::db::facts_db::FactsNodeLayout;
 use crate::db::trie_traversal::fetch_patricia_paths;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
@@ -55,14 +56,18 @@ impl OriginalSkeletonTreeConfig for OriginalSkeletonTrieConfig {
 /// Fetch the leaves in the contracts trie only, to be able to get the storage root hashes.
 /// Assumption: `contract_sorted_leaf_indices` contains all `contract_storage_sorted_leaf_indices`
 /// keys.
-async fn fetch_all_patricia_paths(
+pub async fn fetch_all_patricia_paths<Layout>(
     storage: &mut impl ReadOnlyStorage,
     classes_trie_root_hash: HashOutput,
     contracts_trie_root_hash: HashOutput,
     class_sorted_leaf_indices: SortedLeafIndices<'_>,
     contract_sorted_leaf_indices: SortedLeafIndices<'_>,
     contract_storage_sorted_leaf_indices: &HashMap<NodeIndex, SortedLeafIndices<'_>>,
-) -> TraversalResult<StarknetForestProofs> {
+) -> TraversalResult<StarknetForestProofs>
+where
+    Layout: DbLayout,
+    Layout::ContractStateDbLeaf: Clone + Into<ContractState>,
+{
     // Verify that all `contract_storage_sorted_leaf_indices` keys are included in
     // `contract_sorted_leaf_indices`.
     let mut address_counter = 0;
@@ -81,7 +86,8 @@ async fn fetch_all_patricia_paths(
 
     // Classes trie - no need to fetch the leaves.
     let leaves = None;
-    let classes_trie_proof = fetch_patricia_paths::<CompiledClassHash, FactsNodeLayout>(
+    let classes_trie_proof =
+        fetch_patricia_paths::<Layout::CompiledClassHashDbLeaf, Layout::NodeLayout>(
         storage,
         classes_trie_root_hash,
         class_sorted_leaf_indices,
@@ -92,7 +98,8 @@ async fn fetch_all_patricia_paths(
 
     // Contracts trie - the leaves are required.
     let mut leaves = HashMap::new();
-    let contracts_proof_nodes = fetch_patricia_paths::<ContractState, FactsNodeLayout>(
+    let contracts_proof_nodes =
+        fetch_patricia_paths::<Layout::ContractStateDbLeaf, Layout::NodeLayout>(
         storage,
         contracts_trie_root_hash,
         contract_sorted_leaf_indices,
@@ -118,12 +125,14 @@ async fn fetch_all_patricia_paths(
         // 2. We are looking at the new tree and the contract is deleted (revert).
         // In either case, the storage trie of this contract is empty, so there is nothing to
         // prove regarding the contract storage.
-        let Some(storage_root_hash) = leaves.get(idx).map(|leaf| leaf.storage_root_hash) else {
+        let Some(storage_root_hash) =
+            leaves.get(idx).map(|leaf| leaf.clone().into().storage_root_hash)
+        else {
             continue;
         };
         // No need to fetch the leaves.
         let leaves = None;
-        let proof = fetch_patricia_paths::<StarknetStorageValue, FactsNodeLayout>(
+        let proof = fetch_patricia_paths::<Layout::StarknetStorageValueDbLeaf, Layout::NodeLayout>(
             storage,
             storage_root_hash,
             *sorted_leaf_indices,
@@ -137,7 +146,7 @@ async fn fetch_all_patricia_paths(
     // Convert contract_leaves_data keys from NodeIndex to ContractAddress.
     let contract_leaves_data: HashMap<ContractAddress, ContractState> = leaves
         .into_iter()
-        .map(|(idx, v)| {
+        .map(|(idx, contract_state_leaf)| {
             (
                 try_node_index_into_contract_address(&idx).unwrap_or_else(|_| {
                     panic!(
@@ -145,7 +154,7 @@ async fn fetch_all_patricia_paths(
                          convert {idx:?}."
                     )
                 }),
-                v,
+                contract_state_leaf.into(),
             )
         })
         .collect();
@@ -163,6 +172,8 @@ async fn fetch_all_patricia_paths(
 /// Fetch the Patricia paths (inner nodes) in the classes trie, contracts trie,
 /// and contracts storage tries for both the previous and new root hashes.
 /// Fetch the leaves in the contracts trie only, to be able to get the storage root hashes.
+///
+/// Only works with facts-layout storage.
 pub async fn fetch_previous_and_new_patricia_paths(
     storage: &mut impl ReadOnlyStorage,
     classes_trie_root_hashes: RootHashes,
@@ -192,8 +203,7 @@ pub async fn fetch_previous_and_new_patricia_paths(
         .iter_mut()
         .map(|(address, leaf_indices)| (*address, SortedLeafIndices::new(leaf_indices)))
         .collect();
-
-    let prev_proofs = fetch_all_patricia_paths(
+    let prev_proofs = fetch_all_patricia_paths::<FactsNodeLayout>(
         storage,
         classes_trie_root_hashes.previous_root_hash,
         contracts_trie_root_hashes.previous_root_hash,
@@ -202,7 +212,7 @@ pub async fn fetch_previous_and_new_patricia_paths(
         contract_storage_sorted_leaf_indices,
     )
     .await?;
-    let new_proofs = fetch_all_patricia_paths(
+    let new_proofs = fetch_all_patricia_paths::<FactsNodeLayout>(
         storage,
         classes_trie_root_hashes.new_root_hash,
         contracts_trie_root_hashes.new_root_hash,
