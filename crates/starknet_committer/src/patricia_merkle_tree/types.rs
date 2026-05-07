@@ -62,13 +62,13 @@ pub type ClassesTrie = FilledTreeImpl<CompiledClassHash>;
 pub type ContractsTrie = FilledTreeImpl<ContractState>;
 pub type StorageTrieMap = HashMap<ContractAddress, StorageTrie>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ContractsTrieProof {
     pub nodes: PreimageMap,
     pub leaves: HashMap<ContractAddress, ContractState>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct StarknetForestProofs {
     pub classes_trie_proof: PreimageMap,
     pub contracts_trie_proof: ContractsTrieProof,
