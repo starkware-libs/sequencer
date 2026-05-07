@@ -99,6 +99,31 @@ enum CommitBlockHeightPlan {
     CommitTip { state_diff_commitment: StateDiffCommitment },
 }
 
+fn commit_tip_metadata_bundle(
+    height: BlockNumber,
+    global_root: GlobalRoot,
+    state_diff_commitment: StateDiffCommitment,
+) -> (HashMap<ForestMetadataType, DbValue>, BlockNumber) {
+    let next_offset = height.unchecked_next();
+    (
+        HashMap::from([
+            (
+                ForestMetadataType::CommitmentOffset,
+                DbValue(DbBlockNumber(next_offset).serialize().to_vec()),
+            ),
+            (
+                ForestMetadataType::StateRoot(DbBlockNumber(height)),
+                serialize_felt_no_packing(global_root.0),
+            ),
+            (
+                ForestMetadataType::StateDiffHash(DbBlockNumber(height)),
+                serialize_felt_no_packing(state_diff_commitment.0.0),
+            ),
+        ]),
+        next_offset,
+    )
+}
+
 /// Apollo committer. Maintains the Starknet state tries in persistent storage.
 pub struct Committer<S: Storage, ForestDB>
 where
@@ -174,21 +199,8 @@ where
                 block_measurements.start_measurement(Action::EndToEnd);
                 let CommitStateDiffOutput { filled_forest, global_root, deleted_nodes } =
                     self.commit_state_diff(state_diff, &mut block_measurements).await?;
-                let next_offset = height.unchecked_next();
-                let metadata = HashMap::from([
-                    (
-                        ForestMetadataType::CommitmentOffset,
-                        DbValue(DbBlockNumber(next_offset).serialize().to_vec()),
-                    ),
-                    (
-                        ForestMetadataType::StateRoot(DbBlockNumber(height)),
-                        serialize_felt_no_packing(global_root.0),
-                    ),
-                    (
-                        ForestMetadataType::StateDiffHash(DbBlockNumber(height)),
-                        serialize_felt_no_packing(state_diff_commitment.0.0),
-                    ),
-                ]);
+                let (metadata, next_offset) =
+                    commit_tip_metadata_bundle(height, global_root, state_diff_commitment);
                 info!(
                     "For block number {height}, writing filled forest to storage with metadata: \
                      {metadata:?}, delete {} nodes",
