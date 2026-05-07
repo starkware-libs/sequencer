@@ -7,6 +7,7 @@ license.workspace = true
 description = "State root commitment computation component for the Starknet sequencer."
 
 [features]
+os_input = ["apollo_committer_types/os_input", "starknet_committer/os_input"]
 testing = []
 
 [dependencies]
