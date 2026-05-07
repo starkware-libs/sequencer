@@ -3,6 +3,8 @@ use std::marker::PhantomData;
 use std::sync::LazyLock;
 
 use async_trait::async_trait;
+#[cfg(feature = "os_input")]
+use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, PATRICIA_KEY_UPPER_BOUND_FELT};
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
@@ -50,6 +52,8 @@ use crate::db::index_db::types::{
     IndexLayoutSubTree,
     IndexNodeContext,
 };
+#[cfg(feature = "os_input")]
+use crate::db::serde_db_utils::DbBlockNumber;
 use crate::forest::deleted_nodes::DeletedNodes;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
@@ -83,6 +87,28 @@ static STATE_DIFF_HASH_METADATA_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
 static STATE_ROOT_METADATA_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
     (Felt::from_bytes_be(&STATE_DIFF_HASH_METADATA_PREFIX) + Felt::ONE).to_bytes_be()
 });
+
+/// Prefix for accessed-keys digest metadata (committed per block).
+#[cfg(feature = "os_input")]
+pub(crate) static ACCESSED_KEYS_DIGEST_METADATA_PREFIX: LazyLock<[u8; 32]> =
+    LazyLock::new(|| (Felt::from_bytes_be(&STATE_ROOT_METADATA_PREFIX) + Felt::ONE).to_bytes_be());
+
+/// Prefix for merged Patricia proofs payload KV (per block).
+#[cfg(feature = "os_input")]
+pub(crate) static PATRICIA_PATHS_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
+    (Felt::from_bytes_be(&ACCESSED_KEYS_DIGEST_METADATA_PREFIX) + Felt::ONE).to_bytes_be()
+});
+
+/// DB key for persisted merged Patricia proofs at `height`.
+#[cfg(feature = "os_input")]
+pub(crate) fn patricia_proofs_db_key(height: BlockNumber) -> DbKey {
+    let mut key = Vec::with_capacity(64);
+    key.extend_from_slice(&*PATRICIA_PATHS_PREFIX);
+    let block_number_bytes: [u8; 8] = DbBlockNumber(height).serialize();
+    key.extend_from_slice(&block_number_bytes);
+    key.extend_from_slice(&[0u8; 24]);
+    DbKey(key)
+}
 
 pub struct IndexDb<S: Storage, H = TreeHashFunctionImpl> {
     storage: S,
@@ -283,6 +309,13 @@ impl<S: Storage> ForestMetadata for IndexDb<S> {
             }
             ForestMetadataType::StateRoot(block_number) => {
                 key.extend_from_slice(&*STATE_ROOT_METADATA_PREFIX);
+                let block_number_bytes: [u8; 8] = block_number.serialize();
+                key.extend_from_slice(&block_number_bytes);
+                key.extend_from_slice(&[0u8; 24]);
+            }
+            #[cfg(feature = "os_input")]
+            ForestMetadataType::OsInputWitnessDigest(block_number) => {
+                key.extend_from_slice(&*ACCESSED_KEYS_DIGEST_METADATA_PREFIX);
                 let block_number_bytes: [u8; 8] = block_number.serialize();
                 key.extend_from_slice(&block_number_bytes);
                 key.extend_from_slice(&[0u8; 24]);
