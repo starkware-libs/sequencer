@@ -226,6 +226,24 @@ pub trait ForestWriterWithMetadata: ForestWriter + ForestMetadata {
     /// Serializes deleted nodes into a vector of database keys.
     fn serialize_deleted_nodes(deleted_nodes: DeletedNodes) -> Vec<DbKey>;
 
+    /// Appends serialized forest nodes, metadata entries, and deleted nodes to
+    /// `operations`.
+    fn append_forest_and_metadata(
+        operations: &mut DbOperationMap,
+        filled_forest: &FilledForest,
+        metadata: HashMap<ForestMetadataType, DbValue>,
+        deleted_nodes: DeletedNodes,
+    ) -> SerializationResult<()> {
+        operations.extend(updates_to_set_operations(Self::serialize_forest(filled_forest)?));
+        for (metadata_type, value) in metadata {
+            operations.insert(Self::metadata_key(metadata_type), DbOperation::Set(value));
+        }
+        for key in Self::serialize_deleted_nodes(deleted_nodes) {
+            operations.insert(key, DbOperation::Delete);
+        }
+        Ok(())
+    }
+
     /// Writes only metadata entries to storage, without a filled forest.
     /// Returns an error if any of the metadata keys are already set.
     /// May overwrite existing metadata in case of a write race (existence check and writing are not
@@ -253,16 +271,8 @@ pub trait ForestWriterWithMetadata: ForestWriter + ForestMetadata {
         metadata: HashMap<ForestMetadataType, DbValue>,
         deleted_nodes: DeletedNodes,
     ) -> SerializationResult<usize> {
-        let mut updates = Self::serialize_forest(filled_forest)?;
-        for (metadata_type, value) in metadata {
-            Self::insert_metadata(&mut updates, metadata_type, value);
-        }
-        let keys_to_delete = Self::serialize_deleted_nodes(deleted_nodes);
-        let operations = keys_to_delete
-            .into_iter()
-            .map(|key| (key, DbOperation::Delete))
-            .chain(updates_to_set_operations(updates))
-            .collect();
+        let mut operations = DbOperationMap::new();
+        Self::append_forest_and_metadata(&mut operations, filled_forest, metadata, deleted_nodes)?;
         Ok(self.write_updates(operations).await)
     }
 }
