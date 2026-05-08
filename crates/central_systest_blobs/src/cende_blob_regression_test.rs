@@ -18,13 +18,18 @@ use apollo_consensus_orchestrator::cende::{
     InternalTransactionWithReceipt,
 };
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
+use blockifier::blockifier::config::TransactionExecutorConfig;
+use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo};
-use blockifier::state::cached_state::{CachedState, StateMaps};
+use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
+use blockifier::state::state_api::UpdatableState;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::transaction::account_transaction::AccountTransaction as BlockifierAccountTx;
+use blockifier::transaction::transaction_execution::Transaction as BlockifierTx;
 use blockifier::transaction::transactions::ExecutableTransaction;
 use blockifier_test_utils::contracts::FeatureContract;
 use expect_test::expect_file;
@@ -35,16 +40,22 @@ use google_cloud_storage::http::objects::get::GetObjectRequest;
 use google_cloud_storage::http::objects::upload::{Media, UploadObjectRequest, UploadType};
 use google_cloud_storage::http::Error as GcsError;
 use mockall::predicate::eq;
-use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, BlockTimestamp};
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, BlockTimestamp};
+use starknet_api::block_hash::block_hash_calculator::{
+    calculate_block_commitments,
+    calculate_block_hash,
+    PartialBlockHashComponents,
+    TransactionHashingData,
+};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_address;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::{ChainId, Nonce, OsChainInfo};
-use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::data_availability::{DataAvailabilityMode, L1DataAvailabilityMode};
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableAccountTx,
-    DeclareTransaction as ExecutableDeclareTransaction,
+    DeclareTransaction as ExecutableDeclareTx,
+    Transaction as ExecutableTx,
 };
 use starknet_api::hash::StateRoots;
 use starknet_api::rpc_transaction::{
@@ -52,6 +63,7 @@ use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
 };
+use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::TEST_SEQUENCER_ADDRESS;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -66,9 +78,11 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionVersion,
 };
+use starknet_committer::block_committer::input::StateDiff;
 use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::db::forest_trait::StorageInitializer;
 use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_transaction_prover::running::committer_utils::commit_state_diff;
 
 const GCS_ERROR_CODE_NOT_FOUND: u16 = 404;
 
@@ -121,7 +135,6 @@ struct BlobFactory {
 
     // Context.
     state: DictStateReader,
-    #[expect(dead_code)]
     committer_storage: FactsDb<MapStorage>,
 }
 
@@ -140,13 +153,106 @@ impl BlobFactory {
     }
 
     /// Executes the unblocked transactions and applies the changes to the state.
+    /// Any subsequent transaction added will end up in the next block.
     #[expect(dead_code)]
-    fn close_block(&mut self) {
-        unimplemented!()
+    async fn close_block(&mut self) {
+        let block_context = self.next_block_context();
+        let block_info = block_context.block_info().clone();
+        let block_number = block_info.block_number;
+
+        // Execute the transactions.
+        // If the block number is after the block hash buffer, set the previous block hash and
+        // number, so they appear in the state diff.
+        let old_block_number_and_hash = if block_number.0 < STORED_BLOCK_HASH_BUFFER {
+            None
+        } else {
+            let old_block_number = block_number.0 - STORED_BLOCK_HASH_BUFFER;
+            Some(BlockHashAndNumber {
+                number: BlockNumber(old_block_number),
+                // If we are past the block hash buffer, this should never panic.
+                hash: self.blocks[usize::try_from(old_block_number).unwrap()].block_hash,
+            })
+        };
+        let state_clone = self.state.clone();
+        let mut executor = TransactionExecutor::pre_process_and_create(
+            state_clone,
+            block_context.clone(),
+            old_block_number_and_hash,
+            TransactionExecutorConfig::create_for_testing(false),
+        )
+        .unwrap();
+        let mut transactions_with_receipts = Vec::new();
+        // Consume the transactions list (next block starts empty).
+        for (executable, internal) in std::mem::take(&mut self.next_txs).into_iter() {
+            let (execution_info, _state_changes) = executor
+                .execute(&BlockifierTx::new_for_sequencing(ExecutableTx::Account(executable)))
+                .unwrap();
+            assert!(!execution_info.is_reverted(), "Got a reverted tx: {execution_info:?}");
+
+            transactions_with_receipts
+                .push(InternalTransactionWithReceipt { transaction: internal, execution_info });
+        }
+        let summary = executor.non_consuming_finalize().unwrap();
+
+        // Apply changes to state and create the multitude of state-diff-like objects required...
+        // The [CommitterStateDiff] type is the blockifier representation of the committer's state
+        // diff, whereas [StateDiff] is the committer's representation of the state diff.
+        let committer_state_diff: CommitmentStateDiff = summary.state_diff.clone();
+        let thin_state_diff = ThinStateDiff::from(committer_state_diff.clone());
+        let state_diff = StateDiff::from(thin_state_diff.clone());
+        let state_maps = StateMaps::from(committer_state_diff.clone());
+        let class_mapping = executor.block_state.unwrap().class_hash_to_class.borrow().clone();
+        self.state.apply_writes(&state_maps, &class_mapping);
+
+        // Commit the block.
+        let prev_state_roots = self.last_finalized_state_roots();
+        let state_roots = commit_state_diff(
+            &mut self.committer_storage,
+            prev_state_roots.contracts_trie_root_hash,
+            prev_state_roots.classes_trie_root_hash,
+            state_diff,
+        )
+        .await
+        .expect("Failed to commit state diff.");
+
+        // Compute the block hash.
+        let transaction_hashing_data: Vec<_> = transactions_with_receipts
+            .iter()
+            .map(|tx| TransactionHashingData {
+                transaction_signature: tx.transaction.tx_signature_for_commitment().unwrap(),
+                transaction_output: tx.execution_info.output_for_hashing(),
+                transaction_hash: tx.transaction.tx_hash(),
+            })
+            .collect();
+        let (block_header_commitments, _) = calculate_block_commitments(
+            &transaction_hashing_data,
+            thin_state_diff,
+            L1DataAvailabilityMode::from_use_kzg_da(block_info.use_kzg_da),
+            &block_info.starknet_version,
+        )
+        .await;
+        let partial_block_hash_components =
+            PartialBlockHashComponents::new(&block_info, block_header_commitments);
+        let block_hash = calculate_block_hash(
+            &partial_block_hash_components,
+            state_roots.global_root(),
+            self.last_finalized_block_hash(),
+        )
+        .unwrap();
+
+        // Create and push block data.
+        self.blocks.push(BlockData {
+            block_context,
+            transactions_with_receipts,
+            partial_block_hash_components,
+            block_hash,
+            state_maps,
+            state_roots,
+        });
     }
 
     /// Creates blobs for all finalized blocks, and a preconfirmed block with the remaining txs that
-    /// were not included in a block.
+    /// were not included in a block. See [Self::close_block] for details on how to close a block.
     async fn finalize(self) -> (Vec<AerospikeBlob>, CendeWritePreconfirmedBlock) {
         // TODO(Dori): Create the blob vector.
         let blobs = vec![];
@@ -157,12 +263,10 @@ impl BlobFactory {
         (blobs, preconfirmed_block)
     }
 
-    #[expect(dead_code)]
     fn last_finalized_block_hash(&self) -> BlockHash {
         self.blocks.last().map(|block| block.block_hash).unwrap_or(BlockHash::GENESIS_PARENT_HASH)
     }
 
-    #[expect(dead_code)]
     fn last_finalized_state_roots(&self) -> StateRoots {
         self.blocks.last().map(|block| block.state_roots).unwrap_or_default()
     }
@@ -173,7 +277,7 @@ impl BlobFactory {
 
     #[expect(dead_code)]
     fn boostrap_declare_tx(&mut self, contract: FeatureContract) {
-        let sender_address = ExecutableDeclareTransaction::bootstrap_address();
+        let sender_address = ExecutableDeclareTx::bootstrap_address();
         let sierra = contract.get_sierra();
         let class_hash = sierra.calculate_class_hash();
         let compiled_class_hash = contract.get_compiled_class_hash(&HashVersion::V2);
@@ -203,7 +307,7 @@ impl BlobFactory {
         });
 
         // Create executable tx.
-        let executable = ExecutableDeclareTransaction::create(
+        let executable = ExecutableDeclareTx::create(
             DeclareTransaction::V3(internal_declare_without_hash.into()),
             contract.get_class_info(),
             &CHAIN_ID,
