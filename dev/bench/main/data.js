@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778079836816,
+  "lastUpdate": 1778250611294,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3739,6 +3739,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1558.73197199,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7595ce78834aa50119f5a48c7fa060ee940b9f3e",
+          "message": "central_systest_blobs: implement block production, given txs (#13966)",
+          "timestamp": "2026-05-08T14:11:22Z",
+          "tree_id": "6154c4a920e23c36dd0f6ec1753ba07603a118e6",
+          "url": "https://github.com/starkware-libs/sequencer/commit/7595ce78834aa50119f5a48c7fa060ee940b9f3e"
+        },
+        "date": 1778250610794,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1298.4813633699998,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1921.78001238,
             "unit": "ms"
           }
         ]
