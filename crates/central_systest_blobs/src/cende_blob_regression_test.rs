@@ -442,16 +442,29 @@ impl BlobFactory {
         Calldata(Arc::new([vec![Felt::ONE], single_calldata.0.as_slice().to_vec()].concat()))
     }
 
-    fn boostrap_declare_tx(&mut self, contract: FeatureContract) {
-        let sender_address = ExecutableDeclareTx::bootstrap_address();
+    /// If the sender address is None, create a bootstrap declare tx.
+    /// Otherwise, create a regular declare tx (with fees).
+    fn make_declare_tx(&mut self, contract: FeatureContract, sender: Option<ContractAddress>) {
+        let (bootstrap_mode, sender_address, resource_bounds, nonce) = match sender {
+            None => (
+                true,
+                ExecutableDeclareTx::bootstrap_address(),
+                AllResourceBounds::new_unlimited_gas_no_fee_enforcement(),
+                Nonce::default(),
+            ),
+            Some(sender_address) => (
+                false,
+                sender_address,
+                *NON_TRIVIAL_RESOURCE_BOUNDS,
+                self.nonce_manager.next(sender_address),
+            ),
+        };
         let sierra = contract.get_sierra();
         let class_hash = sierra.calculate_class_hash();
         let compiled_class_hash = contract.get_compiled_class_hash(&HashVersion::V2);
-        let resource_bounds = AllResourceBounds::new_unlimited_gas_no_fee_enforcement();
-        let nonce = Nonce::default();
 
         // Create internal tx.
-        let internal_declare_without_hash = InternalRpcDeclareTransactionV3 {
+        let mut internal_declare_without_hash = InternalRpcDeclareTransactionV3 {
             sender_address,
             nonce,
             class_hash,
@@ -467,6 +480,10 @@ impl BlobFactory {
         let tx_hash = internal_declare_without_hash
             .calculate_transaction_hash(&CHAIN_ID, &TransactionVersion::THREE)
             .unwrap();
+        // If not bootrap mode, sign the tx.
+        let signature =
+            if !bootstrap_mode { Self::sign_tx(tx_hash) } else { TransactionSignature::default() };
+        internal_declare_without_hash.signature = signature;
         let internal_tx = InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
             tx: InternalRpcTransactionWithoutTxHash::Declare(internal_declare_without_hash.clone()),
             tx_hash,
@@ -810,18 +827,19 @@ async fn test_make_data() {
     // 3. deploy account (with zero fees).
     // 4. deploy ERC20 contract from the account (with zero fees), while minting some tokens to the
     //    sender account.
-    // TODO(Dori): the rest of the txs.
     // (from this point - all txs include non-zero fees, and no more bootstrap declares)
     // 5. declare the test contract.
+    // TODO(Dori): the rest of the txs.
     // 6. deploy the test contract.
     // 7. deploy another instance of the test contract.
     // 8. invoke the test contract: something with a state change.
     // 9. invoke the test contract: test syscalls.
     let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let account_with_real_validate = FeatureContract::AccountWithRealValidate(RunnableCairo1::Casm);
-    blob_factory.boostrap_declare_tx(erc20_contract);
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    blob_factory.make_declare_tx(erc20_contract, None);
     blob_factory.close_block().await;
-    blob_factory.boostrap_declare_tx(account_with_real_validate);
+    blob_factory.make_declare_tx(account_with_real_validate, None);
     blob_factory.close_block().await;
     let operator_address = blob_factory.make_free_deploy_account_tx(account_with_real_validate);
     EXPECTED_OPERATOR_ADDRESS.assert_eq(&operator_address.to_string());
@@ -842,6 +860,8 @@ async fn test_make_data() {
         false, // charge fee
     );
     EXPECTED_FEE_TOKEN_ADDRESS.assert_eq(&token_address.to_string());
+    blob_factory.close_block().await;
+    blob_factory.make_declare_tx(test_contract, Some(*OPERATOR_ADDRESS));
 
     let (blobs, preconfirmed_block) = blob_factory.finalize().await;
     expect_file![CHAIN_INFO_PATH].assert_eq(&serde_json::to_string_pretty(&chain_info).unwrap());
