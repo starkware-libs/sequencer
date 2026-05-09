@@ -165,7 +165,7 @@ macro_rules! compiled_class_hash {
 /// of felt values.
 #[macro_export]
 macro_rules! proof_facts {
-    ( $( $x:expr ),* ) => {
+    ( $( $x:expr ),* $(,)?) => {
         $crate::transaction::fields::ProofFacts(vec![$($x),*].into())
     };
 }
