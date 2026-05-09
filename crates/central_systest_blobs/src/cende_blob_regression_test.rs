@@ -33,6 +33,7 @@ use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::transaction::account_transaction::AccountTransaction as BlockifierAccountTx;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTx;
 use blockifier::transaction::transactions::ExecutableTransaction;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use expect_test::expect_file;
 use google_cloud_storage::client::{Client, ClientConfig};
@@ -215,7 +216,6 @@ impl BlobFactory {
 
     /// Executes the unblocked transactions and applies the changes to the state.
     /// Any subsequent transaction added will end up in the next block.
-    #[expect(dead_code)]
     async fn close_block(&mut self) {
         let block_context = self.next_block_context();
         let block_info = block_context.block_info().clone();
@@ -362,7 +362,6 @@ impl BlobFactory {
     // Tx generation
     // =====================
 
-    #[expect(dead_code)]
     fn boostrap_declare_tx(&mut self, contract: FeatureContract) {
         let sender_address = ExecutableDeclareTx::bootstrap_address();
         let sierra = contract.get_sierra();
@@ -601,9 +600,28 @@ async fn fetch_blob_file(client: &Client) -> Vec<AerospikeBlob> {
 
 #[tokio::test]
 async fn test_make_data() {
-    let blob_factory = BlobFactory::new();
+    let mut blob_factory = BlobFactory::new();
     let chain_info = OsChainInfo::from(&blob_factory.chain_info).to_hex_map();
-    // TODO(Dori): create txs.
+
+    // Create the list of transactions to be included in the blobs:
+    // 1. bootstrap declare of an ERC20 contract.
+    // 2. bootstrap declare of an account with real validate.
+    // TODO(Dori): the rest of the txs.
+    // 3. deploy account (with zero fees).
+    // 4. deploy ERC20 contract from the account (with zero fees), while minting some tokens to the
+    //    sender account.
+    // (from this point - all txs include non-zero fees, and no more bootstrap declares)
+    // 5. declare the test contract.
+    // 6. deploy the test contract.
+    // 7. deploy another instance of the test contract.
+    // 8. invoke the test contract: something with a state change.
+    // 9. invoke the test contract: test syscalls.
+    let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let account_with_real_validate = FeatureContract::AccountWithRealValidate(RunnableCairo1::Casm);
+    blob_factory.boostrap_declare_tx(erc20_contract);
+    blob_factory.close_block().await;
+    blob_factory.boostrap_declare_tx(account_with_real_validate);
+
     let (blobs, preconfirmed_block) = blob_factory.finalize().await;
     expect_file![CHAIN_INFO_PATH].assert_eq(&serde_json::to_string_pretty(&chain_info).unwrap());
     expect_file![PRECONFIRMED_BLOCK_PATH].assert_eq(&to_normalized_json(&preconfirmed_block));
