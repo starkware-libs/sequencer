@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778315817796,
+  "lastUpdate": 1778333306053,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3807,6 +3807,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1301.14554374,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f569e95b2406f8a80ed768bf41a83caf114dfe42",
+          "message": "central_systest_blobs: deploy operator account (#13970)",
+          "timestamp": "2026-05-09T13:09:01Z",
+          "tree_id": "2f2d931ece6c3987cab14fa6cd96a3c1c1f76b76",
+          "url": "https://github.com/starkware-libs/sequencer/commit/f569e95b2406f8a80ed768bf41a83caf114dfe42"
+        },
+        "date": 1778333305631,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 789.51426287,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1216.24552886,
             "unit": "ms"
           }
         ]
