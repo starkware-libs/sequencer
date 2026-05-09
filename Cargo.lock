@@ -4875,6 +4875,7 @@ dependencies = [
  "apollo_consensus",
  "apollo_consensus_orchestrator",
  "apollo_infra_utils",
+ "apollo_starknet_os_program",
  "blockifier",
  "blockifier_test_utils",
  "expect-test",
