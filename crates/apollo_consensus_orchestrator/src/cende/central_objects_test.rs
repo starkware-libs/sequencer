@@ -532,8 +532,8 @@ fn build_call_info(include_opcodes: bool) -> CallInfo {
     let extended_execution_resources = extended_execution_resources(include_opcodes);
     let builtin_counters = extended_execution_resources.prover_cairo_primitives();
 
-    CallInfo {
-        call: CallEntryPoint {
+    CallInfo::new(
+        CallEntryPoint {
             class_hash: Some(ClassHash(felt!("0x80020000"))),
             code_address: Some(contract_address!("0x40070000")),
             entry_point_type: EntryPointType::External,
@@ -551,7 +551,7 @@ fn build_call_info(include_opcodes: bool) -> CallInfo {
             call_type: CallType::Call,
             initial_gas: 100_000_000,
         },
-        execution: CallExecution {
+        CallExecution {
             retdata: Retdata(vec![felt!("0x56414c4944")]),
             events: vec![OrderedEvent {
                 order: 2,
@@ -571,10 +571,10 @@ fn build_call_info(include_opcodes: bool) -> CallInfo {
             gas_consumed: 11_690,
             cairo_native: false,
         },
-        inner_calls: Vec::new(),
-        resources: extended_execution_resources,
-        tracked_resource: TrackedResource::SierraGas,
-        storage_access_tracker: StorageAccessTracker {
+        Vec::new(),
+        extended_execution_resources,
+        TrackedResource::SierraGas,
+        StorageAccessTracker {
             storage_read_values: felt_vector(),
             accessed_storage_keys: HashSet::from([StorageKey::from(1_u128)]),
             read_class_hash_values: vec![ClassHash(felt!("0x80020000"))],
@@ -583,14 +583,13 @@ fn build_call_info(include_opcodes: bool) -> CallInfo {
             accessed_blocks: HashSet::from([BlockNumber(100)]),
         },
         builtin_counters,
-        syscalls_usage: HashMap::from([
+        HashMap::from([
             (SyscallSelector::CallContract, SyscallUsage { call_count: 7, linear_factor: 0 }),
             (SyscallSelector::StorageRead, SyscallUsage { call_count: 4, linear_factor: 0 }),
             (SyscallSelector::StorageWrite, SyscallUsage { call_count: 4, linear_factor: 0 }),
             (SyscallSelector::EmitEvent, SyscallUsage { call_count: 2, linear_factor: 0 }),
         ]),
-        ..Default::default()
-    }
+    )
 }
 
 fn transaction_execution_info() -> TransactionExecutionInfo {
