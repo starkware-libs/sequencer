@@ -75,7 +75,7 @@ impl ProgramOutput {
     /// The bootloader output for a single task is:
     ///   `[num_tasks, output_size, program_hash, ...task_output...]`
     ///
-    /// We replace `num_tasks` with `[PROOF_VERSION_V0, program_variant]` and skip `output_size`,
+    /// We replace `num_tasks` with `[PROOF_VERSION_V1, program_variant]` and skip `output_size`,
     /// which is a bootloader-internal field not part of the proof facts.
     pub fn try_into_proof_facts(
         &self,
@@ -90,7 +90,7 @@ impl ProgramOutput {
             return Err(ProgramOutputError::TooShort(self.0.len()));
         }
         // Add the proof version and variant markers in place of num_tasks.
-        let mut facts = vec![ProofVersion::V0.as_felt()];
+        let mut facts = vec![ProofVersion::V1.as_felt()];
         facts.push(program_variant);
         // Skip num_tasks (index 0) and output_size (index 1); add the task output
         // (program_hash followed by the virtual OS output).
@@ -107,17 +107,17 @@ impl From<Vec<Felt>> for ProgramOutput {
 
 /// Reconstructs the output preimage from proof facts for circuit verification.
 ///
-/// Proof facts layout: `[PROOF_VERSION_V0, variant, program_hash, ...task_output]`
+/// Proof facts layout: `[PROOF_VERSION_V*, variant, program_hash, ...task_output]`
 /// Output preimage layout: `[num_tasks=1, output_size, program_hash, ...task_output]`
 /// where `output_size = task_content.len() + 1` (includes itself).
 pub fn reconstruct_output_preimage(
     proof_facts: &ProofFacts,
 ) -> Result<Vec<Felt>, VerifyProofError> {
-    // Proof facts must contain at least [PROOF_VERSION_V0, variant, program_hash].
+    // Proof facts must contain at least [PROOF_VERSION_V*, variant, program_hash].
     if proof_facts.0.len() < 3 {
         return Err(VerifyProofError::ProofFactsTooShort { length: proof_facts.0.len() });
     }
-    // Skip PROOF_VERSION_V0 (index 0) and variant (index 1).
+    // Skip PROOF_VERSION_V* (index 0) and variant (index 1).
     let task_content = &proof_facts.0[2..];
     let output_size = Felt::from(
         u64::try_from(task_content.len() + 1).expect("task content length exceeds u64::MAX"),
