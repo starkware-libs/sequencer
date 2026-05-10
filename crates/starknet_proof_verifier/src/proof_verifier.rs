@@ -5,7 +5,7 @@ use std::sync::Arc;
 use apollo_sizeof::SizeOf;
 use privacy_circuit_verify::{verify_recursive_circuit, PrivacyProofOutput};
 use serde::{Deserialize, Serialize};
-use starknet_api::transaction::fields::{Proof, ProofFacts, PROOF_VERSION_V0};
+use starknet_api::transaction::fields::{Proof, ProofFacts, ProofVersion};
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
@@ -15,8 +15,15 @@ pub enum VerifyProofError {
     EmptyProof,
     #[error(transparent)]
     ProgramOutputError(#[from] ProgramOutputError),
-    #[error("Invalid proof version: expected {expected}, got {actual}.")]
-    InvalidProofVersion { expected: Felt, actual: Felt },
+    #[error(
+        "Unsupported proof version: got {actual}, expected {v0_felt} ({v0_str}) or {v1_felt} \
+         ({v1_str}).",
+        v0_felt = ProofVersion::V0.as_felt(),
+        v0_str = ProofVersion::V0.as_str(),
+        v1_felt = ProofVersion::V1.as_felt(),
+        v1_str = ProofVersion::V1.as_str(),
+    )]
+    InvalidProofVersion { actual: Felt },
     #[error("Proof facts too short: expected at least 3 elements, got {length}.")]
     ProofFactsTooShort { length: usize },
     #[error("Proof verification failed: {0}")]
@@ -29,9 +36,9 @@ impl PartialEq for VerifyProofError {
             (Self::EmptyProof, Self::EmptyProof) => true,
             (Self::ProgramOutputError(lhs), Self::ProgramOutputError(rhs)) => lhs == rhs,
             (
-                Self::InvalidProofVersion { expected: exp_l, actual: act_l },
-                Self::InvalidProofVersion { expected: exp_r, actual: act_r },
-            ) => exp_l == exp_r && act_l == act_r,
+                Self::InvalidProofVersion { actual: act_l },
+                Self::InvalidProofVersion { actual: act_r },
+            ) => act_l == act_r,
             (Self::Verification(lhs), Self::Verification(rhs)) => lhs == rhs,
             (Self::ProofFactsTooShort { length: l }, Self::ProofFactsTooShort { length: r }) => {
                 l == r
@@ -83,7 +90,7 @@ impl ProgramOutput {
             return Err(ProgramOutputError::TooShort(self.0.len()));
         }
         // Add the proof version and variant markers in place of num_tasks.
-        let mut facts = vec![PROOF_VERSION_V0];
+        let mut facts = vec![ProofVersion::V0.as_felt()];
         facts.push(program_variant);
         // Skip num_tasks (index 0) and output_size (index 1); add the task output
         // (program_hash followed by the virtual OS output).
@@ -119,21 +126,19 @@ pub fn reconstruct_output_preimage(
 }
 
 /// Verifies a submitted proof against the proof facts using the circuit verifier.
+///
+/// Accepts either V0 (legacy) or V1 (current) proof versions. Both currently resolve to the same
+/// upstream circuit revision. When the V1 circuit revision is bumped, V0 verification should be
+/// routed to a `privacy-circuit-verify-legacy` alias pinned to the old revision.
 pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyProofError> {
     // Reject empty proof payloads before running the verifier.
     if proof.is_empty() {
         return Err(VerifyProofError::EmptyProof);
     }
 
-    // Validate that the first element of proof facts is PROOF_VERSION_V0.
-    let expected_proof_version = PROOF_VERSION_V0;
-    let actual_first = proof_facts.0.first().copied().unwrap_or_default();
-    if actual_first != expected_proof_version {
-        return Err(VerifyProofError::InvalidProofVersion {
-            expected: expected_proof_version,
-            actual: actual_first,
-        });
-    }
+    let proof_version_felt = proof_facts.0.first().copied().unwrap_or_default();
+    let _proof_version = ProofVersion::try_from(proof_version_felt)
+        .map_err(|actual| VerifyProofError::InvalidProofVersion { actual })?;
 
     // Reconstruct the output preimage from proof facts and verify the proof.
     let output_preimage = reconstruct_output_preimage(&proof_facts)?;
