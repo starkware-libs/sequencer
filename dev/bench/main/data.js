@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778411604587,
+  "lastUpdate": 1778414221437,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3875,6 +3875,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1258.3143405899998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4eab7a1bb06c07363c8bdcd0f7a6fd24c7dea717",
+          "message": "starknet_api: add and use StateRoots::EMPTY (#13980)",
+          "timestamp": "2026-05-10T11:42:55Z",
+          "tree_id": "94248b523e6bce6838ea24d0508ffcb9b33c4790",
+          "url": "https://github.com/starkware-libs/sequencer/commit/4eab7a1bb06c07363c8bdcd0f7a6fd24c7dea717"
+        },
+        "date": 1778414221105,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 783.0679117799999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1199.08001262,
             "unit": "ms"
           }
         ]
