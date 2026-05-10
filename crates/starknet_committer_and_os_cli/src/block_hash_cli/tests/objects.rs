@@ -213,20 +213,19 @@ fn create_call_info(
     execution: CallExecution,
     inner_calls: Vec<CallInfo>,
 ) -> CallInfo {
-    CallInfo {
+    CallInfo::new(
         call,
         execution,
         inner_calls,
-        resources: create_execution_resources(1000, 0, 10, 5, 3),
-        tracked_resource: blockifier::execution::contract_class::TrackedResource::CairoSteps,
-        storage_access_tracker: Default::default(),
-        builtin_counters: cairo_primitive_counter_map([
+        create_execution_resources(1000, 0, 10, 5, 3),
+        blockifier::execution::contract_class::TrackedResource::CairoSteps,
+        Default::default(),
+        cairo_primitive_counter_map([
             (cairo_vm::types::builtin_name::BuiltinName::range_check, 10),
             (cairo_vm::types::builtin_name::BuiltinName::pedersen, 5),
         ]),
-        syscalls_usage: HashMap::new(),
-        ..Default::default()
-    }
+        HashMap::new(),
+    )
 }
 
 /// Helper function to create [TransactionResources].
