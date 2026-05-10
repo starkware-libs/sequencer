@@ -5,7 +5,7 @@ use std::sync::Arc;
 use apollo_sizeof::SizeOf;
 use privacy_circuit_verify::{verify_recursive_circuit, PrivacyProofOutput};
 use serde::{Deserialize, Serialize};
-use starknet_api::transaction::fields::{Proof, ProofFacts, PROOF_VERSION_V0};
+use starknet_api::transaction::fields::{Proof, ProofFacts, PROOF_VERSION_V0, PROOF_VERSION_V1};
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
@@ -15,8 +15,8 @@ pub enum VerifyProofError {
     EmptyProof,
     #[error(transparent)]
     ProgramOutputError(#[from] ProgramOutputError),
-    #[error("Invalid proof version: expected {expected}, got {actual}.")]
-    InvalidProofVersion { expected: Felt, actual: Felt },
+    #[error("Unsupported proof version: got {actual}, expected V0 ({v0}) or V1 ({v1}).")]
+    InvalidProofVersion { v0: Felt, v1: Felt, actual: Felt },
     #[error("Proof facts too short: expected at least 3 elements, got {length}.")]
     ProofFactsTooShort { length: usize },
     #[error("Proof verification failed: {0}")]
@@ -29,9 +29,9 @@ impl PartialEq for VerifyProofError {
             (Self::EmptyProof, Self::EmptyProof) => true,
             (Self::ProgramOutputError(lhs), Self::ProgramOutputError(rhs)) => lhs == rhs,
             (
-                Self::InvalidProofVersion { expected: exp_l, actual: act_l },
-                Self::InvalidProofVersion { expected: exp_r, actual: act_r },
-            ) => exp_l == exp_r && act_l == act_r,
+                Self::InvalidProofVersion { v0: v0_l, v1: v1_l, actual: act_l },
+                Self::InvalidProofVersion { v0: v0_r, v1: v1_r, actual: act_r },
+            ) => v0_l == v0_r && v1_l == v1_r && act_l == act_r,
             (Self::Verification(lhs), Self::Verification(rhs)) => lhs == rhs,
             (Self::ProofFactsTooShort { length: l }, Self::ProofFactsTooShort { length: r }) => {
                 l == r
@@ -119,19 +119,22 @@ pub fn reconstruct_output_preimage(
 }
 
 /// Verifies a submitted proof against the proof facts using the circuit verifier.
+///
+/// Accepts either V0 (legacy) or V1 (current) proof versions. Both currently resolve to the same
+/// upstream circuit revision. When the V1 circuit revision is bumped, V0 verification should be
+/// routed to a `privacy-circuit-verify-legacy` alias pinned to the old revision.
 pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyProofError> {
     // Reject empty proof payloads before running the verifier.
     if proof.is_empty() {
         return Err(VerifyProofError::EmptyProof);
     }
 
-    // Validate that the first element of proof facts is PROOF_VERSION_V0.
-    let expected_proof_version = PROOF_VERSION_V0;
-    let actual_first = proof_facts.0.first().copied().unwrap_or_default();
-    if actual_first != expected_proof_version {
+    let proof_version = proof_facts.0.first().copied().unwrap_or_default();
+    if proof_version != PROOF_VERSION_V0 && proof_version != PROOF_VERSION_V1 {
         return Err(VerifyProofError::InvalidProofVersion {
-            expected: expected_proof_version,
-            actual: actual_first,
+            v0: PROOF_VERSION_V0,
+            v1: PROOF_VERSION_V1,
+            actual: proof_version,
         });
     }
 
