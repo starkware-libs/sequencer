@@ -67,7 +67,7 @@ blockifier_test_utils.workspace = true
 flate2.workspace = true
 jsonschema.workspace = true
 mockito.workspace = true
-privacy-circuit-verify.workspace = true
+privacy-circuit-verify-v1.workspace = true
 reqwest.workspace = true
 rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
