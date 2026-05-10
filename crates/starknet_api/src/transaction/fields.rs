@@ -14,6 +14,10 @@ use crate::hash::StarkHash;
 use crate::serde_utils::PrefixedBytesAsHex;
 use crate::{StarknetApiError, StarknetApiResult};
 
+#[cfg(test)]
+#[path = "fields_test.rs"]
+mod fields_test;
+
 pub const HIGH_GAS_AMOUNT: u64 = 10000000000; // A high gas amount that should be enough for execution.
 
 /// A fee.
@@ -633,6 +637,54 @@ pub const VIRTUAL_SNOS: Felt = Felt::from_hex_unchecked("0x5649525455414c5f534e4
 // Represent the `PROOF_VERSION_V0` marker as a Felt ('PROOF0').
 pub const PROOF_VERSION_V0: Felt = Felt::from_hex_unchecked("0x50524f4f4630");
 
+// Represent the `PROOF_VERSION_V1` marker as a Felt ('PROOF1').
+pub const PROOF_VERSION_V1: Felt = Felt::from_hex_unchecked("0x50524f4f4631");
+
+/// Supported proof-facts version markers.
+#[cfg_attr(any(test, feature = "testing"), derive(EnumIter))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ProofVersion {
+    V0,
+    V1,
+}
+
+impl ProofVersion {
+    /// Felt (Cairo short-string) representation written into proof facts.
+    pub const fn as_felt(self) -> Felt {
+        match self {
+            ProofVersion::V0 => PROOF_VERSION_V0,
+            ProofVersion::V1 => PROOF_VERSION_V1,
+        }
+    }
+
+    /// Human-readable short-string label (matches the Cairo constant value).
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            ProofVersion::V0 => "PROOF0",
+            ProofVersion::V1 => "PROOF1",
+        }
+    }
+}
+
+impl TryFrom<Felt> for ProofVersion {
+    type Error = ();
+    fn try_from(value: Felt) -> Result<Self, Self::Error> {
+        if value == PROOF_VERSION_V0 {
+            Ok(ProofVersion::V0)
+        } else if value == PROOF_VERSION_V1 {
+            Ok(ProofVersion::V1)
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl fmt::Display for ProofVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} ({})", self.as_felt(), self.as_str())
+    }
+}
+
 /// The version of the virtual OS output (short string 'VIRTUAL_SNOS0').
 /// This must match the Cairo constant `VIRTUAL_OS_OUTPUT_VERSION` in `virtual_os_output.cairo`.
 pub const VIRTUAL_OS_OUTPUT_VERSION: Felt =
@@ -681,13 +733,15 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
             )));
         };
 
-        // Validate that the first element is PROOF_VERSION_V0.
-        if *proof_version != PROOF_VERSION_V0 {
-            return Err(StarknetApiError::InvalidProofFacts(format!(
-                "Expected first field to be {} (PROOF_VERSION_V0), but got {}",
-                PROOF_VERSION_V0, proof_version
-            )));
-        }
+        // Validate that the first element is a supported proof version marker.
+        let proof_version = ProofVersion::try_from(*proof_version).map_err(|()| {
+            StarknetApiError::InvalidProofFacts(format!(
+                "Expected first field to be {} or {}, but got {}",
+                ProofVersion::V0,
+                ProofVersion::V1,
+                proof_version,
+            ))
+        })?;
 
         // Validate that the second element is VIRTUAL_SNOS.
         if *variant_marker != VIRTUAL_SNOS {
@@ -725,7 +779,7 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
         })?);
 
         Ok(ProofFactsVariant::Snos(SnosProofFacts {
-            proof_version: *proof_version,
+            proof_version,
             program_hash: *program_hash,
             block_number,
             block_hash: BlockHash(*block_hash),
@@ -738,7 +792,7 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
 ///
 /// A valid SNOS proof facts structure must include these fields as its first five entries.
 pub struct SnosProofFacts {
-    pub proof_version: Felt,
+    pub proof_version: ProofVersion,
     pub program_hash: StarkHash,
     pub block_number: BlockNumber,
     pub block_hash: BlockHash,
