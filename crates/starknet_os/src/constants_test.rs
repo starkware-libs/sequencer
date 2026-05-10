@@ -10,6 +10,7 @@ use starknet_api::core::{
 };
 use starknet_api::transaction::fields::{
     PROOF_VERSION_V0,
+    PROOF_VERSION_V1,
     VIRTUAL_OS_OUTPUT_VERSION,
     VIRTUAL_SNOS,
 };
@@ -82,10 +83,12 @@ fn test_virtual_snos() {
     assert_eq!(Const::VirtualSnos.fetch_from_os_program().unwrap(), VIRTUAL_SNOS);
 }
 
-/// Asserts that the Rust PROOF_VERSION_V0 constant matches the Cairo constant.
+/// Asserts that the Rust PROOF_VERSION_V0 and PROOF_VERSION_V1 constants match their Cairo
+/// counterparts.
 #[test]
 fn test_proof_version() {
-    assert_eq!(Const::ProofVersion.fetch_from_os_program().unwrap(), PROOF_VERSION_V0);
+    assert_eq!(Const::ProofVersionV0.fetch_from_os_program().unwrap(), PROOF_VERSION_V0);
+    assert_eq!(Const::ProofVersionV1.fetch_from_os_program().unwrap(), PROOF_VERSION_V1);
 }
 
 /// Asserts that the Rust STARKNET_OS_CONFIG_HASH_VERSION constant matches the Cairo constant.
