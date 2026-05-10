@@ -2,7 +2,10 @@
 const VIRTUAL_SNOS = 'VIRTUAL_SNOS';
 
 // Marker indicating proof facts format version 0.
-const PROOF_VERSION = 'PROOF0';
+const PROOF_VERSION_V0 = 'PROOF0';
+
+// Marker indicating proof facts format version 1.
+const PROOF_VERSION_V1 = 'PROOF1';
 
 // The version of the virtual OS output.
 //
