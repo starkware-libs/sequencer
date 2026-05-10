@@ -462,6 +462,32 @@ pub struct CallInfo {
 }
 
 impl CallInfo {
+    /// Utility method to create an instance with a default Self::time field, if it exists.
+    #[expect(clippy::too_many_arguments)]
+    pub fn new(
+        call: CallEntryPoint,
+        execution: CallExecution,
+        inner_calls: Vec<CallInfo>,
+        resources: ExtendedExecutionResources,
+        tracked_resource: TrackedResource,
+        storage_access_tracker: StorageAccessTracker,
+        builtin_counters: CairoPrimitiveCounterMap,
+        syscalls_usage: SyscallUsageMap,
+    ) -> Self {
+        Self {
+            call,
+            execution,
+            inner_calls,
+            resources,
+            tracked_resource,
+            storage_access_tracker,
+            builtin_counters,
+            syscalls_usage,
+            #[cfg(feature = "benchmarking")]
+            time: Default::default(),
+        }
+    }
+
     pub fn iter(&self) -> CallInfoIter<'_> {
         let call_infos = vec![self];
         CallInfoIter { call_infos }
