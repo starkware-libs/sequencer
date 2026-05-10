@@ -18,6 +18,7 @@ jobs:
   # https://graphite.com/docs/stacking-and-ci
   optimize_ci:
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     outputs:
       skip: ${{ steps.check_skip.outputs.skip }}
     steps:
@@ -31,6 +32,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: optimize_ci
     if: needs.optimize_ci.outputs.skip == 'false'
+    timeout-minutes: 60
     env:
       cluster: test
       namespace: test
@@ -87,6 +89,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [prepare, optimize_ci]
     if: success() && needs.optimize_ci.outputs.skip == 'false'
+    timeout-minutes: 60
     env:
       dist1_path: ./cdk8s-artifacts/dist1
       dist2_path: ./cdk8s-artifacts/dist2
@@ -119,6 +122,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: optimize_ci
     if: needs.optimize_ci.outputs.skip == 'false'
+    timeout-minutes: 60
     strategy:
       matrix:
         service: [anvil, dummy_eth2strk_oracle, dummy_recorder]
@@ -166,6 +170,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [prepare-dummy-services, optimize_ci]
     if: success() && needs.optimize_ci.outputs.skip == 'false'
+    timeout-minutes: 60
     strategy:
       matrix:
         service: [anvil, dummy_eth2strk_oracle, dummy_recorder]

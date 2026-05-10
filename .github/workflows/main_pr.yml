@@ -24,6 +24,7 @@ concurrency:
 jobs:
   commitlint:
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
         with:
@@ -69,6 +70,7 @@ jobs:
 
   merge-gatekeeper:
     runs-on: ubuntu-24.04
+    timeout-minutes: 75
     # Restrict permissions of the GITHUB_TOKEN.
     # Docs: https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
     permissions:

@@ -30,6 +30,7 @@ concurrency:
 jobs:
   integration-test:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -44,6 +45,7 @@ jobs:
 
   random-table-test:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       # run this job only if the path 'crates/apollo_storage/src/db/**' is changed, because it takes around 2 minutes.
