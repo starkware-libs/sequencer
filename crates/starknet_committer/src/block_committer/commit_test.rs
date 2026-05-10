@@ -88,7 +88,7 @@ async fn test_commit_two_consecutive_blocks_facts_layout(
 ) {
     test_commit_two_consecutive_blocks::<FactsDb<MapStorage>>(
         FactsDb::new,
-        FactsDbInitialRead(StateRoots::default()),
+        FactsDbInitialRead(StateRoots::EMPTY),
         state_diffs,
         expected_roots,
     )

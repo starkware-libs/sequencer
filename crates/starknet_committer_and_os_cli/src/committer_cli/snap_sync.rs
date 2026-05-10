@@ -455,7 +455,7 @@ pub async fn run_snap_sync(
             committer_config.db_path,
             committer_config.storage_config,
         )),
-        state_roots: StateRoots::default(),
+        state_roots: StateRoots::EMPTY,
         num_commits: 0,
     }));
 
