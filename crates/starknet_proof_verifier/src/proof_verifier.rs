@@ -3,7 +3,6 @@
 use std::sync::Arc;
 
 use apollo_sizeof::SizeOf;
-use privacy_circuit_verify::{verify_recursive_circuit, PrivacyProofOutput};
 use serde::{Deserialize, Serialize};
 use starknet_api::transaction::fields::{Proof, ProofFacts, ProofVersion};
 use starknet_types_core::felt::Felt;
@@ -124,9 +123,9 @@ pub fn reconstruct_output_preimage(
 
 /// Verifies a submitted proof against the proof facts using the circuit verifier.
 ///
-/// Accepts either V0 (legacy) or V1 (current) proof versions. Both currently resolve to the same
-/// upstream circuit revision. When the V1 circuit revision is bumped, V0 verification should be
-/// routed to a `privacy-circuit-verify-legacy` alias pinned to the old revision.
+/// Dispatches on the first element of `proof_facts`:
+/// - V0 → `privacy-circuit-verify-legacy` (pinned to the previous upstream revision).
+/// - V1 → `privacy-circuit-verify` (current upstream revision).
 pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyProofError> {
     // Reject empty proof payloads before running the verifier.
     if proof.is_empty() {
@@ -134,15 +133,29 @@ pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyP
     }
 
     let proof_version_felt = proof_facts.proof_version_felt();
-    let _proof_version = ProofVersion::try_from(proof_version_felt)
+    let proof_version = ProofVersion::try_from(proof_version_felt)
         .map_err(|()| VerifyProofError::InvalidProofVersion { actual: proof_version_felt })?;
 
-    // Reconstruct the output preimage from proof facts and verify the proof.
     let output_preimage = reconstruct_output_preimage(&proof_facts)?;
     // TODO(Avi): Avoid cloning the proof.
-    let proof_output = PrivacyProofOutput { proof: proof.0.to_vec(), output_preimage };
-    verify_recursive_circuit(&proof_output)
-        .map_err(|e| VerifyProofError::Verification(e.to_string()))?;
+    let proof_bytes = proof.0.to_vec();
+
+    match proof_version {
+        ProofVersion::V0 => {
+            let proof_output = privacy_circuit_verify_legacy::PrivacyProofOutput {
+                proof: proof_bytes,
+                output_preimage,
+            };
+            privacy_circuit_verify_legacy::verify_recursive_circuit(&proof_output)
+                .map_err(|e| VerifyProofError::Verification(e.to_string()))?;
+        }
+        ProofVersion::V1 => {
+            let proof_output =
+                privacy_circuit_verify::PrivacyProofOutput { proof: proof_bytes, output_preimage };
+            privacy_circuit_verify::verify_recursive_circuit(&proof_output)
+                .map_err(|e| VerifyProofError::Verification(e.to_string()))?;
+        }
+    }
 
     Ok(())
 }
