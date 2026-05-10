@@ -633,6 +633,9 @@ pub const VIRTUAL_SNOS: Felt = Felt::from_hex_unchecked("0x5649525455414c5f534e4
 // Represent the `PROOF_VERSION_V0` marker as a Felt ('PROOF0').
 pub const PROOF_VERSION_V0: Felt = Felt::from_hex_unchecked("0x50524f4f4630");
 
+// Represent the `PROOF_VERSION_V1` marker as a Felt ('PROOF1').
+pub const PROOF_VERSION_V1: Felt = Felt::from_hex_unchecked("0x50524f4f4631");
+
 /// The version of the virtual OS output (short string 'VIRTUAL_SNOS0').
 /// This must match the Cairo constant `VIRTUAL_OS_OUTPUT_VERSION` in `virtual_os_output.cairo`.
 pub const VIRTUAL_OS_OUTPUT_VERSION: Felt =
@@ -681,11 +684,12 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
             )));
         };
 
-        // Validate that the first element is PROOF_VERSION_V0.
-        if *proof_version != PROOF_VERSION_V0 {
+        // Validate that the first element is a supported PROOF_VERSION marker.
+        if *proof_version != PROOF_VERSION_V0 && *proof_version != PROOF_VERSION_V1 {
             return Err(StarknetApiError::InvalidProofFacts(format!(
-                "Expected first field to be {} (PROOF_VERSION_V0), but got {}",
-                PROOF_VERSION_V0, proof_version
+                "Expected first field to be {} (PROOF_VERSION_V0) or {} (PROOF_VERSION_V1), but \
+                 got {}",
+                PROOF_VERSION_V0, PROOF_VERSION_V1, proof_version
             )));
         }
 
@@ -813,5 +817,43 @@ impl From<Vec<u8>> for Proof {
 impl Proof {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+
+    use super::*;
+
+    fn snos_proof_facts(proof_version: Felt) -> ProofFacts {
+        ProofFacts(Arc::new(vec![
+            proof_version,
+            VIRTUAL_SNOS,
+            Felt::from(0xABCD_u64),
+            VIRTUAL_OS_OUTPUT_VERSION,
+            Felt::from(0_u64),
+            Felt::from(0xBEEF_u64),
+            Felt::from(0xC0FFEE_u64),
+        ]))
+    }
+
+    #[rstest]
+    #[case::v0(PROOF_VERSION_V0)]
+    #[case::v1(PROOF_VERSION_V1)]
+    fn proof_facts_variant_accepts_supported_versions(#[case] version: Felt) {
+        let variant = ProofFactsVariant::try_from(&snos_proof_facts(version))
+            .expect("supported version should parse");
+        match variant {
+            ProofFactsVariant::Snos(snos) => assert_eq!(snos.proof_version, version),
+            ProofFactsVariant::Empty => panic!("expected Snos variant"),
+        }
+    }
+
+    #[test]
+    fn proof_facts_variant_rejects_unknown_version() {
+        let result =
+            ProofFactsVariant::try_from(&snos_proof_facts(Felt::from_hex_unchecked("0xDEAD")));
+        assert!(matches!(result, Err(StarknetApiError::InvalidProofFacts(_))));
     }
 }
