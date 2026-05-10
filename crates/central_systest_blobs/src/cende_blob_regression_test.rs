@@ -20,6 +20,7 @@ use apollo_consensus_orchestrator::cende::{
 };
 use apollo_consensus_orchestrator::fee_market::FeeMarketInfo;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use apollo_starknet_os_program::PROGRAM_HASHES;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
@@ -99,6 +100,9 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     Tip,
     TransactionSignature,
+    PROOF_VERSION,
+    VIRTUAL_OS_OUTPUT_VERSION,
+    VIRTUAL_SNOS,
 };
 use starknet_api::transaction::{
     CalculateContractAddress,
@@ -110,7 +114,7 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionVersion,
 };
-use starknet_api::{calldata, contract_address};
+use starknet_api::{calldata, contract_address, proof_facts};
 use starknet_committer::block_committer::input::StateDiff;
 use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::db::forest_trait::StorageInitializer;
@@ -595,6 +599,46 @@ impl BlobFactory {
         with_fee_charge: bool,
         should_revert: bool,
     ) {
+        self.make_operator_invoke_tx_with_proof(
+            address,
+            function_name,
+            calldata,
+            with_fee_charge,
+            should_revert,
+            ProofFacts::default(),
+        )
+    }
+
+    /// Same as [Self::make_operator_invoke_tx], but with virtual SNOS proof facts.
+    fn make_operator_proof_tx(
+        &mut self,
+        address: ContractAddress,
+        function_name: &str,
+        calldata: &[Felt],
+        with_fee_charge: bool,
+        should_revert: bool,
+    ) {
+        self.make_operator_invoke_tx_with_proof(
+            address,
+            function_name,
+            calldata,
+            with_fee_charge,
+            should_revert,
+            self.make_snos_proof_facts(),
+        );
+    }
+
+    /// Utility method to share code between invokes with and without proofs. Should not be called
+    /// directly, use [Self::make_operator_invoke_tx] or [Self::make_operator_proof_tx] instead.
+    fn make_operator_invoke_tx_with_proof(
+        &mut self,
+        address: ContractAddress,
+        function_name: &str,
+        calldata: &[Felt],
+        with_fee_charge: bool,
+        should_revert: bool,
+        proof_facts: ProofFacts,
+    ) {
         let nonce = self.nonce_manager.next(*OPERATOR_ADDRESS);
         let resource_bounds = if with_fee_charge {
             *NON_TRIVIAL_RESOURCE_BOUNDS
@@ -613,7 +657,7 @@ impl BlobFactory {
             fee_data_availability_mode: DataAvailabilityMode::L1,
             account_deployment_data: AccountDeploymentData::default(),
             paymaster_data: PaymasterData::default(),
-            proof_facts: ProofFacts::default(),
+            proof_facts,
         };
         let tx_hash = rpc_tx_unsigned
             .calculate_transaction_hash(&CHAIN_ID, &TransactionVersion::THREE)
@@ -630,6 +674,37 @@ impl BlobFactory {
             tx_hash,
         });
         self.next_txs.push(TxData { executable: executable.into(), internal, should_revert });
+    }
+
+    /// Constructs valid SNOS proof facts referencing the hash of the retrospective block.
+    fn make_snos_proof_facts(&self) -> ProofFacts {
+        let block_context = self.next_block_context();
+        let retrospective_block_number = block_context
+            .block_info()
+            .block_number
+            .0
+            .checked_sub(STORED_BLOCK_HASH_BUFFER)
+            .unwrap_or_else(|| {
+                panic!(
+                    "The current block number must be at least {STORED_BLOCK_HASH_BUFFER} blocks \
+                     ahead of the first block."
+                )
+            });
+        let retrospective_block_hash =
+            self.blocks[usize::try_from(retrospective_block_number).unwrap()].block_hash;
+        let config_hash = OsChainInfo::from(&self.chain_info)
+            .compute_virtual_os_config_hash()
+            .expect("Failed to compute virtual OS config hash");
+        proof_facts![
+            PROOF_VERSION,
+            VIRTUAL_SNOS,
+            PROGRAM_HASHES.virtual_os,
+            VIRTUAL_OS_OUTPUT_VERSION,
+            Felt::from(retrospective_block_number),
+            retrospective_block_hash.0,
+            config_hash,
+            Felt::ZERO, // l2_to_l1_messages_segment_size
+        ]
     }
 
     fn make_operator_deploy_tx(
@@ -953,6 +1028,14 @@ async fn test_make_data() {
         test_contract_address_1,
         "write_1",
         &[Felt::TWO],
+        true,  // charge fee
+        false, // should not revert
+    );
+    blob_factory.close_block().await;
+    blob_factory.make_operator_proof_tx(
+        test_contract_address_0,
+        "test_storage_read_write",
+        &[Felt::from(0x4000u32), Felt::from(0x4000u32)],
         true,  // charge fee
         false, // should not revert
     );
