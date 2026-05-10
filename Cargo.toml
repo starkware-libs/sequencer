@@ -334,8 +334,9 @@ paste = "1.0.15"
 phf = "0.11"
 pretty_assertions = "1.4.0"
 primitive-types = "0.12.1"
-privacy-circuit-verify = { git = "https://github.com/starkware-libs/proving-utils", rev = "580135e" }
-privacy-prove = { git = "https://github.com/starkware-libs/proving-utils", rev = "580135e" }
+privacy-circuit-verify-v0 = { package = "privacy-circuit-verify", git = "https://github.com/starkware-libs/proving-utils", rev = "580135e" }
+privacy-circuit-verify-v1 = { package = "privacy-circuit-verify", git = "https://github.com/Yoni-Starkware/proving-utils", rev = "95bc227" }
+privacy-prove = { git = "https://github.com/Yoni-Starkware/proving-utils", rev = "95bc227" }
 proc-macro2 = "1.0"
 prometheus-parse = "0.2.4"
 prost = "0.12.1"
