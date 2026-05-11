@@ -69,7 +69,7 @@ ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
 
 # Install cairo-lang package for cairo-compile tool.
 # This is the minimum required for building starknet_transaction_prover.
-ARG CAIRO_LANG_VERSION=0.14.1a0
+ARG CAIRO_LANG_VERSION=0.14.3a1
 RUN pip install --no-cache-dir cairo-lang==${CAIRO_LANG_VERSION}
 
 # =============================================================================

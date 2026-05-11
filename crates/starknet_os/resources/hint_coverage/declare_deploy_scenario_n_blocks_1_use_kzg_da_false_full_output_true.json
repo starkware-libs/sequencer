@@ -99,9 +99,6 @@
     "StatelessHint": "SetStateUpdatesStart"
   },
   {
-    "StatelessHint": "SetSiblings"
-  },
-  {
     "StatelessHint": "IsCaseRight"
   },
   {
