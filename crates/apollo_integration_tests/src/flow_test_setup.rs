@@ -61,7 +61,7 @@ use tokio::sync::Mutex;
 use tracing::{debug, instrument, Instrument};
 use url::Url;
 
-use crate::state_reader::{StorageTestHandles, StorageTestSetup};
+use crate::state_reader::{PresetTestContracts, StorageTestHandles, StorageTestSetup};
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
     create_mempool_p2p_configs,
@@ -269,7 +269,7 @@ impl FlowSequencerSetup {
     ) -> Self {
         let path = None;
         let StorageTestSetup { storage_config, storage_handles } =
-            StorageTestSetup::new(accounts, &chain_info, path);
+            StorageTestSetup::new(accounts, &chain_info, path, PresetTestContracts::new(), None);
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
@@ -316,7 +316,12 @@ impl FlowSequencerSetup {
             block_max_capacity_gas,
             validator_id,
             allow_bootstrap_txs,
+<<<<<<< HEAD
             validation_only,
+||||||| d3164c73ef
+=======
+            true,
+>>>>>>> origin/main-v0.14.2
         );
         let num_l1_txs = u64::try_from(NUM_L1_TRANSACTIONS).unwrap();
         node_config.l1_gas_price_scraper_config.as_mut().unwrap().number_of_blocks_for_mean =
