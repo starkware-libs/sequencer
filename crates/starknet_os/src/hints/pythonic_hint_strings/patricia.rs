@@ -27,8 +27,6 @@ for i in range(ids.length - 1, -1, -1):
     new_node = new_node[(ids.word >> i) & 1]
 vm_enter_scope(dict(node=new_node, **common_args))"#};
 
-pub(crate) const SET_SIBLINGS: &str = "memory[ids.siblings], ids.word = descend";
-
 pub(crate) const IS_CASE_RIGHT: &str = "memory[ap] = int(case == 'right') ^ ids.bit";
 
 pub(crate) const SET_AP_TO_DESCEND: &str = indoc! {r#"
