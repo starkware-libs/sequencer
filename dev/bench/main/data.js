@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778414221437,
+  "lastUpdate": 1778482961137,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3909,6 +3909,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1199.08001262,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0031934478d123b6354f52ed7142080e49391309",
+          "message": "ci: add 60-minute timeout to all PR-triggered jobs (#14010)",
+          "timestamp": "2026-05-11T06:47:01Z",
+          "tree_id": "256adf3007a5e42af88e4190c064ef933123b086",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0031934478d123b6354f52ed7142080e49391309"
+        },
+        "date": 1778482960743,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 901.80797777,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1393.12856554,
             "unit": "ms"
           }
         ]
