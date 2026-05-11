@@ -250,7 +250,7 @@ impl CasmV2HashResourceEstimate {
 
     // Base number of VM steps applied when the input to Blake hashing is empty.
     // Determined empirically by running `encode_felt252_data_and_calc_blake_hash` on empty input.
-    pub(crate) const STEPS_EMPTY_INPUT: usize = 170;
+    pub(crate) const STEPS_EMPTY_INPUT: usize = 168;
 
     /// Estimates the number of VM steps required to hash the given felts with Blake in Starknet OS.
     ///
@@ -264,13 +264,13 @@ impl CasmV2HashResourceEstimate {
         // The constants used are empirical, based on running
         // `encode_felt252_data_and_calc_blake_hash` on combinations of large and small
         // felts. VM steps per large felt.
-        const STEPS_PER_LARGE_FELT: usize = 45;
+        const STEPS_PER_LARGE_FELT: usize = 38;
         // VM steps per small felt.
         const STEPS_PER_SMALL_FELT: usize = 15;
         // Base overhead when input exactly fills a 16-u32 Blake message.
-        const BASE_STEPS_FULL_MSG: usize = 217;
+        const BASE_STEPS_FULL_MSG: usize = 117;
         // Base overhead when the input leaves a remainder (< 16 u32s) for a Blake message.
-        const BASE_STEPS_PARTIAL_MSG: usize = 195;
+        const BASE_STEPS_PARTIAL_MSG: usize = 193;
         // Extra VM steps added per 2-u32 remainder in partial Blake messages.
         const STEPS_PER_2_U32_REMINDER: usize = 3;
 
