@@ -161,7 +161,6 @@ use crate::hints::hint_implementation::patricia::implementation::{
     prepare_preimage_validation_non_deterministic_hashes,
     set_ap_to_descend,
     set_bit,
-    set_siblings,
     split_descend,
     write_case_not_left_to_ap,
 };
@@ -267,7 +266,6 @@ use crate::hints::pythonic_hint_strings::patricia::{
     PREPARE_PREIMAGE_VALIDATION_NON_DETERMINISTIC_HASHES,
     SET_AP_TO_DESCEND,
     SET_BIT,
-    SET_SIBLINGS,
     SPLIT_DESCEND,
     WRITE_CASE_NOT_LEFT_TO_AP,
 };
@@ -433,7 +431,6 @@ define_stateless_hint_enum!(
     (SetCompressedStart, set_compressed_start),
     (SetEncryptedStart, set_encrypted_start),
     (SetNUpdatesSmall, set_n_updates_small),
-    (SetSiblings, set_siblings, SET_SIBLINGS),
     (IsCaseRight, is_case_right, IS_CASE_RIGHT),
     (SetApToDescend, set_ap_to_descend, SET_AP_TO_DESCEND),
     (AssertCaseIsRight, assert_case_is_right, ASSERT_CASE_IS_RIGHT),
