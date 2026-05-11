@@ -23,6 +23,7 @@ jobs:
   # https://graphite.com/docs/stacking-and-ci
   optimize_ci:
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     outputs:
       skip: ${{ steps.check_skip.outputs.skip || steps.manual_run.outputs.skip }}
     steps:
