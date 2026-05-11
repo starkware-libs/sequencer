@@ -5,7 +5,7 @@ use std::sync::Arc;
 use apollo_sizeof::SizeOf;
 use privacy_circuit_verify::{verify_recursive_circuit, PrivacyProofOutput};
 use serde::{Deserialize, Serialize};
-use starknet_api::transaction::fields::{Proof, ProofFacts, PROOF_VERSION};
+use starknet_api::transaction::fields::{Proof, ProofFacts, PROOF_VERSION_V0};
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
@@ -68,7 +68,7 @@ impl ProgramOutput {
     /// The bootloader output for a single task is:
     ///   `[num_tasks, output_size, program_hash, ...task_output...]`
     ///
-    /// We replace `num_tasks` with `[PROOF_VERSION, program_variant]` and skip `output_size`,
+    /// We replace `num_tasks` with `[PROOF_VERSION_V0, program_variant]` and skip `output_size`,
     /// which is a bootloader-internal field not part of the proof facts.
     pub fn try_into_proof_facts(
         &self,
@@ -83,7 +83,7 @@ impl ProgramOutput {
             return Err(ProgramOutputError::TooShort(self.0.len()));
         }
         // Add the proof version and variant markers in place of num_tasks.
-        let mut facts = vec![PROOF_VERSION];
+        let mut facts = vec![PROOF_VERSION_V0];
         facts.push(program_variant);
         // Skip num_tasks (index 0) and output_size (index 1); add the task output
         // (program_hash followed by the virtual OS output).
@@ -100,17 +100,17 @@ impl From<Vec<Felt>> for ProgramOutput {
 
 /// Reconstructs the output preimage from proof facts for circuit verification.
 ///
-/// Proof facts layout: `[PROOF_VERSION, variant, program_hash, ...task_output]`
+/// Proof facts layout: `[PROOF_VERSION_V0, variant, program_hash, ...task_output]`
 /// Output preimage layout: `[num_tasks=1, output_size, program_hash, ...task_output]`
 /// where `output_size = task_content.len() + 1` (includes itself).
 pub fn reconstruct_output_preimage(
     proof_facts: &ProofFacts,
 ) -> Result<Vec<Felt>, VerifyProofError> {
-    // Proof facts must contain at least [PROOF_VERSION, variant, program_hash].
+    // Proof facts must contain at least [PROOF_VERSION_V0, variant, program_hash].
     if proof_facts.0.len() < 3 {
         return Err(VerifyProofError::ProofFactsTooShort { length: proof_facts.0.len() });
     }
-    // Skip PROOF_VERSION (index 0) and variant (index 1).
+    // Skip PROOF_VERSION_V0 (index 0) and variant (index 1).
     let task_content = &proof_facts.0[2..];
     let output_size = Felt::from(
         u64::try_from(task_content.len() + 1).expect("task content length exceeds u64::MAX"),
@@ -125,8 +125,8 @@ pub fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyP
         return Err(VerifyProofError::EmptyProof);
     }
 
-    // Validate that the first element of proof facts is PROOF_VERSION.
-    let expected_proof_version = PROOF_VERSION;
+    // Validate that the first element of proof facts is PROOF_VERSION_V0.
+    let expected_proof_version = PROOF_VERSION_V0;
     let actual_first = proof_facts.0.first().copied().unwrap_or_default();
     if actual_first != expected_proof_version {
         return Err(VerifyProofError::InvalidProofVersion {

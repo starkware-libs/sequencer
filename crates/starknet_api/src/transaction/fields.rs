@@ -630,8 +630,8 @@ impl AccountDeploymentData {
 // Represent the string `VIRTUAL_SNOS` as a Felt.
 pub const VIRTUAL_SNOS: Felt = Felt::from_hex_unchecked("0x5649525455414c5f534e4f53");
 
-// Represent the `PROOF_VERSION` marker as a Felt ('PROOF0').
-pub const PROOF_VERSION: Felt = Felt::from_hex_unchecked("0x50524f4f4630");
+// Represent the `PROOF_VERSION_V0` marker as a Felt ('PROOF0').
+pub const PROOF_VERSION_V0: Felt = Felt::from_hex_unchecked("0x50524f4f4630");
 
 /// The version of the virtual OS output (short string 'VIRTUAL_SNOS0').
 /// This must match the Cairo constant `VIRTUAL_OS_OUTPUT_VERSION` in `virtual_os_output.cairo`.
@@ -681,11 +681,11 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
             )));
         };
 
-        // Validate that the first element is PROOF_VERSION.
-        if *proof_version != PROOF_VERSION {
+        // Validate that the first element is PROOF_VERSION_V0.
+        if *proof_version != PROOF_VERSION_V0 {
             return Err(StarknetApiError::InvalidProofFacts(format!(
-                "Expected first field to be {} (PROOF_VERSION), but got {}",
-                PROOF_VERSION, proof_version
+                "Expected first field to be {} (PROOF_VERSION_V0), but got {}",
+                PROOF_VERSION_V0, proof_version
             )));
         }
 
