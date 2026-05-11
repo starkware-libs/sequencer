@@ -6,9 +6,12 @@ use apollo_class_manager::{ClassStorage, FsClassStorage};
 use apollo_class_manager_config::config::FsClassStorageConfig;
 use apollo_proof_manager::test_utils::FsProofStorageBuilderForTesting;
 use apollo_proof_manager_config::config::ProofManagerConfig;
+use apollo_storage::block_hash::BlockHashStorageWriter;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::compiled_class::CasmStorageWriter;
+use apollo_storage::global_root::GlobalRootStorageWriter;
+use apollo_storage::global_root_marker::GlobalRootMarkerStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::StateStorageWriter;
@@ -24,6 +27,7 @@ use mempool_test_utils::starknet_api_test_utils::{AccountTransactionGenerator, C
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{
     BlockBody,
+    BlockHash,
     BlockHeader,
     BlockHeaderWithoutHash,
     BlockNumber,
@@ -32,6 +36,7 @@ use starknet_api::block::{
     GasPricePerToken,
 };
 use starknet_api::block_hash::block_hash_calculator::{
+    calculate_block_hash,
     BlockHeaderCommitments,
     PartialBlockHashComponents,
 };
@@ -42,6 +47,7 @@ use starknet_api::core::{
     ClassHash,
     ContractAddress,
     EventCommitment,
+    GlobalRoot,
     Nonce,
     ReceiptCommitment,
     SequencerContractAddress,
@@ -67,6 +73,7 @@ use strum::IntoEnumIterator;
 use tempfile::TempDir;
 
 use crate::storage::StorageExecutablePaths;
+use crate::utils::seed_committer_offset;
 
 pub type TempDirHandlePair = (TempDir, TempDir);
 type ContractClassesMap = (
@@ -154,8 +161,9 @@ impl StorageTestSetup {
         test_defined_accounts: Vec<AccountTransactionGenerator>,
         chain_info: &ChainInfo,
         storage_exec_paths: Option<StorageExecutablePaths>,
+        preset_test_contracts: PresetTestContracts,
+        initial_state_diff_commitment: Option<StateDiffCommitment>,
     ) -> Self {
-        let preset_test_contracts = PresetTestContracts::new();
         // TODO(yair): Avoid cloning.
         let classes = TestClasses::new(&test_defined_accounts, preset_test_contracts.clone());
 
@@ -172,6 +180,7 @@ impl StorageTestSetup {
             &test_defined_accounts,
             preset_test_contracts.clone(),
             &classes,
+            initial_state_diff_commitment,
         );
 
         let state_sync_db_path =
@@ -190,6 +199,7 @@ impl StorageTestSetup {
             &test_defined_accounts,
             preset_test_contracts,
             &classes,
+            initial_state_diff_commitment,
         );
 
         let fs_class_storage_db_path =
@@ -232,6 +242,17 @@ impl StorageTestSetup {
             storage_exec_paths.as_ref().map(|p| p.get_committer_path_with_db_suffix());
         let (committer_db_path, committer_storage_handle) =
             create_dir_for_testing(committer_db_path);
+        if initial_state_diff_commitment.is_some() {
+            let seed_db_path = committer_db_path.clone();
+            std::thread::spawn(move || {
+                tokio::runtime::Builder::new_current_thread()
+                    .build()
+                    .unwrap()
+                    .block_on(seed_committer_offset(seed_db_path, BlockNumber(1)));
+            })
+            .join()
+            .unwrap();
+        }
         Self {
             storage_config: StorageTestConfig::new(
                 batcher_storage_config,
@@ -254,9 +275,15 @@ impl StorageTestSetup {
 }
 
 #[derive(Clone)]
-struct PresetTestContracts {
+pub struct PresetTestContracts {
     pub default_test_contracts: Vec<Contract>,
     pub erc20_contract: Contract,
+}
+
+impl Default for PresetTestContracts {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PresetTestContracts {
@@ -336,10 +363,21 @@ fn initialize_papyrus_test_state(
     test_defined_accounts: &[AccountTransactionGenerator],
     preset_test_contracts: PresetTestContracts,
     classes: &TestClasses,
+    initial_state_diff_commitment: Option<StateDiffCommitment>,
 ) {
     let state_diff = prepare_state_diff(chain_info, test_defined_accounts, &preset_test_contracts);
 
-    write_state_to_apollo_storage(storage_writer, state_diff, classes)
+    write_state_to_apollo_storage(
+        storage_writer,
+        state_diff,
+        classes,
+        initial_state_diff_commitment,
+    );
+}
+
+/// Global root that matches the proof flow fixtures.
+fn integration_test_genesis_global_root() -> GlobalRoot {
+    GlobalRoot(felt!("0x68fed6a062d385db8d1dd9096060e822196feb311fc3bb4f0018635461ca85e"))
 }
 
 fn prepare_state_diff(
@@ -410,7 +448,12 @@ fn write_state_to_apollo_storage(
     storage_writer: &mut StorageWriter,
     state_diff: ThinStateDiff,
     classes: &TestClasses,
+    initial_state_diff_commitment: Option<StateDiffCommitment>,
 ) {
+    let is_proof_flow = initial_state_diff_commitment.is_some();
+    let state_diff_commitment =
+        initial_state_diff_commitment.unwrap_or_else(|| calculate_state_diff_hash(&state_diff));
+
     let block_number = BlockNumber(0);
     let block_header = test_block_header(block_number, state_diff.len());
     let TestClasses { cairo0_contract_classes, cairo1_contract_classes } = classes;
@@ -422,10 +465,7 @@ fn write_state_to_apollo_storage(
         l1_data_gas_price: block_header.block_header_without_hash.l1_data_gas_price,
         l2_gas_price: block_header.block_header_without_hash.l2_gas_price,
         sequencer: block_header.block_header_without_hash.sequencer,
-        header_commitments: BlockHeaderCommitments {
-            state_diff_commitment: calculate_state_diff_hash(&state_diff),
-            ..Default::default()
-        },
+        header_commitments: BlockHeaderCommitments { state_diff_commitment, ..Default::default() },
         ..Default::default()
     };
 
@@ -437,7 +477,7 @@ fn write_state_to_apollo_storage(
         sierras.push((*class_hash, sierra));
     }
 
-    write_txn
+    write_txn = write_txn
         .append_header(block_number, &block_header)
         .unwrap()
         .append_body(block_number, BlockBody::default())
@@ -449,9 +489,26 @@ fn write_state_to_apollo_storage(
         .append_classes(block_number, &sierras, &cairo0_contract_classes)
         .unwrap()
         .set_partial_block_hash_components(&block_number, &partial_block_hash)
-        .unwrap()
-        .commit()
         .unwrap();
+
+    if is_proof_flow {
+        let global_root = integration_test_genesis_global_root();
+        let genesis_block_hash =
+            calculate_block_hash(&partial_block_hash, global_root, BlockHash::GENESIS_PARENT_HASH)
+                .expect(
+                    "Integration test genesis block hash must be computable from seeded \
+                     components.",
+                );
+        write_txn = write_txn
+            .set_global_root(&block_number, global_root)
+            .unwrap()
+            .checked_increment_global_root_marker(block_number)
+            .unwrap()
+            .set_block_hash(&block_number, genesis_block_hash)
+            .unwrap();
+    }
+
+    write_txn.commit().unwrap();
 }
 
 fn test_block_header(block_number: BlockNumber, state_diff_length: usize) -> BlockHeader {
@@ -607,4 +664,11 @@ impl<'a> ThinStateDiffBuilder<'a> {
             nonces: self.nonces,
         }
     }
+}
+
+pub fn proof_flow_chain_info() -> ChainInfo {
+    let mut chain_info = ChainInfo::create_for_testing();
+    chain_info.fee_token_addresses.strk_fee_token_address =
+        contract_address!("0x4ff17bf76a1c6cebb82601a43bcab4f9650aea543c44f28e8863f8b624e4b58");
+    chain_info
 }

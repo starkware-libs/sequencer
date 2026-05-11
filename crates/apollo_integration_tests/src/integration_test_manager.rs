@@ -39,7 +39,7 @@ use mempool_test_utils::starknet_api_test_utils::{
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_base_layer::test_utils::anvil_mine_blocks;
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::{ChainId, Nonce};
+use starknet_api::core::{ChainId, Nonce, StateDiffCommitment};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::SierraContractClass;
@@ -66,7 +66,7 @@ use crate::node_component_configs::{
     create_hybrid_component_configs,
 };
 use crate::sequencer_simulator_utils::SequencerSimulator;
-use crate::state_reader::StorageTestHandles;
+use crate::state_reader::{proof_flow_chain_info, PresetTestContracts, StorageTestHandles};
 use crate::storage::{get_integration_test_storage, CustomPaths};
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
@@ -760,7 +760,7 @@ impl IntegrationTestManager {
     ///
     /// The function verifies the initial state, runs the test with the given number of
     /// transactions, waits for execution to complete, and then verifies the final state.
-    async fn test_and_verify(
+    pub async fn test_and_verify(
         &mut self,
         test_scenario: impl TestScenario,
         sender_account: AccountId,
@@ -1264,7 +1264,9 @@ async fn get_sequencer_setup_configs(
     }
 
     info!("Creating node configurations.");
-    let chain_info = ChainInfo::create_for_testing();
+    let is_proof_flow = matches!(test_unique_id, TestIdentifier::ProofFlowIntegrationTest);
+    let chain_info =
+        if is_proof_flow { proof_flow_chain_info() } else { ChainInfo::create_for_testing() };
     let accounts = tx_generator.accounts();
     let component_configs_len = node_component_configs.len();
 
@@ -1345,11 +1347,15 @@ async fn get_sequencer_setup_configs(
         let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
         let chain_info = chain_info.clone();
 
+        let preset_test_contracts = PresetTestContracts::new();
+        let initial_state_diff_commitment = is_proof_flow.then(StateDiffCommitment::default);
         let storage_setup = get_integration_test_storage(
             node_index,
             custom_paths.clone(),
             accounts.to_vec(),
             &chain_info,
+            preset_test_contracts,
+            initial_state_diff_commitment,
         );
 
         // Per node, create the executables constituting it.
@@ -1375,6 +1381,7 @@ async fn get_sequencer_setup_configs(
                 validator_id,
                 ALLOW_BOOTSTRAP_TXS,
                 node_descriptors[node_index].validation_only,
+                !is_proof_flow,
             );
 
             let base_app_config = DeploymentBaseAppConfig::new(config, config_pointers_map);
