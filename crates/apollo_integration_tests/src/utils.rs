@@ -129,7 +129,7 @@ use starknet_committer::db::forest_trait::{
 };
 use starknet_committer::db::index_db::IndexDb;
 use starknet_committer::db::serde_db_utils::DbBlockNumber;
-use starknet_patricia_storage::storage_trait::DbValue;
+use starknet_patricia_storage::storage_trait::{DbOperation, DbValue};
 use starknet_types_core::felt::Felt;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
@@ -274,12 +274,8 @@ pub fn create_node_config(
     block_max_capacity_gas: GasAmount,
     validator_id: ValidatorId,
     allow_bootstrap_txs: bool,
-<<<<<<< HEAD
     validation_only: bool,
-||||||| d3164c73ef
-=======
     verify_state_diff_hash: bool,
->>>>>>> origin/main-v0.14.2
 ) -> (SequencerNodeConfig, ConfigPointersMap) {
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
@@ -1285,5 +1281,7 @@ pub async fn seed_committer_offset(db_path: PathBuf, commitment_offset: BlockNum
         ForestMetadataType::CommitmentOffset,
         DbValue(DbBlockNumber(commitment_offset).serialize().to_vec()),
     );
-    forest_storage.write_updates(updates).await;
+    let operations =
+        updates.into_iter().map(|(key, value)| (key, DbOperation::Set(value))).collect();
+    forest_storage.write_updates(operations).await;
 }

@@ -75,14 +75,8 @@ serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-<<<<<<< HEAD
-||||||| d3164c73ef
-static_assertions.workspace = true
-=======
 starknet_committer.workspace = true
 starknet_patricia_storage.workspace = true
-static_assertions.workspace = true
->>>>>>> origin/main-v0.14.2
 strum.workspace = true
 tempfile.workspace = true
 tokio.workspace = true

@@ -1380,12 +1380,8 @@ async fn get_sequencer_setup_configs(
                 block_max_capacity_gas(),
                 validator_id,
                 ALLOW_BOOTSTRAP_TXS,
-<<<<<<< HEAD
                 node_descriptors[node_index].validation_only,
-||||||| d3164c73ef
-=======
                 !is_proof_flow,
->>>>>>> origin/main-v0.14.2
             );
 
             let base_app_config = DeploymentBaseAppConfig::new(config, config_pointers_map);
