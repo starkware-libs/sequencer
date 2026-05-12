@@ -210,6 +210,7 @@ impl<
     ) -> GatewayResult<GatewayOutput> {
         let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
+        let is_p2p = p2p_message_metadata.is_some();
 
         if let RpcTransaction::Declare(ref declare_tx) = tx {
             if let Err(e) = self.check_declare_permissions(declare_tx) {
@@ -237,7 +238,7 @@ impl<
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
         let proof_archive_handle = self
-            .store_proof_and_spawn_archiving(proof_data, internal_tx.tx_hash)
+            .store_proof_and_spawn_archiving(proof_data, internal_tx.tx_hash, is_p2p)
             .await
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
@@ -272,28 +273,34 @@ impl<
         &self,
         proof_data: Option<(ProofFacts, Proof)>,
         tx_hash: TransactionHash,
+        is_p2p: bool,
     ) -> GatewayResult<ProofArchiveHandle> {
         let Some((proof_facts, proof)) = proof_data else {
             return Ok(None);
         };
 
-        // TODO(Einat): Avoid archiving in P2P gateways.
         // Spawn the GCS archive write before the proof-manager store so the two run in parallel
         // — the proof-manager store is the dominant latency and there's no point serializing them.
-        let proof_archive_writer = self.proof_archive_writer.clone();
-        let archive_proof_facts = proof_facts.clone();
-        let archive_proof = proof.clone();
-        let handle = tokio::spawn(async move {
-            let proof_facts_hash = archive_proof_facts.hash();
-            let proof_archive_writer_start = Instant::now();
-            let result = proof_archive_writer.set_proof(archive_proof_facts, archive_proof).await;
-            let proof_archive_writer_duration = proof_archive_writer_start.elapsed();
-            info!(
-                "Proof archive writer took: {proof_archive_writer_duration:?} for tx hash: \
-                 {tx_hash:?}"
-            );
-            (proof_facts_hash, result)
-        });
+        let archive_handle = if is_p2p {
+            // Skip the GCS archive write for transactions received via P2P to avoid double writes.
+            None
+        } else {
+            let proof_archive_writer = self.proof_archive_writer.clone();
+            let archive_proof_facts = proof_facts.clone();
+            let archive_proof = proof.clone();
+            Some(tokio::spawn(async move {
+                let proof_facts_hash = archive_proof_facts.hash();
+                let proof_archive_writer_start = Instant::now();
+                let result =
+                    proof_archive_writer.set_proof(archive_proof_facts, archive_proof).await;
+                let proof_archive_writer_duration = proof_archive_writer_start.elapsed();
+                info!(
+                    "Proof archive writer took: {proof_archive_writer_duration:?} for tx hash: \
+                     {tx_hash:?}"
+                );
+                (proof_facts_hash, result)
+            }))
+        };
 
         // Proof is verified during conversion to internal tx. It is stored here, after
         // validation, to avoid storing proofs for rejected transactions.
@@ -310,7 +317,9 @@ impl<
             }
             Err(e) => {
                 // Tx will be rejected; abort the in-flight GCS write so it doesn't leak.
-                handle.abort();
+                if let Some(handle) = &archive_handle {
+                    handle.abort();
+                }
                 return Err(StarknetError::internal_with_logging(
                     &format!("Failed to set proof in proof manager. tx_hash: {tx_hash:?}"),
                     e,
@@ -318,7 +327,7 @@ impl<
             }
         }
 
-        Ok(Some((handle, tx_hash)))
+        Ok(archive_handle.map(|handle| (handle, tx_hash)))
     }
 
     /// Awaits the spawned GCS archive task with a hard timeout.
