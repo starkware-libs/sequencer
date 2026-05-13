@@ -34,6 +34,7 @@ use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
+    RpcInvokeTransaction,
     RpcTransaction,
 };
 use starknet_api::transaction::fields::{Proof, ProofFacts, TransactionSignature};
@@ -210,6 +211,11 @@ impl<
     ) -> GatewayResult<GatewayOutput> {
         let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
+        if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref inv)) = tx {
+            if !inv.proof_facts.is_empty() {
+                metric_counters.count_private_transaction_received();
+            }
+        }
 
         if let RpcTransaction::Declare(ref declare_tx) = tx {
             if let Err(e) = self.check_declare_permissions(declare_tx) {
