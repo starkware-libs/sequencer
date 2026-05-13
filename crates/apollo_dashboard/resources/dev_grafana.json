@@ -1066,6 +1066,21 @@
           }
         },
         {
+          "title": "Transactions Received by Proof Type",
+          "description": "The number of private (invoke_v3 with non-empty proof_facts) vs public transactions received (over the selected time range)",
+          "type": "stat",
+          "exprs": [
+            "sum(increase(gateway_private_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))",
+            "sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range])) - sum(increase(gateway_private_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))"
+          ],
+          "extra_params": {
+            "legends": [
+              "Private",
+              "Public"
+            ]
+          }
+        },
+        {
           "title": "Transaction Failure Rate by Type",
           "description": "The rate of failed transactions vs received transactions by type (over the selected time range)",
           "type": "stat",
