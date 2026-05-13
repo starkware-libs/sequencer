@@ -96,6 +96,7 @@ use crate::metrics::{
     GatewayMetricHandle,
     SourceLabelValue,
     GATEWAY_ADD_TX_LATENCY,
+    GATEWAY_PRIVATE_TRANSACTIONS_RECEIVED,
     GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE,
     GATEWAY_TRANSACTIONS_FAILED,
     GATEWAY_TRANSACTIONS_RECEIVED,
@@ -550,6 +551,28 @@ async fn test_add_tx_fails_when_proof_archive_write_fails(mut mock_dependencies:
 
 #[rstest]
 #[tokio::test]
+async fn test_private_transaction_counter(mut mock_dependencies: MockDependencies) {
+    let private_tx_args = invoke_args_with_client_side_proving();
+    setup_mock_state(&mut mock_dependencies, &private_tx_args, Ok(()), Ok(())).await;
+    let AddTxResults { metrics, .. } =
+        run_add_tx_and_extract_metrics(mock_dependencies, &private_tx_args).await;
+    assert_eq!(GATEWAY_PRIVATE_TRANSACTIONS_RECEIVED.parse_numeric_metric::<u64>(&metrics), Some(1));
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_public_transaction_does_not_increment_private_counter(
+    mut mock_dependencies: MockDependencies,
+) {
+    let public_tx_args = invoke_args();
+    setup_mock_state(&mut mock_dependencies, &public_tx_args, Ok(()), Ok(())).await;
+    let AddTxResults { metrics, .. } =
+        run_add_tx_and_extract_metrics(mock_dependencies, &public_tx_args).await;
+    assert_eq!(GATEWAY_PRIVATE_TRANSACTIONS_RECEIVED.parse_numeric_metric::<u64>(&metrics), Some(0));
+}
+
+#[rstest]
+#[tokio::test]
 async fn test_add_tx_fails_when_proof_verification_fails(mut mock_dependencies: MockDependencies) {
     let tx_args = invoke_args_with_client_side_proving();
 
@@ -677,6 +700,7 @@ fn test_register_metrics() {
             GATEWAY_ADD_TX_LATENCY.assert_eq(&metrics, &HistogramValue::default());
         }
     }
+    assert_eq!(GATEWAY_PRIVATE_TRANSACTIONS_RECEIVED.parse_numeric_metric::<u64>(&metrics), Some(0));
 }
 
 #[rstest]
