@@ -325,6 +325,7 @@ pub fn test_validate_after_commit_tx() {
 fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
+    let enable_casm_hash_migration = block_context.versioned_constants().enable_casm_hash_migration;
     let account_contract =
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
@@ -431,6 +432,21 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
         ]),
         ..Default::default()
     };
+    let compiled_class_hashes = if enable_casm_hash_migration {
+        HashMap::from([
+            (
+                account_contract.get_class_hash(),
+                account_contract.get_compiled_class_hash(&HashVersion::V2),
+            ),
+            (
+                test_contract.get_class_hash(),
+                test_contract.get_compiled_class_hash(&HashVersion::V2),
+            ),
+            (erc20.get_class_hash(), erc20.get_compiled_class_hash(&HashVersion::V2)),
+        ])
+    } else {
+        HashMap::new()
+    };
     let reads = StateMaps {
         nonces: HashMap::from([(account_address, nonce!(0_u8))]),
         // Before running an entry point (call contract), we verify the contract is deployed.
@@ -450,7 +466,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
             (test_contract.get_class_hash(), true),
             (erc20.get_class_hash(), true),
         ]),
-        compiled_class_hashes: HashMap::new(),
+        compiled_class_hashes,
     };
 
     assert_eq!(execution_output.state_diff, writes.diff(&reads));
