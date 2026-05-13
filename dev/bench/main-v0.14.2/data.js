@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778615562992,
+  "lastUpdate": 1778643381124,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3331,6 +3331,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1338.5450466,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "einat@starkware.co",
+            "name": "einat-starkware",
+            "username": "einat-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a9627482004bb6d69833cffd735b344ba47f9766",
+          "message": "apollo_integration_tests: add regression tests for matching the proof generation (#13952)",
+          "timestamp": "2026-05-13T03:11:24Z",
+          "tree_id": "ce75a083b8c4811e54d7c4c64329db1322943e6a",
+          "url": "https://github.com/starkware-libs/sequencer/commit/a9627482004bb6d69833cffd735b344ba47f9766"
+        },
+        "date": 1778643380771,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 757.48086803,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1220.51435519,
             "unit": "ms"
           }
         ]
