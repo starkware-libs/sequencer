@@ -1,6 +1,7 @@
 use apollo_gateway::metrics::{
     GATEWAY_ADD_TX_FAILURE,
     GATEWAY_ADD_TX_LATENCY,
+    GATEWAY_PRIVATE_TRANSACTIONS_RECEIVED,
     GATEWAY_PROOF_MANAGER_STORE_LATENCY,
     GATEWAY_TRANSACTIONS_FAILED,
     GATEWAY_TRANSACTIONS_RECEIVED,
@@ -17,7 +18,7 @@ use apollo_transaction_converter::metrics::PROOF_VERIFICATION_LATENCY;
 
 use crate::dashboard::Row;
 use crate::panel::{Panel, PanelType, Unit};
-use crate::query_builder::{sum_by_label, DisplayMethod, RANGE_DURATION};
+use crate::query_builder::{increase, sum_by_label, DisplayMethod, RANGE_DURATION};
 
 fn get_panel_gateway_transactions_received_by_type() -> Panel {
     Panel::new(
@@ -166,6 +167,21 @@ fn get_panel_gateway_validate_stateful_tx_storage_operations() -> Panel {
     )
 }
 
+fn get_panel_gateway_transactions_received_by_proof_type() -> Panel {
+    let private =
+        format!("sum({})", increase(&GATEWAY_PRIVATE_TRANSACTIONS_RECEIVED, RANGE_DURATION));
+    let total = format!("sum({})", increase(&GATEWAY_TRANSACTIONS_RECEIVED, RANGE_DURATION));
+    let public = format!("{total} - {private}");
+    Panel::new(
+        "Transactions Received by Proof Type",
+        "The number of private (invoke_v3 with non-empty proof_facts) vs public transactions \
+         received (over the selected time range)",
+        vec![private, public],
+        PanelType::Stat,
+    )
+    .with_legends(["Private", "Public"])
+}
+
 pub(crate) fn get_gateway_row() -> Row {
     Row::new(
         "Gateway",
@@ -175,6 +191,7 @@ pub(crate) fn get_gateway_row() -> Row {
             get_panel_gateway_validate_tx_latency(),
             get_panel_gateway_transactions_received_by_source(),
             get_panel_gateway_transactions_received_by_type(),
+            get_panel_gateway_transactions_received_by_proof_type(),
             get_panel_gateway_transactions_failure_rate(),
             get_panel_gateway_add_tx_failure_by_reason(),
             get_panel_gateway_transactions_sent_to_mempool(),
