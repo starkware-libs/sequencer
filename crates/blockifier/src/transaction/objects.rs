@@ -1,10 +1,13 @@
+use std::collections::HashSet;
+
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::block::{BlockInfo, FeeType};
 use starknet_api::block_hash::block_hash_calculator::TransactionOutputForHash;
-use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::core::{ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasVector;
+use starknet_api::state::StorageKey;
 use starknet_api::transaction::constants::VALIDATE_DEPLOY_ENTRY_POINT_SELECTOR;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -42,6 +45,7 @@ use crate::execution::stack_trace::ErrorStack;
 use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
+use crate::state::cached_state::StorageEntry;
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
 use crate::utils::add_maps;
 
@@ -265,6 +269,24 @@ impl TransactionExecutionInfo {
     /// entries, L2-to-L1_payload_lengths, and the number of emitted events.
     pub fn summarize(&self, versioned_constants: &VersionedConstants) -> ExecutionSummary {
         CallInfo::summarize_many(self.non_optional_call_infos(), versioned_constants)
+    }
+
+    /// Returns the set of storage entries (contract_address, key) visited by this transaction.
+    /// Mirrors the Python `TransactionExecutionInfo.get_visited_storage_entries`.
+    ///
+    /// Includes (BLOCK_HASH_TABLE_ADDRESS, block_number) entries for each block whose hash was read
+    /// via `get_block_hash`.
+    pub fn get_visited_storage_entries(&self) -> HashSet<StorageEntry> {
+        self.non_optional_call_infos()
+            .flat_map(|call_info| call_info.iter())
+            .flat_map(|call_info| {
+                let block_hash_entries =
+                    call_info.storage_access_tracker.accessed_blocks.iter().map(|block_number| {
+                        (BLOCK_HASH_TABLE_ADDRESS, StorageKey::from(block_number.0))
+                    });
+                call_info.get_visited_storage_entries().chain(block_hash_entries)
+            })
+            .collect()
     }
 
     pub fn summarize_builtins(&self) -> CairoPrimitiveCounterMap {
