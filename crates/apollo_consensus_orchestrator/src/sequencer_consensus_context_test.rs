@@ -1311,12 +1311,13 @@ async fn change_gas_price_overrides() {
     let proposal_commitment = fin_receiver.await.unwrap_err();
     assert!(matches!(proposal_commitment, Canceled));
 
-    // Add the new overrides so validation passes.
+    // Add the new overrides so validation passes. The override sets the FRI value; the
+    // validator recomputes WEI via fri_to_wei(ETH_TO_FRI_RATE), so the proposed init must
+    // mirror that conversion to stay within the WEI margin too.
     let mut modified_init = proposal_init(HEIGHT_1, ROUND_1);
     modified_init.l1_data_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
-    // Note that the eth to fri conversion rate by default is 10^18 so we can just replace wei to
-    // fri 1:1.
-    modified_init.l1_data_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
+    modified_init.l1_data_gas_price_wei =
+        GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE).fri_to_wei(ETH_TO_FRI_RATE).unwrap();
 
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
     let fin_receiver = context.validate_proposal(modified_init, TIMEOUT, content_receiver).await;

@@ -246,11 +246,15 @@ async fn invalid_proposal_init() {
 enum L1GasPriceField {
     GasPriceFri,
     DataGasPriceFri,
+    GasPriceWei,
+    DataGasPriceWei,
 }
 
 #[rstest]
 #[case::l1_gas_price_fri(L1GasPriceField::GasPriceFri)]
 #[case::l1_data_gas_price_fri(L1GasPriceField::DataGasPriceFri)]
+#[case::l1_gas_price_wei(L1GasPriceField::GasPriceWei)]
+#[case::l1_data_gas_price_wei(L1GasPriceField::DataGasPriceWei)]
 #[tokio::test]
 async fn rejects_proposal_init_l1_gas_price_out_of_margin(#[case] field: L1GasPriceField) {
     let (proposal_args, _content_sender) = create_proposal_validate_arguments();
@@ -267,6 +271,8 @@ async fn rejects_proposal_init_l1_gas_price_out_of_margin(#[case] field: L1GasPr
     let target = match field {
         L1GasPriceField::GasPriceFri => &mut init.l1_gas_price_fri,
         L1GasPriceField::DataGasPriceFri => &mut init.l1_data_gas_price_fri,
+        L1GasPriceField::GasPriceWei => &mut init.l1_gas_price_wei,
+        L1GasPriceField::DataGasPriceWei => &mut init.l1_data_gas_price_wei,
     };
     *target = GasPrice(target.0.saturating_mul(10));
 
