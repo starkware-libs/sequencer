@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778491588606,
+  "lastUpdate": 1778753948332,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4011,6 +4011,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1200.19030406,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "92669167+dafnamatsry@users.noreply.github.com",
+            "name": "dafnamatsry",
+            "username": "dafnamatsry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7ef17daaa467c626d945cf8d3717b6fb385376d3",
+          "message": "deployment: add profiling build mode with heaptrack support for memory leak investigation (#12823)\n\nAdd a `profiling` Cargo profile (release + debug symbols) and update the\nDockerfile and CI workflow to support it. This enables on-demand memory\nprofiling with heaptrack by attaching to a running node via `--pid`.",
+          "timestamp": "2026-05-14T10:02:05Z",
+          "tree_id": "59330bab67933126f0de98cacb92095921820b58",
+          "url": "https://github.com/starkware-libs/sequencer/commit/7ef17daaa467c626d945cf8d3717b6fb385376d3"
+        },
+        "date": 1778753947878,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 895.97528972,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1386.12441247,
             "unit": "ms"
           }
         ]
