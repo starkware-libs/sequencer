@@ -44,6 +44,7 @@ use crate::test_utils::{
 };
 use crate::utils::{make_gas_price_params, GasPriceParams};
 use crate::validate_proposal::{
+    is_proposal_init_valid,
     validate_proposal,
     within_margin,
     ProposalInitValidation,
@@ -239,6 +240,50 @@ async fn invalid_proposal_init() {
 
     let res = validate_proposal(proposal_args.into()).await;
     assert!(matches!(res, Err(ValidateProposalError::InvalidProposalInit(_, _, _))));
+}
+
+#[derive(Copy, Clone, Debug)]
+enum L1GasPriceField {
+    GasPriceFri,
+    DataGasPriceFri,
+}
+
+#[rstest]
+#[case::l1_gas_price_fri(L1GasPriceField::GasPriceFri)]
+#[case::l1_data_gas_price_fri(L1GasPriceField::DataGasPriceFri)]
+#[tokio::test]
+async fn rejects_proposal_init_l1_gas_price_out_of_margin(#[case] field: L1GasPriceField) {
+    let (proposal_args, _content_sender) = create_proposal_validate_arguments();
+    let TestProposalValidateArguments {
+        deps,
+        mut init,
+        proposal_init_validation,
+        gas_price_params,
+        ..
+    } = proposal_args;
+    // Push the targeted L1 gas-price field an order of magnitude above the validator's
+    // reference value so it falls well outside the 10% margin enforced via
+    // VersionedConstants::l1_gas_price_margin_percent.
+    let target = match field {
+        L1GasPriceField::GasPriceFri => &mut init.l1_gas_price_fri,
+        L1GasPriceField::DataGasPriceFri => &mut init.l1_data_gas_price_fri,
+    };
+    *target = GasPrice(target.0.saturating_mul(10));
+
+    let res = is_proposal_init_valid(
+        &proposal_init_validation,
+        &init,
+        deps.clock.as_ref(),
+        Arc::new(deps.l1_gas_price_provider),
+        &gas_price_params,
+    )
+    .await;
+
+    assert_matches!(
+        res,
+        Err(ValidateProposalError::InvalidProposalInit(_, _, ref msg))
+            if msg.contains("L1 gas price mismatch")
+    );
 }
 
 #[tokio::test]
