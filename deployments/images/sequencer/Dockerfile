@@ -19,10 +19,10 @@ WORKDIR /app
 ARG BUILD_MODE=release
 ENV BUILD_MODE=${BUILD_MODE}
 
-# Validate BUILD_MODE value
-RUN if [ "$BUILD_MODE" != "release" ] && [ "$BUILD_MODE" != "debug" ]; then \
-    echo "Error: BUILD_MODE must be either 'release' or 'debug' (got '$BUILD_MODE')" >&2; \
-    exit 1; \
+# Validate BUILD_MODE value.
+RUN if [ "$BUILD_MODE" != "release" ] && [ "$BUILD_MODE" != "debug" ] && [ "$BUILD_MODE" != "profiling" ]; then \
+        echo "Error: BUILD_MODE must be 'release', 'debug', or 'profiling' (got '$BUILD_MODE')" >&2; \
+        exit 1; \
     fi
 
 COPY --from=planner /app/recipe.json recipe.json
@@ -31,7 +31,9 @@ COPY . .
 
 RUN BUILD_FLAGS=""; \
     if [ "$BUILD_MODE" = "release" ]; then \
-    BUILD_FLAGS="--release"; \
+        BUILD_FLAGS="--release"; \
+    elif [ "$BUILD_MODE" = "profiling" ]; then \
+        BUILD_FLAGS="--profile profiling"; \
     fi; \
     cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native
 
@@ -44,6 +46,11 @@ ENV BUILD_MODE=${BUILD_MODE}
 # Required for https requests: ca-certificates
 # Required for starknet-native-compile: binutils libc6-dev
 RUN apt-get update && apt-get install -y ca-certificates binutils libc6-dev
+
+# Install heaptrack for on-demand memory profiling (profiling builds only).
+RUN if [ "$BUILD_MODE" = "profiling" ]; then \
+        apt-get install -y heaptrack; \
+    fi
 
 ENV ID=1001
 WORKDIR /app
@@ -69,4 +76,10 @@ EXPOSE 8080 8081 8082
 USER ${ID}
 
 # Set the entrypoint to use tini to manage the process, while evaluating the build mode, and passing any arguments.
+#
+# Profiling usage: the node starts normally. To attach heaptrack on demand:
+#   1. Deploy with SYS_PTRACE capability (securityContext.capabilities.add: ["SYS_PTRACE"]).
+#   2. kubectl exec -it <pod> -- sh -c 'heaptrack --pid $(pidof apollo_node) -o /data/heaptrack'
+#   3. Stop with Ctrl+C, then: kubectl cp <pod>:/data/heaptrack.*.zst ./heaptrack_output.zst
+#   4. Analyze: heaptrack_print ./heaptrack_output.zst
 ENTRYPOINT ["sh", "-c", "exec tini -- /app/target/$BUILD_MODE/apollo_node \"$@\"", "--"]

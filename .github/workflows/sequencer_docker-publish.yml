@@ -2,6 +2,16 @@ name: Sequencer-Docker-Publish
 
 on:
   workflow_dispatch:
+    inputs:
+      build_mode:
+        description: "Cargo build profile: release, debug, or profiling (release with debug symbols + heaptrack)."
+        required: false
+        default: "release"
+        type: choice
+        options:
+          - release
+          - debug
+          - profiling
   push:
     tags:
       - "v*.*.*"
@@ -60,4 +70,4 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: BUILD_MODE=release
+          build-args: BUILD_MODE=${{ inputs.build_mode || 'release' }}
