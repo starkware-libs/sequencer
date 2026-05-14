@@ -105,8 +105,10 @@ pub trait L1GasPriceProviderClient: Send + Sync {
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
 pub trait ExchangeRateOracleClientTrait: Send + Sync + Debug {
-    /// Fetches the eth to fri rate for a given timestamp.
-    async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, ExchangeRateOracleClientError>;
+    /// Fetches a rate as a u128 for the given timestamp. The semantics of the rate (e.g.
+    /// ETH/FRI, STRK/USD) are determined by the URLs the implementation is configured with;
+    /// callers label the per-instance meaning at the field that holds the trait object.
+    async fn fetch_rate(&self, timestamp: u64) -> Result<u128, ExchangeRateOracleClientError>;
 }
 
 #[async_trait]
