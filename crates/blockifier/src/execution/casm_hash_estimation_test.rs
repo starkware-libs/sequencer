@@ -6,6 +6,7 @@ use crate::execution::call_info::OpcodeName;
 use crate::execution::casm_hash_estimation::{
     CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
+    STEPS_EMPTY_INPUT,
 };
 use crate::execution::contract_class::FeltSizeCount;
 
@@ -29,11 +30,7 @@ fn test_zero_inputs() {
         CasmV2HashResourceEstimate::estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
             &FeltSizeCount::default(),
         );
-    assert_eq!(
-        steps,
-        CasmV2HashResourceEstimate::STEPS_EMPTY_INPUT,
-        "Unexpected base step cost for zero inputs"
-    );
+    assert_eq!(steps, *STEPS_EMPTY_INPUT, "Unexpected base step cost for zero inputs");
 
     // No opcodes should be emitted.
     let opcodes = FeltSizeCount::default().blake_opcode_count();
@@ -42,10 +39,7 @@ fn test_zero_inputs() {
     // Should result in base cost only (no opcode cost).
     let resources =
         CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&FeltSizeCount::default());
-    let expected = ExecutionResources {
-        n_steps: CasmV2HashResourceEstimate::STEPS_EMPTY_INPUT,
-        ..Default::default()
-    };
+    let expected = ExecutionResources { n_steps: *STEPS_EMPTY_INPUT, ..Default::default() };
     assert_eq!(resources.vm_resources, expected, "Unexpected resources values for zero-input hash");
     assert_eq!(
         *resources.opcode_instance_counter.get(&OpcodeName::blake).unwrap_or(&0),
