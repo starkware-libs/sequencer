@@ -79,6 +79,92 @@ fn cairo_encode_felt252_data_and_calc_blake_hash(input: &[Felt]) -> (Felt, Execu
     (*cairo_hash_felt, cairo_runner.get_execution_resources().unwrap().filter_unused_builtins())
 }
 
+fn cairo_encode_felt252_data_and_calc_blake_hash_steps(input: &[Felt]) -> usize {
+    cairo_encode_felt252_data_and_calc_blake_hash(input).1.n_steps
+}
+
+/// Asserts the estimated constants correspond to empiric measurements.
+#[rstest]
+fn test_blake_step_constants() {
+    let large_felt = Blake2Felt252::SMALL_THRESHOLD;
+    let small_felt = Blake2Felt252::SMALL_THRESHOLD - Felt::ONE;
+    const LARGE_FELTS_PER_MESSAGE: usize = CasmV2HashResourceEstimate::U32_WORDS_PER_MESSAGE
+        / CasmV2HashResourceEstimate::U32_WORDS_PER_LARGE_FELT;
+    const SMALL_FELTS_PER_MESSAGE: usize = CasmV2HashResourceEstimate::U32_WORDS_PER_MESSAGE
+        / CasmV2HashResourceEstimate::U32_WORDS_PER_SMALL_FELT;
+
+    // Test empty input.
+    let steps_empty = cairo_encode_felt252_data_and_calc_blake_hash_steps(&[]);
+    assert_eq!(steps_empty, CasmV2HashResourceEstimate::STEPS_EMPTY_INPUT);
+
+    // Start with a baseline of one full word.
+    let one_message_large_felts = vec![large_felt; LARGE_FELTS_PER_MESSAGE];
+    let baseline_steps =
+        cairo_encode_felt252_data_and_calc_blake_hash_steps(&one_message_large_felts);
+
+    // Add another full word of large felts to compute the overhead per large felt.
+    let large_felt_overhead = (cairo_encode_felt252_data_and_calc_blake_hash_steps(
+        &one_message_large_felts
+            .clone()
+            .into_iter()
+            .chain(one_message_large_felts.clone().into_iter())
+            .collect::<Vec<Felt>>(),
+    ) - baseline_steps)
+        / LARGE_FELTS_PER_MESSAGE;
+    assert_eq!(large_felt_overhead, CasmV2HashResourceEstimate::STEPS_PER_LARGE_FELT);
+
+    // Add another full word of small felts to compute the overhead per small felt.
+    let one_message_small_felts = vec![small_felt; SMALL_FELTS_PER_MESSAGE];
+    let small_felt_overhead = (cairo_encode_felt252_data_and_calc_blake_hash_steps(
+        &one_message_large_felts
+            .clone()
+            .into_iter()
+            .chain(one_message_small_felts.clone().into_iter())
+            .collect::<Vec<Felt>>(),
+    ) - baseline_steps)
+        / SMALL_FELTS_PER_MESSAGE;
+    assert_eq!(small_felt_overhead, CasmV2HashResourceEstimate::STEPS_PER_SMALL_FELT);
+
+    // Compute the full-word overhead by subtracting the overhead of one word of large felts, from
+    // the result of exactly one word of large felts.
+    let full_word_overhead = baseline_steps - (large_felt_overhead * LARGE_FELTS_PER_MESSAGE);
+    assert_eq!(full_word_overhead, CasmV2HashResourceEstimate::BASE_STEPS_FULL_MSG);
+
+    // Compute the two-word partial overhead by computing:
+    // X, one full message of large felts + one half-message of small felts.
+    // Y, one full message of large felts + one half-message of small felts + one more small felt.
+    // Computing Y-X gives the overhead of the additional small felt plus the overhead of a 2-word
+    // remainder.
+    let one_plus_half_message_steps = cairo_encode_felt252_data_and_calc_blake_hash_steps(
+        &one_message_large_felts
+            .clone()
+            .into_iter()
+            .chain(vec![small_felt; SMALL_FELTS_PER_MESSAGE / 2].into_iter())
+            .collect::<Vec<Felt>>(),
+    );
+    let one_plus_half_message_plus_small_felt_steps =
+        cairo_encode_felt252_data_and_calc_blake_hash_steps(
+            &one_message_large_felts
+                .clone()
+                .into_iter()
+                .chain(vec![small_felt; 1 + SMALL_FELTS_PER_MESSAGE / 2].into_iter())
+                .collect::<Vec<Felt>>(),
+        );
+    let remainder = one_plus_half_message_plus_small_felt_steps
+        - one_plus_half_message_steps
+        - small_felt_overhead;
+    assert_eq!(remainder, CasmV2HashResourceEstimate::STEPS_PER_2_U32_REMINDER);
+
+    // Reuse the above computation to deduce the constant overhead for the case where the input does
+    // not fit into an exact multiple of messages.
+    let partial_message_overhead = one_plus_half_message_steps
+        // Partial message: small felt overhead + remainder.
+        - (SMALL_FELTS_PER_MESSAGE / 2) * (small_felt_overhead + remainder)
+        // Overhead of first (full) message: two large felts.
+        - LARGE_FELTS_PER_MESSAGE * large_felt_overhead;
+    assert_eq!(partial_message_overhead, CasmV2HashResourceEstimate::BASE_STEPS_PARTIAL_MSG);
+}
+
 /// Test that compares Cairo and Rust implementations of
 /// encode_felt252_data_and_calc_blake_hash.
 #[rstest]
