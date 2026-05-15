@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
+use std::sync::LazyLock;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use expect_test::{expect, Expect};
 
 use crate::execution::call_info::{ExtendedExecutionResources, OpcodeName};
 use crate::execution::contract_class::{
@@ -237,6 +239,36 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     }
 }
 
+// Base number of VM steps applied when the input to Blake hashing is empty.
+// Determined empirically by running `encode_felt252_data_and_calc_blake_hash` on empty input.
+pub const STEPS_EMPTY_INPUT_EXPECT: Expect = expect!["169"];
+pub static STEPS_EMPTY_INPUT: LazyLock<usize> =
+    LazyLock::new(|| STEPS_EMPTY_INPUT_EXPECT.data.parse().expect("Expected data is a usize"));
+
+// The constants used are empirical, based on running `encode_felt252_data_and_calc_blake_hash`
+// on combinations of large and small felts.
+// VM steps per large felt.
+pub const STEPS_PER_LARGE_FELT_EXPECT: Expect = expect!["45"];
+pub static STEPS_PER_LARGE_FELT: LazyLock<usize> =
+    LazyLock::new(|| STEPS_PER_LARGE_FELT_EXPECT.data.parse().expect("Expected data is a usize"));
+// VM steps per small felt.
+pub const STEPS_PER_SMALL_FELT_EXPECT: Expect = expect!["15"];
+pub static STEPS_PER_SMALL_FELT: LazyLock<usize> =
+    LazyLock::new(|| STEPS_PER_SMALL_FELT_EXPECT.data.parse().expect("Expected data is a usize"));
+// Base overhead when input exactly fills a 16-u32 Blake message.
+pub const BASE_STEPS_FULL_MSG_EXPECT: Expect = expect!["216"];
+pub static BASE_STEPS_FULL_MSG: LazyLock<usize> =
+    LazyLock::new(|| BASE_STEPS_FULL_MSG_EXPECT.data.parse().expect("Expected data is a usize"));
+// Base overhead when the input leaves a remainder (< 16 u32s) for a Blake message.
+pub const BASE_STEPS_PARTIAL_MSG_EXPECT: Expect = expect!["194"];
+pub static BASE_STEPS_PARTIAL_MSG: LazyLock<usize> =
+    LazyLock::new(|| BASE_STEPS_PARTIAL_MSG_EXPECT.data.parse().expect("Expected data is a usize"));
+// Extra VM steps added per 2-u32 remainder in partial Blake messages.
+pub const STEPS_PER_2_U32_REMINDER_EXPECT: Expect = expect!["3"];
+pub static STEPS_PER_2_U32_REMINDER: LazyLock<usize> = LazyLock::new(|| {
+    STEPS_PER_2_U32_REMINDER_EXPECT.data.parse().expect("Expected data is a usize")
+});
+
 pub struct CasmV2HashResourceEstimate {}
 
 impl CasmV2HashResourceEstimate {
@@ -247,23 +279,6 @@ impl CasmV2HashResourceEstimate {
     pub const U32_WORDS_PER_SMALL_FELT: usize = 2;
     // Input for Blake hash function is a sequence of 16 `u32` words.
     pub const U32_WORDS_PER_MESSAGE: usize = 16;
-
-    // Base number of VM steps applied when the input to Blake hashing is empty.
-    // Determined empirically by running `encode_felt252_data_and_calc_blake_hash` on empty input.
-    pub const STEPS_EMPTY_INPUT: usize = 169;
-
-    // The constants used are empirical, based on running `encode_felt252_data_and_calc_blake_hash`
-    // on combinations of large and small felts.
-    // VM steps per large felt.
-    pub const STEPS_PER_LARGE_FELT: usize = 45;
-    // VM steps per small felt.
-    pub const STEPS_PER_SMALL_FELT: usize = 15;
-    // Base overhead when input exactly fills a 16-u32 Blake message.
-    pub const BASE_STEPS_FULL_MSG: usize = 216;
-    // Base overhead when the input leaves a remainder (< 16 u32s) for a Blake message.
-    pub const BASE_STEPS_PARTIAL_MSG: usize = 194;
-    // Extra VM steps added per 2-u32 remainder in partial Blake messages.
-    pub const STEPS_PER_2_U32_REMINDER: usize = 3;
 
     /// Estimates the number of VM steps required to hash the given felts with Blake in Starknet OS.
     ///
@@ -277,23 +292,22 @@ impl CasmV2HashResourceEstimate {
         let encoded_u32_len = felt_size_groups.encoded_u32_len();
         if encoded_u32_len == 0 {
             // The empty input case is a special case.
-            return Self::STEPS_EMPTY_INPUT;
+            return *STEPS_EMPTY_INPUT;
         }
 
         // Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
         let base_steps = if encoded_u32_len.is_multiple_of(Self::U32_WORDS_PER_MESSAGE) {
-            Self::BASE_STEPS_FULL_MSG
+            *BASE_STEPS_FULL_MSG
         } else {
             // This computation is based on running blake2s with different inputs.
             // Note: all inputs expand to an even number of u32s --> `rem_u32s` is always even.
-            Self::BASE_STEPS_PARTIAL_MSG
-                + (encoded_u32_len % Self::U32_WORDS_PER_MESSAGE / 2)
-                    * Self::STEPS_PER_2_U32_REMINDER
+            *BASE_STEPS_PARTIAL_MSG
+                + (encoded_u32_len % Self::U32_WORDS_PER_MESSAGE / 2) * *STEPS_PER_2_U32_REMINDER
         };
 
         base_steps
-            + felt_size_groups.large * Self::STEPS_PER_LARGE_FELT
-            + felt_size_groups.small * Self::STEPS_PER_SMALL_FELT
+            + felt_size_groups.large * *STEPS_PER_LARGE_FELT
+            + felt_size_groups.small * *STEPS_PER_SMALL_FELT
     }
 }
 
