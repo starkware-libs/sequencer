@@ -237,6 +237,22 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     }
 }
 
+/// Expected values for the CASM V2 (Blake) hash estimation.
+/// Separate module, gated by `testing` feature, to avoid depending on the expect-test crate in
+/// production code. Values used in production are defined as constants in the
+/// [CasmV2HashResourceEstimate] struct (same names, without the _EXPECT suffix).
+#[cfg(any(test, feature = "testing"))]
+pub mod expected {
+    use expect_test::{expect, Expect};
+
+    pub static STEPS_EMPTY_INPUT_EXPECT: Expect = expect!["167"];
+    pub static STEPS_PER_LARGE_FELT_EXPECT: Expect = expect!["38"];
+    pub static STEPS_PER_SMALL_FELT_EXPECT: Expect = expect!["15"];
+    pub static BASE_STEPS_FULL_MSG_EXPECT: Expect = expect!["216"];
+    pub static BASE_STEPS_PARTIAL_MSG_EXPECT: Expect = expect!["192"];
+    pub static STEPS_DISCOUNT_PER_FULL_MSG_EXPECT: Expect = expect!["2"];
+}
+
 pub struct CasmV2HashResourceEstimate {}
 
 impl CasmV2HashResourceEstimate {
