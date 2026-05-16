@@ -1,5 +1,13 @@
 use std::collections::HashMap;
 
+use blockifier::execution::casm_hash_estimation::expected::{
+    BASE_STEPS_FULL_MSG_EXPECT,
+    BASE_STEPS_PARTIAL_MSG_EXPECT,
+    STEPS_DISCOUNT_PER_FULL_MSG_EXPECT,
+    STEPS_EMPTY_INPUT_EXPECT,
+    STEPS_PER_LARGE_FELT_EXPECT,
+    STEPS_PER_SMALL_FELT_EXPECT,
+};
 use blockifier::execution::casm_hash_estimation::{
     CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
@@ -101,7 +109,7 @@ fn test_blake_step_constants() {
 
     // Test empty input.
     let steps_empty = cairo_encode_felt252_data_and_calc_blake_hash_steps(&[]);
-    assert_eq!(steps_empty, CasmV2HashResourceEstimate::STEPS_EMPTY_INPUT);
+    STEPS_EMPTY_INPUT_EXPECT.assert_eq(&steps_empty.to_string());
 
     // Small felt overhead (assuming the remainder).
     let one_small_felt_cost = cairo_encode_felt252_data_and_calc_blake_hash_steps(&[small_felt]);
@@ -110,7 +118,7 @@ fn test_blake_step_constants() {
     let small_felt_overhead = two_small_felts_cost
         - one_small_felt_cost
         - CasmV2HashResourceEstimate::STEPS_PER_2_U32_REMINDER;
-    assert_eq!(small_felt_overhead, CasmV2HashResourceEstimate::STEPS_PER_SMALL_FELT);
+    STEPS_PER_SMALL_FELT_EXPECT.assert_eq(&small_felt_overhead.to_string());
 
     // Base cost for partial message.
     let base_partial_message_cost = one_small_felt_cost
@@ -118,7 +126,7 @@ fn test_blake_step_constants() {
         - (CasmV2HashResourceEstimate::STEPS_PER_2_U32_REMINDER
             * CasmV2HashResourceEstimate::U32_WORDS_PER_SMALL_FELT
             / 2);
-    assert_eq!(base_partial_message_cost, CasmV2HashResourceEstimate::BASE_STEPS_PARTIAL_MSG);
+    BASE_STEPS_PARTIAL_MSG_EXPECT.assert_eq(&base_partial_message_cost.to_string());
 
     // Large felt overhead.
     let one_large_felt_cost = cairo_encode_felt252_data_and_calc_blake_hash_steps(&[large_felt]);
@@ -127,7 +135,7 @@ fn test_blake_step_constants() {
         - (CasmV2HashResourceEstimate::STEPS_PER_2_U32_REMINDER
             * CasmV2HashResourceEstimate::U32_WORDS_PER_LARGE_FELT
             / 2);
-    assert_eq!(large_felt_overhead, CasmV2HashResourceEstimate::STEPS_PER_LARGE_FELT);
+    STEPS_PER_LARGE_FELT_EXPECT.assert_eq(&large_felt_overhead.to_string());
 
     // Discount per full message.
     let full_message_large_felts_cost =
@@ -137,12 +145,12 @@ fn test_blake_step_constants() {
     );
     let discount_per_full_message = 2 * large_felt_overhead
         - (two_full_messages_large_felts_cost - full_message_large_felts_cost);
-    assert_eq!(discount_per_full_message, CasmV2HashResourceEstimate::STEPS_DISCOUNT_PER_FULL_MSG);
+    STEPS_DISCOUNT_PER_FULL_MSG_EXPECT.assert_eq(&discount_per_full_message.to_string());
 
     // Base cost for input aligned to full messages.
     let base_full_message_cost =
         full_message_large_felts_cost - 2 * large_felt_overhead + discount_per_full_message;
-    assert_eq!(base_full_message_cost, CasmV2HashResourceEstimate::BASE_STEPS_FULL_MSG);
+    BASE_STEPS_FULL_MSG_EXPECT.assert_eq(&base_full_message_cost.to_string());
 }
 
 /// Test that compares Cairo and Rust implementations of
