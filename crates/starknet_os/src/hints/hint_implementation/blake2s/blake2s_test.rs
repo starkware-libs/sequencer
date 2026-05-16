@@ -1,5 +1,13 @@
 use std::collections::HashMap;
 
+use blockifier::execution::casm_hash_estimation::expected::{
+    BASE_STEPS_FULL_MSG_EXPECT,
+    BASE_STEPS_PARTIAL_MSG_EXPECT,
+    STEPS_EMPTY_INPUT_EXPECT,
+    STEPS_PER_2_U32_REMINDER_EXPECT,
+    STEPS_PER_LARGE_FELT_EXPECT,
+    STEPS_PER_SMALL_FELT_EXPECT,
+};
 use blockifier::execution::casm_hash_estimation::{
     CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
@@ -102,7 +110,7 @@ fn test_blake_step_constants() {
 
     // Test empty input.
     let steps_empty = cairo_encode_felt252_data_and_calc_blake_hash_steps(&[]);
-    assert_eq!(steps_empty, CasmV2HashResourceEstimate::STEPS_EMPTY_INPUT);
+    STEPS_EMPTY_INPUT_EXPECT.assert_eq(&steps_empty.to_string());
 
     // Start with a baseline of one full word.
     let one_message_large_felts = vec![large_felt; LARGE_FELTS_PER_MESSAGE];
@@ -118,7 +126,7 @@ fn test_blake_step_constants() {
             .collect::<Vec<Felt>>(),
     ) - baseline_steps)
         / LARGE_FELTS_PER_MESSAGE;
-    assert_eq!(large_felt_overhead, CasmV2HashResourceEstimate::STEPS_PER_LARGE_FELT);
+    STEPS_PER_LARGE_FELT_EXPECT.assert_eq(&large_felt_overhead.to_string());
 
     // Add another full word of small felts to compute the overhead per small felt.
     let one_message_small_felts = vec![small_felt; SMALL_FELTS_PER_MESSAGE];
@@ -130,12 +138,12 @@ fn test_blake_step_constants() {
             .collect::<Vec<Felt>>(),
     ) - baseline_steps)
         / SMALL_FELTS_PER_MESSAGE;
-    assert_eq!(small_felt_overhead, CasmV2HashResourceEstimate::STEPS_PER_SMALL_FELT);
+    STEPS_PER_SMALL_FELT_EXPECT.assert_eq(&small_felt_overhead.to_string());
 
     // Compute the full-word overhead by subtracting the overhead of one word of large felts, from
     // the result of exactly one word of large felts.
     let full_word_overhead = baseline_steps - (large_felt_overhead * LARGE_FELTS_PER_MESSAGE);
-    assert_eq!(full_word_overhead, CasmV2HashResourceEstimate::BASE_STEPS_FULL_MSG);
+    BASE_STEPS_FULL_MSG_EXPECT.assert_eq(&full_word_overhead.to_string());
 
     // Compute the two-word partial overhead by computing:
     // X, one full message of large felts + one half-message of small felts.
@@ -160,7 +168,7 @@ fn test_blake_step_constants() {
     let remainder = one_plus_half_message_plus_small_felt_steps
         - one_plus_half_message_steps
         - small_felt_overhead;
-    assert_eq!(remainder, CasmV2HashResourceEstimate::STEPS_PER_2_U32_REMINDER);
+    STEPS_PER_2_U32_REMINDER_EXPECT.assert_eq(&remainder.to_string());
 
     // Reuse the above computation to deduce the constant overhead for the case where the input does
     // not fit into an exact multiple of messages.
@@ -171,7 +179,7 @@ fn test_blake_step_constants() {
         - (SMALL_FELTS_PER_MESSAGE / 2) * CasmV2HashResourceEstimate::STEPS_PER_2_U32_REMINDER
         // Overhead of first (full) message: two large felts.
         - LARGE_FELTS_PER_MESSAGE * CasmV2HashResourceEstimate::STEPS_PER_LARGE_FELT;
-    assert_eq!(partial_message_overhead, CasmV2HashResourceEstimate::BASE_STEPS_PARTIAL_MSG);
+    BASE_STEPS_PARTIAL_MSG_EXPECT.assert_eq(&partial_message_overhead.to_string());
 }
 
 /// Test that compares Cairo and Rust implementations of

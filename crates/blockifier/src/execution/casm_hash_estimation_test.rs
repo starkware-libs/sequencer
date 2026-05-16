@@ -3,6 +3,14 @@ use pretty_assertions::assert_eq;
 use starknet_types_core::hash::Blake2Felt252;
 
 use crate::execution::call_info::OpcodeName;
+use crate::execution::casm_hash_estimation::expected::{
+    BASE_STEPS_FULL_MSG_EXPECT,
+    BASE_STEPS_PARTIAL_MSG_EXPECT,
+    STEPS_EMPTY_INPUT_EXPECT,
+    STEPS_PER_2_U32_REMINDER_EXPECT,
+    STEPS_PER_LARGE_FELT_EXPECT,
+    STEPS_PER_SMALL_FELT_EXPECT,
+};
 use crate::execution::casm_hash_estimation::{
     CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
@@ -20,6 +28,32 @@ fn test_u32_constants() {
     // Blake estimation constants should match the actual encoding.
     assert_eq!(small_u32s.len(), CasmV2HashResourceEstimate::U32_WORDS_PER_SMALL_FELT);
     assert_eq!(large_u32s.len(), CasmV2HashResourceEstimate::U32_WORDS_PER_LARGE_FELT);
+}
+
+/// Assert consistency between the blake constants used in production and the expected values
+/// reproduced and auto-fixed by tests.
+#[test]
+fn test_expected_constants() {
+    macro_rules! assert_eq_expect {
+        ($expect:expr, $actual:ident) => {
+            assert_eq!(
+                $expect.data.parse::<usize>().unwrap(),
+                CasmV2HashResourceEstimate::$actual,
+                "Expect constant {} is not equal to constant CasmV2HashResourceEstimate::{} ({} \
+                 != {}). Fix the latter (manually) to match the former.",
+                stringify!($expect),
+                stringify!($actual),
+                $expect.data.parse::<usize>().unwrap(),
+                CasmV2HashResourceEstimate::$actual,
+            );
+        };
+    }
+    assert_eq_expect!(STEPS_EMPTY_INPUT_EXPECT, STEPS_EMPTY_INPUT);
+    assert_eq_expect!(STEPS_PER_LARGE_FELT_EXPECT, STEPS_PER_LARGE_FELT);
+    assert_eq_expect!(STEPS_PER_SMALL_FELT_EXPECT, STEPS_PER_SMALL_FELT);
+    assert_eq_expect!(BASE_STEPS_FULL_MSG_EXPECT, BASE_STEPS_FULL_MSG);
+    assert_eq_expect!(BASE_STEPS_PARTIAL_MSG_EXPECT, BASE_STEPS_PARTIAL_MSG);
+    assert_eq_expect!(STEPS_PER_2_U32_REMINDER_EXPECT, STEPS_PER_2_U32_REMINDER);
 }
 
 /// Test the edge case of hashing an empty array of felt values.
