@@ -374,7 +374,6 @@ fn metric_name_to_panel_title(metric_name: impl ToString) -> String {
     title_case(metric_name.to_string().replace("_", " "))
 }
 
-#[allow(dead_code)] // Used by callers added in follow-up changes.
 pub fn traffic_light_thresholds(yellow: f64, red: f64) -> Vec<(&'static str, Option<f64>)> {
     vec![("green", None), ("yellow", Some(yellow)), ("red", Some(red))]
 }

@@ -8,7 +8,7 @@ use apollo_state_sync_metrics::metrics::{
 };
 
 use crate::dashboard::Row;
-use crate::panel::{Panel, PanelType, Unit};
+use crate::panel::{traffic_light_thresholds, Panel, PanelType, Unit};
 use crate::query_builder::DEFAULT_DURATION;
 
 fn get_panel_current_feeder_gateway_marker() -> Panel {
@@ -47,6 +47,7 @@ fn get_panel_sync_diff_from_feeder_gateway() -> Panel {
         PanelType::TimeSeries,
     )
     .with_unit(Unit::Short)
+    .with_absolute_thresholds(traffic_light_thresholds(10.0, 100.0))
 }
 fn get_panel_sync_block_age() -> Panel {
     Panel::new(

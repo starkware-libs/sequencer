@@ -113,10 +113,12 @@ pub(crate) fn get_panel_consensus_block_number_diff_from_sync() -> Panel {
 pub(crate) fn get_panel_consensus_round() -> Panel {
     Panel::new(
         "Consensus Round",
-        "The round the node is currently working on",
+        "The round the node is currently working on. Round 0 is the happy path; persistently \
+         non-zero rounds indicate consensus difficulty (missing proposals, timeouts, divergence).",
         CONSENSUS_ROUND.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
+    .with_absolute_thresholds(vec![("green", None), ("yellow", Some(1.0)), ("red", Some(3.0))])
     .with_log_query("\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"")
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
