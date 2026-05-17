@@ -1495,7 +1495,7 @@ async fn test_first_height_keeps_sync_provided_l2_gas_price() {
 
     let (mut deps, _network) = create_test_and_network_deps();
     // Specific get_block expectation must be registered before setup_default_expectations, which
-    // installs a catch-all BlockNotFound handler for SNIP-35 bootstrap.
+    // installs a catch-all handler.
     deps.state_sync_client.expect_get_block().times(1).return_once(|height| {
         let mut sync_block = SyncBlock::default();
         sync_block.block_header_without_hash.block_number = height;
@@ -1534,4 +1534,58 @@ async fn test_first_height_keeps_sync_provided_l2_gas_price() {
         "Gas price should be {} (20 Gwei + 20/333), got {}",
         expected_price, context.l2_gas_price.0
     );
+}
+
+// `initialize_fee_proposals_window` reads `[start - WINDOW, start)` from state_sync once each
+// (no retries) and records each block's `fee_proposal_fri`.
+#[tokio::test]
+async fn test_initialize_fee_proposals_window_populates_from_state_sync() {
+    use crate::snip35::FEE_PROPOSAL_WINDOW_SIZE;
+
+    const START_HEIGHT: BlockNumber = BlockNumber(100);
+    let window_size = u64::try_from(FEE_PROPOSAL_WINDOW_SIZE).unwrap();
+    let bootstrap_range_start = START_HEIGHT.0 - window_size;
+    let fee_for_height = |h: u64| GasPrice(u128::from(h) * 1000);
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.state_sync_client.expect_get_block().times(FEE_PROPOSAL_WINDOW_SIZE).returning(
+        move |height| {
+            let mut sync_block = SyncBlock::default();
+            sync_block.block_header_without_hash.block_number = height;
+            sync_block.block_header_without_hash.fee_proposal_fri = Some(fee_for_height(height.0));
+            Ok(sync_block)
+        },
+    );
+    deps.setup_default_expectations();
+
+    let mut context = deps.build_context();
+    context.initialize_fee_proposals_window(START_HEIGHT).await.unwrap();
+
+    let expected: std::collections::BTreeMap<BlockNumber, Option<GasPrice>> =
+        (bootstrap_range_start..START_HEIGHT.0)
+            .map(|h| (BlockNumber(h), Some(fee_for_height(h))))
+            .collect();
+    assert_eq!(context.fee_proposals_window, expected);
+}
+
+// Genesis edge case: when `start_height < WINDOW_SIZE`, the range collapses to `[0..start_height)`.
+#[tokio::test]
+async fn test_initialize_fee_proposals_window_below_window_size() {
+    const START_HEIGHT: BlockNumber = BlockNumber(3);
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.state_sync_client
+        .expect_get_block()
+        .times(usize::try_from(START_HEIGHT.0).unwrap())
+        .returning(|height| {
+            let mut sync_block = SyncBlock::default();
+            sync_block.block_header_without_hash.block_number = height;
+            Ok(sync_block)
+        });
+    deps.setup_default_expectations();
+
+    let mut context = deps.build_context();
+    context.initialize_fee_proposals_window(START_HEIGHT).await.unwrap();
+
+    assert_eq!(context.fee_proposals_window.len(), usize::try_from(START_HEIGHT.0).unwrap());
 }
