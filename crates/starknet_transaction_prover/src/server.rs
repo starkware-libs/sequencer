@@ -87,6 +87,8 @@ pub use request_span::RequestSpanLayer;
 mod cors_test;
 #[cfg(test)]
 mod rpc_spec_test;
+#[cfg(test)]
+mod tls_test;
 
 #[cfg(test)]
 mod request_body_size_test;
