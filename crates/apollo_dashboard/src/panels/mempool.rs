@@ -48,15 +48,16 @@ fn get_panel_mempool_transactions_committed() -> Panel {
 fn get_panel_mempool_transactions_dropped() -> Panel {
     Panel::new(
         "Dropped Transactions by Reason",
-        "Number of transactions dropped from the mempool by reason (over the selected time range)",
+        "Distribution of mempool drop reasons over the selected time range",
         sum_by_label(
             &MEMPOOL_TRANSACTIONS_DROPPED,
             LABEL_NAME_DROP_REASON,
             DisplayMethod::Increase(RANGE_DURATION),
             false,
         ),
-        PanelType::Stat,
+        PanelType::PieChart,
     )
+    .with_legend_values(vec!["percent"])
 }
 fn get_panel_mempool_pool_size() -> Panel {
     Panel::new(

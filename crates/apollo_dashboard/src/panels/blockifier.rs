@@ -77,16 +77,19 @@ fn get_panel_native_execution_ratio() -> Panel {
 
 fn get_panel_blocks_full_by_resource() -> Panel {
     Panel::new(
-        "Blocks Full By Resource",
-        format!("Number of blocks closed on each bouncer resource ({} window)", DEFAULT_DURATION),
+        "Blocks Full by Resource",
+        format!(
+            "Distribution of bouncer resources that filled a block ({DEFAULT_DURATION} window)"
+        ),
         sum_by_label(
             &BLOCKS_FULL_BY_RESOURCE,
             LABEL_NAME_BLOCK_FULL_RESOURCE,
             DisplayMethod::Increase(DEFAULT_DURATION),
             false,
         ),
-        PanelType::Stat,
+        PanelType::PieChart,
     )
+    .with_legend_values(vec!["percent"])
 }
 
 fn get_panel_transactions_per_block() -> Panel {

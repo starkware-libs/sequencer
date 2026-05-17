@@ -23,30 +23,33 @@ use crate::query_builder::{increase, sum_by_label, DisplayMethod, RANGE_DURATION
 fn get_panel_gateway_transactions_received_by_type() -> Panel {
     Panel::new(
         "Transactions Received by Type",
-        "The number of transactions received by type (over the selected time range)",
+        "The distribution of transactions received by type, over the selected time range",
         sum_by_label(
             &GATEWAY_TRANSACTIONS_RECEIVED,
             GATEWAY_LABEL_NAME_TX_TYPE,
             DisplayMethod::Increase(RANGE_DURATION),
             false,
         ),
-        PanelType::Stat,
+        PanelType::PieChart,
     )
+    .with_legend_values(vec!["percent"])
     .with_log_query("\"Processing tx\"")
 }
 
 fn get_panel_gateway_transactions_received_by_source() -> Panel {
     Panel::new(
         "Transactions Received by Source",
-        "The number of transactions received by source (over the selected time range)",
+        "The distribution of transactions received by source (HTTP vs P2P), over the selected \
+         time range",
         sum_by_label(
             &GATEWAY_TRANSACTIONS_RECEIVED,
             LABEL_NAME_SOURCE,
             DisplayMethod::Increase(RANGE_DURATION),
             false,
         ),
-        PanelType::Stat,
+        PanelType::PieChart,
     )
+    .with_legend_values(vec!["percent"])
     .with_log_query("\"Processing tx\" AND \"is_p2p=\"")
 }
 

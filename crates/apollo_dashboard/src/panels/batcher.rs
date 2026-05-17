@@ -146,15 +146,19 @@ pub(crate) fn get_panel_batched_transactions_rate() -> Panel {
 fn get_panel_block_close_reasons() -> Panel {
     Panel::new(
         "Block Close Reasons",
-        format!("Number of blocks closed by reason ({} window)", DEFAULT_DURATION),
+        format!(
+            "Distribution of reasons for closing a block ({DEFAULT_DURATION} window). Common \
+             reasons: builder deadline reached, block full, no transactions to execute."
+        ),
         sum_by_label(
             &BLOCK_CLOSE_REASON,
             LABEL_NAME_BLOCK_CLOSE_REASON,
             DisplayMethod::Increase(DEFAULT_DURATION),
             false,
         ),
-        PanelType::Stat,
+        PanelType::PieChart,
     )
+    .with_legend_values(vec!["percent"])
     .with_log_query(
         "\"Block builder deadline reached.\" OR \"Block is full.\" OR \"No transactions are being \
          executed and\"",
