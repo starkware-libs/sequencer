@@ -21,10 +21,12 @@ use starknet_api::transaction::fields::{
     ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
+use strum::IntoEnumIterator;
 
 use crate::config::ProverConfig;
 use crate::proving::virtual_snos_prover::RpcVirtualSnosProver;
 use crate::server::errors;
+use crate::server::errors::ServiceErrorCode;
 use crate::server::mock_rpc::MockProvingRpc;
 use crate::server::rpc_api::ProvingRpcServer;
 use crate::server::rpc_impl::{ProvingRpcServerImpl, SPEC_VERSION};
@@ -458,32 +460,52 @@ async fn test_prove_transaction_rejects_pending_block_id(
     SpecError::from_spec(&resolve_spec_error("BLOCK_NOT_FOUND")).assert_matches(&actual_error);
 }
 
-#[test]
-// TODO(Avi): Add an error enum to make this test exhastive.
-fn test_error_responses_match_spec() {
-    let test_cases: Vec<(&str, ErrorObjectOwned)> = vec![
-        ("BLOCK_NOT_FOUND", errors::block_not_found()),
-        ("ACCOUNT_VALIDATION_FAILED", errors::validation_failure("test".to_string())),
-        ("UNSUPPORTED_TX_TYPE", errors::unsupported_tx_type("Declare".to_string())),
-        ("SERVICE_BUSY", errors::service_busy(2)),
-        (
-            "INVALID_TRANSACTION_INPUT",
-            errors::invalid_transaction_input("test field invalid".to_string()),
-        ),
-        ("TRANSACTION_BLOCKED", errors::transaction_blocked()),
-    ];
+/// Exhaustive: a new [`ServiceErrorCode`] variant fails to compile here until its spec key is
+/// wired in.
+fn spec_key(error_code: ServiceErrorCode) -> &'static str {
+    match error_code {
+        ServiceErrorCode::BlockNotFound => "BLOCK_NOT_FOUND",
+        ServiceErrorCode::AccountValidationFailed => "ACCOUNT_VALIDATION_FAILED",
+        ServiceErrorCode::UnsupportedTxType => "UNSUPPORTED_TX_TYPE",
+        ServiceErrorCode::InvalidTransactionInput => "INVALID_TRANSACTION_INPUT",
+        ServiceErrorCode::ServiceBusy => "SERVICE_BUSY",
+        ServiceErrorCode::TransactionBlocked => "TRANSACTION_BLOCKED",
+    }
+}
 
-    // Completeness guard: ensure all spec errors (from method error arrays) have a test case.
-    let spec_error_keys: HashSet<&str> = SPEC_ERRORS.keys().map(|k| k.as_str()).collect();
-    let tested_error_keys: HashSet<&str> = test_cases.iter().map(|(key, _)| *key).collect();
+/// Built via the production constructors so the spec assertions exercise the real
+/// code/message/data wiring.
+fn sample_error_object(error_code: ServiceErrorCode) -> ErrorObjectOwned {
+    match error_code {
+        ServiceErrorCode::BlockNotFound => errors::block_not_found(),
+        ServiceErrorCode::AccountValidationFailed => {
+            errors::validation_failure("sample data".to_string())
+        }
+        ServiceErrorCode::UnsupportedTxType => errors::unsupported_tx_type("Declare".to_string()),
+        ServiceErrorCode::InvalidTransactionInput => {
+            errors::invalid_transaction_input("test field invalid".to_string())
+        }
+        ServiceErrorCode::ServiceBusy => errors::service_busy(2),
+        ServiceErrorCode::TransactionBlocked => errors::transaction_blocked(),
+    }
+}
+
+#[test]
+fn test_error_responses_match_spec() {
+    let enum_keys: HashSet<&'static str> = ServiceErrorCode::iter().map(spec_key).collect();
     assert_eq!(
-        tested_error_keys, spec_error_keys,
-        "Test cases don't cover all spec errors. Update the test_cases list above."
+        enum_keys.len(),
+        ServiceErrorCode::iter().count(),
+        "Duplicate spec_key for ServiceErrorCode variants",
     );
 
-    for (spec_key, actual) in &test_cases {
-        SpecError::from_spec(&resolve_spec_error(spec_key)).assert_matches(actual);
+    for error_code in ServiceErrorCode::iter() {
+        let spec_entry = resolve_spec_error(spec_key(error_code));
+        SpecError::from_spec(&spec_entry).assert_matches(&sample_error_object(error_code));
     }
+
+    let spec_keys: HashSet<&str> = SPEC_ERRORS.keys().map(String::as_str).collect();
+    assert_eq!(enum_keys, spec_keys, "ServiceErrorCode and OpenRPC spec are out of sync");
 }
 
 /// Helper: sends a prove_transaction request and asserts it returns the expected error.
