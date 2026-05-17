@@ -13,6 +13,7 @@ use starknet_api::block::{
 };
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use tokio::sync::Notify;
 
 use crate::cende_client_types::{CendeBlockMetadata, StarknetClientTransactionReceipt};
 use crate::pre_confirmed_block_writer::{
@@ -31,6 +32,10 @@ const TEST_BLOCK_NUMBER: BlockNumber = BlockNumber(1);
 const TEST_ROUND: Round = 0;
 const CHANNEL_SIZE: usize = 100;
 const WRITE_INTERVAL_MS: u64 = 10;
+// Large enough that the timer's second tick never fires during the test; the first tick of
+// `tokio::time::interval` is always immediately ready, so the initial empty-block write still
+// happens.
+const LONG_WRITE_INTERVAL_MS: u64 = 60_000;
 
 fn test_block_metadata() -> CendeBlockMetadata {
     CendeBlockMetadata {
@@ -50,6 +55,7 @@ fn test_block_metadata() -> CendeBlockMetadata {
 
 fn create_writer(
     mock_client: MockPreconfirmedCendeClientTrait,
+    write_interval_ms: u64,
 ) -> (PreconfirmedBlockWriter, PreconfirmedTxSender) {
     let (pre_confirmed_tx_sender, pre_confirmed_tx_receiver) =
         tokio::sync::mpsc::channel(CHANNEL_SIZE);
@@ -61,7 +67,7 @@ fn create_writer(
         },
         pre_confirmed_tx_receiver,
         Arc::new(mock_client),
-        WRITE_INTERVAL_MS,
+        write_interval_ms,
     );
     (writer, pre_confirmed_tx_sender)
 }
@@ -82,7 +88,7 @@ async fn write_empty_block_on_channel_close() {
         })
         .returning(|_| Ok(()));
 
-    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client);
+    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client, WRITE_INTERVAL_MS);
 
     drop(pre_confirmed_tx_sender);
 
@@ -111,7 +117,7 @@ async fn write_pre_confirmed_transactions() {
         .returning(|_| Ok(()));
     mock_client.expect_write_pre_confirmed_block().returning(|_| Ok(()));
 
-    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client);
+    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client, WRITE_INTERVAL_MS);
 
     let writer_handle = tokio::spawn(async move { writer.run().await });
 
@@ -136,6 +142,11 @@ async fn final_write_includes_pending_changes() {
     let txs = test_txs(0..2);
     let expected_hashes: Vec<_> = txs.iter().map(|tx| tx.tx_hash()).collect();
 
+    // Signalled by the catch-all mock once the initial empty-block write completes, so we don't
+    // race against the interval timer when deciding when to send transactions.
+    let initial_write_done = Arc::new(Notify::new());
+    let initial_write_done_clone = initial_write_done.clone();
+
     let mut mock_client = MockPreconfirmedCendeClientTrait::new();
     mock_client
         .expect_write_pre_confirmed_block()
@@ -150,14 +161,20 @@ async fn final_write_includes_pending_changes() {
         })
         .times(1)
         .returning(|_| Ok(()));
-    mock_client.expect_write_pre_confirmed_block().times(1).returning(|_| Ok(()));
+    mock_client.expect_write_pre_confirmed_block().times(1).returning(move |_| {
+        initial_write_done_clone.notify_one();
+        Ok(())
+    });
 
-    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client);
+    // Use a large interval so the timer's second tick never fires during this test. The first tick
+    // is always immediately ready, so the initial empty-block write still happens; subsequent ticks
+    // are 60 s away, eliminating the select! race between the timer arm and the recv arm.
+    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client, LONG_WRITE_INTERVAL_MS);
 
     let writer_handle = tokio::spawn(async move { writer.run().await });
 
-    // Wait for the initial empty-block write to complete.
-    tokio::time::sleep(Duration::from_millis(WRITE_INTERVAL_MS)).await;
+    // Wait deterministically for the initial empty-block write to complete.
+    initial_write_done.notified().await;
 
     for tx in txs {
         pre_confirmed_tx_sender
@@ -165,10 +182,6 @@ async fn final_write_includes_pending_changes() {
             .await
             .unwrap();
     }
-
-    // Give the writer enough time to process the channel messages but close the channel before the
-    // next timer-triggered write.
-    tokio::task::yield_now().await;
 
     drop(pre_confirmed_tx_sender);
 
@@ -191,7 +204,7 @@ async fn write_error_is_ignored() {
     });
     mock_client.expect_write_pre_confirmed_block().times(1..).returning(|_| Ok(()));
 
-    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client);
+    let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client, WRITE_INTERVAL_MS);
 
     // Send txs before spawning so the initial write includes transactions.
     for tx in test_txs(0..3) {
