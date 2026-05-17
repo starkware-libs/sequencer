@@ -38,6 +38,7 @@ pub mod mock_rpc;
 pub mod panic;
 pub mod rpc_api;
 pub mod rpc_impl;
+pub mod saturation;
 #[cfg(test)]
 pub mod test_recorder;
 pub mod tls;
@@ -45,6 +46,7 @@ pub mod tls;
 pub use health::{HealthLayer, HEALTH_PATH};
 pub use http_metrics::HttpMetricsLayer;
 pub use metrics::{MetricsLayer, METRICS_PATH};
+pub use saturation::SaturationMonitor;
 
 #[cfg(test)]
 mod rpc_spec_test;
@@ -64,6 +66,7 @@ pub async fn start_server(
     cors_layer: Option<CorsLayer>,
     ohttp_layer: Option<OhttpJsonrpseeLayer>,
     metrics_layer: Option<MetricsLayer>,
+    health_layer: HealthLayer,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     match transport {
         TransportMode::Http => {
@@ -98,7 +101,7 @@ pub async fn start_server(
                     // - The rest of the stack: CORS, body mapping for
                     //   OHTTP, OHTTP, body mapping back, compression.
                     ServiceBuilder::new()
-                        .layer(HealthLayer)
+                        .layer(health_layer)
                         .option_layer(metrics_layer)
                         .layer(HttpMetricsLayer)
                         .option_layer(cors_layer)
@@ -125,6 +128,7 @@ pub async fn start_server(
                 cors_layer,
                 ohttp_layer,
                 metrics_layer,
+                health_layer,
             )
             .await
         }
