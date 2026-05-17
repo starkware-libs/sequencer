@@ -19,6 +19,7 @@ mod replace_class;
 mod secp;
 mod send_message_to_l1;
 mod sha256;
+mod sha512;
 mod storage_read_write;
 
 #[derive(Debug)]

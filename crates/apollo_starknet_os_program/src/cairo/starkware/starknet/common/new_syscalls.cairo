@@ -1,5 +1,6 @@
 from starkware.cairo.common.cairo_secp.ec import EcPoint
 from starkware.cairo.common.sha256_state import Sha256Input, Sha256State
+from starkware.cairo.common.sha512_state import Sha512Input, Sha512State
 from starkware.cairo.common.uint256 import Uint256
 
 // Syscall selectors.
@@ -21,6 +22,7 @@ const SECP256R1_MUL_SELECTOR = 'Secp256r1Mul';
 const SECP256R1_NEW_SELECTOR = 'Secp256r1New';
 const KECCAK_SELECTOR = 'Keccak';
 const SHA256_PROCESS_BLOCK_SELECTOR = 'Sha256ProcessBlock';
+const SHA512_PROCESS_BLOCK_SELECTOR = 'Sha512ProcessBlock';
 const LIBRARY_CALL_SELECTOR = 'LibraryCall';
 const REPLACE_CLASS_SELECTOR = 'ReplaceClass';
 const SEND_MESSAGE_TO_L1_SELECTOR = 'SendMessageToL1';
@@ -179,6 +181,11 @@ struct Sha256ProcessBlockRequest {
     input_start: Sha256Input*,
 }
 
+struct Sha512ProcessBlockRequest {
+    state_ptr: Sha512State*,
+    input_start: Sha512Input*,
+}
+
 struct SecpAddRequest {
     p0: EcPoint*,
     p1: EcPoint*,
@@ -269,6 +276,10 @@ struct KeccakResponse {
 
 struct Sha256ProcessBlockResponse {
     state_ptr: Sha256State*,
+}
+
+struct Sha512ProcessBlockResponse {
+    state_ptr: Sha512State*,
 }
 
 struct SecpGetXyResponse {
