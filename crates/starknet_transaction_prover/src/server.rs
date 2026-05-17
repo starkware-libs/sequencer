@@ -33,6 +33,7 @@ pub mod health;
 pub mod log_redact;
 #[cfg(test)]
 pub mod mock_rpc;
+pub mod panic;
 pub mod rpc_api;
 pub mod rpc_impl;
 pub mod tls;

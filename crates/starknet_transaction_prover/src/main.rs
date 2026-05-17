@@ -22,6 +22,7 @@ async fn main() -> anyhow::Result<()> {
     };
     use starknet_transaction_prover::server::cors::{build_cors_layer, cors_mode};
     use starknet_transaction_prover::server::log_redact::redact_url_host;
+    use starknet_transaction_prover::server::panic::install_panic_hook;
     use starknet_transaction_prover::server::rpc_api::ProvingRpcServer;
     use starknet_transaction_prover::server::rpc_impl::ProvingRpcServerImpl;
     use starknet_transaction_prover::server::{
@@ -29,8 +30,9 @@ async fn main() -> anyhow::Result<()> {
         OhttpJsonrpseeLayer,
         OHTTP_JSONRPSEE_BODY_BUILDER,
     };
+    use tokio::signal::unix::{signal, SignalKind};
     use tower_ohttp::OhttpGateway;
-    use tracing::info;
+    use tracing::{info, warn};
     use tracing_subscriber::prelude::*;
     use tracing_subscriber::{fmt, EnvFilter};
 
@@ -38,6 +40,8 @@ async fn main() -> anyhow::Result<()> {
     // the formatter. Config loading still happens after to keep the existing
     // CLI-override logs visible.
     let args = CliArgs::parse();
+
+    install_panic_hook();
 
     // TODO(Avi): Revisit the starknet_transaction_prover=debug default once the service stabilizes.
     // By default, keep service logs and lower third-party logs to warn. The
@@ -116,6 +120,37 @@ async fn main() -> anyhow::Result<()> {
         "JSON-RPC proving server is running."
     );
 
+    // Bridge SIGTERM/SIGINT into jsonrpsee's `ServerHandle::stop`. Without
+    // this, container teardown sends SIGTERM and the prover's only response
+    // is to be killed with no log — operators can't tell graceful drains
+    // from crashes.
+    let shutdown_handle = server_handle.clone();
+    tokio::spawn(async move {
+        let mut sigterm = match signal(SignalKind::terminate()) {
+            Ok(stream) => stream,
+            Err(err) => {
+                warn!(error = %err, "Failed to install SIGTERM handler");
+                return;
+            }
+        };
+        let mut sigint = match signal(SignalKind::interrupt()) {
+            Ok(stream) => stream,
+            Err(err) => {
+                warn!(error = %err, "Failed to install SIGINT handler");
+                return;
+            }
+        };
+        let signal_name = tokio::select! {
+            _ = sigterm.recv() => "SIGTERM",
+            _ = sigint.recv() => "SIGINT",
+        };
+        info!(event = "shutdown_started", signal = signal_name, "Shutting down JSON-RPC server.");
+        if let Err(err) = shutdown_handle.stop() {
+            warn!(error = %err, "Failed to stop JSON-RPC server cleanly");
+        }
+    });
+
     server_handle.stopped().await;
+    info!(event = "shutdown_complete", "JSON-RPC server stopped.");
     Ok(())
 }
