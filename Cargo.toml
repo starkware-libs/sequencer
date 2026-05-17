@@ -259,7 +259,11 @@ cairo-lang-sierra = "2.19.0-rc.0"
 cairo-lang-sierra-to-casm = "2.19.0-rc.0"
 cairo-lang-starknet-classes = "2.19.0-rc.0"
 cairo-lang-utils = "2.19.0-rc.0"
-cairo-native = "0.9.0-rc.7"
+# TEMP: git dep pinned to the tip of the unreleased PR stack
+# (starkware-libs/cairo_native#1610 → #1611 → #1612 → #1613) containing
+# `ContractExecutor`, `EmuContractInfo`, `AotWithProgram`, and `run_with_profile`.
+# Switch back to a crates.io version once those land in a published cairo-native release.
+cairo-native = { git = "https://github.com/starkware-libs/cairo_native.git", rev = "a21f3f57128d2a91067fa31bff92bd00bdc85ba5" }
 cairo-program-runner-lib = "1.1.0"
 cairo-vm = "3.2.0"
 camelpaste = "0.1.0"
