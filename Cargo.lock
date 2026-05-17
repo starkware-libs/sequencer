@@ -12826,6 +12826,8 @@ dependencies = [
  "indexmap 2.12.0",
  "jsonrpsee",
  "jsonschema",
+ "metrics",
+ "metrics-exporter-prometheus",
  "mockito",
  "privacy-circuit-verify",
  "privacy-prove",
