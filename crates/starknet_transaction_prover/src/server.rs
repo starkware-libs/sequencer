@@ -43,6 +43,8 @@ pub use health::{HealthLayer, HEALTH_PATH};
 mod cors_test;
 #[cfg(test)]
 mod rpc_spec_test;
+#[cfg(test)]
+mod tls_test;
 
 #[cfg(test)]
 #[path = "server/ohttp_integration_test.rs"]
