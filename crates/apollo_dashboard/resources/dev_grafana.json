@@ -614,24 +614,30 @@
         },
         {
           "title": "Transactions Received by Source",
-          "description": "The number of transactions received by source (over the selected time range)",
-          "type": "stat",
+          "description": "The distribution of transactions received by source (HTTP vs P2P), over the selected time range",
+          "type": "piechart",
           "exprs": [
             "sum by (source) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))"
           ],
           "extra_params": {
-            "log_query": "\"Processing tx\" AND \"is_p2p=\""
+            "log_query": "\"Processing tx\" AND \"is_p2p=\"",
+            "legend_values": [
+              "percent"
+            ]
           }
         },
         {
           "title": "Transactions Received by Type",
-          "description": "The number of transactions received by type (over the selected time range)",
-          "type": "stat",
+          "description": "The distribution of transactions received by type, over the selected time range",
+          "type": "piechart",
           "exprs": [
             "sum by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))"
           ],
           "extra_params": {
-            "log_query": "\"Processing tx\""
+            "log_query": "\"Processing tx\"",
+            "legend_values": [
+              "percent"
+            ]
           }
         },
         {
@@ -753,12 +759,16 @@
         },
         {
           "title": "Dropped Transactions by Reason",
-          "description": "Number of transactions dropped from the mempool by reason (over the selected time range)",
-          "type": "stat",
+          "description": "Distribution of mempool drop reasons over the selected time range",
+          "type": "piechart",
           "exprs": [
             "sum by (drop_reason) (increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "legend_values": [
+              "percent"
+            ]
+          }
         },
         {
           "title": "Pool Size (Num TXs)",
@@ -950,13 +960,16 @@
         },
         {
           "title": "Block Close Reasons",
-          "description": "Number of blocks closed by reason (10m window)",
-          "type": "stat",
+          "description": "Distribution of reasons for closing a block (10m window). Common reasons: builder deadline reached, block full, no transactions to execute.",
+          "type": "piechart",
           "exprs": [
             "sum by (block_close_reason) (increase(batcher_block_close_reason{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]))"
           ],
           "extra_params": {
-            "log_query": "\"Block builder deadline reached.\" OR \"Block is full.\" OR \"No transactions are being executed and\""
+            "log_query": "\"Block builder deadline reached.\" OR \"Block is full.\" OR \"No transactions are being executed and\"",
+            "legend_values": [
+              "percent"
+            ]
           }
         },
         {
@@ -1166,13 +1179,17 @@
           }
         },
         {
-          "title": "Blocks Full By Resource",
-          "description": "Number of blocks closed on each bouncer resource (10m window)",
-          "type": "stat",
+          "title": "Blocks Full by Resource",
+          "description": "Distribution of bouncer resources that filled a block (10m window)",
+          "type": "piechart",
           "exprs": [
             "sum by (resource) (increase(blockifier_blocks_full_by_resource{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]))"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "legend_values": [
+              "percent"
+            ]
+          }
         },
         {
           "title": "Transactions Per Block",
