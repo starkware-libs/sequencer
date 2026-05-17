@@ -35,6 +35,53 @@ fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> Executi
     resources
 }
 
+/// Returns the result and the resources used.
+fn cairo_encode_felt252_data_and_calc_blake_hash(input: &[Felt]) -> (Felt, ExecutionResources) {
+    let runner_config = EntryPointRunnerConfig {
+        layout: LayoutName::all_cairo,
+        trace_enabled: false,
+        verify_secure: false,
+        proof_mode: false,
+        add_main_prefix_to_entrypoint: false,
+        validate_builtins_offset: true,
+    };
+
+    let data_len = input.len();
+    let explicit_args = vec![
+        EndpointArg::from(Felt::from(data_len)),
+        EndpointArg::Pointer(PointerArg::Array(
+            input.iter().map(|felt| MaybeRelocatable::Int(*felt)).collect(),
+        )),
+    ];
+    let implicit_args = vec![ImplicitArg::Builtin(BuiltinName::range_check)];
+    let expected_return_values = vec![EndpointArg::from(Felt::ZERO)];
+    let hint_locals: HashMap<String, Box<dyn std::any::Any>> = HashMap::new();
+
+    // Call the Cairo entrypoint.
+    // This entrypoint does not use state reader.
+    let state_reader = None;
+    let (_, explicit_return_values, cairo_runner) = initialize_and_run_cairo_0_entry_point(
+        &runner_config,
+        apollo_starknet_os_program::OS_PROGRAM_BYTES,
+        "starkware.cairo.common.cairo_blake2s.blake2s.encode_felt252_data_and_calc_blake_hash",
+        &explicit_args,
+        &implicit_args,
+        &expected_return_values,
+        hint_locals,
+        state_reader,
+    )
+    .unwrap_or_else(|e| panic!("Failed to run Cairo blake2s function: {e:?}"));
+
+    assert_eq!(explicit_return_values.len(), 1, "Expected exactly one return value");
+
+    let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(cairo_hash_felt))) =
+        &explicit_return_values[0]
+    else {
+        panic!("Expected a single felt return value");
+    };
+    (*cairo_hash_felt, cairo_runner.get_execution_resources().unwrap().filter_unused_builtins())
+}
+
 /// Test that compares Cairo and Rust implementations of
 /// encode_felt252_data_and_calc_blake_hash.
 #[rstest]
@@ -46,71 +93,18 @@ fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> Executi
 #[case::mixed_small_large(vec![Felt::from(42), Felt::from(1u64 << 63), Felt::from(1337)])]
 #[case::many_large(vec![Felt::from(1u64 << 63); 100])]
 fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
-    let runner_config = EntryPointRunnerConfig {
-        layout: LayoutName::all_cairo,
-        trace_enabled: false,
-        verify_secure: false,
-        proof_mode: false,
-        add_main_prefix_to_entrypoint: false,
-        validate_builtins_offset: true,
-    };
-
+    let (cairo_hash_felt, actual_resources) =
+        cairo_encode_felt252_data_and_calc_blake_hash(&test_data);
     let rust_hash = Blake2Felt252::encode_felt252_data_and_calc_blake_hash(&test_data);
-
-    let data_len = test_data.len();
-    let explicit_args = vec![
-        EndpointArg::from(Felt::from(data_len)),
-        EndpointArg::Pointer(PointerArg::Array(
-            test_data.iter().map(|felt| MaybeRelocatable::Int(*felt)).collect(),
-        )),
-    ];
-
-    let implicit_args = vec![ImplicitArg::Builtin(BuiltinName::range_check)];
-
-    let expected_return_values = vec![EndpointArg::from(Felt::ZERO)];
-
-    let hint_locals: HashMap<String, Box<dyn std::any::Any>> = HashMap::new();
-
-    // Call the Cairo entrypoint.
-    // This entrypoint does not use state reader.
-    let state_reader = None;
-    let result = initialize_and_run_cairo_0_entry_point(
-        &runner_config,
-        apollo_starknet_os_program::OS_PROGRAM_BYTES,
-        "starkware.cairo.common.cairo_blake2s.blake2s.encode_felt252_data_and_calc_blake_hash",
-        &explicit_args,
-        &implicit_args,
-        &expected_return_values,
-        hint_locals,
-        state_reader,
+    assert_eq!(
+        rust_hash, cairo_hash_felt,
+        "Blake2s hash mismatch: Rust={rust_hash}, Cairo={cairo_hash_felt}",
     );
 
-    match result {
-        Ok((_, explicit_return_values, cairo_runner)) => {
-            assert_eq!(explicit_return_values.len(), 1, "Expected exactly one return value");
-
-            let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(cairo_hash_felt))) =
-                &explicit_return_values[0]
-            else {
-                panic!("Expected a single felt return value");
-            };
-            assert_eq!(
-                rust_hash, *cairo_hash_felt,
-                "Blake2s hash mismatch: Rust={rust_hash}, Cairo={cairo_hash_felt}",
-            );
-
-            // TODO(AvivG): consider moving this to the where the estimate methods are defined.
-            let actual_resources =
-                cairo_runner.get_execution_resources().unwrap().filter_unused_builtins();
-            let estimated_resources =
-                estimated_encode_and_blake_hash_execution_resources(&test_data);
-            // Asserts that actual Cairo execution resources match the estimate.
-            assert_eq!(actual_resources, estimated_resources);
-        }
-        Err(e) => {
-            panic!("Failed to run Cairo blake2s function: {e:?}");
-        }
-    }
+    // TODO(AvivG): consider moving this to the where the estimate methods are defined.
+    let estimated_resources = estimated_encode_and_blake_hash_execution_resources(&test_data);
+    // Asserts that actual Cairo execution resources match the estimate.
+    assert_eq!(actual_resources, estimated_resources);
 }
 
 /// Test that compares the Cairo0 `calc_naive_blake_hash` with its Rust equivalent.
