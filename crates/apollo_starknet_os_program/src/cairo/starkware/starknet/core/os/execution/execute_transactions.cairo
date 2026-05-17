@@ -8,9 +8,11 @@ from starkware.cairo.common.cairo_builtins import (
     PoseidonBuiltin,
 )
 from starkware.cairo.common.cairo_sha256.sha256_utils import finalize_sha256
+from starkware.cairo.common.cairo_sha512.sha512_utils import finalize_sha512
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.sha256_state import Sha256ProcessBlock
+from starkware.cairo.common.sha512_state import Sha512ProcessBlock
 from starkware.starknet.builtins.segment_arena.segment_arena import new_arena
 from starkware.starknet.core.os.block_context import BlockContext
 from starkware.starknet.core.os.builtins import (
@@ -54,6 +56,7 @@ func execute_transactions{
     // Prepare builtin pointers.
     let segment_arena_ptr = new_arena();
     let (sha256_ptr: Sha256ProcessBlock*) = alloc();
+    let (sha512_ptr: Sha512ProcessBlock*) = alloc();
 
     let (__fp__, _) = get_fp_and_pc();
     local local_builtin_ptrs: BuiltinPointers = BuiltinPointers(
@@ -69,11 +72,12 @@ func execute_transactions{
             add_mod=add_mod_ptr,
             mul_mod=mul_mod_ptr,
         ),
-        non_selectable=NonSelectableBuiltins(keccak=keccak_ptr, sha256=sha256_ptr),
+        non_selectable=NonSelectableBuiltins(keccak=keccak_ptr, sha256=sha256_ptr, sha512=sha512_ptr),
     );
 
     let builtin_ptrs = &local_builtin_ptrs;
     let sha256_ptr_start = builtin_ptrs.non_selectable.sha256;
+    let sha512_ptr_start = builtin_ptrs.non_selectable.sha512;
 
     // Execute transactions.
     local n_txs;
@@ -106,6 +110,11 @@ func execute_transactions{
     // Finalize the sha256 segment.
     finalize_sha256(
         sha256_ptr_start=sha256_ptr_start, sha256_ptr_end=builtin_ptrs.non_selectable.sha256
+    );
+
+    // Finalize the sha512 segment.
+    finalize_sha512(
+        sha512_ptr_start=sha512_ptr_start, sha512_ptr_end=builtin_ptrs.non_selectable.sha512
     );
 
     return ();
