@@ -25,13 +25,13 @@ fn cairo1_package_dir(version: &String) -> PathBuf {
 }
 
 /// Path to starknet-compile binary, of the specified version.
-fn starknet_compile_binary_path(version: &String) -> PathBuf {
-    cairo1_package_dir(version).join("cairo/bin/starknet-compile")
+fn starknet_compile_binary_path(_version: &String) -> PathBuf {
+    project_path().unwrap().join("../cairo/target/debug/starknet-compile")
 }
 
 /// Path to starknet-sierra-compile binary, of the specified version.
-fn starknet_sierra_compile_binary_path(version: &String) -> PathBuf {
-    cairo1_package_dir(version).join("cairo/bin/starknet-sierra-compile")
+fn starknet_sierra_compile_binary_path(_version: &String) -> PathBuf {
+    project_path().unwrap().join("../cairo/target/debug/starknet-sierra-compile")
 }
 
 /// Commit marker written after `tar` extraction fully completes. Required because
@@ -109,10 +109,8 @@ fn download_cairo_package(version: &String) {
 }
 
 fn cairo1_package_exists(version: &String) -> bool {
-    let cairo_compiler_path = starknet_compile_binary_path(version);
-    let sierra_compiler_path = starknet_sierra_compile_binary_path(version);
-    let marker_path = cairo1_package_complete_marker(version);
-    cairo_compiler_path.exists() && sierra_compiler_path.exists() && marker_path.exists()
+    starknet_compile_binary_path(version).exists()
+        && starknet_sierra_compile_binary_path(version).exists()
 }
 
 /// Appends `.lock` to a path, used by `with_file_lock` callers to derive a lock file path.
