@@ -50,7 +50,7 @@ fn get_panel_l1_events_num_pending_txs() -> Panel {
 
 fn get_panel_l1_message_scraper_seconds_since_last_successful_scrape() -> Panel {
     Panel::new(
-        "Seconds since last successful l1 event scrape",
+        "Seconds Since Last Successful L1 Event Scrape",
         "The number of seconds since the last successful scrape of the L1 message scraper \
          (assuming there was a scrape in the last 12 hours)",
         seconds_since_last_timestamp(&L1_MESSAGE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS),

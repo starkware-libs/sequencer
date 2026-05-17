@@ -15,7 +15,6 @@ pub(crate) fn get_pod_metrics_row() -> Row {
             get_pod_memory_request_utilization_panel(),
             get_pod_memory_limit_utilization_panel(),
             get_pod_disk_utilization_panel(),
-            get_pod_disk_limit_utilization_panel(),
         ],
     )
 }
@@ -166,39 +165,6 @@ fn get_pod_disk_utilization_panel() -> Panel {
     Panel::new(
         "Pod Disk Utilization",
         "Pod disk utilization (used / capacity)",
-        format!(
-            "
-            (
-                sum by (namespace, persistentvolumeclaim) (
-                    kubelet_volume_stats_used_bytes{METRIC_LABEL_FILTER}
-                )
-            )
-            /
-            (
-                sum by (namespace, persistentvolumeclaim) (
-                    kubelet_volume_stats_capacity_bytes{METRIC_LABEL_FILTER}
-                )
-            )
-            "
-        ),
-        PanelType::TimeSeries,
-    )
-    .with_legends(PVC_LEGEND)
-    .with_unit(Unit::PercentUnit)
-    .with_absolute_thresholds(pod_metric_thresholds())
-}
-
-// Pod disk limit utilization (PVC) as a ratio of:
-//   total volume bytes used by the pod
-//   ----------------------------------
-//   total volume capacity bytes of the pod (effective disk limit)
-// Aggregated per (namespace, persistentvolumeclaim), the result is a value between 0.0 and 1.0 per
-// PVC. Interpreted as: "How close is this pod's PVC storage to being full (disk *limit*
-// saturation)?"
-fn get_pod_disk_limit_utilization_panel() -> Panel {
-    Panel::new(
-        "Pod Disk Limit Utilization",
-        "Pod disk limit utilization (used / capacity)",
         format!(
             "
             (

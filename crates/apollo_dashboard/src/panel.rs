@@ -34,6 +34,9 @@ pub enum Unit {
     PercentUnit,
     MB,
     Microseconds,
+    /// Grafana's "short" abbreviation: numeric values displayed with k/M/G/T suffixes.
+    /// Use for any count where the magnitude is unbounded (txs, blocks, peers, etc.).
+    Short,
 }
 
 impl Unit {
@@ -44,6 +47,7 @@ impl Unit {
             Unit::PercentUnit => "percentunit",
             Unit::MB => "decmbytes",
             Unit::Microseconds => "µs",
+            Unit::Short => "short",
         }
     }
 }
@@ -371,7 +375,11 @@ fn metric_name_to_panel_title(metric_name: impl ToString) -> String {
     title_case(metric_name.to_string().replace("_", " "))
 }
 
-#[allow(dead_code)] // TODO(Ron): use in panels
+/// Returns a 3-step "traffic light" threshold list (green→yellow→red).
+///
+/// Values below `yellow` are green, between `yellow` and `red` are yellow, and at/above `red` are
+/// red. Use with `Panel::with_absolute_thresholds`.
+#[allow(dead_code)] // Used by callers added in follow-up changes.
 pub fn traffic_light_thresholds(yellow: f64, red: f64) -> Vec<(&'static str, Option<f64>)> {
     vec![("green", None), ("yellow", Some(yellow)), ("red", Some(red))]
 }
