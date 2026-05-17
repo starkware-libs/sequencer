@@ -121,7 +121,9 @@ class BaseCommand(Enum):
             cmds_no_feat = build_cmds(with_feature=False) + run_cmds
 
             # Only run cairo_native feature if the blockifier crate is modified, and in nightly.
-            if CAIRO_NATIVE_CRATE_TRIGGERS.isdisjoint(crates) and not is_nightly:
+            # Otherwise the second pass would re-run the same no-feature binaries with no extra
+            # coverage (feature_flag below is gated on is_nightly).
+            if CAIRO_NATIVE_CRATE_TRIGGERS.isdisjoint(crates) or not is_nightly:
                 return cmds_no_feat
 
             print("Composing sequencer integration test commands with cairo_native feature.")
