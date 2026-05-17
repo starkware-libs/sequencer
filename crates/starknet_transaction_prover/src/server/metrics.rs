@@ -28,6 +28,8 @@ pub mod names {
     pub const BUILD_INFO: &str = "prover_build_info";
     /// Requests rejected because the concurrency semaphore was full.
     pub const CONCURRENCY_REJECTED_TOTAL: &str = "prover_concurrency_rejected_total";
+    /// Unhandled panics caught by the global panic hook.
+    pub const PANICS_TOTAL: &str = "prover_panics_total";
     /// Wall-clock duration of `prove_transaction` end-to-end. Bucketed.
     pub const PROVE_TRANSACTION_DURATION_SECONDS: &str =
         "prover_prove_transaction_duration_seconds";
@@ -72,6 +74,7 @@ pub fn install_exporter(version: &str, git_sha: &str) -> anyhow::Result<Promethe
     // before the first request — dashboards relying on `rate(...) > 0`
     // need the series to exist.
     metrics::counter!(names::CONCURRENCY_REJECTED_TOTAL).increment(0);
+    metrics::counter!(names::PANICS_TOTAL).increment(0);
     super::http_metrics::preregister_http_metrics();
     Ok(handle)
 }
