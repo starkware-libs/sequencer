@@ -1,7 +1,8 @@
-//! Integration tests for the VirtualSnosProver (full prove_transaction flow).
+//! Tests for VirtualSnosProver: unit tests for input validation and integration tests for the
+//! full prove_transaction flow.
 //!
-//! These tests exercise the complete prover pipeline: transaction extraction, OS execution,
-//! and proof generation.  They run against Sepolia and support three modes
+//! The integration tests exercise the complete prover pipeline: transaction extraction, OS
+//! execution, and proof generation. They run against Sepolia and support three modes
 //! (see [`crate::running::rpc_records`] and [`crate::test_utils::resolve_test_mode`]):
 //!
 //! - **Live mode** (default): runs against a real node (requires `NODE_URL`).
@@ -15,7 +16,7 @@
 //! - `CHAIN_ID`: Override the chain ID (defaults to `Sepolia`).
 //! - `STRK_FEE_TOKEN_ADDRESS`: Override the STRK fee token contract address.
 //!
-//! # Running
+//! # Running integration tests
 //!
 //! ```bash
 //! # Live mode:
@@ -28,14 +29,35 @@
 //! cargo test -p starknet_transaction_prover virtual_snos_prover_test -- --ignored
 //! ```
 
+use std::sync::Arc;
+
+use assert_matches::assert_matches;
+use async_trait::async_trait;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_test_utils::calldata::create_calldata;
 use rstest::rstest;
+use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
+use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
+use starknet_api::rpc_transaction::{
+    RpcDeclareTransaction,
+    RpcDeclareTransactionV3,
+    RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3,
+    RpcInvokeTransaction,
+    RpcInvokeTransactionV3,
+    RpcTransaction,
+};
+use starknet_api::transaction::fields::{Proof, ProofFacts, ResourceBounds, Tip};
+use starknet_api::transaction::InvokeTransaction;
 use starknet_api::{contract_address, felt};
 use starknet_proof_verifier::verify_proof;
+use starknet_types_core::felt::Felt;
 
+use crate::errors::{RunnerError, VirtualSnosProverError};
 use crate::proving::virtual_snos_prover::VirtualSnosProver;
+use crate::running::runner::{RunnerOutput, VirtualSnosRunner};
 use crate::test_utils::{
     build_client_side_rpc_invoke,
     resolve_test_mode,
@@ -43,6 +65,229 @@ use crate::test_utils::{
     DUMMY_ACCOUNT_ADDRESS,
     STRK_TOKEN_ADDRESS_SEPOLIA,
 };
+
+fn dummy_account() -> ContractAddress {
+    ContractAddress::try_from(DUMMY_ACCOUNT_ADDRESS).unwrap()
+}
+
+fn valid_invoke_tx() -> RpcTransaction {
+    build_client_side_rpc_invoke(dummy_account(), Default::default())
+}
+
+fn invoke_v3_mut(tx: &mut RpcTransaction) -> &mut RpcInvokeTransactionV3 {
+    match tx {
+        RpcTransaction::Invoke(RpcInvokeTransaction::V3(inner)) => inner,
+        _ => panic!("Expected InvokeV3"),
+    }
+}
+
+/// Reaching this runner means validation failed to reject — used where the test asserts rejection.
+#[derive(Clone)]
+struct UnreachableRunner;
+
+#[async_trait]
+impl VirtualSnosRunner for UnreachableRunner {
+    async fn run_virtual_os(
+        &self,
+        _block_id: BlockId,
+        _txs: Vec<InvokeTransaction>,
+    ) -> Result<RunnerOutput, RunnerError> {
+        panic!("validation should have rejected the transaction before reaching the runner");
+    }
+}
+
+/// Always errors — used where the test must observe that the runner *was* reached.
+#[derive(Clone)]
+struct FailingRunner;
+
+#[async_trait]
+impl VirtualSnosRunner for FailingRunner {
+    async fn run_virtual_os(
+        &self,
+        _block_id: BlockId,
+        _txs: Vec<InvokeTransaction>,
+    ) -> Result<RunnerOutput, RunnerError> {
+        Err(RunnerError::InputGenerationError("mock error".to_string()))
+    }
+}
+
+#[tokio::test]
+async fn test_pending_block_rejected() {
+    let prover = VirtualSnosProver::from_runner_without_fee_validation(UnreachableRunner);
+    let result = prover.prove_transaction(BlockId::Pending, valid_invoke_tx()).await;
+    assert_matches!(
+        result,
+        Err(VirtualSnosProverError::ValidationError(msg)) if msg.contains("Pending")
+    );
+}
+
+#[rstest]
+#[case::deploy_account(
+    RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(RpcDeployAccountTransactionV3 {
+        signature: Default::default(),
+        nonce: Default::default(),
+        class_hash: Default::default(),
+        contract_address_salt: Default::default(),
+        constructor_calldata: Default::default(),
+        resource_bounds: Default::default(),
+        tip: Default::default(),
+        paymaster_data: Default::default(),
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+    })),
+    "DeployAccount"
+)]
+#[case::declare(
+    RpcTransaction::Declare(RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
+        sender_address: Default::default(),
+        compiled_class_hash: Default::default(),
+        signature: Default::default(),
+        nonce: Default::default(),
+        contract_class: Default::default(),
+        resource_bounds: Default::default(),
+        tip: Default::default(),
+        paymaster_data: Default::default(),
+        account_deployment_data: Default::default(),
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+    })),
+    "Declare"
+)]
+#[tokio::test]
+async fn test_non_invoke_transaction_type_rejected(
+    #[case] tx: RpcTransaction,
+    #[case] expected_message_substring: &str,
+) {
+    let prover = VirtualSnosProver::from_runner_without_fee_validation(UnreachableRunner);
+    let result = prover.prove_transaction(BlockId::Latest, tx).await;
+    assert_matches!(
+        result,
+        Err(VirtualSnosProverError::InvalidTransactionType(msg))
+            if msg.contains(expected_message_substring)
+    );
+}
+
+#[rstest]
+#[case::non_empty_proof({
+    let mut tx = valid_invoke_tx();
+    invoke_v3_mut(&mut tx).proof = Proof(Arc::new(vec![0u8]));
+    tx
+})]
+#[case::non_empty_proof_facts({
+    let mut tx = valid_invoke_tx();
+    invoke_v3_mut(&mut tx).proof_facts = ProofFacts(Arc::new(vec![Felt::ZERO]));
+    tx
+})]
+#[tokio::test]
+async fn test_non_empty_proof_fields_rejected(#[case] tx: RpcTransaction) {
+    let prover = VirtualSnosProver::from_runner_without_fee_validation(UnreachableRunner);
+    let result = prover.prove_transaction(BlockId::Latest, tx).await;
+    assert_matches!(result, Err(VirtualSnosProverError::InvalidTransactionInput(_)));
+}
+
+#[rstest]
+#[case::non_zero_l1_gas_price(
+    {
+        let mut tx = valid_invoke_tx();
+        invoke_v3_mut(&mut tx).resource_bounds.l1_gas.max_price_per_unit = GasPrice(1);
+        tx
+    },
+    "l1_gas.max_price_per_unit"
+)]
+#[case::non_zero_l2_gas_price(
+    {
+        let mut tx = valid_invoke_tx();
+        invoke_v3_mut(&mut tx).resource_bounds.l2_gas.max_price_per_unit = GasPrice(1);
+        tx
+    },
+    "l2_gas.max_price_per_unit"
+)]
+#[case::non_zero_l1_data_gas_price(
+    {
+        let mut tx = valid_invoke_tx();
+        invoke_v3_mut(&mut tx).resource_bounds.l1_data_gas.max_price_per_unit = GasPrice(1);
+        tx
+    },
+    "l1_data_gas.max_price_per_unit"
+)]
+#[case::non_zero_tip(
+    {
+        let mut tx = valid_invoke_tx();
+        invoke_v3_mut(&mut tx).tip = Tip(1);
+        tx
+    },
+    "tip ="
+)]
+#[case::zero_l2_gas_max_amount(
+    {
+        let mut tx = valid_invoke_tx();
+        invoke_v3_mut(&mut tx).resource_bounds.l2_gas.max_amount = GasAmount(0);
+        tx
+    },
+    "l2_gas.max_amount"
+)]
+#[tokio::test]
+async fn test_fee_fields_rejected_when_validation_enabled(
+    #[case] tx: RpcTransaction,
+    #[case] expected_message_substring: &str,
+) {
+    let prover = VirtualSnosProver::from_runner(UnreachableRunner);
+    let result = prover.prove_transaction(BlockId::Latest, tx).await;
+    assert_matches!(
+        result,
+        Err(VirtualSnosProverError::InvalidTransactionInput(msg))
+            if msg.contains(expected_message_substring)
+    );
+}
+
+#[tokio::test]
+async fn test_non_zero_resource_bounds_accepted_when_validation_disabled() {
+    let mut tx = valid_invoke_tx();
+    invoke_v3_mut(&mut tx).resource_bounds.l1_gas =
+        ResourceBounds { max_amount: GasAmount(1), max_price_per_unit: GasPrice(1) };
+
+    let prover = VirtualSnosProver::from_runner_without_fee_validation(FailingRunner);
+    let result = prover.prove_transaction(BlockId::Latest, tx).await;
+    assert_matches!(result, Err(VirtualSnosProverError::RunnerError(_)));
+}
+
+/// A default-valid invoke (empty proof fields, zero fees, Latest block) must pass every validation
+/// gate and be handed to the runner. Asserting on `RunnerError::InputGenerationError("mock error")`
+/// proves the runner was reached; any rejection earlier would surface as a different variant.
+#[tokio::test]
+async fn test_valid_invoke_reaches_runner() {
+    let prover = VirtualSnosProver::from_runner(FailingRunner);
+    let result = prover.prove_transaction(BlockId::Latest, valid_invoke_tx()).await;
+    assert_matches!(
+        result,
+        Err(VirtualSnosProverError::RunnerError(inner)) if matches!(
+            *inner,
+            RunnerError::InputGenerationError(ref msg) if msg == "mock error"
+        )
+    );
+}
+
+/// `l1_gas.max_amount` and `l1_data_gas.max_amount` do not affect OS execution and may be
+/// non-zero even with fee-field validation enabled; only `max_price_per_unit` fields and `tip`
+/// are required to be zero. Asserting on `RunnerError::InputGenerationError("mock error")` proves
+/// the runner was reached.
+#[tokio::test]
+async fn test_non_fee_max_amount_fields_accepted_when_validation_enabled() {
+    let mut tx = valid_invoke_tx();
+    let bounds = &mut invoke_v3_mut(&mut tx).resource_bounds;
+    bounds.l1_gas.max_amount = GasAmount(1);
+    bounds.l1_data_gas.max_amount = GasAmount(1);
+
+    let prover = VirtualSnosProver::from_runner(FailingRunner);
+    let result = prover.prove_transaction(BlockId::Latest, tx).await;
+    assert_matches!(
+        result,
+        Err(VirtualSnosProverError::RunnerError(inner)) if matches!(
+            *inner,
+            RunnerError::InputGenerationError(ref msg) if msg == "mock error"
+        )
+    );
+}
 
 /// Integration test for the full prover pipeline with a STRK `transfer` transaction.
 /// Runs on a Sepolia environment; in live/recording mode requires a Sepolia RPC node via
@@ -54,7 +299,7 @@ async fn test_prove_transfer_transaction() {
     let test_mode = resolve_test_mode("test_prove_transfer_transaction").await;
 
     let strk_token = ContractAddress::try_from(STRK_TOKEN_ADDRESS_SEPOLIA).unwrap();
-    let account = ContractAddress::try_from(DUMMY_ACCOUNT_ADDRESS).unwrap();
+    let account = dummy_account();
     let recipient = contract_address!("0x123");
 
     // Transfer amount: 1 wei (u256 = low + high * 2^128).
