@@ -78,6 +78,8 @@ pub use health::{HealthLayer, HEALTH_PATH};
 pub use request_log::{RequestLogLayer, REQUEST_ID_HEADER};
 
 #[cfg(test)]
+mod cors_test;
+#[cfg(test)]
 mod rpc_spec_test;
 
 #[cfg(test)]
