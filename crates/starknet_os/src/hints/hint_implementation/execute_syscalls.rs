@@ -19,26 +19,36 @@ pub(crate) fn is_block_number_in_block_hash_buffer(mut ctx: HintContext<'_>) -> 
     Ok(())
 }
 
-pub(crate) fn relocate_sha256_segment<S: StateReader>(
-    _hint_processor: &mut SnosHintProcessor<'_, S>,
+fn relocate_sha_segment_shared(
     ctx: HintContext<'_>,
+    sha_response_struct: CairoStruct,
 ) -> OsHintResult {
-    let state_ptr = ctx.get_nested_field_ptr(
-        Ids::Response,
-        CairoStruct::Sha256ProcessBlockResponsePtr,
-        &["state_ptr"],
-    )?;
+    let state_ptr = ctx.get_nested_field_ptr(Ids::Response, sha_response_struct, &["state_ptr"])?;
     let actual_out_state_ptr = ctx.get_ptr(Ids::ActualOutState)?;
 
-    // TODO(Nimrod): Use SHA256_STATE_SIZE_FELTS constant.
+    // TODO(Nimrod): Use SHA256_STATE_SIZE_FELTS or SHA512_STATE_SIZE_FELTS constant.
     let sha_state_size = 8;
 
-    // Copy [state_ptr] into [actual_out_state_ptr] because finalize_sha256 will read it from
-    // [actual_out_state_ptr] and the allocation is in the opposite direction.
+    // Copy [state_ptr] into [actual_out_state_ptr] because finalize_sha256 / finalize_sha512 will
+    // read it from [actual_out_state_ptr] and the allocation is in the opposite direction.
     let data = ctx.vm.get_continuous_range(state_ptr, sha_state_size)?;
     ctx.vm.load_data(actual_out_state_ptr, &data)?;
 
     // Relocate segment.
     ctx.vm.add_relocation_rule(state_ptr, actual_out_state_ptr.into())?;
     Ok(())
+}
+
+pub(crate) fn relocate_sha256_segment<S: StateReader>(
+    _hint_processor: &mut SnosHintProcessor<'_, S>,
+    ctx: HintContext<'_>,
+) -> OsHintResult {
+    relocate_sha_segment_shared(ctx, CairoStruct::Sha256ProcessBlockResponsePtr)
+}
+
+pub(crate) fn relocate_sha512_segment<S: StateReader>(
+    _hint_processor: &mut SnosHintProcessor<'_, S>,
+    ctx: HintContext<'_>,
+) -> OsHintResult {
+    relocate_sha_segment_shared(ctx, CairoStruct::Sha512ProcessBlockResponsePtr)
 }
