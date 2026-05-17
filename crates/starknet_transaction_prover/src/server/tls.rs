@@ -138,7 +138,7 @@ pub async fn start_tls_server(
 }
 
 /// Loads a certificate chain and private key from PEM files and builds a TLS acceptor.
-fn load_tls_acceptor(cert_path: &Path, key_path: &Path) -> anyhow::Result<TlsAcceptor> {
+pub(crate) fn load_tls_acceptor(cert_path: &Path, key_path: &Path) -> anyhow::Result<TlsAcceptor> {
     let cert_pem = std::fs::read(cert_path)
         .with_context(|| format!("Failed to read TLS certificate file: {}", cert_path.display()))?;
     let cert_chain: Vec<CertificateDer<'static>> =
