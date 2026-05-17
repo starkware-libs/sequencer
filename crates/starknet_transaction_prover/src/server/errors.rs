@@ -2,13 +2,15 @@
 //!
 //! Error codes follow Starknet RPC specification v0.10.
 //!
-//! When adding a new error type, also update:
-//! - The OpenRPC spec in starknet-specs: `proving-api/starknet_proving_api_openrpc.json`
-//! - The spec validation test: `server/rpc_spec_test.rs` (`test_error_responses_match_spec`)
+//! Service-defined errors are declared as [`ServiceErrorCode`] variants — add new errors there.
+//! The spec conformance test (`server/rpc_spec_test.rs`, `test_error_responses_match_spec`)
+//! iterates the enum and fails until the OpenRPC spec in starknet-specs
+//! (`proving-api/starknet_proving_api_openrpc.json`) documents the new error.
 
 use jsonrpsee::types::error::ErrorCode::InternalError;
 use jsonrpsee::types::error::INTERNAL_ERROR_MSG;
 use jsonrpsee::types::ErrorObjectOwned;
+use strum::EnumIter;
 
 use crate::errors::{
     ProofProviderError,
@@ -17,43 +19,80 @@ use crate::errors::{
     VirtualSnosProverError,
 };
 
-// Starknet RPC v0.10 error codes.
+/// Every JSON-RPC error the proving service itself defines, one variant per error documented in
+/// the proving-api OpenRPC spec. Each error's code and canonical message live only here; the
+/// constructor functions below are thin wrappers. The service can also return the standard
+/// JSON-RPC internal error (-32603) and pass-through upstream Starknet errors, which are not
+/// spec-enumerated and deliberately not variants.
+#[derive(Clone, Copy, EnumIter)]
+pub enum ServiceErrorCode {
+    /// Block not found (code 24).
+    BlockNotFound,
+    /// Account validation failed (code 55).
+    AccountValidationFailed,
+    /// Invalid transaction input (code 1000).
+    InvalidTransactionInput,
+    /// Unsupported transaction type (code 1001).
+    UnsupportedTxType,
+    /// Transaction blocked by external compliance check (code 10000).
+    TransactionBlocked,
+    /// Service is busy — too many concurrent proving requests (code -32005).
+    ServiceBusy,
+}
 
-/// Block not found (code 24).
+impl ServiceErrorCode {
+    pub fn code(self) -> i32 {
+        match self {
+            Self::BlockNotFound => 24,
+            Self::AccountValidationFailed => 55,
+            Self::InvalidTransactionInput => 1000,
+            Self::UnsupportedTxType => 1001,
+            Self::TransactionBlocked => 10000,
+            Self::ServiceBusy => -32005,
+        }
+    }
+
+    pub fn message(self) -> &'static str {
+        match self {
+            Self::BlockNotFound => "Block not found",
+            Self::AccountValidationFailed => "Account validation failed",
+            Self::InvalidTransactionInput => "Invalid transaction input",
+            Self::UnsupportedTxType => "the transaction type is not supported",
+            Self::TransactionBlocked => "Transaction blocked",
+            Self::ServiceBusy => "Service is busy",
+        }
+    }
+
+    fn object(self, data: Option<String>) -> ErrorObjectOwned {
+        ErrorObjectOwned::owned(self.code(), self.message(), data)
+    }
+}
+
 pub fn block_not_found() -> ErrorObjectOwned {
-    ErrorObjectOwned::owned(24, "Block not found", None::<()>)
+    ServiceErrorCode::BlockNotFound.object(None)
 }
 
-/// Account validation failed (code 55).
 pub fn validation_failure(data: String) -> ErrorObjectOwned {
-    ErrorObjectOwned::owned(55, "Account validation failed", Some(data))
+    ServiceErrorCode::AccountValidationFailed.object(Some(data))
 }
 
-/// Unsupported transaction type (code 1001).
 pub fn unsupported_tx_type(data: String) -> ErrorObjectOwned {
-    ErrorObjectOwned::owned(1001, "the transaction type is not supported", Some(data))
+    ServiceErrorCode::UnsupportedTxType.object(Some(data))
 }
 
-/// Invalid transaction input (code 1000).
 pub fn invalid_transaction_input(data: String) -> ErrorObjectOwned {
-    ErrorObjectOwned::owned(1000, "Invalid transaction input", Some(data))
+    ServiceErrorCode::InvalidTransactionInput.object(Some(data))
 }
 
-/// Transaction blocked by external compliance check (code 10000).
 pub fn transaction_blocked() -> ErrorObjectOwned {
-    ErrorObjectOwned::owned(10000, "Transaction blocked", None::<()>)
+    ServiceErrorCode::TransactionBlocked.object(None)
 }
 
-/// Service is busy — too many concurrent proving requests (code -32005).
 pub fn service_busy(max_concurrent: usize) -> ErrorObjectOwned {
-    ErrorObjectOwned::owned(
-        -32005,
-        "Service is busy",
-        Some(format!(
-            "The proving service is at capacity ({max_concurrent} concurrent request(s)). Please \
-             retry later."
-        )),
-    )
+    ServiceErrorCode::ServiceBusy.object(Some(format!(
+        "The proving service is at capacity ({max_concurrent} concurrent request(s)). Please \
+         retry later."
+    )))
 }
 
 /// Creates an internal server error with the given message.
