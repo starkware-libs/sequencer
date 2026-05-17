@@ -35,8 +35,6 @@ const SERVICES_DIR_NAME: &str = "services/";
 const REMOTE_SERVICE_URL_PLACEHOLDER: &str = "remote_service";
 
 // TODO(Tsabary): remove ports and mempool ttl from this list.
-// TODO(Shahak): unify the batcher and gateway `cairo_native_run_config.cairo_native_mode` values
-// using the config pointer mechanism so both components always receive the same value.
 pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "base_layer_config.bpo1_start_block_number",
     "base_layer_config.bpo2_start_block_number",
@@ -49,11 +47,11 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.receipt_l2_gas",
     "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size",
     "batcher_config.static_config.block_builder_config.execute_config.n_workers",
-    "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode",
     "batcher_config.static_config.first_block_with_partial_block_hash.#is_none",
     "batcher_config.static_config.first_block_with_partial_block_hash.block_hash",
     "batcher_config.static_config.first_block_with_partial_block_hash.block_number",
     "batcher_config.static_config.first_block_with_partial_block_hash.parent_block_hash",
+    "cairo_native_mode",
     "chain_id",
     "class_manager_config.static_config.class_manager_config.max_compiled_contract_class_object_size",
     "committer_config.storage_config.cache_size",
@@ -83,7 +81,6 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "eth_fee_token_address",
     "gateway_config.static_config.authorized_declarer_accounts.#is_none",
     "gateway_config.static_config.authorized_declarer_accounts",
-    "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode",
     "gateway_config.static_config.proof_archive_writer_config.bucket_name",
     "gateway_config.static_config.stateful_tx_validator_config.max_allowed_nonce_gap",
     "gateway_config.static_config.stateless_tx_validator_config.allow_client_side_proving",

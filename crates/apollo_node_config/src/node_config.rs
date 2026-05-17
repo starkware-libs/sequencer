@@ -40,7 +40,7 @@ use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
 use apollo_state_sync_config::config::{StateSyncConfig, StateSyncDynamicConfig};
 use apollo_storage::StorageScope;
-use blockifier::blockifier::config::NativeClassesWhitelist;
+use blockifier::blockifier::config::{CairoNativeMode, NativeClassesWhitelist};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
@@ -180,6 +180,21 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                  max_cpu_time",
                 "gateway_config.static_config.contract_class_manager_config.native_compiler_config.\
                  max_cpu_time",
+            ]),
+        ),
+        (
+            ser_pointer_target_param(
+                "cairo_native_mode",
+                &CairoNativeMode::LazyCompilation,
+                "Cairo native execution mode. 'off' disables native execution, \
+                 'wait_on_compilation' compiles synchronously, and 'lazy_compilation' compiles \
+                 asynchronously.",
+            ),
+            set_pointing_param_paths(&[
+                "batcher_config.static_config.contract_class_manager_config.\
+                 cairo_native_run_config.cairo_native_mode",
+                "gateway_config.static_config.contract_class_manager_config.\
+                 cairo_native_run_config.cairo_native_mode",
             ]),
         ),
     ];
