@@ -92,9 +92,7 @@ class BaseCommand(Enum):
             print(f"Composing sequencer integration test commands.")
 
             def build_cmds(with_feature: bool) -> List[List[str]]:
-                feature_flag = (
-                    ["--features", "cairo_native"] if (with_feature and is_nightly) else []
-                )
+                feature_flag = ["--features", "cairo_native"] if with_feature else []
                 # Commands to build the node and all the test binaries.
                 build_cmds = [
                     ["cargo", "build", "--bin", binary_name] + feature_flag
@@ -120,8 +118,10 @@ class BaseCommand(Enum):
 
             cmds_no_feat = build_cmds(with_feature=False) + run_cmds
 
-            # Only run cairo_native feature if the blockifier crate is modified, and in nightly.
-            if CAIRO_NATIVE_CRATE_TRIGGERS.isdisjoint(crates) and not is_nightly:
+            # Only run the cairo_native pass when blockifier is being tested. An empty `crates`
+            # set means "all crates" (e.g. the nightly workflow runs without --changes_only),
+            # which implicitly includes blockifier.
+            if crates and CAIRO_NATIVE_CRATE_TRIGGERS.isdisjoint(crates):
                 return cmds_no_feat
 
             print("Composing sequencer integration test commands with cairo_native feature.")
