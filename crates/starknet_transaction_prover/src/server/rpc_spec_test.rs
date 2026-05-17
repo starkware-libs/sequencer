@@ -36,7 +36,6 @@ const TEST_MAX_CONCURRENT_REQUESTS: usize = 2;
 const RPC_RESPONSE_BUFFER_SIZE: usize = 1;
 
 /// Pinned revision of starknet-specs. Update this when the spec changes.
-// TODO(Avi): Update to a main-branch commit once the proving spec is merged to main.
 const STARKNET_SPECS_REV: &str =
     include_str!("../../resources/starknet_specs_rev.txt").trim_ascii();
 
