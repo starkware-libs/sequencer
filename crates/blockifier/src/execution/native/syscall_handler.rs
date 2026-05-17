@@ -834,6 +834,30 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
         Ok(())
     }
+
+    fn sha512_process_block(
+        &mut self,
+        prev_state: &mut [u64; 8],
+        current_block: &[u64; 16],
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<()> {
+        self.pre_execute_syscall(
+            remaining_gas,
+            self.gas_costs().syscalls.sha512_process_block.base_syscall_cost(),
+            SyscallSelector::Sha512ProcessBlock,
+        )?;
+
+        let data_as_bytes = sha2::digest::generic_array::GenericArray::from_exact_iter(
+            current_block.iter().flat_map(|x| x.to_be_bytes()),
+        )
+        .expect(
+            "u64.to_be_bytes() returns 8 bytes, and data.len() == 16. So data contains 128 bytes.",
+        );
+
+        sha2::compress512(prev_state, &[data_as_bytes]);
+
+        Ok(())
+    }
 }
 
 /// A wrapper around an elliptic curve point in affine coordinates (x,y) on a

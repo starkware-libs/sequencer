@@ -13,15 +13,14 @@ use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
 #[test_case(RunnableCairo1::Casm; "VM")]
-fn test_sha256(runnable_version: RunnableCairo1) {
+fn test_sha512(runnable_version: RunnableCairo1) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
 
-    let calldata = Calldata(vec![].into());
     let entry_point_call = CallEntryPoint {
-        entry_point_selector: selector_from_name("test_sha256"),
-        calldata,
+        entry_point_selector: selector_from_name("test_sha512"),
+        calldata: Calldata(vec![].into()),
         ..trivial_external_entry_point_new(test_contract)
     };
 
@@ -37,7 +36,7 @@ fn test_sha256(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 851745,
+            gas_consumed: 3384610,
         }
     "#]]
     .assert_debug_eq(&execution);

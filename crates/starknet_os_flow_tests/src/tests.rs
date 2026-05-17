@@ -1611,6 +1611,10 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     let calldata = create_calldata(main_contract_address, "test_sha256", &[]);
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
 
+    // Call test_sha512.
+    let calldata = create_calldata(main_contract_address, "test_sha512", &[]);
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
     // Call test_circuit.
     let calldata = create_calldata(main_contract_address, "test_circuit", &[]);
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });

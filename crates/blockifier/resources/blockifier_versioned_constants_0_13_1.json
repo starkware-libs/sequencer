@@ -226,6 +226,11 @@
             "StorageWrite": {
                 "step_gas_cost": 50,
                 "syscall_base_gas_cost": 1
+            },
+            "Sha512ProcessBlock": {
+                "range_check": 0,
+                "step_gas_cost": 0,
+                "syscall_base_gas_cost": 0
             }
         },
         "transfer_entry_point_selector": "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
@@ -465,6 +470,11 @@
                 "n_steps": 139
             },
             "Sha256ProcessBlock": {
+                "builtin_instance_counter": {},
+                "n_memory_holes": 0,
+                "n_steps": 0
+            },
+            "Sha512ProcessBlock": {
                 "builtin_instance_counter": {},
                 "n_memory_holes": 0,
                 "n_steps": 0

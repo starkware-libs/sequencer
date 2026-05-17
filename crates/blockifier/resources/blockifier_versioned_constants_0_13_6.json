@@ -404,6 +404,14 @@
                 },
                 "n_memory_holes": 0,
                 "n_steps": 93
+            },
+            "Sha512ProcessBlock": {
+                "builtin_instance_counter": {
+                    "bitwise_builtin": 2230,
+                    "range_check_builtin": 130
+                },
+                "n_memory_holes": 0,
+                "n_steps": 3730
             }
         },
         "execute_txs_inner": {

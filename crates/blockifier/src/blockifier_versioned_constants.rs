@@ -873,6 +873,7 @@ pub struct SyscallGasCosts {
     pub keccak_round: SyscallGasCost,
     pub meta_tx_v0: SyscallGasCost,
     pub sha256_process_block: SyscallGasCost,
+    pub sha512_process_block: SyscallGasCost,
 }
 
 impl SyscallGasCosts {
@@ -890,6 +891,7 @@ impl SyscallGasCosts {
             SyscallSelector::KeccakRound => self.keccak_round,
             SyscallSelector::Keccak => self.keccak,
             SyscallSelector::Sha256ProcessBlock => self.sha256_process_block,
+            SyscallSelector::Sha512ProcessBlock => self.sha512_process_block,
             SyscallSelector::LibraryCall => self.library_call,
             SyscallSelector::MetaTxV0 => self.meta_tx_v0,
             SyscallSelector::ReplaceClass => self.replace_class,
@@ -1066,6 +1068,7 @@ impl GasCosts {
             keccak_round: summarize(SyscallSelector::KeccakRound),
             meta_tx_v0: summarize(SyscallSelector::MetaTxV0),
             sha256_process_block: summarize(SyscallSelector::Sha256ProcessBlock),
+            sha512_process_block: summarize(SyscallSelector::Sha512ProcessBlock),
         };
 
         Self { syscalls, base: base_costs, builtins: os_constants.builtin_gas_costs }

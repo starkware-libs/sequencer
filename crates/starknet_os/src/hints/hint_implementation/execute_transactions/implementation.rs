@@ -10,6 +10,7 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execute_transactions::utils::{
     calculate_padding,
+    calculate_sha512_padding,
     N_MISSING_BLOCKS_BOUND,
     SHA256_INPUT_CHUNK_SIZE_BOUND,
 };
@@ -86,6 +87,30 @@ pub(crate) fn sha2_finalize(ctx: HintContext<'_>) -> OsHintResult {
 
     let sha_ptr_end = ctx.get_ptr(Ids::Sha256PtrEnd)?;
     ctx.vm.load_data(sha_ptr_end, &padding)?;
+    Ok(())
+}
+
+pub(crate) fn sha512_finalize(ctx: HintContext<'_>) -> OsHintResult {
+    let batch_size = &ctx.fetch_const(Const::Sha512BatchSize)?.to_bigint();
+    let n = &ctx.get_integer(Ids::N)?.to_bigint();
+    let number_of_missing_blocks = ((((-n) % batch_size) + batch_size) % batch_size)
+        .to_u32()
+        .expect("Failed to convert number of missing blocks to u32.");
+    assert!(
+        (0..N_MISSING_BLOCKS_BOUND).contains(&number_of_missing_blocks),
+        "number_of_missing_blocks: {number_of_missing_blocks} is expected to be in the range [0, \
+         {N_MISSING_BLOCKS_BOUND}). Got n: {n} and batch size: {batch_size}."
+    );
+    let sha512_input_chunk_size_felts =
+        felt_to_usize(ctx.fetch_const(Const::Sha512InputChunkSize)?)?;
+    assert!(
+        (0..SHA256_INPUT_CHUNK_SIZE_BOUND).contains(&sha512_input_chunk_size_felts),
+        "sha512_input_chunk_size_felts: {sha512_input_chunk_size_felts} is expected to be in the \
+         range [0, {SHA256_INPUT_CHUNK_SIZE_BOUND})."
+    );
+    let padding = calculate_sha512_padding(sha512_input_chunk_size_felts, number_of_missing_blocks);
+    let sha512_ptr_end = ctx.get_ptr(Ids::Sha512PtrEnd)?;
+    ctx.vm.load_data(sha512_ptr_end, &padding)?;
     Ok(())
 }
 
