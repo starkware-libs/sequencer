@@ -41,9 +41,28 @@ fn serialize_alert() {
         ],
         "for": "5m",
         "severity": "p1",
-        "observer_applicable": "true"
     });
     assert_json_eq(&serialized, &expected, "Json Comparison failed".to_string());
+}
+
+#[test]
+fn serialize_alert_not_applicable_to_observer_appends_is_observer_filter() {
+    let alert = Alert::new(
+        "Name",
+        "Message",
+        EvaluationRate::Default,
+        "foo or vector(0)".to_string(),
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
+        "5m",
+        AlertSeverity::Sos,
+        ObserverApplicability::NotApplicable,
+    );
+
+    let serialized = serde_json::to_value(&alert).unwrap();
+    // Expr should be wrapped in parentheses for PromQL precedence (`and` binds tighter than `or`).
+    let expected_expr = "(foo or vector(0)) and (is_observer{cluster=~\"$cluster\", \
+                         namespace=~\"$namespace\"} == 0)";
+    assert_eq!(serialized["expr"], expected_expr);
 }
 
 #[test]

@@ -147,6 +147,15 @@ impl Serialize for ExpressionOrExpressionWithPlaceholder {
     where
         S: Serializer,
     {
+        self.to_alert_promql().serialize(serializer)
+    }
+}
+
+impl ExpressionOrExpressionWithPlaceholder {
+    /// Returns the final PromQL string used in alert output: template filled in (if any),
+    /// with the `pod=~"$pod"` filter stripped — Grafana's alert evaluation does not substitute
+    /// `$pod`, so leaving it in causes rules to evaluate to no-data.
+    pub(crate) fn to_alert_promql(&self) -> String {
         let serialization = match self {
             ExpressionOrExpressionWithPlaceholder::ConcreteValue(expression) => {
                 expression.to_string()
@@ -156,13 +165,9 @@ impl Serialize for ExpressionOrExpressionWithPlaceholder {
                 expression_template.format(&formatted_placeholders)
             }
         };
-        // Grafana's alert evaluation does not substitute `$pod`. If we keep
-        // `pod=~"$pod"` in alert PromQL, rules may evaluate to empty/no-data and stop firing.
-        serialization.replace(POD_LABEL_FILTER, "").serialize(serializer)
+        serialization.replace(POD_LABEL_FILTER, "")
     }
-}
 
-impl ExpressionOrExpressionWithPlaceholder {
     pub(crate) fn format_alert_placeholders(&self) -> Vec<String> {
         match self {
             ExpressionOrExpressionWithPlaceholder::ConcreteValue(_) => vec![],
