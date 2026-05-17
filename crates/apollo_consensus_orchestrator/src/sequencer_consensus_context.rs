@@ -235,9 +235,8 @@ pub struct SequencerConsensusContext {
     l2_gas_price: GasPrice,
     l1_da_mode: L1DataAvailabilityMode,
     previous_proposal_init: Option<PreviousProposalInitInfo>,
-    /// SNIP-35: sliding window of recent fee_proposal values (size from
-    /// `FEE_PROPOSAL_WINDOW_SIZE`).
-    fee_proposals_window: VecDeque<GasPrice>,
+    /// SNIP-35 fee_proposals window. `None` = pre-V0_14_3.
+    fee_proposals_window: BTreeMap<BlockNumber, Option<GasPrice>>,
 }
 
 #[derive(Clone)]
@@ -288,46 +287,46 @@ impl SequencerConsensusContext {
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
             previous_proposal_init: None,
-            fee_proposals_window: VecDeque::with_capacity(FEE_PROPOSAL_WINDOW_SIZE),
+            fee_proposals_window: BTreeMap::new(),
         }
     }
 
-    /// FIFO append into the SNIP-35 sliding window.
-    fn push_fee_proposal(&mut self, fee_proposal: GasPrice) {
-        if self.fee_proposals_window.len() >= FEE_PROPOSAL_WINDOW_SIZE {
-            self.fee_proposals_window.pop_front();
-        }
-        self.fee_proposals_window.push_back(fee_proposal);
+    fn record_fee_proposal(&mut self, height: BlockNumber, fee_proposal_fri: Option<GasPrice>) {
+        self.fee_proposals_window.insert(height, fee_proposal_fri);
     }
 
-    /// SNIP-35: bootstrap the fee_proposals window from state_sync on startup so `fee_actual` is
-    /// available immediately. Pre-V0_14_3 blocks return `Ok` with `fee_proposal_fri == None` and
-    /// contribute nothing; an `Err` from state_sync means the block could not be retrieved, so we
-    /// log and stop bootstrapping.
-    // TODO(AndrewL): On `Err`, state_sync may simply not have downloaded the block yet rather than
-    // the block being absent. Returning a partial window here is non-deterministic across nodes
-    // (different local sync progress → different windows → different `fee_actual`). Resolving this
-    // requires a startup gate that guarantees state_sync is caught up to `height - 1` before
-    // consensus enters `set_height_and_round`, since blocking inside this call to retry is unsafe
-    // (peers may already be voting at this height). Track and fix in a follow-up PR.
+    fn prune_fee_proposals_window(&mut self, current_height: BlockNumber) {
+        let window_size =
+            u64::try_from(FEE_PROPOSAL_WINDOW_SIZE).expect("FEE_PROPOSAL_WINDOW_SIZE fits in u64");
+        let cutoff = BlockNumber(current_height.0.saturating_sub(window_size));
+        self.fee_proposals_window = self.fee_proposals_window.split_off(&cutoff);
+    }
+
+    /// Fill `[height - WINDOW, height)` from state_sync, retrying missing heights until the
+    /// window is complete.
+    // TODO(AndrewL): blocking here is unsafe; peers may already be voting at this height while
+    // we wait. Replace with observer mode during warmup: receive proposals/votes without
+    // broadcasting our own until the window is complete.
     async fn bootstrap_fee_proposals_window(&mut self, height: BlockNumber) {
         let window_size =
             u64::try_from(FEE_PROPOSAL_WINDOW_SIZE).expect("FEE_PROPOSAL_WINDOW_SIZE fits in u64");
         let start = height.0.saturating_sub(window_size);
-        for h in start..height.0 {
-            match self.deps.state_sync_client.get_block(BlockNumber(h)).await {
-                Ok(block) => {
-                    if let Some(fee_proposal) = block.block_header_without_hash.fee_proposal_fri {
-                        self.push_fee_proposal(fee_proposal);
-                    }
-                }
+        let retry_interval = Duration::from_millis(500);
+        let mut pending: VecDeque<BlockNumber> = (start..height.0).map(BlockNumber).collect();
+        while let Some(block_number) = pending.pop_front() {
+            match self.deps.state_sync_client.get_block(block_number).await {
+                Ok(block) => self.record_fee_proposal(
+                    block_number,
+                    block.block_header_without_hash.fee_proposal_fri,
+                ),
                 Err(e) => {
                     warn!(
-                        "SNIP-35 bootstrap failed at block {h}: {e:?}. Window has {} / \
-                         {FEE_PROPOSAL_WINDOW_SIZE} entries.",
-                        self.fee_proposals_window.len()
+                        "SNIP-35 bootstrap: state_sync get_block({block_number}) failed: {e:?}. \
+                         {} pending, retrying in {retry_interval:?}.",
+                        pending.len() + 1,
                     );
-                    break;
+                    pending.push_back(block_number);
+                    sleep(retry_interval).await;
                 }
             }
         }
@@ -436,9 +435,7 @@ impl SequencerConsensusContext {
         let DecisionReachedResponse { state_diff, central_objects } = decision_reached_response;
 
         self.update_l2_gas_price(height, l2_gas_used);
-        if let Some(fee_proposal) = init.fee_proposal_fri {
-            self.push_fee_proposal(fee_proposal);
-        }
+        self.record_fee_proposal(height, init.fee_proposal_fri);
 
         // A hash map of (possibly failed) transactions, where the key is the transaction hash
         // and the value is the transaction itself.
@@ -891,9 +888,10 @@ impl ConsensusContext for SequencerConsensusContext {
             sync_block.block_header_without_hash.next_l2_gas_price,
             VersionedConstants::latest_constants().min_gas_price,
         );
-        if let Some(fee_proposal) = sync_block.block_header_without_hash.fee_proposal_fri {
-            self.push_fee_proposal(fee_proposal);
-        }
+        self.record_fee_proposal(
+            sync_block.block_header_without_hash.block_number,
+            sync_block.block_header_without_hash.fee_proposal_fri,
+        );
 
         // TODO(Asmaa): validate starknet_version and parent_hash when they are stored.
         let block_number = sync_block.block_header_without_hash.block_number;
@@ -958,6 +956,7 @@ impl ConsensusContext for SequencerConsensusContext {
             }
             self.current_height = Some(height);
             self.current_round = round;
+            self.prune_fee_proposals_window(height);
             self.queued_proposals.clear();
             // The Batcher must be told when we begin to work on a new height. The implicit model is
             // that consensus works on a given height until it is done (either a decision is reached
