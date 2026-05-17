@@ -65,6 +65,7 @@ fn get_panel_mempool_pool_size() -> Panel {
         MEMPOOL_POOL_SIZE.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
+    .with_unit(Unit::Short)
 }
 fn get_panel_mempool_priority_queue_size() -> Panel {
     Panel::new(
@@ -73,6 +74,7 @@ fn get_panel_mempool_priority_queue_size() -> Panel {
         MEMPOOL_PRIORITY_QUEUE_SIZE.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
+    .with_unit(Unit::Short)
 }
 fn get_panel_mempool_pending_queue_size() -> Panel {
     Panel::new(
@@ -81,6 +83,7 @@ fn get_panel_mempool_pending_queue_size() -> Panel {
         MEMPOOL_PENDING_QUEUE_SIZE.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
+    .with_unit(Unit::Short)
 }
 fn get_panel_mempool_total_size_in_bytes() -> Panel {
     Panel::new(
@@ -107,6 +110,7 @@ fn get_panel_mempool_accounts_with_gap() -> Panel {
         MEMPOOL_ACCOUNTS_WITH_GAP.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
+    .with_unit(Unit::Short)
     .with_log_query("has a nonce gap")
 }
 fn get_panel_mempool_stuck_txs() -> Panel {
@@ -117,6 +121,7 @@ fn get_panel_mempool_stuck_txs() -> Panel {
         MEMPOOL_STUCK_TXS.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
+    .with_unit(Unit::Short)
     .with_log_query("has a nonce gap")
 }
 fn get_panel_mempool_transaction_time_spent_until_batched() -> Panel {

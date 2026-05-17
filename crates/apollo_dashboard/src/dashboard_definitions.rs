@@ -87,27 +87,35 @@ pub fn get_apollo_dashboard() -> Dashboard {
     Dashboard::new(
         "Sequencer Node Dashboard",
         vec![
+            // ─── Top-level summary ───
             get_overview_row(),
+            // ─── Block production (consensus side) ───
             get_consensus_row(),
             get_consensus_streams_row(),
-            get_staking_row(),
             get_cende_row(),
-            get_batcher_row(),
-            get_committer_row(),
-            get_state_sync_row(),
+            get_snip35_row(),
+            get_staking_row(),
+            // ─── Transaction lifecycle (ingestion → mempool) ───
             get_http_server_row(),
             get_gateway_row(),
             get_mempool_row(),
-            get_upgrade_row(),
+            // ─── Execution & block finalization ───
+            get_batcher_row(),
+            get_blockifier_row(),
+            get_committer_row(),
+            // ─── Sync & external sources ───
+            get_state_sync_row(),
             get_l1_events_row(),
             get_l1_gas_price_row(),
-            get_snip35_row(),
-            get_blockifier_row(),
-            get_compile_to_casm_row(),
-            get_consensus_p2p_row(),
-            get_mempool_p2p_row(),
+            // ─── Operational ───
             get_reverts_row(),
             get_storage_row(),
+            get_compile_to_casm_row(),
+            get_upgrade_row(),
+            // ─── Networking (P2P) ───
+            get_consensus_p2p_row(),
+            get_mempool_p2p_row(),
+            // ─── Infrastructure / per-component plumbing ───
             get_component_infra_row("Batcher", &BATCHER_INFRA_METRICS),
             get_component_infra_row("Class Manager", &CLASS_MANAGER_INFRA_METRICS),
             get_component_infra_row("Committer", &COMMITTER_INFRA_METRICS),

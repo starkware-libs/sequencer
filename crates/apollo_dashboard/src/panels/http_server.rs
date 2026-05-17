@@ -86,7 +86,7 @@ fn get_panel_transactions_failed_by_reason() -> Panel {
 
 pub(crate) fn get_panel_http_server_seconds_since_last_transaction() -> Panel {
     Panel::new(
-        "Seconds since last received transaction",
+        "Seconds Since Last Received Transaction",
         "The number of seconds since the last transaction was received by the HTTP server \
          (assuming there was a transaction in the last 12 hours)",
         seconds_since_last_timestamp(&LAST_RECEIVED_TRANSACTION_TIMESTAMP_SECONDS),
@@ -97,7 +97,7 @@ pub(crate) fn get_panel_http_server_seconds_since_last_transaction() -> Panel {
 
 pub(crate) fn get_http_server_row() -> Row {
     Row::new(
-        "Http Server",
+        "HTTP Server",
         vec![
             get_panel_http_server_transactions_received_rate(),
             get_panel_total_transactions_received(),

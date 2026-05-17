@@ -17,7 +17,7 @@ use crate::query_builder::{sum_by_pod, DisplayMethod};
 
 fn get_panel_tokio_total_busy_duration_micros() -> Panel {
     Panel::new(
-        "Increase of Tokio total busy duration (1m window)",
+        "Tokio Total Busy Duration (1m increase)",
         TOKIO_TOTAL_BUSY_DURATION_MICROS.get_description(),
         sum_by_pod(&TOKIO_TOTAL_BUSY_DURATION_MICROS, DisplayMethod::Increase("1m")),
         PanelType::TimeSeries,
@@ -27,7 +27,7 @@ fn get_panel_tokio_total_busy_duration_micros() -> Panel {
 }
 fn get_panel_tokio_min_busy_duration_micros() -> Panel {
     Panel::new(
-        "Tokio minimal busy duration",
+        "Tokio Minimal Busy Duration",
         TOKIO_MIN_BUSY_DURATION_MICROS.get_description(),
         sum_by_pod(&TOKIO_MIN_BUSY_DURATION_MICROS, DisplayMethod::Raw),
         PanelType::TimeSeries,
@@ -37,7 +37,7 @@ fn get_panel_tokio_min_busy_duration_micros() -> Panel {
 }
 fn get_panel_tokio_max_busy_duration_micros() -> Panel {
     Panel::new(
-        "Tokio maximal busy duration",
+        "Tokio Maximal Busy Duration",
         TOKIO_MAX_BUSY_DURATION_MICROS.get_description(),
         sum_by_pod(&TOKIO_MAX_BUSY_DURATION_MICROS, DisplayMethod::Raw),
         PanelType::TimeSeries,
@@ -54,6 +54,7 @@ fn get_panel_tokio_total_park_count() -> Panel {
         PanelType::TimeSeries,
     )
     .with_legends(POD_LEGEND)
+    .with_unit(Unit::Short)
 }
 fn get_panel_tokio_min_park_count() -> Panel {
     Panel::new(
@@ -63,6 +64,7 @@ fn get_panel_tokio_min_park_count() -> Panel {
         PanelType::TimeSeries,
     )
     .with_legends(POD_LEGEND)
+    .with_unit(Unit::Short)
 }
 fn get_panel_tokio_max_park_count() -> Panel {
     Panel::new(
@@ -72,6 +74,7 @@ fn get_panel_tokio_max_park_count() -> Panel {
         PanelType::TimeSeries,
     )
     .with_legends(POD_LEGEND)
+    .with_unit(Unit::Short)
 }
 fn get_panel_tokio_global_queue_depth() -> Panel {
     Panel::new(
@@ -81,6 +84,7 @@ fn get_panel_tokio_global_queue_depth() -> Panel {
         PanelType::TimeSeries,
     )
     .with_legends(POD_LEGEND)
+    .with_unit(Unit::Short)
 }
 fn get_panel_tokio_workers_count() -> Panel {
     Panel::new(
@@ -90,6 +94,7 @@ fn get_panel_tokio_workers_count() -> Panel {
         PanelType::TimeSeries,
     )
     .with_legends(POD_LEGEND)
+    .with_unit(Unit::Short)
 }
 
 pub(crate) fn get_tokio_row() -> Row {
