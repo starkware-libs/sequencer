@@ -34,9 +34,9 @@ fn get_panel_eth_to_strk_error_count() -> Panel {
 
 fn get_panel_eth_to_strk_seconds_since_last_successful_update() -> Panel {
     Panel::new(
-        "Seconds since last successful ETH→STRK rate update",
+        "Seconds Since Last Successful ETH→STRK Rate Update",
         "The number of seconds since the last successful ETH→STRK rate update (assuming there was \
-         an update in the last 12 hours)",
+         an update in the last 12 hours). Expected cadence: ~15 minutes.",
         seconds_since_last_timestamp(&ETH_TO_STRK_LAST_SUCCESS_TIMESTAMP_SECONDS),
         PanelType::TimeSeries,
     )
@@ -115,7 +115,7 @@ fn get_panel_l1_gas_price_scraper_reorg_detected() -> Panel {
 
 fn get_panel_l1_gas_price_scraper_seconds_since_last_successful_scrape() -> Panel {
     Panel::new(
-        "Seconds since last successful L1 gas price scrape",
+        "Seconds Since Last Successful L1 Gas Price Scrape",
         "The number of seconds since the last successful scrape of the L1 gas price scraper \
          (assuming there was a scrape in the last 12 hours)",
         seconds_since_last_timestamp(&L1_GAS_PRICE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS),
@@ -135,18 +135,20 @@ fn get_panel_l1_gas_price_scraper_latest_scraped_block() -> Panel {
 
 fn get_panel_l1_gas_price_latest_mean_value() -> Panel {
     Panel::new(
-        "L1 Gas Price Latest Mean Value",
-        "The latest L1 gas price, calculated as an average by the provider client",
-        L1_GAS_PRICE_LATEST_MEAN_VALUE.get_name_with_filter(),
+        "L1 Gas Price Latest Mean Value (Gwei)",
+        "The latest L1 gas price, calculated as an average by the provider client. Displayed in \
+         Gwei (1 Gwei = 1e9 wei).",
+        format!("{} / 1e9", L1_GAS_PRICE_LATEST_MEAN_VALUE.get_name_with_filter()),
         PanelType::TimeSeries,
     )
 }
 
 fn get_panel_l1_data_gas_price_latest_mean_value() -> Panel {
     Panel::new(
-        "L1 Data Gas Price Latest Mean Value",
-        "The latest L1 data gas price, calculated as an average by the provider client",
-        L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE.get_name_with_filter(),
+        "L1 Data Gas Price Latest Mean Value (Gwei)",
+        "The latest L1 data gas price, calculated as an average by the provider client. Displayed \
+         in Gwei (1 Gwei = 1e9 wei).",
+        format!("{} / 1e9", L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE.get_name_with_filter()),
         PanelType::TimeSeries,
     )
 }
