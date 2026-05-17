@@ -13,6 +13,7 @@ use tracing::warn;
 use crate::proving::virtual_snos_prover::{ProveTransactionResult, RpcVirtualSnosProver};
 use crate::server::config::ServiceConfig;
 use crate::server::errors::service_busy;
+use crate::server::metrics::names::CONCURRENCY_REJECTED_TOTAL;
 use crate::server::rpc_api::ProvingRpcServer;
 
 /// Starknet RPC specification version.
@@ -57,6 +58,7 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
         transaction: RpcTransaction,
     ) -> RpcResult<ProveTransactionResult> {
         let _permit = self.concurrency_semaphore.try_acquire().map_err(|_| {
+            metrics::counter!(CONCURRENCY_REJECTED_TOTAL).increment(1);
             warn!(
                 max_concurrent_requests = self.max_concurrent_requests,
                 "Rejected proving request: service is at capacity"
