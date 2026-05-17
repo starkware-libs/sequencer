@@ -29,10 +29,7 @@ fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> Executi
     let estimated =
         CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&felt_size_groups);
 
-    let mut resources = estimated.vm_resources.clone();
-    resources.n_steps -= 1;
-
-    resources
+    estimated.vm_resources.clone()
 }
 
 /// Test that compares Cairo and Rust implementations of
@@ -44,7 +41,9 @@ fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> Executi
 #[case::boundary_at_2_63(vec![Felt::from(1u64 << 63)])]
 #[case::very_large_felt(vec![Felt::from_hex("0x800000000000011000000000000000000000000000000000000000000000000").unwrap()])]
 #[case::mixed_small_large(vec![Felt::from(42), Felt::from(1u64 << 63), Felt::from(1337)])]
+#[case::two_full_msgs(vec![Felt::from(1u64 << 63); 4])]
 #[case::many_large(vec![Felt::from(1u64 << 63); 100])]
+#[case::very_many_msgs(vec![Felt::from(1u64 << 63); 200])]
 fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
     let runner_config = EntryPointRunnerConfig {
         layout: LayoutName::all_cairo,

@@ -250,7 +250,7 @@ impl CasmV2HashResourceEstimate {
 
     // Base number of VM steps applied when the input to Blake hashing is empty.
     // Determined empirically by running `encode_felt252_data_and_calc_blake_hash` on empty input.
-    pub(crate) const STEPS_EMPTY_INPUT: usize = 168;
+    pub(crate) const STEPS_EMPTY_INPUT: usize = 167;
 
     /// Estimates the number of VM steps required to hash the given felts with Blake in Starknet OS.
     ///
@@ -258,21 +258,27 @@ impl CasmV2HashResourceEstimate {
     /// - Each large felt unpacks into 8 `u32`s.
     /// - Adds a base cost depending on whether the total encoded `u32` sequence fits exactly into
     ///   full 16-`u32` Blake messages.
+    /// - Each full 16-`u32` message processed after the first amortizes 2 steps off the base,
+    ///   reflecting per-block fixed overhead that is shared across iterations.
     fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
         felt_size_groups: &FeltSizeCount,
     ) -> usize {
         // The constants used are empirical, based on running
         // `encode_felt252_data_and_calc_blake_hash` on combinations of large and small
-        // felts. VM steps per large felt.
+        // felts and varying numbers of Blake messages. VM steps per large felt.
         const STEPS_PER_LARGE_FELT: usize = 38;
         // VM steps per small felt.
         const STEPS_PER_SMALL_FELT: usize = 15;
-        // Base overhead when input exactly fills a 16-u32 Blake message.
-        const BASE_STEPS_FULL_MSG: usize = 117;
-        // Base overhead when the input leaves a remainder (< 16 u32s) for a Blake message.
-        const BASE_STEPS_PARTIAL_MSG: usize = 193;
+        // Base overhead when input exactly fills full 16-u32 Blake messages, before per-message
+        // amortization.
+        const BASE_STEPS_FULL_MSG: usize = 216;
+        // Base overhead when the input leaves a remainder (< 16 u32s) for a Blake message, before
+        // per-message amortization.
+        const BASE_STEPS_PARTIAL_MSG: usize = 192;
         // Extra VM steps added per 2-u32 remainder in partial Blake messages.
         const STEPS_PER_2_U32_REMINDER: usize = 3;
+        // VM steps saved per full Blake message processed (amortized fixed-cost per block).
+        const STEPS_DISCOUNT_PER_FULL_MSG: usize = 2;
 
         let encoded_u32_len = felt_size_groups.encoded_u32_len();
         if encoded_u32_len == 0 {
@@ -280,19 +286,25 @@ impl CasmV2HashResourceEstimate {
             return Self::STEPS_EMPTY_INPUT;
         }
 
-        // Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
-        let base_steps = if encoded_u32_len.is_multiple_of(Self::U32_WORDS_PER_MESSAGE) {
+        let n_full_msgs = encoded_u32_len / Self::U32_WORDS_PER_MESSAGE;
+        let rem_u32s = encoded_u32_len % Self::U32_WORDS_PER_MESSAGE;
+
+        // Pick base cost depending on whether the total fits exactly into full 16-u32 messages.
+        // Note: all inputs expand to an even number of u32s --> `rem_u32s` is always even.
+        let base_steps = if rem_u32s == 0 {
             BASE_STEPS_FULL_MSG
         } else {
-            // This computation is based on running blake2s with different inputs.
-            // Note: all inputs expand to an even number of u32s --> `rem_u32s` is always even.
-            BASE_STEPS_PARTIAL_MSG
-                + (encoded_u32_len % Self::U32_WORDS_PER_MESSAGE / 2) * STEPS_PER_2_U32_REMINDER
+            BASE_STEPS_PARTIAL_MSG + (rem_u32s / 2) * STEPS_PER_2_U32_REMINDER
         };
 
-        base_steps
-            + felt_size_groups.large * STEPS_PER_LARGE_FELT
-            + felt_size_groups.small * STEPS_PER_SMALL_FELT
+        let per_felt_steps = felt_size_groups.large * STEPS_PER_LARGE_FELT
+            + felt_size_groups.small * STEPS_PER_SMALL_FELT;
+        let discount = n_full_msgs * STEPS_DISCOUNT_PER_FULL_MSG;
+
+        // `per_felt_steps + base_steps` always dominates `discount` for any non-degenerate input
+        // (per-felt costs grow 19x faster than the per-message discount), so saturating_sub only
+        // matters as a defensive guard.
+        (per_felt_steps + base_steps).saturating_sub(discount)
     }
 }
 
