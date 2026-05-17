@@ -16,7 +16,7 @@ use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::dashboard::Row;
-use crate::panel::{Panel, PanelType, Unit};
+use crate::panel::{traffic_light_thresholds, Panel, PanelType, Unit};
 use crate::query_builder::{increase, seconds_since_last_timestamp, DEFAULT_DURATION};
 
 fn get_panel_eth_to_strk_error_count() -> Panel {
@@ -41,6 +41,7 @@ fn get_panel_eth_to_strk_seconds_since_last_successful_update() -> Panel {
         PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
+    .with_absolute_thresholds(traffic_light_thresholds(1200.0, 1800.0))
 }
 
 fn get_panel_eth_to_strk_success_count() -> Panel {
@@ -122,6 +123,7 @@ fn get_panel_l1_gas_price_scraper_seconds_since_last_successful_scrape() -> Pane
         PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
+    .with_absolute_thresholds(traffic_light_thresholds(120.0, 300.0))
 }
 
 fn get_panel_l1_gas_price_scraper_latest_scraped_block() -> Panel {

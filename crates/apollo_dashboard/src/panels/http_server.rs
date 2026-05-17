@@ -10,7 +10,7 @@ use apollo_http_server::metrics::{
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::dashboard::Row;
-use crate::panel::{Panel, PanelType, Unit};
+use crate::panel::{traffic_light_thresholds, Panel, PanelType, Unit};
 use crate::query_builder::{increase, seconds_since_last_timestamp, DEFAULT_DURATION};
 
 fn get_panel_total_transactions_received() -> Panel {
@@ -93,6 +93,7 @@ pub(crate) fn get_panel_http_server_seconds_since_last_transaction() -> Panel {
         PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
+    .with_absolute_thresholds(traffic_light_thresholds(10.0, 60.0))
 }
 
 pub(crate) fn get_http_server_row() -> Row {

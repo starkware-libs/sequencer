@@ -15,14 +15,31 @@
         },
         {
           "title": "Consensus Round",
-          "description": "The round the node is currently working on",
+          "description": "The round the node is currently working on. Round 0 is the happy path; persistently non-zero rounds indicate consensus difficulty (missing proposals, timeouts, divergence).",
           "type": "timeseries",
           "exprs": [
             "consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
           ],
           "extra_params": {
             "log_query": "\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"",
-            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\"",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1.0
+                },
+                {
+                  "color": "red",
+                  "value": 3.0
+                }
+              ]
+            }
           }
         },
         {
@@ -86,14 +103,31 @@
         },
         {
           "title": "Consensus Round",
-          "description": "The round the node is currently working on",
+          "description": "The round the node is currently working on. Round 0 is the happy path; persistently non-zero rounds indicate consensus difficulty (missing proposals, timeouts, divergence).",
           "type": "timeseries",
           "exprs": [
             "consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
           ],
           "extra_params": {
             "log_query": "\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"",
-            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\"",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1.0
+                },
+                {
+                  "color": "red",
+                  "value": 3.0
+                }
+              ]
+            }
           }
         },
         {
@@ -517,7 +551,24 @@
             "time() - max(last_over_time(http_server_last_received_transaction_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h]))"
           ],
           "extra_params": {
-            "unit": "s"
+            "unit": "s",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 10.0
+                },
+                {
+                  "color": "red",
+                  "value": 60.0
+                }
+              ]
+            }
           }
         }
       ],
@@ -768,7 +819,24 @@
           ],
           "extra_params": {
             "unit": "short",
-            "log_query": "\"has a nonce gap\""
+            "log_query": "\"has a nonce gap\"",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 3.0
+                },
+                {
+                  "color": "red",
+                  "value": 10.0
+                }
+              ]
+            }
           }
         },
         {
@@ -780,7 +848,24 @@
           ],
           "extra_params": {
             "unit": "short",
-            "log_query": "\"has a nonce gap\""
+            "log_query": "\"has a nonce gap\"",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 20.0
+                },
+                {
+                  "color": "red",
+                  "value": 100.0
+                }
+              ]
+            }
           }
         },
         {
@@ -1362,7 +1447,24 @@
             "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
           ],
           "extra_params": {
-            "unit": "short"
+            "unit": "short",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 6.0
+                },
+                {
+                  "color": "red",
+                  "value": 10.0
+                }
+              ]
+            }
           }
         },
         {
@@ -1399,7 +1501,24 @@
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"BaseLayerError during scraping\""
+            "log_query": "\"BaseLayerError during scraping\"",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 30.0
+                },
+                {
+                  "color": "red",
+                  "value": 120.0
+                }
+              ]
+            }
           }
         },
         {
@@ -1460,7 +1579,24 @@
             "time() - max(last_over_time(l1_gas_price_scraper_last_success_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h]))"
           ],
           "extra_params": {
-            "unit": "s"
+            "unit": "s",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 120.0
+                },
+                {
+                  "color": "red",
+                  "value": 300.0
+                }
+              ]
+            }
           }
         },
         {
@@ -1471,7 +1607,24 @@
             "time() - max(last_over_time(eth_to_strk_last_success_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h]))"
           ],
           "extra_params": {
-            "unit": "s"
+            "unit": "s",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1200.0
+                },
+                {
+                  "color": "red",
+                  "value": 1800.0
+                }
+              ]
+            }
           }
         },
         {
@@ -1618,7 +1771,24 @@
             "time() - max(last_over_time(http_server_last_received_transaction_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h]))"
           ],
           "extra_params": {
-            "unit": "s"
+            "unit": "s",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 10.0
+                },
+                {
+                  "color": "red",
+                  "value": 60.0
+                }
+              ]
+            }
           }
         }
       ],
