@@ -17,11 +17,13 @@ async fn main() -> anyhow::Result<()> {
     use starknet_transaction_prover::server::config::{CliArgs, ServiceConfig, TransportMode};
     use starknet_transaction_prover::server::cors::{build_cors_layer, cors_mode};
     use starknet_transaction_prover::server::log_redact::redact_url_host;
+    use starknet_transaction_prover::server::metrics::install_exporter;
     use starknet_transaction_prover::server::panic::install_panic_hook;
     use starknet_transaction_prover::server::rpc_api::ProvingRpcServer;
     use starknet_transaction_prover::server::rpc_impl::ProvingRpcServerImpl;
     use starknet_transaction_prover::server::{
         start_server,
+        MetricsLayer,
         OhttpJsonrpseeLayer,
         OHTTP_JSONRPSEE_BODY_BUILDER,
     };
@@ -53,6 +55,14 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let config = ServiceConfig::from_args(args)?;
+
+    // Install the global Prometheus exporter and emit `prover_build_info`.
+    // Done before the server binds so a scrape during a slow startup still
+    // returns the build identity.
+    let prometheus_handle =
+        install_exporter(env!("CARGO_PKG_VERSION"), option_env!("GIT_SHA").unwrap_or("unknown"))
+            .context("Failed to install Prometheus exporter")?;
+    let metrics_layer = Some(MetricsLayer::new(prometheus_handle));
 
     // Startup banner — emitted before binding so a failed bind still leaves a
     // breadcrumb identifying the build. Fields are deliberately conservative:
@@ -102,6 +112,7 @@ async fn main() -> anyhow::Result<()> {
         config.max_request_body_size,
         cors_layer,
         ohttp_layer,
+        metrics_layer,
     )
     .await?;
 
