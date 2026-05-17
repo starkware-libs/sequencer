@@ -242,15 +242,28 @@ pub struct CasmV2HashResourceEstimate {}
 impl CasmV2HashResourceEstimate {
     // Constants that define how felts are encoded into u32s for BLAKE hashing.
     // Number of `u32` words a large felt expands into.
-    pub(crate) const U32_WORDS_PER_LARGE_FELT: usize = 8;
+    pub const U32_WORDS_PER_LARGE_FELT: usize = 8;
     // Number of `u32` words a small felt expands into.
-    pub(crate) const U32_WORDS_PER_SMALL_FELT: usize = 2;
+    pub const U32_WORDS_PER_SMALL_FELT: usize = 2;
     // Input for Blake hash function is a sequence of 16 `u32` words.
-    pub(crate) const U32_WORDS_PER_MESSAGE: usize = 16;
+    pub const U32_WORDS_PER_MESSAGE: usize = 16;
 
     // Base number of VM steps applied when the input to Blake hashing is empty.
     // Determined empirically by running `encode_felt252_data_and_calc_blake_hash` on empty input.
-    pub(crate) const STEPS_EMPTY_INPUT: usize = 170;
+    pub const STEPS_EMPTY_INPUT: usize = 170;
+
+    // The constants used are empirical, based on running `encode_felt252_data_and_calc_blake_hash`
+    // on combinations of large and small felts.
+    // VM steps per large felt.
+    pub const STEPS_PER_LARGE_FELT: usize = 45;
+    // VM steps per small felt.
+    pub const STEPS_PER_SMALL_FELT: usize = 15;
+    // Base overhead when input exactly fills a 16-u32 Blake message.
+    pub const BASE_STEPS_FULL_MSG: usize = 217;
+    // Base overhead when the input leaves a remainder (< 16 u32s) for a Blake message.
+    pub const BASE_STEPS_PARTIAL_MSG: usize = 195;
+    // Extra VM steps added per 2-u32 remainder in partial Blake messages.
+    pub const STEPS_PER_2_U32_REMINDER: usize = 3;
 
     /// Estimates the number of VM steps required to hash the given felts with Blake in Starknet OS.
     ///
@@ -261,19 +274,6 @@ impl CasmV2HashResourceEstimate {
     fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
         felt_size_groups: &FeltSizeCount,
     ) -> usize {
-        // The constants used are empirical, based on running
-        // `encode_felt252_data_and_calc_blake_hash` on combinations of large and small
-        // felts. VM steps per large felt.
-        const STEPS_PER_LARGE_FELT: usize = 45;
-        // VM steps per small felt.
-        const STEPS_PER_SMALL_FELT: usize = 15;
-        // Base overhead when input exactly fills a 16-u32 Blake message.
-        const BASE_STEPS_FULL_MSG: usize = 217;
-        // Base overhead when the input leaves a remainder (< 16 u32s) for a Blake message.
-        const BASE_STEPS_PARTIAL_MSG: usize = 195;
-        // Extra VM steps added per 2-u32 remainder in partial Blake messages.
-        const STEPS_PER_2_U32_REMINDER: usize = 3;
-
         let encoded_u32_len = felt_size_groups.encoded_u32_len();
         if encoded_u32_len == 0 {
             // The empty input case is a special case.
@@ -282,17 +282,18 @@ impl CasmV2HashResourceEstimate {
 
         // Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
         let base_steps = if encoded_u32_len.is_multiple_of(Self::U32_WORDS_PER_MESSAGE) {
-            BASE_STEPS_FULL_MSG
+            Self::BASE_STEPS_FULL_MSG
         } else {
             // This computation is based on running blake2s with different inputs.
             // Note: all inputs expand to an even number of u32s --> `rem_u32s` is always even.
-            BASE_STEPS_PARTIAL_MSG
-                + (encoded_u32_len % Self::U32_WORDS_PER_MESSAGE / 2) * STEPS_PER_2_U32_REMINDER
+            Self::BASE_STEPS_PARTIAL_MSG
+                + (encoded_u32_len % Self::U32_WORDS_PER_MESSAGE / 2)
+                    * Self::STEPS_PER_2_U32_REMINDER
         };
 
         base_steps
-            + felt_size_groups.large * STEPS_PER_LARGE_FELT
-            + felt_size_groups.small * STEPS_PER_SMALL_FELT
+            + felt_size_groups.large * Self::STEPS_PER_LARGE_FELT
+            + felt_size_groups.small * Self::STEPS_PER_SMALL_FELT
     }
 }
 
