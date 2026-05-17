@@ -28,6 +28,8 @@ http.workspace = true
 http-body-util.workspace = true
 indexmap.workspace = true
 jsonrpsee = { workspace = true, features = ["macros", "server"] }
+metrics.workspace = true
+metrics-exporter-prometheus.workspace = true
 privacy-prove = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
@@ -44,13 +46,7 @@ starknet_patricia_storage.workspace = true
 starknet_proof_verifier.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = [
-  "macros",
-  "process",
-  "rt-multi-thread",
-  "signal",
-  "time",
-] }
+tokio = { workspace = true, features = ["macros", "process", "rt-multi-thread", "signal", "time"] }
 tokio-rustls.workspace = true
 tower = { workspace = true, features = ["util"] }
 tower-http = { workspace = true, features = [
