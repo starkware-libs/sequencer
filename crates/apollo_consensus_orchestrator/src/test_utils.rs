@@ -326,9 +326,6 @@ impl TestDeps {
         self.l1_gas_price_provider.expect_get_rate().return_const(Ok(ETH_TO_FRI_RATE));
     }
 
-    /// Default get_block returns a pre-SNIP-35 block (no `fee_proposal_fri`). Used by SNIP-35
-    /// bootstrap on startup; mirrors real chain behavior where blocks before V0_14_3 exist but
-    /// don't carry the field.
     fn setup_default_state_sync_get_block(&mut self) {
         self.state_sync_client.expect_get_block().returning(|_| Ok(SyncBlock::default()));
     }
