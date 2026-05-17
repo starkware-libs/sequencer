@@ -60,6 +60,7 @@ fn base_args() -> CliArgs {
         ohttp_enabled: false,
         ohttp_key_cache_max_age_secs: None,
         json_logs: false,
+        health_max_saturated_ms: None,
     }
 }
 
@@ -149,6 +150,7 @@ fn cors_allow_origin_rejects_non_array_in_config_file() {
         ohttp_enabled: false,
         ohttp_key_cache_max_age_secs: None,
         json_logs: false,
+        health_max_saturated_ms: None,
     };
 
     let error = ServiceConfig::from_args(args).unwrap_err();

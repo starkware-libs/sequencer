@@ -46,6 +46,7 @@ pub async fn start_tls_server(
     cors_layer: Option<CorsLayer>,
     ohttp_layer: Option<OhttpJsonrpseeLayer>,
     metrics_layer: Option<MetricsLayer>,
+    health_layer: HealthLayer,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     let tls_acceptor = load_tls_acceptor(cert_path, key_path)?;
 
@@ -64,7 +65,7 @@ pub async fn start_tls_server(
             // sits inside the monitoring endpoints so probes don't distort
             // request-latency distributions.
             ServiceBuilder::new()
-                .layer(HealthLayer)
+                .layer(health_layer)
                 .option_layer(metrics_layer)
                 .layer(HttpMetricsLayer)
                 .option_layer(cors_layer)
