@@ -2,6 +2,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
 
+use assert_matches::assert_matches;
 use clap::Parser;
 use rstest::rstest;
 use tempfile::NamedTempFile;
@@ -89,14 +90,17 @@ fn cors_allow_origin_valid_cases(#[case] input: Vec<&str>, #[case] expected: Vec
     assert_eq!(config.cors_allow_origin, expected);
 }
 
-#[test]
-fn cors_allow_origin_rejects_path() {
+#[rstest]
+#[case::path("http://localhost:5173/path")]
+#[case::non_http_scheme("ftp://example.com")]
+#[case::userinfo("http://user@example.com")]
+fn cors_allow_origin_rejects_invalid(#[case] origin: &str) {
     let mut args = base_args();
-    args.cors_allow_origin = vec!["http://localhost:5173/path".to_string()];
+    args.cors_allow_origin = vec![origin.to_string()];
 
     let error = ServiceConfig::from_args(args).unwrap_err();
 
-    assert!(matches!(error, ConfigError::InvalidArgument(_)));
+    assert_matches!(error, ConfigError::InvalidArgument(_));
 }
 
 #[test]
@@ -302,4 +306,100 @@ fn env_var_sets_tls_key_file() {
     let args = CliArgs::parse_from(["starknet-transaction-prover"]);
 
     assert_eq!(args.tls_key_file, Some(PathBuf::from("/etc/ssl/key.pem")));
+}
+
+#[test]
+fn test_missing_rpc_url_rejected() {
+    let mut args = base_args();
+    args.rpc_url = None;
+
+    assert_matches!(
+        ServiceConfig::from_args(args).unwrap_err(),
+        ConfigError::MissingRequiredField(_)
+    );
+}
+
+#[rstest]
+#[case::max_concurrent_requests_zero(|args: &mut CliArgs| args.max_concurrent_requests = Some(0))]
+#[case::max_connections_zero(|args: &mut CliArgs| args.max_connections = Some(0))]
+fn test_zero_limits_rejected(#[case] mutate: fn(&mut CliArgs)) {
+    let mut args = base_args();
+    mutate(&mut args);
+
+    assert_matches!(ServiceConfig::from_args(args).unwrap_err(), ConfigError::InvalidArgument(_));
+}
+
+#[test]
+fn test_no_cors_with_cors_allow_origin_rejected() {
+    let mut args = base_args();
+    args.no_cors = true;
+    args.cors_allow_origin = vec!["http://localhost:5173".to_string()];
+
+    assert_matches!(
+        ServiceConfig::from_args(args).unwrap_err(),
+        ConfigError::InvalidArgument(message) if message.contains("mutually exclusive")
+    );
+}
+
+#[test]
+fn test_skip_fee_field_validation_disables_validation() {
+    let mut args = base_args();
+    args.skip_fee_field_validation = true;
+
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    assert!(!config.prover_config.validate_zero_fee_fields);
+}
+
+#[test]
+fn test_no_cors_clears_config_file_origins() {
+    let mut config_file = NamedTempFile::new().unwrap();
+    write!(
+        config_file,
+        r#"{{"rpc_node_url":"http://localhost:9545","cors_allow_origin":["http://localhost:5173"]}}"#,
+    )
+    .unwrap();
+
+    let mut args = base_args();
+    args.config_file = Some(config_file.path().to_path_buf());
+    args.rpc_url = None;
+    args.no_cors = true;
+
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    assert!(config.cors_allow_origin.is_empty());
+}
+
+#[test]
+fn test_config_file_values_used_when_no_cli_overrides() {
+    let mut config_file = NamedTempFile::new().unwrap();
+    write!(
+        config_file,
+        r#"{{"rpc_node_url":"http://localhost:9545","port":8080,"ip":"127.0.0.1"}}"#,
+    )
+    .unwrap();
+
+    let mut args = base_args();
+    args.config_file = Some(config_file.path().to_path_buf());
+    args.rpc_url = None;
+
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    assert_eq!(config.port, 8080);
+    assert_eq!(config.ip, "127.0.0.1".parse::<std::net::IpAddr>().unwrap());
+}
+
+#[test]
+fn test_cli_overrides_config_file_values() {
+    let mut config_file = NamedTempFile::new().unwrap();
+    write!(config_file, r#"{{"rpc_node_url":"http://localhost:9545","port":8080}}"#).unwrap();
+
+    let mut args = base_args();
+    args.config_file = Some(config_file.path().to_path_buf());
+    args.rpc_url = None;
+    args.port = Some(9090);
+
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    assert_eq!(config.port, 9090);
 }
