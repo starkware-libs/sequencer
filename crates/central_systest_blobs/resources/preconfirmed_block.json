@@ -56,7 +56,7 @@
         },
         "execution_status": "SUCCEEDED",
         "l2_to_l1_messages": [],
-        "transaction_hash": "0x1dfd8bf9946684721d9700ef810d44219edbae5a8fd92b716378e8c2a388394",
+        "transaction_hash": "0x64f87c2050bf5adb716360a0cd226b7cbdd6ed9f0807450dbfa31ec4b4d9136",
         "transaction_index": 0
       }
     ],
@@ -74,11 +74,11 @@
           "0x6c6a50ee425e9ff35846be376051b8cdbdc1aadc6c954209fe3fd247a571b33": [
             {
               "key": "0x2cbac7495ce24b399327e9282b09d029b1dd772b24b7e8dcd0467fedab5af58",
-              "value": "0xffffffffffffffffffffffff9905f443"
+              "value": "0xffffffffffffffffffffffff97c70243"
             },
             {
               "key": "0x723973208639b7839ce298f7ffea61e3f9533872defd7abdb91023db4658812",
-              "value": "0x66fa0bbc"
+              "value": "0x6838fdbc"
             }
           ]
         }
@@ -89,10 +89,10 @@
         "account_deployment_data": [],
         "calldata": [
           "0x1",
-          "0x42cd962046fd7a1fe444e9db0073c14bf289f4c10f5ebe857dcf16d1a3ce717",
+          "0x2d8be0474f83a196f3ac4110e1b864b9af205c430b2729c0a00929a7c95c2e7",
           "0x4ea6d2b84c4aea3baab8c031143fcd1fdf95debad5f888784f8db17e1c17f4",
           "0x2",
-          "0x77226a1a1022ac1ebec9b07155ac1b3b267a026b3da45968e058e3760ebe5db",
+          "0x62b0477a65ed1e0c8c1ebe117cc1ca2125b685565162f58e63ab940cb97037f",
           "0x2000"
         ],
         "fee_data_availability_mode": 0,
@@ -116,11 +116,11 @@
         },
         "sender_address": "0x3d3759cf036b96f8105f40dcf3fe0c209be3419154aa458d03336ad0443ce81",
         "signature": [
-          "0x551298935dff4e3806cb6543fb9a16e0e0179304c9c610521a712604cc11700",
-          "0x24c9369ef58b686d3142bcd521b0bfd1659ca803e2a8cca87cfe74b87f9424"
+          "0x3d6a66bd838668fe381158d8c6b69adbf3fd74ee043e9edeb693c953eb462cd",
+          "0x739da9ff4c7f02e2eeddb1ee658bff4978ff954450f0af8bb8ee500a975b9a4"
         ],
         "tip": "0x0",
-        "transaction_hash": "0x1dfd8bf9946684721d9700ef810d44219edbae5a8fd92b716378e8c2a388394",
+        "transaction_hash": "0x64f87c2050bf5adb716360a0cd226b7cbdd6ed9f0807450dbfa31ec4b4d9136",
         "type": "INVOKE_FUNCTION",
         "version": "0x3"
       }

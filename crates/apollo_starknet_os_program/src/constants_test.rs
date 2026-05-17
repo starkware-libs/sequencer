@@ -193,6 +193,8 @@ fn generate_constants_file() -> String {
             base_only_syscall_cost(SyscallSelector::KeccakRound, os_constants),
         SHA256_PROCESS_BLOCK_GAS_COST =
             base_only_syscall_cost(SyscallSelector::Sha256ProcessBlock, os_constants),
+        SHA512_PROCESS_BLOCK_GAS_COST =
+            base_only_syscall_cost(SyscallSelector::Sha512ProcessBlock, os_constants),
         // Short-strings.
         ERROR_BLOCK_NUMBER_OUT_OF_RANGE =
             quote_string(&os_constants.error_block_number_out_of_range),

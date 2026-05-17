@@ -291,6 +291,7 @@ async fn prove_and_verify_multicall_tx() {
     let multi_call_args = create_multicall_calldata(&[
         // (contract_address, "test_keccak", &[]),
         (contract_address, "test_ec_op", &[]),
+        (contract_address, "test_sha512", &[]),
     ]);
 
     // The dummy account's `__execute__(contract_address, selector, calldata)` forwards
