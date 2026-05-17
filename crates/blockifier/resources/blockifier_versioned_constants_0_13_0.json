@@ -577,6 +577,11 @@
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {}
             },
+            "Sha512ProcessBlock": {
+                "n_steps": 0,
+                "n_memory_holes": 0,
+                "builtin_instance_counter": {}
+            },
             "StorageRead": {
                 "n_steps": 44,
                 "n_memory_holes": 0,

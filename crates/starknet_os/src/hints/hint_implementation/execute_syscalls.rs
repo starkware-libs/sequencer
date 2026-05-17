@@ -42,3 +42,24 @@ pub(crate) fn relocate_sha256_segment<S: StateReader>(
     ctx.vm.add_relocation_rule(state_ptr, actual_out_state_ptr.into())?;
     Ok(())
 }
+
+pub(crate) fn relocate_sha512_segment<S: StateReader>(
+    _hint_processor: &mut SnosHintProcessor<'_, S>,
+    ctx: HintContext<'_>,
+) -> OsHintResult {
+    let state_ptr = ctx.get_nested_field_ptr(
+        Ids::Response,
+        CairoStruct::Sha512ProcessBlockResponsePtr,
+        &["state_ptr"],
+    )?;
+    let actual_out_state_ptr = ctx.get_ptr(Ids::ActualOutState)?;
+
+    // TODO(Nimrod): Use SHA256_STATE_SIZE_FELTS constant.
+    let sha_state_size = 8;
+
+    let data = ctx.vm.get_continuous_range(state_ptr, sha_state_size)?;
+    ctx.vm.load_data(actual_out_state_ptr, &data)?;
+
+    ctx.vm.add_relocation_rule(state_ptr, actual_out_state_ptr.into())?;
+    Ok(())
+}

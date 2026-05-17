@@ -467,6 +467,14 @@
                     "bitwise_builtin": 1115
                 }
             },
+            "Sha512ProcessBlock": {
+                "n_steps": 3734,
+                "n_memory_holes": 0,
+                "builtin_instance_counter": {
+                    "range_check_builtin": 130,
+                    "bitwise_builtin": 2230
+                }
+            },
             "StorageRead": {
                 "n_steps": 240,
                 "n_memory_holes": 0,

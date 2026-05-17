@@ -72,6 +72,9 @@
     "StatelessHint": "Sha2Finalize"
   },
   {
+    "StatelessHint": "Sha512Finalize"
+  },
+  {
     "StatelessHint": "EnterScopeSyscallHandler"
   },
   {
@@ -190,6 +193,9 @@
   },
   {
     "OsHint": "RelocateSha256Segment"
+  },
+  {
+    "OsHint": "RelocateSha512Segment"
   },
   {
     "OsHint": "EnterScopeWithBytecodeSegmentStructure"
