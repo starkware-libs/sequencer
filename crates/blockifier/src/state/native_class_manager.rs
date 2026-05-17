@@ -283,8 +283,16 @@ fn process_compilation_request(
         return Ok(());
     }
     let sierra_for_compilation = into_contract_class_for_compilation(sierra.as_ref());
+
     let start = Instant::now();
-    let compilation_result = compiler.compile(sierra_for_compilation);
+    #[cfg(feature = "with-libfunc-profiling")]
+    let compilation_result = compiler
+        .compile_with_program(sierra_for_compilation)
+        .map(|info| NativeCompiledClassV1::new_with_program(info, casm.clone()));
+    #[cfg(not(feature = "with-libfunc-profiling"))]
+    let compilation_result = compiler
+        .compile(sierra_for_compilation)
+        .map(|executor| NativeCompiledClassV1::new(executor, casm.clone()));
     let duration = start.elapsed();
     log::info!(
         "Compiling to native contract with class hash: {:#066x}. Duration: {:.3} seconds",
@@ -292,8 +300,7 @@ fn process_compilation_request(
         duration.as_secs_f32()
     );
     match compilation_result {
-        Ok(executor) => {
-            let native_compiled_class = NativeCompiledClassV1::new(executor, casm);
+        Ok(native_compiled_class) => {
             class_cache.set(
                 class_hash,
                 CompiledClasses::V1Native(CachedCairoNative::Compiled(native_compiled_class)),

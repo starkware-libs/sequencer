@@ -22,9 +22,21 @@ native_blockifier = []
 node_api = []
 only-native = ["cairo_native"]
 reexecution = ["transaction_serde"]
+# Enables the sierra-emu execution path of `cairo_native::ContractExecutor`. Pulls in
+# cairo-native's `sierra-emu` feature which compiles `SierraEmuSyscallBridge`.
+sierra-emu = ["cairo-native/sierra-emu", "cairo_native"]
 testing = ["blockifier_test_utils", "rand", "rstest", "rstest_reuse", "starknet_api/testing"]
 tracing = []
 transaction_serde = []
+# Enables libfunc-level profiling for native execution. Pulls in cairo-native's
+# `with-libfunc-profiling` so `ContractExecutor::run_with_profile` is available,
+# and apollo_compile_to_native's matching feature so `SierraToNativeCompiler` can
+# pair the compiled executor with its Sierra program in one call.
+with-libfunc-profiling = [
+  "apollo_compile_to_native/with-libfunc-profiling",
+  "cairo-native/with-libfunc-profiling",
+  "cairo_native",
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
