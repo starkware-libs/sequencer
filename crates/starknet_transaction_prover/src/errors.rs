@@ -131,6 +131,27 @@ pub enum VirtualSnosProverError {
     TransactionBlocked,
 }
 
+impl VirtualSnosProverError {
+    /// Maps the variant to one of the bounded label values declared in
+    /// `crate::server::metrics::outcomes`. The single match keeps the
+    /// `prover_prove_transaction_outcome_total{outcome}` cardinality fixed —
+    /// adding a variant requires a dashboard update at the same time.
+    pub fn metric_outcome(&self) -> &'static str {
+        use crate::server::metrics::outcomes;
+        match self {
+            VirtualSnosProverError::InvalidTransactionType(_)
+            | VirtualSnosProverError::InvalidTransactionInput(_)
+            | VirtualSnosProverError::ValidationError(_) => outcomes::VALIDATION,
+            VirtualSnosProverError::TransactionBlocked => outcomes::BLOCKED,
+            VirtualSnosProverError::RunnerError(_) => outcomes::RUNNER,
+            VirtualSnosProverError::OutputParseError(_)
+            | VirtualSnosProverError::ProgramOutputError(_) => outcomes::OUTPUT_PARSE,
+            #[cfg(feature = "stwo_proving")]
+            VirtualSnosProverError::ProvingError(_) => outcomes::PROVING,
+        }
+    }
+}
+
 /// Errors that can occur during configuration.
 #[derive(Debug, Error)]
 pub enum ConfigError {
