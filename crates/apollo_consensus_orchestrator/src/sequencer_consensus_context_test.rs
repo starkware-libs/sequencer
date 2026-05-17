@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::future::ready;
 use std::sync::Arc;
 use std::time::Duration;
@@ -1495,7 +1496,7 @@ async fn test_first_height_keeps_sync_provided_l2_gas_price() {
 
     let (mut deps, _network) = create_test_and_network_deps();
     // Specific get_block expectation must be registered before setup_default_expectations, which
-    // installs a catch-all BlockNotFound handler for SNIP-35 bootstrap.
+    // installs a catch-all handler.
     deps.state_sync_client.expect_get_block().times(1).return_once(|height| {
         let mut sync_block = SyncBlock::default();
         sync_block.block_header_without_hash.block_number = height;
@@ -1537,9 +1538,7 @@ async fn test_first_height_keeps_sync_provided_l2_gas_price() {
 }
 
 // Distinct value per height so map equality verifies identity, not just key set.
-fn window_of(
-    heights: impl IntoIterator<Item = u64>,
-) -> std::collections::BTreeMap<BlockNumber, Option<GasPrice>> {
+fn window_of(heights: impl IntoIterator<Item = u64>) -> BTreeMap<BlockNumber, Option<GasPrice>> {
     heights.into_iter().map(|h| (BlockNumber(h), Some(GasPrice(u128::from(h))))).collect()
 }
 
@@ -1552,14 +1551,53 @@ fn window_of(
 #[case::saturates_at_zero_when_height_below_window(window_of(0..=2), BlockNumber(5), window_of(0..=2))]
 #[case::no_op_when_all_entries_within_window(window_of(105..=110), BlockNumber(110), window_of(105..=110))]
 fn test_prune_fee_proposals_window(
-    #[case] initial_window: std::collections::BTreeMap<BlockNumber, Option<GasPrice>>,
+    #[case] initial_window: BTreeMap<BlockNumber, Option<GasPrice>>,
     #[case] current_height: BlockNumber,
-    #[case] expected_window: std::collections::BTreeMap<BlockNumber, Option<GasPrice>>,
+    #[case] expected_window: BTreeMap<BlockNumber, Option<GasPrice>>,
 ) {
     let (mut deps, _network) = create_test_and_network_deps();
     deps.setup_default_expectations();
     let mut context = deps.build_context();
     context.fee_proposals_window = initial_window;
     context.prune_fee_proposals_window(current_height);
+    assert_eq!(context.fee_proposals_window, expected_window);
+}
+
+// `initialize_fee_proposals_window` reads `[start_height - WINDOW, start_height)` from state_sync
+// and records each block's `fee_proposal_fri`. `expected_window` is the mapping the test asserts;
+// the mock answers `get_block(h)` from the same map. Genesis case (`start_height < WINDOW_SIZE`)
+// is exercised by a smaller window: the bootstrap range collapses to `[0, start_height)`.
+#[rstest]
+#[case::all_some(BlockNumber(100), window_of(90..100))]
+// v0.14.2 era: every block recorded with `fee_proposal_fri = None`.
+#[case::all_none(BlockNumber(100), (90u64..100).map(|h| (BlockNumber(h), None)).collect())]
+// Transition: heights < 95 are pre-SNIP-35 (None), heights >= 95 are SNIP-35 (Some).
+#[case::mixed_transition(
+    BlockNumber(100),
+    (90u64..100)
+        .map(|h| (BlockNumber(h), (h >= 95).then(|| GasPrice(u128::from(h)))))
+        .collect(),
+)]
+#[case::genesis_collapses_range(BlockNumber(3), window_of(0..3))]
+#[tokio::test]
+async fn test_initialize_fee_proposals_window(
+    #[case] start_height: BlockNumber,
+    #[case] expected_window: BTreeMap<BlockNumber, Option<GasPrice>>,
+) {
+    let mock_window = expected_window.clone();
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.state_sync_client.expect_get_block().times(expected_window.len()).returning(
+        move |height| {
+            let mut sync_block = SyncBlock::default();
+            sync_block.block_header_without_hash.block_number = height;
+            sync_block.block_header_without_hash.fee_proposal_fri =
+                *mock_window.get(&height).unwrap();
+            Ok(sync_block)
+        },
+    );
+    deps.setup_default_expectations();
+
+    let mut context = deps.build_context();
+    context.initialize_fee_proposals_window(start_height).await.unwrap();
     assert_eq!(context.fee_proposals_window, expected_window);
 }
