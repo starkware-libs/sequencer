@@ -275,8 +275,8 @@ impl ResourceCounter {
         builtin_ptrs_dict: &mut HashMap<BuiltinName, Relocatable>,
         ctx: &HintContext<'_>,
     ) -> OsLoggerResult<()> {
-        // We want all pointers except `segment_arena` and `sha256`.
-        let excluded_builtins = ["segment_arena", "sha256"];
+        // We want all pointers except `segment_arena`, `sha256`, and `sha512` (virtual builtins).
+        let excluded_builtins = ["segment_arena", "sha256", "sha512"];
         let inner_struct_name: &str = inner_field_type.into();
         let inner_members = ctx
             .program
