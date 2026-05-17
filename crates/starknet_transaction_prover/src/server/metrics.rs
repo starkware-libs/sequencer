@@ -74,10 +74,11 @@ pub fn install_exporter(version: &str, git_sha: &str) -> anyhow::Result<Promethe
         "git_sha" => git_sha.to_string(),
     )
     .set(1.0);
-    // Pre-register the counter at 0 so it shows up in scrapes before the
-    // first rejection — dashboards relying on `rate(...) > 0` need the
-    // series to exist.
+    // Pre-register counters/gauges at zero so they show up in scrapes
+    // before the first request — dashboards relying on `rate(...) > 0`
+    // need the series to exist.
     metrics::counter!(names::CONCURRENCY_REJECTED_TOTAL).increment(0);
+    super::http_metrics::preregister_http_metrics();
     Ok(handle)
 }
 
