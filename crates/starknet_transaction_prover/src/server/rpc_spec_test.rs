@@ -419,32 +419,73 @@ async fn test_prove_transaction_rejects_pending_block_id(
     SpecError::from_spec(&resolve_spec_error("BLOCK_NOT_FOUND")).assert_matches(&actual_error);
 }
 
-#[test]
-// TODO(Avi): Add an error enum to make this test exhastive.
-fn test_error_responses_match_spec() {
-    let test_cases: Vec<(&str, ErrorObjectOwned)> = vec![
-        ("BLOCK_NOT_FOUND", errors::block_not_found()),
-        ("ACCOUNT_VALIDATION_FAILED", errors::validation_failure("test".to_string())),
-        ("UNSUPPORTED_TX_TYPE", errors::unsupported_tx_type("Declare".to_string())),
-        ("SERVICE_BUSY", errors::service_busy(2)),
-        (
-            "INVALID_TRANSACTION_INPUT",
-            errors::invalid_transaction_input("test field invalid".to_string()),
-        ),
-        ("TRANSACTION_BLOCKED", errors::transaction_blocked()),
+/// Every JSON-RPC error variant the proving service can return, one variant per OpenRPC
+/// `components/errors` entry. The exhaustive matches in `spec_key` and `sample_error_object`
+/// force the developer to wire a new variant end-to-end; `test_error_responses_match_spec`
+/// then asserts the variant set and the spec are in sync.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum KnownRpcError {
+    BlockNotFound,
+    AccountValidationFailed,
+    UnsupportedTxType,
+    InvalidTransactionInput,
+    ServiceBusy,
+    TransactionBlocked,
+}
+
+impl KnownRpcError {
+    const ALL: &'static [Self] = &[
+        Self::BlockNotFound,
+        Self::AccountValidationFailed,
+        Self::UnsupportedTxType,
+        Self::InvalidTransactionInput,
+        Self::ServiceBusy,
+        Self::TransactionBlocked,
     ];
 
-    // Completeness guard: ensure all spec errors (from method error arrays) have a test case.
-    let spec_error_keys: HashSet<&str> = SPEC_ERRORS.keys().map(|k| k.as_str()).collect();
-    let tested_error_keys: HashSet<&str> = test_cases.iter().map(|(key, _)| *key).collect();
+    fn spec_key(self) -> &'static str {
+        match self {
+            Self::BlockNotFound => "BLOCK_NOT_FOUND",
+            Self::AccountValidationFailed => "ACCOUNT_VALIDATION_FAILED",
+            Self::UnsupportedTxType => "UNSUPPORTED_TX_TYPE",
+            Self::InvalidTransactionInput => "INVALID_TRANSACTION_INPUT",
+            Self::ServiceBusy => "SERVICE_BUSY",
+            Self::TransactionBlocked => "TRANSACTION_BLOCKED",
+        }
+    }
+
+    fn sample_error_object(self) -> ErrorObjectOwned {
+        match self {
+            Self::BlockNotFound => errors::block_not_found(),
+            Self::AccountValidationFailed => errors::validation_failure("sample data".to_string()),
+            Self::UnsupportedTxType => errors::unsupported_tx_type("Declare".to_string()),
+            Self::InvalidTransactionInput => {
+                errors::invalid_transaction_input("test field invalid".to_string())
+            }
+            Self::ServiceBusy => errors::service_busy(2),
+            Self::TransactionBlocked => errors::transaction_blocked(),
+        }
+    }
+}
+
+#[test]
+fn test_error_responses_match_spec() {
+    let enum_keys: HashSet<&'static str> =
+        KnownRpcError::ALL.iter().map(|v| v.spec_key()).collect();
     assert_eq!(
-        tested_error_keys, spec_error_keys,
-        "Test cases don't cover all spec errors. Update the test_cases list above."
+        enum_keys.len(),
+        KnownRpcError::ALL.len(),
+        "Duplicate spec_key in KnownRpcError::ALL",
     );
 
-    for (spec_key, actual) in &test_cases {
-        SpecError::from_spec(&resolve_spec_error(spec_key)).assert_matches(actual);
+    for variant in KnownRpcError::ALL {
+        let spec_entry = resolve_spec_error(variant.spec_key());
+        SpecError::from_spec(&spec_entry).assert_matches(&variant.sample_error_object());
     }
+
+    // Reverse: every spec error must have a matching variant.
+    let spec_keys: HashSet<&str> = SPEC_ERRORS.keys().map(String::as_str).collect();
+    assert_eq!(enum_keys, spec_keys, "KnownRpcError and OpenRPC spec are out of sync");
 }
 
 /// Helper: sends a prove_transaction request and asserts it returns the expected error.
