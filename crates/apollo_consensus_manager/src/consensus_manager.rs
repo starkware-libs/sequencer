@@ -159,7 +159,7 @@ impl ConsensusManager {
             outbound_internal_receiver,
         );
 
-        let consensus_context = self.create_sequencer_consensus_context(
+        let mut consensus_context = self.create_sequencer_consensus_context(
             &votes_broadcast_channels,
             outbound_internal_sender,
             self.config_manager_client.clone(),
@@ -167,6 +167,10 @@ impl ConsensusManager {
 
         let current_height =
             self.batcher_client.get_height().await.expect("Failed to get height from batcher");
+        consensus_context
+            .initialize_fee_proposals_window(current_height.height)
+            .await
+            .expect("Failed to bootstrap SNIP-35 fee_proposals window");
         let run_consensus_args = self.create_run_consensus_args(current_height.height);
 
         let network_task =

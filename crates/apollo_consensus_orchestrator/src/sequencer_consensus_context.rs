@@ -6,7 +6,7 @@
 mod sequencer_consensus_context_test;
 
 use std::cmp::max;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -37,7 +37,11 @@ use apollo_protobuf::consensus::{
     TransactionBatch,
     Vote,
 };
-use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
+use apollo_state_sync_types::communication::{
+    SharedStateSyncClient,
+    StateSyncClientError,
+    StateSyncClientResult,
+};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
@@ -308,39 +312,40 @@ impl SequencerConsensusContext {
         self.fee_proposals_window = self.fee_proposals_window.split_off(&cutoff);
     }
 
-    /// SNIP-35: bootstrap the fee_proposals window from state_sync on startup so `fee_actual` is
-    /// available immediately. Pre-V0_14_3 blocks return `Ok` with `fee_proposal_fri == None` and
-    /// contribute nothing; an `Err` from state_sync means the block could not be retrieved, so we
-    /// log and stop bootstrapping.
-    // TODO(AndrewL): On `Err`, state_sync may simply not have downloaded the block yet rather than
-    // the block being absent. Returning a partial window here is non-deterministic across nodes
-    // (different local sync progress → different windows → different `fee_actual`). Resolving this
-    // requires a startup gate that guarantees state_sync is caught up to `height - 1` before
-    // consensus enters `set_height_and_round`, since blocking inside this call to retry is unsafe
-    // (peers may already be voting at this height). Track and fix in a follow-up PR.
-    async fn bootstrap_fee_proposals_window(&mut self, height: BlockNumber) {
+    /// Fill `[start_height - WINDOW, start_height)` from local state_sync storage. Must be
+    /// called before `run_consensus` so the window is populated before voting begins. Blocks
+    /// state_sync has not caught up to yet are pushed to the back of the queue and revisited —
+    /// joining consensus with a partial window would make this node disagree with caught-up
+    /// peers on `fee_actual`. Other state_sync errors propagate.
+    pub async fn initialize_fee_proposals_window(
+        &mut self,
+        start_height: BlockNumber,
+    ) -> StateSyncClientResult<()> {
+        const STATE_SYNC_RETRY_INTERVAL: Duration = Duration::from_millis(500);
         let window_size =
             u64::try_from(FEE_PROPOSAL_WINDOW_SIZE).expect("FEE_PROPOSAL_WINDOW_SIZE fits in u64");
-        let start = height.0.saturating_sub(window_size);
-        for h in start..height.0 {
-            let block_number = BlockNumber(h);
+        let window_end_height = start_height.0;
+        let window_start_height = window_end_height.saturating_sub(window_size);
+        let mut pending_heights: VecDeque<BlockNumber> =
+            (window_start_height..window_end_height).map(BlockNumber).collect();
+        while let Some(block_number) = pending_heights.pop_front() {
             match self.deps.state_sync_client.get_block(block_number).await {
-                Ok(block) => {
-                    self.record_fee_proposal(
-                        block_number,
-                        block.block_header_without_hash.fee_proposal_fri,
-                    );
-                }
-                Err(e) => {
+                Ok(block) => self.record_fee_proposal(
+                    block_number,
+                    block.block_header_without_hash.fee_proposal_fri,
+                ),
+                Err(StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(_))) => {
                     warn!(
-                        "SNIP-35 bootstrap failed at block {h}: {e:?}. Window has {} / \
-                         {FEE_PROPOSAL_WINDOW_SIZE} entries.",
-                        self.fee_proposals_window.len()
+                        "State sync not ready for height {block_number}; re-queueing after \
+                         {STATE_SYNC_RETRY_INTERVAL:?}"
                     );
-                    break;
+                    pending_heights.push_back(block_number);
+                    tokio::time::sleep(STATE_SYNC_RETRY_INTERVAL).await;
                 }
+                Err(e) => return Err(e),
             }
         }
+        Ok(())
     }
 
     async fn start_stream(&mut self, stream_id: HeightAndRound) -> StreamSender {
@@ -959,11 +964,6 @@ impl ConsensusContext for SequencerConsensusContext {
                 self.l2_gas_price = max(self.l2_gas_price, min_gas_price_for_height);
                 let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
                 CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
-            }
-            // SNIP-35: on first height, bootstrap the window so fee_actual is available
-            // immediately.
-            if self.current_height.is_none() && self.fee_proposals_window.is_empty() {
-                self.bootstrap_fee_proposals_window(height).await;
             }
             self.current_height = Some(height);
             self.current_round = round;
