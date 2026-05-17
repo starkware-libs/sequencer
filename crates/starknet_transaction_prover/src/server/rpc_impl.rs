@@ -80,7 +80,16 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
         self.saturation_monitor.mark_accepted();
 
         self.prover.prove_transaction(block_id, transaction).await.map_err(|err| {
-            warn!("prove_transaction failed: {:?}", err);
+            // Structured fields match `prover_prove_transaction_outcome_total`
+            // so log queries and metric filters use the same vocabulary. The
+            // origin-level warns inside `virtual_snos_prover` cover the
+            // specific failure mode; this one is the catch-all backstop.
+            warn!(
+                event = "prove_transaction_failed",
+                outcome = err.metric_outcome(),
+                error = %err,
+                "prove_transaction failed",
+            );
             ErrorObjectOwned::from(err)
         })
     }
