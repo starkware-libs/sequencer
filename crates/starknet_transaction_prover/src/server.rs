@@ -30,6 +30,7 @@ pub mod config;
 pub mod cors;
 pub mod errors;
 pub mod health;
+pub mod http_metrics;
 pub mod log_redact;
 pub mod metrics;
 #[cfg(test)]
@@ -37,9 +38,12 @@ pub mod mock_rpc;
 pub mod panic;
 pub mod rpc_api;
 pub mod rpc_impl;
+#[cfg(test)]
+pub mod test_recorder;
 pub mod tls;
 
 pub use health::{HealthLayer, HEALTH_PATH};
+pub use http_metrics::HttpMetricsLayer;
 pub use metrics::{MetricsLayer, METRICS_PATH};
 
 #[cfg(test)]
@@ -84,12 +88,19 @@ pub async fn start_server(
                 // type it expects. `HttpBody::new` is a zero-cost wrapper, so
                 // non-OHTTP requests still stream through unbuffered.
                 .set_http_middleware(
-                    // `HealthLayer` and `MetricsLayer` sit outermost so the
-                    // monitoring endpoints answer before any other middleware
-                    // runs (no compression, no CORS, no OHTTP).
+                    // Layer order rationale:
+                    // - `HealthLayer` and `MetricsLayer` first so monitoring
+                    //   endpoints answer before any other middleware runs.
+                    // - `HttpMetricsLayer` next so its latency captures the
+                    //   whole tower stack but excludes monitoring probes
+                    //   (which would otherwise distort the latency
+                    //   distribution).
+                    // - The rest of the stack: CORS, body mapping for
+                    //   OHTTP, OHTTP, body mapping back, compression.
                     ServiceBuilder::new()
                         .layer(HealthLayer)
                         .option_layer(metrics_layer)
+                        .layer(HttpMetricsLayer)
                         .option_layer(cors_layer)
                         .layer(MapRequestBodyLayer::new(HttpBody::new))
                         .option_layer(ohttp_layer)
