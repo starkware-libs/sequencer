@@ -88,7 +88,9 @@ fn cairo_encode_felt252_data_and_calc_blake_hash(input: &[Felt]) -> (Felt, Execu
 #[case::boundary_at_2_63(vec![Felt::from(1u64 << 63)])]
 #[case::very_large_felt(vec![Felt::from_hex("0x800000000000011000000000000000000000000000000000000000000000000").unwrap()])]
 #[case::mixed_small_large(vec![Felt::from(42), Felt::from(1u64 << 63), Felt::from(1337)])]
+#[case::two_full_msgs(vec![Felt::from(1u64 << 63); 4])]
 #[case::many_large(vec![Felt::from(1u64 << 63); 100])]
+#[case::very_many_msgs(vec![Felt::from(1u64 << 63); 200])]
 fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
     let (cairo_hash_felt, actual_resources) =
         cairo_encode_felt252_data_and_calc_blake_hash(&test_data);
