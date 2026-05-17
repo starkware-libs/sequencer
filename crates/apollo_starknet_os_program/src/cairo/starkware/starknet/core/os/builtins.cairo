@@ -11,6 +11,7 @@ from starkware.cairo.common.cairo_builtins import (
 )
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.sha256_state import Sha256ProcessBlock
+from starkware.cairo.common.sha512_state import Sha512ProcessBlock
 from starkware.starknet.builtins.segment_arena.segment_arena import SegmentArenaBuiltin
 
 struct SelectableBuiltins {
@@ -29,6 +30,7 @@ struct SelectableBuiltins {
 struct NonSelectableBuiltins {
     keccak: KeccakBuiltin*,
     sha256: Sha256ProcessBlock*,
+    sha512: Sha512ProcessBlock*,
 }
 
 struct BuiltinPointers {

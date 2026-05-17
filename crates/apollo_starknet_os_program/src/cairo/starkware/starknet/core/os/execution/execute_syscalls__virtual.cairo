@@ -23,6 +23,7 @@ from starkware.starknet.common.new_syscalls import (
     SECP256R1_NEW_SELECTOR,
     SEND_MESSAGE_TO_L1_SELECTOR,
     SHA256_PROCESS_BLOCK_SELECTOR,
+    SHA512_PROCESS_BLOCK_SELECTOR,
     STORAGE_READ_SELECTOR,
     STORAGE_WRITE_SELECTOR,
     EmitEventRequest,
@@ -53,6 +54,7 @@ from starkware.starknet.core.os.execution.syscall_impls import (
     execute_secp_get_xy,
     execute_send_message_to_l1,
     execute_sha256_process_block,
+    execute_sha512_process_block,
     execute_storage_read,
     execute_storage_write,
     reduce_syscall_gas_and_write_response_header,
@@ -171,6 +173,16 @@ func execute_syscalls{
 
     if (selector == SHA256_PROCESS_BLOCK_SELECTOR) {
         execute_sha256_process_block();
+        %{ OsLoggerExitSyscall %}
+        return execute_syscalls(
+            block_context=block_context,
+            execution_context=execution_context,
+            syscall_ptr_end=syscall_ptr_end,
+        );
+    }
+
+    if (selector == SHA512_PROCESS_BLOCK_SELECTOR) {
+        execute_sha512_process_block();
         %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,
