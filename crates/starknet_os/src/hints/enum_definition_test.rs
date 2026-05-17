@@ -229,6 +229,7 @@ fn test_deprecated_syscall_hint_consistency() {
                         | DeprecatedSyscallSelector::Keccak
                         | DeprecatedSyscallSelector::KeccakRound
                         | DeprecatedSyscallSelector::Sha256ProcessBlock
+                        | DeprecatedSyscallSelector::Sha512ProcessBlock
                         | DeprecatedSyscallSelector::MetaTxV0
                         | DeprecatedSyscallSelector::Secp256k1Add
                         | DeprecatedSyscallSelector::Secp256k1GetPointFromX

@@ -537,6 +537,38 @@ impl SyscallResponse for Sha256ProcessBlockResponse {
     }
 }
 
+// Sha512ProcessBlock syscall.
+#[derive(Debug, Eq, PartialEq)]
+pub struct Sha512ProcessBlockRequest {
+    pub state_ptr: Relocatable,
+    pub input_start: Relocatable,
+}
+
+impl SyscallRequest for Sha512ProcessBlockRequest {
+    fn read(
+        vm: &VirtualMachine,
+        ptr: &mut Relocatable,
+    ) -> SyscallBaseResult<Sha512ProcessBlockRequest> {
+        let state_start = vm.get_relocatable(*ptr)?;
+        *ptr = (*ptr + 1)?;
+        let input_start = vm.get_relocatable(*ptr)?;
+        *ptr = (*ptr + 1)?;
+        Ok(Sha512ProcessBlockRequest { state_ptr: state_start, input_start })
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct Sha512ProcessBlockResponse {
+    pub state_ptr: Relocatable,
+}
+
+impl SyscallResponse for Sha512ProcessBlockResponse {
+    fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
+        write_maybe_relocatable(vm, ptr, self.state_ptr)?;
+        Ok(())
+    }
+}
+
 // GetClassHashAt syscall.
 
 pub type GetClassHashAtRequest = ContractAddress;
@@ -585,6 +617,9 @@ pub(crate) fn execute_syscall_from_selector<T: SyscallExecutor>(
         SyscallSelector::Keccak => execute_syscall(syscall_executor, vm, selector, T::keccak),
         SyscallSelector::Sha256ProcessBlock => {
             execute_syscall(syscall_executor, vm, selector, T::sha256_process_block)
+        }
+        SyscallSelector::Sha512ProcessBlock => {
+            execute_syscall(syscall_executor, vm, selector, T::sha512_process_block)
         }
         SyscallSelector::LibraryCall => {
             execute_syscall(syscall_executor, vm, selector, T::library_call)

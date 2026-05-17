@@ -56,6 +56,7 @@ use crate::hints::hint_implementation::deprecated_compiled_class::implementation
 use crate::hints::hint_implementation::execute_syscalls::{
     is_block_number_in_block_hash_buffer,
     relocate_sha256_segment,
+    relocate_sha512_segment,
 };
 use crate::hints::hint_implementation::execute_transactions::implementation::{
     fill_holes_in_rc96_segment,
@@ -66,6 +67,7 @@ use crate::hints::hint_implementation::execute_transactions::implementation::{
     segments_add_temp_initial_txs_range_check_ptr,
     set_component_hashes,
     sha2_finalize,
+    sha512_finalize,
     skip_tx,
     start_tx,
 };
@@ -272,6 +274,7 @@ use crate::hints::pythonic_hint_strings::patricia::{
 use crate::hints::pythonic_hint_strings::secp::IS_ON_CURVE;
 use crate::hints::pythonic_hint_strings::segment_arena::SEGMENTS_ADD;
 use crate::hints::pythonic_hint_strings::sha256::SHA2_FINALIZE;
+use crate::hints::pythonic_hint_strings::sha512::SHA512_FINALIZE;
 use crate::hints::types::{HintContext, HintEnum};
 use crate::{
     define_common_hint_enum,
@@ -411,6 +414,7 @@ define_stateless_hint_enum!(
     (LogRemainingTxs, log_remaining_txs),
     (FillHolesInRc96Segment, fill_holes_in_rc96_segment),
     (Sha2Finalize, sha2_finalize, SHA2_FINALIZE),
+    (Sha512Finalize, sha512_finalize, SHA512_FINALIZE),
     (EnterScopeDeprecatedSyscallHandler, enter_scope_deprecated_syscall_handler),
     (EnterScopeSyscallHandler, enter_scope_syscall_handler),
     (GetContractAddressStateEntry, get_contract_address_state_entry),
@@ -467,6 +471,7 @@ define_hint_enum!(
     StateReader,
     (LoadClass, load_class),
     (RelocateSha256Segment, relocate_sha256_segment),
+    (RelocateSha512Segment, relocate_sha512_segment),
     (EnterScopeWithBytecodeSegmentStructure, enter_scope_with_bytecode_segment_structure),
     (GuessBlockInfo, guess_block_info),
     (ChainIdAndFeeTokenAddress, chain_id_and_fee_token_address),

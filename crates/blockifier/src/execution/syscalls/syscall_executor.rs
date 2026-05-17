@@ -53,6 +53,8 @@ use crate::execution::syscalls::vm_syscall_utils::{
     SendMessageToL1Response,
     Sha256ProcessBlockRequest,
     Sha256ProcessBlockResponse,
+    Sha512ProcessBlockRequest,
+    Sha512ProcessBlockResponse,
     StorageReadRequest,
     StorageReadResponse,
     StorageWriteRequest,
@@ -72,6 +74,12 @@ pub trait SyscallExecutor {
     fn gas_costs(&self) -> &GasCosts;
 
     fn write_sha256_out_state(
+        &mut self,
+        state: &[MaybeRelocatable],
+        vm: &mut VirtualMachine,
+    ) -> Result<Relocatable, Self::Error>;
+
+    fn write_sha512_out_state(
         &mut self,
         state: &[MaybeRelocatable],
         vm: &mut VirtualMachine,
@@ -253,6 +261,52 @@ pub trait SyscallExecutor {
         let response = syscall_handler.write_sha256_out_state(&data, vm)?;
 
         Ok(Sha256ProcessBlockResponse { state_ptr: response })
+    }
+
+    fn sha512_process_block(
+        request: Sha512ProcessBlockRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        _remaining_gas: &mut u64,
+    ) -> Result<Sha512ProcessBlockResponse, Self::Error> {
+        const SHA512_BLOCK_SIZE: usize = 16;
+
+        let data = vm
+            .get_integer_range(request.input_start, SHA512_BLOCK_SIZE)
+            .map_err(SyscallExecutorBaseError::from)?;
+        const SHA512_STATE_SIZE: usize = 8;
+        let prev_state = vm
+            .get_integer_range(request.state_ptr, SHA512_STATE_SIZE)
+            .map_err(SyscallExecutorBaseError::from)?;
+
+        let data_as_bytes: GenericArray<u8, sha2::digest::consts::U128> =
+            sha2::digest::generic_array::GenericArray::from_exact_iter(data.iter().flat_map(
+                |felt| {
+                    felt.to_bigint()
+                        .to_u64()
+                        .expect("libfunc should ensure the input is a [u64; 16].")
+                        .to_be_bytes()
+                },
+            ))
+            .expect(
+                "u64.to_be_bytes() returns 8 bytes, and data.len() == 16. So data contains 128 \
+                 bytes.",
+            );
+
+        let mut state_as_words: [u64; SHA512_STATE_SIZE] = core::array::from_fn(|i| {
+            prev_state[i].to_bigint().to_u64().expect(
+                "libfunc only accepts SHA512StateHandle which can only be created from an \
+                 Array<u64>.",
+            )
+        });
+
+        sha2::compress512(&mut state_as_words, &[data_as_bytes]);
+
+        let data: Vec<MaybeRelocatable> =
+            state_as_words.iter().map(|&arg| MaybeRelocatable::from(Felt::from(arg))).collect();
+        let response = syscall_handler.write_sha512_out_state(&data, vm)?;
+
+        Ok(Sha512ProcessBlockResponse { state_ptr: response })
     }
 
     fn replace_class(

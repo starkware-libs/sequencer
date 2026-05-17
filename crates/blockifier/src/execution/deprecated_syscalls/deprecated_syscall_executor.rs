@@ -244,6 +244,7 @@ pub fn execute_deprecated_syscall_from_selector<T: DeprecatedSyscallExecutor>(
         | DeprecatedSyscallSelector::Keccak
         | DeprecatedSyscallSelector::KeccakRound
         | DeprecatedSyscallSelector::Sha256ProcessBlock
+        | DeprecatedSyscallSelector::Sha512ProcessBlock
         | DeprecatedSyscallSelector::MetaTxV0
         | DeprecatedSyscallSelector::Secp256k1Add
         | DeprecatedSyscallSelector::Secp256k1GetPointFromX
