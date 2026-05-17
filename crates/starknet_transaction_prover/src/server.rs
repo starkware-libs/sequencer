@@ -36,6 +36,8 @@ pub mod rpc_impl;
 pub mod tls;
 
 #[cfg(test)]
+mod cors_test;
+#[cfg(test)]
 mod rpc_spec_test;
 
 #[cfg(test)]
