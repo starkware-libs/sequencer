@@ -265,6 +265,7 @@ pub struct SyscallHintProcessor<'a> {
     pub secp_points_segment_base: Option<Relocatable>,
 
     pub sha256_segment_end_ptr: Option<Relocatable>,
+    pub sha512_segment_end_ptr: Option<Relocatable>,
 
     // Execution info, for get_execution_info syscall; allocated on-demand.
     execution_info_ptr: Option<Relocatable>,
@@ -291,6 +292,7 @@ impl<'a> SyscallHintProcessor<'a> {
             secp256k1_hint_processor: SecpHintProcessor::new(),
             secp256r1_hint_processor: SecpHintProcessor::new(),
             sha256_segment_end_ptr: None,
+            sha512_segment_end_ptr: None,
             secp_points_segment_base: None,
         }
     }
@@ -729,6 +731,17 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         let current_end = self.sha256_segment_end_ptr.unwrap_or(vm.add_memory_segment());
         let new_end = vm.load_data(current_end, state)?;
         self.sha256_segment_end_ptr = Some(new_end);
+        Ok(current_end)
+    }
+
+    fn write_sha512_out_state(
+        &mut self,
+        state: &[MaybeRelocatable],
+        vm: &mut VirtualMachine,
+    ) -> Result<Relocatable, Self::Error> {
+        let current_end = self.sha512_segment_end_ptr.unwrap_or(vm.add_memory_segment());
+        let new_end = vm.load_data(current_end, state)?;
+        self.sha512_segment_end_ptr = Some(new_end);
         Ok(current_end)
     }
 }
