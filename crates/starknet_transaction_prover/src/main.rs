@@ -28,17 +28,42 @@ async fn main() -> anyhow::Result<()> {
     use tracing_subscriber::prelude::*;
     use tracing_subscriber::{fmt, EnvFilter};
 
+    // Parse CLI args before initializing tracing so the `--json-logs` flag can
+    // pick the formatter. Config loading still happens after to keep the
+    // existing CLI-override logs visible.
+    let args = CliArgs::parse();
+
     // TODO(Avi): Revisit the starknet_transaction_prover=debug default once the service stabilizes.
-    // Initialize tracing with RUST_LOG. By default, keep service logs and lower third-party
-    // logs to warn.
+    // By default, keep service logs and lower third-party logs to warn. The
+    // formatter is JSON when `--json-logs`/`JSON_LOGS=true` is set, so log
+    // aggregators (e.g. Datadog) can parse fields directly without regex.
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
         EnvFilter::new("warn,starknet_transaction_prover=debug,privacy_prove=info")
     });
-    tracing_subscriber::registry().with(fmt::layer()).with(filter).init();
+    let registry = tracing_subscriber::registry().with(filter);
+    if args.json_logs {
+        registry.with(fmt::layer().json()).init();
+    } else {
+        registry.with(fmt::layer()).init();
+    }
 
-    // Parse CLI args and load config.
-    let args = CliArgs::parse();
     let config = ServiceConfig::from_args(args)?;
+
+    // Startup banner — emitted before binding so a failed bind still leaves a
+    // breadcrumb identifying the build. Fields are deliberately conservative:
+    // version + chain_id + redacted RPC host. No URLs with userinfo, no fee
+    // token address, no TLS paths, no transaction-scoped data.
+    info!(
+        version = env!("CARGO_PKG_VERSION"),
+        git_sha = option_env!("GIT_SHA").unwrap_or("unknown"),
+        chain_id = %config.prover_config.chain_id,
+        rpc_node_host = %redact_url_host(&config.prover_config.rpc_node_url),
+        validate_zero_fee_fields = config.prover_config.validate_zero_fee_fields,
+        blocking_check_enabled = config.prover_config.blocking_check_url.is_some(),
+        blocking_check_fail_open = config.prover_config.blocking_check_fail_open,
+        ohttp_enabled = config.ohttp_enabled,
+        "Starting Starknet transaction prover."
+    );
 
     // Build and start the JSON-RPC server.
     let rpc_impl = ProvingRpcServerImpl::from_config(&config);
@@ -88,4 +113,45 @@ async fn main() -> anyhow::Result<()> {
 
     server_handle.stopped().await;
     Ok(())
+}
+
+/// Returns `scheme://host[:port]` for a URL, dropping any userinfo, path,
+/// query, and fragment. Used to log the upstream RPC location without leaking
+/// credentials embedded in `rpc_node_url`. Falls back to `"<invalid url>"` if
+/// parsing fails — the actual URL is never echoed.
+#[cfg(feature = "stwo_proving")]
+fn redact_url_host(url: &str) -> String {
+    match url::Url::parse(url) {
+        Ok(parsed) => {
+            let host = parsed.host_str().unwrap_or("");
+            match parsed.port() {
+                Some(port) => format!("{}://{}:{}", parsed.scheme(), host, port),
+                None => format!("{}://{}", parsed.scheme(), host),
+            }
+        }
+        Err(_) => "<invalid url>".to_string(),
+    }
+}
+
+#[cfg(all(test, feature = "stwo_proving"))]
+mod tests {
+    use super::redact_url_host;
+
+    #[test]
+    fn strips_userinfo_path_query() {
+        assert_eq!(
+            redact_url_host("https://user:pass@rpc.example.com:8443/v1?token=abc"),
+            "https://rpc.example.com:8443"
+        );
+    }
+
+    #[test]
+    fn keeps_default_port_implicit() {
+        assert_eq!(redact_url_host("https://rpc.example.com/"), "https://rpc.example.com");
+    }
+
+    #[test]
+    fn handles_invalid_url() {
+        assert_eq!(redact_url_host("not a url"), "<invalid url>");
+    }
 }

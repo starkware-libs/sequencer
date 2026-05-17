@@ -27,7 +27,7 @@ use tower_http::map_request_body::MapRequestBodyLayer;
 use tower_http::map_response_body::MapResponseBodyLayer;
 use tracing::warn;
 
-use super::OhttpJsonrpseeLayer;
+use super::{HealthLayer, OhttpJsonrpseeLayer};
 
 /// Maximum time allowed for a TLS handshake before the connection is dropped.
 const TLS_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -59,7 +59,10 @@ pub async fn start_tls_server(
     let svc_builder = ServerBuilder::default()
         .set_config(server_config)
         .set_http_middleware(
+            // `HealthLayer` sits outermost so `GET /health` is answered before
+            // any other middleware runs.
             ServiceBuilder::new()
+                .layer(HealthLayer)
                 .option_layer(cors_layer)
                 .layer(MapRequestBodyLayer::new(HttpBody::new))
                 .option_layer(ohttp_layer)

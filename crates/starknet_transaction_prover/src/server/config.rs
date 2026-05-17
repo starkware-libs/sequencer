@@ -547,6 +547,11 @@ pub struct CliArgs {
     #[arg(long, value_name = "SECS", env = "OHTTP_KEY_CACHE_MAX_AGE_SECS")]
     pub ohttp_key_cache_max_age_secs: Option<u64>,
 
+    /// Emit logs as JSON instead of the human-readable default. Recommended for
+    /// production so log aggregators (e.g. Datadog) parse fields directly.
+    #[arg(long, env = "JSON_LOGS")]
+    pub json_logs: bool,
+
     /// Hidden escape hatch: override the embedded bouncer config (block capacity limits) with a
     /// custom JSON file. Not advertised because the embedded defaults are tuned for this prover
     /// (including high `l1_gas` / `message_segment_length`: virtual OS output is not L1-bound; it
