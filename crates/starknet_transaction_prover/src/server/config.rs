@@ -17,6 +17,7 @@ use crate::running::runner::RunnerConfig;
 use crate::running::storage_proofs::StorageProofConfig;
 use crate::running::virtual_block_executor::RpcVirtualBlockExecutorConfig;
 use crate::server::cors::normalize_cors_allow_origins;
+use crate::server::log_redact::redact_url_host;
 
 #[cfg(test)]
 #[path = "config_test.rs"]
@@ -169,7 +170,14 @@ impl ServiceConfig {
         // Override with CLI arguments if provided.
         if let Some(rpc_url) = args.rpc_url {
             if rpc_url != config.rpc_node_url {
-                info!("CLI override: rpc_node_url: {} -> {}", config.rpc_node_url, rpc_url);
+                // `rpc_node_url` can contain credentials in the userinfo
+                // component (`https://user:secret@rpc...`). Log only the
+                // host so the secret never reaches a log aggregator.
+                info!(
+                    "CLI override: rpc_node_url: {} -> {}",
+                    redact_url_host(&config.rpc_node_url),
+                    redact_url_host(&rpc_url),
+                );
                 config.rpc_node_url = rpc_url;
             }
         }
@@ -302,9 +310,16 @@ impl ServiceConfig {
         }
         if let Some(url) = args.blocking_check_url {
             if Some(&url) != config.blocking_check_url.as_ref() {
+                // `blocking_check_url` is a JSON-RPC URL that may carry an
+                // auth token in userinfo; redact for the same reason as
+                // `rpc_node_url` above.
                 info!(
-                    "CLI override: blocking_check_url: {:?} -> {:?}",
-                    config.blocking_check_url, url
+                    "CLI override: blocking_check_url: {} -> {}",
+                    config
+                        .blocking_check_url
+                        .as_deref()
+                        .map_or("<unset>".to_string(), redact_url_host),
+                    redact_url_host(&url),
                 );
                 config.blocking_check_url = Some(url);
             }

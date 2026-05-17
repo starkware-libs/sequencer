@@ -30,6 +30,7 @@ pub mod config;
 pub mod cors;
 pub mod errors;
 pub mod health;
+pub mod log_redact;
 #[cfg(test)]
 pub mod mock_rpc;
 pub mod rpc_api;

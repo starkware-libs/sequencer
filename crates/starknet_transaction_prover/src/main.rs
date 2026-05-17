@@ -16,6 +16,7 @@ async fn main() -> anyhow::Result<()> {
     use clap::Parser;
     use starknet_transaction_prover::server::config::{CliArgs, ServiceConfig, TransportMode};
     use starknet_transaction_prover::server::cors::{build_cors_layer, cors_mode};
+    use starknet_transaction_prover::server::log_redact::redact_url_host;
     use starknet_transaction_prover::server::rpc_api::ProvingRpcServer;
     use starknet_transaction_prover::server::rpc_impl::ProvingRpcServerImpl;
     use starknet_transaction_prover::server::{
@@ -113,45 +114,4 @@ async fn main() -> anyhow::Result<()> {
 
     server_handle.stopped().await;
     Ok(())
-}
-
-/// Returns `scheme://host[:port]` for a URL, dropping any userinfo, path,
-/// query, and fragment. Used to log the upstream RPC location without leaking
-/// credentials embedded in `rpc_node_url`. Falls back to `"<invalid url>"` if
-/// parsing fails — the actual URL is never echoed.
-#[cfg(feature = "stwo_proving")]
-fn redact_url_host(url: &str) -> String {
-    match url::Url::parse(url) {
-        Ok(parsed) => {
-            let host = parsed.host_str().unwrap_or("");
-            match parsed.port() {
-                Some(port) => format!("{}://{}:{}", parsed.scheme(), host, port),
-                None => format!("{}://{}", parsed.scheme(), host),
-            }
-        }
-        Err(_) => "<invalid url>".to_string(),
-    }
-}
-
-#[cfg(all(test, feature = "stwo_proving"))]
-mod tests {
-    use super::redact_url_host;
-
-    #[test]
-    fn strips_userinfo_path_query() {
-        assert_eq!(
-            redact_url_host("https://user:pass@rpc.example.com:8443/v1?token=abc"),
-            "https://rpc.example.com:8443"
-        );
-    }
-
-    #[test]
-    fn keeps_default_port_implicit() {
-        assert_eq!(redact_url_host("https://rpc.example.com/"), "https://rpc.example.com");
-    }
-
-    #[test]
-    fn handles_invalid_url() {
-        assert_eq!(redact_url_host("not a url"), "<invalid url>");
-    }
 }
