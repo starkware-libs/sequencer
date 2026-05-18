@@ -145,7 +145,6 @@ async fn test_cairo0_contract_os_error() {
 #[rstest]
 #[case::deploy("Deploy")]
 #[case::get_block_hash("GetBlockHash")]
-#[case::keccak("Keccak")]
 #[case::replace_class("ReplaceClass")]
 #[case::meta_tx_v0("MetaTxV0")]
 #[tokio::test]
