@@ -128,6 +128,23 @@ templating_object = {
             + POD_SUFFIX_OPTIONAL_RE
             + r"$",
         },
+        {
+            "type": "constant",
+            "name": "gcp_logs_prefix",
+            "query": (
+                "https://console.cloud.google.com/logs/query;\n"
+                "query=resource.labels.namespace_name=~%22^%28"
+            ),
+        },
+        {
+            "type": "constant",
+            "name": "gcp_logs_mid",
+            "query": (
+                ";\nsummaryFields=resource%252Flabels%252Fnamespace_name,"
+                "resource%252Flabels%252Fcontainer_name;\n"
+                "timeRange="
+            ),
+        },
     ]
 }
 
