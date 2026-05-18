@@ -199,6 +199,7 @@ impl FlowTestSetup {
                             block_max_capacity_gas,
                             allow_bootstrap_txs,
                             node_descriptors[node_index].validation_only,
+                            node_descriptors[node_index].consensus_startup_delay_override,
                         )
                     },
                 ),
@@ -266,6 +267,7 @@ impl FlowSequencerSetup {
         block_max_capacity_gas: GasAmount,
         allow_bootstrap_txs: bool,
         validation_only: bool,
+        consensus_startup_delay_override: Option<std::time::Duration>,
     ) -> Self {
         let path = None;
         let StorageTestSetup { storage_config, storage_handles } =
@@ -274,6 +276,9 @@ impl FlowSequencerSetup {
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
+        if let Some(delay) = consensus_startup_delay_override {
+            consensus_manager_config.consensus_manager_config.static_config.startup_delay = delay;
+        }
 
         let (eth_to_strk_oracle_url_headers, _join_handle) =
             spawn_local_eth_to_strk_oracle(available_ports.get_next_port());

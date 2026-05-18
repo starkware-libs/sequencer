@@ -145,25 +145,52 @@ use crate::state_reader::StorageTestConfig;
 pub struct NodeDescriptor {
     pub node_type: NodeType,
     pub validation_only: bool,
+    /// Overrides the consensus `startup_delay` for this node. `None` keeps the framework
+    /// default. Setting a larger delay lets the other nodes build blocks first so this node
+    /// has to catch up via state sync when it finally joins consensus.
+    pub consensus_startup_delay_override: Option<Duration>,
 }
 
 impl NodeDescriptor {
     pub fn consolidated() -> Self {
-        Self { node_type: NodeType::Consolidated, validation_only: false }
+        Self {
+            node_type: NodeType::Consolidated,
+            validation_only: false,
+            consensus_startup_delay_override: None,
+        }
     }
 
     pub fn hybrid() -> Self {
-        Self { node_type: NodeType::Hybrid, validation_only: false }
+        Self {
+            node_type: NodeType::Hybrid,
+            validation_only: false,
+            consensus_startup_delay_override: None,
+        }
     }
 
     pub fn distributed() -> Self {
-        Self { node_type: NodeType::Distributed, validation_only: false }
+        Self {
+            node_type: NodeType::Distributed,
+            validation_only: false,
+            consensus_startup_delay_override: None,
+        }
     }
 
     /// A validation-only node always runs as consolidated: it participates in consensus to
     /// validate proposals but does not produce blocks.
     pub fn validation_only() -> Self {
-        Self { node_type: NodeType::Consolidated, validation_only: true }
+        Self {
+            node_type: NodeType::Consolidated,
+            validation_only: true,
+            consensus_startup_delay_override: None,
+        }
+    }
+
+    /// Sets the consensus `startup_delay` override. Used to simulate a node joining the
+    /// network late.
+    pub fn with_consensus_startup_delay(mut self, delay: Duration) -> Self {
+        self.consensus_startup_delay_override = Some(delay);
+        self
     }
 }
 
