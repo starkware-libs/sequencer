@@ -124,8 +124,16 @@ async fn spawn_node_child_process(
         while let Some(line) = reader.next_line().await.transpose() {
             match line {
                 Ok(line) => {
-                    // Write annotated line to synchronized stdout.
-                    write_annotated_stdout_line(&prefix, &line);
+                    // Blocking: acquires a global mutex and flushes stdout. Run on the blocking
+                    // thread pool to avoid starving the async runtime when many nodes log
+                    // simultaneously.
+                    let prefix_clone = prefix.clone();
+                    let line_clone = line.clone();
+                    task::spawn_blocking(move || {
+                        write_annotated_stdout_line(&prefix_clone, &line_clone);
+                    })
+                    .await
+                    .ok();
 
                     // Write to file.
                     write_file_line(&mut file, &line).await;
