@@ -390,7 +390,7 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
 
         let reverted_header = headers_table
             .get(&self.txn, &block_number)?
-            .expect("Missing header for block {block_number}.");
+            .unwrap_or_else(|| panic!("Missing header for block {block_number}."));
         markers_table.upsert(&self.txn, &MarkerKind::Header, &block_number)?;
         headers_table.delete(&self.txn, &block_number)?;
         block_hash_to_number_table.delete(&self.txn, &reverted_header.block_hash)?;
