@@ -1482,7 +1482,9 @@
           "exprs": [
             "increase(l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"Base layer error\" OR \"Scraper startup failure\""
+          }
         },
         {
           "title": "L1 Gas Price Scraper Reorg Detected",
@@ -1491,7 +1493,9 @@
           "exprs": [
             "increase(l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"L1 reorg detected\""
+          }
         },
         {
           "title": "L1 Gas Price Scraper Latest Scraped Block",
