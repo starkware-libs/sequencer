@@ -32,7 +32,7 @@ use starknet_api::transaction::TransactionHash;
 
 use super::MempoolP2pRunner;
 
-const MAX_TRANSACTION_BATCH_RATE: Duration = Duration::MAX;
+const MAX_TRANSACTION_BATCH_RATE: Duration = Duration::from_secs(3600);
 const MAX_CONCURRENT_GATEWAY_REQUESTS: usize = 10000;
 
 fn setup(
