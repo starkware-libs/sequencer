@@ -145,7 +145,6 @@ async fn test_cairo0_contract_os_error() {
 #[rstest]
 #[case::deploy("Deploy")]
 #[case::get_block_hash("GetBlockHash")]
-#[case::keccak("Keccak")]
 #[case::replace_class("ReplaceClass")]
 #[case::meta_tx_v0("MetaTxV0")]
 #[tokio::test]
@@ -299,9 +298,7 @@ async fn prove_and_verify_multicall_tx() {
     };
 
     // TODO(Yoni): add more inner calls (e.g. sha256, secp256k1, send_message_to_l1).
-    // TODO(Yoni): restore the keccak inner call once the keccak syscall is allowed in
-    // virtual OS mode (added in a follow-up PR stacked on top of this one).
-    // serialize_call("test_keccak", &[]);
+    serialize_call("test_keccak", &[]);
     serialize_call("test_ec_op", &[]);
 
     // The dummy account's `__execute__(contract_address, selector, calldata)` forwards
