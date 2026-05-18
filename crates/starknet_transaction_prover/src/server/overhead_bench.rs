@@ -61,9 +61,12 @@ where
         let _ = svc.clone().oneshot(make_request()).await;
     }
     let elapsed = start.elapsed();
+    // `Duration / u32` is the only stable division API; safe to cast
+    // because ITERATIONS is a tiny compile-time constant.
+    let iterations_u32 = u32::try_from(ITERATIONS).expect("ITERATIONS fits in u32");
     eprintln!(
         "{label:<30}: {elapsed:?} total, {per_op:?} per request ({ITERATIONS} ops)",
-        per_op = elapsed / ITERATIONS as u32,
+        per_op = elapsed / iterations_u32,
     );
     elapsed
 }
