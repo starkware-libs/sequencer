@@ -155,14 +155,15 @@ fn casm_serialization_regression() {
         let mut serialized: Vec<u8> = Vec::new();
         json_casm
             .serialize_into(&mut serialized)
-            .expect("Failed to serialize casm file: {json_file_name}");
+            .unwrap_or_else(|_| panic!("Failed to serialize casm file: {json_file_name}"));
         let bin_path = path_in_resources(Path::new("casm").join(bin_file_name));
-        let mut bin_file = File::open(bin_path)
-            .expect("Failed to open bin file: {bin_file_name}\n{FIX_SUGGESTION}");
+        let mut bin_file = File::open(bin_path).unwrap_or_else(|_| {
+            panic!("Failed to open bin file: {bin_file_name}\n{FIX_SUGGESTION}")
+        });
         let mut regression_casm_bytes = Vec::new();
-        bin_file
-            .read_to_end(&mut regression_casm_bytes)
-            .expect("Failed to read bin file: {bin_file_name}\n{FIX_SUGGESTION}");
+        bin_file.read_to_end(&mut regression_casm_bytes).unwrap_or_else(|_| {
+            panic!("Failed to read bin file: {bin_file_name}\n{FIX_SUGGESTION}")
+        });
         assert_eq!(
             regression_casm_bytes, serialized,
             "Serializing the casm gave a result different from the hardcoded \
@@ -179,16 +180,17 @@ fn casm_deserialization_regression() {
     }
 
     for (json_file_name, bin_file_name) in CASM_SERIALIZATION_REGRESSION_FILES {
-        let mut regression_casm_file =
-            File::open(path_in_resources(Path::new("casm").join(bin_file_name)))
-                .expect("Failed to open bin file: {bin_file_name}\n{FIX_SUGGESTION}");
+        let mut regression_casm_file = File::open(path_in_resources(
+            Path::new("casm").join(bin_file_name),
+        ))
+        .unwrap_or_else(|_| panic!("Failed to open bin file: {bin_file_name}\n{FIX_SUGGESTION}"));
         let mut regression_casm_bytes = Vec::new();
-        regression_casm_file
-            .read_to_end(&mut regression_casm_bytes)
-            .expect("Failed to read bin file: {bin_file_name}\n{FIX_SUGGESTION}");
+        regression_casm_file.read_to_end(&mut regression_casm_bytes).unwrap_or_else(|_| {
+            panic!("Failed to read bin file: {bin_file_name}\n{FIX_SUGGESTION}")
+        });
         let regression_casm =
             CasmContractClass::deserialize_from(&mut regression_casm_bytes.as_slice())
-                .expect("Failed to deserialize casm file: {casm_file}.");
+                .unwrap_or_else(|| panic!("Failed to deserialize casm file: {bin_file_name}."));
         let json_path = format!("casm/{json_file_name}");
         let json_casm: CasmContractClass = read_json_file(&json_path);
         assert_eq!(
@@ -208,7 +210,7 @@ fn fix_casm_regression_files() {
         let casm_bytes = serialized.into_boxed_slice();
         let mut hardcoded_file =
             File::create(path_in_resources(Path::new("casm").join(bin_file_name)))
-                .expect("Failed to create bin file {bin_file_name}\n");
+                .unwrap_or_else(|_| panic!("Failed to create bin file {bin_file_name}\n"));
         hardcoded_file.write_all(&casm_bytes).unwrap();
     }
 }

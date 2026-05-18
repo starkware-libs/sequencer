@@ -350,10 +350,9 @@ impl ConsensusManager {
 
         // This function will panic if the revert fails.
         let revert_blocks_fn = move |height| async move {
-            self.batcher_client
-                .revert_block(RevertBlockInput { height })
-                .await
-                .expect("Failed to revert block at height {height} in the batcher");
+            self.batcher_client.revert_block(RevertBlockInput { height }).await.unwrap_or_else(
+                |err| panic!("Failed to revert block at height {height} in the batcher: {err:?}"),
+            );
         };
 
         const BATCHER_REVERT_COMPONENT_DATA: RevertComponentData = RevertComponentData {

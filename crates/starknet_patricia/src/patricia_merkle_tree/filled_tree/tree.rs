@@ -282,7 +282,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
     ) -> Result<Self, FilledTreeError> {
         let root_node = updated_skeleton.get_node(NodeIndex::ROOT)?;
         let UpdatedSkeletonNode::UnmodifiedSubTree(root_hash) = root_node else {
-            panic!("A root of tree without modifications is expected to be a unmodified subtree.")
+            panic!("A root of tree without modifications is expected to be an unmodified subtree.")
         };
         Ok(Self { tree_map: HashMap::new(), root_hash: *root_hash })
     }

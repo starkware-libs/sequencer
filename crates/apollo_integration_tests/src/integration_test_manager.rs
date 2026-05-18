@@ -363,10 +363,9 @@ impl RunningNode {
     }
 
     pub fn shutdown_service(&mut self, service: NodeService) {
-        let handle = self
-            .executable_handles
-            .remove(&service)
-            .expect("Service {service:?} does not exist in the running executables map.");
+        let handle = self.executable_handles.remove(&service).unwrap_or_else(|| {
+            panic!("Service {service:?} does not exist in the running executables map.")
+        });
         assert!(!handle.is_finished(), "Handle should still be running.");
         handle.abort();
     }
@@ -448,7 +447,7 @@ impl IntegrationTestManager {
             .idle_nodes
             .get(&node_idx)
             .or_else(|| self.running_nodes.get(&node_idx).map(|node| &node.node_setup))
-            .expect("Node {node_idx} does not exist in idle or running nodes.");
+            .unwrap_or_else(|| panic!("Node {node_idx} does not exist in idle or running nodes."));
         node_setup.node_type
     }
 
@@ -631,7 +630,7 @@ impl IntegrationTestManager {
             .expect("Running Nodes should be reverted.");
 
         info!(
-            "All running nodes have been reverted succesfully to block number \
+            "All running nodes have been reverted successfully to block number \
              {expected_block_number}."
         );
     }

@@ -394,7 +394,7 @@ impl EntryPointExecutionContext {
         }
         .try_into()
         .unwrap_or_else(|error| {
-            log::warn!("Failed to convert global step limit to to usize: {error}.");
+            log::warn!("Failed to convert global step limit to usize: {error}.");
             usize::MAX
         });
 

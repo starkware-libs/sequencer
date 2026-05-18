@@ -1428,7 +1428,9 @@ impl Batcher {
                     .storage_reader
                     .global_root(new_latest_height)
                     .expect("Failed to get global root from storage.")
-                    .expect("Global root is not set for height {new_latest_height}.");
+                    .unwrap_or_else(|| {
+                        panic!("Global root is not set for height {new_latest_height}.")
+                    });
                 assert_eq!(
                     global_root, stored_global_root,
                     "The given global root does not match the stored global root for height \

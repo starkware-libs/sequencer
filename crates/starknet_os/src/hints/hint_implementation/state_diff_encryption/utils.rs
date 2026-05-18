@@ -56,9 +56,12 @@ pub fn encrypt_symmetric_key(
         .iter()
         .zip(public_keys)
         .map(|(&sn_private_key, &public_key)| {
-            let public_key_point = AffinePoint::new_from_x(&public_key, true).expect(
-                "{public_key} does not represent the x coordinate of a point on the curve.",
-            );
+            let public_key_point =
+                AffinePoint::new_from_x(&public_key, true).unwrap_or_else(|| {
+                    panic!(
+                        "{public_key} does not represent the x coordinate of a point on the curve."
+                    )
+                });
             let shared_secret = (&public_key_point * sn_private_key).x();
             // Encrypt the symmetric key using the shared secret.
             // TODO(Avi, 10/09/2025): Use the naive felt encoding once available.
@@ -81,8 +84,9 @@ pub fn decrypt_symmetric_key(
     encrypted_symmetric_key: Felt,
 ) -> Felt {
     // Compute the shared secret using Diffie-Hellman key exchange.
-    let sn_public_key_point = AffinePoint::new_from_x(&sn_public_key, true)
-        .expect("{sn_public_key} does not represent the x coordinate of a point on the curve.");
+    let sn_public_key_point = AffinePoint::new_from_x(&sn_public_key, true).unwrap_or_else(|| {
+        panic!("{sn_public_key} does not represent the x coordinate of a point on the curve.")
+    });
     let shared_secret_point = &sn_public_key_point * private_key;
     let shared_secret = shared_secret_point.x();
 

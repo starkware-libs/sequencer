@@ -482,7 +482,7 @@ impl TxCollector {
             "Expected the first message in the stream to have id 0, got {incoming_message_id}"
         );
         let StreamMessageBody::Content(ProposalPart::Init(incoming_init)) = init_message else {
-            panic!("Expected a init message. Got: {init_message:?}")
+            panic!("Expected an init message. Got: {init_message:?}")
         };
 
         self.accumulated_txs.lock().await.start_round(incoming_init.height, incoming_init.round);
