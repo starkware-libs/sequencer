@@ -110,7 +110,7 @@
         },
         {
           "title": "Consensus Round Above Zero",
-          "description": "Occurances where the consensus round was 1, relative to displayed range",
+          "description": "Occurrences where the consensus round was greater than zero, over the displayed time range",
           "type": "timeseries",
           "exprs": [
             "consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} - (consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} @ start())"
@@ -289,106 +289,6 @@
       ],
       "collapsed": true
     },
-    "Consensus Streams": {
-      "panels": [
-        {
-          "title": "Outbound Stream Success Ratio (%)",
-          "description": "Outbound stream success ratio: finished/started (10m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(consensus_outbound_stream_finished{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) / increase(consensus_outbound_stream_started{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
-          ],
-          "extra_params": {
-            "unit": "percentunit"
-          }
-        },
-        {
-          "title": "Inbound Stream Success Ratio (%)",
-          "description": "Inbound stream success ratio: finished/started (10m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(consensus_inbound_stream_finished{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) / increase(consensus_inbound_stream_started{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
-          ],
-          "extra_params": {
-            "unit": "percentunit"
-          }
-        },
-        {
-          "title": "Inbound Stream Evicted",
-          "description": "The number of inbound streams evicted due to cache capacity (10m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(consensus_inbound_stream_evicted{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Inbound Peer Evicted",
-          "description": "The number of inbound peers evicted from the stream handler LRU cache (10m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(consensus_inbound_peer_evicted{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Inbound Stream Buffer Full",
-          "description": "The number of inbound streams dropped due to full message buffer (10m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(consensus_inbound_stream_buffer_full{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
-          ],
-          "extra_params": {}
-        }
-      ],
-      "collapsed": true
-    },
-    "Staking": {
-      "panels": [
-        {
-          "title": "Epoch Information",
-          "description": "Current epoch ID, current epoch start height, and next epoch start height",
-          "type": "stat",
-          "exprs": [
-            "max(staking_current_epoch_id{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})",
-            "max(staking_current_epoch_start_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})",
-            "max(staking_current_epoch_start_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} + staking_current_epoch_length{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
-          ],
-          "extra_params": {
-            "legends": [
-              "Epoch ID",
-              "Start Height",
-              "Next Epoch Start Height"
-            ]
-          }
-        },
-        {
-          "title": "Stake Distribution by Staker",
-          "description": "The distribution of stake across committee members, showing each staker's address and their staking power",
-          "type": "piechart",
-          "exprs": [
-            "max by (address) (staking_committee_member_weight{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", address!=\"\"}) > 0"
-          ],
-          "extra_params": {
-            "legend_values": [
-              "percent"
-            ]
-          }
-        },
-        {
-          "title": "Eligible Proposers Stake %",
-          "description": "The percentage of total stake held by eligible proposers",
-          "type": "timeseries",
-          "exprs": [
-            "(staking_committee_eligible_proposers_total_weight{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / staking_committee_total_weight{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
-          ],
-          "extra_params": {
-            "unit": "percentunit"
-          }
-        }
-      ],
-      "collapsed": true
-    },
     "Cende": {
       "panels": [
         {
@@ -456,6 +356,455 @@
           ],
           "extra_params": {
             "log_query": "\"write_pre_confirmed_block request failed\" OR \"Failed to send write_pre_confirmed_block request to Cende recorder\""
+          }
+        }
+      ],
+      "collapsed": true
+    },
+    "SNIP-35": {
+      "panels": [
+        {
+          "title": "SNIP-35 fee_actual (GFri)",
+          "description": "Median of recent fee_proposals over the sliding window, in GFri",
+          "type": "timeseries",
+          "exprs": [
+            "snip35_fee_actual{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "SNIP-35 fee_proposal (GFri)",
+          "description": "fee_proposal this node published in the latest block, in GFri",
+          "type": "timeseries",
+          "exprs": [
+            "snip35_fee_proposal{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "SNIP-35 fee_target (GFri)",
+          "description": "fee_target computed from the STRK/USD oracle, in GFri",
+          "type": "timeseries",
+          "exprs": [
+            "snip35_fee_target{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "SNIP-35 STRK/USD rate (USD)",
+          "description": "STRK/USD rate from the oracle, in USD (raw value has 18 decimals)",
+          "type": "timeseries",
+          "exprs": [
+            "snip35_strk_usd_rate{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e18"
+          ],
+          "extra_params": {}
+        }
+      ],
+      "collapsed": true
+    },
+    "Staking": {
+      "panels": [
+        {
+          "title": "Epoch Information",
+          "description": "Current epoch ID, current epoch start height, and next epoch start height",
+          "type": "stat",
+          "exprs": [
+            "max(staking_current_epoch_id{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})",
+            "max(staking_current_epoch_start_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})",
+            "max(staking_current_epoch_start_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} + staking_current_epoch_length{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
+          ],
+          "extra_params": {
+            "legends": [
+              "Epoch ID",
+              "Start Height",
+              "Next Epoch Start Height"
+            ]
+          }
+        },
+        {
+          "title": "Stake Distribution by Staker",
+          "description": "The distribution of stake across committee members, showing each staker's address and their staking power",
+          "type": "piechart",
+          "exprs": [
+            "max by (address) (staking_committee_member_weight{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", address!=\"\"}) > 0"
+          ],
+          "extra_params": {
+            "legend_values": [
+              "percent"
+            ]
+          }
+        },
+        {
+          "title": "Eligible Proposers Stake %",
+          "description": "The percentage of total stake held by eligible proposers",
+          "type": "timeseries",
+          "exprs": [
+            "(staking_committee_eligible_proposers_total_weight{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / staking_committee_total_weight{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
+          ],
+          "extra_params": {
+            "unit": "percentunit"
+          }
+        }
+      ],
+      "collapsed": true
+    },
+    "HTTP Server": {
+      "panels": [
+        {
+          "title": "HTTP Server Transactions Received Rate (TPS)",
+          "description": "The rate of transactions received by the HTTP Server (1m window)",
+          "type": "timeseries",
+          "exprs": [
+            "rate(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Transactions Received",
+          "description": "Number of transactions received (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {
+            "log_query": "\"ADD_TX_START\""
+          }
+        },
+        {
+          "title": "Transaction Success Rate",
+          "description": "The ratio of transactions successfully added to the gateway (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) / clamp_min((increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) + increase(http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])), 1)"
+          ],
+          "extra_params": {
+            "unit": "percentunit",
+            "log_query": "\"Recorded transaction\""
+          }
+        },
+        {
+          "title": "Transactions Failed to Be Added (By Reason)",
+          "description": "Number of transactions that failed to be added by reason (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "sum(increase(http_server_added_transactions_internal_error{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]))",
+            "sum(increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]))"
+          ],
+          "extra_params": {
+            "legends": [
+              "internal error",
+              "deprecated error"
+            ]
+          }
+        },
+        {
+          "title": "HTTP Server Add Tx Latency",
+          "description": "The time it takes to add a transaction to the HTTP Server",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
+          "title": "Seconds Since Last Received Transaction",
+          "description": "The number of seconds since the last transaction was received by the HTTP server (assuming there was a transaction in the last 12 hours)",
+          "type": "timeseries",
+          "exprs": [
+            "time() - max(last_over_time(http_server_last_received_transaction_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h]))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        }
+      ],
+      "collapsed": true
+    },
+    "Gateway": {
+      "panels": [
+        {
+          "title": "Gateway Transactions Received Rate (TPS)",
+          "description": "The rate of transactions received by the gateway (1m window)",
+          "type": "timeseries",
+          "exprs": [
+            "sum(rate(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) or vector(0)"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Add Tx Latency",
+          "description": "The time it takes the gateway to add a transaction to the mempool",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(gateway_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(gateway_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
+          "title": "Validate Tx Latency",
+          "description": "The time it takes to validate a transaction",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(gateway_validate_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(gateway_validate_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
+          "title": "Transactions Received by Source",
+          "description": "The number of transactions received by source (over the selected time range)",
+          "type": "stat",
+          "exprs": [
+            "sum by (source) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))"
+          ],
+          "extra_params": {
+            "log_query": "\"Processing tx\" AND \"is_p2p=\""
+          }
+        },
+        {
+          "title": "Transactions Received by Type",
+          "description": "The number of transactions received by type (over the selected time range)",
+          "type": "stat",
+          "exprs": [
+            "sum by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))"
+          ],
+          "extra_params": {
+            "log_query": "\"Processing tx\""
+          }
+        },
+        {
+          "title": "Transactions Received by Proof Type",
+          "description": "The number of private (invoke_v3 with non-empty proof_facts) vs public transactions received (over the selected time range)",
+          "type": "stat",
+          "exprs": [
+            "sum(increase(gateway_private_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))",
+            "sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range])) - sum(increase(gateway_private_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))"
+          ],
+          "extra_params": {
+            "legends": [
+              "Private",
+              "Public"
+            ]
+          }
+        },
+        {
+          "title": "Transaction Failure Rate by Type",
+          "description": "The rate of failed transactions vs received transactions by type (over the selected time range)",
+          "type": "stat",
+          "exprs": [
+            "(sum by (tx_type) (increase(gateway_transactions_failed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range])) / sum by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range])))"
+          ],
+          "extra_params": {
+            "unit": "percentunit"
+          }
+        },
+        {
+          "title": "Transactions Failed by Reason",
+          "description": "The number of transactions failed by reason (over the selected time range)",
+          "type": "stat",
+          "exprs": [
+            "sum by (add_tx_failure_reason) (increase(gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range])) > 0"
+          ],
+          "extra_params": {
+            "log_query": "\"Error while adding transaction\""
+          }
+        },
+        {
+          "title": "Transactions Sent to Mempool by Type",
+          "description": "The number of transactions sent to mempool by type (over the selected time range)",
+          "type": "stat",
+          "exprs": [
+            "sum by (tx_type) (increase(gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Gateway Validate Stateful Tx Storage Access Time",
+          "description": "Total time spent in storage operations during stateful tx validation",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(gateway_validate_stateful_tx_storage_time_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(gateway_validate_stateful_tx_storage_time_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
+          "title": "Gateway Validate Stateful Tx Storage Operations",
+          "description": "Total number of storage operations during stateful tx validation",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(gateway_validate_stateful_tx_storage_operations_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(gateway_validate_stateful_tx_storage_operations_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Proof Verification Latency",
+          "description": "Time taken to verify a proof",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(proof_verification_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(proof_verification_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
+          "title": "Proof Manager Store Latency",
+          "description": "The time it takes to store a proof in the proof manager",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(gateway_proof_manager_store_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(gateway_proof_manager_store_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        }
+      ],
+      "collapsed": true
+    },
+    "Mempool": {
+      "panels": [
+        {
+          "title": "Mempool Transactions Received Rate (TPS)",
+          "description": "The rate of transactions received by the mempool (1m window)",
+          "type": "timeseries",
+          "exprs": [
+            "sum(rate(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) or vector(0)"
+          ],
+          "extra_params": {
+            "log_query": "\"Adding transaction to mempool\""
+          }
+        },
+        {
+          "title": "Transactions Committed",
+          "description": "Number of transactions committed to a block (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(mempool_txs_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Dropped Transactions by Reason",
+          "description": "Number of transactions dropped from the mempool by reason (over the selected time range)",
+          "type": "stat",
+          "exprs": [
+            "sum by (drop_reason) (increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Pool Size (Num TXs)",
+          "description": "Number of all the transactions in the mempool",
+          "type": "timeseries",
+          "exprs": [
+            "mempool_pool_size{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {
+            "unit": "short"
+          }
+        },
+        {
+          "title": "Mempool Size (Data)",
+          "description": "Size of the transactions in the mempool",
+          "type": "timeseries",
+          "exprs": [
+            "mempool_total_size_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {
+            "unit": "bytes"
+          }
+        },
+        {
+          "title": "Prioritized Transactions",
+          "description": "Number of transactions prioritized for batching",
+          "type": "timeseries",
+          "exprs": [
+            "mempool_priority_queue_size{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {
+            "unit": "short"
+          }
+        },
+        {
+          "title": "Pending Transactions",
+          "description": "Number of transactions eligible for batching but below the gas price threshold",
+          "type": "timeseries",
+          "exprs": [
+            "mempool_pending_queue_size{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {
+            "unit": "short"
+          }
+        },
+        {
+          "title": "Delayed Declare Transactions",
+          "description": "Number of delayed declare transactions",
+          "type": "timeseries",
+          "exprs": [
+            "mempool_delayed_declare_size{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Accounts With Nonce Gap",
+          "description": "Number of accounts whose lowest pool nonce exceeds the account nonce, making them unable to provide any transaction for batching",
+          "type": "timeseries",
+          "exprs": [
+            "mempool_accounts_with_gap{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {
+            "unit": "short",
+            "log_query": "\"has a nonce gap\""
+          }
+        },
+        {
+          "title": "Stuck Transactions (Nonce Gap)",
+          "description": "Number of transactions in the pool belonging to accounts whose lowest pool nonce exceeds the account nonce",
+          "type": "timeseries",
+          "exprs": [
+            "mempool_stuck_txs{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {
+            "unit": "short",
+            "log_query": "\"has a nonce gap\""
+          }
+        },
+        {
+          "title": "Transaction Time Spent In Mempool Until Batched",
+          "description": "The time a transaction spends in the mempool until it is batched (5m window)",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(mempool_transaction_time_spent_until_batched_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(mempool_transaction_time_spent_until_batched_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
+          "title": "Transaction Time Spent In Mempool Until Committed",
+          "description": "The time a transaction spends in the mempool until it is committed (5m window)",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(mempool_transaction_time_spent_until_committed_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(mempool_transaction_time_spent_until_committed_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
           }
         }
       ],
@@ -707,6 +1056,110 @@
       ],
       "collapsed": true
     },
+    "Blockifier": {
+      "panels": [
+        {
+          "title": "Class Cache Miss in Batcher",
+          "description": "The ratio of cache misses when requesting compiled classes from the Blockifier State Reader in Batcher",
+          "type": "timeseries",
+          "exprs": [
+            "(increase(batcher_class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m]) / clamp_min((increase(batcher_class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m]) + increase(batcher_class_cache_hits{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])), 1))"
+          ],
+          "extra_params": {
+            "unit": "percentunit"
+          }
+        },
+        {
+          "title": "Native Class Returned Ratio in Batcher",
+          "description": "The ratio of Native classes returned by the Blockifier in Batcher",
+          "type": "timeseries",
+          "exprs": [
+            "(increase(native_class_returned{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m]) / clamp_min((increase(batcher_class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m]) + increase(batcher_class_cache_hits{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])), 1))"
+          ],
+          "extra_params": {
+            "unit": "percentunit"
+          }
+        },
+        {
+          "title": "Class Cache Miss in Gateway",
+          "description": "The ratio of cache misses when requesting compiled classes from the Blockifier State Reader in Gateway",
+          "type": "timeseries",
+          "exprs": [
+            "(increase(gateway_class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m]) / clamp_min((increase(gateway_class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m]) + increase(gateway_class_cache_hits{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])), 1))"
+          ],
+          "extra_params": {
+            "unit": "percentunit"
+          }
+        },
+        {
+          "title": "Native compilation error count",
+          "description": "Count of the number of times there was a native compilation error",
+          "type": "stat",
+          "exprs": [
+            "native_compilation_error{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Native Execution Ratio",
+          "description": "The ratio of calls running Cairo Native in the Blockifier",
+          "type": "timeseries",
+          "exprs": [
+            "(increase(calls_running_native{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m]) / clamp_min((increase(number_of_total_calls{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])), 1))"
+          ],
+          "extra_params": {
+            "unit": "percentunit"
+          }
+        },
+        {
+          "title": "Blocks Full By Resource",
+          "description": "Number of blocks closed on each bouncer resource (10m window)",
+          "type": "stat",
+          "exprs": [
+            "sum by (resource) (increase(blockifier_blocks_full_by_resource{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Transactions Per Block",
+          "description": "The number of transactions per block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Average Sierra Gas Usage in Block",
+          "description": "The average sierra gas usage in block (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "avg_over_time(batcher_sierra_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])/1000000000"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Average Proving Gas Usage in Block",
+          "description": "The average proving gas usage in block (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "avg_over_time(batcher_proving_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])/1000000000"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Average L2 Gas Usage in Block",
+          "description": "The average L2 gas usage in block (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "avg_over_time(batcher_l2_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])/1000000000"
+          ],
+          "extra_params": {}
+        }
+      ],
+      "collapsed": true
+    },
     "Committer": {
       "panels": [
         {
@@ -908,7 +1361,9 @@
           "exprs": [
             "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "unit": "short"
+          }
         },
         {
           "title": "Sync Block Age",
@@ -933,413 +1388,10 @@
       ],
       "collapsed": true
     },
-    "Http Server": {
-      "panels": [
-        {
-          "title": "HTTP Server Transactions Received Rate (TPS)",
-          "description": "The rate of transactions received by the HTTP Server (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "rate(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Transactions Received",
-          "description": "Number of transactions received (10m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
-          ],
-          "extra_params": {
-            "log_query": "\"ADD_TX_START\""
-          }
-        },
-        {
-          "title": "Transaction Success Rate",
-          "description": "The ratio of transactions successfully added to the gateway (10m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) / clamp_min((increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) + increase(http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])), 1)"
-          ],
-          "extra_params": {
-            "unit": "percentunit",
-            "log_query": "\"Recorded transaction\""
-          }
-        },
-        {
-          "title": "Transactions Failed to Be Added (By Reason)",
-          "description": "Number of transactions that failed to be added by reason (10m window)",
-          "type": "timeseries",
-          "exprs": [
-            "sum(increase(http_server_added_transactions_internal_error{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]))",
-            "sum(increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]))"
-          ],
-          "extra_params": {
-            "legends": [
-              "internal error",
-              "deprecated error"
-            ]
-          }
-        },
-        {
-          "title": "HTTP Server Add Tx Latency",
-          "description": "The time it takes to add a transaction to the HTTP Server",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
-          ],
-          "extra_params": {
-            "unit": "s"
-          }
-        },
-        {
-          "title": "Seconds since last received transaction",
-          "description": "The number of seconds since the last transaction was received by the HTTP server (assuming there was a transaction in the last 12 hours)",
-          "type": "timeseries",
-          "exprs": [
-            "time() - max(last_over_time(http_server_last_received_transaction_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h]))"
-          ],
-          "extra_params": {
-            "unit": "s"
-          }
-        }
-      ],
-      "collapsed": true
-    },
-    "Gateway": {
-      "panels": [
-        {
-          "title": "Gateway Transactions Received Rate (TPS)",
-          "description": "The rate of transactions received by the gateway (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "sum(rate(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) or vector(0)"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Add Tx Latency",
-          "description": "The time it takes the gateway to add a transaction to the mempool",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(gateway_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(gateway_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
-          ],
-          "extra_params": {
-            "unit": "s"
-          }
-        },
-        {
-          "title": "Validate Tx Latency",
-          "description": "The time it takes to validate a transaction",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(gateway_validate_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(gateway_validate_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
-          ],
-          "extra_params": {
-            "unit": "s"
-          }
-        },
-        {
-          "title": "Transactions Received by Source",
-          "description": "The number of transactions received by source (over the selected time range)",
-          "type": "stat",
-          "exprs": [
-            "sum by (source) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))"
-          ],
-          "extra_params": {
-            "log_query": "\"Processing tx\" AND \"is_p2p=\""
-          }
-        },
-        {
-          "title": "Transactions Received by Type",
-          "description": "The number of transactions received by type (over the selected time range)",
-          "type": "stat",
-          "exprs": [
-            "sum by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))"
-          ],
-          "extra_params": {
-            "log_query": "\"Processing tx\""
-          }
-        },
-        {
-          "title": "Transactions Received by Proof Type",
-          "description": "The number of private (invoke_v3 with non-empty proof_facts) vs public transactions received (over the selected time range)",
-          "type": "stat",
-          "exprs": [
-            "sum(increase(gateway_private_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))",
-            "sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range])) - sum(increase(gateway_private_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))"
-          ],
-          "extra_params": {
-            "legends": [
-              "Private",
-              "Public"
-            ]
-          }
-        },
-        {
-          "title": "Transaction Failure Rate by Type",
-          "description": "The rate of failed transactions vs received transactions by type (over the selected time range)",
-          "type": "stat",
-          "exprs": [
-            "(sum by (tx_type) (increase(gateway_transactions_failed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range])) / sum by (tx_type) (increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range])))"
-          ],
-          "extra_params": {
-            "unit": "percentunit"
-          }
-        },
-        {
-          "title": "Transactions Failed by Reason",
-          "description": "The number of transactions failed by reason (over the selected time range)",
-          "type": "stat",
-          "exprs": [
-            "sum by (add_tx_failure_reason) (increase(gateway_add_tx_failure{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range])) > 0"
-          ],
-          "extra_params": {
-            "log_query": "\"Error while adding transaction\""
-          }
-        },
-        {
-          "title": "Transactions Sent to Mempool by Type",
-          "description": "The number of transactions sent to mempool by type (over the selected time range)",
-          "type": "stat",
-          "exprs": [
-            "sum by (tx_type) (increase(gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Gateway Validate Stateful Tx Storage Access Time",
-          "description": "Total time spent in storage operations during stateful tx validation",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(gateway_validate_stateful_tx_storage_time_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(gateway_validate_stateful_tx_storage_time_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
-          ],
-          "extra_params": {
-            "unit": "s"
-          }
-        },
-        {
-          "title": "Gateway Validate Stateful Tx Storage Operations",
-          "description": "Total number of storage operations during stateful tx validation",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(gateway_validate_stateful_tx_storage_operations_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(gateway_validate_stateful_tx_storage_operations_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Proof Verification Latency",
-          "description": "Time taken to verify a proof",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(proof_verification_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(proof_verification_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
-          ],
-          "extra_params": {
-            "unit": "s"
-          }
-        },
-        {
-          "title": "Proof Manager Store Latency",
-          "description": "The time it takes to store a proof in the proof manager",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(gateway_proof_manager_store_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(gateway_proof_manager_store_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
-          ],
-          "extra_params": {
-            "unit": "s"
-          }
-        }
-      ],
-      "collapsed": true
-    },
-    "Mempool": {
-      "panels": [
-        {
-          "title": "Mempool Transactions Received Rate (TPS)",
-          "description": "The rate of transactions received by the mempool (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "sum(rate(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) or vector(0)"
-          ],
-          "extra_params": {
-            "log_query": "\"Adding transaction to mempool\""
-          }
-        },
-        {
-          "title": "Transactions Committed",
-          "description": "Number of transactions committed to a block (10m window)",
-          "type": "timeseries",
-          "exprs": [
-            "increase(mempool_txs_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Dropped Transactions by Reason",
-          "description": "Number of transactions dropped from the mempool by reason (over the selected time range)",
-          "type": "stat",
-          "exprs": [
-            "sum by (drop_reason) (increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[$__range]))"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Pool Size (Num TXs)",
-          "description": "Number of all the transactions in the mempool",
-          "type": "timeseries",
-          "exprs": [
-            "mempool_pool_size{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Mempool Size (Data)",
-          "description": "Size of the transactions in the mempool",
-          "type": "timeseries",
-          "exprs": [
-            "mempool_total_size_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {
-            "unit": "bytes"
-          }
-        },
-        {
-          "title": "Prioritized Transactions",
-          "description": "Number of transactions prioritized for batching",
-          "type": "timeseries",
-          "exprs": [
-            "mempool_priority_queue_size{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Pending Transactions",
-          "description": "Number of transactions eligible for batching but below the gas price threshold",
-          "type": "timeseries",
-          "exprs": [
-            "mempool_pending_queue_size{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Delayed Declare Transactions",
-          "description": "Number of delayed declare transactions",
-          "type": "timeseries",
-          "exprs": [
-            "mempool_delayed_declare_size{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Accounts With Nonce Gap",
-          "description": "Number of accounts whose lowest pool nonce exceeds the account nonce, making them unable to provide any transaction for batching",
-          "type": "timeseries",
-          "exprs": [
-            "mempool_accounts_with_gap{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {
-            "log_query": "\"has a nonce gap\""
-          }
-        },
-        {
-          "title": "Stuck Transactions (Nonce Gap)",
-          "description": "Number of transactions in the pool belonging to accounts whose lowest pool nonce exceeds the account nonce",
-          "type": "timeseries",
-          "exprs": [
-            "mempool_stuck_txs{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {
-            "log_query": "\"has a nonce gap\""
-          }
-        },
-        {
-          "title": "Transaction Time Spent In Mempool Until Batched",
-          "description": "The time a transaction spends in the mempool until it is batched (5m window)",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(mempool_transaction_time_spent_until_batched_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(mempool_transaction_time_spent_until_batched_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
-          ],
-          "extra_params": {
-            "unit": "s"
-          }
-        },
-        {
-          "title": "Transaction Time Spent In Mempool Until Committed",
-          "description": "The time a transaction spends in the mempool until it is committed (5m window)",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(mempool_transaction_time_spent_until_committed_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(mempool_transaction_time_spent_until_committed_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
-          ],
-          "extra_params": {
-            "unit": "s"
-          }
-        }
-      ],
-      "collapsed": true
-    },
-    "For Upgrade": {
-      "panels": [
-        {
-          "title": "Consensus Height",
-          "description": "The block height the node is currently working on",
-          "type": "stat",
-          "exprs": [
-            "consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {
-            "log_query": "\"START_HEIGHT: running consensus for height\" OR \"Start building proposal\" OR \"Start validating proposal\"",
-            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
-          }
-        },
-        {
-          "title": "Consensus Decisions Reached As Proposer Counter",
-          "description": "The number of rounds with decision reached where this node is the proposer, from last restart",
-          "type": "stat",
-          "exprs": [
-            "consensus_decisions_reached_as_proposer{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {
-            "log_query": "\"Building proposal\" OR \"BATCHER_FIN_PROPOSER\"",
-            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
-          }
-        },
-        {
-          "title": "HTTP Server Transactions Received Rate (TPS)",
-          "description": "The rate of transactions received by the HTTP Server (1m window)",
-          "type": "timeseries",
-          "exprs": [
-            "rate(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Seconds since last received transaction",
-          "description": "The number of seconds since the last transaction was received by the HTTP server (assuming there was a transaction in the last 12 hours)",
-          "type": "timeseries",
-          "exprs": [
-            "time() - max(last_over_time(http_server_last_received_transaction_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h]))"
-          ],
-          "extra_params": {
-            "unit": "s"
-          }
-        }
-      ],
-      "collapsed": true
-    },
     "L1 Events": {
       "panels": [
         {
-          "title": "Seconds since last successful l1 event scrape",
+          "title": "Seconds Since Last Successful L1 Event Scrape",
           "description": "The number of seconds since the last successful scrape of the L1 message scraper (assuming there was a scrape in the last 12 hours)",
           "type": "timeseries",
           "exprs": [
@@ -1401,7 +1453,7 @@
     "ETH→STRK Rate & L1 Gas Price": {
       "panels": [
         {
-          "title": "Seconds since last successful L1 gas price scrape",
+          "title": "Seconds Since Last Successful L1 Gas Price Scrape",
           "description": "The number of seconds since the last successful scrape of the L1 gas price scraper (assuming there was a scrape in the last 12 hours)",
           "type": "timeseries",
           "exprs": [
@@ -1412,8 +1464,8 @@
           }
         },
         {
-          "title": "Seconds since last successful ETH→STRK rate update",
-          "description": "The number of seconds since the last successful ETH→STRK rate update (assuming there was an update in the last 12 hours)",
+          "title": "Seconds Since Last Successful ETH→STRK Rate Update",
+          "description": "The number of seconds since the last successful ETH→STRK rate update (assuming there was an update in the last 12 hours). Expected cadence: ~15 minutes.",
           "type": "timeseries",
           "exprs": [
             "time() - max(last_over_time(eth_to_strk_last_success_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h]))"
@@ -1507,165 +1559,148 @@
           "extra_params": {}
         },
         {
-          "title": "L1 Gas Price Latest Mean Value",
-          "description": "The latest L1 gas price, calculated as an average by the provider client",
+          "title": "L1 Gas Price Latest Mean Value (Gwei)",
+          "description": "The latest L1 gas price, calculated as an average by the provider client. Displayed in Gwei (1 Gwei = 1e9 wei).",
           "type": "timeseries",
           "exprs": [
-            "l1_gas_price_latest_mean_value{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+            "l1_gas_price_latest_mean_value{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
           ],
           "extra_params": {}
         },
         {
-          "title": "L1 Data Gas Price Latest Mean Value",
-          "description": "The latest L1 data gas price, calculated as an average by the provider client",
+          "title": "L1 Data Gas Price Latest Mean Value (Gwei)",
+          "description": "The latest L1 data gas price, calculated as an average by the provider client. Displayed in Gwei (1 Gwei = 1e9 wei).",
           "type": "timeseries",
           "exprs": [
-            "l1_data_gas_price_latest_mean_value{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {}
-        }
-      ],
-      "collapsed": true
-    },
-    "SNIP-35": {
-      "panels": [
-        {
-          "title": "SNIP-35 fee_actual (GFri)",
-          "description": "Median of recent fee_proposals over the sliding window, in GFri",
-          "type": "timeseries",
-          "exprs": [
-            "snip35_fee_actual{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "SNIP-35 fee_proposal (GFri)",
-          "description": "fee_proposal this node published in the latest block, in GFri",
-          "type": "timeseries",
-          "exprs": [
-            "snip35_fee_proposal{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "SNIP-35 fee_target (GFri)",
-          "description": "fee_target computed from the STRK/USD oracle, in GFri",
-          "type": "timeseries",
-          "exprs": [
-            "snip35_fee_target{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "SNIP-35 STRK/USD rate (USD)",
-          "description": "STRK/USD rate from the oracle, in USD (raw value has 18 decimals)",
-          "type": "timeseries",
-          "exprs": [
-            "snip35_strk_usd_rate{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e18"
+            "l1_data_gas_price_latest_mean_value{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
           ],
           "extra_params": {}
         }
       ],
       "collapsed": true
     },
-    "Blockifier": {
+    "For Upgrade": {
       "panels": [
         {
-          "title": "Class Cache Miss in Batcher",
-          "description": "The ratio of cache misses when requesting compiled classes from the Blockifier State Reader in Batcher",
-          "type": "timeseries",
-          "exprs": [
-            "(increase(batcher_class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m]) / clamp_min((increase(batcher_class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m]) + increase(batcher_class_cache_hits{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])), 1))"
-          ],
-          "extra_params": {
-            "unit": "percentunit"
-          }
-        },
-        {
-          "title": "Native Class Returned Ratio in Batcher",
-          "description": "The ratio of Native classes returned by the Blockifier in Batcher",
-          "type": "timeseries",
-          "exprs": [
-            "(increase(native_class_returned{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m]) / clamp_min((increase(batcher_class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m]) + increase(batcher_class_cache_hits{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])), 1))"
-          ],
-          "extra_params": {
-            "unit": "percentunit"
-          }
-        },
-        {
-          "title": "Class Cache Miss in Gateway",
-          "description": "The ratio of cache misses when requesting compiled classes from the Blockifier State Reader in Gateway",
-          "type": "timeseries",
-          "exprs": [
-            "(increase(gateway_class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m]) / clamp_min((increase(gateway_class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m]) + increase(gateway_class_cache_hits{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])), 1))"
-          ],
-          "extra_params": {
-            "unit": "percentunit"
-          }
-        },
-        {
-          "title": "Native compilation error count",
-          "description": "Count of the number of times there was a native compilation error",
+          "title": "Consensus Height",
+          "description": "The block height the node is currently working on",
           "type": "stat",
           "exprs": [
-            "native_compilation_error{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Native Execution Ratio",
-          "description": "The ratio of calls running Cairo Native in the Blockifier",
-          "type": "timeseries",
-          "exprs": [
-            "(increase(calls_running_native{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m]) / clamp_min((increase(number_of_total_calls{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])), 1))"
+            "consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
           ],
           "extra_params": {
-            "unit": "percentunit"
+            "log_query": "\"START_HEIGHT: running consensus for height\" OR \"Start building proposal\" OR \"Start validating proposal\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
           }
         },
         {
-          "title": "Blocks Full By Resource",
-          "description": "Number of blocks closed on each bouncer resource (10m window)",
+          "title": "Consensus Decisions Reached As Proposer Counter",
+          "description": "The number of rounds with decision reached where this node is the proposer, from last restart",
           "type": "stat",
           "exprs": [
-            "sum by (resource) (increase(blockifier_blocks_full_by_resource{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]))"
+            "consensus_decisions_reached_as_proposer{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {
+            "log_query": "\"Building proposal\" OR \"BATCHER_FIN_PROPOSER\"",
+            "log_comment": "-- \"START_HEIGHT:\" OR \"START_ROUND\" OR textPayload=~\"DECISION_REACHED\" OR \"PROPOSAL_FAILED\" OR \"Proposal succeeded\" OR \"Applying Timeout\" OR \"Accepting\" OR \"Broadcasting\""
+          }
+        },
+        {
+          "title": "HTTP Server Transactions Received Rate (TPS)",
+          "description": "The rate of transactions received by the HTTP Server (1m window)",
+          "type": "timeseries",
+          "exprs": [
+            "rate(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])"
           ],
           "extra_params": {}
         },
         {
-          "title": "Transactions Per Block",
-          "description": "The number of transactions per block",
+          "title": "Seconds Since Last Received Transaction",
+          "description": "The number of seconds since the last transaction was received by the HTTP server (assuming there was a transaction in the last 12 hours)",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "time() - max(last_over_time(http_server_last_received_transaction_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h]))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        }
+      ],
+      "collapsed": true
+    },
+    "Reverts": {
+      "panels": [
+        {
+          "title": "Apollo Consensus Reverted Batcher Up To And Including",
+          "description": "The block number up to which the batcher has reverted",
+          "type": "stat",
+          "exprs": [
+            "apollo_consensus_reverted_batcher_up_to_and_including{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
           ],
           "extra_params": {}
         },
         {
-          "title": "Average Sierra Gas Usage in Block",
-          "description": "The average sierra gas usage in block (10m window)",
+          "title": "Apollo State Sync Reverted Up To And Including",
+          "description": "The block number up to which the state sync has reverted",
+          "type": "stat",
+          "exprs": [
+            "apollo_state_sync_reverted_up_to_and_including{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        }
+      ],
+      "collapsed": true
+    },
+    "Storage": {
+      "panels": [
+        {
+          "title": "Append Thin State Diff Latency",
+          "description": "Latency to append thin state diff in storage",
           "type": "timeseries",
           "exprs": [
-            "avg_over_time(batcher_sierra_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])/1000000000"
+            "histogram_quantile(0.50, sum by (le) (rate(storage_append_thin_state_diff_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(storage_append_thin_state_diff_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
+          "title": "Storage Commit Latency",
+          "description": "Latency to commit changes in storage",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(storage_commit_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(storage_commit_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
+          "title": "Sync Storage Open Read Transactions",
+          "description": "The number of open sync  read transactions",
+          "type": "timeseries",
+          "exprs": [
+            "sync_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
           ],
           "extra_params": {}
         },
         {
-          "title": "Average Proving Gas Usage in Block",
-          "description": "The average proving gas usage in block (10m window)",
+          "title": "Batcher Storage Open Read Transactions",
+          "description": "The number of open batcher read transactions",
           "type": "timeseries",
           "exprs": [
-            "avg_over_time(batcher_proving_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])/1000000000"
+            "batcher_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
           ],
           "extra_params": {}
         },
         {
-          "title": "Average L2 Gas Usage in Block",
-          "description": "The average L2 gas usage in block (10m window)",
+          "title": "Class Manager Storage Open Read Transactions",
+          "description": "The number of open class manager read transactions",
           "type": "timeseries",
           "exprs": [
-            "avg_over_time(batcher_l2_gas_in_last_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])/1000000000"
+            "class_manager_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
           ],
           "extra_params": {}
         }
@@ -1714,7 +1749,61 @@
       ],
       "collapsed": true
     },
-    "ConsensusP2p": {
+    "Consensus Streams": {
+      "panels": [
+        {
+          "title": "Outbound Stream Success Ratio (%)",
+          "description": "Outbound stream success ratio: finished/started (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_outbound_stream_finished{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) / increase(consensus_outbound_stream_started{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {
+            "unit": "percentunit"
+          }
+        },
+        {
+          "title": "Inbound Stream Success Ratio (%)",
+          "description": "Inbound stream success ratio: finished/started (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_inbound_stream_finished{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) / increase(consensus_inbound_stream_started{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {
+            "unit": "percentunit"
+          }
+        },
+        {
+          "title": "Inbound Stream Evicted",
+          "description": "The number of inbound streams evicted due to cache capacity (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_inbound_stream_evicted{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Inbound Peer Evicted",
+          "description": "The number of inbound peers evicted from the stream handler LRU cache (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_inbound_peer_evicted{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Inbound Stream Buffer Full",
+          "description": "The number of inbound streams dropped due to full message buffer (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_inbound_stream_buffer_full{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {}
+        }
+      ],
+      "collapsed": true
+    },
+    "Consensus P2P": {
       "panels": [
         {
           "title": "Number of Connected Peers",
@@ -1886,7 +1975,7 @@
       ],
       "collapsed": true
     },
-    "MempoolP2p": {
+    "Mempool P2P": {
       "panels": [
         {
           "title": "Number of Connected Peers",
@@ -1900,16 +1989,18 @@
           }
         },
         {
-          "title": "Number of sent messages",
-          "description": "Count of the sent p2p messages (10m window)",
+          "title": "Number of Sent Messages",
+          "description": "Count of P2P messages sent by the mempool (10m window)",
           "type": "timeseries",
           "exprs": [
             "increase(apollo_mempool_p2p_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "unit": "short"
+          }
         },
         {
-          "title": "Mempool P2p Sent Message Size MB/sec",
+          "title": "Mempool P2P Sent Message Size (MB/sec)",
           "description": "The rate of MB per second sent by the mempool p2p component",
           "type": "timeseries",
           "exprs": [
@@ -1921,16 +2012,18 @@
           }
         },
         {
-          "title": "Number of received messages",
-          "description": "Count of the received p2p messages (10m window)",
+          "title": "Number of Received Messages",
+          "description": "Count of P2P messages received by the mempool (10m window)",
           "type": "timeseries",
           "exprs": [
             "increase(apollo_mempool_p2p_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "unit": "short"
+          }
         },
         {
-          "title": "Mempool P2p Received Message Size MB/sec",
+          "title": "Mempool P2P Received Message Size (MB/sec)",
           "description": "The rate of MB per second received by the mempool p2p component",
           "type": "timeseries",
           "exprs": [
@@ -1942,35 +2035,41 @@
           }
         },
         {
-          "title": "Mempool P2p Broadcasted Transaction Batch Size",
+          "title": "Mempool P2P Broadcasted Transaction Batch Size",
           "description": "The number of transactions in batches broadcast by the mempool p2p component",
           "type": "timeseries",
           "exprs": [
             "histogram_quantile(0.50, sum by (le) (rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
             "histogram_quantile(0.95, sum by (le) (rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "unit": "short"
+          }
         },
         {
-          "title": "apollo_mempool_p2p_network_events",
-          "description": "Network events counter by event type for mempool p2p",
+          "title": "Network Events by Type",
+          "description": "Network events received by mempool p2p, grouped by event type",
           "type": "timeseries",
           "exprs": [
             "sum by (event_type) (apollo_mempool_p2p_network_events{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "unit": "short"
+          }
         },
         {
-          "title": "apollo_mempool_p2p_num_dropped_messages",
-          "description": "The number of messages dropped by the mempool p2p component",
+          "title": "Dropped Messages by Reason",
+          "description": "Mempool p2p messages dropped, grouped by reason",
           "type": "timeseries",
           "exprs": [
             "sum by (drop_reason) (apollo_mempool_p2p_num_dropped_messages{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "unit": "short"
+          }
         },
         {
-          "title": "Mempool P2p Dropped Message Size MB/sec",
+          "title": "Mempool P2P Dropped Message Size (MB/sec)",
           "description": "The rate of MB per second dropped by the mempool p2p component",
           "type": "timeseries",
           "exprs": [
@@ -1992,85 +2091,6 @@
           "extra_params": {
             "unit": "s"
           }
-        }
-      ],
-      "collapsed": true
-    },
-    "Reverts": {
-      "panels": [
-        {
-          "title": "Apollo Consensus Reverted Batcher Up To And Including",
-          "description": "The block number up to which the batcher has reverted",
-          "type": "stat",
-          "exprs": [
-            "apollo_consensus_reverted_batcher_up_to_and_including{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Apollo State Sync Reverted Up To And Including",
-          "description": "The block number up to which the state sync has reverted",
-          "type": "stat",
-          "exprs": [
-            "apollo_state_sync_reverted_up_to_and_including{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {}
-        }
-      ],
-      "collapsed": true
-    },
-    "Storage": {
-      "panels": [
-        {
-          "title": "Append Thin State Diff Latency",
-          "description": "Latency to append thin state diff in storage",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(storage_append_thin_state_diff_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(storage_append_thin_state_diff_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
-          ],
-          "extra_params": {
-            "unit": "s"
-          }
-        },
-        {
-          "title": "Storage Commit Latency",
-          "description": "Latency to commit changes in storage",
-          "type": "timeseries",
-          "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(storage_commit_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(storage_commit_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
-          ],
-          "extra_params": {
-            "unit": "s"
-          }
-        },
-        {
-          "title": "Sync Storage Open Read Transactions",
-          "description": "The number of open sync  read transactions",
-          "type": "timeseries",
-          "exprs": [
-            "sync_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Batcher Storage Open Read Transactions",
-          "description": "The number of open batcher read transactions",
-          "type": "timeseries",
-          "exprs": [
-            "batcher_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "Class Manager Storage Open Read Transactions",
-          "description": "The number of open class manager read transactions",
-          "type": "timeseries",
-          "exprs": [
-            "class_manager_storage_open_read_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {}
         }
       ],
       "collapsed": true
@@ -4376,7 +4396,7 @@
     "Tokio Runtime Metrics": {
       "panels": [
         {
-          "title": "Increase of Tokio total busy duration (1m window)",
+          "title": "Tokio Total Busy Duration (1m increase)",
           "description": "The amount of time worker threads were busy (in microseconds)",
           "type": "timeseries",
           "exprs": [
@@ -4390,7 +4410,7 @@
           }
         },
         {
-          "title": "Tokio minimal busy duration",
+          "title": "Tokio Minimal Busy Duration",
           "description": "The minimum amount of time a worker thread was busy (in microseconds)",
           "type": "timeseries",
           "exprs": [
@@ -4404,7 +4424,7 @@
           }
         },
         {
-          "title": "Tokio maximal busy duration",
+          "title": "Tokio Maximal Busy Duration",
           "description": "The maximum amount of time a worker thread was busy (in microseconds)",
           "type": "timeseries",
           "exprs": [
@@ -4425,6 +4445,7 @@
             "sum by (namespace, pod) (tokio_total_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
+            "unit": "short",
             "legends": [
               "{{pod}}"
             ]
@@ -4438,6 +4459,7 @@
             "sum by (namespace, pod) (tokio_min_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
+            "unit": "short",
             "legends": [
               "{{pod}}"
             ]
@@ -4451,6 +4473,7 @@
             "sum by (namespace, pod) (tokio_max_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
+            "unit": "short",
             "legends": [
               "{{pod}}"
             ]
@@ -4464,6 +4487,7 @@
             "sum by (namespace, pod) (tokio_global_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
+            "unit": "short",
             "legends": [
               "{{pod}}"
             ]
@@ -4477,6 +4501,7 @@
             "sum by (namespace, pod) (tokio_workers_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
+            "unit": "short",
             "legends": [
               "{{pod}}"
             ]
@@ -4614,37 +4639,6 @@
         {
           "title": "Pod Disk Utilization",
           "description": "Pod disk utilization (used / capacity)",
-          "type": "timeseries",
-          "exprs": [
-            "\n            (\n                sum by (namespace, persistentvolumeclaim) (\n                    kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            /\n            (\n                sum by (namespace, persistentvolumeclaim) (\n                    kubelet_volume_stats_capacity_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            "
-          ],
-          "extra_params": {
-            "unit": "percentunit",
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                {
-                  "color": "green",
-                  "value": null
-                },
-                {
-                  "color": "yellow",
-                  "value": 0.6
-                },
-                {
-                  "color": "red",
-                  "value": 0.8
-                }
-              ]
-            },
-            "legends": [
-              "{{persistentvolumeclaim}}"
-            ]
-          }
-        },
-        {
-          "title": "Pod Disk Limit Utilization",
-          "description": "Pod disk limit utilization (used / capacity)",
           "type": "timeseries",
           "exprs": [
             "\n            (\n                sum by (namespace, persistentvolumeclaim) (\n                    kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            /\n            (\n                sum by (namespace, persistentvolumeclaim) (\n                    kubelet_volume_stats_capacity_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            "

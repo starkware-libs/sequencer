@@ -46,6 +46,7 @@ fn get_panel_sync_diff_from_feeder_gateway() -> Panel {
         ),
         PanelType::TimeSeries,
     )
+    .with_unit(Unit::Short)
 }
 fn get_panel_sync_block_age() -> Panel {
     Panel::new(

@@ -138,7 +138,8 @@ pub(crate) fn get_panel_consensus_round_advanced() -> Panel {
 fn get_panel_consensus_round_above_zero() -> Panel {
     Panel::new(
         "Consensus Round Above Zero",
-        "Occurances where the consensus round was 1, relative to displayed range",
+        "Occurrences where the consensus round was greater than zero, over the displayed time \
+         range",
         format!(
             "{m} - ({m} @ start())",
             m = CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter().to_string()
@@ -762,7 +763,7 @@ pub(crate) fn get_snip35_row() -> Row {
 
 pub(crate) fn get_consensus_p2p_row() -> Row {
     Row::new(
-        "ConsensusP2p",
+        "Consensus P2P",
         vec![
             get_panel_consensus_num_connected_peers(),
             get_panel_consensus_proposals_sent_message_size(),
