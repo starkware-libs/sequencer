@@ -16,7 +16,7 @@ use apollo_mempool::metrics::{
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::dashboard::Row;
-use crate::panel::{Panel, PanelType, Unit};
+use crate::panel::{traffic_light_thresholds, Panel, PanelType, Unit};
 use crate::query_builder::{
     increase,
     sum_by_label,
@@ -111,6 +111,7 @@ fn get_panel_mempool_accounts_with_gap() -> Panel {
         PanelType::TimeSeries,
     )
     .with_unit(Unit::Short)
+    .with_absolute_thresholds(traffic_light_thresholds(3.0, 10.0))
     .with_log_query("has a nonce gap")
 }
 fn get_panel_mempool_stuck_txs() -> Panel {
@@ -122,6 +123,7 @@ fn get_panel_mempool_stuck_txs() -> Panel {
         PanelType::TimeSeries,
     )
     .with_unit(Unit::Short)
+    .with_absolute_thresholds(traffic_light_thresholds(20.0, 100.0))
     .with_log_query("has a nonce gap")
 }
 fn get_panel_mempool_transaction_time_spent_until_batched() -> Panel {

@@ -8,7 +8,7 @@ use apollo_l1_events::metrics::{
 };
 
 use crate::dashboard::Row;
-use crate::panel::{Panel, PanelType, Unit};
+use crate::panel::{traffic_light_thresholds, Panel, PanelType, Unit};
 use crate::query_builder::{increase, seconds_since_last_timestamp, DEFAULT_DURATION};
 
 fn get_panel_l1_message_scraper_success_count() -> Panel {
@@ -57,6 +57,7 @@ fn get_panel_l1_message_scraper_seconds_since_last_successful_scrape() -> Panel 
         PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
+    .with_absolute_thresholds(traffic_light_thresholds(30.0, 120.0))
     .with_log_query("BaseLayerError during scraping")
 }
 

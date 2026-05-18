@@ -67,7 +67,7 @@ use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 use apollo_transaction_converter::metrics::CONSENSUS_PROOF_MANAGER_STORE_LATENCY;
 
 use crate::dashboard::Row;
-use crate::panel::{Panel, PanelType, Unit};
+use crate::panel::{traffic_light_thresholds, Panel, PanelType, Unit};
 use crate::query_builder::{
     increase,
     sum_by_label,
@@ -113,10 +113,12 @@ pub(crate) fn get_panel_consensus_block_number_diff_from_sync() -> Panel {
 pub(crate) fn get_panel_consensus_round() -> Panel {
     Panel::new(
         "Consensus Round",
-        "The round the node is currently working on",
+        "The round the node is currently working on. Round 0 is the happy path; persistently \
+         non-zero rounds indicate consensus difficulty (missing proposals, timeouts, divergence).",
         CONSENSUS_ROUND.get_name_with_filter().to_string(),
         PanelType::TimeSeries,
     )
+    .with_absolute_thresholds(traffic_light_thresholds(1.0, 3.0))
     .with_log_query("\"START_ROUND\" OR \"PROPOSAL_FAILED\" OR textPayload=~\"DECISION_REACHED\"")
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
