@@ -230,8 +230,9 @@ pub fn cairo0_format_batch<S: AsRef<str>>(files: HashMap<String, S>) -> HashMap<
     }
 
     // Run cairo-format on all files at once with -i (in-place).
-    let format_script = script_type.script_name();
-    let mut format_command = Command::new(format_script);
+    let mut format_command = script_type
+        .command()
+        .expect("cairo-format must be available after verify_cairo0_compiler_deps");
     format_command.arg("-i");
     for path in &file_paths {
         format_command.arg(path);
@@ -245,7 +246,12 @@ pub fn cairo0_format_batch<S: AsRef<str>>(files: HashMap<String, S>) -> HashMap<
     for (path, original) in file_paths.iter().zip(pre_format_contents.iter()) {
         if std::fs::metadata(path).unwrap().len() == 0 && !original.is_empty() {
             std::fs::write(path, original).unwrap();
-            let output = Command::new(format_script).arg(path).output().unwrap();
+            let output = script_type
+                .command()
+                .expect("cairo-format must be available after verify_cairo0_compiler_deps")
+                .arg(path)
+                .output()
+                .unwrap();
             assert!(
                 output.status.success(),
                 "cairo-format stdout retry failed for {path:?}: {}",

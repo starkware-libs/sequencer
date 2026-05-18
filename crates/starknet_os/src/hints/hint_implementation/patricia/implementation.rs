@@ -38,20 +38,6 @@ use crate::vm_utils::{
     insert_values_to_fields,
 };
 
-pub(crate) fn set_siblings(mut ctx: HintContext<'_>) -> OsHintResult {
-    let descend: &Path = ctx.exec_scopes.get_ref(Scope::Descend.into())?;
-
-    let length: u8 = descend.0.length.into();
-    let path = descend.0.path;
-
-    let siblings = ctx.get_ptr(Ids::Siblings)?;
-
-    ctx.vm.insert_value(siblings, Felt::from(length))?;
-    ctx.insert_value(Ids::Word, Felt::from(&path))?;
-
-    Ok(())
-}
-
 pub(crate) fn is_case_right(ctx: HintContext<'_>) -> OsHintResult {
     let case: DecodeNodeCase = ctx.get_from_scope(Scope::Case)?;
     let bit = ctx.get_integer(Ids::Bit)?;
