@@ -31,22 +31,16 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
     log_comment = extra.get("log_comment", "")
     thresholds = extra.get("thresholds", {})
     legend_values = extra.get("legend_values", [])
-    query_parts = [
-        f"resource.labels.namespace_name=~%22^%28${{namespace:pipe}}%29$%22",
-        quote(log_query),
-    ]
+    extra_parts = []
+    if log_query:
+        extra_parts.append(quote(log_query))
     if log_comment:
-        query_parts.append(quote(log_comment))
-    query_value = "%0A".join(query_parts)
-    # TODO(Ron): Turn link into variable to save space in the json file
-    link = "\n".join(
-        [
-            "https://console.cloud.google.com/logs/query;",
-            f"query={query_value};",
-            "summaryFields=resource%252Flabels%252Fnamespace_name,resource%252Flabels%252Fcontainer_name;",
-            "timeRange=${__from:date:iso}%2F${__to:date:iso}",
-            "?project=${gcp_project}",
-        ]
+        extra_parts.append(quote(log_comment))
+    query_extras = ("%0A" + "%0A".join(extra_parts)) if extra_parts else ""
+    link = (
+        "${gcp_logs_prefix:raw}${namespace:pipe}%29$%22"
+        + query_extras
+        + "${gcp_logs_mid:raw}${__from:date:iso}%2F${__to:date:iso}\n?project=${gcp_project}"
     )
     legends = extra.get("legends", [])
     display_name_override_value = (
@@ -125,7 +119,7 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
 def remove_cluster_and_namespace_from_display_name():
     # One label-set segment that can include quoted values (with escaped chars),
     # so braces inside matcher regex strings do not terminate the segment early.
-    label_set_chunk = r'(?:[^{}"]|"(?:\\.|[^"\\])*")*'
+    label_set_chunk = r'(?:"[^"]*"|[^}])*'
 
     return {
         "id": "renameByRegex",
