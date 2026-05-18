@@ -35,6 +35,8 @@ pub mod log_redact;
 pub mod metrics;
 #[cfg(test)]
 pub mod mock_rpc;
+#[cfg(test)]
+mod overhead_bench;
 pub mod panic;
 pub mod rpc_api;
 pub mod rpc_impl;
