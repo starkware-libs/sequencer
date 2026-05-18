@@ -5,13 +5,12 @@ import urllib.parse
 import urllib.request
 from typing import Optional
 
-from common_lib import NamespaceAndInstructionArgs, RestartStrategy, Service, print_colored
+from common_lib import NamespaceAndInstructionArgs, RestartStrategy, Service
 from restarter_lib import ServiceRestarter
 from update_config_and_restart_nodes_lib import (
     ApolloArgsParserBuilder,
     ConfigValuesUpdater,
     get_configmap,
-    get_current_block_number,
     get_logs_explorer_url,
     parse_config_from_yaml,
     update_config_and_restart_nodes,
@@ -22,7 +21,6 @@ from update_config_and_restart_nodes_lib import (
 def get_logs_explorer_url_for_proposal(
     namespace: str,
     validator_id: str,
-    min_block_number: int,
     project_name: str,
 ) -> str:
     # Remove the 0x prefix from the validator id to get the number.
@@ -31,8 +29,7 @@ def get_logs_explorer_url_for_proposal(
     query = (
         f'resource.labels.namespace_name:"{urllib.parse.quote(namespace)}"\n'
         f'resource.labels.container_name="sequencer-core"\n'
-        f'textPayload =~ "DECISION_REACHED:.*proposer 0x0*{validator_id}"\n'
-        f'CAST(REGEXP_EXTRACT(textPayload, "height: (\\\\d+)"), "INT64") > {min_block_number}'
+        f'textPayload =~ "DECISION_REACHED:.*proposer 0x0*{validator_id}"'
     )
     return get_logs_explorer_url(query, project_name)
 
@@ -61,40 +58,29 @@ class NodeValidatorIdUpdater(ConfigValuesUpdater):
 def main():
     usage_example = """
 Examples:
-  # Restart all nodes at once.
-  %(prog)s --namespace-prefix apollo-sepolia-integration --num-nodes 3 --feeder-url feeder.integration-sepolia.starknet.io --project-name my-gcp-project
-  %(prog)s -n apollo-sepolia-integration -m 3 -f feeder.integration-sepolia.starknet.io --project-name my-gcp-project
-  
-  # Restart nodes with cluster prefix
-  %(prog)s -n apollo-sepolia-integration -m 3 -c my-cluster -f feeder.integration-sepolia.starknet.io --project-name my-gcp-project
-  
-  # Restart nodes starting from specific node index
-  %(prog)s -n apollo-sepolia-integration -m 3 -s 5 -f feeder.integration-sepolia.starknet.io --project-name my-gcp-project
-  
-  # Use different feeder URL
-  %(prog)s -n apollo-sepolia-integration -m 3 -f feeder.integration-sepolia.starknet.io --project-name my-gcp-project
-  
-  # Use namespace list instead of prefix (restart specific namespaces)
-  %(prog)s --namespace-list apollo-sepolia-integration-0 apollo-sepolia-integration-2 -f feeder.integration-sepolia.starknet.io --project-name my-gcp-project
-  %(prog)s -N apollo-sepolia-integration-0 apollo-sepolia-integration-2 -f feeder.integration-sepolia.starknet.io --project-name my-gcp-project
-  
+  # Take all nodes out of observer mode at once.
+  %(prog)s --namespace-prefix apollo-sepolia-integration --num-nodes 3 --project-name my-gcp-project --validator-id-start-from 64
+  %(prog)s -n apollo-sepolia-integration -m 3 --project-name my-gcp-project --validator-id-start-from 64
+
+  # Take nodes out of observer mode with cluster prefix
+  %(prog)s -n apollo-sepolia-integration -m 3 -c my-cluster --project-name my-gcp-project --validator-id-start-from 64
+
+  # Take nodes out of observer mode starting from a specific node index
+  %(prog)s -n apollo-sepolia-integration -m 3 -s 5 --project-name my-gcp-project --validator-id-start-from 64
+
+  # Use namespace list instead of prefix (operate on specific namespaces)
+  %(prog)s --namespace-list apollo-sepolia-integration-0 apollo-sepolia-integration-2 --project-name my-gcp-project --validator-id-start-from 64
+  %(prog)s -N apollo-sepolia-integration-0 apollo-sepolia-integration-2 --project-name my-gcp-project --validator-id-start-from 64
+
   # Use cluster list for multiple clusters (only works with namespace-list, not namespace-prefix)
-  %(prog)s -N apollo-sepolia-integration-0 apollo-sepolia-integration-1 -C cluster1 cluster2 -f feeder.integration-sepolia.starknet.io --project-name my-gcp-project
-  %(prog)s --namespace-list apollo-sepolia-integration-0 apollo-sepolia-integration-1 --cluster-list cluster1 cluster2 -f feeder.integration-sepolia.starknet.io --project-name my-gcp-project
+  %(prog)s -N apollo-sepolia-integration-0 apollo-sepolia-integration-1 -C cluster1 cluster2 --project-name my-gcp-project --validator-id-start-from 64
+  %(prog)s --namespace-list apollo-sepolia-integration-0 apollo-sepolia-integration-1 --cluster-list cluster1 cluster2 --project-name my-gcp-project --validator-id-start-from 64
         """
 
     args_builder = ApolloArgsParserBuilder(
-        "Restart all nodes using the value from the feeder URL",
+        "Take nodes out of observer mode by assigning validator IDs and restarting them",
         usage_example,
         include_restart_strategy=False,
-    )
-
-    args_builder.add_argument(
-        "-f",
-        "--feeder-url",
-        required=True,
-        type=str,
-        help="The feeder URL to get the current block from",
     )
 
     # TODO(guy.f): Remove this when we rely on metrics for restarting.
@@ -113,25 +99,15 @@ Examples:
 
     args = args_builder.build()
 
-    # Get current block number from feeder URL
-    current_block_number = get_current_block_number(args.feeder_url)
-    next_block_number = current_block_number + 1
-
-    print_colored(f"Current block number: {current_block_number}")
-    print_colored(f"Next block number: {next_block_number}")
-
     namespace_list = NamespaceAndInstructionArgs.get_namespace_list_from_args(args)
     context_list = NamespaceAndInstructionArgs.get_context_list_from_args(args)
 
-    # Generate logs explorer URLs if needed
     post_restart_instructions = []
 
     for namespace, context in zip(namespace_list, context_list or [None] * len(namespace_list)):
         url = get_logs_explorer_url_for_proposal(
             namespace,
             get_validator_id(namespace, context),
-            # Feeder could be behind by up to 10 blocks, so we add 10 to the current block number.
-            current_block_number + 10,
             args.project_name,
         )
         post_restart_instructions.append(
