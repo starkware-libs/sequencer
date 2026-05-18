@@ -99,6 +99,7 @@ fn get_panel_l1_gas_price_scraper_baselayer_error_count() -> Panel {
         increase(&L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
+    .with_log_query("\"Base layer error\" OR \"Scraper startup failure\"")
 }
 
 fn get_panel_l1_gas_price_scraper_reorg_detected() -> Panel {
@@ -111,6 +112,7 @@ fn get_panel_l1_gas_price_scraper_reorg_detected() -> Panel {
         increase(&L1_GAS_PRICE_SCRAPER_REORG_DETECTED, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
+    .with_log_query("L1 reorg detected")
 }
 
 fn get_panel_l1_gas_price_scraper_seconds_since_last_successful_scrape() -> Panel {
