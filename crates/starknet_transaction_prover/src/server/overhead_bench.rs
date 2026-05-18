@@ -8,8 +8,9 @@
 //! benchmark cost. The intent is to give an operator a quick way to
 //! reproduce the per-request overhead numbers published in the
 //! observability rollout report (see `observability_report.html`).
-
-#![cfg(test)]
+//!
+//! The module is gated with `#[cfg(test)]` in `server.rs`; no inner
+//! `#![cfg(test)]` here (would trip clippy::duplicated-attributes).
 
 use std::time::Instant;
 
