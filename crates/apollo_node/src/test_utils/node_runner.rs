@@ -34,10 +34,14 @@ fn write_annotated_stdout_line(prefix: &str, line: &str) {
     }
 }
 
-/// Writes a line with a newline to an async file.
-async fn write_file_line(file: &mut File, line: &str) {
-    if let Err(e) = file.write_all(format!("{line}\n").as_bytes()).await {
-        error!("Failed to write to file: {}", e);
+/// Writes a line with a newline to an async file. Clears the file handle on failure so subsequent
+/// calls are no-ops, preventing a panic from writing to a file whose background task has failed.
+async fn write_file_line(file: &mut Option<File>, line: &str) {
+    if let Some(f) = file.as_mut() {
+        if let Err(e) = f.write_all(format!("{line}\n").as_bytes()).await {
+            error!("Failed to write to file: {}", e);
+            *file = None;
+        }
     }
 }
 
@@ -119,8 +123,9 @@ async fn spawn_node_child_process(
     let pipe_task = AbortOnDropHandle::new(tokio::spawn(async move {
         let mut reader = BufReader::new(node_stdout).lines();
         info!("Writing node logs to file: {:?}", node_runner.logs_file_path());
-        let mut file =
-            File::create(node_runner.logs_file_path()).await.expect("Failed to create log file.");
+        let mut file = Some(
+            File::create(node_runner.logs_file_path()).await.expect("Failed to create log file."),
+        );
         while let Some(line) = reader.next_line().await.transpose() {
             match line {
                 Ok(line) => {
