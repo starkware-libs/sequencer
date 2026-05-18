@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779090499606,
+  "lastUpdate": 1779119520804,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4079,6 +4079,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1379.36098547,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ron@starkware.co",
+            "name": "ron-starkware",
+            "username": "ron-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ea38b13a67a279e677e294a7fed0c93751c0805c",
+          "message": "apollo_integration_tests: fix non-interpolating .expect() messages and log typos (#14069)\n\nThe original motivating bug lives in apollo_integration_tests:\n\n    // crates/apollo_integration_tests/src/integration_test_manager.rs\n    .expect(\"Service {service:?} does not exist in the running executables map.\");\n    .expect(\"Node {node_idx} does not exist in idle or running nodes.\");\n\n`.expect()` is an ordinary method on Option/Result that takes a `&str` and\nprints it verbatim on panic — it does not invoke `format_args!`. So named\narguments inside the braces never get substituted:\n\n    Before: thread '...' panicked at 'Service {service:?} does not exist in the running executables map.'\n    After:  thread '...' panicked at 'Service Batcher does not exist in the running executables map.'\n\nThe panic still fires at the right moment for the right reason; only the\ndiagnostic value is lost, which defeats the whole point of embedding the\nvariable. The fix is to wrap the call as `.unwrap_or_else(|| panic!(...))`\n(or `|err| panic!(\"...: {err}\")` on a Result), since `panic!` IS a format\nmacro and the placeholders interpolate normally.\n\nA workspace grep revealed the same anti-pattern in nine more places, plus a\nsmall batch of unrelated typos in user-facing log/panic/assert strings.\nBundling them all here because the common audit \"are all log strings in the\nsequencer correct?\" is what surfaced them.\n\n.expect() placeholder fixes (panic message would have been useless before):\n  - apollo_storage/src/header.rs                                 ({block_number})\n  - apollo_consensus_manager/src/consensus_manager.rs            ({height})\n  - apollo_consensus/src/manager.rs                              (was {self.height} -- field access also invalid in fmt; corrected to local {height})\n  - apollo_storage/src/serialization/serializers_test.rs         (7 sites; one referenced an out-of-scope {casm_file}, corrected to {bin_file_name})\n  - starknet_os/.../state_diff_encryption/utils.rs               ({public_key}, {sn_public_key})\n  - apollo_integration_tests/src/integration_test_manager.rs     ({service:?}, {node_idx})\n  - apollo_batcher/src/batcher.rs                                ({new_latest_height})\n\nPlain typo fixes in log/panic/assert messages:\n  - apollo_integration_tests/src/integration_test_manager.rs     \"succesfully\" -> \"successfully\" (info!)\n  - blockifier/src/execution/entry_point.rs                      \"to to usize\" -> \"to usize\" (log::warn!, duplicate word)\n  - apollo_monitoring_endpoint/src/monitoring_endpoint.rs        \"MointoringEndpoint\" -> \"MonitoringEndpoint\" (panic!)\n  - starknet_patricia/.../filled_tree/tree.rs                    \"a unmodified\" -> \"an unmodified\" (panic!)\n  - apollo_integration_tests/src/flow_test_setup.rs              \"a init message\" -> \"an init message\" (panic!)\n  - apollo_infra_utils/src/path_test.rs                          \"an non-existent\" -> \"a non-existent\" (assert!)\n\nNo behavior change beyond what panic messages display; cargo check --tests\npasses on all touched crates.\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-05-18T15:34:09Z",
+          "tree_id": "0ac9b6207cd245c4f4bc4d43bfbce7cdcdb8c62f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/ea38b13a67a279e677e294a7fed0c93751c0805c"
+        },
+        "date": 1779119520353,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 934.98840735,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1365.46752394,
             "unit": "ms"
           }
         ]
