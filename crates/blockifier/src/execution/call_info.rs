@@ -585,6 +585,17 @@ impl CallInfo {
             .map(move |key| (storage_address, *key))
     }
 
+    /// Contract addresses whose contracts-trie leaf the OS needs to replay this call: the call's
+    /// own `storage_address` (always read at dispatch), the `code_address` of delegate-style calls
+    /// when set (covers the deprecated `delegate_call` target), and any address queried via
+    /// `get_class_hash_at` (mirrored by `storage_access_tracker.accessed_contract_addresses`).
+    /// Inner calls are not traversed — use `CallInfo::iter` to walk the tree.
+    pub fn get_visited_contract_addresses(&self) -> impl Iterator<Item = ContractAddress> + '_ {
+        std::iter::once(self.call.storage_address)
+            .chain(self.call.code_address)
+            .chain(self.storage_access_tracker.accessed_contract_addresses.iter().copied())
+    }
+
     /// Returns a vector of Starknet Event objects collected during the execution, sorted by the
     /// order in which they were emitted.
     pub fn get_sorted_events(&self) -> Vec<Event> {
