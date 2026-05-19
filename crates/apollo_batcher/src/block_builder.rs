@@ -51,8 +51,9 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::rpc_transaction::InternalRpcTransactionWithoutTxHash;
 use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::fields::TransactionSignature;
+use starknet_api::transaction::fields::{ProofFactsVariant, TransactionSignature};
 use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
 use thiserror::Error;
 use tokio::sync::mpsc::error::TrySendError;
@@ -644,6 +645,10 @@ async fn collect_execution_results_and_stream_txs(
                     );
                 assert_eq!(duplicate_tx_hash, None, "Duplicate transaction: {tx_hash}.");
 
+                if let Some(block_number) = proof_facts_block_number(input_tx) {
+                    execution_data.proof_facts_block_numbers.insert(tx_hash, block_number);
+                }
+
                 // Skip sending the pre confirmed executed transactions, receipts and state diffs
                 // during validation flow or if the channel was closed. In validate flow
                 // pre_confirmed_tx_sender is None.
@@ -828,6 +833,10 @@ pub struct BlockTransactionExecutionData {
         IndexMap<TransactionHash, (TransactionExecutionInfo, Option<TransactionSignature>)>,
     pub rejected_tx_hashes: IndexSet<TransactionHash>,
     pub consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
+    /// For each successfully-executed tx with non-empty SNOS proof facts, the block number whose
+    /// hash is read from the block hash table contract during validation. Used by the batcher to
+    /// derive accessed-key entries on `BLOCK_HASH_TABLE_ADDRESS`.
+    pub proof_facts_block_numbers: IndexMap<TransactionHash, BlockNumber>,
 }
 
 impl BlockTransactionExecutionData {
@@ -837,6 +846,7 @@ impl BlockTransactionExecutionData {
             remove_last_map(&mut self.execution_infos_and_signatures, tx_hash);
             remove_last_set(&mut self.rejected_tx_hashes, tx_hash);
             remove_last_set(&mut self.consumed_l1_handler_tx_hashes, tx_hash);
+            remove_last_map(&mut self.proof_facts_block_numbers, tx_hash);
         }
     }
 
@@ -864,6 +874,17 @@ fn remove_last_map<V>(map: &mut IndexMap<TransactionHash, V>, tx_hash: &Transact
 fn remove_last_set(set: &mut IndexSet<TransactionHash>, tx_hash: &TransactionHash) {
     if let Some((idx, _)) = set.swap_remove_full(tx_hash) {
         assert_eq!(idx, set.len(), "The removed txs must be the last ones.");
+    }
+}
+
+/// Returns the block number whose hash is read during validation, if the tx carries non-empty
+/// SNOS proof facts. Other tx variants return `None`.
+fn proof_facts_block_number(tx: &InternalConsensusTransaction) -> Option<BlockNumber> {
+    let InternalConsensusTransaction::RpcTransaction(rpc) = tx else { return None };
+    let InternalRpcTransactionWithoutTxHash::Invoke(invoke) = &rpc.tx else { return None };
+    match ProofFactsVariant::try_from(&invoke.proof_facts) {
+        Ok(ProofFactsVariant::Snos(snos)) => Some(snos.block_number),
+        Ok(ProofFactsVariant::Empty) | Err(_) => None,
     }
 }
 
