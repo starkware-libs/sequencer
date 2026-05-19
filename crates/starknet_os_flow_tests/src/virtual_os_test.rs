@@ -327,63 +327,43 @@ async fn prove_and_verify_keccak_tx() {
 }
 
 /// Proves and verifies a virtual OS run of a single transaction that performs a
-/// multicall through the account contract.
-///
-/// The transaction's `__execute__` calldata forwards to the dummy account's
-/// `multi_call(Array<Call>)` entry point (see `account_with_dummy_validate.cairo`),
-/// which dispatches each inner call via `call_contract_syscall`. The two inner calls
-/// exercise the keccak BUILTIN + keccak SYSCALL (`test_keccak`) and the EC_OP BUILTIN
-/// (`test_ec_op`).
-///
-/// TODO(Yoni): extend this multicall to cover more syscalls/builtins (e.g.
-/// `test_sha256`, `test_secp256k1`, `test_send_message_to_l1`, etc.) once the
-/// known privacy-prove issues around the keccak BUILTIN and the `stwo_no_ecop`
-/// layout are resolved.
-///
-/// To run manually: `cargo +nightly-2025-07-14 test -p starknet_os_flow_tests --features
-/// starknet_transaction_prover/stwo_proving --release
-/// prove_and_verify_multicall_keccak_ec_op_tx -- --ignored --nocapture`
+/// multicall through the account contract. The inner calls can be extended over
+/// time to grow syscall/builtin coverage.
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
-async fn prove_and_verify_multicall_keccak_ec_op_tx() {
+async fn prove_and_verify_multicall_tx() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
     let (mut test_builder, [contract_address]) =
         TestBuilder::create_standard_virtual([(test_contract, calldata![Felt::ONE, Felt::TWO])])
             .await;
 
-    // Inner Array<Call> for `multi_call`, serialized as:
-    //   [num_calls,
-    //    call_0.to, call_0.selector, call_0.calldata_len, *call_0.calldata,
-    //    call_1.to, call_1.selector, call_1.calldata_len, *call_1.calldata]
-    let test_contract_address_felt = *contract_address.0.key();
-    let multi_call_args = [
-        Felt::TWO,
-        test_contract_address_felt,
-        selector_from_name("test_keccak").0,
-        Felt::ZERO,
-        test_contract_address_felt,
-        selector_from_name("test_ec_op").0,
-        Felt::ZERO,
-    ];
+    // Serializes a single `Call` entry as `[to, selector, calldata_len, *calldata]`
+    // for the dummy account's `multi_call(Array<Call>)` entry point. All inner calls
+    // in this test target the same test contract.
+    let serialize_call = |func_name: &str, args: &[Felt]| -> Vec<Felt> {
+        let mut serialized = vec![
+            *contract_address.0.key(),
+            selector_from_name(func_name).0,
+            Felt::from(args.len()),
+        ];
+        serialized.extend_from_slice(args);
+        serialized
+    };
+
+    // TODO(Yoni): add more inner calls (e.g. sha256, secp256k1, send_message_to_l1).
+    let mut multi_call_args = vec![Felt::TWO];
+    multi_call_args.extend(serialize_call("test_keccak", &[]));
+    multi_call_args.extend(serialize_call("test_ec_op", &[]));
 
     // The dummy account's `__execute__(contract_address, selector, calldata)` forwards
     // to its own `multi_call` entry point.
-    let calldata =
-        create_calldata(*FUNDED_ACCOUNT_ADDRESS, "multi_call", &multi_call_args);
+    let calldata = create_calldata(*FUNDED_ACCOUNT_ADDRESS, "multi_call", &multi_call_args);
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
 
-    let test_runner = test_builder.build().await;
-    let output = test_runner.run_virtual().prove().await;
-
-    let proof_facts = output.proof_facts.clone();
-    let proof = output.proof.clone();
-    tokio::task::spawn_blocking(move || {
-        starknet_proof_verifier::verify_proof(proof_facts, proof)
-    })
-    .await
-    .expect("proof verification task panicked")
-    .expect("proof verification should succeed");
+    let output = test_builder.build().await.run_virtual().prove().await;
+    starknet_proof_verifier::verify_proof(output.proof_facts.clone(), output.proof.clone())
+        .expect("proof verification should succeed");
 }
 
 /// Generates proof fixtures for the proof-flow integration test.
