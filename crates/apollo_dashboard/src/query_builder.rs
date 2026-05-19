@@ -32,6 +32,13 @@ pub(crate) fn seconds_since_last_timestamp(metric: &dyn MetricQueryName) -> Stri
     format!("time() - max(last_over_time({}[12h]))", metric.get_name_with_filter())
 }
 
+/// Builds `sum(increase(<metric>[<duration>]))` for aggregating a counter across all instances.
+///
+/// Example: `sum_increase(&m, "1h")` → `sum(increase(my_counter{...}[1h]))`
+pub(crate) fn sum_increase(metric: &dyn MetricQueryName, duration: &str) -> String {
+    format!("sum({})", increase(metric, duration))
+}
+
 /// Returns `sum by (namespace, pod) (<inner>)` where `<inner>` is either
 /// the raw metric query or `increase(<metric>[<duration>])`.
 ///

@@ -2,7 +2,15 @@ use apollo_metrics::metric_definitions::METRIC_LABEL_FILTER;
 use apollo_metrics::metrics::{MetricGauge, MetricScope};
 use rstest::rstest;
 
-use crate::query_builder::{increase, sum_by_label, sum_by_pod, DisplayMethod};
+use crate::query_builder::{increase, sum_by_label, sum_by_pod, sum_increase, DisplayMethod};
+
+#[test]
+fn sum_increase_formats_correctly() {
+    let m = MetricGauge::new(MetricScope::Batcher, "testing", "Fake description");
+    let q = sum_increase(&m, "1h");
+    let expected = format!("sum(increase(testing{METRIC_LABEL_FILTER}[1h]))");
+    assert_eq!(q, expected);
+}
 
 #[test]
 fn increase_formats_correctly() {
