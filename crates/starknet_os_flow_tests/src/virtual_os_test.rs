@@ -274,6 +274,46 @@ async fn test_reverted_tx_os_error() {
         .run_virtual_expect_error("Reverted transactions are not supported in virtual OS mode");
 }
 
+/// Proves and verifies a virtual OS run of a single transaction that performs a
+/// multicall through the account contract. The inner calls can be extended over
+/// time to grow syscall/builtin coverage.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn prove_and_verify_multicall_tx() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+
+    let (mut test_builder, [contract_address]) =
+        TestBuilder::create_standard_virtual([(test_contract, calldata![Felt::ONE, Felt::TWO])])
+            .await;
+
+    // Appends a single `Call` entry to `multi_call_args` as
+    // `[to, selector, calldata_len, *calldata]` and bumps the leading `num_calls`
+    // counter. All inner calls in this test target the same test contract.
+    let mut multi_call_args: Vec<Felt> = vec![Felt::ZERO];
+    let mut serialize_call = |func_name: &str, args: &[Felt]| {
+        multi_call_args[0] += Felt::ONE;
+        multi_call_args.push(*contract_address.0.key());
+        multi_call_args.push(selector_from_name(func_name).0);
+        multi_call_args.push(Felt::from(args.len()));
+        multi_call_args.extend_from_slice(args);
+    };
+
+    // TODO(Yoni): add more inner calls (e.g. sha256, secp256k1, send_message_to_l1).
+    // TODO(Yoni): restore the keccak inner call once the keccak syscall is allowed in
+    // virtual OS mode (added in a follow-up PR stacked on top of this one).
+    // serialize_call("test_keccak", &[]);
+    serialize_call("test_ec_op", &[]);
+
+    // The dummy account's `__execute__(contract_address, selector, calldata)` forwards
+    // to its own `multi_call` entry point.
+    let calldata = create_calldata(*FUNDED_ACCOUNT_ADDRESS, "multi_call", &multi_call_args);
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    let output = test_builder.build().await.run_virtual().prove().await;
+    starknet_proof_verifier::verify_proof(output.proof_facts, output.proof)
+        .expect("proof verification should succeed");
+}
+
 /// Generates proof fixtures for the proof-flow integration test.
 /// To run manually: `cargo +nightly-2025-07-14 test -p starknet_os_flow_tests --features
 /// starknet_transaction_prover/stwo_proving --release generate_proof_fixtures -- --ignored`
