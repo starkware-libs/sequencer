@@ -23,6 +23,12 @@ fn validate(
     tx_index: TxIndex,
     commit_phase: bool,
 ) -> bool {
+    // Skip validation if the scheduler is done and we're not in commit phase. This avoids a race
+    // where finish_abort decreases execution_index after halt() is called, causing the final
+    // execution_index assertion to fail.
+    if !commit_phase && scheduler.done() {
+        return true;
+    }
     let state_proxy = versioned_state.pin_version(tx_index);
     let (reads, writes) = get_reads_writes_for(Task::ValidationTask(tx_index), versioned_state);
     let read_set_valid = state_proxy.validate_reads(&reads).unwrap();
