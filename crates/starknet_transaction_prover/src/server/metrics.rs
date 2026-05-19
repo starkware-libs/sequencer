@@ -1,14 +1,8 @@
-//! Prometheus metrics surface for the prover.
+//! Prometheus `/metrics` endpoint as a tower middleware layer.
 //!
-//! Mirrors the proof-interceptor design: a `/metrics` endpoint exposed on the
-//! same TCP listener as JSON-RPC so a single Datadog agent scrape job picks up
-//! both. Implemented as a tower middleware layer that short-circuits
-//! `GET /metrics` ahead of jsonrpsee, the same way `HealthLayer` handles
-//! `/health`.
-//!
-//! Metric names follow the existing sequencer pattern (snake_case, service
-//! prefix). No labels carry user-controlled or unbounded values; cardinality
-//! is bounded by the small enumerations declared below.
+//! Short-circuits `GET /metrics` ahead of jsonrpsee so scrapes never run
+//! through the JSON-RPC parser. Label cardinality is bounded by the
+//! enumerations in [`names`] — no user-controlled values become labels.
 
 use std::task::{Context, Poll};
 
