@@ -136,13 +136,6 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         }
     }
 
-    /// Disables fee-field validation (resource bounds, tip).
-    #[allow(dead_code)]
-    pub(crate) fn disable_fee_validation(mut self) -> Self {
-        self.validate_zero_fee_fields = false;
-        self
-    }
-
     /// Proves a transaction on top of the specified block.
     ///
     /// This method:
