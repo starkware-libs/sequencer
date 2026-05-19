@@ -8,21 +8,11 @@ pub struct JsonRpcError<T: Serialize> {
     pub data: Option<T>,
 }
 
-// TODO(yair): Remove allow(dead_code) once all errors are used.
-#[allow(dead_code)]
-pub const FAILED_TO_RECEIVE_TRANSACTION: JsonRpcError<String> =
-    JsonRpcError { code: 1, message: "Failed to write transaction", data: None };
-
 pub const CONTRACT_NOT_FOUND: JsonRpcError<String> =
     JsonRpcError { code: 20, message: "Contract not found", data: None };
 
 pub const INVALID_TRANSACTION_HASH: JsonRpcError<String> =
     JsonRpcError { code: 25, message: "Invalid transaction hash", data: None };
-
-// TODO(shahak): Remove allow(dead_code) once all errors are used.
-#[allow(dead_code)]
-pub const INVALID_BLOCK_HASH: JsonRpcError<String> =
-    JsonRpcError { code: 26, message: "Invalid block hash", data: None };
 
 pub const BLOCK_NOT_FOUND: JsonRpcError<String> =
     JsonRpcError { code: 24, message: "Block not found", data: None };
