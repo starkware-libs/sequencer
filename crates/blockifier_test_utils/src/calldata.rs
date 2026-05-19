@@ -37,6 +37,27 @@ pub fn create_calldata(
     )
 }
 
+/// Serializes a sequence of calls as an `Array<Call>` — the standard Cairo 1 account multicall
+/// payload — into a flat `Vec<Felt>` of the form:
+/// [
+///     num_calls,
+///     (contract_address, entry_point_selector, calldata_length, *calldata)*,
+/// ]
+/// This matches `starknet_rust::accounts::ExecutionEncoding::New`, the encoding produced by
+/// `SingleOwnerAccount` in `starknet-rust-accounts`. The result is usable directly as the tx
+/// calldata for accounts whose `__execute__` natively takes `Array<Call>`, or as the inner
+/// `entry_point_args` for an account that forwards to its own `multi_call` entry point.
+pub fn create_multicall_calldata(calls: &[(ContractAddress, &str, &[Felt])]) -> Vec<Felt> {
+    let mut buf = vec![felt!(u64_from_usize(calls.len()))];
+    for (to, entry_point_name, args) in calls {
+        buf.push(*to.0.key());
+        buf.push(selector_from_name(entry_point_name).0);
+        buf.push(felt!(u64_from_usize(args.len())));
+        buf.extend_from_slice(args);
+    }
+    buf
+}
+
 /// Calldata for a trivial entry point in the [`crate::contracts::FeatureContract`] TestContract.
 /// The calldata is formatted for using the featured contracts AccountWithLongValidate or
 /// AccountWithoutValidations as account contract.

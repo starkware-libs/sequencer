@@ -35,7 +35,7 @@ use blockifier::transaction::account_transaction::AccountTransaction as Blockifi
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTx;
 use blockifier::transaction::transactions::ExecutableTransaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use blockifier_test_utils::calldata::create_calldata;
+use blockifier_test_utils::calldata::create_multicall_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use expect_test::{expect, expect_file, Expect};
 use google_cloud_storage::client::{Client, ClientConfig};
@@ -447,15 +447,6 @@ impl BlobFactory {
         TransactionSignature(Arc::new(vec![sig.r, sig.s]))
     }
 
-    fn single_multicall_data(
-        address: ContractAddress,
-        function_name: &str,
-        calldata: &[Felt],
-    ) -> Calldata {
-        let single_calldata = create_calldata(address, function_name, calldata);
-        Calldata(Arc::new([vec![Felt::ONE], single_calldata.0.as_slice().to_vec()].concat()))
-    }
-
     /// If the sender address is None, create a bootstrap declare tx.
     /// Otherwise, create a regular declare tx (with fees).
     fn make_declare_tx(&mut self, contract: FeatureContract, sender: Option<ContractAddress>) {
@@ -603,7 +594,8 @@ impl BlobFactory {
         } else {
             AllResourceBounds::new_unlimited_gas_no_fee_enforcement()
         };
-        let calldata = Self::single_multicall_data(address, function_name, calldata);
+        let calldata =
+            Calldata(create_multicall_calldata(&[(address, function_name, calldata)]).into());
         let rpc_tx_unsigned = InternalRpcInvokeTransactionV3 {
             sender_address: *OPERATOR_ADDRESS,
             calldata,
