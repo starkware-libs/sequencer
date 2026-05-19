@@ -179,10 +179,9 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         block_id: BlockId,
         transaction: RpcTransaction,
     ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
-        // Validate block_id is not pending. Origin-level breadcrumb so the
-        // failing field is visible directly in logs without traversing the
-        // catch-site error chain. Transaction calldata is private per the
-        // privacy-pool threat model — never log it here.
+        // Each validation site emits a structured warn before returning so
+        // the failing field is grep-able directly. Transaction calldata is
+        // private user data — never logged.
         if matches!(block_id, BlockId::Pending) {
             warn!(event = "validation_error", reason = "pending_block_unsupported");
             return Err(VirtualSnosProverError::ValidationError(
@@ -192,8 +191,6 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         }
 
         let invoke_v3 = extract_rpc_invoke_tx(transaction.clone()).inspect_err(|err| {
-            // Capture the rejected transaction *type* but never the
-            // transaction itself.
             warn!(event = "validation_error", reason = "non_invoke_transaction", error = %err);
         })?;
         validate_transaction_input(&invoke_v3, self.validate_zero_fee_fields).inspect_err(|err| {
