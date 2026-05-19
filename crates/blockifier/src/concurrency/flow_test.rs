@@ -93,12 +93,10 @@ fn scheduler_flow_test(
         handle.join().unwrap();
     }
 
-    // The execution index can be strictly greater than chunk_size. This is a side effect of using
-    // atomic variables instead of locks, which can encapsulate both the check (whether to increment
-    // the variable or not) and the incrementation in a scope where no other threads can access the
-    // variable.
-    assert!(scheduler.execution_index.load(Ordering::Acquire) >= DEFAULT_CHUNK_SIZE);
-    // There is no guarantee about the validation index because of the use of the commit index.
+    // No assertion on execution_index: it is a dispatch cursor that both `finish_abort` and
+    // `next_version_to_execute` (on a `Missing` status) decrease via `fetch_min`, so its value at
+    // join time is not a high-water mark. The actually load-bearing invariants are checked below
+    // (commit_index, n_committed_txs, done_marker, per-tx final state).
     assert!(*scheduler.commit_index.lock().unwrap() == DEFAULT_CHUNK_SIZE);
     assert!(scheduler.get_n_committed_txs() == DEFAULT_CHUNK_SIZE);
     assert!(scheduler.done_marker.load(Ordering::Acquire));
