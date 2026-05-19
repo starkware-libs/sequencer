@@ -60,7 +60,7 @@ fn serialize_alert_not_applicable_to_observer_appends_is_observer_filter() {
 
     let serialized = serde_json::to_value(&alert).unwrap();
     // Expr should be wrapped in parentheses for PromQL precedence (`and` binds tighter than `or`).
-    let expected_expr = "(foo or vector(0)) and (is_observer{cluster=~\"$cluster\", \
+    let expected_expr = "(foo or vector(0)) and on() (is_observer{cluster=~\"$cluster\", \
                          namespace=~\"$namespace\"} == 0)";
     assert_eq!(serialized["expr"], expected_expr);
 }
