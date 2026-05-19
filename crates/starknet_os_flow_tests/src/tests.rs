@@ -3,7 +3,7 @@ use std::sync::{Arc, LazyLock};
 
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
-use blockifier::blockifier_versioned_constants::{OsResources, VersionedConstants};
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::execution::call_info::OpcodeName;
 use blockifier::test_utils::contracts::{get_class_info_of_cairo0_contract, FeatureContractTrait};
 use blockifier::test_utils::dict_state_reader::DictStateReader;
@@ -13,8 +13,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::{cairo0_proven_revert_scenario_calldata, create_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use expect_test::expect;
+use expect_test::{expect, expect_file};
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice};
@@ -94,7 +93,8 @@ use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
 
 use crate::os_resources::{
-    compare_os_resources,
+    execute_syscalls_as_json,
+    execute_txs_inner_as_json,
     extract_execute_syscalls_resources,
     extract_execute_txs_inner_resources,
 };
@@ -3120,11 +3120,15 @@ async fn test_os_resources() {
     ];
     let actual_txs = extract_execute_txs_inner_resources(&tx_measurements);
 
-    let actual = OsResources {
-        execute_syscalls: actual_syscalls,
-        execute_txs_inner: actual_txs,
-        compute_os_kzg_commitment_info: ExecutionResources::default(),
-    };
-    let expected = VersionedConstants::latest_constants().os_resources.as_ref().clone();
-    compare_os_resources(&actual, &expected);
+    // Read the latest versioned constants, replace the measured sections, and compare.
+    // Run with UPDATE_EXPECT=1 to auto-update the constants file.
+    let constants_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../blockifier/resources/blockifier_versioned_constants_0_14_3.json");
+    let mut file_json: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&constants_path).unwrap()).unwrap();
+    file_json["os_resources"]["execute_syscalls"] = execute_syscalls_as_json(&actual_syscalls);
+    file_json["os_resources"]["execute_txs_inner"] = execute_txs_inner_as_json(&actual_txs);
+    let updated_json = serde_json::to_string_pretty(&file_json).unwrap() + "\n";
+    expect_file!["../../blockifier/resources/blockifier_versioned_constants_0_14_3.json"]
+        .assert_eq(&updated_json);
 }

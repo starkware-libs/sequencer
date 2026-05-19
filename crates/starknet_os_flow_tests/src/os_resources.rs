@@ -388,3 +388,67 @@ fn add_resources(lhs: &ExecutionResources, rhs: &ExecutionResources) -> Executio
     }
     result
 }
+
+/// Serializes the `execute_syscalls` map to the JSON format used in the versioned constants file.
+/// Each syscall entry is just its `ExecutionResources` (no calldata factor in syscalls).
+pub(crate) fn execute_syscalls_as_json(
+    execute_syscalls: &HashMap<DeprecatedSyscallSelector, ResourcesParams>,
+) -> serde_json::Value {
+    execute_syscalls
+        .iter()
+        .map(|(selector, params)| {
+            let key = serde_json::to_value(selector)
+                .expect("SyscallSelector serialization failed")
+                .as_str()
+                .expect("SyscallSelector must serialize to a string")
+                .to_string();
+            let value = serde_json::to_value(&params.constant)
+                .expect("ExecutionResources serialization failed");
+            (key, value)
+        })
+        .collect::<serde_json::Map<_, _>>()
+        .into()
+}
+
+/// Serializes the `execute_txs_inner` map to the JSON format used in the versioned constants file.
+/// Entries with a default calldata factor are serialized as bare `ExecutionResources`;
+/// entries with a non-default factor are serialized as `{ "constant": ..., "calldata_factor": ... }`.
+pub(crate) fn execute_txs_inner_as_json(
+    execute_txs_inner: &HashMap<TransactionType, ResourcesParams>,
+) -> serde_json::Value {
+    execute_txs_inner
+        .iter()
+        .map(|(tx_type, params)| {
+            let key = serde_json::to_value(tx_type)
+                .expect("TransactionType serialization failed")
+                .as_str()
+                .expect("TransactionType must serialize to a string")
+                .to_string();
+            (key, resources_params_to_json(params))
+        })
+        .collect::<serde_json::Map<_, _>>()
+        .into()
+}
+
+fn resources_params_to_json(params: &ResourcesParams) -> serde_json::Value {
+    if params.calldata_factor == VariableCallDataFactor::default() {
+        serde_json::to_value(&params.constant).expect("ExecutionResources serialization failed")
+    } else {
+        serde_json::json!({
+            "constant": serde_json::to_value(&params.constant).unwrap(),
+            "calldata_factor": variable_calldata_factor_to_json(&params.calldata_factor),
+        })
+    }
+}
+
+fn variable_calldata_factor_to_json(factor: &VariableCallDataFactor) -> serde_json::Value {
+    match factor {
+        VariableCallDataFactor::Scaled(cf) => serde_json::json!({
+            "resources": serde_json::to_value(&cf.resources).unwrap(),
+            "scaling_factor": cf.scaling_factor,
+        }),
+        VariableCallDataFactor::Unscaled(resources) => {
+            serde_json::to_value(resources).unwrap()
+        }
+    }
+}
