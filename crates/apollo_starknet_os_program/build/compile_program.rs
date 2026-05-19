@@ -52,6 +52,12 @@ pub async fn compile_test_contracts(out_dir: PathBuf) {
         "builtin_offset_increase_test",
         None,
     ));
+    task_set.spawn(compile_and_output_program(
+        out_dir.clone(),
+        "starkware/starknet/core/os/qm31_blake.cairo",
+        "qm31_blake",
+        None,
+    ));
     task_set.join_all().await;
 }
 

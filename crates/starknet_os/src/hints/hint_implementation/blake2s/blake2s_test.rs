@@ -17,9 +17,12 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use circuits::blake::blake_qm31;
+use circuits::ivalue::qm31_from_u32s;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Blake2Felt252;
+use stwo::core::fields::qm31::QM31;
 
 use crate::hints::hint_implementation::state_diff_encryption::utils::calc_blake_hash;
 use crate::test_utils::cairo_runner::{
@@ -222,4 +225,73 @@ fn test_calc_naive_blake_hash(#[case] test_data: Vec<Felt>) {
         panic!("Expected a single felt return value");
     };
     assert_eq!(calc_blake_hash(&test_data), *cairo_hash);
+}
+
+/// Wraps `circuits::blake::blake_qm31` for the `n_bytes = len * 16` path used by the recursive
+/// circuit verifier. Takes a flat slice of M31 limbs (4 per QM31) and returns the 8-limb digest.
+fn blake_qm31_reference(m31_limbs: &[u32]) -> [u32; 8] {
+    assert!(
+        m31_limbs.len().is_multiple_of(4),
+        "input must be a whole number of QM31s (4 M31 limbs each)",
+    );
+    let qm31s: Vec<QM31> = m31_limbs
+        .chunks_exact(4)
+        .map(|chunk| qm31_from_u32s(chunk[0], chunk[1], chunk[2], chunk[3]))
+        .collect();
+    let hash = blake_qm31(&qm31s, qm31s.len() * 16);
+    [
+        hash.0.0.0.0,
+        hash.0.0.1.0,
+        hash.0.1.0.0,
+        hash.0.1.1.0,
+        hash.1.0.0.0,
+        hash.1.0.1.0,
+        hash.1.1.0.0,
+        hash.1.1.1.0,
+    ]
+}
+
+/// Test that the Cairo0 `qm31_blake` PoC matches `circuits::blake::blake_qm31`.
+#[rstest]
+#[case::one_qm31(vec![1, 2, 3, 4])]
+#[case::two_qm31(vec![1, 2, 3, 4, 5, 6, 7, 8])]
+#[case::four_qm31_zeroed(vec![0; 16])]
+#[case::five_qm31(vec![17, 0, 0, 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 2, 3, 4])]
+#[case::max_m31_limbs(vec![0x7FFF_FFFE; 8])]
+fn test_qm31_blake_parity(#[case] m31_limbs: Vec<u32>) {
+    let runner_config = EntryPointRunnerConfig {
+        layout: LayoutName::all_cairo,
+        trace_enabled: false,
+        verify_secure: false,
+        proof_mode: false,
+        add_main_prefix_to_entrypoint: false,
+        validate_builtins_offset: true,
+    };
+
+    let n_qm31 = m31_limbs.len() / 4;
+    let data: Vec<MaybeRelocatable> =
+        m31_limbs.iter().map(|limb| MaybeRelocatable::Int(Felt::from(*limb))).collect();
+
+    let (_, return_values, _) = initialize_and_run_cairo_0_entry_point(
+        &runner_config,
+        apollo_starknet_os_program::test_programs::QM31_BLAKE_BYTES,
+        "__main__.qm31_blake",
+        &[EndpointArg::from(Felt::from(n_qm31)), EndpointArg::Pointer(PointerArg::Array(data))],
+        &[ImplicitArg::Builtin(BuiltinName::range_check)],
+        &vec![EndpointArg::from(Felt::ZERO); 8],
+        HashMap::new(),
+        None,
+    )
+    .unwrap();
+
+    let cairo_output: [u32; 8] = std::array::from_fn(|i| {
+        let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(felt))) = &return_values[i]
+        else {
+            panic!("Expected eight felt return values; entry {i} is not a felt");
+        };
+        u32::try_from(*felt).expect("output limb must fit in u32")
+    });
+
+    let expected = blake_qm31_reference(&m31_limbs);
+    assert_eq!(cairo_output, expected);
 }

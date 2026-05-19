@@ -76,6 +76,7 @@ assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 cairo-lang-utils.workspace = true
+circuits.workspace = true
 ethnum.workspace = true
 expect-test.workspace = true
 itertools.workspace = true
@@ -83,6 +84,7 @@ num-bigint = { workspace = true, features = ["rand"] }
 rstest.workspace = true
 starknet_committer.workspace = true
 starknet_patricia = { workspace = true, features = ["testing"] }
+stwo.workspace = true
 tempfile.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 
