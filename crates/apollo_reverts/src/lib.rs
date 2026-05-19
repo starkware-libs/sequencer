@@ -13,7 +13,7 @@ use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 #[cfg(feature = "os_input")]
-use apollo_storage::tx_execution_info::TxExecutionInfoStorageWriter;
+use apollo_storage::accessed_keys::AccessedKeysStorageWriter;
 use apollo_storage::StorageWriter;
 use futures::future::pending;
 use futures::never::Never;
@@ -149,7 +149,7 @@ pub fn revert_block(storage_writer: &mut StorageWriter, target_block_marker: Blo
         .unwrap();
 
     #[cfg(feature = "os_input")]
-    let txn = txn.revert_tx_execution_infos(target_block_marker).unwrap();
+    let txn = txn.revert_accessed_keys(target_block_marker).unwrap();
 
     txn.commit().unwrap();
 }

@@ -1567,7 +1567,7 @@ async fn decision_reached() {
     #[cfg(feature = "os_input")]
     mock_dependencies
         .storage_writer
-        .expect_write_tx_execution_infos()
+        .expect_write_accessed_keys()
         .times(1)
         .returning(|_, _| Ok(()));
 
@@ -1643,7 +1643,7 @@ async fn test_execution_info_order_is_kept() {
     #[cfg(feature = "os_input")]
     mock_dependencies
         .storage_writer
-        .expect_write_tx_execution_infos()
+        .expect_write_accessed_keys()
         .times(1)
         .returning(|_, _| Ok(()));
 
@@ -1747,7 +1747,7 @@ async fn decision_reached_return_success_when_l1_commit_block_fails(
     #[cfg(feature = "os_input")]
     mock_dependencies
         .storage_writer
-        .expect_write_tx_execution_infos()
+        .expect_write_accessed_keys()
         .times(1)
         .returning(|_, _| Ok(()));
 
@@ -1994,7 +1994,7 @@ async fn validation_only_decision_reached_skips_mempool_notification() {
     mock_deps.clients.l1_provider_client.expect_commit_block().times(1).returning(|_, _, _| Ok(()));
     mock_deps.storage_writer.expect_commit_proposal().returning(|_, _, _| Ok(()));
     #[cfg(feature = "os_input")]
-    mock_deps.storage_writer.expect_write_tx_execution_infos().times(1).returning(|_, _| Ok(()));
+    mock_deps.storage_writer.expect_write_accessed_keys().times(1).returning(|_, _| Ok(()));
 
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
     mock_create_builder_for_validate_block(

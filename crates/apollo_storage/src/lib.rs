@@ -91,7 +91,7 @@ pub mod metrics;
 pub mod partial_block_hash;
 pub mod storage_metrics;
 #[cfg(feature = "os_input")]
-pub mod tx_execution_info;
+pub mod accessed_keys;
 // TODO(yair): Make the compression_utils module pub(crate) or extract it from the crate.
 #[doc(hidden)]
 pub mod compression_utils;
@@ -190,7 +190,7 @@ use crate::storage_reader_server::{
     StorageReaderServerHandler,
 };
 #[cfg(feature = "os_input")]
-use crate::tx_execution_info::TxExecutionInfos;
+use crate::accessed_keys::AccessedKeys;
 use crate::version::{VersionStorageReader, VersionStorageWriter};
 
 // For more details on the storage version, see the module documentation.
@@ -279,7 +279,7 @@ fn open_storage_internal(
         stateless_compiled_class_hash_v2: db_writer
             .create_simple_table("stateless_compiled_class_hash_v2")?,
         #[cfg(feature = "os_input")]
-        tx_execution_infos: db_writer.create_simple_table("tx_execution_infos")?,
+        accessed_keys: db_writer.create_simple_table("accessed_keys")?,
     });
     let (file_writers, file_readers) = open_storage_files(
         &storage_config.db_config,
@@ -716,7 +716,7 @@ struct_field_names! {
         stateless_compiled_class_hash_v2: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>,
 
         #[cfg(feature = "os_input")]
-        tx_execution_infos: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>
+        accessed_keys: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>
     }
 }
 
@@ -883,7 +883,7 @@ struct FileHandlers<Mode: TransactionKind> {
     transaction: FileHandler<VersionZeroWrapper<Transaction>, Mode>,
     events: FileHandler<VersionZeroWrapper<Vec<Event>>, Mode>,
     #[cfg(feature = "os_input")]
-    tx_execution_infos: FileHandler<VersionZeroWrapper<TxExecutionInfos>, Mode>,
+    accessed_keys: FileHandler<VersionZeroWrapper<AccessedKeys>, Mode>,
 }
 
 impl FileHandlers<RW> {
@@ -927,8 +927,8 @@ impl FileHandlers<RW> {
     }
 
     #[cfg(feature = "os_input")]
-    fn append_tx_execution_infos(&self, tx_execution_infos: &TxExecutionInfos) -> LocationInFile {
-        self.clone().tx_execution_infos.append(tx_execution_infos)
+    fn append_accessed_keys(&self, accessed_keys: &AccessedKeys) -> LocationInFile {
+        self.clone().accessed_keys.append(accessed_keys)
     }
 
     // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.
@@ -943,7 +943,7 @@ impl FileHandlers<RW> {
         self.transaction.flush();
         self.events.flush();
         #[cfg(feature = "os_input")]
-        self.tx_execution_infos.flush();
+        self.accessed_keys.flush();
     }
 }
 
@@ -959,7 +959,7 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             ("transaction".to_string(), self.transaction.stats()),
             ("events".to_string(), self.events.stats()),
             #[cfg(feature = "os_input")]
-            ("tx_execution_infos".to_string(), self.tx_execution_infos.stats()),
+            ("accessed_keys".to_string(), self.accessed_keys.stats()),
         ])
     }
 
@@ -1027,14 +1027,13 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
     }
 
     #[cfg(feature = "os_input")]
-    // Returns the transaction execution infos at the given location or an error in case they don't
-    // exist.
-    pub(crate) fn get_tx_execution_infos_unchecked(
+    // Returns the accessed-key set at the given location or an error in case it doesn't exist.
+    pub(crate) fn get_accessed_keys_unchecked(
         &self,
         location: LocationInFile,
-    ) -> StorageResult<TxExecutionInfos> {
-        self.tx_execution_infos.get(location)?.ok_or(StorageError::DBInconsistency {
-            msg: format!("TxExecutionInfos at location {location:?} not found."),
+    ) -> StorageResult<AccessedKeys> {
+        self.accessed_keys.get(location)?.ok_or(StorageError::DBInconsistency {
+            msg: format!("AccessedKeys at location {location:?} not found."),
         })
     }
 }
@@ -1074,8 +1073,8 @@ fn open_storage_files(
     let (transaction_writer, transaction_reader) = open_storage_file!("transaction", Transaction)?;
     let (events_writer, events_reader) = open_storage_file!("events", Events)?;
     #[cfg(feature = "os_input")]
-    let (tx_execution_infos_writer, tx_execution_infos_reader) =
-        open_storage_file!("tx_execution_infos", TxExecutionInfo)?;
+    let (accessed_keys_writer, accessed_keys_reader) =
+        open_storage_file!("accessed_keys", AccessedKeys)?;
 
     Ok((
         FileHandlers {
@@ -1087,7 +1086,7 @@ fn open_storage_files(
             transaction: transaction_writer,
             events: events_writer,
             #[cfg(feature = "os_input")]
-            tx_execution_infos: tx_execution_infos_writer,
+            accessed_keys: accessed_keys_writer,
         },
         FileHandlers {
             thin_state_diff: thin_state_diff_reader,
@@ -1098,7 +1097,7 @@ fn open_storage_files(
             transaction: transaction_reader,
             events: events_reader,
             #[cfg(feature = "os_input")]
-            tx_execution_infos: tx_execution_infos_reader,
+            accessed_keys: accessed_keys_reader,
         },
     ))
 }
@@ -1120,7 +1119,7 @@ pub enum OffsetKind {
     Transaction,
     /// An events file.
     Events,
-    /// A tx execution info file.
+    /// An accessed-keys file.
     #[cfg(feature = "os_input")]
-    TxExecutionInfo,
+    AccessedKeys,
 }
