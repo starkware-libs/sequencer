@@ -81,11 +81,11 @@ pub trait ResourceFinalizer {
 
 #[cfg_attr(any(test, feature = "testing"), derive(serde::Serialize, Debug, Clone))]
 pub struct SyscallTrace {
-    selector: SyscallSelector,
-    is_deprecated: bool,
-    tab_count: usize,
-    inner_syscalls: Vec<SyscallTrace>,
-    resources: Option<ExecutionResources>,
+    pub selector: SyscallSelector,
+    pub is_deprecated: bool,
+    pub tab_count: usize,
+    pub inner_syscalls: Vec<SyscallTrace>,
+    pub resources: Option<ExecutionResources>,
 }
 
 impl SyscallTrace {
@@ -142,10 +142,10 @@ impl TryFrom<&SyscallTrace> for String {
 
 #[cfg_attr(any(test, feature = "testing"), derive(serde::Serialize, Debug, Clone))]
 pub struct OsTransactionTrace {
-    tx_type: TransactionType,
-    tx_hash: TransactionHash,
-    syscalls: Vec<SyscallTrace>,
-    resources: Option<ExecutionResources>,
+    pub tx_type: TransactionType,
+    pub tx_hash: TransactionHash,
+    pub syscalls: Vec<SyscallTrace>,
+    pub resources: Option<ExecutionResources>,
 }
 
 impl OsTransactionTrace {

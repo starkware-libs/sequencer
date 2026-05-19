@@ -574,12 +574,12 @@ pub struct OsResources {
     // steps).
     // TODO(Arni, 14/6/2023): Update `GetBlockHash` values.
     // TODO(ilya): Consider moving the resources of a keccak round to a separate dict.
-    execute_syscalls: HashMap<SyscallSelector, ResourcesParams>,
+    pub execute_syscalls: HashMap<SyscallSelector, ResourcesParams>,
     // Mapping from every transaction to its extra execution resources in the OS,
     // i.e., resources that don't count during the execution itself.
     // For each transaction the OS uses a constant amount of VM resources, and an
     // additional variable amount that depends on the calldata length.
-    execute_txs_inner: HashMap<TransactionType, ResourcesParams>,
+    pub execute_txs_inner: HashMap<TransactionType, ResourcesParams>,
 
     // Resources needed for the OS to compute the KZG commitment info, as a factor of the data
     // segment length. Does not include poseidon_hash_many cost.
