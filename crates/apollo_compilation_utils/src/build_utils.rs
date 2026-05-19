@@ -3,7 +3,7 @@ use std::process::Command;
 
 use tempfile::TempDir;
 
-use crate::paths::{binary_path, shared_folder_dir};
+use crate::paths::{legacy_binary_path, shared_folder_dir};
 
 pub fn install_compiler_binary(
     binary_name: &str,
@@ -11,7 +11,7 @@ pub fn install_compiler_binary(
     cargo_install_args: &[&str],
     out_dir: &std::path::Path,
 ) {
-    let binary_path = binary_path(out_dir, binary_name);
+    let binary_path = legacy_binary_path(out_dir, binary_name);
     match Command::new(&binary_path).args(["--version"]).output() {
         Ok(binary_version) => {
             let binary_version = String::from_utf8(binary_version.stdout)

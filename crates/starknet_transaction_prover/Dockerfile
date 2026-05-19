@@ -136,6 +136,12 @@ RUN BUILD_FLAGS=$([ "$BUILD_MODE" = "release" ] && echo "--release" || true); \
         cargo build $BUILD_FLAGS -p starknet_transaction_prover --features stwo_proving; \
     fi
 
+# Install compiler binary used for Sierra to CASM compilation at runtime.
+# Binary lands under $CARGO_TOOLS_ROOT/<binary>-<version>/bin/<binary>; the
+# final stage below COPYs the entire $CARGO_TOOLS_ROOT tree so this layout is
+# preserved at runtime.
+RUN scripts/install_compiler_binaries.sh --sierra
+
 # =============================================================================
 # Stage 4: Final runtime image
 # =============================================================================
@@ -158,8 +164,10 @@ COPY --from=builder /app/target/${BUILD_MODE}/starknet_transaction_prover ./targ
 # Copy resources needed by the service.
 COPY --from=builder /app/crates/starknet_transaction_prover/resources ./crates/starknet_transaction_prover/resources
 
-# Copy starknet-sierra-compile binary required for Sierra to Casm compilation.
-COPY --from=builder /app/target/${BUILD_MODE}/shared_executables/starknet-sierra-compile ./target/${BUILD_MODE}/shared_executables/starknet-sierra-compile
+# Per-version Sierra-to-CASM compiler binary; its absolute path is constructed
+# from $CARGO_TOOLS_ROOT at runtime.
+ENV CARGO_TOOLS_ROOT=/opt/cargo-tools
+COPY --from=builder /var/tmp/rust/tools ${CARGO_TOOLS_ROOT}
 
 # Copy tini for proper init handling.
 COPY --from=builder /usr/bin/tini /usr/bin/tini

@@ -37,6 +37,12 @@ RUN BUILD_FLAGS=""; \
     fi; \
     cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native
 
+# Install compiler binaries used for Sierra compilation at runtime.
+# Binaries land under $CARGO_TOOLS_ROOT/<binary>-<version>/bin/<binary>; the
+# final stage below COPYs the entire $CARGO_TOOLS_ROOT tree so this layout is
+# preserved at runtime.
+RUN scripts/install_compiler_binaries.sh
+
 
 FROM ubuntu:24.04 AS final_stage
 
@@ -55,8 +61,10 @@ RUN if [ "$BUILD_MODE" = "profiling" ]; then \
 ENV ID=1001
 WORKDIR /app
 COPY --from=builder /app/target/${BUILD_MODE}/apollo_node ./target/${BUILD_MODE}/apollo_node
-COPY --from=builder /app/target/${BUILD_MODE}/shared_executables/starknet-sierra-compile ./target/${BUILD_MODE}/shared_executables/starknet-sierra-compile
-COPY --from=builder /app/target/${BUILD_MODE}/shared_executables/starknet-native-compile ./target/${BUILD_MODE}/shared_executables/starknet-native-compile
+# Per-version compiler binaries; their absolute path is constructed from
+# $CARGO_TOOLS_ROOT at runtime.
+ENV CARGO_TOOLS_ROOT=/opt/cargo-tools
+COPY --from=builder /var/tmp/rust/tools ${CARGO_TOOLS_ROOT}
 COPY --from=builder /usr/bin/tini /usr/bin/tini
 
 # Copy apollo config schema, used when it loads its configuration.
