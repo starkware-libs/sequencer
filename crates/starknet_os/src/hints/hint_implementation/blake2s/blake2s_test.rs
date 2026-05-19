@@ -79,6 +79,72 @@ fn cairo_encode_felt252_data_and_calc_blake_hash(input: &[Felt]) -> (Felt, Execu
     (*cairo_hash_felt, cairo_runner.get_execution_resources().unwrap().filter_unused_builtins())
 }
 
+fn cairo_encode_felt252_data_and_calc_blake_hash_steps(input: &[Felt]) -> usize {
+    cairo_encode_felt252_data_and_calc_blake_hash(input).1.n_steps
+}
+
+/// Asserts the estimated constants correspond to empiric measurements.
+/// The [CasmV2HashResourceEstimate::STEPS_PER_2_U32_REMINDER] constant is not computed here as
+/// there is a linear dependency between constants. Specifically, if we denote:
+/// * R=STEPS_PER_2_U32_REMINDER
+/// * S=STEPS_PER_SMALL_FELT
+/// * L=STEPS_PER_LARGE_FELT
+/// * D=STEPS_DISCOUNT_PER_FULL_MSG
+/// Then, for any X, if we shift (R, S, L, D) -> (R+X,S-X,L-4X,D-8X), all measurements will produce
+/// the same results.
+#[rstest]
+fn test_blake_step_constants() {
+    let large_felt = Blake2Felt252::SMALL_THRESHOLD;
+    let small_felt = Blake2Felt252::SMALL_THRESHOLD - Felt::ONE;
+    const LARGE_FELTS_PER_MESSAGE: usize = CasmV2HashResourceEstimate::U32_WORDS_PER_MESSAGE
+        / CasmV2HashResourceEstimate::U32_WORDS_PER_LARGE_FELT;
+
+    // Test empty input.
+    let steps_empty = cairo_encode_felt252_data_and_calc_blake_hash_steps(&[]);
+    assert_eq!(steps_empty, CasmV2HashResourceEstimate::STEPS_EMPTY_INPUT);
+
+    // Small felt overhead (assuming the remainder).
+    let one_small_felt_cost = cairo_encode_felt252_data_and_calc_blake_hash_steps(&[small_felt]);
+    let two_small_felts_cost =
+        cairo_encode_felt252_data_and_calc_blake_hash_steps(&[small_felt; 2]);
+    let small_felt_overhead = two_small_felts_cost
+        - one_small_felt_cost
+        - CasmV2HashResourceEstimate::STEPS_PER_2_U32_REMINDER;
+    assert_eq!(small_felt_overhead, CasmV2HashResourceEstimate::STEPS_PER_SMALL_FELT);
+
+    // Base cost for partial message.
+    let base_partial_message_cost = one_small_felt_cost
+        - small_felt_overhead
+        - (CasmV2HashResourceEstimate::STEPS_PER_2_U32_REMINDER
+            * CasmV2HashResourceEstimate::U32_WORDS_PER_SMALL_FELT
+            / 2);
+    assert_eq!(base_partial_message_cost, CasmV2HashResourceEstimate::BASE_STEPS_PARTIAL_MSG);
+
+    // Large felt overhead.
+    let one_large_felt_cost = cairo_encode_felt252_data_and_calc_blake_hash_steps(&[large_felt]);
+    let large_felt_overhead = one_large_felt_cost
+        - base_partial_message_cost
+        - (CasmV2HashResourceEstimate::STEPS_PER_2_U32_REMINDER
+            * CasmV2HashResourceEstimate::U32_WORDS_PER_LARGE_FELT
+            / 2);
+    assert_eq!(large_felt_overhead, CasmV2HashResourceEstimate::STEPS_PER_LARGE_FELT);
+
+    // Discount per full message.
+    let full_message_large_felts_cost =
+        cairo_encode_felt252_data_and_calc_blake_hash_steps(&[large_felt; LARGE_FELTS_PER_MESSAGE]);
+    let two_full_messages_large_felts_cost = cairo_encode_felt252_data_and_calc_blake_hash_steps(
+        &[large_felt; LARGE_FELTS_PER_MESSAGE * 2],
+    );
+    let discount_per_full_message = 2 * large_felt_overhead
+        - (two_full_messages_large_felts_cost - full_message_large_felts_cost);
+    assert_eq!(discount_per_full_message, CasmV2HashResourceEstimate::STEPS_DISCOUNT_PER_FULL_MSG);
+
+    // Base cost for input aligned to full messages.
+    let base_full_message_cost =
+        full_message_large_felts_cost - 2 * large_felt_overhead + discount_per_full_message;
+    assert_eq!(base_full_message_cost, CasmV2HashResourceEstimate::BASE_STEPS_FULL_MSG);
+}
+
 /// Test that compares Cairo and Rust implementations of
 /// encode_felt252_data_and_calc_blake_hash.
 #[rstest]
