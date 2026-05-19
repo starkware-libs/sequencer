@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::state::StorageKey;
@@ -6,7 +6,7 @@ use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
-use super::cached_state::{CachedState, StateMaps};
+use super::cached_state::{CachedState, StateMaps, StorageEntry};
 use super::errors::StateError;
 use super::state_api::{State, StateReader, StateResult};
 
@@ -77,6 +77,31 @@ pub fn allocate_aliases_in_storage<S: StateReader>(
     }
 
     alias_updater.finalize_updates()
+}
+
+/// Predicts the storage entries on the alias contract that `allocate_aliases_in_storage` will
+/// read (and may write) for the given `state_diff`, without running the allocation. Mirrors the
+/// access pattern of `AliasUpdater::new` (counter read) plus each `AliasUpdater::insert_alias`
+/// call (one read per qualifying key).
+pub fn predicted_alias_storage_entries(
+    state_diff: &StateMaps,
+    alias_contract_address: ContractAddress,
+) -> HashSet<StorageEntry> {
+    let mut entries = HashSet::new();
+    entries.insert((alias_contract_address, ALIAS_COUNTER_STORAGE_KEY));
+    for address in state_diff.get_contract_addresses() {
+        if address.0 >= MIN_VALUE_FOR_ALIAS_ALLOC {
+            entries.insert((alias_contract_address, StorageKey(address.0)));
+        }
+    }
+    for (address, storage_key) in state_diff.storage.keys() {
+        if address > &MAX_NON_COMPRESSED_CONTRACT_ADDRESS
+            && storage_key.0 >= MIN_VALUE_FOR_ALIAS_ALLOC
+        {
+            entries.insert((alias_contract_address, *storage_key));
+        }
+    }
+    entries
 }
 
 /// Updates the alias contract with the new keys.
