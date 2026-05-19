@@ -1,7 +1,7 @@
 // Contract for measuring per-syscall OS resource costs. Calls each measured syscall exactly once
-// (secp256k1_new and secp256r1_new are called twice each: once explicitly, once via a second
-// explicit call to match the expected count used in os_resources extraction).
-// Designed to be deployed at address 100, with an EmptyAccount at address 101.
+// (secp256k1_new and secp256r1_new are called twice each explicitly).
+// Uses get_contract_address() for self-referencing calls so the contract can be deployed at any
+// address by the test infrastructure.
 #[starknet::contract(account)]
 mod OsResourcesTestContract {
     use array::ArrayTrait;
@@ -9,7 +9,6 @@ mod OsResourcesTestContract {
     use core::sha256::{SHA256_INITIAL_STATE, sha256_state_handle_init};
     use option::OptionTrait;
     use starknet::info::SyscallResultTrait;
-    use starknet::secp256_trait::Secp256Trait;
     use starknet::secp256k1::{
         Secp256k1Point, secp256k1_add_syscall, secp256k1_get_point_from_x_syscall,
         secp256k1_get_xy_syscall, secp256k1_mul_syscall, secp256k1_new_syscall,
@@ -29,13 +28,9 @@ mod OsResourcesTestContract {
     };
     use starknet::{ClassHash, ContractAddress};
 
-    // Deployed address of this contract.
-    const SELF_ADDRESS: felt252 = 100;
     // Selector for the empty_function entry point of this contract.
     const EMPTY_FUNCTION_SELECTOR: felt252
         = 0x227AC0F3CE8083231605CB10BE915BE2004456B618E44B56067E27FC6F8C84F;
-    // Selector for __execute__.
-    const EXECUTE_FUNCTION_SELECTOR: felt252 = selector!("__execute__");
 
     // Large scalar used for secp256k1_mul and secp256r1_mul; kept < curve order for validity.
     const MULT_CONSTANT: u256
@@ -52,6 +47,9 @@ mod OsResourcesTestContract {
         = 36259703446750261746963965979921905598426482711143882545997285073084044643087;
     const Y_FOR_R: u256
         = 99074502569356486940077471307887399820854676440660107539358273498981469249968;
+
+    // An arbitrary L1 address used as the destination for send_message_to_l1.
+    const L1_ADDRESS: felt252 = 42;
 
     #[storage]
     struct Storage {}
@@ -83,10 +81,11 @@ mod OsResourcesTestContract {
         signature: Span<felt252>,
     ) -> starknet::SyscallResult<Span<felt252>> implicits(GasBuiltin, System) nopanic;
 
-    // Calls every measured syscall in order. Calldata: [self_class_hash].
+    // Calls every measured syscall in order. Calldata: [self_class_hash, self_address].
+    // The caller passes self_address explicitly to avoid an extra get_execution_info syscall
+    // (which get_contract_address() would insert into the trace).
     #[external(v0)]
-    fn __execute__(ref self: ContractState, self_class_hash: ClassHash) {
-        let self_address: ContractAddress = SELF_ADDRESS.try_into().unwrap();
+    fn __execute__(ref self: ContractState, self_class_hash: ClassHash, self_address: ContractAddress) {
 
         // call_contract syscall — calls empty_function on self.
         call_contract_syscall(
@@ -100,14 +99,14 @@ mod OsResourcesTestContract {
         )
             .unwrap_syscall();
 
-        // meta_tx_v0 syscall — calls empty_function on self so the inner call succeeds.
-        meta_tx_v0_syscall(
+        // meta_tx_v0 syscall — we only need it to appear in the OS trace for cost measurement;
+        // success is not required since inner-call resources are not subtracted for this syscall.
+        let _ = meta_tx_v0_syscall(
             address: self_address,
             entry_point_selector: EMPTY_FUNCTION_SELECTOR,
             calldata: ArrayTrait::new().span(),
             signature: ArrayTrait::new().span(),
-        )
-            .unwrap_syscall();
+        );
 
         // deploy syscall — deploys a new instance of this class with salt 0.
         deploy_syscall(self_class_hash, 0, ArrayTrait::new().span(), false).unwrap_syscall();
@@ -141,7 +140,7 @@ mod OsResourcesTestContract {
         // send_message_to_l1 syscall.
         let mut payload = ArrayTrait::new();
         payload.append(5);
-        send_message_to_l1_syscall(SELF_ADDRESS, payload.span()).unwrap_syscall();
+        send_message_to_l1_syscall(L1_ADDRESS, payload.span()).unwrap_syscall();
 
         // secp256k1 syscalls — new called twice explicitly.
         let k_p0 = secp256k1_new_syscall(X_FOR_K, Y_FOR_K).unwrap_syscall().unwrap();
@@ -167,7 +166,7 @@ mod OsResourcesTestContract {
         storage_write_syscall(0_u32, storage_address, 1991).unwrap_syscall();
     }
 
-    // Target for call_contract and library_call — accepts no arguments.
+    // Target for call_contract, library_call, and meta_tx_v0 — accepts no arguments.
     #[external(v0)]
     fn empty_function(self: @ContractState) {}
 
