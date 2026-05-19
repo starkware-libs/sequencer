@@ -339,7 +339,7 @@ impl BlobFactory {
         let committer_state_diff: CommitmentStateDiff = summary.state_diff.clone();
         let thin_state_diff = ThinStateDiff::from(committer_state_diff.clone());
         let state_diff = StateDiff::from(thin_state_diff.clone());
-        let state_maps = StateMaps::from(committer_state_diff.clone());
+        let state_maps = StateMaps::new(&committer_state_diff);
         let class_mapping = executor.block_state.unwrap().class_hash_to_class.borrow().clone();
         self.state.apply_writes(&state_maps, &class_mapping);
 
