@@ -4,12 +4,17 @@ use std::sync::LazyLock;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
+use blockifier::state::accessed_keys::AccessedKeys;
 use blockifier::state::cached_state::{CachedState, StateMaps};
 use blockifier::state::state_api::{StateReader, UpdatableState};
 use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
-use blockifier::transaction::objects::TransactionExecutionInfo;
+use blockifier::transaction::objects::{
+    TransactionExecutionInfo,
+    TransactionInfo,
+    TransactionInfoCreator,
+};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
@@ -47,7 +52,7 @@ use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, TEST_SEQUENCER_ADDRESS};
 use starknet_api::transaction::constants::TRANSFER_EVENT_NAME;
-use starknet_api::transaction::fields::{Calldata, Fee, Tip};
+use starknet_api::transaction::fields::{Calldata, Fee, ProofFactsVariant, Tip};
 use starknet_api::transaction::{Event, L1HandlerTransaction, L1ToL2Payload, MessageToL1};
 use starknet_committer::block_committer::input::{
     IsSubset,
@@ -868,8 +873,20 @@ impl<S: FlowTestState> TestBuilder<S> {
                 &execution_outputs,
             );
             let initial_reads = get_extended_initial_reads(&final_state);
-            // Update the wrapped state.
             let state_diff = final_state.to_state_diff().unwrap().state_maps;
+            // Drive the OS commitment-keys input from the same accessed-keys aggregate the batcher
+            // produces — validating end-to-end that what the batcher persists is sufficient for
+            // the OS to replay the block. In virtual-OS mode the executor skips
+            // `allocate_aliases_in_storage`, so the alias-contract entries must not be predicted.
+            let proof_facts_block_numbers = collect_proof_facts_block_numbers(&block_txs);
+            let accessed_keys = AccessedKeys::new(
+                execution_outputs.iter().map(|(info, _)| info),
+                &proof_facts_block_numbers,
+                &state_diff,
+                *ALIAS_CONTRACT_ADDRESS,
+                !self.virtual_os,
+            );
+            // Update the wrapped state.
             state = final_state.state;
             state.apply_writes(&state_diff, &final_state.class_hash_to_class.borrow());
             // Commit the state diff.
@@ -885,12 +902,11 @@ impl<S: FlowTestState> TestBuilder<S> {
             .expect("Failed to commit state diff.");
             map_storage = db.consume_storage();
 
-            // Prepare the OS input.
             let commitment_infos = StateCommitmentInfos::new(
                 &previous_state_roots,
                 &new_state_roots,
                 &mut map_storage,
-                &initial_reads.keys(),
+                &accessed_keys.into(),
             )
             .await
             .unwrap();
@@ -1001,6 +1017,24 @@ impl TestBuilder<DictStateReader> {
         );
         Self::new_with_initial_state_data(initial_state_data, config, true)
     }
+}
+
+/// Extracts the block numbers stored in each tx's SNOS proof facts. Empty / malformed proof facts
+/// and non-account transactions yield no entry. Mirrors the production extraction performed in the
+/// batcher's block_builder.
+fn collect_proof_facts_block_numbers(block_txs: &[BlockifierTransaction]) -> Vec<BlockNumber> {
+    block_txs
+        .iter()
+        .filter_map(|tx| match tx.create_tx_info() {
+            TransactionInfo::Current(current) => {
+                match ProofFactsVariant::try_from(&current.proof_facts) {
+                    Ok(ProofFactsVariant::Snos(snos)) => Some(snos.block_number),
+                    Ok(ProofFactsVariant::Empty) | Err(_) => None,
+                }
+            }
+            TransactionInfo::Deprecated(_) => None,
+        })
+        .collect()
 }
 
 /// Returns a BlockContext of the given block number with the with the STRK fee token address that
