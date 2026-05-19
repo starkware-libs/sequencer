@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Review pass: code + security + Codex across 14 observability PRs</title>
+    <style>
+      :root {
+        --bg: #0d1117;
+        --surface: #161b22;
+        --surface-hi: #1c2128;
+        --border: #30363d;
+        --fg: #e6edf3;
+        --muted: #8b949e;
+        --accent: #58a6ff;
+        --green: #3fb950;
+        --yellow: #d29922;
+        --red: #f85149;
+        --orange: #f0883e;
+        --kw: #ff7b72;
+        --str: #a5d6ff;
+        --fn: #d2a8ff;
+        --type: #ffa657;
+        --num: #79c0ff;
+        --com: #8b949e;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        line-height: 1.55;
+      }
+      .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px 96px; }
+      h1, h2, h3, h4 { line-height: 1.25; margin-top: 1.8em; margin-bottom: 0.5em; }
+      h1 { font-size: 28px; margin-top: 0; }
+      h2 { font-size: 22px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+      h3 { font-size: 18px; color: var(--accent); }
+      h4 { font-size: 15px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+      p { margin: 0.6em 0; }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      code, pre { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 13px; }
+      :not(pre) > code { background: var(--surface-hi); border: 1px solid var(--border); padding: 1px 6px; border-radius: 5px; }
+      pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; overflow-x: auto; margin: 12px 0; line-height: 1.5; }
+      .meta { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; color: var(--muted); font-size: 13px; }
+      .meta strong { color: var(--fg); }
+      .finding { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 22px; margin: 14px 0; }
+      .finding h3 { margin-top: 0; }
+      .badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 12px; }
+      .badge { display: inline-block; padding: 2px 10px; font-size: 11px; border-radius: 999px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+      .sev-critical { background: rgba(248, 81, 73, 0.18); color: var(--red); border: 1px solid rgba(248, 81, 73, 0.5); }
+      .sev-high { background: rgba(240, 136, 62, 0.18); color: var(--orange); border: 1px solid rgba(240, 136, 62, 0.5); }
+      .sev-medium { background: rgba(210, 153, 34, 0.18); color: var(--yellow); border: 1px solid rgba(210, 153, 34, 0.5); }
+      .sev-low { background: rgba(88, 166, 255, 0.18); color: var(--accent); border: 1px solid rgba(88, 166, 255, 0.5); }
+      .sev-nit { background: rgba(139, 148, 158, 0.18); color: var(--muted); border: 1px solid rgba(139, 148, 158, 0.5); }
+      .status-fixed { background: rgba(63, 185, 80, 0.18); color: var(--green); border: 1px solid rgba(63, 185, 80, 0.5); }
+      .status-deferred { background: rgba(139, 148, 158, 0.18); color: var(--muted); border: 1px solid rgba(139, 148, 158, 0.5); }
+      .status-falsepositive { background: rgba(139, 148, 158, 0.18); color: var(--muted); border: 1px solid rgba(139, 148, 158, 0.5); }
+      .file-path { display: inline-block; font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px; color: var(--muted); background: var(--surface-hi); padding: 1px 8px; border-radius: 4px; }
+      ul, ol { padding-left: 22px; }
+      li { margin: 4px 0; }
+      table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
+      th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+      th { color: var(--muted); font-weight: 600; }
+      .small { color: var(--muted); font-size: 13px; }
+      .kw { color: var(--kw); } .str { color: var(--str); } .fn { color: var(--fn); }
+      .type { color: var(--type); } .num { color: var(--num); } .com { color: var(--com); font-style: italic; }
+      .del { color: var(--red); } .add { color: var(--green); }
+      .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 22px; margin: 16px 0 24px; }
+      .toc h4 { margin: 0 0 8px; }
+      .toc ul { margin: 4px 0; padding-left: 18px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Review pass: code + security + Codex across 14 observability PRs</h1>
+      <div class="meta">
+        <p><strong>Date:</strong> 2026-05-19 &nbsp;·&nbsp; <strong>Reviewers:</strong> 2 Claude agents (code + security) + 1 Codex attempt &nbsp;·&nbsp; <strong>PRs covered:</strong> 14 &nbsp;·&nbsp; <strong>Findings:</strong> 14 &nbsp;·&nbsp; <strong>Fixes applied:</strong> 10 &nbsp;·&nbsp; <strong>False positives / deferred:</strong> 4</p>
+        <p>Independent review of the observability rollout in <a href="https://github.com/starkware-libs/sequencer">starkware-libs/sequencer</a> (9 PRs, #14044–#14059) and <a href="https://github.com/starkware-libs/starknet-privacy">starkware-libs/starknet-privacy</a> (5 PRs, #750–#754). All fixes pass <code>cargo test</code> / <code>npm test</code>, <code>cargo clippy -D warnings</code>, <code>cargo fmt</code> / Prettier, and have been force-pushed to the corresponding branches.</p>
+      </div>
+
+      <div class="toc">
+        <h4>Contents</h4>
+        <ul>
+          <li><a href="#approach">1. Approach</a></li>
+          <li><a href="#summary">2. Summary table</a></li>
+          <li><a href="#critical">3. Findings — bugs &amp; security</a></li>
+          <li><a href="#simplifications">4. Findings — simplifications</a></li>
+          <li><a href="#comments">5. Findings — comment cleanup</a></li>
+          <li><a href="#deferred">6. False positives &amp; accepted trade-offs</a></li>
+          <li><a href="#verification">7. Verification</a></li>
+        </ul>
+      </div>
+
+      <h2 id="approach">1. Approach</h2>
+      <p>Three independent reviewers ran in parallel:</p>
+      <ul>
+        <li><strong>Code reviewer</strong> — Claude agent focused on correctness bugs, dead code, simplification opportunities, comment quality, and test integrity.</li>
+        <li><strong>Security reviewer</strong> — Claude agent focused on secret/PII leakage, metric cardinality, async race conditions, unbounded resource use, untrusted-input flow, and crypto/default misuse.</li>
+        <li><strong>Codex (GPT-5.4)</strong> — third-opinion pass for subtle Rust ownership / async / tower middleware bugs. Hit a sandbox network restriction (<code>bwrap: loopback: Failed</code>) on first attempt; even after pre-generating per-branch diffs into the worktree's <code>.review-diffs/</code>, Codex's shell could not read them. The two Claude passes ran the actual review; Codex contributed scope coverage by being asked for the same review angle (so a missed bug in Claude's two passes that Codex would have caught is the residual risk).</li>
+      </ul>
+      <p>All branch diffs (5,933 lines total) were given to each reviewer. Findings were confidence-filtered (≥70 to be reported; ≥85 to be flagged as a real bug). Fixes were applied bottom-up through the sequencer PR stack so each PR's rebase only had to resolve trivial conflicts with the layer above.</p>
+
+      <h2 id="summary">2. Summary table</h2>
+      <table>
+        <thead>
+          <tr><th>#</th><th>Finding</th><th>Severity</th><th>PR</th><th>Disposition</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>SIGTERM handler bails out if SIGINT install fails</td><td><span class="badge sev-high">bug</span></td><td><a href="https://github.com/starkware-libs/sequencer/pull/14045">#14045</a></td><td><span class="badge status-fixed">fixed</span></td></tr>
+          <tr><td>2</td><td>HTTP <code>method</code> metric label not bounded to a small enum</td><td><span class="badge sev-medium">security</span></td><td><a href="https://github.com/starkware-libs/sequencer/pull/14056">#14056</a></td><td><span class="badge status-fixed">fixed</span></td></tr>
+          <tr><td>3</td><td>Inbound <code>x-request-id</code> not length-capped or character-validated (prover)</td><td><span class="badge sev-medium">security</span></td><td><a href="https://github.com/starkware-libs/sequencer/pull/14055">#14055</a></td><td><span class="badge status-fixed">fixed</span></td></tr>
+          <tr><td>4</td><td>Same x-request-id concern in proof-interceptor</td><td><span class="badge sev-medium">security</span></td><td><a href="https://github.com/starkware-libs/starknet-privacy/pull/751">#751</a></td><td><span class="badge status-fixed">fixed</span></td></tr>
+          <tr><td>5</td><td><code>SaturationMonitor::new()</code> is just <code>Self::default()</code></td><td><span class="badge sev-nit">simplification</span></td><td><a href="https://github.com/starkware-libs/sequencer/pull/14058">#14058</a></td><td><span class="badge status-fixed">fixed</span></td></tr>
+          <tr><td>6</td><td><code>HealthLayer::new()</code> redundant with <code>Default</code></td><td><span class="badge sev-nit">simplification</span></td><td><a href="https://github.com/starkware-libs/sequencer/pull/14058">#14058</a></td><td><span class="badge status-fixed">fixed</span></td></tr>
+          <tr><td>7</td><td><code>HttpMetricsLayer</code> derived <code>Default</code> never called</td><td><span class="badge sev-nit">simplification</span></td><td><a href="https://github.com/starkware-libs/sequencer/pull/14056">#14056</a></td><td><span class="badge status-fixed">fixed</span></td></tr>
+          <tr><td>8</td><td>"Idempotent — calling twice replaces the hook" comment on <code>install_panic_hook</code></td><td><span class="badge sev-nit">comment</span></td><td><a href="https://github.com/starkware-libs/sequencer/pull/14045">#14045</a></td><td><span class="badge status-fixed">fixed</span></td></tr>
+          <tr><td>9</td><td><code>HealthLayer</code> + <code>HealthService</code> doc comments restate struct names</td><td><span class="badge sev-nit">comment</span></td><td><a href="https://github.com/starkware-libs/sequencer/pull/14044">#14044</a></td><td><span class="badge status-fixed">fixed</span></td></tr>
+          <tr><td>10</td><td><code>metrics.rs</code> module doc cross-references the proof-interceptor</td><td><span class="badge sev-nit">comment</span></td><td><a href="https://github.com/starkware-libs/sequencer/pull/14053">#14053</a></td><td><span class="badge status-fixed">fixed</span></td></tr>
+          <tr><td>11</td><td>Pending-block validation comment restates the <code>if</code> below it</td><td><span class="badge sev-nit">comment</span></td><td><a href="https://github.com/starkware-libs/sequencer/pull/14059">#14059</a></td><td><span class="badge status-fixed">fixed</span></td></tr>
+          <tr><td>12</td><td>Depositor address in <code>error.data</code></td><td><span class="badge sev-critical">security</span></td><td><a href="https://github.com/starkware-libs/starknet-privacy/pull/753">#753</a></td><td><span class="badge status-falsepositive">already&nbsp;fixed</span></td></tr>
+          <tr><td>13</td><td><code>blocking_check.rs</code> disables TLS validation</td><td><span class="badge sev-high">security</span></td><td>pre-existing</td><td><span class="badge status-deferred">out of scope</span></td></tr>
+          <tr><td>14</td><td><code>tx_hash</code> span field empty on validation-error early returns</td><td><span class="badge sev-low">bug</span></td><td><a href="https://github.com/starkware-libs/sequencer/pull/14054">#14054</a></td><td><span class="badge status-deferred">accepted</span></td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="critical">3. Findings — bugs &amp; security</h2>
+
+      <div class="finding">
+        <h3>Finding 1 — SIGTERM handler bails out if SIGINT install fails</h3>
+        <div class="badges"><span class="badge sev-high">bug</span><span class="badge status-fixed">fixed</span></div>
+        <p><span class="file-path">crates/starknet_transaction_prover/src/main.rs</span> · PR <a href="https://github.com/starkware-libs/sequencer/pull/14045">#14045</a></p>
+        <p>The spawned shutdown task installed SIGTERM and SIGINT inline via two sequential <code>match</code> blocks. If <code>signal(SignalKind::interrupt())</code> failed after SIGTERM had already registered, the task <code>return</code>'d early and dropped the live SIGTERM stream — container teardown would then exit with no shutdown log, defeating the whole point of the PR.</p>
+        <h4>Fix</h4>
+<pre><span class="del">// before — both bail-out branches drop any already-installed handler</span>
+<span class="kw">let mut</span> sigterm = <span class="kw">match</span> signal(SignalKind::terminate()) {
+    Ok(s) =&gt; s,
+    Err(e) =&gt; { warn!(error = %e, <span class="str">"..."</span>); <span class="kw">return</span>; }
+};
+<span class="kw">let mut</span> sigint = <span class="kw">match</span> signal(SignalKind::interrupt()) {
+    Ok(s) =&gt; s,
+    Err(e) =&gt; { warn!(error = %e, <span class="str">"..."</span>); <span class="kw">return</span>; } <span class="com">// &lt;-- drops sigterm</span>
+};
+
+<span class="add">// after — install eagerly, degrade the select! to whichever side is live</span>
+<span class="kw">let</span> sigterm = signal(SignalKind::terminate())
+    .inspect_err(|e| warn!(error = %e, <span class="str">"Failed to install SIGTERM handler"</span>))
+    .ok();
+<span class="kw">let</span> sigint = signal(SignalKind::interrupt())
+    .inspect_err(|e| warn!(error = %e, <span class="str">"Failed to install SIGINT handler"</span>))
+    .ok();
+<span class="kw">match</span> (sigterm, sigint) {
+    (<span class="fn">Some</span>(<span class="kw">mut</span> t), <span class="fn">Some</span>(<span class="kw">mut</span> i)) =&gt; tokio::select! { ... },
+    (<span class="fn">Some</span>(<span class="kw">mut</span> t), <span class="fn">None</span>)        =&gt; { t.recv().<span class="kw">await</span>; <span class="str">"SIGTERM"</span> }
+    (<span class="fn">None</span>,        <span class="fn">Some</span>(<span class="kw">mut</span> i)) =&gt; { i.recv().<span class="kw">await</span>; <span class="str">"SIGINT"</span> }
+    (<span class="fn">None</span>,        <span class="fn">None</span>)        =&gt; <span class="kw">return</span>,
+}</pre>
+      </div>
+
+      <div class="finding">
+        <h3>Finding 2 — HTTP <code>method</code> metric label not bounded</h3>
+        <div class="badges"><span class="badge sev-medium">security</span><span class="badge status-fixed">fixed</span></div>
+        <p><span class="file-path">crates/starknet_transaction_prover/src/server/http_metrics.rs</span> · PR <a href="https://github.com/starkware-libs/sequencer/pull/14056">#14056</a></p>
+        <p>The middleware recorded <code>request.method().as_str().to_string()</code> as a metric label, claiming "the small enumeration of HTTP methods the server actually accepts" but actually passing whatever method string the parser admitted. A malformed or extended HTTP method token would register a new Prometheus series that lives in the registry until restart — a classic cardinality bomb.</p>
+        <h4>Fix</h4>
+<pre><span class="kw">fn</span> <span class="fn">method_label</span>(method: &amp;<span class="type">Method</span>) -&gt; &amp;<span class="kw">'static</span> <span class="type">str</span> {
+    <span class="kw">match</span> *method {
+        Method::GET =&gt; <span class="str">"GET"</span>,
+        Method::POST =&gt; <span class="str">"POST"</span>,
+        Method::PUT =&gt; <span class="str">"PUT"</span>,
+        Method::DELETE =&gt; <span class="str">"DELETE"</span>,
+        Method::HEAD =&gt; <span class="str">"HEAD"</span>,
+        Method::OPTIONS =&gt; <span class="str">"OPTIONS"</span>,
+        Method::PATCH =&gt; <span class="str">"PATCH"</span>,
+        _ =&gt; <span class="str">"other"</span>,
+    }
+}</pre>
+        <p>The label now lives in a closed enumeration of 8 values; anything unknown collapses to <code>"other"</code>.</p>
+      </div>
+
+      <div class="finding">
+        <h3>Finding 3 — Inbound <code>x-request-id</code> not validated (prover)</h3>
+        <div class="badges"><span class="badge sev-medium">security</span><span class="badge status-fixed">fixed</span></div>
+        <p><span class="file-path">crates/starknet_transaction_prover/src/server/request_log.rs</span> · PR <a href="https://github.com/starkware-libs/sequencer/pull/14055">#14055</a></p>
+        <p>The middleware accepted any header value the <code>http</code> crate let through, used it as the AsyncLocalStorage-like tracing field for the whole request, and echoed it back on the response. The <code>http</code> crate already rejects CR/LF, but bytes 0x80–0xFF, whitespace, and unbounded length were all admitted. A megabyte-scale id would balloon every log line for the request duration; whitespace inside the id breaks log parsers.</p>
+        <h4>Fix</h4>
+<pre><span class="kw">const</span> MAX_REQUEST_ID_LEN: <span class="type">usize</span> = <span class="num">128</span>;
+
+<span class="kw">fn</span> <span class="fn">extract_or_generate_request_id</span>&lt;<span class="type">B</span>&gt;(request: &amp;<span class="type">Request</span>&lt;<span class="type">B</span>&gt;) -&gt; <span class="type">String</span> {
+    request.<span class="fn">headers</span>()
+        .<span class="fn">get</span>(REQUEST_ID_HEADER)
+        .<span class="fn">and_then</span>(|v| v.<span class="fn">to_str</span>().<span class="fn">ok</span>())
+        .<span class="fn">filter</span>(|v| !v.<span class="fn">is_empty</span>() &amp;&amp; v.<span class="fn">len</span>() &lt;= MAX_REQUEST_ID_LEN)
+        .<span class="fn">filter</span>(|v| v.<span class="fn">bytes</span>().<span class="fn">all</span>(is_safe_request_id_byte))
+        .<span class="fn">map</span>(|v| v.<span class="fn">to_string</span>())
+        .<span class="fn">unwrap_or_else</span>(new_request_id)
+}
+
+<span class="kw">fn</span> <span class="fn">is_safe_request_id_byte</span>(b: <span class="type">u8</span>) -&gt; <span class="type">bool</span> {
+    b.<span class="fn">is_ascii_graphic</span>() <span class="com">// printable ASCII, no whitespace, no DEL</span>
+}</pre>
+      </div>
+
+      <div class="finding">
+        <h3>Finding 4 — Same <code>x-request-id</code> concern in proof-interceptor</h3>
+        <div class="badges"><span class="badge sev-medium">security</span><span class="badge status-fixed">fixed</span></div>
+        <p><span class="file-path">proof-interceptor/src/proxy.ts</span> · PR <a href="https://github.com/starkware-libs/starknet-privacy/pull/751">#751</a></p>
+        <p>Same pattern in the TypeScript handler: the inbound id was used to scope <code>AsyncLocalStorage</code> for every downstream log line and was passed to <code>res.setHeader</code>. Node's HTTP parser rejects CR/LF at the request layer, but whitespace and unbounded length remained.</p>
+        <h4>Fix</h4>
+<pre><span class="kw">const</span> MAX_REQUEST_ID_LEN = <span class="num">128</span>;
+<span class="kw">const</span> REQUEST_ID_RE = /^[\x21-\x7e]+$/;
+
+<span class="kw">function</span> <span class="fn">isSafeRequestId</span>(value: <span class="type">string</span> | <span class="type">undefined</span>): value <span class="kw">is</span> <span class="type">string</span> {
+  <span class="kw">return</span> (
+    <span class="kw">typeof</span> value === <span class="str">"string"</span> &amp;&amp;
+    value.length &gt; <span class="num">0</span> &amp;&amp;
+    value.length &lt;= MAX_REQUEST_ID_LEN &amp;&amp;
+    REQUEST_ID_RE.<span class="fn">test</span>(value)
+  );
+}
+<span class="com">// fall back to randomUUID() when the inbound id fails the check.</span></pre>
+      </div>
+
+      <h2 id="simplifications">4. Findings — simplifications</h2>
+
+      <div class="finding">
+        <h3>Finding 5 — <code>SaturationMonitor::new()</code> is just <code>Self::default()</code></h3>
+        <div class="badges"><span class="badge sev-nit">simplification</span><span class="badge status-fixed">fixed</span></div>
+        <p><span class="file-path">crates/starknet_transaction_prover/src/server/saturation.rs</span> · PR <a href="https://github.com/starkware-libs/sequencer/pull/14058">#14058</a></p>
+        <p>The public <code>new()</code> wrapped <code>Self::default()</code> with no transformation — the project style guide explicitly calls this out as removable. Dropped <code>new()</code> and switched all six call sites to <code>SaturationMonitor::default()</code> (production code + 4 unit tests + 1 rpc_spec_test).</p>
+      </div>
+
+      <div class="finding">
+        <h3>Finding 6 — <code>HealthLayer::new()</code> redundant with <code>Default</code></h3>
+        <div class="badges"><span class="badge sev-nit">simplification</span><span class="badge status-fixed">fixed</span></div>
+        <p><span class="file-path">crates/starknet_transaction_prover/src/server/health.rs</span> · PR <a href="https://github.com/starkware-libs/sequencer/pull/14058">#14058</a></p>
+        <p>Same pattern. Kept only <code>HealthLayer::with_saturation(monitor, threshold)</code> for the explicitly-configured path; the saturation-disabled construction uses <code>HealthLayer::default()</code>.</p>
+      </div>
+
+      <div class="finding">
+        <h3>Finding 7 — Unused <code>Default</code> derive on <code>HttpMetricsLayer</code></h3>
+        <div class="badges"><span class="badge sev-nit">simplification</span><span class="badge status-fixed">fixed</span></div>
+        <p><span class="file-path">crates/starknet_transaction_prover/src/server/http_metrics.rs</span> · PR <a href="https://github.com/starkware-libs/sequencer/pull/14056">#14056</a></p>
+        <p>The <code>#[derive(Clone, Copy, Default)]</code> attribute on <code>HttpMetricsLayer</code> was never used — every call site writes the unit-struct literal directly. Dropped <code>Default</code> from the derive.</p>
+      </div>
+
+      <h2 id="comments">5. Findings — comment cleanup</h2>
+
+      <p>The project standard (<code>.claude/CLAUDE.md</code> / <code>.claude/rules/code-style.md</code>) says <em>"Default to writing no comments. Only add one when the WHY is non-obvious."</em> Four comments were trimmed for restating the code or pinning context that rots when the PR merges.</p>
+
+      <div class="finding">
+        <h3>Finding 8 — "Idempotent — calling twice replaces the hook with itself"</h3>
+        <div class="badges"><span class="badge sev-nit">comment</span><span class="badge status-fixed">fixed</span></div>
+        <p><span class="file-path">crates/starknet_transaction_prover/src/server/panic.rs:17</span> · PR <a href="https://github.com/starkware-libs/sequencer/pull/14045">#14045</a></p>
+        <p>The doc described <code>std::panic::set_hook</code>'s documented behaviour, not anything the wrapper adds. Dropped.</p>
+      </div>
+
+      <div class="finding">
+        <h3>Finding 9 — <code>HealthLayer</code> / <code>HealthService</code> docs restated struct names</h3>
+        <div class="badges"><span class="badge sev-nit">comment</span><span class="badge status-fixed">fixed</span></div>
+        <p><span class="file-path">crates/starknet_transaction_prover/src/server/health.rs</span> · PR <a href="https://github.com/starkware-libs/sequencer/pull/14044">#14044</a></p>
+        <p><code>/// tower [Layer] that intercepts GET /health.</code> on <code>HealthLayer</code> and <code>/// Service produced by [HealthLayer].</code> on <code>HealthService</code> said exactly what their names said. Dropped.</p>
+      </div>
+
+      <div class="finding">
+        <h3>Finding 10 — <code>metrics.rs</code> cross-referenced the proof-interceptor</h3>
+        <div class="badges"><span class="badge sev-nit">comment</span><span class="badge status-fixed">fixed</span></div>
+        <p><span class="file-path">crates/starknet_transaction_prover/src/server/metrics.rs:3</span> · PR <a href="https://github.com/starkware-libs/sequencer/pull/14053">#14053</a></p>
+        <p>The module doc opened with <em>"Mirrors the proof-interceptor design"</em>, a cross-repo reference that rots the moment either codebase evolves. Replaced with a self-contained 4-line summary describing what the layer does and that label cardinality is bounded.</p>
+      </div>
+
+      <div class="finding">
+        <h3>Finding 11 — Pending-block comment restated the <code>if</code> below it</h3>
+        <div class="badges"><span class="badge sev-nit">comment</span><span class="badge status-fixed">fixed</span></div>
+        <p><span class="file-path">crates/starknet_transaction_prover/src/proving/virtual_snos_prover.rs:182</span> · PR <a href="https://github.com/starkware-libs/sequencer/pull/14059">#14059</a></p>
+        <p>"Validate block_id is not pending. Origin-level breadcrumb so the failing field is visible directly in logs without traversing the catch-site error chain..." — the first sentence restated the <code>if matches!(block_id, BlockId::Pending)</code> on the next line. Replaced with a single explanatory sentence about the privacy guarantee + grep-ability; the redundant inner comments on the <code>inspect_err</code> blocks were dropped at the same time.</p>
+      </div>
+
+      <h2 id="deferred">6. False positives &amp; accepted trade-offs</h2>
+
+      <div class="finding">
+        <h3>Finding 12 — Depositor address in JSON-RPC <code>error.data</code></h3>
+        <div class="badges"><span class="badge sev-critical">flagged</span><span class="badge status-falsepositive">already fixed</span></div>
+        <p><span class="file-path">proof-interceptor/src/screening-interceptor.ts:156, :162</span></p>
+        <p>The security agent flagged <code>reason: `address screening: ${address} blocked`</code> as a critical PII leak. This is the <em>pre-fix</em> shape — the original rollout's review pass already caught this and PR <a href="https://github.com/starkware-libs/starknet-privacy/pull/753">#753</a> replaced both strings with opaque codes (<code>"address_blocked"</code> / <code>"screening_unavailable"</code>). The agent was reading the P5 branch, which is forked off main and doesn't include the P4 fix yet; once #753 merges, the issue disappears across all branches.</p>
+      </div>
+
+      <div class="finding">
+        <h3>Finding 13 — <code>danger_accept_invalid_certs(true)</code> on the blocking-check client</h3>
+        <div class="badges"><span class="badge sev-high">security</span><span class="badge status-deferred">out of scope</span></div>
+        <p><span class="file-path">crates/starknet_transaction_prover/src/blocking_check.rs:74</span></p>
+        <p>The HTTP client used to contact the proof-interceptor disables TLS chain validation, allowing a MITM on the path between the proving service and the interceptor to lie about the screening verdict. This is a real concern with direct compliance impact, but the code <strong>predates this observability rollout</strong> — it shipped with the original blocking-check feature and none of the 14 PRs under review touch it. Documented here so it doesn't get lost; recommend a follow-up that pins the interceptor cert via <code>add_root_certificate</code> instead of disabling validation.</p>
+      </div>
+
+      <div class="finding">
+        <h3>Finding 14 — <code>tx_hash</code> span field empty on validation-error early returns</h3>
+        <div class="badges"><span class="badge sev-low">bug</span><span class="badge status-deferred">accepted</span></div>
+        <p><span class="file-path">crates/starknet_transaction_prover/src/proving/virtual_snos_prover.rs:153</span> · PR <a href="https://github.com/starkware-libs/sequencer/pull/14054">#14054</a></p>
+        <p>The <code>#[instrument(..., fields(tx_hash))]</code> attribute declares the field, but <code>Span::current().record("tx_hash", ...)</code> only runs inside <code>run_virtual_os</code> (after the runner has computed the hash). Validation-error paths (pending block, non-INVOKE, invalid input) return before that, leaving the field empty on those spans.</p>
+        <p><strong>Accepted as-is.</strong> The structured <code>event="validation_error"</code> warns added in PR <a href="https://github.com/starkware-libs/sequencer/pull/14059">#14059</a> already give operators the failure reason directly. Moving the hash computation earlier would require plumbing <code>chain_id</code> through more layers than the cosmetic improvement justifies; Datadog handles empty span fields gracefully.</p>
+      </div>
+
+      <h2 id="verification">7. Verification</h2>
+      <table>
+        <thead>
+          <tr><th>PR</th><th>Repo</th><th>Test count</th><th>Fmt / lint</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>#14044 health + JSON logs (comment trim)</td><td>sequencer</td><td>64 pass</td><td>clean</td></tr>
+          <tr><td>#14045 panic + shutdown (SIGTERM bug + comment trim)</td><td>sequencer</td><td>65 pass</td><td>clean</td></tr>
+          <tr><td>#14053 /metrics (comment trim)</td><td>sequencer</td><td>66 pass</td><td>clean</td></tr>
+          <tr><td>#14054 job metrics (no change)</td><td>sequencer</td><td>66 pass</td><td>clean</td></tr>
+          <tr><td>#14055 RequestLogLayer (x-request-id sanitization)</td><td>sequencer</td><td>69 pass (+2)</td><td>clean</td></tr>
+          <tr><td>#14056 HttpMetricsLayer (method label bound + Default drop)</td><td>sequencer</td><td>67 pass</td><td>clean</td></tr>
+          <tr><td>#14057 panic counter (no change)</td><td>sequencer</td><td>68 pass</td><td>clean</td></tr>
+          <tr><td>#14058 saturation /health (SaturationMonitor::new / HealthLayer::new drop)</td><td>sequencer</td><td>75 pass</td><td>clean</td></tr>
+          <tr><td>#14059 origin breadcrumbs (comment trim)</td><td>sequencer</td><td>75 pass</td><td>clean</td></tr>
+          <tr><td>#751 request-id logger (x-request-id sanitization)</td><td>privacy</td><td>114 pass (+1)</td><td>clean</td></tr>
+        </tbody>
+      </table>
+      <p class="small">All updated branches force-pushed; CI is now drawing its second pass. Critical and security findings are fixed; nits are fixed; the one accepted bug and one pre-existing high-severity issue are documented above so they're not lost.</p>
+    </div>
+  </body>
+</html>
