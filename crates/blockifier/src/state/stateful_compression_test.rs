@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use assert_matches::assert_matches;
 use rstest::rstest;
@@ -17,7 +17,11 @@ use super::{
 };
 use crate::state::cached_state::{CachedState, StateMaps, StorageEntry};
 use crate::state::state_api::{State, StateReader};
-use crate::state::stateful_compression::{AliasCompressor, CompressionError};
+use crate::state::stateful_compression::{
+    predicted_alias_storage_entries,
+    AliasCompressor,
+    CompressionError,
+};
 use crate::state::stateful_compression_test_utils::decompress;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::ALIAS_CONTRACT_ADDRESS;
@@ -166,6 +170,46 @@ fn test_iterate_aliases() {
         .into_iter()
         .collect()
     );
+}
+
+/// Locks `predicted_alias_storage_entries` to the actual access pattern of
+/// `allocate_aliases_in_storage`. With no pre-existing aliases, every predicted read becomes a
+/// write to the alias contract, so the predicted set must equal the alias-contract write set.
+#[test]
+fn test_predicted_alias_storage_entries_parity() {
+    let mut state = initial_state(0);
+    state
+        .set_storage_at(ContractAddress::from(0x201_u16), StorageKey::from(0x307_u16), Felt::ONE)
+        .unwrap();
+    state
+        .set_storage_at(ContractAddress::from(0x201_u16), StorageKey::from(0x309_u16), Felt::TWO)
+        .unwrap();
+    state
+        .set_storage_at(ContractAddress::from(0x201_u16), StorageKey::from(0x304_u16), Felt::THREE)
+        .unwrap();
+    state
+        .set_storage_at(MAX_NON_COMPRESSED_CONTRACT_ADDRESS, StorageKey::from(0x301_u16), Felt::ONE)
+        .unwrap();
+    state.get_class_hash_at(ContractAddress::from(0x202_u16)).unwrap();
+    state.set_class_hash_at(ContractAddress::from(0x202_u16), ClassHash(Felt::ONE)).unwrap();
+    state.increment_nonce(ContractAddress::from(0x200_u16)).unwrap();
+
+    let state_diff_before_alloc = state.to_state_diff().unwrap().state_maps;
+    let predicted =
+        predicted_alias_storage_entries(&state_diff_before_alloc, *ALIAS_CONTRACT_ADDRESS);
+
+    allocate_aliases_in_storage(&mut state, *ALIAS_CONTRACT_ADDRESS).unwrap();
+    let actual_alias_writes: HashSet<StorageEntry> = state
+        .to_state_diff()
+        .unwrap()
+        .state_maps
+        .storage
+        .keys()
+        .filter(|(address, _)| address == &*ALIAS_CONTRACT_ADDRESS)
+        .copied()
+        .collect();
+
+    assert_eq!(predicted, actual_alias_writes);
 }
 
 #[rstest]
