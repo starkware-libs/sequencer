@@ -19,3 +19,7 @@ runs:
       uses: ./.github/actions/install_rust
       with:
         github_token: ${{ inputs.github_token }}
+
+    - name: Install Sierra compilers.
+      shell: bash
+      run: ./scripts/install_compiler_binaries.sh
