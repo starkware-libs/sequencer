@@ -5,11 +5,7 @@ use apollo_batcher_types::batcher_types::Round;
 use apollo_starknet_client::reader::StateDiff;
 use reqwest::StatusCode;
 use starknet_api::block::{
-    BlockNumber,
-    BlockTimestamp,
-    GasPrice,
-    GasPricePerToken,
-    StarknetVersion,
+    BlockNumber, BlockTimestamp, GasPrice, GasPricePerToken, StarknetVersion,
 };
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -17,14 +13,11 @@ use tokio::sync::Notify;
 
 use crate::cende_client_types::{CendeBlockMetadata, StarknetClientTransactionReceipt};
 use crate::pre_confirmed_block_writer::{
-    PreconfirmedBlockWriter,
-    PreconfirmedBlockWriterInput,
-    PreconfirmedBlockWriterTrait,
+    PreconfirmedBlockWriter, PreconfirmedBlockWriterInput, PreconfirmedBlockWriterTrait,
     PreconfirmedTxSender,
 };
 use crate::pre_confirmed_cende_client::{
-    MockPreconfirmedCendeClientTrait,
-    PreconfirmedCendeClientError,
+    MockPreconfirmedCendeClientTrait, PreconfirmedCendeClientError,
 };
 use crate::test_utils::test_txs;
 
@@ -192,17 +185,32 @@ async fn final_write_includes_pending_changes() {
 /// Uses a sequence of Ok -> Err -> Ok to verify the writer continues after a mid-stream failure.
 #[tokio::test]
 async fn write_error_is_ignored() {
+    // Synchronization primitives to coordinate test phases with mock calls.
+    let first_write_done = Arc::new(Notify::new());
+    let first_write_done_clone = first_write_done.clone();
+    let second_write_done = Arc::new(Notify::new());
+    let second_write_done_clone = second_write_done.clone();
+    let third_write_done = Arc::new(Notify::new());
+    let third_write_done_clone = third_write_done.clone();
+
     let mut seq = mockall::Sequence::new();
     let mut mock_client = MockPreconfirmedCendeClientTrait::new();
-    mock_client
-        .expect_write_pre_confirmed_block()
-        .times(1)
-        .in_sequence(&mut seq)
-        .returning(|_| Ok(()));
-    mock_client.expect_write_pre_confirmed_block().times(1).in_sequence(&mut seq).returning(|_| {
-        Err(PreconfirmedCendeClientError::RequestFailed(StatusCode::INTERNAL_SERVER_ERROR))
+    mock_client.expect_write_pre_confirmed_block().times(1).in_sequence(&mut seq).returning(
+        move |_| {
+            first_write_done_clone.notify_one();
+            Ok(())
+        },
+    );
+    mock_client.expect_write_pre_confirmed_block().times(1).in_sequence(&mut seq).returning(
+        move |_| {
+            second_write_done_clone.notify_one();
+            Err(PreconfirmedCendeClientError::RequestFailed(StatusCode::INTERNAL_SERVER_ERROR))
+        },
+    );
+    mock_client.expect_write_pre_confirmed_block().times(1..).returning(move |_| {
+        third_write_done_clone.notify_one();
+        Ok(())
     });
-    mock_client.expect_write_pre_confirmed_block().times(1..).returning(|_| Ok(()));
 
     let (mut writer, pre_confirmed_tx_sender) = create_writer(mock_client, WRITE_INTERVAL_MS);
 
@@ -216,8 +224,8 @@ async fn write_error_is_ignored() {
 
     let writer_handle = tokio::spawn(async move { writer.run().await });
 
-    // Let the initial write (Ok) complete.
-    tokio::time::sleep(Duration::from_millis(WRITE_INTERVAL_MS)).await;
+    // Wait for the initial write (Ok) to complete.
+    first_write_done.notified().await;
 
     // Trigger a second write (Err).
     for tx in test_txs(3..4) {
@@ -226,7 +234,7 @@ async fn write_error_is_ignored() {
             .await
             .unwrap();
     }
-    tokio::time::sleep(Duration::from_millis(WRITE_INTERVAL_MS)).await;
+    second_write_done.notified().await;
 
     // Trigger a third write (Ok) to confirm the writer recovered.
     for tx in test_txs(4..5) {
@@ -235,7 +243,7 @@ async fn write_error_is_ignored() {
             .await
             .unwrap();
     }
-    tokio::time::sleep(Duration::from_millis(WRITE_INTERVAL_MS)).await;
+    third_write_done.notified().await;
 
     drop(pre_confirmed_tx_sender);
 
