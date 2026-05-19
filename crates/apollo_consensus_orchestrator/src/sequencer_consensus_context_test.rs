@@ -1535,3 +1535,53 @@ async fn test_first_height_keeps_sync_provided_l2_gas_price() {
         expected_price, context.l2_gas_price.0
     );
 }
+
+#[rstest]
+// FEE_PROPOSAL_WINDOW_SIZE = 10, prune at 110: cutoff = 100, keep heights >= 100.
+#[case::drops_entries_below_cutoff(
+    (90u64..=110).collect::<Vec<_>>(),
+    BlockNumber(110),
+    (100u64..=110).collect::<Vec<_>>(),
+)]
+#[case::empty_when_all_entries_below_cutoff(
+    vec![50u64, 60, 70],
+    BlockNumber(200),
+    vec![],
+)]
+// `current_height < FEE_PROPOSAL_WINDOW_SIZE`: cutoff would underflow; saturating_sub clamps
+// to 0, so every entry is retained.
+#[case::saturates_at_zero_when_height_below_window(
+    vec![0u64, 1, 2],
+    BlockNumber(5),
+    vec![0u64, 1, 2],
+)]
+#[case::no_op_when_all_entries_within_window(
+    (105u64..=110).collect::<Vec<_>>(),
+    BlockNumber(110),
+    (105u64..=110).collect::<Vec<_>>(),
+)]
+fn test_prune_fee_proposals_window(
+    #[case] inserted_heights: Vec<u64>,
+    #[case] current_height: BlockNumber,
+    #[case] expected_kept_heights: Vec<u64>,
+) {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    let mut context = deps.build_context();
+
+    // Distinct value per height so the assertion checks identity, not just count.
+    for h in &inserted_heights {
+        context.record_fee_proposal(BlockNumber(*h), Some(GasPrice(u128::from(*h))));
+    }
+
+    context.prune_fee_proposals_window(current_height);
+
+    let kept_heights: Vec<u64> = context.fee_proposals_window.keys().map(|k| k.0).collect();
+    assert_eq!(kept_heights, expected_kept_heights);
+    for h in &expected_kept_heights {
+        assert_eq!(
+            context.fee_proposals_window.get(&BlockNumber(*h)),
+            Some(&Some(GasPrice(u128::from(*h)))),
+        );
+    }
+}
