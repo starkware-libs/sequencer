@@ -111,6 +111,10 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<Bas
                     L1_MESSAGE_SCRAPER_SUCCESS_COUNT.increment(1);
                     set_unix_now_seconds(&L1_MESSAGE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS);
                 }
+                Err(e @ L1EventsScraperError::L1ReorgDetected { .. }) => {
+                    warn!("L1 reorg detected during scraping: {e}");
+                    return Err(e);
+                }
                 Err(e) => return Err(e),
             }
         }

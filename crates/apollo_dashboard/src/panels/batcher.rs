@@ -51,7 +51,7 @@ fn get_panel_commitment_manager_average_latency(
     let expr = format!("{numerator} / {divisor}");
     Panel::new(name, description, expr, PanelType::TimeSeries)
         .with_unit(Unit::Seconds)
-        .with_log_query("\"Block\" AND \"commitment latencies\"")
+        .with_log_query("\"Block\" AND \"commitments latencies\"")
 }
 
 pub(crate) fn get_panel_consensus_block_time_avg() -> Panel {
@@ -97,7 +97,7 @@ fn get_panel_building_height() -> Panel {
         BUILDING_HEIGHT.get_name_with_filter().to_string(),
         PanelType::Stat,
     )
-    .with_log_query("Building block at height")
+    .with_log_query("Starting to work on height")
 }
 
 fn get_panel_global_root_height() -> Panel {
