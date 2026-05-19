@@ -11,7 +11,7 @@
 # ```
 autoflake
 black==23.1a1
-cairo-lang==0.14.3a1
+cairo-lang==0.14.3a2
 # Keep pydantic on a release line that still has PyPy 3.9 wheels for pydantic_core.
 pydantic==2.11.7
 pydantic_core==2.33.2
