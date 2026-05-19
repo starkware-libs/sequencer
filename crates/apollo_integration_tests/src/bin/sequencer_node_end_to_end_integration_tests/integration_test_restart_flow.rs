@@ -57,7 +57,7 @@ async fn main() {
         info!("Awaiting transactions while all nodes are up");
         integration_test_manager.poll_all_running_nodes_received_more_txs(TIMEOUT).await;
 
-        integration_test_manager.shutdown_nodes([RESTART_NODE].into());
+        integration_test_manager.shutdown_nodes([RESTART_NODE].into()).await;
         info!("Awaiting transactions while node {RESTART_NODE} is down");
         integration_test_manager.poll_all_running_nodes_received_more_txs(TIMEOUT).await;
 
@@ -77,7 +77,7 @@ async fn main() {
 
         // Shutdown a second node to test that the restarted node has joined consensus (the network
         // can't reach consensus without the restarted node if the second node is down).
-        integration_test_manager.shutdown_nodes([SHUTDOWN_NODE].into());
+        integration_test_manager.shutdown_nodes([SHUTDOWN_NODE].into()).await;
         // Shutting down a node that's already down results in an error so we remove it from the set
         // here.
         node_indices.remove(&SHUTDOWN_NODE);
@@ -98,6 +98,6 @@ async fn main() {
 
     integration_test_manager.verify_block_hash_across_all_running_nodes(None).await;
 
-    integration_test_manager.shutdown_nodes(node_indices);
+    integration_test_manager.shutdown_nodes(node_indices).await;
     info!("Restart flow integration test completed successfully!");
 }

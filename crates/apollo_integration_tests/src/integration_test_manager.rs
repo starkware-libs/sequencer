@@ -660,23 +660,35 @@ impl IntegrationTestManager {
         });
     }
 
-    pub fn shutdown_nodes(&mut self, nodes_to_shutdown: HashSet<usize>) {
-        nodes_to_shutdown.into_iter().for_each(|index| {
+    pub async fn shutdown_nodes(&mut self, nodes_to_shutdown: HashSet<usize>) {
+        let mut all_handles: Vec<AbortOnDropHandle<()>> = Vec::new();
+
+        for index in nodes_to_shutdown {
             let running_node = self
                 .running_nodes
                 .remove(&index)
                 .unwrap_or_else(|| panic!("Node {index} is not in the running map."));
             // TODO(Tsabary): should this function call `shutdown_node_services` per node as well?
-            running_node.executable_handles.values().for_each(|handle| {
+            let RunningNode { node_setup, executable_handles } = running_node;
+            let handles: Vec<AbortOnDropHandle<()>> = executable_handles.into_values().collect();
+            for handle in &handles {
                 assert!(!handle.is_finished(), "Node {index} should still be running.");
                 handle.abort();
-            });
+            }
             assert!(
-                self.idle_nodes.insert(index, running_node.node_setup).is_none(),
+                self.idle_nodes.insert(index, node_setup).is_none(),
                 "Node {index} is already in the idle map."
             );
             info!("Node {} has been shut down.", index);
-        });
+            all_handles.extend(handles);
+        }
+
+        // Wait for all tasks to be cancelled. When each task is cancelled its Child process handle
+        // is dropped, which triggers kill_on_drop and sends SIGKILL to the child process.
+        join_all(all_handles).await;
+
+        // Brief pause to let the OS release ports after SIGKILL before new processes bind them.
+        sleep(Duration::from_millis(100)).await;
     }
 
     pub async fn send_deploy_and_invoke_txs_and_verify(&mut self) {
