@@ -273,6 +273,59 @@ async fn test_reverted_tx_os_error() {
         .run_virtual_expect_error("Reverted transactions are not supported in virtual OS mode");
 }
 
+/// Reproduces a privacy-prove failure when proving a virtual OS run that uses the keccak builtin.
+///
+/// Scenario:
+/// - Invoke `test_contract::test_keccak`, which uses both `keccak::keccak_u256s_le_inputs`
+///   (keccak BUILTIN) and `syscalls::keccak_syscall` with invalid input length (keccak SYSCALL
+///   failure path).
+/// - Run through the virtual OS (succeeds), then prove via `privacy-prove` and verify.
+///
+/// Observed result: OS execution succeeds; proving panics in
+/// `cairo-program-runner-lib::hints::load_cairo_pie::extract_segment` with
+/// `MemoryError::AddressNotRelocatable`, surfaced as
+///   "Hint Error: Error while relocating Cairo PIE memory: Memory addresses must be relocatable"
+/// at `simple_bootloader/execute_task.cairo:209`.
+///
+/// Likely cause: `privacy_prove::consts::CAIRO_RUN_CONFIG` selects `LayoutName::stwo_no_ecop`,
+/// which has `keccak: None` (`cairo-vm-3.2.0/src/types/instance_definitions/builtins_instance_def.rs`).
+/// The bootloader simulates keccak via `simple_bootloader_simulate_keccak`, but the simulation
+/// does not appear to cover relocating an inner task PIE whose keccak builtin segment is
+/// non-empty.
+///
+/// Isolation experiment: commenting out the `keccak::keccak_u256s_le_inputs` call in
+/// `test_contract::test_keccak` (leaving only the keccak SYSCALL failure path) makes this test
+/// pass — confirming the failure is triggered by keccak BUILTIN usage by the inner contract,
+/// not by the keccak SYSCALL itself.
+///
+/// To run manually: `cargo +nightly-2025-07-14 test -p starknet_os_flow_tests --features
+/// starknet_transaction_prover/stwo_proving --release prove_and_verify_keccak_tx -- --ignored
+/// --nocapture`
+#[tokio::test(flavor = "multi_thread")]
+#[ignore]
+async fn prove_and_verify_keccak_tx() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+
+    let (mut test_builder, [contract_address]) =
+        TestBuilder::create_standard_virtual([(test_contract, calldata![Felt::ONE, Felt::TWO])])
+            .await;
+
+    let calldata = create_calldata(contract_address, "test_keccak", &[]);
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    let test_runner = test_builder.build().await;
+    let output = test_runner.run_virtual().prove().await;
+
+    let proof_facts = output.proof_facts.clone();
+    let proof = output.proof.clone();
+    tokio::task::spawn_blocking(move || {
+        starknet_proof_verifier::verify_proof(proof_facts, proof)
+    })
+    .await
+    .expect("proof verification task panicked")
+    .expect("proof verification should succeed");
+}
+
 /// Generates proof fixtures for the proof-flow integration test.
 /// To run manually: `cargo +nightly-2025-07-14 test -p starknet_os_flow_tests --features
 /// starknet_transaction_prover/stwo_proving --release generate_proof_fixtures -- --ignored`
