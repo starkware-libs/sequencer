@@ -136,4 +136,8 @@ log_step "install_build_tools" "Running install_cargo_tools.sh..."
 ${SCRIPT_DIR}/install_cargo_tools.sh
 log_step "install_build_tools" "install_cargo_tools.sh completed"
 
+log_step "install_build_tools" "Running install_compiler_binaries.sh..."
+${SCRIPT_DIR}/install_compiler_binaries.sh
+log_step "install_build_tools" "install_compiler_binaries.sh completed"
+
 log_step "install_build_tools" "All build tools installed successfully!"
