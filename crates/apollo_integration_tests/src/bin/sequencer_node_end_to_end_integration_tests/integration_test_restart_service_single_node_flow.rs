@@ -89,6 +89,6 @@ async fn main() {
 
     integration_test_manager.verify_block_hash_across_all_running_nodes(None).await;
 
-    integration_test_manager.shutdown_nodes(node_indices);
+    integration_test_manager.shutdown_nodes(node_indices).await;
     info!("Restart service single node flow integration test completed successfully!");
 }

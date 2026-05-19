@@ -51,7 +51,7 @@ async fn main() {
         .await;
 
     info!("Shutting down nodes.");
-    integration_test_manager.shutdown_nodes(node_indices);
+    integration_test_manager.shutdown_nodes(node_indices).await;
 
     info!("Positive flow integration test completed successfully!");
 }

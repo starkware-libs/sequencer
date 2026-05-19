@@ -69,7 +69,7 @@ async fn main() {
         .await;
 
     info!("Shutting down nodes.");
-    integration_test_manager.shutdown_nodes(node_indices.clone());
+    integration_test_manager.shutdown_nodes(node_indices.clone()).await;
 
     let expected_block_number_after_revert = REVERT_UP_TO_AND_INCLUDING.prev().unwrap_or_default();
     info!(
@@ -98,7 +98,7 @@ async fn main() {
         .await;
 
     info!("All nodes reverted to block {expected_block_number_after_revert}. Shutting down nodes.");
-    integration_test_manager.shutdown_nodes(node_indices.clone());
+    integration_test_manager.shutdown_nodes(node_indices.clone()).await;
 
     // Restore the tx generator state.
     *integration_test_manager.tx_generator_mut() = tx_generator_snapshot;
@@ -129,7 +129,7 @@ async fn main() {
         ))
         .await;
 
-    integration_test_manager.shutdown_nodes(node_indices);
+    integration_test_manager.shutdown_nodes(node_indices).await;
 
     info!("Revert flow integration test completed successfully!");
 }
