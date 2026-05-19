@@ -372,7 +372,7 @@ auto_storage_serde! {
         Transaction = 5,
         Events = 6,
         #[cfg(feature = "os_input")]
-        TxExecutionInfo = 7,
+        AccessedKeys = 7,
     }
     pub struct PartialBlockHashComponents {
         pub header_commitments: BlockHeaderCommitments,
