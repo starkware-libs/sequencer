@@ -102,6 +102,7 @@ async fn block_execution_artifacts(
         execution_infos_and_signatures,
         rejected_tx_hashes,
         consumed_l1_handler_tx_hashes,
+        proof_facts_block_numbers: IndexMap::default(),
     };
     // Each mock transaction uses 1 L2 gas so the total amount should be the number of txs.
     assert_eq!(
