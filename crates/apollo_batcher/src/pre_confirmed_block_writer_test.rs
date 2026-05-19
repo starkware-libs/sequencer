@@ -5,7 +5,11 @@ use apollo_batcher_types::batcher_types::Round;
 use apollo_starknet_client::reader::StateDiff;
 use reqwest::StatusCode;
 use starknet_api::block::{
-    BlockNumber, BlockTimestamp, GasPrice, GasPricePerToken, StarknetVersion,
+    BlockNumber,
+    BlockTimestamp,
+    GasPrice,
+    GasPricePerToken,
+    StarknetVersion,
 };
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -13,11 +17,14 @@ use tokio::sync::Notify;
 
 use crate::cende_client_types::{CendeBlockMetadata, StarknetClientTransactionReceipt};
 use crate::pre_confirmed_block_writer::{
-    PreconfirmedBlockWriter, PreconfirmedBlockWriterInput, PreconfirmedBlockWriterTrait,
+    PreconfirmedBlockWriter,
+    PreconfirmedBlockWriterInput,
+    PreconfirmedBlockWriterTrait,
     PreconfirmedTxSender,
 };
 use crate::pre_confirmed_cende_client::{
-    MockPreconfirmedCendeClientTrait, PreconfirmedCendeClientError,
+    MockPreconfirmedCendeClientTrait,
+    PreconfirmedCendeClientError,
 };
 use crate::test_utils::test_txs;
 
