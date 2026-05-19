@@ -29,7 +29,12 @@ mod request_log_test;
 /// HTTP header carrying the request id.
 pub const REQUEST_ID_HEADER: &str = "x-request-id";
 
-/// Returns a new request id formatted as a 32-character lowercase hex string.
+/// Cap on accepted incoming request-id length. Anything longer is dropped
+/// in favour of a freshly generated id so the value never balloons into
+/// AsyncLocalStorage / tracing fields and so log aggregators don't have
+/// to parse megabyte-scale ids.
+const MAX_REQUEST_ID_LEN: usize = 128;
+
 fn new_request_id() -> String {
     let mut bytes = [0u8; 16];
     rand::thread_rng().fill_bytes(&mut bytes);
@@ -40,16 +45,25 @@ fn new_request_id() -> String {
     hex
 }
 
-/// Extracts an existing `x-request-id` header, falling back to a freshly
-/// generated id when the header is missing or non-ASCII (avoiding tracing
-/// fields that can't be safely emitted as strings).
+/// Accepts the incoming `x-request-id` only when it's a short printable
+/// ASCII token. CR/LF would let a client smuggle headers into the
+/// response; arbitrary bytes (including unicode) make the value unsafe
+/// to round-trip through `HeaderValue::from_str`. Any reject falls back
+/// to a freshly generated hex id.
 fn extract_or_generate_request_id<B>(request: &Request<B>) -> String {
     request
         .headers()
         .get(REQUEST_ID_HEADER)
         .and_then(|value| value.to_str().ok())
+        .filter(|value| !value.is_empty() && value.len() <= MAX_REQUEST_ID_LEN)
+        .filter(|value| value.bytes().all(is_safe_request_id_byte))
         .map(|value| value.to_string())
         .unwrap_or_else(new_request_id)
+}
+
+fn is_safe_request_id_byte(b: u8) -> bool {
+    // Printable ASCII excluding whitespace. Rejects CR/LF/NUL/DEL etc.
+    b.is_ascii_graphic()
 }
 
 /// tower [`Layer`] producing [`RequestLogService`].

@@ -76,7 +76,6 @@ async fn generates_request_id_when_absent_and_echoes_it() {
 
 #[tokio::test]
 async fn drops_non_ascii_incoming_id_and_generates_a_fresh_one() {
-    // \xff is not valid ASCII-visible — `to_str()` fails so we fall back.
     let mut request = request_with_header(None);
     request
         .headers_mut()
@@ -88,4 +87,41 @@ async fn drops_non_ascii_incoming_id_and_generates_a_fresh_one() {
     let (_body, headers) = read_body(response).await;
     let header_id = headers.get(REQUEST_ID_HEADER).unwrap().to_str().unwrap();
     assert_eq!(header_id.len(), 32, "should have generated a fresh hex id");
+}
+
+#[tokio::test]
+async fn drops_request_id_containing_whitespace() {
+    // CRLF in header values is rejected by the http crate itself at parse
+    // time, so the residual concern is whitespace and other ASCII bytes
+    // that would confuse log parsers if echoed verbatim into structured
+    // fields.
+    for hostile in ["with space", "tab\there", "leading space "] {
+        let mut request = request_with_header(None);
+        request
+            .headers_mut()
+            .insert(REQUEST_ID_HEADER, http::HeaderValue::from_bytes(hostile.as_bytes()).unwrap());
+        let svc = RequestLogLayer.layer(echo_request_id_service());
+        let response = svc.oneshot(request).await.unwrap();
+        let (_body, headers) = read_body(response).await;
+        let header_id = headers.get(REQUEST_ID_HEADER).unwrap().to_str().unwrap();
+        assert_eq!(
+            header_id.len(),
+            32,
+            "expected fresh hex id for hostile input {hostile:?}, got {header_id:?}",
+        );
+    }
+}
+
+#[tokio::test]
+async fn drops_oversize_request_id() {
+    let huge = "a".repeat(2048);
+    let mut request = request_with_header(None);
+    request
+        .headers_mut()
+        .insert(REQUEST_ID_HEADER, http::HeaderValue::from_bytes(huge.as_bytes()).unwrap());
+    let svc = RequestLogLayer.layer(echo_request_id_service());
+    let response = svc.oneshot(request).await.unwrap();
+    let (_body, headers) = read_body(response).await;
+    let header_id = headers.get(REQUEST_ID_HEADER).unwrap().to_str().unwrap();
+    assert_eq!(header_id.len(), 32);
 }
