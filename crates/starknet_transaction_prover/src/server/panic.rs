@@ -14,8 +14,6 @@ use std::panic::PanicHookInfo;
 
 use tracing::error;
 
-/// Installs the global panic hook. Idempotent — calling twice replaces the
-/// hook with itself.
 pub fn install_panic_hook() {
     std::panic::set_hook(Box::new(panic_hook));
 }
