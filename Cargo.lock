@@ -12736,6 +12736,7 @@ dependencies = [
  "starknet_os",
  "starknet_patricia",
  "starknet_patricia_storage",
+ "starknet_proof_verifier",
  "starknet_transaction_prover",
  "strum",
  "tokio",

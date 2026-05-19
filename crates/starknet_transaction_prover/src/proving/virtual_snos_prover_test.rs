@@ -44,44 +44,6 @@ use crate::test_utils::{
     STRK_TOKEN_ADDRESS_SEPOLIA,
 };
 
-/// Integration test for the full prover pipeline with a `balanceOf` transaction.
-/// Runs on a Sepolia environment; in live/recording mode requires a Sepolia RPC node via
-/// `NODE_URL`.
-#[rstest]
-#[tokio::test(flavor = "multi_thread")]
-#[ignore]
-async fn test_prove_balance_of_transaction() {
-    let test_mode = resolve_test_mode("test_prove_balance_of_transaction").await;
-
-    // Creates an RPC invoke transaction that calls `balanceOf` on the STRK token.
-    let strk_token = ContractAddress::try_from(STRK_TOKEN_ADDRESS_SEPOLIA).unwrap();
-    let account = ContractAddress::try_from(DUMMY_ACCOUNT_ADDRESS).unwrap();
-
-    // Calldata matches dummy account's __execute__(contract_address, selector, calldata).
-    let calldata = create_calldata(strk_token, "balanceOf", &[account.into()]);
-    let rpc_tx = build_client_side_rpc_invoke(account, calldata);
-
-    let factory = runner_factory(&test_mode.rpc_url());
-    let prover = VirtualSnosProver::from_runner(factory);
-
-    // Run the full prover pipeline: OS execution → proof generation.
-    let result = prover.prove_transaction(BlockId::Latest, rpc_tx).await;
-
-    // Finalize recording before asserting so records are saved even on failure.
-    test_mode.finalize();
-
-    // Verify execution and proving succeeded.
-    let output = result.expect("prove_transaction should succeed");
-
-    // Verify the proof against the proof facts.
-    let proof_facts = output.proof_facts.clone();
-    let proof = output.proof.clone();
-    tokio::task::spawn_blocking(move || verify_proof(proof_facts, proof))
-        .await
-        .expect("proof verification task panicked")
-        .expect("proof verification should succeed");
-}
-
 /// Integration test for the full prover pipeline with a STRK `transfer` transaction.
 /// Runs on a Sepolia environment; in live/recording mode requires a Sepolia RPC node via
 /// `NODE_URL`.

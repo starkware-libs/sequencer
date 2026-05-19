@@ -12,11 +12,14 @@ on:
       - ".github/workflows/starknet_transaction_prover_ci.yml"
       - "Cargo.lock"
       - "Cargo.toml"
+      - "crates/apollo_starknet_os_program/**"
       - "crates/blockifier/**"
       - "crates/blockifier_reexecution/**"
+      - "crates/blockifier_test_utils/**"
       - "crates/proving_utils/**"
       - "crates/starknet_committer/**"
       - "crates/starknet_os/**"
+      - "crates/starknet_os_flow_tests/**"
       - "crates/starknet_patricia/**"
       - "crates/starknet_transaction_prover/**"
       - "scripts/build_starknet_transaction_prover.sh"
@@ -109,6 +112,10 @@ jobs:
       - name: Run proving integration tests
         working-directory: crates/starknet_transaction_prover
         run: cargo test --release -p starknet_transaction_prover --features stwo_proving virtual_snos_prover_test -- --ignored --test-threads=1
+
+      - name: Run virtual OS multicall proving test
+        working-directory: crates/starknet_transaction_prover
+        run: cargo test --release -p starknet_os_flow_tests --features starknet_transaction_prover/stwo_proving prove_and_verify_multicall_tx -- --ignored --test-threads=1
 
   # Test that the starknet_transaction_prover Docker image builds successfully.
   docker-build:
