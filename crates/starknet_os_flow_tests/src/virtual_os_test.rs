@@ -338,23 +338,21 @@ async fn prove_and_verify_multicall_tx() {
         TestBuilder::create_standard_virtual([(test_contract, calldata![Felt::ONE, Felt::TWO])])
             .await;
 
-    // Serializes a single `Call` entry as `[to, selector, calldata_len, *calldata]`
-    // for the dummy account's `multi_call(Array<Call>)` entry point. All inner calls
-    // in this test target the same test contract.
-    let serialize_call = |func_name: &str, args: &[Felt]| -> Vec<Felt> {
-        let mut serialized = vec![
-            *contract_address.0.key(),
-            selector_from_name(func_name).0,
-            Felt::from(args.len()),
-        ];
-        serialized.extend_from_slice(args);
-        serialized
+    // Appends a single `Call` entry to `multi_call_args` as
+    // `[to, selector, calldata_len, *calldata]` and bumps the leading `num_calls`
+    // counter. All inner calls in this test target the same test contract.
+    let mut multi_call_args: Vec<Felt> = vec![Felt::ZERO];
+    let mut serialize_call = |func_name: &str, args: &[Felt]| {
+        multi_call_args[0] = multi_call_args[0] + Felt::ONE;
+        multi_call_args.push(*contract_address.0.key());
+        multi_call_args.push(selector_from_name(func_name).0);
+        multi_call_args.push(Felt::from(args.len()));
+        multi_call_args.extend_from_slice(args);
     };
 
     // TODO(Yoni): add more inner calls (e.g. sha256, secp256k1, send_message_to_l1).
-    let mut multi_call_args = vec![Felt::TWO];
-    multi_call_args.extend(serialize_call("test_keccak", &[]));
-    multi_call_args.extend(serialize_call("test_ec_op", &[]));
+    serialize_call("test_keccak", &[]);
+    serialize_call("test_ec_op", &[]);
 
     // The dummy account's `__execute__(contract_address, selector, calldata)` forwards
     // to its own `multi_call` entry point.
