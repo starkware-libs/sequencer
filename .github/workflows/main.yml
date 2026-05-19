@@ -134,11 +134,15 @@ jobs:
           credentials_json: ${{ secrets.SYSTEST_BLOBS_READ_ACCESS_KEY }}
       - uses: "google-github-actions/setup-gcloud@v2"
 
+      - name: Clone starknet-specs for spec tests
+        run: scripts/prepare_starknet_specs.sh /tmp/starknet-specs
+
       - name: "Run tests"
         run: |
           scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha || 'origin/main' }}
         env:
           SEED: 0
+          STARKNET_SPECS_DIR: /tmp/starknet-specs
       - run: sccache --show-stats
 
   run-integration-tests:
