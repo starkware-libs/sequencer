@@ -905,7 +905,7 @@
             "batcher_building_height{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
           ],
           "extra_params": {
-            "log_query": "\"Building block at height\""
+            "log_query": "\"Starting to work on height\""
           }
         },
         {
@@ -1019,7 +1019,7 @@
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Block\" AND \"commitment latencies\""
+            "log_query": "\"Block\" AND \"commitments latencies\""
           }
         },
         {
@@ -1040,7 +1040,7 @@
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Block\" AND \"commitment latencies\""
+            "log_query": "\"Block\" AND \"commitments latencies\""
           }
         },
         {
@@ -1052,7 +1052,7 @@
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Block\" AND \"commitment latencies\""
+            "log_query": "\"Block\" AND \"commitments latencies\""
           }
         },
         {
@@ -1064,7 +1064,7 @@
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Block\" AND \"commitment latencies\""
+            "log_query": "\"Block\" AND \"commitments latencies\""
           }
         },
         {
@@ -1076,7 +1076,7 @@
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Block\" AND \"commitment latencies\""
+            "log_query": "\"Block\" AND \"commitments latencies\""
           }
         },
         {
@@ -1088,7 +1088,7 @@
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Block\" AND \"commitment latencies\""
+            "log_query": "\"Block\" AND \"commitments latencies\""
           }
         },
         {
@@ -1100,7 +1100,7 @@
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Block\" AND \"commitment latencies\""
+            "log_query": "\"Block\" AND \"commitments latencies\""
           }
         },
         {
@@ -1112,7 +1112,7 @@
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Block\" AND \"commitment latencies\""
+            "log_query": "\"Block\" AND \"commitments latencies\""
           }
         },
         {
@@ -1124,7 +1124,7 @@
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Block\" AND \"commitment latencies\""
+            "log_query": "\"Block\" AND \"commitments latencies\""
           }
         },
         {
