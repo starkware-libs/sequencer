@@ -1535,3 +1535,31 @@ async fn test_first_height_keeps_sync_provided_l2_gas_price() {
         expected_price, context.l2_gas_price.0
     );
 }
+
+// Distinct value per height so map equality verifies identity, not just key set.
+fn window_of(
+    heights: impl IntoIterator<Item = u64>,
+) -> std::collections::BTreeMap<BlockNumber, Option<GasPrice>> {
+    heights.into_iter().map(|h| (BlockNumber(h), Some(GasPrice(u128::from(h))))).collect()
+}
+
+#[rstest]
+// FEE_PROPOSAL_WINDOW_SIZE = 10, prune at 110: cutoff = 100, keep heights >= 100.
+#[case::drops_entries_below_cutoff(window_of(90..=110), BlockNumber(110), window_of(100..=110))]
+#[case::empty_when_all_entries_below_cutoff(window_of([50, 60, 70]), BlockNumber(200), window_of([]))]
+// `current_height < FEE_PROPOSAL_WINDOW_SIZE`: cutoff would underflow; saturating_sub clamps
+// to 0, so every entry is retained.
+#[case::saturates_at_zero_when_height_below_window(window_of(0..=2), BlockNumber(5), window_of(0..=2))]
+#[case::no_op_when_all_entries_within_window(window_of(105..=110), BlockNumber(110), window_of(105..=110))]
+fn test_prune_fee_proposals_window(
+    #[case] initial_window: std::collections::BTreeMap<BlockNumber, Option<GasPrice>>,
+    #[case] current_height: BlockNumber,
+    #[case] expected_window: std::collections::BTreeMap<BlockNumber, Option<GasPrice>>,
+) {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    let mut context = deps.build_context();
+    context.fee_proposals_window = initial_window;
+    context.prune_fee_proposals_window(current_height);
+    assert_eq!(context.fee_proposals_window, expected_window);
+}
