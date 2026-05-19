@@ -120,29 +120,32 @@ async fn main() -> anyhow::Result<()> {
         "JSON-RPC proving server is running."
     );
 
-    // Bridge SIGTERM/SIGINT into jsonrpsee's `ServerHandle::stop`. Without
-    // this, container teardown sends SIGTERM and the prover's only response
-    // is to be killed with no log — operators can't tell graceful drains
-    // from crashes.
+    // Bridge SIGTERM/SIGINT into jsonrpsee's `ServerHandle::stop` so
+    // container teardown becomes visible in logs. Both handlers are
+    // installed eagerly: if one fails, we still want the other to drive
+    // a graceful shutdown rather than silently dropping it.
+    let sigterm = signal(SignalKind::terminate())
+        .inspect_err(|err| warn!(error = %err, "Failed to install SIGTERM handler"))
+        .ok();
+    let sigint = signal(SignalKind::interrupt())
+        .inspect_err(|err| warn!(error = %err, "Failed to install SIGINT handler"))
+        .ok();
     let shutdown_handle = server_handle.clone();
     tokio::spawn(async move {
-        let mut sigterm = match signal(SignalKind::terminate()) {
-            Ok(stream) => stream,
-            Err(err) => {
-                warn!(error = %err, "Failed to install SIGTERM handler");
-                return;
+        let signal_name = match (sigterm, sigint) {
+            (Some(mut t), Some(mut i)) => tokio::select! {
+                _ = t.recv() => "SIGTERM",
+                _ = i.recv() => "SIGINT",
+            },
+            (Some(mut t), None) => {
+                t.recv().await;
+                "SIGTERM"
             }
-        };
-        let mut sigint = match signal(SignalKind::interrupt()) {
-            Ok(stream) => stream,
-            Err(err) => {
-                warn!(error = %err, "Failed to install SIGINT handler");
-                return;
+            (None, Some(mut i)) => {
+                i.recv().await;
+                "SIGINT"
             }
-        };
-        let signal_name = tokio::select! {
-            _ = sigterm.recv() => "SIGTERM",
-            _ = sigint.recv() => "SIGINT",
+            (None, None) => return,
         };
         info!(event = "shutdown_started", signal = signal_name, "Shutting down JSON-RPC server.");
         if let Err(err) = shutdown_handle.stop() {
