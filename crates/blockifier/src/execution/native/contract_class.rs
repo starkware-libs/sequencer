@@ -4,8 +4,6 @@ use std::sync::Arc;
 
 #[cfg(feature = "with-libfunc-profiling")]
 use cairo_native::executor::AotWithProgram;
-#[cfg(feature = "sierra-emu")]
-use cairo_native::executor::EmuContractInfo;
 use cairo_native::executor::{AotContractExecutor, ContractExecutor};
 use starknet_api::contract_class::compiled_class_hash::HashableCompiledClass;
 use starknet_api::core::EntryPointSelector;
@@ -35,16 +33,6 @@ impl NativeCompiledClassV1 {
     /// sierra_contract_class.
     pub fn new(executor: AotContractExecutor, casm: CompiledClassV1) -> NativeCompiledClassV1 {
         let contract = NativeCompiledClassV1Inner::new(executor.into(), casm);
-
-        Self(Arc::new(contract))
-    }
-
-    /// Initialize a compiled class backed by the sierra-emu interpreter instead of the AOT
-    /// executor. Used by benchmarking / replay tooling that wants to execute through the emu
-    /// VM while reusing the rest of the blockifier pipeline.
-    #[cfg(feature = "sierra-emu")]
-    pub fn new_from_emu(info: EmuContractInfo, casm: CompiledClassV1) -> NativeCompiledClassV1 {
-        let contract = NativeCompiledClassV1Inner::new(info.into(), casm);
 
         Self(Arc::new(contract))
     }
