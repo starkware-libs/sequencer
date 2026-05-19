@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::hash::BuildHasher;
 
-use blockifier::state::cached_state::{StateMaps, StorageDiff, StorageView};
+use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps, StorageDiff, StorageView};
 use indexmap::IndexMap;
 use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::hash::{HashOutput, StateRoots};
@@ -46,6 +46,36 @@ pub fn state_maps_to_committer_state_diff(state_maps: StateMaps) -> StateDiff {
             })
             .collect(),
         storage_updates: StorageDiff::from(StorageView(state_maps.storage))
+            .into_iter()
+            .map(|(address, updates)| {
+                (
+                    address,
+                    updates
+                        .into_iter()
+                        .map(|(key, value)| (StarknetStorageKey(key), StarknetStorageValue(value)))
+                        .collect(),
+                )
+            })
+            .collect(),
+    }
+}
+
+/// Converts blockifier's CommitmentStateDiff to committer's StateDiff format.
+pub fn commitment_state_diff_to_committer_state_diff(
+    commitment_state_diff: CommitmentStateDiff,
+) -> StateDiff {
+    StateDiff {
+        address_to_class_hash: commitment_state_diff.address_to_class_hash.into_iter().collect(),
+        address_to_nonce: commitment_state_diff.address_to_nonce.into_iter().collect(),
+        class_hash_to_compiled_class_hash: commitment_state_diff
+            .class_hash_to_compiled_class_hash
+            .into_iter()
+            .map(|(class_hash, compiled_class_hash)| {
+                (class_hash, CompiledClassHash(compiled_class_hash.0))
+            })
+            .collect(),
+        storage_updates: commitment_state_diff
+            .storage_updates
             .into_iter()
             .map(|(address, updates)| {
                 (
