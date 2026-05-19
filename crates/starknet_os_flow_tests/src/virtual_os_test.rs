@@ -5,7 +5,7 @@ use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::get_valid_virtual_os_program_hash;
 use blockifier::transaction::test_utils::ExpectedExecutionInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use blockifier_test_utils::calldata::create_calldata;
+use blockifier_test_utils::calldata::{create_calldata, create_multicall_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
@@ -286,23 +286,13 @@ async fn prove_and_verify_multicall_tx() {
         TestBuilder::create_standard_virtual([(test_contract, calldata![Felt::ONE, Felt::TWO])])
             .await;
 
-    // Appends a single `Call` entry to `multi_call_args` as
-    // `[to, selector, calldata_len, *calldata]` and bumps the leading `num_calls`
-    // counter. All inner calls in this test target the same test contract.
-    let mut multi_call_args: Vec<Felt> = vec![Felt::ZERO];
-    let mut serialize_call = |func_name: &str, args: &[Felt]| {
-        multi_call_args[0] += Felt::ONE;
-        multi_call_args.push(*contract_address.0.key());
-        multi_call_args.push(selector_from_name(func_name).0);
-        multi_call_args.push(Felt::from(args.len()));
-        multi_call_args.extend_from_slice(args);
-    };
-
     // TODO(Yoni): add more inner calls (e.g. sha256, secp256k1, send_message_to_l1).
     // TODO(Yoni): restore the keccak inner call once the keccak syscall is allowed in
     // virtual OS mode (added in a follow-up PR stacked on top of this one).
-    // serialize_call("test_keccak", &[]);
-    serialize_call("test_ec_op", &[]);
+    let multi_call_args = create_multicall_calldata(&[
+        // (contract_address, "test_keccak", &[]),
+        (contract_address, "test_ec_op", &[]),
+    ]);
 
     // The dummy account's `__execute__(contract_address, selector, calldata)` forwards
     // to its own `multi_call` entry point.
