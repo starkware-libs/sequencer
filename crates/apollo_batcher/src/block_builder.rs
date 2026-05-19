@@ -53,7 +53,7 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::InternalRpcTransactionWithoutTxHash;
 use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::fields::{ProofFactsVariant, TransactionSignature};
+use starknet_api::transaction::fields::{snos_block_number_from_proof_facts, TransactionSignature};
 use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
 use thiserror::Error;
 use tokio::sync::mpsc::error::TrySendError;
@@ -882,10 +882,7 @@ fn remove_last_set(set: &mut IndexSet<TransactionHash>, tx_hash: &TransactionHas
 fn proof_facts_block_number(tx: &InternalConsensusTransaction) -> Option<BlockNumber> {
     let InternalConsensusTransaction::RpcTransaction(rpc) = tx else { return None };
     let InternalRpcTransactionWithoutTxHash::Invoke(invoke) = &rpc.tx else { return None };
-    match ProofFactsVariant::try_from(&invoke.proof_facts) {
-        Ok(ProofFactsVariant::Snos(snos)) => Some(snos.block_number),
-        Ok(ProofFactsVariant::Empty) | Err(_) => None,
-    }
+    snos_block_number_from_proof_facts(&invoke.proof_facts)
 }
 
 fn record_and_log_block_commitment_measurements(

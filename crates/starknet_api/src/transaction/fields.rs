@@ -817,6 +817,15 @@ impl TryFrom<ProofFacts> for SnosProofFacts {
     }
 }
 
+/// If `proof facts` is parsed as valid SNOS data, returns the base block number used to verify the
+/// proof. Otherwise returns `None`.
+pub fn snos_block_number_from_proof_facts(proof_facts: &ProofFacts) -> Option<BlockNumber> {
+    match ProofFactsVariant::try_from(proof_facts) {
+        Ok(ProofFactsVariant::Snos(snos)) => Some(snos.block_number),
+        Ok(ProofFactsVariant::Empty) | Err(_) => None,
+    }
+}
+
 /// Client-provided proof used for client-side proving.
 /// Serialized as a base64 string of big-endian u32 bytes.
 #[derive(
