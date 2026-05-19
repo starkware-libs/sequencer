@@ -1,6 +1,7 @@
 #[starknet::contract(account)]
 mod Account {
     use array::{ArrayTrait, SpanTrait};
+    use starknet::account::Call;
     use starknet::{ClassHash, ContractAddress, call_contract_syscall};
     use starknet::info::SyscallResultTrait;
     use starknet::syscalls;
@@ -34,6 +35,9 @@ mod Account {
         starknet::VALIDATED
     }
 
+    // TODO(Yoni): replace this single-call `__execute__` with the multicall-shaped
+    // `multi_call` below, so this account can execute INVOKE transactions whose
+    // calldata is `Array<Call>` natively (matching the standard account ABI).
     #[external(v0)]
     #[raw_output]
     fn __execute__(
@@ -50,6 +54,32 @@ mod Account {
             entry_point_selector: selector,
             calldata: calldata.span()
         ).unwrap_syscall()
+    }
+
+    /// Executes a sequence of calls and returns their concatenated return values.
+    /// The intended invocation in tests is via `__execute__`, with `__execute__`
+    /// forwarding `(self_address, "multi_call", serialized calls)` to this entry point.
+    #[external(v0)]
+    fn multi_call(
+        self: @ContractState, mut calls: Array<Call>
+    ) -> Array<Span<felt252>> {
+        let mut result = ArrayTrait::new();
+        loop {
+            match calls.pop_front() {
+                Option::Some(call) => {
+                    let res = call_contract_syscall(
+                        address: call.to,
+                        entry_point_selector: call.selector,
+                        calldata: call.calldata,
+                    ).unwrap_syscall();
+                    result.append(res);
+                },
+                Option::None => {
+                    break;
+                },
+            };
+        };
+        result
     }
 
     #[external(v0)]
