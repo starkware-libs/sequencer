@@ -6,7 +6,7 @@ use blockifier::blockifier_versioned_constants::{
 };
 use blockifier::execution::call_info::CallInfo;
 use blockifier::execution::deprecated_syscalls::DeprecatedSyscallSelector;
-use blockifier::transaction::objects::TransactionExecutionInfo;
+use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::executable_transaction::TransactionType;
@@ -348,7 +348,7 @@ pub(crate) static TX_TYPE_CALLDATA_FACTORS: LazyLock<HashMap<TransactionType, Va
 /// subtracted from the total trace resources to isolate the OS overhead.
 /// The calldata factors come from `TX_TYPE_CALLDATA_FACTORS`.
 pub(crate) fn extract_execute_txs_inner_resources(
-    tx_measurements: &[(TransactionType, &TransactionExecutionInfo, &OsTransactionTrace)],
+    tx_measurements: &[(TransactionType, &CentralTransactionExecutionInfo, &OsTransactionTrace)],
 ) -> HashMap<TransactionType, ResourcesParams> {
     tx_measurements
         .iter()

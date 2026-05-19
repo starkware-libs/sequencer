@@ -3,7 +3,7 @@ use std::sync::{Arc, LazyLock};
 
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
-use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::blockifier_versioned_constants::{OsResources, VersionedConstants};
 use blockifier::execution::call_info::OpcodeName;
 use blockifier::test_utils::contracts::{get_class_info_of_cairo0_contract, FeatureContractTrait};
 use blockifier::test_utils::dict_state_reader::DictStateReader;
@@ -13,6 +13,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::{cairo0_proven_revert_scenario_calldata, create_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use expect_test::expect;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
@@ -92,6 +93,11 @@ use starknet_os::hints::vars::Const;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
 
+use crate::os_resources::{
+    compare_os_resources,
+    extract_execute_syscalls_resources,
+    extract_execute_txs_inner_resources,
+};
 use crate::initial_state::{
     create_default_initial_state_data,
     get_deploy_contract_tx_and_address_with_salt,
@@ -3018,4 +3024,107 @@ async fn test_get_block_hash_current_block_number() {
 
     let test_output = test_builder.build_and_run().await;
     test_output.perform_default_validations();
+}
+
+/// Measures per-syscall and per-transaction-type OS resource costs and compares them against the
+/// values stored in VersionedConstants, mirroring the Python os_resources_test.py.
+#[tokio::test]
+async fn test_os_resources() {
+    let os_resources_contract = FeatureContract::OsResourcesTest(RunnableCairo1::Casm);
+    let (mut test_builder, [os_resources_address]) =
+        TestBuilder::create_standard([(os_resources_contract, calldata![])]).await;
+    let chain_id = &test_builder.chain_id();
+
+    let os_resources_class_hash = os_resources_contract.get_sierra().calculate_class_hash();
+
+    let empty_account = FeatureContract::EmptyAccount(RunnableCairo1::Casm);
+    let empty_account_sierra = empty_account.get_sierra();
+    let empty_account_class_hash = empty_account_sierra.calculate_class_hash();
+    let empty_account_compiled_class_hash = empty_account.get_compiled_class_hash(&HashVersion::V2);
+
+    let deploy_account_address = calculate_contract_address(
+        ContractAddressSalt::default(),
+        empty_account_class_hash,
+        &Calldata::default(),
+        ContractAddress::default(),
+    )
+    .unwrap();
+
+    // Block 0: fund the deploy account address so the deploy_account tx can pay fees.
+    test_builder.add_fund_address_tx_with_default_amount(deploy_account_address);
+    test_builder.move_to_next_block();
+
+    // Block 1, TX 0: syscall measurement — invoke OsResourcesTest.__execute__.
+    let syscall_calldata = create_calldata(
+        os_resources_address,
+        "__execute__",
+        &[os_resources_class_hash.0, *os_resources_address],
+    );
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata: syscall_calldata });
+
+    // Block 1, TX 1: invoke measurement — trivial invoke on OsResourcesTest.
+    let invoke_calldata = create_calldata(os_resources_address, "empty_function", &[]);
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata: invoke_calldata });
+
+    // Block 1, TX 2: declare measurement — declare EmptyAccount.
+    let declare_tx_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        class_hash: empty_account_class_hash,
+        compiled_class_hash: empty_account_compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let class_info = empty_account.get_class_info();
+    let declare_transaction =
+        DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
+    test_builder.add_cairo1_declare_tx(declare_transaction, &empty_account_sierra);
+
+    // Block 1, TX 3: deploy_account measurement — deploy an EmptyAccount.
+    let deploy_tx_args = deploy_account_tx_args! {
+        class_hash: empty_account_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        contract_address_salt: ContractAddressSalt::default(),
+    };
+    let account_deploy_tx =
+        deploy_account_tx(deploy_tx_args, test_builder.next_nonce(deploy_account_address));
+    test_builder.add_deploy_account_tx(
+        DeployAccountTransaction::create(account_deploy_tx, chain_id).unwrap(),
+    );
+
+    // Block 1, TX 4: l1_handler measurement — call empty_l1_handler on OsResourcesTest.
+    test_builder.add_l1_handler(
+        os_resources_address,
+        "empty_l1_handler",
+        calldata![Felt::ZERO],
+        None,
+    );
+
+    // Build without running so we can access os_input before the runner consumes it.
+    let test_runner = test_builder.build().await;
+    let exec_infos =
+        test_runner.os_hints.os_input.os_block_inputs[1].tx_execution_infos.clone();
+    let test_output = test_runner.run();
+    let txs_trace = &test_output.runner_output.txs_trace;
+
+    // txs_trace[0] = block 0 fund tx; txs_trace[1..=5] = block 1 measurement txs.
+    let syscall_trace = &txs_trace[1];
+    let execute_call_info = exec_infos[0].execute_call_info.as_ref().unwrap();
+    let actual_syscalls = extract_execute_syscalls_resources(syscall_trace, execute_call_info);
+
+    let tx_measurements = [
+        (TransactionType::InvokeFunction, &exec_infos[1], &txs_trace[2]),
+        (TransactionType::Declare, &exec_infos[2], &txs_trace[3]),
+        (TransactionType::DeployAccount, &exec_infos[3], &txs_trace[4]),
+        (TransactionType::L1Handler, &exec_infos[4], &txs_trace[5]),
+    ];
+    let actual_txs = extract_execute_txs_inner_resources(&tx_measurements);
+
+    let actual = OsResources {
+        execute_syscalls: actual_syscalls,
+        execute_txs_inner: actual_txs,
+        compute_os_kzg_commitment_info: ExecutionResources::default(),
+    };
+    let expected = VersionedConstants::latest_constants().os_resources.as_ref().clone();
+    compare_os_resources(&actual, &expected);
 }
