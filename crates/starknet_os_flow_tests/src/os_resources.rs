@@ -1,11 +1,15 @@
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
-use blockifier::blockifier_versioned_constants::{OsResources, ResourcesParams, VariableCallDataFactor};
+use blockifier::blockifier_versioned_constants::{
+    CallDataFactor, OsResources, ResourcesParams, VariableCallDataFactor,
+};
 use blockifier::execution::call_info::CallInfo;
 use blockifier::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::executable_transaction::TransactionType;
 use starknet_os::hint_processor::os_logger::OsTransactionTrace;
 
 // Steps the OS spends returning from a non-call-contract syscall (overhead above the raw
@@ -287,4 +291,100 @@ fn insert_hardcoded(
             builtin_instance_counter: builtins.iter().copied().collect(),
         },
     );
+}
+
+// Hardcoded calldata factors per transaction type, matching the Python
+// TX_TYPE_TO_CALLDATA_FACTOR constants in os_resources_test.py.
+// Each factor represents the additional resources consumed per calldata element.
+pub(crate) static TX_TYPE_CALLDATA_FACTORS: LazyLock<HashMap<TransactionType, VariableCallDataFactor>> =
+    LazyLock::new(|| {
+        use TransactionType::*;
+        HashMap::from([
+            (
+                InvokeFunction,
+                VariableCallDataFactor::Scaled(CallDataFactor {
+                    resources: ExecutionResources {
+                        n_steps: 11,
+                        n_memory_holes: 0,
+                        builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 1)]),
+                    },
+                    scaling_factor: 2,
+                }),
+            ),
+            (Declare, VariableCallDataFactor::default()),
+            (
+                DeployAccount,
+                VariableCallDataFactor::Scaled(CallDataFactor {
+                    resources: ExecutionResources {
+                        n_steps: 37,
+                        n_memory_holes: 0,
+                        builtin_instance_counter: HashMap::from([
+                            (BuiltinName::poseidon, 1),
+                            (BuiltinName::pedersen, 2),
+                        ]),
+                    },
+                    scaling_factor: 2,
+                }),
+            ),
+            (
+                L1Handler,
+                VariableCallDataFactor::Scaled(CallDataFactor {
+                    resources: ExecutionResources {
+                        n_steps: 13,
+                        n_memory_holes: 0,
+                        builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, 1)]),
+                    },
+                    scaling_factor: 1,
+                }),
+            ),
+        ])
+    });
+
+/// Extracts per-transaction-type resource params from the OS traces of the four type-measurement
+/// transactions (INVOKE, DECLARE, DEPLOY_ACCOUNT, L1_HANDLER) run on `EmptyAccount`, mirroring
+/// `get_execute_transactions_resources` in os_resources_test.py.
+///
+/// For each transaction the business-logic resources (execute + validate call infos) are
+/// subtracted from the total trace resources to isolate the OS overhead.
+/// The calldata factors come from `TX_TYPE_CALLDATA_FACTORS`.
+pub(crate) fn extract_execute_txs_inner_resources(
+    tx_measurements: &[(TransactionType, &TransactionExecutionInfo, &OsTransactionTrace)],
+) -> HashMap<TransactionType, ResourcesParams> {
+    tx_measurements
+        .iter()
+        .map(|(tx_type, exec_info, tx_trace)| {
+            let total = tx_trace
+                .resources
+                .as_ref()
+                .unwrap_or_else(|| panic!("OsTransactionTrace for {tx_type:?} has no resources"))
+                .clone();
+
+            // Sum resources from call_info (execute) and validate_info.
+            let mut business_logic = ExecutionResources::default();
+            if let Some(call_info) = &exec_info.execute_call_info {
+                business_logic =
+                    add_resources(&business_logic, &call_info.resources.vm_resources);
+            }
+            if let Some(validate_info) = &exec_info.validate_call_info {
+                business_logic =
+                    add_resources(&business_logic, &validate_info.resources.vm_resources);
+            }
+
+            let mut constant = subtract_resources(&total, &business_logic);
+            constant.n_memory_holes = 0;
+
+            let calldata_factor = TX_TYPE_CALLDATA_FACTORS[tx_type].clone();
+            (*tx_type, ResourcesParams { constant, calldata_factor })
+        })
+        .collect()
+}
+
+fn add_resources(lhs: &ExecutionResources, rhs: &ExecutionResources) -> ExecutionResources {
+    let mut result = lhs.clone();
+    result.n_steps += rhs.n_steps;
+    result.n_memory_holes += rhs.n_memory_holes;
+    for (builtin, count) in &rhs.builtin_instance_counter {
+        *result.builtin_instance_counter.entry(*builtin).or_insert(0) += count;
+    }
+    result
 }
