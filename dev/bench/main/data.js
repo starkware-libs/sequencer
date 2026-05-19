@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779119520804,
+  "lastUpdate": 1779207690701,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4113,6 +4113,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1365.46752394,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8b0bbdbd4c460f34c04847ac9e0e031a33520e6e",
+          "message": "starknet_os_flow_tests: add multicall prove test; drop balance_of test (#14082)\n\n- Add `multi_call(Array<Call>)` to `account_with_dummy_validate.cairo`\n  with a TODO above `__execute__` to eventually replace its single-call\n  shape with the multicall-style entry point.\n- Add `prove_and_verify_multicall_tx` in `crates/starknet_os_flow_tests/\n  src/virtual_os_test.rs`: a single virtual-OS tx forwards through\n  `__execute__` to the new `multi_call`, currently dispatching\n  `test_keccak` and `test_ec_op`. Inner calls are appended via a local\n  `serialize_call(name, args)` helper that bumps the leading `num_calls`\n  counter in `multi_call_args`, so each call site is one line. Marked\n  `#[ignore]`; doc carries a TODO to extend coverage.\n- Remove `test_prove_balance_of_transaction` from `crates/\n  starknet_transaction_prover/src/proving/virtual_snos_prover_test.rs`\n  — the remaining `test_prove_transfer_transaction` already covers the\n  same `VirtualSnosProver::prove_transaction` Sepolia path.\n- Run the new test in the prover CI workflow alongside\n  `virtual_snos_prover_test`. Also widen the workflow's path triggers\n  to include `apollo_starknet_os_program/**` (compiles the OS program\n  the prover runs), `blockifier_test_utils/**` (account/contract test\n  sources), and `starknet_os_flow_tests/**`. Path triggers are not\n  transitive, so these had to be listed explicitly.\n\nCo-authored-by: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-19T15:51:09Z",
+          "tree_id": "d62f34c4de5714f2f97d87339381c7060d124e87",
+          "url": "https://github.com/starkware-libs/sequencer/commit/8b0bbdbd4c460f34c04847ac9e0e031a33520e6e"
+        },
+        "date": 1779207690247,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 912.80621283,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1374.88196621,
             "unit": "ms"
           }
         ]
