@@ -1555,7 +1555,9 @@
           "exprs": [
             "increase(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"BaseLayerError during scraping\""
+          }
         },
         {
           "title": "L1 Message Scraper Reorg Detected",
@@ -1564,7 +1566,9 @@
           "exprs": [
             "increase(l1_message_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h])"
           ],
-          "extra_params": {}
+          "extra_params": {
+            "log_query": "\"L1 reorg detected\""
+          }
         }
       ],
       "collapsed": true

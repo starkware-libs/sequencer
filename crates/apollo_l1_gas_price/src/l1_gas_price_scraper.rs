@@ -99,7 +99,7 @@ impl<B: BaseLayerContract + Send + Sync + Debug> L1GasPriceScraper<B> {
         loop {
             // If we get an Ok() we just keep going with the loop.
             if let Err(e) = self.update_prices(&mut block_number).await {
-                error!("Error while scraping gas prices: {e:?}");
+                error!("Error while scraping gas prices: {e}");
 
                 match e {
                     L1GasPriceScraperError::BaseLayerError(_) => {
