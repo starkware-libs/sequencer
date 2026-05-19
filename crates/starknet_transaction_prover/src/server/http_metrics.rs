@@ -1,20 +1,13 @@
-//! tower middleware that records HTTP-level Prometheus metrics.
-//!
-//! Sister layer to `RequestLogLayer`: where the latter emits one log line
-//! per request, this one feeds three Prometheus series so dashboards can
-//! query request rate, latency, and concurrency without parsing logs.
-//!
-//! Sits outermost in the tower stack so the timings include every other
-//! layer. Cardinality is bounded:
-//! - `method` — the small enumeration of HTTP methods the server actually accepts (POST in
-//!   practice; GET for /health and /metrics).
-//! - `status` — HTTP status code as a string. Always one of a handful of values because the inner
-//!   jsonrpsee/tower stack normalizes errors.
+//! tower middleware that records HTTP-level Prometheus metrics:
+//! request count, latency histogram, and an RAII-guarded in-flight gauge.
+//! Sits outside `HealthLayer`/`MetricsLayer` so monitoring probes don't
+//! distort the latency distribution. Label cardinality is bounded by
+//! [`method_label`] and the HTTP status code enumeration.
 
 use std::task::{Context, Poll};
 use std::time::Instant;
 
-use http::{Request, Response};
+use http::{Method, Request, Response};
 use jsonrpsee::server::HttpBody;
 use tower::{Layer, Service};
 
@@ -42,8 +35,7 @@ pub fn preregister_http_metrics() {
     metrics::gauge!(names::IN_FLIGHT_REQUESTS).set(0.0);
 }
 
-/// tower [`Layer`] producing [`HttpMetricsService`].
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 pub struct HttpMetricsLayer;
 
 impl<S> Layer<S> for HttpMetricsLayer {
@@ -76,26 +68,23 @@ where
     }
 
     fn call(&mut self, request: Request<ReqB>) -> Self::Future {
-        let method = request.method().as_str().to_string();
+        let method = method_label(request.method());
         let start = Instant::now();
         let future = self.inner.call(request);
 
         Box::pin(async move {
             metrics::gauge!(names::IN_FLIGHT_REQUESTS).increment(1.0);
-            // Guard ensures decrement runs even if the inner future panics
-            // or is cancelled.
             let _in_flight_guard = InFlightGuard;
             let result = future.await;
             let duration_seconds = start.elapsed().as_secs_f64();
-            let status_code = match &result {
-                Ok(response) => response.status().as_u16(),
-                // Inner service error: use 0 so dashboards can filter on
-                // it as a sentinel for "tower stack failure, no HTTP
-                // response was produced".
-                Err(_) => 0,
+            // Inner service error: use 0 as a sentinel for "tower stack
+            // failure, no HTTP response produced" so dashboards can
+            // filter it out from real status codes.
+            let status_label = match &result {
+                Ok(response) => response.status().as_u16().to_string(),
+                Err(_) => "0".to_string(),
             };
-            let status_label = status_code.to_string();
-            metrics::histogram!(names::REQUEST_DURATION_SECONDS, "method" => method.clone())
+            metrics::histogram!(names::REQUEST_DURATION_SECONDS, "method" => method)
                 .record(duration_seconds);
             metrics::counter!(
                 names::REQUESTS_TOTAL,
@@ -105,6 +94,22 @@ where
             .increment(1);
             result
         })
+    }
+}
+
+/// Collapses HTTP methods into a small bounded set of label values so a
+/// malformed request (or future hyper version that admits new tokens)
+/// can't grow the Prometheus series cardinality unboundedly.
+fn method_label(method: &Method) -> &'static str {
+    match *method {
+        Method::GET => "GET",
+        Method::POST => "POST",
+        Method::PUT => "PUT",
+        Method::DELETE => "DELETE",
+        Method::HEAD => "HEAD",
+        Method::OPTIONS => "OPTIONS",
+        Method::PATCH => "PATCH",
+        _ => "other",
     }
 }
 
