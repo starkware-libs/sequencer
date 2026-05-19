@@ -32,7 +32,6 @@ pub const HEALTH_PATH: &str = "/health";
 /// Body returned by `GET /health`. Static and stateless — see module docs.
 const HEALTHY_BODY: &[u8] = br#"{"status":"ok"}"#;
 
-/// tower [`Layer`] that intercepts `GET /health`.
 #[derive(Clone, Copy, Default)]
 pub struct HealthLayer;
 
@@ -44,7 +43,6 @@ impl<S> Layer<S> for HealthLayer {
     }
 }
 
-/// Service produced by [`HealthLayer`].
 #[derive(Clone)]
 pub struct HealthService<S> {
     inner: S,
