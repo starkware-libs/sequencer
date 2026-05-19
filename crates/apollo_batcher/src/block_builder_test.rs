@@ -32,13 +32,21 @@ use mockall::predicate::eq;
 use mockall::Sequence;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::block::BlockInfo;
+use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::execution_resources::{GasAmount, GasVector};
+use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
-use starknet_api::transaction::fields::{Fee, TransactionSignature};
+use starknet_api::transaction::fields::{
+    Fee,
+    TransactionSignature,
+    PROOF_VERSION_V0,
+    VIRTUAL_OS_OUTPUT_VERSION,
+    VIRTUAL_SNOS,
+};
 use starknet_api::transaction::TransactionHash;
-use starknet_api::tx_hash;
+use starknet_api::{proof_facts, tx_hash};
+use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::block_builder::{
@@ -102,6 +110,7 @@ async fn block_execution_artifacts(
         execution_infos_and_signatures,
         rejected_tx_hashes,
         consumed_l1_handler_tx_hashes,
+        proof_facts_block_numbers: IndexMap::default(),
     };
     // Each mock transaction uses 1 L2 gas so the total amount should be the number of txs.
     assert_eq!(
@@ -1219,4 +1228,59 @@ async fn partial_chunk_execution_validator(#[case] successful: bool) {
             Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached))
         ));
     }
+}
+
+/// Builds an invoke transaction carrying SNOS proof facts that reference `block_number`.
+fn invoke_tx_with_snos_proof_facts(
+    tx_hash: TransactionHash,
+    block_number: BlockNumber,
+) -> InternalConsensusTransaction {
+    let program_hash = Felt::from(0xAA_u32);
+    let block_hash = Felt::from(0xBB_u32);
+    let config_hash = Felt::from(0xCC_u32);
+    let proof_facts = proof_facts![
+        PROOF_VERSION_V0,
+        VIRTUAL_SNOS,
+        program_hash,
+        VIRTUAL_OS_OUTPUT_VERSION,
+        Felt::from(block_number.0),
+        block_hash,
+        config_hash
+    ];
+    InternalConsensusTransaction::RpcTransaction(internal_invoke_tx(InvokeTxArgs {
+        tx_hash,
+        proof_facts,
+        ..Default::default()
+    }))
+}
+
+/// Verifies the execution output of proof-carrying transactions (SNIP36).
+#[tokio::test]
+async fn proof_facts_block_numbers_collected_from_snos_invokes() {
+    // The first tx carries SNOS proof facts.
+    let proof_block_number = BlockNumber(42);
+    let mut input_txs = vec![invoke_tx_with_snos_proof_facts(tx_hash!(0), proof_block_number)];
+    input_txs.extend(test_txs(1..N_CONCURRENT_TXS));
+
+    let (mock_transaction_executor, _) =
+        one_chunk_mock_executor(&input_txs, input_txs.len(), false).await;
+    let mock_tx_provider = mock_tx_provider_limitless_calls(vec![input_txs]);
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+
+    let result_block_artifacts = run_build_block(
+        mock_transaction_executor,
+        mock_tx_provider,
+        None,
+        false,
+        abort_receiver,
+        BLOCK_GENERATION_DEADLINE_SECS,
+        DEFAULT_IDLE_TIMEOUT_MS,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        result_block_artifacts.execution_data.proof_facts_block_numbers,
+        IndexMap::from([(tx_hash!(0), proof_block_number)]),
+    );
 }
