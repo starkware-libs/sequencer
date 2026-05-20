@@ -63,23 +63,11 @@ pub fn state_maps_to_committer_state_diff(state_maps: StateMaps) -> StateDiff {
 /// Validates that the committer state diff contains only allowed state transitions.
 ///
 /// This function enforces the following constraints:
-/// * **No Storage Deletions:** Storage entries cannot be updated to `Felt::ZERO`.
 /// * **No Class Declarations:** The `class_hash_to_compiled_class_hash` map must be empty.
 /// * **No Contract Deployments:** The `address_to_class_hash` map must be empty.
 pub(crate) fn validate_virtual_os_state_diff(
     state_diff: &StateDiff,
 ) -> Result<(), ProofProviderError> {
-    // validate no storage deletions.
-    for (address, storage_diffs) in &state_diff.storage_updates {
-        for (key, value) in storage_diffs {
-            if value.0 == Felt::ZERO {
-                return Err(ProofProviderError::InvalidStateDiff(format!(
-                    "Storage deletion not allowed: try to delete storage at address {address:?}, \
-                     key {key:?}"
-                )));
-            }
-        }
-    }
     // validate no contract deployments (or replaced classes).
     if !state_diff.address_to_class_hash.is_empty() {
         return Err(ProofProviderError::InvalidStateDiff(format!(
@@ -246,9 +234,10 @@ fn add_dummy_node_for_orphan_child(
 /// Adds dummy binary nodes for orphan child hashes that are referenced but have no preimage.
 ///
 /// RPC storage proofs include sibling hashes for verification but don't provide their preimages.
-/// The committer needs to traverse these nodes when deletions are allowed. Since we don't allow
-/// deletions, we insert dummy binary nodes (with zero hashes) to satisfy the committer's
-/// traversal requirements without requiring full preimages.
+/// Sibling preimages required for delete-path canonicalization are pre-fetched in
+/// `storage_proofs.rs::compute_missing_sibling_keys`. This helper covers the remaining
+/// orphans on non-delete paths: the committer never descends into them, so a placeholder
+/// `Binary(0, 0)` is enough to satisfy traversal initialization.
 fn add_dummy_nodes_for_orphan_hashes(
     db_map: &mut DbHashMap,
     nodes: &IndexMap<Felt, MerkleNode, impl BuildHasher>,

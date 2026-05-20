@@ -157,7 +157,6 @@ pub(crate) fn merge_storage_proofs(
 ///
 /// Returns an empty vec when no extra preimages are needed (no deletes, all required siblings
 /// already present, or the contract's storage trie is empty).
-#[allow(dead_code)] // Wired into get_storage_proofs in a follow-up PR.
 pub(crate) fn compute_missing_sibling_keys(
     rpc_proof: &RpcStorageProof,
     query: &RpcStorageProofsQuery,
@@ -624,7 +623,28 @@ impl StorageProofProvider for RpcStorageProofsProvider {
     ) -> Result<StorageProofs, ProofProviderError> {
         let query = Self::prepare_query(execution_data);
 
-        let rpc_proof = self.fetch_proofs(block_number, &query).await?;
+        let mut rpc_proof = self.fetch_proofs(block_number, &query).await?;
+
+        // Storage deletes need sibling preimages absent from the first-round proof; fetch them now.
+        let crafted_keys_to_query =
+            compute_missing_sibling_keys(&rpc_proof, &query, &execution_data.state_diff)?;
+        if !crafted_keys_to_query.is_empty() {
+            let crafted_keys_query = RpcStorageProofsQuery {
+                class_hashes: vec![],
+                contract_addresses: vec![],
+                contract_storage_keys: crafted_keys_to_query,
+            };
+            let mut crafted_keys_proof =
+                self.fetch_proofs(block_number, &crafted_keys_query).await?;
+            // Positional data lives in `rpc_proof`; clear the crafted-keys proof's leaves so
+            // the merge doesn't double-append into `contract_leaves_data`.
+            crafted_keys_proof.contracts_proof.contract_leaves_data.clear();
+            rpc_proof = merge_storage_proofs(
+                vec![rpc_proof, crafted_keys_proof],
+                &[query.clone(), crafted_keys_query],
+                &query,
+            );
+        }
 
         // Validate that contract_leaves_data matches contract_addresses length.
         let leaves_len = rpc_proof.contracts_proof.contract_leaves_data.len();
