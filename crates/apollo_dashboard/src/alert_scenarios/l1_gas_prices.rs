@@ -41,7 +41,10 @@ pub(crate) fn get_l1_gas_price_scraper_success_count_alert() -> Alert {
         ALERT_NAME,
         "L1 gas price scraper success count",
         EvaluationRate::Default,
-        format!("increase({}[1h])", L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()),
+        format!(
+            "sum(increase({}[1h])) or vector(0)",
+            L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()
+        ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
