@@ -54,6 +54,7 @@ tracing.workspace = true
 [dev-dependencies]
 apollo_class_manager_types = { workspace = true, features = ["testing"] }
 apollo_gateway_config = { workspace = true, features = ["testing"] }
+apollo_infra_utils.workspace = true
 apollo_mempool.workspace = true
 apollo_mempool_types = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }
@@ -67,6 +68,7 @@ blockifier = { workspace = true, features = ["mocks", "testing"] }
 blockifier_test_utils.workspace = true
 cairo-lang-sierra-to-casm.workspace = true
 criterion = { workspace = true, features = ["async_tokio"] }
+expect-test.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 mockall.workspace = true

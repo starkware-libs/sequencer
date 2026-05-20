@@ -12,6 +12,11 @@ use tokio::sync::OnceCell;
 // The expected error code for precondition failed errors when using `if_generation_match` in GCS.
 const GCS_ERROR_CODE_PRECONDITION_FAILED: u16 = 412;
 
+/// GCS object name where the Stwo proof for these facts is archived.
+pub fn compute_big_storage_key(proof_facts: &ProofFacts) -> String {
+    format!("proofs/{}", proof_facts.hash())
+}
+
 /// Trait for writing proof facts and proofs to large storage systems.
 /// Implementations should be thread-safe (Send + Sync).
 #[cfg_attr(any(feature = "testing", test), automock)]
@@ -65,9 +70,8 @@ impl ProofArchiveWriterTrait for GcsProofArchiveWriter {
         proof: Proof,
     ) -> Result<(), ProofArchiveError> {
         let client = self.client.get().expect("GCS client not connected. Call connect() first.");
-        let facts_hash = proof_facts.hash();
         let proof_bytes: Vec<u8> = proof.0.iter().flat_map(|&val| val.to_be_bytes()).collect();
-        let object_name = format!("proofs/{}", facts_hash);
+        let object_name = compute_big_storage_key(&proof_facts);
 
         let result = client
             .upload_object(
