@@ -91,7 +91,7 @@ use apollo_storage::storage_reader_server::{
     StorageReaderServerDynamicConfig,
     StorageReaderServerStaticConfig,
 };
-use apollo_storage::{StorageConfig, StorageScope};
+use apollo_storage::StorageConfig;
 use axum::extract::Query;
 use axum::routing::{get, post};
 use axum::{serve, Json, Router};
@@ -379,9 +379,9 @@ pub fn create_node_config(
     // expect a mempool client. The config pointer in CONFIG_POINTERS only propagates this when
     // loading from a file; when building in code we set it directly.
     batcher_config.static_config.validation_only = validation_only;
-    if validation_only {
-        state_sync_config.static_config.storage_config.scope = StorageScope::StateOnly;
-    }
+    // TODO(Asaf): once consensus works on a StateOnly state_sync (see
+    // `validate_validation_only_config` in apollo_node_config), restore an
+    // `if validation_only { scope = StateOnly }` override here.
     let batcher_config = wrap_if_component_config_expected!(batcher, batcher_config);
     let class_manager_config =
         wrap_if_component_config_expected!(class_manager, class_manager_config);
