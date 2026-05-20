@@ -6,7 +6,7 @@ use std::str::FromStr;
 
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::bouncer::BouncerConfig;
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
 use tracing::info;
@@ -37,6 +37,17 @@ const DEFAULT_OHTTP_KEY_CACHE_MAX_AGE_SECS: u64 = 3600;
 pub enum TransportMode {
     Http,
     Https { tls_cert_file: PathBuf, tls_key_file: PathBuf },
+}
+
+/// Output format for tracing log records.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
+#[clap(rename_all = "lowercase")]
+pub enum LogFormat {
+    /// Human-readable text formatter (default).
+    #[default]
+    Text,
+    /// One JSON object per line; recommended for production log aggregators.
+    Json,
 }
 
 impl TransportMode {
@@ -562,10 +573,17 @@ pub struct CliArgs {
     #[arg(long, value_name = "SECS", env = "OHTTP_KEY_CACHE_MAX_AGE_SECS")]
     pub ohttp_key_cache_max_age_secs: Option<u64>,
 
-    /// Emit logs as JSON instead of the human-readable default. Recommended for
-    /// production so log aggregators (e.g. Datadog) parse fields directly.
-    #[arg(long, env = "JSON_LOGS")]
-    pub json_logs: bool,
+    /// Log output format. Use `json` in production so log aggregators
+    /// (e.g. Datadog) parse fields directly. Matches the discovery-service
+    /// `LOG_FORMAT` env var for cross-service consistency.
+    #[arg(
+        long,
+        value_enum,
+        value_name = "FORMAT",
+        env = "LOG_FORMAT",
+        default_value_t = LogFormat::Text,
+    )]
+    pub log_format: LogFormat,
 
     /// Hidden escape hatch: override the embedded bouncer config (block capacity limits) with a
     /// custom JSON file. Not advertised because the embedded defaults are tuned for this prover

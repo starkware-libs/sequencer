@@ -14,7 +14,12 @@ async fn main() -> anyhow::Result<()> {
 
     use anyhow::Context;
     use clap::Parser;
-    use starknet_transaction_prover::server::config::{CliArgs, ServiceConfig, TransportMode};
+    use starknet_transaction_prover::server::config::{
+        CliArgs,
+        LogFormat,
+        ServiceConfig,
+        TransportMode,
+    };
     use starknet_transaction_prover::server::cors::{build_cors_layer, cors_mode};
     use starknet_transaction_prover::server::log_redact::redact_url_host;
     use starknet_transaction_prover::server::rpc_api::ProvingRpcServer;
@@ -29,23 +34,22 @@ async fn main() -> anyhow::Result<()> {
     use tracing_subscriber::prelude::*;
     use tracing_subscriber::{fmt, EnvFilter};
 
-    // Parse CLI args before initializing tracing so the `--json-logs` flag can
-    // pick the formatter. Config loading still happens after to keep the
-    // existing CLI-override logs visible.
+    // Parse CLI args before initializing tracing so `--log-format` can pick
+    // the formatter. Config loading still happens after to keep the existing
+    // CLI-override logs visible.
     let args = CliArgs::parse();
 
     // TODO(Avi): Revisit the starknet_transaction_prover=debug default once the service stabilizes.
     // By default, keep service logs and lower third-party logs to warn. The
-    // formatter is JSON when `--json-logs`/`JSON_LOGS=true` is set, so log
-    // aggregators (e.g. Datadog) can parse fields directly without regex.
+    // formatter is JSON when `--log-format json` / `LOG_FORMAT=json` is set,
+    // so log aggregators (e.g. Datadog) can parse fields directly without regex.
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
         EnvFilter::new("warn,starknet_transaction_prover=debug,privacy_prove=info")
     });
     let registry = tracing_subscriber::registry().with(filter);
-    if args.json_logs {
-        registry.with(fmt::layer().json()).init();
-    } else {
-        registry.with(fmt::layer()).init();
+    match args.log_format {
+        LogFormat::Json => registry.with(fmt::layer().json()).init(),
+        LogFormat::Text => registry.with(fmt::layer()).init(),
     }
 
     let config = ServiceConfig::from_args(args)?;

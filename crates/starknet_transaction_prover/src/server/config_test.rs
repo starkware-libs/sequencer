@@ -7,7 +7,7 @@ use rstest::rstest;
 use tempfile::NamedTempFile;
 
 use crate::errors::ConfigError;
-use crate::server::config::{CliArgs, ServiceConfig, TransportMode};
+use crate::server::config::{CliArgs, LogFormat, ServiceConfig, TransportMode};
 
 /// Mutex that serializes tests which modify environment variables.
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
@@ -59,7 +59,7 @@ fn base_args() -> CliArgs {
         max_request_body_size: None,
         ohttp_enabled: false,
         ohttp_key_cache_max_age_secs: None,
-        json_logs: false,
+        log_format: LogFormat::Text,
     }
 }
 
@@ -148,7 +148,7 @@ fn cors_allow_origin_rejects_non_array_in_config_file() {
         max_request_body_size: None,
         ohttp_enabled: false,
         ohttp_key_cache_max_age_secs: None,
-        json_logs: false,
+        log_format: LogFormat::Text,
     };
 
     let error = ServiceConfig::from_args(args).unwrap_err();
