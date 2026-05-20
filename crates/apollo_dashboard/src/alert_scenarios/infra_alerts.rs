@@ -16,7 +16,7 @@ use crate::alerts::{
 define_metrics!(
     Pod => {
         MetricCounter { CONTAINER_CPU_USAGE_SECONDS_TOTAL, "container_cpu_usage_seconds_total", "Cumulative CPU time consumed by the container in seconds. Use with irate() for CPU usage rate.", init=0 },
-        MetricGauge { CONTAINER_MEMORY_WORKING_SET_BYTES, "container_memory_working_set_bytes", "Estimated amount of memory that cannot be evicted (working set: recently accessed memory, dirty memory, kernel memory). Used by the OOM killer for eviction decisions." },
+        MetricGauge { CONTAINER_MEMORY_WORKING_SET_BYTES, "container_memory_working_set_bytes", "Memory usage minus inactive file-backed pages (memory.usage_in_bytes - inactive_file). Includes anonymous memory, active file cache, and kernel memory. Active file cache is reclaimable, so this metric overstates true memory pressure. Used by the Kubernetes kubelet for pod eviction decisions (not the Linux OOM killer, which uses RSS/anon)." },
         MetricGauge { CONTAINER_MEMORY_RSS, "container_memory_rss", "Resident set size: anonymous (non file-backed) memory used by the container. This is the cgroup memory.stat `anon` and corresponds to what the kernel OOM killer cannot reclaim." },
         MetricGauge { CONTAINER_SPEC_CPU_QUOTA, "container_spec_cpu_quota", "CPU quota in microseconds allocated to the container from the container spec (cgroups)." },
         MetricGauge { CONTAINER_SPEC_MEMORY_LIMIT_BYTES, "container_spec_memory_limit_bytes", "Memory limit for the container from the container spec, in bytes. Exceeding this limit can trigger OOM kill." },
