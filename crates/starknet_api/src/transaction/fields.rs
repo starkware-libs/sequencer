@@ -705,6 +705,11 @@ impl ProofFacts {
     pub fn hash(&self) -> Felt {
         HashChain::new().chain_iter(self.0.iter()).get_poseidon_hash()
     }
+
+    /// GCS object name where the Stwo proof for these facts is archived.
+    pub fn big_storage_key(&self) -> String {
+        format!("proofs/{}", self.hash())
+    }
 }
 
 /// Represents the variants of proof facts associated with a transaction.

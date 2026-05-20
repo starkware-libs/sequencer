@@ -65,9 +65,8 @@ impl ProofArchiveWriterTrait for GcsProofArchiveWriter {
         proof: Proof,
     ) -> Result<(), ProofArchiveError> {
         let client = self.client.get().expect("GCS client not connected. Call connect() first.");
-        let facts_hash = proof_facts.hash();
         let proof_bytes: Vec<u8> = proof.0.iter().flat_map(|&val| val.to_be_bytes()).collect();
-        let object_name = format!("proofs/{}", facts_hash);
+        let object_name = proof_facts.big_storage_key();
 
         let result = client
             .upload_object(
