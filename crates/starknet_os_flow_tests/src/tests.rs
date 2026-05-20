@@ -58,6 +58,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     ProofFacts,
+    ProofVersion,
     ResourceBounds,
     Tip,
     TransactionSignature,
@@ -91,6 +92,7 @@ use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_ha
 use starknet_os::hints::vars::Const;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
+use strum::IntoEnumIterator;
 
 use crate::initial_state::{
     create_default_initial_state_data,
@@ -3018,4 +3020,44 @@ async fn test_get_block_hash_current_block_number() {
 
     let test_output = test_builder.build_and_run().await;
     test_output.perform_default_validations();
+}
+
+/// Verifies the OS accepts an invoke with `proof_facts` for every supported
+/// proof version and for every allowed virtual-OS program hash.
+#[rstest]
+#[tokio::test]
+async fn test_proof_facts_versions_and_program_hashes() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let (mut test_builder, [test_contract_address]) =
+        TestBuilder::create_standard([(test_contract, calldata![Felt::ZERO, Felt::ZERO])]).await;
+    let config_hash = test_builder.compute_virtual_os_config_hash();
+    let allowed_program_hashes = VersionedConstants::latest_constants()
+        .os_constants
+        .allowed_virtual_os_program_hashes
+        .clone();
+    let calldata = create_calldata(test_contract_address, "empty_function", &[]);
+    let reference_program_hash =
+        *allowed_program_hashes.first().expect("expected at least one allowed program hash");
+    let reference_proof_version =
+        ProofVersion::iter().next().expect("ProofVersion must have at least one variant");
+
+    // Cover every allowed program hash (with a fixed proof version).
+    for program_hash in &allowed_program_hashes {
+        let mut proof_facts =
+            ProofFacts::custom_proof_facts_for_testing(*program_hash, config_hash);
+        Arc::make_mut(&mut proof_facts.0)[0] = reference_proof_version.as_felt();
+        test_builder
+            .add_funded_account_invoke(invoke_tx_args! { calldata: calldata.clone(), proof_facts });
+    }
+
+    // Cover every proof version (with a fixed program hash).
+    for proof_version in ProofVersion::iter() {
+        let mut proof_facts =
+            ProofFacts::custom_proof_facts_for_testing(reference_program_hash, config_hash);
+        Arc::make_mut(&mut proof_facts.0)[0] = proof_version.as_felt();
+        test_builder
+            .add_funded_account_invoke(invoke_tx_args! { calldata: calldata.clone(), proof_facts });
+    }
+
+    test_builder.build_and_run().await.perform_default_validations();
 }
