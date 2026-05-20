@@ -157,7 +157,6 @@ pub(crate) fn merge_storage_proofs(
 ///
 /// Returns an empty vec when no extra preimages are needed (no deletes, all required siblings
 /// already present, or the contract's storage trie is empty).
-#[allow(dead_code)] // Wired into get_storage_proofs in a follow-up PR.
 pub(crate) fn compute_missing_sibling_keys(
     rpc_proof: &RpcStorageProof,
     query: &RpcStorageProofsQuery,
@@ -624,7 +623,41 @@ impl StorageProofProvider for RpcStorageProofsProvider {
     ) -> Result<StorageProofs, ProofProviderError> {
         let query = Self::prepare_query(execution_data);
 
-        let rpc_proof = self.fetch_proofs(block_number, &query).await?;
+        let mut rpc_proof = self.fetch_proofs(block_number, &query).await?;
+
+        // Storage deletes need sibling preimages absent from the first-round proof; fetch them now.
+        let crafted_keys_to_query =
+            compute_missing_sibling_keys(&rpc_proof, &query, &execution_data.state_diff)?;
+        if !crafted_keys_to_query.is_empty() {
+            let crafted_keys_query = RpcStorageProofsQuery {
+                class_hashes: vec![],
+                contract_addresses: vec![],
+                contract_storage_keys: crafted_keys_to_query,
+            };
+            let crafted_keys_proof = self.fetch_proofs(block_number, &crafted_keys_query).await?;
+            // Index the original query's contracts by address so each fetched sibling preimage
+            // lands in the matching storage-proof slot.
+            let addr_to_idx: HashMap<Felt, usize> = query
+                .contract_storage_keys
+                .iter()
+                .enumerate()
+                .map(|(idx, query_keys)| (query_keys.contract_address, idx))
+                .collect();
+            // Union the fetched sibling preimages into each contract's storage proof slot.
+            for (crafted_keys, crafted_nodes) in crafted_keys_query
+                .contract_storage_keys
+                .iter()
+                .zip(crafted_keys_proof.contracts_storage_proofs)
+            {
+                let idx = *addr_to_idx.get(&crafted_keys.contract_address).ok_or_else(|| {
+                    ProofProviderError::InvalidProofResponse(format!(
+                        "crafted-keys contract {:#x} not found in the original query",
+                        crafted_keys.contract_address
+                    ))
+                })?;
+                rpc_proof.contracts_storage_proofs[idx].extend(crafted_nodes);
+            }
+        }
 
         // Validate that contract_leaves_data matches contract_addresses length.
         let leaves_len = rpc_proof.contracts_proof.contract_leaves_data.len();
