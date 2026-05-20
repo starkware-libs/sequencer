@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::StateMaps;
+use indexmap::IndexMap;
 use rstest::rstest;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
@@ -13,6 +14,7 @@ use starknet_rust_core::types::{
     ContractLeafData,
     ContractStorageKeys,
     ContractsProof,
+    EdgeNode,
     GlobalRoots,
     MerkleNode,
     StorageProof as RpcStorageProof,
@@ -21,6 +23,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::running::storage_proofs::{
     collect_query,
+    compute_missing_sibling_keys,
     count_total_keys,
     flatten_query,
     merge_storage_proofs,
@@ -265,4 +268,95 @@ fn test_split_merge_roundtrip() {
     assert_split_merge_identity(&make_query(10, 20, &[]), 15);
     // Tight limit forces many small chunks.
     assert_split_merge_identity(&make_query(3, 4, &[8, 6, 3]), 3);
+}
+
+/// Builds an `RpcStorageProof` + `RpcStorageProofsQuery` for a single contract whose storage
+/// trie's nodes are exactly `nodes`. `storage_root` is the trie root hash.
+fn single_contract_proof(
+    addr: ContractAddress,
+    storage_root: Felt,
+    nodes: IndexMap<Felt, MerkleNode>,
+) -> (RpcStorageProof, RpcStorageProofsQuery) {
+    let query = RpcStorageProofsQuery {
+        class_hashes: vec![],
+        contract_addresses: vec![addr],
+        contract_storage_keys: vec![ContractStorageKeys {
+            contract_address: *addr.0.key(),
+            storage_keys: vec![],
+        }],
+    };
+    let proof = RpcStorageProof {
+        classes_proof: IndexMap::default(),
+        contracts_proof: ContractsProof {
+            nodes: IndexMap::default(),
+            contract_leaves_data: vec![ContractLeafData {
+                nonce: Felt::ZERO,
+                class_hash: Felt::ZERO,
+                storage_root: Some(storage_root),
+            }],
+        },
+        contracts_storage_proofs: vec![nodes],
+        global_roots: GlobalRoots {
+            contracts_tree_root: Felt::ZERO,
+            classes_tree_root: Felt::ZERO,
+            block_hash: Felt::ZERO,
+        },
+    };
+    (proof, query)
+}
+
+fn delete_state_diff(addr: ContractAddress, key: Felt) -> StateMaps {
+    let mut state_diff = StateMaps::default();
+    state_diff.storage.insert((addr, StorageKey::try_from(key).unwrap()), Felt::ZERO);
+    state_diff
+}
+
+/// 2^bit_index from the LSB, as a Felt.
+fn felt_with_bit(bit_index: usize) -> Felt {
+    let pos_msb = 255 - bit_index;
+    let mut bytes = [0u8; 32];
+    bytes[pos_msb / 8] = 1 << (7 - pos_msb % 8);
+    Felt::from_bytes_be(&bytes)
+}
+
+/// PDF tree: A(edge, length=3, path=0) → B(binary) → {C(edge)→leaf, D=orphan}.
+/// Deleting the leaf under C requires D's preimage to canonicalize the surviving subtree.
+#[test]
+fn test_compute_missing_sibling_keys_pdf_tree() {
+    let addr = ContractAddress::try_from(Felt::from(100u64)).unwrap();
+    let (a, b, c, d_orphan, leaf) =
+        (Felt::from(1u64), Felt::from(2u64), Felt::from(3u64), Felt::from(4u64), Felt::from(5u64));
+
+    let mut nodes = IndexMap::default();
+    nodes.insert(a, MerkleNode::EdgeNode(EdgeNode { path: Felt::ZERO, length: 3, child: b }));
+    nodes.insert(b, MerkleNode::BinaryNode(BinaryNode { left: c, right: d_orphan }));
+    nodes.insert(c, MerkleNode::EdgeNode(EdgeNode { path: Felt::ZERO, length: 247, child: leaf }));
+
+    let (proof, query) = single_contract_proof(addr, a, nodes);
+    let state_diff = delete_state_diff(addr, Felt::ZERO);
+
+    let result = compute_missing_sibling_keys(&proof, &query, &state_diff);
+
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].contract_address, *addr.0.key());
+    // D sits at depth 4, prefix bits 0001 (top 3 bits from A's edge zeros + the flipped binary
+    // direction). The crafted key has bit (251 - 4) = 247 set.
+    assert_eq!(result[0].storage_keys, vec![felt_with_bit(247)]);
+}
+
+#[test]
+fn test_compute_missing_sibling_keys_no_deletes_returns_empty() {
+    let addr = ContractAddress::try_from(Felt::from(100u64)).unwrap();
+    let mut nodes = IndexMap::default();
+    // An orphan exists in the tree (right child has no preimage) but no delete is requested.
+    nodes.insert(
+        Felt::from(1u64),
+        MerkleNode::BinaryNode(BinaryNode { left: Felt::from(2u64), right: Felt::from(3u64) }),
+    );
+    let (proof, query) = single_contract_proof(addr, Felt::from(1u64), nodes);
+
+    let mut state_diff = StateMaps::default();
+    state_diff.storage.insert((addr, StorageKey::from(0u32)), Felt::from(42u64));
+
+    assert!(compute_missing_sibling_keys(&proof, &query, &state_diff).is_empty());
 }
