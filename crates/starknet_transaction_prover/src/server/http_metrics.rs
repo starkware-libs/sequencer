@@ -7,7 +7,7 @@
 use std::task::{Context, Poll};
 use std::time::Instant;
 
-use http::{Method, Request, Response};
+use http::{Method, Request, Response, StatusCode};
 use jsonrpsee::server::HttpBody;
 use tower::{Layer, Service};
 
@@ -25,13 +25,17 @@ pub mod names {
     pub const IN_FLIGHT_REQUESTS: &str = "prover_http_inflight_requests";
 }
 
-/// Pre-registers the three HTTP metrics at zero so they appear in /metrics
-/// even before the first request — dashboards relying on `rate(...) > 0`
-/// need the series to exist. Should be called once at startup, alongside
-/// [`super::metrics::install_exporter`].
+/// Pre-registers the three HTTP metrics so they appear in /metrics even
+/// before the first request — dashboards relying on `rate(...) > 0` need
+/// the series to exist. Note we deliberately do *not* pre-`record` the
+/// histogram: that would inject a phantom 0-second observation that
+/// distorts every quantile.
 pub fn preregister_http_metrics() {
-    metrics::counter!(names::REQUESTS_TOTAL, "method" => "POST", "status" => "200").increment(0);
-    metrics::histogram!(names::REQUEST_DURATION_SECONDS, "method" => "POST").record(0.0);
+    metrics::counter!(names::REQUESTS_TOTAL, "method" => "POST", "status" => "2xx").increment(0);
+    metrics::describe_histogram!(
+        names::REQUEST_DURATION_SECONDS,
+        "HTTP request latency in seconds, by method",
+    );
     metrics::gauge!(names::IN_FLIGHT_REQUESTS).set(0.0);
 }
 
@@ -77,23 +81,36 @@ where
             let _in_flight_guard = InFlightGuard;
             let result = future.await;
             let duration_seconds = start.elapsed().as_secs_f64();
-            // Inner service error: use 0 as a sentinel for "tower stack
-            // failure, no HTTP response produced" so dashboards can
-            // filter it out from real status codes.
-            let status_label = match &result {
-                Ok(response) => response.status().as_u16().to_string(),
-                Err(_) => "0".to_string(),
+            let status = match &result {
+                Ok(response) => status_label(response.status()),
+                // Sentinel for "tower stack failure, no HTTP response
+                // produced" so dashboards can filter it out from real codes.
+                Err(_) => "error",
             };
             metrics::histogram!(names::REQUEST_DURATION_SECONDS, "method" => method)
                 .record(duration_seconds);
             metrics::counter!(
                 names::REQUESTS_TOTAL,
                 "method" => method,
-                "status" => status_label,
+                "status" => status,
             )
             .increment(1);
             result
         })
+    }
+}
+
+/// Collapses HTTP statuses to a 6-value enum so a malformed response or
+/// future framework version that emits exotic codes can't blow up
+/// Prometheus series cardinality.
+fn status_label(status: StatusCode) -> &'static str {
+    match status.as_u16() {
+        100..=199 => "1xx",
+        200..=299 => "2xx",
+        300..=399 => "3xx",
+        400..=499 => "4xx",
+        500..=599 => "5xx",
+        _ => "other",
     }
 }
 

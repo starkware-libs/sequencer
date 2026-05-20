@@ -80,7 +80,7 @@ fn parse_counter_and_histogram(scrape: &str) -> Snapshot {
         .find(|line| {
             line.starts_with(names::REQUESTS_TOTAL)
                 && line.contains("method=\"POST\"")
-                && line.contains("status=\"200\"")
+                && line.contains("status=\"2xx\"")
                 && !line.starts_with("# ")
         })
         .and_then(|line| line.rsplit_once(' ').and_then(|(_, value)| value.parse().ok()))
