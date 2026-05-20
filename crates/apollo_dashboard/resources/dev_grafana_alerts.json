@@ -902,7 +902,7 @@
       "name": "eth_to_strk_success_count",
       "title": "Eth to Strk success count",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(increase(eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {
@@ -1422,7 +1422,7 @@
       "name": "l1_message_no_successes",
       "title": "L1 message no successes",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "(increase(l1_message_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
+      "expr": "(sum(increase(l1_message_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) or vector(0)) and on() (is_observer{cluster=~\"$cluster\", namespace=~\"$namespace\"} == 0)",
       "conditions": [
         {
           "evaluator": {

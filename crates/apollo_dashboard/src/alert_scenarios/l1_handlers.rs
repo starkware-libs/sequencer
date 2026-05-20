@@ -18,7 +18,10 @@ pub(crate) fn get_l1_message_scraper_no_successes_alert() -> Alert {
         ALERT_NAME,
         "L1 message no successes",
         EvaluationRate::Default,
-        format!("increase({}[5m])", L1_MESSAGE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()),
+        format!(
+            "sum(increase({}[5m])) or vector(0)",
+            L1_MESSAGE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()
+        ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
