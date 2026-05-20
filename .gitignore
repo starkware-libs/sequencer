@@ -56,3 +56,7 @@ crates/blockifier_test_utils/resources/feature_contracts/cairo1/sierra/*.json
 # Claude Code local config
 .claude*.local*
 .claude/*.local*
+
+# Local-only artifacts that have been accidentally committed before.
+observability_report.html
+.claude/scheduled_tasks.lock
