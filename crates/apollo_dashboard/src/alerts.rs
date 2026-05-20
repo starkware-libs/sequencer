@@ -277,7 +277,9 @@ impl Alert {
             ObserverApplicability::Applicable => expr,
             ObserverApplicability::NotApplicable => {
                 ExpressionOrExpressionWithPlaceholder::ConcreteValue(format!(
-                    "({}) and ({} == 0)",
+                    // `and on()` ignores label sets so the unlabeled scalar produced by
+                    // aggregations like sum() still matches the pod-labeled is_observer series.
+                    "({}) and on() ({} == 0)",
                     expr.to_alert_promql(),
                     IS_OBSERVER.get_name_with_filter(),
                 ))
