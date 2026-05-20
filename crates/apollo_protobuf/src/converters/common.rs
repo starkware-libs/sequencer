@@ -6,10 +6,6 @@ use super::ProtobufConversionError;
 use crate::protobuf;
 use crate::sync::{BlockHashOrNumber, Direction, Query};
 
-#[cfg(test)]
-#[allow(dead_code)]
-pub const PATRICIA_HEIGHT: u32 = 251;
-
 impl TryFrom<protobuf::Felt252> for starknet_types_core::felt::Felt {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::Felt252) -> Result<Self, Self::Error> {
@@ -166,50 +162,6 @@ pub(super) fn l1_data_availability_mode_to_enum_int(value: L1DataAvailabilityMod
     match value {
         L1DataAvailabilityMode::Calldata => 0,
         L1DataAvailabilityMode::Blob => 1,
-    }
-}
-
-#[cfg(test)]
-#[allow(dead_code)]
-pub(crate) trait TestInstance {
-    fn test_instance() -> Self;
-}
-
-#[cfg(test)]
-impl TestInstance for protobuf::Hash {
-    fn test_instance() -> Self {
-        Self { elements: [0].repeat(32).to_vec() }
-    }
-}
-
-#[cfg(test)]
-impl TestInstance for protobuf::Address {
-    fn test_instance() -> Self {
-        Self { elements: [0].repeat(32).to_vec() }
-    }
-}
-
-#[cfg(test)]
-impl TestInstance for protobuf::Patricia {
-    fn test_instance() -> Self {
-        Self { n_leaves: 0, root: Some(protobuf::Hash::test_instance()) }
-    }
-}
-
-#[cfg(test)]
-impl TestInstance for protobuf::Uint128 {
-    fn test_instance() -> Self {
-        Self { low: 1, high: 0 }
-    }
-}
-
-#[cfg(test)]
-impl TestInstance for protobuf::ConsensusSignature {
-    fn test_instance() -> Self {
-        Self {
-            r: Some(protobuf::Felt252 { elements: [1].repeat(32).to_vec() }),
-            s: Some(protobuf::Felt252 { elements: [1].repeat(32).to_vec() }),
-        }
     }
 }
 
