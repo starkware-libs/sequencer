@@ -14,6 +14,11 @@ on:
       - "crates/papyrus**/**"
       - "crates/apollo_starknet_client/**"
       - "scripts/dependencies.sh"
+      # TEMP: trigger this workflow for PR #14076 so we exercise base-image build under the
+      # install-script split. Remove these temporary entries before merge.
+      - "scripts/install_build_tools.sh"
+      - "scripts/install_cargo_tools.sh"
+      - "scripts/install_compiler_binaries.sh"
 
 env:
   RUSTFLAGS: "-D warnings"
