@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::collections::hash_map::RandomState;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use async_trait::async_trait;
 use blockifier::state::cached_state::StateMaps;
@@ -147,6 +148,127 @@ pub(crate) fn merge_storage_proofs(
     }
 
     RpcStorageProof { classes_proof, contracts_proof, contracts_storage_proofs, global_roots }
+}
+
+/// For each storage delete in `state_diff`, walks the contract's storage-trie proof toward the
+/// deleted key and returns crafted keys that — when queried in a follow-up `get_storage_proof` —
+/// force the RPC to expose preimages of sibling subtrees the committer needs to canonicalize the
+/// post-deletion tree.
+///
+/// Returns an empty vec when no extra preimages are needed (no deletes, all required siblings
+/// already present, or the contract's storage trie is empty).
+#[allow(dead_code)] // Wired into get_storage_proofs in a follow-up PR.
+pub(crate) fn compute_missing_sibling_keys(
+    rpc_proof: &RpcStorageProof,
+    query: &RpcStorageProofsQuery,
+    state_diff: &StateMaps,
+) -> Result<Vec<ContractStorageKeys>, ProofProviderError> {
+    let mut crafted_keys_to_query: BTreeMap<ContractAddress, BTreeSet<Felt>> = BTreeMap::new();
+
+    for ((addr, key), value) in &state_diff.storage {
+        if *value != Felt::ZERO {
+            continue;
+        }
+        // `query.contract_addresses`, `rpc_proof.contracts_proof.contract_leaves_data`, and
+        // `rpc_proof.contracts_storage_proofs` are built together by `prepare_query` and share
+        // index order.
+        let Some(idx) = query.contract_addresses.iter().position(|a| a == addr) else { continue };
+        let leaf = &rpc_proof.contracts_proof.contract_leaves_data[idx];
+        let nodes = &rpc_proof.contracts_storage_proofs[idx];
+        let root = leaf.storage_root.ok_or_else(|| {
+            ProofProviderError::InvalidProofResponse(format!(
+                "contract {addr:?} has a storage delete but no storage_root in the proof"
+            ))
+        })?;
+        for crafted in collect_missing_siblings_for_key(root, *key.0.key(), nodes)? {
+            crafted_keys_to_query.entry(*addr).or_default().insert(crafted);
+        }
+    }
+
+    Ok(crafted_keys_to_query
+        .into_iter()
+        .map(|(addr, keys)| ContractStorageKeys {
+            contract_address: *addr.0.key(),
+            storage_keys: keys.into_iter().collect(),
+        })
+        .collect())
+}
+
+/// Bit-width of a Felt's big-endian byte buffer (`Felt::to_bytes_be()` returns `[u8; 32]`).
+const FELT_BIT_COUNT: usize = 256;
+
+/// Walks the storage proof from `root_hash` toward `key`, collecting crafted keys for each
+/// orphan sibling encountered at a binary node on the path. Stops as soon as the walk goes past
+/// the leaf level or hits a hash whose preimage isn't in `proof_nodes`.
+fn collect_missing_siblings_for_key(
+    root_hash: Felt,
+    key: Felt,
+    proof_nodes: &IndexMap<Felt, MerkleNode, RandomState>,
+) -> Result<Vec<Felt>, ProofProviderError> {
+    let storage_tree_height = usize::from(SubTreeHeight::ACTUAL_HEIGHT.0);
+    // Storage keys are `storage_tree_height`-bit values held in the top `storage_tree_height`
+    // bits of a 256-bit big-endian Felt buffer; the leading `bit_offset` bits are always zero.
+    let bit_offset = FELT_BIT_COUNT - storage_tree_height;
+    let key_bytes = key.to_bytes_be();
+
+    let mut crafted_keys = Vec::new();
+    let mut current = root_hash;
+    let mut depth: usize = 0;
+
+    while depth < storage_tree_height {
+        let Some(node) = proof_nodes.get(&current) else { break };
+        match node {
+            MerkleNode::BinaryNode(bn) => {
+                let go_right = bit_at(&key_bytes, bit_offset + depth);
+                let (next, sibling) =
+                    if go_right { (bn.right, bn.left) } else { (bn.left, bn.right) };
+                // Leaf-level siblings are storage values, not inner nodes; the committer merges
+                // them by hash without needing a preimage.
+                if depth + 1 < storage_tree_height && !proof_nodes.contains_key(&sibling) {
+                    crafted_keys.push(craft_sibling_key(&key_bytes, bit_offset, depth));
+                }
+                current = next;
+                depth += 1;
+            }
+            MerkleNode::EdgeNode(en) => {
+                let edge_len = usize::try_from(en.length).map_err(|_| {
+                    ProofProviderError::InvalidProofResponse(format!(
+                        "edge node {current:#x} has length {} that doesn't fit in usize",
+                        en.length
+                    ))
+                })?;
+                depth += edge_len;
+                current = en.child;
+            }
+        }
+    }
+
+    Ok(crafted_keys)
+}
+
+/// Crafts a key whose top `depth + 1` bits route through the sibling subtree at `depth`:
+fn craft_sibling_key(key_bytes: &[u8; 32], bit_offset: usize, depth: usize) -> Felt {
+    let mut bytes = [0u8; 32];
+    for i in 0..depth {
+        if bit_at(key_bytes, bit_offset + i) {
+            set_bit(&mut bytes, bit_offset + i);
+        }
+    }
+    if !bit_at(key_bytes, bit_offset + depth) {
+        set_bit(&mut bytes, bit_offset + depth);
+    }
+    Felt::from_bytes_be(&bytes)
+}
+
+/// Reads bit `pos` of a 32-byte big-endian buffer where `pos` is 0-indexed from the MSB:
+/// `pos = 0` is bit 7 of `bytes[0]`, `pos = 255` is bit 0 of `bytes[31]`.
+fn bit_at(bytes: &[u8; 32], pos: usize) -> bool {
+    (bytes[pos / 8] >> (7 - pos % 8)) & 1 == 1
+}
+
+/// Sets bit `pos` of a 32-byte big-endian buffer where `pos` is 0-indexed from the MSB.
+fn set_bit(bytes: &mut [u8; 32], pos: usize) {
+    bytes[pos / 8] |= 1 << (7 - pos % 8);
 }
 
 /// Configuration for storage proof provider behavior.
