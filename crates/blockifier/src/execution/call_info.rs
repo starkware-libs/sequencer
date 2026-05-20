@@ -517,12 +517,7 @@ impl CallInfo {
             executed_class_hashes.insert(class_hash);
 
             // Storage entries.
-            let call_storage_entries = call_info
-                .storage_access_tracker
-                .accessed_storage_keys
-                .iter()
-                .map(|storage_key| (call_info.call.storage_address, *storage_key));
-            visited_storage_entries.extend(call_storage_entries);
+            visited_storage_entries.extend(call_info.get_visited_storage_entries());
 
             // Messages.
             l2_to_l1_payload_lengths.extend(
@@ -580,6 +575,14 @@ impl CallInfo {
             acc += &inner_call.resources;
             acc
         })
+    }
+
+    pub fn get_visited_storage_entries(&self) -> impl Iterator<Item = StorageEntry> + '_ {
+        let storage_address = self.call.storage_address;
+        self.storage_access_tracker
+            .accessed_storage_keys
+            .iter()
+            .map(move |key| (storage_address, *key))
     }
 
     /// Returns a vector of Starknet Event objects collected during the execution, sorted by the
