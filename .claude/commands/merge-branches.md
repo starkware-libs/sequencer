@@ -40,9 +40,13 @@ Capture the script's output. From it, extract:
 
 If the script ran with `gt`-untracked state, run `gt track --parent <dst-branch>` so subsequent `gt modify`/`gt submit` work.
 
+**If the script errors out or `git status` shows entries that aren't `UU` (both modified)** — e.g. `DU` / `UD` (delete-vs-modify), `AU` / `UA` (rename-vs-modify), `AA` (both added) — the merge produced conflicts with no in-file markers. The marker-grep in Step 3 will miss them entirely. Surface these to the user explicitly, propose a resolution per file (keep / drop / port the change), and apply with `git rm` or `git add` once decided. Only then proceed to Step 3 for the remaining `UU` files.
+
 ---
 
 ## Step 3: Enumerate conflicts
+
+**Prerequisite** — before doing anything in this step, have the user mark all files in the PR as viewed on GitHub (or Reviewable). Otherwise the `fix_conflicts` commit will not appear as a separate revision in review, and the per-conflict inline comments in Step 8 will land in a diff that mixes the merge markers with the resolution, making the review unreadable. Confirm with the user that this is done before continuing.
 
 Use `grep` to find conflict markers in every reported file:
 
@@ -120,15 +124,15 @@ Repeat until the build is clean.
 
 ---
 
-## Step 7: Commit and push via Graphite
+## Step 7: Commit and push
+
+Commands shown for Graphite (`gt`), the project default. On plain git, swap the last two lines for `git commit -am "fix_conflicts" && git push`.
 
 ```bash
 git add <resolved-files>
 gt modify -cam "fix_conflicts"
-gt submit --force
+gt submit
 ```
-
-Use `--force` — the merge script already pushed the branch, so Graphite will refuse a normal submit. The local state is authoritative at this point.
 
 Confirm the PR was updated by re-checking `gt submit` output or `gh pr view <PR#>`.
 
