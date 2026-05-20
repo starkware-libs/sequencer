@@ -60,6 +60,9 @@ from starkware.starknet.core.os.output import (
     OsCarriedOutputs,
     os_carried_outputs_new,
 )
+from starkware.starknet.core.os.privacy_bootloader_output import (
+    compute_privacy_bootloader_output_hash,
+)
 from starkware.starknet.core.os.state.commitment import StateEntry
 from starkware.starknet.core.os.transaction_hash.transaction_hash import (
     CommonTxFields,
@@ -242,6 +245,20 @@ func fill_account_tx_info{range_check_ptr}(
     return ();
 }
 
+// Public-input hash of the privacy-recursive-circuit verifier's constants. Mirrors
+// `privacy_circuit_verify::consts::PRIVACY_CAIRO_VERIFIER_CONSTS_HASH`: 8 raw u32 words that
+// `HashValue::<QM31>::from::<[u32; 8]>` packs as two QM31s (limbs 0..4 = constants_hash.0,
+// limbs 4..8 = constants_hash.1). All 8 values are < 2^31 - 1, so they are valid M31s as-is.
+// A unit test in `starknet_os` asserts these stay in sync with the upstream constant.
+const PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_0_A = 1276461526;
+const PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_0_B = 1712851563;
+const PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_0_C = 2110156022;
+const PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_0_D = 1953610410;
+const PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_1_A = 1886055249;
+const PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_1_B = 1889539449;
+const PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_1_C = 2125668529;
+const PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_1_D = 1102300118;
+
 // Executes an invoke-function transaction.
 //
 // The transaction should be passed in the hint variable 'tx'.
@@ -316,6 +333,50 @@ func execute_invoke_function_transaction{
         current_block_number=block_context.block_info_for_execute.block_number,
         virtual_os_config_hash=block_context.os_global_context.virtual_os_config_hash,
     );
+
+    // When proof facts are present, build the privacy recursive verifier's public input
+    // from the bootloader output hash and the verifier constants hash. When proof facts are
+    // empty there is nothing to verify, so the whole computation is skipped.
+    if (proof_facts_size != 0) {
+        let (
+            bootloader_output_hash_0_a,
+            bootloader_output_hash_0_b,
+            bootloader_output_hash_0_c,
+            bootloader_output_hash_0_d,
+            bootloader_output_hash_1_a,
+            bootloader_output_hash_1_b,
+            bootloader_output_hash_1_c,
+            bootloader_output_hash_1_d,
+        ) = compute_privacy_bootloader_output_hash(
+            proof_facts_size=proof_facts_size, proof_facts=proof_facts
+        );
+
+        // Public input to the privacy recursive verifier:
+        //   output_values = [output_hash.0 | output_hash.1 | constants_hash.0 | constants_hash.1]
+        // Each QM31 contributes its 4 M31 limbs in (a, b, c, d) order, so the layout is 16
+        // consecutive felts. Mirrors the `output_values` vec built in
+        // `privacy_circuit_verify::verify_recursive_circuit`.
+        let (local output_values: felt*) = alloc();
+        assert output_values[0] = bootloader_output_hash_0_a;
+        assert output_values[1] = bootloader_output_hash_0_b;
+        assert output_values[2] = bootloader_output_hash_0_c;
+        assert output_values[3] = bootloader_output_hash_0_d;
+        assert output_values[4] = bootloader_output_hash_1_a;
+        assert output_values[5] = bootloader_output_hash_1_b;
+        assert output_values[6] = bootloader_output_hash_1_c;
+        assert output_values[7] = bootloader_output_hash_1_d;
+        assert output_values[8] = PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_0_A;
+        assert output_values[9] = PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_0_B;
+        assert output_values[10] = PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_0_C;
+        assert output_values[11] = PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_0_D;
+        assert output_values[12] = PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_1_A;
+        assert output_values[13] = PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_1_B;
+        assert output_values[14] = PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_1_C;
+        assert output_values[15] = PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_1_D;
+        tempvar range_check_ptr = range_check_ptr;
+    } else {
+        tempvar range_check_ptr = range_check_ptr;
+    }
 
     %{ StartTx %}
 
