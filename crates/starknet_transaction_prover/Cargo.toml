@@ -55,7 +55,7 @@ tower-http = { workspace = true, features = [
 ] }
 tower_ohttp.workspace = true
 tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 url.workspace = true
 
 [dev-dependencies]

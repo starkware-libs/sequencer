@@ -36,8 +36,6 @@ async fn main() -> anyhow::Result<()> {
     // existing CLI-override logs visible.
     let args = CliArgs::parse();
 
-    install_panic_hook();
-
     // TODO(Avi): Revisit the starknet_transaction_prover=debug default once the service stabilizes.
     // By default, keep service logs and lower third-party logs to warn. The
     // formatter is JSON when `--json-logs`/`JSON_LOGS=true` is set, so log
@@ -51,6 +49,11 @@ async fn main() -> anyhow::Result<()> {
     } else {
         registry.with(fmt::layer()).init();
     }
+
+    // Install after tracing init so the hook's `error!` macro reaches the
+    // subscriber. A panic before this line still hits the default stderr
+    // handler.
+    install_panic_hook();
 
     let config = ServiceConfig::from_args(args)?;
 
