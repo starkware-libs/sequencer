@@ -58,6 +58,12 @@ pub async fn compile_test_contracts(out_dir: PathBuf) {
         "qm31_blake",
         None,
     ));
+    task_set.spawn(compile_and_output_program(
+        out_dir.clone(),
+        "starkware/starknet/core/os/privacy_bootloader_output.cairo",
+        "privacy_bootloader_output",
+        None,
+    ));
     task_set.join_all().await;
 }
 

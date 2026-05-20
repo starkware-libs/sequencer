@@ -19,7 +19,11 @@ use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use circuits::blake::blake_qm31;
 use circuits::ivalue::qm31_from_u32s;
+use circuits_stark_verifier::proof_from_stark_proof::pack_into_qm31s;
+use privacy_circuit_verify::compute_privacy_bootloader_output;
 use rstest::rstest;
+use starknet_api::transaction::fields::ProofFacts;
+use starknet_proof_verifier::reconstruct_output_preimage;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Blake2Felt252;
 use stwo::core::fields::qm31::QM31;
@@ -293,5 +297,91 @@ fn test_qm31_blake_parity(#[case] m31_limbs: Vec<u32>) {
     });
 
     let expected = blake_qm31_reference(&m31_limbs);
+    assert_eq!(cairo_output, expected);
+}
+
+/// Reference implementation for the `compute_privacy_bootloader_output_hash` Cairo function,
+/// composed from the exact production functions used inside the privacy recursive verifier:
+///
+/// Caller must pass non-empty `proof_facts`; the Cairo function gates on this upstream because
+/// the result is discarded when there is no proof to verify.
+fn privacy_bootloader_output_hash_reference(proof_facts: &[Felt]) -> [u32; 8] {
+    assert!(!proof_facts.is_empty(), "empty proof_facts is unsupported");
+    let proof_facts = ProofFacts::from(proof_facts.to_vec());
+    let preimage =
+        reconstruct_output_preimage(&proof_facts).expect("reconstruct_output_preimage failed");
+    let m31_limbs = compute_privacy_bootloader_output(&preimage);
+    let qm31s = pack_into_qm31s(m31_limbs.into_iter());
+    let n_bytes = qm31s.len() * 16;
+    let hash = blake_qm31(&qm31s, n_bytes);
+    [
+        hash.0.0.0.0,
+        hash.0.0.1.0,
+        hash.0.1.0.0,
+        hash.0.1.1.0,
+        hash.1.0.0.0,
+        hash.1.0.1.0,
+        hash.1.1.0.0,
+        hash.1.1.1.0,
+    ]
+}
+
+/// Test that the Cairo `compute_privacy_bootloader_output_hash` matches the in-repo Rust
+/// reference end-to-end (preimage construction + Blake felt-hash + 9-bit decomposition +
+/// `qm31_blake`).
+#[rstest]
+#[case::small_proof_facts(vec![
+    Felt::from(1u64),
+    Felt::from(2u64),
+    Felt::from(0x12345678u64),
+    Felt::from(0xdeadbeefu64),
+    Felt::from(99u64),
+])]
+#[case::mixed_small_and_big_felts(vec![
+    Felt::from(0u64),
+    Felt::from(1u64),
+    Felt::from_hex_unchecked("8000000000000000"),
+    Felt::from_hex_unchecked("ffffffffffffffff"),
+    Felt::from(7u64),
+    Felt::from(13u64),
+])]
+fn test_privacy_bootloader_output_hash_parity(#[case] proof_facts: Vec<Felt>) {
+    let runner_config = EntryPointRunnerConfig {
+        layout: LayoutName::all_cairo,
+        trace_enabled: false,
+        verify_secure: false,
+        proof_mode: false,
+        add_main_prefix_to_entrypoint: false,
+        validate_builtins_offset: true,
+    };
+
+    let proof_facts_size = proof_facts.len();
+    let proof_facts_data: Vec<MaybeRelocatable> =
+        proof_facts.iter().map(|felt| MaybeRelocatable::Int(*felt)).collect();
+
+    let (_, return_values, _) = initialize_and_run_cairo_0_entry_point(
+        &runner_config,
+        apollo_starknet_os_program::test_programs::PRIVACY_BOOTLOADER_OUTPUT_BYTES,
+        "__main__.compute_privacy_bootloader_output_hash",
+        &[
+            EndpointArg::from(Felt::from(proof_facts_size)),
+            EndpointArg::Pointer(PointerArg::Array(proof_facts_data)),
+        ],
+        &[ImplicitArg::Builtin(BuiltinName::range_check)],
+        &vec![EndpointArg::from(Felt::ZERO); 8],
+        HashMap::new(),
+        None,
+    )
+    .unwrap();
+
+    let cairo_output: [u32; 8] = std::array::from_fn(|i| {
+        let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(felt))) = &return_values[i]
+        else {
+            panic!("Expected eight felt return values; entry {i} is not a felt");
+        };
+        u32::try_from(*felt).expect("output limb must fit in u32")
+    });
+
+    let expected = privacy_bootloader_output_hash_reference(&proof_facts);
     assert_eq!(cairo_output, expected);
 }

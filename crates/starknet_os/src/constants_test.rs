@@ -1,6 +1,7 @@
 use apollo_starknet_os_program::{OS_PROGRAM, PROGRAM_HASHES};
 use blockifier::abi::constants::{L1_TO_L2_MSG_HEADER_SIZE, L2_TO_L1_MSG_HEADER_SIZE};
 use blockifier::blockifier_versioned_constants::VersionedConstants;
+use privacy_circuit_verify::consts::PRIVACY_CAIRO_VERIFIER_CONSTS_HASH;
 use starknet_api::block::StarknetVersion;
 use starknet_api::contract_class::compiled_class_hash::COMPILED_CLASS_V1;
 use starknet_api::core::{
@@ -16,6 +17,7 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_committer::hash_function::hash::CONTRACT_CLASS_LEAF_V0;
+use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::FIELD_ELEMENTS_PER_BLOB;
 use crate::hints::vars::{CairoStruct, Const};
@@ -97,6 +99,30 @@ fn test_starknet_os_config_hash_version() {
     assert_eq!(
         Const::StarknetOsConfigVersion.fetch_from_os_program().unwrap(),
         STARKNET_OS_CONFIG_HASH_VERSION
+    );
+}
+
+/// The Cairo `PRIVACY_CAIRO_VERIFIER_CONSTS_HASH_*` constants must mirror
+/// `privacy_circuit_verify::consts::PRIVACY_CAIRO_VERIFIER_CONSTS_HASH` (8 raw u32 words).
+/// They're used in `transaction_impls.cairo` to build the recursive-verifier public input,
+/// so any drift between the two would silently produce mismatched public inputs.
+#[test]
+fn test_privacy_cairo_verifier_consts_hash_matches_upstream() {
+    let cairo_values = [
+        Const::PrivacyCairoVerifierConstsHash0A.fetch_from_os_program().unwrap(),
+        Const::PrivacyCairoVerifierConstsHash0B.fetch_from_os_program().unwrap(),
+        Const::PrivacyCairoVerifierConstsHash0C.fetch_from_os_program().unwrap(),
+        Const::PrivacyCairoVerifierConstsHash0D.fetch_from_os_program().unwrap(),
+        Const::PrivacyCairoVerifierConstsHash1A.fetch_from_os_program().unwrap(),
+        Const::PrivacyCairoVerifierConstsHash1B.fetch_from_os_program().unwrap(),
+        Const::PrivacyCairoVerifierConstsHash1C.fetch_from_os_program().unwrap(),
+        Const::PrivacyCairoVerifierConstsHash1D.fetch_from_os_program().unwrap(),
+    ];
+    let upstream: [Felt; 8] = PRIVACY_CAIRO_VERIFIER_CONSTS_HASH.map(Felt::from);
+    assert_eq!(
+        cairo_values, upstream,
+        "Cairo PRIVACY_CAIRO_VERIFIER_CONSTS_HASH constants drifted from \
+         privacy_circuit_verify::consts::PRIVACY_CAIRO_VERIFIER_CONSTS_HASH"
     );
 }
 
