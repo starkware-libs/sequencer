@@ -19,7 +19,7 @@ pub fn install_panic_hook() {
 }
 
 fn panic_hook(info: &PanicHookInfo<'_>) {
-    let message = extract_payload(info);
+    let message = info.payload_as_str().unwrap_or("<non-string panic payload>");
     let location = info
         .location()
         .map(|loc| format!("{}:{}:{}", loc.file(), loc.line(), loc.column()))
@@ -33,47 +33,4 @@ fn panic_hook(info: &PanicHookInfo<'_>) {
         backtrace = %backtrace,
         "Service panicked",
     );
-}
-
-/// Best-effort extraction of the panic payload — supports the common
-/// `panic!("string literal")` and `panic!("{fmt}", ...)` cases. Returns
-/// `"<non-string panic payload>"` for arbitrary types.
-fn extract_payload(info: &PanicHookInfo<'_>) -> String {
-    let payload = info.payload();
-    if let Some(s) = payload.downcast_ref::<&'static str>() {
-        return (*s).to_string();
-    }
-    if let Some(s) = payload.downcast_ref::<String>() {
-        return s.clone();
-    }
-    "<non-string panic payload>".to_string()
-}
-
-#[cfg(test)]
-mod tests {
-    use std::sync::{Arc, Mutex};
-
-    use super::extract_payload;
-
-    fn capture_payload<F: FnOnce() + std::panic::UnwindSafe>(f: F) -> String {
-        let captured: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
-        let prev_hook = std::panic::take_hook();
-        let writer = Arc::clone(&captured);
-        std::panic::set_hook(Box::new(move |info| {
-            *writer.lock().unwrap() = Some(extract_payload(info));
-        }));
-        let _ = std::panic::catch_unwind(f);
-        std::panic::set_hook(prev_hook);
-        let value = captured.lock().unwrap().clone().unwrap_or_default();
-        value
-    }
-
-    // Panic-capturing tests share global state (the panic hook), so they must
-    // run serially. Using a shared mutex would force the same — keep these as
-    // a single `#[test]` to make ordering explicit.
-    #[test]
-    fn extracts_static_str_and_formatted_payloads() {
-        assert_eq!(capture_payload(|| panic!("static literal")), "static literal");
-        assert_eq!(capture_payload(|| panic!("formatted {}", 42)), "formatted 42");
-    }
 }
