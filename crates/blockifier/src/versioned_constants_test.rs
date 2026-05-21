@@ -367,7 +367,7 @@ fn test_deserialize_serialize_raw_vc() {
             &std::fs::File::open(&file).unwrap(),
         )
         .unwrap();
-        let serialized = serde_json::to_string_pretty(&raw_vc).unwrap();
+        let serialized = raw_vc.to_string_pretty();
         assert_eq!(raw_vc, serde_json::from_str(&serialized).unwrap());
     }
 }
