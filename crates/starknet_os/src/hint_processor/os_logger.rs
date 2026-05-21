@@ -96,6 +96,11 @@ impl SyscallTrace {
     pub fn push_inner_syscall(&mut self, inner: SyscallTrace) {
         self.inner_syscalls.push(inner);
     }
+
+    #[cfg(any(test, feature = "testing"))]
+    pub fn get_selector(&self) -> SyscallSelector {
+        self.selector
+    }
 }
 
 impl ResourceFinalizer for SyscallTrace {
@@ -155,6 +160,11 @@ impl OsTransactionTrace {
 
     pub fn push_syscall(&mut self, syscall: SyscallTrace) {
         self.syscalls.push(syscall);
+    }
+
+    #[cfg(any(test, feature = "testing"))]
+    pub fn get_syscalls(&self) -> &Vec<SyscallTrace> {
+        &self.syscalls
     }
 }
 
