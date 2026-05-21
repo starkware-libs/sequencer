@@ -2,6 +2,7 @@
 
 pub(crate) mod fuzz_tests;
 pub(crate) mod initial_state;
+pub(crate) mod os_resources_test;
 pub(crate) mod special_contracts;
 pub(crate) mod test_manager;
 pub(crate) mod tests;

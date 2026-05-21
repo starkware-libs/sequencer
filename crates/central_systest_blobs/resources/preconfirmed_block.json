@@ -20,13 +20,13 @@
     "timestamp": 1013,
     "transaction_receipts": [
       {
-        "actual_fee": "0x109723",
+        "actual_fee": "0x109273",
         "events": [
           {
             "data": [
               "0xf99e7cdfbcce0bf14ce17e4c57fd2d12ad1bca5fc8e46a9fbafc36b59a9955",
               "0x1000",
-              "0x109723",
+              "0x109273",
               "0x0"
             ],
             "from_address": "0x6bd1d71a2fb67a567618584ca31da288dbc2e1a8421e4045e05f52c19bfab83",
@@ -51,7 +51,7 @@
           "total_gas_consumed": {
             "l1_data_gas": 0,
             "l1_gas": 1652,
-            "l2_gas": 1085615
+            "l2_gas": 1084415
           }
         },
         "execution_status": "SUCCEEDED",
@@ -74,11 +74,11 @@
           "0x6bd1d71a2fb67a567618584ca31da288dbc2e1a8421e4045e05f52c19bfab83": [
             {
               "key": "0x6fba6554adab51d0272b896b6f41768bd0491e5ad59c39fab38e65767974793",
-              "value": "0xffffffffffffffffffffffff926560a1"
+              "value": "0xffffffffffffffffffffffff92657361"
             },
             {
               "key": "0x723973208639b7839ce298f7ffea61e3f9533872defd7abdb91023db4658812",
-              "value": "0x6d9a9f5e"
+              "value": "0x6d9a8c9e"
             }
           ]
         }

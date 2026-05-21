@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use cached::proc_macro::cached;
-use expect_test::expect_file;
+use expect_test::{expect, expect_file, Expect};
 use glob::{glob, Paths};
 use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
@@ -227,24 +227,24 @@ fn test_latest_no_panic() {
 
 #[test]
 fn test_syscall_gas_cost_calculation() {
-    const EXPECTED_CALL_CONTRACT_GAS_COST: u64 = 91560;
-    const EXPECTED_SECP256K1MUL_GAS_COST: u64 = 8143850;
-    const EXPECTED_SHA256PROCESSBLOCK_GAS_COST: u64 = 841295;
+    const EXPECTED_CALL_CONTRACT_GAS_COST: Expect = expect!["91160"];
+    const EXPECTED_SECP256K1MUL_GAS_COST: Expect = expect!["8143850"];
+    const EXPECTED_SHA256PROCESSBLOCK_GAS_COST: Expect = expect!["841295"];
 
     let versioned_constants = VersionedConstants::latest_constants().clone();
 
-    assert_eq!(
-        versioned_constants.os_constants.gas_costs.syscalls.call_contract.base,
-        EXPECTED_CALL_CONTRACT_GAS_COST
-    );
-    assert_eq!(
-        versioned_constants.os_constants.gas_costs.syscalls.secp256k1_mul.base,
-        EXPECTED_SECP256K1MUL_GAS_COST
-    );
-    assert_eq!(
-        versioned_constants.os_constants.gas_costs.syscalls.sha256_process_block.base,
-        EXPECTED_SHA256PROCESSBLOCK_GAS_COST
-    );
+    EXPECTED_CALL_CONTRACT_GAS_COST.assert_eq(&format!(
+        "{}",
+        versioned_constants.os_constants.gas_costs.syscalls.call_contract.base
+    ));
+    EXPECTED_SECP256K1MUL_GAS_COST.assert_eq(&format!(
+        "{}",
+        versioned_constants.os_constants.gas_costs.syscalls.secp256k1_mul.base
+    ));
+    EXPECTED_SHA256PROCESSBLOCK_GAS_COST.assert_eq(&format!(
+        "{}",
+        versioned_constants.os_constants.gas_costs.syscalls.sha256_process_block.base
+    ));
 }
 
 /// Linear gas cost factor of deploy syscall should not be trivial.
