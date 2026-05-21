@@ -2,7 +2,7 @@
 #[starknet::contract(account)]
 mod OsResourcesTestContract {
     use starknet::info::SyscallResultTrait;
-    use starknet::syscalls::call_contract_syscall;
+    use starknet::syscalls::{call_contract_syscall, library_call_syscall};
     use starknet::{ClassHash, ContractAddress};
 
     const EMPTY_FUNCTION_SELECTOR: felt252 = selector!("empty_function");
@@ -31,6 +31,10 @@ mod OsResourcesTestContract {
     ) {
         // call_contract syscall — calls empty_function on self.
         call_contract_syscall(self_address, EMPTY_FUNCTION_SELECTOR, ArrayTrait::new().span())
+            .unwrap_syscall();
+
+        // library_call syscall — calls empty_function on self.
+        library_call_syscall(self_class_hash, EMPTY_FUNCTION_SELECTOR, ArrayTrait::new().span())
             .unwrap_syscall();
     }
 
