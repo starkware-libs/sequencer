@@ -97,6 +97,17 @@ pub struct RawVersionedConstants {
     pub os_resources: RawOsResources,
 }
 
+#[cfg(any(test, feature = "testing"))]
+impl RawVersionedConstants {
+    fn to_string_pretty(&self) -> String {
+        let mut buffer = Vec::new();
+        let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
+        let mut serializer = serde_json::Serializer::with_formatter(&mut buffer, formatter);
+        self.serialize(&mut serializer).unwrap();
+        String::from_utf8(buffer).unwrap()
+    }
+}
+
 #[cfg_attr(any(test, feature = "testing"), derive(PartialEq, Serialize))]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
