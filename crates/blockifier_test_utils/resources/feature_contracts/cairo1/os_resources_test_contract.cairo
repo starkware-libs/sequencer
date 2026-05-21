@@ -1,0 +1,40 @@
+// Contract for measuring per-syscall OS resource costs.
+#[starknet::contract(account)]
+mod OsResourcesTestContract {
+    use starknet::info::SyscallResultTrait;
+    use starknet::syscalls::call_contract_syscall;
+    use starknet::{ClassHash, ContractAddress};
+
+    const EMPTY_FUNCTION_SELECTOR: felt252 = selector!("empty_function");
+
+    #[storage]
+    struct Storage {}
+
+    #[external(v0)]
+    fn __validate_declare__(
+        self: @ContractState, class_hash: ClassHash, self_address: ContractAddress,
+    ) -> felt252 {
+        starknet::VALIDATED
+    }
+
+    #[external(v0)]
+    fn __validate__(
+        self: @ContractState, self_class_hash: ClassHash, self_address: ContractAddress,
+    ) -> felt252 {
+        starknet::VALIDATED
+    }
+
+    // Calls every measured syscall in order.
+    #[external(v0)]
+    fn __execute__(
+        ref self: ContractState, self_class_hash: ClassHash, self_address: ContractAddress,
+    ) {
+        // call_contract syscall — calls empty_function on self.
+        call_contract_syscall(self_address, EMPTY_FUNCTION_SELECTOR, ArrayTrait::new().span())
+            .unwrap_syscall();
+    }
+
+    // Target for call_contract and library_call — accepts no arguments.
+    #[external(v0)]
+    fn empty_function(self: @ContractState) {}
+}
