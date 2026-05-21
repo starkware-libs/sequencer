@@ -13048,6 +13048,7 @@ dependencies = [
  "cairo-vm",
  "chrono",
  "expect-test",
+ "indexmap 2.14.0",
  "itertools 0.12.1",
  "rand 0.10.1",
  "rand_chacha 0.10.0",

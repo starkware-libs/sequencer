@@ -1,1 +1,2 @@
-
++ /os_constants/allowed_virtual_os_program_hashes/2: "0x59a0052ae80a978ca71126c9774a17c67c19f79b14bb9d1ea96fb77dc6032d8"
+~ /os_resources/execute_syscalls/CallContract/n_steps: 901
