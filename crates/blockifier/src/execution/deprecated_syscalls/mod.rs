@@ -37,7 +37,9 @@ pub mod hint_processor;
 pub type DeprecatedSyscallResult<T> = Result<T, DeprecatedSyscallExecutionError>;
 pub type WriteResponseResult = DeprecatedSyscallExecutorBaseResult<()>;
 
-#[derive(Clone, Copy, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq, Serialize)]
+#[derive(
+    Clone, Copy, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd,
+)]
 pub enum DeprecatedSyscallSelector {
     CallContract,
     DelegateCall,
@@ -58,7 +60,6 @@ pub enum DeprecatedSyscallSelector {
     // TODO(Noa): Remove it (as it is not a syscall) and define its resources in
     // `OsResources`.
     KeccakRound,
-    Sha256ProcessBlock,
     LibraryCall,
     LibraryCallL1Handler,
     MetaTxV0,
@@ -74,6 +75,7 @@ pub enum DeprecatedSyscallSelector {
     Secp256r1Mul,
     Secp256r1New,
     SendMessageToL1,
+    Sha256ProcessBlock,
     StorageRead,
     StorageWrite,
 }

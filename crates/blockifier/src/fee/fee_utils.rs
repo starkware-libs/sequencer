@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use log::debug;
@@ -65,7 +65,7 @@ impl GasVectorToL1GasForFee for GasVector {
 /// Returns the fee cost for a given Cairo primitive (builtin or opcode).
 fn get_cairo_primitive_fee_cost(
     cairo_primitive: &CairoPrimitiveName,
-    builtin_fee_costs: &HashMap<BuiltinName, ResourceCost>,
+    builtin_fee_costs: &BTreeMap<BuiltinName, ResourceCost>,
     versioned_constants: &VersionedConstants,
 ) -> ResourceCost {
     match cairo_primitive {

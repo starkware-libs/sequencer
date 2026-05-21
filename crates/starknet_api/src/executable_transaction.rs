@@ -61,7 +61,9 @@ macro_rules! implement_account_tx_inner_getters {
     };
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq, Serialize)]
+#[derive(
+    Clone, Copy, Debug, Deserialize, EnumIter, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,
+)]
 pub enum TransactionType {
     Declare,
     DeployAccount,
