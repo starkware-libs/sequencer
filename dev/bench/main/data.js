@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779207690701,
+  "lastUpdate": 1779336754059,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4147,6 +4147,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1374.88196621,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "44b61736093672f76fe388c5ac35033e0cb31ead",
+          "message": "workspace,starknet_proof_verifier: bump privacy-{prove,circuit-verify} to 039e52c, add v0/v1 aliases (#14017)\n\nPicks up the keccak builtin simulation in the privacy bootloader\n(starkware-libs/proving-utils#342 by @yuvalg), allowing virtual-OS proofs\nthat exercise the keccak builtin to be generated and verified.\n\nRenames the workspace alias `privacy-circuit-verify` to\n`privacy-circuit-verify-v1` (with `package = \"privacy-circuit-verify\"`) to\nmatch the existing `privacy-circuit-verify-v0` sibling and the\n`ProofVersion::{V0, V1}` enum naming; the proof verifier dispatches on\nproof version and uses the corresponding alias.\n\nRegenerates the example proof fixtures\n(`apollo_transaction_converter/resources/example_proof.bin` and the\n`0.14.3` regression copy in `starknet_proof_verifier/resources/regression_test/0.14.3/`)\nagainst the new prover output.\n\nCo-authored-by: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-21T03:51:08Z",
+          "tree_id": "9fccff73a4fd1967c334ca94f09b4df1ea86b55d",
+          "url": "https://github.com/starkware-libs/sequencer/commit/44b61736093672f76fe388c5ac35033e0cb31ead"
+        },
+        "date": 1779336753613,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 903.60128824,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1439.14659855,
             "unit": "ms"
           }
         ]
