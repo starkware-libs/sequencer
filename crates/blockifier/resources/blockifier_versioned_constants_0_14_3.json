@@ -345,7 +345,7 @@
                 }
             },
             "LibraryCall": {
-                "n_steps": 879,
+                "n_steps": 872,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 18
