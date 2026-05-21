@@ -52,6 +52,7 @@ use crate::test_utils::cairo_runner::{
     EntryPointRunnerConfig,
     ImplicitArg,
     ValueArg,
+    EMPTY_BLOCK_INPUT,
 };
 use crate::test_utils::coverage::expect_hint_coverage;
 use crate::test_utils::validations::validate_builtins;
@@ -711,6 +712,7 @@ fn test_parse_and_output(
             &program,
             &runner_config,
             &expected_explicit_return_values,
+            &EMPTY_BLOCK_INPUT,
         )
         .unwrap();
 

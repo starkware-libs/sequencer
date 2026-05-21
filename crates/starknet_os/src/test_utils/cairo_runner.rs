@@ -638,6 +638,7 @@ pub fn initialize_and_run_cairo_0_entry_point(
         &program,
         runner_config,
         expected_explicit_return_values,
+        &EMPTY_BLOCK_INPUT,
     )?;
     Ok((explicit_return_values, implicit_return_values, cairo_runner))
 }
@@ -714,6 +715,7 @@ pub fn run_cairo_0_entrypoint<'a>(
     program: &'a Program,
     runner_config: &EntryPointRunnerConfig,
     expected_explicit_return_values: &[EndpointArg],
+    os_block_input: &'a OsBlockInput,
 ) -> Cairo0EntryPointRunnerResult<(
     Vec<EndpointArg>,
     Vec<EndpointArg>,
@@ -736,7 +738,7 @@ pub fn run_cairo_0_entrypoint<'a>(
         state_reader,
         program,
         os_hints_config,
-        &EMPTY_BLOCK_INPUT,
+        os_block_input,
     )
     .unwrap_or_else(|err| panic!("Failed to create SnosHintProcessor: {err:?}"));
     info!("Program and Hint processor created successfully.");

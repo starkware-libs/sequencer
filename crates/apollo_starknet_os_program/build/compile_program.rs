@@ -52,6 +52,12 @@ pub async fn compile_test_contracts(out_dir: PathBuf) {
         "builtin_offset_increase_test",
         None,
     ));
+    task_set.spawn(compile_and_output_program(
+        out_dir.clone(),
+        "starkware/starknet/core/os/execution/syscall_resources_test.cairo",
+        "syscall_resources_test",
+        None,
+    ));
     task_set.join_all().await;
 }
 

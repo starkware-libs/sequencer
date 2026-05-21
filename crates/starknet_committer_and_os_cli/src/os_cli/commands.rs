@@ -104,7 +104,7 @@ pub(crate) fn parse_and_run_os(
         cairo_pie,
         da_segment,
         metrics,
-        txs_trace,
+        os_logger,
         unused_hints,
     } = runner_output;
 
@@ -115,7 +115,7 @@ pub(crate) fn parse_and_run_os(
             da_segment,
             metrics: metrics.into(),
             unused_hints,
-            txs_trace: if include_txs_trace { Some(txs_trace) } else { None },
+            txs_trace: if include_txs_trace { Some(os_logger.get_txs().clone()) } else { None },
         },
         output_path,
         &cairo_pie,

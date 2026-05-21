@@ -96,6 +96,16 @@ impl SyscallTrace {
     pub fn push_inner_syscall(&mut self, inner: SyscallTrace) {
         self.inner_syscalls.push(inner);
     }
+
+    #[cfg(any(test, feature = "testing"))]
+    pub fn selector(&self) -> SyscallSelector {
+        self.selector
+    }
+
+    #[cfg(any(test, feature = "testing"))]
+    pub fn inner_syscalls(&self) -> &[SyscallTrace] {
+        &self.inner_syscalls
+    }
 }
 
 impl ResourceFinalizer for SyscallTrace {
@@ -144,7 +154,7 @@ impl TryFrom<&SyscallTrace> for String {
 pub struct OsTransactionTrace {
     tx_type: TransactionType,
     tx_hash: TransactionHash,
-    syscalls: Vec<SyscallTrace>,
+    pub syscalls: Vec<SyscallTrace>,
     resources: Option<ExecutionResources>,
 }
 
@@ -185,6 +195,7 @@ impl TryFrom<&OsTransactionTrace> for String {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone, Debug))]
 pub struct ResourceCounter {
     n_steps: usize,
     range_check_ptr: Relocatable,
@@ -305,6 +316,7 @@ impl ResourceCounter {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone, Debug))]
 pub struct OsLogger {
     pub(crate) debug: bool,
     current_tx: Option<OsTransactionTrace>,

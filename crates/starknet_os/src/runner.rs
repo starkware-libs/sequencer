@@ -151,11 +151,10 @@ fn generate_os_output(
         da_segment: snos_hint_processor.get_da_segment().take(),
         metrics: OsMetrics::new(&mut runner_output.cairo_runner, &snos_hint_processor)?,
         #[cfg(any(test, feature = "testing"))]
-        txs_trace: snos_hint_processor
+        os_logger: snos_hint_processor
             .get_current_execution_helper()
             .unwrap()
             .os_logger
-            .get_txs()
             .clone(),
         #[cfg(any(test, feature = "testing"))]
         unused_hints: snos_hint_processor.get_unused_hints(),

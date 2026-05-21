@@ -37,6 +37,7 @@ use crate::test_utils::cairo_runner::{
     ImplicitArg,
     PointerArg,
     ValueArg,
+    EMPTY_BLOCK_INPUT,
 };
 use crate::test_utils::errors::Cairo0EntryPointRunnerError;
 use crate::test_utils::utils::{
@@ -588,6 +589,7 @@ fn test_allocate_addresses_for_state_diff_and_replace(
             &program,
             &runner_config,
             &expected_explicit_return_values,
+            &EMPTY_BLOCK_INPUT,
         )
         .unwrap();
 

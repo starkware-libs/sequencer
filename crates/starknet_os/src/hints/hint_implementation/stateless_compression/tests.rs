@@ -41,6 +41,7 @@ use crate::test_utils::cairo_runner::{
     EntryPointRunnerConfig,
     ImplicitArg,
     ValueArg,
+    EMPTY_BLOCK_INPUT,
 };
 
 const COMPRESSION_MODULE_PATH: &str = "starkware.starknet.core.os.data_availability.compression";
@@ -101,6 +102,7 @@ fn cairo_unpack_felts(
             &program,
             &runner_config,
             &expected_explicit_return_values,
+            &EMPTY_BLOCK_INPUT,
         )
         .unwrap();
 
@@ -171,6 +173,7 @@ fn cairo_compress(data: &[Felt]) -> (Vec<Felt>, ExecutionResources) {
             &program,
             &runner_config,
             &expected_explicit_return_values,
+            &EMPTY_BLOCK_INPUT,
         )
         .unwrap();
 
@@ -242,6 +245,7 @@ fn cairo_decompress(compressed: &[Felt]) -> Vec<Felt> {
             &program,
             &runner_config,
             &expected_explicit_return_values,
+            &EMPTY_BLOCK_INPUT,
         )
         .unwrap();
 

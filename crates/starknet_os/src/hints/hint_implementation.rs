@@ -24,3 +24,5 @@ pub mod state_diff_encryption;
 pub(crate) mod stateful_compression;
 pub(crate) mod stateless_compression;
 pub(crate) mod syscalls;
+#[cfg(test)]
+pub(crate) mod syscall_resources_tests;

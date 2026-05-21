@@ -27,6 +27,7 @@ use crate::test_utils::cairo_runner::{
     EntryPointRunnerConfig,
     ImplicitArg,
     ValueArg,
+    EMPTY_BLOCK_INPUT,
 };
 
 fn add_memory_segment_and_load_explicit_arg(
@@ -163,6 +164,7 @@ fn test_state_diff_encryption_function(
             &program,
             &runner_config,
             &expected_explicit_return_values,
+            &EMPTY_BLOCK_INPUT,
         )
         .unwrap();
     // [range_check_ptr, encrypted_dst_end]
@@ -268,6 +270,7 @@ fn test_compute_public_keys_function(#[case] seed: u64, #[case] num_committee_me
             &program,
             &runner_config,
             &expected_explicit_return_values,
+            &EMPTY_BLOCK_INPUT,
         )
         .unwrap();
 
@@ -369,6 +372,7 @@ fn test_symmetric_key_encryption_function(#[case] seed: u64, #[case] num_committ
             &program,
             &runner_config,
             &expected_explicit_return_values,
+            &EMPTY_BLOCK_INPUT,
         )
         .unwrap();
 

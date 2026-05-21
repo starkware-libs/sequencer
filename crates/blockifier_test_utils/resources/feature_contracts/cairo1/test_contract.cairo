@@ -172,6 +172,10 @@ mod TestContract {
     #[external(v0)]
     fn __validate__(ref self: ContractState, argument: felt252) {}
 
+    // Used to measure pure CallContract OS overhead: no arguments, no syscalls, empty body.
+    #[external(v0)]
+    fn empty(self: @ContractState) {}
+
     // `__execute__` is used in `test_call_contract_revert` to test the revert behavior of
     // `meta_tx_v0_syscall`.
     #[external(v0)]

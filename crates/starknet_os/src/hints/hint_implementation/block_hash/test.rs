@@ -40,6 +40,7 @@ use crate::test_utils::cairo_runner::{
     ImplicitArg,
     PointerArg,
     ValueArg,
+    EMPTY_BLOCK_INPUT,
 };
 
 fn cairo_calculate_block_hash(
@@ -107,6 +108,7 @@ fn cairo_calculate_block_hash(
         &program,
         &runner_config,
         &expected_explicit_return_values,
+        &EMPTY_BLOCK_INPUT,
     )
     .expect("Failed to run cairo entrypoint");
 

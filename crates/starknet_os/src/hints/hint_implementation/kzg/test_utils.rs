@@ -22,6 +22,7 @@ use crate::test_utils::cairo_runner::{
     ImplicitArg,
     PointerArg,
     ValueArg,
+    EMPTY_BLOCK_INPUT,
 };
 
 /// Returns an estimation of the resources required for `compute_os_kzg_commitment_info`.
@@ -105,6 +106,7 @@ pub fn run_compute_os_kzg_commitment_info(n: usize) -> (CairoRunner, Option<Vec<
         &program,
         &runner_config,
         &expected_return_values,
+        &EMPTY_BLOCK_INPUT,
     )
     .unwrap();
 

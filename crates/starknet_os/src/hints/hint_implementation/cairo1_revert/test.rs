@@ -22,6 +22,7 @@ use crate::test_utils::cairo_runner::{
     EntryPointRunnerConfig,
     ImplicitArg,
     ValueArg,
+    EMPTY_BLOCK_INPUT,
 };
 
 const CHANGE_CONTRACT_ENTRY: Felt = CONTRACT_ADDRESS_DOMAIN_SIZE;
@@ -157,6 +158,7 @@ fn test_revert(#[case] test_vector: Vec<Operation>) {
         &program,
         &runner_config,
         &expected_explicit_return_values,
+        &EMPTY_BLOCK_INPUT,
     )
     .unwrap();
 

@@ -46,6 +46,7 @@ use crate::test_utils::cairo_runner::{
     EntryPointRunnerConfig,
     ImplicitArg,
     ValueArg,
+    EMPTY_BLOCK_INPUT,
 };
 use crate::test_utils::utils::DEFAULT_PRIME;
 use crate::vm_utils::{get_address_of_nested_fields_from_base_address, LoadCairoObject};
@@ -348,6 +349,7 @@ fn run_compiled_class_hash_entry_point(
             &program,
             &runner_config,
             &expected_return_values,
+            &EMPTY_BLOCK_INPUT,
         )?;
 
     // Get the actual execution resources, and compare with expected values.
