@@ -36,7 +36,7 @@ use crate::test_manager::{TestBuilder, TestBuilderConfig, FUNDED_ACCOUNT_ADDRESS
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 
 // TODO(Dori): Delete this, or at least reduce it to a minimal set of unmeasurable syscalls.
-const UNMEASURABLE_SYSCALLS: [Selector; 35] = [
+const UNMEASURABLE_SYSCALLS: [Selector; 34] = [
     Selector::DelegateCall,
     Selector::DelegateL1Handler,
     Selector::Deploy,
@@ -55,7 +55,6 @@ const UNMEASURABLE_SYSCALLS: [Selector; 35] = [
     Selector::KeccakRound,
     Selector::Sha256ProcessBlock,
     Selector::Sha512ProcessBlock,
-    Selector::LibraryCall,
     Selector::LibraryCallL1Handler,
     Selector::MetaTxV0,
     Selector::ReplaceClass,
