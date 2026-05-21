@@ -57,7 +57,7 @@ define_versioned_constants!(
     (V0_14_3, "../resources/blockifier_versioned_constants_0_14_3.json"),
 );
 
-pub type SyscallGasCostsMap = HashMap<SyscallSelector, RawSyscallGasCost>;
+pub type SyscallGasCostsMap = BTreeMap<SyscallSelector, RawSyscallGasCost>;
 
 /// Representation of the JSON data of versioned constants. Used as an intermediate struct for
 /// serde.
@@ -208,7 +208,7 @@ pub struct VmResourceCosts {
         deserialize_with = "builtin_map_from_string_map",
         serialize_with = "string_map_from_builtin_map"
     )]
-    pub builtins: HashMap<BuiltinName, ResourceCost>,
+    pub builtins: BTreeMap<BuiltinName, ResourceCost>,
 }
 
 #[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
@@ -231,17 +231,17 @@ impl AllocationCost {
 // (named   serde_generic_map_impl); use it if and when it's public.
 fn builtin_map_from_string_map<'de, D: Deserializer<'de>>(
     d: D,
-) -> Result<HashMap<BuiltinName, ResourceCost>, D::Error> {
-    HashMap::<String, ResourceCost>::deserialize(d)?
+) -> Result<BTreeMap<BuiltinName, ResourceCost>, D::Error> {
+    BTreeMap::<String, ResourceCost>::deserialize(d)?
         .into_iter()
         .map(|(k, v)| BuiltinName::from_str_with_suffix(&k).map(|k| (k, v)))
-        .collect::<Option<HashMap<_, _>>>()
+        .collect::<Option<BTreeMap<_, _>>>()
         .ok_or(D::Error::custom("Invalid builtin name"))
 }
 
 #[cfg(any(test, feature = "testing"))]
 fn string_map_from_builtin_map<S: serde::Serializer>(
-    value: &HashMap<BuiltinName, ResourceCost>,
+    value: &BTreeMap<BuiltinName, ResourceCost>,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
     let mut map = BTreeMap::new();
@@ -449,7 +449,7 @@ impl VersionedConstants {
         let step_cost = ResourceCost::from_integer(1);
         let vm_resource_fee_cost = Arc::new(VmResourceCosts {
             n_steps: step_cost,
-            builtins: HashMap::from([
+            builtins: BTreeMap::from([
                 (BuiltinName::pedersen, ResourceCost::from_integer(1)),
                 (BuiltinName::range_check, ResourceCost::from_integer(1)),
                 (BuiltinName::ecdsa, ResourceCost::from_integer(1)),
@@ -608,7 +608,7 @@ pub struct OsResources {
 }
 
 fn validate_all_tx_types<V>(
-    tx_type_map: &HashMap<TransactionType, V>,
+    tx_type_map: &BTreeMap<TransactionType, V>,
 ) -> Result<(), RawOsResourcesError> {
     for tx_type in TransactionType::iter() {
         if !tx_type_map.contains_key(&tx_type) {
@@ -619,7 +619,7 @@ fn validate_all_tx_types<V>(
 }
 
 fn validate_all_selectors<V>(
-    selector_map: &HashMap<SyscallSelector, V>,
+    selector_map: &BTreeMap<SyscallSelector, V>,
 ) -> Result<(), RawOsResourcesError> {
     for syscall_handler in SyscallSelector::iter() {
         if !selector_map.contains_key(&syscall_handler) {
@@ -761,8 +761,8 @@ impl OsResources {
 // See: https://github.com/serde-rs/serde/issues/1220.
 #[serde(remote = "Self")]
 pub struct RawOsResources {
-    pub execute_syscalls: HashMap<SyscallSelector, VariableResourceParams>,
-    pub execute_txs_inner: HashMap<TransactionType, VariableResourceParams>,
+    pub execute_syscalls: BTreeMap<SyscallSelector, VariableResourceParams>,
+    pub execute_txs_inner: BTreeMap<TransactionType, VariableResourceParams>,
     pub compute_os_kzg_commitment_info: ExecutionResources,
 }
 
