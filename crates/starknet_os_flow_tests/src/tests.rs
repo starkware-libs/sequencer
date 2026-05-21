@@ -4,6 +4,7 @@ use std::sync::{Arc, LazyLock};
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::context::BlockContext;
 use blockifier::execution::call_info::OpcodeName;
 use blockifier::test_utils::contracts::{get_class_info_of_cairo0_contract, FeatureContractTrait};
 use blockifier::test_utils::dict_state_reader::DictStateReader;
@@ -13,7 +14,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::{cairo0_proven_revert_scenario_calldata, create_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
-use expect_test::expect;
+use expect_test::{expect, expect_file};
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice};
@@ -92,6 +93,15 @@ use starknet_os::hints::vars::Const;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
 
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+
+use crate::os_resources::{
+    add_resources,
+    execute_syscalls_as_json,
+    execute_txs_inner_as_json,
+    extract_execute_syscalls_resources,
+    extract_execute_txs_inner_resources,
+};
 use crate::initial_state::{
     create_default_initial_state_data,
     get_deploy_contract_tx_and_address_with_salt,
@@ -3018,4 +3028,189 @@ async fn test_get_block_hash_current_block_number() {
 
     let test_output = test_builder.build_and_run().await;
     test_output.perform_default_validations();
+}
+
+/// Measures per-syscall and per-transaction-type OS resource costs and compares them against the
+/// values stored in VersionedConstants, mirroring the Python os_resources_test.py.
+#[tokio::test]
+async fn test_os_resources() {
+    let os_resources_contract = FeatureContract::OsResourcesTest(RunnableCairo1::Casm);
+    // Force VM resources mode: override min_sierra_version_for_sierra_gas so the OS computes gas
+    // at runtime from os_resources rather than from gas values baked into contract CASM at compile
+    // time. This mirrors the Python test's min_sierra_version="9.9.9" in MockBlockifier, and makes
+    // os_resources updates safe without recompiling contracts.
+    let (mut initial_state_data, [os_resources_address]) =
+        create_default_initial_state_data::<DictStateReader, 1>(
+            [(os_resources_contract, calldata![])],
+        )
+        .await;
+    let new_block_context = {
+        let block_context = &initial_state_data.initial_state.block_context;
+        let mut vc = block_context.versioned_constants().clone();
+        vc.min_sierra_version_for_sierra_gas = SierraVersion::new(99, 99, 99);
+        BlockContext::new(
+            block_context.block_info().clone(),
+            block_context.chain_info().clone(),
+            vc,
+            block_context.bouncer_config.clone(),
+        )
+    };
+    initial_state_data.initial_state.block_context = new_block_context;
+    let mut test_builder = TestBuilder::new_with_initial_state_data(
+        initial_state_data,
+        TestBuilderConfig::default(),
+        false,
+    );
+    let chain_id = &test_builder.chain_id();
+
+    let os_resources_class_hash = os_resources_contract.get_sierra().calculate_class_hash();
+
+    // For declare measurement: use Empty contract (not pre-declared in initial state).
+    let declare_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let declare_sierra = declare_contract.get_sierra();
+    let declare_class_hash = declare_sierra.calculate_class_hash();
+    let declare_compiled_class_hash = declare_contract.get_compiled_class_hash(&HashVersion::V2);
+
+    // For deploy_account measurement: use OsResourcesTest class (already declared, has
+    // __validate_deploy__). Salt=1 to get a distinct address from the already-deployed instance.
+    let deploy_account_address = calculate_contract_address(
+        ContractAddressSalt(Felt::ONE),
+        os_resources_class_hash,
+        &Calldata::default(),
+        ContractAddress::default(),
+    )
+    .unwrap();
+
+    // Block 0: fund both the deploy account address and OsResourcesTest (for its own invoke tx).
+    test_builder.add_fund_address_tx_with_default_amount(deploy_account_address);
+    test_builder.add_fund_address_tx_with_default_amount(os_resources_address);
+    test_builder.move_to_next_block();
+
+    // Block 2: measurement txs.
+    test_builder.move_to_next_block();
+
+    // TX 0: syscall measurement — top-level invoke from OsResourcesTest itself.
+    // block_direct_execute_call=true blocks calling __execute__ via call_contract_syscall, so
+    // OsResourcesTest must be the transaction sender.
+    // __execute__ also calls emit_event_syscall, so we supply an expectation for that event.
+    let syscall_tx_nonce = test_builder.next_nonce(os_resources_address);
+    let syscall_tx = InvokeTransaction::create(
+        invoke_tx(invoke_tx_args! {
+            sender_address: os_resources_address,
+            nonce: syscall_tx_nonce,
+            resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+            calldata: calldata![os_resources_class_hash.0, **os_resources_address],
+        }),
+        &test_builder.chain_id(),
+    )
+    .unwrap();
+    test_builder.add_invoke_tx(
+        syscall_tx,
+        None,
+        Some(vec![EventPredicateExpectation {
+            description: "OsResourcesTest emit_event syscall".to_string(),
+            predicate: Box::new(|_| true),
+        }]),
+    );
+
+    // TX 1: invoke measurement — trivial invoke on OsResourcesTest.
+    let invoke_calldata = create_calldata(os_resources_address, "empty_function", &[]);
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata: invoke_calldata });
+
+    // TX 2: declare measurement — declare Empty (fresh class).
+    let declare_tx_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        class_hash: declare_class_hash,
+        compiled_class_hash: declare_compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let class_info = declare_contract.get_class_info();
+    let declare_transaction =
+        DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
+    test_builder.add_cairo1_declare_tx(declare_transaction, &declare_sierra);
+
+    // TX 3: deploy_account measurement — deploy an OsResourcesTest instance.
+    let deploy_tx_args = deploy_account_tx_args! {
+        class_hash: os_resources_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        contract_address_salt: ContractAddressSalt(Felt::ONE),
+    };
+    let account_deploy_tx =
+        deploy_account_tx(deploy_tx_args, test_builder.next_nonce(deploy_account_address));
+    test_builder.add_deploy_account_tx(
+        DeployAccountTransaction::create(account_deploy_tx, chain_id).unwrap(),
+    );
+
+    // TX 4: l1_handler measurement — call empty_l1_handler on OsResourcesTest.
+    test_builder.add_l1_handler(
+        os_resources_address,
+        "empty_l1_handler",
+        calldata![Felt::ZERO],
+        None,
+    );
+
+    // Build without running so we can access os_input before the runner consumes it.
+    let test_runner = test_builder.build().await;
+    let os_block_inputs = &test_runner.os_hints.os_input.os_block_inputs;
+    // The OS runner starts from os_block_inputs[1] — block 0 is the reference block used to
+    // initialize state and its txs never appear in txs_trace. Measurement txs are in block 2;
+    // count only the txs from the blocks the OS actually runs before it (block 1).
+    let setup_tx_count: usize =
+        os_block_inputs[1..2].iter().map(|b| b.tx_execution_infos.len()).sum();
+    let exec_infos = &os_block_inputs[2].tx_execution_infos;
+
+    // Pre-extract ExecutionResources before run() consumes the runner.
+    let inner_call_vm_resources: Vec<ExecutionResources> = exec_infos[0]
+        .execute_call_info
+        .as_ref()
+        .unwrap()
+        .inner_calls
+        .iter()
+        .map(|call| call.resources.vm_resources.clone())
+        .collect();
+
+    let business_logic_resources: Vec<ExecutionResources> = exec_infos[1..=4]
+        .iter()
+        .map(|exec_info| {
+            let execute = exec_info
+                .execute_call_info
+                .as_ref()
+                .map_or(ExecutionResources::default(), |ci| ci.resources.vm_resources.clone());
+            let validate = exec_info
+                .validate_call_info
+                .as_ref()
+                .map_or(ExecutionResources::default(), |ci| ci.resources.vm_resources.clone());
+            add_resources(&execute, &validate)
+        })
+        .collect();
+
+    let test_output = test_runner.run();
+    let txs_trace = &test_output.runner_output.txs_trace;
+
+    let actual_syscalls = extract_execute_syscalls_resources(
+        &txs_trace[setup_tx_count],
+        &inner_call_vm_resources,
+    );
+
+    let tx_measurements = [
+        (TransactionType::InvokeFunction, &business_logic_resources[0], &txs_trace[setup_tx_count + 1]),
+        (TransactionType::Declare, &business_logic_resources[1], &txs_trace[setup_tx_count + 2]),
+        (TransactionType::DeployAccount, &business_logic_resources[2], &txs_trace[setup_tx_count + 3]),
+        (TransactionType::L1Handler, &business_logic_resources[3], &txs_trace[setup_tx_count + 4]),
+    ];
+    let actual_txs = extract_execute_txs_inner_resources(&tx_measurements);
+
+    // Read the versioned constants, patch the measured sections, and compare to the file on disk.
+    // Run with UPDATE_EXPECT=1 to regenerate the golden values after an OS resource change.
+    let constants_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../blockifier/resources/blockifier_versioned_constants_0_14_3.json");
+    let mut file_json: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&constants_path).unwrap()).unwrap();
+    file_json["os_resources"]["execute_syscalls"] = execute_syscalls_as_json(&actual_syscalls);
+    file_json["os_resources"]["execute_txs_inner"] = execute_txs_inner_as_json(&actual_txs);
+    let updated_json = serde_json::to_string_pretty(&file_json).unwrap() + "\n";
+    expect_file!["../../blockifier/resources/blockifier_versioned_constants_0_14_3.json"]
+        .assert_eq(&updated_json);
 }
