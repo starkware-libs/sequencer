@@ -25,6 +25,9 @@ pub trait VersionedConstantsTrait: Debug {
     /// Gets the first version with versioned constants.
     fn first_version() -> StarknetVersion;
 
+    /// Gets the path to the JSON file for the specified Starknet version.
+    fn json_path(version: &StarknetVersion) -> Result<String, Self::Error>;
+
     /// Gets the contents of the JSON file for the specified Starknet version.
     fn json_str(version: &StarknetVersion) -> Result<&'static str, Self::Error>;
 
@@ -159,6 +162,17 @@ macro_rules! define_versioned_constants_inner {
 
             fn first_version() -> StarknetVersion {
                 $first_version
+            }
+
+            fn json_path(version: &StarknetVersion) -> Result<String, Self::Error> {
+                Ok(format!(
+                    "{}/src/{}",
+                    env!("CARGO_MANIFEST_DIR"),
+                    match version {
+                        $(StarknetVersion::$variant => $path_to_json.to_string(),)*
+                        _ => return Err(Self::Error::InvalidStarknetVersion(*version)),
+                    }
+                ))
             }
 
             fn json_str(
