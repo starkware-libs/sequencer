@@ -99,7 +99,7 @@ pub struct RawVersionedConstants {
 
 #[cfg(any(test, feature = "testing"))]
 impl RawVersionedConstants {
-    fn to_string_pretty(&self) -> String {
+    pub fn to_string_pretty(&self) -> String {
         let mut buffer = Vec::new();
         let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
         let mut serializer = serde_json::Serializer::with_formatter(&mut buffer, formatter);
