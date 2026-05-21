@@ -185,6 +185,7 @@ impl TryFrom<&OsTransactionTrace> for String {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone, Debug))]
 pub struct ResourceCounter {
     n_steps: usize,
     range_check_ptr: Relocatable,
@@ -305,6 +306,7 @@ impl ResourceCounter {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone, Debug))]
 pub struct OsLogger {
     pub(crate) debug: bool,
     current_tx: Option<OsTransactionTrace>,

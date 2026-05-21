@@ -405,7 +405,7 @@ pub struct StarknetOsRunnerOutput {
     pub da_segment: Option<Vec<Felt>>,
     pub metrics: OsMetrics,
     #[cfg(any(test, feature = "testing"))]
-    pub txs_trace: Vec<crate::hint_processor::os_logger::OsTransactionTrace>,
+    pub os_logger: crate::hint_processor::os_logger::OsLogger,
     #[cfg(any(test, feature = "testing"))]
     pub unused_hints: std::collections::HashSet<crate::hints::enum_definition::AllHints>,
 }
@@ -420,6 +420,10 @@ impl StarknetOsRunnerOutput {
             &mut self.raw_os_output.clone().into_iter(),
             private_keys,
         )?)
+    }
+
+    pub fn txs_trace(&self) -> &Vec<crate::hint_processor::os_logger::OsTransactionTrace> {
+        self.os_logger.get_txs()
     }
 }
 
