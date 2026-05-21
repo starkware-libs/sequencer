@@ -2,7 +2,7 @@
 #[starknet::contract(account)]
 mod OsResourcesTestContract {
     use starknet::info::SyscallResultTrait;
-    use starknet::syscalls::call_contract_syscall;
+    use starknet::syscalls::{call_contract_syscall, library_call_syscall};
     use starknet::{ClassHash, ContractAddress};
 
     const STABLE_EXTERNAL_ENTRY_POINT_SELECTOR: felt252 = selector!("external");
@@ -32,6 +32,12 @@ mod OsResourcesTestContract {
         // call_contract syscall — calls external function on stable contract.
         call_contract_syscall(
             stable_address, STABLE_EXTERNAL_ENTRY_POINT_SELECTOR, array![0].span(),
+        )
+            .unwrap_syscall();
+
+        // library_call syscall — calls empty_function on stable class hash.
+        library_call_syscall(
+            stable_class_hash, STABLE_EXTERNAL_ENTRY_POINT_SELECTOR, array![0].span(),
         )
             .unwrap_syscall();
     }
