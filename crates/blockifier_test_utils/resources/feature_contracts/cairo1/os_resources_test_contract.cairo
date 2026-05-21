@@ -5,21 +5,21 @@ mod OsResourcesTestContract {
     use starknet::syscalls::call_contract_syscall;
     use starknet::{ClassHash, ContractAddress};
 
-    const EMPTY_FUNCTION_SELECTOR: felt252 = selector!("empty_function");
+    const STABLE_EXTERNAL_ENTRY_POINT_SELECTOR: felt252 = selector!("external");
 
     #[storage]
     struct Storage {}
 
     #[external(v0)]
     fn __validate_declare__(
-        self: @ContractState, class_hash: ClassHash, self_address: ContractAddress,
+        self: @ContractState, stable_class_hash: ClassHash, stable_address: ContractAddress,
     ) -> felt252 {
         starknet::VALIDATED
     }
 
     #[external(v0)]
     fn __validate__(
-        self: @ContractState, self_class_hash: ClassHash, self_address: ContractAddress,
+        self: @ContractState, stable_class_hash: ClassHash, stable_address: ContractAddress,
     ) -> felt252 {
         starknet::VALIDATED
     }
@@ -27,14 +27,12 @@ mod OsResourcesTestContract {
     // Calls every measured syscall in order.
     #[external(v0)]
     fn __execute__(
-        ref self: ContractState, self_class_hash: ClassHash, self_address: ContractAddress,
+        ref self: ContractState, stable_class_hash: ClassHash, stable_address: ContractAddress,
     ) {
-        // call_contract syscall — calls empty_function on self.
-        call_contract_syscall(self_address, EMPTY_FUNCTION_SELECTOR, ArrayTrait::new().span())
+        // call_contract syscall — calls external function on stable contract.
+        call_contract_syscall(
+            stable_address, STABLE_EXTERNAL_ENTRY_POINT_SELECTOR, array![0].span(),
+        )
             .unwrap_syscall();
     }
-
-    // Target for call_contract and library_call — accepts no arguments.
-    #[external(v0)]
-    fn empty_function(self: @ContractState) {}
 }

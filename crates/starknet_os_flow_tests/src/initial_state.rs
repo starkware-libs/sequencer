@@ -336,12 +336,29 @@ pub(crate) fn get_deploy_contract_tx_and_address_with_salt(
     resource_bounds: ValidResourceBounds,
     contract_address_salt: ContractAddressSalt,
 ) -> (InvokeTransaction, ContractAddress) {
+    get_deploy_contract_tx_and_address_with_salt_and_deployer(
+        class_hash,
+        ctor_calldata,
+        nonce,
+        resource_bounds,
+        contract_address_salt,
+        false,
+    )
+}
+
+pub(crate) fn get_deploy_contract_tx_and_address_with_salt_and_deployer(
+    class_hash: ClassHash,
+    ctor_calldata: Calldata,
+    nonce: Nonce,
+    resource_bounds: ValidResourceBounds,
+    contract_address_salt: ContractAddressSalt,
+    deploy_from_zero: bool,
+) -> (InvokeTransaction, ContractAddress) {
     let calldata = [class_hash.0, contract_address_salt.0, ctor_calldata.0.len().into()]
         .iter()
         .chain(ctor_calldata.0.iter())
         .cloned()
-        // deploy_from_zero
-        .chain(vec![false.into()])
+        .chain(vec![deploy_from_zero.into()])
         .collect::<Vec<Felt>>();
 
     let deploy_contract_calldata = create_calldata(
@@ -364,7 +381,7 @@ pub(crate) fn get_deploy_contract_tx_and_address_with_salt(
         contract_address_salt,
         class_hash,
         &ctor_calldata,
-        *FUNDED_ACCOUNT_ADDRESS,
+        if deploy_from_zero { ContractAddress::default() } else { *FUNDED_ACCOUNT_ADDRESS },
     )
     .unwrap();
     (deploy_contract_tx, contract_address)
