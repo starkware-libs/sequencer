@@ -61,6 +61,7 @@ pub type SyscallGasCostsMap = HashMap<SyscallSelector, RawSyscallGasCost>;
 
 /// Representation of the JSON data of versioned constants. Used as an intermediate struct for
 /// serde.
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq, Serialize))]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct RawVersionedConstants {
@@ -96,7 +97,7 @@ pub struct RawVersionedConstants {
     pub os_resources: RawOsResources,
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq, Serialize))]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct RawOsConstants {
@@ -176,7 +177,7 @@ pub struct RawOsConstants {
     pub data_gas_accounts: Vec<ClassHash>,
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq, Serialize))]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct RawStepGasCost {
@@ -199,13 +200,18 @@ impl Default for CompilerVersion {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 pub struct VmResourceCosts {
     pub n_steps: ResourceCost,
-    #[serde(deserialize_with = "builtin_map_from_string_map")]
+    #[serde(
+        deserialize_with = "builtin_map_from_string_map",
+        serialize_with = "string_map_from_builtin_map"
+    )]
     pub builtins: HashMap<BuiltinName, ResourceCost>,
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 pub struct AllocationCost {
     pub blob_cost: GasVector,
@@ -231,6 +237,18 @@ fn builtin_map_from_string_map<'de, D: Deserializer<'de>>(
         .map(|(k, v)| BuiltinName::from_str_with_suffix(&k).map(|k| (k, v)))
         .collect::<Option<HashMap<_, _>>>()
         .ok_or(D::Error::custom("Invalid builtin name"))
+}
+
+#[cfg(any(test, feature = "testing"))]
+fn string_map_from_builtin_map<S: serde::Serializer>(
+    value: &HashMap<BuiltinName, ResourceCost>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let mut map = BTreeMap::new();
+    for (builtin, ratio) in value {
+        map.insert(builtin.to_str_with_suffix(), ratio);
+    }
+    map.serialize(serializer)
 }
 
 /// Contains constants for the Blockifier that may vary between versions.
@@ -495,6 +513,7 @@ impl VersionedConstants {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct ArchivalDataGasCosts {
     // TODO(barak, 18/03/2024): Once we start charging per byte change to milligas_per_data_byte,
@@ -542,6 +561,7 @@ impl CairoNativeStackConfig {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
 #[derive(Deserialize, Debug, Clone, Default, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct VersionedConstantsGatewayLimits {
@@ -550,6 +570,7 @@ pub struct VersionedConstantsGatewayLimits {
     pub max_proof_size: usize,
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct EventLimits {
     pub max_data_length: usize,
@@ -733,6 +754,7 @@ impl OsResources {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq, Serialize))]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 // Serde trick for adding validations via a customr deserializer, without forgoing the derive.
@@ -793,6 +815,16 @@ impl<'de> Deserialize<'de> for RawOsResources {
             .validate()
             .map_err(|error| DeserializationError::custom(format!("ValidationError: {error}")))?;
         Ok(raw_os_resources)
+    }
+}
+
+#[cfg(any(test, feature = "testing"))]
+impl Serialize for RawOsResources {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        RawOsResources::serialize(self, serializer)
     }
 }
 
@@ -1344,7 +1376,7 @@ impl CallDataFactor {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq, Serialize))]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum VariableCallDataFactor {
@@ -1369,7 +1401,7 @@ impl From<&VariableCallDataFactor> for CallDataFactor {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq, Serialize))]
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ResourcesParams {
@@ -1377,7 +1409,7 @@ pub struct ResourcesParams {
     pub calldata_factor: VariableCallDataFactor,
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq, Serialize))]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum VariableResourceParams {

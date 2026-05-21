@@ -358,3 +358,16 @@ fn test_variable_resource_params_deserialize(
 ) {
     assert_eq!(expected, serde_json::from_str(json_data).unwrap());
 }
+
+#[test]
+fn test_deserialize_serialize_raw_vc() {
+    let all_jsons: Vec<PathBuf> = all_jsons_in_dir().map(Result::unwrap).collect();
+    for file in all_jsons {
+        let raw_os_resources = serde_json::from_reader::<_, RawVersionedConstants>(
+            &std::fs::File::open(&file).unwrap(),
+        )
+        .unwrap();
+        let serialized = serde_json::to_string_pretty(&raw_os_resources).unwrap();
+        assert_eq!(raw_os_resources, serde_json::from_str(&serialized).unwrap());
+    }
+}
