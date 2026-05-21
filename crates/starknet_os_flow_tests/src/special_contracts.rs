@@ -37,7 +37,6 @@ pub(crate) static DATA_GAS_ACCOUNT_CONTRACT_CASM: LazyLock<CasmContractClass> =
         serde_json::from_str(include_str!("../resources/data_gas_account.casm.json")).unwrap()
     });
 
-#[expect(dead_code)]
 pub(crate) static DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_SIERRA: LazyLock<
     SierraContractClass,
 > = LazyLock::new(|| {
@@ -48,7 +47,6 @@ pub(crate) static DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_SIERRA: LazyLock<
     SierraContractClass::from(compiler_contract_class)
 });
 
-#[expect(dead_code)]
 pub(crate) static DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_CASM: LazyLock<CasmContractClass> =
     LazyLock::new(|| {
         serde_json::from_str(include_str!(
