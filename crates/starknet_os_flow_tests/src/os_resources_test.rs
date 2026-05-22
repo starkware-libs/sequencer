@@ -2,6 +2,8 @@ use std::collections::HashSet;
 
 use blockifier::blockifier_versioned_constants::{
     RawVersionedConstants,
+    ResourcesParams,
+    VariableCallDataFactor,
     VariableResourceParams,
     VersionedConstants,
 };
@@ -36,10 +38,9 @@ use crate::test_manager::{TestBuilder, TestBuilderConfig, FUNDED_ACCOUNT_ADDRESS
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 
 // TODO(Dori): Delete this, or at least reduce it to a minimal set of unmeasurable syscalls.
-const UNMEASURABLE_SYSCALLS: [Selector; 34] = [
+const UNMEASURABLE_SYSCALLS: [Selector; 33] = [
     Selector::DelegateCall,
     Selector::DelegateL1Handler,
-    Selector::Deploy,
     Selector::EmitEvent,
     Selector::GetBlockHash,
     Selector::GetBlockNumber,
@@ -72,6 +73,8 @@ const UNMEASURABLE_SYSCALLS: [Selector; 34] = [
     Selector::StorageRead,
     Selector::StorageWrite,
 ];
+
+const SYSCALLS_WITH_LINEAR_FACTOR: [Selector; 2] = [Selector::Deploy, Selector::MetaTxV0];
 
 /// Measure the OS overhead for each syscall, and compare the results with the latest VC.
 ///
@@ -199,41 +202,66 @@ async fn test_os_resources_regression() {
     // Measure each syscall overhead. If the syscall incurs an inner call, subtract the inner call
     // overhead.
     let mut inner_calls_iter = inner_calls.into_iter();
-    let mut visited_syscalls = HashSet::new();
-    let measurements: IndexMap<Selector, ExecutionResources> = syscall_traces
+    let mut syscalls_iter = syscall_traces
         .iter()
-        .filter_map(|syscall_trace| {
-            let selector = syscall_trace.get_selector();
-            if UNMEASURABLE_SYSCALLS.contains(&selector) {
-                return None;
-            }
+        .filter(|syscall_trace| !UNMEASURABLE_SYSCALLS.contains(&syscall_trace.get_selector()));
+    let mut measurements: IndexMap<Selector, VariableResourceParams> = IndexMap::new();
+    let mut fetch_inner_resources = |selector: Selector| -> ExecutionResources {
+        if selector.is_calling_syscall() {
+            // TODO(Dori): Take opcodes (like blake) into account.
+            inner_calls_iter.next().unwrap().resources.vm_resources
+        } else {
+            ExecutionResources::default()
+        }
+    };
+    while let Some(syscall_trace) = syscalls_iter.next() {
+        let selector = syscall_trace.get_selector();
 
-            // Ensure we don't visit the same syscall twice.
-            assert!(
-                !visited_syscalls.contains(&selector),
-                "Syscall {selector:?} was visited twice."
-            );
-            visited_syscalls.insert(selector);
+        // Ensure we don't visit the same syscall more than once.
+        assert!(
+            measurements.get(&selector).is_none(),
+            "Syscall {selector:?} was visited again, unexpectedly."
+        );
 
-            // If this syscall incurs an inner call, it should be the next inner call in the
-            // iterator.
-            let inner_overhead = if selector.is_calling_syscall() {
-                // TODO(Dori): Take opcodes (like blake) into account.
-                inner_calls_iter.next().unwrap().resources.vm_resources
-            } else {
-                ExecutionResources::default()
-            };
+        // If this syscall incurs an inner call, it should be the next inner call in the
+        // iterator.
+        let inner_overhead = fetch_inner_resources(selector);
+        // The resources measured here are one of two types: constant, or base cost of a syscall
+        // with a linear factor.
+        let resources =
+            (syscall_trace.get_resources().unwrap() - &inner_overhead).filter_unused_builtins();
 
-            Some((
+        // If this if a syscall with a linear factor, the next syscall should be the linear cost.
+        // Otherwise, this syscall has a constant cost.
+        let syscall_cost = if SYSCALLS_WITH_LINEAR_FACTOR.contains(&selector) {
+            let next_syscall_trace = syscalls_iter.next().unwrap();
+            assert_eq!(
                 selector,
-                (syscall_trace.get_resources().unwrap() - &inner_overhead).filter_unused_builtins(),
-            ))
-        })
-        .collect();
+                next_syscall_trace.get_selector(),
+                "Expected next syscall to be the same as the current syscall {selector:?}, but \
+                 got {:?}.",
+                next_syscall_trace.get_selector()
+            );
+            let next_inner_overhead = fetch_inner_resources(selector);
+            let next_resources = (next_syscall_trace.get_resources().unwrap()
+                - &next_inner_overhead)
+                .filter_unused_builtins();
+            let linear_factor_resources = (&next_resources - &resources).filter_unused_builtins();
+            VariableResourceParams::WithFactor(ResourcesParams {
+                constant: resources,
+                // Syscalls with a linear factor have an unscaled linear factor cost.
+                calldata_factor: VariableCallDataFactor::Unscaled(linear_factor_resources),
+            })
+        } else {
+            VariableResourceParams::Constant(resources)
+        };
+
+        measurements.insert(selector, syscall_cost);
+    }
 
     // Make sure we covered all syscalls we expect to.
     assert_eq!(
-        visited_syscalls,
+        HashSet::from_iter(measurements.keys().cloned()),
         Selector::iter()
             .collect::<HashSet<_>>()
             .difference(&UNMEASURABLE_SYSCALLS.iter().cloned().collect::<HashSet<_>>())
@@ -246,10 +274,7 @@ async fn test_os_resources_regression() {
     let mut raw_vc: RawVersionedConstants =
         serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
     for (syscall, resources) in measurements {
-        raw_vc
-            .os_resources
-            .execute_syscalls
-            .insert(syscall, VariableResourceParams::Constant(resources));
+        raw_vc.os_resources.execute_syscalls.insert(syscall, resources);
     }
     expect_file![VersionedConstants::json_path(&version).unwrap()]
         .assert_eq(&raw_vc.to_string_pretty());
