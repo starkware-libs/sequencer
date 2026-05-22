@@ -2,7 +2,7 @@
 #[starknet::contract(account)]
 mod OsResourcesTestContract {
     use starknet::info::SyscallResultTrait;
-    use starknet::syscalls::{call_contract_syscall, library_call_syscall};
+    use starknet::syscalls::{call_contract_syscall, deploy_syscall, library_call_syscall};
     use starknet::{ClassHash, ContractAddress};
 
     const STABLE_EXTERNAL_ENTRY_POINT_SELECTOR: felt252 = selector!("external");
@@ -40,5 +40,13 @@ mod OsResourcesTestContract {
             stable_class_hash, STABLE_EXTERNAL_ENTRY_POINT_SELECTOR, array![0].span(),
         )
             .unwrap_syscall();
+
+        // deploy syscall. The resources this syscall consumes can vary depending on the deployed
+        // contract address, in a non-trivial way (see `normalize_address` in the cairo0 core). For
+        // this reason we deploy from zero, and choose a specific salt.
+        // base (no calldata):
+        deploy_syscall(stable_class_hash, 3, array![0].span(), true).unwrap_syscall();
+        // linear factor (calldata len = 1):
+        deploy_syscall(stable_class_hash, 3, array![1, 0].span(), true).unwrap_syscall();
     }
 }
