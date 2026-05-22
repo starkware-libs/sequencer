@@ -1,7 +1,10 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::sync::LazyLock;
 
 use blockifier::blockifier_versioned_constants::{
     RawVersionedConstants,
+    ResourcesParams,
+    VariableCallDataFactor,
     VariableResourceParams,
     VersionedConstants,
 };
@@ -36,10 +39,9 @@ use crate::test_manager::{TestBuilder, TestBuilderConfig, FUNDED_ACCOUNT_ADDRESS
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 
 // TODO(Dori): Delete this, or at least reduce it to a minimal set of unmeasurable syscalls.
-const UNMEASURABLE_SYSCALLS: [Selector; 34] = [
+const UNMEASURABLE_SYSCALLS: [Selector; 33] = [
     Selector::DelegateCall,
     Selector::DelegateL1Handler,
-    Selector::Deploy,
     Selector::EmitEvent,
     Selector::GetBlockHash,
     Selector::GetBlockNumber,
@@ -72,6 +74,24 @@ const UNMEASURABLE_SYSCALLS: [Selector; 34] = [
     Selector::StorageRead,
     Selector::StorageWrite,
 ];
+
+/// Store a mapping from a linearly-charged syscall, with the number of "linear elements" in it's
+/// first measurement. For example, if we measure the base and linear costs of a [Selector::Deploy]
+/// by running:
+/// ```
+/// deploy_syscall(stable_class_hash, 3, array![2, 0, 0].span(), true).unwrap_syscall();
+/// deploy_syscall(stable_class_hash, 3, array![3, 0, 0, 0].span(), true).unwrap_syscall();
+/// ```
+/// ... then the linear factor is exactly the difference between the two measurements, because the
+/// second measurement has one more linear element (4) than the first measurement (3). However, the
+/// first call has 3 elements in it's calldata, so to compute the estimated cost of a zero-element
+/// call (base) we need to subtract three times the linear factor from the first measurement. In
+/// this case, the value in the mapping will be 3.
+/// The second call will always have one more linear element than the first call.
+/// Note: Keccak does not store the linear factor in the same entry in the versioned constants, but
+/// it does have a measurable linear factor stored under [Selector::KeccakRound].
+static SYSCALLS_WITH_LINEAR_FACTOR: LazyLock<HashMap<Selector, usize>> =
+    LazyLock::new(|| HashMap::from([(Selector::Deploy, 1), (Selector::MetaTxV0, 1)]));
 
 /// Measure the OS overhead for each syscall, and compare the results with the latest VC.
 ///
@@ -194,48 +214,76 @@ async fn test_os_resources_regression() {
     test_output.perform_default_validations();
 
     // Extract syscall resources consumed per syscall.
-    let syscall_traces = test_output.runner_output.txs_trace.last().unwrap().get_syscalls();
-
-    // Measure each syscall overhead. If the syscall incurs an inner call, subtract the inner call
-    // overhead.
     let mut inner_calls_iter = inner_calls.into_iter();
-    let mut visited_syscalls = HashSet::new();
-    let measurements: IndexMap<Selector, ExecutionResources> = syscall_traces
+    let syscall_traces = test_output.runner_output.txs_trace.last().unwrap().get_syscalls();
+    let mut syscalls_iter = syscall_traces
         .iter()
-        .filter_map(|syscall_trace| {
-            let selector = syscall_trace.get_selector();
-            if UNMEASURABLE_SYSCALLS.contains(&selector) {
-                return None;
-            }
-
-            // Ensure we don't visit the same syscall twice.
-            assert!(
-                !visited_syscalls.contains(&selector),
-                "Syscall {selector:?} was visited twice."
-            );
-            visited_syscalls.insert(selector);
-
-            // If this syscall incurs an inner call, it should be the next inner call in the
-            // iterator. We assume no inner calls have nested inner calls (all inner calls are
-            // leaves).
-            let inner_overhead = if selector.is_calling_syscall() {
+        .filter(|syscall_trace| !UNMEASURABLE_SYSCALLS.contains(&syscall_trace.get_selector()));
+    let mut measurements: IndexMap<Selector, VariableResourceParams> = IndexMap::new();
+    // If the syscall incurs an inner call, subtract the inner call overhead.
+    let mut maybe_deduct_inner =
+        |total: &ExecutionResources, selector: Selector| -> ExecutionResources {
+            // We assume no inner calls have nested inner calls (all inner calls are leaves).
+            let to_deduct = if selector.is_calling_syscall() {
                 // TODO(Dori): Take opcodes (like blake) into account, instead of using the
                 // vm_resources field.
                 inner_calls_iter.next().unwrap().resources.vm_resources
             } else {
                 ExecutionResources::default()
             };
+            (total - &to_deduct).filter_unused_builtins()
+        };
+    while let Some(syscall_trace) = syscalls_iter.next() {
+        let selector = syscall_trace.get_selector();
 
-            Some((
+        // Ensure we don't visit the same syscall more than once.
+        assert!(
+            measurements.get(&selector).is_none(),
+            "Syscall {selector:?} was visited again, unexpectedly."
+        );
+
+        // If this syscall incurs an inner call, it should be the next inner call in the
+        // iterator.
+        let resources = maybe_deduct_inner(syscall_trace.get_resources().unwrap(), selector);
+
+        // If this if a syscall with a linear factor, the next syscall should be an invocation of
+        // the same syscall with +1 linear element.
+        let syscall_cost = if let Some(linear_count_in_base) =
+            SYSCALLS_WITH_LINEAR_FACTOR.get(&selector)
+        {
+            let next_syscall_trace = syscalls_iter.next().unwrap();
+            assert_eq!(
                 selector,
-                (syscall_trace.get_resources().unwrap() - &inner_overhead).filter_unused_builtins(),
-            ))
-        })
-        .collect();
+                next_syscall_trace.get_selector(),
+                "Expected next syscall to be the same as the current syscall {selector:?}, but \
+                 got {:?}.",
+                next_syscall_trace.get_selector()
+            );
+            let next_resources =
+                maybe_deduct_inner(next_syscall_trace.get_resources().unwrap(), selector);
+            let linear_factor_resources = (&next_resources - &resources).filter_unused_builtins();
+
+            // Linear factor is computed; deduct the linear overhead from the base cost to get the
+            // real base cost.
+            let constant_resources = (&resources
+                - &(&linear_factor_resources * *linear_count_in_base))
+                .filter_unused_builtins();
+
+            VariableResourceParams::WithFactor(ResourcesParams {
+                constant: constant_resources,
+                // Syscalls with a linear factor have an unscaled linear factor cost.
+                calldata_factor: VariableCallDataFactor::Unscaled(linear_factor_resources),
+            })
+        } else {
+            VariableResourceParams::Constant(resources)
+        };
+
+        measurements.insert(selector, syscall_cost);
+    }
 
     // Make sure we covered all syscalls we expect to.
     assert_eq!(
-        visited_syscalls,
+        HashSet::from_iter(measurements.keys().cloned()),
         Selector::iter()
             .collect::<HashSet<_>>()
             .difference(&UNMEASURABLE_SYSCALLS.iter().cloned().collect::<HashSet<_>>())
@@ -248,10 +296,7 @@ async fn test_os_resources_regression() {
     let mut raw_vc: RawVersionedConstants =
         serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
     for (syscall, resources) in measurements {
-        raw_vc
-            .os_resources
-            .execute_syscalls
-            .insert(syscall, VariableResourceParams::Constant(resources));
+        raw_vc.os_resources.execute_syscalls.insert(syscall, resources);
     }
     expect_file![VersionedConstants::json_path(&version).unwrap()]
         .assert_eq(&raw_vc.to_string_pretty());
