@@ -9,9 +9,9 @@
 ~ /gateway/max_contract_bytecode_size: 81920
 ~ /ignore_inner_event_resources: true
 ~ /invoke_tx_max_n_steps: 4000000
-+ /os_constants/syscall_gas_costs/Secp256k1Mul/memory_hole_gas_cost: 2
+~ /os_constants/syscall_gas_costs/Secp256k1Mul/memory_hole_gas_cost: 2
 ~ /os_constants/syscall_gas_costs/Secp256k1Mul/step_gas_cost: 76501
-+ /os_constants/syscall_gas_costs/Secp256r1Mul/memory_hole_gas_cost: 2
+~ /os_constants/syscall_gas_costs/Secp256r1Mul/memory_hole_gas_cost: 2
 ~ /os_constants/syscall_gas_costs/Secp256r1Mul/step_gas_cost: 125340
 ~ /os_constants/validate_rounding_consts/validate_block_number_rounding: 100
 ~ /os_constants/validate_rounding_consts/validate_timestamp_rounding: 3600

@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use cached::proc_macro::cached;
+use expect_test::expect_file;
 use glob::{glob, Paths};
 use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
@@ -369,5 +370,6 @@ fn test_deserialize_serialize_raw_vc() {
         .unwrap();
         let serialized = raw_vc.to_string_pretty();
         assert_eq!(raw_vc, serde_json::from_str(&serialized).unwrap());
+        expect_file![file].assert_eq(&serialized);
     }
 }

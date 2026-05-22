@@ -3,7 +3,7 @@
 ~ /disable_cairo0_redeclaration: true
 ~ /invoke_tx_max_n_steps: 10000000
 ~ /os_constants/builtin_gas_costs/bitwise: 594
-+ /os_constants/syscall_gas_costs/Sha256ProcessBlock/bitwise: 1115
+~ /os_constants/syscall_gas_costs/Sha256ProcessBlock/bitwise: 1115
 ~ /os_constants/syscall_gas_costs/Sha256ProcessBlock/range_check: 65
 ~ /os_constants/syscall_gas_costs/Sha256ProcessBlock/step_gas_cost: 1852
 ~ /os_constants/syscall_gas_costs/Sha256ProcessBlock/syscall_base_gas_cost: 1
