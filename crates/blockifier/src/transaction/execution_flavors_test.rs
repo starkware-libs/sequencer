@@ -906,7 +906,8 @@ fn test_simulate_validate_charge_fee_post_execution(
             + 4 * u64_from_usize(
                 get_const_syscall_resources(SyscallSelector::StorageWrite).n_steps,
             )
-            + 3588)
+            + u64_from_usize(get_const_syscall_resources(SyscallSelector::EmitEvent).n_steps)
+            + 3527)
             .into(),
         validate,
         &fee_type,
