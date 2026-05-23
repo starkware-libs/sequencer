@@ -32,15 +32,19 @@ use crate::special_contracts::{
     DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_CASM,
     DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_SIERRA,
 };
-use crate::test_manager::{TestBuilder, TestBuilderConfig, FUNDED_ACCOUNT_ADDRESS};
+use crate::test_manager::{
+    EventPredicateExpectation,
+    TestBuilder,
+    TestBuilderConfig,
+    FUNDED_ACCOUNT_ADDRESS,
+};
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::get_class_hash_of_feature_contract;
 
 // TODO(Dori): Delete this, or at least reduce it to a minimal set of unmeasurable syscalls.
-const UNMEASURABLE_SYSCALLS: [Selector; 31] = [
+const UNMEASURABLE_SYSCALLS: [Selector; 30] = [
     Selector::DelegateCall,
     Selector::DelegateL1Handler,
-    Selector::EmitEvent,
     Selector::GetBlockHash,
     Selector::GetBlockNumber,
     Selector::GetBlockTimestamp,
@@ -153,7 +157,19 @@ async fn test_os_resources_regression() {
         &test_builder.chain_id(),
     )
     .unwrap();
-    test_builder.add_invoke_tx(tx, None, None);
+    test_builder.add_invoke_tx(
+        tx,
+        None,
+        // Expect one event from the emit-event syscall measurement.
+        Some(vec![EventPredicateExpectation {
+            description: "emit event syscall".to_string(),
+            predicate: Box::new(move |event| {
+                event.from_address == os_resources_contract_address
+                    && event.content.keys[0].0 == Felt::from(5)
+                    && event.content.data.0[0] == Felt::from(7)
+            }),
+        }]),
+    );
 
     // Run test. Grab the execution info from the runner (for later) before consuming it.
     let test_runner = test_builder.build().await;
@@ -175,7 +191,19 @@ async fn test_os_resources_regression() {
     test_output.perform_default_validations();
 
     // Extract syscall resources consumed, per (measurable) syscall.
-    let syscall_traces = test_output.runner_output.txs_trace.last().unwrap().get_syscalls();
+    // There should be two events emitted: the first is the syscall we are measuring, and the second
+    // is the last syscall in the tx, emitted from the fee transfer. Pop the second event.
+    let mut syscall_traces =
+        test_output.runner_output.txs_trace.last().unwrap().get_syscalls().clone();
+    assert!(!UNMEASURABLE_SYSCALLS.contains(&Selector::EmitEvent));
+    assert_eq!(
+        syscall_traces
+            .iter()
+            .filter(|syscall_trace| syscall_trace.get_selector() == Selector::EmitEvent)
+            .count(),
+        2
+    );
+    assert_eq!(syscall_traces.pop().unwrap().get_selector(), Selector::EmitEvent);
 
     // Measure each syscall overhead. If the syscall incurs an inner call, subtract the inner call
     // overhead.

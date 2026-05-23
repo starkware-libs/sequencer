@@ -3,7 +3,9 @@
 mod OsResourcesTestContract {
     use starknet::class_hash::ClassHashZero;
     use starknet::info::SyscallResultTrait;
-    use starknet::syscalls::{call_contract_syscall, deploy_syscall, library_call_syscall};
+    use starknet::syscalls::{
+        call_contract_syscall, deploy_syscall, emit_event_syscall, library_call_syscall,
+    };
     use starknet::{ClassHash, ContractAddress};
 
     const EMPTY_FUNCTION_SELECTOR: felt252 = selector!("empty_function");
@@ -87,6 +89,9 @@ mod OsResourcesTestContract {
         deploy_syscall(deployable_class_hash, 2, array![0].span(), true).unwrap_syscall();
         // linear factor (calldata len = 1):
         deploy_syscall(deployable_class_hash, 2, array![1, 0].span(), true).unwrap_syscall();
+
+        // emit event syscall.
+        emit_event_syscall(array![5].span(), array![7].span()).unwrap_syscall();
     }
 
     // Target for call_contract and library_call — accepts no arguments.
