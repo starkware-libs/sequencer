@@ -3,3 +3,5 @@
 ~ /os_resources/execute_syscalls/Deploy/constant/builtin_instance_counter/pedersen_builtin: 8
 ~ /os_resources/execute_syscalls/Deploy/constant/n_steps: 1183
 ~ /os_resources/execute_syscalls/LibraryCall/n_steps: 874
+~ /os_resources/execute_syscalls/MetaTxV0/constant/builtin_instance_counter/pedersen_builtin: 13
+~ /os_resources/execute_syscalls/MetaTxV0/constant/n_steps: 1333
