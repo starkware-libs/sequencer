@@ -17,7 +17,11 @@ use crate::test_utils::cairo_runner::{
     ImplicitArg,
     ValueArg,
 };
-use crate::test_utils::{SHA256_BATCH_RESOURCES_CONSTANT, SHA256_BATCH_RESOURCES_LINEAR};
+use crate::test_utils::{
+    SHA256_BATCH_RESOURCES_CONSTANT,
+    SHA256_BATCH_RESOURCES_LINEAR,
+    SHA256_BATCH_SIZE,
+};
 
 /// SHA-256 block compression: takes 8 u32 state words and 16 u32 message words, returns the
 /// new 8 u32 state. Wraps `sha2::compress256` (message words are big-endian per the SHA-256 spec).
@@ -98,11 +102,10 @@ fn run_finalize_sha256(number_of_blocks: usize) -> ExecutionResources {
 fn test_finalize_sha256() {
     // Sha256 batching resources has a factor that is linear in the number of rounds, and a constant
     // factor. Sample the execution at two points to compute both factors.
-    let blocks_in_round = 7_usize;
     let number_of_blocks_1 = 8_usize;
-    let number_of_rounds_1 = (number_of_blocks_1 - 1) / blocks_in_round + 1;
-    let number_of_blocks_2 = number_of_blocks_1 + blocks_in_round;
-    let number_of_rounds_2 = (number_of_blocks_2 - 1) / blocks_in_round + 1;
+    let number_of_rounds_1 = (number_of_blocks_1 - 1) / SHA256_BATCH_SIZE + 1;
+    let number_of_blocks_2 = number_of_blocks_1 + SHA256_BATCH_SIZE;
+    let number_of_rounds_2 = (number_of_blocks_2 - 1) / SHA256_BATCH_SIZE + 1;
     let resources_1 = run_finalize_sha256(number_of_blocks_1);
     let resources_2 = run_finalize_sha256(number_of_blocks_2);
 

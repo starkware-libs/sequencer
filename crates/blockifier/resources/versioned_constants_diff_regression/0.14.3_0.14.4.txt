@@ -1,4 +1,4 @@
-+ /os_constants/allowed_virtual_os_program_hashes/2: "0x552611434744d19772e04249521f0a3d00d85906c9a600082aaa9339788f8d5"
++ /os_constants/allowed_virtual_os_program_hashes/2: "0x4373ade67a35a6ae0466730e5807b828a5db813010d6070bb1db85f99682dcb"
 ~ /os_resources/execute_syscalls/CallContract/n_steps: 901
 ~ /os_resources/execute_syscalls/EmitEvent/n_steps: 47
 ~ /os_resources/execute_syscalls/GetBlockHash/builtin_instance_counter/range_check_builtin: 3
@@ -9,3 +9,4 @@
 ~ /os_resources/execute_syscalls/KeccakRound/n_steps: 223
 ~ /os_resources/execute_syscalls/LibraryCall/n_steps: 874
 ~ /os_resources/execute_syscalls/MetaTxV0/constant/n_steps: 1307
+~ /os_resources/execute_syscalls/Sha256ProcessBlock/n_steps: 1854
