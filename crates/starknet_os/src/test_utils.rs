@@ -19,6 +19,7 @@ pub mod validations;
 mod resource_utils_test;
 
 // Resources consumed by the SHA-256 batch phase, separated into linear and constant factors.
+pub const SHA256_BLOCK_TO_ROUND: usize = 7;
 pub static SHA256_BATCH_RESOURCES_LINEAR: LazyLock<ExecutionResources> =
     LazyLock::new(|| ExecutionResources {
         n_steps: 11822,
