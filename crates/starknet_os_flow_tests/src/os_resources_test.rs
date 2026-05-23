@@ -31,16 +31,13 @@ use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::get_class_hash_of_feature_contract;
 
 // TODO(Dori): Delete this, or at least reduce it to a minimal set of unmeasurable syscalls.
-const UNMEASURABLE_SYSCALLS: [Selector; 30] = [
+const UNMEASURABLE_SYSCALLS: [Selector; 27] = [
     Selector::DelegateCall,
     Selector::DelegateL1Handler,
-    Selector::GetBlockHash,
     Selector::GetBlockNumber,
     Selector::GetBlockTimestamp,
     Selector::GetCallerAddress,
-    Selector::GetClassHashAt,
     Selector::GetContractAddress,
-    Selector::GetExecutionInfo,
     Selector::GetSequencerAddress,
     Selector::GetTxInfo,
     Selector::GetTxSignature,
