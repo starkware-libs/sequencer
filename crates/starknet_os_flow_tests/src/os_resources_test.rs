@@ -24,7 +24,9 @@ use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{calldata, declare_tx_args, invoke_tx_args};
+use starknet_os::hint_processor::constants::BUILTIN_INSTANCE_SIZES;
 use starknet_os::hint_processor::os_logger::ResourceFinalizer;
+use starknet_os::test_utils::{SHA256_BATCH_RESOURCES_LINEAR, SHA256_BLOCK_TO_ROUND};
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
@@ -43,7 +45,7 @@ use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::get_class_hash_of_feature_contract;
 
 // TODO(Dori): Delete this, or at least reduce it to a minimal set of unmeasurable syscalls.
-const UNMEASURABLE_SYSCALLS: [Selector; 26] = [
+const UNMEASURABLE_SYSCALLS: [Selector; 25] = [
     Selector::DelegateCall,
     Selector::DelegateL1Handler,
     Selector::GetBlockNumber,
@@ -53,7 +55,6 @@ const UNMEASURABLE_SYSCALLS: [Selector; 26] = [
     Selector::GetSequencerAddress,
     Selector::GetTxInfo,
     Selector::GetTxSignature,
-    Selector::Sha256ProcessBlock,
     Selector::Sha512ProcessBlock,
     Selector::LibraryCallL1Handler,
     Selector::ReplaceClass,
@@ -77,6 +78,11 @@ const UNMEASURABLE_SYSCALLS: [Selector; 26] = [
 const SYSCALLS_WITH_LINEAR_FACTOR: [Selector; 3] =
     [Selector::Deploy, Selector::Keccak, Selector::MetaTxV0];
 
+/// Syscalls that are implemented using virtual builtins. Such syscalls have their "heavy lifting"
+/// executed after the execute_syscalls part of the OS, so the consumed resources are not captured
+/// by the OsLogger.
+const SYSCALLS_WITH_VIRTUAL_BUILTINS: [Selector; 1] = [Selector::Sha256ProcessBlock];
+
 /// Expected syscalls in the fee transfer call. Should be removed from the list of syscalls during
 /// measurement iteration - only the syscalls called during __execute__ should be measured.
 const FEE_TRANSFER_SYSCALLS: [Selector; 10] = [
@@ -92,31 +98,32 @@ const FEE_TRANSFER_SYSCALLS: [Selector; 10] = [
     Selector::EmitEvent,
 ];
 
-/// Measure the OS overhead for each syscall, and compare the results with the latest VC.
-///
-/// This test relies on the [starknet_os::hint_processor::os_logger::OsLogger] to capture the
-/// resources used by the OS when running a syscall. A "checkpoint" is made before entering a
-/// syscall implementation, and after the syscall execution returns, the difference between the two
-/// is stored in the logger's traces.
-///
-/// Some notes about these measurements:
-/// 1. Some syscalls incur inner calls ([Selector::CallContract], for example). The resources
-///    consumed by the inner logic must be subtracted from the measured overhead to get the actual
-///    OS overhead.
-/// 2. Some syscalls incur overhead that depends linearly on the length of the input to the syscall.
-///    In these cases, the measuring contract calls the syscall twice in a row, the second call
-///    having "one more" input than the first call; subtracting the sequential measurements gives
-///    the linear factor of the syscall. One caveat here is that the linear factor of
-///    [Selector::Keccak] is stored as a separate syscall cost ([Selector::KeccakRound]).
-/// 3. The SHA family syscalls are implemented as "virtual builtins": the syscall execution only
-///    pushes the inputs to a special memory segment, and the "heavy lifting" is done later. This
-///    means that the overhead of the syscall is not captured by the `OsLogger`. These syscalls have
-///    separate tests to measure their overhead.
-/// 4. The [Selector::Deploy] syscall's overhead depends on the deployed contract address in a non-
-///    trivial way (see the `normalize_address` function in the cairo-lang core). To avoid noise in
-///    the measurements, we use a "fixed" dummy contract (that is not recompiled when the Cairo1
-///    compiler's version changes), and we set the `deploy_from_zero` flag to `true` to make sure
-///    changes in the deploying contract address are not reflected in the measurements.
+/// See [SYSCALLS_WITH_VIRTUAL_BUILTINS] for why this function is needed.
+fn update_resources_for_virtual_builtin_syscall(
+    selector: Selector,
+    measured_base: ExecutionResources,
+) -> ExecutionResources {
+    assert!(SYSCALLS_WITH_VIRTUAL_BUILTINS.contains(&selector));
+    match selector {
+        Selector::Sha256ProcessBlock => {
+            let mut new_resources = measured_base.clone();
+            let ExecutionResources {
+                n_steps: linear_steps,
+                builtin_instance_counter: linear_builtin_instance_counter,
+                n_memory_holes: linear_memory_holes,
+            } = SHA256_BATCH_RESOURCES_LINEAR.clone();
+            new_resources.n_steps += linear_steps / SHA256_BLOCK_TO_ROUND;
+            new_resources.n_memory_holes += linear_memory_holes / SHA256_BLOCK_TO_ROUND;
+            for (builtin, count) in linear_builtin_instance_counter.iter() {
+                *new_resources.builtin_instance_counter.entry(*builtin).or_insert(0) +=
+                    BUILTIN_INSTANCE_SIZES.get(builtin).unwrap() * count / SHA256_BLOCK_TO_ROUND;
+            }
+            new_resources
+        }
+        _ => panic!("Resource update not implemented for virtual builtin syscall: {selector:?}."),
+    }
+}
+
 #[tokio::test]
 async fn test_fee_transfer_syscalls() {
     let os_resources_contract = FeatureContract::OsResourcesTest(RunnableCairo1::Casm);
@@ -157,6 +164,31 @@ async fn test_fee_transfer_syscalls() {
     assert_eq!(syscalls, FEE_TRANSFER_SYSCALLS.to_vec());
 }
 
+/// Measure the OS overhead for each syscall, and compare the results with the latest VC.
+///
+/// This test relies on the [starknet_os::hint_processor::os_logger::OsLogger] to capture the
+/// resources used by the OS when running a syscall. A "checkpoint" is made before entering a
+/// syscall implementation, and after the syscall execution returns, the difference between the two
+/// is stored in the logger's traces.
+///
+/// Some notes about these measurements:
+/// 1. Some syscalls incur inner calls ([Selector::CallContract], for example). The resources
+///    consumed by the inner logic must be subtracted from the measured overhead to get the actual
+///    OS overhead.
+/// 2. Some syscalls incur overhead that depends linearly on the length of the input to the syscall.
+///    In these cases, the measuring contract calls the syscall twice in a row, the second call
+///    having "one more" input than the first call; subtracting the sequential measurements gives
+///    the linear factor of the syscall. One caveat here is that the linear factor of
+///    [Selector::Keccak] is stored as a separate syscall cost ([Selector::KeccakRound]).
+/// 3. The SHA family syscalls are implemented as "virtual builtins": the syscall execution only
+///    pushes the inputs to a special memory segment, and the "heavy lifting" is done later. This
+///    means that the overhead of the syscall is not captured by the `OsLogger`. These syscalls have
+///    separate tests to measure their overhead.
+/// 4. The [Selector::Deploy] syscall's overhead depends on the deployed contract address in a non-
+///    trivial way (see the `normalize_address` function in the cairo-lang core). To avoid noise in
+///    the measurements, we use a "fixed" dummy contract (that is not recompiled when the Cairo1
+///    compiler's version changes), and we set the `deploy_from_zero` flag to `true` to make sure
+///    changes in the deploying contract address are not reflected in the measurements.
 #[tokio::test]
 async fn test_os_resources_regression() {
     let os_resources_contract = FeatureContract::OsResourcesTest(RunnableCairo1::Casm);
@@ -322,8 +354,13 @@ async fn test_os_resources_regression() {
         let inner_overhead = fetch_inner_resources(selector);
         // The resources measured here are one of two types: constant, or base cost of a syscall
         // with a linear factor.
-        let resources =
+        let mut resources =
             (syscall_trace.get_resources().unwrap() - &inner_overhead).filter_unused_builtins();
+
+        // Virtual builtins require adjustment.
+        if SYSCALLS_WITH_VIRTUAL_BUILTINS.contains(&selector) {
+            resources = update_resources_for_virtual_builtin_syscall(selector, resources);
+        }
 
         // If this if a syscall with a linear factor, the next syscall should be the linear cost.
         // Otherwise, this syscall has a constant cost.
