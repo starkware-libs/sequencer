@@ -128,8 +128,10 @@ mod OsResourcesTestContract {
         replace_class_syscall(stable_class_hash).unwrap_syscall();
 
         // send message to l1 syscall.
-        // TODO(Yoni, 1/6/2022): In this case the number of steps depends on the payload size -
-        //  consider counting it.
+        // No need to prepend the "calldata length" to the message payload.
+        let mut large_message_input = large_input.clone();
+        large_message_input.pop_front().unwrap();
         send_message_to_l1_syscall(100, array![].span()).unwrap_syscall();
+        send_message_to_l1_syscall(100, large_message_input.span()).unwrap_syscall();
     }
 }

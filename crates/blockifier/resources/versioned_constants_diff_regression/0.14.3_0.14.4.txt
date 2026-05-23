@@ -1,4 +1,4 @@
-+ /os_constants/allowed_virtual_os_program_hashes/2: "0x397efd2933dd48595331d4a61ca1cdf4ae1b4ff1999933cd419625a67fc7b04"
++ /os_constants/allowed_virtual_os_program_hashes/2: "0x65f41fa333ab7a6f65b5259a0b6fba24a912ba937652faba34c93f71bb1c00a"
 ~ /os_resources/execute_syscalls/CallContract/n_steps: 901
 ~ /os_resources/execute_syscalls/EmitEvent/n_steps: 47
 ~ /os_resources/execute_syscalls/GetBlockHash/builtin_instance_counter/range_check_builtin: 3
@@ -10,5 +10,9 @@
 ~ /os_resources/execute_syscalls/LibraryCall/n_steps: 874
 ~ /os_resources/execute_syscalls/MetaTxV0/constant/n_steps: 1307
 ~ /os_resources/execute_syscalls/ReplaceClass/n_steps: 92
-~ /os_resources/execute_syscalls/SendMessageToL1/n_steps: 124
++ /os_resources/execute_syscalls/SendMessageToL1/calldata_factor: {"builtin_instance_counter":{},"n_memory_holes":0,"n_steps":6}
++ /os_resources/execute_syscalls/SendMessageToL1/constant: {"builtin_instance_counter":{"range_check_builtin":1},"n_memory_holes":0,"n_steps":127}
+- /os_resources/execute_syscalls/SendMessageToL1/builtin_instance_counter
+- /os_resources/execute_syscalls/SendMessageToL1/n_memory_holes
+- /os_resources/execute_syscalls/SendMessageToL1/n_steps
 ~ /os_resources/execute_syscalls/Sha256ProcessBlock/n_steps: 1854
