@@ -79,6 +79,21 @@ const UNMEASURABLE_SYSCALLS: [Selector; 31] = [
 
 const SYSCALLS_WITH_LINEAR_FACTOR: [Selector; 2] = [Selector::Deploy, Selector::MetaTxV0];
 
+/// Expected syscalls in the fee transfer call. Should be removed from the list of syscalls during
+/// measurement iteration - only the syscalls called during __execute__ should be measured.
+const FEE_TRANSFER_SYSCALLS: [Selector; 10] = [
+    Selector::GetExecutionInfo,
+    Selector::StorageRead,
+    Selector::StorageRead,
+    Selector::StorageWrite,
+    Selector::StorageWrite,
+    Selector::StorageRead,
+    Selector::StorageRead,
+    Selector::StorageWrite,
+    Selector::StorageWrite,
+    Selector::EmitEvent,
+];
+
 /// Measure the OS overhead for each syscall, and compare the results with the latest VC.
 ///
 /// This test relies on the [starknet_os::hint_processor::os_logger::OsLogger] to capture the
@@ -104,6 +119,46 @@ const SYSCALLS_WITH_LINEAR_FACTOR: [Selector; 2] = [Selector::Deploy, Selector::
 ///    the measurements, we use a stable dummy contract (that is not recompiled when the Cairo1
 ///    compiler's version changes), and we set the `deploy_from_zero` flag to `true` to make sure
 ///    changes in the deploying contract address are not reflected in the measurements.
+#[tokio::test]
+async fn test_fee_transfer_syscalls() {
+    let os_resources_contract = FeatureContract::OsResourcesTest(RunnableCairo1::Casm);
+    let (mut builder, [os_resources_contract_address]) =
+        TestBuilder::create_standard([(os_resources_contract, calldata![Felt::ZERO])]).await;
+
+    // Fund the contract - it will be used as the account.
+    // Then, move on to the next block, so the syscall-measurement tx is in it's own block.
+    builder.add_fund_address_tx_with_default_amount(os_resources_contract_address);
+
+    // Invoke from the OS resources contract, with zeros as calldata, to make the __execute__ do
+    // nothing. All resulting events should be from the fee transfer call.
+    builder.add_invoke_tx(
+        InvokeTransaction::create(
+            invoke_tx(invoke_tx_args! {
+                sender_address: os_resources_contract_address,
+                calldata: calldata![Felt::ZERO, Felt::ZERO, Felt::ZERO],
+                resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+            }),
+            &builder.chain_id(),
+        )
+        .unwrap(),
+        None,
+        None,
+    );
+
+    // Build, run, and get the syscalls list.
+    let test_output = builder.build_and_run().await;
+    let syscalls = test_output
+        .runner_output
+        .txs_trace
+        .last()
+        .unwrap()
+        .get_syscalls()
+        .iter()
+        .map(|syscall_trace| syscall_trace.get_selector())
+        .collect::<Vec<_>>();
+    assert_eq!(syscalls, FEE_TRANSFER_SYSCALLS.to_vec());
+}
+
 #[tokio::test]
 async fn test_os_resources_regression() {
     let os_resources_contract = FeatureContract::OsResourcesTest(RunnableCairo1::Casm);
@@ -214,26 +269,23 @@ async fn test_os_resources_regression() {
     let mut inner_calls_iter = inner_calls.into_iter();
 
     // Extract syscall resources consumed per syscall.
-    // There should be two events emitted: the first is the syscall we are measuring, and the second
-    // is the last syscall in the tx, emitted from the fee transfer. Pop the second event.
-    let mut syscall_traces =
-        test_output.runner_output.txs_trace.last().unwrap().get_syscalls().clone();
-    assert!(!UNMEASURABLE_SYSCALLS.contains(&Selector::EmitEvent));
+    // Remove the fee transfer syscalls from the list by splitting the iterator into two. The second
+    // part is the last `FEE_TRANSFER_SYSCALLS.len()` syscalls, and the first part should be the
+    // rest.
+    let all_syscalls = test_output.runner_output.txs_trace.last().unwrap().get_syscalls().clone();
+    let (syscall_traces, fee_transfer_syscall_traces) =
+        all_syscalls.split_at(all_syscalls.len() - FEE_TRANSFER_SYSCALLS.len());
     assert_eq!(
-        syscall_traces
+        fee_transfer_syscall_traces
             .iter()
-            .filter(|syscall_trace| syscall_trace.get_selector() == Selector::EmitEvent)
-            .count(),
-        2
+            .map(|syscall_trace| syscall_trace.get_selector())
+            .collect::<Vec<_>>(),
+        FEE_TRANSFER_SYSCALLS.to_vec()
     );
-    assert_eq!(syscall_traces.pop().unwrap().get_selector(), Selector::EmitEvent);
 
     // Measure each syscall overhead. If the syscall incurs an inner call, subtract the inner call
     // overhead.
-    let syscall_traces = test_output.runner_output.txs_trace.last().unwrap().get_syscalls();
-    let mut syscalls_iter = syscall_traces
-        .iter()
-        .filter(|syscall_trace| !UNMEASURABLE_SYSCALLS.contains(&syscall_trace.get_selector()));
+    let mut syscalls_iter = syscall_traces.iter();
     let mut measurements: IndexMap<Selector, VariableResourceParams> = IndexMap::new();
     // If the syscall incurs an inner call, subtract the inner call overhead.
     let mut fetch_inner_resources = |selector: Selector| -> ExecutionResources {
@@ -304,6 +356,13 @@ async fn test_os_resources_regression() {
             .difference(&UNMEASURABLE_SYSCALLS.iter().cloned().collect::<HashSet<_>>())
             .copied()
             .collect::<HashSet<_>>()
+    );
+
+    // Make sure there are no more dangling syscalls.
+    let dangling_syscall = syscalls_iter.next();
+    assert!(
+        dangling_syscall.is_none(),
+        "There are more syscalls than expected. Dangling syscall: {dangling_syscall:?}."
     );
 
     // Compare the measurements with the expected values on the latest VC.
