@@ -1,6 +1,8 @@
 // Contract for measuring per-syscall OS resource costs.
 #[starknet::contract(account)]
 mod OsResourcesTestContract {
+    use box::BoxTrait;
+    use core::sha256::{sha256_state_handle_init, SHA256_INITIAL_STATE};
     use starknet::class_hash::ClassHashZero;
     use starknet::info::SyscallResultTrait;
     use starknet::syscalls::{
@@ -10,6 +12,7 @@ mod OsResourcesTestContract {
         get_execution_info_v2_syscall,
         keccak_syscall,
         library_call_syscall,
+        sha256_process_block_syscall,
     };
     use starknet::{ClassHash, ContractAddress, get_block_hash_syscall, get_class_hash_at_syscall};
 
@@ -109,6 +112,11 @@ mod OsResourcesTestContract {
             input.append(1_u64);
         }
         keccak_syscall(input.span()).unwrap_syscall();
+
+        // sha256.
+        let mut input = BoxTrait::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        let mut state = sha256_state_handle_init(BoxTrait::new(SHA256_INITIAL_STATE));
+        let _ = sha256_process_block_syscall(state, input).unwrap_syscall();
     }
 
     // Target for call_contract and library_call — accepts no arguments.
