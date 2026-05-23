@@ -460,11 +460,11 @@
                 }
             },
             "Sha256ProcessBlock": {
-                "n_steps": 1867,
+                "n_steps": 1852,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 65,
-                    "bitwise_builtin": 1115
+                    "bitwise_builtin": 1114
                 }
             },
             "StorageRead": {
