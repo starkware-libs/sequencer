@@ -6,7 +6,7 @@ mod DeployableForResourceMeasurement {
     struct Storage {}
 
     #[external(v0)]
-    fn __validate__(self: @ContractState) -> felt252 {
+    fn __validate__(self: @ContractState, some_args: Span<felt252>) -> felt252 {
         starknet::VALIDATED
     }
 
@@ -20,8 +20,9 @@ mod DeployableForResourceMeasurement {
         starknet::VALIDATED
     }
 
+    /// Main execute entry point should have variable input length to measure meta-tx linear factor.
     #[external(v0)]
-    fn __execute__(ref self: ContractState) {}
+    fn __execute__(ref self: ContractState, some_args: Span<felt252>) {}
 
     /// Constructor accepting variable calldata length.
     #[constructor]
