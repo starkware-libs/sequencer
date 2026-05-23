@@ -6,7 +6,7 @@ mod OsResourcesTestContract {
     use starknet::info::SyscallResultTrait;
     use starknet::syscalls::{
         call_contract_syscall, deploy_syscall, emit_event_syscall, get_execution_info_v3_syscall,
-        keccak_syscall, library_call_syscall, sha256_process_block_syscall,
+        keccak_syscall, library_call_syscall, replace_class_syscall, sha256_process_block_syscall,
     };
     use starknet::{ClassHash, ContractAddress, get_block_hash_syscall, get_class_hash_at_syscall};
 
@@ -113,5 +113,8 @@ mod OsResourcesTestContract {
         let mut input = BoxTrait::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
         let mut state = sha256_state_handle_init(BoxTrait::new(SHA256_INITIAL_STATE));
         let _ = sha256_process_block_syscall(state, input).unwrap_syscall();
+
+        // replace class syscall.
+        replace_class_syscall(stable_class_hash).unwrap_syscall();
     }
 }
