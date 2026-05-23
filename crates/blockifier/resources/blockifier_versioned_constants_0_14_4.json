@@ -128,7 +128,7 @@
         "allowed_virtual_os_program_hashes": [
             "0x3e98c2d7703b03a7edb73ed7f075f97f1dcbaa8f717cdf6e1a57bf058265473",
             "0x6ecb73d21c7d98ddd4148f5bcd91cc2747c65364245fbf32a63b05cca1685c2",
-            "0x471dd673f38125ba94e98145e3579d700ad13bd0e177687b67bab6221da4fa0"
+            "0xa1b5d02d393119f2ec91837e6c7dcc0e05ea5bc18c4befbb24cd39b45ee5f3"
         ],
         "constructor_entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",
         "default_entry_point_selector": "0x0",
@@ -384,70 +384,70 @@
                 }
             },
             "Secp256k1Add": {
-                "n_steps": 412,
+                "n_steps": 400,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 29
                 }
             },
             "Secp256k1GetPointFromX": {
-                "n_steps": 397,
+                "n_steps": 384,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 30
                 }
             },
             "Secp256k1GetXy": {
-                "n_steps": 209,
+                "n_steps": 197,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 11
                 }
             },
             "Secp256k1Mul": {
-                "n_steps": 76507,
+                "n_steps": 76495,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 7045
                 }
             },
             "Secp256k1New": {
-                "n_steps": 463,
+                "n_steps": 445,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 35
                 }
             },
             "Secp256r1Add": {
-                "n_steps": 595,
+                "n_steps": 583,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 57
                 }
             },
             "Secp256r1GetPointFromX": {
-                "n_steps": 516,
+                "n_steps": 503,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 44
                 }
             },
             "Secp256r1GetXy": {
-                "n_steps": 211,
+                "n_steps": 199,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 11
                 }
             },
             "Secp256r1Mul": {
-                "n_steps": 125346,
+                "n_steps": 125334,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 13961
                 }
             },
             "Secp256r1New": {
-                "n_steps": 582,
+                "n_steps": 564,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 49
