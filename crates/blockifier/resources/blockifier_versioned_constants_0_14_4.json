@@ -263,7 +263,7 @@
                 }
             },
             "EmitEvent": {
-                "n_steps": 61,
+                "n_steps": 47,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 1
