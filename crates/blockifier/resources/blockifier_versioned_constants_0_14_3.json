@@ -127,7 +127,7 @@
     "os_constants": {
         "allowed_virtual_os_program_hashes": [
             "0x3e98c2d7703b03a7edb73ed7f075f97f1dcbaa8f717cdf6e1a57bf058265473",
-            "0x4fb8c0cb28349d61091f3fc633493c01385f77cd0d4ebfd577251b3941d49b9"
+            "0x7b33f87bb36acce52d403e202c5d490d316910ab68d6264c9afde698ad52fc6"
         ],
         "constructor_entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",
         "default_entry_point_selector": "0x0",
@@ -269,10 +269,10 @@
                 }
             },
             "GetBlockHash": {
-                "n_steps": 107,
+                "n_steps": 106,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
-                    "range_check_builtin": 2
+                    "range_check_builtin": 3
                 }
             },
             "GetBlockNumber": {
@@ -293,7 +293,7 @@
                 }
             },
             "GetClassHashAt": {
-                "n_steps": 89,
+                "n_steps": 75,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 1
@@ -307,7 +307,7 @@
                 }
             },
             "GetExecutionInfo": {
-                "n_steps": 125,
+                "n_steps": 111,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 2

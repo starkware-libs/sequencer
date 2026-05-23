@@ -1,2 +1,2 @@
 ~ /enable_casm_hash_migration: true
-+ /os_constants/allowed_virtual_os_program_hashes/1: "0x4fb8c0cb28349d61091f3fc633493c01385f77cd0d4ebfd577251b3941d49b9"
++ /os_constants/allowed_virtual_os_program_hashes/1: "0x7b33f87bb36acce52d403e202c5d490d316910ab68d6264c9afde698ad52fc6"
