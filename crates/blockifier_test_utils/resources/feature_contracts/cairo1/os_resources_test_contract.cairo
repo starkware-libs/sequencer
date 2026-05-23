@@ -4,6 +4,15 @@ mod OsResourcesTestContract {
     use box::BoxTrait;
     use core::sha256::{SHA256_INITIAL_STATE, sha256_state_handle_init};
     use starknet::info::SyscallResultTrait;
+    use starknet::secp256_trait::Secp256Trait;
+    use starknet::secp256k1::{
+        secp256k1_add_syscall, secp256k1_get_point_from_x_syscall, secp256k1_get_xy_syscall,
+        secp256k1_mul_syscall, secp256k1_new_syscall,
+    };
+    use starknet::secp256r1::{
+        secp256r1_add_syscall, secp256r1_get_point_from_x_syscall, secp256r1_get_xy_syscall,
+        secp256r1_mul_syscall, secp256r1_new_syscall,
+    };
     use starknet::syscalls::{
         call_contract_syscall, deploy_syscall, emit_event_syscall, get_execution_info_v3_syscall,
         keccak_syscall, library_call_syscall, replace_class_syscall, send_message_to_l1_syscall,
@@ -16,6 +25,18 @@ mod OsResourcesTestContract {
 
     // Define a large input length for variable-length input syscalls.
     const LARGE_INPUT_LENGTH: usize = 100;
+
+    // SECP constants.
+    const MULT_CONSTANT: u256 =
+        115792089237316195423570985008687907853269984665640564039457584007913129639935;
+    const X_FOR_K: u256 =
+        111793196543967404139194827996419963236210979610743141064269745943111491389389;
+    const Y_FOR_K: u256 =
+        64271137072396112709852516195602121116634737731930508083758518861847052748305;
+    const X_FOR_R: u256 =
+        36259703446750261746963965979921905598426482711143882545997285073084044643087;
+    const Y_FOR_R: u256 =
+        99074502569356486940077471307887399820854676440660107539358273498981469249968;
 
     #[storage]
     struct Storage {}
@@ -133,5 +154,43 @@ mod OsResourcesTestContract {
         large_message_input.pop_front().unwrap();
         send_message_to_l1_syscall(100, array![].span()).unwrap_syscall();
         send_message_to_l1_syscall(100, large_message_input.span()).unwrap_syscall();
+
+        // secp256k1 syscalls:
+
+        // secp256k1_new syscall.
+        let p0 = secp256k1_new_syscall(X_FOR_K, Y_FOR_K).unwrap_syscall().unwrap();
+
+        //secp256k1_add syscall.
+        let k_p1 = Secp256Trait::get_generator_point();
+        secp256k1_add_syscall(p0, k_p1).unwrap_syscall();
+
+        // secp256k1_get_point_from_x syscall.
+        let x: u256 = X_FOR_K;
+        let _ = secp256k1_get_point_from_x_syscall(:x, y_parity: true).unwrap_syscall();
+
+        // secp256k1_get_xy syscall.
+        secp256k1_get_xy_syscall(k_p1).unwrap_syscall();
+
+        // secp256k1_mul syscall.
+        secp256k1_mul_syscall(k_p1, MULT_CONSTANT).unwrap_syscall();
+
+        // secp256r1 syscalls:
+
+        // secp256r1_new syscall.
+        let p0 = secp256r1_new_syscall(X_FOR_R, Y_FOR_R).unwrap_syscall().unwrap();
+        let r_p1 = Secp256Trait::get_generator_point();
+
+        // secp256r1_add syscall.
+        secp256r1_add_syscall(p0, r_p1).unwrap_syscall();
+
+        // secp256r1_get_point_from_x syscall.
+        let x = X_FOR_R;
+        let _ = secp256r1_get_point_from_x_syscall(:x, y_parity: true).unwrap_syscall();
+
+        // secp256r1_get_xy syscall.
+        secp256r1_get_xy_syscall(r_p1).unwrap_syscall();
+
+        // secp256r1_mul syscall.
+        secp256r1_mul_syscall(r_p1, MULT_CONSTANT).unwrap_syscall();
     }
 }

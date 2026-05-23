@@ -228,7 +228,7 @@ fn test_latest_no_panic() {
 #[test]
 fn test_syscall_gas_cost_calculation() {
     const EXPECTED_CALL_CONTRACT_GAS_COST: Expect = expect!["91360"];
-    const EXPECTED_SECP256K1MUL_GAS_COST: Expect = expect!["8143850"];
+    const EXPECTED_SECP256K1MUL_GAS_COST: Expect = expect!["8142650"];
     const EXPECTED_SHA256PROCESSBLOCK_GAS_COST: Expect = expect!["839995"];
 
     let versioned_constants = VersionedConstants::latest_constants().clone();
