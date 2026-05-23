@@ -9,4 +9,5 @@
 ~ /os_resources/execute_syscalls/KeccakRound/n_steps: 223
 ~ /os_resources/execute_syscalls/LibraryCall/n_steps: 874
 ~ /os_resources/execute_syscalls/MetaTxV0/constant/n_steps: 1307
+~ /os_resources/execute_syscalls/ReplaceClass/n_steps: 92
 ~ /os_resources/execute_syscalls/Sha256ProcessBlock/n_steps: 1854
