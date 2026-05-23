@@ -361,11 +361,11 @@
             },
             "MetaTxV0": {
                 "constant": {
-                    "n_steps": 1301,
+                    "n_steps": 1315,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 20,
-                        "pedersen_builtin": 9
+                        "pedersen_builtin": 10
                     }
                 },
                 "calldata_factor": {

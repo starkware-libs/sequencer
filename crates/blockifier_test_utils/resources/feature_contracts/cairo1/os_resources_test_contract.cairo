@@ -1,11 +1,13 @@
 // Contract for measuring per-syscall OS resource costs.
 #[starknet::contract(account)]
 mod OsResourcesTestContract {
+    use starknet::class_hash::ClassHashZero;
     use starknet::info::SyscallResultTrait;
     use starknet::syscalls::{call_contract_syscall, deploy_syscall, library_call_syscall};
     use starknet::{ClassHash, ContractAddress};
 
     const STABLE_EXTERNAL_ENTRY_POINT_SELECTOR: felt252 = selector!("external");
+    const EXECUTE_FUNCTION_SELECTOR: felt252 = selector!("__execute__");
 
     #[storage]
     struct Storage {}
@@ -24,6 +26,13 @@ mod OsResourcesTestContract {
         starknet::VALIDATED
     }
 
+    extern fn meta_tx_v0_syscall(
+        address: ContractAddress,
+        entry_point_selector: felt252,
+        calldata: Span<felt252>,
+        signature: Span<felt252>,
+    ) -> starknet::SyscallResult<Span<felt252>> implicits(GasBuiltin, System) nopanic;
+
     // Calls every measured syscall in order.
     #[external(v0)]
     fn __execute__(
@@ -41,12 +50,29 @@ mod OsResourcesTestContract {
         )
             .unwrap_syscall();
 
+        // meta_tx_v0 syscall - base.
+        meta_tx_v0_syscall(
+            address: stable_address,
+            entry_point_selector: EXECUTE_FUNCTION_SELECTOR,
+            calldata: array![0].span(),
+            signature: array![].span(),
+        )
+            .unwrap_syscall();
+        // meta_tx_v0 syscall - linear factor.
+        meta_tx_v0_syscall(
+            address: stable_address,
+            entry_point_selector: EXECUTE_FUNCTION_SELECTOR,
+            calldata: array![1, 0].span(),
+            signature: array![].span(),
+        )
+            .unwrap_syscall();
+
         // deploy syscall. The resources this syscall consumes can vary depending on the deployed
         // contract address, in a non-trivial way (see `normalize_address` in the cairo0 core). For
         // this reason we deploy from zero, and choose a specific salt.
         // base (no calldata):
-        deploy_syscall(stable_class_hash, 3, array![0].span(), true).unwrap_syscall();
+        deploy_syscall(stable_class_hash, 1, array![0].span(), true).unwrap_syscall();
         // linear factor (calldata len = 1):
-        deploy_syscall(stable_class_hash, 3, array![1, 0].span(), true).unwrap_syscall();
+        deploy_syscall(stable_class_hash, 1, array![1, 0].span(), true).unwrap_syscall();
     }
 }

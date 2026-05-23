@@ -38,7 +38,7 @@ use crate::test_manager::{TestBuilder, TestBuilderConfig, FUNDED_ACCOUNT_ADDRESS
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 
 // TODO(Dori): Delete this, or at least reduce it to a minimal set of unmeasurable syscalls.
-const UNMEASURABLE_SYSCALLS: [Selector; 33] = [
+const UNMEASURABLE_SYSCALLS: [Selector; 32] = [
     Selector::DelegateCall,
     Selector::DelegateL1Handler,
     Selector::EmitEvent,
@@ -57,7 +57,6 @@ const UNMEASURABLE_SYSCALLS: [Selector; 33] = [
     Selector::Sha256ProcessBlock,
     Selector::Sha512ProcessBlock,
     Selector::LibraryCallL1Handler,
-    Selector::MetaTxV0,
     Selector::ReplaceClass,
     Selector::Secp256k1Add,
     Selector::Secp256k1GetPointFromX,
@@ -209,7 +208,12 @@ async fn test_os_resources_regression() {
         if selector.is_calling_syscall() {
             // TODO(Dori): Take opcodes (like blake) into account, instead of using the vm_resources
             // field.
-            inner_calls_iter.next().unwrap().resources.vm_resources
+            // TODO(Dori): Consider supporting memory-hole counting in the OsLogger. Until then, we
+            //   cannot subtract inner calls with positive memory-hole counts from the OsLogger
+            //   resources.
+            let mut inner_resources = inner_calls_iter.next().unwrap().resources.vm_resources;
+            inner_resources.n_memory_holes = 0;
+            inner_resources
         } else {
             ExecutionResources::default()
         }
