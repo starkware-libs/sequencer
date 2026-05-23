@@ -1,4 +1,4 @@
-+ /os_constants/allowed_virtual_os_program_hashes/2: "0x50a1cd46f1a35628c7569f85218b7b8b01510cb33834c3bd00885183c5770a5"
++ /os_constants/allowed_virtual_os_program_hashes/2: "0x66a46bb88553c4dafd12959575033660780d689c99659ab3620e2f524f71701"
 ~ /os_resources/execute_syscalls/CallContract/n_steps: 901
 ~ /os_resources/execute_syscalls/EmitEvent/n_steps: 47
 ~ /os_resources/execute_syscalls/GetBlockHash/builtin_instance_counter/range_check_builtin: 3
