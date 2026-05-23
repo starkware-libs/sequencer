@@ -1,4 +1,4 @@
-+ /os_constants/allowed_virtual_os_program_hashes/2: "0x531d387113cc4b96b8f5151c7b17515a2e909a15442f1f12fd113f7c10777cd"
++ /os_constants/allowed_virtual_os_program_hashes/2: "0x11818f214e00c161599fcda7e91568b16c75d113ffb80ef748ba802a25c0f65"
 ~ /os_resources/execute_syscalls/CallContract/n_steps: 901
 ~ /os_resources/execute_syscalls/EmitEvent/n_steps: 47
 ~ /os_resources/execute_syscalls/GetBlockHash/builtin_instance_counter/range_check_builtin: 3
@@ -9,5 +9,15 @@
 ~ /os_resources/execute_syscalls/LibraryCall/n_steps: 874
 ~ /os_resources/execute_syscalls/MetaTxV0/constant/n_steps: 1307
 ~ /os_resources/execute_syscalls/ReplaceClass/n_steps: 92
+~ /os_resources/execute_syscalls/Secp256k1Add/n_steps: 400
+~ /os_resources/execute_syscalls/Secp256k1GetPointFromX/n_steps: 384
+~ /os_resources/execute_syscalls/Secp256k1GetXy/n_steps: 197
+~ /os_resources/execute_syscalls/Secp256k1Mul/n_steps: 76495
+~ /os_resources/execute_syscalls/Secp256k1New/n_steps: 445
+~ /os_resources/execute_syscalls/Secp256r1Add/n_steps: 583
+~ /os_resources/execute_syscalls/Secp256r1GetPointFromX/n_steps: 503
+~ /os_resources/execute_syscalls/Secp256r1GetXy/n_steps: 199
+~ /os_resources/execute_syscalls/Secp256r1Mul/n_steps: 125334
+~ /os_resources/execute_syscalls/Secp256r1New/n_steps: 564
 ~ /os_resources/execute_syscalls/SendMessageToL1/n_steps: 124
 ~ /os_resources/execute_syscalls/Sha256ProcessBlock/n_steps: 1854
