@@ -75,7 +75,7 @@ fn test_send_message_to_l1(runnable_version: RunnableCairo1) {
             ],
             cairo_native: false,
             failed: false,
-            gas_consumed: 25220,
+            gas_consumed: 23220,
         }
     "#]]
     .assert_debug_eq(&execution);
