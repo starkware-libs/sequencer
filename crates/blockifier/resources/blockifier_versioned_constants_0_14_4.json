@@ -129,7 +129,7 @@
         "allowed_virtual_os_program_hashes": [
             "0x3e98c2d7703b03a7edb73ed7f075f97f1dcbaa8f717cdf6e1a57bf058265473",
             "0x6ecb73d21c7d98ddd4148f5bcd91cc2747c65364245fbf32a63b05cca1685c2",
-            "0x552611434744d19772e04249521f0a3d00d85906c9a600082aaa9339788f8d5"
+            "0x5891e31f2ecaef526289d8606707cde731bc4eae584e9f62ee50847d846cb3d"
         ],
         "constructor_entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",
         "default_entry_point_selector": "0x0",
@@ -462,7 +462,7 @@
                 }
             },
             "Sha256ProcessBlock": {
-                "n_steps": 1867,
+                "n_steps": 1854,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 65,
