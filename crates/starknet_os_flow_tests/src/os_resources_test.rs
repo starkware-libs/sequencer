@@ -24,7 +24,9 @@ use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{calldata, declare_tx_args, invoke_tx_args};
+use starknet_os::hint_processor::constants::BUILTIN_INSTANCE_SIZES;
 use starknet_os::hint_processor::os_logger::ResourceFinalizer;
+use starknet_os::test_utils::{SHA256_BATCH_RESOURCES_LINEAR, SHA256_BATCH_SIZE};
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
@@ -45,7 +47,7 @@ use crate::test_manager::{
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 
 // TODO(Dori): Delete this, or at least reduce it to a minimal set of unmeasurable syscalls.
-const UNMEASURABLE_SYSCALLS: [Selector; 26] = [
+const UNMEASURABLE_SYSCALLS: [Selector; 25] = [
     Selector::DelegateCall,
     Selector::DelegateL1Handler,
     Selector::GetBlockNumber,
@@ -55,7 +57,6 @@ const UNMEASURABLE_SYSCALLS: [Selector; 26] = [
     Selector::GetSequencerAddress,
     Selector::GetTxInfo,
     Selector::GetTxSignature,
-    Selector::Sha256ProcessBlock,
     Selector::Sha512ProcessBlock,
     Selector::LibraryCallL1Handler,
     Selector::ReplaceClass,
@@ -93,6 +94,11 @@ static SYSCALLS_WITH_LINEAR_FACTOR: LazyLock<HashMap<Selector, usize>> = LazyLoc
     HashMap::from([(Selector::Deploy, 1), (Selector::Keccak, 0), (Selector::MetaTxV0, 1)])
 });
 
+/// Syscalls that are implemented using virtual builtins. Such syscalls have their "heavy lifting"
+/// executed after the execute_syscalls part of the OS, so the consumed resources are not captured
+/// by the OsLogger.
+const SYSCALLS_WITH_VIRTUAL_BUILTINS: [Selector; 1] = [Selector::Sha256ProcessBlock];
+
 /// Expected syscalls in the fee transfer call. Should be removed from the list of syscalls during
 /// measurement iteration - only the syscalls called during __execute__ should be measured.
 const FEE_TRANSFER_SYSCALLS: [Selector; 10] = [
@@ -107,6 +113,32 @@ const FEE_TRANSFER_SYSCALLS: [Selector; 10] = [
     Selector::StorageWrite,
     Selector::EmitEvent,
 ];
+
+/// See [SYSCALLS_WITH_VIRTUAL_BUILTINS] for why this function is needed.
+fn update_resources_for_virtual_builtin_syscall(
+    selector: Selector,
+    measured_base: ExecutionResources,
+) -> ExecutionResources {
+    assert!(SYSCALLS_WITH_VIRTUAL_BUILTINS.contains(&selector));
+    match selector {
+        Selector::Sha256ProcessBlock => {
+            let mut new_resources = measured_base.clone();
+            let ExecutionResources {
+                n_steps: batch_n_steps,
+                builtin_instance_counter: batch_builtin_instance_counter,
+                n_memory_holes: batch_memory_holes,
+            } = SHA256_BATCH_RESOURCES_LINEAR.clone();
+            new_resources.n_steps += batch_n_steps / SHA256_BATCH_SIZE;
+            new_resources.n_memory_holes += batch_memory_holes / SHA256_BATCH_SIZE;
+            for (builtin, count) in batch_builtin_instance_counter.iter() {
+                *new_resources.builtin_instance_counter.entry(*builtin).or_insert(0) +=
+                    BUILTIN_INSTANCE_SIZES.get(builtin).unwrap() * count / SHA256_BATCH_SIZE;
+            }
+            new_resources
+        }
+        _ => panic!("Resource update not implemented for virtual builtin syscall: {selector:?}."),
+    }
+}
 
 /// Regression test for the list of syscalls called during the fee transfer phase of a transaction.
 #[tokio::test]
@@ -334,8 +366,13 @@ async fn test_os_resources_regression() {
 
         // If this syscall incurs an inner call, it should be the next inner call in the
         // iterator.
-        let resources =
+        let mut resources =
             maybe_deduct_inner(syscall_trace.get_resources().unwrap().clone(), selector);
+
+        // Virtual builtins require adjustment.
+        if SYSCALLS_WITH_VIRTUAL_BUILTINS.contains(&selector) {
+            resources = update_resources_for_virtual_builtin_syscall(selector, resources);
+        }
 
         // If this is a syscall with a linear factor, the next syscall should be an invocation of
         // the same syscall with +1 linear element.
