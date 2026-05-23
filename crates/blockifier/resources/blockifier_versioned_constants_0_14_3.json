@@ -269,10 +269,10 @@
                 }
             },
             "GetBlockHash": {
-                "n_steps": 107,
+                "n_steps": 106,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
-                    "range_check_builtin": 2
+                    "range_check_builtin": 3
                 }
             },
             "GetBlockNumber": {
@@ -293,7 +293,7 @@
                 }
             },
             "GetClassHashAt": {
-                "n_steps": 89,
+                "n_steps": 75,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 1
@@ -307,7 +307,7 @@
                 }
             },
             "GetExecutionInfo": {
-                "n_steps": 125,
+                "n_steps": 111,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 2
