@@ -47,7 +47,7 @@ use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::get_class_hash_of_feature_contract;
 
 // TODO(Dori): Delete this, or at least reduce it to a minimal set of unmeasurable syscalls.
-const UNMEASURABLE_SYSCALLS: [Selector; 22] = [
+const UNMEASURABLE_SYSCALLS: [Selector; 12] = [
     Selector::DelegateCall,
     Selector::DelegateL1Handler,
     Selector::GetBlockNumber,
@@ -58,16 +58,6 @@ const UNMEASURABLE_SYSCALLS: [Selector; 22] = [
     Selector::GetTxInfo,
     Selector::GetTxSignature,
     Selector::LibraryCallL1Handler,
-    Selector::Secp256k1Add,
-    Selector::Secp256k1GetPointFromX,
-    Selector::Secp256k1GetXy,
-    Selector::Secp256k1Mul,
-    Selector::Secp256k1New,
-    Selector::Secp256r1Add,
-    Selector::Secp256r1GetPointFromX,
-    Selector::Secp256r1GetXy,
-    Selector::Secp256r1Mul,
-    Selector::Secp256r1New,
     Selector::StorageRead,
     Selector::StorageWrite,
 ];
@@ -96,6 +86,9 @@ const FEE_TRANSFER_SYSCALLS: [Selector; 10] = [
     Selector::StorageWrite,
     Selector::EmitEvent,
 ];
+
+/// All other syscalls are called only once.
+const SYSCALLS_CALLED_TWICE: [Selector; 2] = [Selector::Secp256k1New, Selector::Secp256r1New];
 
 /// See [SYSCALLS_WITH_VIRTUAL_BUILTINS] for why this function is needed.
 fn update_resources_for_virtual_builtin_syscall(
@@ -303,6 +296,7 @@ async fn test_os_resources_regression() {
 
     // Measure each syscall overhead. If the syscall incurs an inner call, subtract the inner call
     // overhead.
+    let mut second_visit_syscalls = HashSet::new();
     let mut inner_calls_iter = inner_calls.into_iter();
     let mut syscalls_iter = syscall_traces
         .iter()
@@ -323,11 +317,19 @@ async fn test_os_resources_regression() {
     while let Some(syscall_trace) = syscalls_iter.next() {
         let selector = syscall_trace.get_selector();
 
-        // Ensure we don't visit the same syscall more than once.
-        assert!(
-            measurements.get(&selector).is_none(),
-            "Syscall {selector:?} was visited again, unexpectedly."
-        );
+        // Ensure we don't visit the same syscall more than the allowed number of times.
+        if measurements.get(&selector).is_some() {
+            assert!(
+                SYSCALLS_CALLED_TWICE.contains(&selector),
+                "Syscall {selector:?} was visited again, unexpectedly."
+            );
+            assert!(
+                !second_visit_syscalls.contains(&selector),
+                "Syscall {selector:?} was visited a third time, unexpectedly."
+            );
+            second_visit_syscalls.insert(selector);
+            continue;
+        }
 
         // If this syscall incurs an inner call, it should be the next inner call in the
         // iterator.
