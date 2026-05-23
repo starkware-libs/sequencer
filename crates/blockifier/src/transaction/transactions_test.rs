@@ -441,7 +441,7 @@ fn expected_fee_transfer_call_info(
     };
     let expected_gas_consumed = match cairo_version {
         CairoVersion::Cairo0 => 0_u64,
-        CairoVersion::Cairo1(_) => 414470_u64,
+        CairoVersion::Cairo1(_) => 413070_u64,
     };
     let expected_resources = match cairo_version {
         CairoVersion::Cairo0 => Prices::FeeTransfer(account_address, *fee_type).into(),
@@ -591,7 +591,7 @@ fn add_kzg_da_resources_to_resources_mapping(
         resources: ExtendedExecutionResources::default(),
         validate_gas_consumed: 7820, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 113720,
+        execute_gas_consumed: 112320,
     },
     CairoVersion::Cairo1(RunnableCairo1::Casm))]
 #[cfg_attr(feature = "cairo_native", case::with_cairo1_native_account(
@@ -599,7 +599,7 @@ fn add_kzg_da_resources_to_resources_mapping(
         resources: ExtendedExecutionResources::default(),
         validate_gas_consumed: 7820, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 113720,
+        execute_gas_consumed: 112320,
     },
     CairoVersion::Cairo1(RunnableCairo1::Native)))]
 // TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).

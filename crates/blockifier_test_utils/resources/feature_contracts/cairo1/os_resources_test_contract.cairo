@@ -3,9 +3,10 @@
 mod OsResourcesTestContract {
     use starknet::info::SyscallResultTrait;
     use starknet::syscalls::{
-        call_contract_syscall, deploy_syscall, emit_event_syscall, library_call_syscall,
+        call_contract_syscall, deploy_syscall, emit_event_syscall, get_execution_info_v3_syscall,
+        library_call_syscall,
     };
-    use starknet::{ClassHash, ContractAddress};
+    use starknet::{ClassHash, ContractAddress, get_block_hash_syscall, get_class_hash_at_syscall};
 
     const STABLE_EXTERNAL_ENTRY_POINT_SELECTOR: felt252 = selector!("external");
     const EXECUTE_FUNCTION_SELECTOR: felt252 = selector!("__execute__");
@@ -83,5 +84,18 @@ mod OsResourcesTestContract {
 
         // emit event syscall.
         emit_event_syscall(array![5].span(), array![7].span()).unwrap_syscall();
+
+        // get block hash syscall.
+        // Only block numbers between `CURRENT_BLOCK_NUMBER - BLOCK_HASH_HISTORY_RANGE` and
+        // `CURRENT_BLOCK_NUMBER - 10` are set in storage during OS flow tests; at the time of
+        // writing this contract, `CURRENT_BLOCK_NUMBER` is 2001 and `BLOCK_HASH_HISTORY_RANGE` is
+        // 51.
+        get_block_hash_syscall(1970_u64).unwrap_syscall();
+
+        // get class hash at syscall.
+        get_class_hash_at_syscall(stable_address).unwrap_syscall();
+
+        // get execution info syscall.
+        get_execution_info_v3_syscall().unwrap_syscall();
     }
 }
