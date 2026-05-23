@@ -1,11 +1,13 @@
 // Contract for measuring per-syscall OS resource costs.
 #[starknet::contract(account)]
 mod OsResourcesTestContract {
+    use starknet::class_hash::ClassHashZero;
     use starknet::info::SyscallResultTrait;
     use starknet::syscalls::{call_contract_syscall, deploy_syscall, library_call_syscall};
     use starknet::{ClassHash, ContractAddress};
 
     const EMPTY_FUNCTION_SELECTOR: felt252 = selector!("empty_function");
+    const EXECUTE_FUNCTION_SELECTOR: felt252 = selector!("__execute__");
 
     #[storage]
     struct Storage {}
@@ -23,9 +25,17 @@ mod OsResourcesTestContract {
         self_class_hash: ClassHash,
         self_address: ContractAddress,
         deployable_class_hash: ClassHash,
+        extra_args: Span<felt252>,
     ) -> felt252 {
         starknet::VALIDATED
     }
+
+    extern fn meta_tx_v0_syscall(
+        address: ContractAddress,
+        entry_point_selector: felt252,
+        calldata: Span<felt252>,
+        signature: Span<felt252>,
+    ) -> starknet::SyscallResult<Span<felt252>> implicits(GasBuiltin, System) nopanic;
 
     // Calls every measured syscall in order.
     #[external(v0)]
@@ -34,13 +44,38 @@ mod OsResourcesTestContract {
         self_class_hash: ClassHash,
         self_address: ContractAddress,
         deployable_class_hash: ClassHash,
+        extra_args: Span<felt252>,
     ) {
+        // If called from the meta-tx-v0 syscall, just return.
+        if self_class_hash == ClassHashZero::zero() {
+            return;
+        }
+
         // call_contract syscall — calls empty_function on self.
         call_contract_syscall(self_address, EMPTY_FUNCTION_SELECTOR, ArrayTrait::new().span())
             .unwrap_syscall();
 
         // library_call syscall — calls empty_function on self.
         library_call_syscall(self_class_hash, EMPTY_FUNCTION_SELECTOR, ArrayTrait::new().span())
+            .unwrap_syscall();
+
+        // meta_tx_v0 syscall - base.
+        meta_tx_v0_syscall(
+            address: self_address,
+            entry_point_selector: EXECUTE_FUNCTION_SELECTOR,
+            // class hash, address, deployable class hash, extra args len.
+            calldata: array![0, 0, 0, 0].span(),
+            signature: array![].span(),
+        )
+            .unwrap_syscall();
+        // meta_tx_v0 syscall - linear factor.
+        meta_tx_v0_syscall(
+            address: self_address,
+            entry_point_selector: EXECUTE_FUNCTION_SELECTOR,
+            // class hash, address, deployable class hash, extra args len, extra arg.
+            calldata: array![0, 0, 0, 1, 0].span(),
+            signature: array![].span(),
+        )
             .unwrap_syscall();
 
         // deploy syscall. The resources this syscall consumes can vary depending on the deployed
