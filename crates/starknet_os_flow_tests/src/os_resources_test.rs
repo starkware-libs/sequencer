@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
 use blockifier::blockifier_versioned_constants::{
+    RawStepGasCost,
     RawVersionedConstants,
     ResourcesParams,
     VariableCallDataFactor,
@@ -44,7 +45,7 @@ use crate::test_manager::{
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 
 // TODO(Dori): Delete this, or at least reduce it to a minimal set of unmeasurable syscalls.
-const UNMEASURABLE_SYSCALLS: [Selector; 28] = [
+const UNMEASURABLE_SYSCALLS: [Selector; 26] = [
     Selector::DelegateCall,
     Selector::DelegateL1Handler,
     Selector::GetBlockNumber,
@@ -54,8 +55,6 @@ const UNMEASURABLE_SYSCALLS: [Selector; 28] = [
     Selector::GetSequencerAddress,
     Selector::GetTxInfo,
     Selector::GetTxSignature,
-    Selector::Keccak,
-    Selector::KeccakRound,
     Selector::Sha256ProcessBlock,
     Selector::Sha512ProcessBlock,
     Selector::LibraryCallL1Handler,
@@ -90,8 +89,9 @@ const UNMEASURABLE_SYSCALLS: [Selector; 28] = [
 /// The second call will always have one more linear element than the first call.
 /// Note: Keccak does not store the linear factor in the same entry in the versioned constants, but
 /// it does have a measurable linear factor stored under [Selector::KeccakRound].
-static SYSCALLS_WITH_LINEAR_FACTOR: LazyLock<HashMap<Selector, usize>> =
-    LazyLock::new(|| HashMap::from([(Selector::Deploy, 1), (Selector::MetaTxV0, 1)]));
+static SYSCALLS_WITH_LINEAR_FACTOR: LazyLock<HashMap<Selector, usize>> = LazyLock::new(|| {
+    HashMap::from([(Selector::Deploy, 1), (Selector::Keccak, 0), (Selector::MetaTxV0, 1)])
+});
 
 /// Expected syscalls in the fee transfer call. Should be removed from the list of syscalls during
 /// measurement iteration - only the syscalls called during __execute__ should be measured.
@@ -177,6 +177,9 @@ async fn test_fee_transfer_syscalls() {
 #[tokio::test]
 async fn test_os_resources_regression() {
     let os_resources_contract = FeatureContract::OsResourcesTest(RunnableCairo1::Casm);
+    let version = StarknetVersion::LATEST;
+    let mut raw_vc: RawVersionedConstants =
+        serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
 
     // Setup the test initial state and test builder.
     // Need to explicitly set up the state to be able to override the minimal sierra version for gas
@@ -190,6 +193,7 @@ async fn test_os_resources_regression() {
     initial_state_data.initial_state.block_context = {
         let block_context = &initial_state_data.initial_state.block_context;
         let mut vc = block_context.versioned_constants().clone();
+        assert_eq!(vc, raw_vc.clone().into());
         vc.min_sierra_version_for_sierra_gas = SierraVersion::new(99, 99, 99);
         BlockContext::new(
             block_context.block_info().clone(),
@@ -336,9 +340,7 @@ async fn test_os_resources_regression() {
 
         // If this is a syscall with a linear factor, the next syscall should be an invocation of
         // the same syscall with +1 linear element.
-        let syscall_cost = if let Some(linear_count_in_base) =
-            SYSCALLS_WITH_LINEAR_FACTOR.get(&selector)
-        {
+        if let Some(linear_count_in_base) = SYSCALLS_WITH_LINEAR_FACTOR.get(&selector) {
             let next_syscall_trace = syscalls_iter.next().unwrap();
             assert_eq!(
                 selector,
@@ -349,24 +351,50 @@ async fn test_os_resources_regression() {
             );
             let next_resources =
                 maybe_deduct_inner(next_syscall_trace.get_resources().unwrap().clone(), selector);
-            let linear_factor_resources = (&next_resources - &resources).filter_unused_builtins();
 
-            // Linear factor is computed; deduct the linear overhead from the base cost to get the
-            // real base cost.
-            let constant_resources = (&resources
-                - &(&linear_factor_resources * *linear_count_in_base))
-                .filter_unused_builtins();
+            // Keccak is a special case:
+            // 1. We store the linear cost as a separate syscall.
+            // 2. Currently, the Keccak base cost is enforced in the OS to equal the syscall base
+            //    cost (`static_assert KECCAK_GAS_COST == SYSCALL_BASE_GAS_COST`).
+            // TODO(Dori): If and when (2) is no longer the case, no need to replace `resources`
+            //   (measured keccak base cost) with the syscall base cost, and no need to recompute
+            //   the linear factor.
+            if selector == Selector::Keccak {
+                let RawStepGasCost { step_gas_cost: n_steps } =
+                    raw_vc.os_constants.syscall_base_gas_cost.clone();
+                let constant_resources = ExecutionResources {
+                    n_steps: n_steps.0.try_into().unwrap(),
+                    ..Default::default()
+                };
+                let linear_factor_resources =
+                    (&next_resources - &constant_resources).filter_unused_builtins();
+                measurements
+                    .insert(Selector::Keccak, VariableResourceParams::Constant(constant_resources));
+                measurements.insert(
+                    Selector::KeccakRound,
+                    VariableResourceParams::Constant(linear_factor_resources),
+                );
+            } else {
+                let linear_factor_resources =
+                    (&next_resources - &resources).filter_unused_builtins();
+                // Linear factor is computed; deduct the linear overhead from the base cost to get
+                // the real base cost.
+                let constant_resources = (&resources
+                    - &(&linear_factor_resources * *linear_count_in_base))
+                    .filter_unused_builtins();
 
-            VariableResourceParams::WithFactor(ResourcesParams {
-                constant: constant_resources,
-                // Syscalls with a linear factor have an unscaled linear factor cost.
-                calldata_factor: VariableCallDataFactor::Unscaled(linear_factor_resources),
-            })
+                measurements.insert(
+                    selector,
+                    VariableResourceParams::WithFactor(ResourcesParams {
+                        constant: constant_resources,
+                        // Syscalls with a linear factor have an unscaled linear factor cost.
+                        calldata_factor: VariableCallDataFactor::Unscaled(linear_factor_resources),
+                    }),
+                );
+            }
         } else {
-            VariableResourceParams::Constant(resources)
-        };
-
-        measurements.insert(selector, syscall_cost);
+            measurements.insert(selector, VariableResourceParams::Constant(resources));
+        }
     }
 
     // Make sure we covered all syscalls we expect to.
@@ -380,9 +408,6 @@ async fn test_os_resources_regression() {
     );
 
     // Compare the measurements with the expected values on the latest VC.
-    let version = StarknetVersion::LATEST;
-    let mut raw_vc: RawVersionedConstants =
-        serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
     for (syscall, resources) in measurements {
         raw_vc.os_resources.execute_syscalls.insert(syscall, resources);
     }
