@@ -5,7 +5,7 @@ mod OsResourcesTestContract {
     use starknet::info::SyscallResultTrait;
     use starknet::syscalls::{
         call_contract_syscall, deploy_syscall, emit_event_syscall, get_execution_info_v2_syscall,
-        library_call_syscall,
+        keccak_syscall, library_call_syscall,
     };
     use starknet::{ClassHash, ContractAddress, get_block_hash_syscall, get_class_hash_at_syscall};
 
@@ -102,6 +102,15 @@ mod OsResourcesTestContract {
 
         // get execution info syscall.
         get_execution_info_v2_syscall().unwrap_syscall();
+
+        // keccak syscall. Second call is to measure the keccak round syscall.
+        keccak_syscall(array![].span()).unwrap_syscall();
+        // Exactly 17 input u64s are required to measure a single round.
+        let mut input = array![];
+        for _ in 0_u8..17 {
+            input.append(1_u64);
+        }
+        keccak_syscall(input.span()).unwrap_syscall();
     }
 
     // Target for call_contract and library_call — accepts no arguments.
