@@ -2,7 +2,9 @@
 #[starknet::contract(account)]
 mod OsResourcesTestContract {
     use starknet::info::SyscallResultTrait;
-    use starknet::syscalls::{call_contract_syscall, deploy_syscall, library_call_syscall};
+    use starknet::syscalls::{
+        call_contract_syscall, deploy_syscall, emit_event_syscall, library_call_syscall,
+    };
     use starknet::{ClassHash, ContractAddress};
 
     const STABLE_EXTERNAL_ENTRY_POINT_SELECTOR: felt252 = selector!("external");
@@ -73,5 +75,8 @@ mod OsResourcesTestContract {
         deploy_syscall(stable_class_hash, 1, array![0].span(), true).unwrap_syscall();
         // linear factor (calldata len = 1):
         deploy_syscall(stable_class_hash, 1, array![1, 0].span(), true).unwrap_syscall();
+
+        // emit event syscall.
+        emit_event_syscall(array![5].span(), array![7].span()).unwrap_syscall();
     }
 }
