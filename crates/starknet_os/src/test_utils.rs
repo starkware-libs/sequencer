@@ -19,21 +19,25 @@ pub mod validations;
 mod resource_utils_test;
 
 // Resources consumed by the SHA-256 batch phase, separated into linear and constant factors.
-pub static SHA256_BATCH_RESOURCES_LINEAR: LazyLock<ExecutionResources> =
+pub const SHA256_BATCH_SIZE: usize = 7;
+pub static SHA256_BATCH_RESOURCES_LINEAR_UNSCALED: LazyLock<ExecutionResources> =
     LazyLock::new(|| ExecutionResources {
         n_steps: 11822,
         n_memory_holes: 0,
         builtin_instance_counter: BTreeMap::from([
-            (
-                BuiltinName::bitwise,
-                7800 / BUILTIN_INSTANCE_SIZES.get(&BuiltinName::bitwise).unwrap(),
-            ),
-            (
-                BuiltinName::range_check,
-                448 / BUILTIN_INSTANCE_SIZES.get(&BuiltinName::range_check).unwrap(),
-            ),
+            (BuiltinName::bitwise, 7800),
+            (BuiltinName::range_check, 448),
         ]),
     });
+pub static SHA256_BATCH_RESOURCES_LINEAR: LazyLock<ExecutionResources> = LazyLock::new(|| {
+    let mut resources = SHA256_BATCH_RESOURCES_LINEAR_UNSCALED.clone();
+    resources.builtin_instance_counter = resources
+        .builtin_instance_counter
+        .iter()
+        .map(|(builtin, count)| (*builtin, count / BUILTIN_INSTANCE_SIZES.get(builtin).unwrap()))
+        .collect();
+    resources
+});
 pub static SHA256_BATCH_RESOURCES_CONSTANT: LazyLock<ExecutionResources> =
     LazyLock::new(|| ExecutionResources {
         n_steps: 49,
