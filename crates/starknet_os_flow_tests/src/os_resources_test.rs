@@ -31,7 +31,7 @@ use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::get_class_hash_of_feature_contract;
 
 // TODO(Dori): Delete this, or at least reduce it to a minimal set of unmeasurable syscalls.
-const UNMEASURABLE_SYSCALLS: [Selector; 32] = [
+const UNMEASURABLE_SYSCALLS: [Selector; 31] = [
     Selector::DelegateCall,
     Selector::DelegateL1Handler,
     Selector::EmitEvent,
@@ -49,7 +49,6 @@ const UNMEASURABLE_SYSCALLS: [Selector; 32] = [
     Selector::KeccakRound,
     Selector::Sha256ProcessBlock,
     Selector::LibraryCallL1Handler,
-    Selector::MetaTxV0,
     Selector::ReplaceClass,
     Selector::Secp256k1Add,
     Selector::Secp256k1GetPointFromX,
@@ -109,7 +108,9 @@ async fn test_os_resources_regression() {
     let tx = InvokeTransaction::create(
         invoke_tx(invoke_tx_args! {
             sender_address: os_resources_contract_address,
-            calldata: calldata![*os_resources_class_hash, **os_resources_contract_address],
+            calldata: calldata![
+                *os_resources_class_hash, **os_resources_contract_address, Felt::ZERO
+            ],
             resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
         }),
         &test_builder.chain_id(),
@@ -148,7 +149,12 @@ async fn test_os_resources_regression() {
     let mut measurements: IndexMap<Selector, VariableResourceParams> = IndexMap::new();
     let mut fetch_inner_resources = |selector: Selector| -> ExecutionResources {
         if selector.is_calling_syscall() {
-            inner_calls_iter.next().unwrap().resources.vm_resources
+            // TODO(Dori): Consider supporting memory-hole counting in the OsLogger. Until then, we
+            //   cannot subtract inner calls with positive memory-hole counts from the OsLogger
+            //   resources.
+            let mut inner_resources = inner_calls_iter.next().unwrap().resources.vm_resources;
+            inner_resources.n_memory_holes = 0;
+            inner_resources
         } else {
             ExecutionResources::default()
         }
