@@ -377,7 +377,7 @@
                 }
             },
             "ReplaceClass": {
-                "n_steps": 106,
+                "n_steps": 92,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 1
