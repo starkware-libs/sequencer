@@ -124,9 +124,8 @@ mod OsResourcesTestContract {
         replace_class_syscall(self_class_hash).unwrap_syscall();
 
         // send message to l1 syscall.
-        // TODO(Yoni, 1/6/2022): In this case the number of steps depends on the payload size -
-        //  consider counting it.
         send_message_to_l1_syscall(100, array![].span()).unwrap_syscall();
+        send_message_to_l1_syscall(100, array![5].span()).unwrap_syscall();
     }
 
     // Target for call_contract and library_call — accepts no arguments.

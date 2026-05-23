@@ -63,8 +63,8 @@ const UNMEASURABLE_SYSCALLS: [Selector; 22] = [
 
 /// Keccak does not store the linear factor in the same entry in the versioned constants, but it
 /// does have a measurable linear factor stored under [Selector::KeccakRound].
-const SYSCALLS_WITH_LINEAR_FACTOR: [Selector; 3] =
-    [Selector::Deploy, Selector::Keccak, Selector::MetaTxV0];
+const SYSCALLS_WITH_LINEAR_FACTOR: [Selector; 4] =
+    [Selector::Deploy, Selector::Keccak, Selector::MetaTxV0, Selector::SendMessageToL1];
 
 /// Syscalls that are implemented using virtual builtins. Such syscalls have their "heavy lifting"
 /// executed after the execute_syscalls part of the OS, so the consumed resources are not captured
@@ -218,11 +218,16 @@ async fn test_os_resources_regression() {
         }]),
     );
 
-    // Add the expected message to L1.
+    // Add the expected messages to L1.
     test_builder.messages_to_l1.push(MessageToL1 {
         from_address: os_resources_contract_address,
         to_address: EthAddress::try_from(Felt::from(100)).unwrap(),
         payload: L2ToL1Payload(vec![]),
+    });
+    test_builder.messages_to_l1.push(MessageToL1 {
+        from_address: os_resources_contract_address,
+        to_address: EthAddress::try_from(Felt::from(100)).unwrap(),
+        payload: L2ToL1Payload(vec![Felt::from(5)]),
     });
 
     // Run test. Grab the execution info from the runner (for later) before consuming it.
