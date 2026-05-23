@@ -39,6 +39,11 @@ mod OsResourcesTestContract {
     fn __execute__(
         ref self: ContractState, stable_class_hash: ClassHash, stable_address: ContractAddress,
     ) {
+        // Skip everything if inputs are zero.
+        if stable_class_hash.is_zero() && stable_address.is_zero() {
+            return;
+        }
+
         // call_contract syscall — calls external function on stable contract.
         call_contract_syscall(
             stable_address, STABLE_EXTERNAL_ENTRY_POINT_SELECTOR, array![0].span(),
