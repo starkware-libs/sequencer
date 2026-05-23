@@ -255,7 +255,7 @@
                     }
                 },
                 "calldata_factor": {
-                    "n_steps": 8,
+                    "n_steps": 10,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "pedersen_builtin": 1
@@ -454,7 +454,7 @@
                 }
             },
             "SendMessageToL1": {
-                "n_steps": 144,
+                "n_steps": 122,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 1

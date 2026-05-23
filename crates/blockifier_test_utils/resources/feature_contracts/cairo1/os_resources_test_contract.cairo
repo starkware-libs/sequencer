@@ -13,6 +13,7 @@ mod OsResourcesTestContract {
         keccak_syscall,
         library_call_syscall,
         replace_class_syscall,
+        send_message_to_l1_syscall,
         sha256_process_block_syscall,
     };
     use starknet::{ClassHash, ContractAddress, get_block_hash_syscall, get_class_hash_at_syscall};
@@ -121,6 +122,11 @@ mod OsResourcesTestContract {
 
         // replace class syscall.
         replace_class_syscall(self_class_hash).unwrap_syscall();
+
+        // send message to l1 syscall.
+        // TODO(Yoni, 1/6/2022): In this case the number of steps depends on the payload size -
+        //  consider counting it.
+        send_message_to_l1_syscall(100, array![].span()).unwrap_syscall();
     }
 
     // Target for call_contract and library_call — accepts no arguments.
