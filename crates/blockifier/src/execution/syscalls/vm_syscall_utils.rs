@@ -414,6 +414,10 @@ impl SyscallRequest for SendMessageToL1Request {
 
         Ok(SendMessageToL1Request { message: MessageToL1 { to_address, payload } })
     }
+
+    fn get_linear_factor_length(&self) -> usize {
+        self.message.payload.0.len()
+    }
 }
 
 pub type SendMessageToL1Response = EmptyResponse;

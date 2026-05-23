@@ -115,6 +115,7 @@ from starkware.starknet.core.os.constants import (
     SECP256R1_MUL_GAS_COST,
     SECP256R1_NEW_GAS_COST,
     SEND_MESSAGE_TO_L1_GAS_COST,
+    SEND_MESSAGE_TO_L1_PAYLOAD_FACTOR_GAS_COST,
     SHA256_PROCESS_BLOCK_GAS_COST,
     SHA512_PROCESS_BLOCK_GAS_COST,
     SIERRA_ARRAY_LEN_BOUND,
@@ -1403,16 +1404,19 @@ func execute_send_message_to_l1{range_check_ptr, syscall_ptr: felt*, outputs: Os
 ) {
     alloc_locals;
     let request = cast(syscall_ptr + RequestHeader.SIZE, SendMessageToL1Request*);
+
+    tempvar payload_start = request.payload_start;
+    tempvar payload_size = request.payload_end - payload_start;
+
+    let total_gas_cost = SEND_MESSAGE_TO_L1_GAS_COST + SEND_MESSAGE_TO_L1_PAYLOAD_FACTOR_GAS_COST *
+        payload_size;
     let success = reduce_syscall_gas_and_write_response_header(
-        total_gas_cost=SEND_MESSAGE_TO_L1_GAS_COST, request_struct_size=SendMessageToL1Request.SIZE
+        total_gas_cost=total_gas_cost, request_struct_size=SendMessageToL1Request.SIZE
     );
     if (success == FALSE) {
         // Not enough gas to execute the syscall.
         return ();
     }
-
-    tempvar payload_start = request.payload_start;
-    tempvar payload_size = request.payload_end - payload_start;
 
     assert [outputs.messages_to_l1] = MessageToL1Header(
         from_address=contract_address, to_address=request.to_address, payload_size=payload_size

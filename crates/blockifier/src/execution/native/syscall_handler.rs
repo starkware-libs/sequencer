@@ -623,11 +623,12 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         payload: &[Felt],
         remaining_gas: &mut u64,
     ) -> SyscallResult<()> {
-        self.pre_execute_syscall(
-            remaining_gas,
-            self.gas_costs().syscalls.send_message_to_l1.base_syscall_cost(),
-            SyscallSelector::SendMessageToL1,
-        )?;
+        let total_gas_cost = self
+            .gas_costs()
+            .syscalls
+            .send_message_to_l1
+            .get_syscall_cost(u64_from_usize(payload.len()));
+        self.pre_execute_syscall(remaining_gas, total_gas_cost, SyscallSelector::SendMessageToL1)?;
 
         let to_address = L1Address::from(to_address);
         let message = MessageToL1 { to_address, payload: L2ToL1Payload(payload.to_vec()) };

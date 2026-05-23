@@ -129,7 +129,7 @@
         "allowed_virtual_os_program_hashes": [
             "0x3e98c2d7703b03a7edb73ed7f075f97f1dcbaa8f717cdf6e1a57bf058265473",
             "0x6ecb73d21c7d98ddd4148f5bcd91cc2747c65364245fbf32a63b05cca1685c2",
-            "0x531d387113cc4b96b8f5151c7b17515a2e909a15442f1f12fd113f7c10777cd"
+            "0x65f41fa333ab7a6f65b5259a0b6fba24a912ba937652faba34c93f71bb1c00a"
         ],
         "constructor_entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",
         "default_entry_point_selector": "0x0",
@@ -455,10 +455,17 @@
                 }
             },
             "SendMessageToL1": {
-                "n_steps": 124,
-                "n_memory_holes": 0,
-                "builtin_instance_counter": {
-                    "range_check_builtin": 1
+                "constant": {
+                    "n_steps": 127,
+                    "n_memory_holes": 0,
+                    "builtin_instance_counter": {
+                        "range_check_builtin": 1
+                    }
+                },
+                "calldata_factor": {
+                    "n_steps": 6,
+                    "n_memory_holes": 0,
+                    "builtin_instance_counter": {}
                 }
             },
             "Sha256ProcessBlock": {
