@@ -1,3 +1,5 @@
 + /os_constants/allowed_virtual_os_program_hashes/2: "0x28619dbc9767792fb536aaba7a2d55f70faadf808c95ec66b956d33fdee1bc0"
 ~ /os_resources/execute_syscalls/CallContract/n_steps: 901
 ~ /os_resources/execute_syscalls/LibraryCall/n_steps: 874
+~ /os_resources/execute_syscalls/MetaTxV0/constant/builtin_instance_counter/pedersen_builtin: 13
+~ /os_resources/execute_syscalls/MetaTxV0/constant/n_steps: 1333
