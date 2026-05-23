@@ -379,7 +379,7 @@ fn initialize_papyrus_test_state(
 
 /// Global root that matches the proof flow fixtures.
 /// Any change to this value requires regenerating the proof fixtures by running
-/// `cargo +nightly-2025-07-14 test -p starknet_os_flow_tests --features
+/// `cargo +nightly-2026-01-15 test -p starknet_os_flow_tests --features
 /// starknet_transaction_prover/stwo_proving --release generate_proof_fixtures -- --ignored`.
 pub const EXPECTED_PROOF_FLOW_GENESIS_GLOBAL_ROOT: Expect =
     expect!["0x666a2f8531136a0ec2c57389f2495c5f873560ea789e3543c77415e021c1210"];
