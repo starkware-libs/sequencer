@@ -247,7 +247,7 @@
             },
             "Deploy": {
                 "constant": {
-                    "n_steps": 1180,
+                    "n_steps": 1178,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 21,
@@ -255,7 +255,7 @@
                     }
                 },
                 "calldata_factor": {
-                    "n_steps": 6,
+                    "n_steps": 8,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "pedersen_builtin": 1
@@ -377,7 +377,7 @@
                 }
             },
             "ReplaceClass": {
-                "n_steps": 106,
+                "n_steps": 92,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {
                     "range_check_builtin": 1
