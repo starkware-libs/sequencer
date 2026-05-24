@@ -27,7 +27,13 @@ use tower_http::map_request_body::MapRequestBodyLayer;
 use tower_http::map_response_body::MapResponseBodyLayer;
 use tracing::warn;
 
-use crate::server::{HealthLayer, OhttpJsonrpseeLayer, RequestLogLayer, RequestSpanLayer};
+use crate::server::{
+    HealthLayer,
+    MetricsLayer,
+    OhttpJsonrpseeLayer,
+    RequestLogLayer,
+    RequestSpanLayer,
+};
 
 /// Maximum time allowed for a TLS handshake before the connection is dropped.
 const TLS_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -45,6 +51,7 @@ pub async fn start_tls_server(
     max_request_body_size: u32,
     cors_layer: Option<CorsLayer>,
     ohttp_layer: Option<OhttpJsonrpseeLayer>,
+    metrics_layer: Option<MetricsLayer>,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     let tls_acceptor = load_tls_acceptor(cert_path, key_path)?;
 
@@ -59,12 +66,11 @@ pub async fn start_tls_server(
     let svc_builder = ServerBuilder::default()
         .set_config(server_config)
         .set_http_middleware(
-            // `RequestLogLayer` is outermost so it sees status + latency for
-            // every request (including health probes). See `server.rs` for the
-            // layer-order rationale.
+            // See `server.rs` for the layer-order rationale.
             ServiceBuilder::new()
                 .layer(RequestLogLayer)
                 .layer(HealthLayer)
+                .option_layer(metrics_layer)
                 .option_layer(cors_layer)
                 .layer(MapRequestBodyLayer::new(HttpBody::new))
                 .option_layer(ohttp_layer)
