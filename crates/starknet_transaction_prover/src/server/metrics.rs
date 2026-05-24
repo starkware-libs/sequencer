@@ -97,6 +97,7 @@ pub fn install_exporter(version: &str, git_sha: &str) -> anyhow::Result<Promethe
         "git_sha" => git_sha.to_string(),
     )
     .set(1.0);
+    super::http_metrics::preregister_http_metrics();
     Ok(handle)
 }
 
