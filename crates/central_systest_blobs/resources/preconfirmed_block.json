@@ -20,13 +20,13 @@
     "timestamp": 1013,
     "transaction_receipts": [
       {
-        "actual_fee": "0x106f19",
+        "actual_fee": "0x11a799",
         "events": [
           {
             "data": [
               "0x3d3759cf036b96f8105f40dcf3fe0c209be3419154aa458d03336ad0443ce81",
               "0x1000",
-              "0x106f19",
+              "0x11a799",
               "0x0"
             ],
             "from_address": "0x6c6a50ee425e9ff35846be376051b8cdbdc1aadc6c954209fe3fd247a571b33",
@@ -38,8 +38,8 @@
         "execution_resources": {
           "builtin_instance_counter": {
             "pedersen_builtin": 4,
-            "poseidon_builtin": 15,
-            "range_check_builtin": 90
+            "poseidon_builtin": 14,
+            "range_check_builtin": 110
           },
           "data_availability": {
             "l1_data_gas": 0,
@@ -47,11 +47,11 @@
             "l2_gas": 0
           },
           "n_memory_holes": 0,
-          "n_steps": 4381,
+          "n_steps": 4812,
           "total_gas_consumed": {
             "l1_data_gas": 0,
             "l1_gas": 1652,
-            "l2_gas": 1075365
+            "l2_gas": 1155365
           }
         },
         "execution_status": "SUCCEEDED",
@@ -74,11 +74,11 @@
           "0x6c6a50ee425e9ff35846be376051b8cdbdc1aadc6c954209fe3fd247a571b33": [
             {
               "key": "0x2cbac7495ce24b399327e9282b09d029b1dd772b24b7e8dcd0467fedab5af58",
-              "value": "0xfffffffffffffffffffffffff98c2f53"
+              "value": "0xfffffffffffffffffffffffff9826b53"
             },
             {
               "key": "0x723973208639b7839ce298f7ffea61e3f9533872defd7abdb91023db4658812",
-              "value": "0x673d0ac"
+              "value": "0x67d94ac"
             }
           ]
         }
