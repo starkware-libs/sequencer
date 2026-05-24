@@ -23,7 +23,7 @@ use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::{ConsensusContext, ConsensusError, ProposalCommitment, Round};
 use apollo_consensus_orchestrator_config::config::ContextConfig;
-use apollo_l1_gas_price_types::{ExchangeRateOracleClientTrait, L1GasPriceProviderClient};
+use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
     BuildParam,
@@ -75,7 +75,7 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
-use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrument};
+use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
 use crate::cende::{
@@ -272,10 +272,6 @@ pub struct SequencerConsensusContextDeps {
     // Used to broadcast votes to other consensus nodes.
     pub vote_broadcast_client: BroadcastTopicClient<Vote>,
     pub config_manager_client: Option<SharedConfigManagerClient>,
-    /// STRK/USD oracle for SNIP-35 dynamic gas pricing. The underlying trait is generic; this
-    /// field's name labels the rate semantics. The instance must be configured with STRK/USD
-    /// URLs at construction time. None if disabled.
-    pub strk_to_usd_oracle: Option<Arc<dyn ExchangeRateOracleClientTrait>>,
 }
 
 #[derive(thiserror::Error, PartialEq, Debug)]
@@ -458,24 +454,19 @@ impl SequencerConsensusContext {
         };
         SNIP35_FEE_ACTUAL.set_lossy(fee_actual.0);
 
-        let fee_target = match &self.deps.strk_to_usd_oracle {
-            Some(oracle) => match oracle.fetch_rate(timestamp).await {
-                Ok(rate) => {
-                    SNIP35_STRK_USD_RATE.set_lossy(rate);
-                    let target = compute_fee_target(TARGET_ATTO_USD_PER_L2_GAS, rate);
-                    match target {
-                        Some(t) => SNIP35_FEE_TARGET.set_lossy(t.0),
-                        None => warn!("STRK/USD oracle returned zero rate, freezing fee_proposal"),
-                    }
-                    target
+        let fee_target = match self.deps.l1_gas_price_provider.get_strk_to_usd_rate(timestamp).await
+        {
+            Ok(rate) => {
+                SNIP35_STRK_USD_RATE.set_lossy(rate);
+                let target = compute_fee_target(TARGET_ATTO_USD_PER_L2_GAS, rate);
+                match target {
+                    Some(t) => SNIP35_FEE_TARGET.set_lossy(t.0),
+                    None => warn!("STRK/USD oracle returned zero rate, freezing fee_proposal"),
                 }
-                Err(e) => {
-                    warn!("STRK/USD oracle error: {e:?}, freezing fee_proposal");
-                    None
-                }
-            },
-            None => {
-                debug!("No STRK/USD oracle configured, freezing fee_proposal");
+                target
+            }
+            Err(e) => {
+                warn!("STRK/USD oracle error: {e:?}, freezing fee_proposal");
                 None
             }
         };
