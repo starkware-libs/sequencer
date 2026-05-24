@@ -61,3 +61,42 @@ async fn metric_outcome_maps_task_join_error_to_proving_failure() {
         outcomes::FAILURE_PROVING,
     );
 }
+
+#[test]
+fn log_reason_maps_variants_to_their_reasons() {
+    let cases = [
+        (
+            RunnerError::OsExecution(StarknetOsError::OsOutput(OsOutputError::ConvertToFullOutput)),
+            "os_execution",
+        ),
+        (
+            RunnerError::ProofProvider(ProofProviderError::Rpc(ProviderError::RateLimited)),
+            "proof_provider_rpc",
+        ),
+        (
+            RunnerError::ProofProvider(ProofProviderError::UpstreamRpcError {
+                code: 0,
+                message: String::new(),
+                data: None,
+            }),
+            "proof_provider_upstream_rpc",
+        ),
+        (
+            RunnerError::ProofProvider(ProofProviderError::InvalidProofResponse(String::new())),
+            "proof_provider_invalid_proof_response",
+        ),
+        (
+            RunnerError::ClassesProvider(ClassesProviderError::InvalidBytecodeElement),
+            "classes_provider",
+        ),
+        (
+            RunnerError::VirtualBlockExecutor(VirtualBlockExecutorError::StateUnavailable),
+            "virtual_block_executor",
+        ),
+        (RunnerError::InputGenerationError(String::new()), "input_generation"),
+    ];
+
+    for (error, expected) in &cases {
+        assert_eq!(error.log_reason(), *expected, "unexpected reason for {error:?}");
+    }
+}
