@@ -278,6 +278,11 @@ impl FlowSequencerSetup {
         let (eth_to_strk_oracle_url_headers, _join_handle) =
             spawn_local_eth_to_strk_oracle(available_ports.get_next_port());
         let eth_to_strk_oracle_config = ExchangeRateOracleConfig {
+            url_header_list: Some(vec![eth_to_strk_oracle_url_headers.clone().into()]),
+            ..Default::default()
+        };
+        // Reuse the same dummy oracle endpoint for STRK/USD; the handler returns a constant.
+        let strk_to_usd_oracle_config = ExchangeRateOracleConfig {
             url_header_list: Some(vec![eth_to_strk_oracle_url_headers.into()]),
             ..Default::default()
         };
@@ -309,6 +314,7 @@ impl FlowSequencerSetup {
             state_sync_config,
             consensus_manager_config,
             eth_to_strk_oracle_config,
+            strk_to_usd_oracle_config,
             mempool_p2p_config,
             monitoring_endpoint_config,
             component_config,
