@@ -205,4 +205,7 @@ mod OsResourcesTestContract {
     // Target for call_contract and library_call — accepts no arguments.
     #[external(v0)]
     fn empty_function(self: @ContractState) {}
+
+    #[l1_handler]
+    fn empty_l1_handler(self: @ContractState, from_address: felt252, some_args: Span<felt252>) {}
 }

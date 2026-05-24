@@ -495,7 +495,7 @@
             },
             "DeployAccount": {
                 "constant": {
-                    "n_steps": 5018,
+                    "n_steps": 5020,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 113,
@@ -538,11 +538,11 @@
             },
             "L1Handler": {
                 "constant": {
-                    "n_steps": 1315,
+                    "n_steps": 1339,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 19,
-                        "pedersen_builtin": 11
+                        "pedersen_builtin": 12
                     }
                 },
                 "calldata_factor": {
