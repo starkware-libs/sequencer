@@ -19,13 +19,18 @@ use expect_test::expect_file;
 use indexmap::IndexMap;
 use starknet_api::block::StarknetVersion;
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::{ClassHash, ContractAddress, EthAddress};
-use starknet_api::executable_transaction::{InvokeTransaction, TransactionType};
+use starknet_api::core::{ClassHash, ContractAddress, EthAddress, Nonce};
+use starknet_api::executable_transaction::{
+    DeployAccountTransaction,
+    InvokeTransaction,
+    TransactionType,
+};
+use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::{L2ToL1Payload, MessageToL1};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use starknet_api::{calldata, declare_tx_args, invoke_tx_args};
+use starknet_api::{calldata, declare_tx_args, deploy_account_tx_args, invoke_tx_args};
 use starknet_os::hint_processor::constants::BUILTIN_INSTANCE_SIZES;
 use starknet_os::hint_processor::os_logger::ResourceFinalizer;
 use starknet_os::test_utils::{SHA256_BATCH_RESOURCES_LINEAR, SHA256_BLOCK_TO_ROUND};
@@ -480,11 +485,36 @@ async fn test_execute_txs_inner_resources() {
     let version = StarknetVersion::LATEST;
     let mut raw_vc: RawVersionedConstants =
         serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
-    // TODO(Dori): DeployAccount, L1Handler.
-    const N_TXS: usize = 2;
+    // TODO(Dori): L1Handler.
+    const N_TXS: usize = 3;
 
-    let OsResourcesTestSetup { stable_contract_address, mut test_builder, .. } =
-        setup_test_builder().await;
+    let OsResourcesTestSetup {
+        stable_contract_address,
+        stable_contract_class_hash,
+        mut test_builder,
+        ..
+    } = setup_test_builder().await;
+
+    // Prepare the deploy account tx in advance, so we can fund the address before moving to the
+    // next block (just so the funding tx is not in our measurement block). Use the stable contract
+    // to prevent noise from changing contract address.
+    let deploy_tx = DeployAccountTransaction::create(
+        deploy_account_tx(
+            deploy_account_tx_args! {
+                class_hash: stable_contract_class_hash,
+                resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+                constructor_calldata: calldata![Felt::ZERO],
+                // The stable contract was already deployed (from deployer address zero) with
+                // trivial salt, so use non-trivial salt to get a new address.
+                contract_address_salt: ContractAddressSalt(Felt::from(100)),
+            },
+            Nonce::default(),
+        ),
+        &test_builder.chain_id(),
+    )
+    .unwrap();
+    test_builder.add_fund_address_tx_with_default_amount(deploy_tx.contract_address);
+    test_builder.move_to_next_block();
 
     // Invoke.
     let invoke_args = invoke_tx_args! {
@@ -511,6 +541,9 @@ async fn test_execute_txs_inner_resources() {
         declare_args,
         &test_builder.chain_id(),
     );
+
+    // Deploy account (pre-prepared).
+    test_builder.add_deploy_account_tx(deploy_tx);
 
     // Execute the business logic and extract the business logic resources for each tx.
     let test_runner = test_builder.build().await;
@@ -544,21 +577,22 @@ async fn test_execute_txs_inner_resources() {
     test_output.perform_default_validations();
 
     // Fetch the OS resources for each tx.
-    let [invoke_overhead, declare_overhead]: [ExecutionResources; N_TXS] = test_output
-        .runner_output
-        .txs_trace
-        .iter()
-        .rev()
-        .take(N_TXS)
-        .rev()
-        .map(|trace| trace.get_resources().unwrap().clone())
-        .zip(business_logic_resources)
-        .map(|(os_resources, business_logic_resources)| {
-            (&os_resources - &business_logic_resources).filter_unused_builtins()
-        })
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
+    let [invoke_overhead, declare_overhead, deploy_account_overhead]: [ExecutionResources; N_TXS] =
+        test_output
+            .runner_output
+            .txs_trace
+            .iter()
+            .rev()
+            .take(N_TXS)
+            .rev()
+            .map(|trace| trace.get_resources().unwrap().clone())
+            .zip(business_logic_resources)
+            .map(|(os_resources, business_logic_resources)| {
+                (&os_resources - &business_logic_resources).filter_unused_builtins()
+            })
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
 
     // Invoke: variable cost, with scaling of 2.
     // TODO(Dori): Compute linear factor cost.
@@ -604,6 +638,35 @@ async fn test_execute_txs_inner_resources() {
         .os_resources
         .execute_txs_inner
         .insert(TransactionType::Declare, VariableResourceParams::Constant(declare_overhead));
+
+    // Deploy account: variable cost, with scaling of 2.
+    // TODO(Dori): Compute linear factor cost.
+    let VariableResourceParams::WithFactor(mut deploy_account_resources_params) =
+        raw_vc.os_resources.execute_txs_inner.get(&TransactionType::DeployAccount).unwrap().clone()
+    else {
+        panic!(
+            "Deploy account resources params has unexpected structure: {:?}",
+            raw_vc.os_resources.execute_txs_inner.get(&TransactionType::DeployAccount).unwrap()
+        );
+    };
+    let VariableCallDataFactor::Scaled(ref deploy_account_scaling_factor) =
+        deploy_account_resources_params.calldata_factor
+    else {
+        panic!(
+            "Deploy account scaling factor has unexpected structure: {:?}",
+            deploy_account_resources_params.calldata_factor
+        );
+    };
+    assert_eq!(
+        deploy_account_scaling_factor.scaling_factor, 2,
+        "Deploy account scaling factor has unexpected value: {:?}",
+        deploy_account_scaling_factor.scaling_factor
+    );
+    deploy_account_resources_params.constant = deploy_account_overhead;
+    raw_vc.os_resources.execute_txs_inner.insert(
+        TransactionType::DeployAccount,
+        VariableResourceParams::WithFactor(deploy_account_resources_params),
+    );
 
     // Verify computation.
     expect_file![VersionedConstants::json_path(&version).unwrap()]
