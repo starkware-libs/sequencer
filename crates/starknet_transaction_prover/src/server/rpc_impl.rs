@@ -146,7 +146,19 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
         };
 
         self.prover.prove_transaction(block_id, transaction).await.map_err(|err| {
-            warn!("prove_transaction failed: {:?}", err);
+            // `outcome` reuses the metric's outcome labels. Validation-failure messages can embed
+            // the client's private fee inputs, so omit `error` for them; other outcomes are safe.
+            let outcome = err.metric_outcome();
+            if outcome == outcomes::VALIDATION {
+                warn!(event = "prove_transaction_failed", outcome, "prove_transaction failed");
+            } else {
+                warn!(
+                    event = "prove_transaction_failed",
+                    outcome,
+                    error = %err,
+                    "prove_transaction failed",
+                );
+            }
             ErrorObjectOwned::from(err)
         })
     }
