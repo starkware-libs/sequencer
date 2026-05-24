@@ -155,6 +155,21 @@ impl VirtualSnosProverError {
             VirtualSnosProverError::ProvingError(_) => outcomes::FAILURE_PROVING,
         }
     }
+
+    /// Whether this error's `Display` can embed data derived from the client's
+    /// transaction. These failures are logged to the operator's aggregator, so a
+    /// `true` here means the message must not be rendered verbatim:
+    /// - `InvalidTransactionInput` quotes the client's fee inputs, and `InvalidTransactionType` and
+    ///   `ValidationError` carry a message payload that defaults to sensitive,
+    /// - `TransactionReverted` carries the transaction hash and revert reason,
+    /// - runner, output-parse and proving errors can quote transaction-derived program output, and
+    ///   a transport error renders the node URL with any credentials embedded in its path or query.
+    ///
+    /// Only the variants that carry no payload at all are exempt, so a new
+    /// variant defaults to being treated as sensitive.
+    pub fn may_embed_transaction_data(&self) -> bool {
+        !matches!(self, VirtualSnosProverError::TransactionBlocked)
+    }
 }
 
 /// Errors that can occur during configuration.

@@ -104,7 +104,22 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
         let (_saturation_clear_guard, _permit) = self.acquire_worker_slot().await?;
 
         self.prover.prove_transaction(block_id, transaction).await.map_err(|err| {
-            warn!("prove_transaction failed: {:?}", err);
+            // Not a duplicate of the origin-level breadcrumbs: those name the step that
+            // failed, this is the single per-request record of the final outcome.
+            // `outcome` is the metric's bounded label set, safe to log. The message
+            // itself only goes out when it cannot carry client transaction data --
+            // see `may_embed_transaction_data`; these logs leave the service.
+            let outcome = err.metric_outcome();
+            if err.may_embed_transaction_data() {
+                warn!(event = "prove_transaction_failed", outcome, "prove_transaction failed");
+            } else {
+                warn!(
+                    event = "prove_transaction_failed",
+                    outcome,
+                    error = %err,
+                    "prove_transaction failed",
+                );
+            }
             ErrorObjectOwned::from(err)
         })
     }
