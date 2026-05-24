@@ -495,11 +495,11 @@
             },
             "DeployAccount": {
                 "constant": {
-                    "n_steps": 4583,
+                    "n_steps": 5018,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
-                        "range_check_builtin": 93,
-                        "pedersen_builtin": 11,
+                        "range_check_builtin": 113,
+                        "pedersen_builtin": 12,
                         "poseidon_builtin": 11
                     }
                 },

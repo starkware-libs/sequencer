@@ -60,6 +60,16 @@ mod OsResourcesTestContract {
     }
 
     #[external(v0)]
+    fn __validate_deploy__(
+        self: @ContractState,
+        class_hash: felt252,
+        contract_address_salt: felt252,
+        some_args: Span<felt252>,
+    ) -> felt252 {
+        starknet::VALIDATED
+    }
+
+    #[external(v0)]
     fn __validate__(
         self: @ContractState,
         self_class_hash: ClassHash,
