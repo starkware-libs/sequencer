@@ -93,6 +93,10 @@ pub(crate) const CHAIN_ID: ChainId = ChainId::Mainnet;
 // values here.
 pub(crate) const ETH_TO_FRI_RATE: u128 = 2 * u128::pow(10, 18);
 
+// A STRK/USD rate that yields an in-bounds SNIP-35 fee target in proposal-building tests
+// where the specific value doesn't matter.
+pub(crate) const DEFAULT_STRK_TO_USD_RATE: u128 = 300_000_000_000_000_000;
+
 pub(crate) static TX_BATCH: LazyLock<Vec<ConsensusTransaction>> =
     LazyLock::new(|| (0..3).map(generate_invoke_tx).collect());
 
@@ -129,8 +133,6 @@ pub(crate) struct TestDeps {
     pub clock: Arc<dyn Clock>,
     pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
     pub vote_broadcast_client: BroadcastTopicClient<Vote>,
-    pub strk_to_usd_oracle:
-        Option<Arc<dyn apollo_l1_gas_price_types::ExchangeRateOracleClientTrait>>,
 }
 
 impl From<TestDeps> for SequencerConsensusContextDeps {
@@ -145,7 +147,6 @@ impl From<TestDeps> for SequencerConsensusContextDeps {
             outbound_proposal_sender: deps.outbound_proposal_sender,
             vote_broadcast_client: deps.vote_broadcast_client,
             config_manager_client: None,
-            strk_to_usd_oracle: deps.strk_to_usd_oracle,
         }
     }
 }
@@ -325,6 +326,9 @@ impl TestDeps {
             blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
         }));
         self.l1_gas_price_provider.expect_get_rate().return_const(Ok(ETH_TO_FRI_RATE));
+        self.l1_gas_price_provider
+            .expect_get_strk_to_usd_rate()
+            .return_const(Ok(DEFAULT_STRK_TO_USD_RATE));
     }
 
     fn setup_default_state_sync_get_block(&mut self) {
@@ -381,7 +385,6 @@ pub(crate) fn create_test_and_network_deps() -> (TestDeps, NetworkDependencies) 
         clock,
         outbound_proposal_sender,
         vote_broadcast_client: votes_topic_client,
-        strk_to_usd_oracle: None,
     };
 
     let network_deps =

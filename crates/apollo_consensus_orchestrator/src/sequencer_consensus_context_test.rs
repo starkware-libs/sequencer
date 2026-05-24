@@ -27,11 +27,7 @@ use apollo_l1_gas_price_types::errors::{
     L1GasPriceClientError,
     L1GasPriceProviderError,
 };
-use apollo_l1_gas_price_types::{
-    MockExchangeRateOracleClientTrait,
-    MockL1GasPriceProviderClient,
-    PriceInfo,
-};
+use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
 use apollo_protobuf::consensus::{
     BuildParam,
     CommitmentParts,
@@ -1619,11 +1615,9 @@ async fn test_initialize_fee_proposals_window(
 
 #[derive(Clone)]
 enum OracleBehavior {
-    /// No oracle is configured (`strk_to_usd_oracle = None`).
-    NotConfigured,
-    /// Oracle is configured and `fetch_rate` returns `Ok(rate)`.
+    /// Provider returns `Ok(rate)` for the STRK/USD query.
     Ok(u128),
-    /// Oracle is configured and `fetch_rate` returns `Err(_)`.
+    /// Provider returns `Err(_)` for the STRK/USD query.
     Err,
 }
 
@@ -1631,15 +1625,9 @@ enum OracleBehavior {
 #[rstest]
 #[case::no_fee_actual_freezes_at_l2_gas_price(
     None,
-    OracleBehavior::NotConfigured,
+    OracleBehavior::Ok(0),
     GasPrice(7_000_000_000),
     GasPrice(7_000_000_000)
-)]
-#[case::no_oracle_freezes_at_fee_actual(
-    Some(GasPrice(10_000_000_000)),
-    OracleBehavior::NotConfigured,
-    GasPrice(7_000_000_000),
-    GasPrice(10_000_000_000)
 )]
 #[case::oracle_zero_rate_freezes_at_fee_actual(
     Some(GasPrice(10_000_000_000)),
@@ -1679,22 +1667,21 @@ async fn test_compute_snip35_fee_proposal(
     #[case] expected_fee_proposal: GasPrice,
 ) {
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_default_expectations();
-    deps.strk_to_usd_oracle = match oracle_behavior {
-        OracleBehavior::NotConfigured => None,
+    // Register the specific strk_to_usd_rate expectation BEFORE setup_default_expectations so
+    // the catch-all default installed there does not shadow it (mockall matches oldest first).
+    match oracle_behavior {
         OracleBehavior::Ok(rate) => {
-            let mut mock = MockExchangeRateOracleClientTrait::new();
-            mock.expect_fetch_rate().returning(move |_| Ok(rate));
-            Some(Arc::new(mock))
+            deps.l1_gas_price_provider.expect_get_strk_to_usd_rate().returning(move |_| Ok(rate));
         }
         OracleBehavior::Err => {
-            let mut mock = MockExchangeRateOracleClientTrait::new();
-            mock.expect_fetch_rate().returning(|_| {
-                Err(ExchangeRateOracleClientError::RequestError("test".to_string()))
+            deps.l1_gas_price_provider.expect_get_strk_to_usd_rate().returning(|_| {
+                Err(L1GasPriceClientError::ExchangeRateOracleClientError(
+                    ExchangeRateOracleClientError::RequestError("test".to_string()),
+                ))
             });
-            Some(Arc::new(mock))
         }
-    };
+    }
+    deps.setup_default_expectations();
 
     let mut context = deps.build_context();
     context.l2_gas_price = l2_gas_price;
@@ -1713,16 +1700,17 @@ async fn test_compute_snip35_fee_proposal_converges_to_oracle_target() {
     ];
 
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_default_expectations();
-    let mut mock = MockExchangeRateOracleClientTrait::new();
+    // Register per-phase strk_to_usd_rate expectations BEFORE setup_default_expectations so they
+    // are not shadowed by the catch-all default (mockall matches oldest first).
     let mut seq = mockall::Sequence::new();
     for &(rate, _, n_blocks) in &phases {
-        mock.expect_fetch_rate()
+        deps.l1_gas_price_provider
+            .expect_get_strk_to_usd_rate()
             .times(usize::try_from(n_blocks).unwrap())
             .in_sequence(&mut seq)
             .returning(move |_| Ok(rate));
     }
-    deps.strk_to_usd_oracle = Some(Arc::new(mock));
+    deps.setup_default_expectations();
     let mut context = deps.build_context();
 
     // Bootstrap the window with 75 gwei (the $0.04 target).
