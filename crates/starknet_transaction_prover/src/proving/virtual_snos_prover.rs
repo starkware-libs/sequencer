@@ -19,7 +19,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
 use starknet_api::transaction::fields::{Proof, ProofFacts, Tip};
 use starknet_api::transaction::{InvokeTransaction, MessageToL1};
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn, Instrument, Span};
 use url::Url;
 
 use crate::blocking_check::{BlockingCheckClient, BlockingCheckResult};
@@ -199,16 +199,28 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         block_id: BlockId,
         transaction: RpcTransaction,
     ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
-        // Validate block_id is not pending.
         if matches!(block_id, BlockId::Pending) {
+            warn!(event = "validation_error", reason = "pending_block_unsupported");
             return Err(VirtualSnosProverError::ValidationError(
                 "Pending blocks are not supported; only finalized blocks can be proven."
                     .to_string(),
             ));
         }
 
-        let invoke_v3 = extract_rpc_invoke_tx(transaction.clone())?;
-        validate_transaction_input(&invoke_v3, self.validate_zero_fee_fields)?;
+        let invoke_v3 = extract_rpc_invoke_tx(transaction.clone()).inspect_err(|_err| {
+            // The log omits `error` because this variant carries a message payload, which
+            // defaults to sensitive under `may_embed_transaction_data`. The reason code
+            // carries all a reader needs.
+            warn!(event = "validation_error", reason = "non_invoke_transaction");
+        })?;
+        validate_transaction_input(&invoke_v3, self.validate_zero_fee_fields).inspect_err(
+            |_err| {
+                // The log omits `error` because the invalid-input message quotes the client's
+                // fee inputs, and transaction data is private. The reason code carries all a
+                // reader needs.
+                warn!(event = "validation_error", reason = "invalid_transaction_input");
+            },
+        )?;
         let invoke_tx = InvokeTransaction::V3(invoke_v3.into());
 
         match &self.blocking_check_client {
@@ -230,14 +242,24 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
             .runner
             .run_virtual_os(block_id, txs)
             .await
-            .map_err(|err| VirtualSnosProverError::RunnerError(Box::new(err)))?;
+            .map_err(|err| VirtualSnosProverError::RunnerError(Box::new(err)))
+            .inspect_err(|_err| {
+                // The log omits `error` because a runner failure can quote the transaction hash
+                // and its revert reason. See
+                // `VirtualSnosProverError::may_embed_transaction_data`.
+                warn!(event = "os_run_error");
+            })?;
 
         let os_duration = os_start.elapsed();
         metrics::histogram!(names::OS_RUN_DURATION_SECONDS).record(os_duration.as_secs_f64());
         info!(os_duration_ms = %os_duration.as_millis(), "OS execution completed");
 
         let prove_start = Instant::now();
-        let result = self.prove_virtual_snos_run(runner_output).await?;
+        let result = self.prove_virtual_snos_run(runner_output).await.inspect_err(|_err| {
+            // The log omits `error` because proving errors can quote transaction-derived
+            // program output. See `VirtualSnosProverError::may_embed_transaction_data`.
+            warn!(event = "proving_error");
+        })?;
 
         let prove_duration = prove_start.elapsed();
         metrics::histogram!(names::STWO_PROVE_DURATION_SECONDS)
@@ -269,10 +291,13 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         invoke_tx: InvokeTransaction,
     ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
         // Kick off proving in parallel with the check. Clone is cheap: inner fields are
-        // Arcs or small configs.
+        // Arcs or small configs. `instrument` carries the ambient tracing span (request id and
+        // tx fields) into the spawned task, which starts without a span otherwise.
         let prover = self.clone();
-        let prove_handle =
-            tokio::spawn(async move { prover.run_and_prove(block_id, vec![invoke_tx]).await });
+        let prove_handle = tokio::spawn(
+            async move { prover.run_and_prove(block_id, vec![invoke_tx]).await }
+                .instrument(Span::current()),
+        );
 
         let timeout_duration = std::time::Duration::from_millis(client.timeout_millis);
         let check_outcome =
