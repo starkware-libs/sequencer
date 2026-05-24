@@ -485,7 +485,7 @@ async fn test_execute_txs_inner_resources() {
     let version = StarknetVersion::LATEST;
     let mut raw_vc: RawVersionedConstants =
         serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
-    const N_TXS: usize = 6;
+    const N_TXS: usize = 7;
 
     let OsResourcesTestSetup {
         stable_contract_address,
@@ -582,6 +582,13 @@ async fn test_execute_txs_inner_resources() {
         calldata![Felt::from(100), Felt::ZERO],
         None,
     );
+    test_builder.add_l1_handler(
+        stable_contract_address,
+        "l1_handler",
+        // From address, extra args.
+        calldata![Felt::from(100), Felt::ONE, Felt::ZERO],
+        None,
+    );
 
     // Execute the business logic and extract the business logic resources for each tx.
     let test_runner = test_builder.build().await;
@@ -621,7 +628,8 @@ async fn test_execute_txs_inner_resources() {
         declare_overhead,
         deploy_account_base,
         deploy_account_extra,
-        l1_handler_overhead,
+        l1_handler_base,
+        l1_handler_extra,
     ]: [ExecutionResources; N_TXS] = test_output
         .runner_output
         .txs_trace
@@ -717,7 +725,6 @@ async fn test_execute_txs_inner_resources() {
     );
 
     // L1 handler: variable cost, unscaled.
-    // TODO(Dori): Compute linear factor cost.
     let VariableResourceParams::WithFactor(mut l1_handler_resources_params) =
         raw_vc.os_resources.execute_txs_inner.get(&TransactionType::L1Handler).unwrap().clone()
     else {
@@ -732,7 +739,10 @@ async fn test_execute_txs_inner_resources() {
         "L1 handler scaling factor has unexpected structure: {:?}",
         l1_handler_resources_params.calldata_factor
     );
-    l1_handler_resources_params.constant = l1_handler_overhead;
+    l1_handler_resources_params.calldata_factor = VariableCallDataFactor::Unscaled(
+        (&l1_handler_extra - &l1_handler_base).filter_unused_builtins(),
+    );
+    l1_handler_resources_params.constant = l1_handler_base;
     raw_vc.os_resources.execute_txs_inner.insert(
         TransactionType::L1Handler,
         VariableResourceParams::WithFactor(l1_handler_resources_params),
