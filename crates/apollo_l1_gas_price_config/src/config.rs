@@ -103,6 +103,8 @@ pub struct L1GasPriceProviderConfig {
     pub max_time_gap_seconds: u64,
     #[validate(nested)]
     pub eth_to_strk_oracle_config: ExchangeRateOracleConfig,
+    #[validate(nested)]
+    pub strk_to_usd_oracle_config: ExchangeRateOracleConfig,
 }
 
 impl Default for L1GasPriceProviderConfig {
@@ -114,6 +116,7 @@ impl Default for L1GasPriceProviderConfig {
             storage_limit: usize::try_from(10 * MEAN_NUMBER_OF_BLOCKS).unwrap(),
             max_time_gap_seconds: 900, // 15 minutes
             eth_to_strk_oracle_config: ExchangeRateOracleConfig::default(),
+            strk_to_usd_oracle_config: ExchangeRateOracleConfig::default(),
         }
     }
 }
@@ -151,6 +154,10 @@ impl SerializeConfig for L1GasPriceProviderConfig {
         config.extend(prepend_sub_config_name(
             self.eth_to_strk_oracle_config.dump(),
             "eth_to_strk_oracle_config",
+        ));
+        config.extend(prepend_sub_config_name(
+            self.strk_to_usd_oracle_config.dump(),
+            "strk_to_usd_oracle_config",
         ));
         config
     }
