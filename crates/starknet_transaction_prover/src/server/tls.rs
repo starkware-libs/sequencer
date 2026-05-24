@@ -27,7 +27,13 @@ use tower_http::map_request_body::MapRequestBodyLayer;
 use tower_http::map_response_body::MapResponseBodyLayer;
 use tracing::warn;
 
-use crate::server::{HealthLayer, MetricsLayer, OhttpJsonrpseeLayer, RequestLogLayer};
+use crate::server::{
+    HealthLayer,
+    HttpMetricsLayer,
+    MetricsLayer,
+    OhttpJsonrpseeLayer,
+    RequestLogLayer,
+};
 
 /// Maximum time allowed for a TLS handshake before the connection is dropped.
 const TLS_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -65,6 +71,7 @@ pub async fn start_tls_server(
                 .layer(RequestLogLayer)
                 .layer(HealthLayer)
                 .option_layer(metrics_layer)
+                .layer(HttpMetricsLayer)
                 .option_layer(cors_layer)
                 .layer(MapRequestBodyLayer::new(HttpBody::new))
                 .option_layer(ohttp_layer)
