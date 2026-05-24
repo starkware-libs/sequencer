@@ -59,4 +59,5 @@ crates/blockifier_test_utils/resources/feature_contracts/cairo1/sierra/*.json
 
 # Local-only artifacts that have been accidentally committed before.
 observability_report.html
+review_report.html
 .claude/scheduled_tasks.lock
