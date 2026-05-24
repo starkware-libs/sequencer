@@ -85,7 +85,7 @@
         "error_entry_point_failed": "ENTRYPOINT_FAILED",
         "error_entry_point_not_found": "ENTRYPOINT_NOT_FOUND",
         "execute_entry_point_selector": "0x15d40a3d6ca2ac30f4031e42be28da9b056fef9bb7357ac5e85627ee876e5ad",
-        "execute_max_sierra_gas": 1100000000,
+        "execute_max_sierra_gas": 1110000000,
         "default_initial_gas_cost": {
             "step_gas_cost": 100000000
         },
