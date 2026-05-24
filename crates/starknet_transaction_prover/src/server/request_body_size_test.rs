@@ -18,8 +18,10 @@ use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 
 use crate::server::config::{TransportMode, DEFAULT_MAX_REQUEST_BODY_SIZE};
+use crate::server::health::HealthLayer;
 use crate::server::mock_rpc::MockProvingRpc;
 use crate::server::rpc_api::ProvingRpcServer;
+use crate::server::saturation::SaturationMonitor;
 use crate::server::start_server;
 
 const NUM_CALLDATA_FELTS: usize = 5_000;
@@ -36,6 +38,7 @@ async fn start_test_http_server(max_request_body_size: u32) -> (SocketAddr, Serv
         None,
         None,
         None,
+        HealthLayer::new(SaturationMonitor::default(), std::time::Duration::from_millis(0)),
     )
     .await
     .expect("Failed to start HTTP server")

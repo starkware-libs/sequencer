@@ -38,6 +38,10 @@ pub mod names {
     pub const OS_RUN_DURATION_SECONDS: &str = "prover_os_run_duration_seconds";
     /// Stwo proving sub-step duration. Bucketed.
     pub const STWO_PROVE_DURATION_SECONDS: &str = "prover_stwo_prove_duration_seconds";
+    /// Requests admitted to the queue but not yet running (waiting for a worker slot). Gauge.
+    pub const QUEUE_WAITING_REQUESTS: &str = "prover_queue_waiting_requests";
+    /// Time a request waited in the queue before acquiring a worker slot. Bucketed.
+    pub const QUEUE_WAIT_DURATION_SECONDS: &str = "prover_queue_wait_duration_seconds";
 }
 
 /// Fixed, bounded set of values for the `outcome` label on
@@ -77,6 +81,19 @@ pub fn install_exporter(version: &str, git_sha: &str) -> anyhow::Result<Promethe
     // need the series to exist.
     metrics::counter!(names::PANICS_TOTAL).increment(0);
     super::http_metrics::preregister_http_metrics();
+    // Queue depth starts at zero. Busy-rejects are folded into the outcome counter, so
+    // pre-register both reject outcomes too — a rejection-rate query then has series from startup.
+    metrics::gauge!(names::QUEUE_WAITING_REQUESTS).set(0.0);
+    metrics::counter!(
+        names::PROVE_TRANSACTION_OUTCOME_TOTAL,
+        "outcome" => outcomes::REJECTED_QUEUE_FULL,
+    )
+    .increment(0);
+    metrics::counter!(
+        names::PROVE_TRANSACTION_OUTCOME_TOTAL,
+        "outcome" => outcomes::REJECTED_WAIT_TIMEOUT,
+    )
+    .increment(0);
     Ok(handle)
 }
 

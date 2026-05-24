@@ -5,6 +5,7 @@ use jsonrpsee::server::HttpBody;
 use tower::{Layer, ServiceExt};
 
 use crate::server::health::{HealthLayer, HEALTH_PATH};
+use crate::server::saturation::SaturationMonitor;
 
 /// Inner stub returning 418 so we can tell whether `HealthLayer` short-circuited.
 fn fallthrough_service() -> impl tower::Service<
@@ -38,7 +39,8 @@ async fn read_body(response: Response<HttpBody>) -> (StatusCode, Vec<u8>, http::
 
 #[tokio::test]
 async fn get_health_returns_200_with_json_body() {
-    let svc = HealthLayer.layer(fallthrough_service());
+    let svc = HealthLayer::new(SaturationMonitor::default(), std::time::Duration::from_millis(0))
+        .layer(fallthrough_service());
 
     let response = svc.oneshot(empty_request(Method::GET, HEALTH_PATH)).await.unwrap();
 
@@ -50,7 +52,8 @@ async fn get_health_returns_200_with_json_body() {
 
 #[tokio::test]
 async fn non_get_health_falls_through() {
-    let svc = HealthLayer.layer(fallthrough_service());
+    let svc = HealthLayer::new(SaturationMonitor::default(), std::time::Duration::from_millis(0))
+        .layer(fallthrough_service());
 
     let response = svc.oneshot(empty_request(Method::POST, HEALTH_PATH)).await.unwrap();
 
@@ -60,10 +63,58 @@ async fn non_get_health_falls_through() {
 
 #[tokio::test]
 async fn get_other_path_falls_through() {
-    let svc = HealthLayer.layer(fallthrough_service());
+    let svc = HealthLayer::new(SaturationMonitor::default(), std::time::Duration::from_millis(0))
+        .layer(fallthrough_service());
 
     let response = svc.oneshot(empty_request(Method::GET, "/")).await.unwrap();
 
     let (status, _body, _) = read_body(response).await;
     assert_eq!(status, StatusCode::IM_A_TEAPOT);
+}
+
+#[tokio::test]
+async fn unsaturated_health_returns_200_when_monitor_is_supplied() {
+    let monitor = SaturationMonitor::default();
+    let svc =
+        HealthLayer::new(monitor, std::time::Duration::from_millis(0)).layer(fallthrough_service());
+
+    let response = svc.oneshot(empty_request(Method::GET, HEALTH_PATH)).await.unwrap();
+
+    let (status, body, _) = read_body(response).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, br#"{"status":"ok"}"#);
+}
+
+#[tokio::test]
+async fn saturated_for_at_least_threshold_returns_503_with_opaque_body() {
+    let monitor = SaturationMonitor::default();
+    monitor.mark_rejected();
+    // Zero threshold so the saturation is immediately past it. Avoids
+    // sleeping in the test.
+    let svc =
+        HealthLayer::new(monitor, std::time::Duration::from_millis(0)).layer(fallthrough_service());
+
+    let response = svc.oneshot(empty_request(Method::GET, HEALTH_PATH)).await.unwrap();
+
+    let (status, body, _) = read_body(response).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    let body_text = std::str::from_utf8(&body).unwrap();
+    assert!(body_text.contains("saturated"));
+    // No internal state — no timestamps, no permits, no upstream URLs.
+    assert!(!body_text.contains("Instant"));
+    assert!(!body_text.chars().any(|c| c.is_ascii_digit()), "body had digits: {body_text}");
+}
+
+#[tokio::test]
+async fn recovery_clears_saturation_and_health_returns_to_200() {
+    let monitor = SaturationMonitor::default();
+    monitor.mark_rejected();
+    monitor.mark_accepted();
+    let svc =
+        HealthLayer::new(monitor, std::time::Duration::from_millis(0)).layer(fallthrough_service());
+
+    let response = svc.oneshot(empty_request(Method::GET, HEALTH_PATH)).await.unwrap();
+    let (status, body, _) = read_body(response).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, br#"{"status":"ok"}"#);
 }

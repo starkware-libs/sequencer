@@ -1,7 +1,7 @@
 //! JSON-RPC trait implementation for the proving service.
 
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
@@ -15,7 +15,16 @@ use tracing::warn;
 use crate::proving::virtual_snos_prover::{ProveTransactionResult, RpcVirtualSnosProver};
 use crate::server::config::ServiceConfig;
 use crate::server::errors::{internal_server_error, service_busy};
+use crate::server::metrics::{names as metric_names, outcomes};
 use crate::server::rpc_api::ProvingRpcServer;
+use crate::server::saturation::SaturationMonitor;
+
+// `dummy_prover()` builds an `RpcVirtualSnosProver`, which prepares recursive-prover precomputes
+// under `stwo_proving`; the reject paths under test are feature-independent, so gate the module to
+// the non-proving config to keep it fast.
+#[cfg(all(test, not(feature = "stwo_proving")))]
+#[path = "rpc_impl_test.rs"]
+mod rpc_impl_test;
 
 /// Starknet RPC specification version (matches the pinned `starknet_specs_rev`).
 pub(crate) const SPEC_VERSION: &str = "0.10.3-rc.2";
@@ -32,6 +41,9 @@ pub struct ProvingRpcServerImpl {
     max_concurrent_requests: usize,
     /// Backstop on the FIFO wait so a stuck worker can't pin a waiter's connection indefinitely.
     queue_wait_timeout: Duration,
+    /// Tracks how long the service has been rejecting requests so
+    /// `/health` can flip to 503. Cloned cheaply (Arc internally).
+    saturation_monitor: SaturationMonitor,
 }
 
 impl ProvingRpcServerImpl {
@@ -41,6 +53,7 @@ impl ProvingRpcServerImpl {
         max_concurrent_requests: usize,
         max_queued_requests: usize,
         queue_wait_timeout: Duration,
+        saturation_monitor: SaturationMonitor,
     ) -> Self {
         Self {
             prover,
@@ -50,17 +63,19 @@ impl ProvingRpcServerImpl {
             )),
             max_concurrent_requests,
             queue_wait_timeout,
+            saturation_monitor,
         }
     }
 
     /// Creates a new ProvingRpcServerImpl from configuration.
-    pub fn from_config(config: &ServiceConfig) -> Self {
+    pub fn from_config(config: &ServiceConfig, saturation_monitor: SaturationMonitor) -> Self {
         let prover = RpcVirtualSnosProver::new(&config.prover_config);
         Self::new(
             prover,
             config.max_concurrent_requests,
             config.max_queued_requests,
             Duration::from_millis(config.queue_wait_timeout_millis),
+            saturation_monitor,
         )
     }
 }
@@ -77,8 +92,16 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
         transaction: RpcTransaction,
     ) -> RpcResult<ProveTransactionResult> {
         // Admission: cap queue length (running + waiting). Reject with -32005 only when the queue
-        // is full; held for the whole request, so a client disconnect frees the slot.
+        // is full; held for the whole request, so a client disconnect frees the slot. Busy-rejects
+        // are folded into the outcome counter (as a `rejected_*` outcome) so every request —
+        // served or shed — shares one denominator for rate calculations.
         let _admission = self.admission_semaphore.try_acquire().map_err(|_| {
+            metrics::counter!(
+                metric_names::PROVE_TRANSACTION_OUTCOME_TOTAL,
+                "outcome" => outcomes::REJECTED_QUEUE_FULL,
+            )
+            .increment(1);
+            self.saturation_monitor.mark_rejected();
             warn!(
                 max_concurrent_requests = self.max_concurrent_requests,
                 "Rejected proving request: queue is full"
@@ -87,18 +110,37 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
         })?;
 
         // Wait FIFO for a worker slot (tokio's Semaphore is fair), with queue_wait_timeout as a
-        // backstop. Served in arrival order, or cancelled if the client disconnects.
-        let _permit = match timeout(self.queue_wait_timeout, self.concurrency_semaphore.acquire())
-            .await
-        {
-            Ok(Ok(permit)) => permit,
-            Ok(Err(_)) => return Err(internal_server_error("proving service is shutting down")),
-            Err(_) => {
-                warn!(
-                    max_concurrent_requests = self.max_concurrent_requests,
-                    "Rejected proving request: timed out waiting for a worker slot"
-                );
-                return Err(service_busy(self.max_concurrent_requests));
+        // backstop. `QueueWaitingGuard` decrements the queue-depth gauge on every exit from the
+        // wait — slot acquired, timeout, shutdown, or client disconnect — so the gauge can't leak.
+        let wait_start = Instant::now();
+        let _permit = {
+            metrics::gauge!(metric_names::QUEUE_WAITING_REQUESTS).increment(1.0);
+            let _waiting_guard = QueueWaitingGuard;
+            match timeout(self.queue_wait_timeout, self.concurrency_semaphore.acquire()).await {
+                Ok(Ok(permit)) => {
+                    metrics::histogram!(metric_names::QUEUE_WAIT_DURATION_SECONDS)
+                        .record(wait_start.elapsed().as_secs_f64());
+                    // A worker slot opened up and this request is about to prove — clear any
+                    // saturation window so /health can recover.
+                    self.saturation_monitor.mark_accepted();
+                    permit
+                }
+                Ok(Err(_)) => {
+                    return Err(internal_server_error("proving service is shutting down"));
+                }
+                Err(_) => {
+                    metrics::counter!(
+                        metric_names::PROVE_TRANSACTION_OUTCOME_TOTAL,
+                        "outcome" => outcomes::REJECTED_WAIT_TIMEOUT,
+                    )
+                    .increment(1);
+                    self.saturation_monitor.mark_rejected();
+                    warn!(
+                        max_concurrent_requests = self.max_concurrent_requests,
+                        "Rejected proving request: timed out waiting for a worker slot"
+                    );
+                    return Err(service_busy(self.max_concurrent_requests));
+                }
             }
         };
 
@@ -106,5 +148,16 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
             warn!("prove_transaction failed: {:?}", err);
             ErrorObjectOwned::from(err)
         })
+    }
+}
+
+/// Decrements [`metric_names::QUEUE_WAITING_REQUESTS`] on drop. Using a guard rather than an
+/// explicit decrement covers the timeout, shutdown, and cancellation (client-disconnect) paths so
+/// the gauge always returns to its true depth.
+struct QueueWaitingGuard;
+
+impl Drop for QueueWaitingGuard {
+    fn drop(&mut self) {
+        metrics::gauge!(metric_names::QUEUE_WAITING_REQUESTS).decrement(1.0);
     }
 }
