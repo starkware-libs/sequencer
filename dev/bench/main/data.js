@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779336754059,
+  "lastUpdate": 1779622584975,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4181,6 +4181,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1439.14659855,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "15495638f1af2fe55092ebdfb8a07d937d888ec3",
+          "message": "blockifier: raw VC deterministic map order (#14131)",
+          "timestamp": "2026-05-24T11:23:00Z",
+          "tree_id": "37ad5d09703425d930cc6258be1a8a0297ee1ce8",
+          "url": "https://github.com/starkware-libs/sequencer/commit/15495638f1af2fe55092ebdfb8a07d937d888ec3"
+        },
+        "date": 1779622584619,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 894.39206924,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1368.0153708,
             "unit": "ms"
           }
         ]
