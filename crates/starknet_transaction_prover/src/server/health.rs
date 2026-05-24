@@ -56,8 +56,14 @@ where
     type Error = S::Error;
     type Future = Either<Ready<Result<Self::Response, Self::Error>>, S::Future>;
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.inner.poll_ready(cx)
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        // Always ready: the health-check fast path doesn't need the inner
+        // service, so we don't want inner backpressure to block readiness
+        // probes — that would cause load balancers to pull healthy-but-busy
+        // instances precisely when they're under load. The inner service's
+        // own `poll_ready` is driven on demand by `inner.call` inside the
+        // non-health branch below.
+        Poll::Ready(Ok(()))
     }
 
     fn call(&mut self, request: Request<ReqB>) -> Self::Future {
