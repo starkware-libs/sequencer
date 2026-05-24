@@ -27,9 +27,18 @@ const NUM_CALLDATA_FELTS: usize = 5_000;
 async fn start_test_http_server(max_request_body_size: u32) -> (SocketAddr, ServerHandle) {
     let methods = MockProvingRpc::from_expected_json().into_rpc();
     let addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
-    start_server(addr, &TransportMode::Http, methods.into(), 10, max_request_body_size, None, None)
-        .await
-        .expect("Failed to start HTTP server")
+    start_server(
+        addr,
+        &TransportMode::Http,
+        methods.into(),
+        10,
+        max_request_body_size,
+        None,
+        None,
+        None,
+    )
+    .await
+    .expect("Failed to start HTTP server")
 }
 
 /// A `starknet_proveTransaction` request whose invoke transaction carries `num_felts`
