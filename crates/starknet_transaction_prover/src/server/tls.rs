@@ -29,6 +29,7 @@ use tracing::warn;
 
 use crate::server::{
     HealthLayer,
+    HttpMetricsLayer,
     MetricsLayer,
     OhttpJsonrpseeLayer,
     RequestLogLayer,
