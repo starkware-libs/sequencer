@@ -19,6 +19,7 @@ testing = [
   "expect-test",
   "itertools",
   "num-bigint/rand",
+  "starknet_committer/testing",
   "starknet_patricia/testing",
 ]
 
@@ -81,6 +82,7 @@ expect-test.workspace = true
 itertools.workspace = true
 num-bigint.workspace = true
 rstest.workspace = true
+starknet_committer = { workspace = true, features = ["testing"] }
 starknet_patricia = { workspace = true, features = ["testing"] }
 tempfile.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
