@@ -1,11 +1,15 @@
 //! Process-wide panic hook: one structured `tracing` event with location +
 //! backtrace (indexable by log aggregators) instead of the default ad-hoc
-//! stderr output. Only logs — abort-on-panic behavior is preserved.
+//! stderr output, plus a `prover_panics_total` bump so alerts can fire on
+//! panic rate rather than log search. Only logs and counts — runtime
+//! abort-on-panic behavior is preserved.
 
 use std::backtrace::Backtrace;
 use std::panic::PanicHookInfo;
 
 use tracing::error;
+
+use crate::server::metrics::names::PANICS_TOTAL;
 
 #[cfg(test)]
 #[path = "panic_test.rs"]
@@ -16,6 +20,9 @@ pub fn install_panic_hook() {
 }
 
 fn panic_hook(info: &PanicHookInfo<'_>) {
+    // Increment first — if `Backtrace::force_capture` or the `error!` macro
+    // panic recursively, the counter still reflects the original panic.
+    metrics::counter!(PANICS_TOTAL).increment(1);
     let message = extract_payload(info);
     let location = info
         .location()
