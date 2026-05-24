@@ -301,12 +301,26 @@ scrapes bypass CORS and JSON-RPC parsing, and the endpoint is unauthenticated.
 | Metric | Type | Labels | Description |
 |---|---|---|---|
 | `prover_build_info` | gauge | `version`, `git_sha` | Always 1. Identifies the running build from a scrape. `git_sha` comes from the `GIT_SHA` docker build arg, and is `unknown` when the build doesn't pass one. |
+| `prover_http_requests_total` | counter | `method`, `status` | HTTP request count. `method` is a bounded enum (`GET`/`POST`/`PUT`/`DELETE`/`HEAD`/`OPTIONS`/`PATCH`/`other`); `status` is the HTTP status class (`1xx` through `5xx`, plus `other`, and `error` when the tower stack produced no response). Excludes `/health` and `/metrics` probes. |
+| `prover_http_request_duration_seconds` | histogram | `method`, `status` | End-to-end HTTP request latency, using the same bounded `method` and `status` label values as the request counter. Excludes `/health` and `/metrics` probes. |
+| `prover_http_inflight_requests` | gauge | none | Current count of HTTP requests being handled. Decremented via RAII so panics and cancellations don't leak. |
 | `prover_prove_transaction_outcome_total` | counter | `outcome` | Every proving request that reaches the prover, so its total is the shared denominator for all proving rates. `outcome` is a bounded enum: `success`, `failure_validation`, `failure_blocked`, `failure_runner`, `failure_output_parse`, `failure_proving`, `failure_unsupported_builtin`. `failure_unsupported_builtin` counts transactions rejected before proving because they use a builtin the prover does not support, which the client receives as JSON-RPC error `1002`. |
 | `prover_prove_transaction_duration_seconds` | histogram | `outcome` | Duration of the whole proving call, covering input validation, the optional blocking check, the virtual OS run and proving. Recorded for failures too, so filter on `outcome` for success-only percentiles. |
 | `prover_os_run_duration_seconds` | histogram | none | Virtual OS execution time, recorded for successful runs only. |
 | `prover_stwo_prove_duration_seconds` | histogram | none | STWO proving time, recorded for successful runs only. Emitted only by builds with the `stwo_proving` feature. |
 
 No user-controlled value becomes a label, so label cardinality stays bounded.
+
+**The HTTP metrics report transport status only.** jsonrpsee answers every JSON-RPC method call
+with `200 OK`, including calls that return a JSON-RPC error such as a validation or proving
+failure. A `4xx` or `5xx` `status` means the request failed before it reached a JSON-RPC method,
+for example an oversized body (`413`) or a body that is not a JSON object or array (`400`). Point
+proving error-rate alerts at `prover_prove_transaction_outcome_total` instead.
+
+For OHTTP requests (`Content-Type: message/ohttp-req`), the HTTP metrics describe the outer
+envelope. Once the service decrypts an envelope it answers `200 OK`, even when the inner request
+failed, so a `4xx` or `5xx` on an OHTTP request comes from the envelope itself. Plaintext requests
+still reach the server when OHTTP is enabled, and their labels keep the meaning described above.
 
 ### Request IDs
 
