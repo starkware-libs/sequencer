@@ -23,6 +23,17 @@ pub struct OsHints {
     pub os_hints_config: OsHintsConfig,
 }
 
+#[cfg(any(test, feature = "testing"))]
+impl OsHints {
+    pub fn first_block_input(&self) -> &OsBlockInput {
+        self.os_input.os_block_inputs.first().unwrap()
+    }
+
+    pub fn last_block_input(&self) -> &OsBlockInput {
+        self.os_input.os_block_inputs.last().unwrap()
+    }
+}
+
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
