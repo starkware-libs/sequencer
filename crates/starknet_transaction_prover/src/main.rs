@@ -14,7 +14,12 @@ async fn main() -> anyhow::Result<()> {
 
     use anyhow::Context;
     use clap::Parser;
-    use starknet_transaction_prover::server::config::{CliArgs, ServiceConfig, TransportMode};
+    use starknet_transaction_prover::server::config::{
+        CliArgs,
+        LogFormat,
+        ServiceConfig,
+        TransportMode,
+    };
     use starknet_transaction_prover::server::cors::{build_cors_layer, cors_mode};
     use starknet_transaction_prover::server::rpc_api::ProvingRpcServer;
     use starknet_transaction_prover::server::rpc_impl::ProvingRpcServerImpl;
@@ -28,16 +33,18 @@ async fn main() -> anyhow::Result<()> {
     use tracing_subscriber::prelude::*;
     use tracing_subscriber::{fmt, EnvFilter};
 
+    let args = CliArgs::parse();
+
     // TODO(Avi): Revisit the starknet_transaction_prover=debug default once the service stabilizes.
-    // Initialize tracing with RUST_LOG. By default, keep service logs and lower third-party
-    // logs to warn.
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
         EnvFilter::new("warn,starknet_transaction_prover=debug,privacy_prove=info")
     });
-    tracing_subscriber::registry().with(fmt::layer()).with(filter).init();
+    let registry = tracing_subscriber::registry().with(filter);
+    match args.log_format {
+        LogFormat::Json => registry.with(fmt::layer().json()).init(),
+        LogFormat::Text => registry.with(fmt::layer()).init(),
+    }
 
-    // Parse CLI args and load config.
-    let args = CliArgs::parse();
     let config = ServiceConfig::from_args(args)?;
 
     // Build and start the JSON-RPC server.

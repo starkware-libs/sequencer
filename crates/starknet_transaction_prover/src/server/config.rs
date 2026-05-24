@@ -6,7 +6,7 @@ use std::str::FromStr;
 
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::bouncer::BouncerConfig;
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
 use tracing::info;
@@ -36,6 +36,15 @@ const DEFAULT_OHTTP_KEY_CACHE_MAX_AGE_SECS: u64 = 3600;
 pub enum TransportMode {
     Http,
     Https { tls_cert_file: PathBuf, tls_key_file: PathBuf },
+}
+
+/// Output format for tracing log records.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
+#[clap(rename_all = "lowercase")]
+pub enum LogFormat {
+    #[default]
+    Text,
+    Json,
 }
 
 impl TransportMode {
@@ -546,6 +555,10 @@ pub struct CliArgs {
     /// Cache-Control max-age (seconds) for the `GET /ohttp-keys` response (default: 3600).
     #[arg(long, value_name = "SECS", env = "OHTTP_KEY_CACHE_MAX_AGE_SECS")]
     pub ohttp_key_cache_max_age_secs: Option<u64>,
+
+    /// Log output format. Use `json` in production so log aggregators parse fields directly.
+    #[arg(long, value_enum, value_name = "FORMAT", env = "LOG_FORMAT", default_value_t = LogFormat::Text)]
+    pub log_format: LogFormat,
 
     /// Hidden escape hatch: override the embedded bouncer config (block capacity limits) with a
     /// custom JSON file. Not advertised because the embedded defaults are tuned for this prover
