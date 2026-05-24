@@ -513,10 +513,10 @@
                 },
                 "calldata_factor": {
                     "resources": {
-                        "n_steps": 37,
+                        "n_steps": 30,
                         "n_memory_holes": 0,
                         "builtin_instance_counter": {
-                            "pedersen_builtin": 2,
+                            "pedersen_builtin": 1,
                             "poseidon_builtin": 1
                         }
                     },
