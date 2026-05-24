@@ -19,7 +19,7 @@ use indexmap::IndexMap;
 use starknet_api::block::StarknetVersion;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
-use starknet_api::core::EthAddress;
+use starknet_api::core::{ClassHash, ContractAddress, EthAddress};
 use starknet_api::executable_transaction::{DeclareTransaction, InvokeTransaction};
 use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
@@ -116,15 +116,79 @@ fn update_resources_for_virtual_builtin_syscall(
     }
 }
 
+/// Setup an test builder with
+/// 1. the OS-resources contract deployed,
+/// 2. funded (it is an account contract as well),
+/// 3. the initial block context (and therefore subsequent block contexts) with the minimal sierra
+///    version for gas tracking set to "infinity", in order to force step tracking mode, and
+/// 4. the deployable contract declared, so it can be deployed later.
+/// Returns the address of the OS-resources contract address, the deployable class hash and the test
+/// builder.
+async fn setup_test_builder() -> (ContractAddress, ClassHash, TestBuilder<DictStateReader>) {
+    // Setup the test initial state and test builder.
+    // Need to explicitly set up the state to be able to override the minimal sierra version for gas
+    // tracking, in order to force step tracking mode.
+    let os_resources_contract = FeatureContract::OsResourcesTest(RunnableCairo1::Casm);
+    let (mut initial_state_data, [os_resources_contract_address]) =
+        create_default_initial_state_data::<DictStateReader, 1>([(
+            os_resources_contract,
+            calldata![],
+        )])
+        .await;
+    initial_state_data.initial_state.block_context = {
+        let block_context = &initial_state_data.initial_state.block_context;
+        let mut vc = block_context.versioned_constants().clone();
+        vc.min_sierra_version_for_sierra_gas = SierraVersion::new(99, 99, 99);
+        BlockContext::new(
+            block_context.block_info().clone(),
+            block_context.chain_info().clone(),
+            vc,
+            block_context.bouncer_config.clone(),
+        )
+    };
+    let virtual_os = false;
+    let mut test_builder = TestBuilder::new_with_initial_state_data(
+        initial_state_data,
+        TestBuilderConfig::default(),
+        virtual_os,
+    );
+    test_builder.add_fund_address_tx_with_default_amount(os_resources_contract_address);
+
+    // Declare the deployable contract, so it can be deployed later.
+    let deployable_contract_sierra = &DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_SIERRA;
+    let deployable_contract_casm = &DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_CASM;
+    let deployable_class_hash = deployable_contract_sierra.calculate_class_hash();
+    let deployable_compiled_class_hash = deployable_contract_casm.hash(&HashVersion::V2);
+    let declare_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        class_hash: deployable_class_hash,
+        compiled_class_hash: deployable_compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let account_declare_tx = declare_tx(declare_args);
+    let sierra_version = deployable_contract_sierra.get_sierra_version().unwrap();
+    let class_info = ClassInfo {
+        contract_class: ContractClass::V1((
+            (**deployable_contract_casm).clone(),
+            sierra_version.clone(),
+        )),
+        sierra_program_length: deployable_contract_sierra.sierra_program.len(),
+        abi_length: deployable_contract_sierra.abi.len(),
+        sierra_version,
+    };
+    let tx = DeclareTransaction::create(account_declare_tx, class_info, &test_builder.chain_id())
+        .unwrap();
+    test_builder.add_cairo1_declare_tx(tx, deployable_contract_sierra);
+
+    // Move on to the next block, so the measurement txs are in their own block.
+    test_builder.move_to_next_block();
+    (os_resources_contract_address, deployable_class_hash, test_builder)
+}
+
 #[tokio::test]
 async fn test_fee_transfer_syscalls() {
-    let os_resources_contract = FeatureContract::OsResourcesTest(RunnableCairo1::Casm);
-    let (mut builder, [os_resources_contract_address]) =
-        TestBuilder::create_standard([(os_resources_contract, calldata![Felt::ZERO])]).await;
-
-    // Fund the contract - it will be used as the account.
-    // Then, move on to the next block, so the syscall-measurement tx is in it's own block.
-    builder.add_fund_address_tx_with_default_amount(os_resources_contract_address);
+    let (os_resources_contract_address, _, mut builder) = setup_test_builder().await;
 
     // Invoke from the OS resources contract, with zeros as calldata, to make the __execute__ do
     // nothing. All resulting events should be from the fee transfer call.
@@ -164,65 +228,8 @@ async fn test_os_resources_regression() {
     let mut raw_vc: RawVersionedConstants =
         serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
 
-    // Setup the test initial state and test builder.
-    // Need to explicitly set up the state to be able to override the minimal sierra version for gas
-    // tracking, in order to force step tracking mode.
-    let (mut initial_state_data, [os_resources_contract_address]) =
-        create_default_initial_state_data::<DictStateReader, 1>([(
-            os_resources_contract,
-            calldata![],
-        )])
-        .await;
-    initial_state_data.initial_state.block_context = {
-        let block_context = &initial_state_data.initial_state.block_context;
-        let mut vc = block_context.versioned_constants().clone();
-        vc.min_sierra_version_for_sierra_gas = SierraVersion::new(99, 99, 99);
-        BlockContext::new(
-            block_context.block_info().clone(),
-            block_context.chain_info().clone(),
-            vc,
-            block_context.bouncer_config.clone(),
-        )
-    };
-    let virtual_os = false;
-    let mut test_builder = TestBuilder::new_with_initial_state_data(
-        initial_state_data,
-        TestBuilderConfig::default(),
-        virtual_os,
-    );
-
-    // Fund the contract - it will be used as the account.
-    test_builder.add_fund_address_tx_with_default_amount(os_resources_contract_address);
-
-    // Declare the deployable contract, so it can be deployed later.
-    let deployable_contract_sierra = &DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_SIERRA;
-    let deployable_contract_casm = &DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_CASM;
-    let deployable_class_hash = deployable_contract_sierra.calculate_class_hash();
-    let deployable_compiled_class_hash = deployable_contract_casm.hash(&HashVersion::V2);
-    let declare_args = declare_tx_args! {
-        sender_address: *FUNDED_ACCOUNT_ADDRESS,
-        nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
-        class_hash: deployable_class_hash,
-        compiled_class_hash: deployable_compiled_class_hash,
-        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-    };
-    let account_declare_tx = declare_tx(declare_args);
-    let sierra_version = deployable_contract_sierra.get_sierra_version().unwrap();
-    let class_info = ClassInfo {
-        contract_class: ContractClass::V1((
-            (**deployable_contract_casm).clone(),
-            sierra_version.clone(),
-        )),
-        sierra_program_length: deployable_contract_sierra.sierra_program.len(),
-        abi_length: deployable_contract_sierra.abi.len(),
-        sierra_version,
-    };
-    let tx = DeclareTransaction::create(account_declare_tx, class_info, &test_builder.chain_id())
-        .unwrap();
-    test_builder.add_cairo1_declare_tx(tx, deployable_contract_sierra);
-
-    // Move on to the next block, so the syscall-measurement tx is in it's own block.
-    test_builder.move_to_next_block();
+    let (os_resources_contract_address, deployable_class_hash, mut test_builder) =
+        setup_test_builder().await;
 
     // Add the syscall-measurement tx.
     let tx = InvokeTransaction::create(
