@@ -11,9 +11,11 @@ use crate::l1_gas_price_provider::{L1GasPriceProvider, L1GasPriceProviderError};
 // Returns the provider, a vector of block prices to compare with, and the timestamp of block[3].
 fn make_provider() -> (L1GasPriceProvider, Vec<PriceInfo>, u64) {
     let eth_to_strk_oracle_client = Arc::new(MockExchangeRateOracleClientTrait::new());
+    let strk_to_usd_oracle_client = Arc::new(MockExchangeRateOracleClientTrait::new());
     let mut provider = L1GasPriceProvider::new(
         L1GasPriceProviderConfig { number_of_blocks_for_mean: 3, ..Default::default() },
         eth_to_strk_oracle_client,
+        strk_to_usd_oracle_client,
     );
     provider.initialize().unwrap();
     let mut prices = Vec::new();
@@ -117,9 +119,11 @@ fn gas_price_provider_timestamp_changes_mean() {
 #[test]
 fn gas_price_provider_can_start_at_nonzero_height() {
     let eth_to_strk_oracle_client = Arc::new(MockExchangeRateOracleClientTrait::new());
+    let strk_to_usd_oracle_client = Arc::new(MockExchangeRateOracleClientTrait::new());
     let mut provider = L1GasPriceProvider::new(
         L1GasPriceProviderConfig { number_of_blocks_for_mean: 3, ..Default::default() },
         eth_to_strk_oracle_client,
+        strk_to_usd_oracle_client,
     );
     provider.initialize().unwrap();
     let price_info = PriceInfo { base_fee_per_gas: GasPrice(0), blob_fee: GasPrice(0) };
@@ -130,9 +134,11 @@ fn gas_price_provider_can_start_at_nonzero_height() {
 #[test]
 fn gas_price_provider_uninitialized_error() {
     let eth_to_strk_oracle_client = Arc::new(MockExchangeRateOracleClientTrait::new());
+    let strk_to_usd_oracle_client = Arc::new(MockExchangeRateOracleClientTrait::new());
     let mut provider = L1GasPriceProvider::new(
         L1GasPriceProviderConfig { number_of_blocks_for_mean: 3, ..Default::default() },
         eth_to_strk_oracle_client,
+        strk_to_usd_oracle_client,
     );
     let price_info = PriceInfo { base_fee_per_gas: GasPrice(0), blob_fee: GasPrice(0) };
     let timestamp = BlockTimestamp(0);
