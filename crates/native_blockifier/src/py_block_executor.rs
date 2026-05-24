@@ -10,7 +10,7 @@ use blockifier::blockifier::transaction_executor::{
     TransactionExecutorError,
 };
 use blockifier::blockifier_versioned_constants::VersionedConstants;
-use blockifier::bouncer::BouncerConfig;
+use blockifier::bouncer::{BouncerConfig, BuiltinInstanceLimits};
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
@@ -361,7 +361,6 @@ impl PyBlockExecutor {
         min_sierra_version: Option<String>,
         enable_casm_hash_migration: Option<bool>,
     ) -> Self {
-        use blockifier::bouncer::BouncerWeights;
         // TODO(Meshi, 01/01/2025): Remove this once we fix all python tests that re-declare cairo0
         // contracts.
         let mut versioned_constants = VersionedConstants::latest_constants().clone();
@@ -377,13 +376,12 @@ impl PyBlockExecutor {
             versioned_constants.enable_casm_hash_migration = enable_casm_hash_migration;
         }
 
+        let mut block_max_capacity = BouncerConfig::max().block_max_capacity;
+        block_max_capacity.state_diff_size = max_state_diff_size;
         Self {
             bouncer_config: BouncerConfig {
-                block_max_capacity: BouncerWeights {
-                    state_diff_size: max_state_diff_size,
-                    ..BouncerWeights::max()
-                },
-                ..BouncerConfig::max()
+                block_max_capacity,
+                builtin_instance_limits: BuiltinInstanceLimits::default(),
             },
             tx_executor_config: TransactionExecutorConfig {
                 concurrency_config: concurrency_config.into(),

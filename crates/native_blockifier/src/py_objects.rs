@@ -1,6 +1,7 @@
 #![allow(non_local_definitions)]
 
 use std::collections::HashMap;
+use std::num::NonZeroU64;
 use std::path::PathBuf;
 
 use apollo_compile_to_native_types::SierraCompilationConfig;
@@ -11,8 +12,13 @@ use blockifier::blockifier::config::{
     ContractClassManagerConfig,
 };
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
-use blockifier::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstantsOverrides};
-use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinWeights, CasmHashComputationData};
+use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
+use blockifier::bouncer::{
+    BouncerConfig,
+    BouncerWeights,
+    BuiltinInstanceLimits,
+    CasmHashComputationData,
+};
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use blockifier::utils::u64_from_usize;
@@ -110,20 +116,18 @@ impl From<PyVersionedConstantsOverrides> for VersionedConstantsOverrides {
 #[derive(Clone, Debug, FromPyObject)]
 pub struct PyBouncerConfig {
     pub full_total_weights: HashMap<String, usize>,
-    pub builtin_weights: HashMap<String, usize>,
+    pub builtin_instance_limits: HashMap<String, usize>,
 }
 
 impl TryFrom<PyBouncerConfig> for BouncerConfig {
     type Error = NativeBlockifierError;
     fn try_from(py_bouncer_config: PyBouncerConfig) -> Result<Self, Self::Error> {
-        Ok(BouncerConfig {
-            block_max_capacity: hash_map_into_bouncer_weights(
-                py_bouncer_config.full_total_weights.clone(),
-            )?,
-            builtin_weights: hash_map_into_builtin_weights(
-                py_bouncer_config.builtin_weights.clone(),
-            )?,
-        })
+        let block_max_capacity =
+            hash_map_into_bouncer_weights(py_bouncer_config.full_total_weights.clone())?;
+        let builtin_instance_limits = hash_map_into_builtin_instance_limits(
+            py_bouncer_config.builtin_instance_limits.clone(),
+        )?;
+        Ok(BouncerConfig { block_max_capacity, builtin_instance_limits })
     }
 }
 
@@ -177,47 +181,50 @@ fn hash_map_into_bouncer_weights(
     })
 }
 
-fn hash_map_into_builtin_weights(
+fn hash_map_into_builtin_instance_limits(
     mut data: HashMap<String, usize>,
-) -> NativeBlockifierResult<BuiltinWeights> {
+) -> NativeBlockifierResult<BuiltinInstanceLimits> {
+    let nz = |name: &str, value: usize| -> NonZeroU64 {
+        NonZeroU64::new(u64_from_usize(value))
+            .unwrap_or_else(|| panic!("{name} instance limit must be > 0"))
+    };
     let pedersen =
-        u64_from_usize(data.remove(Builtin::Pedersen.name()).expect("pedersen must be present"));
-    let range_check = u64_from_usize(
+        nz("pedersen", data.remove(Builtin::Pedersen.name()).expect("pedersen must be present"));
+    let range_check = nz(
+        "range_check",
         data.remove(Builtin::RangeCheck.name()).expect("range_check must be present"),
     );
     let bitwise =
-        u64_from_usize(data.remove(Builtin::Bitwise.name()).expect("bitwise must be present"));
-    let ecdsa = u64_from_usize(data.remove(Builtin::Ecdsa.name()).expect("ecdsa must be present"));
-    let keccak =
-        u64_from_usize(data.remove(Builtin::Keccak.name()).expect("keccak must be present"));
+        nz("bitwise", data.remove(Builtin::Bitwise.name()).expect("bitwise must be present"));
+    let ecdsa = nz("ecdsa", data.remove(Builtin::Ecdsa.name()).expect("ecdsa must be present"));
+    let keccak = nz("keccak", data.remove(Builtin::Keccak.name()).expect("keccak must be present"));
     let add_mod =
-        u64_from_usize(data.remove(Builtin::AddMod.name()).expect("add_mod must be present"));
+        nz("add_mod", data.remove(Builtin::AddMod.name()).expect("add_mod must be present"));
     let mul_mod =
-        u64_from_usize(data.remove(Builtin::MulMod.name()).expect("mul_mod must be present"));
-    let ecop = u64_from_usize(data.remove(Builtin::EcOp.name()).expect("ec_op must be present"));
-    let range_check96 = u64_from_usize(
+        nz("mul_mod", data.remove(Builtin::MulMod.name()).expect("mul_mod must be present"));
+    let ecop = nz("ec_op", data.remove(Builtin::EcOp.name()).expect("ec_op must be present"));
+    let range_check96 = nz(
+        "range_check96",
         data.remove(Builtin::RangeCheck96.name()).expect("range_check96 must be present"),
     );
     let poseidon =
-        u64_from_usize(data.remove(Builtin::Poseidon.name()).expect("poseidon must be present"));
-    let blake = u64_from_usize(data.remove("blake").expect("blake must be present"));
+        nz("poseidon", data.remove(Builtin::Poseidon.name()).expect("poseidon must be present"));
+    let blake = nz("blake", data.remove("blake").expect("blake must be present"));
 
-    assert!(data.is_empty(), "Unexpected keys in builtin weights: {:?}", data.keys());
+    assert!(data.is_empty(), "Unexpected keys in builtin instance limits: {:?}", data.keys());
 
-    Ok(BuiltinWeights {
-        gas_costs: BuiltinGasCosts {
-            pedersen,
-            range_check,
-            bitwise,
-            ecdsa,
-            keccak,
-            add_mod,
-            mul_mod,
-            ecop,
-            range_check96,
-            poseidon,
-            blake,
-        },
+    Ok(BuiltinInstanceLimits {
+        pedersen,
+        range_check,
+        bitwise,
+        ecdsa,
+        keccak,
+        add_mod,
+        mul_mod,
+        ecop,
+        range_check96,
+        poseidon,
+        blake,
     })
 }
 
