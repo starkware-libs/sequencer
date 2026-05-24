@@ -144,7 +144,7 @@
             "validate_timestamp_rounding": 3600
         },
         "validated": "VALID",
-        "execute_max_sierra_gas": 1100000000,
+        "execute_max_sierra_gas": 1110000000,
         "validate_max_sierra_gas": 100000000,
         "error_block_number_out_of_range": "Block number out of range",
         "error_invalid_input_len": "Invalid input length",
