@@ -1367,6 +1367,11 @@ async fn get_sequencer_setup_configs(
             url_header_list: Some(vec![eth_to_strk_oracle_url.clone().into()]),
             ..Default::default()
         };
+        // Reuse the same dummy oracle endpoint for STRK/USD; the handler returns a constant.
+        let strk_to_usd_oracle_config = ExchangeRateOracleConfig {
+            url_header_list: Some(vec![eth_to_strk_oracle_url.clone().into()]),
+            ..Default::default()
+        };
 
         let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
         let chain_info = chain_info.clone();
@@ -1397,6 +1402,7 @@ async fn get_sequencer_setup_configs(
                 state_sync_config.clone(),
                 consensus_manager_config.clone(),
                 eth_to_strk_oracle_config.clone(),
+                strk_to_usd_oracle_config.clone(),
                 mempool_p2p_config.clone(),
                 monitoring_endpoint_config,
                 executable_component_config.clone(),
