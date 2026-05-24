@@ -18,7 +18,7 @@ use expect_test::expect_file;
 use indexmap::IndexMap;
 use starknet_api::block::StarknetVersion;
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::EthAddress;
+use starknet_api::core::{ContractAddress, EthAddress};
 use starknet_api::executable_transaction::InvokeTransaction;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::transaction::{L2ToL1Payload, MessageToL1};
@@ -105,15 +105,47 @@ fn update_resources_for_virtual_builtin_syscall(
     }
 }
 
+/// Setup an test builder with
+/// 1. the OS-resources contract deployed,
+/// 2. funded (it is an account contract as well), and
+/// 3. the initial block context (and therefore subsequent block contexts) with the minimal sierra
+///    version for gas tracking set to "infinity", in order to force step tracking mode.
+async fn setup_test_builder() -> (ContractAddress, TestBuilder<DictStateReader>) {
+    // Setup the test initial state and test builder.
+    // Need to explicitly set up the state to be able to override the minimal sierra version for gas
+    // tracking, in order to force step tracking mode.
+    let os_resources_contract = FeatureContract::OsResourcesTest(RunnableCairo1::Casm);
+    let (mut initial_state_data, [os_resources_contract_address]) =
+        create_default_initial_state_data::<DictStateReader, 1>([(
+            os_resources_contract,
+            calldata![Felt::ZERO],
+        )])
+        .await;
+    initial_state_data.initial_state.block_context = {
+        let block_context = &initial_state_data.initial_state.block_context;
+        let mut vc = block_context.versioned_constants().clone();
+        vc.min_sierra_version_for_sierra_gas = SierraVersion::new(99, 99, 99);
+        BlockContext::new(
+            block_context.block_info().clone(),
+            block_context.chain_info().clone(),
+            vc,
+            block_context.bouncer_config.clone(),
+        )
+    };
+    let virtual_os = false;
+    let mut test_builder = TestBuilder::new_with_initial_state_data(
+        initial_state_data,
+        TestBuilderConfig::default(),
+        virtual_os,
+    );
+    test_builder.add_fund_address_tx_with_default_amount(os_resources_contract_address);
+    test_builder.move_to_next_block();
+    (os_resources_contract_address, test_builder)
+}
+
 #[tokio::test]
 async fn test_fee_transfer_syscalls() {
-    let os_resources_contract = FeatureContract::OsResourcesTest(RunnableCairo1::Casm);
-    let (mut builder, [os_resources_contract_address]) =
-        TestBuilder::create_standard([(os_resources_contract, calldata![Felt::ZERO])]).await;
-
-    // Fund the contract - it will be used as the account.
-    // Then, move on to the next block, so the syscall-measurement tx is in it's own block.
-    builder.add_fund_address_tx_with_default_amount(os_resources_contract_address);
+    let (os_resources_contract_address, mut builder) = setup_test_builder().await;
 
     // Invoke from the OS resources contract, with zeros as calldata, to make the __execute__ do
     // nothing. All resulting events should be from the fee transfer call.
@@ -153,37 +185,7 @@ async fn test_os_resources_regression() {
     let mut raw_vc: RawVersionedConstants =
         serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
 
-    // Setup the test initial state and test builder.
-    // Need to explicitly set up the state to be able to override the minimal sierra version for gas
-    // tracking, in order to force step tracking mode.
-    let (mut initial_state_data, [os_resources_contract_address]) =
-        create_default_initial_state_data::<DictStateReader, 1>([(
-            os_resources_contract,
-            calldata![Felt::ZERO],
-        )])
-        .await;
-    initial_state_data.initial_state.block_context = {
-        let block_context = &initial_state_data.initial_state.block_context;
-        let mut vc = block_context.versioned_constants().clone();
-        vc.min_sierra_version_for_sierra_gas = SierraVersion::new(99, 99, 99);
-        BlockContext::new(
-            block_context.block_info().clone(),
-            block_context.chain_info().clone(),
-            vc,
-            block_context.bouncer_config.clone(),
-        )
-    };
-    let virtual_os = false;
-    let mut test_builder = TestBuilder::new_with_initial_state_data(
-        initial_state_data,
-        TestBuilderConfig::default(),
-        virtual_os,
-    );
-
-    // Fund the contract - it will be used as the account.
-    // Then, move on to the next block, so the syscall-measurement tx is in it's own block.
-    test_builder.add_fund_address_tx_with_default_amount(os_resources_contract_address);
-    test_builder.move_to_next_block();
+    let (os_resources_contract_address, mut test_builder) = setup_test_builder().await;
 
     // Add the syscall-measurement tx.
     let tx = InvokeTransaction::create(
