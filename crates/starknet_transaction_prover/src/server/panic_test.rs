@@ -1,6 +1,8 @@
 use std::sync::{Arc, Mutex};
 
-use crate::server::panic::extract_payload;
+use crate::server::metrics::names::PANICS_TOTAL;
+use crate::server::panic::{extract_payload, install_panic_hook};
+use crate::server::test_recorder::{metric_value, shared_handle};
 
 fn capture_payload<F: FnOnce() + std::panic::UnwindSafe>(f: F) -> String {
     let captured: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
@@ -17,10 +19,23 @@ fn capture_payload<F: FnOnce() + std::panic::UnwindSafe>(f: F) -> String {
     payload
 }
 
-// Panic-capturing tests share global state (the panic hook), so they must
-// run serially. Keep as a single `#[test]` so ordering is explicit.
+// Panic-capturing tests mutate the process-global panic hook.
 #[test]
 fn extracts_static_str_and_formatted_payloads() {
     assert_eq!(capture_payload(|| panic!("static literal")), "static literal");
     assert_eq!(capture_payload(|| panic!("formatted {}", 42)), "formatted 42");
+}
+
+#[test]
+fn panic_hook_bumps_panics_total_counter() {
+    let handle = shared_handle();
+    let before = metric_value(&handle.render(), PANICS_TOTAL);
+
+    let prev_hook = std::panic::take_hook();
+    install_panic_hook();
+    let _ = std::panic::catch_unwind(|| panic!("counter-test panic"));
+    std::panic::set_hook(prev_hook);
+
+    let after = metric_value(&handle.render(), PANICS_TOTAL);
+    assert_eq!(after - before, 1.0);
 }
