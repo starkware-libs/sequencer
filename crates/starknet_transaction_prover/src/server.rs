@@ -30,6 +30,7 @@ pub mod config;
 pub mod cors;
 pub mod errors;
 pub mod health;
+pub mod http_metrics;
 pub mod log_redact;
 pub mod metrics;
 #[cfg(test)]
@@ -39,9 +40,12 @@ pub mod request_log;
 pub mod request_span;
 pub mod rpc_api;
 pub mod rpc_impl;
+#[cfg(test)]
+pub mod test_recorder;
 pub mod tls;
 
 pub use health::{HealthLayer, HEALTH_PATH};
+pub use http_metrics::HttpMetricsLayer;
 pub use metrics::{MetricsLayer, METRICS_PATH};
 pub use request_log::{RequestLogLayer, REQUEST_ID_HEADER};
 pub use request_span::RequestSpanLayer;
@@ -88,16 +92,17 @@ pub async fn start_server(
                 // type it expects. `HttpBody::new` is a zero-cost wrapper, so
                 // non-OHTTP requests still stream through unbuffered.
                 .set_http_middleware(
-                    // `RequestLogLayer` is outermost so the latency it measures
-                    // covers every other layer. `HealthLayer` and `MetricsLayer`
-                    // sit inside it so probes/scrapes complete before CORS/OHTTP.
-                    // `RequestSpanLayer` sits BELOW `OhttpLayer` so it spans the
-                    // decapsulated inner request with a fresh, envelope-unlinkable
-                    // id (see `request_span`).
+                    // `RequestLogLayer` outermost so its latency covers the
+                    // whole stack. `HealthLayer` and `MetricsLayer` sit inside
+                    // it so probes/scrapes are excluded from `HttpMetricsLayer`'s
+                    // request-latency distribution. `RequestSpanLayer` sits BELOW
+                    // `OhttpLayer` so it spans the decapsulated inner request with
+                    // a fresh, envelope-unlinkable id (see `request_span`).
                     ServiceBuilder::new()
                         .layer(RequestLogLayer)
                         .layer(HealthLayer)
                         .option_layer(metrics_layer)
+                        .layer(HttpMetricsLayer)
                         .option_layer(cors_layer)
                         .layer(MapRequestBodyLayer::new(HttpBody::new))
                         .option_layer(ohttp_layer)

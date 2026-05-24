@@ -29,6 +29,7 @@ use tracing::warn;
 
 use crate::server::{
     HealthLayer,
+    HttpMetricsLayer,
     MetricsLayer,
     OhttpJsonrpseeLayer,
     RequestLogLayer,
@@ -71,6 +72,7 @@ pub async fn start_tls_server(
                 .layer(RequestLogLayer)
                 .layer(HealthLayer)
                 .option_layer(metrics_layer)
+                .layer(HttpMetricsLayer)
                 .option_layer(cors_layer)
                 .layer(MapRequestBodyLayer::new(HttpBody::new))
                 .option_layer(ohttp_layer)

@@ -4,7 +4,8 @@ use http_body_util::{BodyExt, Full};
 use jsonrpsee::server::HttpBody;
 use tower::{Layer, ServiceExt};
 
-use crate::server::metrics::{install_exporter, MetricsLayer, METRICS_PATH};
+use crate::server::metrics::{MetricsLayer, METRICS_PATH};
+use crate::server::test_recorder::shared_handle;
 
 fn fallthrough_service() -> impl tower::Service<
     Request<HttpBody>,
@@ -37,10 +38,9 @@ async fn read_body(response: Response<HttpBody>) -> (StatusCode, Vec<u8>) {
 
 #[tokio::test]
 async fn get_metrics_renders_prometheus_text() {
-    // Note: install_exporter installs the global recorder, so this test must
-    // be the only one in the crate that calls it. Other metric tests should
-    // share this fixture or call install_exporter via `try_install`.
-    let handle = install_exporter("0.0.1-test", "deadbeef").expect("install");
+    // `shared_handle` installs the recorder exactly once across the test
+    // binary; see `test_recorder.rs`.
+    let handle = shared_handle().clone();
     let svc = MetricsLayer::new(handle).layer(fallthrough_service());
 
     let response = svc.oneshot(empty_request(Method::GET, METRICS_PATH)).await.unwrap();
@@ -52,6 +52,9 @@ async fn get_metrics_renders_prometheus_text() {
         body_text.contains("prover_build_info"),
         "scrape should include build_info, got:\n{body_text}"
     );
-    assert!(body_text.contains("version=\"0.0.1-test\""));
-    assert!(body_text.contains("git_sha=\"deadbeef\""));
+    // Don't bind to specific label values — `shared_handle` uses generic
+    // test labels and is also called by other tests. Verifying the
+    // build_info series exists at all is sufficient.
+    assert!(body_text.contains("version="));
+    assert!(body_text.contains("git_sha="));
 }
