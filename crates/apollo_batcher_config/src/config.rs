@@ -340,7 +340,7 @@ impl Default for BatcherDynamicConfig {
             storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig::default(),
             n_concurrent_txs: 100,
             tx_polling_interval_millis: 10,
-            proposer_idle_detection_delay_millis: Duration::from_millis(2000),
+            proposer_idle_detection_delay_millis: Duration::from_millis(1500),
         }
     }
 }
