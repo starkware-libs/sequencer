@@ -9,7 +9,7 @@ use super::AccessedKeys;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::execution::call_info::{CallInfo, StorageAccessTracker};
 use crate::execution::entry_point::CallEntryPoint;
-use crate::state::cached_state::StateMaps;
+use crate::state::cached_state::CommitmentStateDiff;
 use crate::state::stateful_compression::ALIAS_COUNTER_STORAGE_KEY;
 use crate::transaction::objects::TransactionExecutionInfo;
 
@@ -44,7 +44,7 @@ fn no_inputs_no_alias_prediction_yields_empty_storage_keys() {
     let accessed = AccessedKeys::new(
         std::iter::empty::<&TransactionExecutionInfo>(),
         std::iter::empty::<&BlockNumber>(),
-        &StateMaps::default(),
+        &CommitmentStateDiff::default(),
         &versioned_constants_with_compression(false),
     );
     assert!(accessed.storage_keys.is_empty());
@@ -59,7 +59,7 @@ fn empty_inputs_with_alias_prediction_contains_counter_only() {
     let accessed = AccessedKeys::new(
         std::iter::empty::<&TransactionExecutionInfo>(),
         std::iter::empty::<&BlockNumber>(),
-        &StateMaps::default(),
+        &CommitmentStateDiff::default(),
         &versioned_constants,
     );
     assert_eq!(
@@ -73,8 +73,8 @@ fn empty_inputs_with_alias_prediction_contains_counter_only() {
 fn state_diff_storage_keys_are_included() {
     let address = ContractAddress::from(0x100_u16);
     let storage_key = StorageKey::from(0x200_u16);
-    let mut state_diff = StateMaps::default();
-    state_diff.storage.insert((address, storage_key), Felt::ONE);
+    let mut state_diff = CommitmentStateDiff::default();
+    state_diff.storage_updates.entry(address).or_default().insert(storage_key, Felt::ONE);
 
     let accessed = AccessedKeys::new(
         std::iter::empty::<&TransactionExecutionInfo>(),
@@ -93,7 +93,7 @@ fn proof_facts_block_numbers_map_to_block_hash_table_entries() {
     let accessed = AccessedKeys::new(
         std::iter::empty::<&TransactionExecutionInfo>(),
         [&block_number_x, &block_number_y],
-        &StateMaps::default(),
+        &CommitmentStateDiff::default(),
         &versioned_constants_with_compression(false),
     );
     assert!(
@@ -112,8 +112,8 @@ fn proof_facts_block_numbers_map_to_block_hash_table_entries() {
 #[test]
 fn alias_predictions_toggle_controls_alias_contract_entries() {
     let modified_address = ContractAddress::from(0x100_u16);
-    let mut state_diff = StateMaps::default();
-    state_diff.nonces.insert(modified_address, Nonce(Felt::ONE));
+    let mut state_diff = CommitmentStateDiff::default();
+    state_diff.address_to_nonce.insert(modified_address, Nonce(Felt::ONE));
     let versioned_constants_with = versioned_constants_with_compression(true);
     let versioned_constants_without = versioned_constants_with_compression(false);
     let alias_contract_address = get_alias_contract_address(&versioned_constants_with);
@@ -156,7 +156,7 @@ fn visited_storage_entries_from_execution_info_are_included() {
     let accessed = AccessedKeys::new(
         [&execution_info],
         std::iter::empty::<&BlockNumber>(),
-        &StateMaps::default(),
+        &CommitmentStateDiff::default(),
         &versioned_constants_with_compression(false),
     );
     assert!(accessed.storage_keys.contains(&(storage_address, key_a)));
@@ -182,7 +182,7 @@ fn reverted_invoke_collects_validate_and_fee_transfer_entries() {
     let accessed = AccessedKeys::new(
         [&execution_info],
         std::iter::empty::<&BlockNumber>(),
-        &StateMaps::default(),
+        &CommitmentStateDiff::default(),
         &versioned_constants_with_compression(false),
     );
     assert!(accessed.storage_keys.contains(&(validate_address, validate_key)));

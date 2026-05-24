@@ -9,7 +9,7 @@ use starknet_api::state::StorageKey;
 
 #[cfg(any(feature = "testing", test))]
 use super::cached_state::StateChangesKeys;
-use super::cached_state::{StateMaps, StorageEntry};
+use super::cached_state::{CommitmentStateDiff, StorageEntry};
 use super::stateful_compression::predicted_alias_storage_entries;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::transaction::objects::TransactionExecutionInfo;
@@ -52,7 +52,7 @@ impl AccessedKeys {
     pub fn new<'a>(
         execution_infos: impl IntoIterator<Item = &'a TransactionExecutionInfo>,
         proof_facts_block_numbers: impl IntoIterator<Item = &'a BlockNumber>,
-        state_diff: &StateMaps,
+        state_diff: &CommitmentStateDiff,
         versioned_constants: &VersionedConstants,
     ) -> Self {
         let mut storage_keys: BTreeSet<StorageEntry> = BTreeSet::new();
@@ -73,7 +73,10 @@ impl AccessedKeys {
             }
         }
 
-        storage_keys.extend(state_diff.storage.keys().copied());
+        // Storage entries written in the state diff.
+        for (address, inner) in &state_diff.storage_updates {
+            storage_keys.extend(inner.keys().map(|key| (*address, *key)));
+        }
         // Add the block hash table entries for the proof facts.
         for block_number in proof_facts_block_numbers {
             storage_keys.insert((BLOCK_HASH_TABLE_ADDRESS, StorageKey::from(block_number.0)));
@@ -88,10 +91,18 @@ impl AccessedKeys {
         }
 
         accessed_contracts.extend(storage_keys.iter().map(|(address, _)| *address));
-        accessed_contracts.extend(state_diff.get_contract_addresses());
+        // Modified contracts from the state diff: union of storage / nonce / class_hash changes.
+        accessed_contracts.extend(
+            state_diff
+                .storage_updates
+                .keys()
+                .chain(state_diff.address_to_nonce.keys())
+                .chain(state_diff.address_to_class_hash.keys())
+                .copied(),
+        );
 
-        accessed_class_hashes.extend(state_diff.class_hashes.values().copied());
-        accessed_class_hashes.extend(state_diff.compiled_class_hashes.keys().copied());
+        accessed_class_hashes.extend(state_diff.address_to_class_hash.values().copied());
+        accessed_class_hashes.extend(state_diff.class_hash_to_compiled_class_hash.keys().copied());
 
         Self { storage_keys, accessed_contracts, accessed_class_hashes }
     }

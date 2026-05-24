@@ -6,7 +6,7 @@ use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
-use super::cached_state::{CachedState, StateMaps, StorageEntry};
+use super::cached_state::{CachedState, CommitmentStateDiff, StateMaps, StorageEntry};
 use super::errors::StateError;
 use super::state_api::{State, StateReader, StateResult};
 
@@ -84,19 +84,28 @@ pub fn allocate_aliases_in_storage<S: StateReader>(
 /// access pattern of `AliasUpdater::new` (counter read) plus each `AliasUpdater::insert_alias`
 /// call (one read per qualifying key).
 pub fn predicted_alias_storage_entries(
-    state_diff: &StateMaps,
+    state_diff: &CommitmentStateDiff,
     alias_contract_address: ContractAddress,
 ) -> HashSet<StorageEntry> {
     let mut entries = HashSet::new();
     entries.insert((alias_contract_address, ALIAS_COUNTER_STORAGE_KEY));
-    for address in state_diff.get_contract_addresses() {
-        if should_compress_address(&address) {
+    // Modified contracts: union of addresses with storage updates, nonce changes, or class hash
+    // changes. Mirrors `StateMaps::get_contract_addresses`.
+    let modified_contracts = state_diff
+        .storage_updates
+        .keys()
+        .chain(state_diff.address_to_nonce.keys())
+        .chain(state_diff.address_to_class_hash.keys());
+    for address in modified_contracts {
+        if should_compress_address(address) {
             entries.insert((alias_contract_address, StorageKey(address.0)));
         }
     }
-    for (address, storage_key) in state_diff.storage.keys() {
-        if should_compress_storage_key(storage_key, address) {
-            entries.insert((alias_contract_address, *storage_key));
+    for (address, inner) in &state_diff.storage_updates {
+        for storage_key in inner.keys() {
+            if should_compress_storage_key(storage_key, address) {
+                entries.insert((alias_contract_address, *storage_key));
+            }
         }
     }
     entries
