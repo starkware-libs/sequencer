@@ -30,7 +30,13 @@ use tower_http::map_request_body::MapRequestBodyLayer;
 use tower_http::map_response_body::MapResponseBodyLayer;
 use tracing::warn;
 
-use crate::server::{HealthLayer, OhttpJsonrpseeLayer, RequestLogLayer, RequestSpanLayer};
+use crate::server::{
+    HealthLayer,
+    MetricsLayer,
+    OhttpJsonrpseeLayer,
+    RequestLogLayer,
+    RequestSpanLayer,
+};
 
 #[cfg(test)]
 #[path = "tls_test.rs"]
@@ -52,6 +58,7 @@ pub async fn start_tls_server(
     max_request_body_size: u32,
     cors_layer: Option<CorsLayer>,
     ohttp_layer: Option<OhttpJsonrpseeLayer>,
+    metrics_layer: Option<MetricsLayer>,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     let tls_acceptor = load_tls_acceptor(cert_path, key_path)?;
 
@@ -98,6 +105,7 @@ pub async fn start_tls_server(
         stop_handle,
         methods,
         server_config,
+        metrics_layer,
         cors_layer,
         ohttp_layer,
         prepare_stream,
@@ -116,6 +124,7 @@ fn spawn_accept_loop<PrepareStream, PrepareStreamFuture, ServedStream>(
     stop_handle: StopHandle,
     methods: Methods,
     server_config: ServerConfig,
+    metrics_layer: Option<MetricsLayer>,
     cors_layer: Option<CorsLayer>,
     ohttp_layer: Option<OhttpJsonrpseeLayer>,
     prepare_stream: PrepareStream,
@@ -127,7 +136,7 @@ fn spawn_accept_loop<PrepareStream, PrepareStreamFuture, ServedStream>(
     // See `prover_http_middleware!` for the full layer-order rationale.
     let svc_builder = ServerBuilder::default()
         .set_config(server_config)
-        .set_http_middleware(prover_http_middleware!(cors_layer, ohttp_layer))
+        .set_http_middleware(prover_http_middleware!(metrics_layer, cors_layer, ohttp_layer))
         .to_service_builder();
 
     tokio::spawn(async move {
