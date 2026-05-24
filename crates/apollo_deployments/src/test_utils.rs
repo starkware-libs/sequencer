@@ -28,6 +28,12 @@ pub struct SecretsConfigOverride {
     l1_gas_price_provider_config_config_eth_to_strk_oracle_config_url_header_list:
         Option<Vec<UrlAndHeaders>>,
     #[serde(
+        rename = "l1_gas_price_provider_config.strk_to_usd_oracle_config.url_header_list",
+        serialize_with = "serialize_optional_list_with_url_and_headers_wrapper"
+    )]
+    l1_gas_price_provider_config_config_strk_to_usd_oracle_config_url_header_list:
+        Option<Vec<UrlAndHeaders>>,
+    #[serde(
         rename = "mempool_p2p_config.network_config.secret_key",
         serialize_with = "serialize_optional_vec_u8_wrapper"
     )]
@@ -53,6 +59,12 @@ impl Default for SecretsConfigOverride {
             l1_gas_price_provider_config_config_eth_to_strk_oracle_config_url_header_list: Some(
                 vec![UrlAndHeaders {
                     url: Url::parse("https://arbitrary.eth_to_strk_oracle.url").unwrap(),
+                    headers: Default::default(),
+                }],
+            ),
+            l1_gas_price_provider_config_config_strk_to_usd_oracle_config_url_header_list: Some(
+                vec![UrlAndHeaders {
+                    url: Url::parse("https://arbitrary.strk_to_usd_oracle.url").unwrap(),
                     headers: Default::default(),
                 }],
             ),
