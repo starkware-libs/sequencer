@@ -102,7 +102,7 @@ use blockifier::blockifier::config::{
     NativeClassesWhitelist,
     WorkerPoolConfig,
 };
-use blockifier::bouncer::{BouncerConfig, BouncerWeights};
+use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinInstanceLimits};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -819,7 +819,7 @@ pub fn create_batcher_config(
                         proving_gas: block_max_capacity_gas,
                         ..Default::default()
                     },
-                    ..Default::default()
+                    builtin_instance_limits: BuiltinInstanceLimits::default(),
                 },
                 execute_config: WorkerPoolConfig::create_for_testing(),
                 ..Default::default()

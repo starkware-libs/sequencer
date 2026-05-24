@@ -1,6 +1,6 @@
 use assert_matches::assert_matches;
 use blockifier::blockifier::config::ContractClassManagerConfig;
-use blockifier::bouncer::{BouncerConfig, BouncerWeights};
+use blockifier::bouncer::{BouncerConfig, BuiltinInstanceLimits};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::utils::get_chain_info;
@@ -244,9 +244,15 @@ fn test_execute_rejected_by_tight_bouncer_limits(
 ) {
     // Override the bouncer config with zero capacity so any transaction is too large.
     let mut executor = rpc_virtual_block_executor;
+    // Use `BouncerConfig::max().block_max_capacity` (proving_gas capped at the default 5B)
+    // rather than raw `BouncerWeights::max()`, so the lazily-derived per-builtin gas costs
+    // stay in a sane range and `cairo_primitives_to_gas` cannot overflow if this test is
+    // un-ignored against a real RPC transaction.
+    let mut block_max_capacity = BouncerConfig::max().block_max_capacity;
+    block_max_capacity.n_txs = 0;
     executor.config.bouncer_config = BouncerConfig {
-        block_max_capacity: BouncerWeights { n_txs: 0, ..BouncerWeights::max() },
-        ..Default::default()
+        block_max_capacity,
+        builtin_instance_limits: BuiltinInstanceLimits::default(),
     };
 
     let (tx, tx_hash) = construct_balance_of_invoke();
