@@ -485,7 +485,7 @@ async fn test_execute_txs_inner_resources() {
     let version = StarknetVersion::LATEST;
     let mut raw_vc: RawVersionedConstants =
         serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
-    const N_TXS: usize = 5;
+    const N_TXS: usize = 6;
 
     let OsResourcesTestSetup {
         stable_contract_address,
@@ -494,10 +494,10 @@ async fn test_execute_txs_inner_resources() {
         ..
     } = setup_test_builder().await;
 
-    // Prepare the deploy account tx in advance, so we can fund the address before moving to the
+    // Prepare the deploy account txs in advance, so we can fund the address before moving to the
     // next block (just so the funding tx is not in our measurement block). Use the stable contract
     // to prevent noise from changing contract address.
-    let deploy_tx = DeployAccountTransaction::create(
+    let deploy_tx_base = DeployAccountTransaction::create(
         deploy_account_tx(
             deploy_account_tx_args! {
                 class_hash: stable_contract_class_hash,
@@ -512,7 +512,23 @@ async fn test_execute_txs_inner_resources() {
         &test_builder.chain_id(),
     )
     .unwrap();
-    test_builder.add_fund_address_tx_with_default_amount(deploy_tx.contract_address);
+    test_builder.add_fund_address_tx_with_default_amount(deploy_tx_base.contract_address);
+    let deploy_tx_extra = DeployAccountTransaction::create(
+        deploy_account_tx(
+            deploy_account_tx_args! {
+                class_hash: stable_contract_class_hash,
+                resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+                constructor_calldata: calldata![Felt::ONE, Felt::ZERO],
+                // The stable contract was already deployed (from deployer address zero) with
+                // trivial salt, so use non-trivial salt to get a new address.
+                contract_address_salt: ContractAddressSalt(Felt::from(100)),
+            },
+            Nonce::default(),
+        ),
+        &test_builder.chain_id(),
+    )
+    .unwrap();
+    test_builder.add_fund_address_tx_with_default_amount(deploy_tx_extra.contract_address);
     test_builder.move_to_next_block();
 
     // Invoke.
@@ -555,7 +571,8 @@ async fn test_execute_txs_inner_resources() {
     );
 
     // Deploy account (pre-prepared).
-    test_builder.add_deploy_account_tx(deploy_tx);
+    test_builder.add_deploy_account_tx(deploy_tx_base);
+    test_builder.add_deploy_account_tx(deploy_tx_extra);
 
     // L1 handler.
     test_builder.add_l1_handler(
@@ -598,22 +615,28 @@ async fn test_execute_txs_inner_resources() {
     test_output.perform_default_validations();
 
     // Fetch the OS resources for each tx.
-    let [invoke_base, invoke_extra, declare_overhead, deploy_account_overhead, l1_handler_overhead]: [ExecutionResources; N_TXS] =
-        test_output
-            .runner_output
-            .txs_trace
-            .iter()
-            .rev()
-            .take(N_TXS)
-            .rev()
-            .map(|trace| trace.get_resources().unwrap().clone())
-            .zip(business_logic_resources)
-            .map(|(os_resources, business_logic_resources)| {
-                (&os_resources - &business_logic_resources).filter_unused_builtins()
-            })
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
+    let [
+        invoke_base,
+        invoke_extra,
+        declare_overhead,
+        deploy_account_base,
+        deploy_account_extra,
+        l1_handler_overhead,
+    ]: [ExecutionResources; N_TXS] = test_output
+        .runner_output
+        .txs_trace
+        .iter()
+        .rev()
+        .take(N_TXS)
+        .rev()
+        .map(|trace| trace.get_resources().unwrap().clone())
+        .zip(business_logic_resources)
+        .map(|(os_resources, business_logic_resources)| {
+            (&os_resources - &business_logic_resources).filter_unused_builtins()
+        })
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
 
     // Invoke: variable cost, with scaling of 2.
     let VariableResourceParams::WithFactor(mut invoke_resources_params) = raw_vc
@@ -662,7 +685,6 @@ async fn test_execute_txs_inner_resources() {
         .insert(TransactionType::Declare, VariableResourceParams::Constant(declare_overhead));
 
     // Deploy account: variable cost, with scaling of 2.
-    // TODO(Dori): Compute linear factor cost.
     let VariableResourceParams::WithFactor(mut deploy_account_resources_params) =
         raw_vc.os_resources.execute_txs_inner.get(&TransactionType::DeployAccount).unwrap().clone()
     else {
@@ -671,7 +693,7 @@ async fn test_execute_txs_inner_resources() {
             raw_vc.os_resources.execute_txs_inner.get(&TransactionType::DeployAccount).unwrap()
         );
     };
-    let VariableCallDataFactor::Scaled(ref deploy_account_scaling_factor) =
+    let VariableCallDataFactor::Scaled(mut deploy_account_scaling_factor) =
         deploy_account_resources_params.calldata_factor
     else {
         panic!(
@@ -684,7 +706,11 @@ async fn test_execute_txs_inner_resources() {
         "Deploy account scaling factor has unexpected value: {:?}",
         deploy_account_scaling_factor.scaling_factor
     );
-    deploy_account_resources_params.constant = deploy_account_overhead;
+    deploy_account_scaling_factor.resources =
+        (&deploy_account_extra - &deploy_account_base).filter_unused_builtins();
+    deploy_account_resources_params.calldata_factor =
+        VariableCallDataFactor::Scaled(deploy_account_scaling_factor);
+    deploy_account_resources_params.constant = deploy_account_base;
     raw_vc.os_resources.execute_txs_inner.insert(
         TransactionType::DeployAccount,
         VariableResourceParams::WithFactor(deploy_account_resources_params),
