@@ -64,6 +64,8 @@ const HTTP_DURATION_BUCKETS: &[f64] =
 pub mod names {
     /// Build identity. Value is always 1; labels carry version + git_sha.
     pub const BUILD_INFO: &str = "prover_build_info";
+    /// Unhandled panics recorded by the global panic hook.
+    pub const PANICS_TOTAL: &str = "prover_panics_total";
     /// Wall-clock duration of the whole `prove_transaction` call (validation,
     /// blocking check, OS run, proving), labelled by `outcome` so success and
     /// failure latencies can be queried apart. Bucketed.
@@ -109,6 +111,8 @@ pub fn install_exporter(version: &str, git_sha: &str) -> anyhow::Result<Promethe
         "git_sha" => git_sha.to_string(),
     )
     .set(1.0);
+    // Pre-register at zero so the series exists in scrapes before the first panic.
+    metrics::counter!(names::PANICS_TOTAL).increment(0);
     super::http_metrics::preregister_http_metrics();
     Ok(handle)
 }

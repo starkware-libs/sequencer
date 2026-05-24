@@ -1,13 +1,20 @@
 use std::panic::UnwindSafe;
+use std::sync::Mutex;
 
 use tracing_test::traced_test;
 
+use crate::server::metrics::names::PANICS_TOTAL;
 use crate::server::panic::install_panic_hook;
+use crate::server::test_recorder::{metric_value, shared_handle};
 
-// The panic hook is global state — a single #[test] keeps captures serial.
+/// Serializes the tests that install the global panic hook and read the shared
+/// `prover_panics_total` counter, so their before/after deltas don't interleave.
+static PANIC_HOOK_TEST_LOCK: Mutex<()> = Mutex::new(());
+
 #[test]
 #[traced_test]
 fn logs_structured_event_with_location_payload_and_backtrace() {
+    let _guard = PANIC_HOOK_TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     // Captured next to the panic so a hook that stops reading `info.location()`
     // (or hardcodes it) fails here instead of passing on a file-only match.
     let static_panic_line = line!() + 1;
@@ -73,6 +80,18 @@ fn logs_structured_event_with_location_payload_and_backtrace() {
         }
         Ok(())
     });
+}
+
+#[test]
+fn panic_hook_bumps_panics_total_counter() {
+    let _guard = PANIC_HOOK_TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let handle = shared_handle();
+    let before = metric_value(&handle.render(), PANICS_TOTAL);
+
+    catch_panic_under_hook(|| panic!("counter-test panic"));
+
+    let after = metric_value(&handle.render(), PANICS_TOTAL);
+    assert_eq!(after - before, 1.0);
 }
 
 /// Runs `panicking_body` with the service panic hook installed, swallowing the

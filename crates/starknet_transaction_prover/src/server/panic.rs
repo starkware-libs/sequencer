@@ -1,13 +1,15 @@
 //! Process-wide panic hook: one structured `tracing` event with location +
-//! backtrace (indexable by log aggregators) instead of the default ad-hoc
-//! stderr output. The hook only logs: it does not change unwinding behavior, so
-//! a panic inside a request task stays contained by the tokio runtime and the
-//! process keeps serving.
+//! backtrace (indexable by log aggregators) and a `prover_panics_total` bump,
+//! instead of the default ad-hoc stderr output. The hook only logs and counts:
+//! it does not change unwinding behavior, so a panic inside a request task
+//! stays contained by the tokio runtime and the process keeps serving.
 
 use std::backtrace::Backtrace;
 use std::panic::PanicHookInfo;
 
 use tracing::error;
+
+use crate::server::metrics::names::PANICS_TOTAL;
 
 #[cfg(test)]
 #[path = "panic_test.rs"]
@@ -18,6 +20,8 @@ pub fn install_panic_hook() {
 }
 
 fn panic_hook(info: &PanicHookInfo<'_>) {
+    // Increment first so a recursive panic in the logging below can't lose the count.
+    metrics::counter!(PANICS_TOTAL).increment(1);
     let payload = extract_payload(info);
     let location = info
         .location()

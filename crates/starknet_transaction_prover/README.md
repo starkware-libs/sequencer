@@ -308,6 +308,7 @@ Like `/health`, scrapes bypass CORS and JSON-RPC parsing, and the endpoint is un
 | `prover_prove_transaction_duration_seconds` | histogram | `outcome` | Duration of the whole proving call — input validation, the optional blocking check, the virtual OS run and proving. Recorded for failures too, so filter on `outcome` for success-only percentiles. |
 | `prover_os_run_duration_seconds` | histogram | — | Virtual OS execution time, recorded for successful runs only. |
 | `prover_stwo_prove_duration_seconds` | histogram | — | STWO proving time, recorded for successful runs only. Emitted only by builds with the `stwo_proving` feature. |
+| `prover_panics_total` | counter | — | Process panics caught by the global panic hook. Useful for alerting on panic rate without log search. |
 
 Label cardinality is bounded — no user-controlled values become labels.
 
@@ -374,13 +375,15 @@ path a follow-up Ctrl+C would be silently swallowed.
 
 ### Panics
 
-Process panics are captured by a global panic hook that emits a structured `event="panic"` log at
-`error` level, carrying the panic location, the payload, and a forced backtrace. Only static string
-literals are logged verbatim: payloads built at runtime are replaced with a placeholder, since they
-can contain request or transaction data.
+Process panics are captured by a global panic hook that increments `prover_panics_total` first — so
+a recursive panic while logging can't lose the count — and then emits a structured `event="panic"`
+log at `error` level, carrying the panic location, the payload, and a forced backtrace. Only static
+string literals are logged verbatim: payloads built at runtime are replaced with a placeholder,
+since they can contain request or transaction data.
 
-The hook only logs — it does not call `process::abort()` and does not change unwinding behavior, so
-a panic inside a request task stays contained by the tokio runtime and the process keeps serving.
+The hook only logs and counts — it does not call `process::abort()` and does not change unwinding
+behavior, so a panic inside a request task stays contained by the tokio runtime and the process
+keeps serving, which is what makes `prover_panics_total` worth alerting on.
 
 ## Limitations
 
