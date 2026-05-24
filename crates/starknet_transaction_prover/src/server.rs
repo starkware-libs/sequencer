@@ -31,6 +31,7 @@ pub mod cors;
 pub mod errors;
 pub mod health;
 pub mod log_redact;
+pub mod metrics;
 #[cfg(test)]
 pub mod mock_rpc;
 pub mod panic;
@@ -40,6 +41,7 @@ pub mod rpc_impl;
 pub mod tls;
 
 pub use health::{HealthLayer, HEALTH_PATH};
+pub use metrics::{MetricsLayer, METRICS_PATH};
 pub use request_log::{RequestLogLayer, REQUEST_ID_HEADER};
 
 #[cfg(test)]
@@ -50,6 +52,7 @@ mod rpc_spec_test;
 mod ohttp_integration_test;
 
 /// Starts the JSON-RPC server in either HTTP or HTTPS mode depending on the transport.
+#[allow(clippy::too_many_arguments)]
 pub async fn start_server(
     addr: SocketAddr,
     transport: &TransportMode,
@@ -58,6 +61,7 @@ pub async fn start_server(
     max_request_body_size: u32,
     cors_layer: Option<CorsLayer>,
     ohttp_layer: Option<OhttpJsonrpseeLayer>,
+    metrics_layer: Option<MetricsLayer>,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     match transport {
         TransportMode::Http => {
@@ -83,11 +87,12 @@ pub async fn start_server(
                 // non-OHTTP requests still stream through unbuffered.
                 .set_http_middleware(
                     // `RequestLogLayer` is outermost so the latency it measures
-                    // covers every other layer. `HealthLayer` sits inside it so
-                    // probes complete before CORS/OHTTP.
+                    // covers every other layer. `HealthLayer` and `MetricsLayer`
+                    // sit inside it so probes/scrapes complete before CORS/OHTTP.
                     ServiceBuilder::new()
                         .layer(RequestLogLayer)
                         .layer(HealthLayer)
+                        .option_layer(metrics_layer)
                         .option_layer(cors_layer)
                         .layer(MapRequestBodyLayer::new(HttpBody::new))
                         .option_layer(ohttp_layer)
@@ -111,6 +116,7 @@ pub async fn start_server(
                 max_request_body_size,
                 cors_layer,
                 ohttp_layer,
+                metrics_layer,
             )
             .await
         }
