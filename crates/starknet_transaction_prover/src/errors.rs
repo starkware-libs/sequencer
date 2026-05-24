@@ -13,6 +13,12 @@ use starknet_rust::providers::jsonrpc::{HttpTransportError, JsonRpcClientError};
 use starknet_rust::providers::ProviderError;
 use thiserror::Error;
 
+use crate::server::metrics::outcomes;
+
+#[cfg(test)]
+#[path = "errors_test.rs"]
+mod errors_test;
+
 #[derive(Debug, Error)]
 pub enum VirtualBlockExecutorError {
     #[error(transparent)]
@@ -153,6 +159,34 @@ pub enum VirtualSnosProverError {
     OutputParseError(#[from] OsOutputError),
     #[error("Transaction blocked by external check")]
     TransactionBlocked,
+}
+
+impl VirtualSnosProverError {
+    /// Returns the fixed metric label for this error category.
+    pub fn metric_outcome(&self) -> &'static str {
+        match self {
+            VirtualSnosProverError::InvalidTransactionType(_)
+            | VirtualSnosProverError::InvalidTransactionInput(_)
+            | VirtualSnosProverError::ValidationError(_) => outcomes::FAILURE_VALIDATION,
+            VirtualSnosProverError::TransactionBlocked => outcomes::FAILURE_BLOCKED,
+            VirtualSnosProverError::RunnerError(_) => outcomes::FAILURE_RUNNER,
+            VirtualSnosProverError::OutputParseError(_)
+            | VirtualSnosProverError::ProgramOutputError(_) => outcomes::FAILURE_OUTPUT_PARSE,
+            // Names every ProvingError variant, so adding one fails to compile until it is given
+            // an outcome label. A client-caused proving error must not count as a server-side
+            // proving failure.
+            #[cfg(feature = "stwo_proving")]
+            VirtualSnosProverError::ProvingError(
+                ProvingError::ProverExecution(_) | ProvingError::TaskJoin(_),
+            ) => outcomes::FAILURE_PROVING,
+            // The client receives error 1002, because the transaction uses a builtin the prover
+            // cannot prove.
+            #[cfg(feature = "stwo_proving")]
+            VirtualSnosProverError::ProvingError(ProvingError::UnsupportedBuiltins { .. }) => {
+                outcomes::FAILURE_UNSUPPORTED_BUILTIN
+            }
+        }
+    }
 }
 
 /// Errors that can occur during configuration.
