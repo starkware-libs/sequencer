@@ -38,8 +38,8 @@
         "execution_resources": {
           "builtin_instance_counter": {
             "pedersen_builtin": 4,
-            "poseidon_builtin": 15,
-            "range_check_builtin": 90
+            "poseidon_builtin": 14,
+            "range_check_builtin": 110
           },
           "data_availability": {
             "l1_data_gas": 0,
@@ -47,7 +47,7 @@
             "l2_gas": 0
           },
           "n_memory_holes": 0,
-          "n_steps": 4381,
+          "n_steps": 4812,
           "total_gas_consumed": {
             "l1_data_gas": 0,
             "l1_gas": 1652,
