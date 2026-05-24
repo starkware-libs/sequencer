@@ -535,7 +535,7 @@
                 },
                 "calldata_factor": {
                     "resources": {
-                        "n_steps": 11,
+                        "n_steps": 15,
                         "n_memory_holes": 0,
                         "builtin_instance_counter": {
                             "poseidon_builtin": 1
