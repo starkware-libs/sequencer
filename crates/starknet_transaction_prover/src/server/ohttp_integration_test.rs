@@ -31,7 +31,7 @@ use tower_ohttp::OhttpLayer;
 
 use crate::server::request_log::{RequestLogLayer, REQUEST_ID_HEADER};
 use crate::server::request_span::RequestSpanLayer;
-use crate::server::{HealthLayer, MetricsLayer, OHTTP_JSONRPSEE_BODY_BUILDER};
+use crate::server::{HealthLayer, HttpMetricsLayer, MetricsLayer, OHTTP_JSONRPSEE_BODY_BUILDER};
 
 const DEFAULT_BODY_LIMIT: usize = 102_400;
 const KEY_CACHE_SECS: u64 = 3600;
