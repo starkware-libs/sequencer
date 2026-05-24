@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use assert_matches::assert_matches;
 use blockifier::blockifier_versioned_constants::{
     RawStepGasCost,
     RawVersionedConstants,
@@ -36,6 +37,8 @@ use crate::initial_state::{
     get_deploy_contract_tx_and_address_with_salt_and_deployer,
 };
 use crate::special_contracts::{
+    DATA_GAS_ACCOUNT_CONTRACT_CASM,
+    DATA_GAS_ACCOUNT_CONTRACT_SIERRA,
     DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_CASM,
     DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_SIERRA,
 };
@@ -477,30 +480,41 @@ async fn test_execute_txs_inner_resources() {
     let version = StarknetVersion::LATEST;
     let mut raw_vc: RawVersionedConstants =
         serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
-    // TODO(Dori): Declare, DeployAccount, L1Handler.
-    const N_TXS: usize = 1;
+    // TODO(Dori): DeployAccount, L1Handler.
+    const N_TXS: usize = 2;
 
     let OsResourcesTestSetup { stable_contract_address, mut test_builder, .. } =
         setup_test_builder().await;
 
     // Invoke.
+    let invoke_args = invoke_tx_args! {
+        sender_address: stable_contract_address,
+        calldata: calldata![Felt::ZERO],
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_builder.next_nonce(stable_contract_address),
+    };
     test_builder.add_invoke_tx(
-        InvokeTransaction::create(
-            invoke_tx(invoke_tx_args! {
-                sender_address: stable_contract_address,
-                calldata: calldata![Felt::ZERO],
-                resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-            }),
-            &test_builder.chain_id(),
-        )
-        .unwrap(),
+        InvokeTransaction::create(invoke_tx(invoke_args), &test_builder.chain_id()).unwrap(),
         None,
         None,
     );
 
+    // Declare. Choose a contract that is not edited or recompiled, to keep measurements stable.
+    let declare_args = declare_tx_args! {
+        sender_address: stable_contract_address,
+        nonce: test_builder.next_nonce(stable_contract_address),
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    test_builder.add_explicit_cairo1_declare_tx(
+        &DATA_GAS_ACCOUNT_CONTRACT_SIERRA,
+        (*DATA_GAS_ACCOUNT_CONTRACT_CASM).clone(),
+        declare_args,
+        &test_builder.chain_id(),
+    );
+
     // Execute the business logic and extract the business logic resources for each tx.
     let test_runner = test_builder.build().await;
-    let [invoke_business_logic_resources]: [ExecutionResources; N_TXS] = test_runner
+    let business_logic_resources: [ExecutionResources; N_TXS] = test_runner
         .os_hints
         .os_input
         .os_block_inputs
@@ -530,7 +544,7 @@ async fn test_execute_txs_inner_resources() {
     test_output.perform_default_validations();
 
     // Fetch the OS resources for each tx.
-    let [invoke_os_resources]: [ExecutionResources; N_TXS] = test_output
+    let [invoke_overhead, declare_overhead]: [ExecutionResources; N_TXS] = test_output
         .runner_output
         .txs_trace
         .iter()
@@ -538,11 +552,13 @@ async fn test_execute_txs_inner_resources() {
         .take(N_TXS)
         .rev()
         .map(|trace| trace.get_resources().unwrap().clone())
+        .zip(business_logic_resources)
+        .map(|(os_resources, business_logic_resources)| {
+            (&os_resources - &business_logic_resources).filter_unused_builtins()
+        })
         .collect::<Vec<_>>()
         .try_into()
         .unwrap();
-    let invoke_overhead =
-        (&invoke_os_resources - &invoke_business_logic_resources).filter_unused_builtins();
 
     // Invoke: variable cost, with scaling of 2.
     // TODO(Dori): Compute linear factor cost.
@@ -576,6 +592,18 @@ async fn test_execute_txs_inner_resources() {
         TransactionType::InvokeFunction,
         VariableResourceParams::WithFactor(invoke_resources_params),
     );
+
+    // Declare: constant cost.
+    assert_matches!(
+        raw_vc.os_resources.execute_txs_inner.get(&TransactionType::Declare).unwrap(),
+        VariableResourceParams::Constant(_),
+        "Declare resources params has unexpected structure: {:?}",
+        raw_vc.os_resources.execute_txs_inner.get(&TransactionType::Declare).unwrap()
+    );
+    raw_vc
+        .os_resources
+        .execute_txs_inner
+        .insert(TransactionType::Declare, VariableResourceParams::Constant(declare_overhead));
 
     // Verify computation.
     expect_file![VersionedConstants::json_path(&version).unwrap()]
