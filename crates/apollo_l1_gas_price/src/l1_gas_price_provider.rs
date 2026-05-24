@@ -23,6 +23,7 @@ use crate::metrics::{
     L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
     L1_GAS_PRICE_LATEST_MEAN_VALUE,
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
+    STRK_TO_USD_ORACLE_METRICS,
 };
 
 #[cfg(test)]
@@ -60,14 +61,21 @@ pub struct L1GasPriceProvider {
     // If received data before initialization (is None), it means the scraper has restarted.
     price_samples_by_block: Option<RingBuffer<GasPriceData>>,
     eth_to_strk_oracle_client: Arc<dyn ExchangeRateOracleClientTrait>,
+    strk_to_usd_oracle_client: Arc<dyn ExchangeRateOracleClientTrait>,
 }
 
 impl L1GasPriceProvider {
     pub fn new(
         config: L1GasPriceProviderConfig,
         eth_to_strk_oracle_client: Arc<dyn ExchangeRateOracleClientTrait>,
+        strk_to_usd_oracle_client: Arc<dyn ExchangeRateOracleClientTrait>,
     ) -> Self {
-        Self { config, price_samples_by_block: None, eth_to_strk_oracle_client }
+        Self {
+            config,
+            price_samples_by_block: None,
+            eth_to_strk_oracle_client,
+            strk_to_usd_oracle_client,
+        }
     }
 
     pub fn new_with_oracle(config: L1GasPriceProviderConfig) -> Self {
@@ -75,7 +83,11 @@ impl L1GasPriceProvider {
             config.eth_to_strk_oracle_config.clone(),
             ETH_TO_STRK_ORACLE_METRICS,
         );
-        Self::new(config, Arc::new(eth_to_strk_oracle_client))
+        let strk_to_usd_oracle_client = ExchangeRateOracleClient::new(
+            config.strk_to_usd_oracle_config.clone(),
+            STRK_TO_USD_ORACLE_METRICS,
+        );
+        Self::new(config, Arc::new(eth_to_strk_oracle_client), Arc::new(strk_to_usd_oracle_client))
     }
 
     pub fn initialize(&mut self) -> L1GasPriceProviderResult<()> {
@@ -189,6 +201,13 @@ impl L1GasPriceProvider {
 
     pub async fn eth_to_fri_rate(&self, timestamp: u64) -> L1GasPriceProviderResult<u128> {
         self.eth_to_strk_oracle_client
+            .fetch_rate(timestamp)
+            .await
+            .map_err(L1GasPriceProviderError::ExchangeRateOracleClientError)
+    }
+
+    pub async fn strk_to_usd_rate(&self, timestamp: u64) -> L1GasPriceProviderResult<u128> {
+        self.strk_to_usd_oracle_client
             .fetch_rate(timestamp)
             .await
             .map_err(L1GasPriceProviderError::ExchangeRateOracleClientError)
