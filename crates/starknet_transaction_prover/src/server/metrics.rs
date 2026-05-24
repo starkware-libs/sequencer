@@ -26,6 +26,32 @@ pub const METRICS_PATH: &str = "/metrics";
 pub mod names {
     /// Build identity. Value is always 1; labels carry version + git_sha.
     pub const BUILD_INFO: &str = "prover_build_info";
+    /// Wall-clock duration of `prove_transaction` end-to-end. Bucketed.
+    pub const PROVE_TRANSACTION_DURATION_SECONDS: &str =
+        "prover_prove_transaction_duration_seconds";
+    /// `prove_transaction` outcomes by category. See [`super::outcomes`] for
+    /// the fixed set of label values.
+    pub const PROVE_TRANSACTION_OUTCOME_TOTAL: &str = "prover_prove_transaction_outcome_total";
+    /// Virtual SNOS run sub-step duration. Bucketed.
+    pub const OS_RUN_DURATION_SECONDS: &str = "prover_os_run_duration_seconds";
+    /// Stwo proving sub-step duration. Bucketed.
+    pub const STWO_PROVE_DURATION_SECONDS: &str = "prover_stwo_prove_duration_seconds";
+}
+
+/// Fixed, bounded set of values for the `outcome` label on
+/// [`names::PROVE_TRANSACTION_OUTCOME_TOTAL`]. Adding a variant requires a
+/// dashboard update.
+pub mod outcomes {
+    pub const SUCCESS: &str = "success";
+    pub const VALIDATION: &str = "failure_validation";
+    pub const BLOCKED: &str = "failure_blocked";
+    pub const RUNNER: &str = "failure_runner";
+    pub const OUTPUT_PARSE: &str = "failure_output_parse";
+    pub const PROVING: &str = "failure_proving";
+    /// Rejected at admission because the queue (running + waiting) was full.
+    pub const REJECTED_QUEUE_FULL: &str = "rejected_queue_full";
+    /// Rejected after waiting past `queue_wait_timeout` for a worker slot.
+    pub const REJECTED_WAIT_TIMEOUT: &str = "rejected_wait_timeout";
 }
 
 /// Initializes the global Prometheus exporter and emits the `build_info`
