@@ -19,7 +19,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
 use starknet_api::transaction::fields::{Proof, ProofFacts, Tip};
 use starknet_api::transaction::{InvokeTransaction, MessageToL1};
-use tracing::{info, instrument};
+use tracing::{info, instrument, warn};
 use url::Url;
 
 use crate::blocking_check::{BlockingCheckClient, BlockingCheckResult};
@@ -180,16 +180,28 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         block_id: BlockId,
         transaction: RpcTransaction,
     ) -> Result<ProveTransactionResult, VirtualSnosProverError> {
-        // Validate block_id is not pending.
+        // Each validation site emits a structured warn before returning so
+        // the failing field is grep-able directly. Transaction calldata is
+        // private user data — never logged.
         if matches!(block_id, BlockId::Pending) {
+            warn!(event = "validation_error", reason = "pending_block_unsupported");
             return Err(VirtualSnosProverError::ValidationError(
                 "Pending blocks are not supported; only finalized blocks can be proven."
                     .to_string(),
             ));
         }
 
-        let invoke_v3 = extract_rpc_invoke_tx(transaction.clone())?;
-        validate_transaction_input(&invoke_v3, self.validate_zero_fee_fields)?;
+        let invoke_v3 = extract_rpc_invoke_tx(transaction.clone()).inspect_err(|err| {
+            warn!(event = "validation_error", reason = "non_invoke_transaction", error = %err);
+        })?;
+        validate_transaction_input(&invoke_v3, self.validate_zero_fee_fields).inspect_err(
+            |_err| {
+                // No `error` field on purpose: an invalid-input message can embed the client's fee
+                // inputs (max_price_per_unit / tip). The reason label locates the failure without
+                // logging fee metadata; the full message still reaches the client in the RPC error.
+                warn!(event = "validation_error", reason = "invalid_transaction_input");
+            },
+        )?;
         let invoke_tx = InvokeTransaction::V3(invoke_v3.into());
 
         match &self.blocking_check_client {

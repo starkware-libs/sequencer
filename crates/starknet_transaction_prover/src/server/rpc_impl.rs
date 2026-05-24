@@ -145,7 +145,21 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
         };
 
         self.prover.prove_transaction(block_id, transaction).await.map_err(|err| {
-            warn!("prove_transaction failed: {:?}", err);
+            // `outcome` matches `prover_prove_transaction_outcome_total` so log queries and metric
+            // filters share one vocabulary. Validation failures can embed the client's fee inputs
+            // in their message, so omit `error` for them (the origin-level warn in
+            // `virtual_snos_prover` already logged the reason); other failures are safe to detail.
+            let outcome = err.metric_outcome();
+            if outcome == outcomes::VALIDATION {
+                warn!(event = "prove_transaction_failed", outcome, "prove_transaction failed");
+            } else {
+                warn!(
+                    event = "prove_transaction_failed",
+                    outcome,
+                    error = %err,
+                    "prove_transaction failed",
+                );
+            }
             ErrorObjectOwned::from(err)
         })
     }
