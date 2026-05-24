@@ -127,7 +127,7 @@
     "os_constants": {
         "allowed_virtual_os_program_hashes": [
             "0x3e98c2d7703b03a7edb73ed7f075f97f1dcbaa8f717cdf6e1a57bf058265473",
-            "0x542f701524219b8333d8a74a7eee00724673d53d1c78915e8f6d241e4ad81b9"
+            "0x3b4ae061e4b8d1e7e5398980e72dd3f401168092ef0d91dc5fca458b957a839"
         ],
         "constructor_entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",
         "default_entry_point_selector": "0x0",
@@ -144,7 +144,7 @@
             "validate_timestamp_rounding": 3600
         },
         "validated": "VALID",
-        "execute_max_sierra_gas": 1100000000,
+        "execute_max_sierra_gas": 1110000000,
         "validate_max_sierra_gas": 100000000,
         "error_block_number_out_of_range": "Block number out of range",
         "error_invalid_input_len": "Invalid input length",
