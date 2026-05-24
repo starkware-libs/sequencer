@@ -71,6 +71,7 @@ pub enum L1GasPriceRequest {
     GetGasPrice(BlockTimestamp),
     AddGasPrice(GasPriceData),
     GetEthToFriRate(u64),
+    GetStrkToUsdRate(u64),
 }
 impl_debug_for_infra_requests_and_responses!(L1GasPriceRequest);
 impl_labeled_request!(L1GasPriceRequest, L1GasPriceRequestLabelValue);
@@ -82,6 +83,7 @@ pub enum L1GasPriceResponse {
     GetGasPrice(L1GasPriceProviderResult<PriceInfo>),
     AddGasPrice(L1GasPriceProviderResult<()>),
     GetEthToFriRate(L1GasPriceProviderResult<u128>),
+    GetStrkToUsdRate(L1GasPriceProviderResult<u128>),
 }
 impl_debug_for_infra_requests_and_responses!(L1GasPriceResponse);
 
@@ -100,6 +102,8 @@ pub trait L1GasPriceProviderClient: Send + Sync {
     ) -> L1GasPriceProviderClientResult<PriceInfo>;
 
     async fn get_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128>;
+
+    async fn get_strk_to_usd_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128>;
 }
 
 #[cfg_attr(any(feature = "testing", test), automock)]
@@ -166,6 +170,19 @@ where
             request,
             L1GasPriceResponse,
             GetEthToFriRate,
+            L1GasPriceClientError,
+            L1GasPriceProviderError,
+            Direct
+        )
+    }
+    #[instrument(skip(self))]
+    async fn get_strk_to_usd_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128> {
+        let request = L1GasPriceRequest::GetStrkToUsdRate(timestamp);
+        handle_all_response_variants!(
+            self,
+            request,
+            L1GasPriceResponse,
+            GetStrkToUsdRate,
             L1GasPriceClientError,
             L1GasPriceProviderError,
             Direct
