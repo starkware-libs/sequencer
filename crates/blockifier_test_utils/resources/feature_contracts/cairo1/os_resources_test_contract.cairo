@@ -7,18 +7,12 @@ mod OsResourcesTestContract {
     use starknet::info::SyscallResultTrait;
     use starknet::secp256_trait::Secp256Trait;
     use starknet::secp256k1::{
-        secp256k1_add_syscall,
-        secp256k1_get_point_from_x_syscall,
-        secp256k1_get_xy_syscall,
-        secp256k1_mul_syscall,
-        secp256k1_new_syscall,
+        secp256k1_add_syscall, secp256k1_get_point_from_x_syscall, secp256k1_get_xy_syscall,
+        secp256k1_mul_syscall, secp256k1_new_syscall,
     };
     use starknet::secp256r1::{
-        secp256r1_add_syscall,
-        secp256r1_get_point_from_x_syscall,
-        secp256r1_get_xy_syscall,
-        secp256r1_mul_syscall,
-        secp256r1_new_syscall,
+        secp256r1_add_syscall, secp256r1_get_point_from_x_syscall, secp256r1_get_xy_syscall,
+        secp256r1_mul_syscall, secp256r1_new_syscall,
     };
     use starknet::syscalls::{
         call_contract_syscall, deploy_syscall, emit_event_syscall, get_execution_info_v2_syscall,
@@ -31,16 +25,16 @@ mod OsResourcesTestContract {
     const EXECUTE_FUNCTION_SELECTOR: felt252 = selector!("__execute__");
 
     // SECP constants.
-    const MULT_CONSTANT: u256
-        = 115792089237316195423570985008687907853269984665640564039457584007913129639935;
-    const X_FOR_K: u256
-        = 111793196543967404139194827996419963236210979610743141064269745943111491389389;
-    const Y_FOR_K: u256
-        = 64271137072396112709852516195602121116634737731930508083758518861847052748305;
-    const X_FOR_R: u256
-        = 36259703446750261746963965979921905598426482711143882545997285073084044643087;
-    const Y_FOR_R: u256
-        = 99074502569356486940077471307887399820854676440660107539358273498981469249968;
+    const MULT_CONSTANT: u256 =
+        115792089237316195423570985008687907853269984665640564039457584007913129639935;
+    const X_FOR_K: u256 =
+        111793196543967404139194827996419963236210979610743141064269745943111491389389;
+    const Y_FOR_K: u256 =
+        64271137072396112709852516195602121116634737731930508083758518861847052748305;
+    const X_FOR_R: u256 =
+        36259703446750261746963965979921905598426482711143882545997285073084044643087;
+    const Y_FOR_R: u256 =
+        99074502569356486940077471307887399820854676440660107539358273498981469249968;
 
     #[storage]
     struct Storage {}
@@ -152,8 +146,8 @@ mod OsResourcesTestContract {
         secp256k1_add_syscall(p0, k_p1).unwrap_syscall();
 
         // secp256k1_get_point_from_x syscall.
-        let x:u256 = X_FOR_K;
-        let _  = secp256k1_get_point_from_x_syscall(:x, y_parity: true).unwrap_syscall();
+        let x: u256 = X_FOR_K;
+        let _ = secp256k1_get_point_from_x_syscall(:x, y_parity: true).unwrap_syscall();
 
         // secp256k1_get_xy syscall.
         secp256k1_get_xy_syscall(k_p1).unwrap_syscall();
