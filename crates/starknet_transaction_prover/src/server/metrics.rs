@@ -4,6 +4,7 @@
 //! through the JSON-RPC parser. The metric names live in [`names`].
 
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use anyhow::Context as _;
 use bytes::Bytes;
@@ -11,7 +12,7 @@ use futures::future::{ready, Either, Ready};
 use http::{header, Method, Request, Response, StatusCode};
 use http_body_util::Full;
 use jsonrpsee::server::HttpBody;
-use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
+use metrics_exporter_prometheus::{Matcher, PrometheusBuilder, PrometheusHandle};
 use tower::{Layer, Service};
 
 #[cfg(test)]
@@ -20,11 +21,43 @@ mod metrics_test;
 
 pub const METRICS_PATH: &str = "/metrics";
 
+const UPKEEP_INTERVAL: Duration = Duration::from_secs(30);
+
+/// Bucket bounds, in seconds, for the proving-path duration histograms.
+const PROVING_DURATION_BUCKETS: &[f64] =
+    &[0.1, 0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 7.5, 10.0, 15.0, 30.0, 60.0];
+
+/// Explicit buckets prevent the exporter from using summaries.
+const DURATION_HISTOGRAM_BUCKETS: &[(&str, &[f64])] = &[
+    (names::PROVE_TRANSACTION_DURATION_SECONDS, PROVING_DURATION_BUCKETS),
+    (names::OS_RUN_DURATION_SECONDS, PROVING_DURATION_BUCKETS),
+    (names::STWO_PROVE_DURATION_SECONDS, PROVING_DURATION_BUCKETS),
+];
+
 /// Metric name constants, so `metrics!` calls elsewhere point at one
 /// definition instead of repeating string literals.
 pub mod names {
     /// Build identity. Always 1, labelled with `version` and `git_sha`.
     pub const BUILD_INFO: &str = "prover_build_info";
+    /// Total proving-call duration in seconds, including validation and failed calls.
+    pub const PROVE_TRANSACTION_DURATION_SECONDS: &str =
+        "prover_prove_transaction_duration_seconds";
+    /// Completed proving calls by [`super::outcomes`] category.
+    pub const PROVE_TRANSACTION_OUTCOME_TOTAL: &str = "prover_prove_transaction_outcome_total";
+    /// Successful virtual OS run duration in seconds.
+    pub const OS_RUN_DURATION_SECONDS: &str = "prover_os_run_duration_seconds";
+    /// Successful STWO proving duration in seconds.
+    pub const STWO_PROVE_DURATION_SECONDS: &str = "prover_stwo_prove_duration_seconds";
+}
+
+/// Fixed values for the `outcome` label.
+pub mod outcomes {
+    pub const SUCCESS: &str = "success";
+    pub const FAILURE_VALIDATION: &str = "failure_validation";
+    pub const FAILURE_BLOCKED: &str = "failure_blocked";
+    pub const FAILURE_RUNNER: &str = "failure_runner";
+    pub const FAILURE_OUTPUT_PARSE: &str = "failure_output_parse";
+    pub const FAILURE_PROVING: &str = "failure_proving";
 }
 
 /// Initializes the global Prometheus exporter and emits the `build_info`
@@ -33,7 +66,7 @@ pub mod names {
 ///
 /// Call it exactly once at startup.
 pub fn install_exporter(version: &str, git_sha: &str) -> anyhow::Result<PrometheusHandle> {
-    let handle = PrometheusBuilder::new()
+    let handle = configured_builder()?
         .install_recorder()
         .context("Failed to install Prometheus recorder")?;
     metrics::gauge!(
@@ -43,6 +76,27 @@ pub fn install_exporter(version: &str, git_sha: &str) -> anyhow::Result<Promethe
     )
     .set(1.0);
     Ok(handle)
+}
+
+/// Drains histogram samples even when nobody scrapes the endpoint.
+pub fn spawn_upkeep(handle: PrometheusHandle) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut ticker = tokio::time::interval(UPKEEP_INTERVAL);
+        loop {
+            ticker.tick().await;
+            handle.run_upkeep();
+        }
+    })
+}
+
+pub(crate) fn configured_builder() -> anyhow::Result<PrometheusBuilder> {
+    let mut builder = PrometheusBuilder::new();
+    for (metric, buckets) in DURATION_HISTOGRAM_BUCKETS {
+        builder = builder
+            .set_buckets_for_metric(Matcher::Full((*metric).to_owned()), buckets)
+            .context(format!("Failed to configure histogram buckets for {metric}"))?;
+    }
+    Ok(builder)
 }
 
 #[derive(Clone)]
