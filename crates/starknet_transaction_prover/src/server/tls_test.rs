@@ -44,6 +44,7 @@ async fn stopped_waits_for_an_in_flight_request_to_finish() {
         ServerConfig::builder().build(),
         None,
         None,
+        None,
         |socket, _remote_addr| async move { Some(socket) },
     );
 
