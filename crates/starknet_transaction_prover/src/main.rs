@@ -135,16 +135,17 @@ async fn main() -> anyhow::Result<()> {
         .ok();
     let shutdown_handle = server_handle.clone();
     tokio::spawn(async move {
-        let signal_name = match (sigterm, sigint) {
-            (Some(mut t), Some(mut i)) => tokio::select! {
+        let (mut sigterm, mut sigint) = (sigterm, sigint);
+        let signal_name = match (&mut sigterm, &mut sigint) {
+            (Some(t), Some(i)) => tokio::select! {
                 _ = t.recv() => "SIGTERM",
                 _ = i.recv() => "SIGINT",
             },
-            (Some(mut t), None) => {
+            (Some(t), None) => {
                 t.recv().await;
                 "SIGTERM"
             }
-            (None, Some(mut i)) => {
+            (None, Some(i)) => {
                 i.recv().await;
                 "SIGINT"
             }
@@ -154,6 +155,31 @@ async fn main() -> anyhow::Result<()> {
         if let Err(err) = shutdown_handle.stop() {
             warn!(error = %err, "Failed to stop JSON-RPC server cleanly");
         }
+
+        // Stay live for a second signal and force-exit. Tokio's OS-level
+        // signal handler keeps intercepting SIGTERM/SIGINT even after the
+        // first one fires (tokio-rs/tokio#7905); if we let our Signal
+        // instances drop, a second Ctrl+C would be silently swallowed and
+        // a stuck graceful-shutdown could only be killed with SIGKILL.
+        // Re-await the already-registered handlers and exit non-zero on
+        // the second hit so an operator can always reclaim the process.
+        match (&mut sigterm, &mut sigint) {
+            (Some(t), Some(i)) => {
+                tokio::select! {
+                    _ = t.recv() => {},
+                    _ = i.recv() => {},
+                }
+            }
+            (Some(t), None) => {
+                t.recv().await;
+            }
+            (None, Some(i)) => {
+                i.recv().await;
+            }
+            (None, None) => return,
+        }
+        warn!(event = "force_exit", "Received second termination signal; forcing exit.");
+        std::process::exit(1);
     });
 
     server_handle.stopped().await;
