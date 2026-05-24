@@ -1,6 +1,6 @@
 use assert_matches::assert_matches;
 use blockifier::blockifier::config::ContractClassManagerConfig;
-use blockifier::bouncer::{BouncerConfig, BouncerWeights};
+use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinInstanceLimits};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::utils::get_chain_info;
@@ -244,10 +244,10 @@ fn test_execute_rejected_by_tight_bouncer_limits(
 ) {
     // Override the bouncer config with zero capacity so any transaction is too large.
     let mut executor = rpc_virtual_block_executor;
-    executor.config.bouncer_config = BouncerConfig {
-        block_max_capacity: BouncerWeights { n_txs: 0, ..BouncerWeights::max() },
-        ..Default::default()
-    };
+    executor.config.bouncer_config = BouncerConfig::new(
+        BouncerWeights { n_txs: 0, ..BouncerWeights::max() },
+        BuiltinInstanceLimits::default(),
+    );
 
     let (tx, tx_hash) = construct_balance_of_invoke();
     let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig::default());

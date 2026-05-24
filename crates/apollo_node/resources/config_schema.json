@@ -104,60 +104,60 @@
     "privacy": "Public",
     "value": 4000
   },
-  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.add_mod": {
-    "description": "Add_mod gas weight.",
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_instance_limits.add_mod": {
+    "description": "Per-block instance limit for the add_mod builtin.",
     "privacy": "Public",
-    "value": 2000
+    "value": 3000000
   },
-  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.bitwise": {
-    "description": "Bitwise gas weight.",
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_instance_limits.bitwise": {
+    "description": "Per-block instance limit for the bitwise builtin.",
     "privacy": "Public",
-    "value": 583
+    "value": 10500000
   },
-  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.blake": {
-    "description": "Blake gas weight.",
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_instance_limits.blake": {
+    "description": "Per-block instance limit for the blake opcode.",
     "privacy": "Public",
-    "value": 3334
+    "value": 1800000
   },
-  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.ecdsa": {
-    "description": "Ecdsa gas weight.",
-    "privacy": "Public",
-    "value": 2000000
-  },
-  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.ecop": {
-    "description": "Ec_op gas weight.",
-    "privacy": "Public",
-    "value": 857850
-  },
-  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.keccak": {
-    "description": "Keccak gas weight.",
-    "privacy": "Public",
-    "value": 600000
-  },
-  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.mul_mod": {
-    "description": "Mul_mod gas weight.",
-    "privacy": "Public",
-    "value": 2000
-  },
-  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.pedersen": {
-    "description": "Pedersen gas weight.",
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_instance_limits.ecdsa": {
+    "description": "Per-block instance limit for the ecdsa builtin.",
     "privacy": "Public",
     "value": 3000
   },
-  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.poseidon": {
-    "description": "Poseidon gas weight.",
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_instance_limits.ecop": {
+    "description": "Per-block instance limit for the ec_op builtin.",
+    "privacy": "Public",
+    "value": 130000
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_instance_limits.keccak": {
+    "description": "Per-block instance limit for the keccak builtin.",
     "privacy": "Public",
     "value": 10000
   },
-  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.range_check": {
-    "description": "Range_check gas weight.",
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_instance_limits.mul_mod": {
+    "description": "Per-block instance limit for the mul_mod builtin.",
     "privacy": "Public",
-    "value": 90
+    "value": 3000000
   },
-  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.range_check96": {
-    "description": "range_check96 gas weight.",
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_instance_limits.pedersen": {
+    "description": "Per-block instance limit for the pedersen builtin.",
     "privacy": "Public",
-    "value": 179
+    "value": 2000000
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_instance_limits.poseidon": {
+    "description": "Per-block instance limit for the poseidon builtin.",
+    "privacy": "Public",
+    "value": 600000
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_instance_limits.range_check": {
+    "description": "Per-block instance limit for the range_check builtin.",
+    "privacy": "Public",
+    "value": 66666666
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_instance_limits.range_check96": {
+    "description": "Per-block instance limit for the range_check96 builtin.",
+    "privacy": "Public",
+    "value": 33519553
   },
   "batcher_config.static_config.block_builder_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",

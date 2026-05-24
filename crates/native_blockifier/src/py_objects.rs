@@ -11,8 +11,13 @@ use blockifier::blockifier::config::{
     ContractClassManagerConfig,
 };
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
-use blockifier::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstantsOverrides};
-use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinWeights, CasmHashComputationData};
+use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
+use blockifier::bouncer::{
+    BouncerConfig,
+    BouncerWeights,
+    BuiltinInstanceLimits,
+    CasmHashComputationData,
+};
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use blockifier::utils::u64_from_usize;
@@ -110,20 +115,18 @@ impl From<PyVersionedConstantsOverrides> for VersionedConstantsOverrides {
 #[derive(Clone, Debug, FromPyObject)]
 pub struct PyBouncerConfig {
     pub full_total_weights: HashMap<String, usize>,
-    pub builtin_weights: HashMap<String, usize>,
+    pub builtin_instance_limits: HashMap<String, usize>,
 }
 
 impl TryFrom<PyBouncerConfig> for BouncerConfig {
     type Error = NativeBlockifierError;
     fn try_from(py_bouncer_config: PyBouncerConfig) -> Result<Self, Self::Error> {
-        Ok(BouncerConfig {
-            block_max_capacity: hash_map_into_bouncer_weights(
-                py_bouncer_config.full_total_weights.clone(),
-            )?,
-            builtin_weights: hash_map_into_builtin_weights(
-                py_bouncer_config.builtin_weights.clone(),
-            )?,
-        })
+        let block_max_capacity =
+            hash_map_into_bouncer_weights(py_bouncer_config.full_total_weights.clone())?;
+        let builtin_instance_limits = hash_map_into_builtin_instance_limits(
+            py_bouncer_config.builtin_instance_limits.clone(),
+        )?;
+        Ok(BouncerConfig::new(block_max_capacity, builtin_instance_limits))
     }
 }
 
@@ -177,9 +180,9 @@ fn hash_map_into_bouncer_weights(
     })
 }
 
-fn hash_map_into_builtin_weights(
+fn hash_map_into_builtin_instance_limits(
     mut data: HashMap<String, usize>,
-) -> NativeBlockifierResult<BuiltinWeights> {
+) -> NativeBlockifierResult<BuiltinInstanceLimits> {
     let pedersen =
         u64_from_usize(data.remove(Builtin::Pedersen.name()).expect("pedersen must be present"));
     let range_check = u64_from_usize(
@@ -202,22 +205,20 @@ fn hash_map_into_builtin_weights(
         u64_from_usize(data.remove(Builtin::Poseidon.name()).expect("poseidon must be present"));
     let blake = u64_from_usize(data.remove("blake").expect("blake must be present"));
 
-    assert!(data.is_empty(), "Unexpected keys in builtin weights: {:?}", data.keys());
+    assert!(data.is_empty(), "Unexpected keys in builtin instance limits: {:?}", data.keys());
 
-    Ok(BuiltinWeights {
-        gas_costs: BuiltinGasCosts {
-            pedersen,
-            range_check,
-            bitwise,
-            ecdsa,
-            keccak,
-            add_mod,
-            mul_mod,
-            ecop,
-            range_check96,
-            poseidon,
-            blake,
-        },
+    Ok(BuiltinInstanceLimits {
+        pedersen,
+        range_check,
+        bitwise,
+        ecdsa,
+        keccak,
+        add_mod,
+        mul_mod,
+        ecop,
+        range_check96,
+        poseidon,
+        blake,
     })
 }
 
