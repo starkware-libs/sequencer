@@ -27,7 +27,7 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::bouncer::{BouncerConfig, BouncerWeights};
+use crate::bouncer::{BouncerConfig, BuiltinInstanceLimits};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, ExtendedExecutionResources, Retdata};
 use crate::execution::common_hints::ExecutionMode;
@@ -212,12 +212,11 @@ impl BlockContext {
 
     pub fn create_for_bouncer_testing(max_n_events_in_block: usize) -> Self {
         let mut context = Self::create_for_account_testing();
+        let mut block_max_capacity = BouncerConfig::max().block_max_capacity;
+        block_max_capacity.n_events = max_n_events_in_block;
         context.bouncer_config = BouncerConfig {
-            block_max_capacity: BouncerWeights {
-                n_events: max_n_events_in_block,
-                ..BouncerWeights::max()
-            },
-            ..BouncerConfig::max()
+            block_max_capacity,
+            builtin_instance_limits: BuiltinInstanceLimits::default(),
         };
         context
     }

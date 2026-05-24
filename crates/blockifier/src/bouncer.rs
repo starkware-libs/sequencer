@@ -84,22 +84,33 @@ macro_rules! impl_variant_names_from_field_names {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct BouncerConfig {
     pub block_max_capacity: BouncerWeights,
-    pub builtin_weights: BuiltinWeights,
+    pub builtin_instance_limits: BuiltinInstanceLimits,
 }
 
 impl BouncerConfig {
     pub fn empty() -> Self {
         Self {
             block_max_capacity: BouncerWeights::empty(),
-            builtin_weights: BuiltinWeights::empty(),
+            builtin_instance_limits: BuiltinInstanceLimits::default(),
         }
     }
 
     pub fn max() -> Self {
+        // Keep proving_gas at the default value so the induced builtin gas costs stay in a
+        // sane range; other capacities are MAX so block-full never triggers in tests.
         Self {
-            block_max_capacity: BouncerWeights::max(),
-            builtin_weights: BuiltinWeights::default(),
+            block_max_capacity: BouncerWeights {
+                proving_gas: BouncerWeights::default().proving_gas,
+                ..BouncerWeights::max()
+            },
+            builtin_instance_limits: BuiltinInstanceLimits::default(),
         }
+    }
+
+    /// Per-Cairo-primitive proving-gas costs derived from the configured instance limits and
+    /// the block-wide proving-gas budget.
+    pub fn builtin_gas_costs(&self) -> BuiltinGasCosts {
+        self.builtin_instance_limits.induced_gas_costs(self.block_max_capacity.proving_gas)
     }
 
     pub fn has_room(&self, weights: BouncerWeights) -> bool {
@@ -129,7 +140,10 @@ impl SerializeConfig for BouncerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump =
             prepend_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity");
-        dump.append(&mut prepend_sub_config_name(self.builtin_weights.dump(), "builtin_weights"));
+        dump.append(&mut prepend_sub_config_name(
+            self.builtin_instance_limits.dump(),
+            "builtin_instance_limits",
+        ));
         dump
     }
 }
@@ -415,117 +429,132 @@ impl TxWeights {
     }
 }
 
+/// Per-block upper bounds on the number of instances of each Cairo primitive (builtin or
+/// opcode). The bouncer's per-primitive proving-gas cost is derived from these limits and the
+/// block-wide proving-gas budget via `induced_gas_costs`.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
-pub struct BuiltinWeights {
-    pub gas_costs: BuiltinGasCosts,
+pub struct BuiltinInstanceLimits {
+    pub pedersen: u64,
+    pub range_check: u64,
+    pub range_check96: u64,
+    pub poseidon: u64,
+    pub ecdsa: u64,
+    pub ecop: u64,
+    pub bitwise: u64,
+    pub keccak: u64,
+    pub add_mod: u64,
+    pub mul_mod: u64,
+    pub blake: u64,
 }
 
-impl BuiltinWeights {
-    pub fn empty() -> Self {
-        Self {
-            gas_costs: BuiltinGasCosts {
-                pedersen: 0,
-                range_check: 0,
-                ecdsa: 0,
-                bitwise: 0,
-                poseidon: 0,
-                keccak: 0,
-                ecop: 0,
-                mul_mod: 0,
-                add_mod: 0,
-                range_check96: 0,
-                blake: 0,
-            },
+impl BuiltinInstanceLimits {
+    /// Induces the per-instance proving-gas cost of each Cairo primitive from its per-block
+    /// instance limit: `cost = floor(proving_gas / limit)`.
+    pub fn induced_gas_costs(&self, proving_gas: GasAmount) -> BuiltinGasCosts {
+        let derive = |limit: u64, name: &str| -> u64 {
+            assert!(limit > 0, "BuiltinInstanceLimits.{name} must be > 0");
+            proving_gas.0 / limit
+        };
+        BuiltinGasCosts {
+            pedersen: derive(self.pedersen, "pedersen"),
+            range_check: derive(self.range_check, "range_check"),
+            range_check96: derive(self.range_check96, "range_check96"),
+            poseidon: derive(self.poseidon, "poseidon"),
+            ecdsa: derive(self.ecdsa, "ecdsa"),
+            ecop: derive(self.ecop, "ecop"),
+            bitwise: derive(self.bitwise, "bitwise"),
+            keccak: derive(self.keccak, "keccak"),
+            add_mod: derive(self.add_mod, "add_mod"),
+            mul_mod: derive(self.mul_mod, "mul_mod"),
+            blake: derive(self.blake, "blake"),
         }
     }
 }
 
-impl Default for BuiltinWeights {
+impl Default for BuiltinInstanceLimits {
     fn default() -> Self {
         Self {
-            gas_costs: BuiltinGasCosts {
-                pedersen: 3000,
-                range_check: 90,
-                ecdsa: 2000000,
-                ecop: 857850,
-                bitwise: 583,
-                keccak: 600000,
-                poseidon: 10000,
-                add_mod: 2000,
-                mul_mod: 2000,
-                range_check96: 179,
-                blake: 3334,
-            },
+            pedersen: 2_000_000,
+            range_check: 66_666_666,
+            range_check96: 33_519_553,
+            poseidon: 600_000,
+            ecdsa: 3_000,
+            ecop: 130_000,
+            bitwise: 10_500_000,
+            keccak: 10_000,
+            add_mod: 3_000_000,
+            mul_mod: 3_000_000,
+            blake: 1_800_000,
         }
     }
 }
 
-impl SerializeConfig for BuiltinWeights {
+impl SerializeConfig for BuiltinInstanceLimits {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::from([ser_param(
-            "gas_costs.pedersen",
-            &self.gas_costs.pedersen,
-            "Pedersen gas weight.",
+            "pedersen",
+            &self.pedersen,
+            "Instance limit for the pedersen builtin.",
             ParamPrivacyInput::Public,
         )]);
         dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.range_check",
-            &self.gas_costs.range_check,
-            "Range_check gas weight.",
+            "range_check",
+            &self.range_check,
+            "Instance limit for the range_check builtin.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.range_check96",
-            &self.gas_costs.range_check96,
-            "range_check96 gas weight.",
+            "range_check96",
+            &self.range_check96,
+            "Instance limit for the range_check96 builtin.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.poseidon",
-            &self.gas_costs.poseidon,
-            "Poseidon gas weight.",
+            "poseidon",
+            &self.poseidon,
+            "Instance limit for the poseidon builtin.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.ecdsa",
-            &self.gas_costs.ecdsa,
-            "Ecdsa gas weight.",
+            "ecdsa",
+            &self.ecdsa,
+            "Instance limit for the ecdsa builtin.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.ecop",
-            &self.gas_costs.ecop,
-            "Ec_op gas weight.",
+            "ecop",
+            &self.ecop,
+            "Instance limit for the ec_op builtin.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.add_mod",
-            &self.gas_costs.add_mod,
-            "Add_mod gas weight.",
+            "add_mod",
+            &self.add_mod,
+            "Instance limit for the add_mod builtin.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.mul_mod",
-            &self.gas_costs.mul_mod,
-            "Mul_mod gas weight.",
+            "mul_mod",
+            &self.mul_mod,
+            "Instance limit for the mul_mod builtin.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.keccak",
-            &self.gas_costs.keccak,
-            "Keccak gas weight.",
+            "keccak",
+            &self.keccak,
+            "Instance limit for the keccak builtin.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.bitwise",
-            &self.gas_costs.bitwise,
-            "Bitwise gas weight.",
+            "bitwise",
+            &self.bitwise,
+            "Instance limit for the bitwise builtin.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.blake",
-            &self.gas_costs.blake,
-            "Blake gas weight.",
+            "blake",
+            &self.blake,
+            "Instance limit for the blake opcode.",
             ParamPrivacyInput::Public,
         )]));
 
@@ -900,7 +929,7 @@ pub fn get_tx_weights<S: StateReader>(
 
     // Builtin gas costs for stone and for stwo.
     let sierra_builtin_gas_costs = &versioned_constants.os_constants.gas_costs.builtins;
-    let proving_builtin_gas_costs = &bouncer_config.builtin_weights.gas_costs;
+    let proving_builtin_gas_costs = &bouncer_config.builtin_gas_costs();
 
     // Casm hash migration resources.
     let migration_data = CasmHashMigrationData::from_state(
