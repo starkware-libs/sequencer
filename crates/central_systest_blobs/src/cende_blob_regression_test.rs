@@ -19,6 +19,7 @@ use apollo_consensus_orchestrator::cende::{
     InternalTransactionWithReceipt,
 };
 use apollo_consensus_orchestrator::fee_market::FeeMarketInfo;
+use apollo_consensus_orchestrator::snip35::FeeProposalInfo;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::config::TransactionExecutorConfig;
@@ -236,6 +237,7 @@ impl From<BlockData> for BlobParameters {
             transactions_with_execution_infos: transactions_with_receipts,
             bouncer_weights: BouncerWeights::default(),
             fee_market_info: FeeMarketInfo::default(),
+            fee_proposal_info: FeeProposalInfo::default(),
             casm_hash_computation_data_sierra_gas: CasmHashComputationData::default(),
             casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
             compiled_class_hashes_for_migration: vec![],
