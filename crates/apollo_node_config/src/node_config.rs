@@ -39,7 +39,6 @@ use apollo_reverts::RevertConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
 use apollo_state_sync_config::config::{StateSyncConfig, StateSyncDynamicConfig};
-use apollo_storage::StorageScope;
 use blockifier::blockifier::config::NativeClassesWhitelist;
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use clap::Command;
@@ -604,21 +603,8 @@ impl SequencerNodeConfig {
             }
             other => other,
         })?;
-        // TODO(Asaf): validation-only nodes should ideally use StorageScope::StateOnly to
-        // save disk and write traffic, but the SNIP-35 fee_proposals bootstrap calls
-        // state_sync.get_block(), which reads transaction_metadata - a table excluded from
-        // StateOnly (see apollo_storage::StorageScope). Find a way to either (a) make
-        // get_block work without transaction_metadata or (b) skip the bootstrap call on
-        // validation-only nodes, then flip this back to requiring StateOnly.
-        if let Some(state_sync_config) = &self.state_sync_config {
-            if state_sync_config.static_config.storage_config.scope != StorageScope::FullArchive {
-                return Err(ConfigError::ComponentConfigMismatch {
-                    component_config_mismatch: "state_sync storage scope must be FullArchive when \
-                                                validation_only is true"
-                        .to_string(),
-                });
-            }
-        }
+        // TODO(Asaf): Revert PR 14122 and require StorageScope::StateOnly here once
+        // state_sync.get_block() works without transaction_metadata (the orchestrator needs it).
         Ok(())
     }
 }
