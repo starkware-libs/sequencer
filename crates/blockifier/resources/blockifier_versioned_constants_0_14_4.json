@@ -546,11 +546,11 @@
             },
             "L1Handler": {
                 "constant": {
-                    "n_steps": 1315,
+                    "n_steps": 1342,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 19,
-                        "pedersen_builtin": 11
+                        "pedersen_builtin": 12
                     }
                 },
                 "calldata_factor": {

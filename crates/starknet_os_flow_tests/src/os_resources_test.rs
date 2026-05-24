@@ -485,8 +485,7 @@ async fn test_execute_txs_inner_resources() {
     let version = StarknetVersion::LATEST;
     let mut raw_vc: RawVersionedConstants =
         serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
-    // TODO(Dori): L1Handler.
-    const N_TXS: usize = 3;
+    const N_TXS: usize = 4;
 
     let OsResourcesTestSetup {
         stable_contract_address,
@@ -545,6 +544,15 @@ async fn test_execute_txs_inner_resources() {
     // Deploy account (pre-prepared).
     test_builder.add_deploy_account_tx(deploy_tx);
 
+    // L1 handler.
+    test_builder.add_l1_handler(
+        stable_contract_address,
+        "l1_handler",
+        // From address, extra args length.
+        calldata![Felt::from(100), Felt::ZERO],
+        None,
+    );
+
     // Execute the business logic and extract the business logic resources for each tx.
     let test_runner = test_builder.build().await;
     let business_logic_resources: [ExecutionResources; N_TXS] = test_runner
@@ -577,7 +585,7 @@ async fn test_execute_txs_inner_resources() {
     test_output.perform_default_validations();
 
     // Fetch the OS resources for each tx.
-    let [invoke_overhead, declare_overhead, deploy_account_overhead]: [ExecutionResources; N_TXS] =
+    let [invoke_overhead, declare_overhead, deploy_account_overhead, l1_handler_overhead]: [ExecutionResources; N_TXS] =
         test_output
             .runner_output
             .txs_trace
@@ -666,6 +674,28 @@ async fn test_execute_txs_inner_resources() {
     raw_vc.os_resources.execute_txs_inner.insert(
         TransactionType::DeployAccount,
         VariableResourceParams::WithFactor(deploy_account_resources_params),
+    );
+
+    // L1 handler: variable cost, unscaled.
+    // TODO(Dori): Compute linear factor cost.
+    let VariableResourceParams::WithFactor(mut l1_handler_resources_params) =
+        raw_vc.os_resources.execute_txs_inner.get(&TransactionType::L1Handler).unwrap().clone()
+    else {
+        panic!(
+            "L1 handler resources params has unexpected structure: {:?}",
+            raw_vc.os_resources.execute_txs_inner.get(&TransactionType::L1Handler).unwrap()
+        );
+    };
+    assert_matches!(
+        l1_handler_resources_params.calldata_factor,
+        VariableCallDataFactor::Unscaled(_),
+        "L1 handler scaling factor has unexpected structure: {:?}",
+        l1_handler_resources_params.calldata_factor
+    );
+    l1_handler_resources_params.constant = l1_handler_overhead;
+    raw_vc.os_resources.execute_txs_inner.insert(
+        TransactionType::L1Handler,
+        VariableResourceParams::WithFactor(l1_handler_resources_params),
     );
 
     // Verify computation.
