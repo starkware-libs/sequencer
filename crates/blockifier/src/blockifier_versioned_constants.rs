@@ -104,7 +104,7 @@ impl RawVersionedConstants {
         let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
         let mut serializer = serde_json::Serializer::with_formatter(&mut buffer, formatter);
         self.serialize(&mut serializer).unwrap();
-        String::from_utf8(buffer).unwrap()
+        format!("{}\n", String::from_utf8(buffer).unwrap())
     }
 }
 
@@ -164,6 +164,7 @@ pub struct RawOsConstants {
     pub syscall_base_gas_cost: RawStepGasCost,
     // Deprecated field for computation of syscall gas costs in old blocks.
     // New VCs set this to null.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub syscall_gas_costs: Option<SyscallGasCostsMap>,
 
     // Initial costs.
