@@ -55,9 +55,7 @@ mod OsResourcesTestContract {
     fn constructor(ref self: ContractState, some_args: Span<felt252>) {}
 
     #[external(v0)]
-    fn __validate_declare__(
-        self: @ContractState, class_hash: ClassHash, self_address: ContractAddress,
-    ) -> felt252 {
+    fn __validate_declare__(self: @ContractState, class_hash: ClassHash) -> felt252 {
         starknet::VALIDATED
     }
 

@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use assert_matches::assert_matches;
 use blockifier::blockifier_versioned_constants::{
     RawStepGasCost,
     RawVersionedConstants,
@@ -10,20 +11,27 @@ use blockifier::blockifier_versioned_constants::{
 };
 use blockifier::context::BlockContext;
 use blockifier::execution::deprecated_syscalls::DeprecatedSyscallSelector as Selector;
+use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
-use blockifier_test_utils::cairo_versions::RunnableCairo1;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use expect_test::expect_file;
 use indexmap::IndexMap;
 use starknet_api::block::StarknetVersion;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ContractAddress, EthAddress};
-use starknet_api::executable_transaction::{InvokeTransaction, TransactionType};
+use starknet_api::executable_transaction::{
+    DeclareTransaction,
+    InvokeTransaction,
+    TransactionType,
+};
+use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::transaction::{L2ToL1Payload, MessageToL1};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use starknet_api::{calldata, invoke_tx_args};
+use starknet_api::{calldata, declare_tx_args, invoke_tx_args};
 use starknet_os::hint_processor::constants::BUILTIN_INSTANCE_SIZES;
 use starknet_os::hint_processor::os_logger::ResourceFinalizer;
 use starknet_os::test_utils::{SHA256_BATCH_RESOURCES_LINEAR, SHA256_BLOCK_TO_ROUND};
@@ -392,30 +400,48 @@ async fn test_execute_txs_inner_resources() {
     let version = StarknetVersion::LATEST;
     let mut raw_vc: RawVersionedConstants =
         serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
-    // TODO(Dori): Declare, DeployAccount, L1Handler.
-    const N_TXS: usize = 1;
+    // TODO(Dori): DeployAccount, L1Handler.
+    const N_TXS: usize = 2;
 
     let (os_resources_contract_address, mut test_builder) = setup_test_builder().await;
 
     // Invoke.
     // Calldata [0, 0, 0] → class_hash=0 → __execute__ returns immediately.
+    let invoke_args = invoke_tx_args! {
+        sender_address: os_resources_contract_address,
+        calldata: calldata![Felt::ZERO, Felt::ZERO, Felt::ZERO],
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+        nonce: test_builder.next_nonce(os_resources_contract_address),
+    };
     test_builder.add_invoke_tx(
-        InvokeTransaction::create(
-            invoke_tx(invoke_tx_args! {
-                sender_address: os_resources_contract_address,
-                calldata: calldata![Felt::ZERO, Felt::ZERO, Felt::ZERO],
-                resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
-            }),
-            &test_builder.chain_id(),
-        )
-        .unwrap(),
+        InvokeTransaction::create(invoke_tx(invoke_args), &test_builder.chain_id()).unwrap(),
         None,
         None,
     );
 
+    // Declare.
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let sierra = empty_contract.get_sierra();
+    let class_hash = sierra.calculate_class_hash();
+    let compiled_class_hash = empty_contract.get_compiled_class_hash(&HashVersion::V2);
+    let class_info = empty_contract.get_class_info();
+    let tx = DeclareTransaction::create(
+        declare_tx(declare_tx_args! {
+            sender_address: os_resources_contract_address,
+            class_hash,
+            compiled_class_hash,
+            resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+            nonce: test_builder.next_nonce(os_resources_contract_address),
+        }),
+        class_info,
+        &test_builder.chain_id(),
+    )
+    .unwrap();
+    test_builder.add_cairo1_declare_tx(tx, &sierra);
+
     // Execute the business logic and extract the business logic resources for each tx.
     let test_runner = test_builder.build().await;
-    let [invoke_business_logic_resources]: [ExecutionResources; N_TXS] = test_runner
+    let business_logic_resources: [ExecutionResources; N_TXS] = test_runner
         .os_hints
         .os_input
         .os_block_inputs
@@ -445,7 +471,7 @@ async fn test_execute_txs_inner_resources() {
     test_output.perform_default_validations();
 
     // Fetch the OS resources for each tx.
-    let [invoke_os_resources]: [ExecutionResources; N_TXS] = test_output
+    let [invoke_overhead, declare_overhead]: [ExecutionResources; N_TXS] = test_output
         .runner_output
         .txs_trace
         .iter()
@@ -453,11 +479,13 @@ async fn test_execute_txs_inner_resources() {
         .take(N_TXS)
         .rev()
         .map(|trace| trace.get_resources().unwrap().clone())
+        .zip(business_logic_resources)
+        .map(|(os_resources, business_logic_resources)| {
+            (&os_resources - &business_logic_resources).filter_unused_builtins()
+        })
         .collect::<Vec<_>>()
         .try_into()
         .unwrap();
-    let invoke_overhead =
-        (&invoke_os_resources - &invoke_business_logic_resources).filter_unused_builtins();
 
     // Invoke: variable cost, with scaling of 2.
     // TODO(Dori): Compute linear factor cost.
@@ -491,6 +519,18 @@ async fn test_execute_txs_inner_resources() {
         TransactionType::InvokeFunction,
         VariableResourceParams::WithFactor(invoke_resources_params),
     );
+
+    // Declare: constant cost.
+    assert_matches!(
+        raw_vc.os_resources.execute_txs_inner.get(&TransactionType::Declare).unwrap(),
+        VariableResourceParams::Constant(_),
+        "Declare resources params has unexpected structure: {:?}",
+        raw_vc.os_resources.execute_txs_inner.get(&TransactionType::Declare).unwrap()
+    );
+    raw_vc
+        .os_resources
+        .execute_txs_inner
+        .insert(TransactionType::Declare, VariableResourceParams::Constant(declare_overhead));
 
     // Verify computation.
     expect_file![VersionedConstants::json_path(&version).unwrap()]
