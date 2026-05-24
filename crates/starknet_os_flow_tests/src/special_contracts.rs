@@ -35,3 +35,22 @@ pub(crate) static DATA_GAS_ACCOUNT_CONTRACT_CASM: LazyLock<CasmContractClass> =
     LazyLock::new(|| {
         serde_json::from_str(include_str!("../resources/data_gas_account.casm.json")).unwrap()
     });
+
+pub(crate) static DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_SIERRA: LazyLock<
+    SierraContractClass,
+> = LazyLock::new(|| {
+    let compiler_contract_class: cairo_lang_starknet_classes::contract_class::ContractClass =
+        serde_json::from_str(include_str!(
+            "../resources/deployable_for_resource_measurement.sierra.json"
+        ))
+        .unwrap();
+    SierraContractClass::from(compiler_contract_class)
+});
+
+pub(crate) static DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_CASM: LazyLock<CasmContractClass> =
+    LazyLock::new(|| {
+        serde_json::from_str(include_str!(
+            "../resources/deployable_for_resource_measurement.casm.json"
+        ))
+        .unwrap()
+    });
