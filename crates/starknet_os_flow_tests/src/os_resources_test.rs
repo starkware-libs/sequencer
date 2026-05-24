@@ -19,7 +19,7 @@ use indexmap::IndexMap;
 use starknet_api::block::StarknetVersion;
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, ContractAddress, EthAddress};
-use starknet_api::executable_transaction::InvokeTransaction;
+use starknet_api::executable_transaction::{InvokeTransaction, TransactionType};
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::{L2ToL1Payload, MessageToL1};
@@ -161,7 +161,7 @@ async fn setup_test_builder() -> OsResourcesTestSetup {
     );
     test_builder.add_fund_address_tx_with_default_amount(os_resources_contract_address);
 
-    // Declare and deploy an instance of the stable contract.
+    // Declare and deploy an instance of the stable contract. Also, fund it.
     let stable_contract_sierra = &DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_SIERRA;
     let stable_contract_casm = &DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_CASM;
     let stable_contract_class_hash = stable_contract_sierra.calculate_class_hash();
@@ -187,6 +187,7 @@ async fn setup_test_builder() -> OsResourcesTestSetup {
             deploy_from_zero,
         );
     test_builder.add_invoke_tx(deploy_tx, None, None);
+    test_builder.add_fund_address_tx_with_default_amount(stable_contract_address);
 
     // Move on to the next block, so the measurement txs are in their own block.
     test_builder.move_to_next_block();
@@ -459,6 +460,124 @@ async fn test_os_resources_regression() {
     for (syscall, resources) in measurements {
         raw_vc.os_resources.execute_syscalls.insert(syscall, resources);
     }
+    expect_file![VersionedConstants::json_path(&version).unwrap()]
+        .assert_eq(&raw_vc.to_string_pretty());
+}
+
+/// Measures the per-transaction-type overhead of `execute_transaction_inner` in the OS and
+/// compares it against the versioned constants.
+///
+/// Methodology:
+/// - Run a minimal transaction of the given type through the full OS.
+/// - Compute: overhead = OS trace resources − blockifier business-logic resources
+///   (execute_call_info + validate_call_info).
+/// - The remainder is the pure OS scaffolding cost stored under `execute_txs_inner`.
+#[tokio::test]
+async fn test_execute_txs_inner_resources() {
+    let version = StarknetVersion::LATEST;
+    let mut raw_vc: RawVersionedConstants =
+        serde_json::from_str(VersionedConstants::json_str(&version).unwrap()).unwrap();
+    // TODO(Dori): Declare, DeployAccount, L1Handler.
+    const N_TXS: usize = 1;
+
+    let OsResourcesTestSetup { stable_contract_address, mut test_builder, .. } =
+        setup_test_builder().await;
+
+    // Invoke.
+    test_builder.add_invoke_tx(
+        InvokeTransaction::create(
+            invoke_tx(invoke_tx_args! {
+                sender_address: stable_contract_address,
+                calldata: calldata![Felt::ZERO],
+                resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+            }),
+            &test_builder.chain_id(),
+        )
+        .unwrap(),
+        None,
+        None,
+    );
+
+    // Execute the business logic and extract the business logic resources for each tx.
+    let test_runner = test_builder.build().await;
+    let [invoke_business_logic_resources]: [ExecutionResources; N_TXS] = test_runner
+        .os_hints
+        .os_input
+        .os_block_inputs
+        .last()
+        .unwrap()
+        .tx_execution_infos
+        .iter()
+        .map(|exec_info| {
+            let mut business_logic_resources =
+                [exec_info.execute_call_info.as_ref(), exec_info.validate_call_info.as_ref()]
+                    .into_iter()
+                    .flatten()
+                    .map(|ci| ci.resources.vm_resources.clone())
+                    .fold(ExecutionResources::default(), |acc, resources| &acc + &resources);
+            // TODO(Dori): Consider supporting memory-hole counting in the OsLogger. Until then, we
+            //   cannot subtract inner calls with positive memory-hole counts from the OsLogger
+            //   resources.
+            business_logic_resources.n_memory_holes = 0;
+            business_logic_resources
+        })
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+
+    // Run the OS part.
+    let test_output = test_runner.run();
+    test_output.perform_default_validations();
+
+    // Fetch the OS resources for each tx.
+    let [invoke_os_resources]: [ExecutionResources; N_TXS] = test_output
+        .runner_output
+        .txs_trace
+        .iter()
+        .rev()
+        .take(N_TXS)
+        .rev()
+        .map(|trace| trace.get_resources().unwrap().clone())
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap();
+    let invoke_overhead =
+        (&invoke_os_resources - &invoke_business_logic_resources).filter_unused_builtins();
+
+    // Invoke: variable cost, with scaling of 2.
+    // TODO(Dori): Compute linear factor cost.
+    let VariableResourceParams::WithFactor(mut invoke_resources_params) = raw_vc
+        .os_resources
+        .execute_txs_inner
+        .get(&TransactionType::InvokeFunction)
+        .unwrap()
+        .clone()
+    else {
+        panic!(
+            "Invoke resources params has unexpected structure: {:?}",
+            raw_vc.os_resources.execute_txs_inner.get(&TransactionType::InvokeFunction).unwrap()
+        );
+    };
+    let VariableCallDataFactor::Scaled(ref invoke_scaling_factor) =
+        invoke_resources_params.calldata_factor
+    else {
+        panic!(
+            "Invoke scaling factor has unexpected structure: {:?}",
+            invoke_resources_params.calldata_factor
+        );
+    };
+    assert_eq!(
+        invoke_scaling_factor.scaling_factor, 2,
+        "Invoke scaling factor has unexpected value: {:?}",
+        invoke_scaling_factor.scaling_factor
+    );
+    invoke_resources_params.constant = invoke_overhead;
+    raw_vc.os_resources.execute_txs_inner.insert(
+        TransactionType::InvokeFunction,
+        VariableResourceParams::WithFactor(invoke_resources_params),
+    );
+
+    // Verify computation.
     expect_file![VersionedConstants::json_path(&version).unwrap()]
         .assert_eq(&raw_vc.to_string_pretty());
 }
