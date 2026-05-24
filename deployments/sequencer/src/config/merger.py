@@ -43,7 +43,7 @@ def _load_common_yaml(path: str) -> dict | None:
 def _merge_common_into_service(
     common_config: CommonConfig | dict | None, service_config: ServiceConfig
 ) -> ServiceConfig:
-    """Merge common config into service config. Common first, service overrides. Special handling for service.ports (merge by name), config.sequencerConfig, config.configList."""
+    """Merge common config into service config. Common first, service overrides. Special handling for service.ports (merge by name) and config.sequencerConfig."""
     service_dict = service_config.model_dump(mode="python", exclude_unset=True, exclude_none=True)
     if common_config is None:
         return service_config

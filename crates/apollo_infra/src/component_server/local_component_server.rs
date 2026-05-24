@@ -1,10 +1,7 @@
-use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::validators::validate_positive;
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -44,43 +41,6 @@ pub struct LocalServerConfig {
     pub processing_time_warning_threshold_ms: u128,
     #[validate(custom(function = "validate_positive"))]
     pub max_concurrency: usize,
-}
-
-impl SerializeConfig for LocalServerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "inbound_requests_channel_capacity",
-                &self.inbound_requests_channel_capacity,
-                "The inbound requests channel capacity.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "high_priority_requests_channel_capacity",
-                &self.high_priority_requests_channel_capacity,
-                "The high priority requests channel capacity.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "normal_priority_requests_channel_capacity",
-                &self.normal_priority_requests_channel_capacity,
-                "The normal priority requests channel capacity.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "processing_time_warning_threshold_ms",
-                &self.processing_time_warning_threshold_ms,
-                "Request processing threshold time in ms after which a warning message is logged.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_concurrency",
-                &self.max_concurrency,
-                "The maximum number of concurrent requests handling.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
 }
 
 impl Default for LocalServerConfig {

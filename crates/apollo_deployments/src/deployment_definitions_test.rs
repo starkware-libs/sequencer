@@ -1,102 +1,26 @@
-use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::env;
+use std::collections::{BTreeSet, HashSet};
 use std::fs::File;
 
-use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
-use apollo_node_config::config_utils::private_parameters;
-use serde_json::{to_value, Map, Value};
+use apollo_node_config::config_utils::PRIVATE_FIELD_PATHS;
+use serde_json::{to_value, Map};
 use strum::IntoEnumIterator;
-use tempfile::NamedTempFile;
 
 use crate::deployment_definitions::ComponentConfigInService;
+use crate::jsonnet::test_components_libsonnet_is_valid;
 use crate::service::NodeType;
 use crate::test_utils::SecretsConfigOverride;
 
 const SECRETS_FOR_TESTING_ENV_PATH: &str =
     "crates/apollo_deployments/resources/testing_secrets.json";
 
-/// Test that the deployment file is up to date.
+/// Verifies every path in KEYS_TO_BE_REPLACED exists in components.libsonnet with mustOverride.
 #[test]
-fn deployment_files_are_up_to_date() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
+fn components_libsonnet_is_valid() {
+    std::env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
 
-    for node_type in NodeType::iter() {
-        node_type.test_dump_service_component_configs(None);
-        for node_service in node_type.all_service_names() {
-            node_service.test_dump_node_service_replacer_app_config_files();
-        }
-    }
-}
-
-/// Test that the deployment file is up to date.
-#[test]
-fn replacer_config_entries_are_in_config() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
-
-    for node_type in NodeType::iter() {
-        node_type.test_all_replacers_are_accounted_for();
-    }
-}
-
-// TODO(Tsabary): consider adding a test that loads a config and validates it; the challenge will be
-// to replace the values in a meaningful manner. Consider using the system test yaml files for that.
-
-// Test that each there are no duplicate config entries.
-#[test]
-fn duplicate_config_entries() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
-
-    // Create a dummy secrets value and dump it as a config file.
-    let secrets_file = NamedTempFile::new().unwrap();
-    let secrets_file_path = secrets_file.path().to_str().unwrap();
-    let secrets_config_override = SecretsConfigOverride::default();
-    serialize_to_file(&to_value(&secrets_config_override).unwrap(), secrets_file_path);
-
-    for node_type in NodeType::iter() {
-        for node_service in node_type.all_service_names() {
-            let deployment_file_path = node_service.replacer_deployment_file_path();
-            let deployment_file = File::open(deployment_file_path).unwrap();
-
-            let mut application_config_files: Vec<String> =
-                serde_json::from_reader(deployment_file)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
-                    .unwrap();
-
-            // Add the secrets config file path to the config load command.
-            application_config_files.push(secrets_file_path.to_string());
-
-            let mut key_to_files: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-            for application_config_file in &application_config_files {
-                let file = File::open(application_config_file).unwrap();
-                let json_map: Map<String, Value> = serde_json::from_reader(file)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
-                    .unwrap();
-
-                for key in json_map.keys() {
-                    key_to_files
-                        .entry(key.clone())
-                        .or_default()
-                        .insert(application_config_file.to_string());
-                }
-            }
-
-            // Report duplicated keys
-            let mut has_duplicates = false;
-            for (key, files) in &key_to_files {
-                if files.len() > 1 {
-                    has_duplicates = true;
-                    println!(
-                        "For node type {node_type} the key '{key}' was found in files: {files:?}"
-                    );
-                }
-            }
-            assert!(!has_duplicates, "Found duplicate keys in service config files.");
-        }
-    }
+    test_components_libsonnet_is_valid();
 }
 
 /// Test that the private values in the apollo node config schema match the secrets config override
@@ -111,7 +35,8 @@ fn secrets_config_and_private_parameters_config_schema_compatibility() {
         .keys()
         .cloned()
         .collect::<BTreeSet<_>>();
-    let secrets_required_by_schema = private_parameters();
+    let secrets_required_by_schema: BTreeSet<String> =
+        PRIVATE_FIELD_PATHS.iter().map(|s| s.to_string()).collect();
 
     let only_in_config: BTreeSet<_> =
         secrets_provided_by_config.difference(&secrets_required_by_schema).collect();

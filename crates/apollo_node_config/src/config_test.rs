@@ -1,7 +1,5 @@
-use apollo_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::{LocalServerConfig, RemoteServerConfig};
-use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_state_sync_config::config::{StateSyncConfig, StateSyncStaticConfig};
 use apollo_storage::{StorageConfig, StorageScope};
 use rstest::rstest;
@@ -13,17 +11,8 @@ use crate::component_execution_config::{
     ReactiveComponentExecutionConfig,
     ReactiveComponentExecutionMode,
 };
-use crate::config_utils::private_parameters;
 use crate::monitoring::MonitoringConfig;
-use crate::node_config::{
-    SequencerNodeConfig,
-    CONFIG_NON_POINTERS_WHITELIST,
-    CONFIG_POINTERS,
-    CONFIG_SCHEMA_PATH,
-    CONFIG_SECRETS_SCHEMA_PATH,
-};
-
-const FIX_BINARY_NAME: &str = "update_apollo_node_config_schema";
+use crate::node_config::SequencerNodeConfig;
 
 const LOCAL_EXECUTION_MODE: ReactiveComponentExecutionMode =
     ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled;
@@ -78,21 +67,6 @@ fn valid_component_execution_config(
         port,
     };
     assert_eq!(component_exe_config.validate(), Ok(()));
-}
-
-/// Test the validation of the struct SequencerNodeConfig and that the default config file is up to
-/// date. To update the default config file, run `cargo run --bin <FIX_BINARY_NAME>`.
-#[test]
-fn default_config_file_is_up_to_date() {
-    let combined_map = combine_config_map_and_pointers(
-        SequencerNodeConfig::default().dump(),
-        &CONFIG_POINTERS,
-        &CONFIG_NON_POINTERS_WHITELIST,
-    )
-    .unwrap();
-    serialize_to_file_test(&combined_map, CONFIG_SCHEMA_PATH, FIX_BINARY_NAME);
-
-    serialize_to_file_test(&private_parameters(), CONFIG_SECRETS_SCHEMA_PATH, FIX_BINARY_NAME);
 }
 
 #[test]

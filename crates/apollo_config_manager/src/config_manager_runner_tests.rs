@@ -10,7 +10,6 @@ use apollo_config_manager_types::communication::{
 };
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
-use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::{NodeDynamicConfig, SequencerNodeConfig};
 use serde_json::Value;
 use starknet_api::core::ContractAddress;
@@ -22,30 +21,47 @@ use tracing_test::traced_test;
 
 use crate::config_manager_runner::ConfigManagerRunner;
 
-// An arbitrary hex-str config entry to be replaced.
-const VALIDATOR_ID_CONFIG_ENTRY: &str = "validator_id";
+// Nested path to validator_id in the sequencer node config.
+const VALIDATOR_ID_PATH: &[&str] =
+    &["consensus_manager_config", "consensus_manager_config", "dynamic_config", "validator_id"];
 const TEST_TIMEOUT_SECS: u64 = 1;
+
+/// Reads a string value at the given dotted path in a nested JSON object.
+fn get_nested_str<'a>(value: &'a Value, path: &[&str]) -> Option<&'a str> {
+    let mut current = value;
+    for key in path {
+        current = current.get(key)?;
+    }
+    current.as_str()
+}
+
+/// Sets a string value at the given dotted path in a nested JSON object, creating intermediate
+/// objects if needed.
+fn set_nested_str(value: &mut Value, path: &[&str], new_value: String) {
+    let (last, parents) = path.split_last().expect("path must be non-empty");
+    let mut current = value;
+    for key in parents {
+        current = current
+            .as_object_mut()
+            .expect("expected object")
+            .entry(*key)
+            .or_insert(Value::Object(Default::default()));
+    }
+    current.as_object_mut().expect("expected object").insert((*last).to_string(), new_value.into());
+}
 
 /// Creates a temporary config file with specific test values and returns CLI args pointing to it.
 fn create_temp_config_file_and_args() -> (NamedTempFile, Vec<String>, String) {
     let config = SequencerNodeConfig::default();
-    let config_pointers_map = ConfigPointersMap::create_for_testing();
+    let base_app_config = DeploymentBaseAppConfig::new(config);
 
-    let base_app_config = DeploymentBaseAppConfig::new(config, config_pointers_map);
-
-    // Create a temporary file
     let temp_file = NamedTempFile::new().expect("Failed to create temporary config file");
-
     base_app_config.dump_config_file(temp_file.path());
 
-    let current_validator_id = base_app_config
-        .as_value()
-        .get(VALIDATOR_ID_CONFIG_ENTRY)
-        .and_then(|v| v.as_str())
-        .expect("Missing or non-string hex value at VALIDATOR_ID_CONFIG_ENTRY")
+    let current_validator_id = get_nested_str(&base_app_config.as_value(), VALIDATOR_ID_PATH)
+        .expect("Missing or non-string hex value at VALIDATOR_ID_PATH")
         .to_string();
 
-    // Create cli args pointing to the temp file
     let cli_args = vec![
         "test_node".to_string(),
         CONFIG_FILE_ARG.to_string(),
@@ -59,24 +75,17 @@ fn update_config_file(temp_file: &NamedTempFile) -> String {
     let current_content =
         fs::read_to_string(temp_file.path()).expect("Failed to read temp config file");
 
-    // Parse JSON (expects a top-level object/map)
     let mut root: Value = serde_json::from_str(&current_content).expect("Config is not valid JSON");
-    let obj = root.as_object_mut().expect("Config root must be a JSON object");
 
-    // Get the hex string at the key VALIDATOR_ID_CONFIG_ENTRY (e.g., "validator_id": "0x00ff")
-    let current_validator_id = obj
-        .get(VALIDATOR_ID_CONFIG_ENTRY)
-        .and_then(|v| v.as_str())
-        .expect("Missing or non-string hex value at VALIDATOR_ID_CONFIG_ENTRY");
+    let current_validator_id = get_nested_str(&root, VALIDATOR_ID_PATH)
+        .expect("Missing or non-string hex value at VALIDATOR_ID_PATH");
     assert!(current_validator_id.starts_with("0x"), "Expected a 0x-prefixed hex string");
 
-    // Bump by 1 and preserve width
     let hex = &current_validator_id[2..]; // drop "0x"
     let n = u128::from_str_radix(hex, 16).unwrap() + 1;
-    let new_validator_id = format!("0x{:0x}", n);
+    let new_validator_id = format!("0x{n:0x}");
 
-    // Update JSON and write back
-    obj.insert(VALIDATOR_ID_CONFIG_ENTRY.to_string(), Value::String(new_validator_id.clone()));
+    set_nested_str(&mut root, VALIDATOR_ID_PATH, new_validator_id.clone());
     let updated_content = serde_json::to_string_pretty(&root).expect("Failed to serialize JSON");
     fs::write(temp_file.path(), updated_content)
         .expect("Failed to write updated config to temp file");

@@ -219,25 +219,18 @@ pub mod sqmr;
 mod test_utils;
 pub mod utils;
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 use std::time::Duration;
 
 use apollo_config::converters::{
     deserialize_comma_separated_str,
     deserialize_optional_sensitive_vec_u8,
     deserialize_seconds_to_duration,
-    serialize_optional_comma_separated,
-    serialize_optional_vec_u8,
-};
-use apollo_config::dumping::{
-    prepend_sub_config_name,
-    ser_optional_param,
-    ser_param,
-    SerializeConfig,
+    serialize_duration_as_seconds,
+    serialize_optional_sensitive_vec_u8,
 };
 use apollo_config::secrets::Sensitive;
 use apollo_config::validators::validate_optional_sensitive_vec_u256;
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use discovery::DiscoveryConfig;
 use libp2p::identity::Keypair;
 use libp2p::swarm::dial_opts::DialOpts;
@@ -313,11 +306,17 @@ pub struct NetworkConfig {
 
     /// Maximum session duration before timeout. Applies to inbound and outbound SQMR sessions.
     /// Default: 120 seconds
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        serialize_with = "serialize_duration_as_seconds",
+        deserialize_with = "deserialize_seconds_to_duration"
+    )]
     pub session_timeout: Duration,
 
     /// Maximum idle time before closing a connection. Default: 120 seconds
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        serialize_with = "serialize_duration_as_seconds",
+        deserialize_with = "deserialize_seconds_to_duration"
+    )]
     pub idle_connection_timeout: Duration,
 
     /// Bootstrap peer multiaddresses for initial connectivity. Each must include a valid peer ID.
@@ -329,7 +328,10 @@ pub struct NetworkConfig {
     /// Optional 32-byte Ed25519 private key for deterministic peer ID generation.
     /// If None, a random key is generated on each startup. Default: None
     #[validate(custom(function = "validate_optional_sensitive_vec_u256"))]
-    #[serde(deserialize_with = "deserialize_optional_sensitive_vec_u8")]
+    #[serde(
+        serialize_with = "serialize_optional_sensitive_vec_u8",
+        deserialize_with = "deserialize_optional_sensitive_vec_u8"
+    )]
     pub secret_key: Option<Sensitive<Vec<u8>>>,
 
     /// Optional external multiaddress advertised to other peers. Useful for NAT traversal.
@@ -351,97 +353,16 @@ pub struct NetworkConfig {
 
     /// Buffer size for reported peer IDs (peers flagged for malicious behavior). Default: 100000
     pub reported_peer_ids_buffer_size: usize,
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        serialize_with = "serialize_duration_as_seconds",
+        deserialize_with = "deserialize_seconds_to_duration"
+    )]
     pub prune_dead_connections_ping_interval: Duration,
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(
+        serialize_with = "serialize_duration_as_seconds",
+        deserialize_with = "deserialize_seconds_to_duration"
+    )]
     pub prune_dead_connections_ping_timeout: Duration,
-}
-
-impl SerializeConfig for NetworkConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::from_iter([
-            ser_param(
-                "port",
-                &self.port,
-                "The port that the node listens on for incoming connections.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "session_timeout",
-                &self.session_timeout.as_secs(),
-                "Maximal time in seconds that each session can take before failing on timeout.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "idle_connection_timeout",
-                &self.idle_connection_timeout.as_secs(),
-                "Amount of time in seconds that a connection with no active sessions will stay \
-                 alive.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "chain_id",
-                &self.chain_id,
-                "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "broadcasted_message_metadata_buffer_size",
-                &self.broadcasted_message_metadata_buffer_size,
-                "The size of the buffer that holds the metadata of the broadcasted messages.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "reported_peer_ids_buffer_size",
-                &self.reported_peer_ids_buffer_size,
-                "The size of the buffer that holds the reported peer ids.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "prune_dead_connections_ping_interval",
-                &self.prune_dead_connections_ping_interval.as_secs(),
-                "The interval in seconds between each prune dead connections ping check.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "prune_dead_connections_ping_timeout",
-                &self.prune_dead_connections_ping_timeout.as_secs(),
-                "The timeout in seconds for a ping to be considered failed.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "secret_key",
-                &serialize_optional_vec_u8(
-                    &self.secret_key.as_ref().map(|s| s.clone().expose_secret()),
-                ),
-                "The secret key used for building the peer id. If it's an empty string a random one \
-                 will be used.",
-                ParamPrivacyInput::Private,
-            ),
-        ]);
-        config.extend(ser_optional_param(
-            &serialize_optional_comma_separated(&self.bootstrap_peer_multiaddr),
-            String::from(""),
-            "bootstrap_peer_multiaddr",
-            "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
-            ParamPrivacyInput::Public,
-        ));
-        config.extend(ser_optional_param(
-            &self.advertised_multiaddr,
-            Multiaddr::empty(),
-            "advertised_multiaddr",
-            "The external address other peers see this node. If this is set, the node will not \
-             try to find out which addresses it has and will write this address as external \
-             instead",
-            ParamPrivacyInput::Public,
-        ));
-        config.extend(prepend_sub_config_name(self.discovery_config.dump(), "discovery_config"));
-        config.extend(prepend_sub_config_name(
-            self.peer_manager_config.dump(),
-            "peer_manager_config",
-        ));
-        config
-    }
 }
 
 impl Default for NetworkConfig {

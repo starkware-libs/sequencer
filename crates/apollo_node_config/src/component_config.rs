@@ -1,7 +1,4 @@
-use std::collections::BTreeMap;
-
-use apollo_config::dumping::{prepend_sub_config_name, SerializeConfig};
-use apollo_config::{ConfigError, ParamPath, SerializedParam};
+use apollo_config::ConfigError;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -62,33 +59,6 @@ pub struct ComponentConfig {
     pub l1_gas_price_scraper: ActiveComponentExecutionConfig,
     #[validate(nested)]
     pub monitoring_endpoint: ActiveComponentExecutionConfig,
-}
-
-impl SerializeConfig for ComponentConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let sub_configs = vec![
-            prepend_sub_config_name(self.batcher.dump(), "batcher"),
-            prepend_sub_config_name(self.class_manager.dump(), "class_manager"),
-            prepend_sub_config_name(self.committer.dump(), "committer"),
-            prepend_sub_config_name(self.config_manager.dump(), "config_manager"),
-            prepend_sub_config_name(self.consensus_manager.dump(), "consensus_manager"),
-            prepend_sub_config_name(self.gateway.dump(), "gateway"),
-            prepend_sub_config_name(self.http_server.dump(), "http_server"),
-            prepend_sub_config_name(self.l1_events_provider.dump(), "l1_events_provider"),
-            prepend_sub_config_name(self.l1_gas_price_provider.dump(), "l1_gas_price_provider"),
-            prepend_sub_config_name(self.l1_events_scraper.dump(), "l1_events_scraper"),
-            prepend_sub_config_name(self.l1_gas_price_scraper.dump(), "l1_gas_price_scraper"),
-            prepend_sub_config_name(self.mempool.dump(), "mempool"),
-            prepend_sub_config_name(self.mempool_p2p.dump(), "mempool_p2p"),
-            prepend_sub_config_name(self.monitoring_endpoint.dump(), "monitoring_endpoint"),
-            prepend_sub_config_name(self.proof_manager.dump(), "proof_manager"),
-            prepend_sub_config_name(self.sierra_compiler.dump(), "sierra_compiler"),
-            prepend_sub_config_name(self.signature_manager.dump(), "signature_manager"),
-            prepend_sub_config_name(self.state_sync.dump(), "state_sync"),
-        ];
-
-        sub_configs.into_iter().flatten().collect()
-    }
 }
 
 impl ComponentConfig {

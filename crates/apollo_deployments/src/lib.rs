@@ -2,7 +2,8 @@
 pub(crate) mod addresses;
 pub mod deployment_definitions;
 pub mod deployments;
-pub(crate) mod replacers;
+#[cfg(test)]
+pub mod jsonnet;
 pub(crate) mod scale_policy;
 pub mod service;
 #[cfg(test)]

@@ -1,8 +1,18 @@
 import json
+import os
 
+import _jsonnet
 from imports import k8s
-from src.config.loaders import NodeConfigLoader
+from src.config.loaders import ConfigValidationError
 from src.constructs.base import BaseConstruct
+
+_JSONNET_SERVICE_KEY_MAP = {
+    "sierracompiler": "sierra_compiler",
+}
+
+
+def _jsonnet_service_key(service_name: str) -> str:
+    return _JSONNET_SERVICE_KEY_MAP.get(service_name, service_name)
 
 
 class ConfigMapConstruct(BaseConstruct):
@@ -28,50 +38,70 @@ class ConfigMapConstruct(BaseConstruct):
         self.overlays = overlays
         self.config_map = self._get_config_map()
 
-    def _get_config_map(self) -> k8s.KubeConfigMap:
-        # config is mandatory
+    def _parse_env_and_node(self) -> tuple[str | None, str | None]:
+        for overlay in self.overlays:
+            parts = overlay.split(".")
+            if len(parts) >= 3:
+                return parts[1], parts[2]
+        return None, None
+
+    def _get_config_map(self) -> k8s.KubeConfigMap | None:
         if not self.service_config.config:
-            raise ValueError(
-                f"config is required for service '{self.service_config.name}' but was not provided"
-            )
-        if not self.service_config.config.configList:
-            raise ValueError(
-                f"config.configList is required for service '{self.service_config.name}' but was not provided"
+            return None
+
+        env_name, node_name = self._parse_env_and_node()
+        if not env_name or not node_name:
+            raise ConfigValidationError(
+                f"Cannot determine environment and node name from overlays: {self.overlays}. "
+                f"Expected overlay format: '<layout>.<env>.<node>'"
             )
 
-        # Load JSON configs using NodeConfigLoader
-        node_config_loader = NodeConfigLoader(
-            config_list_json_path=self.service_config.config.configList,
+        service_key = _jsonnet_service_key(self.service_config.name)
+        cdk8s_dir = os.path.normpath(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../")
         )
-        node_config = node_config_loader.load()
+        env_jsonnet_path = os.path.join(
+            cdk8s_dir, "configs", "environments", f"{env_name}.jsonnet"
+        )
 
-        # sequencerConfig is now already merged from common into service_config
-        merged_sequencer_config = (
+        if not os.path.exists(env_jsonnet_path):
+            raise ConfigValidationError(
+                f"No environment Jsonnet file found for environment '{env_name}'. "
+                f"Expected: {env_jsonnet_path}"
+            )
+
+        env_output = json.loads(_jsonnet.evaluate_file(env_jsonnet_path))
+
+        if node_name not in env_output:
+            raise ConfigValidationError(
+                f"Node '{node_name}' not found in environment '{env_name}'. "
+                f"Available nodes: {sorted(env_output.keys())}"
+            )
+
+        if service_key not in env_output[node_name]:
+            raise ConfigValidationError(
+                f"Service '{service_key}' not found for node '{node_name}' in "
+                f"environment '{env_name}'. "
+                f"Available services: {sorted(env_output[node_name].keys())}"
+            )
+
+        node_config: dict = dict(env_output[node_name][service_key])
+
+        sequencer_config = (
             self.service_config.config.sequencerConfig
-            if self.service_config.config and self.service_config.config.sequencerConfig
+            if self.service_config.config.sequencerConfig
             else {}
         )
+        if sequencer_config:
+            unknown_keys = sorted(k for k in sequencer_config if k not in node_config)
+            if unknown_keys:
+                raise ConfigValidationError(
+                    f"Keys in sequencerConfig not found in config for service "
+                    f"'{self.service_config.name}': {unknown_keys}"
+                )
+            node_config.update(sequencer_config)
 
-        # Apply merged overrides (includes validation for both unused keys and remaining placeholders)
-        if merged_sequencer_config:
-            node_config = NodeConfigLoader.apply_sequencer_overrides(
-                node_config,
-                merged_sequencer_config,
-                service_name=self.service_config.name,
-                config_list_path=self.service_config.config.configList,
-                layout=self.layout,
-                overlays=self.overlays,
-            )
-        else:
-            # If no sequencer config overrides, still validate for remaining placeholders
-            NodeConfigLoader.validate_no_remaining_placeholders(
-                node_config,
-                config_list_path=self.service_config.config.configList,
-                layout=self.layout,
-                overlays=self.overlays,
-                service_name=self.service_config.name,
-            )
-
+        node_config = dict(sorted(node_config.items()))
         config_data = json.dumps(node_config, indent=2)
 
         return k8s.KubeConfigMap(

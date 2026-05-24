@@ -1,12 +1,3 @@
-use std::collections::BTreeMap;
-
-use apollo_config::dumping::{
-    prepend_sub_config_name,
-    ser_optional_param,
-    ser_param,
-    SerializeConfig,
-};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::de::Error as DeError;
 use serde::ser::Error as SerError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -166,15 +157,6 @@ pub struct StakingManagerConfig {
     pub static_config: StakingManagerStaticConfig,
 }
 
-impl SerializeConfig for StakingManagerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::new();
-        config.extend(prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
-        config.extend(prepend_sub_config_name(self.static_config.dump(), "static_config"));
-        config
-    }
-}
-
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct StakingManagerDynamicConfig {
     // Defines the default committee configuration (size and stakers) that applies to all epochs.
@@ -203,25 +185,6 @@ impl Default for StakingManagerDynamicConfig {
     }
 }
 
-impl SerializeConfig for StakingManagerDynamicConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::from_iter([ser_param(
-            "default_committee",
-            &self.default_committee,
-            "Defines the default committee configuration (size and stakers) for all epochs.",
-            ParamPrivacyInput::Public,
-        )]);
-        config.extend(ser_optional_param(
-            &self.override_committee,
-            self.default_committee.clone(),
-            "override_committee",
-            "Optional override configuration that takes precedence over default_committee.",
-            ParamPrivacyInput::Public,
-        ));
-        config
-    }
-}
-
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct StakingManagerStaticConfig {
     pub max_cached_epochs: usize,
@@ -231,25 +194,5 @@ pub struct StakingManagerStaticConfig {
 impl Default for StakingManagerStaticConfig {
     fn default() -> Self {
         Self { max_cached_epochs: 10, use_only_actual_proposer_selection: false }
-    }
-}
-
-impl SerializeConfig for StakingManagerStaticConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "max_cached_epochs",
-                &self.max_cached_epochs,
-                "The maximum number of epochs to cache.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "use_only_actual_proposer_selection",
-                &self.use_only_actual_proposer_selection,
-                "If true, get_proposer will use the same deterministic round-robin selection as \
-                 get_actual_proposer.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }

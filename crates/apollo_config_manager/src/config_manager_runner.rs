@@ -155,8 +155,8 @@ impl ConfigManagerRunner {
     }
 
     fn log_config_diff(&self, old_config: &NodeDynamicConfig, new_config: &NodeDynamicConfig) {
-        let old_config = get_config_presentation(old_config, false).unwrap();
-        let new_config = get_config_presentation(new_config, false).unwrap();
+        let old_config = get_config_presentation(old_config, &[], false).unwrap();
+        let new_config = get_config_presentation(new_config, &[], false).unwrap();
         let all_keys: BTreeSet<_> = old_config
             .as_object()
             .unwrap()

@@ -5,26 +5,22 @@ use std::ops::IndexMut;
 use itertools::Itertools;
 use serde::Serialize;
 
-use crate::dumping::SerializeConfig;
-use crate::{ConfigError, ParamPrivacy};
+use crate::ConfigError;
 
-/// Returns presentation of the public parameters in the config.
-pub fn get_config_presentation<T: Serialize + SerializeConfig>(
+/// Returns a presentation of the config with private fields optionally removed.
+///
+/// `private_paths`: dotted-path strings for fields to strip when `include_private` is false.
+pub fn get_config_presentation<T: Serialize>(
     config: &T,
-    include_private_parameters: bool,
+    private_paths: &[&str],
+    include_private: bool,
 ) -> Result<serde_json::Value, ConfigError> {
     let mut config_presentation = serde_json::to_value(config)?;
-    if include_private_parameters {
+    if include_private {
         return Ok(config_presentation);
     }
-
-    // Iterates over flatten param paths for removing non-public parameters from the nested config.
-    for (param_path, serialized_param) in config.dump() {
-        match serialized_param.privacy {
-            ParamPrivacy::Public => continue,
-            ParamPrivacy::TemporaryValue => continue,
-            ParamPrivacy::Private => remove_path_from_json(&param_path, &mut config_presentation)?,
-        }
+    for path in private_paths {
+        remove_path_from_json(path, &mut config_presentation)?;
     }
     Ok(config_presentation)
 }

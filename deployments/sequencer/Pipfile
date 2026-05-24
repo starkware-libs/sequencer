@@ -17,6 +17,7 @@ isort = "*"
 pydantic = "*"
 pyyaml = "*"
 types-pyyaml = "*"
+jsonnet = "*"
 rich = "*"
 
 [requires]

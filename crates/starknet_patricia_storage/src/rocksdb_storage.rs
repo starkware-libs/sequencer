@@ -1,10 +1,7 @@
 use core::fmt;
-use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use rust_rocksdb::statistics::StatsLevel;
 use rust_rocksdb::{
     BlockBasedIndexType,
@@ -183,79 +180,6 @@ impl Default for RocksDbStorageConfig {
 impl Validate for RocksDbStorageConfig {
     fn validate(&self) -> Result<(), validator::ValidationErrors> {
         Ok(())
-    }
-}
-
-impl SerializeConfig for RocksDbStorageConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "num_threads",
-                &self.num_threads,
-                "Number of threads for parallelism",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_background_jobs",
-                &self.max_background_jobs,
-                "Maximum number of background compaction and flush jobs",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "bytes_per_sync",
-                &self.bytes_per_sync,
-                "Bytes to sync to disk incrementally during writes",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "write_buffer_size",
-                &self.write_buffer_size,
-                "Amount of data to build up in memory before writing to disk",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_write_buffers",
-                &self.max_write_buffers,
-                "Maximum number of write buffers (memtables)",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_subcompactions",
-                &self.max_subcompactions,
-                "Maximum number of subcompactions for parallel compaction",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "cache_size",
-                &self.cache_size,
-                "Size of the block cache in bytes",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "bloom_filter_bits",
-                &self.bloom_filter_bits,
-                "Number of bits in the bloom filter per key",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "enable_statistics",
-                &self.enable_statistics,
-                "Flag that determines whether to enable RocksDB statistics collection",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "use_mmap_reads",
-                &self.use_mmap_reads,
-                "Whether to use mmap for reading SST files",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "spawn_blocking_reads",
-                &self.spawn_blocking_reads,
-                "Whether to spawn blocking tasks for read operations",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }
 

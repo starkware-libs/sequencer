@@ -1,8 +1,5 @@
-use std::collections::HashSet;
-use std::fs::File;
 use std::sync::{Arc, LazyLock};
 
-use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
 use apollo_gateway_config::config::{
     GatewayConfig,
@@ -87,7 +84,6 @@ use starknet_api::{
 use starknet_proof_verifier::VerifyProofError;
 use starknet_types_core::felt::Felt;
 use strum::VariantNames;
-use tempfile::TempDir;
 
 use crate::errors::{GatewayResult, StatelessTransactionValidatorError};
 use crate::gateway::GenericGateway;
@@ -789,16 +785,15 @@ fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
         ..Default::default()
     };
 
-    // Create a temporary file to dump the config.
-    let file_path = TempDir::new().unwrap().path().join("config.json");
-    original_config.dump_to_file(&vec![], &HashSet::new(), file_path.to_str().unwrap()).unwrap();
+    // Write config as nested JSON to a temp file.
+    let tmp = tempfile::NamedTempFile::new().unwrap();
+    serde_json::to_writer(&tmp, &original_config).unwrap();
+    let path = tmp.path().to_str().unwrap().to_owned();
 
-    // Load the config from the dumped config file.
+    // Load the config from the nested JSON file.
     let loaded_config = load_and_process_config::<GatewayConfig>(
-        File::open(file_path).unwrap(), // Config file to load.
-        Command::new(""),               // Unused CLI context.
-        vec![],                         // No override CLI args.
-        false,                          // Use schema defaults.
+        Command::new(""),
+        vec!["".to_owned(), "--config_file".to_owned(), path],
     )
     .unwrap();
 

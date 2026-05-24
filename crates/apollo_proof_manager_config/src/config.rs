@@ -1,9 +1,6 @@
-use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -24,24 +21,5 @@ impl Default for ProofManagerConfig {
             cache_size: NonZeroUsize::new(DEFAULT_CACHE_SIZE)
                 .expect("proof cache size must be non-zero"),
         }
-    }
-}
-
-impl SerializeConfig for ProofManagerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "persistent_root",
-                &self.persistent_root,
-                "Persistent root for proof storage.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "cache_size",
-                &self.cache_size,
-                "Number of proofs to cache in memory.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }

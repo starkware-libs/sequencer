@@ -1,5 +1,0 @@
-config:
-  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_committer.json
-  sequencerConfig:
-    committer_config.storage_config.cache_size: 50000000
-    committer_config.verify_state_diff_hash: true

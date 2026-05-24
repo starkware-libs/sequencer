@@ -7,8 +7,6 @@ use apollo_config::converters::{
 use serde::{Serialize, Serializer};
 use url::Url;
 
-pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
-
 #[derive(Serialize)]
 pub struct SecretsConfigOverride {
     #[serde(

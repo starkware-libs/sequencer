@@ -1,10 +1,7 @@
-use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use lru::LruCache;
 use serde::{Deserialize, Serialize};
@@ -146,34 +143,6 @@ impl<InnerStorageConfig: StorageConfigTrait> Default for CachedStorageConfig<Inn
 impl<InnerStorageConfig: StorageConfigTrait> Validate for CachedStorageConfig<InnerStorageConfig> {
     fn validate(&self) -> Result<(), ValidationErrors> {
         self.inner_storage_config.validate()
-    }
-}
-
-impl<InnerStorageConfig: StorageConfigTrait> SerializeConfig
-    for CachedStorageConfig<InnerStorageConfig>
-{
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut cached_storage_config = BTreeMap::from([
-            ser_param(
-                "cache_size",
-                &self.cache_size,
-                "Max number of entries in the cache",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "include_inner_stats",
-                &self.include_inner_stats,
-                "If true, the inner stats are included when collecting statistics",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
-
-        cached_storage_config.extend(prepend_sub_config_name(
-            self.inner_storage_config.dump(),
-            "inner_storage_config",
-        ));
-
-        cached_storage_config
     }
 }
 

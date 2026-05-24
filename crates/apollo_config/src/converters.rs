@@ -1,27 +1,33 @@
 //! Utils for serialization and deserialization of nested config fields into simple types.
-//! These conversions let the command line updater (which supports only numbers strings and
-//! booleans) handle these fields.
+//! These conversions allow Duration fields and other non-trivially-serializable types to
+//! round-trip through JSON config files.
 //!
 //! # example
 //!
 //! ```
-//! use std::collections::BTreeMap;
 //! use std::time::Duration;
 //!
-//! use apollo_config::converters::deserialize_milliseconds_to_duration;
-//! use apollo_config::loading::load;
-//! use serde::Deserialize;
+//! use apollo_config::converters::{
+//!     deserialize_milliseconds_to_duration,
+//!     serialize_duration_as_milliseconds,
+//! };
+//! use serde::{Deserialize, Serialize};
 //! use serde_json::json;
 //!
-//! #[derive(Clone, Deserialize, Debug, PartialEq)]
+//! #[derive(Clone, Deserialize, Serialize, Debug, PartialEq)]
 //! struct DurationConfig {
-//!     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+//!     #[serde(
+//!         serialize_with = "serialize_duration_as_milliseconds",
+//!         deserialize_with = "deserialize_milliseconds_to_duration"
+//!     )]
 //!     dur: Duration,
 //! }
 //!
-//! let dumped_config = BTreeMap::from([("dur".to_owned(), json!(1000))]);
-//! let loaded_config = load::<DurationConfig>(&dumped_config).unwrap();
-//! assert_eq!(loaded_config.dur.as_secs(), 1);
+//! let config = DurationConfig { dur: Duration::from_secs(1) };
+//! let json = serde_json::to_value(&config).unwrap();
+//! assert_eq!(json["dur"], 1000u64);
+//! let loaded: DurationConfig = serde_json::from_value(json).unwrap();
+//! assert_eq!(loaded.dur.as_secs(), 1);
 //! ```
 
 use std::collections::{BTreeMap, HashMap};
@@ -52,6 +58,14 @@ where
     se.serialize_u64(u64::try_from(duration.as_millis()).unwrap_or(u64::MAX))
 }
 
+/// Serializes a duration object to whole seconds.
+pub fn serialize_duration_as_seconds<S>(duration: &Duration, se: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    se.serialize_u64(duration.as_secs())
+}
+
 /// Deserializes seconds to duration object.
 pub fn deserialize_seconds_to_duration<'de, D>(de: D) -> Result<Duration, D::Error>
 where
@@ -61,6 +75,14 @@ where
     Ok(Duration::from_secs(secs))
 }
 
+/// Serializes a duration object to seconds as an f64.
+pub fn serialize_duration_as_float_seconds<S>(duration: &Duration, se: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    se.serialize_f64(duration.as_secs_f64())
+}
+
 /// Deserializes float seconds to duration object.
 pub fn deserialize_float_seconds_to_duration<'de, D>(de: D) -> Result<Duration, D::Error>
 where
@@ -68,6 +90,29 @@ where
 {
     let secs: f64 = Deserialize::deserialize(de)?;
     Ok(Duration::from_secs_f64(secs))
+}
+
+/// Serializes a Vec<T: Display> as a space-separated string. Symmetric with [`deserialize_vec`].
+pub fn serialize_vec_as_space_separated<T, S>(v: &Vec<T>, se: S) -> Result<S::Ok, S::Error>
+where
+    T: std::fmt::Display,
+    S: Serializer,
+{
+    se.serialize_str(&v.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(" "))
+}
+
+/// Serializes a Vec<Sensitive<T: Display>> as a space-separated string by exposing the inner
+/// values. Used for config file round-trips where the presentation layer handles redaction via
+/// PRIVATE_FIELD_PATHS. Symmetric with [`deserialize_vec`].
+pub fn serialize_sensitive_vec_as_space_separated<T, S>(
+    v: &Vec<Sensitive<T>>,
+    se: S,
+) -> Result<S::Ok, S::Error>
+where
+    T: std::fmt::Display,
+    S: Serializer,
+{
+    se.serialize_str(&v.iter().map(|x| x.peek_secret().to_string()).collect::<Vec<_>>().join(" "))
 }
 
 /// Serializes a map to "k1:v1 k2:v2" string structure.
@@ -352,4 +397,62 @@ where
 {
     let optional_vec = deserialize_optional_vec_u8(de)?;
     Ok(optional_vec.map(Sensitive::new))
+}
+
+/// Serializes an `Option<Sensitive<Vec<u8>>>` as a hex string. `None` serializes as `""`.
+/// Exposes the inner value for config file round-trips; presentation-layer redaction is handled
+/// via PRIVATE_FIELD_PATHS. Symmetric with [`deserialize_optional_sensitive_vec_u8`].
+pub fn serialize_optional_sensitive_vec_u8<S>(
+    v: &Option<Sensitive<Vec<u8>>>,
+    se: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let s = match v {
+        None => "".to_owned(),
+        Some(sensitive) => serialize_optional_vec_u8(&Some(sensitive.peek_secret().clone())),
+    };
+    se.serialize_str(&s)
+}
+
+/// Serializes an `Option<Sensitive<HashMap<String, String>>>` as a "k1:v1 k2:v2" string.
+/// `None` serializes as `""`. Exposes the inner value for config file round-trips; redaction is
+/// handled via PRIVATE_FIELD_PATHS. Symmetric with [`deserialize_optional_sensitive_map`].
+pub fn serialize_optional_sensitive_map<S>(
+    map: &Option<Sensitive<HashMap<String, String>>>,
+    se: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let s = match map {
+        None => "".to_owned(),
+        Some(sensitive) => serialize_optional_map(&Some(sensitive.peek_secret().clone())),
+    };
+    se.serialize_str(&s)
+}
+
+/// Serializes an `Option<Vec<Sensitive<UrlAndHeaders>>>` as a pipe-separated string.
+/// `None` serializes as `""`. Exposes the inner value for config file round-trips; redaction is
+/// handled via PRIVATE_FIELD_PATHS. Symmetric with
+/// [`deserialize_optional_sensitive_list_with_url_and_headers`].
+pub fn serialize_optional_sensitive_list_with_url_and_headers<S>(
+    list: &Option<Vec<Sensitive<UrlAndHeaders>>>,
+    se: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let s = match list {
+        None => "".to_owned(),
+        Some(items) => items
+            .iter()
+            .map(|item| {
+                item.peek_secret().to_custom_string().expect("Failed to serialize UrlAndHeaders")
+            })
+            .collect::<Vec<String>>()
+            .join("|"),
+    };
+    se.serialize_str(&s)
 }

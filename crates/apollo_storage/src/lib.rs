@@ -125,8 +125,6 @@ use std::fmt::Debug;
 use std::fs;
 use std::sync::Arc;
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_metrics::metrics::MetricGauge;
 use apollo_proc_macros::{latency_histogram, sequencer_latency_histogram};
 use body::events::EventIndex;
@@ -810,21 +808,6 @@ pub struct StorageConfig {
     #[validate(nested)]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
-}
-
-impl SerializeConfig for StorageConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dumped_config = BTreeMap::from_iter([ser_param(
-            "scope",
-            &self.scope,
-            "The categories of data saved in storage.",
-            ParamPrivacyInput::Public,
-        )]);
-        dumped_config
-            .extend(prepend_sub_config_name(self.mmap_file_config.dump(), "mmap_file_config"));
-        dumped_config.extend(prepend_sub_config_name(self.db_config.dump(), "db_config"));
-        dumped_config
-    }
 }
 
 /// A struct for the statistics of the tables in the database.

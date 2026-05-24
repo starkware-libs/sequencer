@@ -1,5 +1,0 @@
-config:
-  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_sierra_compiler.json
-  sequencerConfig:
-    sierra_compiler_config.audited_libfuncs_only: false
-    sierra_compiler_config.max_bytecode_size: 81920

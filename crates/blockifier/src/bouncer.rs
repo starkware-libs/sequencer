@@ -1,7 +1,5 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::{Deserialize, Serialize};
@@ -125,15 +123,6 @@ impl BouncerConfig {
     }
 }
 
-impl SerializeConfig for BouncerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump =
-            prepend_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity");
-        dump.append(&mut prepend_sub_config_name(self.builtin_weights.dump(), "builtin_weights"));
-        dump
-    }
-}
-
 #[cfg_attr(any(test, feature = "testing"), derive(derive_more::Add, derive_more::AddAssign))]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 /// Represents the execution resources counted throughout block creation.
@@ -212,61 +201,6 @@ impl Default for BouncerWeights {
             // NOTE: Must stay in sync with orchestrator_versioned_constants' max_block_size.
             receipt_l2_gas: GasAmount(5800000000),
         }
-    }
-}
-
-impl SerializeConfig for BouncerWeights {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([ser_param(
-            "l1_gas",
-            &self.l1_gas,
-            "An upper bound on the total l1_gas used in a block.",
-            ParamPrivacyInput::Public,
-        )]);
-        dump.append(&mut BTreeMap::from([ser_param(
-            "message_segment_length",
-            &self.message_segment_length,
-            "An upper bound on the message segment length in a block.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "n_events",
-            &self.n_events,
-            "An upper bound on the total number of events generated in a block.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "state_diff_size",
-            &self.state_diff_size,
-            "An upper bound on the total state diff size in a block.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "sierra_gas",
-            &self.sierra_gas,
-            "An upper bound on the total sierra_gas used in a block.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "n_txs",
-            &self.n_txs,
-            "An upper bound on the total number of transactions in a block.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "proving_gas",
-            &self.proving_gas,
-            "An upper bound on the total builtins and steps gas usage used in a block.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "receipt_l2_gas",
-            &self.receipt_l2_gas,
-            "An upper bound on the total receipt-based L2 gas in a block. Includes execution gas \
-             plus state allocation costs. Should equal max_block_size.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump
     }
 }
 
@@ -457,79 +391,6 @@ impl Default for BuiltinWeights {
                 blake: 3334,
             },
         }
-    }
-}
-
-impl SerializeConfig for BuiltinWeights {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([ser_param(
-            "gas_costs.pedersen",
-            &self.gas_costs.pedersen,
-            "Pedersen gas weight.",
-            ParamPrivacyInput::Public,
-        )]);
-        dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.range_check",
-            &self.gas_costs.range_check,
-            "Range_check gas weight.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.range_check96",
-            &self.gas_costs.range_check96,
-            "range_check96 gas weight.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.poseidon",
-            &self.gas_costs.poseidon,
-            "Poseidon gas weight.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.ecdsa",
-            &self.gas_costs.ecdsa,
-            "Ecdsa gas weight.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.ecop",
-            &self.gas_costs.ecop,
-            "Ec_op gas weight.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.add_mod",
-            &self.gas_costs.add_mod,
-            "Add_mod gas weight.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.mul_mod",
-            &self.gas_costs.mul_mod,
-            "Mul_mod gas weight.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.keccak",
-            &self.gas_costs.keccak,
-            "Keccak gas weight.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.bitwise",
-            &self.gas_costs.bitwise,
-            "Bitwise gas weight.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "gas_costs.blake",
-            &self.gas_costs.blake,
-            "Blake gas weight.",
-            ParamPrivacyInput::Public,
-        )]));
-
-        dump
     }
 }
 
