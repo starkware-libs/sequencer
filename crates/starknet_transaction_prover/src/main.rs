@@ -21,6 +21,7 @@ async fn main() -> anyhow::Result<()> {
         TransportMode,
     };
     use starknet_transaction_prover::server::cors::{build_cors_layer, cors_mode};
+    use starknet_transaction_prover::server::log_redact::redact_url_host;
     use starknet_transaction_prover::server::rpc_api::ProvingRpcServer;
     use starknet_transaction_prover::server::rpc_impl::ProvingRpcServerImpl;
     use starknet_transaction_prover::server::{
@@ -46,6 +47,20 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let config = ServiceConfig::from_args(args)?;
+
+    // Startup banner — version + chain id + redacted RPC host only. No URLs
+    // with userinfo, no fee token address, no TLS paths, no tx data.
+    info!(
+        version = env!("CARGO_PKG_VERSION"),
+        git_sha = option_env!("GIT_SHA").unwrap_or("unknown"),
+        chain_id = %config.prover_config.chain_id,
+        rpc_node_host = %redact_url_host(&config.prover_config.rpc_node_url),
+        validate_zero_fee_fields = config.prover_config.validate_zero_fee_fields,
+        blocking_check_enabled = config.prover_config.blocking_check_url.is_some(),
+        blocking_check_fail_open = config.prover_config.blocking_check_fail_open,
+        ohttp_enabled = config.ohttp_enabled,
+        "Starting Starknet transaction prover."
+    );
 
     // Build and start the JSON-RPC server.
     let rpc_impl = ProvingRpcServerImpl::from_config(&config);
