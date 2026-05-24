@@ -110,13 +110,14 @@ impl AvailablePorts {
     }
 }
 
-// Checks if a port is occupied, without side effects.
+// Checks if a port is occupied, without side effects. Mirrors the real bind semantics used by
+// node components (wildcard address, no SO_REUSEADDR) so that the probe rejects ports a real
+// bind would also reject — including TIME_WAIT sockets and wildcard listeners on other
+// interfaces, which a `127.0.0.1` + SO_REUSEADDR probe would miss.
 fn is_port_in_use(port: u16) -> bool {
-    let addr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
+    let addr = SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), port);
     let socket =
         Socket::new(Domain::IPV4, Type::STREAM, None).expect("Should be able to create a socket.");
-    // Enable SO_REUSEADDR, which enables later binding to the address
-    socket.set_reuse_address(true).expect("Should be able to set socket properties.");
     socket.bind(&addr.into()).is_err()
 }
 
