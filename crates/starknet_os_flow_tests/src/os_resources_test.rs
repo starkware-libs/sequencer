@@ -14,16 +14,22 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use expect_test::expect_file;
 use indexmap::IndexMap;
 use starknet_api::block::StarknetVersion;
-use starknet_api::contract_class::SierraVersion;
-use starknet_api::executable_transaction::InvokeTransaction;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
+use starknet_api::executable_transaction::{DeclareTransaction, InvokeTransaction};
+use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use starknet_api::{calldata, invoke_tx_args};
+use starknet_api::{calldata, declare_tx_args, invoke_tx_args};
 use starknet_os::hint_processor::os_logger::ResourceFinalizer;
 use strum::IntoEnumIterator;
 
 use crate::initial_state::create_default_initial_state_data;
-use crate::test_manager::{TestBuilder, TestBuilderConfig};
+use crate::special_contracts::{
+    DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_CASM,
+    DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_SIERRA,
+};
+use crate::test_manager::{TestBuilder, TestBuilderConfig, FUNDED_ACCOUNT_ADDRESS};
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::get_class_hash_of_feature_contract;
 
@@ -97,8 +103,36 @@ async fn test_os_resources_regression() {
     );
 
     // Fund the contract - it will be used as the account.
-    // Then, move on to the next block, so the syscall-measurement tx is in it's own block.
     test_builder.add_fund_address_tx_with_default_amount(os_resources_contract_address);
+
+    // Declare the deployable contract, so it can be deployed later.
+    let deployable_contract_sierra = &DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_SIERRA;
+    let deployable_contract_casm = &DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_CASM;
+    let deployable_class_hash = deployable_contract_sierra.calculate_class_hash();
+    let deployable_compiled_class_hash = deployable_contract_casm.hash(&HashVersion::V2);
+    let declare_args = declare_tx_args! {
+        sender_address: *FUNDED_ACCOUNT_ADDRESS,
+        nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
+        class_hash: deployable_class_hash,
+        compiled_class_hash: deployable_compiled_class_hash,
+        resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
+    };
+    let account_declare_tx = declare_tx(declare_args);
+    let sierra_version = deployable_contract_sierra.get_sierra_version().unwrap();
+    let class_info = ClassInfo {
+        contract_class: ContractClass::V1((
+            (**deployable_contract_casm).clone(),
+            sierra_version.clone(),
+        )),
+        sierra_program_length: deployable_contract_sierra.sierra_program.len(),
+        abi_length: deployable_contract_sierra.abi.len(),
+        sierra_version,
+    };
+    let tx = DeclareTransaction::create(account_declare_tx, class_info, &test_builder.chain_id())
+        .unwrap();
+    test_builder.add_cairo1_declare_tx(tx, deployable_contract_sierra);
+
+    // Move on to the next block, so the syscall-measurement tx is in it's own block.
     test_builder.move_to_next_block();
 
     // Add the syscall-measurement tx.
