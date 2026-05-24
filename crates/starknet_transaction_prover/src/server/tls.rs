@@ -26,7 +26,13 @@ use tower_http::map_request_body::MapRequestBodyLayer;
 use tower_http::map_response_body::MapResponseBodyLayer;
 use tracing::warn;
 
-use crate::server::{HealthLayer, RequestLogLayer, RequestSpanLayer, ServerLayers};
+use crate::server::{
+    HealthLayer,
+    HttpMetricsLayer,
+    RequestLogLayer,
+    RequestSpanLayer,
+    ServerLayers,
+};
 
 /// Maximum time allowed for a TLS handshake before the connection is dropped.
 const TLS_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
