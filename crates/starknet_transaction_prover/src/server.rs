@@ -41,7 +41,8 @@ pub const OHTTP_JSONRPSEE_BODY_BUILDER: fn(Full<Bytes>) -> HttpBody = HttpBody::
 ///
 /// Layer order (tower makes the last-added layer innermost):
 /// - `RequestLogLayer` is outermost so the latency it measures covers every other layer.
-/// - `HealthLayer` sits inside it so probes complete before CORS/OHTTP.
+/// - `HealthLayer` (and `MetricsLayer` when configured) sit inside it so `/health` probes and
+///   `/metrics` scrapes short-circuit before CORS/OHTTP.
 /// - `OhttpLayer` must sit OUTSIDE `CompressionLayer` so compression applies to the inner JSON-RPC
 ///   response (the client's inner `Accept-Encoding` travels through BHTTP into jsonrpsee) rather
 ///   than to the OHTTP ciphertext envelope. `MapRequestBodyLayer`/`MapResponseBodyLayer` keep
@@ -50,10 +51,11 @@ pub const OHTTP_JSONRPSEE_BODY_BUILDER: fn(Full<Bytes>) -> HttpBody = HttpBody::
 /// - `RequestSpanLayer` sits BELOW `OhttpLayer` so it spans the decapsulated inner request with a
 ///   fresh, envelope-unlinkable id (see `request_span`).
 macro_rules! prover_http_middleware {
-    ($cors_layer:expr, $ohttp_layer:expr $(,)?) => {
+    ($metrics_layer:expr, $cors_layer:expr, $ohttp_layer:expr $(,)?) => {
         ServiceBuilder::new()
             .layer(RequestLogLayer)
             .layer(HealthLayer)
+            .option_layer($metrics_layer)
             .option_layer($cors_layer)
             .layer(MapRequestBodyLayer::new(HttpBody::new))
             .option_layer($ohttp_layer)
@@ -68,6 +70,7 @@ pub mod cors;
 pub mod errors;
 pub mod health;
 pub mod log_redact;
+pub mod metrics;
 #[cfg(test)]
 pub mod mock_rpc;
 pub mod panic;
@@ -75,9 +78,12 @@ pub mod request_log;
 pub mod request_span;
 pub mod rpc_api;
 pub mod rpc_impl;
+#[cfg(test)]
+pub mod test_recorder;
 pub mod tls;
 
 pub use health::{HealthLayer, HEALTH_PATH};
+pub use metrics::{MetricsLayer, METRICS_PATH};
 pub use request_log::{RequestLogLayer, REQUEST_ID_HEADER};
 pub use request_span::RequestSpanLayer;
 
@@ -92,6 +98,7 @@ mod request_body_size_test;
 mod ohttp_integration_test;
 
 /// Starts the JSON-RPC server in either HTTP or HTTPS mode depending on the transport.
+#[allow(clippy::too_many_arguments)]
 pub async fn start_server(
     addr: SocketAddr,
     transport: &TransportMode,
@@ -100,6 +107,7 @@ pub async fn start_server(
     max_request_body_size: u32,
     cors_layer: Option<CorsLayer>,
     ohttp_layer: Option<OhttpJsonrpseeLayer>,
+    metrics_layer: Option<MetricsLayer>,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     match transport {
         TransportMode::Http => {
@@ -110,7 +118,7 @@ pub async fn start_server(
             let server = ServerBuilder::default()
                 .set_config(server_config)
                 // See `prover_http_middleware!` for the full layer-order rationale.
-                .set_http_middleware(prover_http_middleware!(cors_layer, ohttp_layer))
+                .set_http_middleware(prover_http_middleware!(metrics_layer, cors_layer, ohttp_layer))
                 .build(&addr)
                 .await
                 .context(format!("Failed to bind JSON-RPC server to {addr}"))?;
@@ -128,6 +136,7 @@ pub async fn start_server(
                 max_request_body_size,
                 cors_layer,
                 ohttp_layer,
+                metrics_layer,
             )
             .await
         }
