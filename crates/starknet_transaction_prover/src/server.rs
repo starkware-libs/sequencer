@@ -40,6 +40,7 @@ pub mod request_log;
 pub mod request_span;
 pub mod rpc_api;
 pub mod rpc_impl;
+pub mod saturation;
 #[cfg(test)]
 pub mod test_recorder;
 pub mod tls;
@@ -49,6 +50,7 @@ pub use http_metrics::HttpMetricsLayer;
 pub use metrics::{MetricsLayer, METRICS_PATH};
 pub use request_log::{RequestLogLayer, REQUEST_ID_HEADER};
 pub use request_span::RequestSpanLayer;
+pub use saturation::SaturationMonitor;
 
 #[cfg(test)]
 mod rpc_spec_test;
@@ -68,6 +70,7 @@ pub async fn start_server(
     cors_layer: Option<CorsLayer>,
     ohttp_layer: Option<OhttpJsonrpseeLayer>,
     metrics_layer: Option<MetricsLayer>,
+    health_layer: HealthLayer,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     match transport {
         TransportMode::Http => {
@@ -100,7 +103,7 @@ pub async fn start_server(
                     // a fresh, envelope-unlinkable id (see `request_span`).
                     ServiceBuilder::new()
                         .layer(RequestLogLayer)
-                        .layer(HealthLayer)
+                        .layer(health_layer)
                         .option_layer(metrics_layer)
                         .layer(HttpMetricsLayer)
                         .option_layer(cors_layer)
@@ -128,6 +131,7 @@ pub async fn start_server(
                 cors_layer,
                 ohttp_layer,
                 metrics_layer,
+                health_layer,
             )
             .await
         }
