@@ -15,7 +15,7 @@ use super::{
     INITIAL_AVAILABLE_ALIAS,
     MAX_NON_COMPRESSED_CONTRACT_ADDRESS,
 };
-use crate::state::cached_state::{CachedState, StateMaps, StorageEntry};
+use crate::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps, StorageEntry};
 use crate::state::state_api::{State, StateReader};
 use crate::state::stateful_compression::{
     predicted_alias_storage_entries,
@@ -194,7 +194,8 @@ fn test_predicted_alias_storage_entries_parity() {
     state.set_class_hash_at(ContractAddress::from(0x202_u16), ClassHash(Felt::ONE)).unwrap();
     state.increment_nonce(ContractAddress::from(0x200_u16)).unwrap();
 
-    let state_diff_before_alloc = state.to_state_diff().unwrap().state_maps;
+    let state_diff_before_alloc =
+        CommitmentStateDiff::from(state.to_state_diff().unwrap().state_maps);
     let predicted =
         predicted_alias_storage_entries(&state_diff_before_alloc, *ALIAS_CONTRACT_ADDRESS);
 
