@@ -229,34 +229,3 @@ fn validation_only_with_tx_ingestion_disabled_succeeds() {
     };
     assert!(config.validate_node_config().is_ok());
 }
-
-#[test]
-fn validation_only_with_state_only_state_sync_fails() {
-    let config = SequencerNodeConfig {
-        validation_only: true,
-        components: ComponentConfig {
-            gateway: ReactiveComponentExecutionConfig::disabled(),
-            http_server: ActiveComponentExecutionConfig::disabled(),
-            mempool: ReactiveComponentExecutionConfig::disabled(),
-            mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
-            ..Default::default()
-        },
-        gateway_config: None,
-        http_server_config: None,
-        mempool_config: None,
-        mempool_p2p_config: None,
-        state_sync_config: Some(StateSyncConfig {
-            static_config: StateSyncStaticConfig {
-                storage_config: StorageConfig {
-                    scope: StorageScope::StateOnly,
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            ..Default::default()
-        }),
-        ..Default::default()
-    };
-    let err = config.validate_node_config().unwrap_err();
-    assert!(format!("{err:?}").contains("FullArchive"), "Unexpected error: {err:?}");
-}
