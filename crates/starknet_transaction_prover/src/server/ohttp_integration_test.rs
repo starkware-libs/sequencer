@@ -12,6 +12,7 @@
 //! (enabled via the crate's `testing` feature in this crate's dev-deps).
 
 use std::io::Read;
+use std::time::Duration;
 
 use flate2::read::GzDecoder;
 use http::header;
@@ -31,6 +32,7 @@ use tower_ohttp::OhttpLayer;
 
 use crate::server::request_log::{RequestLogLayer, REQUEST_ID_HEADER};
 use crate::server::request_span::RequestSpanLayer;
+use crate::server::saturation::SaturationMonitor;
 use crate::server::{HealthLayer, HttpMetricsLayer, MetricsLayer, OHTTP_JSONRPSEE_BODY_BUILDER};
 
 const DEFAULT_BODY_LIMIT: usize = 102_400;
@@ -100,9 +102,13 @@ async fn production_chain_compresses_inner_not_outer() {
         OHTTP_JSONRPSEE_BODY_BUILDER,
     );
 
-    let mut svc =
-        prover_http_middleware!(None::<MetricsLayer>, None::<CorsLayer>, Some(ohttp_layer))
-            .service(tower::service_fn(jsonrpsee_echo_service));
+    let mut svc = prover_http_middleware!(
+        HealthLayer::new(SaturationMonitor::default(), Duration::from_millis(0)),
+        None::<MetricsLayer>,
+        None::<CorsLayer>,
+        Some(ohttp_layer)
+    )
+    .service(tower::service_fn(jsonrpsee_echo_service));
 
     // Body must be large enough for gzip to actually compress.
     let body_json = serde_json::json!({
@@ -207,9 +213,13 @@ async fn ohttp_inner_request_id_unlinkable_from_envelope() {
         )
     });
 
-    let mut svc =
-        prover_http_middleware!(None::<MetricsLayer>, None::<CorsLayer>, Some(ohttp_layer))
-            .service(echo_id);
+    let mut svc = prover_http_middleware!(
+        HealthLayer::new(SaturationMonitor::default(), Duration::from_millis(0)),
+        None::<MetricsLayer>,
+        None::<CorsLayer>,
+        Some(ohttp_layer)
+    )
+    .service(echo_id);
 
     // The envelope carries a client-chosen inner id that must be discarded.
     let (encapsulated, client_response) = encapsulate_bhttp_request(
