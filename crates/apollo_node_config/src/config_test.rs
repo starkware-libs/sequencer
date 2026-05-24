@@ -115,10 +115,13 @@ fn monitoring_config(
     assert_eq!(component_exe_config.validate().is_ok(), expected_successful_validation);
 }
 
-fn state_sync_config_with_state_only() -> StateSyncConfig {
+fn state_sync_config_with_full_archive() -> StateSyncConfig {
     StateSyncConfig {
         static_config: StateSyncStaticConfig {
-            storage_config: StorageConfig { scope: StorageScope::StateOnly, ..Default::default() },
+            storage_config: StorageConfig {
+                scope: StorageScope::FullArchive,
+                ..Default::default()
+            },
             ..Default::default()
         },
         ..Default::default()
@@ -136,7 +139,7 @@ fn validation_only_with_gateway_enabled_fails() {
             mempool_p2p: ReactiveComponentExecutionConfig::default(),
             ..Default::default()
         },
-        state_sync_config: Some(state_sync_config_with_state_only()),
+        state_sync_config: Some(state_sync_config_with_full_archive()),
         ..Default::default()
     };
     let err = config.validate_node_config().unwrap_err();
@@ -156,7 +159,7 @@ fn validation_only_with_http_server_enabled_fails() {
             ..Default::default()
         },
         gateway_config: None,
-        state_sync_config: Some(state_sync_config_with_state_only()),
+        state_sync_config: Some(state_sync_config_with_full_archive()),
         ..Default::default()
     };
     let err = config.validate_node_config().unwrap_err();
@@ -177,7 +180,7 @@ fn validation_only_with_mempool_enabled_fails() {
         },
         gateway_config: None,
         http_server_config: None,
-        state_sync_config: Some(state_sync_config_with_state_only()),
+        state_sync_config: Some(state_sync_config_with_full_archive()),
         ..Default::default()
     };
     let err = config.validate_node_config().unwrap_err();
@@ -199,7 +202,7 @@ fn validation_only_with_mempool_p2p_enabled_fails() {
         gateway_config: None,
         http_server_config: None,
         mempool_config: None,
-        state_sync_config: Some(state_sync_config_with_state_only()),
+        state_sync_config: Some(state_sync_config_with_full_archive()),
         ..Default::default()
     };
     let err = config.validate_node_config().unwrap_err();
@@ -221,39 +224,8 @@ fn validation_only_with_tx_ingestion_disabled_succeeds() {
         http_server_config: None,
         mempool_config: None,
         mempool_p2p_config: None,
-        state_sync_config: Some(state_sync_config_with_state_only()),
+        state_sync_config: Some(state_sync_config_with_full_archive()),
         ..Default::default()
     };
     assert!(config.validate_node_config().is_ok());
-}
-
-#[test]
-fn validation_only_with_full_archive_state_sync_fails() {
-    let config = SequencerNodeConfig {
-        validation_only: true,
-        components: ComponentConfig {
-            gateway: ReactiveComponentExecutionConfig::disabled(),
-            http_server: ActiveComponentExecutionConfig::disabled(),
-            mempool: ReactiveComponentExecutionConfig::disabled(),
-            mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
-            ..Default::default()
-        },
-        gateway_config: None,
-        http_server_config: None,
-        mempool_config: None,
-        mempool_p2p_config: None,
-        state_sync_config: Some(StateSyncConfig {
-            static_config: StateSyncStaticConfig {
-                storage_config: StorageConfig {
-                    scope: StorageScope::FullArchive,
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-            ..Default::default()
-        }),
-        ..Default::default()
-    };
-    let err = config.validate_node_config().unwrap_err();
-    assert!(format!("{err:?}").contains("StateOnly"), "Unexpected error: {err:?}");
 }
