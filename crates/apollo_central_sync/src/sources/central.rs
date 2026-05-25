@@ -8,7 +8,6 @@ use std::sync::{Arc, Mutex};
 
 use apollo_central_sync_config::config::CentralSourceConfig;
 use apollo_starknet_client::reader::{
-    BlockSignatureData,
     ReaderClientError,
     StarknetFeederGatewayClient,
     StarknetReader,
@@ -28,11 +27,10 @@ use mockall::automock;
 use papyrus_common::pending_classes::ApiContractClass;
 use starknet_api::block::{Block, BlockHash, BlockHashAndNumber, BlockNumber, BlockSignature};
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
-use starknet_api::crypto::utils::Signature;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::StateDiff;
 use starknet_api::StarknetApiError;
-use tracing::{debug, trace};
+use tracing::trace;
 
 use self::state_update_stream::{StateUpdateStream, StateUpdateStreamConfig};
 
@@ -67,22 +65,28 @@ pub enum CentralError {
     StorageError(#[from] StorageError),
     #[error("Wrong type of contract class")]
     BadContractClassType,
-    #[error(
-        "Block downloaded from central is in 0.13.1 format, while signature is in 0.13.2 format."
-    )]
-    BlockAndSignatureVersionMismatch,
+}
+
+/// Combined result of a single feeder gateway `get_state_update` call (with `includeBlock=true`
+/// and `includeSignature=true`), containing the block, signature, and state diff together.
+#[derive(Debug)]
+pub struct CentralStateUpdate {
+    pub block_number: BlockNumber,
+    pub block: Block,
+    pub signature: BlockSignature,
+    pub block_hash: BlockHash,
+    pub state_diff: StateDiff,
+    pub deployed_contract_class_definitions: IndexMap<ClassHash, DeprecatedContractClass>,
 }
 
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait CentralSourceTrait {
     async fn get_latest_block(&self) -> Result<Option<BlockHashAndNumber>, CentralError>;
+
+    /// Returns a stream of state updates (block + signature + state diff) from a single feeder
+    /// gateway `get_state_update` call per block.
     fn stream_new_blocks(
-        &self,
-        initial_block_number: BlockNumber,
-        up_to_block_number: BlockNumber,
-    ) -> BlocksStream<'_>;
-    fn stream_state_updates(
         &self,
         initial_block_number: BlockNumber,
         up_to_block_number: BlockNumber,
@@ -111,11 +115,7 @@ pub trait CentralSourceTrait {
     async fn get_sequencer_pub_key(&self) -> Result<SequencerPublicKey, CentralError>;
 }
 
-pub(crate) type BlocksStream<'a> =
-    BoxStream<'a, Result<(BlockNumber, Block, BlockSignature), CentralError>>;
-type CentralStateUpdate =
-    (BlockNumber, BlockHash, StateDiff, IndexMap<ClassHash, DeprecatedContractClass>);
-pub(crate) type StateUpdatesStream<'a> = BoxStream<'a, CentralResult<CentralStateUpdate>>;
+pub type StateUpdatesStream<'a> = BoxStream<'a, CentralResult<CentralStateUpdate>>;
 type CentralCompiledClass = (BlockNumber, ClassHash, CompiledClassHash, CasmContractClass);
 pub(crate) type CompiledClassesStream<'a> = BoxStream<'a, CentralResult<CentralCompiledClass>>;
 
@@ -140,8 +140,9 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
             .map_or(Ok(None), |block| Ok(Some(block.block_hash())))
     }
 
-    // Returns a stream of state updates downloaded from the central source.
-    fn stream_state_updates(
+    // Returns a stream of state updates downloaded from the central source using a single feeder
+    // gateway `get_state_update` call per block.
+    fn stream_new_blocks(
         &self,
         initial_block_number: BlockNumber,
         up_to_block_number: BlockNumber,
@@ -154,43 +155,6 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
             self.state_update_stream_config.clone(),
             self.class_cache.clone(),
         )
-        .boxed()
-    }
-
-    // TODO(shahak): rename.
-    // Returns a stream of blocks downloaded from the central source.
-    fn stream_new_blocks(
-        &self,
-        initial_block_number: BlockNumber,
-        up_to_block_number: BlockNumber,
-    ) -> BlocksStream<'_> {
-        stream! {
-            // TODO(dan): add explanation.
-            let mut res =
-                futures_util::stream::iter(initial_block_number.iter_up_to(up_to_block_number))
-                    .map(|bn| async move {
-                        let block_and_signature = futures_util::try_join!(
-                            self.apollo_starknet_client.block(bn),
-                            self.apollo_starknet_client.block_signature(bn)
-                        );
-                        (bn, block_and_signature)
-                    })
-                    .buffered(self.concurrent_requests);
-            while let Some((current_block_number, maybe_client_block)) = res.next().await
-            {
-                let maybe_central_block =
-                    client_to_central_block(current_block_number, maybe_client_block);
-                match maybe_central_block {
-                    Ok((block, signature)) => {
-                        yield Ok((current_block_number, block, signature));
-                    }
-                    Err(err) => {
-                        yield (Err(err));
-                        return;
-                    }
-                }
-            }
-        }
         .boxed()
     }
 
@@ -303,48 +267,6 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
 
     async fn get_sequencer_pub_key(&self) -> Result<SequencerPublicKey, CentralError> {
         Ok(self.apollo_starknet_client.sequencer_pub_key().await.map_err(Arc::new)?)
-    }
-}
-
-fn client_to_central_block(
-    current_block_number: BlockNumber,
-    maybe_client_block: Result<
-        (
-            Option<apollo_starknet_client::reader::Block>,
-            Option<apollo_starknet_client::reader::BlockSignatureData>,
-        ),
-        ReaderClientError,
-    >,
-) -> CentralResult<(Block, BlockSignature)> {
-    match maybe_client_block {
-        Ok((Some(block), Some(signature_data))) => {
-            debug!(
-                "Received new block {current_block_number} with hash {:#066x}.",
-                block.block_hash().0
-            );
-            trace!("Block: {block:#?}, signature data: {signature_data:#?}.");
-            let block = block
-                .to_starknet_api_block_and_version()
-                .map_err(|err| CentralError::ClientError(Arc::new(err)))?;
-            let signature = match signature_data {
-                BlockSignatureData::Deprecated { signature, .. } => signature,
-                BlockSignatureData::V0_13_2 { signature, .. } => signature,
-            };
-            Ok((block, BlockSignature(Signature { r: signature[0], s: signature[1] })))
-        }
-        Ok((None, Some(_))) => {
-            debug!("Block {current_block_number} not found, but signature was found.");
-            Err(CentralError::BlockNotFound { block_number: current_block_number })
-        }
-        Ok((Some(_), None)) => {
-            debug!("Block {current_block_number} found, but signature was not found.");
-            Err(CentralError::BlockNotFound { block_number: current_block_number })
-        }
-        Ok((None, None)) => {
-            debug!("Block {current_block_number} not found.");
-            Err(CentralError::BlockNotFound { block_number: current_block_number })
-        }
-        Err(err) => Err(CentralError::ClientError(Arc::new(err))),
     }
 }
 
