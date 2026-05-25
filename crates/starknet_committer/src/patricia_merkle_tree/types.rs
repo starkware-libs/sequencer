@@ -85,6 +85,15 @@ impl StarknetForestProofs {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.classes_trie_proof.len()
+            + self.contracts_trie_proof.nodes.len()
+            + self
+                .contracts_trie_storage_proofs
+                .values()
+                .fold(0, |count, proofs| count + proofs.len())
+    }
+
     /// Bincode payload for the OS-input witness KV (structured proofs, round-trips with
     /// [`Self::deserialize`]).
     ///
