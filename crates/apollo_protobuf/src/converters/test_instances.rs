@@ -134,7 +134,7 @@ impl Display for TestStreamId {
 // TODO(guyn): try to make the macro work with generic types.
 impl GetTestInstance for StreamMessage<ProposalPart, TestStreamId> {
     fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
-        let message = if rng.gen_bool(0.5) {
+        let message = if rng.random_bool(0.5) {
             StreamMessageBody::Content(ProposalPart::Transactions(TransactionBatch {
                 transactions: vec![ConsensusTransaction::get_test_instance(rng)],
             }))

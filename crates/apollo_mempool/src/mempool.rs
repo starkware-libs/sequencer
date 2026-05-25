@@ -16,7 +16,7 @@ use apollo_mempool_types::mempool_types::{
 };
 use apollo_time::time::{Clock, DateTime};
 use indexmap::IndexSet;
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 use starknet_api::block::{GasPrice, UnixTimestamp};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
@@ -962,7 +962,7 @@ impl Mempool {
         if len == 0 {
             return None;
         }
-        let random_index = thread_rng().gen_range(0..len);
+        let random_index = rng().random_range(0..len);
         self.accounts_with_gap.get_index(random_index).copied()
     }
 

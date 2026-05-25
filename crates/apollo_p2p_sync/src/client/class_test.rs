@@ -218,7 +218,7 @@ fn create_random_state_diff_chunk_with_class(
     rng: &mut ChaCha8Rng,
 ) -> (StateDiffChunk, ApiContractClass) {
     let class_hash = ClassHash(rng.next_u64().into());
-    if rng.gen_bool(0.5) {
+    if rng.random_bool(0.5) {
         let declared_class = DeclaredClass {
             class_hash,
             compiled_class_hash: CompiledClassHash(rng.next_u64().into()),

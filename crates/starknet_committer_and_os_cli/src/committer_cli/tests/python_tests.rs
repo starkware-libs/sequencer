@@ -682,7 +682,7 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
 
 /// Generates a dummy random filled forest and serializes it to a JSON string.
 pub(crate) async fn filled_forest_output_test() -> CommitterPythonTestResult {
-    let dummy_forest = SerializedForest(FilledForest::dummy_random(&mut rand::thread_rng(), None));
+    let dummy_forest = SerializedForest(FilledForest::dummy_random(&mut rand::rng(), None));
     let output = dummy_forest.forest_to_output().await.map_err(|error| {
         PythonTestError::SpecificError(CommitterSpecificTestError::Serialization(error))
     })?;

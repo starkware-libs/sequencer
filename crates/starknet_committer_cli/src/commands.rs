@@ -12,7 +12,7 @@ use apollo_storage::state::StateStorageReader;
 use apollo_storage::{open_storage, StorageConfig, StorageReader, StorageScope};
 use blake2::digest::consts::U31;
 use blake2::{Blake2s, Digest};
-use rand::distributions::Uniform;
+use rand::distr::Uniform;
 use rand::prelude::IteratorRandom;
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
@@ -397,7 +397,7 @@ fn apply_interference<S: AsyncStorage>(
             // Avoid creating an iterator over the entire range - select random leaves, with
             // possible repetition. Probability of repitition will decrease as the number of
             // leaves increases.
-            let dist = Uniform::new(0, total_leaves);
+            let dist = Uniform::new(0, total_leaves).unwrap();
             let preimages = (0..INTERFERENCE_READ_1K_EVERY_BLOCK_N_READS)
                 .map(|_| rng.sample(dist))
                 .collect::<Vec<_>>();
