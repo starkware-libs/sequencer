@@ -270,13 +270,6 @@ impl<
             self.config.blocks_max_stream_size,
         )
         .fuse();
-        let state_diff_stream = stream_new_state_diffs(
-            self.reader.clone(),
-            self.central_source.clone(),
-            self.config.latest_block_poll_interval_millis,
-            self.config.state_updates_max_stream_size,
-        )
-        .fuse();
         let compiled_class_stream = stream_new_compiled_classes(
             self.reader.clone(),
             self.central_source.clone(),
@@ -305,17 +298,15 @@ impl<
         .fuse();
         pin_mut!(
             block_stream,
-            state_diff_stream,
             compiled_class_stream,
             base_layer_block_stream,
             check_sync_progress
         );
 
         loop {
-            debug!("Selecting between block sync and state diff sync.");
+            debug!("Selecting between block sync and compiled class sync.");
             let sync_event = select! {
               res = block_stream.next() => res,
-              res = state_diff_stream.next() => res,
               res = compiled_class_stream.next() => res,
               res = base_layer_block_stream.next() => res,
               res = check_sync_progress.next() => res,
@@ -800,49 +791,22 @@ fn stream_new_blocks<
                 central_source.stream_new_blocks(header_marker, up_to).fuse();
             pin_mut!(block_stream);
             while let Some(maybe_block) = block_stream.next().await {
-                let (block_number, block, transaction_events, signature) = maybe_block?;
-                yield SyncEvent::BlockAvailable { block_number, block, transaction_events, signature };
-            }
-        }
-    }
-}
-
-fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
-    reader: StorageReader,
-    central_source: Arc<TCentralSource>,
-    latest_block_poll_interval_millis: Duration,
-    max_stream_size: u32,
-) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
-    try_stream! {
-        loop {
-            let txn = reader.begin_ro_txn()?;
-            let state_marker = txn.get_state_marker()?;
-            let last_block_number = txn.get_header_marker()?;
-            drop(txn);
-            if state_marker == last_block_number {
-                trace!("State updates syncing reached the last downloaded block {:?}, waiting for more blocks.", state_marker.prev());
-                tokio::time::sleep(latest_block_poll_interval_millis).await;
-                continue;
-            }
-            let up_to = min(last_block_number, BlockNumber(state_marker.0 + u64::from(max_stream_size)));
-            debug!("Downloading state diffs [{} - {}).", state_marker, up_to);
-            let state_diff_stream =
-                central_source.stream_state_updates(state_marker, up_to).fuse();
-            pin_mut!(state_diff_stream);
-
-            while let Some(maybe_state_diff) = state_diff_stream.next().await {
-                let (
+                let mut block_and_state_diff = maybe_block?;
+                let block_hash = block_and_state_diff.block_hash;
+                let block_number = block_and_state_diff.block_number;
+                sort_state_diff(&mut block_and_state_diff.state_diff);
+                yield SyncEvent::BlockAvailable {
                     block_number,
-                    block_hash,
-                    mut state_diff,
-                    deployed_contract_class_definitions,
-                ) = maybe_state_diff?;
-                sort_state_diff(&mut state_diff);
+                    block: block_and_state_diff.block,
+                    transaction_events: block_and_state_diff.transaction_events,
+                    signature: block_and_state_diff.signature,
+                };
                 yield SyncEvent::StateDiffAvailable {
                     block_number,
                     block_hash,
-                    state_diff,
-                    deployed_contract_class_definitions,
+                    state_diff: block_and_state_diff.state_diff,
+                    deployed_contract_class_definitions:
+                        block_and_state_diff.deployed_contract_class_definitions,
                 };
             }
         }

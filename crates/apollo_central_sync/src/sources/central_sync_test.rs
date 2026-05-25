@@ -39,9 +39,9 @@ use super::pending::MockPendingSourceTrait;
 use crate::sources::base_layer::{BaseLayerSourceTrait, MockBaseLayerSourceTrait};
 use crate::sources::central::{
     BlocksStream,
+    CentralBlockAndStateDiff,
     CompiledClassesStream,
     MockCentralSourceTrait,
-    StateUpdatesStream,
 };
 use crate::{
     CentralError,
@@ -228,7 +228,11 @@ async fn sync_happy_flow() {
             hash: create_block_hash(LATEST_BLOCK_NUMBER, false),
         }))
     });
+    let expected_deprecated_class = deprecated_class.clone();
+    let expected_deployed_class = deployed_class.clone();
     central_mock.expect_stream_new_blocks().returning(move |initial, up_to| {
+        let deprecated_class = deprecated_class.clone();
+        let deployed_class = deployed_class.clone();
         let blocks_stream: BlocksStream<'_> = stream! {
             for block_number in initial.iter_up_to(up_to) {
                 if block_number.0 >= N_BLOCKS {
@@ -243,30 +247,6 @@ async fn sync_happy_flow() {
                     },
                     ..Default::default()
                 };
-                yield Ok((
-                    block_number,
-                    Block { header, body: BlockBody::default() },
-                    vec![],
-                    BlockSignature::default(),
-                ));
-            }
-        }
-        .boxed();
-        blocks_stream
-    });
-
-    let expected_deprecated_class = deprecated_class.clone();
-    let expected_deployed_class = deployed_class.clone();
-    central_mock.expect_stream_state_updates().returning(move |initial, up_to| {
-        let deprecated_class = deprecated_class.clone();
-        let deployed_class = deployed_class.clone();
-        let state_stream: StateUpdatesStream<'_> = stream! {
-            for block_number in initial.iter_up_to(up_to) {
-                if block_number.0 >= N_BLOCKS {
-                    yield Err(CentralError::BlockNotFound { block_number })
-                }
-
-                // Add declared classes to specific blocks to test compiled class hash mapping
                 let mut state_diff = match block_number.0 {
                     1 => StateDiff {
                         declared_classes: IndexMap::from([
@@ -282,26 +262,28 @@ async fn sync_happy_flow() {
                     },
                     _ => StateDiff::default(),
                 };
-                // For the last block, include test data for deployed class definitions
                 let mut deployed_contract_class_definitions = IndexMap::new();
                 if block_number.0 >= DEPLOY_BLOCK_NUMBER.0 {
-                    deployed_contract_class_definitions = IndexMap::from([(deployed_class_hash, deployed_class.clone())]);
+                    deployed_contract_class_definitions =
+                        IndexMap::from([(deployed_class_hash, deployed_class.clone())]);
                 }
-
                 if block_number == LATEST_BLOCK_NUMBER {
-                    state_diff.deprecated_declared_classes = IndexMap::from([(deprecated_class_hash, deprecated_class.clone())]);
+                    state_diff.deprecated_declared_classes =
+                        IndexMap::from([(deprecated_class_hash, deprecated_class.clone())]);
                 }
-
-                yield Ok((
+                yield Ok(CentralBlockAndStateDiff {
                     block_number,
-                    create_block_hash(block_number, false),
+                    block: Block { header, body: BlockBody::default() },
+                    transaction_events: vec![],
+                    signature: BlockSignature::default(),
+                    block_hash: create_block_hash(block_number, false),
                     state_diff,
                     deployed_contract_class_definitions,
-                ));
+                });
             }
         }
         .boxed();
-        state_stream
+        blocks_stream
     });
 
     // Add compiled classes stream mock
@@ -505,35 +487,26 @@ async fn test_unrecoverable_sync_error_flow() {
     mock.expect_stream_new_blocks().returning(move |_, _| {
         let blocks_stream: BlocksStream<'_> = stream! {
             let header = BlockHeader {
-                    block_hash: create_block_hash(BLOCK_NUMBER, false),
-                    block_header_without_hash: BlockHeaderWithoutHash {
-                        block_number: BLOCK_NUMBER,
-                        parent_hash: create_block_hash(BLOCK_NUMBER.prev().unwrap_or_default(), false),
-                        ..Default::default()
-                    },
+                block_hash: create_block_hash(BLOCK_NUMBER, false),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    block_number: BLOCK_NUMBER,
+                    parent_hash: create_block_hash(BLOCK_NUMBER.prev().unwrap_or_default(), false),
                     ..Default::default()
-                };
-            yield Ok((
-                BLOCK_NUMBER,
-                Block { header, body: BlockBody::default()},
-                vec![],
-                BlockSignature::default(),
-            ));
+                },
+                ..Default::default()
+            };
+            yield Ok(CentralBlockAndStateDiff {
+                block_number: BLOCK_NUMBER,
+                block: Block { header, body: BlockBody::default() },
+                transaction_events: vec![],
+                signature: BlockSignature::default(),
+                block_hash: create_block_hash(BLOCK_NUMBER, false),
+                state_diff: StateDiff::default(),
+                deployed_contract_class_definitions: IndexMap::new(),
+            });
         }
         .boxed();
         blocks_stream
-    });
-    mock.expect_stream_state_updates().returning(move |_, _| {
-        let state_stream: StateUpdatesStream<'_> = stream! {
-            yield Ok((
-                BLOCK_NUMBER,
-                create_block_hash(BLOCK_NUMBER, false),
-                StateDiff::default(),
-                IndexMap::new(),
-            ));
-        }
-        .boxed();
-        state_stream
     });
     // make get_block_hash return a hash for the wrong block number
     mock.expect_get_block_hash()
