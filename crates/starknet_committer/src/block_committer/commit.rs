@@ -12,11 +12,7 @@ use crate::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
-use crate::block_committer::measurements_util::{
-    Action,
-    BlockModificationsCounts,
-    MeasurementsTrait,
-};
+use crate::block_committer::measurements_util::{Action, MeasurementsTrait};
 use crate::db::forest_trait::ForestReader;
 use crate::forest::deleted_nodes::{find_deleted_nodes, DeletedNodes};
 use crate::forest::filled_forest::FilledForest;
@@ -186,10 +182,10 @@ fn measure_number_of_modifications(
         .values()
         .map(|storage_entry| storage_entry.values().filter(|value| value.0 == Felt::ZERO).count())
         .sum::<usize>();
-    measurements.set_number_of_modifications(BlockModificationsCounts {
+    measurements.set_number_of_modifications(
         storage_tries,
-        contracts_trie: n_contracts_trie_modifications,
-        classes_trie: n_classes_trie_modifications,
+        n_contracts_trie_modifications,
+        n_classes_trie_modifications,
         emptied_storage_leaves,
-    });
+    );
 }

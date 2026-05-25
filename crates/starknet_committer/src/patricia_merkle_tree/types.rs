@@ -58,6 +58,15 @@ impl StarknetForestProofs {
             self.contracts_trie_storage_proofs.entry(address).or_default().extend(proof);
         }
     }
+
+    pub fn len(&self) -> usize {
+        self.classes_trie_proof.len()
+            + self.contracts_trie_proof.nodes.len()
+            + self
+                .contracts_trie_storage_proofs
+                .values()
+                .fold(0, |count, proofs| count + proofs.len())
+    }
 }
 
 pub struct RootHashes {
