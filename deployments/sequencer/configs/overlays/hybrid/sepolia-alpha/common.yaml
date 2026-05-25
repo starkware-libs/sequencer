@@ -14,6 +14,13 @@ config:
     versioned_constants_overrides.#is_none: true
     versioned_constants_overrides.max_n_events: 1000
 
+service:
+  ports:
+  - name: monitoring-endpoint
+    port: 8082
+    targetPort: 8082
+    protocol: TCP
+
 env:
 - name: RUST_LOG
   value: debug
