@@ -1,5 +1,7 @@
+use std::collections::HashMap;
 use std::time::Instant;
 
+use starknet_api::hash::HashOutput;
 use tracing::error;
 
 #[derive(Debug)]
@@ -11,6 +13,7 @@ pub enum Action {
     Read,
     Compute,
     Write,
+    FetchPatriciaPaths(HashOutput),
 }
 
 #[derive(Default)]
@@ -19,6 +22,7 @@ pub struct BlockTimers {
     pub read_timer: Option<Instant>,
     pub compute_timer: Option<Instant>,
     pub writer_timer: Option<Instant>,
+    pub fetch_patricia_paths_timers: HashMap<HashOutput, Option<Instant>>,
 }
 
 impl BlockTimers {
@@ -28,6 +32,9 @@ impl BlockTimers {
             Action::Read => &mut self.read_timer,
             Action::Compute => &mut self.compute_timer,
             Action::Write => &mut self.writer_timer,
+            Action::FetchPatriciaPaths(root) => {
+                self.fetch_patricia_paths_timers.entry(*root).or_default()
+            }
         }
     }
 
@@ -107,12 +114,20 @@ impl BlockModificationsCounts {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct FetchPatriciaPathsMeasurement {
+    pub root: HashOutput,
+    pub duration: f64,
+    pub n_entries: usize,
+}
+
 #[derive(Default, Clone)]
 pub struct BlockMeasurement {
     pub n_writes: usize,
     pub n_reads: usize,
     pub durations: BlockDurations,
     pub modifications_counts: BlockModificationsCounts,
+    pub fetch_patricia_paths_measurements: Vec<FetchPatriciaPathsMeasurement>,
 }
 
 impl BlockMeasurement {
@@ -136,6 +151,13 @@ impl BlockMeasurement {
             }
             Action::EndToEnd => {
                 self.durations.block = duration_in_seconds;
+            }
+            Action::FetchPatriciaPaths(root) => {
+                self.fetch_patricia_paths_measurements.push(FetchPatriciaPathsMeasurement {
+                    root: *root,
+                    duration: duration_in_seconds,
+                    n_entries: entries_count,
+                });
             }
         }
     }

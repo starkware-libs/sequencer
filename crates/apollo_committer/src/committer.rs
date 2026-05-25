@@ -21,7 +21,7 @@ use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
-use starknet_api::hash::PoseidonHash;
+use starknet_api::hash::{HashOutput, PoseidonHash};
 use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::Input;
@@ -552,6 +552,9 @@ where
                     .read_roots(ForestDB::InitialReadContext::create_empty())
                     .await
                     .map_err(|e| self.map_internal_error(e))?;
+                let mut block_measurements = SingleBlockMeasurements::default();
+                let pre_global_root = HashOutput(pre_roots.global_root().0);
+                block_measurements.start_measurement(Action::FetchPatriciaPaths(pre_global_root));
                 let mut patricia_proofs = self
                     .forest_storage
                     .fetch_patricia_witnesses(
@@ -567,8 +570,13 @@ where
                         height,
                         message: format!("pre-commit witness paths: {e:?}"),
                     })?;
+                block_measurements
+                    .attempt_to_stop_measurement(
+                        Action::FetchPatriciaPaths(pre_global_root),
+                        patricia_proofs.len(),
+                    )
+                    .ok();
 
-                let mut block_measurements = SingleBlockMeasurements::default();
                 block_measurements.start_measurement(Action::EndToEnd);
                 let CommitStateDiffOutput { filled_forest, global_root, deleted_nodes } =
                     self.commit_state_diff(state_diff, &mut block_measurements).await?;
@@ -577,6 +585,8 @@ where
                 let forest_updates = ForestDB::serialize_forest(&filled_forest)
                     .map_err(|e| self.map_internal_error(e))?;
 
+                let post_global_root = HashOutput(post_roots.global_root().0);
+                block_measurements.start_measurement(Action::FetchPatriciaPaths(post_global_root));
                 let proof_after = self
                     .forest_storage
                     .fetch_patricia_witnesses(
@@ -592,15 +602,23 @@ where
                         height,
                         message: format!("post-commit witness paths: {e:?}"),
                     })?;
+                block_measurements
+                    .attempt_to_stop_measurement(
+                        Action::FetchPatriciaPaths(post_global_root),
+                        proof_after.len(),
+                    )
+                    .ok();
 
                 patricia_proofs.extend(proof_after);
 
                 let (metadata, next_offset) =
                     commit_tip_metadata_bundle(height, global_root, state_diff_commitment);
                 info!(
-                    "For block number {height}, writing filled forest and witnesses to storage \
-                     with metadata: {metadata:?}, delete {} nodes",
-                    deleted_nodes.len()
+                    "For block number {height}, writing filled forest and {witness_count} \
+                     witnesses to storage with metadata: {metadata:?}, delete \
+                     {deleted_nodes_count} nodes",
+                    witness_count = patricia_proofs.len(),
+                    deleted_nodes_count = deleted_nodes.len(),
                 );
                 block_measurements.start_measurement(Action::Write);
                 let n_write_entries = self
@@ -638,7 +656,7 @@ impl ComponentStarter for ApolloCommitter {
 #[allow(clippy::as_conversions)]
 fn update_metrics(
     height: BlockNumber,
-    BlockMeasurement { n_reads, n_writes, durations, modifications_counts }: &BlockMeasurement,
+    BlockMeasurement { n_reads, n_writes, durations, modifications_counts, .. }: &BlockMeasurement,
 ) {
     BLOCKS_COMMITTED.increment(1);
     TOTAL_BLOCK_DURATION.increment((durations.block * 1000.0) as u64);
