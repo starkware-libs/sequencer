@@ -11,6 +11,10 @@ pub enum Action {
     Read,
     Compute,
     Write,
+    #[cfg(feature = "os_input")]
+    FetchWitnessesFirstPass,
+    #[cfg(feature = "os_input")]
+    FetchWitnessesSecondPass,
 }
 
 #[derive(Default)]
@@ -19,6 +23,10 @@ pub struct BlockTimers {
     pub read_timer: Option<Instant>,
     pub compute_timer: Option<Instant>,
     pub writer_timer: Option<Instant>,
+    #[cfg(feature = "os_input")]
+    pub fetch_witnesses_first_pass_timer: Option<Instant>,
+    #[cfg(feature = "os_input")]
+    pub fetch_witnesses_second_pass_timer: Option<Instant>,
 }
 
 impl BlockTimers {
@@ -28,6 +36,10 @@ impl BlockTimers {
             Action::Read => &mut self.read_timer,
             Action::Compute => &mut self.compute_timer,
             Action::Write => &mut self.writer_timer,
+            #[cfg(feature = "os_input")]
+            Action::FetchWitnessesFirstPass => &mut self.fetch_witnesses_first_pass_timer,
+            #[cfg(feature = "os_input")]
+            Action::FetchWitnessesSecondPass => &mut self.fetch_witnesses_second_pass_timer,
         }
     }
 
@@ -91,6 +103,12 @@ pub struct BlockDurations {
     pub read: f64,    // Duration of a read phase (seconds).
     pub compute: f64, // Duration of a computation phase (seconds).
     pub write: f64,   // Duration of a write phase (seconds).
+    #[cfg(feature = "os_input")]
+    // Duration of fetching witnesses w.r.t the old root (seconds).
+    pub fetch_witnesses_first_pass: f64,
+    #[cfg(feature = "os_input")]
+    // Duration of fetching witnesses w.r.t the new root (seconds).
+    pub fetch_witnesses_second_pass: f64,
 }
 
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
@@ -113,6 +131,8 @@ pub struct BlockMeasurement {
     pub n_reads: usize,
     pub durations: BlockDurations,
     pub modifications_counts: BlockModificationsCounts,
+    // Number of witnesses fetched in the first pass (pre-commit).
+    pub fetched_witnesses_count: usize,
 }
 
 impl BlockMeasurement {
@@ -136,6 +156,15 @@ impl BlockMeasurement {
             }
             Action::EndToEnd => {
                 self.durations.block = duration_in_seconds;
+            }
+            #[cfg(feature = "os_input")]
+            Action::FetchWitnessesFirstPass => {
+                self.durations.fetch_witnesses_first_pass = duration_in_seconds;
+                self.fetched_witnesses_count += entries_count;
+            }
+            #[cfg(feature = "os_input")]
+            Action::FetchWitnessesSecondPass => {
+                self.durations.fetch_witnesses_second_pass = duration_in_seconds;
             }
         }
     }
