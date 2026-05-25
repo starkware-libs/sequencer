@@ -592,6 +592,7 @@ impl SequencerConsensusContext {
             .cende_ambassador
             .prepare_blob_for_next_height(BlobParameters {
                 block_info: cende_block_info,
+                starknet_version: init.starknet_version,
                 state_diff,
                 compressed_state_diff: central_objects.compressed_state_diff,
                 transactions_with_execution_infos,
@@ -775,7 +776,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 self.config.static_config.build_proposal_time_ratio_for_retrospective_block_hash,
             );
 
-        let override_timestamp = match self.config.static_config.behavior_mode {
+        let override_block_metadata = match self.config.static_config.behavior_mode {
             BehaviorMode::Echonet => true,
             BehaviorMode::Starknet => false,
         };
@@ -813,7 +814,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 .config
                 .static_config
                 .retrospective_block_hash_retry_interval_millis,
-            override_timestamp,
+            override_block_metadata,
             override_l2_gas_price_fri: self.config.dynamic_config.override_l2_gas_price_fri,
             min_l2_gas_price_per_height: self
                 .config

@@ -28,11 +28,12 @@ use apollo_protobuf::consensus::{
 };
 use apollo_time::time::{Clock, DateTime};
 use apollo_transaction_converter::TransactionConverterError;
-use starknet_api::block::GasPrice;
+use starknet_api::block::{GasPrice, ReplayMetadata};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::versioned_constants_logic::effective_starknet_version;
 use starknet_api::StarknetApiError;
 use strum::{EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use tokio_util::sync::CancellationToken;
@@ -73,8 +74,8 @@ pub(crate) struct ProposalBuildArguments {
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
-    // If true, for echonet mode, use the timestamp from the original block.
-    pub override_timestamp: bool,
+    // If true, for echonet mode, use the metadata of the original block.
+    pub override_block_metadata: bool,
     pub override_l2_gas_price_fri: Option<u128>,
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
     pub compare_retrospective_block_hash: bool,
@@ -136,36 +137,83 @@ pub(crate) async fn build_proposal(
     Ok(proposal_commitment)
 }
 
-async fn get_proposal_timestamp(
-    override_timestamp: bool,
+async fn get_proposal_metadata(
+    override_block_metadata: bool,
     batcher: &dyn BatcherClient,
     clock: &dyn Clock,
-) -> u64 {
-    if override_timestamp {
-        match batcher.get_batch_timestamp().await {
-            Ok(timestamp) => return timestamp,
+) -> ReplayMetadata {
+    if override_block_metadata {
+        match batcher.get_block_metadata().await {
+            Ok(block_metadata) => {
+                info!(
+                    "Received block metadata from echonet: timestamp={}, block_number={:?}",
+                    block_metadata.timestamp, block_metadata.block_number,
+                );
+                return block_metadata;
+            }
             Err(err) => {
-                warn!("Failed to get timestamp from batcher, falling back to clock time: {err:?}");
+                warn!(
+                    "Failed to get block metadata from batcher, falling back to defaults: {err:?}"
+                );
             }
         }
     }
-    clock.unix_now()
+    ReplayMetadata {
+        timestamp: clock.unix_now(),
+        block_number: None,
+        l1_gas_price_wei: GasPrice::default(),
+        l1_data_gas_price_wei: GasPrice::default(),
+        l1_gas_price_fri: GasPrice::default(),
+        l1_data_gas_price_fri: GasPrice::default(),
+        l2_gas_price_fri: GasPrice::default(),
+    }
 }
 
 async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResult<ProposalInit> {
-    let timestamp = get_proposal_timestamp(
-        args.override_timestamp,
+    let proposal_metadata = get_proposal_metadata(
+        args.override_block_metadata,
         args.deps.batcher.as_ref(),
         args.deps.clock.as_ref(),
     )
     .await;
-    let (l1_prices_fri, l1_prices_wei) = get_l1_prices_in_fri_and_wei(
-        args.deps.l1_gas_price_provider.clone(),
-        timestamp,
-        args.previous_proposal_init.as_ref(),
-        &args.gas_price_params,
-    )
-    .await;
+    let starknet_version = effective_starknet_version();
+    info!(
+        "Proposal metadata for height {}: starknet_version={}, timestamp={}, \
+         override_block_metadata={}",
+        args.build_param.height,
+        starknet_version,
+        proposal_metadata.timestamp,
+        args.override_block_metadata,
+    );
+    let timestamp = proposal_metadata.timestamp;
+    let (l1_gas_price_wei, l1_data_gas_price_wei, l1_gas_price_fri, l1_data_gas_price_fri) =
+        if args.override_block_metadata {
+            (
+                proposal_metadata.l1_gas_price_wei,
+                proposal_metadata.l1_data_gas_price_wei,
+                proposal_metadata.l1_gas_price_fri,
+                proposal_metadata.l1_data_gas_price_fri,
+            )
+        } else {
+            let (l1_prices_fri, l1_prices_wei) = get_l1_prices_in_fri_and_wei(
+                args.deps.l1_gas_price_provider.clone(),
+                timestamp,
+                args.previous_proposal_init.as_ref(),
+                &args.gas_price_params,
+            )
+            .await;
+            (
+                l1_prices_wei.l1_gas_price,
+                l1_prices_wei.l1_data_gas_price,
+                l1_prices_fri.l1_gas_price,
+                l1_prices_fri.l1_data_gas_price,
+            )
+        };
+    let l2_gas_price_fri = if args.override_block_metadata {
+        proposal_metadata.l2_gas_price_fri
+    } else {
+        args.l2_gas_price
+    };
     let init = ProposalInit {
         height: args.build_param.height,
         round: args.build_param.round,
@@ -174,12 +222,12 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
         builder: args.builder_address,
         timestamp,
         l1_da_mode: args.l1_da_mode,
-        l2_gas_price_fri: args.l2_gas_price,
-        l1_gas_price_wei: l1_prices_wei.l1_gas_price,
-        l1_data_gas_price_wei: l1_prices_wei.l1_data_gas_price,
-        l1_gas_price_fri: l1_prices_fri.l1_gas_price,
-        l1_data_gas_price_fri: l1_prices_fri.l1_data_gas_price,
-        starknet_version: starknet_api::block::StarknetVersion::LATEST,
+        l2_gas_price_fri,
+        l1_gas_price_wei,
+        l1_data_gas_price_wei,
+        l1_gas_price_fri,
+        l1_data_gas_price_fri,
+        starknet_version,
         // TODO(Asmaa): Put the real value once we have it.
         // Sentinel until then; see `expected_version_constant_commitment` for why this is the
         // single source of truth shared with the validator.
