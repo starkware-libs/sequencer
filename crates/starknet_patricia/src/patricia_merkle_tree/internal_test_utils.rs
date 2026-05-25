@@ -62,7 +62,7 @@ impl From<&str> for PathToBottom {
 
 #[fixture]
 pub(crate) fn random() -> ThreadRng {
-    rand::thread_rng()
+    rand::rng()
 }
 
 #[rstest]

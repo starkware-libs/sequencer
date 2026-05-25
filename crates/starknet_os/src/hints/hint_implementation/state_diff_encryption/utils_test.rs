@@ -18,16 +18,16 @@ use crate::io::os_output_types::{PartialOsStateDiff, TryFromOutputIter};
 
 #[test]
 fn test_encrypt_decrypt_roundtrip_random() {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Random number of keys.
-    let n_keys: usize = rng.gen_range(1..=5);
+    let n_keys: usize = rng.random_range(1..=5);
 
     // Generate private keys and corresponding public key x-coordinates.
     let mut private_keys: Vec<Felt> = Vec::with_capacity(n_keys);
     let mut public_keys: Vec<Felt> = Vec::with_capacity(n_keys);
     for _ in 0..n_keys {
-        let private_key = Felt::from(rng.gen_range(1..=1_000_000));
+        let private_key = Felt::from(rng.random_range(1..=1_000_000));
         let public_key_x = (&AffinePoint::generator() * private_key).x();
         private_keys.push(private_key);
         public_keys.push(public_key_x);
@@ -36,18 +36,18 @@ fn test_encrypt_decrypt_roundtrip_random() {
     // Generate SN private keys.
     let mut sn_private_keys: Vec<Felt> = Vec::with_capacity(n_keys);
     for _ in 0..n_keys {
-        let sn_priv_scalar: u64 = rng.gen_range(1..=1_000_000);
+        let sn_priv_scalar: u64 = rng.random_range(1..=1_000_000);
         sn_private_keys.push(Felt::from(sn_priv_scalar));
     }
 
     // Random symmetric key.
-    let symmetric_key = Felt::from_bytes_be(&rng.gen::<[u8; 32]>());
+    let symmetric_key = Felt::from_bytes_be(&rng.random::<[u8; 32]>());
 
     // Random state diff.
-    let state_diff_length: usize = rng.gen_range(0..=20);
+    let state_diff_length: usize = rng.random_range(0..=20);
     let mut state_diff: Vec<Felt> = Vec::with_capacity(state_diff_length);
     for _ in 0..state_diff_length {
-        state_diff.push(Felt::from_bytes_be(&rng.gen::<[u8; 32]>()))
+        state_diff.push(Felt::from_bytes_be(&rng.random::<[u8; 32]>()))
     }
 
     // Encrypt and then decrypt with every keypair.
@@ -69,7 +69,7 @@ fn test_encrypt_decrypt_roundtrip_random() {
 
 #[test]
 fn test_decrypt_state_diff_from_blobs() {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Unencrypted DA segment of output with `full_output=false` and `use_kzg_da=true`.
     let da_segment = vec![
@@ -97,13 +97,13 @@ fn test_decrypt_state_diff_from_blobs() {
             .expect("Failed to parse DA segment into PartialOsStateDiff");
 
     // Random number of keys.
-    let n_keys: usize = rng.gen_range(1..=5);
+    let n_keys: usize = rng.random_range(1..=5);
 
     // Generate private keys and corresponding public key x-coordinates.
     let mut private_keys: Vec<Felt> = Vec::with_capacity(n_keys);
     let mut public_keys: Vec<Felt> = Vec::with_capacity(n_keys);
     for _ in 0..n_keys {
-        let private_key = Felt::from(rng.gen_range(1..=1_000_000));
+        let private_key = Felt::from(rng.random_range(1..=1_000_000));
         let public_key_x = (&AffinePoint::generator() * private_key).x();
         private_keys.push(private_key);
         public_keys.push(public_key_x);
@@ -112,12 +112,12 @@ fn test_decrypt_state_diff_from_blobs() {
     // Generate SN private keys.
     let mut sn_private_keys: Vec<Felt> = Vec::with_capacity(n_keys);
     for _ in 0..n_keys {
-        let sn_priv_scalar: u64 = rng.gen_range(1..=1_000_000);
+        let sn_priv_scalar: u64 = rng.random_range(1..=1_000_000);
         sn_private_keys.push(Felt::from(sn_priv_scalar));
     }
 
     // Random symmetric key.
-    let symmetric_key = Felt::from_bytes_be(&rng.gen::<[u8; 32]>());
+    let symmetric_key = Felt::from_bytes_be(&rng.random::<[u8; 32]>());
 
     // Encrypt the DA segment
     let encrypted_state_diff = encrypt_state_diff(symmetric_key, &da_segment);

@@ -211,11 +211,11 @@ fn change_storage_version(writer: &mut StorageWriter, version_key: &str, version
 
 // Returns a random version with a different major version than the given one.
 fn get_different_major_version(version: Version) -> Version {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     // The multiplication by two is to make the randomized version to be
     // with a high enough probability to be less and more than the current version.
-    let minor = rng.gen_range(0..=2 * version.minor);
-    let mut major = rng.gen_range(0..=2 * version.major);
+    let minor = rng.random_range(0..=2 * version.minor);
+    let mut major = rng.random_range(0..=2 * version.major);
     if major == version.major {
         major += 1;
     }
