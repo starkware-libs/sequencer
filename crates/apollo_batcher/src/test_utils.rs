@@ -194,6 +194,7 @@ impl BlockExecutionArtifacts {
             execution_infos_and_signatures: indexed_execution_infos_and_signatures(),
             rejected_tx_hashes: test_txs(10..15).iter().map(|tx| tx.tx_hash()).collect(),
             consumed_l1_handler_tx_hashes: Default::default(),
+            proof_facts_block_numbers: Default::default(),
         };
         let block_execution_summary = BlockExecutionSummary {
             state_diff: CommitmentStateDiff {
