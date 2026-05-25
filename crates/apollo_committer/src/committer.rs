@@ -535,11 +535,15 @@ where
             // 4. Merge the two sets of patricia paths and write the result to the storage.
             // 5. Update the commitment offset and return the global root and the patricia proofs.
             CommitBlockHeightPlan::CommitTip { state_diff_commitment } => {
+                let mut block_measurements = SingleBlockMeasurements::default();
+                block_measurements.start_measurement(Action::EndToEnd);
+
                 let pre_roots = self
                     .forest_storage
                     .read_roots(ForestDB::InitialReadContext::create_empty())
                     .await
                     .map_err(|e| self.map_internal_error(e))?;
+                block_measurements.start_measurement(Action::FetchWitnessesFirstPass);
                 let mut patricia_proofs = self
                     .forest_storage
                     .fetch_patricia_witnesses(
@@ -555,9 +559,13 @@ where
                         height,
                         message: format!("pre-commit witness paths: {e:?}"),
                     })?;
+                block_measurements
+                    .attempt_to_stop_measurement(
+                        Action::FetchWitnessesFirstPass,
+                        patricia_proofs.len(),
+                    )
+                    .ok();
 
-                let mut block_measurements = SingleBlockMeasurements::default();
-                block_measurements.start_measurement(Action::EndToEnd);
                 let CommitStateDiffOutput { filled_forest, global_root, deleted_nodes } =
                     self.commit_state_diff(state_diff, &mut block_measurements).await?;
                 let post_roots = filled_forest.state_roots();
@@ -565,6 +573,7 @@ where
                 let forest_updates = ForestDB::serialize_forest(&filled_forest)
                     .map_err(|e| self.map_internal_error(e))?;
 
+                block_measurements.start_measurement(Action::FetchWitnessesSecondPass);
                 let proof_after = self
                     .forest_storage
                     .fetch_patricia_witnesses(
@@ -580,23 +589,24 @@ where
                         height,
                         message: format!("post-commit witness paths: {e:?}"),
                     })?;
+                block_measurements
+                    .attempt_to_stop_measurement(
+                        Action::FetchWitnessesSecondPass,
+                        proof_after.len(),
+                    )
+                    .ok();
 
                 patricia_proofs.extend(proof_after);
 
                 let (metadata, next_offset) =
                     commit_tip_metadata_bundle(height, global_root, state_diff_commitment);
-                let witness_node_count = patricia_proofs.classes_trie_proof.len()
-                    + patricia_proofs.contracts_trie_proof.nodes.len()
-                    + patricia_proofs.contracts_trie_proof.leaves.len()
-                    + patricia_proofs
-                        .contracts_trie_storage_proofs
-                        .values()
-                        .map(|proof| proof.len())
-                        .sum::<usize>();
+
                 info!(
-                    "For block number {height}, writing filled forest and {witness_node_count} \
-                     witness nodes to storage with metadata: {metadata:?}, delete {} nodes",
-                    deleted_nodes.len()
+                    "For block number {height}, writing filled forest and {witness_count} \
+                     witnesses to storage with metadata: {metadata:?}, delete \
+                     {deleted_nodes_count} nodes",
+                    witness_count = patricia_proofs.len(),
+                    deleted_nodes_count = deleted_nodes.len(),
                 );
                 block_measurements.start_measurement(Action::Write);
                 let n_write_entries = self
@@ -655,6 +665,7 @@ impl ComponentStarter for ApolloCommitter {
 }
 
 #[allow(clippy::as_conversions)]
+// TODO: Consider adding fetch witnesses measurements.
 fn update_metrics(
     height: BlockNumber,
     BlockMeasurement { n_reads, n_writes, durations, modifications_counts }: &BlockMeasurement,

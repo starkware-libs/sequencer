@@ -8,7 +8,6 @@ use starknet_api::hash::HashOutput;
 use starknet_committer::block_committer::measurements_util::{
     Action,
     BlockMeasurement,
-    BlockModificationsCounts,
     MeasurementNotStartedError,
     MeasurementsTrait,
     SingleBlockMeasurements,
@@ -79,9 +78,17 @@ impl MeasurementsTrait for BenchmarkMeasurements {
 
     fn set_number_of_modifications(
         &mut self,
-        block_modifications_counts: BlockModificationsCounts,
+        storage_tries: usize,
+        contracts_trie: usize,
+        classes_trie: usize,
+        emptied_storage_leaves: usize,
     ) {
-        self.current_measurement.set_number_of_modifications(block_modifications_counts);
+        self.current_measurement.set_number_of_modifications(
+            storage_tries,
+            contracts_trie,
+            classes_trie,
+            emptied_storage_leaves,
+        );
     }
 }
 
