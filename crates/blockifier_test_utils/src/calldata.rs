@@ -37,6 +37,19 @@ pub fn create_calldata(
     )
 }
 
+/// Serializes calls as the canonical Cairo 1 `Array<Call>` payload:
+/// `[num_calls, (to, selector, calldata_len, *calldata)*]`.
+pub fn create_multicall_calldata(calls: &[(ContractAddress, &str, &[Felt])]) -> Vec<Felt> {
+    let mut buf = vec![felt!(u64_from_usize(calls.len()))];
+    for (to, entry_point_name, args) in calls {
+        buf.push(*to.0.key());
+        buf.push(selector_from_name(entry_point_name).0);
+        buf.push(felt!(u64_from_usize(args.len())));
+        buf.extend_from_slice(args);
+    }
+    buf
+}
+
 /// Calldata for a trivial entry point in the [`crate::contracts::FeatureContract`] TestContract.
 /// The calldata is formatted for using the featured contracts AccountWithLongValidate or
 /// AccountWithoutValidations as account contract.
