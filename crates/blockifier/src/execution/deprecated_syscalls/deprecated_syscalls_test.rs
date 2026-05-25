@@ -156,10 +156,11 @@ fn test_nested_library_call() {
         calldata: calldata![felt!(key), felt!(value)],
         ..nested_storage_entry_point
     };
-    let storage_entry_point_resources: ExtendedExecutionResources = ExecutionResources {
-        n_steps: 671,
-        n_memory_holes: 0,
-        builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 2)]),
+    let storage_entry_point_resources: ExtendedExecutionResources = {
+        let mut resources = ExecutionResources { n_steps: 42, ..Default::default() };
+        resources += &get_const_syscall_resources(SyscallSelector::StorageRead);
+        resources += &get_const_syscall_resources(SyscallSelector::StorageWrite);
+        resources
     }
     .into();
     let storage_entry_point_syscalls_usage = HashMap::from([
@@ -324,10 +325,11 @@ fn test_call_contract() {
             ..trivial_external_entry_point
         },
         execution: expected_execution.clone(),
-        resources: ExecutionResources {
-            n_steps: 671,
-            n_memory_holes: 0,
-            builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 2)]),
+        resources: {
+            let mut resources = ExecutionResources { n_steps: 42, ..Default::default() };
+            resources += &get_const_syscall_resources(SyscallSelector::StorageRead);
+            resources += &get_const_syscall_resources(SyscallSelector::StorageWrite);
+            resources
         }
         .into(),
         storage_access_tracker: StorageAccessTracker {
@@ -353,7 +355,9 @@ fn test_call_contract() {
         execution: expected_execution,
         resources: (&get_const_syscall_resources(DeprecatedSyscallSelector::CallContract)
             + &ExecutionResources {
-                n_steps: 710,
+                n_steps: 81
+                    + get_const_syscall_resources(SyscallSelector::StorageRead).n_steps
+                    + get_const_syscall_resources(SyscallSelector::StorageWrite).n_steps,
                 n_memory_holes: 0,
                 builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 3)]),
             })
