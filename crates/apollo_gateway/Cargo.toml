@@ -42,6 +42,8 @@ google-cloud-storage.workspace = true
 mempool_test_utils.workspace = true
 mockall.workspace = true
 num-rational.workspace = true
+reqwest = { workspace = true, features = ["json"] }
+serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
