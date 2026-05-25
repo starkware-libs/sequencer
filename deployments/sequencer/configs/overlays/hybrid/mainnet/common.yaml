@@ -36,6 +36,14 @@ readinessProbe:
   periodSeconds: 5
   timeoutSeconds: 2
 
+livenessProbe:
+  enabled: true
+  path: /monitoring/alive
+  successThreshold: 1
+  failureThreshold: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+
 env:
 - name: RUST_LOG
   value: debug
