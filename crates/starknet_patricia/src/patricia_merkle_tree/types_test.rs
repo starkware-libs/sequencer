@@ -68,7 +68,7 @@ fn test_get_lca_big(mut random: ThreadRng) {
     let right_child = left_child + 1;
     let mut random_extension = |index: NodeIndex| {
         let extension_bits = index.leading_zeros();
-        let extension: u128 = random.gen_range(0..(1 << extension_bits));
+        let extension: u128 = random.random_range(0..(1 << extension_bits));
         (index << extension_bits) + NodeIndex::new(U256::from(extension))
     };
 
@@ -101,9 +101,9 @@ fn test_get_path_to_descendant(
 
 #[rstest]
 fn test_get_path_to_descendant_big() {
-    let root_index = NodeIndex::new(U256::from(rand::thread_rng().gen::<u128>()));
+    let root_index = NodeIndex::new(U256::from(rand::rng().random::<u128>()));
     let max_bits = NodeIndex::BITS - 128;
-    let extension: u128 = rand::thread_rng().gen_range(0..1 << max_bits);
+    let extension: u128 = rand::rng().random_range(0..1 << max_bits);
     let extension_index = NodeIndex::new(U256::from(extension));
 
     let descendant = (root_index << extension_index.bit_length()) + extension_index;

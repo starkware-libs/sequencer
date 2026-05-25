@@ -363,8 +363,11 @@ pub fn random_header(
                 block_number,
                 ..GetTestInstance::get_test_instance(rng)
             },
-            state_diff_length: Some(state_diff_length.unwrap_or_else(|| rng.gen())),
-            n_transactions: num_transactions.unwrap_or_else(|| rng.gen()),
+            state_diff_length: Some(
+                state_diff_length.unwrap_or_else(|| rng.random::<u32>().try_into().unwrap()),
+            ),
+            n_transactions: num_transactions
+                .unwrap_or_else(|| rng.random::<u32>().try_into().unwrap()),
             ..GetTestInstance::get_test_instance(rng)
         },
         // TODO(shahak): Remove this once get_test_instance puts random values.

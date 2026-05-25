@@ -305,14 +305,14 @@ pub(crate) fn random_table_test<T0: TableType, T1: TableType>(
     let rtxn = reader.begin_ro_txn().unwrap();
     let first_table = rtxn.open_table(&first_table_id).unwrap();
     let second_table = rtxn.open_table(&second_table_id).unwrap();
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     for iter in 0..ITERS {
         debug!("iteration: {iter:?}");
         let wtxn = writer.begin_rw_txn().unwrap();
-        let random_op = rng.gen_range(0..4);
+        let random_op = rng.random_range(0..4);
         let key = get_random_key(&mut rng);
-        let value = rng.gen_range(0..MAX_VALUE);
+        let value = rng.random_range(0..MAX_VALUE);
 
         // Insert, upsert, or delete a random key.
         if random_op == 0 {
@@ -386,7 +386,7 @@ pub(crate) fn random_table_test<T0: TableType, T1: TableType>(
             );
 
             for _ in 0..CURSOR_OPS_NUM {
-                let random_op = rng.gen_range(0..2);
+                let random_op = rng.random_range(0..2);
                 if random_op == 0 {
                     // Next
                     debug!("next: {key:?}");
@@ -414,5 +414,5 @@ pub(crate) fn random_table_test<T0: TableType, T1: TableType>(
 }
 
 fn get_random_key(rng: &mut ThreadRng) -> TableKey {
-    (rng.gen_range(0..MAIN_KEY_MAX_VALUE), rng.gen_range(0..SUB_KEY_MAX_VALUE))
+    (rng.random_range(0..MAIN_KEY_MAX_VALUE), rng.random_range(0..SUB_KEY_MAX_VALUE))
 }

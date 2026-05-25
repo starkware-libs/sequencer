@@ -262,7 +262,7 @@ impl MessageProcessor {
             .filter(|p| *p != self.publisher && *p != self.local_peer_id)
             .collect();
         // TODO(AndrewL): get seeded RNG for tests.
-        peers.shuffle(&mut rand::thread_rng());
+        peers.shuffle(&mut rand::rng());
         trace!("[MSG_PROC] Broadcasting unit index={:?} to {} peers", unit.index(), peers.len());
         self.engine_tx
             .send(EventStateManagerToEngine::SendUnitToPeers { unit: unit.clone(), peers })

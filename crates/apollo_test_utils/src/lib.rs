@@ -213,7 +213,7 @@ pub fn validate_load_and_dump<T: Serialize + for<'a> Deserialize<'a>>(path_in_re
 pub fn get_rng() -> ChaCha8Rng {
     let seed: u64 = match env::var("SEED") {
         Ok(seed_str) => seed_str.parse().unwrap(),
-        _ => rand::thread_rng().gen(),
+        _ => rand::rng().random(),
     };
     // Will be printed if the test failed.
     println!("Testing with seed: {seed:?}");
@@ -1065,7 +1065,7 @@ macro_rules! auto_impl_get_test_instance {
         impl GetTestInstance for $name {
             fn get_test_instance(rng: &mut $crate::rand_chacha::ChaCha8Rng) -> Self {
                 use $crate::rand::Rng;
-                let variant = rng.gen_range(0..get_number_of_variants!(enum $name { $($variant $( ($ty) )? = $num ,)* }));
+                let variant = rng.random_range(0..get_number_of_variants!(enum $name { $($variant $( ($ty) )? = $num ,)* }));
                 match variant {
                     $(
                         $num => {
