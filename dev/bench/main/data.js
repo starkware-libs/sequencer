@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779622584975,
+  "lastUpdate": 1779709493109,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4215,6 +4215,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1368.0153708,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "70578257+ShahakShama@users.noreply.github.com",
+            "name": "ShahakShama",
+            "username": "ShahakShama"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "66111a2be08ea9438ea9e375b30f81e9f0a522e6",
+          "message": "apollo_storage: revert separate events from TransactionOutput (#13462) (#13906)",
+          "timestamp": "2026-05-25T11:32:14Z",
+          "tree_id": "3805630cd4741f5713d7bb9893f0138f4f5ec746",
+          "url": "https://github.com/starkware-libs/sequencer/commit/66111a2be08ea9438ea9e375b30f81e9f0a522e6"
+        },
+        "date": 1779709492739,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 887.1660115599999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1325.8025688900002,
             "unit": "ms"
           }
         ]
