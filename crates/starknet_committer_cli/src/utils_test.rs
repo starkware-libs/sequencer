@@ -16,6 +16,8 @@ const N_READ_ENTRIES: usize = 100;
 const N_WRITE_ENTRIES: usize = 100;
 const N_MODIFICATIONS: usize = 100;
 const N_EMPTY_LEAVES: usize = 10;
+#[cfg(feature = "os_input")]
+const N_WITNESSES: usize = 0;
 
 async fn measure_block(measurements: &mut BenchmarkMeasurements) {
     measurements.set_number_of_modifications(BlockModificationsCounts {
@@ -23,6 +25,8 @@ async fn measure_block(measurements: &mut BenchmarkMeasurements) {
         contracts_trie: N_MODIFICATIONS,
         classes_trie: N_MODIFICATIONS,
         emptied_storage_leaves: N_EMPTY_LEAVES,
+        #[cfg(feature = "os_input")]
+        witnesses: N_WITNESSES,
     });
     measurements.start_measurement(Action::EndToEnd);
     measurements.start_measurement(Action::Read);
@@ -70,6 +74,8 @@ fn assert_block_measurement(measurements: &BenchmarkMeasurements, number_of_bloc
                 contracts_trie: N_MODIFICATIONS,
                 classes_trie: N_MODIFICATIONS,
                 emptied_storage_leaves: N_EMPTY_LEAVES,
+                #[cfg(feature = "os_input")]
+                witnesses: N_WITNESSES,
             }
         );
     }
