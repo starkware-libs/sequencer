@@ -142,6 +142,25 @@ pub(crate) static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<ValidResourceBounds> =
         })
     });
 
+/// Calldata for `TestContract::constructor(arg1, arg2)`.
+/// The constructor writes `arg1 + arg2` to `my_storage_var`.
+fn test_contract_constructor_calldata(
+    my_storage_var_addend_1: Felt,
+    my_storage_var_addend_2: Felt,
+) -> Calldata {
+    calldata![my_storage_var_addend_1, my_storage_var_addend_2]
+}
+
+/// Constructor calldata that leaves `TestContract::my_storage_var` at zero.
+fn default_test_contract_constructor_calldata() -> Calldata {
+    test_contract_constructor_calldata(Felt::ZERO, Felt::ZERO)
+}
+
+/// Constructor calldata that writes `Felt::ONE + Felt::TWO` to `TestContract::my_storage_var`.
+fn nontrivial_test_contract_constructor_calldata() -> Calldata {
+    test_contract_constructor_calldata(Felt::ONE, Felt::TWO)
+}
+
 #[tokio::test]
 async fn test_initial_state_creation() {
     let _initial_state = create_default_initial_state_data::<DictStateReader, 0>([]).await;
@@ -268,7 +287,7 @@ async fn trivial_diff_scenario(
     // keep track of nonces.
 
     let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard_with_config(
-        [(test_contract, calldata![Felt::ONE, Felt::TWO])],
+        [(test_contract, nontrivial_test_contract_constructor_calldata())],
         TestBuilderConfig { use_kzg_da, full_output, ..Default::default() },
     )
     .await;
@@ -320,7 +339,7 @@ async fn test_reverted_invoke_tx(
     #[case] revert_reason: &str,
 ) {
     let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard_with_config(
-        [(test_contract, calldata![Felt::ONE, Felt::TWO])],
+        [(test_contract, nontrivial_test_contract_constructor_calldata())],
         TestBuilderConfig { use_kzg_da: true, ..Default::default() },
     )
     .await;
@@ -362,7 +381,7 @@ async fn test_encrypted_state_diff(
     let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard_with_config(
         [(
             FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-            calldata![Felt::ONE, Felt::TWO],
+            nontrivial_test_contract_constructor_calldata(),
         )],
         TestBuilderConfig { use_kzg_da, full_output, private_keys: private_keys.clone() },
     )
@@ -417,8 +436,11 @@ async fn test_reverted_l1_handler_tx(
     #[case] test_contract: FeatureContract,
     #[case] revert_reason: &str,
 ) {
-    let (mut test_builder, [test_contract_address]) =
-        TestBuilder::create_standard([(test_contract, calldata![Felt::ONE, Felt::TWO])]).await;
+    let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard([(
+        test_contract,
+        nontrivial_test_contract_constructor_calldata(),
+    )])
+    .await;
 
     // Add a reverting L1 handler transaction that changes the storage.
     test_builder.add_l1_handler(
@@ -449,7 +471,7 @@ async fn test_deprecated_call_contract_variants() {
     let test_contract2 = FeatureContract::TestContract2;
     let (mut test_builder, [test_contract_address, test_contract2_address]) =
         TestBuilder::create_standard([
-            (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
+            (test_contract, default_test_contract_constructor_calldata()),
             (test_contract2, calldata![]),
         ])
         .await;
@@ -1106,7 +1128,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let test_class_hash = get_class_hash_of_feature_contract(test_contract);
     let (mut test_builder, [main_contract_address]) = TestBuilder::create_standard_with_config(
-        [(test_contract, calldata![Felt::ZERO, Felt::ZERO])],
+        [(test_contract, default_test_contract_constructor_calldata())],
         TestBuilderConfig { use_kzg_da, ..Default::default() },
     )
     .await;
@@ -1419,8 +1441,8 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     let (mut test_builder, [main_contract_address, contract_address2]) =
         TestBuilder::create_standard_with_config(
             [
-                (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
-                (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
+                (test_contract, default_test_contract_constructor_calldata()),
+                (test_contract, default_test_contract_constructor_calldata()),
             ],
             TestBuilderConfig { use_kzg_da, ..Default::default() },
         )
@@ -1703,7 +1725,7 @@ async fn test_syscalls_with_alternating_inner_calls() {
     let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard_with_config(
         [(
             FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-            calldata![Felt::ZERO, Felt::ZERO],
+            default_test_contract_constructor_calldata(),
         )],
         TestBuilderConfig { use_kzg_da: true, ..Default::default() },
     )
@@ -1857,7 +1879,7 @@ async fn test_deprecated_tx_info() {
 async fn test_deprecated_send_to_l1() {
     let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard([(
         FeatureContract::TestContract(CairoVersion::Cairo0),
-        calldata![Felt::ZERO, Felt::ZERO],
+        default_test_contract_constructor_calldata(),
     )])
     .await;
 
@@ -1883,10 +1905,13 @@ async fn test_replace_class() {
         mut test_builder,
         [test_contract_address_cairo0, test_contract_address_cairo1, _empty_contract_address],
     ) = TestBuilder::create_standard([
-        (FeatureContract::TestContract(CairoVersion::Cairo0), calldata![Felt::ZERO, Felt::ZERO]),
+        (
+            FeatureContract::TestContract(CairoVersion::Cairo0),
+            default_test_contract_constructor_calldata(),
+        ),
         (
             FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-            calldata![Felt::ZERO, Felt::ZERO],
+            default_test_contract_constructor_calldata(),
         ),
         (empty_contract, calldata![]),
     ])
@@ -1912,7 +1937,7 @@ async fn test_deploy_syscall() {
     // Initialize the test manager with the test contract and empty contract already declared.
     // We can ignore the addresses of the deployed instances.
     let (mut test_builder, _) = TestBuilder::create_standard([
-        (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
+        (test_contract, default_test_contract_constructor_calldata()),
         (empty_contract, calldata![]),
     ])
     .await;
@@ -1984,7 +2009,7 @@ async fn test_inner_deploy_failure() {
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let (mut test_builder, [test_contract_address, _empty_contract_address]) =
         TestBuilder::create_standard([
-            (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
+            (test_contract, default_test_contract_constructor_calldata()),
             (empty_contract, calldata![]),
         ])
         .await;
@@ -2234,7 +2259,7 @@ async fn test_reverted_call() {
                 // The `my_storage_var` cell is initialized as the sum of the ctor args in the
                 // constructor. This cell is also used in revert tests, so it must be
                 // initialized to zero.
-                (test_contract, calldata![Felt::ZERO, Felt::ZERO]),
+                (test_contract, default_test_contract_constructor_calldata()),
                 (test_contract2, calldata![]),
                 (empty_contract, calldata![]),
             ],
@@ -2366,7 +2391,7 @@ async fn test_resources_type() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let (mut test_builder, [sierra_gas_contract_address]) =
         TestBuilder::create_standard_with_config(
-            [(test_contract, calldata![Felt::ZERO, Felt::ZERO])],
+            [(test_contract, default_test_contract_constructor_calldata())],
             TestBuilderConfig { use_kzg_da: true, ..Default::default() },
         )
         .await;
@@ -2413,7 +2438,7 @@ async fn test_resources_type() {
     // Deploy it.
     let (deploy_tx, cairo_steps_contract_address) = get_deploy_contract_tx_and_address_with_salt(
         cairo_steps_class_hash,
-        calldata![Felt::ZERO, Felt::ZERO],
+        default_test_contract_constructor_calldata(),
         test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
         *NON_TRIVIAL_RESOURCE_BOUNDS,
         ContractAddressSalt(Felt::ZERO),
@@ -2528,7 +2553,10 @@ async fn test_direct_execute_call() {
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let (mut test_builder, [test_contract_address, dummy_account_address]) =
         TestBuilder::create_standard_with_config(
-            [(test_contract, calldata![Felt::ZERO, Felt::ZERO]), (dummy_account, calldata![])],
+            [
+                (test_contract, default_test_contract_constructor_calldata()),
+                (dummy_account, calldata![]),
+            ],
             TestBuilderConfig { use_kzg_da: true, ..Default::default() },
         )
         .await;
@@ -2898,7 +2926,7 @@ async fn test_deploy_no_ctor_contract() {
 async fn test_load_bottom() {
     let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard([(
         FeatureContract::TestContract(CairoVersion::Cairo0),
-        calldata![Felt::ZERO, Felt::ZERO],
+        default_test_contract_constructor_calldata(),
     )])
     .await;
 
@@ -2960,7 +2988,7 @@ async fn test_nested_self_revert_storage_order() {
     let (mut test_builder, [test_contract_address]) =
         TestBuilder::<DictStateReader>::create_standard([(
             FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-            calldata![Felt::ZERO, Felt::ZERO],
+            default_test_contract_constructor_calldata(),
         )])
         .await;
 
@@ -2984,8 +3012,8 @@ async fn test_cairo0_proven_revert() {
     let test_contract_cairo0 = FeatureContract::TestContract(CairoVersion::Cairo0);
     let (mut test_builder, [cairo1_contract_address, cairo0_contract_address]) =
         TestBuilder::<DictStateReader>::create_standard([
-            (test_contract_cairo1, calldata![Felt::ZERO, Felt::ZERO]),
-            (test_contract_cairo0, calldata![Felt::ZERO, Felt::ZERO]),
+            (test_contract_cairo1, default_test_contract_constructor_calldata()),
+            (test_contract_cairo0, default_test_contract_constructor_calldata()),
         ])
         .await;
 
@@ -3011,8 +3039,11 @@ async fn test_cairo0_proven_revert() {
 #[tokio::test]
 async fn test_get_block_hash_current_block_number() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let (mut test_builder, [test_contract_address]) =
-        TestBuilder::create_standard([(test_contract, calldata![Felt::ONE, Felt::TWO])]).await;
+    let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard([(
+        test_contract,
+        nontrivial_test_contract_constructor_calldata(),
+    )])
+    .await;
 
     let calldata =
         create_calldata(test_contract_address, "test_get_block_hash_current_block_number", &[]);
@@ -3028,8 +3059,11 @@ async fn test_get_block_hash_current_block_number() {
 #[tokio::test]
 async fn test_proof_facts_versions_and_program_hashes() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let (mut test_builder, [test_contract_address]) =
-        TestBuilder::create_standard([(test_contract, calldata![Felt::ZERO, Felt::ZERO])]).await;
+    let (mut test_builder, [test_contract_address]) = TestBuilder::create_standard([(
+        test_contract,
+        default_test_contract_constructor_calldata(),
+    )])
+    .await;
     let config_hash = test_builder.compute_virtual_os_config_hash();
     let allowed_program_hashes = VersionedConstants::latest_constants()
         .os_constants
