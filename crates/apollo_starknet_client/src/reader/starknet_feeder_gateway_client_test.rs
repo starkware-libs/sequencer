@@ -50,14 +50,17 @@ use crate::{KnownStarknetErrorCode, StarknetError, StarknetErrorCode};
 
 const NODE_VERSION: &str = "NODE VERSION";
 const FEEDER_GATEWAY_ALIVE_RESPONSE: &str = "FeederGateway is alive!";
-const LATEST_BLOCK_RESOURCE: &str = "reader/block_post_0_14_2.json";
+const LATEST_BLOCK_RESOURCE: &str = "reader/block_post_0_14_3.json";
 
 fn get_block_url(block_number_or_latest: Option<u64>) -> String {
     let url = match block_number_or_latest {
-        Some(block_number) => {
-            format!("/feeder_gateway/get_block?blockNumber={block_number}&withFeeMarketInfo=true")
-        }
-        _ => "/feeder_gateway/get_block?blockNumber=latest&withFeeMarketInfo=true".to_string(),
+        Some(block_number) => format!(
+            "/feeder_gateway/get_block?blockNumber={block_number}&withFeeMarketInfo=true&\
+             withFeeProposalInfo=true"
+        ),
+        _ => "/feeder_gateway/get_block?blockNumber=latest&withFeeMarketInfo=true&\
+              withFeeProposalInfo=true"
+            .to_string(),
     };
     url
 }
