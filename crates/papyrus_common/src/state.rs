@@ -1,5 +1,5 @@
 use indexmap::indexmap;
-use rand::RngCore;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StorageKey, ThinStateDiff};
@@ -36,7 +36,7 @@ pub struct ReplacedClass {
 }
 
 // TODO(Shahak): move to used crate
-pub fn create_random_state_diff(rng: &mut impl RngCore) -> ThinStateDiff {
+pub fn create_random_state_diff(rng: &mut impl Rng) -> ThinStateDiff {
     let contract0 = ContractAddress::from(rng.next_u64());
     let contract1 = ContractAddress::from(rng.next_u64());
     let contract2 = ContractAddress::from(rng.next_u64());
