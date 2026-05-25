@@ -15,6 +15,7 @@ serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
+url.workspace = true
 validator.workspace = true
 
 [features]
