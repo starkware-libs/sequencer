@@ -23,6 +23,7 @@ use apollo_class_manager_config::config::{
 };
 use apollo_committer::committer::StorageConstructor;
 use apollo_committer_config::config::{ApolloCommitterConfig, ApolloStorage};
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config::converters::UrlAndHeaders;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::{
@@ -796,6 +797,8 @@ pub fn create_gateway_config(
             block_declare: false,
             authorized_declarer_accounts: None,
             proof_archive_writer_config,
+            behavior_mode: BehaviorMode::Starknet,
+            recorder_url: "https://recorder_url".parse().unwrap(),
         },
         ..Default::default()
     }
