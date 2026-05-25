@@ -16,3 +16,16 @@ config:
     components.state_sync.port: 55009
     components.state_sync.url: sequencer-core-service
     gateway_config.static_config.stateless_tx_validator_config.min_gas_price: 8000000000
+
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+  - name: gateway
+    port: 55002
+    targetPort: 55002
+    protocol: TCP
+  - name: http-server
+    port: 8080
+    targetPort: 8080
+    protocol: TCP

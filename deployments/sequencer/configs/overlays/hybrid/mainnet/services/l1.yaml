@@ -13,3 +13,20 @@ config:
     components.l1_gas_price_provider.url: sequencer-l1-service
     components.state_sync.port: 55009
     components.state_sync.url: sequencer-core-service
+
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+  - name: l1-endpoint-monitoring
+    port: 55005
+    targetPort: 55005
+    protocol: TCP
+  - name: l1-gas-price-provider
+    port: 55003
+    targetPort: 55003
+    protocol: TCP
+  - name: l1-provider
+    port: 55004
+    targetPort: 55004
+    protocol: TCP
