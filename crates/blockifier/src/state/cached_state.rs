@@ -676,6 +676,17 @@ pub struct CommitmentStateDiff {
     pub class_hash_to_compiled_class_hash: IndexMap<ClassHash, CompiledClassHash>,
 }
 
+impl CommitmentStateDiff {
+    /// Union of addresses with storage updates, nonce changes, or class hash changes.
+    pub fn get_contract_addresses(&self) -> HashSet<&ContractAddress> {
+        self.storage_updates
+            .keys()
+            .chain(self.address_to_nonce.keys())
+            .chain(self.address_to_class_hash.keys())
+            .collect()
+    }
+}
+
 impl From<StateMaps> for CommitmentStateDiff {
     fn from(diff: StateMaps) -> Self {
         Self {
