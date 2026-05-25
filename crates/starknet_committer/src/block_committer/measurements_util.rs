@@ -11,6 +11,10 @@ pub enum Action {
     Read,
     Compute,
     Write,
+    #[cfg(feature = "os_input")]
+    FetchWitnessesFirstPass,
+    #[cfg(feature = "os_input")]
+    FetchWitnessesSecondPass,
 }
 
 #[derive(Default)]
@@ -19,6 +23,10 @@ pub struct BlockTimers {
     pub read_timer: Option<Instant>,
     pub compute_timer: Option<Instant>,
     pub writer_timer: Option<Instant>,
+    #[cfg(feature = "os_input")]
+    pub fetch_witnesses_first_pass_timer: Option<Instant>,
+    #[cfg(feature = "os_input")]
+    pub fetch_witnesses_second_pass_timer: Option<Instant>,
 }
 
 impl BlockTimers {
@@ -28,6 +36,10 @@ impl BlockTimers {
             Action::Read => &mut self.read_timer,
             Action::Compute => &mut self.compute_timer,
             Action::Write => &mut self.writer_timer,
+            #[cfg(feature = "os_input")]
+            Action::FetchWitnessesFirstPass => &mut self.fetch_witnesses_first_pass_timer,
+            #[cfg(feature = "os_input")]
+            Action::FetchWitnessesSecondPass => &mut self.fetch_witnesses_second_pass_timer,
         }
     }
 
@@ -62,7 +74,13 @@ pub trait MeasurementsTrait {
         entries_count: usize,
     ) -> Result<f64, MeasurementNotStartedError>;
 
-    fn set_number_of_modifications(&mut self, block_modifications_counts: BlockModificationsCounts);
+    fn set_number_of_modifications(
+        &mut self,
+        storage_tries: usize,
+        contracts_trie: usize,
+        classes_trie: usize,
+        emptied_storage_leaves: usize,
+    );
 }
 
 pub struct NoMeasurements;
@@ -80,7 +98,10 @@ impl MeasurementsTrait for NoMeasurements {
 
     fn set_number_of_modifications(
         &mut self,
-        _block_modifications_counts: BlockModificationsCounts,
+        _storage_tries: usize,
+        _contracts_trie: usize,
+        _classes_trie: usize,
+        _emptied_storage_leaves: usize,
     ) {
     }
 }
@@ -91,6 +112,12 @@ pub struct BlockDurations {
     pub read: f64,    // Duration of a read phase (seconds).
     pub compute: f64, // Duration of a computation phase (seconds).
     pub write: f64,   // Duration of a write phase (seconds).
+    #[cfg(feature = "os_input")]
+    // Duration of fetching witnesses w.r.t the old root (seconds).
+    pub fetch_witnesses_first_pass: f64,
+    #[cfg(feature = "os_input")]
+    // Duration of fetching witnesses w.r.t the new root (seconds).
+    pub fetch_witnesses_second_pass: f64,
 }
 
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
@@ -99,6 +126,9 @@ pub struct BlockModificationsCounts {
     pub contracts_trie: usize,
     pub classes_trie: usize,
     pub emptied_storage_leaves: usize,
+    #[cfg(feature = "os_input")]
+    // Number of witnesses fetched in the first pass (pre-commit).
+    pub witnesses: usize,
 }
 
 impl BlockModificationsCounts {
@@ -137,6 +167,15 @@ impl BlockMeasurement {
             Action::EndToEnd => {
                 self.durations.block = duration_in_seconds;
             }
+            #[cfg(feature = "os_input")]
+            Action::FetchWitnessesFirstPass => {
+                self.durations.fetch_witnesses_first_pass = duration_in_seconds;
+                self.modifications_counts.witnesses = entries_count;
+            }
+            #[cfg(feature = "os_input")]
+            Action::FetchWitnessesSecondPass => {
+                self.durations.fetch_witnesses_second_pass = duration_in_seconds;
+            }
         }
     }
 }
@@ -164,8 +203,14 @@ impl MeasurementsTrait for SingleBlockMeasurements {
 
     fn set_number_of_modifications(
         &mut self,
-        block_modifications_counts: BlockModificationsCounts,
+        storage_tries: usize,
+        contracts_trie: usize,
+        classes_trie: usize,
+        emptied_storage_leaves: usize,
     ) {
-        self.block_measurement.modifications_counts = block_modifications_counts;
+        self.block_measurement.modifications_counts.storage_tries = storage_tries;
+        self.block_measurement.modifications_counts.contracts_trie = contracts_trie;
+        self.block_measurement.modifications_counts.classes_trie = classes_trie;
+        self.block_measurement.modifications_counts.emptied_storage_leaves = emptied_storage_leaves;
     }
 }
