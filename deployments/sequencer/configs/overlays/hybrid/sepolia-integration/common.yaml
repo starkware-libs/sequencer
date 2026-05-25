@@ -29,6 +29,14 @@ startupProbe:
   periodSeconds: 5
   timeoutSeconds: 2
 
+readinessProbe:
+  enabled: true
+  path: /monitoring/ready
+  successThreshold: 2
+  failureThreshold: 3
+  periodSeconds: 5
+  timeoutSeconds: 2
+
 env:
 - name: RUST_LOG
   value: debug
