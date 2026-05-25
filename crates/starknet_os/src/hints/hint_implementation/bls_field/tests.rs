@@ -7,7 +7,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use ethnum::U256;
-use num_bigint::{BigInt, BigUint, RandBigInt, RandomBits, Sign, ToBigInt};
+use num_bigint::{BigInt, BigUint, Sign, ToBigInt};
 use num_integer::Integer;
 use rand::Rng;
 use rstest::rstest;
@@ -62,7 +62,7 @@ fn run_reduced_mul_test(a_split: &[Felt], b_split: &[Felt]) {
 #[test]
 fn test_bigint3_to_uint256() {
     let mut rng = seeded_random_prng();
-    let random_u256_big_uint: BigUint = rng.sample(RandomBits::new(256));
+    let random_u256_big_uint = BigUint::from_bytes_be(&rng.random::<[u8; 32]>());
     let random_u256_bigint = BigInt::from_biguint(Sign::Plus, random_u256_big_uint);
     let cairo_bigin3 = EndpointArg::Value(ValueArg::Array(
         split_bigint3(random_u256_bigint.clone())
@@ -140,13 +140,13 @@ fn test_horner_eval(#[values(0, 100, 4096)] n_coefficients: usize) {
     let mut explicit_args: Vec<EndpointArg> = vec![];
     explicit_args.push(n_coefficients.into());
     let coefficients: Vec<Felt> = (0..n_coefficients)
-        .map(|_| Felt::from(RandBigInt::gen_bigint_range(&mut rng, &0.into(), &DEFAULT_PRIME)))
+        .map(|_| Felt::from_bytes_be_slice(rng.random::<[u8; 30]>().as_slice()))
         .collect();
 
     explicit_args.push(EndpointArg::Pointer(PointerArg::Array(
         coefficients.iter().cloned().map(MaybeRelocatable::from).collect(),
     )));
-    let point = RandBigInt::gen_bigint_range(&mut rng, &0.into(), &BLS_PRIME.to_bigint().unwrap());
+    let point: BigInt = BigUint::from_bytes_be(rng.random::<[u8; 30]>().as_slice()).into();
     explicit_args.push(EndpointArg::Value(ValueArg::Array(
         split_bigint3(point.clone()).unwrap().iter().map(MaybeRelocatable::from).collect(),
     )));
@@ -219,10 +219,10 @@ fn test_reduced_mul_random() {
     // Generate a,b in (-REDUCED_MUL_LIMB_LIMIT, REDUCED_MUL_LIMB_LIMIT).
     let mut rng = seeded_random_prng();
     let a_split = (0..3)
-        .map(|_| rng.gen_range(-REDUCED_MUL_LIMB_BOUND + 1..REDUCED_MUL_LIMB_BOUND).into())
+        .map(|_| rng.random_range(-REDUCED_MUL_LIMB_BOUND + 1..REDUCED_MUL_LIMB_BOUND).into())
         .collect::<Vec<Felt>>();
     let b_split = (0..3)
-        .map(|_| rng.gen_range(-REDUCED_MUL_LIMB_BOUND + 1..REDUCED_MUL_LIMB_BOUND).into())
+        .map(|_| rng.random_range(-REDUCED_MUL_LIMB_BOUND + 1..REDUCED_MUL_LIMB_BOUND).into())
         .collect::<Vec<Felt>>();
 
     run_reduced_mul_test(&a_split, &b_split)

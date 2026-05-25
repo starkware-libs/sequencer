@@ -222,7 +222,7 @@ async fn write_read_different_locations() {
         {
             round = *lock.read().await;
         }
-        let read_offset = 3 * rand::thread_rng().gen_range(0..round + 1);
+        let read_offset = 3 * rand::rng().random_range(0..round + 1);
         let read_location = LocationInFile { offset: read_offset, len: LEN };
         let read_value = reader.get(read_location).unwrap().unwrap();
         let first_expected_value: u8 = (read_offset / 3 * 2).try_into().unwrap();

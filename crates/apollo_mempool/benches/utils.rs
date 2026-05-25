@@ -194,7 +194,7 @@ impl BenchTestSetup {
         let mut rng = StdRng::seed_from_u64(42);
         let txs = (0..config.n_txs)
             .map(|index| {
-                let account_id = rng.gen_range(0..config.n_accounts);
+                let account_id = rng.random_range(0..config.n_accounts);
                 tx_generator.generate_invoke(account_id, index)
             })
             .collect();

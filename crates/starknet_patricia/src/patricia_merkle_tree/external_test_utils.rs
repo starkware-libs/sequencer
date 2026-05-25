@@ -92,7 +92,7 @@ pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
     let bit_len = 256 - delta.leading_zeros();
     let mask = if bit_len == 256 { U256::MAX } else { (U256::ONE << bit_len) - U256::ONE };
     let rand_u256 = loop {
-        let bytes: [u8; 32] = rng.gen();
+        let bytes: [u8; 32] = rng.random();
         let candidate = U256::from_be_bytes(bytes) & mask;
         if candidate < delta {
             break candidate;

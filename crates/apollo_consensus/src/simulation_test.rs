@@ -14,7 +14,7 @@ use apollo_consensus_config::config::TimeoutsConfig;
 use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
 use lazy_static::lazy_static;
 use rand::rngs::StdRng;
-use rand::seq::SliceRandom;
+use rand::seq::IndexedRandom;
 use rand::{Rng, SeedableRng};
 use starknet_api::block::BlockNumber;
 use starknet_api::crypto::utils::RawSignature;
@@ -149,12 +149,12 @@ fn get_leader_index(seed: u64, total_nodes: usize, round: Round) -> usize {
     let round_seed = seed.wrapping_mul(31).wrapping_add(round_u64);
     let mut round_rng = StdRng::seed_from_u64(round_seed);
 
-    let random_value: f64 = round_rng.gen();
+    let random_value: f64 = round_rng.random();
 
     if random_value < NODE_0_LEADER_PROBABILITY {
         NODE_UNDER_TEST
     } else {
-        round_rng.gen_range(1..total_nodes)
+        round_rng.random_range(1..total_nodes)
     }
 }
 
@@ -278,7 +278,7 @@ impl DiscreteEventSimulation {
     /// Other events are scheduled with probability keep_ratio.
     fn schedule_at_tick(&mut self, tick: u64, event: InputEvent) {
         let should_enqueue =
-            matches!(event, InputEvent::Internal(_)) || self.rng.gen_bool(self.keep_ratio);
+            matches!(event, InputEvent::Internal(_)) || self.rng.random_bool(self.keep_ratio);
         if should_enqueue {
             self.pending_events.push(TimedEvent { tick, event });
         }
@@ -295,10 +295,10 @@ impl DiscreteEventSimulation {
         round_start_tick: u64,
     ) {
         let round_end_tick = round_start_tick + ROUND_DURATION;
-        let prevote_tick = (round_start_tick + self.rng.gen_range(PREVOTE_ARRIVAL_DELAY_RANGE))
+        let prevote_tick = (round_start_tick + self.rng.random_range(PREVOTE_ARRIVAL_DELAY_RANGE))
             .min(round_end_tick - 1);
         let precommit_tick = (prevote_tick
-            + self.rng.gen_range(PRECOMMIT_AFTER_PREVOTE_DELAY_RANGE))
+            + self.rng.random_range(PRECOMMIT_AFTER_PREVOTE_DELAY_RANGE))
         .min(round_end_tick);
 
         self.schedule_at_tick(
@@ -349,7 +349,7 @@ impl DiscreteEventSimulation {
             // 1. Proposal from leader (if not NODE_0 and leader is honest)
             if leader_idx < self.honest_nodes {
                 let proposal_tick = (round_start_tick
-                    + self.rng.gen_range(PROPOSAL_ARRIVAL_DELAY_RANGE))
+                    + self.rng.random_range(PROPOSAL_ARRIVAL_DELAY_RANGE))
                 .min(round_start_tick + ROUND_DURATION);
                 self.schedule_at_tick(
                     proposal_tick,
@@ -566,7 +566,7 @@ impl DiscreteEventSimulation {
 
             match req {
                 SMRequest::StartValidateProposal(init) => {
-                    let delay = self.rng.gen_range(VALIDATION_DELAY_RANGE);
+                    let delay = self.rng.random_range(VALIDATION_DELAY_RANGE);
                     let validate_finish_tick = self.current_tick + delay;
                     let proposal_commitment =
                         Some(proposal_commitment_for_round(init.round, false));
@@ -578,7 +578,7 @@ impl DiscreteEventSimulation {
                     self.schedule_at_tick(validate_finish_tick, InputEvent::Internal(result));
                 }
                 SMRequest::StartBuildProposal(round) => {
-                    let delay = self.rng.gen_range(BUILD_PROPOSAL_DELAY_RANGE);
+                    let delay = self.rng.random_range(BUILD_PROPOSAL_DELAY_RANGE);
                     let build_finish_tick = self.current_tick + delay;
                     let proposal_commitment = Some(proposal_commitment_for_round(round, false));
                     let result = StateMachineEvent::FinishedBuilding(proposal_commitment, round);
@@ -591,15 +591,15 @@ impl DiscreteEventSimulation {
                 SMRequest::ScheduleTimeout(step, round) => {
                     let (delay, event) = match step {
                         Step::Propose => (
-                            self.rng.gen_range(TIMEOUT_PROPOSE_DELAY_RANGE),
+                            self.rng.random_range(TIMEOUT_PROPOSE_DELAY_RANGE),
                             StateMachineEvent::TimeoutPropose(round),
                         ),
                         Step::Prevote => (
-                            self.rng.gen_range(TIMEOUT_PREVOTE_DELAY_RANGE),
+                            self.rng.random_range(TIMEOUT_PREVOTE_DELAY_RANGE),
                             StateMachineEvent::TimeoutPrevote(round),
                         ),
                         Step::Precommit => (
-                            self.rng.gen_range(TIMEOUT_PRECOMMIT_DELAY_RANGE),
+                            self.rng.random_range(TIMEOUT_PRECOMMIT_DELAY_RANGE),
                             StateMachineEvent::TimeoutPrecommit(round),
                         ),
                     };
@@ -747,7 +747,7 @@ fn test_consensus_simulation(keep_ratio: f64, honest_nodes: usize) {
         if start.elapsed() >= timeout {
             break;
         }
-        let seed = rand::thread_rng().gen();
+        let seed = rand::rng().random();
         println!(
             "run: keep_ratio={keep_ratio}, honest_nodes={honest_nodes}, \
              total_nodes={total_nodes}, num_rounds={num_rounds}, seed={seed}"
