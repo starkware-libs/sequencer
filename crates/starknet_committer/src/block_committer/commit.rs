@@ -239,5 +239,6 @@ fn measure_number_of_modifications(
         contracts_trie: n_contracts_trie_modifications,
         classes_trie: n_classes_trie_modifications,
         emptied_storage_leaves,
+        ..Default::default()
     });
 }
