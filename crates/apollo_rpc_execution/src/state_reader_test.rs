@@ -93,8 +93,6 @@ fn read_state() {
         .unwrap()
         .append_body(BlockNumber(0), BlockBody::default())
         .unwrap()
-        .append_events(BlockNumber(0), &[])
-        .unwrap()
         .append_state_diff(BlockNumber(0), ThinStateDiff::default())
         .unwrap()
         .append_classes(BlockNumber(0), &[], &[])
@@ -112,8 +110,6 @@ fn read_state() {
         )
         .unwrap()
         .append_body(BlockNumber(1), BlockBody::default())
-        .unwrap()
-        .append_events(BlockNumber(1), &[])
         .unwrap()
         .append_state_diff(
             BlockNumber(1),
@@ -160,8 +156,6 @@ fn read_state() {
         )
         .unwrap()
         .append_body(BlockNumber(2), BlockBody::default())
-        .unwrap()
-        .append_events(BlockNumber(2), &[])
         .unwrap()
         .append_state_diff(BlockNumber(2), ThinStateDiff::default())
         .unwrap()
