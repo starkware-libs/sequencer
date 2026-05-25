@@ -27,7 +27,7 @@ use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::{TransactionHash, TransactionVersion};
 use starknet_api::{class_hash, contract_address, felt, nonce};
 
-use super::objects::state::StateUpdate;
+use super::objects::state::{BlockStateUpdate, StateUpdate};
 use super::objects::transaction::IntermediateDeclareTransaction;
 use super::{
     ContractClass,
@@ -195,6 +195,70 @@ async fn state_update() {
     let state_update = apollo_starknet_client.state_update(BlockNumber(999999)).await.unwrap();
     assert!(state_update.is_none());
     mock_no_block.assert_async().await;
+}
+
+#[tokio::test]
+async fn block_state_update_and_signature() {
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
+    let raw = read_resource_file("reader/block_state_update_and_signature.json");
+    let mock = server
+        .mock(
+            "GET",
+            "/feeder_gateway/get_state_update?blockNumber=11493796&includeBlock=true&\
+             includeSignature=true&withFeeMarketInfo=true&withFeeProposalInfo=true",
+        )
+        .with_status(200)
+        .with_body(&raw)
+        .create_async()
+        .await;
+    let result = apollo_starknet_client
+        .block_state_update_and_signature(BlockNumber(11493796))
+        .await
+        .unwrap()
+        .unwrap();
+    mock.assert_async().await;
+
+    let expected: BlockStateUpdate = serde_json::from_str(&raw).unwrap();
+    assert_eq!(result, expected);
+    assert_eq!(
+        result.state_update.block_hash,
+        BlockHash(felt!("0x3e958161262bdec3752433e5b1ef70a52818cffacfe4a086d94039234c0a051"))
+    );
+    assert_eq!(result.block.block_number(), BlockNumber(11493796));
+}
+
+#[tokio::test]
+async fn block_state_update_and_signature_aborted_returns_error() {
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
+    let mut raw: Value =
+        serde_json::from_str(&read_resource_file("reader/block_state_update_and_signature.json"))
+            .unwrap();
+    let raw_block_obj =
+        raw["block"].as_object_mut().expect("block field in JSON should be an object.");
+    raw_block_obj.insert("status".to_string(), Value::String("ABORTED".to_string()));
+
+    let mock = server
+        .mock(
+            "GET",
+            "/feeder_gateway/get_state_update?blockNumber=11493796&includeBlock=true&\
+             includeSignature=true&withFeeMarketInfo=true&withFeeProposalInfo=true",
+        )
+        .with_status(200)
+        .with_body(serde_json::to_string(&raw).unwrap())
+        .create_async()
+        .await;
+
+    let err = apollo_starknet_client
+        .block_state_update_and_signature(BlockNumber(11493796))
+        .await
+        .unwrap_err();
+    mock.assert_async().await;
+    assert_matches!(
+        err,
+        ReaderClientError::AbortedBlock { block_number } if block_number == BlockNumber(11493796)
+    );
 }
 
 #[tokio::test]
