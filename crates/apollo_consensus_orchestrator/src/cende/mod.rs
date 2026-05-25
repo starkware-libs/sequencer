@@ -391,6 +391,7 @@ pub struct InternalTransactionWithReceipt {
 #[derive(Debug, Default)]
 pub struct BlobParameters {
     pub block_info: BlockInfo,
+    pub starknet_version: StarknetVersion,
     pub state_diff: ThinStateDiff,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
     pub bouncer_weights: BouncerWeights,
@@ -422,7 +423,7 @@ impl AerospikeBlob {
         let block_timestamp = blob_parameters.block_info.block_timestamp.0;
 
         let block_info =
-            CentralBlockInfo::from((blob_parameters.block_info, StarknetVersion::LATEST));
+            CentralBlockInfo::from((blob_parameters.block_info, blob_parameters.starknet_version));
         let state_diff = CentralStateDiff::from((blob_parameters.state_diff, block_info.clone()));
         let compressed_state_diff =
             blob_parameters.compressed_state_diff.map(|compressed_state_diff| {

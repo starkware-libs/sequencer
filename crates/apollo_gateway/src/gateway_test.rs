@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::sync::{Arc, LazyLock};
 
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
 use apollo_gateway_config::config::{
@@ -142,6 +143,8 @@ fn mock_dependencies() -> MockDependencies {
             authorized_declarer_accounts: None,
             max_concurrent_declare_compilations: 5,
             proof_archive_writer_config: ProofArchiveWriterConfig::default(),
+            behavior_mode: BehaviorMode::Starknet,
+            recorder_url: "https://recorder_url".parse().unwrap(),
         },
         ..Default::default()
     };

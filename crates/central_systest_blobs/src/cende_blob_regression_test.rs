@@ -231,6 +231,7 @@ impl From<BlockData> for BlobParameters {
         };
 
         Self {
+            starknet_version: block_info.starknet_version,
             block_info,
             state_diff,
             compressed_state_diff: Some(commitment_state_diff),
