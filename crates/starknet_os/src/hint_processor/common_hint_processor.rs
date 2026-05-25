@@ -105,25 +105,7 @@ macro_rules! impl_common_hint_processor_logic {
                 // Override the [CoreHint::RandomEcPoint] implementation to make the output
                 // deterministic (using seeded randomness).
                 Cairo1Hint::Core(CoreHintBase::Core(CoreHint::RandomEcPoint { x, y })) => {
-                    // TODO(Dori): use the random_ec_point function from the compiler repo when
-                    //   available, instead of inlining the implementation.
-                    /// The Beta value of the Starkware elliptic curve.
-                    pub const BETA: Felt = Felt::from_hex_unchecked(
-                        "0x6f21413efbe40de150e596d72f7a8c5609ad26c15c915c1f4cdfcb99cee9e89",
-                    );
-                    // Use the seeded randomness.
-                    let rng = self.get_rng();
-                    let (random_x, random_y) = loop {
-                        // Randomizing 31 bytes to make sure it is in range.
-                        let x_bytes: [u8; 31] = rng.random();
-                        let random_x = Felt::from_bytes_be_slice(&x_bytes);
-                        let random_y_squared = random_x * random_x * random_x + random_x + BETA;
-                        if let Some(random_y) = random_y_squared.sqrt() {
-                            break (random_x, random_y);
-                        }
-                    };
-                    cairo_lang_runner::insert_value_to_cellref!(vm, x, random_x)?;
-                    cairo_lang_runner::insert_value_to_cellref!(vm, y, random_y)?;
+                    cairo_lang_runner::casm_run::random_ec_point(vm, x, y, self.get_rng())?;
                     Ok(HintExtension::default())
                 }
                 Cairo1Hint::Core(hint) => {

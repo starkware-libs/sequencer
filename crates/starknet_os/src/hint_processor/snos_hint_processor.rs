@@ -9,7 +9,7 @@ use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint as Cairo1Hint, StarknetHint};
-use cairo_lang_runner::casm_run::{cell_ref_to_relocatable, execute_core_hint_base};
+use cairo_lang_runner::casm_run::execute_core_hint_base;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor,
@@ -22,7 +22,7 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
-use rand::{RngExt, SeedableRng};
+use rand::SeedableRng;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
