@@ -171,5 +171,26 @@ if $INSTALL_NATIVE; then
         fi
     fi
     export_llvm_env_vars
-    install_compiler_if_needed "starknet-native-compile" "$NATIVE_COMPILE_VERSION"
+    # --- BEGIN: cairo-native git-pin override ----------------------------------------------
+    # The workspace pins cairo-native to a git rev (see `cairo-native = { git, rev }` in the
+    # root Cargo.toml). Install the binary from the same rev so the .so it produces matches
+    # the in-process cairo-native runtime ABI — otherwise the host trips a double-free at
+    # runtime. `rm -rf` defends against a previously cached crates.io install at the same
+    # path (the install dir is keyed only by NATIVE_COMPILE_VERSION).
+    # TO REVERT once cairo-native ships a published release with the desired changes:
+    #   replace this block with the single original line:
+    #     install_compiler_if_needed "starknet-native-compile" "$NATIVE_COMPILE_VERSION"
+    _native_install_root="${CARGO_TOOLS_ROOT}/starknet-native-compile-${NATIVE_COMPILE_VERSION}"
+    _native_install_bin="${_native_install_root}/bin/starknet-native-compile"
+    log_step "install_compiler_binaries" "Installing starknet-native-compile from git rev..." >&2
+    rm -rf "$_native_install_root"
+    cargo install --locked --root "$_native_install_root" \
+        --git "https://github.com/lambdaclass/cairo_native" \
+        --rev "bf31c89460dd319a935b6631df9113cef0f0397d" \
+        starknet-native-compile >&2
+    if [ -n "$DEST_DIR" ]; then
+        atomic_install "$_native_install_bin" "$DEST_DIR/starknet-native-compile"
+    fi
+    echo "$_native_install_bin"
+    # --- END: cairo-native git-pin override ------------------------------------------------
 fi

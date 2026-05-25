@@ -834,6 +834,20 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
         Ok(())
     }
+
+    fn sha512_process_block(
+        &mut self,
+        _prev_state: &mut [u64; 8],
+        _current_block: &[u64; 16],
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<()> {
+        Err(self.handle_error(
+            remaining_gas,
+            SyscallExecutionError::InvalidSyscallSelector(Felt::from_bytes_be_slice(
+                b"Sha512ProcessBlock",
+            )),
+        ))
+    }
 }
 
 /// A wrapper around an elliptic curve point in affine coordinates (x,y) on a

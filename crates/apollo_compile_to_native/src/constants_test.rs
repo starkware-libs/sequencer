@@ -2,6 +2,8 @@ use toml_test_utils::{DependencyValue, ROOT_TOML};
 
 use crate::constants::REQUIRED_CAIRO_NATIVE_VERSION;
 
+// TO REVERT once cairo-native is back on a published release: remove the `#[ignore]` line.
+#[ignore = "cairo-native is pinned by git rev (see Cargo.toml); the dep has no `version` field"]
 #[test]
 fn required_cairo_native_version_test() {
     let cairo_native_version = ROOT_TOML
