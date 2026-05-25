@@ -32,7 +32,6 @@ use crate::context::BlockContext;
 use crate::execution::call_info::{
     cairo_primitive_counter_map,
     CairoPrimitiveCounterMap,
-    CairoPrimitiveName,
     ExecutionSummary,
     ExtendedExecutionResources,
     OpcodeCounterMap,
@@ -639,7 +638,7 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
         contract_instances.iter().map(|(contract, _)| contract.get_class_hash()).collect();
 
     // Transaction builtin counters.
-    let mut tx_builtin_counters =
+    let tx_builtin_counters =
         BTreeMap::from([(BuiltinName::range_check, 2), (BuiltinName::pedersen, 1)]);
 
     let tx_resources = TransactionResources {
@@ -660,27 +659,32 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
     };
 
     // Create the os additional resources, which contains both patricia updates and CASM hash
-    // computation.
-
-    // Create CASM hash computation builtins only in case CASM computation aren't trivial.
-    let casm_hash_computation_builtins = if contract_instances.is_empty() {
-        BTreeMap::new()
+    // computation. CASM hash uses Blake opcodes so we accumulate cairo primitives (builtins +
+    // opcodes), not just builtins.
+    let casm_hash_computation_cairo_primitives = if contract_instances.is_empty() {
+        CairoPrimitiveCounterMap::default()
     } else {
         map_class_hash_to_casm_hash_computation_resources(&state, &executed_class_hashes)
             .unwrap()
             .iter()
-            .fold(ExecutionResources::default(), |acc, (_class_hash, estimated_resources)| {
-                &acc + &estimated_resources.vm_resources
-            })
-            .prover_builtins()
+            .fold(
+                ExtendedExecutionResources::default(),
+                |mut acc, (_class_hash, estimated_resources)| {
+                    acc += estimated_resources;
+                    acc
+                },
+            )
+            .prover_cairo_primitives()
     };
 
     // Create the patricia update builtins.
-    let n_visited_storage_entries = if casm_hash_computation_builtins.is_empty() { 0 } else { 1 };
+    let n_visited_storage_entries =
+        if casm_hash_computation_cairo_primitives.is_empty() { 0 } else { 1 };
 
-    let mut additional_os_resources =
-        get_patricia_update_resources(n_visited_storage_entries, 0).prover_builtins();
-    add_maps(&mut additional_os_resources, &casm_hash_computation_builtins);
+    let mut additional_os_cairo_primitives = cairo_primitive_counter_map(
+        get_patricia_update_resources(n_visited_storage_entries, 0).prover_builtins(),
+    );
+    add_maps(&mut additional_os_cairo_primitives, &casm_hash_computation_cairo_primitives);
 
     let result = get_tx_weights(
         &state,
@@ -695,26 +699,30 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
     )
     .unwrap();
 
-    // Combine TX + TX overhead (OS) + CASM and patricia builtin usage.
-    add_maps(&mut tx_builtin_counters, &os_vm_resources.builtin_instance_counter);
-    add_maps(&mut tx_builtin_counters, &additional_os_resources);
+    // Combine TX + TX overhead (OS) + CASM and patricia primitive usage (builtins + opcodes).
+    let mut all_cairo_primitives = cairo_primitive_counter_map(tx_builtin_counters);
+    add_maps(
+        &mut all_cairo_primitives,
+        &cairo_primitive_counter_map(os_vm_resources.builtin_instance_counter),
+    );
+    add_maps(&mut all_cairo_primitives, &additional_os_cairo_primitives);
 
-    // Compute expected gas delta from builtin delta (absolute difference between Stwo and Stone).
-    let (total_stwo_gas, total_stone_gas) = tx_builtin_counters
+    // Compute expected gas delta from primitive delta (absolute difference between Stwo and Stone).
+    let (total_stwo_gas, total_stone_gas) = all_cairo_primitives
         .iter()
         .map(|(name, count)| {
             let stwo_gas = block_context
                 .bouncer_config
                 .builtin_weights
                 .gas_costs
-                .get_cairo_primitive_gas_cost(&CairoPrimitiveName::Builtin(*name))
-                .unwrap_or_else(|_| panic!("Builtin name {:?} is not supported in the bouncer weights.", name));
+                .get_cairo_primitive_gas_cost(name)
+                .unwrap_or_else(|_| panic!("Primitive {:?} is not supported in the bouncer weights.", name));
             let stone_gas = block_context
                 .versioned_constants
                 .os_constants
                 .gas_costs
                 .builtins
-                .get_cairo_primitive_gas_cost(&CairoPrimitiveName::Builtin(*name))
+                .get_cairo_primitive_gas_cost(name)
                 .unwrap();
 
             let stwo_total = stwo_gas.checked_mul(u64_from_usize(*count)).expect("overflow");
