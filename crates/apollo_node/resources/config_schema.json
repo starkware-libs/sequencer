@@ -3117,7 +3117,7 @@
   "gateway_config.static_config.stateless_tx_validator_config.max_l2_gas_amount": {
     "description": "Maximum allowed L2 gas amount for transactions.",
     "privacy": "Public",
-    "value": 1200000000
+    "value": 1210000000
   },
   "gateway_config.static_config.stateless_tx_validator_config.max_proof_size": {
     "description": "Limitation of proof size.",
