@@ -711,6 +711,19 @@ pub struct BlockInfo {
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub struct BlockSignature(pub Signature);
 
+/// Metadata for a block proposal, for Echonet mode.
+/// `block_number` is `None` in fee-priority mode where block numbers are not tracked.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ReplayMetadata {
+    pub timestamp: UnixTimestamp,
+    pub block_number: Option<BlockNumber>,
+    pub l1_gas_price_wei: GasPrice,
+    pub l1_data_gas_price_wei: GasPrice,
+    pub l1_gas_price_fri: GasPrice,
+    pub l1_data_gas_price_fri: GasPrice,
+    pub l2_gas_price_fri: GasPrice,
+}
+
 /// The error type returned from the block verification functions.
 #[derive(thiserror::Error, Clone, Debug)]
 pub enum BlockVerificationError {

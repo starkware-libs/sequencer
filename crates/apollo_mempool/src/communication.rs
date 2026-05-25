@@ -26,7 +26,9 @@ use reqwest::Client;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
-use starknet_api::block::{GasPrice, UnixTimestamp};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+use starknet_api::block::{GasPrice, ReplayMetadata, UnixTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -34,6 +36,17 @@ use tracing::warn;
 
 use crate::mempool::Mempool;
 use crate::metrics::register_metrics;
+
+/// The fields returned by `echonet/get_block_metadata`.
+#[derive(Clone, Deserialize, Serialize)]
+pub(crate) struct BlockProposalParams {
+    pub timestamp: UnixTimestamp,
+    pub l1_gas_price_wei: GasPrice,
+    pub l1_data_gas_price_wei: GasPrice,
+    pub l1_gas_price_fri: GasPrice,
+    pub l1_data_gas_price_fri: GasPrice,
+    pub l2_gas_price_fri: GasPrice,
+}
 
 pub type LocalMempoolServer =
     LocalComponentServer<MempoolCommunicationWrapper, MempoolRequest, MempoolResponse>;
@@ -171,8 +184,48 @@ impl MempoolCommunicationWrapper {
         self.mempool.mempool_snapshot()
     }
 
-    fn resolve_batch_timestamp(&mut self) -> MempoolResult<UnixTimestamp> {
-        Ok(self.mempool.resolve_batch_timestamp())
+    pub(crate) async fn resolve_block_metadata(&mut self) -> MempoolResult<ReplayMetadata> {
+        let block_metadata = self.mempool.resolve_block_metadata();
+        let default_metadata = ReplayMetadata {
+            timestamp: block_metadata.timestamp,
+            block_number: block_metadata.block_number,
+            l1_gas_price_wei: GasPrice::default(),
+            l1_data_gas_price_wei: GasPrice::default(),
+            l1_gas_price_fri: GasPrice::default(),
+            l1_data_gas_price_fri: GasPrice::default(),
+            l2_gas_price_fri: GasPrice::default(),
+        };
+
+        if !self.mempool.is_fifo() {
+            return Ok(default_metadata);
+        }
+
+        let Some(block_number) = block_metadata.block_number else {
+            return Ok(default_metadata);
+        };
+        let url = self
+            .mempool
+            .config
+            .static_config
+            .recorder_url
+            .join(&format!("echonet/get_block_metadata?block_number={}", block_number.0))
+            .expect("recorder_url is validated at config load; joining a static path cannot fail");
+
+        match self.try_fetch_json::<BlockProposalParams>(&url).await {
+            Ok(echonet_metadata) => Ok(ReplayMetadata {
+                timestamp: echonet_metadata.timestamp,
+                l1_gas_price_wei: echonet_metadata.l1_gas_price_wei,
+                l1_data_gas_price_wei: echonet_metadata.l1_data_gas_price_wei,
+                l1_gas_price_fri: echonet_metadata.l1_gas_price_fri,
+                l1_data_gas_price_fri: echonet_metadata.l1_data_gas_price_fri,
+                l2_gas_price_fri: echonet_metadata.l2_gas_price_fri,
+                ..default_metadata
+            }),
+            Err(e) => {
+                warn!("Failed to fetch block metadata for block {}: {}", block_number, e);
+                Ok(default_metadata)
+            }
+        }
     }
 
     // Fetches tx block metadata from recorder and updates mempool.
@@ -194,7 +247,7 @@ impl MempoolCommunicationWrapper {
             }
         };
 
-        match self.try_fetch_tx_block_metadata(&url).await {
+        match self.try_fetch_json::<TxBlockMetadata>(&url).await {
             Ok(tx_block_metadata) => {
                 self.mempool.update_tx_block_metadata(tx_hash, tx_block_metadata);
                 true
@@ -206,15 +259,12 @@ impl MempoolCommunicationWrapper {
         }
     }
 
-    async fn try_fetch_tx_block_metadata(
-        &self,
-        url: &reqwest::Url,
-    ) -> Result<TxBlockMetadata, String> {
+    async fn try_fetch_json<T: DeserializeOwned>(&self, url: &reqwest::Url) -> Result<T, String> {
         const REQUEST_TIMEOUT_SECS: u64 = 2;
         let response = self
             .echonet_client
             .get(url.as_str())
-            .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
+            .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
             .send()
             .await
             .map_err(|e| format!("request failed: {}", e))?;
@@ -223,7 +273,7 @@ impl MempoolCommunicationWrapper {
             return Err(format!("HTTP {}", response.status()));
         }
 
-        response.json::<TxBlockMetadata>().await.map_err(|e| format!("invalid response: {}", e))
+        response.json::<T>().await.map_err(|e| format!("invalid response: {}", e))
     }
 }
 
@@ -256,8 +306,8 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
             MempoolRequest::GetMempoolSnapshot() => {
                 MempoolResponse::GetMempoolSnapshot(self.mempool_snapshot())
             }
-            MempoolRequest::ResolveBatchTimestamp => {
-                MempoolResponse::ResolveBatchTimestamp(self.resolve_batch_timestamp())
+            MempoolRequest::ResolveBlockMetadata => {
+                MempoolResponse::ResolveBlockMetadata(self.resolve_block_metadata().await)
             }
         }
     }
