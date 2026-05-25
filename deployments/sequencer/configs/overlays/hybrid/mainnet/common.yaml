@@ -20,6 +20,14 @@ service:
     targetPort: 8082
     protocol: TCP
 
+startupProbe:
+  enabled: true
+  path: /monitoring/alive
+  successThreshold: 1
+  failureThreshold: 30
+  periodSeconds: 5
+  timeoutSeconds: 2
+
 env:
 - name: RUST_LOG
   value: debug
