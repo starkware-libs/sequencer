@@ -6,7 +6,6 @@ use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 use itertools::Itertools;
-use num_bigint::BigUint;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use rstest::rstest;
@@ -79,7 +78,7 @@ fn generate_committee_private_keys_and_symmetric_key(
 ) -> (Vec<Felt>, Felt) {
     let mut rng = StdRng::seed_from_u64(seed);
     let mut get_random_nonzero_felt =
-        || Felt::from(rng.gen_range(BigUint::new(vec![1])..Felt::prime()));
+        || Felt::from_bytes_be_slice(rng.random::<[u8; 30]>().as_slice()) + Felt::ONE;
 
     let private_keys = (0..num_keys).map(|_| get_random_nonzero_felt()).collect();
 

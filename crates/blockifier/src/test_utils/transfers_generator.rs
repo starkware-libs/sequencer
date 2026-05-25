@@ -156,7 +156,7 @@ impl TransfersGenerator {
             RecipientGeneratorType::Random => {
                 let random_recipient_generator = self.random_recipient_generator.as_mut().unwrap();
                 let recipient_index =
-                    random_recipient_generator.gen_range(0..self.account_addresses.len());
+                    random_recipient_generator.random_range(0..self.account_addresses.len());
                 self.account_addresses[recipient_index]
             }
             RecipientGeneratorType::RoundRobin => {
