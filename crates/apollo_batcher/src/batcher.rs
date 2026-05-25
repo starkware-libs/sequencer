@@ -46,6 +46,8 @@ use apollo_proof_manager_types::SharedProofManagerClient;
 use apollo_reverts::revert_block;
 use apollo_state_reader::apollo_state::ApolloReader;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+#[cfg(feature = "os_input")]
+use apollo_storage::accessed_keys::{AccessedKeys, AccessedKeysStorageWriter};
 use apollo_storage::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
 use apollo_storage::global_root::{GlobalRootStorageReader, GlobalRootStorageWriter};
 use apollo_storage::global_root_marker::{
@@ -71,8 +73,6 @@ use apollo_storage::storage_reader_types::{
     StorageReaderRequest,
     StorageReaderResponse,
 };
-#[cfg(feature = "os_input")]
-use apollo_storage::tx_execution_info::{TxExecutionInfoStorageWriter, TxExecutionInfos};
 use apollo_storage::{
     open_storage_with_metric_and_server,
     StorageError,
@@ -86,6 +86,8 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::context::BlockContext;
 use blockifier::execution::entry_point::call_view_entry_point;
+#[cfg(feature = "os_input")]
+use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_api::StateReader;
 use blockifier::transaction::objects::TransactionExecutionInfo;
@@ -113,7 +115,6 @@ use starknet_api::core::{ContractAddress, GlobalRoot, Nonce, StateDiffCommitment
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use tokio::sync::Mutex;
 use tokio::task::AbortHandle;
 use tracing::{debug, error, info, instrument, trace, warn, Instrument};
@@ -276,6 +277,13 @@ impl Batcher {
             commitment_manager,
             storage_reader_server_handle,
         }
+    }
+
+    /// Returns the latest versioned constants with the batcher's configured overrides applied.
+    fn versioned_constants(&self) -> VersionedConstants {
+        VersionedConstants::get_versioned_constants(
+            self.config.static_config.block_builder_config.versioned_constants_overrides.clone(),
+        )
     }
 
     pub(crate) fn update_dynamic_config(&mut self, dynamic_config: BatcherDynamicConfig) {
@@ -733,7 +741,7 @@ impl Batcher {
         let block_context = BlockContext::new(
             block_info,
             self.config.static_config.block_builder_config.chain_info.clone(),
-            VersionedConstants::latest_constants().clone(),
+            self.versioned_constants(),
             BouncerConfig::max(),
         );
 
@@ -966,11 +974,11 @@ impl Batcher {
                 .unzip();
 
         #[cfg(feature = "os_input")]
-        self.storage_writer.write_tx_execution_infos(height, &tx_execution_infos).map_err(
-            |err| {
-                error!("Failed to write tx execution infos to storage: {}", err);
-                BatcherError::InternalError
-            },
+        self.write_block_accessed_keys(
+            height,
+            &block_execution_artifacts.commitment_state_diff,
+            &block_execution_artifacts.execution_data.proof_facts_block_numbers,
+            &tx_execution_infos,
         )?;
 
         let execution_infos = tx_hashes.into_iter().zip(tx_execution_infos.into_iter()).collect();
@@ -999,6 +1007,26 @@ impl Batcher {
                     .compiled_class_hashes_for_migration,
                 parent_proposal_commitment,
             },
+        })
+    }
+
+    #[cfg(feature = "os_input")]
+    fn write_block_accessed_keys(
+        &mut self,
+        height: BlockNumber,
+        commitment_state_diff: &CommitmentStateDiff,
+        proof_facts_block_numbers: &IndexMap<TransactionHash, BlockNumber>,
+        tx_execution_infos: &[TransactionExecutionInfo],
+    ) -> BatcherResult<()> {
+        let accessed_keys = AccessedKeys::new(
+            tx_execution_infos.iter(),
+            proof_facts_block_numbers.values(),
+            commitment_state_diff,
+            &self.versioned_constants(),
+        );
+        self.storage_writer.write_accessed_keys(height, &accessed_keys).map_err(|err| {
+            error!("Failed to write accessed keys to storage: {}", err);
+            BatcherError::InternalError
         })
     }
 
@@ -1800,10 +1828,10 @@ pub trait BatcherStorageWriter: Send + Sync {
     fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()>;
 
     #[cfg(feature = "os_input")]
-    fn write_tx_execution_infos(
+    fn write_accessed_keys(
         &mut self,
         height: BlockNumber,
-        tx_execution_infos: &TxExecutionInfos,
+        accessed_keys: &AccessedKeys,
     ) -> StorageResult<()>;
 }
 
@@ -1860,12 +1888,12 @@ impl BatcherStorageWriter for StorageWriter {
     }
 
     #[cfg(feature = "os_input")]
-    fn write_tx_execution_infos(
+    fn write_accessed_keys(
         &mut self,
         height: BlockNumber,
-        tx_execution_infos: &TxExecutionInfos,
+        accessed_keys: &AccessedKeys,
     ) -> StorageResult<()> {
-        self.begin_rw_txn()?.append_tx_execution_infos(height, tx_execution_infos)?.commit()
+        self.begin_rw_txn()?.append_accessed_keys(height, accessed_keys)?.commit()
     }
 }
 
