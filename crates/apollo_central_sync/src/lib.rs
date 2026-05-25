@@ -146,14 +146,11 @@ pub enum StateSyncError {
 #[derive(Debug)]
 pub enum SyncEvent {
     NoProgress,
-    BlockAvailable {
-        block_number: BlockNumber,
-        block: Block,
-        signature: BlockSignature,
-    },
-    StateDiffAvailable {
+    StateUpdateAvailable {
         block_number: BlockNumber,
         block_hash: BlockHash,
+        block: Block,
+        signature: BlockSignature,
         state_diff: StateDiff,
         // TODO(anatg): Remove once there are no more deployed contracts with undeclared classes.
         // Class definitions of deployed contracts with classes that were not declared in this
@@ -268,13 +265,6 @@ impl<
             self.config.blocks_max_stream_size,
         )
         .fuse();
-        let state_diff_stream = stream_new_state_diffs(
-            self.reader.clone(),
-            self.central_source.clone(),
-            self.config.latest_block_poll_interval_millis,
-            self.config.state_updates_max_stream_size,
-        )
-        .fuse();
         let compiled_class_stream = stream_new_compiled_classes(
             self.reader.clone(),
             self.central_source.clone(),
@@ -301,19 +291,12 @@ impl<
             self.config.store_sierras_and_casms_block_threshold,
         )
         .fuse();
-        pin_mut!(
-            block_stream,
-            state_diff_stream,
-            compiled_class_stream,
-            base_layer_block_stream,
-            check_sync_progress
-        );
+        pin_mut!(block_stream, compiled_class_stream, base_layer_block_stream, check_sync_progress);
 
         loop {
-            debug!("Selecting between block sync and state diff sync.");
+            debug!("Selecting between the various streams.");
             let sync_event = select! {
               res = block_stream.next() => res,
-              res = state_diff_stream.next() => res,
               res = compiled_class_stream.next() => res,
               res = base_layer_block_stream.next() => res,
               res = check_sync_progress.next() => res,
@@ -329,18 +312,19 @@ impl<
     // Tries to store the incoming data.
     async fn process_sync_event(&mut self, sync_event: SyncEvent) -> StateSyncResult {
         match sync_event {
-            SyncEvent::BlockAvailable { block_number, block, signature } => {
-                self.store_block(block_number, block, signature).await
-            }
-            SyncEvent::StateDiffAvailable {
+            SyncEvent::StateUpdateAvailable {
                 block_number,
                 block_hash,
+                block,
+                signature,
                 state_diff,
                 deployed_contract_class_definitions,
             } => {
-                self.store_state_diff(
+                self.store_state_update(
                     block_number,
                     block_hash,
+                    block,
+                    signature,
                     state_diff,
                     deployed_contract_class_definitions,
                 )
@@ -369,82 +353,35 @@ impl<
         }
     }
 
-    #[latency_histogram("sync_store_block_latency_seconds", false)]
+    #[latency_histogram("sync_store_state_update_latency_seconds", false)]
     #[instrument(
-        skip(self, block),
+        skip(self, block, state_diff, deployed_contract_class_definitions),
         level = "debug",
         fields(block_hash = format_args!("{:#066x}", block.header.block_hash.0)),
         err
     )]
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
-    async fn store_block(
+    async fn store_state_update(
         &mut self,
         block_number: BlockNumber,
+        block_hash: BlockHash,
         block: Block,
         signature: BlockSignature,
+        mut state_diff: StateDiff,
+        deployed_contract_class_definitions: IndexMap<ClassHash, DeprecatedContractClass>,
     ) -> StateSyncResult {
         // To prevent cases where central has forked under our feet, check incoming block's parent
         // hash against the parent hash stored in the storage.
         self.verify_parent_block_hash(block_number, &block)?;
 
         debug!("Storing block number: {block_number}, block header: {:?}", block.header);
-        trace!("Block data: {block:#?}, signature: {signature:?}");
+        trace!(
+            "Block data: {block:#?}, signature: {signature:?}, state_diff: {state_diff:#?}, \
+             deployed_contract_class_definitions: {deployed_contract_class_definitions:#?}"
+        );
         let num_txs =
             block.body.transactions.len().try_into().expect("Failed to convert usize to u64");
         let timestamp = block.header.block_header_without_hash.timestamp;
-        self.perform_storage_writes(move |writer| {
-            let mut txn = writer
-                .begin_rw_txn()?
-                .append_header(block_number, &block.header)?
-                .append_block_signature(block_number, &signature)?
-                .append_body(block_number, block.body)?;
-            if block.header.block_header_without_hash.starknet_version
-                < STARKNET_VERSION_TO_COMPILE_FROM
-            {
-                trace!(
-                    "Updating compiler backward compatibility marker to {}",
-                    block_number.unchecked_next()
-                );
-                txn = txn.update_compiler_backward_compatibility_marker(
-                    &block_number.unchecked_next(),
-                )?;
-            }
-            txn.commit()?;
-            Ok(())
-        })
-        .await?;
-        STATE_SYNC_HEADER_MARKER.set_lossy(block_number.unchecked_next().0);
-        STATE_SYNC_BODY_MARKER.set_lossy(block_number.unchecked_next().0);
-        STATE_SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
-        let time_delta = Utc::now()
-            - Utc
-                .timestamp_opt(timestamp.0 as i64, 0)
-                .single()
-                .expect("block timestamp should be valid");
-        let header_latency = time_delta.num_seconds();
-        debug!("Header latency: {}.", header_latency);
-        if header_latency >= 0 {
-            STATE_SYNC_HEADER_LATENCY_SEC.set_lossy(header_latency);
-        }
-
-        Ok(())
-    }
-
-    #[latency_histogram("sync_store_state_diff_latency_seconds", false)]
-    #[instrument(skip(self, state_diff, deployed_contract_class_definitions), level = "debug", err)]
-    async fn store_state_diff(
-        &mut self,
-        block_number: BlockNumber,
-        block_hash: BlockHash,
-        mut state_diff: StateDiff,
-        deployed_contract_class_definitions: IndexMap<ClassHash, DeprecatedContractClass>,
-    ) -> StateSyncResult {
-        // TODO(dan): verifications - verify state diff against stored header.
-        debug!("Storing state diff.");
-        trace!(
-            "StateDiff data: {state_diff:#?}, deployed_contract_class_definitions: \
-             {deployed_contract_class_definitions:#?}"
-        );
 
         // Filter out classes that are already declared in the storage. Only the first deployment of
         // a class declares it.
@@ -483,34 +420,18 @@ impl<
         // Sending to class manager before updating the storage so that if the class manager send
         // fails we retry the same block.
         if let Some(class_manager_client) = &self.class_manager_client {
-            // Blocks smaller than compiler_backward_compatibility marker are added to class
-            // manager via the compiled classes stream.
-            // We're sure that if the current block is above the compiler_backward_compatibility
-            // marker then the compiler_backward_compatibility will not advance anymore, because
-            // the compiler_backward_compatibility marker advances in the header stream and this
-            // stream is behind the header stream
-            // The compiled classes stream is always behind the compiler_backward_compatibility
-            // marker
-            // TODO(shahak): Consider storing a boolean and updating it to true once
-            // compiler_backward_compatibility_marker <= block_number and avoiding the check if the
-            // boolean is true.
-            let compiler_backward_compatibility_marker =
-                self.reader.begin_ro_txn()?.get_compiler_backward_compatibility_marker()?;
-
-            // A block contains only classes with either STARKNET_VERSION_TO_COMPILE_FROM or higher
-            // or only classes below STARKNET_VERSION_TO_COMPILE_FROM, not both.
-            if compiler_backward_compatibility_marker <= block_number {
-                if compiler_backward_compatibility_marker == block_number {
-                    info!(
-                        "Reached first block ({block_number}) without non backward compatible \
-                         classes."
-                    );
-                }
-                trace!(
-                    "Block {block_number} does not contain non backward compatible classes. \
-                     compiler_backward_compatibility_marker: \
-                     {compiler_backward_compatibility_marker}"
-                );
+            // A block contains only classes that are all at STARKNET_VERSION_TO_COMPILE_FROM or
+            // higher, or all below it, not both. Backward-compatible classes are added to the class
+            // manager here; classes of older blocks are deferred and added later via the compiled
+            // classes stream, once we have their compiled classes.
+            // The decision must use the block's own starknet version (not the
+            // compiler_backward_compatibility_marker, which is advanced inside the storage
+            // transaction below): reading the marker before its own write would misclassify an old
+            // block as backward-compatible.
+            if block.header.block_header_without_hash.starknet_version
+                >= STARKNET_VERSION_TO_COMPILE_FROM
+            {
+                trace!("Block {block_number} does not contain non backward compatible classes.");
                 for (expected_class_hash, class) in &classes {
                     let class_hash =
                         class_manager_client.add_class(class.clone()).await?.class_hash;
@@ -537,15 +458,31 @@ impl<
         let store_sierras_and_casms_block_threshold =
             self.config.store_sierras_and_casms_block_threshold;
         let store_sierras_and_casms = block_number.0 < store_sierras_and_casms_block_threshold;
+
+        // Single atomic transaction: header + signature + body + state_diff (+ classes) commit
+        // together so that header_marker and state_marker always advance as a unit. This prevents
+        // a recoverable failure between the two old separate commits from leaving state_marker
+        // behind header_marker, which would cause a fatal MarkerMismatch on the next iteration.
         self.perform_storage_writes(move |writer| {
-            if has_class_manager {
-                writer
-                    .begin_rw_txn()?
-                    .update_class_manager_block_marker(&block_number.unchecked_next())?
-                    .commit()?;
-                STATE_SYNC_CLASS_MANAGER_MARKER.set_lossy(block_number.unchecked_next().0);
+            let mut txn = writer
+                .begin_rw_txn()?
+                .append_header(block_number, &block.header)?
+                .append_block_signature(block_number, &signature)?
+                .append_body(block_number, block.body)?;
+            if block.header.block_header_without_hash.starknet_version
+                < STARKNET_VERSION_TO_COMPILE_FROM
+            {
+                trace!(
+                    "Updating compiler backward compatibility marker to {}",
+                    block_number.unchecked_next()
+                );
+                txn = txn.update_compiler_backward_compatibility_marker(
+                    &block_number.unchecked_next(),
+                )?;
             }
-            let mut txn = writer.begin_rw_txn()?;
+            if has_class_manager {
+                txn = txn.update_class_manager_block_marker(&block_number.unchecked_next())?;
+            }
             txn = txn.append_state_diff(block_number, thin_state_diff)?;
             // Non backwards compatible classes must be stored for later use since we will only be
             // be adding them to the class manager later, once we have their compiled
@@ -590,6 +527,22 @@ impl<
         })
         .await?;
 
+        STATE_SYNC_HEADER_MARKER.set_lossy(block_number.unchecked_next().0);
+        STATE_SYNC_BODY_MARKER.set_lossy(block_number.unchecked_next().0);
+        STATE_SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
+        let time_delta = Utc::now()
+            - Utc
+                .timestamp_opt(timestamp.0 as i64, 0)
+                .single()
+                .expect("block timestamp should be valid");
+        let header_latency = time_delta.num_seconds();
+        debug!("Header latency: {}.", header_latency);
+        if header_latency >= 0 {
+            STATE_SYNC_HEADER_LATENCY_SEC.set_lossy(header_latency);
+        }
+        if has_class_manager {
+            STATE_SYNC_CLASS_MANAGER_MARKER.set_lossy(block_number.unchecked_next().0);
+        }
         let compiled_class_marker = self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
         STATE_SYNC_STATE_MARKER.set_lossy(block_number.unchecked_next().0);
         STATE_SYNC_COMPILED_CLASS_MARKER.set_lossy(compiled_class_marker.0);
@@ -796,49 +749,16 @@ fn stream_new_blocks<
                 central_source.stream_new_blocks(header_marker, up_to).fuse();
             pin_mut!(block_stream);
             while let Some(maybe_block) = block_stream.next().await {
-                let (block_number, block, signature) = maybe_block?;
-                yield SyncEvent::BlockAvailable { block_number, block , signature };
-            }
-        }
-    }
-}
-
-fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
-    reader: StorageReader,
-    central_source: Arc<TCentralSource>,
-    latest_block_poll_interval_millis: Duration,
-    max_stream_size: u32,
-) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
-    try_stream! {
-        loop {
-            let txn = reader.begin_ro_txn()?;
-            let state_marker = txn.get_state_marker()?;
-            let last_block_number = txn.get_header_marker()?;
-            drop(txn);
-            if state_marker == last_block_number {
-                trace!("State updates syncing reached the last downloaded block {:?}, waiting for more blocks.", state_marker.prev());
-                tokio::time::sleep(latest_block_poll_interval_millis).await;
-                continue;
-            }
-            let up_to = min(last_block_number, BlockNumber(state_marker.0 + u64::from(max_stream_size)));
-            debug!("Downloading state diffs [{} - {}).", state_marker, up_to);
-            let state_diff_stream =
-                central_source.stream_state_updates(state_marker, up_to).fuse();
-            pin_mut!(state_diff_stream);
-
-            while let Some(maybe_state_diff) = state_diff_stream.next().await {
-                let (
-                    block_number,
-                    block_hash,
-                    mut state_diff,
-                    deployed_contract_class_definitions,
-                ) = maybe_state_diff?;
-                sort_state_diff(&mut state_diff);
-                yield SyncEvent::StateDiffAvailable {
-                    block_number,
-                    block_hash,
-                    state_diff,
-                    deployed_contract_class_definitions,
+                let mut state_update = maybe_block?;
+                sort_state_diff(&mut state_update.state_diff);
+                yield SyncEvent::StateUpdateAvailable {
+                    block_number: state_update.block_number,
+                    block_hash: state_update.block_hash,
+                    block: state_update.block,
+                    signature: state_update.signature,
+                    state_diff: state_update.state_diff,
+                    deployed_contract_class_definitions:
+                        state_update.deployed_contract_class_definitions,
                 };
             }
         }

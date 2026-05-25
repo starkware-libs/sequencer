@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use apollo_starknet_client::reader::objects::block::BlockPostV0_13_1;
 use apollo_starknet_client::reader::{
     Block,
-    BlockSignatureData,
+    BlockStateUpdate,
     ContractClass,
     DeclaredClassHashEntry,
     DeployedContract,
@@ -12,7 +12,7 @@ use apollo_starknet_client::reader::{
     MockStarknetReader,
     ReaderClientError,
     ReplacedClass,
-    StateUpdate,
+    StateUpdate as ClientStateUpdate,
     StorageEntry,
 };
 use apollo_starknet_client::ClientError;
@@ -75,22 +75,19 @@ async fn stream_block_headers() {
 
     // We need to perform all the mocks before moving the mock into central_source.
     for i in START_BLOCK_NUMBER..END_BLOCK_NUMBER {
-        mock.expect_block().with(predicate::eq(BlockNumber(i))).times(1).returning(
-            |_block_number| {
-                Ok(Some(Block::PostV0_13_1(BlockPostV0_13_1 {
-                    state_diff_commitment: Some(Default::default()),
-                    ..Default::default()
-                })))
-            },
-        );
-        mock.expect_block_signature().with(predicate::eq(BlockNumber(i))).times(1).returning(
-            |_block_number| {
-                Ok(Some(BlockSignatureData::V0_13_2 {
-                    block_hash: Default::default(),
+        mock.expect_block_state_update_and_signature()
+            .with(predicate::eq(BlockNumber(i)))
+            .times(1)
+            .returning(|_block_number| {
+                Ok(Some(BlockStateUpdate {
+                    block: Block::PostV0_13_1(BlockPostV0_13_1 {
+                        state_diff_commitment: Some(Default::default()),
+                        ..Default::default()
+                    }),
+                    state_update: Default::default(),
                     signature: Default::default(),
                 }))
-            },
-        );
+            });
     }
     let ((reader, _), _temp_dir) = get_test_storage();
     let central_source = GenericCentralSource {
@@ -106,8 +103,8 @@ async fn stream_block_headers() {
     let stream =
         central_source.stream_new_blocks(expected_block_num, BlockNumber(END_BLOCK_NUMBER));
     pin_mut!(stream);
-    while let Some(Ok((block_number, _block, _signature_data))) = stream.next().await {
-        assert_eq!(expected_block_num, block_number);
+    while let Some(Ok(central_block_and_state_diff)) = stream.next().await {
+        assert_eq!(expected_block_num, central_block_and_state_diff.block_number);
         expected_block_num = expected_block_num.unchecked_next();
     }
     assert_eq!(expected_block_num, BlockNumber(END_BLOCK_NUMBER));
@@ -115,92 +112,57 @@ async fn stream_block_headers() {
 
 #[tokio::test]
 async fn stream_block_headers_some_are_missing() {
-    // TODO(yair): Find a way to use test_case with async.
-    let test_cases = [
-        (true, true, "both missing"),
-        (true, false, "block missing"),
-        (false, true, "signature missing"),
-    ];
-    for (block_missing, signature_missing, test_case_description) in test_cases {
-        println!("Test case: {test_case_description}");
-        const START_BLOCK_NUMBER: u64 = 5;
-        const END_BLOCK_NUMBER: u64 = 13;
-        const MISSING_BLOCK_NUMBER: u64 = 9;
-        let mut mock = MockStarknetReader::new();
+    const START_BLOCK_NUMBER: u64 = 5;
+    const END_BLOCK_NUMBER: u64 = 13;
+    const MISSING_BLOCK_NUMBER: u64 = 9;
+    let mut mock = MockStarknetReader::new();
 
-        // We need to perform all the mocks before moving the mock into central_source.
-        for i in START_BLOCK_NUMBER..MISSING_BLOCK_NUMBER {
-            mock.expect_block()
-                .with(predicate::eq(BlockNumber(i)))
-                .times(1)
-                .returning(|_| Ok(Some(Block::default())));
-            mock.expect_block_signature().with(predicate::eq(BlockNumber(i))).times(1).returning(
-                |block_number| {
-                    Ok(Some(BlockSignatureData::Deprecated {
-                        block_number,
-                        signature: Default::default(),
-                        signature_input: Default::default(),
-                    }))
-                },
-            );
-        }
-        if block_missing {
-            mock.expect_block()
-                .with(predicate::eq(BlockNumber(MISSING_BLOCK_NUMBER)))
-                .times(1)
-                .returning(|_| Ok(None));
-        } else {
-            mock.expect_block()
-                .with(predicate::eq(BlockNumber(MISSING_BLOCK_NUMBER)))
-                .times(1)
-                .returning(|_| Ok(Some(Block::default())));
-        }
-        if signature_missing {
-            mock.expect_block_signature()
-                .with(predicate::eq(BlockNumber(MISSING_BLOCK_NUMBER)))
-                .times(1)
-                .returning(|_| Ok(None));
-        } else {
-            mock.expect_block_signature()
-                .with(predicate::eq(BlockNumber(MISSING_BLOCK_NUMBER)))
-                .times(1)
-                .returning(|_| {
-                    Ok(Some(BlockSignatureData::Deprecated {
-                        block_number: BlockNumber(MISSING_BLOCK_NUMBER),
-                        signature: Default::default(),
-                        signature_input: Default::default(),
-                    }))
-                });
-        }
-        let ((reader, _), _temp_dir) = get_test_storage();
-        let central_source = GenericCentralSource {
-            concurrent_requests: TEST_CONCURRENT_REQUESTS,
-            apollo_starknet_client: Arc::new(mock),
-            storage_reader: reader,
-            state_update_stream_config: state_update_stream_config_for_test(),
-            class_cache: get_test_class_cache(),
-            compiled_class_cache: get_test_compiled_class_cache(),
-        };
-
-        let mut expected_block_num = BlockNumber(START_BLOCK_NUMBER);
-        let stream =
-            central_source.stream_new_blocks(expected_block_num, BlockNumber(END_BLOCK_NUMBER));
-        pin_mut!(stream);
-        while let Some(block_tuple) = stream.next().await {
-            if expected_block_num == BlockNumber(MISSING_BLOCK_NUMBER) {
-                assert_matches!(
-                    block_tuple,
-                    Err(CentralError::BlockNotFound { block_number })
-                    if block_number == expected_block_num
-                );
-            } else {
-                let block_number = block_tuple.unwrap().0;
-                assert_eq!(expected_block_num, block_number);
-            }
-            expected_block_num = expected_block_num.unchecked_next();
-        }
-        assert_eq!(expected_block_num, BlockNumber(MISSING_BLOCK_NUMBER + 1));
+    // We need to perform all the mocks before moving the mock into central_source.
+    for i in START_BLOCK_NUMBER..MISSING_BLOCK_NUMBER {
+        mock.expect_block_state_update_and_signature()
+            .with(predicate::eq(BlockNumber(i)))
+            .times(1)
+            .returning(|block_number| {
+                Ok(Some(BlockStateUpdate {
+                    block: Block::default(),
+                    state_update: Default::default(),
+                    signature: Default::default(),
+                }))
+            });
     }
+    mock.expect_block_state_update_and_signature()
+        .with(predicate::eq(BlockNumber(MISSING_BLOCK_NUMBER)))
+        .times(1)
+        .returning(|_| Ok(None));
+
+    let ((reader, _), _temp_dir) = get_test_storage();
+    let central_source = GenericCentralSource {
+        concurrent_requests: TEST_CONCURRENT_REQUESTS,
+        apollo_starknet_client: Arc::new(mock),
+        storage_reader: reader,
+        state_update_stream_config: state_update_stream_config_for_test(),
+        class_cache: get_test_class_cache(),
+        compiled_class_cache: get_test_compiled_class_cache(),
+    };
+
+    let mut expected_block_num = BlockNumber(START_BLOCK_NUMBER);
+    let stream =
+        central_source.stream_new_blocks(expected_block_num, BlockNumber(END_BLOCK_NUMBER));
+    pin_mut!(stream);
+    while let Some(block_result) = stream.next().await {
+        if expected_block_num == BlockNumber(MISSING_BLOCK_NUMBER) {
+            assert_matches!(
+                block_result,
+                Err(CentralError::BlockNotFound { block_number })
+                if block_number == expected_block_num
+            );
+        } else {
+            let central_block_and_state_diff = block_result.unwrap();
+            assert_eq!(expected_block_num, central_block_and_state_diff.block_number);
+        }
+        expected_block_num = expected_block_num.unchecked_next();
+    }
+    assert_eq!(expected_block_num, BlockNumber(MISSING_BLOCK_NUMBER + 1));
 }
 
 #[tokio::test]
@@ -214,28 +176,26 @@ async fn stream_block_headers_error() {
 
     // We need to perform all the mocks before moving the mock into central_source.
     for i in START_BLOCK_NUMBER..ERROR_BLOCK_NUMBER {
-        mock.expect_block()
+        mock.expect_block_state_update_and_signature()
             .with(predicate::eq(BlockNumber(i)))
             .times(1)
-            .returning(|_x| Ok(Some(Block::default())));
-        mock.expect_block_signature().with(predicate::eq(BlockNumber(i))).times(1).returning(
-            |block_number| {
-                Ok(Some(BlockSignatureData::Deprecated {
-                    block_number,
+            .returning(|block_number| {
+                Ok(Some(BlockStateUpdate {
+                    block: Block::default(),
+                    state_update: Default::default(),
                     signature: Default::default(),
-                    signature_input: Default::default(),
                 }))
-            },
-        );
+            });
     }
-    mock.expect_block().with(predicate::eq(BlockNumber(ERROR_BLOCK_NUMBER))).times(1).returning(
-        |_block_number| {
+    mock.expect_block_state_update_and_signature()
+        .with(predicate::eq(BlockNumber(ERROR_BLOCK_NUMBER)))
+        .times(1)
+        .returning(|_block_number| {
             Err(ReaderClientError::ClientError(ClientError::BadResponseStatus {
                 code: CODE,
                 message: String::from(MESSAGE),
             }))
-        },
-    );
+        });
     let ((reader, _), _temp_dir) = get_test_storage();
     let central_source = GenericCentralSource {
         concurrent_requests: TEST_CONCURRENT_REQUESTS,
@@ -250,10 +210,10 @@ async fn stream_block_headers_error() {
     let stream =
         central_source.stream_new_blocks(expected_block_num, BlockNumber(END_BLOCK_NUMBER));
     pin_mut!(stream);
-    while let Some(block_tuple) = stream.next().await {
+    while let Some(block_result) = stream.next().await {
         if expected_block_num == BlockNumber(ERROR_BLOCK_NUMBER) {
             assert_matches!(
-                block_tuple,
+                block_result,
                 Err(CentralError::ClientError(err_ptr))
                 if match &*err_ptr {
                     ReaderClientError::ClientError(ClientError::BadResponseStatus { code, message }) =>
@@ -262,8 +222,8 @@ async fn stream_block_headers_error() {
                 }
             );
         } else {
-            let block_number = block_tuple.unwrap().0;
-            assert_eq!(expected_block_num, block_number);
+            let central_block_and_state_diff = block_result.unwrap();
+            assert_eq!(expected_block_num, central_block_and_state_diff.block_number);
         }
         expected_block_num = expected_block_num.unchecked_next();
     }
@@ -332,27 +292,35 @@ async fn stream_state_updates() {
     };
     let client_state_diff2 = apollo_starknet_client::reader::StateDiff::default();
 
-    let block_state_update1 = StateUpdate {
-        block_hash: block_hash1,
-        new_root: root2,
-        old_root: root1,
-        state_diff: client_state_diff1,
+    let block_state_update1 = BlockStateUpdate {
+        block: Block::default(),
+        state_update: ClientStateUpdate {
+            block_hash: block_hash1,
+            new_root: root2,
+            old_root: root1,
+            state_diff: client_state_diff1,
+        },
+        signature: Default::default(),
     };
-    let block_state_update2 = StateUpdate {
-        block_hash: block_hash2,
-        new_root: root2,
-        old_root: root2,
-        state_diff: client_state_diff2,
+    let block_state_update2 = BlockStateUpdate {
+        block: Block::default(),
+        state_update: ClientStateUpdate {
+            block_hash: block_hash2,
+            new_root: root2,
+            old_root: root2,
+            state_diff: client_state_diff2,
+        },
+        signature: Default::default(),
     };
 
     let mut mock = MockStarknetReader::new();
     let block_state_update1_clone = block_state_update1.clone();
-    mock.expect_state_update()
+    mock.expect_block_state_update_and_signature()
         .with(predicate::eq(BlockNumber(START_BLOCK_NUMBER)))
         .times(1)
         .returning(move |_x| Ok(Some(block_state_update1_clone.clone())));
     let block_state_update2_clone = block_state_update2.clone();
-    mock.expect_state_update()
+    mock.expect_block_state_update_and_signature()
         .with(predicate::eq(BlockNumber(START_BLOCK_NUMBER + 1)))
         .times(1)
         .returning(move |_x| Ok(Some(block_state_update2_clone.clone())));
@@ -392,15 +360,17 @@ async fn stream_state_updates() {
     };
     let initial_block_num = BlockNumber(START_BLOCK_NUMBER);
 
-    let stream =
-        central_source.stream_state_updates(initial_block_num, BlockNumber(END_BLOCK_NUMBER));
+    let stream = central_source.stream_new_blocks(initial_block_num, BlockNumber(END_BLOCK_NUMBER));
     pin_mut!(stream);
 
-    let Some(Ok(state_diff_tuple)) = stream.next().await else {
+    let Some(Ok(central_block_and_state_diff)) = stream.next().await else {
         panic!("Match of streamed state_update failed!");
     };
-    let (current_block_num, current_block_hash, state_diff, deployed_contract_class_definitions) =
-        state_diff_tuple;
+    let current_block_num = central_block_and_state_diff.block_number;
+    let current_block_hash = central_block_and_state_diff.block_hash;
+    let state_diff = central_block_and_state_diff.state_diff;
+    let deployed_contract_class_definitions =
+        central_block_and_state_diff.deployed_contract_class_definitions;
 
     assert_eq!(initial_block_num, current_block_num);
     assert_eq!(block_hash1, current_block_hash);
@@ -453,10 +423,12 @@ async fn stream_state_updates() {
         state_diff.migrated_compiled_classes
     );
 
-    let Some(Ok(state_diff_tuple)) = stream.next().await else {
+    let Some(Ok(central_block_and_state_diff)) = stream.next().await else {
         panic!("Match of streamed state_update failed!");
     };
-    let (current_block_num, current_block_hash, state_diff, _deployed_classes) = state_diff_tuple;
+    let current_block_num = central_block_and_state_diff.block_number;
+    let current_block_hash = central_block_and_state_diff.block_hash;
+    let state_diff = central_block_and_state_diff.state_diff;
 
     assert_eq!(initial_block_num.unchecked_next(), current_block_num);
     assert_eq!(block_hash2, current_block_hash);
