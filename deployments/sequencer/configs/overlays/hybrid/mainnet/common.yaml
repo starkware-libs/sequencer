@@ -44,6 +44,14 @@ livenessProbe:
   periodSeconds: 10
   timeoutSeconds: 3
 
+gcpPodMonitoring:
+  enabled: true
+  spec:
+    endpoints:
+    - port: 8082
+      path: /monitoring/metrics
+      interval: 10s
+
 env:
 - name: RUST_LOG
   value: debug
