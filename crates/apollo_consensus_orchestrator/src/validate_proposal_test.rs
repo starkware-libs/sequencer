@@ -33,6 +33,7 @@ use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
 
 use crate::sequencer_consensus_context::BuiltProposals;
+use crate::snip35::proposal_commitment_from;
 use crate::test_utils::{
     create_test_and_network_deps,
     proposal_init,
@@ -43,6 +44,13 @@ use crate::test_utils::{
     TX_BATCH,
 };
 use crate::utils::{make_gas_price_params, GasPriceParams};
+
+/// The default-test proposal commitment that the validator computes when:
+/// - the batcher returns `partial_block_hash == StarkHash::ZERO` (test default), and
+/// - the init carries `fee_proposal_fri == Some(8 gwei)` (test default per `proposal_init`).
+fn test_validate_expected_commitment() -> ConsensusProposalCommitment {
+    proposal_commitment_from(PartialBlockHash::default(), Some(GasPrice(8_000_000_000)))
+}
 use crate::validate_proposal::{
     is_proposal_init_valid,
     validate_proposal,
@@ -149,9 +157,10 @@ async fn validate_empty_proposal() {
     });
 
     // Send an empty proposal.
+    let expected = test_validate_expected_commitment();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: ConsensusProposalCommitment::default(),
+            proposal_commitment: expected,
             executed_transaction_count: 0,
             fin_payload: None,
         }))
@@ -159,7 +168,7 @@ async fn validate_empty_proposal() {
         .unwrap();
 
     let res = validate_proposal(proposal_args.into()).await;
-    assert_matches!(res, Ok(val) if val == ConsensusProposalCommitment::default());
+    assert_matches!(res, Ok(val) if val == expected);
 }
 
 #[tokio::test]
@@ -177,9 +186,10 @@ async fn validate_proposal_success() {
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.clone() }))
         .await
         .unwrap();
+    let expected = test_validate_expected_commitment();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: ConsensusProposalCommitment::default(),
+            proposal_commitment: expected,
             executed_transaction_count: n_executed_txs_count.try_into().unwrap(),
             fin_payload: None,
         }))
@@ -187,7 +197,7 @@ async fn validate_proposal_success() {
         .unwrap();
 
     let res = validate_proposal(proposal_args.into()).await;
-    assert_matches!(res, Ok(val) if val == ConsensusProposalCommitment::default());
+    assert_matches!(res, Ok(val) if val == expected);
 }
 
 #[tokio::test]
