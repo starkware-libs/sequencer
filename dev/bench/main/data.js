@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779784889502,
+  "lastUpdate": 1779800589247,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4317,6 +4317,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1427.17698195,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ron@starkware.co",
+            "name": "ron-starkware",
+            "username": "ron-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "435cc58a8c9cddd8f4fbc7ea66a3320ce24eb435",
+          "message": "echonet: pin kubernetes client below v36 to fix in-cluster auth (#14197)\n\nv36.0.0 of the kubernetes Python client stores the in-cluster token\nunder api_key[\"authorization\"] while auth_settings() now reads\napi_key[\"BearerToken\"], so no Authorization header is sent and the\nAPI server rejects requests as system:anonymous.\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-05-26T12:25:15Z",
+          "tree_id": "7cb32be5a50c62c5964a612a4c868fb5efce4f9c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/435cc58a8c9cddd8f4fbc7ea66a3320ce24eb435"
+        },
+        "date": 1779800588685,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 922.16080061,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1478.71302996,
             "unit": "ms"
           }
         ]
