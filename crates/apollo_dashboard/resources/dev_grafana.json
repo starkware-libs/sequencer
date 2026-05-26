@@ -4784,7 +4784,7 @@
           "description": "Pod memory limit utilization (used / limits)",
           "type": "timeseries",
           "exprs": [
-            "\n            (\n                sum by (namespace, pod) (\n                    container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            /\n            (\n                sum by (namespace, pod) (\n                    container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            "
+            "\n            (\n                sum by (namespace, pod) (\n                    container_memory_rss{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            /\n            (\n                sum by (namespace, pod) (\n                    container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            "
           ],
           "extra_params": {
             "unit": "percentunit",
