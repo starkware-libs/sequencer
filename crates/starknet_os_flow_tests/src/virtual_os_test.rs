@@ -286,10 +286,8 @@ async fn prove_and_verify_multicall_tx() {
             .await;
 
     // TODO(Yoni): add more inner calls (e.g. sha256, secp256k1, send_message_to_l1).
-    // TODO(Yoni): restore the keccak inner call once the keccak syscall is allowed in
-    // virtual OS mode (added in a follow-up PR stacked on top of this one).
     let multi_call_args = create_multicall_calldata(&[
-        // (contract_address, "test_keccak", &[]),
+        (contract_address, "test_keccak", &[]),
         (contract_address, "test_ec_op", &[]),
     ]);
 
