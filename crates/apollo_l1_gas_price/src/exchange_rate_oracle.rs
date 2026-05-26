@@ -18,13 +18,7 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, info, instrument, warn};
 use url::Url;
 
-use crate::metrics::{
-    register_eth_to_strk_metrics,
-    ETH_TO_STRK_ERROR_COUNT,
-    ETH_TO_STRK_LAST_SUCCESS_TIMESTAMP_SECONDS,
-    ETH_TO_STRK_RATE,
-    ETH_TO_STRK_SUCCESS_COUNT,
-};
+use crate::metrics::ExchangeRateOracleMetrics;
 
 #[cfg(test)]
 #[path = "exchange_rate_oracle_test.rs"]
@@ -54,7 +48,9 @@ pub struct UrlAndHeaderMap {
 
 type PriceQuery = AbortOnDropHandle<Result<u128, ExchangeRateOracleClientError>>;
 
-/// Client for interacting with the eth to strk Oracle API.
+/// Client for interacting with an exchange-rate oracle API.
+/// Concrete pair (ETH→STRK, STRK→USD, ...) is determined by `config.url_header_list`
+/// and the `metrics` set passed at construction.
 #[derive(Clone, Debug)]
 pub struct ExchangeRateOracleClient {
     config: ExchangeRateOracleConfig,
@@ -65,15 +61,16 @@ pub struct ExchangeRateOracleClient {
     client: reqwest::Client,
     cached_prices: Arc<Mutex<LruCache<u64, u128>>>,
     queries: Arc<Mutex<LruCache<u64, PriceQuery>>>,
+    metrics: ExchangeRateOracleMetrics,
 }
 
 impl ExchangeRateOracleClient {
-    pub fn new(config: ExchangeRateOracleConfig) -> Self {
+    pub fn new(config: ExchangeRateOracleConfig, metrics: ExchangeRateOracleMetrics) -> Self {
         info!(
             "Creating ExchangeRateOracleClient with: urls={:?} lag_interval_seconds={}",
             config.url_header_list, config.lag_interval_seconds
         );
-        register_eth_to_strk_metrics();
+        metrics.register();
         let url_header_list = config
             .url_header_list
             .as_ref()
@@ -95,6 +92,7 @@ impl ExchangeRateOracleClient {
             queries: Arc::new(Mutex::new(LruCache::new(
                 NonZeroUsize::new(config.max_cache_size).expect("Invalid cache size"),
             ))),
+            metrics,
         }
     }
 
@@ -112,6 +110,7 @@ impl ExchangeRateOracleClient {
         let index_clone = self.index.clone();
         let url_header_list = self.url_header_list.clone();
         let list_len = url_header_list.len();
+        let metrics = self.metrics;
         let future = async move {
             let initial_index = index_clone.load(Ordering::SeqCst);
             for (i, url_and_headers) in
@@ -133,7 +132,7 @@ impl ExchangeRateOracleClient {
                         )));
                     }
                     let body = response.text().await?;
-                    let rate = resolve_query(body)?;
+                    let rate = resolve_query(body, &metrics)?;
                     Ok::<_, ExchangeRateOracleClientError>(rate)
                 })
                 .await;
@@ -152,7 +151,7 @@ impl ExchangeRateOracleClient {
                         warn!("Timeout when resolving query to {url}");
                     }
                 };
-                ETH_TO_STRK_ERROR_COUNT.increment(1);
+                metrics.error_count.increment(1);
             }
             warn!("All {list_len} URLs in the list failed for timestamp {adjusted_timestamp}");
             Err(ExchangeRateOracleClientError::AllUrlsFailedError(
@@ -164,7 +163,10 @@ impl ExchangeRateOracleClient {
     }
 }
 
-fn resolve_query(body: String) -> Result<u128, ExchangeRateOracleClientError> {
+fn resolve_query(
+    body: String,
+    metrics: &ExchangeRateOracleMetrics,
+) -> Result<u128, ExchangeRateOracleClientError> {
     let Ok(json): Result<serde_json::Value, _> = serde_json::from_str(&body) else {
         return Err(ExchangeRateOracleClientError::ParseError(format!(
             "Failed to parse JSON: {body}"
@@ -199,9 +201,9 @@ fn resolve_query(body: String) -> Result<u128, ExchangeRateOracleClientError> {
             decimals,
         ));
     }
-    ETH_TO_STRK_SUCCESS_COUNT.increment(1);
-    set_unix_now_seconds(&ETH_TO_STRK_LAST_SUCCESS_TIMESTAMP_SECONDS);
-    ETH_TO_STRK_RATE.set_lossy(rate);
+    metrics.success_count.increment(1);
+    set_unix_now_seconds(metrics.last_success_timestamp);
+    metrics.rate.set_lossy(rate);
     Ok(rate)
 }
 
@@ -255,7 +257,7 @@ impl ExchangeRateOracleClientTrait for ExchangeRateOracleClient {
             }
             Err(e) => {
                 warn!("Query failed to join handle for timestamp {timestamp}: {e:?}");
-                ETH_TO_STRK_ERROR_COUNT.increment(1);
+                self.metrics.error_count.increment(1);
                 // Must remove failed query from the cache, to avoid re-polling it.
                 queries.pop(&quantized_timestamp);
                 return Err(ExchangeRateOracleClientError::JoinError(e.to_string()));
