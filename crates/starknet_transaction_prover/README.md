@@ -28,7 +28,8 @@ Expected response:
 The service exposes JSON-RPC 2.0 on the root path (`/`). The full machine-readable spec is the
 `proving-api/starknet_proving_api_openrpc.json` document in
 [starknet-specs](https://github.com/starkware-libs/starknet-specs), pinned to the revision recorded
-in `resources/starknet_specs_rev.txt`.
+in `resources/starknet_specs_rev.txt`. An HTTP-only side endpoint is also served (`GET /health`) —
+see the [Observability](#observability) section.
 
 ### `starknet_specVersion`
 
@@ -162,7 +163,9 @@ and environment variables override values from the config file.
 | `CHAIN_ID` | `--chain-id` | `SN_MAIN` | Target Starknet network. Determines fee token addresses and versioned constants. Accepts `SN_MAIN`, `SN_SEPOLIA`, or a custom chain ID string. |
 | `PROVER_PORT` | `--port` | `3000` | TCP port the JSON-RPC server listens on. Must be >=1. |
 | `PROVER_IP` | `--ip` | `0.0.0.0` | IP address to bind. Use `127.0.0.1` to restrict to localhost, `0.0.0.0` for all interfaces. |
-| `MAX_CONCURRENT_REQUESTS` | `--max-concurrent-requests` | `2` | Max parallel proving requests. Additional requests receive error `-32005`. Bound by available CPU/memory. Must be >=1. |
+| `MAX_CONCURRENT_REQUESTS` | `--max-concurrent-requests` | `2` | Max proving requests running in parallel (worker slots). Beyond this, requests queue (see `MAX_QUEUED_REQUESTS`); they receive error `-32005` only when the queue is full. Bound by available CPU/memory. Must be >=1. |
+| `MAX_QUEUED_REQUESTS` | `--max-queued-requests` | `8` | Requests that may wait FIFO for a worker slot beyond `MAX_CONCURRENT_REQUESTS`. When this buffer is full, further requests are rejected with `-32005`. `0` reproduces immediate rejection once all workers are busy. |
+| `QUEUE_WAIT_TIMEOUT_MILLIS` | `--queue-wait-timeout-millis` | `30000` | Backstop: how long a queued request waits for a worker slot before a `-32005` rejection, so a stuck worker can't pin a waiter's connection indefinitely. |
 | `MAX_CONNECTIONS` | `--max-connections` | `10` | Max simultaneous TCP connections accepted by the server. Must be >=1. |
 | `SKIP_FEE_FIELD_VALIDATION` | `--skip-fee-field-validation` | `false` | When `true`, allows non-zero gas prices and tip in requests. By default the service rejects them because proving is client-side and no fees are charged. |
 | `STRK_FEE_TOKEN_ADDRESS` | `--strk-fee-token-address` | _(auto per chain)_ | Override the STRK fee token contract address (hex). Only needed for custom networks that share a standard chain ID but use a different fee token. |
@@ -172,6 +175,7 @@ and environment variables override values from the config file.
 | `MAX_REQUEST_BODY_SIZE` | `--max-request-body-size` | `5242880` (5 MiB) | Maximum size of an incoming JSON-RPC request body in bytes. Requests exceeding this limit are rejected before parsing. |
 | `CONFIG_FILE` | `--config-file` | — | Path to a JSON config file. Fields use snake_case names matching `resources/example-config.json`. Values in the file are overridden by env vars and CLI flags. |
 | `RUST_LOG` | — | _(see Logging)_ | Controls log verbosity via `tracing-subscriber`. |
+| `LOG_FORMAT` | `--log-format` | `text` | Log output format. Use `json` in production so aggregators (e.g. Datadog) parse fields directly. Accepts `text` or `json`. |
 
 ### TLS / HTTPS
 
@@ -204,6 +208,8 @@ built-in defaults. See `resources/example-config.json` for a template.
 | `ip` | `PROVER_IP` | string |
 | `port` | `PROVER_PORT` | integer |
 | `max_concurrent_requests` | `MAX_CONCURRENT_REQUESTS` | integer |
+| `max_queued_requests` | `MAX_QUEUED_REQUESTS` | integer |
+| `queue_wait_timeout_millis` | `QUEUE_WAIT_TIMEOUT_MILLIS` | integer |
 | `max_connections` | `MAX_CONNECTIONS` | integer |
 | `validate_zero_fee_fields` | inverse of `SKIP_FEE_FIELD_VALIDATION` | bool |
 | `strk_fee_token_address` | `STRK_FEE_TOKEN_ADDRESS` | hex string or null |
@@ -228,10 +234,11 @@ docker run --rm -p 3000:3000 \
 
 ### Logging
 
-The service uses the `RUST_LOG` environment variable (via `tracing-subscriber`).
+The service uses the `RUST_LOG` environment variable (via `tracing-subscriber`) to control verbosity,
+and `LOG_FORMAT` to switch between human-readable text and machine-readable JSON.
 
 ```bash
-# Default — service logs at debug, noisy proving libraries at warn:
+# Default — service logs at debug, noisy proving libraries at warn, text format:
 docker run ... <IMAGE>
 
 # Verbose — all crates at debug:
@@ -239,7 +246,18 @@ docker run -e RUST_LOG=debug ... <IMAGE>
 
 # Quiet — warnings and errors only:
 docker run -e RUST_LOG=warn ... <IMAGE>
+
+# Production — JSON output so log aggregators parse fields directly:
+docker run -e LOG_FORMAT=json ... <IMAGE>
 ```
+
+`LOG_FORMAT=json` emits one JSON object per line with `timestamp`, `level`, `target`, `fields`,
+and `span` keys. The `text` format may include ANSI colour codes; production and container
+deployments should use `--log-format json`, which never emits them. URLs that may contain
+credentials in the userinfo component are redacted to `scheme://host[:port]` everywhere they appear
+in logs: `rpc_node_url` in the startup logs and in its CLI-override message, and
+`blocking_check_url` in its CLI-override message — the startup logs report only whether the
+blocking check is enabled, never its URL.
 
 ## Compression
 
@@ -258,6 +276,70 @@ curl -H 'Accept-Encoding: zstd' -s -X POST http://localhost:3000 \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"starknet_proveTransaction","params":{...}}' | zstd -d
 ```
+
+## Observability
+
+Alongside the JSON-RPC API the service exposes an HTTP probe endpoint (`GET /health`) and structured
+per-request logs with request-id propagation.
+
+### `/health`
+
+`GET /health` returns the current health of the service.
+
+| Status | Body | Meaning |
+|---|---|---|
+| `200 OK` | `{"status":"ok"}` | Service is accepting requests. |
+
+The endpoint is unauthenticated by design — it is meant for load balancers, orchestrators, and
+uptime checks. Probes are served ahead of CORS, compression, and JSON-RPC parsing.
+
+### Request IDs
+
+Every HTTP request carries a `request_id`. The id is taken from the inbound `x-request-id` header
+when it's a short, printable-ASCII token (max 128 bytes); otherwise the service generates a UUID
+v4. The (possibly generated) id is echoed back on the response in the same header so a caller that
+triggered a failure can quote a single id when reporting it. Every request except `GET /health`
+probes is also logged with that id; probes still get the header echo but are exempt from the
+per-request log line, since at typical probe periods they would drown real traffic.
+
+Hostile inputs (whitespace, non-printable bytes, oversized values) are dropped and replaced with
+a freshly generated id rather than being trusted — this prevents header smuggling and log-field
+explosion.
+
+**OHTTP traffic uses two distinct ids, by design.** The id above is assigned to the *outer
+envelope* and echoed on the response; the *decapsulated inner request* gets a separate, freshly
+generated id that is bound to its content-level logs and never echoed back, and any client-supplied
+id inside the envelope is discarded. The two ids are deliberately not joinable in logs, so this is
+a privacy property rather than a logging inconsistency.
+
+### Per-request log line
+
+Each HTTP request produces a single structured log line at `info` level with
+`event="http_request"`:
+
+```json
+{
+  "timestamp": "...",
+  "level": "INFO",
+  "target": "starknet_transaction_prover::server::request_log",
+  "fields": {
+    "event": "http_request",
+    "request_id": "a1b2c3d4...",
+    "method": "POST",
+    "path": "/",
+    "status": 200,
+    "latency_ms": 1247,
+    "message": "HTTP request handled."
+  }
+}
+```
+
+When the tower stack fails before producing a response, the same `event="http_request"` line is
+emitted at `warn` with `outcome="service_error"` and no `status` field, since no status was ever
+produced.
+
+Request bodies are never inspected — transaction calldata is private user data and never reaches
+the log stream.
 
 ## Limitations
 
