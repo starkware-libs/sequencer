@@ -834,6 +834,15 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
         Ok(())
     }
+
+    fn sha512_process_block(
+        &mut self,
+        _prev_state: &mut [u64; 8],
+        _current_block: &[u64; 16],
+        _remaining_gas: &mut u64,
+    ) -> SyscallResult<()> {
+        todo!()
+    }
 }
 
 /// A wrapper around an elliptic curve point in affine coordinates (x,y) on a
