@@ -97,7 +97,6 @@ use crate::metrics::{
     SNIP35_FEE_ACTUAL,
     SNIP35_FEE_PROPOSAL,
     SNIP35_FEE_TARGET,
-    SNIP35_STRK_USD_RATE,
 };
 use crate::snip35::{
     compute_fee_actual,
@@ -461,7 +460,8 @@ impl SequencerConsensusContext {
         let fee_target = match &self.deps.strk_to_usd_oracle {
             Some(oracle) => match oracle.fetch_rate(timestamp).await {
                 Ok(rate) => {
-                    SNIP35_STRK_USD_RATE.set_lossy(rate);
+                    // The oracle client publishes `snip35_strk_usd_rate` itself; consensus
+                    // only consumes the value to compute `fee_target`.
                     let target = compute_fee_target(TARGET_ATTO_USD_PER_L2_GAS, rate);
                     match target {
                         Some(t) => SNIP35_FEE_TARGET.set_lossy(t.0),

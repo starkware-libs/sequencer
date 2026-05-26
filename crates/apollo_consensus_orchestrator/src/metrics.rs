@@ -33,11 +33,13 @@ define_metrics!(
         // Proposal validation failure metrics
         LabeledMetricCounter { CONSENSUS_VALIDATE_PROPOSAL_FAILURE , "consensus_validate_proposal_failure", "Number of failures while validating a proposal", init = 0, labels = VALIDATE_PROPOSAL_FAILURE_REASON },
 
-        // SNIP-35 dynamic gas pricing metrics
+        // SNIP-35 dynamic gas pricing metrics.
+        // The STRK/USD rate gauge (`snip35_strk_usd_rate`) plus its query
+        // success/error/last-success-timestamp counters live in `apollo_l1_gas_price`,
+        // owned by the `ExchangeRateOracleClient` that fetches the rate.
         MetricGauge { SNIP35_FEE_ACTUAL, "snip35_fee_actual", "The current fee_actual (median of recent fee_proposals sliding window)" },
         MetricGauge { SNIP35_FEE_PROPOSAL, "snip35_fee_proposal", "The fee_proposal this node published in the latest block" },
         MetricGauge { SNIP35_FEE_TARGET, "snip35_fee_target", "The fee_target computed from the STRK/USD oracle" },
-        MetricGauge { SNIP35_STRK_USD_RATE, "snip35_strk_usd_rate", "The STRK/USD rate from the oracle" },
     }
 );
 
@@ -109,5 +111,4 @@ pub(crate) fn register_metrics() {
     SNIP35_FEE_ACTUAL.register();
     SNIP35_FEE_PROPOSAL.register();
     SNIP35_FEE_TARGET.register();
-    SNIP35_STRK_USD_RATE.register();
 }
