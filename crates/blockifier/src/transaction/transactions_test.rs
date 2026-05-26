@@ -292,7 +292,7 @@ fn expected_validate_call_info(
             usize::from(entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME)
         }
         CairoVersion::Cairo1(_) => {
-            if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME { 7 } else { 2 }
+            if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME { 6 } else { 1 }
         }
     };
     let vm_resources = match tracked_resource {
@@ -589,17 +589,17 @@ fn add_kzg_da_resources_to_resources_mapping(
 #[case::with_cairo1_account(
     ExpectedResultTestInvokeTx{
         resources: ExtendedExecutionResources::default(),
-        validate_gas_consumed: 8590, // The gas consumption results from parsing the input
+        validate_gas_consumed: 7820, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 114690,
+        execute_gas_consumed: 113920,
     },
     CairoVersion::Cairo1(RunnableCairo1::Casm))]
 #[cfg_attr(feature = "cairo_native", case::with_cairo1_native_account(
     ExpectedResultTestInvokeTx{
         resources: ExtendedExecutionResources::default(),
-        validate_gas_consumed: 8590, // The gas consumption results from parsing the input
+        validate_gas_consumed: 7820, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 114690,
+        execute_gas_consumed: 113920,
     },
     CairoVersion::Cairo1(RunnableCairo1::Native)))]
 // TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).
@@ -755,7 +755,7 @@ fn test_invoke_tx(
     };
     let builtin_counters = match account_cairo_version {
         CairoVersion::Cairo0 => cairo_primitive_counter_map([(BuiltinName::range_check, 19)]),
-        CairoVersion::Cairo1(_) => cairo_primitive_counter_map([(BuiltinName::range_check, 27)]),
+        CairoVersion::Cairo1(_) => cairo_primitive_counter_map([(BuiltinName::range_check, 26)]),
     };
     let syscalls_usage = match account_cairo_version {
         CairoVersion::Cairo0 => HashMap::from([(
@@ -1858,7 +1858,7 @@ fn declare_expected_state_changes_count(version: TransactionVersion) -> StateCha
 #[rstest]
 fn test_declare_redeposit_amount_regression() {
     expect![[r#"
-        7260
+        8030
     "#]]
     .assert_debug_eq(&*DECLARE_REDEPOSIT_AMOUNT);
 }
@@ -2115,7 +2115,7 @@ fn test_declare_tx_v0(
 #[rstest]
 fn test_deploy_account_redeposit_amount_regression() {
     expect![[r#"
-        6860
+        7630
     "#]]
     .assert_debug_eq(&*DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT);
 }
@@ -2774,7 +2774,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         tracked_resource: test_contract
             .get_runnable_class()
             .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
-        builtin_counters: cairo_primitive_counter_map([(BuiltinName::range_check, 6)]),
+        builtin_counters: cairo_primitive_counter_map([(BuiltinName::range_check, 5)]),
         syscalls_usage: HashMap::from([(
             SyscallSelector::StorageWrite,
             SyscallUsage { call_count: 1, linear_factor: 0 },
@@ -2834,7 +2834,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
 
     // Regression-test the gas consumed, and then set to zero to compare the rest of the resources.
     let expected_gas = expect![[r#"
-        65520
+        64750
     "#]];
     expected_gas.assert_debug_eq(&actual_execution_info.receipt.resources.computation.sierra_gas.0);
     actual_execution_info.receipt.resources.computation.sierra_gas.0 = 0;
@@ -2850,7 +2850,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     160,
                 ),
                 l2_gas: GasAmount(
-                    652545,
+                    651775,
                 ),
             }
         "#]]
@@ -2864,7 +2864,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     0,
                 ),
                 l2_gas: GasAmount(
-                    601645,
+                    600875,
                 ),
             }
         "#]]

@@ -369,10 +369,25 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         state: &[MaybeRelocatable],
         vm: &mut VirtualMachine,
     ) -> Result<Relocatable, Self::Error> {
-        let temp_segment = vm.add_temporary_segment();
-        vm.load_data(temp_segment, state)?;
-        Ok(temp_segment)
+        Ok(write_to_new_tmp_segment(state, vm)?)
     }
+
+    fn write_sha512_out_state(
+        &mut self,
+        state: &[MaybeRelocatable],
+        vm: &mut VirtualMachine,
+    ) -> Result<Relocatable, Self::Error> {
+        Ok(write_to_new_tmp_segment(state, vm)?)
+    }
+}
+
+fn write_to_new_tmp_segment(
+    data: &[MaybeRelocatable],
+    vm: &mut VirtualMachine,
+) -> Result<Relocatable, MemoryError> {
+    let new_segment = vm.add_temporary_segment();
+    vm.load_data(new_segment, data)?;
+    Ok(new_segment)
 }
 
 fn allocate_or_return_execution_info_segment<IG: IdentifierGetter>(
