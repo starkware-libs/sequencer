@@ -114,25 +114,8 @@ async fn allow_new_txs() {
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{status:?}");
 }
 
-#[rstest]
-#[case::accepting_returns_ok(true, StatusCode::OK)]
-#[case::rejecting_returns_service_unavailable(false, StatusCode::SERVICE_UNAVAILABLE)]
 #[tokio::test]
-async fn is_ready_reflects_accept_new_txs(
-    #[case] accept_new_txs: bool,
-    #[case] expected_status: StatusCode,
-) {
-    let (_tx, dynamic_config_rx) =
-        watch::channel(HttpServerDynamicConfig { accept_new_txs, ..Default::default() });
-    let app_state =
-        AppState { gateway_client: Arc::new(MockGatewayClient::new()), dynamic_config_rx };
-
-    let (status, _body) = is_ready(Extension(app_state)).await;
-    assert_eq!(status, expected_status);
-}
-
-#[tokio::test]
-async fn is_ready_observes_dynamic_config_updates() {
+async fn is_ready_reflects_accept_new_txs() {
     let (tx, dynamic_config_rx) =
         watch::channel(HttpServerDynamicConfig { accept_new_txs: true, ..Default::default() });
     let app_state =
