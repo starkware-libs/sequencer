@@ -29,11 +29,14 @@ pub const OHTTP_JSONRPSEE_BODY_BUILDER: fn(Full<Bytes>) -> HttpBody = HttpBody::
 pub mod config;
 pub mod cors;
 pub mod errors;
+pub mod health;
 #[cfg(test)]
 pub mod mock_rpc;
 pub mod rpc_api;
 pub mod rpc_impl;
 pub mod tls;
+
+pub use health::{HealthLayer, HEALTH_PATH};
 
 #[cfg(test)]
 mod rpc_spec_test;
@@ -75,7 +78,10 @@ pub async fn start_server(
                 // type it expects. `HttpBody::new` is a zero-cost wrapper, so
                 // non-OHTTP requests still stream through unbuffered.
                 .set_http_middleware(
+                    // `HealthLayer` sits outermost so `GET /health` is answered
+                    // before any other middleware runs.
                     ServiceBuilder::new()
+                        .layer(HealthLayer)
                         .option_layer(cors_layer)
                         .layer(MapRequestBodyLayer::new(HttpBody::new))
                         .option_layer(ohttp_layer)
