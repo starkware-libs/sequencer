@@ -1812,7 +1812,7 @@
       "name": "pod_state_critical_memory_utilization",
       "title": "Pod Critical Memory Utilization ( >85% )",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) * 100",
+      "expr": "max(container_memory_rss{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) * 100",
       "conditions": [
         {
           "evaluator": {
@@ -1838,7 +1838,7 @@
       "name": "pod_state_high_memory_utilization",
       "title": "Pod High Memory Utilization ( >70% )",
       "ruleGroup": "evaluation_rate_default",
-      "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) * 100",
+      "expr": "max(container_memory_rss{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) * 100",
       "conditions": [
         {
           "evaluator": {
