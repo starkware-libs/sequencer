@@ -1270,12 +1270,12 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
     let poseidons = test_output.get_builtin_usage(&BuiltinName::poseidon);
     if use_kzg_da {
         expect![[r#"
-            65
+            66
         "#]]
         .assert_debug_eq(&poseidons);
     } else {
         expect![[r#"
-            56
+            57
         "#]]
         .assert_debug_eq(&poseidons);
     }
@@ -1289,7 +1289,7 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
         .copied()
         .unwrap_or(0);
     expect![[r#"
-        569
+        553
     "#]]
     .assert_debug_eq(&blakes);
 
