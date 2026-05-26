@@ -15,6 +15,7 @@ mod TestContract {
     use core::pedersen::PedersenTrait;
     use core::poseidon::PoseidonTrait;
     use core::sha256::{SHA256_INITIAL_STATE, compute_sha256_u32_array, sha256_state_handle_init};
+    use core::sha512::compute_sha512_u64_array;
     use dict::Felt252DictTrait;
     use ec::EcPointTrait;
     use starknet::class_hash::ClassHashZero;
@@ -677,6 +678,25 @@ mod TestContract {
     fn test_sha256_helper(value: u32, expected_res: u32) {
         let [res, _, _, _, _, _, _, _] = compute_sha256_u32_array(array![value], 0, 0);
         assert(res == expected_res, 'Wrong hash value');
+    }
+
+    #[external(v0)]
+    fn test_sha512(ref self: ContractState) {
+        // SHA-512("") per NIST FIPS 180-4.
+        test_sha512_helper(array![], 0, 0, 0xcf83e1357eefb8bd_u64);
+        // SHA-512("abc") per NIST FIPS 180-4.
+        test_sha512_helper(array![], 0x616263_u64, 3, 0xddaf35a193617aba_u64);
+        // SHA-512("Hello World") per NIST FIPS 180-4.
+        test_sha512_helper(array!['Hello Wo'], 'rld', 3, 0x2c74fd17edafd80e_u64);
+        // SHA-512("abcdefghabcdefghabc") per NIST FIPS 180-4.
+        test_sha512_helper(array!['abcdefgh', 'abcdefgh'], 'abc', 3, 0xc4b8f94921a1d4b7_u64);
+    }
+
+    fn test_sha512_helper(
+        input: Array<u64>, last_word: u64, last_num_bytes: u32, expected_first_word: u64,
+    ) {
+        let [res, _, _, _, _, _, _, _] = compute_sha512_u64_array(input, last_word, last_num_bytes);
+        assert(res == expected_first_word, 'Wrong hash value');
     }
 
     #[external(v0)]

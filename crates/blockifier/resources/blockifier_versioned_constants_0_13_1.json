@@ -329,6 +329,13 @@
                 "syscall_base_gas_cost": 0,
                 "memory_hole_gas_cost": 0
             },
+            "Sha512ProcessBlock": {
+                "step_gas_cost": 0,
+                "range_check": 0,
+                "bitwise": 0,
+                "syscall_base_gas_cost": 0,
+                "memory_hole_gas_cost": 0
+            },
             "StorageRead": {
                 "step_gas_cost": 50,
                 "range_check": 0,
@@ -587,6 +594,11 @@
                 }
             },
             "Sha256ProcessBlock": {
+                "n_steps": 0,
+                "n_memory_holes": 0,
+                "builtin_instance_counter": {}
+            },
+            "Sha512ProcessBlock": {
                 "n_steps": 0,
                 "n_memory_holes": 0,
                 "builtin_instance_counter": {}

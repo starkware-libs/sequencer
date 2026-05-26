@@ -9,9 +9,11 @@ use starknet_types_core::felt::Felt;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execute_transactions::utils::{
-    calculate_padding,
+    calculate_sha256_padding,
+    calculate_sha512_padding,
     N_MISSING_BLOCKS_BOUND,
     SHA256_INPUT_CHUNK_SIZE_BOUND,
+    SHA512_INPUT_CHUNK_SIZE_BOUND,
 };
 use crate::hints::types::HintContext;
 use crate::hints::vars::{Const, Ids};
@@ -63,31 +65,60 @@ pub(crate) fn set_component_hashes<S: StateReader>(
     Ok(ctx.insert_value(Ids::ContractClassComponentHashes, class_component_hashes_base)?)
 }
 
-pub(crate) fn sha2_finalize(ctx: HintContext<'_>) -> OsHintResult {
-    let batch_size = &ctx.fetch_const(Const::ShaBatchSize)?.to_bigint();
-    let n = &ctx.get_integer(Ids::N)?.to_bigint();
-    // Calculate the modulus operation, not the remainder.
-    let number_of_missing_blocks = ((((-n) % batch_size) + batch_size) % batch_size)
-        .to_u32()
-        .expect("Failed to convert number of missing blocks to u32.");
-    assert!(
-        (0..N_MISSING_BLOCKS_BOUND).contains(&number_of_missing_blocks),
-        "number_of_missing_blocks: {number_of_missing_blocks} is expected to be in the range [0, \
-         {N_MISSING_BLOCKS_BOUND}). Got n: {n} and batch size: {batch_size}."
-    );
-    let sha256_input_chunk_size_felts =
-        felt_to_usize(ctx.fetch_const(Const::Sha256InputChunkSize)?)?;
-    assert!(
-        (0..SHA256_INPUT_CHUNK_SIZE_BOUND).contains(&sha256_input_chunk_size_felts),
-        "sha256_input_chunk_size_felts: {sha256_input_chunk_size_felts} is expected to be in the \
-         range [0, {SHA256_INPUT_CHUNK_SIZE_BOUND})."
-    );
-    let padding = calculate_padding(sha256_input_chunk_size_felts, number_of_missing_blocks);
+macro_rules! generate_sha_finalize {
+    (
+        $name:ident,
+        $batch_size:ident,
+        $input_chunk_size:ident,
+        $input_chunk_size_bound:expr,
+        $ptr_end_id:ident,
+        $padding_function:ident
+    ) => {
+        pub(crate) fn $name(ctx: HintContext<'_>) -> OsHintResult {
+            let batch_size = &ctx.fetch_const(Const::$batch_size)?.to_bigint();
+            let n = &ctx.get_integer(Ids::N)?.to_bigint();
+            // Calculate the modulus operation, not the remainder.
+            let number_of_missing_blocks = ((((-n) % batch_size) + batch_size) % batch_size)
+                .to_u32()
+                .expect("Failed to convert number of missing blocks to u32.");
+            assert!(
+                (0..N_MISSING_BLOCKS_BOUND).contains(&number_of_missing_blocks),
+                "number_of_missing_blocks: {number_of_missing_blocks} is expected to be in the \
+                 range [0, {N_MISSING_BLOCKS_BOUND}). Got n: {n} and batch size: {batch_size}."
+            );
+            let sha_input_chunk_size_felts =
+                felt_to_usize(ctx.fetch_const(Const::$input_chunk_size)?)?;
+            assert!(
+                (0..$input_chunk_size_bound).contains(&sha_input_chunk_size_felts),
+                "sha_input_chunk_size_felts: {sha_input_chunk_size_felts} is expected to be in \
+                 the range [0, {}).",
+                $input_chunk_size_bound
+            );
+            let padding = $padding_function(sha_input_chunk_size_felts, number_of_missing_blocks);
 
-    let sha_ptr_end = ctx.get_ptr(Ids::Sha256PtrEnd)?;
-    ctx.vm.load_data(sha_ptr_end, &padding)?;
-    Ok(())
+            let sha_ptr_end = ctx.get_ptr(Ids::$ptr_end_id)?;
+            ctx.vm.load_data(sha_ptr_end, &padding)?;
+            Ok(())
+        }
+    };
 }
+
+generate_sha_finalize!(
+    sha256_finalize,
+    Sha256BatchSize,
+    Sha256InputChunkSize,
+    SHA256_INPUT_CHUNK_SIZE_BOUND,
+    Sha256PtrEnd,
+    calculate_sha256_padding
+);
+generate_sha_finalize!(
+    sha512_finalize,
+    Sha512BatchSize,
+    Sha512InputChunkSize,
+    SHA512_INPUT_CHUNK_SIZE_BOUND,
+    Sha512PtrEnd,
+    calculate_sha512_padding
+);
 
 pub(crate) fn segments_add_temp_initial_txs_range_check_ptr(
     mut ctx: HintContext<'_>,

@@ -6,3 +6,4 @@ pub(crate) mod patricia;
 pub(crate) mod secp;
 pub(crate) mod segment_arena;
 pub(crate) mod sha256;
+pub(crate) mod sha512;
