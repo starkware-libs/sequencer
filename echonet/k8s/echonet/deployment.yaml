@@ -80,7 +80,7 @@ spec:
             - >
               export PYTHONPATH=/app:${PYTHONPATH:-} &&
               python -m pip install --no-cache-dir --disable-pip-version-check
-              flask gunicorn requests aiohttp kubernetes eth_abi &&
+              flask gunicorn requests aiohttp 'kubernetes<36' eth_abi &&
               echo "[echonet] starting gunicorn on :80 (1 worker, 4 threads)" &&
               gunicorn -w 1 --threads 4 -b 0.0.0.0:80 echonet.echo_center:app --timeout 60 --access-logfile -
           workingDir: /app
