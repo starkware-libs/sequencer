@@ -9,7 +9,7 @@ use starknet_types_core::felt::Felt;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execute_transactions::utils::{
-    calculate_padding,
+    calculate_sha256_padding,
     calculate_sha512_padding,
     N_MISSING_BLOCKS_BOUND,
     SHA256_INPUT_CHUNK_SIZE_BOUND,
@@ -104,12 +104,12 @@ macro_rules! generate_sha_finalize {
 }
 
 generate_sha_finalize!(
-    sha2_finalize,
-    ShaBatchSize,
+    sha256_finalize,
+    Sha256BatchSize,
     Sha256InputChunkSize,
     SHA256_INPUT_CHUNK_SIZE_BOUND,
     Sha256PtrEnd,
-    calculate_padding
+    calculate_sha256_padding
 );
 generate_sha_finalize!(
     sha512_finalize,

@@ -51,10 +51,8 @@ use crate::execution::syscalls::vm_syscall_utils::{
     ReplaceClassResponse,
     SendMessageToL1Request,
     SendMessageToL1Response,
-    Sha256ProcessBlockRequest,
-    Sha256ProcessBlockResponse,
-    Sha512ProcessBlockRequest,
-    Sha512ProcessBlockResponse,
+    ShaProcessBlockRequest,
+    ShaProcessBlockResponse,
     StorageReadRequest,
     StorageReadResponse,
     StorageWriteRequest,
@@ -218,11 +216,11 @@ pub trait SyscallExecutor {
     ) -> Result<MetaTxV0Response, Self::Error>;
 
     fn sha256_process_block(
-        request: Sha256ProcessBlockRequest,
+        request: ShaProcessBlockRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> Result<Sha256ProcessBlockResponse, Self::Error> {
+    ) -> Result<ShaProcessBlockResponse, Self::Error> {
         const SHA256_BLOCK_SIZE: usize = 16;
 
         let data = vm
@@ -260,15 +258,15 @@ pub trait SyscallExecutor {
             state_as_words.iter().map(|&arg| MaybeRelocatable::from(Felt::from(arg))).collect();
         let response = syscall_handler.write_sha256_out_state(&data, vm)?;
 
-        Ok(Sha256ProcessBlockResponse { state_ptr: response })
+        Ok(ShaProcessBlockResponse { state_ptr: response })
     }
 
     fn sha512_process_block(
-        request: Sha512ProcessBlockRequest,
+        request: ShaProcessBlockRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> Result<Sha512ProcessBlockResponse, Self::Error> {
+    ) -> Result<ShaProcessBlockResponse, Self::Error> {
         const SHA512_BLOCK_SIZE: usize = 16;
 
         let data = vm
@@ -306,7 +304,7 @@ pub trait SyscallExecutor {
             state_as_words.iter().map(|&arg| MaybeRelocatable::from(Felt::from(arg))).collect();
         let response = syscall_handler.write_sha512_out_state(&data, vm)?;
 
-        Ok(Sha512ProcessBlockResponse { state_ptr: response })
+        Ok(ShaProcessBlockResponse { state_ptr: response })
     }
 
     fn replace_class(

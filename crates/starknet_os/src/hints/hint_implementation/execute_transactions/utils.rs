@@ -1,4 +1,4 @@
-use cairo_vm::hint_processor::builtin_hint_processor::blake2s_hash::IV;
+use cairo_vm::hint_processor::builtin_hint_processor::blake2s_hash::IV as SHA256_IV;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use sha2::digest::generic_array::GenericArray;
 use starknet_types_core::felt::Felt;
@@ -51,5 +51,5 @@ macro_rules! generate_calculate_sha_padding {
     };
 }
 
-generate_calculate_sha_padding!(calculate_padding, u32, IV, compress256);
+generate_calculate_sha_padding!(calculate_sha256_padding, u32, SHA256_IV, compress256);
 generate_calculate_sha_padding!(calculate_sha512_padding, u64, SHA512_IV, compress512);
