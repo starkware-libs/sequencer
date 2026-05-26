@@ -105,8 +105,6 @@ use crate::snip35::{
     compute_fee_target,
     proposal_commitment_from,
     FeeProposalInfo,
-    FEE_PROPOSAL_MARGIN_PPT,
-    FEE_PROPOSAL_WINDOW_SIZE,
     TARGET_ATTO_USD_PER_L2_GAS,
 };
 use crate::utils::{
@@ -315,8 +313,7 @@ impl SequencerConsensusContext {
     }
 
     fn prune_fee_proposals_window(&mut self, current_height: BlockNumber) {
-        let window_size =
-            u64::try_from(FEE_PROPOSAL_WINDOW_SIZE).expect("FEE_PROPOSAL_WINDOW_SIZE fits in u64");
+        let window_size = VersionedConstants::latest_constants().fee_proposal_window_size;
         let cutoff = BlockNumber(current_height.0.saturating_sub(window_size));
         // Per `BTreeMap::split_off` docs: "Splits the collection into two at the given key.
         // Returns everything after the given key, including the key." Reassigning the returned
@@ -334,8 +331,7 @@ impl SequencerConsensusContext {
         start_height: BlockNumber,
     ) -> StateSyncClientResult<()> {
         const STATE_SYNC_RETRY_INTERVAL: Duration = Duration::from_millis(500);
-        let window_size =
-            u64::try_from(FEE_PROPOSAL_WINDOW_SIZE).expect("FEE_PROPOSAL_WINDOW_SIZE fits in u64");
+        let window_size = VersionedConstants::latest_constants().fee_proposal_window_size;
         let window_end_height = start_height.0;
         let window_start_height = window_end_height.saturating_sub(window_size);
         let mut pending_heights: VecDeque<BlockNumber> =
@@ -432,7 +428,11 @@ impl SequencerConsensusContext {
     /// Returns the next L2 gas price without mutating context. Used when building the fin and when
     /// updating at decision time.
     fn calculate_next_l2_gas_price(&self, height: BlockNumber, l2_gas_used: GasAmount) -> GasPrice {
-        let fee_actual = compute_fee_actual(&self.fee_proposals_window, height);
+        let fee_actual = compute_fee_actual(
+            &self.fee_proposals_window,
+            height,
+            VersionedConstants::latest_constants().fee_proposal_window_size,
+        );
         calculate_next_l2_gas_price_for_fin(
             self.l2_gas_price,
             height,
@@ -480,7 +480,11 @@ impl SequencerConsensusContext {
             }
         };
 
-        let proposal = compute_fee_proposal(fee_target, fee_actual, FEE_PROPOSAL_MARGIN_PPT);
+        let proposal = compute_fee_proposal(
+            fee_target,
+            fee_actual,
+            VersionedConstants::latest_constants().fee_proposal_margin_ppt,
+        );
         SNIP35_FEE_PROPOSAL.set_lossy(proposal.0);
         proposal
     }
@@ -724,7 +728,11 @@ impl ConsensusContext for SequencerConsensusContext {
             BehaviorMode::Echonet => true,
             BehaviorMode::Starknet => false,
         };
-        let fee_actual = compute_fee_actual(&self.fee_proposals_window, build_param.height);
+        let fee_actual = compute_fee_actual(
+            &self.fee_proposals_window,
+            build_param.height,
+            VersionedConstants::latest_constants().fee_proposal_window_size,
+        );
         let fee_proposal =
             self.compute_snip35_fee_proposal(fee_actual, self.deps.clock.unix_now()).await;
         let round = build_param.round;
@@ -828,7 +836,11 @@ impl ConsensusContext for SequencerConsensusContext {
                         .map(GasPrice)
                         .unwrap_or(self.l2_gas_price),
                     starknet_version: StarknetVersion::LATEST,
-                    fee_actual: compute_fee_actual(&self.fee_proposals_window, init.height),
+                    fee_actual: compute_fee_actual(
+                        &self.fee_proposals_window,
+                        init.height,
+                        VersionedConstants::latest_constants().fee_proposal_window_size,
+                    ),
                 };
                 self.validate_current_round_proposal(
                     init,
@@ -1095,7 +1107,11 @@ impl ConsensusContext for SequencerConsensusContext {
                 .map(GasPrice)
                 .unwrap_or(self.l2_gas_price),
             starknet_version: StarknetVersion::LATEST,
-            fee_actual: compute_fee_actual(&self.fee_proposals_window, init.height),
+            fee_actual: compute_fee_actual(
+                &self.fee_proposals_window,
+                init.height,
+                VersionedConstants::latest_constants().fee_proposal_window_size,
+            ),
         };
         self.validate_current_round_proposal(
             init,

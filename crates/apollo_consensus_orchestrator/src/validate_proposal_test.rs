@@ -33,7 +33,11 @@ use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
 
 use crate::sequencer_consensus_context::BuiltProposals;
-use crate::snip35::{proposal_commitment_from, FEE_PROPOSAL_MARGIN_PPT, PPT_DENOMINATOR};
+use crate::snip35::{proposal_commitment_from, PPT_DENOMINATOR};
+
+fn fee_proposal_margin_ppt() -> u128 {
+    VersionedConstants::latest_constants().fee_proposal_margin_ppt
+}
 use crate::test_utils::{
     create_test_and_network_deps,
     proposal_init,
@@ -310,19 +314,19 @@ const FEE_ACTUAL_FRI: u128 = 8_000_000_000;
 #[rstest]
 #[case::at_fee_actual(FEE_ACTUAL_FRI, true)]
 #[case::upper_bound_inclusive(
-    FEE_ACTUAL_FRI * (PPT_DENOMINATOR + FEE_PROPOSAL_MARGIN_PPT) / PPT_DENOMINATOR,
+    FEE_ACTUAL_FRI * (PPT_DENOMINATOR + fee_proposal_margin_ppt()) / PPT_DENOMINATOR,
     true,
 )]
 #[case::lower_bound_inclusive(
-    FEE_ACTUAL_FRI * PPT_DENOMINATOR / (PPT_DENOMINATOR + FEE_PROPOSAL_MARGIN_PPT),
+    FEE_ACTUAL_FRI * PPT_DENOMINATOR / (PPT_DENOMINATOR + fee_proposal_margin_ppt()),
     true,
 )]
 #[case::above_upper_bound(
-    FEE_ACTUAL_FRI * (PPT_DENOMINATOR + FEE_PROPOSAL_MARGIN_PPT) / PPT_DENOMINATOR + 1,
+    FEE_ACTUAL_FRI * (PPT_DENOMINATOR + fee_proposal_margin_ppt()) / PPT_DENOMINATOR + 1,
     false,
 )]
 #[case::below_lower_bound(
-    FEE_ACTUAL_FRI * PPT_DENOMINATOR / (PPT_DENOMINATOR + FEE_PROPOSAL_MARGIN_PPT) - 1,
+    FEE_ACTUAL_FRI * PPT_DENOMINATOR / (PPT_DENOMINATOR + fee_proposal_margin_ppt()) - 1,
     false,
 )]
 #[tokio::test]

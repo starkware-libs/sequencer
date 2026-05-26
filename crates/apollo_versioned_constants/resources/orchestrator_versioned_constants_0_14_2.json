@@ -1,4 +1,6 @@
 {
+    "fee_proposal_margin_ppt": 2,
+    "fee_proposal_window_size": 10,
     "gas_price_max_change_denominator": 48,
     "gas_target": 1500000000,
     "max_block_size": 5800000000,

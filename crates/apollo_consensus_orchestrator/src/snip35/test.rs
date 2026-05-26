@@ -10,6 +10,8 @@ use crate::snip35::{
     FeeProposalInfo,
 };
 
+const TEST_FEE_PROPOSAL_WINDOW_SIZE: u64 = 10;
+
 #[test]
 fn fee_proposal_info_serializes_field_by_name() {
     // The cende blob's wire shape must agree with the Python `FeeProposalInfo` Marshmallow
@@ -59,7 +61,10 @@ fn test_compute_fee_actual_random_window() {
     // - All 12 (window-size ignored): sorted[5..7] = [271, 314], median = 292.
     let values: [u128; 12] = [314, 1729, 42, 1024, 100, 9999, 87, 271, 1, 6000, 17, 999];
     let window = window_from((0u64..).zip(values).map(|(h, v)| (h, Some(GasPrice(v)))));
-    assert_eq!(compute_fee_actual(&window, BlockNumber(12)), Some(GasPrice(185)));
+    assert_eq!(
+        compute_fee_actual(&window, BlockNumber(12), TEST_FEE_PROPOSAL_WINDOW_SIZE),
+        Some(GasPrice(185))
+    );
 }
 
 #[rstest]
@@ -73,7 +78,7 @@ fn test_compute_fee_actual_random_window() {
     window_from((0u64..10).map(|h| (h, (h != 7).then_some(GasPrice(100))))),
     BlockNumber(10),
 )]
-// `current_height < FEE_PROPOSAL_WINDOW_SIZE`: the range cannot cover 10 prior heights.
+// `current_height < window_size`: the range cannot cover 10 prior heights.
 #[case::height_below_window_size(
     window_from((0u64..5).map(|h| (h, Some(GasPrice(100))))),
     BlockNumber(5),
@@ -82,7 +87,7 @@ fn test_compute_fee_actual_returns_none(
     #[case] window: BTreeMap<BlockNumber, Option<GasPrice>>,
     #[case] height: BlockNumber,
 ) {
-    assert_eq!(compute_fee_actual(&window, height), None);
+    assert_eq!(compute_fee_actual(&window, height, TEST_FEE_PROPOSAL_WINDOW_SIZE), None);
 }
 
 #[rstest]
