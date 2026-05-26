@@ -10,6 +10,7 @@ use tokio::{self};
 use url::Url;
 
 use crate::exchange_rate_oracle::{ExchangeRateOracleClient, ExchangeRateOracleConfig};
+use crate::metrics::ETH_TO_STRK_ORACLE_METRICS;
 
 async fn make_server(server: &mut ServerGuard, body: serde_json::Value) -> Mock {
     make_server_with_status(server, body, 200).await
@@ -66,7 +67,7 @@ async fn eth_to_fri_rate_uses_cache_on_quantized_hit() {
         lag_interval_seconds: LAG_INTERVAL_SECONDS,
         ..Default::default()
     };
-    let client = ExchangeRateOracleClient::new(config.clone());
+    let client = ExchangeRateOracleClient::new(config.clone(), ETH_TO_STRK_ORACLE_METRICS);
 
     // First request should fail because the cache is empty.
     assert!(client.fetch_rate(TIMESTAMP1).await.is_err());
@@ -138,7 +139,7 @@ async fn eth_to_fri_rate_uses_prev_cache_when_query_not_ready() {
         lag_interval_seconds: LAG_INTERVAL_SECONDS,
         ..Default::default()
     };
-    let client = ExchangeRateOracleClient::new(config.clone());
+    let client = ExchangeRateOracleClient::new(config.clone(), ETH_TO_STRK_ORACLE_METRICS);
 
     // First request should fail because the cache is empty.
     assert!(client.fetch_rate(TIMESTAMP1).await.is_err());
@@ -199,7 +200,7 @@ async fn eth_to_fri_rate_two_urls() {
         lag_interval_seconds: LAG_INTERVAL_SECONDS,
         ..Default::default()
     };
-    let client = ExchangeRateOracleClient::new(config.clone());
+    let client = ExchangeRateOracleClient::new(config.clone(), ETH_TO_STRK_ORACLE_METRICS);
     // First request should fail because the cache is empty.
     assert!(client.fetch_rate(TIMESTAMP1).await.is_err());
     // Wait for the query to resolve.
@@ -246,7 +247,7 @@ async fn eth_to_fri_rate_non_success_status_code() {
         lag_interval_seconds: LAG_INTERVAL_SECONDS,
         ..Default::default()
     };
-    let client = ExchangeRateOracleClient::new(config);
+    let client = ExchangeRateOracleClient::new(config, ETH_TO_STRK_ORACLE_METRICS);
 
     // First call triggers the background query and returns QueryNotReadyError.
     assert!(matches!(
