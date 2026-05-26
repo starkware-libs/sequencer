@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::sync::Arc;
 
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
@@ -13,11 +14,12 @@ use apollo_gateway_types::gateway_types::{
     GatewayOutput,
     InvokeGatewayOutput,
 };
+use apollo_http_server_config::config::HttpServerDynamicConfig;
 use apollo_infra::component_client::ClientError;
 use apollo_proc_macros::unique_u16;
 use axum::body::Bytes;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
+use axum::{Extension, Json};
 use http::StatusCode;
 use http_body_util::BodyExt;
 use rstest::rstest;
@@ -26,10 +28,11 @@ use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, tx_hash};
 use starknet_types_core::felt::Felt;
+use tokio::sync::watch;
 use tracing_test::traced_test;
 
 use crate::errors::HttpServerError;
-use crate::http_server::CLIENT_REGION_HEADER;
+use crate::http_server::{is_ready, AppState, CLIENT_REGION_HEADER};
 use crate::test_utils::{
     deprecated_gateway_declare_tx,
     deprecated_gateway_deploy_account_tx,
@@ -109,6 +112,44 @@ async fn allow_new_txs() {
     let response = http_client.add_tx(tx.clone()).await;
     let status = response.status();
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{status:?}");
+}
+
+#[rstest]
+#[case::accepting_returns_ok(true, StatusCode::OK)]
+#[case::rejecting_returns_service_unavailable(false, StatusCode::SERVICE_UNAVAILABLE)]
+#[tokio::test]
+async fn is_ready_reflects_accept_new_txs(
+    #[case] accept_new_txs: bool,
+    #[case] expected_status: StatusCode,
+) {
+    let (_tx, dynamic_config_rx) =
+        watch::channel(HttpServerDynamicConfig { accept_new_txs, ..Default::default() });
+    let app_state =
+        AppState { gateway_client: Arc::new(MockGatewayClient::new()), dynamic_config_rx };
+
+    let (status, _body) = is_ready(Extension(app_state)).await;
+    assert_eq!(status, expected_status);
+}
+
+#[tokio::test]
+async fn is_ready_observes_dynamic_config_updates() {
+    let (tx, dynamic_config_rx) =
+        watch::channel(HttpServerDynamicConfig { accept_new_txs: true, ..Default::default() });
+    let app_state =
+        AppState { gateway_client: Arc::new(MockGatewayClient::new()), dynamic_config_rx };
+
+    // Clone AppState to mirror how axum's Extension extractor hands a clone to each request:
+    // updates to the watch channel must still be observed through the cloned receiver.
+    let (status, _) = is_ready(Extension(app_state.clone())).await;
+    assert_eq!(status, StatusCode::OK);
+
+    tx.send(HttpServerDynamicConfig { accept_new_txs: false, ..Default::default() }).unwrap();
+    let (status, _) = is_ready(Extension(app_state.clone())).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+
+    tx.send(HttpServerDynamicConfig { accept_new_txs: true, ..Default::default() }).unwrap();
+    let (status, _) = is_ready(Extension(app_state)).await;
+    assert_eq!(status, StatusCode::OK);
 }
 
 #[tokio::test]

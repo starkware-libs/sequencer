@@ -24,7 +24,7 @@ use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
 use axum::extract::DefaultBodyLimit;
 use axum::handler::Handler;
-use axum::http::HeaderMap;
+use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{get, post, MethodRouter};
 use axum::{serve, Extension, Json, Router};
 use blockifier_reexecution::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
@@ -139,10 +139,7 @@ impl HttpServer {
                 "/gateway/is_alive",
                 get(|| futures::future::ready("Gateway is alive".to_owned()))
             )
-            .route(
-                "/gateway/is_ready",
-                get(|| futures::future::ready("Gateway is ready".to_owned()))
-            )
+            .route("/gateway/is_ready", get(is_ready))
             .layer(Extension(self.app_state.clone()))
             // Hard streaming limit on decompressed bytes — wraps the body in
             // http_body_util::Limited which errors during poll_frame() once the
@@ -215,6 +212,15 @@ async fn add_tx(
     })?;
 
     add_tx_inner(app_state, headers, rpc_tx).await
+}
+
+async fn is_ready(Extension(app_state): Extension<AppState>) -> (StatusCode, &'static str) {
+    let HttpServerDynamicConfig { accept_new_txs, .. } = app_state.get_dynamic_config();
+    if accept_new_txs {
+        (StatusCode::OK, "Gateway is ready")
+    } else {
+        (StatusCode::SERVICE_UNAVAILABLE, "Gateway is not accepting new transactions")
+    }
 }
 
 fn check_new_transactions_are_allowed(accept_new_txs: bool) -> HttpServerResult<()> {
