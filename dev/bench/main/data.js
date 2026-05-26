@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779800589247,
+  "lastUpdate": 1779826805178,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4351,6 +4351,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1478.71302996,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1aefaa770fa8bb31f84baf52fba8138078cabc13",
+          "message": "release: upgrade cairo, native, proving-utils (#14200)",
+          "timestamp": "2026-05-26T19:52:30Z",
+          "tree_id": "5b9d4c6665412b7745195695640c900c7dbee15c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/1aefaa770fa8bb31f84baf52fba8138078cabc13"
+        },
+        "date": 1779826804711,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 869.3603992000001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1314.41441523,
             "unit": "ms"
           }
         ]
