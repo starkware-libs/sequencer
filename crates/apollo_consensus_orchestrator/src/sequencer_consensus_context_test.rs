@@ -94,7 +94,7 @@ fn expected_l2_gas_info_for_build_proposal_defaults() -> L2GasInfo {
         l2_gas_used: GasAmount(0),
     }
 }
-use crate::snip35::{compute_fee_actual, FEE_PROPOSAL_WINDOW_SIZE};
+use crate::snip35::compute_fee_actual;
 use crate::utils::{apply_fee_transformations, make_gas_price_params};
 
 static TEST_PROPOSAL_COMMITMENT: LazyLock<ProposalCommitment> = LazyLock::new(|| {
@@ -1558,10 +1558,10 @@ fn window_of(heights: impl IntoIterator<Item = u64>) -> BTreeMap<BlockNumber, Op
 }
 
 #[rstest]
-// FEE_PROPOSAL_WINDOW_SIZE = 10, prune at 110: cutoff = 100, keep heights >= 100.
+// fee_proposal_window_size = 10, prune at 110: cutoff = 100, keep heights >= 100.
 #[case::drops_entries_below_cutoff(window_of(90..=110), BlockNumber(110), window_of(100..=110))]
 #[case::empty_when_all_entries_below_cutoff(window_of([50, 60, 70]), BlockNumber(200), window_of([]))]
-// `current_height < FEE_PROPOSAL_WINDOW_SIZE`: cutoff would underflow; saturating_sub clamps
+// `current_height < fee_proposal_window_size`: cutoff would underflow; saturating_sub clamps
 // to 0, so every entry is retained.
 #[case::saturates_at_zero_when_height_below_window(window_of(0..=2), BlockNumber(5), window_of(0..=2))]
 #[case::no_op_when_all_entries_within_window(window_of(105..=110), BlockNumber(110), window_of(105..=110))]
@@ -1726,7 +1726,7 @@ async fn test_compute_snip35_fee_proposal_converges_to_oracle_target() {
     let mut context = deps.build_context();
 
     // Bootstrap the window with 75 gwei (the $0.04 target).
-    let window_size = u64::try_from(FEE_PROPOSAL_WINDOW_SIZE).unwrap();
+    let window_size = VersionedConstants::latest_constants().fee_proposal_window_size;
     for h in 0..window_size {
         context.record_fee_proposal(BlockNumber(h), Some(GasPrice(75_000_000_000)));
     }
@@ -1735,14 +1735,14 @@ async fn test_compute_snip35_fee_proposal_converges_to_oracle_target() {
     for (phase_idx, (_, fee_target, n_blocks)) in phases.into_iter().enumerate() {
         for _ in 0..n_blocks {
             let h = BlockNumber(height);
-            let fee_actual = compute_fee_actual(&context.fee_proposals_window, h)
+            let fee_actual = compute_fee_actual(&context.fee_proposals_window, h, window_size)
                 .expect("window stays complete across the loop");
             let proposal = context.compute_snip35_fee_proposal(Some(fee_actual), 0).await;
             context.record_fee_proposal(h, Some(proposal));
             height += 1;
         }
         let final_fee_actual =
-            compute_fee_actual(&context.fee_proposals_window, BlockNumber(height))
+            compute_fee_actual(&context.fee_proposals_window, BlockNumber(height), window_size)
                 .expect("window stays complete across the loop");
         assert_eq!(
             final_fee_actual, fee_target,

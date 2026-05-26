@@ -24,6 +24,10 @@ pub struct VersionedConstants {
     /// The margin for the eth to fri rate disagreement, expressed as a percentage (parts per
     /// hundred).
     pub l1_gas_price_margin_percent: u32,
+    /// SNIP-35: number of `fee_proposal` values used to compute `fee_actual` (sliding window).
+    pub fee_proposal_window_size: u64,
+    /// SNIP-35: maximum `fee_proposal` change per block in parts per thousand (e.g., `2` = 0.2%).
+    pub fee_proposal_margin_ppt: u128,
 }
 
 define_versioned_constants!(

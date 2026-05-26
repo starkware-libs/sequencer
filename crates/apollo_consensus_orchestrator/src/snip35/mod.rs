@@ -44,41 +44,33 @@ const FRI_DECIMALS_SCALE: u128 = 10u128.pow(18);
 /// Denominator for parts-per-thousand calculations in SNIP-35 fee_proposal bounds.
 pub(crate) const PPT_DENOMINATOR: u128 = 1000;
 
-/// Number of fee_proposal values used to compute fee_actual (SNIP-35).
-// TODO(AndrewL): consider moving this to versioned constants.
-pub(crate) const FEE_PROPOSAL_WINDOW_SIZE: usize = 10;
-
-/// Maximum fee_proposal change per block in parts per thousand (SNIP-35: 0.2%).
-// TODO(AndrewL): consider moving this to versioned constants.
-pub(crate) const FEE_PROPOSAL_MARGIN_PPT: u128 = 2;
-
 /// Target USD cost per L2 gas unit in atto-USD ($3e-9 = 3_000_000_000 atto-USD).
 // TODO(AndrewL): consider moving this to a dynamic config.
 pub(crate) const TARGET_ATTO_USD_PER_L2_GAS: u128 = 3_000_000_000;
 
 /// Compute fee_actual for `height` as the median of the `fee_proposal` values
-/// recorded for heights `[height - FEE_PROPOSAL_WINDOW_SIZE, height - 1]` (SNIP-35).
+/// recorded for heights `[height - window_size, height - 1]` (SNIP-35).
 ///
 /// Returns `None` (after logging a warning) when any of those heights is missing from
 /// `fee_proposals_window` or recorded as `None` (e.g., pre-SNIP-35 blocks). The `None`
 /// case triggers the `l2_gas_price` fallback in both proposer and validator paths.
 ///
-/// Median rule for even `FEE_PROPOSAL_WINDOW_SIZE`: average of the two middle values
-/// rounded down; for odd: the single middle value.
+/// Median rule for even `window_size`: average of the two middle values rounded down;
+/// for odd: the single middle value.
 pub fn compute_fee_actual(
     fee_proposals_window: &BTreeMap<BlockNumber, Option<GasPrice>>,
     height: BlockNumber,
+    window_size: u64,
 ) -> Option<GasPrice> {
-    let window_size =
-        u64::try_from(FEE_PROPOSAL_WINDOW_SIZE).expect("FEE_PROPOSAL_WINDOW_SIZE fits in u64");
     let Some(start) = height.0.checked_sub(window_size) else {
         warn!(
-            "Cannot compute fee_actual for height {height}: height is below \
-             FEE_PROPOSAL_WINDOW_SIZE ({FEE_PROPOSAL_WINDOW_SIZE})"
+            "Cannot compute fee_actual for height {height}: height is below window_size \
+             ({window_size})"
         );
         return None;
     };
-    let mut window = Vec::with_capacity(FEE_PROPOSAL_WINDOW_SIZE);
+    let window_size_usize = usize::try_from(window_size).expect("window_size fits in usize");
+    let mut window = Vec::with_capacity(window_size_usize);
     for source_height in (start..height.0).map(BlockNumber) {
         match fee_proposals_window.get(&source_height) {
             Some(Some(price)) => window.push(*price),
@@ -92,8 +84,8 @@ pub fn compute_fee_actual(
         }
     }
     window.sort();
-    let mid = FEE_PROPOSAL_WINDOW_SIZE / 2;
-    let median = if FEE_PROPOSAL_WINDOW_SIZE.is_multiple_of(2) {
+    let mid = window_size_usize / 2;
+    let median = if window_size_usize.is_multiple_of(2) {
         // Even: average of the two middle values, rounded down.
         // Overflow-safe averaging: a + (b - a) / 2 (safe because sorted, so b >= a).
         GasPrice(window[mid - 1].0 + (window[mid].0 - window[mid - 1].0) / 2)

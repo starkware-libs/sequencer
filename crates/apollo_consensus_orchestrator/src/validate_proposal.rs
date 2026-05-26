@@ -42,7 +42,7 @@ use crate::metrics::{
     CONSENSUS_PROPOSAL_FIN_MISMATCH,
 };
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
-use crate::snip35::{fee_proposal_bounds, proposal_commitment_from, FEE_PROPOSAL_MARGIN_PPT};
+use crate::snip35::{fee_proposal_bounds, proposal_commitment_from};
 use crate::utils::{
     convert_to_sn_api_block_info,
     get_l1_prices_in_fri_and_wei,
@@ -79,7 +79,7 @@ pub(crate) struct ProposalInitValidation {
     pub l2_gas_price_fri: GasPrice,
     pub starknet_version: StarknetVersion,
     /// SNIP-35: fee_actual from the sliding window. `None` until the window has accumulated
-    /// `FEE_PROPOSAL_WINDOW_SIZE` entries (startup / near-genesis).
+    /// `fee_proposal_window_size` entries (startup / near-genesis).
     pub fee_actual: Option<GasPrice>,
 }
 
@@ -381,7 +381,10 @@ async fn is_proposal_init_valid(
     if let (Some(fee_actual), Some(fee_proposal)) =
         (proposal_init_validation.fee_actual, init_proposed.fee_proposal_fri)
     {
-        let (lower_bound, upper_bound) = fee_proposal_bounds(fee_actual, FEE_PROPOSAL_MARGIN_PPT);
+        let (lower_bound, upper_bound) = fee_proposal_bounds(
+            fee_actual,
+            VersionedConstants::latest_constants().fee_proposal_margin_ppt,
+        );
         if fee_proposal.0 < lower_bound || fee_proposal.0 > upper_bound {
             return Err(ValidateProposalError::InvalidProposalInit(
                 init_proposed.clone(),
