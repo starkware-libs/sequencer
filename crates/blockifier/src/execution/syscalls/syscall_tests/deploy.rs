@@ -52,7 +52,7 @@ fn no_constructor(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 156240,
+            gas_consumed: 155470,
         }
     "#]]
     .assert_debug_eq(&deploy_call.execution);
@@ -136,7 +136,7 @@ fn with_constructor(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 233890,
+            gas_consumed: 232350,
         }
     "#]]
     .assert_debug_eq(&deploy_call.execution);
@@ -156,7 +156,7 @@ fn with_constructor(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 64410,
+            gas_consumed: 63640,
         }
     "#]]
     .assert_debug_eq(&constructor_call.execution);
