@@ -69,7 +69,7 @@
     "StatelessHint": "FillHolesInRc96Segment"
   },
   {
-    "StatelessHint": "Sha2Finalize"
+    "StatelessHint": "Sha256Finalize"
   },
   {
     "StatelessHint": "Sha512Finalize"

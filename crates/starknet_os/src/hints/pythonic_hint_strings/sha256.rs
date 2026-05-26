@@ -1,6 +1,6 @@
 use indoc::indoc;
 
-pub(crate) const SHA2_FINALIZE: &str = indoc! {r#"# Add dummy pairs of input and output.
+pub(crate) const SHA256_FINALIZE: &str = indoc! {r#"# Add dummy pairs of input and output.
 from starkware.cairo.common.cairo_sha256.sha256_utils import (
     IV,
     compute_message_schedule,

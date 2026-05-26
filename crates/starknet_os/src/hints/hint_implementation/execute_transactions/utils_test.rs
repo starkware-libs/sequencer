@@ -2,11 +2,11 @@ use cairo_vm::types::relocatable::MaybeRelocatable;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
-use super::{calculate_padding, calculate_sha512_padding, SHA512_IV};
+use super::{calculate_sha256_padding, calculate_sha512_padding, SHA512_IV};
 use crate::hints::hint_implementation::execute_transactions::utils::N_MISSING_BLOCKS_BOUND;
 
 #[rstest]
-fn test_calculate_padding(
+fn test_calculate_sha256_padding(
     #[values(3, 1, 0, N_MISSING_BLOCKS_BOUND - 1)] number_of_missing_blocks: u32,
 ) {
     // The expected single padding is independent of the number of missing blocks.
@@ -21,7 +21,7 @@ fn test_calculate_padding(
     let expected_padding: Vec<_> =
         (0..number_of_missing_blocks).flat_map(|_| expected_single_padding.clone()).collect();
     let sha256_input_chunk_size_felts = 16;
-    let padding = calculate_padding(sha256_input_chunk_size_felts, number_of_missing_blocks);
+    let padding = calculate_sha256_padding(sha256_input_chunk_size_felts, number_of_missing_blocks);
     assert_eq!(padding, expected_padding);
 }
 

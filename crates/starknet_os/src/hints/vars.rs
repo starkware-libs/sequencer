@@ -360,7 +360,7 @@ define_string_enum! {
         ),
         (MerkleHeight, "starkware.starknet.core.os.state.commitment.MERKLE_HEIGHT"),
         (NUpdatesSmallPackingBound, "starkware.starknet.core.os.state.output.N_UPDATES_SMALL_PACKING_BOUND"),
-        (ShaBatchSize, "starkware.cairo.common.cairo_sha256.sha256_utils.BATCH_SIZE"),
+        (Sha256BatchSize, "starkware.cairo.common.cairo_sha256.sha256_utils.BATCH_SIZE"),
         (Sha256InputChunkSize, "starkware.cairo.common.cairo_sha256.sha256_utils.SHA256_INPUT_CHUNK_SIZE_FELTS"),
         (Sha512BatchSize, "starkware.cairo.common.cairo_sha512.sha512_utils.BATCH_SIZE"),
         (Sha512InputChunkSize, "starkware.cairo.common.cairo_sha512.sha512_utils.SHA512_INPUT_CHUNK_SIZE_FELTS"),

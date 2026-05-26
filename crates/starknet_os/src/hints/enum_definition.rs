@@ -66,7 +66,7 @@ use crate::hints::hint_implementation::execute_transactions::implementation::{
     segments_add,
     segments_add_temp_initial_txs_range_check_ptr,
     set_component_hashes,
-    sha2_finalize,
+    sha256_finalize,
     sha512_finalize,
     skip_tx,
     start_tx,
@@ -273,7 +273,7 @@ use crate::hints::pythonic_hint_strings::patricia::{
 };
 use crate::hints::pythonic_hint_strings::secp::IS_ON_CURVE;
 use crate::hints::pythonic_hint_strings::segment_arena::SEGMENTS_ADD;
-use crate::hints::pythonic_hint_strings::sha256::SHA2_FINALIZE;
+use crate::hints::pythonic_hint_strings::sha256::SHA256_FINALIZE;
 use crate::hints::pythonic_hint_strings::sha512::SHA512_FINALIZE;
 use crate::hints::types::{HintContext, HintEnum};
 use crate::{
@@ -413,7 +413,7 @@ define_stateless_hint_enum!(
     (SegmentsAdd, segments_add, SEGMENTS_ADD),
     (LogRemainingTxs, log_remaining_txs),
     (FillHolesInRc96Segment, fill_holes_in_rc96_segment),
-    (Sha2Finalize, sha2_finalize, SHA2_FINALIZE),
+    (Sha256Finalize, sha256_finalize, SHA256_FINALIZE),
     (Sha512Finalize, sha512_finalize, SHA512_FINALIZE),
     (EnterScopeDeprecatedSyscallHandler, enter_scope_deprecated_syscall_handler),
     (EnterScopeSyscallHandler, enter_scope_syscall_handler),
