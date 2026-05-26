@@ -432,6 +432,56 @@
             "snip35_strk_usd_rate{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e18"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "SNIP-35 STRK/USD Rate Query Success (binary)",
+          "description": "Indicates whether the STRK→USD rate query succeeded (1m window)",
+          "type": "timeseries",
+          "exprs": [
+            "changes(snip35_strk_usd_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])"
+          ],
+          "extra_params": {
+            "log_query": "\"Caching conversion rate for timestamp\""
+          }
+        },
+        {
+          "title": "SNIP-35 STRK/USD Rate Query Error Count",
+          "description": "The number of times the STRK→USD rate query failed (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(snip35_strk_usd_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {
+            "log_query": "\"Failed to resolve query to\" OR \"Timeout when resolving query to\" OR \"Query failed to join handle for timestamp\""
+          }
+        },
+        {
+          "title": "Seconds Since Last Successful STRK→USD Rate Update",
+          "description": "The number of seconds since the last successful STRK→USD rate update (assuming there was an update in the last 12 hours).",
+          "type": "timeseries",
+          "exprs": [
+            "time() - max(last_over_time(snip35_strk_usd_last_success_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h]))"
+          ],
+          "extra_params": {
+            "unit": "s",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1200.0
+                },
+                {
+                  "color": "red",
+                  "value": 1800.0
+                }
+              ]
+            }
+          }
         }
       ],
       "collapsed": true

@@ -59,7 +59,12 @@ use apollo_consensus_orchestrator::metrics::{
     SNIP35_FEE_ACTUAL,
     SNIP35_FEE_PROPOSAL,
     SNIP35_FEE_TARGET,
+};
+use apollo_l1_gas_price::metrics::{
+    SNIP35_STRK_USD_ERROR_COUNT,
+    SNIP35_STRK_USD_LAST_SUCCESS_TIMESTAMP_SECONDS,
     SNIP35_STRK_USD_RATE,
+    SNIP35_STRK_USD_SUCCESS_COUNT,
 };
 use apollo_metrics::metrics::MetricQueryName;
 use apollo_network::metrics::{LABEL_NAME_BROADCAST_DROP_REASON, LABEL_NAME_EVENT_TYPE};
@@ -70,6 +75,7 @@ use crate::dashboard::Row;
 use crate::panel::{traffic_light_thresholds, Panel, PanelType, Unit};
 use crate::query_builder::{
     increase,
+    seconds_since_last_timestamp,
     sum_by_label,
     DisplayMethod,
     DEFAULT_DURATION,
@@ -751,6 +757,41 @@ fn get_panel_snip35_strk_usd_rate() -> Panel {
     )
 }
 
+fn get_panel_snip35_strk_usd_error_count() -> Panel {
+    Panel::new(
+        "SNIP-35 STRK/USD Rate Query Error Count",
+        format!("The number of times the STRK→USD rate query failed ({DEFAULT_DURATION} window)"),
+        increase(&SNIP35_STRK_USD_ERROR_COUNT, DEFAULT_DURATION),
+        PanelType::TimeSeries,
+    )
+    .with_log_query(
+        "\"Failed to resolve query to\" OR \"Timeout when resolving query to\" OR \"Query failed \
+         to join handle for timestamp\"",
+    )
+}
+
+fn get_panel_snip35_strk_usd_success_count() -> Panel {
+    Panel::new(
+        "SNIP-35 STRK/USD Rate Query Success (binary)",
+        "Indicates whether the STRK→USD rate query succeeded (1m window)",
+        format!("changes({}[1m])", SNIP35_STRK_USD_SUCCESS_COUNT.get_name_with_filter()),
+        PanelType::TimeSeries,
+    )
+    .with_log_query("Caching conversion rate for timestamp")
+}
+
+fn get_panel_snip35_strk_usd_seconds_since_last_successful_update() -> Panel {
+    Panel::new(
+        "Seconds Since Last Successful STRK→USD Rate Update",
+        "The number of seconds since the last successful STRK→USD rate update (assuming there was \
+         an update in the last 12 hours).",
+        seconds_since_last_timestamp(&SNIP35_STRK_USD_LAST_SUCCESS_TIMESTAMP_SECONDS),
+        PanelType::TimeSeries,
+    )
+    .with_unit(Unit::Seconds)
+    .with_absolute_thresholds(traffic_light_thresholds(1200.0, 1800.0))
+}
+
 pub(crate) fn get_snip35_row() -> Row {
     Row::new(
         "SNIP-35",
@@ -759,6 +800,9 @@ pub(crate) fn get_snip35_row() -> Row {
             get_panel_snip35_fee_proposal(),
             get_panel_snip35_fee_target(),
             get_panel_snip35_strk_usd_rate(),
+            get_panel_snip35_strk_usd_success_count(),
+            get_panel_snip35_strk_usd_error_count(),
+            get_panel_snip35_strk_usd_seconds_since_last_successful_update(),
         ],
     )
 }

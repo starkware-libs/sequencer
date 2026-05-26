@@ -19,6 +19,7 @@ use tracing::{info, trace, warn};
 use crate::exchange_rate_oracle::ExchangeRateOracleClient;
 use crate::metrics::{
     register_provider_metrics,
+    ETH_TO_STRK_ORACLE_METRICS,
     L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
     L1_GAS_PRICE_LATEST_MEAN_VALUE,
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
@@ -70,8 +71,10 @@ impl L1GasPriceProvider {
     }
 
     pub fn new_with_oracle(config: L1GasPriceProviderConfig) -> Self {
-        let eth_to_strk_oracle_client =
-            ExchangeRateOracleClient::new(config.eth_to_strk_oracle_config.clone());
+        let eth_to_strk_oracle_client = ExchangeRateOracleClient::new(
+            config.eth_to_strk_oracle_config.clone(),
+            ETH_TO_STRK_ORACLE_METRICS,
+        );
         Self::new(config, Arc::new(eth_to_strk_oracle_client))
     }
 
