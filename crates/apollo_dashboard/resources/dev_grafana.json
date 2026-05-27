@@ -1590,6 +1590,15 @@
           "extra_params": {}
         },
         {
+          "title": "L1 Handler Tx Scrape Rate (per minute)",
+          "description": "Number of unique L1 handler transactions scraped from L1 over the last 1m window",
+          "type": "timeseries",
+          "exprs": [
+            "increase(l1_message_scraper_l1_handler_tx_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "L1 Message Scraper Success Count",
           "description": "The increase in the number of times the L1 message scraper successfully scraped messages (10m window)",
           "type": "timeseries",
