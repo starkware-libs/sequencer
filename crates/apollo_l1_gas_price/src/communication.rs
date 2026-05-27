@@ -32,6 +32,9 @@ impl ComponentRequestHandler<L1GasPriceRequest, L1GasPriceResponse> for L1GasPri
             L1GasPriceRequest::GetEthToFriRate(timestamp) => {
                 L1GasPriceResponse::GetEthToFriRate(self.eth_to_fri_rate(timestamp).await)
             }
+            L1GasPriceRequest::GetStrkToUsdRate(timestamp) => {
+                L1GasPriceResponse::GetStrkToUsdRate(self.strk_to_usd_rate(timestamp).await)
+            }
         }
     }
 }
