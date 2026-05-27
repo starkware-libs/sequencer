@@ -9,6 +9,8 @@ use tracing::{debug, warn};
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{
     contract_address_into_node_index,
+    skeleton_storage_updates,
+    skeleton_trie_updates,
     Input,
     StarknetStorageValue,
     StateDiff,
@@ -73,7 +75,8 @@ pub async fn commit_block<Reader: ForestReader + Send, M: MeasurementsTrait + Se
         original_contracts_trie_leaves,
         actual_storage_updates,
         actual_classes_updates,
-        &input.state_diff,
+        &input.state_diff.address_to_class_hash,
+        &input.state_diff.address_to_nonce,
         measurements,
     )
     .await
@@ -123,7 +126,8 @@ async fn compute_updated_forest<M: MeasurementsTrait + Send>(
     original_contracts_trie_leaves: HashMap<NodeIndex, ContractState>,
     actual_storage_updates: HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
     actual_classes_updates: LeafModifications<CompiledClassHash>,
-    state_diff: &StateDiff,
+    address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
+    address_to_nonce: &HashMap<ContractAddress, Nonce>,
     measurements: &mut M,
 ) -> BlockCommitmentResult<(FilledForest, DeletedNodes)> {
     measurements.start_measurement(Action::Compute);
@@ -131,11 +135,11 @@ async fn compute_updated_forest<M: MeasurementsTrait + Send>(
     // Compute the new topology.
     let updated_forest = UpdatedSkeletonForest::create(
         &original_forest,
-        &state_diff.skeleton_classes_updates(),
-        &state_diff.skeleton_storage_updates(),
+        &skeleton_trie_updates(&actual_classes_updates),
+        &skeleton_storage_updates(&actual_storage_updates),
         &original_contracts_trie_leaves,
-        &state_diff.address_to_class_hash,
-        &state_diff.address_to_nonce,
+        address_to_class_hash,
+        address_to_nonce,
     )?;
     debug!("Updated skeleton forest created successfully.");
 
@@ -154,8 +158,8 @@ async fn compute_updated_forest<M: MeasurementsTrait + Send>(
         actual_storage_updates,
         actual_classes_updates,
         &original_contracts_trie_leaves,
-        &state_diff.address_to_class_hash,
-        &state_diff.address_to_nonce,
+        address_to_class_hash,
+        address_to_nonce,
     )
     .await?;
     measurements.attempt_to_stop_measurement(Action::Compute, 0).ok();
