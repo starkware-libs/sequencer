@@ -47,3 +47,41 @@ config:
     state_sync_config.static_config.p2p_sync_client_config.#is_none: true
     state_sync_config.static_config.rpc_config.port: 8090
     state_sync_config.static_config.storage_reader_server_static_config.port: 55012
+service:
+  ports:
+  - name: batcher
+    port: 55000
+    targetPort: 55000
+    protocol: TCP
+  - name: batcher-storage-reader
+    port: 55011
+    targetPort: 55011
+    protocol: TCP
+  - name: class-manager
+    port: 55001
+    targetPort: 55001
+    protocol: TCP
+  - name: class-manager-storage-reader
+    port: 55210
+    targetPort: 55210
+    protocol: TCP
+  - name: consensus-p2p
+    port: 53080
+    targetPort: 53080
+    protocol: TCP
+  - name: signature-manager
+    port: 55008
+    targetPort: 55008
+    protocol: TCP
+  - name: state-sync-network
+    port: 55010
+    targetPort: 55010
+    protocol: TCP
+  - name: state-sync-rpc
+    port: 55009
+    targetPort: 55009
+    protocol: TCP
+  - name: state-sync-storage-reader
+    port: 55012
+    targetPort: 55012
+    protocol: TCP
