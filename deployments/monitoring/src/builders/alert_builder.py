@@ -318,7 +318,6 @@ def alert_builder(args: argparse.Namespace):
                 datasource_uid=args.datasource_uid,
                 labels={
                     "og_priority": dev_alert["severity"],
-                    "observer_applicable": dev_alert["observer_applicable"],
                 },
             )
         )
