@@ -3,6 +3,7 @@
 mod OsResourcesTestContract {
     use box::BoxTrait;
     use core::sha256::{SHA256_INITIAL_STATE, sha256_state_handle_init};
+    use core::sha512::compute_sha512_u64_array;
     use starknet::info::SyscallResultTrait;
     use starknet::secp256_trait::Secp256Trait;
     use starknet::secp256k1::{
@@ -144,6 +145,10 @@ mod OsResourcesTestContract {
         let mut input = BoxTrait::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
         let mut state = sha256_state_handle_init(BoxTrait::new(SHA256_INITIAL_STATE));
         let _ = sha256_process_block_syscall(state, input).unwrap_syscall();
+
+        // sha512. sha512_state_handle_init is pub(crate) in 2.19.0-rc.3, so call the public
+        // high-level API which internally invokes sha512_process_block_syscall once.
+        compute_sha512_u64_array(array![], 0, 0);
 
         // replace class syscall.
         replace_class_syscall(stable_class_hash).unwrap_syscall();
