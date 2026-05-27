@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use apollo_consensus_orchestrator_config::config::DEFAULT_SNIP35_TARGET_ATTO_USD_PER_L2_GAS;
 use apollo_versioned_constants::VersionedConstants;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
@@ -13,7 +14,6 @@ use crate::dynamic_gas_price::{
     compute_fee_target,
     FeeProposalInfo,
     PPT_DENOMINATOR,
-    TARGET_ATTO_USD_PER_L2_GAS,
 };
 
 const TEST_FEE_PROPOSAL_WINDOW_SIZE: u64 = 10;
@@ -228,7 +228,7 @@ fn test_honest_proposer_always_passes_validation_fuzzed() {
         let fee_actual_value = rng.gen_range(1u128..1_000_000_000_000_000_000);
         let strk_usd_rate = rng.gen_range(1u128..2 * 10u128.pow(18));
         let fee_actual = GasPrice(fee_actual_value);
-        let target = compute_fee_target(TARGET_ATTO_USD_PER_L2_GAS, strk_usd_rate);
+        let target = compute_fee_target(DEFAULT_SNIP35_TARGET_ATTO_USD_PER_L2_GAS, strk_usd_rate);
         let oracle_result = if rng.gen_bool(0.1) { None } else { target };
         let proposal = compute_fee_proposal(oracle_result, fee_actual, margin_ppt);
         assert!(

@@ -44,6 +44,7 @@
   "consensus_manager_config.context_config.dynamic_config.max_l1_gas_price_wei": 1000000000000,
   "consensus_manager_config.context_config.dynamic_config.min_l1_data_gas_price_wei": 1,
   "consensus_manager_config.context_config.dynamic_config.min_l1_gas_price_wei": 1000000000,
+  "consensus_manager_config.context_config.dynamic_config.snip35_target_atto_usd_per_l2_gas": 880000000,
   "consensus_manager_config.context_config.static_config.proposal_buffer_size": 512,
   "consensus_manager_config.context_config.static_config.retrospective_block_hash_retry_interval_millis": 500,
   "consensus_manager_config.context_config.static_config.validate_proposal_margin_millis": 10000,
