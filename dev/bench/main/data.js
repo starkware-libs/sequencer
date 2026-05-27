@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779868959692,
+  "lastUpdate": 1779870936482,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4487,6 +4487,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1359.5587200999998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a2ea4e1f7f69a1f847b7a8e84384769f8240f7db",
+          "message": "starknet_committer: add utility that returns sorted leaf indices (#13992)",
+          "timestamp": "2026-05-27T08:16:41Z",
+          "tree_id": "b79a1d3912b0cd1ddf1b2533e6738b1fc397091a",
+          "url": "https://github.com/starkware-libs/sequencer/commit/a2ea4e1f7f69a1f847b7a8e84384769f8240f7db"
+        },
+        "date": 1779870936078,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 925.28920881,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1370.86922,
             "unit": "ms"
           }
         ]
