@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779870936482,
+  "lastUpdate": 1779890625216,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4521,6 +4521,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1370.86922,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0acd722dadbe0d72c311a9f2f44797c263b03dfa",
+          "message": "apollo_consensus_orchestrator: add SNIP-35 proposer-validator symmetry tests (#13856)",
+          "timestamp": "2026-05-27T13:49:49Z",
+          "tree_id": "dd191567e0505719878599960296a2d9fdb0ce24",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0acd722dadbe0d72c311a9f2f44797c263b03dfa"
+        },
+        "date": 1779890624664,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 898.93833502,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1454.20668637,
             "unit": "ms"
           }
         ]
