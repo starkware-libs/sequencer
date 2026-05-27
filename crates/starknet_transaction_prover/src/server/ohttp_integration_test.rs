@@ -30,11 +30,12 @@ use tower_ohttp::test_utils::{
 };
 use tower_ohttp::OhttpLayer;
 
+use crate::server::request_log::{RequestLogLayer, REQUEST_ID_HEADER};
+use crate::server::request_span::RequestSpanLayer;
+
 const DEFAULT_BODY_LIMIT: usize = 102_400;
 const KEY_CACHE_SECS: u64 = 3600;
 
-/// Body builder for jsonrpsee's `HttpBody`. Returned as a `fn` pointer to
-/// give `OhttpLayer` a sized, `Copy` closure type without an `as` cast.
 fn body_builder() -> fn(Full<bytes::Bytes>) -> HttpBody {
     HttpBody::new
 }
@@ -95,12 +96,15 @@ async fn production_chain_compresses_inner_not_outer() {
     let ohttp_layer =
         OhttpLayer::new(gateway.clone(), DEFAULT_BODY_LIMIT, KEY_CACHE_SECS, body_builder());
 
-    // Replicates the production ServiceBuilder chain from `server.rs`/`tls.rs`.
-    // Must be kept in sync with those files.
+    // Replicates the OHTTP body-handling portion of the production chain in
+    // `server.rs`/`tls.rs` (the outermost observability layers — request log,
+    // health, metrics — don't affect body/compression handling and are
+    // omitted). `RequestSpanLayer` is included since it sits inside OHTTP.
     let mut svc = tower::ServiceBuilder::new()
         .option_layer(None::<CorsLayer>)
         .layer(MapRequestBodyLayer::new(HttpBody::new))
         .option_layer(Some(ohttp_layer))
+        .layer(RequestSpanLayer)
         .layer(MapResponseBodyLayer::new(HttpBody::new))
         .layer(CompressionLayer::new())
         .service(tower::service_fn(jsonrpsee_echo_service));
@@ -175,4 +179,76 @@ async fn non_ohttp_request_passes_through_jsonrpsee() {
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
     assert_eq!(body.as_ref(), json_body);
+}
+
+/// End-to-end OHTTP unlinkability: the request-id echoed on the OUTER
+/// (relay-visible) response must differ from the fresh id bound to the
+/// decapsulated inner dispatch, and the client-supplied inner id must be
+/// discarded — so no shared key links the relay's view to the gateway's.
+/// Exercises the real decapsulation path through
+/// `RequestLogLayer → OhttpLayer → RequestSpanLayer`.
+#[tokio::test]
+async fn ohttp_inner_request_id_unlinkable_from_envelope() {
+    let gateway = test_gateway();
+    let ohttp_layer =
+        OhttpLayer::new(gateway.clone(), DEFAULT_BODY_LIMIT, KEY_CACHE_SECS, body_builder());
+
+    // Inner service echoes the request-id it observes into the response body.
+    let echo_id = tower::service_fn(|req: http::Request<HttpBody>| async move {
+        let id = req.headers().get(REQUEST_ID_HEADER).map(|v| v.to_str().unwrap()).unwrap_or("");
+        Ok::<_, BoxError>(
+            http::Response::builder()
+                .status(http::StatusCode::OK)
+                .body(HttpBody::from(id.as_bytes().to_vec()))
+                .unwrap(),
+        )
+    });
+
+    let mut svc = tower::ServiceBuilder::new()
+        .layer(RequestLogLayer)
+        .layer(MapRequestBodyLayer::new(HttpBody::new))
+        .option_layer(Some(ohttp_layer))
+        .layer(RequestSpanLayer)
+        .layer(MapResponseBodyLayer::new(HttpBody::new))
+        .service(echo_id);
+
+    // The envelope carries a client-chosen inner id that must be discarded.
+    let (encapsulated, client_response) = encapsulate_bhttp_request(
+        &gateway,
+        "POST",
+        "/",
+        b"",
+        &[("x-request-id", b"inner-client-id")],
+    );
+
+    // The outer envelope request carries the relay-visible id.
+    let mut outer = ohttp_http_request(encapsulated);
+    outer
+        .headers_mut()
+        .insert(REQUEST_ID_HEADER, http::HeaderValue::from_static("envelope-relay-id"));
+
+    let response = svc.call(outer).await.unwrap();
+
+    // The outer (relay-visible) response echoes the envelope id.
+    let envelope_id =
+        response.headers().get(REQUEST_ID_HEADER).unwrap().to_str().unwrap().to_owned();
+    assert_eq!(envelope_id, "envelope-relay-id");
+
+    let encrypted_body = response.into_body().collect().await.unwrap().to_bytes();
+    let decapsulated = decapsulate_bhttp_response(client_response, &encrypted_body);
+    assert_eq!(decapsulated.status, 200);
+    let inner_id = String::from_utf8(decapsulated.body).expect("utf8 inner id");
+
+    assert_ne!(inner_id, envelope_id, "inner id must not equal the relay-visible envelope id");
+    assert_ne!(inner_id, "inner-client-id", "client-supplied inner id must be discarded");
+    assert!(
+        uuid::Uuid::parse_str(&inner_id).is_ok(),
+        "inner id must be a fresh UUID, got {inner_id:?}"
+    );
+    // No id is set on the inner *response*, so nothing — neither the envelope
+    // id nor the fresh content id — leaks into the encrypted reply's headers.
+    assert!(
+        decapsulated.bhttp_message.header().get(b"x-request-id").is_none(),
+        "inner OHTTP response must not carry an x-request-id header"
+    );
 }
