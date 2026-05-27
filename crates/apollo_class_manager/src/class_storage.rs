@@ -448,32 +448,6 @@ impl FsClassStorage {
             .set_executable_class_hash_v2(class_id, executable_class_hash_v2)?)
     }
 
-    #[allow(dead_code)]
-    fn write_class(
-        &self,
-        class_id: ClassId,
-        class: RawClass,
-        executable_class: RawExecutableClass,
-    ) -> FsClassStorageResult<()> {
-        let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
-        class.write_to_file(concat_sierra_filename(&persistent_dir))?;
-        executable_class.write_to_file(concat_executable_filename(&persistent_dir))?;
-
-        Ok(())
-    }
-
-    #[allow(dead_code)]
-    fn write_deprecated_class(
-        &self,
-        class_id: ClassId,
-        class: RawExecutableClass,
-    ) -> FsClassStorageResult<()> {
-        let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
-        class.write_to_file(concat_deprecated_executable_filename(&persistent_dir))?;
-
-        Ok(())
-    }
-
     fn write_class_atomically(
         &self,
         class_id: ClassId,
