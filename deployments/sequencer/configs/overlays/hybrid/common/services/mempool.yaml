@@ -11,3 +11,13 @@ config:
     components.proof_manager.port: 55012
     components.proof_manager.url: sequencer-core-service
     mempool_config.dynamic_config.transaction_ttl: 300
+service:
+  ports:
+  - name: mempool
+    port: 55006
+    targetPort: 55006
+    protocol: TCP
+  - name: mempool-p2p-config
+    port: 53200
+    targetPort: 53200
+    protocol: TCP
