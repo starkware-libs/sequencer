@@ -36,7 +36,7 @@ impl Migratable for StorageBlockHeader {
     }
 }
 
-/// Pre-SNIP-35 layout of [`StorageBlockHeader`] without `fee_proposal_fri`.
+/// Pre-V0_14_3 layout of [`StorageBlockHeader`] without `fee_proposal_fri`.
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub(crate) struct StorageBlockHeaderV0 {
     pub block_hash: BlockHash,

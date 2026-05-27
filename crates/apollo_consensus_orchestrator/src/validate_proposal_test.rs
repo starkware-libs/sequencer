@@ -32,8 +32,8 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
 
+use crate::dynamic_gas_price::{proposal_commitment_from, PPT_DENOMINATOR};
 use crate::sequencer_consensus_context::BuiltProposals;
-use crate::snip35::{proposal_commitment_from, PPT_DENOMINATOR};
 
 fn fee_proposal_margin_ppt() -> u128 {
     VersionedConstants::latest_constants().fee_proposal_margin_ppt
@@ -307,7 +307,7 @@ async fn rejects_proposal_init_l1_gas_price_out_of_margin(#[case] field: L1GasPr
     );
 }
 
-// fee_actual = 8 gwei; bounds are derived in-line so they stay correct if the SNIP-35
+// fee_actual = 8 gwei; bounds are derived in-line so they stay correct if the fee_proposal
 // constants change. upper = fee_actual * (PPT + MARGIN) / PPT;
 // lower = fee_actual * PPT / (PPT + MARGIN) (integer-truncated).
 const FEE_ACTUAL_FRI: u128 = 8_000_000_000;
@@ -330,7 +330,7 @@ const FEE_ACTUAL_FRI: u128 = 8_000_000_000;
     false,
 )]
 #[tokio::test]
-async fn snip35_fee_proposal_within_margin_of_fee_actual(
+async fn fee_proposal_within_margin_of_fee_actual(
     #[case] fee_proposal_fri: u128,
     #[case] should_accept: bool,
 ) {
@@ -360,7 +360,7 @@ async fn snip35_fee_proposal_within_margin_of_fee_actual(
         assert_matches!(
             res,
             Err(ValidateProposalError::InvalidProposalInit(_, _, ref msg))
-                if msg.contains("Fee proposal out of SNIP-35 bounds")
+                if msg.contains("Fee proposal out of bounds")
         );
     }
 }

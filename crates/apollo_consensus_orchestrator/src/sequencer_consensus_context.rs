@@ -84,6 +84,14 @@ use crate::cende::{
     InternalTransactionWithReceipt,
     N_BLOCK_HASHES_BACK_IN_BLOB,
 };
+use crate::dynamic_gas_price::{
+    compute_fee_actual,
+    compute_fee_proposal,
+    compute_fee_target,
+    proposal_commitment_from,
+    FeeProposalInfo,
+    TARGET_ATTO_USD_PER_L2_GAS,
+};
 use crate::fee_market::{
     calculate_next_l2_gas_price_for_fin,
     get_min_gas_price_for_height,
@@ -97,14 +105,6 @@ use crate::metrics::{
     SNIP35_FEE_ACTUAL,
     SNIP35_FEE_PROPOSAL,
     SNIP35_FEE_TARGET,
-};
-use crate::snip35::{
-    compute_fee_actual,
-    compute_fee_proposal,
-    compute_fee_target,
-    proposal_commitment_from,
-    FeeProposalInfo,
-    TARGET_ATTO_USD_PER_L2_GAS,
 };
 use crate::utils::{
     convert_to_sn_api_block_info,
@@ -251,7 +251,7 @@ pub struct SequencerConsensusContext {
     l2_gas_price: GasPrice,
     l1_da_mode: L1DataAvailabilityMode,
     previous_proposal_init: Option<PreviousProposalInitInfo>,
-    /// SNIP-35 fee_proposals window. `None` = pre-V0_14_3.
+    /// fee_proposals window. `None` = pre-V0_14_3.
     fee_proposals_window: BTreeMap<BlockNumber, Option<GasPrice>>,
 }
 
@@ -438,10 +438,10 @@ impl SequencerConsensusContext {
         )
     }
 
-    /// SNIP-35 fee_proposal: clamp the oracle's `fee_target` to a margin around `fee_actual`.
-    /// When `fee_actual` is `None` (window incomplete), freeze at `l2_gas_price`; the validator
-    /// derives the same fallback so both sides agree.
-    async fn compute_snip35_fee_proposal(
+    /// Compute the proposer's fee_proposal: clamp the oracle's `fee_target` to a margin around
+    /// `fee_actual`. When `fee_actual` is `None` (window incomplete), freeze at `l2_gas_price`; the
+    /// validator derives the same fallback so both sides agree.
+    async fn compute_proposer_fee_proposal(
         &self,
         fee_actual: Option<GasPrice>,
         timestamp: u64,
@@ -579,7 +579,7 @@ impl SequencerConsensusContext {
                     l2_gas_consumed: l2_gas_used,
                     next_l2_gas_price: self.l2_gas_price,
                 },
-                // SNIP-35: forward the proposer's stated fee_proposal_fri (from ProposalInit)
+                // Forward the proposer's stated fee_proposal_fri (from ProposalInit)
                 // to the centralized cende pipeline. The centralized side persists this in
                 // its own storage namespace, separate from FeeMarketInfo. Pre-V0_14_3 blocks
                 // have `init.fee_proposal_fri == None`.
@@ -587,10 +587,10 @@ impl SequencerConsensusContext {
                 compiled_class_hashes_for_migration: central_objects
                     .compiled_class_hashes_for_migration,
                 proposal_commitment: commitment,
-                // TODO(SNIP-35): plumb the parent block's `fee_proposal_fri` here once
+                // TODO: plumb the parent block's `fee_proposal_fri` here once
                 // `central_objects.parent_proposal_commitment` carries it (or read from
                 // BlockHeaderWithoutHash storage). Today we pass `None`, which means
-                // pre-V0_14_3 commitments — correct for non-SNIP-35 deployments only.
+                // pre-V0_14_3 commitments — correct for pre-V0_14_3 deployments only.
                 parent_proposal_commitment: central_objects
                     .parent_proposal_commitment
                     .map(|c| proposal_commitment_from(c.partial_block_hash, None)),
@@ -723,7 +723,7 @@ impl ConsensusContext for SequencerConsensusContext {
             VersionedConstants::latest_constants().fee_proposal_window_size,
         );
         let fee_proposal =
-            self.compute_snip35_fee_proposal(fee_actual, self.deps.clock.unix_now()).await;
+            self.compute_proposer_fee_proposal(fee_actual, self.deps.clock.unix_now()).await;
         let round = build_param.round;
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),

@@ -395,10 +395,10 @@
       ],
       "collapsed": true
     },
-    "SNIP-35": {
+    "Dynamic Gas Price (SNIP-35)": {
       "panels": [
         {
-          "title": "SNIP-35 fee_actual (GFri)",
+          "title": "fee_actual (GFri)",
           "description": "Median of recent fee_proposals over the sliding window, in GFri",
           "type": "timeseries",
           "exprs": [
@@ -407,7 +407,7 @@
           "extra_params": {}
         },
         {
-          "title": "SNIP-35 fee_proposal (GFri)",
+          "title": "fee_proposal (GFri)",
           "description": "fee_proposal this node published in the latest block, in GFri",
           "type": "timeseries",
           "exprs": [
@@ -416,7 +416,7 @@
           "extra_params": {}
         },
         {
-          "title": "SNIP-35 fee_target (GFri)",
+          "title": "fee_target (GFri)",
           "description": "fee_target computed from the STRK/USD oracle, in GFri",
           "type": "timeseries",
           "exprs": [
@@ -425,7 +425,7 @@
           "extra_params": {}
         },
         {
-          "title": "SNIP-35 STRK/USD rate (USD)",
+          "title": "STRK/USD rate (USD)",
           "description": "STRK/USD rate from the oracle, in USD (raw value has 18 decimals)",
           "type": "timeseries",
           "exprs": [
@@ -434,7 +434,7 @@
           "extra_params": {}
         },
         {
-          "title": "SNIP-35 STRK/USD Rate Query Success (binary)",
+          "title": "STRK/USD Rate Query Success (binary)",
           "description": "Indicates whether the STRK→USD rate query succeeded (1m window)",
           "type": "timeseries",
           "exprs": [
@@ -445,7 +445,7 @@
           }
         },
         {
-          "title": "SNIP-35 STRK/USD Rate Query Error Count",
+          "title": "STRK/USD Rate Query Error Count",
           "description": "The number of times the STRK→USD rate query failed (10m window)",
           "type": "timeseries",
           "exprs": [

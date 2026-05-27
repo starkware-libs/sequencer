@@ -63,12 +63,12 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::cende::{MockCendeContext, N_BLOCK_HASHES_BACK_IN_BLOB};
+use crate::dynamic_gas_price::proposal_commitment_from;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::sequencer_consensus_context::{
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
 };
-use crate::snip35::proposal_commitment_from;
 use crate::test_utils::{
     create_test_and_network_deps,
     proposal_init,
@@ -90,12 +90,12 @@ fn expected_l2_gas_info_for_build_proposal_defaults() -> L2GasInfo {
         l2_gas_used: GasAmount(0),
     }
 }
-use crate::snip35::compute_fee_actual;
+use crate::dynamic_gas_price::compute_fee_actual;
 use crate::utils::{apply_fee_transformations, make_gas_price_params};
 
 static TEST_PROPOSAL_COMMITMENT: LazyLock<ProposalCommitment> = LazyLock::new(|| {
     // Default test setup: empty fee_proposals_window → `compute_fee_actual` returns `None` →
-    // `compute_snip35_fee_proposal` falls back to `self.l2_gas_price` (default
+    // `compute_proposer_fee_proposal` falls back to `self.l2_gas_price` (default
     // `min_gas_price` = 8 gwei = 8_000_000_000 FRI). The orchestrator chains this value into
     // the proposal commitment via `proposal_commitment_from`. The `proposal_init` test helper
     // produces an init with `fee_proposal_fri = Some(8 gwei)` to match what the proposer emits.
@@ -1582,7 +1582,7 @@ fn test_prune_fee_proposals_window(
 #[case::all_some(BlockNumber(100), window_of(90..100))]
 // v0.14.2 era: every block recorded with `fee_proposal_fri = None`.
 #[case::all_none(BlockNumber(100), (90u64..100).map(|h| (BlockNumber(h), None)).collect())]
-// Transition: heights < 95 are pre-SNIP-35 (None), heights >= 95 are SNIP-35 (Some).
+// Transition: heights < 95 are pre-V0_14_3 (None), heights >= 95 are V0_14_3+ (Some).
 #[case::mixed_transition(
     BlockNumber(100),
     (90u64..100)
@@ -1660,7 +1660,7 @@ enum OracleBehavior {
     GasPrice(9_980_039_920)
 )]
 #[tokio::test]
-async fn test_compute_snip35_fee_proposal(
+async fn test_compute_proposer_fee_proposal(
     #[case] fee_actual: Option<GasPrice>,
     #[case] oracle_behavior: OracleBehavior,
     #[case] l2_gas_price: GasPrice,
@@ -1685,12 +1685,12 @@ async fn test_compute_snip35_fee_proposal(
 
     let mut context = deps.build_context();
     context.l2_gas_price = l2_gas_price;
-    let proposal = context.compute_snip35_fee_proposal(fee_actual, 0).await;
+    let proposal = context.compute_proposer_fee_proposal(fee_actual, 0).await;
     assert_eq!(proposal, expected_fee_proposal);
 }
 
 #[tokio::test]
-async fn test_compute_snip35_fee_proposal_converges_to_oracle_target() {
+async fn test_compute_proposer_fee_proposal_converges_to_oracle_target() {
     // (strk_usd_rate, fee_target, n_blocks_until_convergence_with_buffer).
     // 75 gwei bootstrap -> 100 gwei target at +33% reaches by block ~795.
     // 100 gwei -> 60 gwei at -40% reaches by block ~1410.
@@ -1725,7 +1725,7 @@ async fn test_compute_snip35_fee_proposal_converges_to_oracle_target() {
             let h = BlockNumber(height);
             let fee_actual = compute_fee_actual(&context.fee_proposals_window, h, window_size)
                 .expect("window stays complete across the loop");
-            let proposal = context.compute_snip35_fee_proposal(Some(fee_actual), 0).await;
+            let proposal = context.compute_proposer_fee_proposal(Some(fee_actual), 0).await;
             context.record_fee_proposal(h, Some(proposal));
             height += 1;
         }

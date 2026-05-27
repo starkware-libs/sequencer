@@ -36,13 +36,13 @@ use strum::{EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, instrument, warn};
 
+use crate::dynamic_gas_price::{fee_proposal_bounds, proposal_commitment_from};
 use crate::metrics::{
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
     CONSENSUS_PROPOSAL_FIN_MISMATCH,
 };
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
-use crate::snip35::{fee_proposal_bounds, proposal_commitment_from};
 use crate::utils::{
     convert_to_sn_api_block_info,
     get_l1_prices_in_fri_and_wei,
@@ -78,7 +78,7 @@ pub(crate) struct ProposalInitValidation {
     pub l1_da_mode: L1DataAvailabilityMode,
     pub l2_gas_price_fri: GasPrice,
     pub starknet_version: StarknetVersion,
-    /// SNIP-35: fee_actual from the sliding window. `None` until the window has accumulated
+    /// fee_actual from the sliding window. `None` until the window has accumulated
     /// `fee_proposal_window_size` entries (startup / near-genesis).
     pub fee_actual: Option<GasPrice>,
 }
@@ -350,9 +350,9 @@ async fn is_proposal_init_valid(
         ));
     }
 
-    // SNIP-35: fee_proposal is required iff Starknet version >= V0_14_3.
-    let snip35_active = init_proposed.starknet_version >= StarknetVersion::V0_14_3;
-    match (init_proposed.fee_proposal_fri, snip35_active) {
+    // fee_proposal is required iff Starknet version >= V0_14_3.
+    let fee_proposal_required = init_proposed.starknet_version >= StarknetVersion::V0_14_3;
+    match (init_proposed.fee_proposal_fri, fee_proposal_required) {
         (Some(_), false) => {
             return Err(ValidateProposalError::InvalidProposalInit(
                 init_proposed.clone(),
@@ -376,7 +376,7 @@ async fn is_proposal_init_valid(
         _ => {}
     }
 
-    // SNIP-35: validate fee_proposal is within the configured margin of fee_actual.
+    // Validate fee_proposal is within the configured margin of fee_actual.
     // During initiation (fee_actual is None, <window_size blocks), bounds are not enforced.
     if let (Some(fee_actual), Some(fee_proposal)) =
         (proposal_init_validation.fee_actual, init_proposed.fee_proposal_fri)
@@ -390,7 +390,7 @@ async fn is_proposal_init_valid(
                 init_proposed.clone(),
                 proposal_init_validation.clone(),
                 format!(
-                    "Fee proposal out of SNIP-35 bounds: fee_actual={}, fee_proposal={}, allowed \
+                    "Fee proposal out of bounds: fee_actual={}, fee_proposal={}, allowed \
                      range=[{lower_bound}, {upper_bound}]",
                     fee_actual.0, fee_proposal.0
                 ),

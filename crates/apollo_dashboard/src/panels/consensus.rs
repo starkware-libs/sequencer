@@ -723,7 +723,7 @@ pub(crate) fn get_cende_row() -> Row {
 
 fn get_panel_snip35_fee_actual() -> Panel {
     Panel::new(
-        "SNIP-35 fee_actual (GFri)",
+        "fee_actual (GFri)",
         "Median of recent fee_proposals over the sliding window, in GFri",
         format!("{} / 1e9", SNIP35_FEE_ACTUAL.get_name_with_filter()),
         PanelType::TimeSeries,
@@ -732,7 +732,7 @@ fn get_panel_snip35_fee_actual() -> Panel {
 
 fn get_panel_snip35_fee_proposal() -> Panel {
     Panel::new(
-        "SNIP-35 fee_proposal (GFri)",
+        "fee_proposal (GFri)",
         "fee_proposal this node published in the latest block, in GFri",
         format!("{} / 1e9", SNIP35_FEE_PROPOSAL.get_name_with_filter()),
         PanelType::TimeSeries,
@@ -741,7 +741,7 @@ fn get_panel_snip35_fee_proposal() -> Panel {
 
 fn get_panel_snip35_fee_target() -> Panel {
     Panel::new(
-        "SNIP-35 fee_target (GFri)",
+        "fee_target (GFri)",
         "fee_target computed from the STRK/USD oracle, in GFri",
         format!("{} / 1e9", SNIP35_FEE_TARGET.get_name_with_filter()),
         PanelType::TimeSeries,
@@ -750,7 +750,7 @@ fn get_panel_snip35_fee_target() -> Panel {
 
 fn get_panel_snip35_strk_usd_rate() -> Panel {
     Panel::new(
-        "SNIP-35 STRK/USD rate (USD)",
+        "STRK/USD rate (USD)",
         "STRK/USD rate from the oracle, in USD (raw value has 18 decimals)",
         format!("{} / 1e18", SNIP35_STRK_USD_RATE.get_name_with_filter()),
         PanelType::TimeSeries,
@@ -759,7 +759,7 @@ fn get_panel_snip35_strk_usd_rate() -> Panel {
 
 fn get_panel_snip35_strk_usd_error_count() -> Panel {
     Panel::new(
-        "SNIP-35 STRK/USD Rate Query Error Count",
+        "STRK/USD Rate Query Error Count",
         format!("The number of times the STRK→USD rate query failed ({DEFAULT_DURATION} window)"),
         increase(&SNIP35_STRK_USD_ERROR_COUNT, DEFAULT_DURATION),
         PanelType::TimeSeries,
@@ -772,7 +772,7 @@ fn get_panel_snip35_strk_usd_error_count() -> Panel {
 
 fn get_panel_snip35_strk_usd_success_count() -> Panel {
     Panel::new(
-        "SNIP-35 STRK/USD Rate Query Success (binary)",
+        "STRK/USD Rate Query Success (binary)",
         "Indicates whether the STRK→USD rate query succeeded (1m window)",
         format!("changes({}[1m])", SNIP35_STRK_USD_SUCCESS_COUNT.get_name_with_filter()),
         PanelType::TimeSeries,
@@ -794,7 +794,7 @@ fn get_panel_snip35_strk_usd_seconds_since_last_successful_update() -> Panel {
 
 pub(crate) fn get_snip35_row() -> Row {
     Row::new(
-        "SNIP-35",
+        "Dynamic Gas Price (SNIP-35)",
         vec![
             get_panel_snip35_fee_actual(),
             get_panel_snip35_fee_proposal(),

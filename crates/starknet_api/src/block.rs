@@ -242,7 +242,7 @@ pub struct BlockHeaderWithoutHash {
     pub l1_da_mode: L1DataAvailabilityMode,
     pub starknet_version: StarknetVersion,
     // TODO(AndrewL): Add this field into the block hash.
-    /// SNIP-35: proposer's oracle-derived recommended fee. `None` for pre-V0_14_3 blocks.
+    /// Proposer's oracle-derived recommended L2 gas fee. `None` for pre-V0_14_3 blocks.
     pub fee_proposal_fri: Option<GasPrice>,
 }
 

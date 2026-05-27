@@ -7,7 +7,7 @@ use rstest::rstest;
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
-use crate::snip35::{
+use crate::dynamic_gas_price::{
     compute_fee_actual,
     compute_fee_proposal,
     compute_fee_target,
@@ -79,7 +79,7 @@ fn test_compute_fee_actual_random_window() {
     window_from((0u64..10).filter(|h| *h != 5).map(|h| (h, Some(GasPrice(100))))),
     BlockNumber(10),
 )]
-// Heights [0, 9] needed; height 7 is recorded as None (pre-SNIP-35 block).
+// Heights [0, 9] needed; height 7 is recorded as None (pre-V0_14_3 block).
 #[case::none_entry(
     window_from((0u64..10).map(|h| (h, (h != 7).then_some(GasPrice(100))))),
     BlockNumber(10),
@@ -192,7 +192,7 @@ fn test_compute_fee_actual_lone_adversary_cannot_skew_median() {
 }
 
 /// The validator's accept predicate. Must stay in sync with
-/// `validate_proposal::is_proposal_init_valid` SNIP-35 bounds check.
+/// `validate_proposal::is_proposal_init_valid` fee_proposal bounds check.
 fn validator_accepts(fee_actual: GasPrice, fee_proposal: GasPrice, margin_ppt: u128) -> bool {
     let lower = fee_actual.0.saturating_mul(PPT_DENOMINATOR) / (PPT_DENOMINATOR + margin_ppt);
     let upper = fee_actual.0.saturating_mul(PPT_DENOMINATOR + margin_ppt) / PPT_DENOMINATOR;

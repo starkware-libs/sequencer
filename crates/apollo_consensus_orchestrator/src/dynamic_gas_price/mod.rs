@@ -1,4 +1,4 @@
-//! SNIP-35 dynamic L2 gas pricing primitives.
+//! Dynamic L2 gas pricing primitives.
 //!
 //! Spec: <https://community.starknet.io/t/snip-35-automatically-adjust-base-fee-to-strk-price/116168>
 //!
@@ -26,14 +26,14 @@ use tracing::warn;
 #[cfg(test)]
 mod test;
 
-/// SNIP-35 proposer-stated fee value for a block, as it travels in the cende blob to the
+/// Proposer-stated fee value for a block, as it travels in the cende blob to the
 /// centralized recorder. Mirrors the `FeeProposalInfo` Marshmallow dataclass on the centralized
 /// (Python) side; the wire JSON shape must agree across the language boundary.
 #[cfg_attr(any(feature = "testing", test), derive(serde::Deserialize, PartialEq))]
 #[derive(Debug, Default, Serialize)]
 pub struct FeeProposalInfo {
-    /// `None` for pre-V0_14_3 blocks (no value stated by the proposer); `Some(...)` for SNIP-35
-    /// era blocks. The centralized side persists this independently of `FeeMarketInfo` so
+    /// `None` for pre-V0_14_3 blocks (no value stated by the proposer); `Some(...)` for V0_14_3+
+    /// blocks. The centralized side persists this independently of `FeeMarketInfo` so
     /// existing fee market storage blobs are untouched.
     pub fee_proposal_fri: Option<GasPrice>,
 }
@@ -41,7 +41,7 @@ pub struct FeeProposalInfo {
 /// Scale factor for 18-decimal fixed-point conversion (1 STRK = 10^18 FRI).
 const FRI_DECIMALS_SCALE: u128 = 10u128.pow(18);
 
-/// Denominator for parts-per-thousand calculations in SNIP-35 fee_proposal bounds.
+/// Denominator for parts-per-thousand calculations in fee_proposal bounds.
 pub(crate) const PPT_DENOMINATOR: u128 = 1000;
 
 /// Target USD cost per L2 gas unit in atto-USD ($3e-9 = 3_000_000_000 atto-USD).
@@ -49,10 +49,10 @@ pub(crate) const PPT_DENOMINATOR: u128 = 1000;
 pub(crate) const TARGET_ATTO_USD_PER_L2_GAS: u128 = 3_000_000_000;
 
 /// Compute fee_actual for `height` as the median of the `fee_proposal` values
-/// recorded for heights `[height - window_size, height - 1]` (SNIP-35).
+/// recorded for heights `[height - window_size, height - 1]`.
 ///
 /// Returns `None` (after logging a warning) when any of those heights is missing from
-/// `fee_proposals_window` or recorded as `None` (e.g., pre-SNIP-35 blocks). The `None`
+/// `fee_proposals_window` or recorded as `None` (e.g., pre-V0_14_3 blocks). The `None`
 /// case triggers the `l2_gas_price` fallback in both proposer and validator paths.
 ///
 /// Median rule for even `window_size`: average of the two middle values rounded down;
@@ -95,7 +95,7 @@ pub fn compute_fee_actual(
     Some(median)
 }
 
-/// Compute the fee target from STRK/USD price and a USD cost target (SNIP-35).
+/// Compute the fee target from STRK/USD price and a USD cost target.
 ///
 /// `target_atto_usd_per_l2_gas` is in atto-USD (atto = 10⁻¹⁸; so a value of
 /// `3_000_000_000` means 3·10⁻⁹ USD = 3 nanodollars per L2 gas unit).
@@ -116,7 +116,7 @@ pub fn compute_fee_target(
     Some(GasPrice(u128::try_from(floor).unwrap_or(u128::MAX)))
 }
 
-/// Compute the fee_proposal an honest proposer should publish (SNIP-35).
+/// Compute the fee_proposal an honest proposer should publish.
 /// - If oracle failed (`fee_target` is `None`): freeze at `fee_actual`.
 /// - Otherwise: clamp `fee_target` into the geometric bounds returned by `fee_proposal_bounds`.
 pub fn compute_fee_proposal(
@@ -131,7 +131,7 @@ pub fn compute_fee_proposal(
     GasPrice(fee_target.0.clamp(lower, upper))
 }
 
-/// Geometric bounds for SNIP-35 fee_proposal: returns `(lower, upper)` where
+/// Geometric bounds for fee_proposal: returns `(lower, upper)` where
 /// - `upper = fee_actual * (1 + margin)` (multiplicative widening), and
 /// - `lower = fee_actual / (1 + margin)` (the reciprocal — multiplicative narrowing),
 ///
@@ -154,7 +154,7 @@ pub(crate) fn fee_proposal_bounds(fee_actual: GasPrice, margin_ppt: u128) -> (u1
     (lower, upper)
 }
 
-/// SNIP-35: bind `fee_proposal_fri` to the proposal commitment hash.
+/// Bind `fee_proposal_fri` to the proposal commitment hash.
 ///
 /// Pre-V0_14_3 blocks have `fee_proposal = None` and the commitment is just `partial.0`,
 /// preserving on-chain behavior. From V0_14_3 onward, the commitment is
