@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779826805178,
+  "lastUpdate": 1779864349675,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4385,6 +4385,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1314.41441523,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9ee226e9bb00b956cdc626eeb50771ad19f21e74",
+          "message": "starknet_os_flow_tests: drive commitment keys from compute_accessed_keys (#14106)\n\nReplace the legacy initial_reads.keys() input to StateCommitmentInfos::new\nwith the same accessed-keys aggregate the batcher writes — validating\nend-to-end that what the batcher persists is sufficient for the OS to\nreplay the block. ProofFacts block numbers are extracted from the block's\nBlockifierTransactions (via create_tx_info -> Current -> proof_facts ->\nProofFactsVariant::Snos) and passed through to AccessedKeys::new.\nVirtual-OS mode skips the alias-contract entries since the executor doesn't\nrun allocate_aliases_in_storage there. The resulting StateChangesKeys is\nbuilt via From<AccessedKeys>.\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-05-27T06:33:35Z",
+          "tree_id": "7af99a54188152921dae8d99231a794f492b81b2",
+          "url": "https://github.com/starkware-libs/sequencer/commit/9ee226e9bb00b956cdc626eeb50771ad19f21e74"
+        },
+        "date": 1779864349315,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 879.24618604,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1307.45264892,
             "unit": "ms"
           }
         ]
