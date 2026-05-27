@@ -76,6 +76,7 @@ pub enum DeprecatedSyscallSelector {
     Secp256r1New,
     SendMessageToL1,
     Sha256ProcessBlock,
+    Sha512ProcessBlock,
     StorageRead,
     StorageWrite,
 }
@@ -120,6 +121,7 @@ impl TryFrom<Felt> for DeprecatedSyscallSelector {
             b"GetTxSignature" => Ok(Self::GetTxSignature),
             b"Keccak" => Ok(Self::Keccak),
             b"Sha256ProcessBlock" => Ok(Self::Sha256ProcessBlock),
+            b"Sha512ProcessBlock" => Ok(Self::Sha512ProcessBlock),
             b"LibraryCall" => Ok(Self::LibraryCall),
             b"LibraryCallL1Handler" => Ok(Self::LibraryCallL1Handler),
             b"MetaTxV0" => Ok(Self::MetaTxV0),
