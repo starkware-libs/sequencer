@@ -505,64 +505,32 @@ impl SyscallResponse for KeccakResponse {
     }
 }
 
-// Sha256ProcessBlock syscall.
+// ShaProcessBlock syscall. Used for both SHA-256 and SHA-512.
 #[derive(Debug, Eq, PartialEq)]
-pub struct Sha256ProcessBlockRequest {
+pub struct ShaProcessBlockRequest {
     pub state_ptr: Relocatable,
     pub input_start: Relocatable,
 }
 
-impl SyscallRequest for Sha256ProcessBlockRequest {
+impl SyscallRequest for ShaProcessBlockRequest {
     fn read(
         vm: &VirtualMachine,
         ptr: &mut Relocatable,
-    ) -> SyscallBaseResult<Sha256ProcessBlockRequest> {
+    ) -> SyscallBaseResult<ShaProcessBlockRequest> {
         let state_start = vm.get_relocatable(*ptr)?;
         *ptr = (*ptr + 1)?;
         let input_start = vm.get_relocatable(*ptr)?;
         *ptr = (*ptr + 1)?;
-        Ok(Sha256ProcessBlockRequest { state_ptr: state_start, input_start })
+        Ok(ShaProcessBlockRequest { state_ptr: state_start, input_start })
     }
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Sha256ProcessBlockResponse {
+pub struct ShaProcessBlockResponse {
     pub state_ptr: Relocatable,
 }
 
-impl SyscallResponse for Sha256ProcessBlockResponse {
-    fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
-        write_maybe_relocatable(vm, ptr, self.state_ptr)?;
-        Ok(())
-    }
-}
-
-// Sha512ProcessBlock syscall.
-#[derive(Debug, Eq, PartialEq)]
-pub struct Sha512ProcessBlockRequest {
-    pub state_ptr: Relocatable,
-    pub input_start: Relocatable,
-}
-
-impl SyscallRequest for Sha512ProcessBlockRequest {
-    fn read(
-        vm: &VirtualMachine,
-        ptr: &mut Relocatable,
-    ) -> SyscallBaseResult<Sha512ProcessBlockRequest> {
-        let state_start = vm.get_relocatable(*ptr)?;
-        *ptr = (*ptr + 1)?;
-        let input_start = vm.get_relocatable(*ptr)?;
-        *ptr = (*ptr + 1)?;
-        Ok(Sha512ProcessBlockRequest { state_ptr: state_start, input_start })
-    }
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct Sha512ProcessBlockResponse {
-    pub state_ptr: Relocatable,
-}
-
-impl SyscallResponse for Sha512ProcessBlockResponse {
+impl SyscallResponse for ShaProcessBlockResponse {
     fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
         write_maybe_relocatable(vm, ptr, self.state_ptr)?;
         Ok(())
