@@ -24,6 +24,14 @@ x-sequencer-node: &sequencer_node
     - config:/config
   networks:
     - sequencer-network
+  # Mark a node healthy once its HTTP gateway (8081) accepts connections, so the simulator waits
+  # for it instead of racing the gateway bind. Uses bash /dev/tcp since the image has no curl.
+  healthcheck:
+    test: ["CMD", "bash", "-c", "</dev/tcp/localhost/8081"]
+    interval: 5s
+    timeout: 3s
+    retries: 30
+    start_period: 10s
 
 services:
   prometheus:
@@ -172,7 +180,8 @@ services:
 
   sequencer_simulator:
     depends_on:
-      - sequencer-node-0
+      sequencer-node-0:
+        condition: service_healthy
     build:
       context: ${SEQUENCER_ROOT_DIR}
       dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/simulator.Dockerfile
