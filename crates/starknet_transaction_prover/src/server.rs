@@ -47,6 +47,8 @@ pub const OHTTP_JSONRPSEE_BODY_BUILDER: fn(Full<Bytes>) -> HttpBody = HttpBody::
 ///   than to the OHTTP ciphertext envelope. `MapRequestBodyLayer`/`MapResponseBodyLayer` keep
 ///   `HttpBody` on both sides of OHTTP to satisfy its symmetric-body bound; `HttpBody::new` is a
 ///   zero-cost wrapper, so non-OHTTP requests still stream through unbuffered.
+/// - `RequestSpanLayer` sits BELOW `OhttpLayer` so it spans the decapsulated inner request with a
+///   fresh, envelope-unlinkable id (see `request_span`).
 macro_rules! prover_http_middleware {
     ($cors_layer:expr, $ohttp_layer:expr $(,)?) => {
         ServiceBuilder::new()
@@ -55,6 +57,7 @@ macro_rules! prover_http_middleware {
             .option_layer($cors_layer)
             .layer(MapRequestBodyLayer::new(HttpBody::new))
             .option_layer($ohttp_layer)
+            .layer(RequestSpanLayer)
             .layer(MapResponseBodyLayer::new(HttpBody::new))
             .layer(CompressionLayer::new())
     };
@@ -68,12 +71,14 @@ pub mod log_redact;
 #[cfg(test)]
 pub mod mock_rpc;
 pub mod request_log;
+pub mod request_span;
 pub mod rpc_api;
 pub mod rpc_impl;
 pub mod tls;
 
 pub use health::{HealthLayer, HEALTH_PATH};
 pub use request_log::{RequestLogLayer, REQUEST_ID_HEADER};
+pub use request_span::RequestSpanLayer;
 
 #[cfg(test)]
 mod rpc_spec_test;
