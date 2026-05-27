@@ -267,6 +267,7 @@ pub fn create_node_config(
     mut state_sync_config: StateSyncConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
     eth_to_strk_oracle_config: ExchangeRateOracleConfig,
+    strk_to_usd_oracle_config: ExchangeRateOracleConfig,
     mempool_p2p_config: MempoolP2pConfig,
     monitoring_endpoint_config: MonitoringEndpointConfig,
     components: ComponentConfig,
@@ -313,6 +314,7 @@ pub fn create_node_config(
         // Use newly minted blocks on Anvil to be used for gas price calculations.
         lag_margin_seconds: Duration::from_secs(0),
         eth_to_strk_oracle_config,
+        strk_to_usd_oracle_config,
         ..Default::default()
     };
     let http_server_config =
