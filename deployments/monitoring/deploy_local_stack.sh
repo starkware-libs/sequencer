@@ -7,10 +7,26 @@ export DOCKER_BUILDKIT
 export COMPOSE_DOCKER_CLI_BUILD
 export MONITORING_ENABLED=${MONITORING_ENABLED:-true}
 export FOLLOW_LOGS=${FOLLOW_LOGS:-false}
-export SEQUENCER_HTTP_PORT=${SEQUENCER_HTTP_PORT:-8081}
-export SEQUENCER_MONITORING_PORT=${SEQUENCER_MONITORING_PORT:-8082}
-export SEQUENCER_CONFIG_PATH=${SEQUENCER_CONFIG_PATH:-/config/node_0/config.json}
 export SEQUENCER_ROOT_DIR=${SEQUENCER_ROOT_DIR:-$(git -C "$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")" rev-parse --show-toplevel)}
+
+# Number of sequencer nodes to run in real consensus, each in its own container (max 5). Default 1.
+export N_NODES=${N_NODES:-1}
+if ! [[ "$N_NODES" =~ ^[1-5]$ ]]; then
+  echo "Error: N_NODES must be an integer between 1 and 5 (got '$N_NODES')."
+  exit 1
+fi
+# For `up`, enable a profile per extra node so only sequencer-node-0..N-1 start. For `down`, enable
+# every node profile so all nodes are torn down regardless of how many were started (otherwise the
+# profiled nodes survive `down`).
+if [ "$1" == "down" ]; then
+  export COMPOSE_PROFILES="node1,node2,node3,node4"
+else
+  profiles=""
+  for ((node_index = 1; node_index < N_NODES; node_index++)); do
+    profiles="${profiles:+$profiles,}node${node_index}"
+  done
+  export COMPOSE_PROFILES="$profiles"
+fi
 
 # Exchange-rate oracle source. When PRAGMA_API_KEY is set, point the node at the real Pragma
 # oracle so eth_to_strk (L1 gas price conversion) and strk_to_usd (SNIP-35 fee_target) track live
@@ -40,7 +56,11 @@ else
 fi
 
 if [ "$MONITORING_ENABLED" != true ]; then
-  services="sequencer_node_setup dummy_recorder dummy_exchange_rate_oracle config_injector sequencer_node sequencer_simulator"
+  node_services=""
+  for ((node_index = 0; node_index < N_NODES; node_index++)); do
+    node_services="${node_services} sequencer-node-${node_index}"
+  done
+  services="sequencer_node_setup dummy_recorder dummy_exchange_rate_oracle config_injector${node_services} sequencer_simulator"
 fi
 
 echo "Running: ${docker_compose} -f ${monitoring_dir}/local/docker-compose.yml $*"
