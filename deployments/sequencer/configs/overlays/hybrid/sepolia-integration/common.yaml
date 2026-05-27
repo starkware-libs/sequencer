@@ -11,6 +11,7 @@ config:
     recorder_url: http://starknet-sepolia-integration.cende-recorder-proxy.starknet.io/
     starknet_url: https://feeder.integration-sepolia.starknet.io/
     strk_fee_token_address: '0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d'
+    versioned_constants_overrides.#is_none: true
     versioned_constants_overrides.max_n_events: 1000
 
 env:

@@ -103,6 +103,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "state_sync_config.static_config.rpc_config.port",
     "strk_fee_token_address",
     "validator_id",
+    "versioned_constants_overrides.#is_none",
     "versioned_constants_overrides.max_n_events",
 };
 
