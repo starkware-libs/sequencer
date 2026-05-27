@@ -1,6 +1,6 @@
 use cairo_vm::hint_processor::builtin_hint_processor::blake2s_hash::IV as SHA256_IV;
 use cairo_vm::types::relocatable::MaybeRelocatable;
-use sha2::digest::generic_array::GenericArray;
+use sha2::digest::generic_array::{ArrayLength, GenericArray};
 use starknet_types_core::felt::Felt;
 
 #[cfg(test)]
@@ -23,33 +23,70 @@ pub(crate) const SHA512_IV: [u64; 8] = [
     0x5be0cd19137e2179,
 ];
 
-macro_rules! generate_calculate_sha_padding {
-    ($name:ident, $uint_ty:ty, $iv:ident, $sha_compress_function:ident) => {
-        pub(crate) fn $name(
-            sha_input_chunk_size_felts: usize,
-            number_of_missing_blocks: u32,
-        ) -> Vec<MaybeRelocatable> {
-            let message: Vec<$uint_ty> = vec![0; sha_input_chunk_size_felts];
-            let flat_message =
-                GenericArray::from_exact_iter(message.iter().flat_map(|v| v.to_be_bytes()))
-                    .unwrap_or_else(|| {
-                        panic!("Failed to create a dummy message in {}.", stringify!($name))
-                    });
-            let mut initial_state = $iv;
-            sha2::$sha_compress_function(&mut initial_state, &[flat_message]);
-            let padding_to_repeat: Vec<$uint_ty> =
-                [message, $iv.to_vec(), initial_state.to_vec()].into_iter().flatten().collect();
-
-            let mut padding = vec![];
-            let padding_extension =
-                padding_to_repeat.iter().map(|x| MaybeRelocatable::from(Felt::from(*x)));
-            for _ in 0..number_of_missing_blocks {
-                padding.extend(padding_extension.clone());
-            }
-            padding
-        }
-    };
+trait ToBeBytes<const N: usize> {
+    fn to_be_bytes(self) -> [u8; N];
 }
 
-generate_calculate_sha_padding!(calculate_sha256_padding, u32, SHA256_IV, compress256);
-generate_calculate_sha_padding!(calculate_sha512_padding, u64, SHA512_IV, compress512);
+impl ToBeBytes<4> for u32 {
+    fn to_be_bytes(self) -> [u8; 4] {
+        self.to_be_bytes()
+    }
+}
+
+impl ToBeBytes<8> for u64 {
+    fn to_be_bytes(self) -> [u8; 8] {
+        self.to_be_bytes()
+    }
+}
+
+fn calculate_sha_padding<U, L, const N: usize>(
+    iv: [U; 8],
+    compress_function: fn(&mut [U; 8], &[GenericArray<u8, L>]),
+    sha_input_chunk_size_felts: usize,
+    number_of_missing_blocks: u32,
+) -> Vec<MaybeRelocatable>
+where
+    U: Clone + Copy + From<u8> + ToBeBytes<N>,
+    Felt: From<U>,
+    L: ArrayLength<u8>,
+{
+    let message: Vec<U> = vec![U::from(0_u8); sha_input_chunk_size_felts];
+    let flat_message = GenericArray::from_exact_iter(message.iter().flat_map(|v| v.to_be_bytes()))
+        .unwrap_or_else(|| panic!("Failed to create a dummy message."));
+    let mut initial_state = iv;
+    compress_function(&mut initial_state, &[flat_message]);
+    let padding_to_repeat: Vec<U> =
+        [message, iv.to_vec(), initial_state.to_vec()].into_iter().flatten().collect();
+
+    let mut padding = vec![];
+    let padding_extension =
+        padding_to_repeat.iter().map(|x| MaybeRelocatable::from(Felt::from(*x)));
+    for _ in 0..number_of_missing_blocks {
+        padding.extend(padding_extension.clone());
+    }
+    padding
+}
+
+pub(crate) fn calculate_sha256_padding(
+    sha_input_chunk_size_felts: usize,
+    number_of_missing_blocks: u32,
+) -> Vec<MaybeRelocatable> {
+    calculate_sha_padding(
+        SHA256_IV,
+        sha2::compress256,
+        sha_input_chunk_size_felts,
+        number_of_missing_blocks,
+    )
+}
+
+pub(crate) fn calculate_sha512_padding(
+    sha_input_chunk_size_felts: usize,
+    number_of_missing_blocks: u32,
+) -> Vec<MaybeRelocatable> {
+    calculate_sha_padding(
+        SHA512_IV,
+        sha2::compress512,
+        sha_input_chunk_size_felts,
+        number_of_missing_blocks,
+    )
+}
