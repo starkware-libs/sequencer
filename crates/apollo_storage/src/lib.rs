@@ -91,6 +91,8 @@ pub mod global_root_marker;
 #[allow(missing_docs)]
 pub mod metrics;
 pub mod partial_block_hash;
+#[cfg(feature = "os_input")]
+pub mod patricia_proofs;
 pub mod storage_metrics;
 // TODO(yair): Make the compression_utils module pub(crate) or extract it from the crate.
 #[doc(hidden)]
@@ -183,6 +185,8 @@ use crate::db::{
 use crate::header::StorageBlockHeader;
 use crate::metrics::{register_metrics, STORAGE_COMMIT_LATENCY};
 use crate::mmap_file::MMapFileStats;
+#[cfg(feature = "os_input")]
+use crate::patricia_proofs::StarknetForestProofs;
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::storage_reader_server::{
     create_storage_reader_server,
@@ -278,6 +282,8 @@ fn open_storage_internal(
             .create_simple_table("stateless_compiled_class_hash_v2")?,
         #[cfg(feature = "os_input")]
         accessed_keys: db_writer.create_simple_table("accessed_keys")?,
+        #[cfg(feature = "os_input")]
+        patricia_proofs: db_writer.create_simple_table("patricia_proofs")?,
     });
     let (file_writers, file_readers) = open_storage_files(
         &storage_config.db_config,
@@ -712,7 +718,9 @@ struct_field_names! {
         stateless_compiled_class_hash_v2: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>,
 
         #[cfg(feature = "os_input")]
-        accessed_keys: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>
+        accessed_keys: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>,
+        #[cfg(feature = "os_input")]
+        patricia_proofs: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>
     }
 }
 
@@ -879,6 +887,8 @@ struct FileHandlers<Mode: TransactionKind> {
     transaction: FileHandler<VersionZeroWrapper<Transaction>, Mode>,
     #[cfg(feature = "os_input")]
     accessed_keys: FileHandler<VersionZeroWrapper<AccessedKeys>, Mode>,
+    #[cfg(feature = "os_input")]
+    patricia_proofs: FileHandler<VersionZeroWrapper<StarknetForestProofs>, Mode>,
 }
 
 impl FileHandlers<RW> {
@@ -921,6 +931,11 @@ impl FileHandlers<RW> {
         self.clone().accessed_keys.append(accessed_keys)
     }
 
+    #[cfg(feature = "os_input")]
+    fn append_patricia_proofs(&self, patricia_proofs: &StarknetForestProofs) -> LocationInFile {
+        self.clone().patricia_proofs.append(patricia_proofs)
+    }
+
     // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.
     #[latency_histogram("storage_file_handler_flush_latency_seconds", false)]
     fn flush(&self) {
@@ -933,6 +948,8 @@ impl FileHandlers<RW> {
         self.transaction.flush();
         #[cfg(feature = "os_input")]
         self.accessed_keys.flush();
+        #[cfg(feature = "os_input")]
+        self.patricia_proofs.flush();
     }
 }
 
@@ -948,6 +965,8 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             ("transaction".to_string(), self.transaction.stats()),
             #[cfg(feature = "os_input")]
             ("accessed_keys".to_string(), self.accessed_keys.stats()),
+            #[cfg(feature = "os_input")]
+            ("patricia_proofs".to_string(), self.patricia_proofs.stats()),
         ])
     }
 
@@ -1017,6 +1036,18 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             msg: format!("AccessedKeys at location {location:?} not found."),
         })
     }
+
+    #[cfg(feature = "os_input")]
+    // Returns the Patricia witness proofs at the given location or an error in case it doesn't
+    // exist.
+    pub(crate) fn get_patricia_proofs_unchecked(
+        &self,
+        location: LocationInFile,
+    ) -> StorageResult<StarknetForestProofs> {
+        self.patricia_proofs.get(location)?.ok_or(StorageError::DBInconsistency {
+            msg: format!("StarknetForestProofs at location {location:?} not found."),
+        })
+    }
 }
 
 fn open_storage_files(
@@ -1055,6 +1086,9 @@ fn open_storage_files(
     #[cfg(feature = "os_input")]
     let (accessed_keys_writer, accessed_keys_reader) =
         open_storage_file!("accessed_keys", AccessedKeys)?;
+    #[cfg(feature = "os_input")]
+    let (patricia_proofs_writer, patricia_proofs_reader) =
+        open_storage_file!("patricia_proofs", PatriciaProofs)?;
 
     Ok((
         FileHandlers {
@@ -1066,6 +1100,8 @@ fn open_storage_files(
             transaction: transaction_writer,
             #[cfg(feature = "os_input")]
             accessed_keys: accessed_keys_writer,
+            #[cfg(feature = "os_input")]
+            patricia_proofs: patricia_proofs_writer,
         },
         FileHandlers {
             thin_state_diff: thin_state_diff_reader,
@@ -1076,6 +1112,8 @@ fn open_storage_files(
             transaction: transaction_reader,
             #[cfg(feature = "os_input")]
             accessed_keys: accessed_keys_reader,
+            #[cfg(feature = "os_input")]
+            patricia_proofs: patricia_proofs_reader,
         },
     ))
 }
@@ -1098,4 +1136,7 @@ pub enum OffsetKind {
     /// An accessed-keys file.
     #[cfg(feature = "os_input")]
     AccessedKeys,
+    /// A Patricia witness proofs file.
+    #[cfg(feature = "os_input")]
+    PatriciaProofs,
 }

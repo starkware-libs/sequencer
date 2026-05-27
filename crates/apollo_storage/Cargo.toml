@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "A storage implementation for a Starknet node."
 
 [features]
-os_input = ["dep:blockifier"]
+os_input = ["dep:blockifier", "starknet_committer/os_input"]
 storage_cli = ["clap", "reqwest"]
 testing = ["reqwest", "starknet_api/testing", "tempfile", "tower"]
 
@@ -40,6 +40,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet-types-core = { workspace = true, features = ["papyrus-serialization"] }
 starknet_api.workspace = true
+starknet_committer = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread"] }
