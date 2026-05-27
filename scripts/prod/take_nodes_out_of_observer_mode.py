@@ -105,35 +105,13 @@ Examples:
     post_restart_instructions = []
 
     for namespace, context in zip(namespace_list, context_list or [None] * len(namespace_list)):
-<<<<<<< HEAD
-        url = get_logs_explorer_url_for_proposal(
-            namespace,
-            get_validator_id(namespace, context),
-            args.project_name,
-        )
-        post_restart_instructions.append(
-            f"Please check logs and verify that the node has proposed a block that was accepted. Logs URL: {url}"
-||||||| 3eb55733b7
-        url = get_logs_explorer_url_for_proposal(
-            namespace,
-            get_validator_id(namespace, context),
-            # Feeder could be behind by up to 10 blocks, so we add 10 to the current block number.
-            current_block_number + 10,
-            args.project_name,
-        )
-        post_restart_instructions.append(
-            f"Please check logs and verify that the node has proposed a block that was accepted. Logs URL: {url}"
-=======
         instruction = (
             "Please check logs and verify that the nodes have proposed a block that was accepted"
->>>>>>> origin/main-v0.14.2
         )
         if args.project_name is not None:
             url = get_logs_explorer_url_for_proposal(
                 namespace,
                 get_validator_id(namespace, context),
-                # Feeder could be behind by up to 10 blocks, so we add 10 to the current block number.
-                current_block_number + 10,
                 args.project_name,
             )
             instruction = f"{instruction}. Logs URL: {url}"

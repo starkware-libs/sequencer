@@ -104,26 +104,8 @@ use crate::utils::{
 
 const SEQUENCER_ADDRESS_FELT: Felt = Felt::from_hex_unchecked(TEST_SEQUENCER_ADDRESS);
 
-<<<<<<< HEAD
 pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> =
     LazyLock::new(calculate_strk_fee_token_address);
-||||||| 3eb55733b7
-pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
-    ContractAddress(
-        PatriciaKey::try_from(Felt::from_hex_unchecked(
-            EXPECTED_STRK_FEE_TOKEN_ADDRESS.data.trim(),
-        ))
-        .unwrap(),
-    )
-});
-=======
-pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
-    ContractAddress(
-        PatriciaKey::try_from(Felt::from_hex_unchecked(EXPECTED_STRK_FEE_TOKEN_ADDRESS.data()))
-            .unwrap(),
-    )
-});
->>>>>>> origin/main-v0.14.2
 /// The address of a funded account that is able to pay fees for transactions.
 /// This address was initialized when creating the default initial state.
 pub(crate) static FUNDED_ACCOUNT_ADDRESS: LazyLock<ContractAddress> =
