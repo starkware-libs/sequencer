@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779890625216,
+  "lastUpdate": 1779895654774,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4555,6 +4555,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1454.20668637,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2d4a53767584279aa8fbf96569c79f5976798147",
+          "message": "apollo_consensus_orchestrator: rename snip35 module to dynamic_gas_price, scrub SNIP-35 comments (#14216)",
+          "timestamp": "2026-05-27T15:12:15Z",
+          "tree_id": "70df257652b353abe17e2c79c1e58c96bfdc9546",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2d4a53767584279aa8fbf96569c79f5976798147"
+        },
+        "date": 1779895654310,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1006.2017749500001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1439.23323727,
             "unit": "ms"
           }
         ]
