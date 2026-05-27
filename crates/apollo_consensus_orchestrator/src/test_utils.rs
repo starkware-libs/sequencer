@@ -76,12 +76,12 @@ use tokio_util::task::AbortOnDropHandle;
 
 use crate::build_proposal::ProposalBuildArguments;
 use crate::cende::MockCendeContext;
+use crate::dynamic_gas_price::proposal_commitment_from;
 use crate::sequencer_consensus_context::{
     BuiltProposals,
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
 };
-use crate::snip35::proposal_commitment_from;
 use crate::utils::{make_gas_price_params, GasPriceParams, PreviousProposalInitInfo, StreamSender};
 
 pub(crate) const TIMEOUT: Duration = Duration::from_millis(1200);
@@ -93,7 +93,7 @@ pub(crate) const CHAIN_ID: ChainId = ChainId::Mainnet;
 // values here.
 pub(crate) const ETH_TO_FRI_RATE: u128 = 2 * u128::pow(10, 18);
 
-// A STRK/USD rate that yields an in-bounds SNIP-35 fee target in proposal-building tests
+// A STRK/USD rate that yields an in-bounds fee target in proposal-building tests
 // where the specific value doesn't matter.
 pub(crate) const DEFAULT_STRK_TO_USD_RATE: u128 = 300_000_000_000_000_000;
 
@@ -429,7 +429,7 @@ pub(crate) fn proposal_init(height: BlockNumber, round: u32) -> ProposalInit {
         l1_data_gas_price_wei,
         starknet_version: starknet_api::block::StarknetVersion::LATEST,
         version_constant_commitment: Default::default(),
-        // SNIP-35: required because LATEST >= V0_14_3. Match the proposer's default-fallback
+        // Required because LATEST >= V0_14_3. Match the proposer's default-fallback
         // fee_proposal.
         fee_proposal_fri: Some(GasPrice(8_000_000_000)),
     }

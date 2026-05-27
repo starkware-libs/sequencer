@@ -88,7 +88,7 @@ pub struct BlockPostV0_13_1 {
     pub l2_gas_consumed: GasAmount,
     pub next_l2_gas_price: GasPrice,
 
-    // SNIP-35: proposer-stated fee value. Returned by the feeder gateway only when the
+    // Proposer-stated fee value. Returned by the feeder gateway only when the
     // request includes `withFeeProposalInfo=true`. Defaulted (`None`) for older blocks and for
     // gateway responses that don't carry the field.
     #[serde(default, skip_serializing_if = "Option::is_none")]

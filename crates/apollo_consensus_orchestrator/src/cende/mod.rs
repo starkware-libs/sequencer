@@ -45,6 +45,7 @@ use tokio::task::{self, JoinHandle};
 use tracing::{info, warn, Instrument};
 use url::Url;
 
+use crate::dynamic_gas_price::FeeProposalInfo;
 use crate::fee_market::FeeMarketInfo;
 use crate::metrics::{
     record_write_failure,
@@ -54,7 +55,6 @@ use crate::metrics::{
     CENDE_WRITE_BLOB_SUCCESS,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
 };
-use crate::snip35::FeeProposalInfo;
 
 #[derive(thiserror::Error, Debug)]
 pub enum CendeAmbassadorError {

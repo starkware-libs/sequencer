@@ -109,7 +109,7 @@ pub struct StorageBlockHeader {
     pub n_transactions: usize,
     /// The number of events in this block.
     pub n_events: usize,
-    /// SNIP-35: proposer's oracle-derived recommended fee. `None` for pre-V0_14_3 blocks.
+    /// Proposer's oracle-derived recommended L2 gas fee. `None` for pre-V0_14_3 blocks.
     pub fee_proposal_fri: Option<GasPrice>,
 }
 

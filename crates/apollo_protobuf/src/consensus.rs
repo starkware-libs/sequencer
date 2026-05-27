@@ -122,7 +122,7 @@ pub struct ProposalInit {
     pub starknet_version: starknet_api::block::StarknetVersion,
     /// Version constant commitment.
     pub version_constant_commitment: StarkHash,
-    /// SNIP-35: proposer's oracle-derived recommended fee. Present iff
+    /// Proposer's oracle-derived recommended L2 gas fee. Present iff
     /// `starknet_version >= V0_14_3`.
     pub fee_proposal_fri: Option<GasPrice>,
 }

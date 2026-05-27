@@ -18,7 +18,7 @@ use starknet_api::execution_resources::GasAmount;
 use tokio_util::task::AbortOnDropHandle;
 
 use crate::build_proposal::{build_proposal, BuildProposalError};
-use crate::snip35::proposal_commitment_from;
+use crate::dynamic_gas_price::proposal_commitment_from;
 use crate::test_utils::{create_proposal_build_arguments, INTERNAL_TX_BATCH, PARTIAL_BLOCK_HASH};
 
 #[tokio::test]
