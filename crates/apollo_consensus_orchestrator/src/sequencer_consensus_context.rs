@@ -104,7 +104,6 @@ use crate::snip35::{
     compute_fee_target,
     proposal_commitment_from,
     FeeProposalInfo,
-    TARGET_ATTO_USD_PER_L2_GAS,
 };
 use crate::utils::{
     convert_to_sn_api_block_info,
@@ -445,6 +444,7 @@ impl SequencerConsensusContext {
         &self,
         fee_actual: Option<GasPrice>,
         timestamp: u64,
+        target_atto_usd_per_l2_gas: u128,
     ) -> GasPrice {
         let Some(fee_actual) = fee_actual else {
             warn!("fee_actual unavailable, freezing fee_proposal at l2_gas_price");
@@ -456,7 +456,7 @@ impl SequencerConsensusContext {
         let fee_target = match self.deps.l1_gas_price_provider.get_strk_to_usd_rate(timestamp).await
         {
             Ok(rate) => {
-                let target = compute_fee_target(TARGET_ATTO_USD_PER_L2_GAS, rate);
+                let target = compute_fee_target(target_atto_usd_per_l2_gas, rate);
                 match target {
                     Some(t) => SNIP35_FEE_TARGET.set_lossy(t.0),
                     None => warn!("STRK/USD oracle returned zero rate, freezing fee_proposal"),
@@ -722,8 +722,13 @@ impl ConsensusContext for SequencerConsensusContext {
             build_param.height,
             VersionedConstants::latest_constants().fee_proposal_window_size,
         );
-        let fee_proposal =
-            self.compute_snip35_fee_proposal(fee_actual, self.deps.clock.unix_now()).await;
+        let fee_proposal = self
+            .compute_snip35_fee_proposal(
+                fee_actual,
+                self.deps.clock.unix_now(),
+                self.config.dynamic_config.snip35_target_atto_usd_per_l2_gas,
+            )
+            .await;
         let round = build_param.round;
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),

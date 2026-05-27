@@ -82,6 +82,9 @@ impl SerializeConfig for CendeConfig {
 const GWEI_FACTOR: u128 = u128::pow(10, 9);
 const ETH_FACTOR: u128 = u128::pow(10, 18);
 
+// Default SNIP-35 target USD cost per L2 gas unit: $0.88 per 1e9 L2 gas = 880_000_000 atto-USD.
+pub const DEFAULT_SNIP35_TARGET_ATTO_USD_PER_L2_GAS: u128 = 880_000_000;
+
 // This matches the min_gas_price in orchestrator_versioned_constants_0_14_1.json (0x1dcd65000).
 const MIN_ALLOWED_GAS_PRICE: u128 = 8_000_000_000;
 
@@ -284,6 +287,9 @@ pub struct ContextDynamicConfig {
     pub l1_data_gas_price_multiplier_ppt: u128,
     /// This additional gas is added to the L1 gas price.
     pub l1_gas_tip_wei: u128,
+    /// SNIP-35 target USD cost per L2 gas unit, in atto-USD ($0.88 per 1e9 L2 gas = 880_000_000
+    /// atto-USD).
+    pub snip35_target_atto_usd_per_l2_gas: u128,
     /// If given, will override the L2 gas price.
     pub override_l2_gas_price_fri: Option<u128>,
     /// If given, will override the L1 gas price in FRI.
@@ -351,6 +357,13 @@ impl SerializeConfig for ContextDynamicConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
+                "snip35_target_atto_usd_per_l2_gas",
+                &self.snip35_target_atto_usd_per_l2_gas,
+                "SNIP-35 target USD cost per L2 gas unit, in atto-USD ($0.88 per 1e9 L2 gas = \
+                 880_000_000 atto-USD).",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
                 "compare_retrospective_block_hash",
                 &self.compare_retrospective_block_hash,
                 "Whether to compare the retrospective block hash between the Batcher and the \
@@ -413,6 +426,7 @@ impl Default for ContextDynamicConfig {
             max_l1_data_gas_price_wei: ETH_FACTOR,
             l1_data_gas_price_multiplier_ppt: 135,
             l1_gas_tip_wei: GWEI_FACTOR,
+            snip35_target_atto_usd_per_l2_gas: DEFAULT_SNIP35_TARGET_ATTO_USD_PER_L2_GAS,
             override_l2_gas_price_fri: None,
             override_l1_gas_price_fri: None,
             override_l1_data_gas_price_fri: None,

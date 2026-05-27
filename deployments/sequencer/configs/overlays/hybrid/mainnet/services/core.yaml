@@ -26,6 +26,7 @@ config:
     consensus_manager_config.context_config.dynamic_config.override_l1_gas_price_fri.#is_none: true
     consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri: 0
     consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri.#is_none: true
+    consensus_manager_config.context_config.dynamic_config.snip35_target_atto_usd_per_l2_gas: 880000000
     consensus_manager_config.staking_manager_config.dynamic_config.default_committee: 0,10:0x64,1,0x1,true;0x65,1,0x1,true;0x66,1,0x1,true;0x67,1,0x1,true;0x68,1,0x1,true
     consensus_manager_config.staking_manager_config.dynamic_config.override_committee: ''
     consensus_manager_config.staking_manager_config.dynamic_config.override_committee.#is_none: true
