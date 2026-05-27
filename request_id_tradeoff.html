@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Request-ID through OHTTP — the privacy ↔ observability tradeoff</title>
+<style>
+  :root{
+    --bg:#0d1117;--bg2:#161b22;--inset:#010409;--bd:#30363d;--fg:#e6edf3;--mut:#9198a1;
+    --blue:#2f81f7;--grn:#3fb950;--amb:#d29922;--red:#f85149;--pur:#bc8cff;--cyan:#39c5cf;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:48px 24px 110px}
+  h1{font-size:29px;line-height:1.25;margin:0 0 6px;letter-spacing:-.4px}
+  h2{font-size:21px;margin:46px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--bd)}
+  h3{font-size:16px;margin:26px 0 6px}
+  p{margin:12px 0}
+  .lede{color:var(--mut);font-size:18px}
+  code{font-family:var(--mono);font-size:.86em;background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:1px 6px}
+  .mut{color:var(--mut)}
+  .card{background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:18px 22px;margin:18px 0}
+  .callout{border-left:4px solid var(--blue);border-radius:6px;background:var(--bg2);padding:13px 18px;margin:18px 0}
+  .callout.amber{border-left-color:var(--amb)}.callout.green{border-left-color:var(--grn)}.callout.red{border-left-color:var(--red)}
+  .callout h4{margin:0 0 6px;font-size:15px}
+  .fig{margin:26px 0}
+  .fig svg{width:100%;height:auto;display:block;background:var(--inset);border:1px solid var(--bd);border-radius:10px}
+  figcaption{color:var(--mut);font-size:13px;margin-top:8px;text-align:center}
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:14px}
+  th,td{border:1px solid var(--bd);padding:9px 12px;text-align:left;vertical-align:top}
+  th{background:var(--bg2)}
+  .tag{font-family:var(--mono);font-size:12px;padding:2px 7px;border-radius:20px;border:1px solid var(--bd);white-space:nowrap}
+  .tag.ok{color:var(--grn);border-color:#238636}.tag.no{color:var(--red);border-color:#6e2c2c}.tag.mid{color:var(--amb);border-color:#6e5420}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+  @media(max-width:720px){.two{grid-template-columns:1fr}}
+  .legend{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--mut);justify-content:center;margin-top:6px}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .sw{width:13px;height:13px;border-radius:3px;display:inline-block}
+  svg text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  svg .m{font-family:var(--mono)}
+  .footer{margin-top:60px;padding-top:16px;border-top:1px solid var(--bd);color:var(--mut);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>The request-ID tradeoff through OHTTP</h1>
+  <p class="lede">Why you can’t have both end-to-end log correlation <em>and</em> unlinkability — and what each choice costs.</p>
+
+  <div class="callout">
+    <h4>The tension in one sentence</h4>
+    <p style="margin:0">A request-ID is useful precisely <em>because</em> it links things together. But OHTTP’s entire job is to <strong>stop</strong> two specific things — the sender’s identity and the request’s contents — from being linked. So any ID that touches both sides is, by definition, working against the privacy guarantee.</p>
+  </div>
+
+  <h2>1. The cast (recap, no jargon)</h2>
+  <div class="card">
+    <p style="margin:6px 0"><strong>The user</strong> seals their real request in a locked, opaque box only our server can open.</p>
+    <p style="margin:6px 0"><strong>The courier</strong> carries the box. It sees <em>who</em> sent it and our address, but can’t open it — so it never learns <em>what’s inside</em>. (In the specs: the “relay”.)</p>
+    <p style="margin:6px 0"><strong>The server / gateway</strong> (our prover) unlocks the box and processes the real request. It sees <em>what</em> was asked, but the box arrived via the courier, so it doesn’t learn <em>who</em> the user is.</p>
+    <p style="margin:6px 0"><strong>The guarantee:</strong> knowledge is split. The courier knows <em>who, not what</em>. The gateway knows <em>what, not who</em>. Neither alone can say “user X asked for Y.”</p>
+  </div>
+  <p>A request-ID is a tracking number we stamp on a request so log lines about it can be found and tied together. The question: <strong>which tracking number goes where</strong> — and does it accidentally bridge the courier’s knowledge and the gateway’s knowledge?</p>
+
+  <h2>2. What each party can see</h2>
+  <p>Two facts drive everything below:</p>
+  <ul>
+    <li><strong>The ID on the box is visible to the courier.</strong> Our server sits “outside” the unlock step, so the ID it stamps is written on the box and echoed on the box’s receipt — which the courier handles. The courier can record it.</li>
+    <li><strong>Our server’s logs are not visible to the courier</strong> — but they describe the <em>contents</em> of the unlocked request.</li>
+  </ul>
+  <p>So an ID becomes dangerous only if the <em>same</em> value appears in <strong>both</strong> the courier’s records (where it sits next to “who”) and our content logs (where it sits next to “what”). That shared value is a join key.</p>
+
+  <h2>3. Design A — one shared ID everywhere <span class="mut">(what the recent change does)</span></h2>
+  <p>The server generates one ID for the box and reuses it to tag every log line, including the logs that describe the unlocked contents.</p>
+
+  <div class="fig"><figure>
+  <svg viewBox="0 0 860 290" role="img" aria-label="Shared id correlation">
+    <!-- courier side -->
+    <rect x="24" y="40" width="360" height="92" rx="8" fill="#161b22" stroke="#d29922"/>
+    <text x="44" y="64" fill="#d29922" font-size="13">Courier’s records</text>
+    <text x="44" y="90" fill="#e6edf3" font-size="13" class="m">id = R7  →  user = Alice (IP, time)</text>
+    <text x="44" y="112" fill="#9198a1" font-size="11">knows WHO · sees the box’s ID on the wire</text>
+    <!-- gateway side -->
+    <rect x="476" y="40" width="360" height="92" rx="8" fill="#161b22" stroke="#3fb950"/>
+    <text x="496" y="64" fill="#3fb950" font-size="13">Gateway content logs</text>
+    <text x="496" y="90" fill="#e6edf3" font-size="13" class="m">id = R7  →  request = “prove tx 0x…”</text>
+    <text x="496" y="112" fill="#9198a1" font-size="11">knows WHAT · stamps the same ID on contents</text>
+    <!-- join -->
+    <line x1="384" y1="86" x2="476" y2="86" stroke="#f85149" stroke-width="2.5" stroke-dasharray="6 5" marker-end="url(#rA)" marker-start="url(#rAs)"/>
+    <text x="430" y="78" fill="#f85149" font-size="12" text-anchor="middle" class="m">R7 = R7</text>
+    <!-- result -->
+    <rect x="230" y="190" width="400" height="60" rx="8" fill="#0d1117" stroke="#f85149"/>
+    <text x="430" y="216" fill="#f85149" font-size="13" text-anchor="middle">Join on R7 →</text>
+    <text x="430" y="236" fill="#e6edf3" font-size="13" text-anchor="middle">“Alice asked to prove tx 0x…”  — unlinkability broken</text>
+    <line x1="430" y1="132" x2="430" y2="188" stroke="#f85149" stroke-width="1.4" stroke-dasharray="3 3"/>
+    <defs>
+      <marker id="rA" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#f85149"/></marker>
+      <marker id="rAs" markerWidth="9" markerHeight="9" refX="2" refY="3" orient="auto"><path d="M7,0 L0,3 L7,6 Z" fill="#f85149"/></marker>
+    </defs>
+  </svg>
+  <figcaption>One ID (R7) sits next to “who” in the courier’s records and next to “what” in our logs. Anyone holding both sets just matches the number.</figcaption>
+  </figure></div>
+
+  <div class="callout green"><h4>What Design A buys</h4>
+  <p style="margin:0"><strong>Perfect operator correlation.</strong> A single ID threads the envelope log line and every downstream content log. On-call sees “request R7” and pulls the whole story in one query. This is the observability win the wish-list asked for.</p></div>
+
+  <div class="callout red"><h4>What Design A costs</h4>
+  <p style="margin:0"><strong>A trivial join key across the privacy boundary.</strong> The same R7 is courier-visible (next to “who”) and in our content logs (next to “what”). Anyone who obtains <em>both</em> log sets — relay+gateway collusion, or a breach of both — links identity to contents by exact match, no guesswork. That is precisely the link OHTTP exists to prevent.</p></div>
+
+  <h2>4. Design B — fresh inner ID <span class="mut">(what #757 does)</span></h2>
+  <p>The server keeps the box’s ID for the courier-facing receipt, but the moment it unlocks the box it mints a <strong>second, unrelated</strong> ID for the contents. The contents logs use only the second ID, which is never written back onto the box.</p>
+
+  <div class="fig"><figure>
+  <svg viewBox="0 0 860 300" role="img" aria-label="Fresh inner id, no correlation">
+    <rect x="24" y="40" width="360" height="92" rx="8" fill="#161b22" stroke="#d29922"/>
+    <text x="44" y="64" fill="#d29922" font-size="13">Courier’s records</text>
+    <text x="44" y="90" fill="#e6edf3" font-size="13" class="m">id = R7  →  user = Alice</text>
+    <text x="44" y="112" fill="#9198a1" font-size="11">sees the box ID R7 only</text>
+
+    <rect x="476" y="40" width="360" height="92" rx="8" fill="#161b22" stroke="#3fb950"/>
+    <text x="496" y="64" fill="#3fb950" font-size="13">Gateway content logs</text>
+    <text x="496" y="90" fill="#e6edf3" font-size="13" class="m">id = Q3  →  request = “prove tx 0x…”</text>
+    <text x="496" y="112" fill="#9198a1" font-size="11">fresh ID Q3, never written on the box</text>
+
+    <line x1="384" y1="86" x2="476" y2="86" stroke="#3fb950" stroke-width="2.5" marker-end="url(#gB)"/>
+    <text x="430" y="78" fill="#f85149" font-size="12" text-anchor="middle" class="m">R7 ≠ Q3</text>
+    <text x="430" y="104" fill="#9198a1" font-size="11" text-anchor="middle">no shared value to match on</text>
+
+    <rect x="250" y="190" width="360" height="60" rx="8" fill="#0d1117" stroke="#3fb950"/>
+    <text x="430" y="216" fill="#3fb950" font-size="13" text-anchor="middle">Both log sets together →</text>
+    <text x="430" y="236" fill="#e6edf3" font-size="13" text-anchor="middle">still can’t say which user asked what</text>
+    <line x1="430" y1="132" x2="430" y2="188" stroke="#3fb950" stroke-width="1.4" stroke-dasharray="3 3"/>
+    <defs><marker id="gB" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#3fb950"/></marker></defs>
+  </svg>
+  <figcaption>The courier’s ID (R7) and the contents ID (Q3) are unrelated. Holding both log sets no longer yields an exact join.</figcaption>
+  </figure></figure></div>
+
+  <div class="callout green"><h4>What Design B buys</h4>
+  <p style="margin:0"><strong>The privacy guarantee holds even under dual compromise.</strong> With no shared ID, linking “who” to “what” drops back to fuzzy timing/size correlation — the hard problem OHTTP was designed to leave as the only avenue.</p></div>
+
+  <div class="callout amber"><h4>What Design B costs</h4>
+  <p style="margin:0"><strong>Broken end-to-end correlation for sealed traffic.</strong> The envelope log line carries R7; the contents logs carry Q3. For boxed (OHTTP) requests, an operator <em>cannot</em> join “the request arrived” to “here’s what it did” by ID — those two halves are deliberately disconnected. If a user reports a problem quoting the ID they saw, it maps to only one half of the story.</p></div>
+
+  <h2>5. Why you genuinely can’t have both</h2>
+  <div class="card">
+  <p style="margin:6px 0">End-to-end correlation means: <em>one identifier that lets you follow a request from the courier’s edge all the way into the contents.</em></p>
+  <p style="margin:6px 0">Unlinkability means: <em>no identifier should connect the courier’s edge (who) to the contents (what).</em></p>
+  <p style="margin:6px 0">These are the same sentence with the sign flipped. A correlation ID that survives across the unlock boundary <strong>is</strong> a linkability handle. So the only real choices are <em>where you cut the thread</em> — and Design A simply never cuts it, while Design B cuts it exactly at the box.</p>
+  </div>
+
+  <h2>6. Plaintext traffic is unaffected</h2>
+  <p>All of the above applies only to <strong>boxed (OHTTP)</strong> requests. A plaintext request has <em>no courier and no box</em> — the user talks to us directly, so there’s no “who/what” split to protect. There, a single ID end-to-end (logged and echoed back to the caller) is exactly right and costs nothing. Both designs keep that behavior; they differ only once a box is involved.</p>
+
+  <h2>7. Side-by-side</h2>
+  <table>
+    <thead><tr><th>Property</th><th>A — shared ID (current)</th><th>B — fresh inner ID (#757)</th></tr></thead>
+    <tbody>
+      <tr><td>Plaintext: caller-quotable ID + full log correlation</td><td><span class="tag ok">yes</span></td><td><span class="tag ok">yes</span></td></tr>
+      <tr><td>OHTTP: downstream content logs carry an ID</td><td><span class="tag ok">yes (R7)</span></td><td><span class="tag ok">yes (Q3)</span></td></tr>
+      <tr><td>OHTTP: operator can join envelope ↔ contents by ID</td><td><span class="tag ok">yes</span></td><td><span class="tag no">no (by design)</span></td></tr>
+      <tr><td>OHTTP: courier-visible ID absent from content logs</td><td><span class="tag no">no — shared</span></td><td><span class="tag ok">yes — severed</span></td></tr>
+      <tr><td>Resists who↔what join under dual-log compromise</td><td><span class="tag no">no — exact match</span></td><td><span class="tag ok">yes — only fuzzy correlation left</span></td></tr>
+    </tbody>
+    <tfoot></tfoot>
+  </table>
+  <div class="legend">
+    <span><span class="sw" style="background:#3fb950"></span> protects privacy / preserves utility</span>
+    <span><span class="sw" style="background:#f85149"></span> weakens the guarantee</span>
+    <span><span class="sw" style="background:#d29922"></span> accepted cost</span>
+  </div>
+
+  <h2>8. How strong is the threat, really?</h2>
+  <p>Design A’s leak requires an attacker to hold <strong>both</strong> the courier’s records and the gateway’s logs at once — normally run by different operators, which is the whole structural point of OHTTP. So it’s a “collusion or double-breach” threat, not a single-party one. But two things make it worth fixing:</p>
+  <ul>
+    <li>A shared ID turns that scenario from <em>hard</em> (statistical timing/size correlation) into <em>trivial</em> (exact key match). Defense-in-depth means not handing out the easy join.</li>
+    <li>This is a privacy product whose core promise is unlinkability, and the sibling service (#757) already chose B. Matching it keeps the guarantee consistent across services.</li>
+  </ul>
+
+  <div class="callout"><h4>Bottom line for the decision</h4>
+  <p style="margin:0">If unlinkability under dual-compromise is in scope (it is for a privacy product), choose <strong>B</strong> and accept that, for boxed traffic, the envelope and contents logs can’t be joined by ID. If the relay is considered trusted and operator convenience dominates, <strong>A</strong> is simpler — but that should be an explicit, written threat-model decision, not a default.</p></div>
+
+  <div class="footer">Explanatory only · transaction-prover request-ID design · “box/courier” = OHTTP envelope/relay · A = current single-span behavior, B = #757’s fresh-inner-id behavior.</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PR #757 — the OHTTP request-id inconsistency & the fix</title>
+<style>
+  :root{
+    --bg:#0d1117;--bg2:#161b22;--inset:#010409;--bd:#30363d;--fg:#e6edf3;--mut:#9198a1;
+    --blue:#2f81f7;--grn:#3fb950;--amb:#d29922;--red:#f85149;--pur:#bc8cff;--cyan:#39c5cf;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  .wrap{max-width:940px;margin:0 auto;padding:48px 24px 110px}
+  h1{font-size:28px;line-height:1.25;margin:0 0 6px;letter-spacing:-.4px}
+  h2{font-size:20px;margin:48px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--bd)}
+  h3{font-size:15px;margin:24px 0 6px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+  p{margin:12px 0}
+  .lede{color:var(--mut);font-size:18px}
+  code{font-family:var(--mono);font-size:.85em;background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:1px 6px}
+  pre{background:var(--inset);border:1px solid var(--bd);border-radius:8px;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.5}
+  pre code{background:none;border:none;padding:0}
+  .ins{color:var(--grn)} .del{color:var(--red)}
+  .mut{color:var(--mut)}
+  .callout{border-left:4px solid var(--blue);border-radius:6px;background:var(--bg2);padding:13px 18px;margin:18px 0}
+  .callout.amber{border-left-color:var(--amb)}.callout.green{border-left-color:var(--grn)}.callout.red{border-left-color:var(--red)}
+  .callout h4{margin:0 0 6px;font-size:15px}
+  .fig{margin:24px 0}
+  .fig svg{width:100%;height:auto;display:block;background:var(--inset);border:1px solid var(--bd);border-radius:10px}
+  figcaption{color:var(--mut);font-size:13px;margin-top:8px;text-align:center}
+  .legend{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--mut);justify-content:center;margin-top:8px}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .pill{font-family:var(--mono);font-size:12px;padding:1px 8px;border-radius:20px;border:1px solid}
+  .pill.out{color:var(--amb);border-color:#6e5420}
+  .pill.in{color:var(--cyan);border-color:#1b6b72}
+  svg text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  svg .m{font-family:var(--mono)}
+  .footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--bd);color:var(--mut);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>PR #757 — where the request-id splits, and the one-line fix</h1>
+  <p class="lede">Two ids exist per OHTTP request. Today the <em>logs</em> and the <em>error body</em> disagree about which one to use — and the one the logs pick is the wrong one.</p>
+
+  <div class="callout">
+    <h4>The two ids, named once</h4>
+    <p style="margin:6px 0"><span class="pill out">R_out</span> — the <strong>outer</strong> id. Assigned to the encrypted envelope the relay delivers. It is <strong>echoed back to the relay</strong> on the outer response (so the relay can see it).</p>
+    <p style="margin:6px 0"><span class="pill in">R_in</span> — the <strong>inner</strong> id. A fresh UUID assigned to the decrypted request after the envelope is opened. It is <strong>never sent to the relay</strong>.</p>
+    <p style="margin:6px 0">Keeping these two <em>unrelated</em> is the whole point: the relay knows <code>R_out → who</code>; the gateway knows <code>R_in → what</code>. No shared id ⇒ nobody can link who-to-what.</p>
+  </div>
+
+  <h2>1. How the middleware is wired</h2>
+  <p>The server has an <strong>outer</strong> stack (every request passes through it), and the OHTTP path adds an <strong>inner</strong> stack that only runs <em>after</em> an envelope is decrypted. The critical detail: the outer <code>request_span</code> wraps <em>everything</em>, including the OHTTP step.</p>
+
+  <div class="fig"><figure>
+  <svg viewBox="0 0 900 410" role="img" aria-label="Middleware topology">
+    <!-- outer stack box -->
+    <rect x="20" y="20" width="860" height="370" rx="10" fill="none" stroke="#6e5420" stroke-dasharray="5 4"/>
+    <text x="36" y="44" fill="#d29922" font-size="13">OUTER stack — wraps every request (span bound to R_out)</text>
+
+    <!-- outer layers as a descending pipe -->
+    <g font-size="12.5">
+      <rect x="40" y="58" width="300" height="26" rx="5" fill="#161b22" stroke="#30363d"/><text x="52" y="75" fill="#e6edf3" class="m">sanitize_inbound_request_id</text>
+      <rect x="40" y="90" width="300" height="26" rx="5" fill="#161b22" stroke="#30363d"/><text x="52" y="107" fill="#e6edf3" class="m">SetRequestIdLayer → assigns R_out</text>
+      <rect x="40" y="122" width="300" height="26" rx="5" fill="#161b22" stroke="#30363d"/><text x="52" y="139" fill="#e6edf3" class="m">PropagateRequestIdLayer (echoes R_out)</text>
+      <rect x="40" y="154" width="300" height="26" rx="5" fill="#0d1117" stroke="#d29922" stroke-width="2"/><text x="52" y="171" fill="#d29922" class="m">request_span → span(R_out)</text>
+      <rect x="40" y="186" width="300" height="26" rx="5" fill="#161b22" stroke="#30363d"/><text x="52" y="203" fill="#e6edf3" class="m">access_log</text>
+    </g>
+    <line x1="190" y1="84" x2="190" y2="90" stroke="#9198a1"/><line x1="190" y1="116" x2="190" y2="122" stroke="#9198a1"/>
+    <line x1="190" y1="148" x2="190" y2="154" stroke="#9198a1"/><line x1="190" y1="180" x2="190" y2="186" stroke="#9198a1"/>
+
+    <text x="40" y="236" fill="#9198a1" font-size="12">router · plaintext request → handler directly</text>
+    <text x="40" y="255" fill="#9198a1" font-size="12">router · unmatched (OHTTP envelope) → fallback ↓</text>
+
+    <!-- the span coverage bracket -->
+    <path d="M348 160 q14 0 14 14 v150 q0 14 -14 14" fill="none" stroke="#d29922" stroke-width="1.5"/>
+    <text x="368" y="248" fill="#d29922" font-size="11">span(R_out) instruments</text>
+    <text x="368" y="263" fill="#d29922" font-size="11">the WHOLE downstream —</text>
+    <text x="368" y="278" fill="#d29922" font-size="11">including the OHTTP fallback ↘</text>
+
+    <!-- inner stack box (the OHTTP fallback) -->
+    <rect x="560" y="150" width="320" height="226" rx="10" fill="none" stroke="#1b6b72" stroke-dasharray="5 4"/>
+    <text x="576" y="174" fill="#39c5cf" font-size="13">OHTTP fallback → inner_router</text>
+    <g font-size="12.5">
+      <rect x="578" y="186" width="284" height="26" rx="5" fill="#161b22" stroke="#30363d"/><text x="590" y="203" fill="#e6edf3" class="m">OhttpLayer: decrypt envelope</text>
+      <rect x="578" y="218" width="284" height="26" rx="5" fill="#161b22" stroke="#30363d"/><text x="590" y="235" fill="#e6edf3" class="m">strip_inbound_request_id</text>
+      <rect x="578" y="250" width="284" height="26" rx="5" fill="#161b22" stroke="#30363d"/><text x="590" y="267" fill="#e6edf3" class="m">SetRequestIdLayer → assigns R_in</text>
+      <rect x="578" y="282" width="284" height="44" rx="5" fill="#3a1d1d" stroke="#f85149" stroke-dasharray="4 3"/><text x="590" y="299" fill="#f85149" class="m">‹ no request_span here ›</text><text x="590" y="316" fill="#f85149" font-size="11">nothing rebinds the span to R_in</text>
+      <rect x="578" y="332" width="284" height="26" rx="5" fill="#161b22" stroke="#30363d"/><text x="590" y="349" fill="#e6edf3" class="m">inner handler (debug! logs)</text>
+    </g>
+    <!-- arrow from fallback note into inner box -->
+    <line x1="300" y1="255" x2="556" y2="200" stroke="#39c5cf" stroke-width="1.5" marker-end="url(#c)"/>
+    <defs><marker id="c" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#39c5cf"/></marker></defs>
+  </svg>
+  <figcaption>The outer <code>request_span</code> (amber) opens a span carrying <b>R_out</b> and instruments everything below it — so when the OHTTP fallback (cyan) runs the inner request, that work is still <em>inside</em> the R_out span. The inner stack assigns <b>R_in</b> but never opens its own span.</figcaption>
+  </figure></figure></div>
+
+  <h2>2. What happens to an OHTTP request today (the bug)</h2>
+  <p>Follow a single decrypted request through the inner stack and watch which id ends up where:</p>
+
+  <div class="fig"><figure>
+  <svg viewBox="0 0 900 330" role="img" aria-label="Before: ids diverge">
+    <!-- span context banner -->
+    <rect x="20" y="20" width="860" height="30" rx="6" fill="#0d1117" stroke="#d29922"/>
+    <text x="450" y="40" fill="#d29922" font-size="13" text-anchor="middle">⟦ everything below runs inside span(<tspan class="m">R_out</tspan>) — opened by the OUTER request_span ⟧</text>
+
+    <!-- SetRequestIdLayer sets R_in -->
+    <rect x="60" y="74" width="300" height="40" rx="6" fill="#161b22" stroke="#1b6b72"/>
+    <text x="76" y="92" fill="#39c5cf" font-size="12.5">inner SetRequestIdLayer</text>
+    <text x="76" y="108" fill="#9198a1" font-size="11" class="m">sets RequestId extension = R_in</text>
+
+    <!-- handler -->
+    <rect x="60" y="140" width="300" height="92" rx="6" fill="#161b22" stroke="#30363d"/>
+    <text x="76" y="160" fill="#e6edf3" font-size="12.5">inner handler</text>
+    <text x="76" y="182" fill="#9198a1" font-size="11">• debug!(…) log line</text>
+    <text x="76" y="200" fill="#9198a1" font-size="11">• on error → reads RequestId extension</text>
+    <text x="76" y="218" fill="#9198a1" font-size="11">&nbsp;&nbsp;for the JSON error body</text>
+
+    <!-- outputs -->
+    <rect x="470" y="120" width="380" height="56" rx="6" fill="#0d1117" stroke="#f85149"/>
+    <text x="486" y="140" fill="#f85149" font-size="12.5">LOG line  (inherits the span)</text>
+    <text x="486" y="162" fill="#e6edf3" font-size="12" class="m">{ "request_id": "R_out", "message": … }</text>
+
+    <rect x="470" y="190" width="380" height="56" rx="6" fill="#0d1117" stroke="#3fb950"/>
+    <text x="486" y="210" fill="#3fb950" font-size="12.5">ERROR body  (reads the extension)</text>
+    <text x="486" y="232" fill="#e6edf3" font-size="12" class="m">{ "error": { "request_id": "R_in" } }</text>
+
+    <!-- arrows -->
+    <line x1="360" y1="170" x2="466" y2="148" stroke="#f85149" stroke-width="1.5" marker-end="url(#r)"/>
+    <line x1="360" y1="205" x2="466" y2="218" stroke="#3fb950" stroke-width="1.5" marker-end="url(#g)"/>
+    <text x="300" y="120" fill="#f85149" font-size="11">span field →</text>
+    <text x="300" y="255" fill="#3fb950" font-size="11">extension →</text>
+
+    <!-- verdict -->
+    <rect x="60" y="262" width="790" height="48" rx="8" fill="#3a1d1d" stroke="#f85149"/>
+    <text x="455" y="282" fill="#f85149" font-size="13" text-anchor="middle">Same request, two different ids: logs say R_out, error body says R_in.</text>
+    <text x="455" y="300" fill="#e6edf3" font-size="12" text-anchor="middle">A client who reports an error quoting R_in cannot be found in the logs (which are under R_out).</text>
+    <defs>
+      <marker id="r" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#f85149"/></marker>
+      <marker id="g" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#3fb950"/></marker>
+    </defs>
+  </svg>
+  <figcaption>The handler’s <code>debug!</code> log inherits the surrounding span, so it is stamped <b>R_out</b>. But the error body is built from the <code>RequestId</code> extension, which is <b>R_in</b>. The two never agree.</figcaption>
+  </figure></figure></div>
+
+  <h2>3. Why R_out in the logs is worse than just “inconsistent”</h2>
+  <p>R_out is the id the gateway <strong>hands back to the relay</strong>. So tagging content logs with R_out gives the relay and the gateway a shared key:</p>
+
+  <div class="fig"><figure>
+  <svg viewBox="0 0 900 230" role="img" aria-label="The join leak">
+    <rect x="30" y="40" width="360" height="80" rx="8" fill="#161b22" stroke="#d29922"/>
+    <text x="50" y="64" fill="#d29922" font-size="13">Relay’s records</text>
+    <text x="50" y="90" fill="#e6edf3" font-size="13" class="m">R_out → client = Alice</text>
+    <text x="50" y="110" fill="#9198a1" font-size="11">(relay received R_out on the outer response)</text>
+
+    <rect x="510" y="40" width="360" height="80" rx="8" fill="#161b22" stroke="#f85149"/>
+    <text x="530" y="64" fill="#f85149" font-size="13">Gateway content logs (today)</text>
+    <text x="530" y="90" fill="#e6edf3" font-size="13" class="m">R_out → "synced 12 notes for …"</text>
+    <text x="530" y="110" fill="#9198a1" font-size="11">(handler debug! inherited R_out)</text>
+
+    <line x1="390" y1="80" x2="510" y2="80" stroke="#f85149" stroke-width="2.5" stroke-dasharray="6 5" marker-start="url(#js)" marker-end="url(#je)"/>
+    <text x="450" y="72" fill="#f85149" font-size="12" text-anchor="middle" class="m">R_out=R_out</text>
+
+    <rect x="230" y="160" width="440" height="48" rx="8" fill="#0d1117" stroke="#f85149"/>
+    <text x="450" y="180" fill="#f85149" font-size="13" text-anchor="middle">Join on R_out ⇒ “Alice synced those notes.”</text>
+    <text x="450" y="198" fill="#9198a1" font-size="12" text-anchor="middle">exactly the who↔what link OHTTP exists to prevent</text>
+    <line x1="450" y1="120" x2="450" y2="158" stroke="#f85149" stroke-width="1.3" stroke-dasharray="3 3"/>
+    <defs>
+      <marker id="je" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#f85149"/></marker>
+      <marker id="js" markerWidth="9" markerHeight="9" refX="2" refY="3" orient="auto"><path d="M7,0 L0,3 L7,6 Z" fill="#f85149"/></marker>
+    </defs>
+  </svg>
+  <figcaption>Because the relay-visible R_out also tags the content logs, anyone holding both log sets can join them on R_out. R_in would not be joinable — it never leaves the gateway.</figcaption>
+  </figure></figure></div>
+
+  <h2>4. The fix — give the inner stack its own span</h2>
+  <p>Add one layer: an inner <code>request_span</code>, placed so it runs <em>after</em> <code>SetRequestIdLayer</code> (so R_in already exists) and <em>around</em> the handler (so its logs inherit the new span). In axum the last <code>.layer()</code> is outermost, so the new line goes <strong>first</strong>:</p>
+
+  <pre><code>let inner_router = api_router
+    .clone()
+<span class="ins">    // Innermost: bind the span to the fresh inner id so decapsulated</span>
+<span class="ins">    // handler logs carry R_in, not the inherited relay-visible R_out.</span>
+<span class="ins">    .layer(axum::middleware::from_fn(request_span::request_span))</span>
+    .layer(SetRequestIdLayer::new(request_id_header.clone(), MakeRequestUuid))
+    .layer(axum::middleware::from_fn(strip_inbound_request_id));</code></pre>
+
+  <p class="mut">Resulting execution order on a decrypted request:</p>
+  <pre><code>strip_inbound_request_id        drop any client-supplied inner id
+  → SetRequestIdLayer           assign fresh R_in   (extension)
+    → request_span              open span(R_in)     <span class="ins">← NEW</span>
+      → handler                 debug! now inherits R_in</code></pre>
+
+  <div class="fig"><figure>
+  <svg viewBox="0 0 900 250" role="img" aria-label="After: ids agree">
+    <rect x="20" y="20" width="860" height="30" rx="6" fill="#0d1117" stroke="#1b6b72"/>
+    <text x="450" y="40" fill="#39c5cf" font-size="13" text-anchor="middle">⟦ inner work now runs inside span(<tspan class="m">R_in</tspan>) — opened by the NEW inner request_span ⟧</text>
+
+    <rect x="60" y="76" width="300" height="92" rx="6" fill="#161b22" stroke="#30363d"/>
+    <text x="76" y="96" fill="#e6edf3" font-size="12.5">inner handler</text>
+    <text x="76" y="118" fill="#9198a1" font-size="11">• debug!(…) log line</text>
+    <text x="76" y="136" fill="#9198a1" font-size="11">• error body ← RequestId extension</text>
+
+    <rect x="470" y="72" width="380" height="44" rx="6" fill="#0d1117" stroke="#3fb950"/>
+    <text x="486" y="90" fill="#3fb950" font-size="12.5">LOG line</text>
+    <text x="486" y="108" fill="#e6edf3" font-size="12" class="m">{ "request_id": "R_in", … }</text>
+
+    <rect x="470" y="128" width="380" height="44" rx="6" fill="#0d1117" stroke="#3fb950"/>
+    <text x="486" y="146" fill="#3fb950" font-size="12.5">ERROR body</text>
+    <text x="486" y="164" fill="#e6edf3" font-size="12" class="m">{ … "request_id": "R_in" }</text>
+
+    <line x1="360" y1="110" x2="466" y2="94" stroke="#3fb950" stroke-width="1.5" marker-end="url(#g2)"/>
+    <line x1="360" y1="140" x2="466" y2="150" stroke="#3fb950" stroke-width="1.5" marker-end="url(#g2)"/>
+
+    <rect x="60" y="192" width="790" height="46" rx="8" fill="#0d2417" stroke="#3fb950"/>
+    <text x="455" y="212" fill="#3fb950" font-size="13" text-anchor="middle">Logs and error body now both say R_in — consistent, and R_in never reaches the relay.</text>
+    <text x="455" y="230" fill="#9198a1" font-size="12" text-anchor="middle">Relay still sees only R_out; content logs carry R_in ⇒ no shared key ⇒ no join.</text>
+    <defs><marker id="g2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#3fb950"/></marker></defs>
+  </svg>
+  <figcaption>With an inner <code>request_span</code> bound to R_in, the handler’s logs inherit R_in instead of the outer R_out. Now the logs match the error body, and the relay-visible id never appears in content logs.</figcaption>
+  </figure></figure></div>
+
+  <h2>5. Before vs after, at a glance</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:8px">
+    <thead><tr>
+      <th style="border:1px solid #30363d;padding:9px 12px;background:#161b22;text-align:left">For an OHTTP request…</th>
+      <th style="border:1px solid #30363d;padding:9px 12px;background:#161b22;text-align:left">Today</th>
+      <th style="border:1px solid #30363d;padding:9px 12px;background:#161b22;text-align:left">With the inner span</th>
+    </tr></thead>
+    <tbody>
+      <tr><td style="border:1px solid #30363d;padding:9px 12px">handler log id</td><td style="border:1px solid #30363d;padding:9px 12px;color:#f85149">R_out</td><td style="border:1px solid #30363d;padding:9px 12px;color:#3fb950">R_in</td></tr>
+      <tr><td style="border:1px solid #30363d;padding:9px 12px">error-body id</td><td style="border:1px solid #30363d;padding:9px 12px">R_in</td><td style="border:1px solid #30363d;padding:9px 12px">R_in</td></tr>
+      <tr><td style="border:1px solid #30363d;padding:9px 12px">log ↔ error body match?</td><td style="border:1px solid #30363d;padding:9px 12px;color:#f85149">no</td><td style="border:1px solid #30363d;padding:9px 12px;color:#3fb950">yes</td></tr>
+      <tr><td style="border:1px solid #30363d;padding:9px 12px">relay-visible id in content logs?</td><td style="border:1px solid #30363d;padding:9px 12px;color:#f85149">yes (R_out) — joinable</td><td style="border:1px solid #30363d;padding:9px 12px;color:#3fb950">no</td></tr>
+      <tr><td style="border:1px solid #30363d;padding:9px 12px">plaintext request</td><td style="border:1px solid #30363d;padding:9px 12px;color:#9198a1">unaffected</td><td style="border:1px solid #30363d;padding:9px 12px;color:#9198a1">unaffected</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout green" style="margin-top:22px">
+    <h4>One-line takeaway</h4>
+    <p style="margin:0">The inner router assigns a fresh id (R_in) but never opens a span for it, so handler logs fall back to the outer span’s id (R_out). Adding an inner <code>request_span</code> between <code>SetRequestIdLayer</code> and the handler makes the logs use R_in — fixing both the id mismatch and the relay-linkability leak. Plaintext traffic is unchanged.</p>
+  </div>
+
+  <div class="footer">Explanatory only · starknet-privacy PR #757 (discovery-service request-id) · R_out = outer/relay-visible envelope id, R_in = fresh decapsulated-request id.</div>
+
+</div>
+</body>
+</html>

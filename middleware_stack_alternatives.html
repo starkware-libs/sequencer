@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Middleware stack duplication — 3 alternatives</title>
+<style>
+  :root{
+    --bg:#0d1117;--bg2:#161b22;--inset:#010409;--bd:#30363d;--fg:#e6edf3;--mut:#9198a1;
+    --blue:#2f81f7;--grn:#3fb950;--amb:#d29922;--red:#f85149;--pur:#bc8cff;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  .wrap{max-width:1060px;margin:0 auto;padding:44px 24px 100px}
+  h1{font-size:27px;line-height:1.25;margin:0 0 6px;letter-spacing:-.4px}
+  h2{font-size:18px;margin:0 0 10px}
+  p{margin:10px 0}
+  .lede{color:var(--mut);font-size:17px;margin-bottom:24px}
+  code{font-family:var(--mono);font-size:.84em;background:var(--bg2);border:1px solid var(--bd);border-radius:6px;padding:1px 6px}
+  pre{background:var(--inset);border:1px solid var(--bd);border-radius:8px;padding:13px 15px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.5;margin:10px 0}
+  pre code{background:none;border:none;padding:0}
+  .dim{color:var(--mut)}
+  .kw{color:#ff7b72}.ty{color:#79c0ff}.fn{color:#d2a8ff}.cm{color:#8b949e}.str{color:#a5d6ff}.mac{color:#ffa657}
+  .ins{color:var(--grn)}.del{color:var(--red)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0}
+  @media(max-width:800px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--bg2);border:1px solid var(--bd);border-radius:10px;display:flex;flex-direction:column}
+  .card-header{padding:16px 18px 12px;border-bottom:1px solid var(--bd)}
+  .card-header h2{margin:0 0 4px}
+  .badge{display:inline-block;font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid;margin-bottom:6px}
+  .badge.rec{color:var(--grn);border-color:#238636;background:#0d2417}
+  .badge.ok{color:var(--amb);border-color:#6e5420;background:#1e1608}
+  .badge.pass{color:var(--mut);border-color:#30363d;background:var(--bg)}
+  .card-body{padding:14px 18px;flex:1}
+  .card-footer{padding:12px 18px;border-top:1px solid var(--bd)}
+  .pros,.cons{margin:8px 0;font-size:13.5px}
+  .pros li{color:var(--grn)} .cons li{color:var(--red)} ul{margin:4px 0;padding-left:20px}
+  .pros li::marker{content:"✓ "} .cons li::marker{content:"✗ "}
+  .verdict{font-size:13px;line-height:1.5}
+  .callout{border-left:4px solid var(--blue);border-radius:6px;background:var(--bg2);padding:12px 16px;margin:22px 0}
+  .callout.amber{border-left-color:var(--amb)}.callout.green{border-left-color:var(--grn)}
+  .callout h4{margin:0 0 5px;font-size:14px}
+  .fig{margin:24px 0}
+  .fig svg{width:100%;height:auto;display:block;background:var(--inset);border:1px solid var(--bd);border-radius:10px}
+  figcaption{color:var(--mut);font-size:13px;margin-top:7px;text-align:center}
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:13.5px}
+  th,td{border:1px solid var(--bd);padding:8px 12px;text-align:left;vertical-align:middle}
+  th{background:var(--bg2)}
+  .ok{color:var(--grn)} .no{color:var(--red)} .mid{color:var(--amb)}
+  .footer{margin-top:52px;padding-top:14px;border-top:1px solid var(--bd);color:var(--mut);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>How to stop the middleware stack drifting</h1>
+  <p class="lede">The same 7-layer tower chain is hand-copied in <code>server.rs</code>, <code>tls.rs</code>, and the integration test. Both PRs in the request-id stack had to edit all three copies in lockstep. Three ways to fix it.</p>
+
+  <!-- the problem diagram -->
+  <div class="fig"><figure>
+  <svg viewBox="0 0 940 160" role="img" aria-label="Three copies of the same middleware stack">
+    <text x="470" y="28" fill="#9198a1" font-size="13" text-anchor="middle" font-family="-apple-system,sans-serif">The same 7-layer chain exists in three places today — any future edit must hit all three or silently drift</text>
+    <!-- file A -->
+    <rect x="20" y="44" width="270" height="102" rx="7" fill="#161b22" stroke="#f85149"/>
+    <text x="36" y="64" fill="#f85149" font-size="12" font-family="var(--mono)">server.rs (HTTP path)</text>
+    <text x="36" y="83"  fill="#9198a1" font-size="11" font-family="var(--mono)">RequestLogLayer</text>
+    <text x="36" y="98"  fill="#9198a1" font-size="11" font-family="var(--mono)">HealthLayer</text>
+    <text x="36" y="113" fill="#9198a1" font-size="11" font-family="var(--mono)">cors / MapReqBody / OhttpLayer</text>
+    <text x="36" y="128" fill="#9198a1" font-size="11" font-family="var(--mono)">RequestSpanLayer</text>
+    <text x="36" y="143" fill="#9198a1" font-size="11" font-family="var(--mono)">MapRespBody / Compression</text>
+    <!-- file B -->
+    <rect x="335" y="44" width="270" height="102" rx="7" fill="#161b22" stroke="#f85149"/>
+    <text x="351" y="64" fill="#f85149" font-size="12" font-family="var(--mono)">tls.rs (HTTPS path)</text>
+    <text x="351" y="83"  fill="#9198a1" font-size="11" font-family="var(--mono)">RequestLogLayer</text>
+    <text x="351" y="98"  fill="#9198a1" font-size="11" font-family="var(--mono)">HealthLayer</text>
+    <text x="351" y="113" fill="#9198a1" font-size="11" font-family="var(--mono)">cors / MapReqBody / OhttpLayer</text>
+    <text x="351" y="128" fill="#9198a1" font-size="11" font-family="var(--mono)">RequestSpanLayer</text>
+    <text x="351" y="143" fill="#9198a1" font-size="11" font-family="var(--mono)">MapRespBody / Compression</text>
+    <!-- file C -->
+    <rect x="650" y="44" width="270" height="102" rx="7" fill="#161b22" stroke="#f85149"/>
+    <text x="666" y="64" fill="#f85149" font-size="12" font-family="var(--mono)">ohttp_integration_test.rs</text>
+    <text x="666" y="83"  fill="#9198a1" font-size="11" font-family="var(--mono)">RequestLogLayer</text>
+    <text x="666" y="98"  fill="#9198a1" font-size="11" font-family="var(--mono)">HealthLayer</text>
+    <text x="666" y="113" fill="#9198a1" font-size="11" font-family="var(--mono)">cors / MapReqBody / OhttpLayer</text>
+    <text x="666" y="128" fill="#9198a1" font-size="11" font-family="var(--mono)">RequestSpanLayer</text>
+    <text x="666" y="143" fill="#9198a1" font-size="11" font-family="var(--mono)">MapRespBody / Compression</text>
+  </svg>
+  </figure></div>
+
+  <div class="callout amber">
+    <h4>Why the type is unnameable (the root constraint)</h4>
+    <p style="margin:0">
+      <code>ServiceBuilder::new().layer(A).layer(B).layer(C)…</code> has a concrete type
+      <code>ServiceBuilder&lt;Stack&lt;A, Stack&lt;B, Stack&lt;C, Identity&gt;&gt;&gt;&gt;</code> that grows one level per
+      <code>.layer()</code> call. With 7 layers the type is 7 levels deep and spans ~180 chars.
+      Rust cannot write this as an ordinary function return type (<code>impl ServiceBuilder&lt;…&gt;</code>
+      is not valid — <code>impl Trait</code> works for trait objects, not concrete structs with embedded
+      generics). This forces the three alternatives below.
+    </p>
+  </div>
+
+  <!-- three cards -->
+  <div class="grid">
+
+    <!-- option A: leave duplicated -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge pass">Option A</span>
+        <h2>Leave duplicated + sync comment</h2>
+        <p style="margin:0;color:var(--mut);font-size:13px">No code change; add a comment cross-referencing the three copies</p>
+      </div>
+      <div class="card-body">
+        <pre><code><span class="cm">// server.rs — KEEP IN SYNC WITH tls.rs</span>
+<span class="cm">// and ohttp_integration_test.rs.</span>
+ServiceBuilder::new()
+    .layer(RequestLogLayer)
+    .layer(HealthLayer)
+    ...</code></pre>
+        <ul class="pros">
+          <li>Zero churn — nothing to break</li>
+          <li>Each site is readable inline</li>
+          <li>No Rust gymnastics</li>
+        </ul>
+        <ul class="cons">
+          <li>Three edits required on every future layer change</li>
+          <li>HTTP / HTTPS can silently drift (has happened twice already in this stack)</li>
+          <li>Comment is ignored in review fatigue</li>
+        </ul>
+      </div>
+      <div class="card-footer">
+        <p class="verdict dim">Leaves the maintenance liability in place; the comment is only as good as reviewers' discipline.</p>
+      </div>
+    </div>
+
+    <!-- option B: macro -->
+    <div class="card" style="border-color:#2f81f7">
+      <div class="card-header" style="border-bottom-color:#2f81f7">
+        <span class="badge rec">Option B — Recommended</span>
+        <h2>Local <code>macro_rules!</code> bundle</h2>
+        <p style="margin:0;color:var(--mut);font-size:13px">Define the chain once as a macro; call it in all three places</p>
+      </div>
+      <div class="card-body">
+        <pre><code><span class="cm">// defined once in server.rs</span>
+<span class="mac">macro_rules!</span> <span class="fn">prover_http_middleware</span> {
+    (<span class="ty">$cors</span>:expr, <span class="ty">$ohttp</span>:expr) => {
+        ServiceBuilder::new()
+            .layer(<span class="ty">RequestLogLayer</span>)
+            .layer(<span class="ty">HealthLayer</span>)
+            .option_layer(<span class="ty">$cors</span>)
+            .layer(<span class="ty">MapRequestBodyLayer</span>::new(<span class="ty">HttpBody</span>::new))
+            .option_layer(<span class="ty">$ohttp</span>)
+            .layer(<span class="ty">RequestSpanLayer</span>)
+            .layer(<span class="ty">MapResponseBodyLayer</span>::new(<span class="ty">HttpBody</span>::new))
+            .layer(<span class="ty">CompressionLayer</span>::new())
+    };
+}
+
+<span class="cm">// server.rs</span>
+.set_http_middleware(<span class="mac">prover_http_middleware!</span>(cors, ohttp))
+.build(&amp;addr)
+
+<span class="cm">// tls.rs</span>
+.set_http_middleware(<span class="mac">prover_http_middleware!</span>(cors, ohttp))
+.to_service_builder()
+
+<span class="cm">// integration test</span>
+<span class="mac">prover_http_middleware!</span>(None::&lt;CorsLayer&gt;, Some(ohttp))
+    .service(tower::service_fn(echo))</code></pre>
+        <ul class="pros">
+          <li>One source of truth for layer order</li>
+          <li>No type-naming problem — macros expand inline</li>
+          <li>Layer-order comment belongs on the macro, once</li>
+          <li>A future <code>layer(NewLayer)</code> touches <strong>one</strong> line</li>
+        </ul>
+        <ul class="cons">
+          <li>Introduces a macro (unusual in this codebase)</li>
+          <li>Stack trace / IDE hover shows expanded type, not a named fn</li>
+          <li>Macro hygiene edge cases (benign here — only concrete types, no metavariables in types)</li>
+        </ul>
+      </div>
+      <div class="card-footer">
+        <p class="verdict" style="color:var(--blue)">Directly solves the problem without hacks. Idiomatic Rust for <em>exactly</em> this class of unnameable type. A future layer change becomes a 1-line edit in <code>server.rs</code> instead of 3 coordinated changes.</p>
+      </div>
+    </div>
+
+    <!-- option C: fn returning wired service -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge ok">Option C</span>
+        <h2>Helper fn (service-in, service-out)</h2>
+        <p style="margin:0;color:var(--mut);font-size:13px">Flip the API: take the inner service, return the fully-wired service</p>
+      </div>
+      <div class="card-body">
+        <pre><code><span class="cm">// Takes the inner jsonrpsee service (already built)</span>
+<span class="cm">// and wraps the 7-layer chain around it.</span>
+<span class="kw">fn</span> <span class="fn">wrap_with_prover_middleware</span>&lt;<span class="ty">S</span>&gt;(
+    inner: <span class="ty">S</span>,
+    cors:  <span class="ty">Option</span>&lt;<span class="ty">CorsLayer</span>&gt;,
+    ohttp: <span class="ty">Option</span>&lt;<span class="ty">OhttpJsonrpseeLayer</span>&gt;,
+) -&gt; <span class="kw">impl</span> <span class="ty">Service</span>&lt;…&gt;
+<span class="kw">where</span> <span class="ty">S</span>: <span class="ty">Service</span>&lt;…&gt; + <span class="ty">Clone</span> + <span class="ty">Send</span> + <span class="ty">'static</span>,
+      <span class="ty">S</span>::<span class="ty">Future</span>: <span class="ty">Send</span> + <span class="ty">'static</span>,
+{
+    ServiceBuilder::new()
+        .layer(<span class="ty">RequestLogLayer</span>)
+        <span class="cm">// ... 6 more layers ...</span>
+        .service(inner)
+}</code></pre>
+        <ul class="pros">
+          <li>Ordinary function — no macro</li>
+          <li>Works with <code>impl Service</code> return</li>
+          <li>Single definition of layer order</li>
+        </ul>
+        <ul class="cons">
+          <li>jsonrpsee's <code>ServerBuilder::set_http_middleware</code> takes a <code>ServiceBuilder</code>, not a wired service — the boundary doesn't fit</li>
+          <li>The inner service type varies by call site; requires heavy <code>where</code> bounds or boxing</li>
+          <li>Loses the <code>.build(&amp;addr)</code> vs <code>.to_service_builder()</code> callsite difference (both paths still need different outer wrappers)</li>
+          <li>More complex signature than the macro for the same result</li>
+        </ul>
+      </div>
+      <div class="card-footer">
+        <p class="verdict dim">Appealing in theory but fights jsonrpsee's API shape. The <code>set_http_middleware</code> split between HTTP and HTTPS means this fn can't unify the two paths cleanly, leaving partial duplication anyway.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- comparison table -->
+  <h2 style="margin-top:32px;padding-bottom:8px;border-bottom:1px solid var(--bd);font-size:20px">Side-by-side</h2>
+  <table>
+    <thead><tr>
+      <th>Property</th>
+      <th>A — leave duplicated</th>
+      <th style="background:#0d1f35;border-color:#2f81f7">B — macro ✓</th>
+      <th>C — helper fn</th>
+    </tr></thead>
+    <tbody>
+      <tr><td>Single source of layer order</td><td class="no">no</td><td class="ok" style="background:#0d2417">yes</td><td class="ok">yes</td></tr>
+      <tr><td>Drift between HTTP/HTTPS prevented by construction</td><td class="no">no</td><td class="ok" style="background:#0d2417">yes</td><td class="mid">partial</td></tr>
+      <tr><td>Future layer change: lines to edit</td><td class="no">3 (all copies)</td><td class="ok" style="background:#0d2417">1 (macro body)</td><td class="ok">1 (fn body)</td></tr>
+      <tr><td>Fits jsonrpsee <code>set_http_middleware</code> API</td><td class="ok">yes</td><td class="ok" style="background:#0d2417">yes (expands inline)</td><td class="no">requires rework</td></tr>
+      <tr><td>Rust type complexity</td><td class="ok">none</td><td class="ok" style="background:#0d2417">none (macro hides it)</td><td class="no">complex where bounds</td></tr>
+      <tr><td>New language construct introduced</td><td class="ok">none</td><td class="mid" style="background:#0d2417">local macro_rules!</td><td class="ok">plain fn</td></tr>
+      <tr><td>Layer-order comment: one place?</td><td class="no">must repeat or cross-ref</td><td class="ok" style="background:#0d2417">yes (on macro)</td><td class="ok">yes (on fn)</td></tr>
+    </tbody>
+  </table>
+
+  <!-- the concrete macro diff -->
+  <h2 style="margin-top:32px;padding-bottom:8px;border-bottom:1px solid var(--bd);font-size:20px">What the macro diff looks like</h2>
+  <p>Define the macro at the top of <code>server.rs</code> (just below the module declarations), then replace both production call sites and update the integration test:</p>
+
+  <pre><code><span class="cm">// server.rs — add before start_server</span>
+<span class="cm">/// Builds the shared HTTP middleware stack. Both the HTTP and HTTPS entry</span>
+<span class="cm">/// points use this chain; the layer order here is the single source of truth.</span>
+<span class="cm">/// `RequestSpanLayer` must sit BELOW `OhttpLayer` — see `request_span` for why.</span>
+<span class="mac">macro_rules!</span> <span class="fn">prover_http_middleware</span> {
+    (<span class="ty">$cors_layer</span>:expr, <span class="ty">$ohttp_layer</span>:expr) => {
+        ::tower::ServiceBuilder::new()
+            .layer(<span class="ty">RequestLogLayer</span>)
+            .layer(<span class="ty">HealthLayer</span>)
+            .option_layer(<span class="ty">$cors_layer</span>)
+            .layer(::<span class="ty">tower_http</span>::map_request_body::<span class="ty">MapRequestBodyLayer</span>::new(<span class="ty">HttpBody</span>::new))
+            .option_layer(<span class="ty">$ohttp_layer</span>)
+            .layer(<span class="ty">RequestSpanLayer</span>)
+            .layer(::<span class="ty">tower_http</span>::map_response_body::<span class="ty">MapResponseBodyLayer</span>::new(<span class="ty">HttpBody</span>::new))
+            .layer(::<span class="ty">tower_http</span>::compression::<span class="ty">CompressionLayer</span>::new())
+    };
+}
+
+<span class="cm">// server.rs — inside start_server, HTTP arm (replace the ServiceBuilder block)</span>
+<span class="del">-               .set_http_middleware(</span>
+<span class="del">-                   // `RequestLogLayer` outermost … (7-line comment)</span>
+<span class="del">-                   ServiceBuilder::new()</span>
+<span class="del">-                       .layer(RequestLogLayer)</span>
+<span class="del">-                       … 6 more lines …</span>
+<span class="del">-               )</span>
+<span class="ins">+               .set_http_middleware(prover_http_middleware!(cors_layer, ohttp_layer))</span>
+
+<span class="cm">// tls.rs — replace the identical block</span>
+<span class="del">-           .set_http_middleware(</span>
+<span class="del">-               // See server.rs for the layer-order rationale.</span>
+<span class="del">-               ServiceBuilder::new()</span>
+<span class="del">-               … same 7 layers …</span>
+<span class="del">-           )</span>
+<span class="ins">+           .set_http_middleware(prover_http_middleware!(cors_layer, ohttp_layer))</span>
+<span class="cm">// (use crate::server::prover_http_middleware! in tls.rs)</span>
+
+<span class="cm">// ohttp_integration_test.rs — replace the test ServiceBuilder</span>
+<span class="del">-   let mut svc = tower::ServiceBuilder::new()</span>
+<span class="del">-       .option_layer(None::&lt;CorsLayer&gt;)</span>
+<span class="del">-       .layer(MapRequestBodyLayer::new(HttpBody::new))</span>
+<span class="del">-       … 5 more layers …</span>
+<span class="del">-       .service(…);</span>
+<span class="ins">+   let mut svc = prover_http_middleware!(None::&lt;CorsLayer&gt;, Some(ohttp_layer))</span>
+<span class="ins">+       .service(tower::service_fn(jsonrpsee_echo_service));</span></code></pre>
+
+  <div class="callout green">
+    <h4>Net result</h4>
+    <p style="margin:0">The 7-layer chain lives in exactly one place (the macro body). Adding or removing a layer in a future PR is a <strong>1-line change</strong> instead of 3 coordinated edits across files. The only thing each call site specifies is its two variable inputs (<code>cors_layer</code> and <code>ohttp_layer</code>). The integration test comment "Must be kept in sync with those files" disappears entirely — it's structurally enforced instead.</p>
+  </div>
+
+  <div class="footer">server.rs + tls.rs + ohttp_integration_test.rs · avi/prover-v3/request-logs + content-id stack</div>
+
+</div>
+</body>
+</html>

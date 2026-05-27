@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Request IDs through OHTTP — the prover's scope choice</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-elev: #161b22;
+    --bg-inset: #010409;
+    --border: #30363d;
+    --fg: #e6edf3;
+    --fg-muted: #9198a1;
+    --accent: #2f81f7;
+    --green: #3fb950;
+    --amber: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 48px 24px 96px; }
+  h1 { font-size: 30px; line-height: 1.25; margin: 0 0 8px; letter-spacing: -0.5px; }
+  h2 { font-size: 22px; margin: 48px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 17px; margin: 28px 0 8px; color: var(--fg); }
+  p { margin: 12px 0; }
+  .lede { color: var(--fg-muted); font-size: 18px; margin-bottom: 8px; }
+  code { font-family: var(--mono); font-size: 0.86em; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; }
+  pre { background: var(--bg-inset); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.5; }
+  pre code { background: none; border: none; padding: 0; }
+  .muted { color: var(--fg-muted); }
+  .card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin: 20px 0; }
+  .callout { border-left: 4px solid var(--accent); border-radius: 6px; background: var(--bg-elev); padding: 14px 18px; margin: 20px 0; }
+  .callout.amber { border-left-color: var(--amber); }
+  .callout.green { border-left-color: var(--green); }
+  .callout.red   { border-left-color: var(--red); }
+  .callout h4 { margin: 0 0 6px; font-size: 15px; }
+  .fig { margin: 28px 0; }
+  .fig svg { width: 100%; height: auto; display: block; background: var(--bg-inset); border: 1px solid var(--border); border-radius: 10px; }
+  figcaption { color: var(--fg-muted); font-size: 13px; margin-top: 8px; text-align: center; }
+  table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--border); padding: 9px 12px; text-align: left; vertical-align: top; }
+  th { background: var(--bg-elev); }
+  .tag { font-family: var(--mono); font-size: 12px; padding: 2px 7px; border-radius: 20px; border: 1px solid var(--border); white-space: nowrap; }
+  .tag.ok  { color: var(--green);  border-color: #238636; }
+  .tag.no  { color: var(--red);    border-color: #6e2c2c; }
+  .tag.mid { color: var(--amber);  border-color: #6e5420; }
+  .legend { display: flex; gap: 22px; flex-wrap: wrap; font-size: 13px; color: var(--fg-muted); margin: 4px 0 0; justify-content: center; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .swatch { width: 13px; height: 13px; border-radius: 3px; display: inline-block; }
+  .kv { font-family: var(--mono); font-size: 13px; }
+  .footer { margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--fg-muted); font-size: 13px; }
+  svg text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  svg .mono { font-family: var(--mono); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Request IDs through OHTTP</h1>
+  <p class="lede">Why the transaction prover tags only the “outside” of a privacy-wrapped request — and what that costs.</p>
+
+  <div class="callout">
+    <h4>The one-sentence version</h4>
+    <p style="margin:0">When a request is wrapped for privacy, the prover stamps a tracking number on the <strong>outer wrapper</strong> only. That number is great for <em>us</em> (operators reading logs) but the <strong>end user never sees it</strong>, so they can’t quote it back to us when something breaks.</p>
+  </div>
+
+  <h2>1. What a request ID is (and why we want one)</h2>
+  <p>Every time a client talks to our server, we’d like to label that single exchange with a unique tracking number — a <strong>request ID</strong>, e.g. <code>a1b2c3d4…</code>. It’s exactly like the tracking number on a parcel. Its whole purpose is <em>correlation</em>:</p>
+  <ul>
+    <li>The server writes one log line per request, stamped with the ID.</li>
+    <li>The server sends the same ID back to the client on the response.</li>
+    <li>If something goes wrong, the user says “request <code>a1b2c3d4</code> failed” and we instantly find the matching log line.</li>
+  </ul>
+
+  <div class="fig">
+    <figure>
+    <svg viewBox="0 0 820 200" role="img" aria-label="Plain request and response with a shared request ID">
+      <!-- client -->
+      <rect x="30" y="70" width="150" height="60" rx="8" fill="#161b22" stroke="#30363d"/>
+      <text x="105" y="95" fill="#e6edf3" font-size="14" text-anchor="middle">Client</text>
+      <text x="105" y="115" fill="#9198a1" font-size="11" text-anchor="middle">(the user)</text>
+      <!-- server -->
+      <rect x="640" y="70" width="150" height="60" rx="8" fill="#161b22" stroke="#30363d"/>
+      <text x="715" y="95" fill="#e6edf3" font-size="14" text-anchor="middle">Prover</text>
+      <text x="715" y="115" fill="#9198a1" font-size="11" text-anchor="middle">(our server)</text>
+      <!-- request arrow -->
+      <line x1="180" y1="88" x2="636" y2="88" stroke="#2f81f7" stroke-width="2" marker-end="url(#ab)"/>
+      <text x="408" y="80" fill="#2f81f7" font-size="12" text-anchor="middle">request</text>
+      <!-- response arrow -->
+      <line x1="636" y1="112" x2="184" y2="112" stroke="#3fb950" stroke-width="2" marker-end="url(#ag)"/>
+      <text x="408" y="128" fill="#3fb950" font-size="12" text-anchor="middle">response</text>
+      <!-- id stamp -->
+      <rect x="318" y="150" width="184" height="30" rx="15" fill="#0d1117" stroke="#bc8cff"/>
+      <text x="410" y="170" fill="#bc8cff" font-size="12" text-anchor="middle" class="mono">id = a1b2c3d4</text>
+      <line x1="410" y1="120" x2="410" y2="150" stroke="#bc8cff" stroke-width="1.5" stroke-dasharray="3 3"/>
+      <defs>
+        <marker id="ab" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#2f81f7"/></marker>
+        <marker id="ag" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#3fb950"/></marker>
+      </defs>
+    </svg>
+    <figcaption>The simple case: one ID, stamped on the server’s log line <em>and</em> handed back to the user. Both sides can name the same exchange.</figcaption>
+    </figure>
+  </div>
+
+  <p>This is the “clean” case. The client and the server are talking directly, so the ID the server picks can travel straight back to the client. Everyone shares the same tracking number.</p>
+
+  <h2>2. The privacy wrapper changes everything</h2>
+  <p>Some of our traffic is deliberately designed so that <strong>nobody can link “who is asking” to “what they’re asking.”</strong> That’s the entire point of the privacy feature. To achieve it, the real request is sealed inside an encrypted wrapper before it leaves the user’s device, and it’s delivered by a middleman who is <em>not allowed</em> to read the contents.</p>
+
+  <p>Three plain-language terms, defined once:</p>
+  <div class="card">
+    <p style="margin:6px 0"><strong>Sealed wrapper</strong> — think of a locked, opaque box. The user puts their real request <em>inside</em> the box and locks it. Only our server has the key. (In the jargon this is the “outer envelope”; the real request inside is the “inner request.”)</p>
+    <p style="margin:6px 0"><strong>The courier</strong> — a separate company that carries the locked box from the user to us. It can see the box and our address on the outside, but it <em>cannot open it</em>, so it never learns what’s inside or who it ultimately concerns. (The jargon calls this the “relay.”)</p>
+    <p style="margin:6px 0"><strong>Why bother</strong> — the courier knows <em>who</em> sent the box but not <em>what’s in it</em>; our server learns <em>what’s in it</em> but the courier-hidden delivery means we don’t get to trivially tie it to the sender. Splitting that knowledge across two parties is the privacy guarantee.</p>
+  </div>
+
+  <div class="fig">
+    <figure>
+    <svg viewBox="0 0 820 320" role="img" aria-label="Privacy-wrapped request through a courier">
+      <!-- client -->
+      <rect x="20" y="130" width="130" height="60" rx="8" fill="#161b22" stroke="#30363d"/>
+      <text x="85" y="155" fill="#e6edf3" font-size="13" text-anchor="middle">User</text>
+      <text x="85" y="174" fill="#9198a1" font-size="10" text-anchor="middle">seals the box</text>
+      <!-- courier -->
+      <rect x="345" y="130" width="130" height="60" rx="8" fill="#161b22" stroke="#d29922"/>
+      <text x="410" y="155" fill="#d29922" font-size="13" text-anchor="middle">Courier</text>
+      <text x="410" y="174" fill="#9198a1" font-size="10" text-anchor="middle">can’t open it</text>
+      <!-- server -->
+      <rect x="670" y="130" width="130" height="60" rx="8" fill="#161b22" stroke="#30363d"/>
+      <text x="735" y="155" fill="#e6edf3" font-size="13" text-anchor="middle">Prover</text>
+      <text x="735" y="174" fill="#9198a1" font-size="10" text-anchor="middle">has the key</text>
+
+      <!-- box icons travelling -->
+      <g>
+        <rect x="200" y="92" width="44" height="36" rx="4" fill="#0d1117" stroke="#f85149"/>
+        <line x1="200" y1="104" x2="244" y2="104" stroke="#f85149"/>
+        <text x="222" y="84" fill="#f85149" font-size="10" text-anchor="middle">locked box</text>
+      </g>
+      <line x1="150" y1="150" x2="341" y2="150" stroke="#9198a1" stroke-width="2" marker-end="url(#g1)"/>
+      <line x1="475" y1="150" x2="666" y2="150" stroke="#9198a1" stroke-width="2" marker-end="url(#g2)"/>
+      <g>
+        <rect x="520" y="92" width="44" height="36" rx="4" fill="#0d1117" stroke="#f85149"/>
+        <line x1="520" y1="104" x2="564" y2="104" stroke="#f85149"/>
+      </g>
+
+      <!-- opened at server -->
+      <g>
+        <rect x="660" y="220" width="150" height="74" rx="6" fill="#0d1117" stroke="#3fb950"/>
+        <text x="735" y="242" fill="#3fb950" font-size="11" text-anchor="middle">unlocked here →</text>
+        <rect x="678" y="252" width="114" height="30" rx="4" fill="#161b22" stroke="#30363d"/>
+        <text x="735" y="271" fill="#e6edf3" font-size="11" text-anchor="middle" class="mono">real request</text>
+      </g>
+      <line x1="735" y1="190" x2="735" y2="218" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="3 3"/>
+
+      <!-- knowledge labels -->
+      <text x="410" y="232" fill="#d29922" font-size="11" text-anchor="middle">knows WHO, not WHAT</text>
+      <text x="410" y="250" fill="#9198a1" font-size="11" text-anchor="middle">(sees only the sealed box)</text>
+
+      <defs>
+        <marker id="g1" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9198a1"/></marker>
+        <marker id="g2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9198a1"/></marker>
+      </defs>
+    </svg>
+    <figcaption>The user seals the real request in a locked box. The courier carries the box but can’t open it. Only the prover unlocks it.</figcaption>
+    </figure>
+  </div>
+
+  <h2>3. Now: where does the prover put the tracking number?</h2>
+  <p>Here is the design decision. When a privacy-wrapped request arrives, our server can stamp a tracking number in one of two places:</p>
+
+  <table>
+    <thead><tr><th>Place</th><th>What it means</th><th>Who can read it</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>On the box</strong><br><span class="muted kv">the outer wrapper</span></td>
+        <td>A number written on the <em>outside</em> of the locked box, and on the box’s delivery receipt that goes back to the courier.</td>
+        <td>Us (in our logs) and the courier. <strong>Not</strong> the end user — they only ever see what comes out <em>inside</em> the box on the way back.</td>
+      </tr>
+      <tr>
+        <td><strong>On the letter inside</strong><br><span class="muted kv">the inner request</span></td>
+        <td>A number written on the actual request <em>after</em> we unlock the box, which can be folded into the sealed reply we send back inside the box.</td>
+        <td>The end user (once they unlock our reply) and us.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout amber">
+    <h4>What the prover does today</h4>
+    <p style="margin:0"><strong>Only the box gets a number.</strong> The prover assigns the ID at the wrapper level, writes its one log line with it, and stamps it on the wrapper’s reply receipt. It never opens up the inner request to give <em>that</em> its own number. So the number exists, and we can see it — but it travels back only as far as the courier, never all the way into the user’s hands.</p>
+  </div>
+
+  <div class="fig">
+    <figure>
+    <svg viewBox="0 0 820 300" role="img" aria-label="Where the ID is visible: prover and courier yes, user no">
+      <!-- lanes -->
+      <text x="120" y="34" fill="#9198a1" font-size="12" text-anchor="middle">USER</text>
+      <text x="410" y="34" fill="#9198a1" font-size="12" text-anchor="middle">COURIER</text>
+      <text x="700" y="34" fill="#9198a1" font-size="12" text-anchor="middle">PROVER</text>
+      <line x1="265" y1="46" x2="265" y2="280" stroke="#30363d" stroke-dasharray="4 4"/>
+      <line x1="555" y1="46" x2="555" y2="280" stroke="#30363d" stroke-dasharray="4 4"/>
+
+      <!-- the ID badge on the box, server + courier side -->
+      <rect x="600" y="80" width="200" height="44" rx="8" fill="#0d1117" stroke="#bc8cff"/>
+      <text x="700" y="100" fill="#bc8cff" font-size="12" text-anchor="middle">ID on the box</text>
+      <text x="700" y="116" fill="#9198a1" font-size="11" text-anchor="middle" class="mono">id = 7f3a…</text>
+
+      <!-- where it shows up -->
+      <rect x="600" y="150" width="200" height="34" rx="6" fill="#0d1117" stroke="#3fb950"/>
+      <text x="700" y="172" fill="#3fb950" font-size="11" text-anchor="middle">✓ our log line</text>
+
+      <rect x="310" y="150" width="200" height="34" rx="6" fill="#0d1117" stroke="#3fb950"/>
+      <text x="410" y="172" fill="#3fb950" font-size="11" text-anchor="middle">✓ courier sees the box</text>
+
+      <rect x="20" y="150" width="200" height="34" rx="6" fill="#0d1117" stroke="#f85149"/>
+      <text x="120" y="172" fill="#f85149" font-size="11" text-anchor="middle">✗ user never sees it</text>
+
+      <!-- explanation under user -->
+      <text x="120" y="214" fill="#9198a1" font-size="11" text-anchor="middle">the reply the user unlocks</text>
+      <text x="120" y="230" fill="#9198a1" font-size="11" text-anchor="middle">carries no ID inside</text>
+
+      <!-- arrow showing the boundary the id can't cross -->
+      <line x1="600" y1="167" x2="225" y2="167" stroke="#f85149" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#rd)"/>
+      <text x="410" y="262" fill="#f85149" font-size="11" text-anchor="middle">the ID can’t cross back into the sealed reply →  user is left without it</text>
+      <defs>
+        <marker id="rd" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#f85149"/></marker>
+      </defs>
+    </svg>
+    <figcaption>The prover’s ID lives on the box. It reaches our logs and the courier, but it stops at the courier — it’s never folded into the sealed reply the user opens.</figcaption>
+    </figure>
+    <div class="legend">
+      <span><span class="swatch" style="background:#3fb950"></span> ID is visible here</span>
+      <span><span class="swatch" style="background:#f85149"></span> ID is absent here</span>
+      <span><span class="swatch" style="background:#bc8cff"></span> where the ID is stamped</span>
+    </div>
+  </div>
+
+  <h2>4. So what’s the actual cost?</h2>
+  <p>It depends entirely on <em>who</em> needs the tracking number.</p>
+
+  <div class="callout green">
+    <h4>Fine for: operators reading logs</h4>
+    <p style="margin:0">If our own on-call engineer is debugging, the ID on the box is exactly what they need. There’s one clean log line per wrapped request, stamped with the ID. Nothing is missing for this use case — this is why we say the prover “handles it cleanly.”</p>
+  </div>
+
+  <div class="callout red">
+    <h4>Missing for: end users reporting an error through the privacy path</h4>
+    <p style="margin:0">If a user behind the privacy wrapper hits an error and opens a support ticket, they have <strong>no tracking number to quote</strong> — the reply they unlocked never contained one. We can’t say “read us the ID from your error” because there isn’t one inside their reply. We’d have to correlate by timestamps and other weaker signals.</p>
+  </div>
+
+  <h3>Why this isn’t a bug</h3>
+  <p>Two reasons it’s a deliberate scope choice rather than a defect:</p>
+  <ol>
+    <li><strong>Nothing breaks.</strong> The way the prover is built, the code that handles the unlocked request simply doesn’t ask for a tracking number, so leaving the inner request un-numbered doesn’t cause any failure or empty field. It’s an absence, not a malfunction.</li>
+    <li><strong>The privacy model actively discourages linking the two.</strong> If we <em>did</em> give the inner request a number and let it travel back to the user, we’d have to be very careful that this number can’t be used to re-link the user to the courier’s view of the box — the exact linkage the whole feature exists to prevent. A sibling service in the privacy codebase that <em>does</em> number the inner request goes out of its way to use a <em>fresh, unrelated</em> number inside and never echo it on the box, precisely to preserve that separation.</li>
+  </ol>
+
+  <h2>5. The decision in one table</h2>
+  <table>
+    <thead><tr><th>Goal</th><th>Plain (no wrapper) request</th><th>Privacy-wrapped request</th></tr></thead>
+    <tbody>
+      <tr><td>Operator finds the log line by ID</td><td><span class="tag ok">works</span></td><td><span class="tag ok">works</span></td></tr>
+      <tr><td>ID handed back to a direct caller</td><td><span class="tag ok">works</span></td><td><span class="tag mid">reaches courier only</span></td></tr>
+      <tr><td>End user can quote an ID from their error</td><td><span class="tag ok">works</span></td><td><span class="tag no">not today</span></td></tr>
+      <tr><td>Per-step logs inside the unlocked request tied to an ID</td><td>n/a</td><td><span class="tag no">not today</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <h4>If end-user-visible IDs through the privacy path become a requirement</h4>
+    <p style="margin:0">We’d add a second numbering step that runs <em>after</em> the box is unlocked, giving the inner request its own fresh ID and folding it into the sealed reply — while taking the same care the sibling service does to keep that inner number unlinkable from the box. Until that’s a stated product need, the current “number the box only” design is the simpler, privacy-safe default.</p>
+  </div>
+
+  <div class="footer">
+    Generated for the <span class="kv">avi/prover-v3</span> observability stack · transaction prover request-id scope · supersedes nothing in code — explanatory only.
+  </div>
+
+</div>
+</body>
+</html>
