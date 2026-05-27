@@ -7,12 +7,13 @@ license.workspace = true
 description = "Computes and manages Starknet state."
 
 [features]
-os_input = ["dep:blake2", "dep:digest"]
+os_input = ["dep:bincode", "dep:blake2", "dep:digest", "dep:zstd"]
 testing = ["starknet_patricia/testing"]
 
 [dependencies]
 apollo_config.workspace = true
 async-trait.workspace = true
+bincode = { workspace = true, optional = true }
 blake2 = { workspace = true, optional = true }
 derive_more = { workspace = true, features = ["as_ref", "from", "into"] }
 digest = { workspace = true, optional = true }
@@ -31,6 +32,7 @@ strum.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
+zstd = { workspace = true, optional = true }
 
 [dev-dependencies]
 async-recursion.workspace = true
