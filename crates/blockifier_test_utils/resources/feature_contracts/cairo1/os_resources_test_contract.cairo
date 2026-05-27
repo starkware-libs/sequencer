@@ -3,6 +3,7 @@
 mod OsResourcesTestContract {
     use box::BoxTrait;
     use core::sha256::{SHA256_INITIAL_STATE, sha256_state_handle_init};
+    use core::sha512::{SHA512_INITIAL_STATE, sha512_state_handle_init};
     use starknet::class_hash::ClassHashZero;
     use starknet::info::SyscallResultTrait;
     use starknet::secp256_trait::Secp256Trait;
@@ -17,7 +18,7 @@ mod OsResourcesTestContract {
     use starknet::syscalls::{
         call_contract_syscall, deploy_syscall, emit_event_syscall, get_execution_info_v2_syscall,
         keccak_syscall, library_call_syscall, replace_class_syscall, send_message_to_l1_syscall,
-        sha256_process_block_syscall,
+        sha256_process_block_syscall, sha512_process_block_syscall,
     };
     use starknet::{ClassHash, ContractAddress, get_block_hash_syscall, get_class_hash_at_syscall};
 
@@ -137,6 +138,11 @@ mod OsResourcesTestContract {
         let mut input = BoxTrait::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
         let mut state = sha256_state_handle_init(BoxTrait::new(SHA256_INITIAL_STATE));
         let _ = sha256_process_block_syscall(state, input).unwrap_syscall();
+
+        // sha256.
+        let mut input = BoxTrait::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        let mut state = sha512_state_handle_init(BoxTrait::new(SHA512_INITIAL_STATE));
+        let _ = sha512_process_block_syscall(state, input).unwrap_syscall();
 
         // replace class syscall.
         replace_class_syscall(stable_class_hash).unwrap_syscall();
