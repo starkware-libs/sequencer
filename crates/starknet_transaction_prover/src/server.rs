@@ -34,12 +34,14 @@ pub mod log_redact;
 #[cfg(test)]
 pub mod mock_rpc;
 pub mod request_log;
+pub mod request_span;
 pub mod rpc_api;
 pub mod rpc_impl;
 pub mod tls;
 
 pub use health::{HealthLayer, HEALTH_PATH};
 pub use request_log::{RequestLogLayer, REQUEST_ID_HEADER};
+pub use request_span::RequestSpanLayer;
 
 #[cfg(test)]
 mod rpc_spec_test;
@@ -83,13 +85,17 @@ pub async fn start_server(
                 .set_http_middleware(
                     // `RequestLogLayer` is outermost so the latency it measures
                     // covers every other layer. `HealthLayer` sits inside it so
-                    // probes complete before CORS/OHTTP.
+                    // probes complete before CORS/OHTTP. `RequestSpanLayer` sits
+                    // BELOW `OhttpLayer` so it spans the decapsulated inner
+                    // request with a fresh, envelope-unlinkable id (see
+                    // `request_span`).
                     ServiceBuilder::new()
                         .layer(RequestLogLayer)
                         .layer(HealthLayer)
                         .option_layer(cors_layer)
                         .layer(MapRequestBodyLayer::new(HttpBody::new))
                         .option_layer(ohttp_layer)
+                        .layer(RequestSpanLayer)
                         .layer(MapResponseBodyLayer::new(HttpBody::new))
                         .layer(CompressionLayer::new()),
                 )

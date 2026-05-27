@@ -34,7 +34,7 @@ use tracing::debug;
 use crate::bhttp_codec::{encapsulate_response, rebuild_request};
 use crate::errors::OhttpError;
 use crate::gateway::OhttpGateway;
-use crate::{OHTTP_KEYS_PATH, OHTTP_REQUEST_CONTENT_TYPE};
+use crate::{Decapsulated, OHTTP_KEYS_PATH, OHTTP_REQUEST_CONTENT_TYPE};
 
 /// Shared runtime state for the OHTTP gateway.
 struct OhttpState<F> {
@@ -194,7 +194,11 @@ where
                         OhttpError::InvalidFormat("Invalid Binary HTTP message")
                     })?;
 
-                let inner_request = rebuild_request(&bhttp_message)?.map(build_body);
+                let mut inner_request = rebuild_request(&bhttp_message)?.map(build_body);
+                // Mark the request so downstream layers can tell decapsulated
+                // traffic apart from plaintext pass-through (e.g. to assign a
+                // fresh, envelope-unlinkable request id).
+                inner_request.extensions_mut().insert(Decapsulated);
 
                 inner.oneshot(inner_request).await.map_err(|error| {
                     debug!("Inner service error after successful OHTTP decapsulation: {error:?}");
