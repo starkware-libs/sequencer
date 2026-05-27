@@ -7,6 +7,7 @@ use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use blockifier_test_utils::fee_token_addresses::EXPECTED_STRK_FEE_TOKEN_ADDRESS;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
@@ -407,6 +408,7 @@ pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction,
         ValidResourceBounds::create_for_testing_no_fee_enforcement(),
         STRK_FEE_TOKEN_DEPLOY_SALT,
     );
+<<<<<<< HEAD
     assert_eq!(contract_address, *STRK_FEE_TOKEN_ADDRESS);
     (
         Transaction::new_for_sequencing(StarknetAPITransaction::Account(
@@ -414,4 +416,11 @@ pub(crate) fn get_deploy_fee_token_tx_and_address(nonce: Nonce) -> (Transaction,
         )),
         contract_address,
     )
+||||||| 3eb55733b7
+    EXPECTED_STRK_FEE_TOKEN_ADDRESS.assert_debug_eq(&**address);
+    (tx, address)
+=======
+    EXPECTED_STRK_FEE_TOKEN_ADDRESS.assert_eq(&address.to_hex_string());
+    (tx, address)
+>>>>>>> origin/main-v0.14.2
 }

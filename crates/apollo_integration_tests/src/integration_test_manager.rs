@@ -923,7 +923,7 @@ impl IntegrationTestManager {
 
     /// Waits until all running nodes reach the specified block number.
     /// Queries the batcher and state sync metrics to verify progress.
-    async fn await_block_on_all_running_nodes(&self, expected_block_number: BlockNumber) {
+    pub async fn await_block_on_all_running_nodes(&self, expected_block_number: BlockNumber) {
         self.perform_action_on_all_running_nodes(|running_node| {
             let node_setup = &running_node.node_setup;
             let batcher_monitoring_client = node_setup.batcher_monitoring_client();
