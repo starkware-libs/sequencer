@@ -135,3 +135,52 @@ fn test_compute_fee_proposal(
 ) {
     assert_eq!(compute_fee_proposal(fee_target, fee_actual, margin_ppt), expected);
 }
+
+#[test]
+fn test_compute_fee_actual_u128_max_does_not_overflow() {
+    // Naive (a+b)/2 would overflow when a and b are near u128::MAX.
+    let window = window_from((0u64..10).map(|h| (h, Some(GasPrice(u128::MAX)))));
+    assert_eq!(
+        compute_fee_actual(&window, BlockNumber(10), TEST_FEE_PROPOSAL_WINDOW_SIZE),
+        Some(GasPrice(u128::MAX))
+    );
+}
+
+#[test]
+fn test_compute_fee_target_extreme_values_do_not_panic() {
+    // The U256 internal arithmetic must saturate, not panic.
+    let _ = compute_fee_target(u128::MAX, u128::MAX);
+    let _ = compute_fee_target(u128::MAX, 1);
+    let _ = compute_fee_target(1, u128::MAX);
+}
+
+#[test]
+fn test_compute_fee_proposal_saturating_on_extreme_actual() {
+    // actual near u128::MAX: saturating_mul must prevent overflow.
+    let _ = compute_fee_proposal(Some(GasPrice(1)), GasPrice(u128::MAX), 2);
+    let _ = compute_fee_proposal(Some(GasPrice(u128::MAX)), GasPrice(u128::MAX), 2);
+}
+
+#[test]
+fn test_compute_fee_target_monotonic_in_strk_price() {
+    // As STRK/USD rises, fewer FRI needed → fee_target monotonically decreases.
+    let target = 3_000_000_000;
+    let mut prev = compute_fee_target(target, 10u128.pow(17)).unwrap();
+    for exp in 17..=21 {
+        let curr = compute_fee_target(target, 10u128.pow(exp)).unwrap();
+        assert!(curr.0 <= prev.0, "not monotonic: prev={} curr={}", prev.0, curr.0);
+        prev = curr;
+    }
+}
+
+#[test]
+fn test_compute_fee_actual_lone_adversary_cannot_skew_median() {
+    // With 9 honest values and 1 outlier, median resists the adversary.
+    let mut values = vec![GasPrice(1_000_000); 9];
+    values.push(GasPrice(u128::MAX / 2));
+    let window = window_from((0u64..).zip(values).map(|(h, v)| (h, Some(v))));
+    assert_eq!(
+        compute_fee_actual(&window, BlockNumber(10), TEST_FEE_PROPOSAL_WINDOW_SIZE),
+        Some(GasPrice(1_000_000))
+    );
+}
