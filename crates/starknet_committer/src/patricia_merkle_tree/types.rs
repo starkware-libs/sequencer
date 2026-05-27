@@ -6,6 +6,7 @@ use starknet_api::hash::HashOutput;
 use starknet_patricia::impl_from_hex_for_felt_wrapper;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::PreimageMap;
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::{Felt, FromStrError};
 
@@ -22,6 +23,12 @@ pub fn class_hash_into_node_index(class_hash: &ClassHash) -> NodeIndex {
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct CompiledClassHash(pub Felt);
+
+impl From<CompiledClassHash> for SkeletonLeaf {
+    fn from(compiled_class_hash: CompiledClassHash) -> Self {
+        SkeletonLeaf::from(compiled_class_hash.0)
+    }
+}
 
 impl AsRef<CompiledClassHash> for CompiledClassHash {
     fn as_ref(&self) -> &CompiledClassHash {
