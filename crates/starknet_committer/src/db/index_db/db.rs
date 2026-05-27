@@ -489,3 +489,24 @@ where
         Ok(HashOutput::ROOT_OF_EMPTY_TREE)
     }
 }
+
+#[cfg(all(feature = "os_input", feature = "testing"))]
+impl IndexDb<MapStorage> {
+    /// Removes Patricia trie node keys while keeping commitment metadata and stored witness
+    /// payloads. Tests can call this before replaying `read_paths_and_commit_block` to ensure
+    /// the historical path reads persisted witnesses rather than re-fetching from tries.
+    pub fn clear_patricia_trie_nodes_for_test(&mut self) {
+        self.storage.0.retain(|key, _| {
+            if key.0.len() < 32 {
+                return false;
+            }
+            let prefix: &[u8; 32] =
+                key.0[..32].try_into().expect("metadata key prefix must be 32 bytes");
+            prefix == &*COMMITMENT_OFFSET_METADATA_PREFIX
+                || prefix == &*STATE_DIFF_HASH_METADATA_PREFIX
+                || prefix == &*STATE_ROOT_METADATA_PREFIX
+                || prefix == &*ACCESSED_KEYS_DIGEST_METADATA_PREFIX
+                || prefix == &*PATRICIA_PATHS_PREFIX
+        });
+    }
+}
