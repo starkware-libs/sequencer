@@ -1,13 +1,19 @@
 use std::collections::BTreeMap;
 
+use apollo_versioned_constants::VersionedConstants;
+use rand::{Rng, SeedableRng};
+use rand_chacha::ChaCha8Rng;
 use rstest::rstest;
 use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::snip35::{
     compute_fee_actual,
     compute_fee_proposal,
     compute_fee_target,
     FeeProposalInfo,
+    PPT_DENOMINATOR,
+    TARGET_ATTO_USD_PER_L2_GAS,
 };
 
 const TEST_FEE_PROPOSAL_WINDOW_SIZE: u64 = 10;
@@ -183,4 +189,52 @@ fn test_compute_fee_actual_lone_adversary_cannot_skew_median() {
         compute_fee_actual(&window, BlockNumber(10), TEST_FEE_PROPOSAL_WINDOW_SIZE),
         Some(GasPrice(1_000_000))
     );
+}
+
+/// The validator's accept predicate. Must stay in sync with
+/// `validate_proposal::is_proposal_init_valid` SNIP-35 bounds check.
+fn validator_accepts(fee_actual: GasPrice, fee_proposal: GasPrice, margin_ppt: u128) -> bool {
+    let lower = fee_actual.0.saturating_mul(PPT_DENOMINATOR) / (PPT_DENOMINATOR + margin_ppt);
+    let upper = fee_actual.0.saturating_mul(PPT_DENOMINATOR + margin_ppt) / PPT_DENOMINATOR;
+    fee_proposal.0 >= lower && fee_proposal.0 <= upper
+}
+
+#[test]
+fn test_malicious_high_fee_proposal_rejected() {
+    // Upper bound for fee_actual=1_000_000 with margin=2ppt is 1_002_000.
+    let fee_actual = GasPrice(1_000_000);
+    assert!(validator_accepts(fee_actual, GasPrice(1_002_000), 2));
+    for proposal in [1_002_001u128, 1_003_000, 2_000_000, u128::MAX] {
+        assert!(!validator_accepts(fee_actual, GasPrice(proposal), 2), "accepted {proposal}");
+    }
+}
+
+#[test]
+fn test_malicious_low_fee_proposal_rejected() {
+    // Lower bound for fee_actual=1_000_000 with margin=2ppt is 998_003.
+    let fee_actual = GasPrice(1_000_000);
+    assert!(validator_accepts(fee_actual, GasPrice(998_003), 2));
+    for proposal in [998_002u128, 500_000, 1, 0] {
+        assert!(!validator_accepts(fee_actual, GasPrice(proposal), 2), "accepted {proposal}");
+    }
+}
+
+#[test]
+fn test_honest_proposer_always_passes_validation_fuzzed() {
+    // Consensus safety: whatever compute_fee_proposal produces, the validator accepts.
+    let margin_ppt = VersionedConstants::latest_constants().fee_proposal_margin_ppt;
+    let mut rng = ChaCha8Rng::seed_from_u64(0xDEADBEEF);
+    for _ in 0..10_000 {
+        let fee_actual_value = rng.gen_range(1u128..1_000_000_000_000_000_000);
+        let strk_usd_rate = rng.gen_range(1u128..2 * 10u128.pow(18));
+        let fee_actual = GasPrice(fee_actual_value);
+        let target = compute_fee_target(TARGET_ATTO_USD_PER_L2_GAS, strk_usd_rate);
+        let oracle_result = if rng.gen_bool(0.1) { None } else { target };
+        let proposal = compute_fee_proposal(oracle_result, fee_actual, margin_ppt);
+        assert!(
+            validator_accepts(fee_actual, proposal, margin_ppt),
+            "fee_actual={fee_actual_value} rate={strk_usd_rate} proposal={}",
+            proposal.0
+        );
+    }
 }
