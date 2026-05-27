@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779896397587,
+  "lastUpdate": 1779904032237,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4623,6 +4623,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1304.35232027,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "401e67a53f57ec316fba04d1104c915219df7aea",
+          "message": "starknet_committer: define StarknetForestProofs serde (#13994)",
+          "timestamp": "2026-05-27T17:31:34Z",
+          "tree_id": "cc112f122cdf55dd46e2e3b4d127c483b6da5834",
+          "url": "https://github.com/starkware-libs/sequencer/commit/401e67a53f57ec316fba04d1104c915219df7aea"
+        },
+        "date": 1779904031824,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1059.14190384,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1378.81502905,
             "unit": "ms"
           }
         ]
