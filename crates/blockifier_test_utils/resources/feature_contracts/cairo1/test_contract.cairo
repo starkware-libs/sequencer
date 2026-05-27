@@ -681,6 +681,20 @@ mod TestContract {
     }
 
     #[external(v0)]
+    fn test_sha512_with_alternating_inner_calls(ref self: ContractState) {
+        // SHA-512("") per NIST FIPS 180-4.
+        test_sha512_helper(array![], 0, 0, 0xcf83e1357eefb8bd_u64);
+
+        syscalls::call_contract_syscall(
+            get_contract_address(), selector!("test_sha512"), array![].span(),
+        )
+            .unwrap_syscall();
+
+        // SHA-512("abc") per NIST FIPS 180-4.
+        test_sha512_helper(array![], 0x616263_u64, 3, 0xddaf35a193617aba_u64);
+    }
+
+    #[external(v0)]
     fn test_sha512(ref self: ContractState) {
         // SHA-512("") per NIST FIPS 180-4.
         test_sha512_helper(array![], 0, 0, 0xcf83e1357eefb8bd_u64);

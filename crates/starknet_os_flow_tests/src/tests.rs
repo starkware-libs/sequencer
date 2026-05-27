@@ -1739,6 +1739,10 @@ async fn test_syscalls_with_alternating_inner_calls() {
         create_calldata(test_contract_address, "test_sha256_with_alternating_inner_calls", &[]);
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
 
+    let calldata =
+        create_calldata(test_contract_address, "test_sha512_with_alternating_inner_calls", &[]);
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
     let test_output = test_builder.build_and_run().await;
     test_output.perform_default_validations();
 }
