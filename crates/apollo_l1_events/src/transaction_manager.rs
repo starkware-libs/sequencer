@@ -229,6 +229,7 @@ impl TransactionManager {
         // This will also call maintain_indices to remove the tx from the proposable index.
         self.with_record(tx_hash, |r| r.mark_cancellation_finalized_on_l1());
         self.records.remove(&tx_hash);
+        self.update_pending_count_metric();
     }
 
     pub fn consume_tx(
@@ -263,10 +264,15 @@ impl TransactionManager {
             unix_now.saturating_sub(self.config.l1_handler_consumption_timelock_seconds.as_secs());
         let still_timelocked = self.consumed_queue.split_off(&BlockTimestamp(cutoff));
         let passed_timelock = std::mem::replace(&mut self.consumed_queue, still_timelocked);
+        let mut any_removed = false;
         for tx_hashes in passed_timelock.values() {
             for tx_hash in tx_hashes {
                 self.records.remove(tx_hash);
+                any_removed = true;
             }
+        }
+        if any_removed {
+            self.update_pending_count_metric();
         }
     }
 
@@ -332,7 +338,22 @@ impl TransactionManager {
         let record = self.records.get_mut_unchecked(hash)?;
         let result = f(record);
         self.maintain_indices(hash);
+        self.update_pending_count_metric();
         Some(result)
+    }
+
+    /// Sets `L1_MESSAGE_PROVIDER_NUM_PENDING_TXS` to the number of records that have been
+    /// scraped (i.e. have a Full payload) but are not yet committed on L2.
+    fn update_pending_count_metric(&self) {
+        let num_pending_txs = self
+            .records
+            .iter()
+            .filter(|(_, record)| {
+                matches!(record.tx, TransactionPayload::Full { .. })
+                    && record.state != TransactionState::Committed
+            })
+            .count();
+        L1_MESSAGE_PROVIDER_NUM_PENDING_TXS.set_lossy(num_pending_txs);
     }
 
     fn create_record_if_not_exist(&mut self, hash: TransactionHash) -> bool {
@@ -382,9 +403,6 @@ impl TransactionManager {
                     Entry::Vacant(_) => {}
                 }
             }
-
-            let num_pending_txs = self.proposable_index.len();
-            L1_MESSAGE_PROVIDER_NUM_PENDING_TXS.set_lossy(num_pending_txs);
 
             // If this tx was consumed, add it to the consumed queue.
             if let Some(consumed_at) = record.get_consumed_at_timestamp() {
