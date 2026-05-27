@@ -1921,3 +1921,46 @@ async fn tx_cancelled_during_initialization_never_reaches_proposable_index() {
     let cancelled_tx = l1_events_provider.tx_manager.records.get(&tx_hash).unwrap();
     assert_eq!(cancelled_tx.state, TransactionState::CancellationStartedOnL2);
 }
+
+#[test]
+fn pending_txs_metric_tracks_scraped_uncommitted_txs() {
+    use metrics_exporter_prometheus::PrometheusBuilder;
+
+    use crate::metrics::L1_MESSAGE_PROVIDER_NUM_PENDING_TXS;
+
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+
+    let mut l1_events_provider = L1EventsProviderContentBuilder::new()
+        .with_state(ProviderState::Pending)
+        .build_into_l1_provider();
+
+    // Two txs share `scrape_timestamp = 7`, one uses `scrape_timestamp = 8`. With the previous
+    // `proposable_index.len()` implementation this would have read as 2 (two timestamp buckets);
+    // the correct count is 3.
+    let shared_timestamp = BlockTimestamp(7);
+    let unique_timestamp = BlockTimestamp(8);
+    l1_events_provider
+        .add_events(vec![
+            timed_l1_handler_event(tx_hash!(1), shared_timestamp),
+            timed_l1_handler_event(tx_hash!(2), shared_timestamp),
+            timed_l1_handler_event(tx_hash!(3), unique_timestamp),
+        ])
+        .unwrap();
+    let metrics_as_string = recorder.handle().render();
+    L1_MESSAGE_PROVIDER_NUM_PENDING_TXS.assert_eq::<u64>(&metrics_as_string, 3);
+
+    // Committing two of them leaves one scraped-but-uncommitted tx.
+    l1_events_provider
+        .commit_block([tx_hash!(1), tx_hash!(2)].into(), [].into(), BlockNumber(0))
+        .unwrap();
+    let metrics_as_string = recorder.handle().render();
+    L1_MESSAGE_PROVIDER_NUM_PENDING_TXS.assert_eq::<u64>(&metrics_as_string, 1);
+
+    // Committing the last one drops the gauge to zero.
+    l1_events_provider
+        .commit_block([tx_hash!(3)].into(), [].into(), BlockNumber(1))
+        .unwrap();
+    let metrics_as_string = recorder.handle().render();
+    L1_MESSAGE_PROVIDER_NUM_PENDING_TXS.assert_eq::<u64>(&metrics_as_string, 0);
+}

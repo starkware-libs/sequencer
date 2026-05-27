@@ -1582,7 +1582,7 @@
         },
         {
           "title": "L1 Message Provider Num Pending Txs",
-          "description": "The number of pending L1 handler transactions in the transaction manager",
+          "description": "Number of L1 handler transactions that have been scraped (Full payload stored) but are not yet committed on L2",
           "type": "timeseries",
           "exprs": [
             "l1_message_provider_num_pending_txs{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
