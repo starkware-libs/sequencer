@@ -49,6 +49,7 @@
   "consensus_manager_config.context_config.dynamic_config.override_l1_gas_price_fri.#is_none": "$$$_CONSENSUS_MANAGER_CONFIG-CONTEXT_CONFIG-DYNAMIC_CONFIG-OVERRIDE_L1_GAS_PRICE_FRI-IS_NONE_$$$",
   "consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri": "$$$_CONSENSUS_MANAGER_CONFIG-CONTEXT_CONFIG-DYNAMIC_CONFIG-OVERRIDE_L2_GAS_PRICE_FRI_$$$",
   "consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri.#is_none": "$$$_CONSENSUS_MANAGER_CONFIG-CONTEXT_CONFIG-DYNAMIC_CONFIG-OVERRIDE_L2_GAS_PRICE_FRI-IS_NONE_$$$",
+  "consensus_manager_config.context_config.dynamic_config.snip35_target_atto_usd_per_l2_gas": "$$$_CONSENSUS_MANAGER_CONFIG-CONTEXT_CONFIG-DYNAMIC_CONFIG-SNIP35_TARGET_ATTO_USD_PER_L2_GAS_$$$",
   "consensus_manager_config.context_config.static_config.block_timestamp_window_seconds": 1,
   "consensus_manager_config.context_config.static_config.build_proposal_time_ratio_for_retrospective_block_hash": 0.7,
   "consensus_manager_config.context_config.static_config.builder_address": "0x1176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8",
