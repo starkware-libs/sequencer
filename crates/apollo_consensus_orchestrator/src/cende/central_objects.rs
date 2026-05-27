@@ -49,8 +49,8 @@ use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
 use super::{CendeAmbassadorError, CendeAmbassadorResult};
+use crate::dynamic_gas_price::FeeProposalInfo;
 use crate::fee_market::FeeMarketInfo;
-use crate::snip35::FeeProposalInfo;
 
 /// Central objects are required in order to continue processing the block by the centralized
 /// Python pipline. These objects are written to the Aerospike database and are used by python
