@@ -9,6 +9,8 @@ use tracing::{debug, warn};
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{
     contract_address_into_node_index,
+    skeleton_storage_updates,
+    skeleton_trie_updates,
     Input,
     StarknetStorageValue,
     StateDiff,
@@ -131,8 +133,8 @@ async fn compute_updated_forest<M: MeasurementsTrait + Send>(
     // Compute the new topology.
     let updated_forest = UpdatedSkeletonForest::create(
         &original_forest,
-        &state_diff.skeleton_classes_updates(),
-        &state_diff.skeleton_storage_updates(),
+        &skeleton_trie_updates(&actual_classes_updates),
+        &skeleton_storage_updates(&actual_storage_updates),
         &original_contracts_trie_leaves,
         &state_diff.address_to_class_hash,
         &state_diff.address_to_nonce,
