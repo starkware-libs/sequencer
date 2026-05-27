@@ -1960,3 +1960,29 @@ fn pending_txs_metric_tracks_scraped_uncommitted_txs() {
     let metrics_as_string = recorder.handle().render();
     L1_MESSAGE_PROVIDER_NUM_PENDING_TXS.assert_eq::<u64>(&metrics_as_string, 0);
 }
+
+#[test]
+fn scraper_l1_handler_tx_count_increments_on_new_full_payload() {
+    use metrics_exporter_prometheus::PrometheusBuilder;
+
+    use crate::metrics::L1_MESSAGE_SCRAPER_L1_HANDLER_TX_COUNT;
+
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+
+    let mut l1_events_provider = L1EventsProviderContentBuilder::new()
+        // Seed a committed-by-hash record so we can verify the HashOnly -> Full upgrade path.
+        .with_committed_hashes([tx_hash!(2)])
+        .with_state(ProviderState::Pending)
+        .build_into_l1_provider();
+
+    // Brand-new Full record increments by 1.
+    l1_events_provider.add_events(vec![l1_handler_event(tx_hash!(1))]).unwrap();
+    // HashOnly upgraded to Full increments by 1.
+    l1_events_provider.add_events(vec![l1_handler_event(tx_hash!(2))]).unwrap();
+    // Double-scrape (already Full) is ignored.
+    l1_events_provider.add_events(vec![l1_handler_event(tx_hash!(1))]).unwrap();
+
+    let metrics_as_string = recorder.handle().render();
+    L1_MESSAGE_SCRAPER_L1_HANDLER_TX_COUNT.assert_eq::<u64>(&metrics_as_string, 2);
+}
