@@ -20,6 +20,10 @@ use starknet_patricia_storage::map_storage::MapStorage;
 use super::Committer;
 use crate::committer::StorageConstructor;
 
+#[cfg(feature = "os_input")]
+#[path = "request_paths_and_commit_block_tests.rs"]
+mod request_paths_and_commit_block_tests;
+
 pub type ApolloTestStorage = MapStorage;
 pub type ApolloTestCommitter = Committer<ApolloTestStorage, IndexDb<ApolloTestStorage>>;
 
