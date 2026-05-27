@@ -24,6 +24,14 @@ x-sequencer-node: &sequencer_node
     - config:/config
   networks:
     - sequencer-network
+  # Mark a node healthy once its HTTP gateway accepts connections, so the simulator waits for it
+  # instead of racing the gateway bind. Uses bash /dev/tcp since the image has no curl.
+  healthcheck:
+    test: ["CMD", "bash", "-c", "</dev/tcp/localhost/${SEQUENCER_HTTP_PORT}"]
+    interval: 5s
+    timeout: 3s
+    retries: 30
+    start_period: 10s
 
 services:
   prometheus:
@@ -115,8 +123,8 @@ services:
           jq --arg v "${STRK_USD_ORACLE_URL_HEADERS:-http://dummy_exchange_rate_oracle:9000/eth_to_strk_oracle}" '."l1_gas_price_provider_config.strk_to_usd_oracle_config.url_header_list" = $$v' "$$cfg" | sponge "$$cfg"
           jq --argjson v ${STRK_USD_ORACLE_LAG_SECONDS:-60} '."l1_gas_price_provider_config.strk_to_usd_oracle_config.lag_interval_seconds" = $$v' "$$cfg" | sponge "$$cfg"
           jq '."http_server_config.static_config.ip" = "0.0.0.0"' "$$cfg" | sponge "$$cfg"
-          jq '."http_server_config.static_config.port" = 8081' "$$cfg" | sponge "$$cfg"
-          jq '."monitoring_endpoint_config.port" = 8082' "$$cfg" | sponge "$$cfg"
+          jq '."http_server_config.static_config.port" = ${SEQUENCER_HTTP_PORT}' "$$cfg" | sponge "$$cfg"
+          jq '."monitoring_endpoint_config.port" = ${SEQUENCER_MONITORING_PORT}' "$$cfg" | sponge "$$cfg"
           jq '."components.l1_events_scraper.execution_mode" = "Disabled"' "$$cfg" | sponge "$$cfg"
           jq '."l1_events_scraper_config.#is_none" = true' "$$cfg" | sponge "$$cfg"
           jq '."l1_events_provider_config.dummy_mode" = true' "$$cfg" | sponge "$$cfg"
@@ -136,8 +144,8 @@ services:
   sequencer-node-0:
     <<: *sequencer_node
     ports:
-      - "8081:8081"
-      - "8082:8082"
+      - "${SEQUENCER_HTTP_PORT}:${SEQUENCER_HTTP_PORT}"
+      - "${SEQUENCER_MONITORING_PORT}:${SEQUENCER_MONITORING_PORT}"
     command:
       - "--config_file"
       - "/config/node_0/config.json"
@@ -172,7 +180,8 @@ services:
 
   sequencer_simulator:
     depends_on:
-      - sequencer-node-0
+      sequencer-node-0:
+        condition: service_healthy
     build:
       context: ${SEQUENCER_ROOT_DIR}
       dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/simulator.Dockerfile
@@ -184,9 +193,9 @@ services:
     command: >
       "./target/debug/sequencer_simulator \
       --http-url http://sequencer-node-0 \
-      --http-port 8081 \
+      --http-port ${SEQUENCER_HTTP_PORT} \
       --monitoring-url http://sequencer-node-0 \
-      --monitoring-port 8082 \
+      --monitoring-port ${SEQUENCER_MONITORING_PORT} \
       $$(if [ \"$$SIMULATOR_RUN_FOREVER\" = \"true\" ]; then echo '--run-forever'; fi)"
     networks:
       - sequencer-network
