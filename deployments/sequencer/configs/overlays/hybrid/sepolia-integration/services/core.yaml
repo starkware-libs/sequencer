@@ -29,6 +29,26 @@ config:
     consensus_manager_config.staking_manager_config.dynamic_config.default_committee: 0,10:0x64,1,0x1,true;0x65,1,0x1,true;0x66,1,0x1,true
     consensus_manager_config.staking_manager_config.dynamic_config.override_committee: ''
     consensus_manager_config.staking_manager_config.dynamic_config.override_committee.#is_none: true
+    components.batcher.port: 55000
+    components.batcher.url: sequencer-core-service
+    components.class_manager.port: 55001
+    components.class_manager.url: sequencer-core-service
+    components.committer.port: 55013
+    components.committer.url: sequencer-committer-service
+    components.l1_events_provider.port: 55004
+    components.l1_events_provider.url: sequencer-l1-service
+    components.l1_gas_price_provider.port: 55003
+    components.l1_gas_price_provider.url: sequencer-l1-service
+    components.mempool.port: 55006
+    components.mempool.url: sequencer-mempool-service
+    components.proof_manager.port: 55012
+    components.proof_manager.url: sequencer-core-service
+    components.sierra_compiler.port: 55007
+    components.sierra_compiler.url: sequencer-sierracompiler-service
+    components.signature_manager.port: 55008
+    components.signature_manager.url: sequencer-core-service
+    components.state_sync.port: 55009
+    components.state_sync.url: sequencer-core-service
     state_sync_config.static_config.central_sync_client_config.#is_none: false
     state_sync_config.static_config.central_sync_client_config.sync_config.store_sierras_and_casms_block_threshold: 0
     state_sync_config.static_config.p2p_sync_client_config.#is_none: true

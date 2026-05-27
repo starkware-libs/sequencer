@@ -3,3 +3,7 @@ config:
   sequencerConfig:
     committer_config.storage_config.cache_size: 10000000
     committer_config.verify_state_diff_hash: true
+    components.batcher.port: 55000
+    components.batcher.url: sequencer-core-service
+    components.committer.port: 55013
+    components.committer.url: sequencer-committer-service
