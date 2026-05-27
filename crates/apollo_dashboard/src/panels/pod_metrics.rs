@@ -121,12 +121,15 @@ fn get_pod_memory_request_utilization_panel() -> Panel {
 }
 
 // Pod memory limit utilization as a ratio of:
-//   total memory used by containers in the pod
-//   ------------------------------------------
+//   total anonymous (non-reclaimable) memory used by containers in the pod
+//   -----------------------------------------------------------------------
 //   total memory limit of containers in the pod
 // Aggregated per (namespace, pod), the result is a value between 0.0 and 1.0 per pod.
 // Interpreted as: "How close is this pod to its memory *limit* (OOM-kill threshold)?"
 // Note: memory is not throttled like CPU; crossing this limit results in OOM kills.
+// Uses container_memory_rss (anon memory only) rather than container_memory_working_set_bytes
+// because working_set includes active file-backed page cache which the kernel can reclaim —
+// causing the panel to read near 100% even when there is no real OOM risk.
 fn get_pod_memory_limit_utilization_panel() -> Panel {
     Panel::new(
         "Pod Memory Limit Utilization",
@@ -135,7 +138,7 @@ fn get_pod_memory_limit_utilization_panel() -> Panel {
             "
             (
                 sum by (namespace, pod) (
-                    container_memory_working_set_bytes{METRIC_LABEL_FILTER}
+                    container_memory_rss{METRIC_LABEL_FILTER}
                 )
             )
             /
