@@ -18,8 +18,8 @@ use apollo_consensus_orchestrator::cende::{
     BlobParameters,
     InternalTransactionWithReceipt,
 };
+use apollo_consensus_orchestrator::dynamic_gas_price::FeeProposalInfo;
 use apollo_consensus_orchestrator::fee_market::FeeMarketInfo;
-use apollo_consensus_orchestrator::snip35::FeeProposalInfo;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::config::TransactionExecutorConfig;

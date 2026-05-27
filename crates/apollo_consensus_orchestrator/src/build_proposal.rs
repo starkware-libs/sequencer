@@ -39,9 +39,9 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, info, trace, warn};
 
+use crate::dynamic_gas_price::proposal_commitment_from;
 use crate::fee_market::calculate_next_l2_gas_price_for_fin;
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
-use crate::snip35::proposal_commitment_from;
 use crate::utils::{
     convert_to_sn_api_block_info,
     get_l1_prices_in_fri_and_wei,
@@ -77,9 +77,9 @@ pub(crate) struct ProposalBuildArguments {
     pub override_l2_gas_price_fri: Option<u128>,
     pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
     pub compare_retrospective_block_hash: bool,
-    /// SNIP-35: proposer's fee_proposal for this block.
+    /// Proposer's fee_proposal for this block.
     pub fee_proposal: GasPrice,
-    /// SNIP-35: current fee_actual from the sliding window.
+    /// Current fee_actual from the sliding window.
     pub fee_actual: Option<GasPrice>,
 }
 

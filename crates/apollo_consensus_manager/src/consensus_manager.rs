@@ -170,7 +170,7 @@ impl ConsensusManager {
         consensus_context
             .initialize_fee_proposals_window(current_height.height)
             .await
-            .expect("Failed to bootstrap SNIP-35 fee_proposals window");
+            .expect("Failed to bootstrap fee_proposals window");
         let run_consensus_args = self.create_run_consensus_args(current_height.height);
 
         let network_task =

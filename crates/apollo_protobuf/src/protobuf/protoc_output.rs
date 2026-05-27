@@ -479,7 +479,7 @@ pub struct ProposalInit {
     pub starknet_version: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "14")]
     pub version_constant_commitment: ::core::option::Option<Hash>,
-    /// SNIP-35: proposer's recommended fee for future blocks. Present iff Starknet version >= V0_14_3.
+    /// Proposer's recommended fee for future blocks. Present iff Starknet version >= V0_14_3.
     #[prost(message, optional, tag = "15")]
     pub fee_proposal_fri: ::core::option::Option<Uint128>,
 }
@@ -1220,7 +1220,7 @@ pub struct SignedBlockHeader {
     /// for now, we assume a small consensus, so this fits in 1M. Else, these will be repeated and extracted from this message.
     #[prost(message, repeated, tag = "21")]
     pub signatures: ::prost::alloc::vec::Vec<ConsensusSignature>,
-    /// SNIP-35: proposer's oracle-derived recommended fee. Absent for pre-V0_14_3 blocks.
+    /// Proposer's oracle-derived recommended fee. Absent for pre-V0_14_3 blocks.
     /// WARNING: this field is currently not part of the block hash, so the value must be trusted.
     ///
     /// can be more explicit here about the signature structure as this is not part of account abstraction

@@ -57,7 +57,7 @@ fn block_post_0_14_3_carries_fee_proposal_fri() {
 
 #[test]
 fn block_post_0_14_2_has_no_fee_proposal_fri() {
-    // Backward-compat: pre-SNIP-35 fixtures don't carry the field; serde(default) yields None.
+    // Backward-compat: pre-V0_14_3 fixtures don't carry the field; serde(default) yields None.
     let block: Block =
         serde_json::from_str(&read_resource_file("reader/block_post_0_14_2.json")).unwrap();
     assert_eq!(block.fee_proposal_fri(), None);
