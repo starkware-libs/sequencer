@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_types_core::felt::Felt;
 use tracing::{debug, warn};
@@ -21,11 +22,11 @@ use crate::db::forest_trait::ForestReader;
 use crate::forest::deleted_nodes::{find_deleted_nodes, DeletedNodes};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestError;
-use crate::forest::original_skeleton_forest::ForestSortedIndices;
+use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
 use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::types::class_hash_into_node_index;
+use crate::patricia_merkle_tree::types::{class_hash_into_node_index, CompiledClassHash};
 
 pub type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
@@ -54,16 +55,50 @@ pub async fn commit_block<Reader: ForestReader + Send, M: MeasurementsTrait + Se
         n_contracts_trie_modifications,
         actual_classes_updates.len(),
     );
-    // Reads - fetch_nodes.
+
+    // Phase 1 - read the original forest from the DB.
+    let (original_forest, original_contracts_trie_leaves) = read_original_forest(
+        &input,
+        &actual_storage_updates,
+        &actual_classes_updates,
+        &forest_sorted_indices,
+        trie_reader,
+        measurements,
+    )
+    .await?;
+
+    // Phase 2 - compute the new forest.
+    compute_updated_forest(
+        original_forest,
+        original_contracts_trie_leaves,
+        actual_storage_updates,
+        actual_classes_updates,
+        &input.state_diff,
+        measurements,
+    )
+    .await
+}
+
+/// Reads the original forest from the DB.
+async fn read_original_forest<'a, Reader: ForestReader + Send, M: MeasurementsTrait + Send>(
+    input: &Input<Reader::InitialReadContext>,
+    actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+    actual_classes_updates: &LeafModifications<CompiledClassHash>,
+    forest_sorted_indices: &'a ForestSortedIndices<'a>,
+    trie_reader: &mut Reader,
+    measurements: &mut M,
+) -> BlockCommitmentResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
     measurements.start_measurement(Action::Read);
-    let roots =
-        trie_reader.read_roots(input.initial_read_context).await.map_err(ForestError::from)?;
+    let roots = trie_reader
+        .read_roots(input.initial_read_context.clone())
+        .await
+        .map_err(ForestError::from)?;
     let (original_forest, original_contracts_trie_leaves) = trie_reader
         .read(
             roots,
-            &actual_storage_updates,
-            &actual_classes_updates,
-            &forest_sorted_indices,
+            actual_storage_updates,
+            actual_classes_updates,
+            forest_sorted_indices,
             input.config.clone(),
         )
         .await?;
@@ -79,15 +114,28 @@ pub async fn commit_block<Reader: ForestReader + Send, M: MeasurementsTrait + Se
         );
     }
 
-    // Compute the new topology.
+    Ok((original_forest, original_contracts_trie_leaves))
+}
+
+/// Computes the updated forest topology, its new hashes, and the nodes deleted by the state diff.
+async fn compute_updated_forest<M: MeasurementsTrait + Send>(
+    original_forest: OriginalSkeletonForest<'_>,
+    original_contracts_trie_leaves: HashMap<NodeIndex, ContractState>,
+    actual_storage_updates: HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+    actual_classes_updates: LeafModifications<CompiledClassHash>,
+    state_diff: &StateDiff,
+    measurements: &mut M,
+) -> BlockCommitmentResult<(FilledForest, DeletedNodes)> {
     measurements.start_measurement(Action::Compute);
+
+    // Compute the new topology.
     let updated_forest = UpdatedSkeletonForest::create(
         &original_forest,
-        &input.state_diff.skeleton_classes_updates(),
-        &input.state_diff.skeleton_storage_updates(),
+        &state_diff.skeleton_classes_updates(),
+        &state_diff.skeleton_storage_updates(),
         &original_contracts_trie_leaves,
-        &input.state_diff.address_to_class_hash,
-        &input.state_diff.address_to_nonce,
+        &state_diff.address_to_class_hash,
+        &state_diff.address_to_nonce,
     )?;
     debug!("Updated skeleton forest created successfully.");
 
@@ -106,8 +154,8 @@ pub async fn commit_block<Reader: ForestReader + Send, M: MeasurementsTrait + Se
         actual_storage_updates,
         actual_classes_updates,
         &original_contracts_trie_leaves,
-        &input.state_diff.address_to_class_hash,
-        &input.state_diff.address_to_nonce,
+        &state_diff.address_to_class_hash,
+        &state_diff.address_to_nonce,
     )
     .await?;
     measurements.attempt_to_stop_measurement(Action::Compute, 0).ok();

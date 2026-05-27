@@ -70,13 +70,13 @@ pub trait ForestMetadata {
 #[async_trait]
 pub trait ForestReader {
     /// Input required to start reading the storage trie.
-    type InitialReadContext: InputContext + Send;
+    type InitialReadContext: InputContext + Send + Sync;
 
     async fn read<'a>(
         &mut self,
         roots: StateRoots,
-        storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
-        classes_updates: &'a LeafModifications<CompiledClassHash>,
+        storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+        classes_updates: &LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
         config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>;
@@ -91,8 +91,8 @@ pub trait ForestReader {
 pub(crate) async fn read_forest<'a, S, Layout>(
     storage: &mut S,
     roots: StateRoots,
-    storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
-    classes_updates: &'a LeafModifications<CompiledClassHash>,
+    storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+    classes_updates: &LeafModifications<CompiledClassHash>,
     forest_sorted_indices: &'a ForestSortedIndices<'a>,
     config: ReaderConfig,
 ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>
