@@ -1,4 +1,14 @@
 name: mempool
+service:
+  ports:
+  - name: mempool
+    port: 55006
+    targetPort: 55006
+    protocol: TCP
+  - name: mempool-p2p-config
+    port: 53200
+    targetPort: 53200
+    protocol: TCP
 config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_mempool.json
   sequencerConfig:
