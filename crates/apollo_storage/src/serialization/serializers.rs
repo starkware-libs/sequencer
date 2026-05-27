@@ -372,6 +372,8 @@ auto_storage_serde! {
         Transaction = 5,
         #[cfg(feature = "os_input")]
         AccessedKeys = 6,
+        #[cfg(feature = "os_input")]
+        PatriciaProofs = 7,
     }
     pub struct PartialBlockHashComponents {
         pub header_commitments: BlockHeaderCommitments,
