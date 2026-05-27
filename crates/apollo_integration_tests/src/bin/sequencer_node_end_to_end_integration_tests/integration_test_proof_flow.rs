@@ -9,7 +9,7 @@ use apollo_integration_tests::integration_test_manager::{
     DEFAULT_SENDER_ACCOUNT,
 };
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
-use apollo_integration_tests::utils::ProofFlowTxs;
+use apollo_integration_tests::utils::{NodeDescriptor, ProofFlowTxs};
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use starknet_api::block::BlockNumber;
 use tracing::info;
@@ -23,14 +23,14 @@ async fn main() {
     // buffer with filler invokes, then submit the proof tx and wait one more block.
     const BLOCK_PAST_HASH_BUFFER: BlockNumber = BlockNumber(STORED_BLOCK_HASH_BUFFER);
     const BLOCK_TO_WAIT_FOR: BlockNumber = BlockNumber(STORED_BLOCK_HASH_BUFFER + 1);
-    const N_CONSOLIDATED_SEQUENCERS: usize = 1;
-    const N_DISTRIBUTED_SEQUENCERS: usize = 1;
-    const N_HYBRID_SEQUENCERS: usize = 1;
+    let node_descriptors = vec![
+        NodeDescriptor::consolidated(),
+        NodeDescriptor::distributed(),
+        NodeDescriptor::hybrid(),
+    ];
 
     let mut integration_test_manager = IntegrationTestManager::new(
-        N_CONSOLIDATED_SEQUENCERS,
-        N_DISTRIBUTED_SEQUENCERS,
-        N_HYBRID_SEQUENCERS,
+        node_descriptors,
         None,
         TestIdentifier::ProofFlowIntegrationTest,
     )
@@ -48,7 +48,7 @@ async fn main() {
         .await;
 
     info!("Shutting down nodes.");
-    integration_test_manager.shutdown_nodes(node_indices);
+    integration_test_manager.shutdown_nodes(node_indices).await;
 
     info!("Proof flow integration test completed successfully!");
 }

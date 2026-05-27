@@ -1792,13 +1792,7 @@ dependencies = [
  "starknet_api",
  "starknet_committer",
  "starknet_patricia_storage",
-<<<<<<< HEAD
-||||||| 3eb55733b7
- "static_assertions",
-=======
  "starknet_proof_verifier",
- "static_assertions",
->>>>>>> origin/main-v0.14.2
  "strum",
  "tempfile",
  "tokio",
