@@ -314,3 +314,7 @@ async fn verify_state_diff_hash_fails() {
         .await;
     assert_matches!(result, Err(CommitterError::StateDiffHashMismatch { .. }));
 }
+
+#[cfg(feature = "os_input")]
+#[path = "request_paths_and_commit_block_tests.rs"]
+mod request_paths_and_commit_block_tests;

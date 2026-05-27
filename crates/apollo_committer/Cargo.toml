@@ -24,6 +24,8 @@ tracing.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 indexmap.workspace = true
+starknet_committer = { workspace = true, features = ["os_input", "testing"] }
+starknet_patricia = { workspace = true }
 tokio.workspace = true
 
 [lints]
