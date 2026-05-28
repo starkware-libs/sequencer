@@ -3,32 +3,27 @@ use std::error::Error;
 use std::path::PathBuf;
 
 use apollo_committer_config::config::{ApolloStorage, CommitterConfig};
-#[cfg(feature = "os_input")]
-use apollo_committer_types::committer_types::{
-    AccessedKeys,
-    ReadPathsAndCommitBlockRequest,
-    ReadPathsAndCommitBlockResponse,
-};
 use apollo_committer_types::committer_types::{
     CommitBlockRequest,
     CommitBlockResponse,
     RevertBlockRequest,
     RevertBlockResponse,
 };
+#[cfg(feature = "os_input")]
+use apollo_committer_types::committer_types::{
+    ReadPathsAndCommitBlockRequest,
+    ReadPathsAndCommitBlockResponse,
+};
 use apollo_committer_types::errors::{CommitterError, CommitterResult};
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
-#[cfg(feature = "os_input")]
-use starknet_api::core::ContractAddress;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::Input;
-#[cfg(feature = "os_input")]
-use starknet_committer::block_committer::input::StarknetStorageKey;
 use starknet_committer::block_committer::measurements_util::{
     Action,
     BlockDurations,
@@ -37,6 +32,7 @@ use starknet_committer::block_committer::measurements_util::{
     MeasurementsTrait,
     SingleBlockMeasurements,
 };
+use starknet_committer::db::forest_trait::forest_trait_witnesses::ForestWriterWithMetadataAndWitnesses;
 #[cfg(feature = "os_input")]
 use starknet_committer::db::forest_trait::forest_trait_witnesses::{
     ForestStorageWithWitnesses,
@@ -59,7 +55,7 @@ use starknet_committer::db::serde_db_utils::{
 use starknet_committer::forest::deleted_nodes::DeletedNodes;
 use starknet_committer::forest::filled_forest::FilledForest;
 #[cfg(feature = "os_input")]
-use starknet_committer::patricia_merkle_tree::tree::{LeavesRequest, SortedLeavesRequest};
+use starknet_committer::patricia_merkle_tree::tree::LeavesRequest;
 #[cfg(feature = "os_input")]
 use starknet_patricia_storage::errors::SerializationError;
 use starknet_patricia_storage::map_storage::CachedStorage;
@@ -512,29 +508,16 @@ where
         &mut self,
         ReadPathsAndCommitBlockRequest {
             commit: CommitBlockRequest { state_diff, state_diff_commitment, height },
-            accessed_keys: AccessedKeys { storage_keys, accessed_contracts, accessed_class_hashes },
+            accessed_keys,
         }: ReadPathsAndCommitBlockRequest,
     ) -> CommitterResult<ReadPathsAndCommitBlockResponse> {
-        let class_hashes: Vec<_> = accessed_class_hashes.iter().copied().collect();
-        let contract_addresses: Vec<_> = accessed_contracts.iter().copied().collect();
-        let contract_storage_keys = storage_keys.iter().fold(
-            HashMap::<ContractAddress, Vec<StarknetStorageKey>>::new(),
-            |mut accumulator, (address, key)| {
-                accumulator.entry(*address).or_default().push(StarknetStorageKey(*key));
-                accumulator
-            },
-        );
-        let mut leaves_request = LeavesRequest::from_accessed_leaves(
-            &class_hashes,
-            &contract_addresses,
-            &contract_storage_keys,
-        );
+        let mut leaves_request = LeavesRequest::from(&accessed_keys);
         info!(
             "read_paths_and_commit_block: height {height}, accessed keys len {}, state diff len {}",
             leaves_request.total_leaf_count(),
             state_diff.len(),
         );
-        let sorted_leaves: SortedLeavesRequest<'_> = (&mut leaves_request).into();
+        let sorted_leaves = leaves_request.sorted();
         let digest = accessed_keys_digest(&sorted_leaves);
 
         match self.commit_or_load(&state_diff, state_diff_commitment, height).await? {
