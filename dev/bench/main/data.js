@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779904032237,
+  "lastUpdate": 1779955976215,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4657,6 +4657,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1378.81502905,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "143319383+nimrod-starkware@users.noreply.github.com",
+            "name": "nimrod-starkware",
+            "username": "nimrod-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4c0e82a11e9506f4cb16d626279fb437310d6595",
+          "message": "Merge pull request #14185 from starkware-libs/05-25-deployment_add_service_ports_to_hybrid_environment_overlays\n\ndeployment: add service ports to hybrid environment overlays",
+          "timestamp": "2026-05-28T07:53:29Z",
+          "tree_id": "b8b5d6e42d3d41b7bc28f69994c81cec3512d758",
+          "url": "https://github.com/starkware-libs/sequencer/commit/4c0e82a11e9506f4cb16d626279fb437310d6595"
+        },
+        "date": 1779955975721,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 984.4987874,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1402.08930899,
             "unit": "ms"
           }
         ]
