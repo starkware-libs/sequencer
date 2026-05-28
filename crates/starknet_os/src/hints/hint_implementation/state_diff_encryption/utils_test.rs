@@ -1,5 +1,5 @@
 use ark_bls12_381::Fr;
-use rand::Rng;
+use rand::RngExt;
 use starknet_types_core::curve::AffinePoint;
 use starknet_types_core::felt::Felt;
 

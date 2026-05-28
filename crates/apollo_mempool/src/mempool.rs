@@ -16,7 +16,7 @@ use apollo_mempool_types::mempool_types::{
 };
 use apollo_time::time::{Clock, DateTime};
 use indexmap::IndexSet;
-use rand::{rng, Rng};
+use rand::{rng, RngExt};
 use starknet_api::block::{GasPrice, UnixTimestamp};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{

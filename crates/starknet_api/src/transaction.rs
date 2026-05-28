@@ -2,6 +2,7 @@ use std::sync::LazyLock;
 
 use apollo_sizeof::SizeOf;
 use num_bigint::BigUint;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 

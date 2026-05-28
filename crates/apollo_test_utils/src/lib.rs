@@ -34,7 +34,7 @@ use primitive_types::H160;
 use prometheus_parse::Value;
 // Re-export for use in downstream crates.
 pub use rand;
-use rand::{Rng, RngCore, SeedableRng};
+use rand::{Rng, RngExt, SeedableRng};
 // Re-export for use in downstream crates.
 pub use rand_chacha;
 use rand_chacha::ChaCha8Rng;
@@ -1065,7 +1065,7 @@ macro_rules! auto_impl_get_test_instance {
     ($(pub)? enum $name:ident { $($variant:ident $( ($ty:ty) )? = $num:expr ,)* } $($rest:tt)*) => {
         impl GetTestInstance for $name {
             fn get_test_instance(rng: &mut $crate::rand_chacha::ChaCha8Rng) -> Self {
-                use $crate::rand::Rng;
+                use $crate::rand::RngExt;
                 let variant = rng.random_range(0..get_number_of_variants!(enum $name { $($variant $( ($ty) )? = $num ,)* }));
                 match variant {
                     $(

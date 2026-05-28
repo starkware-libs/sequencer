@@ -15,7 +15,7 @@ use blake2::{Blake2s, Digest};
 use rand::distr::Uniform;
 use rand::prelude::IteratorRandom;
 use rand::rngs::SmallRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_api::hash::HashOutput;

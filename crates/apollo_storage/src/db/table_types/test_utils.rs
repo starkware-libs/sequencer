@@ -1,6 +1,6 @@
 use assert_matches::assert_matches;
 use rand::rngs::ThreadRng;
-use rand::Rng;
+use rand::RngExt;
 use tracing::debug;
 
 use super::{Table, TableType};

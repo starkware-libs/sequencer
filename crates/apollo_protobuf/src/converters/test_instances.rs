@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use apollo_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
 use prost::DecodeError;
-use rand::Rng;
+use rand::RngExt;
 use starknet_api::block::{BlockNumber, GasPrice, StarknetVersion};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ContractAddress;

@@ -1320,7 +1320,7 @@ dependencies = [
  "lru 0.12.5",
  "mockall",
  "prost",
- "rand 0.9.2",
+ "rand 0.10.1",
  "rstest",
  "serde",
  "starknet-types-core",
@@ -1440,8 +1440,8 @@ dependencies = [
  "mockito",
  "num-bigint",
  "num-rational",
- "rand 0.9.2",
- "rand_chacha 0.9.0",
+ "rand 0.10.1",
+ "rand_chacha 0.10.0",
  "reqwest 0.12.24",
  "reqwest-middleware 0.4.2",
  "reqwest-retry",
@@ -1676,7 +1676,7 @@ dependencies = [
  "metrics-exporter-prometheus",
  "once_cell",
  "pretty_assertions",
- "rand 0.9.2",
+ "rand 0.10.1",
  "rstest",
  "serde",
  "serde_json",
@@ -1947,7 +1947,7 @@ dependencies = [
  "metrics-exporter-prometheus",
  "mockall",
  "pretty_assertions",
- "rand 0.9.2",
+ "rand 0.10.1",
  "reqwest 0.12.24",
  "reqwest-middleware 0.4.2",
  "reqwest-retry",
@@ -1990,7 +1990,7 @@ dependencies = [
  "futures",
  "libp2p",
  "mockall",
- "rand_chacha 0.9.0",
+ "rand_chacha 0.10.0",
  "starknet_api",
  "tokio",
  "tracing",
@@ -2163,7 +2163,7 @@ dependencies = [
  "apollo_test_utils",
  "lazy_static",
  "libp2p",
- "rand_chacha 0.9.0",
+ "rand_chacha 0.10.0",
  "serde",
 ]
 
@@ -2281,8 +2281,8 @@ dependencies = [
  "lazy_static",
  "mockall",
  "papyrus_common",
- "rand 0.9.2",
- "rand_chacha 0.9.0",
+ "rand 0.10.1",
+ "rand_chacha 0.10.0",
  "starknet-types-core",
  "starknet_api",
  "static_assertions",
@@ -2390,7 +2390,7 @@ dependencies = [
  "libp2p-swarm-test",
  "lru 0.12.5",
  "prost",
- "rand 0.9.2",
+ "rand 0.10.1",
  "reed-solomon-simd",
  "rstest",
  "sha2 0.10.9",
@@ -2421,8 +2421,8 @@ dependencies = [
  "prost",
  "prost-build",
  "protoc-prebuilt",
- "rand 0.9.2",
- "rand_chacha 0.9.0",
+ "rand 0.10.1",
+ "rand_chacha 0.10.0",
  "rstest",
  "serde",
  "serde_json",
@@ -2484,8 +2484,8 @@ dependencies = [
  "papyrus_common",
  "pretty_assertions",
  "prometheus-parse",
- "rand 0.9.2",
- "rand_chacha 0.9.0",
+ "rand 0.10.1",
+ "rand_chacha 0.10.0",
  "regex",
  "reqwest 0.12.24",
  "serde",
@@ -2521,7 +2521,7 @@ dependencies = [
  "mockall",
  "papyrus_common",
  "pretty_assertions",
- "rand_chacha 0.9.0",
+ "rand_chacha 0.10.0",
  "serde",
  "serde_json",
  "starknet-types-core",
@@ -2722,7 +2722,8 @@ dependencies = [
  "libp2p",
  "mockall",
  "papyrus_common",
- "rand_chacha 0.9.0",
+ "rand 0.10.1",
+ "rand_chacha 0.10.0",
  "starknet-types-core",
  "starknet_api",
  "tokio",
@@ -2811,8 +2812,8 @@ dependencies = [
  "pretty_assertions",
  "primitive-types",
  "prometheus-parse",
- "rand 0.9.2",
- "rand_chacha 0.9.0",
+ "rand 0.10.1",
+ "rand_chacha 0.10.0",
  "reqwest 0.12.24",
  "rstest",
  "schemars 1.1.0",
@@ -2854,8 +2855,8 @@ dependencies = [
  "pretty_assertions",
  "primitive-types",
  "prometheus-parse",
- "rand 0.9.2",
- "rand_chacha 0.9.0",
+ "rand 0.10.1",
+ "rand_chacha 0.10.0",
  "reqwest 0.12.24",
  "serde",
  "serde_json",
@@ -3829,7 +3830,7 @@ dependencies = [
  "paste",
  "phf",
  "pretty_assertions",
- "rand 0.9.2",
+ "rand 0.10.1",
  "regex",
  "rstest",
  "rstest_reuse",
@@ -5208,7 +5209,7 @@ version = "0.1.0"
 source = "git+https://github.com/starkware-libs/stwo-circuits?rev=2591775#2591775ae8fd7634eda7b77c471f87c163f65eb1"
 dependencies = [
  "blake2",
- "hashbrown 0.16.0",
+ "hashbrown 0.17.1",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
@@ -5221,7 +5222,7 @@ version = "0.1.0"
 source = "git+https://github.com/starkware-libs/stwo-circuits?rev=c99a181#c99a181518259c1b3b121c2522371748b9acfa03"
 dependencies = [
  "blake2",
- "hashbrown 0.16.0",
+ "hashbrown 0.17.1",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
@@ -5235,7 +5236,7 @@ version = "0.1.0"
 source = "git+https://github.com/starkware-libs/stwo-circuits?rev=2591775#2591775ae8fd7634eda7b77c471f87c163f65eb1"
 dependencies = [
  "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "hashbrown 0.16.0",
+ "hashbrown 0.17.1",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
@@ -5249,7 +5250,7 @@ version = "0.1.0"
 source = "git+https://github.com/starkware-libs/stwo-circuits?rev=c99a181#c99a181518259c1b3b121c2522371748b9acfa03"
 dependencies = [
  "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=c99a181)",
- "hashbrown 0.16.0",
+ "hashbrown 0.17.1",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
@@ -7054,8 +7055,6 @@ version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5419bdc4f6a9207fbeba6d11b604d481addf78ecd10c11ad51e76c2f6482748d"
 dependencies = [
- "allocator-api2",
- "equivalent",
  "foldhash 0.2.0",
  "serde",
 ]
@@ -9976,7 +9975,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "indexmap 2.14.0",
  "pretty_assertions",
- "rand 0.9.2",
+ "rand 0.10.1",
  "serde",
  "serde_json",
  "starknet-types-core",
@@ -10980,6 +10979,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_chacha"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e6af7f3e25ded52c41df4e0b1af2d047e45896c2f3281792ed68a1c243daedb"
+dependencies = [
+ "ppv-lite86",
+ "rand_core 0.10.1",
+]
+
+[[package]]
 name = "rand_core"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11006,12 +11015,12 @@ checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
 
 [[package]]
 name = "rand_distr"
-version = "0.5.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a8615d50dcf34fa31f7ab52692afec947c4dd0ab803cc87cb3b0b4570ff7463"
+checksum = "4d431c2703ccf129de4d45253c03f49ebb22b97d6ad79ee3ecfc7e3f4862c1d8"
 dependencies = [
  "num-traits",
- "rand 0.9.2",
+ "rand 0.10.1",
 ]
 
 [[package]]
@@ -12862,7 +12871,7 @@ dependencies = [
  "paste",
  "pretty_assertions",
  "primitive-types",
- "rand 0.9.2",
+ "rand 0.10.1",
  "rstest",
  "semver 1.0.27",
  "serde",
@@ -12892,7 +12901,7 @@ dependencies = [
  "expect-test",
  "hex",
  "pretty_assertions",
- "rand 0.9.2",
+ "rand 0.10.1",
  "rand_distr",
  "rstest",
  "rstest_reuse",
@@ -12930,7 +12939,7 @@ dependencies = [
  "futures",
  "indexmap 2.14.0",
  "pretty_assertions",
- "rand 0.9.2",
+ "rand 0.10.1",
  "rand_distr",
  "serde",
  "serde_json",
@@ -12959,7 +12968,7 @@ dependencies = [
  "blake2",
  "clap",
  "csv",
- "rand 0.9.2",
+ "rand 0.10.1",
  "serde",
  "serde_json",
  "starknet-types-core",
@@ -13005,7 +13014,7 @@ dependencies = [
  "num-traits",
  "papyrus_common",
  "paste",
- "rand 0.9.2",
+ "rand 0.10.1",
  "regex",
  "rstest",
  "serde",
@@ -13040,8 +13049,8 @@ dependencies = [
  "chrono",
  "expect-test",
  "itertools 0.12.1",
- "rand 0.9.2",
- "rand_chacha 0.9.0",
+ "rand 0.10.1",
+ "rand_chacha 0.10.0",
  "rstest",
  "serde_json",
  "starknet-core",
@@ -13066,7 +13075,7 @@ dependencies = [
  "derive_more",
  "ethnum",
  "pretty_assertions",
- "rand 0.9.2",
+ "rand 0.10.1",
  "rstest",
  "serde",
  "serde_json",
@@ -13235,7 +13244,7 @@ dependencies = [
  "dashmap",
  "educe 0.5.11",
  "fnv",
- "hashbrown 0.16.0",
+ "hashbrown 0.17.1",
  "hex",
  "indexmap 2.14.0",
  "itertools 0.12.1",
@@ -13264,7 +13273,7 @@ dependencies = [
  "dashmap",
  "educe 0.5.11",
  "fnv",
- "hashbrown 0.16.0",
+ "hashbrown 0.17.1",
  "hex",
  "indexmap 2.14.0",
  "itertools 0.12.1",
@@ -13444,7 +13453,7 @@ name = "stwo-constraint-framework"
 version = "2.1.0"
 source = "git+https://github.com/starkware-libs/stwo?rev=aeceb74c#aeceb74c58184d7886ebd7f34a7453fee714ca40"
 dependencies = [
- "hashbrown 0.16.0",
+ "hashbrown 0.17.1",
  "itertools 0.12.1",
  "num-traits",
  "rand 0.8.5",
@@ -13460,7 +13469,7 @@ version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47aca0d5d36d4b015703fb14f162a23cb685e67f8aa08dbe7faf39bd66fe93f1"
 dependencies = [
- "hashbrown 0.16.0",
+ "hashbrown 0.17.1",
  "itertools 0.12.1",
  "num-traits",
  "rand 0.8.5",

@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::contracts::FeatureContract;
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::BlockInfo;
 use starknet_api::core::ContractAddress;

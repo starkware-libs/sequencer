@@ -9,7 +9,7 @@ use apollo_storage::state::StateStorageReader;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::FutureExt;
 use indexmap::IndexMap;
-use rand::Rng;
+use rand::RngExt;
 use rand_chacha::ChaCha8Rng;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;

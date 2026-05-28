@@ -14,7 +14,7 @@ use cairo_vm::types::program::Program;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
-use rand::Rng;
+use rand::RngExt;
 use serde::Deserialize;
 use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
