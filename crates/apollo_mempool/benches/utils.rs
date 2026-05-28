@@ -24,7 +24,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use indexmap::IndexSet;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,

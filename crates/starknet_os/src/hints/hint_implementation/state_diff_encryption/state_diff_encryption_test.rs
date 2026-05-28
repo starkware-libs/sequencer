@@ -7,7 +7,7 @@ use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 use itertools::Itertools;
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 

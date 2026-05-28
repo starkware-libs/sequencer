@@ -1,6 +1,6 @@
 use ethnum::{uint, U256};
 use rand::rngs::ThreadRng;
-use rand::Rng;
+use rand::RngExt;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 

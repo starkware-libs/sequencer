@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use apollo_versioned_constants::VersionedConstants;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use rstest::rstest;
 use starknet_api::block::{BlockNumber, GasPrice};

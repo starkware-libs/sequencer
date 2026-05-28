@@ -15,7 +15,7 @@ use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::FutureExt;
 use mockall::predicate::eq;
 use papyrus_common::pending_classes::ApiContractClass;
-use rand::{Rng, RngCore};
+use rand::{Rng, RngExt};
 use rand_chacha::ChaCha8Rng;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector};

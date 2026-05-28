@@ -68,7 +68,7 @@ use lazy_static::lazy_static;
 use mockall::predicate::eq;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClassesTrait};
 use pretty_assertions::assert_eq;
-use rand::{random, RngCore};
+use rand::{random, Rng};
 use rand_chacha::ChaCha8Rng;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
