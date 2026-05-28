@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779966411491,
+  "lastUpdate": 1779971315631,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4759,6 +4759,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1243.83364153,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8b1be706c72354b22bf87e9d845aeb9354e1b33b",
+          "message": "apollo_committer_types: add patricia proofs request and response types (#13996)",
+          "timestamp": "2026-05-28T12:16:26Z",
+          "tree_id": "82fc9ede1f1254f50b51e7c9bf5f02ac6d63d851",
+          "url": "https://github.com/starkware-libs/sequencer/commit/8b1be706c72354b22bf87e9d845aeb9354e1b33b"
+        },
+        "date": 1779971315158,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 847.6798352100001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1245.49188272,
             "unit": "ms"
           }
         ]
