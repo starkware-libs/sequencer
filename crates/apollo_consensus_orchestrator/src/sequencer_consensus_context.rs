@@ -438,6 +438,31 @@ impl SequencerConsensusContext {
         )
     }
 
+    async fn resolve_fee_target(
+        &self,
+        timestamp: u64,
+        target_atto_usd_per_l2_gas: u128,
+    ) -> Option<GasPrice> {
+        if let Some(v) = self.config.dynamic_config.override_l2_gas_price_fri {
+            SNIP35_FEE_TARGET_FRI.set_lossy(v);
+            return Some(GasPrice(v));
+        }
+        match self.deps.l1_gas_price_provider.get_strk_to_usd_rate(timestamp).await {
+            Ok(rate) => {
+                let target = compute_fee_target(target_atto_usd_per_l2_gas, rate);
+                match target {
+                    Some(t) => SNIP35_FEE_TARGET_FRI.set_lossy(t.0),
+                    None => warn!("STRK/USD oracle returned zero rate, freezing fee_proposal"),
+                }
+                target
+            }
+            Err(e) => {
+                warn!("STRK/USD oracle error: {e:?}, freezing fee_proposal");
+                None
+            }
+        }
+    }
+
     /// Compute the proposer's fee_proposal: clamp the oracle's `fee_target` to a margin around
     /// `fee_actual`. When `fee_actual` is `None` (window incomplete), freeze at `l2_gas_price`; the
     /// validator derives the same fallback so both sides agree.
@@ -455,21 +480,7 @@ impl SequencerConsensusContext {
         };
         SNIP35_FEE_ACTUAL_FRI.set_lossy(fee_actual.0);
 
-        let fee_target = match self.deps.l1_gas_price_provider.get_strk_to_usd_rate(timestamp).await
-        {
-            Ok(rate) => {
-                let target = compute_fee_target(target_atto_usd_per_l2_gas, rate);
-                match target {
-                    Some(t) => SNIP35_FEE_TARGET_FRI.set_lossy(t.0),
-                    None => warn!("STRK/USD oracle returned zero rate, freezing fee_proposal"),
-                }
-                target
-            }
-            Err(e) => {
-                warn!("STRK/USD oracle error: {e:?}, freezing fee_proposal");
-                None
-            }
-        };
+        let fee_target = self.resolve_fee_target(timestamp, target_atto_usd_per_l2_gas).await;
 
         let proposal = compute_fee_proposal(
             fee_target,
