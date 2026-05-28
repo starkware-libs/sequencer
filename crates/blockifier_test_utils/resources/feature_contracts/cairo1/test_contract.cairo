@@ -681,6 +681,22 @@ mod TestContract {
     }
 
     #[external(v0)]
+    fn test_sha512_with_alternating_inner_calls(ref self: ContractState) {
+        // The outer inputs ("bbb", "abcd") differ from every input hashed by the inner
+        // `test_sha512` call below, so a cross-call-depth result mix-up cannot go undetected.
+        // SHA-512("bbb").
+        test_sha512_helper(array![], 'bbb', 3, 0x5edc1c6a4390075a_u64);
+
+        syscalls::call_contract_syscall(
+            get_contract_address(), selector!("test_sha512"), array![].span(),
+        )
+            .unwrap_syscall();
+
+        // SHA-512("abcd").
+        test_sha512_helper(array![], 'abcd', 4, 0xd8022f2060ad6efd_u64);
+    }
+
+    #[external(v0)]
     fn test_sha512(ref self: ContractState) {
         // SHA-512("") per NIST FIPS 180-4.
         test_sha512_helper(array![], 0, 0, 0xcf83e1357eefb8bd_u64);

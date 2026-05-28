@@ -843,11 +843,11 @@ fn class_hash_migration_data_from_state(
 
     if should_migrate {
         expect![[r#"
-            105991224
+            107086865
         "#]]
         .assert_debug_eq(&migration_sierra_gas.0);
         expect![[r#"
-            229141677
+            231505645
         "#]]
         .assert_debug_eq(&migration_proving_gas.0);
     } else {
