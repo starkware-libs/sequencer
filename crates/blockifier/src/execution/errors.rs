@@ -14,6 +14,7 @@ use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use thiserror::Error;
 
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::ConstructorContext;
 use crate::execution::stack_trace::Cairo1RevertSummary;
 #[cfg(feature = "cairo_native")]
@@ -116,9 +117,33 @@ pub enum EntryPointExecutionError {
     TraceError(#[from] TraceError),
 }
 
-/// Public envelope for `EntryPointExecutionError`; a follow-up adds an `Annotated` variant.
+impl EntryPointExecutionError {
+    /// Tags `self` with the frame's `tracked_resource` and strip policy. Lives on the inner
+    /// type so the type system rejects double-annotation.
+    pub fn annotated(
+        self,
+        tracked_resource: TrackedResource,
+        strip_vm_frames_in_sierra_gas: bool,
+    ) -> EntryPointExecutionErrorWithMetadata {
+        EntryPointExecutionErrorWithMetadata::Annotated {
+            inner: Box::new(self),
+            tracked_resource,
+            strip_vm_frames_in_sierra_gas,
+        }
+    }
+}
+
+/// Public envelope for `EntryPointExecutionError`. `Annotated` carries the per-frame
+/// `TrackedResource` and strip policy; applied only by `execute_entry_point_call_wrapper`.
 #[derive(Debug, Error)]
 pub enum EntryPointExecutionErrorWithMetadata {
+    #[error("{inner}")]
+    Annotated {
+        #[source]
+        inner: Box<EntryPointExecutionError>,
+        tracked_resource: TrackedResource,
+        strip_vm_frames_in_sierra_gas: bool,
+    },
     #[error(transparent)]
     UnAnnotated(EntryPointExecutionError),
 }
@@ -126,13 +151,15 @@ pub enum EntryPointExecutionErrorWithMetadata {
 impl EntryPointExecutionErrorWithMetadata {
     pub fn unannotated(&self) -> &EntryPointExecutionError {
         match self {
-            Self::UnAnnotated(e) => e,
+            Self::Annotated { inner, .. } => inner,
+            Self::UnAnnotated(inner) => inner,
         }
     }
 
     pub fn into_unannotated(self) -> EntryPointExecutionError {
         match self {
-            Self::UnAnnotated(e) => e,
+            Self::Annotated { inner, .. } => *inner,
+            Self::UnAnnotated(inner) => inner,
         }
     }
 }

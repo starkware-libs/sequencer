@@ -10,8 +10,13 @@ use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::execution_utils::format_panic_data;
 
 use crate::execution::call_info::{CallInfo, Retdata};
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
-use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
+use crate::execution::errors::{
+    ConstructorEntryPointExecutionError,
+    EntryPointExecutionError,
+    EntryPointExecutionErrorWithMetadata,
+};
 use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
     ENTRYPOINT_FAILED_ERROR_FELT,
@@ -409,7 +414,7 @@ pub fn gen_tx_execution_error_trace(error: &TransactionExecutionError) -> ErrorS
             selector,
         } => gen_error_trace_from_entry_point_error(
             ErrorStackHeader::Execution,
-            error.unannotated(),
+            error,
             storage_address,
             class_hash,
             Some(selector),
@@ -422,7 +427,7 @@ pub fn gen_tx_execution_error_trace(error: &TransactionExecutionError) -> ErrorS
             selector,
         } => gen_error_trace_from_entry_point_error(
             ErrorStackHeader::Validation,
-            error.unannotated(),
+            error,
             storage_address,
             class_hash,
             Some(selector),
@@ -437,7 +442,7 @@ pub fn gen_tx_execution_error_trace(error: &TransactionExecutionError) -> ErrorS
             },
         ) => gen_error_trace_from_entry_point_error(
             ErrorStackHeader::Constructor,
-            error.unannotated(),
+            error,
             storage_address,
             class_hash,
             constructor_selector.as_ref(),
@@ -460,7 +465,7 @@ pub fn gen_tx_execution_error_trace(error: &TransactionExecutionError) -> ErrorS
 /// Generate error stack from top-level entry point execution error.
 fn gen_error_trace_from_entry_point_error(
     header: ErrorStackHeader,
-    error: &EntryPointExecutionError,
+    error: &EntryPointExecutionErrorWithMetadata,
     storage_address: &ContractAddress,
     class_hash: &ClassHash,
     entry_point_selector: Option<&EntryPointSelector>,
@@ -486,16 +491,19 @@ fn extract_cairo_run_error_into_stack_trace(
     error_stack: &mut ErrorStack,
     depth: usize,
     error: &CairoRunError,
+    omit_vm_frame: bool,
 ) {
     if let CairoRunError::VmException(vm_exception) = error {
-        error_stack.push(
-            VmExceptionFrame {
-                pc: vm_exception.pc,
-                error_attr_value: vm_exception.error_attr_value.clone(),
-                traceback: vm_exception.traceback.clone(),
-            }
-            .into(),
-        );
+        if !omit_vm_frame {
+            error_stack.push(
+                VmExceptionFrame {
+                    pc: vm_exception.pc,
+                    error_attr_value: vm_exception.error_attr_value.clone(),
+                    traceback: vm_exception.traceback.clone(),
+                }
+                .into(),
+            );
+        }
         extract_virtual_machine_error_into_stack_trace(error_stack, depth, &vm_exception.inner_exc);
     } else {
         error_stack.push(error.to_string().into());
@@ -604,17 +612,13 @@ fn extract_syscall_execution_error_into_stack_trace(
                 }
                 .into(),
             );
-            extract_entry_point_execution_error_into_stack_trace(
-                error_stack,
-                depth,
-                error.unannotated(),
-            )
+            extract_entry_point_execution_error_into_stack_trace(error_stack, depth, error)
         }
         SyscallExecutionError::EntryPointExecutionError(entry_point_error) => {
             extract_entry_point_execution_error_into_stack_trace(
                 error_stack,
                 depth,
-                entry_point_error.unannotated(),
+                entry_point_error,
             )
         }
         _ => {
@@ -691,17 +695,13 @@ fn extract_deprecated_syscall_execution_error_into_stack_trace(
                 }
                 .into(),
             );
-            extract_entry_point_execution_error_into_stack_trace(
-                error_stack,
-                depth,
-                error.unannotated(),
-            )
+            extract_entry_point_execution_error_into_stack_trace(error_stack, depth, error)
         }
         DeprecatedSyscallExecutionError::EntryPointExecutionError(entry_point_error) => {
             extract_entry_point_execution_error_into_stack_trace(
                 error_stack,
                 depth,
-                entry_point_error.unannotated(),
+                entry_point_error,
             )
         }
         _ => error_stack.push(syscall_error.to_string().into()),
@@ -711,11 +711,31 @@ fn extract_deprecated_syscall_execution_error_into_stack_trace(
 fn extract_entry_point_execution_error_into_stack_trace(
     error_stack: &mut ErrorStack,
     depth: usize,
-    entry_point_error: &EntryPointExecutionError,
+    entry_point_error: &EntryPointExecutionErrorWithMetadata,
 ) {
-    match entry_point_error {
+    // Omit the cairo-vm PC/traceback only for SierraGas frames at versions where the strip
+    // policy is on — makes the revert reason invariant across execution backends. Cairo 0
+    // (CairoSteps) always emits; it has no native counterpart.
+    let (omit_vm_frame, inner) = match entry_point_error {
+        EntryPointExecutionErrorWithMetadata::Annotated {
+            inner,
+            tracked_resource,
+            strip_vm_frames_in_sierra_gas,
+        } => {
+            let omit =
+                *strip_vm_frames_in_sierra_gas && *tracked_resource == TrackedResource::SierraGas;
+            (omit, inner.as_ref())
+        }
+        EntryPointExecutionErrorWithMetadata::UnAnnotated(inner) => (false, inner),
+    };
+    match inner {
         EntryPointExecutionError::CairoRunError(cairo_run_error) => {
-            extract_cairo_run_error_into_stack_trace(error_stack, depth, cairo_run_error)
+            extract_cairo_run_error_into_stack_trace(
+                error_stack,
+                depth,
+                cairo_run_error,
+                omit_vm_frame,
+            )
         }
         #[cfg(feature = "cairo_native")]
         EntryPointExecutionError::NativeUnrecoverableError(error) => {
@@ -724,6 +744,6 @@ fn extract_entry_point_execution_error_into_stack_trace(
         EntryPointExecutionError::ExecutionFailed { error_trace } => {
             error_stack.push(error_trace.clone().into())
         }
-        _ => error_stack.push(format!("{entry_point_error}\n").into()),
+        _ => error_stack.push(format!("{inner}\n").into()),
     }
 }
