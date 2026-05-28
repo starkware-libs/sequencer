@@ -56,9 +56,10 @@ use apollo_consensus_orchestrator::metrics::{
     LABEL_BUILD_PROPOSAL_FAILURE_REASON,
     LABEL_CENDE_FAILURE_REASON,
     LABEL_VALIDATE_PROPOSAL_FAILURE_REASON,
-    SNIP35_FEE_ACTUAL,
-    SNIP35_FEE_PROPOSAL,
-    SNIP35_FEE_TARGET,
+    SNIP35_FEE_ACTUAL_FRI,
+    SNIP35_FEE_PROPOSAL_FRI,
+    SNIP35_FEE_TARGET_ATTO_USD,
+    SNIP35_FEE_TARGET_FRI,
 };
 use apollo_l1_gas_price::metrics::{
     SNIP35_STRK_USD_ERROR_COUNT,
@@ -725,7 +726,7 @@ fn get_panel_snip35_fee_actual() -> Panel {
     Panel::new(
         "Fee Actual (GFri)",
         "Median of recent fee_proposals over the sliding window, in GFri",
-        format!("{} / 1e9", SNIP35_FEE_ACTUAL.get_name_with_filter()),
+        format!("{} / 1e9", SNIP35_FEE_ACTUAL_FRI.get_name_with_filter()),
         PanelType::TimeSeries,
     )
 }
@@ -734,7 +735,7 @@ fn get_panel_snip35_fee_proposal() -> Panel {
     Panel::new(
         "Fee Proposal (GFri)",
         "fee_proposal this node published in the latest block, in GFri",
-        format!("{} / 1e9", SNIP35_FEE_PROPOSAL.get_name_with_filter()),
+        format!("{} / 1e9", SNIP35_FEE_PROPOSAL_FRI.get_name_with_filter()),
         PanelType::TimeSeries,
     )
 }
@@ -743,7 +744,17 @@ fn get_panel_snip35_fee_target() -> Panel {
     Panel::new(
         "Fee Target (GFri)",
         "fee_target computed from the STRK/USD oracle, in GFri",
-        format!("{} / 1e9", SNIP35_FEE_TARGET.get_name_with_filter()),
+        format!("{} / 1e9", SNIP35_FEE_TARGET_FRI.get_name_with_filter()),
+        PanelType::TimeSeries,
+    )
+}
+
+fn get_panel_snip35_fee_target_atto_usd() -> Panel {
+    Panel::new(
+        "Fee Target (USD per 1B L2 gas)",
+        "Configured target USD cost per 1 billion L2 gas units (raw metric is atto-USD per L2 gas; \
+         atto-USD / 1e9 = USD per 1B L2 gas)",
+        format!("{} / 1e9", SNIP35_FEE_TARGET_ATTO_USD.get_name_with_filter()),
         PanelType::TimeSeries,
     )
 }
@@ -799,6 +810,7 @@ pub(crate) fn get_snip35_row() -> Row {
             get_panel_snip35_fee_actual(),
             get_panel_snip35_fee_proposal(),
             get_panel_snip35_fee_target(),
+            get_panel_snip35_fee_target_atto_usd(),
             get_panel_snip35_strk_usd_rate(),
             get_panel_snip35_strk_usd_success_count(),
             get_panel_snip35_strk_usd_error_count(),
