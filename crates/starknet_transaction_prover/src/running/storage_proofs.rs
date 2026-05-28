@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use blockifier::state::accessed_keys::AccessedKeys;
 use blockifier::state::cached_state::StateMaps;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
@@ -343,7 +344,7 @@ impl RpcStorageProofsProvider {
         let mut map_storage: MapStorage = facts_db.consume_storage();
 
         // Get extended initial reads keys.
-        let initial_reads_keys = extended_initial_reads.keys();
+        let accessed_keys: AccessedKeys = extended_initial_reads.keys().into();
 
         // TODO(Aviv): Try to undertand if we can create classes trie commitment info
         // without the compiled class hashes.
@@ -351,7 +352,7 @@ impl RpcStorageProofsProvider {
             &previous_state_roots,
             &new_roots,
             &mut map_storage,
-            &initial_reads_keys,
+            &accessed_keys,
         )
         .await
         .map_err(|e| ProofProviderError::BlockCommitmentError(e.to_string()))?;

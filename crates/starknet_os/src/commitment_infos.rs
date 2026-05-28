@@ -1,17 +1,16 @@
 use std::collections::HashMap;
 
-use blockifier::state::cached_state::StateChangesKeys;
-use starknet_api::core::{ClassHash, ContractAddress};
+use blockifier::state::accessed_keys::AccessedKeys;
+use starknet_api::core::ContractAddress;
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_committer::block_committer::input::{
     contract_address_into_node_index,
     try_node_index_into_contract_address,
-    StarknetStorageKey,
 };
 use starknet_committer::db::facts_db::create_facts_tree::get_leaves;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
-use starknet_committer::patricia_merkle_tree::types::{RootHashes, StarknetForestProofs};
+use starknet_committer::patricia_merkle_tree::types::RootHashes;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::flatten_preimages;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use starknet_patricia::patricia_merkle_tree::traversal::TraversalError;
@@ -74,10 +73,10 @@ impl StateCommitmentInfos {
         previous_state_roots: &StateRoots,
         new_state_roots: &StateRoots,
         commitments: &mut MapStorage,
-        initial_reads_keys: &StateChangesKeys,
+        accessed_keys: &AccessedKeys,
     ) -> Result<Self, CommitmentInfosError> {
         let addresses: Vec<ContractAddress> =
-            initial_reads_keys.modified_contracts.iter().copied().collect();
+            accessed_keys.accessed_contracts.iter().copied().collect();
 
         let previous_storage_roots = get_storage_roots(
             &addresses,
@@ -89,8 +88,7 @@ impl StateCommitmentInfos {
             get_storage_roots(&addresses, new_state_roots.contracts_trie_root_hash, commitments)
                 .await?;
 
-        let storage_proofs = fetch_storage_proofs_from_state_changes_keys(
-            initial_reads_keys,
+        let storage_proofs = fetch_previous_and_new_patricia_paths(
             commitments,
             RootHashes {
                 previous_root_hash: previous_state_roots.classes_trie_root_hash,
@@ -100,6 +98,7 @@ impl StateCommitmentInfos {
                 previous_root_hash: previous_state_roots.contracts_trie_root_hash,
                 new_root_hash: new_state_roots.contracts_trie_root_hash,
             },
+            accessed_keys,
         )
         .await?;
 
@@ -171,33 +170,4 @@ async fn get_storage_roots(
             Ok((address, contract_state.storage_root_hash))
         })
         .collect()
-}
-
-async fn fetch_storage_proofs_from_state_changes_keys(
-    initial_reads_keys: &StateChangesKeys,
-    storage: &mut MapStorage,
-    classes_trie_root_hashes: RootHashes,
-    contracts_trie_root_hashes: RootHashes,
-) -> Result<StarknetForestProofs, CommitmentInfosError> {
-    let class_hashes: Vec<ClassHash> =
-        initial_reads_keys.compiled_class_hash_keys.iter().cloned().collect();
-    let contract_addresses =
-        &initial_reads_keys.modified_contracts.iter().cloned().collect::<Vec<_>>();
-    let contract_storage_keys = initial_reads_keys.storage_keys.iter().fold(
-        HashMap::<ContractAddress, Vec<StarknetStorageKey>>::new(),
-        |mut acc, (address, key)| {
-            acc.entry(*address).or_default().push(StarknetStorageKey(*key));
-            acc
-        },
-    );
-
-    Ok(fetch_previous_and_new_patricia_paths(
-        storage,
-        classes_trie_root_hashes,
-        contracts_trie_root_hashes,
-        &class_hashes,
-        contract_addresses,
-        &contract_storage_keys,
-    )
-    .await?)
 }
