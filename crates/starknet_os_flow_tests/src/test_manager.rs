@@ -919,7 +919,7 @@ impl<S: FlowTestState> TestBuilder<S> {
                 &previous_state_roots,
                 &new_state_roots,
                 &mut map_storage,
-                &accessed_keys.into(),
+                &accessed_keys,
             )
             .await
             .unwrap();
