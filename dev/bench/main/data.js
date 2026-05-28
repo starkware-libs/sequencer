@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779972946495,
+  "lastUpdate": 1779973392044,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4861,6 +4861,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1292.8641808,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b4d5515106199237d04de66addb19dc78b6c074e",
+          "message": "starknet_committer: split commit_block into read and compute phases (#14213)\n\nExtract read_original_forest (IO-bound) and compute_updated_forest\n(CPU-bound) so the DB is free for parallel reads during computation.\nDecouple the storage/classes update lifetimes from the original forest's\nlifetime in the read path, since the forest only borrows the sorted\nindices; this lets the compute phase take ownership of the update maps.\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-05-28T12:45:42Z",
+          "tree_id": "0f2f4c993c784e393274950a693955b58be6d385",
+          "url": "https://github.com/starkware-libs/sequencer/commit/b4d5515106199237d04de66addb19dc78b6c074e"
+        },
+        "date": 1779973391564,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 883.69745073,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1311.1622943,
             "unit": "ms"
           }
         ]
