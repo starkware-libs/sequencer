@@ -24,7 +24,7 @@ use starknet_committer::db::index_db::IndexDbReadContext;
 use starknet_committer::db::serde_db_utils::accessed_keys_digest;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use starknet_committer::patricia_merkle_tree::tree::{LeavesRequest, SortedLeavesRequest};
+use starknet_committer::patricia_merkle_tree::tree::LeavesRequest;
 use starknet_committer::patricia_merkle_tree::types::{
     class_hash_into_node_index,
     CompiledClassHash as CommitterCompiledClassHash,
@@ -73,15 +73,8 @@ fn contract_storage_keys(
 }
 
 static EXPECTED_ACCESSED_KEYS_DIGEST: LazyLock<[u8; 32]> = LazyLock::new(|| {
-    let class_hashes: Vec<_> = ACCESSED_KEYS.accessed_class_hashes.iter().copied().collect();
-    let contract_addresses: Vec<_> = ACCESSED_KEYS.accessed_contracts.iter().copied().collect();
-    let contract_storage_keys = contract_storage_keys(&ACCESSED_KEYS);
-    let mut leaves_request = LeavesRequest::from_accessed_leaves(
-        &class_hashes,
-        &contract_addresses,
-        &contract_storage_keys,
-    );
-    let sorted_leaves = SortedLeavesRequest::from(&mut leaves_request);
+    let mut leaves_request = LeavesRequest::from(&*ACCESSED_KEYS);
+    let sorted_leaves = leaves_request.sorted();
     accessed_keys_digest(&sorted_leaves)
 });
 

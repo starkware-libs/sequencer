@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use starknet_api::core::{ClassHash, ContractAddress};
+#[cfg(feature = "os_input")]
+use blockifier::state::accessed_keys::AccessedKeys;
+use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use starknet_patricia::patricia_merkle_tree::traversal::TraversalResult;
@@ -9,21 +11,19 @@ pub use starknet_patricia::patricia_merkle_tree::types::SortedLeafIndices;
 use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::storage_trait::ReadOnlyStorage;
 
-use crate::block_committer::input::{
-    contract_address_into_node_index,
-    try_node_index_into_contract_address,
-    StarknetStorageKey,
-};
+use crate::block_committer::input::try_node_index_into_contract_address;
+#[cfg(feature = "os_input")]
+use crate::block_committer::input::{contract_address_into_node_index, StarknetStorageKey};
 use crate::db::db_layout::DbLayout;
+#[cfg(feature = "os_input")]
 use crate::db::facts_db::FactsNodeLayout;
 use crate::db::trie_traversal::fetch_patricia_paths;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::types::{
-    class_hash_into_node_index,
-    ContractsTrieProof,
-    RootHashes,
-    StarknetForestProofs,
-};
+#[cfg(feature = "os_input")]
+use crate::patricia_merkle_tree::types::class_hash_into_node_index;
+#[cfg(feature = "os_input")]
+use crate::patricia_merkle_tree::types::RootHashes;
+use crate::patricia_merkle_tree::types::{ContractsTrieProof, StarknetForestProofs};
 
 #[derive(Clone, Default)]
 pub struct OriginalSkeletonTrieConfig {
@@ -52,7 +52,7 @@ impl OriginalSkeletonTreeConfig for OriginalSkeletonTrieConfig {
 }
 
 /// Requested trie leaves for Patricia witness collection (classes trie, contracts trie, and
-/// per-contract storage leaves). Built via [`LeavesRequest::from_accessed_leaves`].
+/// per-contract storage leaves). Built via [`From`] from [`AccessedKeys`].
 #[derive(Clone)]
 pub struct LeavesRequest {
     pub class_leaf_indices: Vec<NodeIndex>,
@@ -67,31 +67,36 @@ pub struct SortedLeavesRequest<'a> {
     pub storage_sorted: HashMap<NodeIndex, SortedLeafIndices<'a>>,
 }
 
-impl LeavesRequest {
-    /// Builds index buffers expected by [`fetch_all_patricia_paths`].
-    pub fn from_accessed_leaves(
-        class_hashes: &[ClassHash],
-        contract_addresses: &[ContractAddress],
-        contract_storage_keys: &HashMap<ContractAddress, Vec<StarknetStorageKey>>,
-    ) -> Self {
-        let contract_leaf_indices: Vec<NodeIndex> =
-            contract_addresses.iter().map(contract_address_into_node_index).collect();
-        let contract_storage_leaf_indices: HashMap<NodeIndex, Vec<NodeIndex>> =
-            contract_storage_keys
-                .iter()
-                .map(|(address, keys)| {
-                    let node_index = contract_address_into_node_index(address);
-                    let leaf_indices: Vec<_> = keys.iter().map(NodeIndex::from).collect();
-                    (node_index, leaf_indices)
-                })
-                .collect();
+#[cfg(feature = "os_input")]
+impl From<&AccessedKeys> for LeavesRequest {
+    fn from(accessed_keys: &AccessedKeys) -> Self {
+        let contract_storage_leaf_indices: HashMap<NodeIndex, Vec<NodeIndex>> = accessed_keys
+            .storage_keys
+            .iter()
+            .fold(HashMap::new(), |mut accumulator, (address, key)| {
+                accumulator
+                    .entry(contract_address_into_node_index(address))
+                    .or_default()
+                    .push(NodeIndex::from(&StarknetStorageKey(*key)));
+                accumulator
+            });
         Self {
-            class_leaf_indices: class_hashes.iter().map(class_hash_into_node_index).collect(),
-            contract_leaf_indices,
+            class_leaf_indices: accessed_keys
+                .accessed_class_hashes
+                .iter()
+                .map(class_hash_into_node_index)
+                .collect(),
+            contract_leaf_indices: accessed_keys
+                .accessed_contracts
+                .iter()
+                .map(contract_address_into_node_index)
+                .collect(),
             contract_storage_leaf_indices,
         }
     }
+}
 
+impl LeavesRequest {
     /// Total number of trie leaves requested (classes, contracts, and storage slots).
     pub fn total_leaf_count(&self) -> usize {
         self.class_leaf_indices.len()
@@ -101,18 +106,17 @@ impl LeavesRequest {
                 .values()
                 .fold(0, |count, leaf_indices| count + leaf_indices.len())
     }
-}
 
-impl<'a> From<&'a mut LeavesRequest> for SortedLeavesRequest<'a> {
-    fn from(leaves_request: &'a mut LeavesRequest) -> Self {
-        let class_sorted = SortedLeafIndices::new(&mut leaves_request.class_leaf_indices);
-        let contract_sorted = SortedLeafIndices::new(&mut leaves_request.contract_leaf_indices);
-        let storage_sorted: HashMap<_, _> = leaves_request
+    /// Sorts leaf indices in place and returns borrowed views for Patricia traversal.
+    pub fn sorted(&mut self) -> SortedLeavesRequest<'_> {
+        let class_sorted = SortedLeafIndices::new(&mut self.class_leaf_indices);
+        let contract_sorted = SortedLeafIndices::new(&mut self.contract_leaf_indices);
+        let storage_sorted: HashMap<_, _> = self
             .contract_storage_leaf_indices
             .iter_mut()
             .map(|(address, leaf_indices)| (*address, SortedLeafIndices::new(leaf_indices)))
             .collect();
-        Self { class_sorted, contract_sorted, storage_sorted }
+        SortedLeavesRequest { class_sorted, contract_sorted, storage_sorted }
     }
 }
 
@@ -237,22 +241,17 @@ where
 /// Fetch the leaves in the contracts trie only, to be able to get the storage root hashes.
 ///
 /// Only works with facts-layout storage.
+#[cfg(feature = "os_input")]
 pub async fn fetch_previous_and_new_patricia_paths(
     storage: &mut impl ReadOnlyStorage,
     classes_trie_root_hashes: RootHashes,
     contracts_trie_root_hashes: RootHashes,
-    class_hashes: &[ClassHash],
-    contract_addresses: &[ContractAddress],
-    contract_storage_keys: &HashMap<ContractAddress, Vec<StarknetStorageKey>>,
+    accessed_keys: &AccessedKeys,
 ) -> TraversalResult<StarknetForestProofs> {
-    let mut leaves_request = LeavesRequest::from_accessed_leaves(
-        class_hashes,
-        contract_addresses,
-        contract_storage_keys,
-    );
+    let mut leaves_request = LeavesRequest::from(accessed_keys);
 
     let SortedLeavesRequest { class_sorted, contract_sorted, storage_sorted } =
-        SortedLeavesRequest::from(&mut leaves_request);
+        leaves_request.sorted();
     let prev_proofs = fetch_all_patricia_paths::<FactsNodeLayout>(
         storage,
         classes_trie_root_hashes.previous_root_hash,
