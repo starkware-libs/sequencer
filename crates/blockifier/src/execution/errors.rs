@@ -14,6 +14,7 @@ use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use thiserror::Error;
 
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::ConstructorContext;
 use crate::execution::stack_trace::Cairo1RevertSummary;
 #[cfg(feature = "cairo_native")]
@@ -90,6 +91,16 @@ impl From<RunnerError> for PostExecutionError {
 
 #[derive(Debug, Error)]
 pub enum EntryPointExecutionError {
+    /// Tags an error with the executing contract's `TrackedResource` and the active
+    /// `strip_vm_frames_in_sierra_gas` policy, for the stack-trace formatter to consume.
+    /// Constructed only by `execute_entry_point_call_wrapper`.
+    #[error("{inner}")]
+    Annotated {
+        #[source]
+        inner: Box<EntryPointExecutionError>,
+        tracked_resource: TrackedResource,
+        strip_vm_frames_in_sierra_gas: bool,
+    },
     #[error(transparent)]
     CairoRunError(#[from] Box<CairoRunError>),
     #[error("{error_trace}")]
@@ -114,6 +125,44 @@ pub enum EntryPointExecutionError {
     StateError(#[from] StateError),
     #[error(transparent)]
     TraceError(#[from] TraceError),
+}
+
+impl EntryPointExecutionError {
+    /// Tags `self` with the executing contract's `tracked_resource` and the active strip
+    /// policy. No-op if already annotated — first wrap wins, so inner-frame info isn't
+    /// overwritten as the error propagates through outer wrappers.
+    pub fn annotated(
+        self,
+        tracked_resource: TrackedResource,
+        strip_vm_frames_in_sierra_gas: bool,
+    ) -> Self {
+        match self {
+            already @ EntryPointExecutionError::Annotated { .. } => already,
+            other => EntryPointExecutionError::Annotated {
+                inner: Box::new(other),
+                tracked_resource,
+                strip_vm_frames_in_sierra_gas,
+            },
+        }
+    }
+
+    /// Returns the deepest non-`Annotated` error — use at sites that pattern-match on a
+    /// specific variant so the match isn't fooled by the wrapper's annotation.
+    pub fn unannotated(&self) -> &Self {
+        let mut current = self;
+        while let EntryPointExecutionError::Annotated { inner, .. } = current {
+            current = inner.as_ref();
+        }
+        current
+    }
+
+    /// Owned counterpart of `unannotated` — for pattern-matches that move subfields out.
+    pub fn into_unannotated(mut self) -> Self {
+        while let EntryPointExecutionError::Annotated { inner, .. } = self {
+            self = *inner;
+        }
+        self
+    }
 }
 
 #[derive(Debug, Error)]
