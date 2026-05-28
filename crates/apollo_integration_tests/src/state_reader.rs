@@ -21,7 +21,9 @@ use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use blockifier_test_utils::fee_token_addresses::EXPECTED_STRK_FEE_TOKEN_ADDRESS;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use expect_test::{expect, Expect};
 use indexmap::IndexMap;
 use mempool_test_utils::starknet_api_test_utils::{AccountTransactionGenerator, Contract};
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
@@ -376,8 +378,14 @@ fn initialize_papyrus_test_state(
 }
 
 /// Global root that matches the proof flow fixtures.
-fn integration_test_genesis_global_root() -> GlobalRoot {
-    GlobalRoot(felt!("0x68fed6a062d385db8d1dd9096060e822196feb311fc3bb4f0018635461ca85e"))
+/// Any change to this value requires regenerating the proof fixtures by running
+/// `cargo +nightly-2025-07-14 test -p starknet_os_flow_tests --features
+/// starknet_transaction_prover/stwo_proving --release generate_proof_fixtures -- --ignored`.
+pub const EXPECTED_PROOF_FLOW_GENESIS_GLOBAL_ROOT: Expect =
+    expect!["0x7d9c165e57cf22a07e90cf2a7aefdfde8d4a0caa977c898968fce3e9b4763b2"];
+
+pub fn integration_test_genesis_global_root() -> GlobalRoot {
+    GlobalRoot(Felt::from_hex_unchecked(EXPECTED_PROOF_FLOW_GENESIS_GLOBAL_ROOT.data()))
 }
 
 fn prepare_state_diff(
@@ -667,6 +675,7 @@ impl<'a> ThinStateDiffBuilder<'a> {
 pub fn proof_flow_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
     chain_info.fee_token_addresses.strk_fee_token_address =
-        contract_address!("0x4ff17bf76a1c6cebb82601a43bcab4f9650aea543c44f28e8863f8b624e4b58");
+        ContractAddress::try_from(Felt::from_hex_unchecked(EXPECTED_STRK_FEE_TOKEN_ADDRESS.data()))
+            .unwrap();
     chain_info
 }

@@ -8,6 +8,7 @@ from typing import Any
 from common_lib import (
     Colors,
     NamespaceAndInstructionArgs,
+    RestartStrategy,
     Service,
     print_colored,
     print_error,
@@ -149,6 +150,15 @@ Examples:
 
     args = args_builder.build()
     config_overrides = parse_config_overrides(args.config_overrides)
+
+    restart_strategy_colors = {
+        RestartStrategy.ALL_AT_ONCE: Colors.RED,
+        RestartStrategy.ONE_BY_ONE: Colors.YELLOW,
+        RestartStrategy.NO_RESTART: Colors.GREEN,
+    }
+    strategy_color = restart_strategy_colors.get(args.restart_strategy, Colors.RESET)
+    print(f"\nRestart strategy: ", end="")
+    print_colored(args.restart_strategy.value, strategy_color)
 
     if config_overrides:
         print_colored(f"\nConfig overrides to apply:")
