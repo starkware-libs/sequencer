@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779958975577,
+  "lastUpdate": 1779966411491,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4725,6 +4725,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1320.7012526300002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e660de8a22f2258b51670c064e258c241c488ea8",
+          "message": "starknet_patricia: change test util random u256 (#14193)",
+          "timestamp": "2026-05-28T10:53:23Z",
+          "tree_id": "28bb27a25d1e3f0394fca3988361ce140fef10c9",
+          "url": "https://github.com/starkware-libs/sequencer/commit/e660de8a22f2258b51670c064e258c241c488ea8"
+        },
+        "date": 1779966410971,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 881.49414228,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1243.83364153,
             "unit": "ms"
           }
         ]
