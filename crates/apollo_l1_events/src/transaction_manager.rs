@@ -9,7 +9,7 @@ use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, info, warn};
 
-use crate::metrics::L1_MESSAGE_PROVIDER_NUM_PENDING_TXS;
+use crate::metrics::{L1_MESSAGE_PROVIDER_NUM_PENDING_TXS, L1_MESSAGE_SCRAPER_L1_HANDLER_TX_COUNT};
 use crate::transaction_record::{
     Records,
     TransactionPayload,
@@ -184,6 +184,9 @@ impl TransactionManager {
                     );
                 }
                 record.tx.set(tx, block_timestamp, scrape_timestamp);
+                // Counts the HashOnly -> Full transition, regardless of whether the HashOnly
+                // was just created here or pre-existed from state sync.
+                L1_MESSAGE_SCRAPER_L1_HANDLER_TX_COUNT.increment(1);
             }
             TransactionPayload::Full { tx: _, created_at_block_timestamp: _, scrape_timestamp } => {
                 warn!(
