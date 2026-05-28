@@ -155,7 +155,6 @@ priorityClass:
 # GCP PodMonitoring Configuration
 # See docs/GCP_POD_MONITORING_CONFIGURATION.md for all available options
 gcpPodMonitoring:
-  enabled: false # Whether to create a PodMonitoring resource
   annotations: {} # Resource annotations
   labels: {} # Additional labels merged with base labels
   spec: # PodMonitoring specification
