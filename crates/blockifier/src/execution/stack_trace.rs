@@ -10,6 +10,7 @@ use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::execution_utils::format_panic_data;
 
 use crate::execution::call_info::{CallInfo, Retdata};
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::syscalls::hint_processor::{
@@ -486,16 +487,26 @@ fn extract_cairo_run_error_into_stack_trace(
     error_stack: &mut ErrorStack,
     depth: usize,
     error: &CairoRunError,
+    tracked_resource: TrackedResource,
 ) {
     if let CairoRunError::VmException(vm_exception) = error {
-        error_stack.push(
-            VmExceptionFrame {
-                pc: vm_exception.pc,
-                error_attr_value: vm_exception.error_attr_value.clone(),
-                traceback: vm_exception.traceback.clone(),
-            }
-            .into(),
-        );
+        // Cairo-vm-specific PC + traceback are only emitted for CairoSteps-tracked contracts
+        // (i.e. Cairo 0). For SierraGas-tracked contracts (Cairo 1), they are intentionally
+        // omitted so the revert reason is byte-identical whether the contract executed via
+        // cairo-vm CASM or via cairo-native — see `execute_entry_point_call_wrapper`'s use of
+        // `EntryPointExecutionError::annotated`. Without this gate, a SierraGas-mode contract
+        // would only show this block when running CASM, breaking receipt_commitment determinism
+        // across execution backends.
+        if tracked_resource == TrackedResource::CairoSteps {
+            error_stack.push(
+                VmExceptionFrame {
+                    pc: vm_exception.pc,
+                    error_attr_value: vm_exception.error_attr_value.clone(),
+                    traceback: vm_exception.traceback.clone(),
+                }
+                .into(),
+            );
+        }
         extract_virtual_machine_error_into_stack_trace(error_stack, depth, &vm_exception.inner_exc);
     } else {
         error_stack.push(error.to_string().into());
@@ -705,9 +716,25 @@ fn extract_entry_point_execution_error_into_stack_trace(
     depth: usize,
     entry_point_error: &EntryPointExecutionError,
 ) {
-    match entry_point_error {
+    // Peel an `Annotated` wrapper if present, so we know the executing contract's
+    // `TrackedResource` for the upcoming VM-frame decision. If no annotation is present
+    // (e.g. errors constructed by code paths that don't go through
+    // `execute_entry_point_call_wrapper`), default to `CairoSteps` — this preserves the
+    // pre-existing behavior of always emitting the `Error at pc / Cairo traceback` block.
+    let (tracked_resource, inner) = match entry_point_error {
+        EntryPointExecutionError::Annotated { inner, tracked_resource } => {
+            (*tracked_resource, inner.as_ref())
+        }
+        other => (TrackedResource::CairoSteps, other),
+    };
+    match inner {
         EntryPointExecutionError::CairoRunError(cairo_run_error) => {
-            extract_cairo_run_error_into_stack_trace(error_stack, depth, cairo_run_error)
+            extract_cairo_run_error_into_stack_trace(
+                error_stack,
+                depth,
+                cairo_run_error,
+                tracked_resource,
+            )
         }
         #[cfg(feature = "cairo_native")]
         EntryPointExecutionError::NativeUnrecoverableError(error) => {
@@ -716,6 +743,12 @@ fn extract_entry_point_execution_error_into_stack_trace(
         EntryPointExecutionError::ExecutionFailed { error_trace } => {
             error_stack.push(error_trace.clone().into())
         }
-        _ => error_stack.push(format!("{entry_point_error}\n").into()),
+        // Defensive: `annotated()` does not produce nested annotations, but if any caller
+        // hand-constructs a nested chain, recurse so the innermost `tracked_resource` wins
+        // (rather than silently dropping into the catch-all and printing it via Display).
+        EntryPointExecutionError::Annotated { .. } => {
+            extract_entry_point_execution_error_into_stack_trace(error_stack, depth, inner)
+        }
+        _ => error_stack.push(format!("{inner}\n").into()),
     }
 }

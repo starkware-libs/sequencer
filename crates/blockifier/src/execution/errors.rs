@@ -14,6 +14,7 @@ use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use thiserror::Error;
 
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::ConstructorContext;
 use crate::execution::stack_trace::Cairo1RevertSummary;
 #[cfg(feature = "cairo_native")]
@@ -90,6 +91,21 @@ impl From<RunnerError> for PostExecutionError {
 
 #[derive(Debug, Error)]
 pub enum EntryPointExecutionError {
+    /// Wraps an inner `EntryPointExecutionError` with the `TrackedResource` of the contract whose
+    /// execution produced it. Constructed only by `execute_entry_point_call_wrapper` to allow the
+    /// stack-trace formatter (`stack_trace.rs`) to render backend-invariant revert reasons for
+    /// SierraGas-mode contracts (omitting cairo-vm-specific `Error at pc / Cairo traceback`
+    /// blocks that cairo-native cannot produce).
+    ///
+    /// `#[error("{inner}")]` forwards Display via interpolation, and `#[source]` on `inner`
+    /// makes `std::error::Error::source()` chain through transparently so loggers/tracing that
+    /// walk the chain don't get truncated at the annotation.
+    #[error("{inner}")]
+    Annotated {
+        #[source]
+        inner: Box<EntryPointExecutionError>,
+        tracked_resource: TrackedResource,
+    },
     #[error(transparent)]
     CairoRunError(#[from] Box<CairoRunError>),
     #[error("{error_trace}")]
@@ -114,6 +130,44 @@ pub enum EntryPointExecutionError {
     StateError(#[from] StateError),
     #[error(transparent)]
     TraceError(#[from] TraceError),
+}
+
+impl EntryPointExecutionError {
+    /// Wraps `self` with the executing contract's `tracked_resource`. Idempotent: if `self` is
+    /// already an `Annotated`, returns it unchanged — the existing annotation (attached by the
+    /// innermost wrapper that produced the error) wins; the new `tracked_resource` argument is
+    /// dropped. Each call frame's error is annotated by its own wrapper invocation, so the
+    /// no-rewrap rule prevents an outer wrapper from overwriting an inner one's annotation
+    /// when an error propagates across multiple wrapper invocations.
+    pub fn annotated(self, tracked_resource: TrackedResource) -> Self {
+        match self {
+            already @ EntryPointExecutionError::Annotated { .. } => already,
+            other => {
+                EntryPointExecutionError::Annotated { inner: Box::new(other), tracked_resource }
+            }
+        }
+    }
+
+    /// Returns the deepest non-`Annotated` error. Use this at any site that pattern-matches on
+    /// a specific variant so that the match isn't fooled by the (orthogonal) `TrackedResource`
+    /// annotation added by `execute_entry_point_call_wrapper`. Tolerates accidentally-nested
+    /// annotations even though `annotated()` doesn't produce them.
+    pub fn unannotated(&self) -> &Self {
+        let mut current = self;
+        while let EntryPointExecutionError::Annotated { inner, .. } = current {
+            current = inner.as_ref();
+        }
+        current
+    }
+
+    /// Owned counterpart of `unannotated`: consumes `self` and returns the deepest non-`Annotated`
+    /// error. Useful when a pattern-match needs to move owned subfields out of the error.
+    pub fn into_unannotated(mut self) -> Self {
+        while let EntryPointExecutionError::Annotated { inner, .. } = self {
+            self = *inner;
+        }
+        self
+    }
 }
 
 #[derive(Debug, Error)]

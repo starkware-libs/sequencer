@@ -94,7 +94,11 @@ pub fn execute_entry_point_call_wrapper(
                 PreExecutionError::EntryPointNotFound(_)
                 | PreExecutionError::NoEntryPointOfTypeFound(_) => ENTRYPOINT_NOT_FOUND_ERROR_FELT,
                 PreExecutionError::InsufficientEntryPointGas => OUT_OF_GAS_ERROR_FELT,
-                _ => return Err(err.into()),
+                _ => {
+                    return Err(
+                        EntryPointExecutionError::from(err).annotated(current_tracked_resource)
+                    );
+                }
             };
             Ok(CallInfo {
                 call: orig_call.into(),
@@ -108,7 +112,11 @@ pub fn execute_entry_point_call_wrapper(
                 ..CallInfo::default()
             })
         }
-        Err(err) => Err(err),
+        // Tag the error with the executing contract's `TrackedResource`. The stack-trace
+        // formatter uses this to omit cairo-vm-specific `Error at pc / Cairo traceback` frames
+        // for SierraGas-mode contracts, so the rendered revert reason is identical whether the
+        // call ran via cairo-vm CASM or cairo-native.
+        Err(err) => Err(err.annotated(current_tracked_resource)),
     }
 }
 
