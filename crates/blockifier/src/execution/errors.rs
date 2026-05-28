@@ -14,6 +14,7 @@ use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use thiserror::Error;
 
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::ConstructorContext;
 use crate::execution::stack_trace::Cairo1RevertSummary;
 #[cfg(feature = "cairo_native")]
@@ -116,11 +117,40 @@ pub enum EntryPointExecutionError {
     TraceError(#[from] TraceError),
 }
 
+impl EntryPointExecutionError {
+    /// Tags `self` with the executing contract's `tracked_resource` and the active strip
+    /// policy, producing an `EntryPointExecutionErrorWithMetadata::Annotated`. Lives on the
+    /// inner type so the type system rejects double-annotation: re-annotating requires an
+    /// explicit `.into_unannotated()` round-trip, which makes the loss of any prior tag
+    /// visible at the call site.
+    pub fn annotated(
+        self,
+        tracked_resource: TrackedResource,
+        strip_vm_frames_in_sierra_gas: bool,
+    ) -> EntryPointExecutionErrorWithMetadata {
+        EntryPointExecutionErrorWithMetadata::Annotated {
+            inner: Box::new(self),
+            tracked_resource,
+            strip_vm_frames_in_sierra_gas,
+        }
+    }
+}
+
 /// Public envelope for `EntryPointExecutionError` returned by the entry-point pipeline.
-/// Currently exposes only the `UnAnnotated` variant; a follow-up will add an `Annotated`
-/// variant that carries per-frame rendering metadata for the stack-trace formatter.
+/// `Annotated` tags an inner error with the executing contract's `TrackedResource` and the
+/// active `strip_vm_frames_in_sierra_gas` policy so the stack-trace formatter can decide
+/// whether to emit the cairo-vm PC/traceback block for this frame. Annotation is applied at
+/// exactly one site (`execute_entry_point_call_wrapper`) via `EntryPointExecutionError::
+/// annotated`; errors that never pass through that site stay as `UnAnnotated`.
 #[derive(Debug, Error)]
 pub enum EntryPointExecutionErrorWithMetadata {
+    #[error("{inner}")]
+    Annotated {
+        #[source]
+        inner: Box<EntryPointExecutionError>,
+        tracked_resource: TrackedResource,
+        strip_vm_frames_in_sierra_gas: bool,
+    },
     #[error(transparent)]
     UnAnnotated(EntryPointExecutionError),
 }
@@ -128,13 +158,15 @@ pub enum EntryPointExecutionErrorWithMetadata {
 impl EntryPointExecutionErrorWithMetadata {
     pub fn unannotated(&self) -> &EntryPointExecutionError {
         match self {
-            EntryPointExecutionErrorWithMetadata::UnAnnotated(e) => e,
+            EntryPointExecutionErrorWithMetadata::Annotated { inner, .. } => inner,
+            EntryPointExecutionErrorWithMetadata::UnAnnotated(inner) => inner,
         }
     }
 
     pub fn into_unannotated(self) -> EntryPointExecutionError {
         match self {
-            EntryPointExecutionErrorWithMetadata::UnAnnotated(e) => e,
+            EntryPointExecutionErrorWithMetadata::Annotated { inner, .. } => *inner,
+            EntryPointExecutionErrorWithMetadata::UnAnnotated(inner) => inner,
         }
     }
 }

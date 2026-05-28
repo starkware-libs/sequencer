@@ -2,6 +2,10 @@ use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_vm::types::relocatable::Relocatable;
+use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
+use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
+use cairo_vm::vm::errors::vm_exception::VmException;
 use expect_test::expect_file;
 use pretty_assertions::assert_eq;
 use regex::Regex;
@@ -32,15 +36,17 @@ use starknet_api::transaction::fields::{
     ValidResourceBounds,
 };
 use starknet_api::transaction::TransactionVersion;
-use starknet_api::{calldata, felt, invoke_tx_args};
+use starknet_api::{calldata, class_hash, contract_address, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::stack_trace::{
     extract_trailing_cairo1_revert_trace,
+    gen_tx_execution_error_trace,
     Cairo1RevertHeader,
     Cairo1RevertSummary,
     MIN_CAIRO1_FRAME_LENGTH,
@@ -51,6 +57,7 @@ use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::test_templates::cairo_version;
 use crate::test_utils::BALANCE;
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
+use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::TransactionInfoCreator;
 use crate::transaction::test_utils::{
     block_context,
@@ -842,6 +849,71 @@ Error in contract (contract address: {expected_address:#066x}, class hash: {:#06
     );
 }
 
+/// Drives the deploy-faulty-ctor flow once on the given Cairo 1 backend and returns the
+/// rendered revert text. Same setup as `test_contract_ctor_frame_stack_trace` (Cairo1 cases),
+/// extracted so the cross-backend equality test below can run both backends in one process.
+#[cfg(feature = "cairo_native")]
+fn render_faulty_ctor_revert(
+    block_context: &BlockContext,
+    default_all_resource_bounds: ValidResourceBounds,
+    runnable: RunnableCairo1,
+) -> String {
+    let cairo_version = CairoVersion::Cairo1(runnable);
+    let chain_info = &block_context.chain_info;
+    let account = FeatureContract::AccountWithoutValidations(cairo_version);
+    let faulty_ctor = FeatureContract::FaultyAccount(cairo_version);
+    let state = &mut test_state(chain_info, BALANCE, &[(account, 1), (faulty_ctor, 0)]);
+    let account_address = account.get_instance_address(0);
+    let faulty_class_hash = faulty_ctor.get_class_hash();
+
+    let invoke_deploy_tx = invoke_tx_with_default_flags(invoke_tx_args! {
+        sender_address: account_address,
+        signature: TransactionSignature(vec![felt!(INVALID)].into()),
+        calldata: create_calldata(
+            account_address,
+            DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
+            &[
+                faulty_class_hash.0,
+                felt!(7_u8),     // salt
+                felt!(1_u8),     // ctor args length
+                felt!(FELT_TRUE), // validate_constructor: true → fail
+            ]
+        ),
+        resource_bounds: default_all_resource_bounds,
+        nonce: Nonce(felt!(0_u8)),
+    });
+    invoke_deploy_tx.execute(state, block_context).unwrap().revert_error.unwrap().to_string()
+}
+
+/// At v0.14.3+ (strip policy on), the same Cairo 1 flow must produce a byte-identical revert
+/// string regardless of execution backend — this is what makes `receipt_commitment` invariant
+/// under cairo-native vs cairo-vm CASM. Pre-patch (origin/main-v0.14.3), this assertion would
+/// fail: CASM emitted `Error at pc=0:443:` / `Error at pc=0:797:` lines under the outer two
+/// frames that native never produced, see the historical diff of
+/// `test_contract_ctor_frame_stack_trace_cairo1_casm.txt`.
+#[cfg(feature = "cairo_native")]
+#[rstest]
+fn test_revert_text_is_backend_invariant_for_sierra_gas(
+    block_context: BlockContext,
+    default_all_resource_bounds: ValidResourceBounds,
+) {
+    let casm_revert = render_faulty_ctor_revert(
+        &block_context,
+        default_all_resource_bounds,
+        RunnableCairo1::Casm,
+    );
+    let native_revert = render_faulty_ctor_revert(
+        &block_context,
+        default_all_resource_bounds,
+        RunnableCairo1::Native,
+    );
+    assert_eq!(
+        casm_revert, native_revert,
+        "Cairo 1 revert text must be backend-invariant at v0.14.3+; CASM and Native \
+         diverged.\nCASM:\n{casm_revert}\n\nNative:\n{native_revert}"
+    );
+}
+
 #[test]
 fn test_min_cairo1_frame_length() {
     let failure_hex = "0xdeadbeef";
@@ -1078,5 +1150,110 @@ fn test_cairo1_stack_extraction_not_failure_fallback() {
         extract_trailing_cairo1_revert_trace(&successful_call, Cairo1RevertHeader::Execution),
         Cairo1RevertSummary { stack, last_retdata, .. }
         if stack.is_empty() && last_retdata == expected_retdata
+    );
+}
+
+/// Build a synthetic `EntryPointExecutionError::CairoRunError(VmException)` to feed into the
+/// formatter. The exact PC/traceback strings are arbitrary; the test asserts on whether the
+/// `Error at pc=` block survives the formatter, not on its contents.
+fn synthetic_vm_exception_error() -> EntryPointExecutionError {
+    let vm_exception = VmException {
+        pc: Relocatable { segment_index: 0, offset: 42 },
+        inst_location: None,
+        inner_exc: VirtualMachineError::Unexpected,
+        error_attr_value: None,
+        traceback: Some(
+            "Cairo traceback (most recent call last):\nUnknown location (pc=0:7)\n".to_string(),
+        ),
+    };
+    EntryPointExecutionError::CairoRunError(Box::new(CairoRunError::VmException(vm_exception)))
+}
+
+/// Wraps a synthetic CairoRunError as the top-level error of a `TransactionExecutionError`,
+/// optionally annotated with `(tracked_resource, strip_vm_frames_in_sierra_gas)`. Returns
+/// the formatted revert string.
+fn render_revert_for(annotation: Option<(TrackedResource, bool)>) -> String {
+    let inner = synthetic_vm_exception_error();
+    let top_error = match annotation {
+        Some((tr, strip)) => inner.annotated(tr, strip),
+        None => inner.into(),
+    };
+    let tx_error = TransactionExecutionError::ExecutionError {
+        error: Box::new(top_error),
+        class_hash: class_hash!("0xabc"),
+        storage_address: contract_address!("0x123"),
+        selector: EntryPointSelector(felt!("0xdef")),
+    };
+    gen_tx_execution_error_trace(&tx_error).to_string()
+}
+
+/// SierraGas frame at a protocol version where the policy is active (v0.14.3+): the formatter
+/// MUST omit the `Error at pc=` / `Cairo traceback` block, so the revert reason is identical
+/// whether the contract ran via cairo-vm CASM or cairo-native.
+#[test]
+fn test_sierra_gas_frame_omits_vm_exception_block_when_strip_enabled() {
+    let rendered = render_revert_for(Some((TrackedResource::SierraGas, true)));
+    assert!(
+        !rendered.contains("Error at pc="),
+        "with strip enabled, SierraGas-mode revert must not include `Error at pc=` (got: \
+         {rendered:?})"
+    );
+    assert!(
+        !rendered.contains("Cairo traceback"),
+        "with strip enabled, SierraGas-mode revert must not include `Cairo traceback` (got: \
+         {rendered:?})"
+    );
+    // The frame preamble must still be present.
+    assert!(
+        rendered.contains("Error in the called contract"),
+        "frame preamble missing (got: {rendered:?})"
+    );
+}
+
+/// SierraGas frame at a protocol version where the policy is OFF (pre-v0.14.3): the formatter
+/// MUST keep the legacy `Error at pc=` / `Cairo traceback` block, so we replay historical
+/// blocks with byte-identical receipts. Replaying old blocks would break otherwise.
+#[test]
+fn test_sierra_gas_frame_keeps_vm_exception_block_when_strip_disabled() {
+    let rendered = render_revert_for(Some((TrackedResource::SierraGas, false)));
+    assert!(
+        rendered.contains("Error at pc=0:42:"),
+        "with strip disabled, SierraGas-mode revert must include `Error at pc=` (got: \
+         {rendered:?})"
+    );
+    assert!(
+        rendered.contains("Cairo traceback (most recent call last):"),
+        "with strip disabled, SierraGas-mode revert must include `Cairo traceback` (got: \
+         {rendered:?})"
+    );
+}
+
+/// CairoSteps frame (Cairo 0): the formatter MUST emit the `Error at pc=` block regardless of
+/// the strip policy, since Cairo 0 has no alternative execution backend and the PC + traceback
+/// are useful debug information that nothing else carries.
+#[rstest]
+fn test_cairo_steps_frame_keeps_vm_exception_block_under_either_policy(
+    #[values(true, false)] strip: bool,
+) {
+    let rendered = render_revert_for(Some((TrackedResource::CairoSteps, strip)));
+    assert!(
+        rendered.contains("Error at pc=0:42:"),
+        "CairoSteps-mode revert (strip={strip}) must include `Error at pc=` (got: {rendered:?})"
+    );
+    assert!(
+        rendered.contains("Cairo traceback (most recent call last):"),
+        "CairoSteps-mode revert (strip={strip}) must include `Cairo traceback` (got: {rendered:?})"
+    );
+}
+
+/// Errors that don't go through `execute_entry_point_call_wrapper` (no `Annotated` wrapper)
+/// must keep the legacy CairoSteps-style rendering, so this patch doesn't silently strip VM
+/// frames from anything outside the wrapper's reach.
+#[test]
+fn test_unannotated_error_keeps_vm_exception_block() {
+    let rendered = render_revert_for(None);
+    assert!(
+        rendered.contains("Error at pc=0:42:"),
+        "unannotated error must default to legacy rendering (got: {rendered:?})"
     );
 }
