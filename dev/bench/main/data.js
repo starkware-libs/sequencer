@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779971315631,
+  "lastUpdate": 1779972256005,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4793,6 +4793,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1245.49188272,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "19bf4ad30ebeace7941e67d73a51b9bbc949c07b",
+          "message": "release: add v0.14.4 SN version to enum (#14237)\n\nSigned-off-by: Dori Medini <dori@starkware.co>",
+          "timestamp": "2026-05-28T12:17:15Z",
+          "tree_id": "aaf870d925240a0cb31025a076133200f2ab9090",
+          "url": "https://github.com/starkware-libs/sequencer/commit/19bf4ad30ebeace7941e67d73a51b9bbc949c07b"
+        },
+        "date": 1779972255498,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 783.99581889,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1312.1399780899999,
             "unit": "ms"
           }
         ]
