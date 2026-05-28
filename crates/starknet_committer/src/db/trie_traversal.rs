@@ -798,39 +798,45 @@ where
 /// Holds all data needed to build one storage trie concurrently.
 ///
 /// Two distinct lifetimes are needed:
-/// - `'a` is the lifetime of the caller-owned index vectors that produced `sorted_leaf_indices`.
-/// - `'u` is the borrow of `updates`, used only during construction of the original skeleton tree,
-///   but does not retain a reference into the output `OriginalSkeletonTreeImpl<'a>`.
+/// - `'indices` is the lifetime of the caller-owned index vectors that produced
+///   `sorted_leaf_indices`.
+/// - `'updates` is the borrow of `updates`, used only during construction of the original skeleton
+///   tree, but does not retain a reference into the output `OriginalSkeletonTreeImpl<'indices>`.
 ///
-/// Unifying the lifetimes would make the returned `OriginalSkeletonForest<'a>` to
+/// Unifying the lifetimes would make the returned `OriginalSkeletonForest<'indices>` to
 /// borrow the storage update maps too, which would prevent `commit_block` from later moving those
 /// maps by value into the compute phase.
-struct TrieReadTask<'a, 'u, Layout: NodeLayoutFor<StarknetStorageValue>> {
+struct TrieReadTask<'indices, 'updates, Layout: NodeLayoutFor<StarknetStorageValue>> {
     address: ContractAddress,
-    updates: &'u LeafModifications<StarknetStorageValue>,
+    updates: &'updates LeafModifications<StarknetStorageValue>,
     storage_root_hash: HashOutput,
-    sorted_leaf_indices: SortedLeafIndices<'a>,
+    sorted_leaf_indices: SortedLeafIndices<'indices>,
     warn_on_trivial_modifications: bool,
     _layout: PhantomData<Layout>,
 }
 
-impl<'a, 'u, S, Layout> StorageTaskOutput<S> for TrieReadTask<'a, 'u, Layout>
+impl<'indices, 'updates, S, Layout> StorageTaskOutput<S>
+    for TrieReadTask<'indices, 'updates, Layout>
 where
     S: ImmutableReadOnlyStorage,
     Layout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
 {
-    type Output = ForestResult<(ContractAddress, OriginalSkeletonTreeImpl<'a>)>;
+    type Output = ForestResult<(ContractAddress, OriginalSkeletonTreeImpl<'indices>)>;
 }
 
 #[async_trait]
-impl<'a, 'u, 's, S, Layout> StorageTask<'s, S> for TrieReadTask<'a, 'u, Layout>
+impl<'indices, 'updates, 'storage, S, Layout> StorageTask<'storage, S>
+    for TrieReadTask<'indices, 'updates, Layout>
 where
-    S: ImmutableReadOnlyStorage + 's,
+    S: ImmutableReadOnlyStorage + 'storage,
     Layout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
 {
-    async fn run_with_storage(self, storage: &mut ReadsCollectorStorage<'s, S>) -> Self::Output {
+    async fn run_with_storage(
+        self,
+        storage: &mut ReadsCollectorStorage<'storage, S>,
+    ) -> Self::Output {
         let skeleton = create_storage_trie::<Layout>(
             storage,
             self.address,
