@@ -62,6 +62,7 @@ pub fn execute_entry_point_call_wrapper(
     remaining_gas: &mut u64,
 ) -> EntryPointExecutionResult<CallInfo> {
     let current_tracked_resource = compiled_class.get_current_tracked_resource(context);
+    let strip_vm_frames = context.versioned_constants().strip_vm_frames_in_sierra_gas;
     if current_tracked_resource == TrackedResource::CairoSteps {
         // Override the initial gas with a high value so it won't limit the run.
         call.initial_gas = context.versioned_constants().infinite_gas_for_vm_mode();
@@ -114,10 +115,9 @@ pub fn execute_entry_point_call_wrapper(
                     ..CallInfo::default()
                 })
             }
-            // Real annotation for outer-frame errors that may carry a cairo-vm frame; the
-            // strip flag is a placeholder here and gets wired to the versioned-constants
-            // policy in the follow-up.
-            other => Err(other.annotated(current_tracked_resource, false)),
+            // Tag the error so the stack-trace formatter can decide whether to emit the
+            // cairo-vm PC/traceback block for this frame.
+            other => Err(other.annotated(current_tracked_resource, strip_vm_frames)),
         },
     }
 }
