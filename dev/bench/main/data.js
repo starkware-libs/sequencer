@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779955976215,
+  "lastUpdate": 1779958975577,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4691,6 +4691,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1402.08930899,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "64260295f1e7e808807fd6d8e97c7f91ff69a3ba",
+          "message": "starknet_committer: add patricia paths forest reader/writer traits (#13995)",
+          "timestamp": "2026-05-28T08:50:31Z",
+          "tree_id": "2b8c2f87de2e4e28c134f25e242a7ec5d0f7dafe",
+          "url": "https://github.com/starkware-libs/sequencer/commit/64260295f1e7e808807fd6d8e97c7f91ff69a3ba"
+        },
+        "date": 1779958975135,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 865.8925774500001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1320.7012526300002,
             "unit": "ms"
           }
         ]
