@@ -9,7 +9,7 @@ use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::{CairoRunner, ExecutionResources};
 use num_bigint::BigUint;
 use rand::rngs::SmallRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;

@@ -9,7 +9,7 @@ use cairo_vm::types::relocatable::MaybeRelocatable;
 use ethnum::U256;
 use num_bigint::{BigInt, BigUint, Sign, ToBigInt};
 use num_integer::Integer;
-use rand::Rng;
+use rand::RngExt;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 

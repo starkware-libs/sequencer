@@ -22,7 +22,7 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;

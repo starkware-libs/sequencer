@@ -34,7 +34,7 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, SinkExt, StreamExt};
 use lazy_static::lazy_static;
 use papyrus_common::pending_classes::ApiContractClass;
-use rand::{Rng, RngCore};
+use rand::{Rng, RngExt};
 use rand_chacha::ChaCha8Rng;
 use starknet_api::block::{
     BlockHash,

@@ -15,7 +15,7 @@ use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
 use lazy_static::lazy_static;
 use rand::rngs::StdRng;
 use rand::seq::IndexedRandom;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use starknet_api::block::BlockNumber;
 use starknet_api::crypto::utils::RawSignature;
 use starknet_types_core::felt::Felt;
