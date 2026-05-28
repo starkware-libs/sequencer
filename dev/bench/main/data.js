@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779973392044,
+  "lastUpdate": 1779980687174,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4895,6 +4895,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1311.1622943,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "aee9f908b0e74ea824e65bd09ebed3900b821d53",
+          "message": "starknet_committer: read and write patricia paths to index db (#13998)",
+          "timestamp": "2026-05-28T14:40:25Z",
+          "tree_id": "11d405b33b1803ac7962048b76227a5d84ddc7e6",
+          "url": "https://github.com/starkware-libs/sequencer/commit/aee9f908b0e74ea824e65bd09ebed3900b821d53"
+        },
+        "date": 1779980686679,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1052.02231615,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1490.53011099,
             "unit": "ms"
           }
         ]
