@@ -51,6 +51,15 @@ ENV RUSTUP_HOME=/var/tmp/rust
 ENV CARGO_HOME=${RUSTUP_HOME}
 ENV PATH="${RUSTUP_HOME}/bin:${PATH}"
 
+# Override the workspace .cargo/config.toml's `rustc-wrapper = "sccache"` for this self-contained
+# image build. With sccache active, the final link fails on linux/arm64 with undefined `blst_*`
+# symbols from libckzg.a — same failure mode as mozilla/sccache#2359 (reported on x86_64). The
+# likely cause is sccache's wrapping of cc-rs assembly compilation, a path added in sccache 0.13
+# via #2545 with known follow-up bugs (#2253, #2556). blst's build.rs feeds `assembly.S` through
+# cc-rs, and the wrapped invocation silently produces objects without the native symbols. amd64
+# builds in this pipeline currently avoid the bug; the safe move is to bypass the wrapper here.
+ENV RUSTC_WRAPPER=""
+
 # Use the crate-level rust-toolchain.toml (nightly).
 COPY crates/starknet_transaction_prover/rust-toolchain.toml rust-toolchain.toml
 
@@ -59,7 +68,6 @@ COPY crates/starknet_transaction_prover/rust-toolchain.toml rust-toolchain.toml
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain none \
     && rustup toolchain install \
     && cargo install --locked cargo-chef \
-    && RUSTC_WRAPPER="" cargo install --locked sccache --version 0.14.0 \
     && rm rust-toolchain.toml
 
 # Create Python venv and install cairo-lang (required for compiling Starknet OS).
