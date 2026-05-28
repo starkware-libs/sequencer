@@ -55,6 +55,7 @@ define_versioned_constants!(
     (V0_14_1, "../resources/blockifier_versioned_constants_0_14_1.json"),
     (V0_14_2, "../resources/blockifier_versioned_constants_0_14_2.json"),
     (V0_14_3, "../resources/blockifier_versioned_constants_0_14_3.json"),
+    (V0_14_4, "../resources/blockifier_versioned_constants_0_14_4.json"),
 );
 
 pub type SyscallGasCostsMap = BTreeMap<SyscallSelector, RawSyscallGasCost>;

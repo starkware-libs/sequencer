@@ -15,7 +15,7 @@
       "price_in_wei": "0x1"
     },
     "sequencer_address": "0x1000",
-    "starknet_version": "0.14.3",
+    "starknet_version": "0.14.4",
     "status": "PRE_CONFIRMED",
     "timestamp": 1013,
     "transaction_receipts": [
