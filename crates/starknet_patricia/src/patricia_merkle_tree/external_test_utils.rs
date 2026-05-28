@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use ethnum::U256;
-use num_bigint::{BigUint, RandBigInt};
 use rand::Rng;
 use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::{
@@ -85,12 +84,21 @@ pub fn u256_try_into_felt(value: &U256) -> Result<Felt, TypesError<U256>> {
 /// Panics if low >= high
 pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
     assert!(low < high, "low must be less than or equal to high. actual: {low} > {high}");
+    let delta = high - low;
 
-    let delta = BigUint::from_bytes_be(&(high - low).to_be_bytes());
-    let rand = rng.gen_biguint_below(&(delta)).to_bytes_be();
-    let mut padded_rand = [0u8; 32];
-    padded_rand[32 - rand.len()..].copy_from_slice(&rand);
-    low + U256::from_be_bytes(padded_rand)
+    // Use rejection-sampling to generate a random U256 number less than delta.
+    // To keep expected number of rejections under 2, mask each sampled U256 to the bit length of
+    // delta.
+    let bit_len = 256 - delta.leading_zeros();
+    let mask = if bit_len == 256 { U256::MAX } else { (U256::ONE << bit_len) - U256::ONE };
+    let rand_u256 = loop {
+        let bytes: [u8; 32] = rng.gen();
+        let candidate = U256::from_be_bytes(bytes) & mask;
+        if candidate < delta {
+            break candidate;
+        }
+    };
+    low + rand_u256
 }
 
 pub struct AdditionHash;

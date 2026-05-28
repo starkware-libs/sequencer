@@ -13064,7 +13064,6 @@ dependencies = [
  "async-recursion",
  "derive_more",
  "ethnum",
- "num-bigint",
  "pretty_assertions",
  "rand 0.8.5",
  "rstest",
