@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779980687174,
+  "lastUpdate": 1779982101575,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4929,6 +4929,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1490.53011099,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2c1fafc2d4f214b6359e18b433d131283d41d1f2",
+          "message": "release: upgrade rand to 0.10 (#14250)",
+          "timestamp": "2026-05-28T15:12:12Z",
+          "tree_id": "91d0adc5761089b2865b8bee901773db688c0518",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2c1fafc2d4f214b6359e18b433d131283d41d1f2"
+        },
+        "date": 1779982100965,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1053.53194272,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1616.5403573499998,
             "unit": "ms"
           }
         ]
