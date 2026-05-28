@@ -1080,3 +1080,164 @@ fn test_cairo1_stack_extraction_not_failure_fallback() {
         if stack.is_empty() && last_retdata == expected_retdata
     );
 }
+
+/// Build a synthetic `EntryPointExecutionError::CairoRunError(VmException)` to feed into the
+/// formatter. The exact PC/traceback strings are arbitrary; the test asserts on whether the
+/// `Error at pc=` block survives the formatter, not on its contents.
+fn synthetic_vm_exception_error() -> EntryPointExecutionError {
+    use cairo_vm::types::relocatable::Relocatable;
+    use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
+    use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
+    use cairo_vm::vm::errors::vm_exception::VmException;
+
+    let vm_exception = VmException {
+        pc: Relocatable { segment_index: 0, offset: 42 },
+        inst_location: None,
+        inner_exc: VirtualMachineError::Unexpected,
+        error_attr_value: None,
+        traceback: Some(
+            "Cairo traceback (most recent call last):\nUnknown location (pc=0:7)\n".to_string(),
+        ),
+    };
+    EntryPointExecutionError::CairoRunError(Box::new(CairoRunError::VmException(vm_exception)))
+}
+
+/// Wraps a synthetic CairoRunError as the top-level error of a `TransactionExecutionError`,
+/// optionally annotated with `(tracked_resource, strip_vm_frames_in_sierra_gas)`. Returns
+/// the formatted revert string.
+fn render_revert_for(
+    annotation: Option<(crate::execution::contract_class::TrackedResource, bool)>,
+) -> String {
+    use crate::execution::stack_trace::gen_tx_execution_error_trace;
+    use crate::transaction::errors::TransactionExecutionError;
+
+    let inner = synthetic_vm_exception_error();
+    let top_error = match annotation {
+        Some((tr, strip)) => inner.annotated(tr, strip),
+        None => inner,
+    };
+    let tx_error = TransactionExecutionError::ExecutionError {
+        error: Box::new(top_error),
+        class_hash: ClassHash(felt!("0xabc")),
+        storage_address: ContractAddress::try_from(felt!("0x123")).unwrap(),
+        selector: EntryPointSelector(felt!("0xdef")),
+    };
+    gen_tx_execution_error_trace(&tx_error).to_string()
+}
+
+/// SierraGas frame at a protocol version where the policy is active (v0.14.3+): the formatter
+/// MUST omit the `Error at pc=` / `Cairo traceback` block, so the revert reason is identical
+/// whether the contract ran via cairo-vm CASM or cairo-native.
+#[test]
+fn test_sierra_gas_frame_omits_vm_exception_block_when_strip_enabled() {
+    use crate::execution::contract_class::TrackedResource;
+    let rendered = render_revert_for(Some((TrackedResource::SierraGas, true)));
+    assert!(
+        !rendered.contains("Error at pc="),
+        "with strip enabled, SierraGas-mode revert must not include `Error at pc=` (got: \
+         {rendered:?})"
+    );
+    assert!(
+        !rendered.contains("Cairo traceback"),
+        "with strip enabled, SierraGas-mode revert must not include `Cairo traceback` (got: \
+         {rendered:?})"
+    );
+    // The frame preamble must still be present.
+    assert!(
+        rendered.contains("Error in the called contract"),
+        "frame preamble missing (got: {rendered:?})"
+    );
+}
+
+/// SierraGas frame at a protocol version where the policy is OFF (pre-v0.14.3): the formatter
+/// MUST keep the legacy `Error at pc=` / `Cairo traceback` block, so we replay historical
+/// blocks with byte-identical receipts. Replaying old blocks would break otherwise.
+#[test]
+fn test_sierra_gas_frame_keeps_vm_exception_block_when_strip_disabled() {
+    use crate::execution::contract_class::TrackedResource;
+    let rendered = render_revert_for(Some((TrackedResource::SierraGas, false)));
+    assert!(
+        rendered.contains("Error at pc=0:42:"),
+        "with strip disabled, SierraGas-mode revert must include `Error at pc=` (got: \
+         {rendered:?})"
+    );
+    assert!(
+        rendered.contains("Cairo traceback (most recent call last):"),
+        "with strip disabled, SierraGas-mode revert must include `Cairo traceback` (got: \
+         {rendered:?})"
+    );
+}
+
+/// CairoSteps frame (Cairo 0): the formatter MUST emit the `Error at pc=` block regardless of
+/// the strip policy, since Cairo 0 has no alternative execution backend and the PC + traceback
+/// are useful debug information that nothing else carries.
+#[test]
+fn test_cairo_steps_frame_keeps_vm_exception_block_under_either_policy() {
+    use crate::execution::contract_class::TrackedResource;
+    for strip in [false, true] {
+        let rendered = render_revert_for(Some((TrackedResource::CairoSteps, strip)));
+        assert!(
+            rendered.contains("Error at pc=0:42:"),
+            "CairoSteps-mode revert (strip={strip}) must include `Error at pc=` (got: \
+             {rendered:?})"
+        );
+        assert!(
+            rendered.contains("Cairo traceback (most recent call last):"),
+            "CairoSteps-mode revert (strip={strip}) must include `Cairo traceback` (got: \
+             {rendered:?})"
+        );
+    }
+}
+
+/// Errors that don't go through `execute_entry_point_call_wrapper` (no `Annotated` wrapper)
+/// must keep the legacy CairoSteps-style rendering, so this patch doesn't silently strip VM
+/// frames from anything outside the wrapper's reach.
+#[test]
+fn test_unannotated_error_keeps_vm_exception_block() {
+    let rendered = render_revert_for(None);
+    assert!(
+        rendered.contains("Error at pc=0:42:"),
+        "unannotated error must default to legacy rendering (got: {rendered:?})"
+    );
+}
+
+/// `annotated()` is idempotent: re-wrapping an already-annotated error preserves the original
+/// annotation. Verified at the trace-rendering layer (i.e., the externally-observable effect)
+/// rather than via internal structural assertions.
+#[test]
+fn test_annotated_idempotent_preserves_inner_annotation() {
+    use crate::execution::contract_class::TrackedResource;
+    use crate::execution::stack_trace::gen_tx_execution_error_trace;
+    use crate::transaction::errors::TransactionExecutionError;
+
+    let inner = synthetic_vm_exception_error();
+    // Annotate as (SierraGas, strip=true) first, then (incorrectly) re-annotate with
+    // contradictory values. The first annotation should win — the renderer must therefore
+    // omit the VM block.
+    let double = inner
+        .annotated(TrackedResource::SierraGas, true)
+        .annotated(TrackedResource::CairoSteps, false);
+    // Sanity: still a top-level Annotated, with the *first* annotation preserved.
+    match &double {
+        EntryPointExecutionError::Annotated {
+            tracked_resource,
+            strip_vm_frames_in_sierra_gas,
+            ..
+        } => {
+            assert_eq!(*tracked_resource, TrackedResource::SierraGas);
+            assert!(*strip_vm_frames_in_sierra_gas);
+        }
+        other => panic!("expected Annotated, got {other:?}"),
+    }
+    let tx_error = TransactionExecutionError::ExecutionError {
+        error: Box::new(double),
+        class_hash: ClassHash(felt!("0xabc")),
+        storage_address: ContractAddress::try_from(felt!("0x123")).unwrap(),
+        selector: EntryPointSelector(felt!("0xdef")),
+    };
+    let rendered = gen_tx_execution_error_trace(&tx_error).to_string();
+    assert!(
+        !rendered.contains("Error at pc="),
+        "first annotation (SierraGas, strip=true) should win; rendered: {rendered:?}"
+    );
+}
