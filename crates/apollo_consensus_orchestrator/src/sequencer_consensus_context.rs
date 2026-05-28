@@ -101,9 +101,10 @@ use crate::metrics::{
     record_validate_proposal_failure,
     register_metrics,
     CONSENSUS_L2_GAS_PRICE,
-    SNIP35_FEE_ACTUAL,
-    SNIP35_FEE_PROPOSAL,
-    SNIP35_FEE_TARGET,
+    SNIP35_FEE_ACTUAL_FRI,
+    SNIP35_FEE_PROPOSAL_FRI,
+    SNIP35_FEE_TARGET_ATTO_USD,
+    SNIP35_FEE_TARGET_FRI,
 };
 use crate::utils::{
     convert_to_sn_api_block_info,
@@ -446,19 +447,20 @@ impl SequencerConsensusContext {
         timestamp: u64,
         target_atto_usd_per_l2_gas: u128,
     ) -> GasPrice {
+        SNIP35_FEE_TARGET_ATTO_USD.set_lossy(target_atto_usd_per_l2_gas);
         let Some(fee_actual) = fee_actual else {
             warn!("fee_actual unavailable, freezing fee_proposal at l2_gas_price");
-            SNIP35_FEE_PROPOSAL.set_lossy(self.l2_gas_price.0);
+            SNIP35_FEE_PROPOSAL_FRI.set_lossy(self.l2_gas_price.0);
             return self.l2_gas_price;
         };
-        SNIP35_FEE_ACTUAL.set_lossy(fee_actual.0);
+        SNIP35_FEE_ACTUAL_FRI.set_lossy(fee_actual.0);
 
         let fee_target = match self.deps.l1_gas_price_provider.get_strk_to_usd_rate(timestamp).await
         {
             Ok(rate) => {
                 let target = compute_fee_target(target_atto_usd_per_l2_gas, rate);
                 match target {
-                    Some(t) => SNIP35_FEE_TARGET.set_lossy(t.0),
+                    Some(t) => SNIP35_FEE_TARGET_FRI.set_lossy(t.0),
                     None => warn!("STRK/USD oracle returned zero rate, freezing fee_proposal"),
                 }
                 target
@@ -474,7 +476,7 @@ impl SequencerConsensusContext {
             fee_actual,
             VersionedConstants::latest_constants().fee_proposal_margin_ppt,
         );
-        SNIP35_FEE_PROPOSAL.set_lossy(proposal.0);
+        SNIP35_FEE_PROPOSAL_FRI.set_lossy(proposal.0);
         proposal
     }
 
