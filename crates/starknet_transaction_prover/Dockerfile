@@ -51,6 +51,13 @@ ENV RUSTUP_HOME=/var/tmp/rust
 ENV CARGO_HOME=${RUSTUP_HOME}
 ENV PATH="${RUSTUP_HOME}/bin:${PATH}"
 
+# Override the workspace .cargo/config.toml's `rustc-wrapper = "sccache"` for this self-contained
+# image build. sccache wraps the cc/asm compilations driven by blst's and c-kzg's build scripts in
+# a way that drops blst's native objects on linux/arm64, leaving the final link with undefined
+# `blst_*` symbols from libckzg.a. amd64 hits a different sccache path and links cleanly, so the
+# regression only shows up in the multi-arch prover-publish workflow.
+ENV RUSTC_WRAPPER=""
+
 # Use the crate-level rust-toolchain.toml (nightly).
 COPY crates/starknet_transaction_prover/rust-toolchain.toml rust-toolchain.toml
 
@@ -59,7 +66,6 @@ COPY crates/starknet_transaction_prover/rust-toolchain.toml rust-toolchain.toml
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain none \
     && rustup toolchain install \
     && cargo install --locked cargo-chef \
-    && RUSTC_WRAPPER="" cargo install --locked sccache --version 0.14.0 \
     && rm rust-toolchain.toml
 
 # Create Python venv and install cairo-lang (required for compiling Starknet OS).
