@@ -662,7 +662,7 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf, Layout: NodeLayout<'a, L
 /// sequentially.
 pub async fn create_storage_tries<'a, Layout>(
     storage: &mut impl Storage,
-    actual_storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+    actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
     storage_tries_sorted_indices: &'a HashMap<ContractAddress, SortedLeafIndices<'a>>,
@@ -796,17 +796,25 @@ where
 }
 
 /// Holds all data needed to build one storage trie concurrently.
-/// Implements [StorageTask] so that [GatherableStorage::gather] can drive it.
-struct TrieReadTask<'a, Layout: NodeLayoutFor<StarknetStorageValue>> {
+///
+/// Two distinct lifetimes are needed:
+/// - `'a` is the lifetime of the caller-owned index vectors that produced `sorted_leaf_indices`.
+/// - `'u` is the borrow of `updates`, used only during construction of the original skeleton tree,
+///   but does not retain a reference into the output `OriginalSkeletonTreeImpl<'a>`.
+///
+/// Unifying the lifetimes would make the returned `OriginalSkeletonForest<'a>` to
+/// borrow the storage update maps too, which would prevent `commit_block` from later moving those
+/// maps by value into the compute phase.
+struct TrieReadTask<'a, 'u, Layout: NodeLayoutFor<StarknetStorageValue>> {
     address: ContractAddress,
-    updates: &'a LeafModifications<StarknetStorageValue>,
+    updates: &'u LeafModifications<StarknetStorageValue>,
     storage_root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'a>,
     warn_on_trivial_modifications: bool,
     _layout: PhantomData<Layout>,
 }
 
-impl<'a, S, Layout> StorageTaskOutput<S> for TrieReadTask<'a, Layout>
+impl<'a, 'u, S, Layout> StorageTaskOutput<S> for TrieReadTask<'a, 'u, Layout>
 where
     S: ImmutableReadOnlyStorage,
     Layout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
@@ -815,7 +823,7 @@ where
 }
 
 #[async_trait]
-impl<'a, 's, S, Layout> StorageTask<'s, S> for TrieReadTask<'a, Layout>
+impl<'a, 'u, 's, S, Layout> StorageTask<'s, S> for TrieReadTask<'a, 'u, Layout>
 where
     S: ImmutableReadOnlyStorage + 's,
     Layout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
@@ -838,7 +846,7 @@ where
 
 async fn create_storage_tries_concurrently<'a, S, Layout>(
     storage: &mut S,
-    actual_storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+    actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     warn_on_trivial_modifications: bool,
     storage_tries_sorted_indices: &'a HashMap<ContractAddress, SortedLeafIndices<'a>>,
