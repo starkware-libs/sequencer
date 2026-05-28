@@ -907,7 +907,7 @@ impl TransactionHash {
     pub fn random(rng: &mut impl rand::Rng) -> Self {
         let mut byte_vec = vec![];
         for _ in 0..32 {
-            byte_vec.push(rng.gen::<u8>());
+            byte_vec.push(rng.random::<u8>());
         }
         let byte_array = byte_vec.try_into().expect("Expected a Vec of length 32");
         TransactionHash(StarkHash::from_bytes_be(&byte_array))

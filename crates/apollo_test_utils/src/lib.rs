@@ -213,7 +213,7 @@ pub fn validate_load_and_dump<T: Serialize + for<'a> Deserialize<'a>>(path_in_re
 pub fn get_rng() -> ChaCha8Rng {
     let seed: u64 = match env::var("SEED") {
         Ok(seed_str) => seed_str.parse().unwrap(),
-        _ => rand::thread_rng().gen(),
+        _ => rand::rng().random(),
     };
     // Will be printed if the test failed.
     println!("Testing with seed: {seed:?}");
@@ -315,14 +315,14 @@ fn get_rand_test_body_with_events(
         let mut events = vec![];
         for _ in 0..events_per_tx {
             let from_address = if let Some(ref options) = from_addresses {
-                *options.index(rng.gen_range(0..options.len()))
+                *options.index(rng.random_range(0..options.len()))
             } else {
                 ContractAddress::default()
             };
             let final_keys = if let Some(ref options) = keys {
                 let mut chosen_keys = vec![];
                 for options_per_i in options {
-                    let key = options_per_i.index(rng.gen_range(0..options_per_i.len())).clone();
+                    let key = options_per_i.index(rng.random_range(0..options_per_i.len())).clone();
                     chosen_keys.push(key);
                 }
                 chosen_keys
@@ -1066,7 +1066,7 @@ macro_rules! auto_impl_get_test_instance {
         impl GetTestInstance for $name {
             fn get_test_instance(rng: &mut $crate::rand_chacha::ChaCha8Rng) -> Self {
                 use $crate::rand::Rng;
-                let variant = rng.gen_range(0..get_number_of_variants!(enum $name { $($variant $( ($ty) )? = $num ,)* }));
+                let variant = rng.random_range(0..get_number_of_variants!(enum $name { $($variant $( ($ty) )? = $num ,)* }));
                 match variant {
                     $(
                         $num => {

@@ -7,9 +7,9 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::{CairoRunner, ExecutionResources};
-use num_bigint::{BigUint, RandBigInt};
+use num_bigint::BigUint;
 use rand::rngs::SmallRng;
-use rand::SeedableRng;
+use rand::{Rng, SeedableRng};
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
@@ -78,11 +78,12 @@ pub fn run_compute_os_kzg_commitment_info(n: usize) -> (CairoRunner, Option<Vec<
     )
     .unwrap();
 
-    // Create n random felt values.
+    // Create n random felt values. For simlicity of sampling, sample 30 bytes.
     let mut rng = SmallRng::seed_from_u64(0);
-    let prime = Felt::MAX.to_biguint() + 1u8;
     let data = (0..n)
-        .map(|_| MaybeRelocatable::Int(Felt::from(rng.gen_biguint_below(&prime))))
+        .map(|_| {
+            MaybeRelocatable::Int(Felt::from_bytes_be_slice(rng.random::<[u8; 30]>().as_slice()))
+        })
         .collect::<Vec<_>>();
     let MaybeRelocatable::RelocatableValue(start_ptr) = runner.vm.gen_arg(&data).unwrap() else {
         panic!("Failed to generate start pointer");

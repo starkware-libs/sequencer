@@ -51,7 +51,7 @@ const EXPECTED_ROOTS_SIMPLE_CASE: Expect = expect![[r#"
 const EXPECTED_ROOTS_RANDOM_CASE: Expect = expect![[r#"
     StateRoots {
         contracts_trie_root_hash: HashOutput(
-            0x1ec85a68b9e7fd01a09d6594056cedf61ef7f33afc4cd1762ad8b6e2c6cf3f1,
+            0x10e1ce578ade4251dcb0fe04de3a3e17b73998cee1a814a5e59ba8e0bd872a6,
         ),
         classes_trie_root_hash: HashOutput(
             0x0,
