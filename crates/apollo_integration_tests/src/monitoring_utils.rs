@@ -204,10 +204,11 @@ pub async fn await_txs_accepted(
 
 pub async fn sequencer_num_accepted_txs(monitoring_client: &MonitoringClient) -> usize {
     // If the sequencer accepted txs, sync should process them and update the respective metric.
+    // Return 0 if the metric isn't registered yet (race with StateSyncRunner startup).
     monitoring_client
         .get_metric::<usize>(STATE_SYNC_PROCESSED_TRANSACTIONS.get_name())
         .await
-        .unwrap()
+        .unwrap_or(0)
 }
 
 pub async fn assert_no_reverted_txs(monitoring_client: &MonitoringClient, sequencer_idx: usize) {
