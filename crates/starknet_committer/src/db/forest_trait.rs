@@ -30,11 +30,18 @@ use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkele
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
+#[cfg(feature = "os_input")]
+#[path = "forest_trait_witnesses.rs"]
+pub mod forest_trait_witnesses;
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Hash, Serialize)]
 pub enum ForestMetadataType {
     CommitmentOffset,
     StateDiffHash(DbBlockNumber),
     StateRoot(DbBlockNumber),
+    /// BLAKE2s digest of the canonical accessed-keys set for the block.
+    #[cfg(feature = "os_input")]
+    AccessedKeysDigest(DbBlockNumber),
 }
 
 #[async_trait]
