@@ -7,9 +7,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::StorageKey;
 
-#[cfg(any(feature = "testing", test))]
-use super::cached_state::StateChangesKeys;
-use super::cached_state::{CommitmentStateDiff, StorageEntry};
+use super::cached_state::{CommitmentStateDiff, StateChangesKeys, StorageEntry};
 use super::stateful_compression::predicted_alias_storage_entries;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::transaction::objects::TransactionExecutionInfo;
@@ -43,6 +41,19 @@ impl From<AccessedKeys> for StateChangesKeys {
             storage_keys: accessed_keys.storage_keys.into_iter().collect(),
             compiled_class_hash_keys: accessed_keys.accessed_class_hashes.into_iter().collect(),
             modified_contracts: accessed_keys.accessed_contracts.into_iter().collect(),
+        }
+    }
+}
+
+impl From<StateChangesKeys> for AccessedKeys {
+    fn from(state_changes_keys: StateChangesKeys) -> Self {
+        Self {
+            storage_keys: state_changes_keys.storage_keys.into_iter().collect(),
+            accessed_contracts: state_changes_keys.modified_contracts.into_iter().collect(),
+            accessed_class_hashes: state_changes_keys
+                .compiled_class_hash_keys
+                .into_iter()
+                .collect(),
         }
     }
 }
