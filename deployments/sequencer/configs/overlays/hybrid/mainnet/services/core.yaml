@@ -11,7 +11,9 @@ config:
     batcher_config.static_config.first_block_with_partial_block_hash.block_hash: '0x12889b177c93baa28b5ee3afc80cb6f4836adac086af4bef25ae1ac762e8a62'
     batcher_config.static_config.first_block_with_partial_block_hash.block_number: 671813
     batcher_config.static_config.first_block_with_partial_block_hash.parent_block_hash: '0x1e68b0d22b14688dc97afa3006a53cf4e62ebcb02102e80f55e8b48f9a28b97'
+    batcher_config.static_config.storage_reader_server_static_config.port: 55011
     class_manager_config.static_config.class_manager_config.max_compiled_contract_class_object_size: 4089446
+    class_manager_config.static_config.class_storage_config.storage_reader_server_static_config.port: 55210
     consensus_manager_config.consensus_manager_config.dynamic_config.require_virtual_proposer_vote: false
     consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base: 9.1
     consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max: 9.1
@@ -26,6 +28,7 @@ config:
     consensus_manager_config.context_config.dynamic_config.override_l1_gas_price_fri.#is_none: true
     consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri: 0
     consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri.#is_none: true
+    consensus_manager_config.network_config.port: 53080
     consensus_manager_config.staking_manager_config.dynamic_config.default_committee: 0,10:0x64,1,0x1,true;0x65,1,0x1,true;0x66,1,0x1,true;0x67,1,0x1,true;0x68,1,0x1,true
     consensus_manager_config.staking_manager_config.dynamic_config.override_committee: ''
     consensus_manager_config.staking_manager_config.dynamic_config.override_committee.#is_none: true
@@ -51,4 +54,8 @@ config:
     components.state_sync.url: sequencer-core-service
     state_sync_config.static_config.central_sync_client_config.#is_none: false
     state_sync_config.static_config.central_sync_client_config.sync_config.store_sierras_and_casms_block_threshold: 103129
+    state_sync_config.static_config.network_config.#is_none: false
+    state_sync_config.static_config.network_config.port: 55010
     state_sync_config.static_config.p2p_sync_client_config.#is_none: true
+    state_sync_config.static_config.rpc_config.port: 8090
+    state_sync_config.static_config.storage_reader_server_static_config.port: 55012
