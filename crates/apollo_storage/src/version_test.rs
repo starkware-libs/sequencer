@@ -1,6 +1,6 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
-use rand::Rng;
+use rand::RngExt;
 
 use crate::db::table_types::Table;
 use crate::test_utils::{

@@ -15,7 +15,7 @@ use apollo_test_utils::{get_rng, get_test_block, get_test_state_diff, GetTestIns
 use futures::channel::mpsc::channel;
 use indexmap::IndexMap;
 use mockall::predicate;
-use rand_chacha::rand_core::RngCore;
+use rand::Rng;
 use starknet_api::block::{Block, BlockHash, BlockHeader, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::StarkHash;

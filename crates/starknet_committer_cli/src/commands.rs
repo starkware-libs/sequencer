@@ -15,7 +15,7 @@ use blake2::{Blake2s, Digest};
 use rand::distr::Uniform;
 use rand::prelude::IteratorRandom;
 use rand::rngs::SmallRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_api::hash::HashOutput;
@@ -181,8 +181,7 @@ impl BenchmarkFlavor {
                     // most recent leaves.
                     let start_index = total_leaves - (FLAVOR_OVERLAP_WARMUP_BLOCKS * n_updates_arg);
                     let n_overlap_leaves = n_updates_arg - twenty_percent;
-                    let updated_keys =
-                        (start_index..total_leaves).choose_multiple(rng, n_overlap_leaves);
+                    let updated_keys = (start_index..total_leaves).sample(rng, n_overlap_leaves);
                     let new_keys = (total_leaves..(total_leaves + twenty_percent)).collect();
                     [updated_keys, new_keys].concat()
                 })

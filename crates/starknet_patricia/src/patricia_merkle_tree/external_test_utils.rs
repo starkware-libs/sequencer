@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ethnum::U256;
-use rand::Rng;
+use rand::{Rng, RngExt};
 use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::{
     DBObject,

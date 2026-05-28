@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use apollo_test_utils::get_rng;
 use pretty_assertions::assert_eq;
-use rand::Rng;
+use rand::RngExt;
 use tempfile::tempdir;
 use tokio::sync::{Barrier, RwLock};
 

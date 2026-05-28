@@ -2,8 +2,8 @@ use std::cmp::min;
 
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::relocatable::MaybeRelocatable;
-use rand::rngs::OsRng;
-use rand::TryRngCore;
+use rand::rngs::SysRng;
+use rand::TryRng;
 use sha2::{Digest, Sha256};
 use starknet_types_core::felt::Felt;
 
@@ -149,7 +149,7 @@ pub(crate) fn set_n_updates_small(mut ctx: HintContext<'_>) -> OsHintResult {
 pub(crate) fn calculate_keys_using_sha256_hash(mut ctx: HintContext<'_>) -> OsHintResult {
     // Generate a cryptographically secure random seed.
     let mut random_bytes = [0u8; 32];
-    OsRng.try_fill_bytes(&mut random_bytes).expect("OS RNG should not fail");
+    SysRng.try_fill_bytes(&mut random_bytes).expect("OS RNG should not fail");
 
     let mut hasher = Sha256::new();
     hasher.update(random_bytes);
