@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779982101575,
+  "lastUpdate": 1780048937100,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4963,6 +4963,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1616.5403573499998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "399a721af8b423de1863888baaa60fedc784a43f",
+          "message": "starknet_committer: derive skeleton updates from actual updates (#14214)\n\nread_original_forest now takes &Input. The skeleton updates fed to\nUpdatedSkeletonForest are derived from the already-computed actual\nupdates via a generic skeleton_trie_updates (pure value mapping),\ninstead of re-walking the state diff. Adds From<_> for SkeletonLeaf\nimpls for the leaf value types to back the generic bound.\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-05-29T09:41:38Z",
+          "tree_id": "45f4e5ce5c4857045aed87bcaa17ce2a53a2e831",
+          "url": "https://github.com/starkware-libs/sequencer/commit/399a721af8b423de1863888baaa60fedc784a43f"
+        },
+        "date": 1780048936655,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 835.28533341,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1306.6006131,
             "unit": "ms"
           }
         ]
