@@ -226,8 +226,12 @@ async fn declare_deploy_scenario(
         arg2,
     ];
     let contract_address_salt = ContractAddressSalt(Felt::ONE);
-    let calldata: Vec<_> =
-        [class_hash.0, contract_address_salt.0].into_iter().chain(constructor_calldata).collect();
+    let calldata: Vec<_> = [class_hash.0, contract_address_salt.0]
+        .into_iter()
+        .chain(constructor_calldata)
+        // deploy_from_zero
+        .chain(vec![false.into()])
+        .collect();
     let deploy_contract_calldata = create_calldata(
         *FUNDED_ACCOUNT_ADDRESS,
         DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
@@ -1263,12 +1267,12 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
     let poseidons = test_output.get_builtin_usage(&BuiltinName::poseidon);
     if use_kzg_da {
         expect![[r#"
-            66
+            65
         "#]]
         .assert_debug_eq(&poseidons);
     } else {
         expect![[r#"
-            57
+            56
         "#]]
         .assert_debug_eq(&poseidons);
     }
@@ -1282,7 +1286,7 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
         .copied()
         .unwrap_or(0);
     expect![[r#"
-        553
+        558
     "#]]
     .assert_debug_eq(&blakes);
 
@@ -1967,7 +1971,7 @@ async fn test_deploy_syscall() {
     let calldata = create_calldata(
         *FUNDED_ACCOUNT_ADDRESS,
         "deploy_contract",
-        &[empty_class_hash.0, salt.0, Felt::ZERO],
+        &[empty_class_hash.0, salt.0, Felt::ZERO, false.into()],
     );
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
 
@@ -2154,7 +2158,7 @@ async fn test_block_info(#[values(true, false)] is_cairo0: bool) {
     let calldata = create_calldata(
         *FUNDED_ACCOUNT_ADDRESS,
         "deploy_contract",
-        &[class_hash.0, salt, ctor_calldata.len().into(), ctor_calldata[0]],
+        &[class_hash.0, salt, ctor_calldata.len().into(), ctor_calldata[0], false.into()],
     );
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
 
