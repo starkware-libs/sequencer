@@ -778,6 +778,7 @@ fn test_contract_ctor_frame_stack_trace(
                 salt,
                 felt!(1_u8), // Calldata: ctor args length.
                 validate_constructor,
+                false.into(), // deploy_from_zero
             ]
         ),
         resource_bounds: default_all_resource_bounds,
