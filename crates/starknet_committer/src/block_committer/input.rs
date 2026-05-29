@@ -74,6 +74,12 @@ impl From<u128> for StarknetStorageKey {
 #[derive(Clone, Copy, Default, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct StarknetStorageValue(pub Felt);
 
+impl From<StarknetStorageValue> for SkeletonLeaf {
+    fn from(value: StarknetStorageValue) -> Self {
+        SkeletonLeaf::from(value.0)
+    }
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct StateDiff {
     pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
@@ -264,33 +270,6 @@ impl StateDiff {
     }
 
     /// For each modified contract calculates it's actual storage updates.
-    pub(crate) fn skeleton_storage_updates(
-        &self,
-    ) -> HashMap<ContractAddress, LeafModifications<SkeletonLeaf>> {
-        self.accessed_addresses()
-            .iter()
-            .map(|address| {
-                let updates = match self.storage_updates.get(address) {
-                    Some(inner_updates) => inner_updates
-                        .iter()
-                        .map(|(key, value)| (key.into(), SkeletonLeaf::from(value.0)))
-                        .collect(),
-                    None => HashMap::new(),
-                };
-                (**address, updates)
-            })
-            .collect()
-    }
-
-    pub(crate) fn skeleton_classes_updates(&self) -> LeafModifications<SkeletonLeaf> {
-        self.class_hash_to_compiled_class_hash
-            .iter()
-            .map(|(class_hash, compiled_class_hash)| {
-                (class_hash_into_node_index(class_hash), SkeletonLeaf::from(compiled_class_hash.0))
-            })
-            .collect()
-    }
-
     pub(crate) fn actual_storage_updates(
         &self,
     ) -> HashMap<ContractAddress, LeafModifications<StarknetStorageValue>> {
@@ -316,4 +295,22 @@ impl StateDiff {
             })
             .collect()
     }
+}
+
+/// Reduces a single trie's actual leaf updates to skeleton updates (whether each leaf is zero or
+/// non-zero).
+pub(crate) fn skeleton_trie_updates<L: Copy + Into<SkeletonLeaf>>(
+    actual_updates: &LeafModifications<L>,
+) -> LeafModifications<SkeletonLeaf> {
+    actual_updates.iter().map(|(&index, &value)| (index, value.into())).collect()
+}
+
+/// Reduces the actual storage updates to skeleton updates.
+pub(crate) fn skeleton_storage_updates(
+    actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+) -> HashMap<ContractAddress, LeafModifications<SkeletonLeaf>> {
+    actual_storage_updates
+        .iter()
+        .map(|(address, updates)| (*address, skeleton_trie_updates(updates)))
+        .collect()
 }
