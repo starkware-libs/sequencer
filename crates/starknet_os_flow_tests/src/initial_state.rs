@@ -340,6 +340,8 @@ pub(crate) fn get_deploy_contract_tx_and_address_with_salt(
         .iter()
         .chain(ctor_calldata.0.iter())
         .cloned()
+        // deploy_from_zero
+        .chain(vec![false.into()])
         .collect::<Vec<Felt>>();
 
     let deploy_contract_calldata = create_calldata(
