@@ -14,8 +14,7 @@ use test_case::test_case;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallInfo, OrderedEvent};
-use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::errors::EntryPointExecutionError;
+use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionResult};
 use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
@@ -145,7 +144,7 @@ fn emit_events(
     n_emitted_events: &[Felt],
     keys: &[Felt],
     data: &[Felt],
-) -> Result<CallInfo, EntryPointExecutionError> {
+) -> EntryPointExecutionResult<CallInfo> {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
     let calldata = Calldata(
