@@ -409,7 +409,7 @@ pub fn gen_tx_execution_error_trace(error: &TransactionExecutionError) -> ErrorS
             selector,
         } => gen_error_trace_from_entry_point_error(
             ErrorStackHeader::Execution,
-            error,
+            error.unannotated(),
             storage_address,
             class_hash,
             Some(selector),
@@ -422,7 +422,7 @@ pub fn gen_tx_execution_error_trace(error: &TransactionExecutionError) -> ErrorS
             selector,
         } => gen_error_trace_from_entry_point_error(
             ErrorStackHeader::Validation,
-            error,
+            error.unannotated(),
             storage_address,
             class_hash,
             Some(selector),
@@ -437,7 +437,7 @@ pub fn gen_tx_execution_error_trace(error: &TransactionExecutionError) -> ErrorS
             },
         ) => gen_error_trace_from_entry_point_error(
             ErrorStackHeader::Constructor,
-            error,
+            error.unannotated(),
             storage_address,
             class_hash,
             constructor_selector.as_ref(),
@@ -604,13 +604,17 @@ fn extract_syscall_execution_error_into_stack_trace(
                 }
                 .into(),
             );
-            extract_entry_point_execution_error_into_stack_trace(error_stack, depth, error)
+            extract_entry_point_execution_error_into_stack_trace(
+                error_stack,
+                depth,
+                error.unannotated(),
+            )
         }
         SyscallExecutionError::EntryPointExecutionError(entry_point_error) => {
             extract_entry_point_execution_error_into_stack_trace(
                 error_stack,
                 depth,
-                entry_point_error,
+                entry_point_error.unannotated(),
             )
         }
         _ => {
@@ -687,13 +691,17 @@ fn extract_deprecated_syscall_execution_error_into_stack_trace(
                 }
                 .into(),
             );
-            extract_entry_point_execution_error_into_stack_trace(error_stack, depth, error)
+            extract_entry_point_execution_error_into_stack_trace(
+                error_stack,
+                depth,
+                error.unannotated(),
+            )
         }
         DeprecatedSyscallExecutionError::EntryPointExecutionError(entry_point_error) => {
             extract_entry_point_execution_error_into_stack_trace(
                 error_stack,
                 depth,
-                entry_point_error,
+                entry_point_error.unannotated(),
             )
         }
         _ => error_stack.push(syscall_error.to_string().into()),

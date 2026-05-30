@@ -76,39 +76,49 @@ pub fn execute_entry_point_call_wrapper(
     match res {
         Ok(call_info) => {
             if call_info.execution.failed && !context.versioned_constants().enable_reverts {
-                // Reverts are disabled.
+                // Reverts are disabled. `ExecutionFailed` carries no cairo-vm frame.
                 return Err(EntryPointExecutionError::ExecutionFailed {
                     error_trace: extract_trailing_cairo1_revert_trace(
                         &call_info,
                         Cairo1RevertHeader::Execution,
                     ),
-                });
+                }
+                .annotated_no_vm_frame());
             }
             update_remaining_gas(remaining_gas, &call_info);
             Ok(call_info)
         }
-        Err(EntryPointExecutionError::PreExecutionError(err))
-            if context.versioned_constants().enable_reverts =>
-        {
-            let error_code = match err {
-                PreExecutionError::EntryPointNotFound(_)
-                | PreExecutionError::NoEntryPointOfTypeFound(_) => ENTRYPOINT_NOT_FOUND_ERROR_FELT,
-                PreExecutionError::InsufficientEntryPointGas => OUT_OF_GAS_ERROR_FELT,
-                _ => return Err(err.into()),
-            };
-            Ok(CallInfo {
-                call: orig_call.into(),
-                execution: CallExecution {
-                    retdata: Retdata(vec![error_code]),
-                    failed: true,
-                    gas_consumed: 0,
-                    ..CallExecution::default()
-                },
-                tracked_resource: current_tracked_resource,
-                ..CallInfo::default()
-            })
-        }
-        Err(err) => Err(err),
+        Err(err) => match err {
+            EntryPointExecutionError::PreExecutionError(err)
+                if context.versioned_constants().enable_reverts =>
+            {
+                let error_code = match err {
+                    PreExecutionError::EntryPointNotFound(_)
+                    | PreExecutionError::NoEntryPointOfTypeFound(_) => {
+                        ENTRYPOINT_NOT_FOUND_ERROR_FELT
+                    }
+                    PreExecutionError::InsufficientEntryPointGas => OUT_OF_GAS_ERROR_FELT,
+                    _ => {
+                        return Err(EntryPointExecutionError::from(err).annotated_no_vm_frame());
+                    }
+                };
+                Ok(CallInfo {
+                    call: orig_call.into(),
+                    execution: CallExecution {
+                        retdata: Retdata(vec![error_code]),
+                        failed: true,
+                        gas_consumed: 0,
+                        ..CallExecution::default()
+                    },
+                    tracked_resource: current_tracked_resource,
+                    ..CallInfo::default()
+                })
+            }
+            // Real annotation for outer-frame errors that may carry a cairo-vm frame; the
+            // strip flag is a placeholder here and gets wired to the versioned-constants
+            // policy in the follow-up.
+            other => Err(other.annotated(current_tracked_resource, false)),
+        },
     }
 }
 
@@ -118,7 +128,7 @@ pub fn execute_entry_point_call(
     compiled_class: RunnableCompiledClass,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
-) -> EntryPointExecutionResult<CallInfo> {
+) -> Result<CallInfo, EntryPointExecutionError> {
     #[cfg(feature = "benchmarking")]
     let pre_time = std::time::Instant::now();
 
@@ -327,11 +337,18 @@ pub fn execute_deployment(
     let deployed_contract_address = ctor_context.storage_address;
     let current_class_hash =
         state.get_class_hash_at(deployed_contract_address).map_err(|error| {
-            ConstructorEntryPointExecutionError::new(error.into(), &ctor_context, None)
+            ConstructorEntryPointExecutionError::new(
+                EntryPointExecutionError::from(error).annotated_no_vm_frame(),
+                &ctor_context,
+                None,
+            )
         })?;
     if current_class_hash != ClassHash::default() {
         return Err(ConstructorEntryPointExecutionError::new(
-            StateError::UnavailableContractAddress(deployed_contract_address).into(),
+            EntryPointExecutionError::from(StateError::UnavailableContractAddress(
+                deployed_contract_address,
+            ))
+            .annotated_no_vm_frame(),
             &ctor_context,
             None,
         ));
@@ -344,7 +361,13 @@ pub fn execute_deployment(
         context.n_sent_messages_to_l1,
     ));
     state.set_class_hash_at(deployed_contract_address, ctor_context.class_hash).map_err(
-        |error| ConstructorEntryPointExecutionError::new(error.into(), &ctor_context, None),
+        |error| {
+            ConstructorEntryPointExecutionError::new(
+                EntryPointExecutionError::from(error).annotated_no_vm_frame(),
+                &ctor_context,
+                None,
+            )
+        },
     )?;
 
     execute_constructor_entry_point(
