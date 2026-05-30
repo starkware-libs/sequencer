@@ -36,7 +36,10 @@ use crate::execution::entry_point::{
     EntryPointExecutionContext,
     ExecutableCallEntryPoint,
 };
-use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
+use crate::execution::errors::{
+    ConstructorEntryPointExecutionError,
+    EntryPointExecutionErrorWithMetadata,
+};
 use crate::execution::execution_utils::{
     felt_from_ptr,
     felt_range_from_ptr,
@@ -97,7 +100,7 @@ pub enum SyscallExecutionError {
     #[error(transparent)]
     ConstructorEntryPointExecutionError(#[from] ConstructorEntryPointExecutionError),
     #[error(transparent)]
-    EntryPointExecutionError(#[from] EntryPointExecutionError),
+    EntryPointExecutionError(#[from] EntryPointExecutionErrorWithMetadata),
     #[error("{error}")]
     CallContractExecutionError {
         class_hash: ClassHash,

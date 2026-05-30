@@ -31,6 +31,7 @@ use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::errors::{
     ConstructorEntryPointExecutionError,
     EntryPointExecutionError,
+    EntryPointExecutionErrorWithMetadata,
     PreExecutionError,
 };
 use crate::execution::execution_utils::execute_entry_point_call_wrapper;
@@ -47,7 +48,7 @@ pub mod test;
 pub const FAULTY_CLASS_HASH: &str =
     "0x1A7820094FEAF82D53F53F214B81292D717E7BB9A92BB2488092CD306F3993F";
 
-pub type EntryPointExecutionResult<T> = Result<T, EntryPointExecutionError>;
+pub type EntryPointExecutionResult<T> = Result<T, EntryPointExecutionErrorWithMetadata>;
 pub type ConstructorEntryPointExecutionResult<T> = Result<T, ConstructorEntryPointExecutionError>;
 
 /// Holds the the information required to revert the execution of an entry point.
@@ -233,7 +234,8 @@ impl CallEntryPoint {
                         call_info,
                         Cairo1RevertHeader::Execution,
                     ),
-                });
+                }
+                .into());
             }
         }
 
@@ -621,7 +623,8 @@ pub fn handle_empty_constructor(
         return Err(EntryPointExecutionError::InvalidExecutionInput {
             input_descriptor: "constructor_calldata".to_string(),
             info: "Cannot pass calldata to a contract with no constructor.".to_string(),
-        });
+        }
+        .into());
     }
 
     let current_tracked_resource = compiled_class.get_current_tracked_resource(context);
@@ -667,7 +670,7 @@ impl RecursionDepthGuard {
     fn try_increment_and_check_depth(&mut self) -> EntryPointExecutionResult<()> {
         *self.current_depth.borrow_mut() += 1;
         if *self.current_depth.borrow() > self.max_depth {
-            return Err(EntryPointExecutionError::RecursionDepthExceeded);
+            return Err(EntryPointExecutionError::RecursionDepthExceeded.into());
         }
         Ok(())
     }

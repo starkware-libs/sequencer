@@ -116,6 +116,40 @@ pub enum EntryPointExecutionError {
     TraceError(#[from] TraceError),
 }
 
+/// Public envelope for `EntryPointExecutionError` returned by the entry-point pipeline.
+/// Currently exposes only the `UnAnnotated` variant; a follow-up will add an `Annotated`
+/// variant that carries per-frame rendering metadata for the stack-trace formatter.
+#[derive(Debug, Error)]
+pub enum EntryPointExecutionErrorWithMetadata {
+    #[error(transparent)]
+    UnAnnotated(EntryPointExecutionError),
+}
+
+impl EntryPointExecutionErrorWithMetadata {
+    pub fn unannotated(&self) -> &EntryPointExecutionError {
+        match self {
+            EntryPointExecutionErrorWithMetadata::UnAnnotated(e) => e,
+        }
+    }
+
+    pub fn into_unannotated(self) -> EntryPointExecutionError {
+        match self {
+            EntryPointExecutionErrorWithMetadata::UnAnnotated(e) => e,
+        }
+    }
+}
+
+/// Blanket conversion so `?` propagation works for any source error that already converts to
+/// `EntryPointExecutionError` (e.g. `StateError`, `PreExecutionError`, `Box<CairoRunError>`).
+impl<E> From<E> for EntryPointExecutionErrorWithMetadata
+where
+    E: Into<EntryPointExecutionError>,
+{
+    fn from(e: E) -> Self {
+        EntryPointExecutionErrorWithMetadata::UnAnnotated(e.into())
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum ConstructorEntryPointExecutionError {
     #[error(
@@ -124,7 +158,7 @@ pub enum ConstructorEntryPointExecutionError {
     )]
     ExecutionError {
         #[source]
-        error: Box<EntryPointExecutionError>,
+        error: Box<EntryPointExecutionErrorWithMetadata>,
         class_hash: ClassHash,
         contract_address: ContractAddress,
         constructor_selector: Option<EntryPointSelector>,
@@ -133,7 +167,7 @@ pub enum ConstructorEntryPointExecutionError {
 
 impl ConstructorEntryPointExecutionError {
     pub fn new(
-        error: EntryPointExecutionError,
+        error: EntryPointExecutionErrorWithMetadata,
         ctor_context: &ConstructorContext,
         selector: Option<EntryPointSelector>,
     ) -> Self {
