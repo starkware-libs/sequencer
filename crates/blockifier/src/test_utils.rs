@@ -243,7 +243,7 @@ macro_rules! check_entry_point_execution_error {
         use cairo_vm::vm::errors::vm_exception::VmException;
         use $crate::execution::errors::EntryPointExecutionError;
 
-        match $error {
+        match $error.unannotated() {
             EntryPointExecutionError::CairoRunError(boxed_error) => {
                 if let CairoRunError::VmException(VmException { inner_exc, .. }) =
                     &*(boxed_error.as_ref())

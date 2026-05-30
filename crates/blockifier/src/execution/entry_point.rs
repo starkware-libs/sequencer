@@ -31,6 +31,7 @@ use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::errors::{
     ConstructorEntryPointExecutionError,
     EntryPointExecutionError,
+    EntryPointExecutionErrorWithMetadata,
     PreExecutionError,
 };
 use crate::execution::execution_utils::execute_entry_point_call_wrapper;
@@ -47,7 +48,7 @@ pub mod test;
 pub const FAULTY_CLASS_HASH: &str =
     "0x1A7820094FEAF82D53F53F214B81292D717E7BB9A92BB2488092CD306F3993F";
 
-pub type EntryPointExecutionResult<T> = Result<T, EntryPointExecutionError>;
+pub type EntryPointExecutionResult<T> = Result<T, EntryPointExecutionErrorWithMetadata>;
 pub type ConstructorEntryPointExecutionResult<T> = Result<T, ConstructorEntryPointExecutionError>;
 
 /// Holds the the information required to revert the execution of an entry point.
@@ -172,9 +173,14 @@ impl CallEntryPoint {
         decrement_when_dropped.try_increment_and_check_depth()?;
 
         // Validate contract is deployed.
-        let storage_class_hash = state.get_class_hash_at(self.storage_address)?;
+        let storage_class_hash = state
+            .get_class_hash_at(self.storage_address)
+            .map_err(EntryPointExecutionError::from)?;
         if storage_class_hash == ClassHash::default() {
-            return Err(PreExecutionError::UninitializedStorageAddress(self.storage_address).into());
+            return Err(EntryPointExecutionError::from(
+                PreExecutionError::UninitializedStorageAddress(self.storage_address),
+            )
+            .into());
         }
 
         let class_hash = match self.class_hash {
@@ -188,11 +194,12 @@ impl CallEntryPoint {
                     Felt::from_hex(FAULTY_CLASS_HASH).expect("A class hash must be a felt."),
                 )
         {
-            return Err(PreExecutionError::FraudAttempt.into());
+            return Err(EntryPointExecutionError::from(PreExecutionError::FraudAttempt).into());
         }
         // Add class hash to the call, that will appear in the output (call info).
         self.class_hash = Some(class_hash);
-        let compiled_class = state.get_compiled_class(class_hash)?;
+        let compiled_class =
+            state.get_compiled_class(class_hash).map_err(EntryPointExecutionError::from)?;
 
         context.revert_infos.0.push(EntryPointRevertInfo::new(
             self.storage_address,
@@ -233,7 +240,8 @@ impl CallEntryPoint {
                         call_info,
                         Cairo1RevertHeader::Execution,
                     ),
-                });
+                }
+                .into());
             }
         }
 
@@ -539,7 +547,11 @@ pub fn execute_constructor_entry_point(
 ) -> ConstructorEntryPointExecutionResult<CallInfo> {
     // Ensure the class is declared (by reading it).
     let compiled_class = state.get_compiled_class(ctor_context.class_hash).map_err(|error| {
-        ConstructorEntryPointExecutionError::new(error.into(), &ctor_context, None)
+        ConstructorEntryPointExecutionError::new(
+            EntryPointExecutionError::from(error).into(),
+            &ctor_context,
+            None,
+        )
     })?;
     let Some(constructor_selector) = compiled_class.constructor_selector() else {
         // Contract has no constructor.
@@ -621,7 +633,8 @@ pub fn handle_empty_constructor(
         return Err(EntryPointExecutionError::InvalidExecutionInput {
             input_descriptor: "constructor_calldata".to_string(),
             info: "Cannot pass calldata to a contract with no constructor.".to_string(),
-        });
+        }
+        .into());
     }
 
     let current_tracked_resource = compiled_class.get_current_tracked_resource(context);
@@ -667,7 +680,7 @@ impl RecursionDepthGuard {
     fn try_increment_and_check_depth(&mut self) -> EntryPointExecutionResult<()> {
         *self.current_depth.borrow_mut() += 1;
         if *self.current_depth.borrow() > self.max_depth {
-            return Err(EntryPointExecutionError::RecursionDepthExceeded);
+            return Err(EntryPointExecutionError::RecursionDepthExceeded.into());
         }
         Ok(())
     }

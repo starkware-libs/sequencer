@@ -30,7 +30,9 @@ pub fn execute_entry_point_call(
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
-    let entry_point = compiled_class.get_entry_point(&call.type_and_selector())?;
+    let entry_point = compiled_class
+        .get_entry_point(&call.type_and_selector())
+        .map_err(EntryPointExecutionError::from)?;
 
     let mut syscall_handler: NativeSyscallHandler<'_> =
         NativeSyscallHandler::new(call, state, context);
@@ -52,12 +54,10 @@ pub fn execute_entry_point_call(
     // entry point code. When redepositing is used, the entry point is aware of this pre-charge
     // and adjusts the gas counter accordingly if a smaller amount of gas is required.
     let initial_budget = syscall_handler.base.context.gas_costs().base.entry_point_initial_budget;
-    let call_initial_gas = syscall_handler
-        .base
-        .call
-        .initial_gas
-        .checked_sub(initial_budget)
-        .ok_or(PreExecutionError::InsufficientEntryPointGas)?;
+    let call_initial_gas =
+        syscall_handler.base.call.initial_gas.checked_sub(initial_budget).ok_or_else(|| {
+            EntryPointExecutionError::from(PreExecutionError::InsufficientEntryPointGas)
+        })?;
 
     let execution_result = compiled_class.executor.run(
         entry_point.selector.0,
@@ -72,10 +72,10 @@ pub fn execute_entry_point_call(
     let call_result = execution_result.map_err(EntryPointExecutionError::NativeUnexpectedError)?;
 
     if let Some(error) = syscall_handler.unrecoverable_error {
-        return Err(EntryPointExecutionError::NativeUnrecoverableError(Box::new(error)));
+        return Err(EntryPointExecutionError::NativeUnrecoverableError(Box::new(error)).into());
     }
 
-    create_callinfo(call_result, syscall_handler)
+    Ok(create_callinfo(call_result, syscall_handler)?)
 }
 
 fn create_callinfo(
