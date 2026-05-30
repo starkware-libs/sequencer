@@ -29,6 +29,7 @@ use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::errors::{
+    AnnotatedEntryPointExecutionError,
     ConstructorEntryPointExecutionError,
     EntryPointExecutionError,
     PreExecutionError,
@@ -47,7 +48,7 @@ pub mod test;
 pub const FAULTY_CLASS_HASH: &str =
     "0x1A7820094FEAF82D53F53F214B81292D717E7BB9A92BB2488092CD306F3993F";
 
-pub type EntryPointExecutionResult<T> = Result<T, EntryPointExecutionError>;
+pub type EntryPointExecutionResult<T> = Result<T, AnnotatedEntryPointExecutionError>;
 pub type ConstructorEntryPointExecutionResult<T> = Result<T, ConstructorEntryPointExecutionError>;
 
 /// Holds the the information required to revert the execution of an entry point.
@@ -169,12 +170,19 @@ impl CallEntryPoint {
             context.current_recursion_depth.clone(),
             context.versioned_constants().max_recursion_depth,
         );
-        decrement_when_dropped.try_increment_and_check_depth()?;
+        decrement_when_dropped
+            .try_increment_and_check_depth()
+            .map_err(|e| e.annotated(TrackedResource::CairoSteps, false))?;
 
         // Validate contract is deployed.
-        let storage_class_hash = state.get_class_hash_at(self.storage_address)?;
+        let storage_class_hash = state.get_class_hash_at(self.storage_address).map_err(|e| {
+            EntryPointExecutionError::from(e).annotated(TrackedResource::CairoSteps, false)
+        })?;
         if storage_class_hash == ClassHash::default() {
-            return Err(PreExecutionError::UninitializedStorageAddress(self.storage_address).into());
+            return Err(EntryPointExecutionError::from(
+                PreExecutionError::UninitializedStorageAddress(self.storage_address),
+            )
+            .annotated(TrackedResource::CairoSteps, false));
         }
 
         let class_hash = match self.class_hash {
@@ -188,11 +196,14 @@ impl CallEntryPoint {
                     Felt::from_hex(FAULTY_CLASS_HASH).expect("A class hash must be a felt."),
                 )
         {
-            return Err(PreExecutionError::FraudAttempt.into());
+            return Err(EntryPointExecutionError::from(PreExecutionError::FraudAttempt)
+                .annotated(TrackedResource::CairoSteps, false));
         }
         // Add class hash to the call, that will appear in the output (call info).
         self.class_hash = Some(class_hash);
-        let compiled_class = state.get_compiled_class(class_hash)?;
+        let compiled_class = state.get_compiled_class(class_hash).map_err(|e| {
+            EntryPointExecutionError::from(e).annotated(TrackedResource::CairoSteps, false)
+        })?;
 
         context.revert_infos.0.push(EntryPointRevertInfo::new(
             self.storage_address,
@@ -233,7 +244,8 @@ impl CallEntryPoint {
                         call_info,
                         Cairo1RevertHeader::Execution,
                     ),
-                });
+                }
+                .annotated(TrackedResource::CairoSteps, false));
             }
         }
 
@@ -539,7 +551,11 @@ pub fn execute_constructor_entry_point(
 ) -> ConstructorEntryPointExecutionResult<CallInfo> {
     // Ensure the class is declared (by reading it).
     let compiled_class = state.get_compiled_class(ctor_context.class_hash).map_err(|error| {
-        ConstructorEntryPointExecutionError::new(error.into(), &ctor_context, None)
+        ConstructorEntryPointExecutionError::new(
+            EntryPointExecutionError::from(error).annotated(TrackedResource::CairoSteps, false),
+            &ctor_context,
+            None,
+        )
     })?;
     let Some(constructor_selector) = compiled_class.constructor_selector() else {
         // Contract has no constructor.
@@ -621,7 +637,8 @@ pub fn handle_empty_constructor(
         return Err(EntryPointExecutionError::InvalidExecutionInput {
             input_descriptor: "constructor_calldata".to_string(),
             info: "Cannot pass calldata to a contract with no constructor.".to_string(),
-        });
+        }
+        .annotated(TrackedResource::CairoSteps, false));
     }
 
     let current_tracked_resource = compiled_class.get_current_tracked_resource(context);
@@ -664,7 +681,7 @@ impl RecursionDepthGuard {
 
     // Tries to increment the current recursion depth and returns an error if the maximum depth
     // would be exceeded.
-    fn try_increment_and_check_depth(&mut self) -> EntryPointExecutionResult<()> {
+    fn try_increment_and_check_depth(&mut self) -> Result<(), EntryPointExecutionError> {
         *self.current_depth.borrow_mut() += 1;
         if *self.current_depth.borrow() > self.max_depth {
             return Err(EntryPointExecutionError::RecursionDepthExceeded);

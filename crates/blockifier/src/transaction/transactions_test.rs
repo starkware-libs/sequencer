@@ -2332,7 +2332,7 @@ fn test_deploy_account_tx(
         TransactionExecutionError::ContractConstructorExecutionFailed(
             ConstructorEntryPointExecutionError::ExecutionError { error, .. }
         )
-        if matches!(*error, EntryPointExecutionError::StateError(
+        if matches!(error.unannotated(), EntryPointExecutionError::StateError(
             StateError::UnavailableContractAddress(_)
         ))
     );
@@ -2371,9 +2371,9 @@ fn test_fail_deploy_account_undeclared_class_hash(
             ConstructorEntryPointExecutionError::ExecutionError { error, .. }
         )
         if matches!(
-            *error,
+            error.unannotated(),
             EntryPointExecutionError::StateError(StateError::UndeclaredClassHash(class_hash))
-            if class_hash == undeclared_hash
+            if *class_hash == undeclared_hash
         )
     );
 }
@@ -2386,22 +2386,22 @@ fn check_native_validate_error(
 ) {
     let syscall_error = match error {
         TransactionExecutionError::ValidateTransactionError { error: boxed_error, .. } => {
-            match *boxed_error {
+            match (*boxed_error).into_unannotated() {
                 EntryPointExecutionError::NativeUnrecoverableError(boxed_syscall_error) => {
                     assert!(!validate_constructor);
                     boxed_syscall_error
                 }
-                _ => panic!("Unexpected error: {boxed_error:?}"),
+                other => panic!("Unexpected error: {other:?}"),
             }
         }
         TransactionExecutionError::ContractConstructorExecutionFailed(
             ConstructorEntryPointExecutionError::ExecutionError { error: boxed_error, .. },
-        ) => match *boxed_error {
+        ) => match (*boxed_error).into_unannotated() {
             EntryPointExecutionError::NativeUnrecoverableError(boxed_syscall_error) => {
                 assert!(validate_constructor);
                 boxed_syscall_error
             }
-            _ => panic!("Unexpected error: {boxed_error:?}"),
+            other => panic!("Unexpected error: {other:?}"),
         },
         _ => panic!("Unexpected error: {:?}", &error),
     };
