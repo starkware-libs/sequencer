@@ -3,7 +3,7 @@ use apollo_consensus::metrics::CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS;
 use apollo_infra_utils::run_until::run_until;
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
 use apollo_metrics::metrics::MetricDetails;
-use apollo_monitoring_endpoint::test_utils::MonitoringClient;
+use apollo_monitoring_endpoint::test_utils::{MonitoringClient, MonitoringClientError};
 use apollo_state_sync_metrics::metrics::{
     STATE_SYNC_BODY_MARKER,
     STATE_SYNC_CLASS_MANAGER_MARKER,
@@ -204,15 +204,39 @@ pub async fn await_txs_accepted(
 
 pub async fn sequencer_num_accepted_txs(monitoring_client: &MonitoringClient) -> usize {
     // If the sequencer accepted txs, sync should process them and update the respective metric.
-    monitoring_client
-        .get_metric::<usize>(STATE_SYNC_PROCESSED_TRANSACTIONS.get_name())
-        .await
-        .unwrap()
+    // Return 0 if the metric isn't registered yet (race with StateSyncRunner startup).
+    match monitoring_client.get_metric::<usize>(STATE_SYNC_PROCESSED_TRANSACTIONS.get_name()).await
+    {
+        Ok(count) => count,
+        Err(MonitoringClientError::MetricNotFound { .. }) => 0,
+        Err(e) => panic!("Failed to get processed transactions metric: {e}"),
+    }
 }
 
 pub async fn assert_no_reverted_txs(monitoring_client: &MonitoringClient, sequencer_idx: usize) {
-    let reverted_count =
-        monitoring_client.get_metric::<usize>(REVERTED_TRANSACTIONS.get_name()).await.unwrap();
+    let get_metric_closure = || async {
+        monitoring_client.get_metric::<usize>(REVERTED_TRANSACTIONS.get_name()).await
+    };
+    let condition = |result: &Result<usize, MonitoringClientError>| result.is_ok();
+    let logger = CustomLogger::new(
+        TraceLevel::Info,
+        Some(format!(
+            "Waiting for reverted transactions metric to be registered for sequencer \
+             {sequencer_idx}"
+        )),
+    );
+
+    let reverted_count = run_until(
+        INTERVAL_MS,
+        ATTEMPTS_FOR_VERIFY_TXS,
+        get_metric_closure,
+        condition,
+        Some(logger),
+    )
+    .await
+    .expect("Failed to get reverted transactions metric after retries")
+    .expect("Metric retrieval failed");
+
     assert_eq!(
         reverted_count, 0,
         "Sequencer {sequencer_idx} has {reverted_count} reverted transactions"
