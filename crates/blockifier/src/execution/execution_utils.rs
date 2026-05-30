@@ -82,33 +82,38 @@ pub fn execute_entry_point_call_wrapper(
                         &call_info,
                         Cairo1RevertHeader::Execution,
                     ),
-                });
+                }
+                .into());
             }
             update_remaining_gas(remaining_gas, &call_info);
             Ok(call_info)
         }
-        Err(EntryPointExecutionError::PreExecutionError(err))
-            if context.versioned_constants().enable_reverts =>
-        {
-            let error_code = match err {
-                PreExecutionError::EntryPointNotFound(_)
-                | PreExecutionError::NoEntryPointOfTypeFound(_) => ENTRYPOINT_NOT_FOUND_ERROR_FELT,
-                PreExecutionError::InsufficientEntryPointGas => OUT_OF_GAS_ERROR_FELT,
-                _ => return Err(err.into()),
-            };
-            Ok(CallInfo {
-                call: orig_call.into(),
-                execution: CallExecution {
-                    retdata: Retdata(vec![error_code]),
-                    failed: true,
-                    gas_consumed: 0,
-                    ..CallExecution::default()
-                },
-                tracked_resource: current_tracked_resource,
-                ..CallInfo::default()
-            })
-        }
-        Err(err) => Err(err),
+        Err(err) => match err.into_unannotated() {
+            EntryPointExecutionError::PreExecutionError(err)
+                if context.versioned_constants().enable_reverts =>
+            {
+                let error_code = match err {
+                    PreExecutionError::EntryPointNotFound(_)
+                    | PreExecutionError::NoEntryPointOfTypeFound(_) => {
+                        ENTRYPOINT_NOT_FOUND_ERROR_FELT
+                    }
+                    PreExecutionError::InsufficientEntryPointGas => OUT_OF_GAS_ERROR_FELT,
+                    _ => return Err(err.into()),
+                };
+                Ok(CallInfo {
+                    call: orig_call.into(),
+                    execution: CallExecution {
+                        retdata: Retdata(vec![error_code]),
+                        failed: true,
+                        gas_consumed: 0,
+                        ..CallExecution::default()
+                    },
+                    tracked_resource: current_tracked_resource,
+                    ..CallInfo::default()
+                })
+            }
+            other => Err(other.into()),
+        },
     }
 }
 

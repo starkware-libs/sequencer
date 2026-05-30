@@ -116,6 +116,37 @@ pub enum EntryPointExecutionError {
     TraceError(#[from] TraceError),
 }
 
+/// Public envelope for `EntryPointExecutionError`; a follow-up adds an `Annotated` variant.
+#[derive(Debug, Error)]
+pub enum EntryPointExecutionErrorWithMetadata {
+    #[error(transparent)]
+    UnAnnotated(EntryPointExecutionError),
+}
+
+impl EntryPointExecutionErrorWithMetadata {
+    pub fn unannotated(&self) -> &EntryPointExecutionError {
+        match self {
+            Self::UnAnnotated(e) => e,
+        }
+    }
+
+    pub fn into_unannotated(self) -> EntryPointExecutionError {
+        match self {
+            Self::UnAnnotated(e) => e,
+        }
+    }
+}
+
+/// Blanket impl so `?` works for any source already convertible to `EntryPointExecutionError`.
+impl<E> From<E> for EntryPointExecutionErrorWithMetadata
+where
+    E: Into<EntryPointExecutionError>,
+{
+    fn from(e: E) -> Self {
+        Self::UnAnnotated(e.into())
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum ConstructorEntryPointExecutionError {
     #[error(
@@ -124,7 +155,7 @@ pub enum ConstructorEntryPointExecutionError {
     )]
     ExecutionError {
         #[source]
-        error: Box<EntryPointExecutionError>,
+        error: Box<EntryPointExecutionErrorWithMetadata>,
         class_hash: ClassHash,
         contract_address: ContractAddress,
         constructor_selector: Option<EntryPointSelector>,
@@ -133,7 +164,7 @@ pub enum ConstructorEntryPointExecutionError {
 
 impl ConstructorEntryPointExecutionError {
     pub fn new(
-        error: EntryPointExecutionError,
+        error: EntryPointExecutionErrorWithMetadata,
         ctor_context: &ConstructorContext,
         selector: Option<EntryPointSelector>,
     ) -> Self {
