@@ -14,6 +14,7 @@ use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use thiserror::Error;
 
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::ConstructorContext;
 use crate::execution::stack_trace::Cairo1RevertSummary;
 #[cfg(feature = "cairo_native")]
@@ -116,6 +117,50 @@ pub enum EntryPointExecutionError {
     TraceError(#[from] TraceError),
 }
 
+impl EntryPointExecutionError {
+    /// Tags `self` with the frame's `tracked_resource` and strip policy.
+    pub fn annotated(
+        self,
+        tracked_resource: TrackedResource,
+        strip_vm_frames_in_sierra_gas: bool,
+    ) -> AnnotatedEntryPointExecutionError {
+        AnnotatedEntryPointExecutionError {
+            inner: Box::new(self),
+            tracked_resource,
+            strip_vm_frames_in_sierra_gas,
+        }
+    }
+
+    /// Sentinel annotation for non-`CairoRunError` variants; the formatter ignores the
+    /// annotation for those, so placeholder values are safe.
+    pub fn annotated_no_vm_frame(self) -> AnnotatedEntryPointExecutionError {
+        debug_assert!(!matches!(self, Self::CairoRunError(_)));
+        self.annotated(TrackedResource::CairoSteps, false)
+    }
+}
+
+/// Annotated `EntryPointExecutionError`: only constructible via
+/// `EntryPointExecutionError::annotated[_no_vm_frame]`, so stack-trace-feeding fields typed
+/// `AnnotatedEntryPointExecutionError` statically reject unannotated errors.
+#[derive(Debug, Error)]
+#[error("{inner}")]
+pub struct AnnotatedEntryPointExecutionError {
+    #[source]
+    pub inner: Box<EntryPointExecutionError>,
+    pub tracked_resource: TrackedResource,
+    pub strip_vm_frames_in_sierra_gas: bool,
+}
+
+impl AnnotatedEntryPointExecutionError {
+    pub fn unannotated(&self) -> &EntryPointExecutionError {
+        &self.inner
+    }
+
+    pub fn into_unannotated(self) -> EntryPointExecutionError {
+        *self.inner
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum ConstructorEntryPointExecutionError {
     #[error(
@@ -124,7 +169,7 @@ pub enum ConstructorEntryPointExecutionError {
     )]
     ExecutionError {
         #[source]
-        error: Box<EntryPointExecutionError>,
+        error: Box<AnnotatedEntryPointExecutionError>,
         class_hash: ClassHash,
         contract_address: ContractAddress,
         constructor_selector: Option<EntryPointSelector>,
@@ -133,7 +178,7 @@ pub enum ConstructorEntryPointExecutionError {
 
 impl ConstructorEntryPointExecutionError {
     pub fn new(
-        error: EntryPointExecutionError,
+        error: AnnotatedEntryPointExecutionError,
         ctor_context: &ConstructorContext,
         selector: Option<EntryPointSelector>,
     ) -> Self {

@@ -139,9 +139,22 @@ impl<'state> NativeSyscallHandler<'state> {
         // creating multiple wraps around the same error. This function is meant to prevent that.
         fn unwrap_native_error(error: SyscallExecutionError) -> SyscallExecutionError {
             match error {
-                SyscallExecutionError::EntryPointExecutionError(
-                    EntryPointExecutionError::NativeUnrecoverableError(e),
-                ) => *e,
+                SyscallExecutionError::EntryPointExecutionError(entry_point_error) => {
+                    if matches!(
+                        &*entry_point_error.inner,
+                        EntryPointExecutionError::NativeUnrecoverableError(_)
+                    ) {
+                        // Peel one annotation wrapper plus one `NativeUnrecoverable` to flatten.
+                        let EntryPointExecutionError::NativeUnrecoverableError(e) =
+                            entry_point_error.into_unannotated()
+                        else {
+                            unreachable!("matched above")
+                        };
+                        *e
+                    } else {
+                        SyscallExecutionError::EntryPointExecutionError(entry_point_error)
+                    }
+                }
                 _ => error,
             }
         }
