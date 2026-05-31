@@ -1,0 +1,12 @@
+# Dummy values used only by the prepare-production-overlays CI job. Layered on
+# top of an env overlay (e.g. -o hybrid.mainnet -o hybrid.common.dummy_for_testing)
+# so the env-level overlays can be synthesized without their per-node overlays.
+# Real production synths pass the per-node overlay, which overrides these stubs.
+#
+# Keys placed here apply to every service. Use this file only for placeholders
+# that live in shared app configs (e.g. replacer_general_config.json); keys that
+# only exist in a single service's configList belong in services/<service>.yaml
+# to avoid "unused config key" errors elsewhere.
+config:
+  sequencerConfig:
+    validator_id: "0x64"
