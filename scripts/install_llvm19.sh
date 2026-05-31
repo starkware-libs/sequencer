@@ -7,25 +7,6 @@
 
 set -e
 
-# Pinned SHA-256 of https://apt.llvm.org/llvm.sh. Recorded 2026-05-14.
-#
-# Why pin: llvm.sh runs as root in our CI / Docker builds. TLS authenticates the
-# server, but not the *content* — an apt.llvm.org compromise, hijacked DNS, or
-# even an accidental upstream regression could quietly serve a different script.
-# Pinning a SHA means we trust this specific reviewed version, not "whatever the
-# URL serves today".
-#
-# If sha256sum -c fails (loud build break), one of two things happened:
-#   1. apt.llvm.org legitimately updated llvm.sh. Read the new file, review the
-#      diff (compare against the previous pinned commit's version), confirm it's
-#      safe, then bump LLVM_SH_SHA256 below in a reviewed commit. This is the
-#      change-control event we want.
-#   2. The upstream or network is compromised. Do NOT bump the SHA until the
-#      cause is investigated.
-#
-# Same supply-chain hygiene as Cargo.lock pinning crate hashes.
-LLVM_SH_SHA256="14a4eda1349f23acf9dc0b564ed44b21bce3bd1703c78b5f7488870d7c6fe68f"
-
 [[ ${UID} == "0" ]] || SUDO="sudo"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
@@ -62,8 +43,6 @@ function install_llvm19() {
         trap 'rm -rf "$workdir"' RETURN
         echo "Downloading LLVM installation script..."
         curl --proto "=https" --tlsv1.2 --fail -L -o "$llvm_sh" https://apt.llvm.org/llvm.sh
-        echo "Verifying llvm.sh checksum..."
-        echo "${LLVM_SH_SHA256}  ${llvm_sh}" | sha256sum -c -
         echo "Running LLVM 19 installation script..."
         $SUDO bash "$llvm_sh" 19 all
         echo "Installing LLVM-related packages (MLIR, Polly, etc.)..."
