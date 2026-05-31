@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780048937100,
+  "lastUpdate": 1780233341788,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -4997,6 +4997,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1306.6006131,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1dc19d2a08037bf5aa29b25a9784d71a6f4eb5a0",
+          "message": "starknet_committer: name TrieReadTask lifetimes and document them (#14239)\n\nThe struct now uses 'indices / 'updates / 'storage instead of 'a / 'u /\n's, and the doc comment explains why two non-storage lifetimes are\nneeded: unifying them would make the returned OriginalSkeletonForest\nappear to borrow the storage update maps too, preventing the compute\nphase from moving those maps by value.\n\nCo-authored-by: Claude Opus 4.7 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-05-31T13:04:07Z",
+          "tree_id": "69aa1687aeff3d56f8ccf7cab7d48745bb1fca7a",
+          "url": "https://github.com/starkware-libs/sequencer/commit/1dc19d2a08037bf5aa29b25a9784d71a6f4eb5a0"
+        },
+        "date": 1780233341324,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 772.72720406,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1188.4230300499999,
             "unit": "ms"
           }
         ]
