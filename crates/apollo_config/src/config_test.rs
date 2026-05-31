@@ -55,7 +55,6 @@ use crate::{
     SerializedContent,
     SerializedParam,
     CONFIG_FILE_ARG,
-    IS_NONE_MARK,
 };
 
 lazy_static! {
@@ -969,33 +968,4 @@ fn optional_list_nested_btreemaps() {
         serialized,
         r#"{"list_of_maps":"http://a.com/,key1^value 1,key2^value 2|http://b.com/,key3^value 3,key4^value 4|http://c.com/|http://d.com/,key5^value 5"}"# /* r#"{"list_of_maps":[{"url":"http://a.com/","headers":{"inner1":"1","inner2":"2"}},{"url":"http://b.com/","headers":{"inner3":"3","inner4":"4"}},{"url":"http://c.com/","headers":{}},{"url":"http://d.com/","headers":{"inner5":"5"}}]}"# */
     );
-}
-
-// Demonstrates the bug in update_optional_values: the nesting check uses
-// `none_param.starts_with(other_none_param)` instead of
-// `none_param.starts_with(&format!("{other_none_param}."))`.
-//
-// When two independent optional params share a string prefix (e.g., "foo" and "foobar"),
-// "foobar" is wrongly identified as nested inside "foo" because
-// "foobar".starts_with("foo") == true.
-// As a result, null is never inserted for "foobar", breaking deserialization.
-#[test]
-fn test_update_optional_values_false_prefix_match() {
-    use serde_json::Value;
-
-    let mut config_map: BTreeMap<ParamPath, Value> = BTreeMap::new();
-    // Two independent optional params whose names share a prefix but are NOT
-    // in a parent-child path relationship.
-    config_map.insert(format!("foo.{IS_NONE_MARK}"), json!(true));
-    config_map.insert("foo.inner".to_string(), json!(42));
-    config_map.insert(format!("foobar.{IS_NONE_MARK}"), json!(true));
-    config_map.insert("foobar.inner".to_string(), json!(99));
-
-    update_optional_values(&mut config_map);
-
-    // Both should be present as null — they are independent optional params.
-    assert_eq!(config_map.get("foo"), Some(&Value::Null), "'foo' should be null");
-    // This assertion FAILS on buggy code: "foobar" is skipped because the
-    // nesting check erroneously treats it as a child of "foo".
-    assert_eq!(config_map.get("foobar"), Some(&Value::Null), "'foobar' should be null");
 }

@@ -3,7 +3,6 @@ use strum::IntoEnumIterator;
 
 use super::*;
 use crate::block::{GasPrice, NonzeroGasPrice};
-use crate::execution_resources::GasAmount;
 
 /// Returns SNOS-shaped `ProofFacts` whose first felt is the given proof version.
 fn proof_facts_given_proof_version(proof_version: Felt) -> ProofFacts {
