@@ -575,6 +575,15 @@ impl SequencerConsensusContext {
             self.wait_for_block_hash(height).await;
         }
 
+        // The parent block's `fee_proposal_fri` is needed to reconstruct its V0_14_3 commitment
+        // (`Poseidon(partial_block_hash, fee_proposal_fri)`). It is read from the in-memory
+        // `fee_proposals_window`, which mirrors `BlockHeaderWithoutHash` storage. `None` means the
+        // parent is pre-V0_14_3 (or, near genesis, is absent from the window).
+        let parent_fee_proposal = height
+            .prev()
+            .and_then(|parent_height| self.fee_proposals_window.get(&parent_height).copied())
+            .flatten();
+
         if let Err(e) = self
             .deps
             .cende_ambassador
@@ -600,13 +609,9 @@ impl SequencerConsensusContext {
                 compiled_class_hashes_for_migration: central_objects
                     .compiled_class_hashes_for_migration,
                 proposal_commitment: commitment,
-                // TODO(AndrewL): plumb the parent block's `fee_proposal_fri` here once
-                // `central_objects.parent_proposal_commitment` carries it (or read from
-                // BlockHeaderWithoutHash storage). Today we pass `None`, which means
-                // pre-V0_14_3 commitments — correct for pre-V0_14_3 deployments only.
                 parent_proposal_commitment: central_objects
                     .parent_proposal_commitment
-                    .map(|c| proposal_commitment_from(c.partial_block_hash, None)),
+                    .map(|c| proposal_commitment_from(c.partial_block_hash, parent_fee_proposal)),
                 recent_block_hashes: self.collect_recent_block_hashes(height).await,
             })
             .await
