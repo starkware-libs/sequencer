@@ -7,7 +7,10 @@
 
 set -e
 
-# Pinned SHA-256 of https://apt.llvm.org/llvm.sh. Recorded 2026-05-14.
+# Pinned SHA-256 of https://apt.llvm.org/llvm.sh. Recorded 2026-05-31; this hash
+# is the file at opencollab/llvm-jenkins.debian.net commit d9929ab5 ("update the
+# default version to 22"). Record the upstream commit so the next bump only needs
+# to review the diff since this one.
 #
 # Why pin: llvm.sh runs as root in our CI / Docker builds. TLS authenticates the
 # server, but not the *content* — an apt.llvm.org compromise, hijacked DNS, or
@@ -24,7 +27,7 @@ set -e
 #      cause is investigated.
 #
 # Same supply-chain hygiene as Cargo.lock pinning crate hashes.
-LLVM_SH_SHA256="14a4eda1349f23acf9dc0b564ed44b21bce3bd1703c78b5f7488870d7c6fe68f"
+LLVM_SH_SHA256="dd5978eafdd69ff7f95793b35f633beca37fe50d84101a9a4add2bf93512c511"
 
 [[ ${UID} == "0" ]] || SUDO="sudo"
 
