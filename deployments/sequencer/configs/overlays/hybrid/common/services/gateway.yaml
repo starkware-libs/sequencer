@@ -17,6 +17,7 @@ config:
     components.state_sync.port: 55009
     components.state_sync.url: sequencer-core-service
     gateway_config.static_config.stateless_tx_validator_config.min_gas_price: 8000000000
+    http_server_config.static_config.port: 8080
 
 service:
   enabled: true
