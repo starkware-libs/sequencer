@@ -4,7 +4,6 @@
 imagePullSecrets: []
 
 metaLabels:
-  app: sequencer
   overlay: all-constructs
 
 image:

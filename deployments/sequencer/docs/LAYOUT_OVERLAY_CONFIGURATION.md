@@ -351,9 +351,9 @@ image:
 # Image pull secrets (applies to all services)
 imagePullSecrets: []
 
-# Base labels for all services (merged with service-specific labels)
+# Base labels for all services (merged with service-specific labels).
+# `app` and `service` are reserved (managed by the deployment) and must not be set here.
 metaLabels:
-  app: sequencer
   environment: production
 
 # Environment variables (applied to all services)

@@ -29,7 +29,7 @@ class DeploymentConstruct(BaseConstruct):
             self.monitoring_endpoint_port,
         )
 
-        selector_labels = {"service": self.labels["service"]}
+        selector_labels = {"app": "sequencer", "service": f"sequencer-{self.service_config.name}"}
 
         return k8s.KubeDeployment(
             self,
