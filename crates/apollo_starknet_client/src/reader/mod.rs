@@ -4,6 +4,8 @@
 
 pub mod objects;
 #[cfg(test)]
+mod request_with_retry_test;
+#[cfg(test)]
 mod starknet_feeder_gateway_client_test;
 
 use std::collections::HashMap;
@@ -17,6 +19,8 @@ use cairo_lang_starknet_classes::casm_contract_class::{
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use papyrus_common::pending_classes::ApiContractClass;
+use reqwest::header::HeaderMap;
+use reqwest::{Client, RequestBuilder, StatusCode};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ClassHash, SequencerPublicKey};
@@ -24,7 +28,7 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::transaction::TransactionHash;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
-use tracing::{debug, error, instrument};
+use tracing::{debug, error, instrument, warn};
 use url::Url;
 
 use crate::reader::objects::block::BlockStatus;
@@ -46,20 +50,20 @@ pub use crate::reader::objects::state::{
 };
 #[cfg(doc)]
 pub use crate::reader::objects::transaction::TransactionReceipt;
-use crate::retry::RetryConfig;
+use crate::retry::{Retry, RetryConfig};
 use crate::starknet_error::{KnownStarknetErrorCode, StarknetError, StarknetErrorCode};
-use crate::{ClientCreationError, ClientError, StarknetClient};
+use crate::{ClientCreationError, ClientError, RetryErrorCode};
 
 /// Errors that may be returned from a reader client.
 #[derive(thiserror::Error, Debug)]
 pub enum ReaderClientError {
-    /// A client error representing errors from the base StarknetClient.
+    /// A client error representing errors from the underlying HTTP client.
     #[error(transparent)]
     ClientError(#[from] ClientError),
     /// A client error representing deserialization errors.
     /// Note: [`ClientError`] contains SerdeError as well. The difference is that this variant is
     /// responsible for serde errors coming from [`StarknetReader`] and ClientError::SerdeError
-    /// is responsible for serde errors coming from StarknetClient.
+    /// is responsible for serde errors coming from the HTTP request layer.
     #[error(transparent)]
     SerdeError(#[from] serde_json::Error),
     /// A client error representing errors from [`starknet_api`].
@@ -127,12 +131,26 @@ pub trait StarknetReader {
     async fn sequencer_pub_key(&self) -> ReaderClientResult<SequencerPublicKey>;
 }
 
+/// A [`Result`] in which the error is a [`ClientError`].
+type ClientResult<T> = Result<T, ClientError>;
+
+// A wrapper error for request_with_retry to handle the case that clone failed.
+#[derive(thiserror::Error, Debug)]
+enum RequestWithRetryError {
+    #[error("Request is unclonable.")]
+    CloneError,
+    #[error(transparent)]
+    ClientError(#[from] ClientError),
+}
+
 /// A client for the [`Starknet`] feeder gateway.
 ///
 /// [`Starknet`]: https://starknet.io/
 pub struct StarknetFeederGatewayClient {
     urls: StarknetUrls,
-    client: StarknetClient,
+    http_headers: HeaderMap,
+    pub(crate) internal_client: Client,
+    retry_config: RetryConfig,
 }
 
 #[derive(Clone, Debug)]
@@ -204,17 +222,133 @@ impl StarknetFeederGatewayClient {
         node_version: &'static str,
         retry_config: RetryConfig,
     ) -> Result<Self, ClientCreationError> {
+        let header_map = match http_headers {
+            Some(inner) => (&inner.expose_secret())
+                .try_into()
+                .map_err(|_| ClientCreationError::HttpHeaderError)?,
+            None => HeaderMap::new(),
+        };
+        let info = os_info::get();
+        let system_information =
+            format!("{}; {}; {}", info.os_type(), info.version(), info.bitness());
+        let app_user_agent = format!(
+            "{product_name}/{product_version} ({system_information})",
+            product_name = "apollo",
+            product_version = node_version,
+            system_information = system_information
+        );
         Ok(StarknetFeederGatewayClient {
             urls: StarknetUrls::new(url_str)?,
-            client: StarknetClient::new(http_headers, node_version, retry_config)?,
+            http_headers: header_map,
+            internal_client: Client::builder().user_agent(app_user_agent).build()?,
+            retry_config,
         })
+    }
+
+    fn get_retry_error_code(err: &ClientError) -> Option<RetryErrorCode> {
+        match err {
+            ClientError::BadResponseStatus { code, message: _ } => match *code {
+                StatusCode::TEMPORARY_REDIRECT => Some(RetryErrorCode::Redirect),
+                StatusCode::REQUEST_TIMEOUT | StatusCode::GATEWAY_TIMEOUT => {
+                    Some(RetryErrorCode::Timeout)
+                }
+                StatusCode::TOO_MANY_REQUESTS => Some(RetryErrorCode::TooManyRequests),
+                StatusCode::SERVICE_UNAVAILABLE => Some(RetryErrorCode::ServiceUnavailable),
+                _ => None,
+            },
+
+            ClientError::RequestError(internal_err) => {
+                if internal_err.is_timeout() {
+                    Some(RetryErrorCode::Timeout)
+                } else if internal_err.is_request() {
+                    None
+                } else if internal_err.is_connect() {
+                    Some(RetryErrorCode::Disconnect)
+                } else if internal_err.is_redirect() {
+                    Some(RetryErrorCode::Redirect)
+                } else {
+                    None
+                }
+            }
+
+            ClientError::StarknetError(StarknetError {
+                code:
+                    StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::TransactionLimitExceeded),
+                message: _,
+            }) => Some(RetryErrorCode::TooManyRequests),
+            _ => None,
+        }
+    }
+
+    fn should_retry(err: &RequestWithRetryError) -> bool {
+        match err {
+            RequestWithRetryError::ClientError(err) => {
+                Self::get_retry_error_code(err).is_some()
+            }
+            RequestWithRetryError::CloneError => false,
+        }
+    }
+
+    // If the request_builder is unclonable, the function will not retry the request upon failure.
+    pub(crate) async fn request_with_retry(
+        &self,
+        request_builder: RequestBuilder,
+    ) -> ClientResult<String> {
+        let res = Retry::new(&self.retry_config)
+            .start_with_condition(
+                || async {
+                    match request_builder.try_clone() {
+                        Some(request_builder) => self
+                            .request(request_builder)
+                            .await
+                            .map_err(RequestWithRetryError::ClientError),
+                        None => Err(RequestWithRetryError::CloneError),
+                    }
+                },
+                Self::should_retry,
+            )
+            .await;
+
+        match res {
+            Ok(string) => Ok(string),
+            Err(RequestWithRetryError::ClientError(err)) => {
+                Err(Self::get_retry_error_code(&err)
+                    .map(|code| ClientError::RetryError { code, message: err.to_string() })
+                    .unwrap_or(err))
+            }
+            Err(RequestWithRetryError::CloneError) => {
+                warn!("Starknet client got an unclonable request. Can't retry upon failure.");
+                self.request(request_builder).await
+            }
+        }
+    }
+
+    async fn request(&self, request_builder: RequestBuilder) -> ClientResult<String> {
+        let res = request_builder.headers(self.http_headers.clone()).send().await;
+        let (code, message) = match res {
+            Ok(response) => (response.status(), response.text().await?),
+            Err(err) => {
+                let msg = err.to_string();
+                (err.status().ok_or(err)?, msg)
+            }
+        };
+        match code {
+            StatusCode::OK => Ok(message),
+            // TODO(Omri): The error code returned from SN changed from error 500 to error 400. For
+            // now, keeping both options. In the future, remove the '500' (INTERNAL_SERVER_ERROR)
+            // option.
+            StatusCode::INTERNAL_SERVER_ERROR | StatusCode::BAD_REQUEST => {
+                let starknet_error: StarknetError = serde_json::from_str(&message)?;
+                Err(ClientError::StarknetError(starknet_error))
+            }
+            _ => Err(ClientError::BadResponseStatus { code, message }),
+        }
     }
 
     async fn request_with_retry_url(&self, url: Url) -> ReaderClientResult<String> {
         debug!("Call to feeder started. url={url:?}");
         let result = self
-            .client
-            .request_with_retry(self.client.internal_client.get(url.clone()))
+            .request_with_retry(self.internal_client.get(url.clone()))
             .await
             .map_err(Into::<ReaderClientError>::into);
         match &result {
