@@ -173,6 +173,10 @@ impl ReadOnlyStorage for AerospikeStorage {
     async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         ImmutableReadOnlyStorage::mget(self, keys).await
     }
+
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+        Some(self)
+    }
 }
 
 impl Storage for AerospikeStorage {
@@ -255,10 +259,6 @@ impl Storage for AerospikeStorage {
 
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
         Some(self.clone())
-    }
-
-    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
-        Some(self)
     }
 }
 
