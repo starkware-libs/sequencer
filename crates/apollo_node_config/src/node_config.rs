@@ -115,9 +115,9 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 &POINTER_TARGET_VALUE.to_string(),
                 "URL for communicating with Starknet.",
             ),
+            // TODO(shahak): Consider removing this pointer
             set_pointing_param_paths(&[
                 "state_sync_config.static_config.central_sync_client_config.central_source_config.starknet_url",
-                "state_sync_config.static_config.rpc_config.starknet_url",
             ]),
         ),
         (
