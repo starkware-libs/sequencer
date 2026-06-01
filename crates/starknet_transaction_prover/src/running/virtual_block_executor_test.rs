@@ -6,7 +6,7 @@ use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::utils::get_chain_info;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::transaction::fields::ValidResourceBounds;
@@ -15,6 +15,7 @@ use starknet_api::{calldata, felt, invoke_tx_args};
 
 use crate::errors::VirtualBlockExecutorError;
 use crate::running::virtual_block_executor::{
+    forward_compatible_starknet_version,
     RpcVirtualBlockExecutor,
     RpcVirtualBlockExecutorConfig,
     VirtualBlockExecutor,
@@ -27,6 +28,34 @@ use crate::test_utils::{
     STRK_TOKEN_ADDRESS,
     TEST_BLOCK_NUMBER,
 };
+
+/// A known version parses to its exact variant; a version strictly newer than the latest known
+/// version falls back to `StarknetVersion::LATEST` so newer blocks don't block proving.
+#[test]
+fn test_forward_compatible_version_falls_back_for_newer() {
+    assert_matches!(
+        forward_compatible_starknet_version("0.14.2"),
+        Ok(version) if version == StarknetVersion::V0_14_2
+    );
+    assert_matches!(
+        forward_compatible_starknet_version("0.14.3"),
+        Ok(version) if version == StarknetVersion::LATEST
+    );
+    assert_matches!(
+        forward_compatible_starknet_version("0.99.0"),
+        Ok(version) if version == StarknetVersion::LATEST
+    );
+}
+
+/// Unknown versions that are older than the latest known version, or malformed, must error —
+/// the fallback only forgives strictly-newer versions, it never masks genuinely bad data.
+#[test]
+fn test_forward_compatible_version_rejects_older_and_malformed() {
+    // [0, 13, 99] < [0, 14, 2], so this is an unknown *older* version.
+    assert_matches!(forward_compatible_starknet_version("0.13.99"), Err(_));
+    assert_matches!(forward_compatible_starknet_version("not.a.version"), Err(_));
+    assert_matches!(forward_compatible_starknet_version(""), Err(_));
+}
 
 /// Constructs an Invoke transaction that calls `balanceOf` on the STRK token contract.
 ///

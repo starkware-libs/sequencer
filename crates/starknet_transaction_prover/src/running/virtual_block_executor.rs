@@ -23,14 +23,14 @@ use blockifier_reexecution::state_reader::prefetched_state_reader::{
 use blockifier_reexecution::state_reader::rpc_objects::{BlockHeader, BlockId};
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockInfo};
+use starknet_api::block::{BlockHash, BlockInfo, StarknetVersion};
 use starknet_api::block_hash::block_hash_calculator::{concat_counts, BlockHeaderCommitments};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{InvokeTransaction, MessageToL1, Transaction, TransactionHash};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use tracing::error;
+use tracing::{error, warn};
 
 use crate::errors::VirtualBlockExecutorError;
 
@@ -85,13 +85,45 @@ pub(crate) struct BaseBlockInfo {
     pub(crate) prev_base_block_hash: BlockHash,
 }
 
+/// Parses the block header's Starknet version, tolerating versions newer than this binary knows.
+///
+/// `StarknetVersion` is a closed enum, so a block produced by a Starknet version released after
+/// this binary was built can't be parsed. The prover runs the OS with the latest versioned
+/// constants regardless of the block's version, so a *strictly newer* version is treated as
+/// `StarknetVersion::LATEST`. Older or malformed versions still error — we only forgive the
+/// forward-compatibility case, never mask genuinely unsupported data.
+pub(crate) fn forward_compatible_starknet_version(
+    raw_version: &str,
+) -> Result<StarknetVersion, VirtualBlockExecutorError> {
+    if let Ok(version) = StarknetVersion::try_from(raw_version.to_string()) {
+        return Ok(version);
+    }
+    let latest = StarknetVersion::LATEST;
+    // Compare numerically: Vec<u8> orders lexicographically, matching version ordering
+    // (major, minor, patch, [fourth]).
+    let version_bytes: Result<Vec<u8>, _> =
+        raw_version.split('.').map(|component| component.parse::<u8>()).collect();
+    match version_bytes {
+        Ok(version_bytes) if version_bytes > Vec::<u8>::from(latest) => {
+            warn!(
+                "Block header reports unknown Starknet version '{raw_version}', newer than the \
+                 latest known version {latest}; falling back to {latest} for proving."
+            );
+            Ok(latest)
+        }
+        _ => Err(VirtualBlockExecutorError::TransactionExecutionError(format!(
+            "Unsupported Starknet version '{raw_version}' (latest known: {latest})"
+        ))),
+    }
+}
+
 impl BaseBlockInfo {
     /// Creates a `BaseBlockInfo` from a block header and chain info.
     ///
     /// When `use_latest_versioned_constants` is `true`, the latest versioned constants are used
     /// instead of the ones matching the block's Starknet version.
     pub(crate) fn new(
-        header: BlockHeader,
+        mut header: BlockHeader,
         chain_info: ChainInfo,
         use_latest_versioned_constants: bool,
     ) -> Result<Self, VirtualBlockExecutorError> {
@@ -109,6 +141,10 @@ impl BaseBlockInfo {
                 header.l1_da_mode,
             ),
         };
+
+        // Forward compatibility: tolerate versions newer than this binary knows (see helper).
+        let starknet_version = forward_compatible_starknet_version(&header.starknet_version)?;
+        header.starknet_version = starknet_version.to_string();
 
         let block_info: BlockInfo = header.try_into().map_err(|e| {
             VirtualBlockExecutorError::TransactionExecutionError(format!(
