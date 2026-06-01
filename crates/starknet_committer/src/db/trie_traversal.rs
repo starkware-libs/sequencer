@@ -850,6 +850,49 @@ where
     }
 }
 
+/// Storage task for fetching Patricia paths in a single storage trie.
+#[expect(dead_code)]
+struct StoragePathsReadTask<'indices, Layout: NodeLayoutFor<StarknetStorageValue>> {
+    address: ContractAddress,
+    storage_root_hash: HashOutput,
+    sorted_leaf_indices: SortedLeafIndices<'indices>,
+    _layout: PhantomData<Layout>,
+}
+
+impl<'indices, S, Layout> StorageTaskOutput<S> for StoragePathsReadTask<'indices, Layout>
+where
+    S: ImmutableReadOnlyStorage,
+    Layout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
+{
+    type Output = TraversalResult<(ContractAddress, PreimageMap)>;
+}
+
+#[async_trait]
+impl<'indices, 'storage, S, Layout> StorageTask<'storage, S>
+    for StoragePathsReadTask<'indices, Layout>
+where
+    S: ImmutableReadOnlyStorage + 'storage,
+    Layout: NodeLayoutFor<StarknetStorageValue> + Send + 'static,
+    <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
+        HasStaticPrefix<KeyContext = ContractAddress>,
+{
+    async fn run_with_storage(
+        self,
+        storage: &mut ReadsCollectorStorage<'storage, S>,
+    ) -> Self::Output {
+        let leaves = None;
+        let proof = fetch_patricia_paths::<Layout::DbLeaf, Layout>(
+            storage,
+            self.storage_root_hash,
+            self.sorted_leaf_indices,
+            leaves,
+            &self.address,
+        )
+        .await?;
+        Ok((self.address, proof))
+    }
+}
+
 async fn create_storage_tries_concurrently<'a, S, Layout>(
     storage: &mut S,
     actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
