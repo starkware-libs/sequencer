@@ -13,6 +13,13 @@ workspace = true
 # Enables `SierraToNativeCompiler::compile_with_program`, which returns the
 # AOT executor paired with the Sierra program required by cairo-native's
 # libfunc profiler.
+#
+# This only enables profiling in the linked cairo-native library. The profiler
+# symbol that `run_with_libfunc_profile` looks up is emitted by the compiler, so
+# the `starknet-native-compile` binary must itself be built with its
+# `with-libfunc-profiling` feature; a default-built binary yields `.so`s with no
+# profiler symbol and every profiled call then fails. Point
+# `SierraCompilationConfig.compiler_binary_path` at an instrumented binary.
 with-libfunc-profiling = ["cairo-native/with-libfunc-profiling"]
 
 [dependencies]
