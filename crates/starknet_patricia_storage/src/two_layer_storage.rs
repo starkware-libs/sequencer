@@ -1,7 +1,9 @@
 use crate::storage_trait::{
     DbKey,
     DbValue,
+    GatherableStorage,
     ImmutableReadOnlyStorage,
+    NullStorage,
     PatriciaStorageResult,
     ReadOnlyStorage,
 };
@@ -66,5 +68,11 @@ where
             }
         }
         Ok(out)
+    }
+
+    /// This wrapper does not support concurrent task execution as it does not own the underlying
+    /// storage, and hence cannot satisfy the `'static` constraint of `GatherableStorage`.
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+        None::<&mut NullStorage>
     }
 }

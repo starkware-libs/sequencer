@@ -197,6 +197,10 @@ pub trait ReadOnlyStorage: Send + Sync {
         &mut self,
         keys: &[&DbKey],
     ) -> impl Future<Output = PatriciaStorageResult<Vec<Option<DbValue>>>> + Send;
+
+    /// If the storage supports concurrent task execution via [GatherableStorage::gather], returns
+    /// a mutable reference to it. Returns `None` otherwise.
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage>;
 }
 
 /// A trait for the storage. Extends [ReadOnlyStorage] with write operations.
@@ -248,10 +252,6 @@ pub trait Storage: ReadOnlyStorage {
 
     /// If the storage is async, returns an instance of the async storage.
     fn get_async_self(&self) -> Option<impl AsyncStorage>;
-
-    /// If the storage supports concurrent task execution via [GatherableStorage::gather], returns
-    /// a mutable reference to it. Returns `None` otherwise.
-    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage>;
 }
 
 /// A trait wrapper for [Storage] that supports concurrency.
@@ -299,6 +299,10 @@ impl ReadOnlyStorage for NullStorage {
     async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         ImmutableReadOnlyStorage::mget(self, keys).await
     }
+
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+        Some(self)
+    }
 }
 
 impl Storage for NullStorage {
@@ -330,10 +334,6 @@ impl Storage for NullStorage {
 
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
         Some(self.clone())
-    }
-
-    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
-        Some(self)
     }
 }
 
