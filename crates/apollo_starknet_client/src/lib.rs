@@ -16,18 +16,7 @@ mod test_utils;
 
 pub use self::retry::RetryConfig;
 pub use self::starknet_error::{KnownStarknetErrorCode, StarknetError, StarknetErrorCode};
-pub use crate::reader::ClientError;
-
-/// Errors that might be encountered while creating the client.
-#[derive(thiserror::Error, Debug)]
-pub enum ClientCreationError {
-    #[error(transparent)]
-    BadUrl(#[from] url::ParseError),
-    #[error(transparent)]
-    BuildError(#[from] reqwest::Error),
-    #[error("Failed to create header map.")]
-    HttpHeaderError,
-}
+pub use crate::reader::{ClientCreationError, ClientError};
 
 /// Errors that might be solved by retrying mechanism.
 #[derive(Debug, Eq, PartialEq)]

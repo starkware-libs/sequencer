@@ -52,7 +52,18 @@ pub use crate::reader::objects::state::{
 pub use crate::reader::objects::transaction::TransactionReceipt;
 use crate::retry::{Retry, RetryConfig};
 use crate::starknet_error::{KnownStarknetErrorCode, StarknetError, StarknetErrorCode};
-use crate::{ClientCreationError, RetryErrorCode};
+use crate::RetryErrorCode;
+
+/// Errors that might be encountered while creating the client.
+#[derive(thiserror::Error, Debug)]
+pub enum ClientCreationError {
+    #[error(transparent)]
+    BadUrl(#[from] url::ParseError),
+    #[error(transparent)]
+    BuildError(#[from] reqwest::Error),
+    #[error("Failed to create header map.")]
+    HttpHeaderError,
+}
 
 /// Errors that may be returned by a client.
 #[derive(thiserror::Error, Debug)]
