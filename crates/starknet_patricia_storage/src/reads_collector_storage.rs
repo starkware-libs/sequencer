@@ -2,7 +2,9 @@ use crate::storage_trait::{
     DbHashMap,
     DbKey,
     DbValue,
+    GatherableStorage,
     ImmutableReadOnlyStorage,
+    NullStorage,
     PatriciaStorageResult,
     ReadOnlyStorage,
 };
@@ -42,5 +44,9 @@ impl<'a, S: ImmutableReadOnlyStorage> ReadOnlyStorage for ReadsCollectorStorage<
             }
         }
         Ok(values)
+    }
+
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+        None::<&mut NullStorage>
     }
 }

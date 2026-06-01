@@ -331,6 +331,10 @@ impl ReadOnlyStorage for RocksDbStorage {
     async fn mget_mut(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         ImmutableReadOnlyStorage::mget(self, keys).await
     }
+
+    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
+        Some(self)
+    }
 }
 
 impl Storage for RocksDbStorage {
@@ -375,10 +379,6 @@ impl Storage for RocksDbStorage {
 
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
         Some(self.clone())
-    }
-
-    fn as_gatherable_storage(&mut self) -> Option<&mut impl GatherableStorage> {
-        Some(self)
     }
 }
 
