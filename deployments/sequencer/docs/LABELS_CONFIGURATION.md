@@ -11,9 +11,10 @@ Defined in `common.yaml` (or at the root of a service yaml), this applies labels
 # configs/layouts/hybrid/common.yaml
 metaLabels:
   environment: "production"
-  app: "sequencer"
 ```
 *Effect:* Appended to Deployments, StatefulSets, Pods, Services, ConfigMaps, Secrets, Ingresses, HPAs, and all other generated resources.
+
+> **Reserved keys:** `app` and `service` are managed by the deployment and enforced on the pod template labels so they always match the Deployment/StatefulSet selectors. Setting either key in `metaLabels` or `podLabels` is rejected by schema validation.
 
 ## 2. Pod Level (`podLabels`)
 Because `Deployment` and `StatefulSet` controllers generate Pods, you often want labels that apply **only to the Pods** but not to the controller itself (useful for monitoring scrapers, mesh networking, etc.).
