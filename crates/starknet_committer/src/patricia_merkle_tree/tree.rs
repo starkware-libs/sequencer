@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use blockifier::state::accessed_keys::AccessedKeys;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::PreimageMap;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use starknet_patricia::patricia_merkle_tree::traversal::TraversalResult;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
@@ -17,7 +18,7 @@ use crate::block_committer::input::{
 };
 use crate::db::db_layout::DbLayout;
 use crate::db::facts_db::FactsNodeLayout;
-use crate::db::trie_traversal::fetch_patricia_paths;
+use crate::db::trie_traversal::{fetch_contract_storage_paths, fetch_patricia_paths};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::{
     class_hash_into_node_index,
@@ -135,6 +136,44 @@ pub async fn fetch_all_patricia_paths<Layout>(
 where
     Layout: DbLayout,
     Layout::ContractStateDbLeaf: AsRef<ContractState> + Into<ContractState>,
+    Layout::NodeLayout: Send + 'static,
+{
+    let (classes_trie_proof, contracts_proof_nodes, contract_leaves) =
+        fetch_classes_and_contracts_patricia_paths::<Layout>(
+            storage,
+            classes_trie_root_hash,
+            contracts_trie_root_hash,
+            class_sorted_leaf_indices,
+            contract_sorted_leaf_indices,
+            contract_storage_sorted_leaf_indices,
+        )
+        .await?;
+    let contracts_trie_storage_proofs =
+        fetch_contract_storage_paths::<Layout::NodeLayout, Layout::ContractStateDbLeaf>(
+            storage,
+            contract_storage_sorted_leaf_indices,
+            &contract_leaves,
+        )
+        .await?;
+    Ok(build_starknet_forest_proofs::<Layout>(
+        classes_trie_proof,
+        contracts_proof_nodes,
+        contract_leaves,
+        contracts_trie_storage_proofs,
+    ))
+}
+
+async fn fetch_classes_and_contracts_patricia_paths<Layout>(
+    storage: &mut impl ReadOnlyStorage,
+    classes_trie_root_hash: HashOutput,
+    contracts_trie_root_hash: HashOutput,
+    class_sorted_leaf_indices: SortedLeafIndices<'_>,
+    contract_sorted_leaf_indices: SortedLeafIndices<'_>,
+    contract_storage_sorted_leaf_indices: &HashMap<NodeIndex, SortedLeafIndices<'_>>,
+) -> TraversalResult<(PreimageMap, PreimageMap, HashMap<NodeIndex, Layout::ContractStateDbLeaf>)>
+where
+    Layout: DbLayout,
+    Layout::ContractStateDbLeaf: AsRef<ContractState> + Into<ContractState>,
 {
     // Verify that all `contract_storage_sorted_leaf_indices` keys are included in
     // `contract_sorted_leaf_indices`.
@@ -176,42 +215,21 @@ where
         )
         .await?;
 
-    // Contracts storage tries.
-    let mut contracts_trie_storage_proofs =
-        HashMap::with_capacity(contract_storage_sorted_leaf_indices.len());
+    Ok((classes_trie_proof, contracts_proof_nodes, leaves))
+}
 
-    for (idx, sorted_leaf_indices) in contract_storage_sorted_leaf_indices {
-        let contract_address = try_node_index_into_contract_address(idx).unwrap_or_else(|_| {
-            panic!(
-                "Converting leaf NodeIndex to ContractAddress should succeed; failed to convert \
-                 {idx:?}."
-            )
-        });
-
-        // The contract address might not exist in the contracts trie in the following cases:
-        // 1. We are looking at the previous tree and the contract is new.
-        // 2. We are looking at the new tree and the contract is deleted (revert).
-        // In either case, the storage trie of this contract is empty, so there is nothing to
-        // prove regarding the contract storage.
-        let Some(storage_root_hash) = leaves.get(idx).map(|leaf| leaf.as_ref().storage_root_hash)
-        else {
-            continue;
-        };
-        // No need to fetch the leaves.
-        let leaves = None;
-        let proof = fetch_patricia_paths::<Layout::StarknetStorageValueDbLeaf, Layout::NodeLayout>(
-            storage,
-            storage_root_hash,
-            *sorted_leaf_indices,
-            leaves,
-            &contract_address,
-        )
-        .await?;
-        contracts_trie_storage_proofs.insert(contract_address, proof);
-    }
-
+fn build_starknet_forest_proofs<Layout>(
+    classes_trie_proof: PreimageMap,
+    contracts_proof_nodes: PreimageMap,
+    contract_leaves: HashMap<NodeIndex, Layout::ContractStateDbLeaf>,
+    contracts_trie_storage_proofs: HashMap<ContractAddress, PreimageMap>,
+) -> StarknetForestProofs
+where
+    Layout: DbLayout,
+    Layout::ContractStateDbLeaf: Into<ContractState>,
+{
     // Convert contract_leaves_data keys from NodeIndex to ContractAddress.
-    let contract_leaves_data: HashMap<ContractAddress, ContractState> = leaves
+    let contract_leaves_data: HashMap<ContractAddress, ContractState> = contract_leaves
         .into_iter()
         .map(|(idx, contract_state_leaf)| {
             (
@@ -226,14 +244,14 @@ where
         })
         .collect();
 
-    Ok(StarknetForestProofs {
+    StarknetForestProofs {
         classes_trie_proof,
         contracts_trie_proof: ContractsTrieProof {
             nodes: contracts_proof_nodes,
             leaves: contract_leaves_data,
         },
         contracts_trie_storage_proofs,
-    })
+    }
 }
 
 /// Fetch the Patricia paths (inner nodes) in the classes trie, contracts trie,
