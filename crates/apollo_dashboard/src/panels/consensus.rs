@@ -755,7 +755,7 @@ fn get_panel_snip35_fee_target_atto_usd() -> Panel {
         "Configured target USD cost per 1 billion L2 gas units (raw metric is atto-USD per L2 \
          gas; atto-USD / 1e9 = USD per 1B L2 gas)",
         format!("{} / 1e9", SNIP35_FEE_TARGET_ATTO_USD.get_name_with_filter()),
-        PanelType::TimeSeries,
+        PanelType::Stat,
     )
 }
 
