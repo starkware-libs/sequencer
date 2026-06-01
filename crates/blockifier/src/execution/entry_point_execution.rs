@@ -25,11 +25,7 @@ use crate::execution::call_info::{
     Retdata,
 };
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, TrackedResource};
-use crate::execution::entry_point::{
-    EntryPointExecutionContext,
-    EntryPointExecutionResult,
-    ExecutableCallEntryPoint,
-};
+use crate::execution::entry_point::{EntryPointExecutionContext, ExecutableCallEntryPoint};
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{
     read_execution_retdata,
@@ -110,7 +106,7 @@ pub fn execute_entry_point_call(
     compiled_class: CompiledClassV1,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
-) -> EntryPointExecutionResult<CallInfo> {
+) -> Result<CallInfo, EntryPointExecutionError> {
     let tracked_resource =
         *context.tracked_resource_stack.last().expect("Unexpected empty tracked resource.");
     // Extract information from the context, as it will be passed as a mutable reference.
@@ -121,7 +117,8 @@ pub fn execute_entry_point_call(
         initial_syscall_ptr,
         entry_point,
         program_extra_data_length,
-    } = initialize_execution_context(call, &compiled_class, state, context)?;
+    } = initialize_execution_context(call, &compiled_class, state, context)
+        .map_err(EntryPointExecutionError::from)?;
 
     let args = prepare_call_arguments(
         &syscall_handler.base.call,
@@ -130,7 +127,8 @@ pub fn execute_entry_point_call(
         &mut syscall_handler.read_only_segments,
         &entry_point,
         entry_point_initial_budget,
-    )?;
+    )
+    .map_err(EntryPointExecutionError::from)?;
 
     let n_total_args = args.len();
 
@@ -139,13 +137,14 @@ pub fn execute_entry_point_call(
     let program_segment_size = bytecode_length + program_extra_data_length;
     run_entry_point(&mut runner, &mut syscall_handler, entry_point, args, program_segment_size)?;
 
-    Ok(finalize_execution(
+    finalize_execution(
         runner,
         syscall_handler,
         n_total_args,
         program_extra_data_length,
         tracked_resource,
-    )?)
+    )
+    .map_err(EntryPointExecutionError::from)
 }
 
 pub fn initialize_execution_context_with_runner_mode<'a>(
@@ -314,7 +313,7 @@ pub fn run_entry_point<HP: HintProcessor>(
     entry_point: EntryPointV1,
     args: Args,
     program_segment_size: usize,
-) -> EntryPointExecutionResult<()> {
+) -> Result<(), EntryPointExecutionError> {
     // Note that we run `verify_secure_runner` manually after filling the holes in the rc96 segment.
     let verify_secure = false;
     let args: Vec<&CairoArg> = args.iter().collect();
@@ -326,12 +325,13 @@ pub fn run_entry_point<HP: HintProcessor>(
             Some(program_segment_size),
             hint_processor,
         )
-        .map_err(Box::new)?;
+        .map_err(|error| EntryPointExecutionError::from(Box::new(error)))?;
 
     maybe_fill_holes(entry_point, runner)?;
 
-    verify_secure_runner(runner, false, Some(program_segment_size))
-        .map_err(|error| Box::new(CairoRunError::VirtualMachine(error)))?;
+    verify_secure_runner(runner, false, Some(program_segment_size)).map_err(|error| {
+        EntryPointExecutionError::from(Box::new(CairoRunError::VirtualMachine(error)))
+    })?;
 
     Ok(())
 }
