@@ -15,7 +15,6 @@ mod starknet_client_test;
 pub mod starknet_error;
 #[cfg(test)]
 mod test_utils;
-pub mod writer;
 
 use std::collections::HashMap;
 
@@ -59,7 +58,7 @@ pub enum RetryErrorCode {
     Disconnect,
 }
 
-/// Errors that may be returned by a reader or writer client.
+/// Errors that may be returned by a client.
 #[derive(thiserror::Error, Debug)]
 pub enum ClientError {
     /// A client error representing bad status http responses.
