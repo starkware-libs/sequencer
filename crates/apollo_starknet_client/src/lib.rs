@@ -16,15 +16,4 @@ mod test_utils;
 
 pub use self::retry::RetryConfig;
 pub use self::starknet_error::{KnownStarknetErrorCode, StarknetError, StarknetErrorCode};
-pub use crate::reader::{ClientCreationError, ClientError};
-
-/// Errors that might be solved by retrying mechanism.
-#[derive(Debug, Eq, PartialEq)]
-pub enum RetryErrorCode {
-    Redirect,
-    Timeout,
-    TooManyRequests,
-    ServiceUnavailable,
-    Disconnect,
-}
-
+pub use crate::reader::{ClientCreationError, ClientError, RetryErrorCode};

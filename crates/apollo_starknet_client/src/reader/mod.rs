@@ -52,7 +52,16 @@ pub use crate::reader::objects::state::{
 pub use crate::reader::objects::transaction::TransactionReceipt;
 use crate::retry::{Retry, RetryConfig};
 use crate::starknet_error::{KnownStarknetErrorCode, StarknetError, StarknetErrorCode};
-use crate::RetryErrorCode;
+
+/// Errors that might be solved by retrying mechanism.
+#[derive(Debug, Eq, PartialEq)]
+pub enum RetryErrorCode {
+    Redirect,
+    Timeout,
+    TooManyRequests,
+    ServiceUnavailable,
+    Disconnect,
+}
 
 /// Errors that might be encountered while creating the client.
 #[derive(thiserror::Error, Debug)]
