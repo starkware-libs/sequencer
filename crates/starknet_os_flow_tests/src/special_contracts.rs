@@ -1,6 +1,7 @@
 use std::sync::LazyLock;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_lang_starknet_classes::contract_class::ContractClass as CompilerContractClass;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::SierraContractClass;
 
@@ -11,7 +12,7 @@ pub(crate) static V1_BOUND_CAIRO0_CONTRACT: LazyLock<DeprecatedContractClass> =
 
 pub(crate) static V1_BOUND_CAIRO1_CONTRACT_SIERRA: LazyLock<SierraContractClass> =
     LazyLock::new(|| {
-        let compiler_contract_class: cairo_lang_starknet_classes::contract_class::ContractClass =
+        let compiler_contract_class: CompilerContractClass =
             serde_json::from_str(include_str!("../resources/v1_bound_cairo1_account.sierra.json"))
                 .unwrap();
         SierraContractClass::from(compiler_contract_class)
@@ -25,7 +26,7 @@ pub(crate) static V1_BOUND_CAIRO1_CONTRACT_CASM: LazyLock<CasmContractClass> =
 
 pub(crate) static DATA_GAS_ACCOUNT_CONTRACT_SIERRA: LazyLock<SierraContractClass> =
     LazyLock::new(|| {
-        let compiler_contract_class: cairo_lang_starknet_classes::contract_class::ContractClass =
+        let compiler_contract_class: CompilerContractClass =
             serde_json::from_str(include_str!("../resources/data_gas_account.sierra.json"))
                 .unwrap();
         SierraContractClass::from(compiler_contract_class)
@@ -34,4 +35,24 @@ pub(crate) static DATA_GAS_ACCOUNT_CONTRACT_SIERRA: LazyLock<SierraContractClass
 pub(crate) static DATA_GAS_ACCOUNT_CONTRACT_CASM: LazyLock<CasmContractClass> =
     LazyLock::new(|| {
         serde_json::from_str(include_str!("../resources/data_gas_account.casm.json")).unwrap()
+    });
+
+#[expect(dead_code)]
+pub(crate) static DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_SIERRA: LazyLock<
+    SierraContractClass,
+> = LazyLock::new(|| {
+    let compiler_contract_class: CompilerContractClass = serde_json::from_str(include_str!(
+        "../resources/deployable_for_resource_measurement.sierra.json"
+    ))
+    .unwrap();
+    SierraContractClass::from(compiler_contract_class)
+});
+
+#[expect(dead_code)]
+pub(crate) static DEPLOYABLE_FOR_RESOURCE_MEASUREMENT_CONTRACT_CASM: LazyLock<CasmContractClass> =
+    LazyLock::new(|| {
+        serde_json::from_str(include_str!(
+            "../resources/deployable_for_resource_measurement.casm.json"
+        ))
+        .unwrap()
     });
