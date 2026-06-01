@@ -518,7 +518,6 @@ fn spawn_rpc_server(
             pending_data,
             pending_classes,
             storage_reader,
-            VERSION_FULL,
             class_manager_client,
         )
         .await

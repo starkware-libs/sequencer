@@ -24,7 +24,6 @@ use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_rpc_execution::ExecutionConfig;
 use apollo_starknet_client::reader::PendingData;
-use apollo_starknet_client::writer::StarknetGatewayClient;
 use apollo_starknet_client::RetryConfig;
 use apollo_storage::base_layer::BaseLayerStorageReader;
 use apollo_storage::body::events::EventIndex;
@@ -213,7 +212,6 @@ pub async fn run_server(
     pending_data: Arc<RwLock<PendingData>>,
     pending_classes: Arc<RwLock<PendingClasses>>,
     storage_reader: StorageReader,
-    node_version: &'static str,
     class_manager_client: Option<SharedClassManagerClient>,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     debug!("Started get_last_synced_block");
@@ -228,11 +226,6 @@ pub async fn run_server(
         shared_highest_block,
         pending_data,
         pending_classes,
-        Arc::new(StarknetGatewayClient::new(
-            &config.starknet_url,
-            node_version,
-            config.apollo_gateway_retry_config,
-        )?),
         class_manager_client,
     );
     let addr;

@@ -38,7 +38,6 @@ async fn run_server_no_blocks() {
         pending_data,
         pending_classes,
         storage_reader,
-        "NODE VERSION",
         None,
     )
     .await
