@@ -1,0 +1,4 @@
+# Keep this directory in git.
+#
+# `validation_node.json` — template-based stub (valid JSON); overwrite with
+# `deployments/docker/validation_node/setup.sh` output before running a real validator.

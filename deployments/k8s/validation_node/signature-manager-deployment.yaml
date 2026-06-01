@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: signature-manager
+  labels:
+    app.kubernetes.io/name: signature-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: signature-manager
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: signature-manager
+    spec:
+      securityContext:
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: apollo-node
+          image: ghcr.io/starkware-libs/sequencer/sequencer:apollo-0.14.2-rc.7-fix
+          args:
+            - "--config_file"
+            - "/config/signature_manager.json"
+          env:
+            - name: RUST_LOG
+              value: "info"
+            - name: RUST_BACKTRACE
+              value: "1"
+          envFrom:
+            - secretRef:
+                name: signature-manager-secrets
+                optional: true
+          ports:
+            - name: monitoring
+              containerPort: 8082
+              protocol: TCP
+            - name: signing-http
+              containerPort: 9090
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /config/signature_manager.json
+              subPath: signature_manager.json
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /monitoring/alive
+              port: monitoring
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /monitoring/alive
+              port: monitoring
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 6
+      volumes:
+        - name: config
+          configMap:
+            name: apollo-signature-manager-config

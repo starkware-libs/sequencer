@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: signature-manager-monitoring
+  labels:
+    app.kubernetes.io/name: signature-manager
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: signature-manager
+  ports:
+    - name: monitoring
+      port: 8082
+      targetPort: monitoring
+      protocol: TCP

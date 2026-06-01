@@ -7,6 +7,6 @@
   "bpo1_start_block_number": 9456501,
   "bpo2_start_block_number": 9504747,
   "fusaka_no_bpo_start_block_number": 9408577,
-  "consensus_bootstrap_peer_multiaddr": "/dns/sequencer-core-service.apollo-sepolia-integration-0.svc.cluster.local/tcp/53080/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5,/dns/sequencer-core-service.apollo-sepolia-integration-1.svc.cluster.local/tcp/53080/p2p/12D3KooWCPzcTZ4ymgyveYaFfZ4bfWsBEh2KxuxM3Rmy7MunqHwe,/dns/sequencer-core-service.apollo-sepolia-integration-2.svc.cluster.local/tcp/53080/p2p/12D3KooWT3eoCYeMPrSNnF1eQHimWFDiqPkna7FUD6XKBw8oPiMp",
+  "consensus_bootstrap_peer_multiaddr": "/dns4/sequencer-core-service.apollo-sepolia-integration-0.svc.cluster.local/tcp/53080/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5,/dns4/sequencer-core-service.apollo-sepolia-integration-1.svc.cluster.local/tcp/53080/p2p/12D3KooWCPzcTZ4ymgyveYaFfZ4bfWsBEh2KxuxM3Rmy7MunqHwe,/dns4/sequencer-core-service.apollo-sepolia-integration-2.svc.cluster.local/tcp/53080/p2p/12D3KooWT3eoCYeMPrSNnF1eQHimWFDiqPkna7FUD6XKBw8oPiMp",
   "default_committee": "0,10:0x64,1,0x1,true;0x65,1,0x1,true;0x66,1,0x1,true"
 }

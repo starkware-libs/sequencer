@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: sobhe-validation-node
+
+resources:
+  - namespace.yaml
+  - signature-manager-deployment.yaml
+  - signature-manager-service.yaml
+  - signature-manager-monitoring-service.yaml
+  - validation-node-statefulset.yaml
+  - validation-node-service.yaml
+  - validation-node-monitoring-service.yaml
+
+configMapGenerator:
+  - name: apollo-validation-node-config
+    files:
+      - validation_node.json=config/validation_node.json
+  - name: apollo-signature-manager-config
+    files:
+      - signature_manager.json=config/signature_manager.json
+
+generatorOptions:
+  # Hash suffix forces pod rollout when config files change.
+  disableNameSuffixHash: false
+
+images:
+  - name: ghcr.io/starkware-libs/sequencer/sequencer
+    newName: ghcr.io/starkware-libs/sequencer/sequencer
+    newTag: APOLLO-asaf-cende-systest

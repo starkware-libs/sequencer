@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: validation-node
+  labels:
+    app.kubernetes.io/name: validation-node
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app.kubernetes.io/name: validation-node
+  ports:
+    - name: consensus-p2p
+      port: 53080
+      targetPort: consensus-p2p
+      protocol: TCP
+    - name: state-sync-p2p
+      port: 53140
+      targetPort: state-sync-p2p
+      protocol: TCP
