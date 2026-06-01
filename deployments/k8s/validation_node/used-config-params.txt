@@ -1,0 +1,33 @@
+L1 endpoint URLs
+infura:
+api key
+7f6bc7b49f9643f4b1e781c82c4f2445
+url
+https://mainnet.infura.io/v3/7f6bc7b49f9643f4b1e781c82c4f2445
+
+
+
+https://app.infura.io/key/active-endpoints
+
+------------------------------
+Consensus advertised multiaddr:
+
+The integration nodes have the addresses:
+/dns/sequencer-core-service.apollo-sepolia-integration-0.svc.cluster.local/tcp/53080/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5
+/dns/sequencer-core-service.apollo-sepolia-integration-1.svc.cluster.local/tcp/53080/p2p/12D3KooWCPzcTZ4ymgyveYaFfZ4bfWsBEh2KxuxM3Rmy7MunqHwe
+/dns/sequencer-core-service.apollo-sepolia-integration-2.svc.cluster.local/tcp/53080/p2p/12D3KooWT3eoCYeMPrSNnF1eQHimWFDiqPkna7FUD6XKBw8oPiMp
+
+
+
+----------------------
+ETH-to-STRK oracle URL+headers ????
+dummy-eth2strk-oracle.sobhe-eth-strk.sw-dev.io
+
+
+
+
+------------
+validator id : 0x67
+----
+
+consensus-p2p-port - 53080
