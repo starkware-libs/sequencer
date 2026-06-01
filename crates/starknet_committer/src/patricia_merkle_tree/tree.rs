@@ -17,7 +17,7 @@ use crate::block_committer::input::{
 };
 use crate::db::db_layout::DbLayout;
 use crate::db::facts_db::FactsNodeLayout;
-use crate::db::trie_traversal::fetch_patricia_paths;
+use crate::db::trie_traversal::{fetch_patricia_paths, get_address_and_storage_root};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::{
     class_hash_into_node_index,
@@ -181,19 +181,8 @@ where
         HashMap::with_capacity(contract_storage_sorted_leaf_indices.len());
 
     for (idx, sorted_leaf_indices) in contract_storage_sorted_leaf_indices {
-        let contract_address = try_node_index_into_contract_address(idx).unwrap_or_else(|_| {
-            panic!(
-                "Converting leaf NodeIndex to ContractAddress should succeed; failed to convert \
-                 {idx:?}."
-            )
-        });
-
-        // The contract address might not exist in the contracts trie in the following cases:
-        // 1. We are looking at the previous tree and the contract is new.
-        // 2. We are looking at the new tree and the contract is deleted (revert).
-        // In either case, the storage trie of this contract is empty, so there is nothing to
-        // prove regarding the contract storage.
-        let Some(storage_root_hash) = leaves.get(idx).map(|leaf| leaf.as_ref().storage_root_hash)
+        let Some((contract_address, storage_root_hash)) =
+            get_address_and_storage_root(idx, &leaves)
         else {
             continue;
         };
