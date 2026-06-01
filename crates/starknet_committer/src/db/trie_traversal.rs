@@ -927,7 +927,6 @@ where
 
 /// Fetches Patricia proofs for the storage tries. If the storage has a [GatherableStorage] version,
 /// then the paths are fetched concurrently. Otherwise, they are fetched sequentially.
-#[allow(dead_code)]
 pub(crate) async fn fetch_contract_storage_paths<StorageLayout, ContractLeaf>(
     storage: &mut impl ReadOnlyStorage,
     contract_storage_sorted_leaf_indices: &HashMap<NodeIndex, SortedLeafIndices<'_>>,
@@ -961,6 +960,7 @@ where
 /// The contract address might not exist in the contracts trie in the following cases:
 /// 1. We are looking at the previous tree and the contract is new.
 /// 2. We are looking at the new tree and the contract is deleted (revert).
+///
 /// In either case, the storage trie of this contract is empty, so there is nothing to
 /// prove regarding the contract storage.
 pub(crate) fn get_address_and_storage_root<ContractLeaf: AsRef<ContractState>>(
@@ -978,7 +978,6 @@ pub(crate) fn get_address_and_storage_root<ContractLeaf: AsRef<ContractState>>(
 }
 
 /// Sequentially fetches Patricia proofs for the storage tries.
-#[allow(dead_code)]
 async fn fetch_contract_storage_paths_sequentially<StorageLayout, ContractLeaf>(
     storage: &mut impl ReadOnlyStorage,
     contract_storage_sorted_leaf_indices: &HashMap<NodeIndex, SortedLeafIndices<'_>>,
@@ -1016,7 +1015,6 @@ where
 }
 
 /// Concurrently fetches Patricia proofs for the storage tries.
-#[allow(dead_code)]
 async fn fetch_contract_storage_paths_concurrently<S, StorageLayout, ContractLeaf>(
     storage: &mut S,
     contract_storage_sorted_leaf_indices: &HashMap<NodeIndex, SortedLeafIndices<'_>>,
