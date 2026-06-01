@@ -19,6 +19,7 @@ use blockifier::transaction::objects::{
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::builtin_name::BuiltinName;
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
@@ -29,7 +30,7 @@ use starknet_api::block_hash::block_hash_calculator::{
     PartialBlockHashComponents,
 };
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
-use starknet_api::contract_class::ContractClass;
+use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::core::{
     ChainId,
     ClassHash,
@@ -48,13 +49,14 @@ use starknet_api::executable_transaction::{
     Transaction as ExecutableTransaction,
 };
 use starknet_api::hash::StateRoots;
-use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
+use starknet_api::test_utils::declare::{declare_tx, DeclareTxArgs};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, TEST_SEQUENCER_ADDRESS};
 use starknet_api::transaction::constants::TRANSFER_EVENT_NAME;
 use starknet_api::transaction::fields::{snos_block_number_from_proof_facts, Calldata, Fee, Tip};
 use starknet_api::transaction::{Event, L1HandlerTransaction, L1ToL2Payload, MessageToL1};
+use starknet_api::{declare_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::{
     IsSubset,
     StarknetStorageKey,
@@ -569,6 +571,29 @@ impl<S: FlowTestState> TestBuilder<S> {
             .insert(sierra.calculate_class_hash(), sierra.get_component_hashes());
         let compiled_class_hash = casm.hash(&HashVersion::V2);
         self.execution_contracts.executed.contracts.insert(compiled_class_hash, casm.clone());
+    }
+
+    /// Given sierra and CASM, add an explicit declare transaction.
+    pub(crate) fn add_explicit_cairo1_declare_tx(
+        &mut self,
+        sierra: &SierraContractClass,
+        casm: CasmContractClass,
+        extra_args: DeclareTxArgs,
+        chain_id: &ChainId,
+    ) {
+        let class_hash = sierra.calculate_class_hash();
+        let compiled_class_hash = casm.hash(&HashVersion::V2);
+        let declare_args = declare_tx_args! { class_hash, compiled_class_hash, ..extra_args };
+        let account_declare_tx = declare_tx(declare_args);
+        let sierra_version = sierra.get_sierra_version().unwrap();
+        let class_info = ClassInfo {
+            contract_class: ContractClass::V1((casm, sierra_version.clone())),
+            sierra_program_length: sierra.sierra_program.len(),
+            abi_length: sierra.abi.len(),
+            sierra_version,
+        };
+        let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
+        self.add_cairo1_declare_tx(tx, sierra);
     }
 
     pub(crate) fn add_invoke_tx(

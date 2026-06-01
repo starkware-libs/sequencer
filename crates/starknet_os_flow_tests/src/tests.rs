@@ -17,7 +17,7 @@ use expect_test::expect;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice};
-use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{
     calculate_contract_address,
@@ -1023,7 +1023,6 @@ async fn test_v1_bound_accounts_cairo1() {
     let test_contract_sierra = &V1_BOUND_CAIRO1_CONTRACT_SIERRA;
     let test_contract_casm = &V1_BOUND_CAIRO1_CONTRACT_CASM;
     let class_hash = test_contract_sierra.calculate_class_hash();
-    let compiled_class_hash = test_contract_casm.hash(&HashVersion::V2);
     let vc = VersionedConstants::latest_constants();
     let max_tip = vc.os_constants.v1_bound_accounts_max_tip;
     assert!(vc.os_constants.v1_bound_accounts_cairo1.contains(&class_hash));
@@ -1031,23 +1030,17 @@ async fn test_v1_bound_accounts_cairo1() {
     let chain_id = &test_builder.chain_id();
 
     // Declare the V1-bound account.
-    let declare_args = declare_tx_args! {
+    let extra_declare_args = declare_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
         nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
-        class_hash,
-        compiled_class_hash,
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    let account_declare_tx = declare_tx(declare_args);
-    let sierra_version = test_contract_sierra.get_sierra_version().unwrap();
-    let class_info = ClassInfo {
-        contract_class: ContractClass::V1(((**test_contract_casm).clone(), sierra_version.clone())),
-        sierra_program_length: test_contract_sierra.sierra_program.len(),
-        abi_length: test_contract_sierra.abi.len(),
-        sierra_version,
-    };
-    let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
-    test_builder.add_cairo1_declare_tx(tx, test_contract_sierra);
+    test_builder.add_explicit_cairo1_declare_tx(
+        test_contract_sierra,
+        (**test_contract_casm).clone(),
+        extra_declare_args,
+        chain_id,
+    );
 
     // Deploy it (from funded account).
     let private_key = Felt::ONE;
@@ -2497,7 +2490,6 @@ async fn test_data_gas_accounts() {
     let test_contract_sierra = &DATA_GAS_ACCOUNT_CONTRACT_SIERRA;
     let test_contract_casm = &DATA_GAS_ACCOUNT_CONTRACT_CASM;
     let class_hash = test_contract_sierra.calculate_class_hash();
-    let compiled_class_hash = test_contract_casm.hash(&HashVersion::V2);
     assert!(
         VersionedConstants::latest_constants().os_constants.data_gas_accounts.contains(&class_hash)
     );
@@ -2505,23 +2497,17 @@ async fn test_data_gas_accounts() {
     let chain_id = &test_builder.chain_id();
 
     // Declare the data gas account.
-    let declare_args = declare_tx_args! {
+    let extra_declare_args = declare_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
         nonce: test_builder.next_nonce(*FUNDED_ACCOUNT_ADDRESS),
-        class_hash,
-        compiled_class_hash,
         resource_bounds: *NON_TRIVIAL_RESOURCE_BOUNDS,
     };
-    let account_declare_tx = declare_tx(declare_args);
-    let sierra_version = test_contract_sierra.get_sierra_version().unwrap();
-    let class_info = ClassInfo {
-        contract_class: ContractClass::V1(((**test_contract_casm).clone(), sierra_version.clone())),
-        sierra_program_length: test_contract_sierra.sierra_program.len(),
-        abi_length: test_contract_sierra.abi.len(),
-        sierra_version,
-    };
-    let tx = DeclareTransaction::create(account_declare_tx, class_info, chain_id).unwrap();
-    test_builder.add_cairo1_declare_tx(tx, test_contract_sierra);
+    test_builder.add_explicit_cairo1_declare_tx(
+        test_contract_sierra,
+        (**test_contract_casm).clone(),
+        extra_declare_args,
+        chain_id,
+    );
 
     // Deploy it (from funded account).
     let salt = ContractAddressSalt(Felt::ZERO);
