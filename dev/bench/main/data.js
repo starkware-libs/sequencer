@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780233341788,
+  "lastUpdate": 1780305156988,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5031,6 +5031,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1188.4230300499999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "02b9bc6fe962675795273646d8b8f60525322704",
+          "message": "starknet_committer: underlying logic of the new read witnesses and commit endpoint (#14001)",
+          "timestamp": "2026-06-01T08:52:08Z",
+          "tree_id": "6e5770ee45ad7e1e7af4b94d582b9b5a69b011c3",
+          "url": "https://github.com/starkware-libs/sequencer/commit/02b9bc6fe962675795273646d8b8f60525322704"
+        },
+        "date": 1780305156510,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 826.1992970399999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1306.40706824,
             "unit": "ms"
           }
         ]
