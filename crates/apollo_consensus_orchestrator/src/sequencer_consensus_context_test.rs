@@ -745,6 +745,54 @@ async fn decision_reached_sends_correct_values() {
         .assert_eq(&metrics, VersionedConstants::latest_constants().min_gas_price.0);
 }
 
+// The blob's `parent_proposal_commitment` must bind the parent block's `fee_proposal_fri`, which
+// is read from `fee_proposals_window`. Build/decide at HEIGHT_1 so the parent (HEIGHT_0) exists,
+// seed the window with a parent fee distinct from the current block's, and assert the blob carries
+// the V0_14_3 commitment `Poseidon(partial_block_hash, parent_fee_proposal)`.
+#[tokio::test]
+async fn blob_parent_proposal_commitment_binds_parent_fee_proposal() {
+    const PARENT_FEE_PROPOSAL: GasPrice = GasPrice(5_000_000_000);
+
+    let (mut deps, _network) = create_test_and_network_deps();
+
+    deps.setup_deps_for_build(SetupDepsArgs { start_block_number: HEIGHT_1, ..Default::default() });
+
+    deps.batcher.expect_decision_reached().times(1).return_once(move |_| {
+        Ok(DecisionReachedResponse {
+            central_objects: CentralObjects {
+                parent_proposal_commitment: Some(BatcherProposalCommitment {
+                    partial_block_hash: PARTIAL_BLOCK_HASH,
+                }),
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+    });
+
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
+
+    let expected_parent_commitment =
+        proposal_commitment_from(PARTIAL_BLOCK_HASH, Some(PARENT_FEE_PROPOSAL));
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().times(1).return_once(
+        move |params| {
+            assert_eq!(params.parent_proposal_commitment, Some(expected_parent_commitment));
+            Ok(())
+        },
+    );
+
+    let mut context = deps.build_context();
+
+    let _fin = context
+        .build_proposal(BuildParam { height: HEIGHT_1, ..Default::default() }, TIMEOUT)
+        .await
+        .unwrap()
+        .await;
+    // Seed the parent fee after building, so the current block still uses the default fee_proposal.
+    context.fee_proposals_window.insert(HEIGHT_0, Some(PARENT_FEE_PROPOSAL));
+
+    context.decision_reached(HEIGHT_1, ROUND_0, *TEST_PROPOSAL_COMMITMENT, false).await.unwrap();
+}
+
 /// Verify that when `stop_at_height` is set and decision is reached at that height:
 /// 1. `wait_for_block_hash` retries until the batcher has computed the hash.
 /// 2. The blob contains the block hash of that height.
