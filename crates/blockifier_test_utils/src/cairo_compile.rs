@@ -34,6 +34,13 @@ fn starknet_sierra_compile_binary_path(version: &String) -> PathBuf {
     cairo1_package_dir(version).join("cairo/bin/starknet-sierra-compile")
 }
 
+/// Commit marker written after `tar` extraction fully completes. Required because
+/// a file `.exists()` while `tar` is still writing to it, and exec'ing such a file
+/// returns `ETXTBSY`.
+fn cairo1_package_complete_marker(version: &String) -> PathBuf {
+    cairo1_package_dir(version).join(".download_complete")
+}
+
 /// Returns the path to the allowed_libfuncs.json file.
 pub fn allowed_libfuncs_json_path() -> String {
     resolve_project_relative_path("crates/apollo_compile_to_casm/src/allowed_libfuncs.json")
@@ -93,13 +100,19 @@ fn download_cairo_package(version: &String) {
         let stderr_output = String::from_utf8(output.stderr).unwrap();
         panic!("{stderr_output}");
     }
+    // Written last: acts as a commit marker so concurrent callers checking
+    // `cairo1_package_exists` never observe a half-extracted package.
+    let marker = cairo1_package_complete_marker(version);
+    fs::write(&marker, b"")
+        .unwrap_or_else(|e| panic!("Failed to write download marker {marker:?}: {e}"));
     info!("Done.");
 }
 
 fn cairo1_package_exists(version: &String) -> bool {
     let cairo_compiler_path = starknet_compile_binary_path(version);
     let sierra_compiler_path = starknet_sierra_compile_binary_path(version);
-    cairo_compiler_path.exists() && sierra_compiler_path.exists()
+    let marker_path = cairo1_package_complete_marker(version);
+    cairo_compiler_path.exists() && sierra_compiler_path.exists() && marker_path.exists()
 }
 
 /// Appends `.lock` to a path, used by `with_file_lock` callers to derive a lock file path.

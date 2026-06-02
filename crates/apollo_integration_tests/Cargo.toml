@@ -20,6 +20,7 @@ apollo_batcher.workspace = true
 apollo_batcher_config.workspace = true
 apollo_class_manager = { workspace = true, features = ["testing"] }
 apollo_class_manager_config.workspace = true
+apollo_committer = { workspace = true, features = ["testing"] }
 apollo_committer_config.workspace = true
 apollo_config.workspace = true
 apollo_config_manager_config = { workspace = true, features = ["testing"] }
@@ -63,6 +64,7 @@ blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
 clap = { workspace = true, features = ["derive"] }
+expect-test.workspace = true
 futures.workspace = true
 hex.workspace = true
 http.workspace = true
@@ -75,6 +77,8 @@ serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+starknet_committer.workspace = true
+starknet_patricia_storage.workspace = true
 static_assertions.workspace = true
 strum.workspace = true
 tempfile.workspace = true
@@ -91,6 +95,11 @@ futures.workspace = true
 metrics.workspace = true
 mockall.workspace = true
 rstest.workspace = true
+starknet_proof_verifier.workspace = true
+
+[[bin]]
+name = "integration_test_proof_flow"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_proof_flow.rs"
 
 [[bin]]
 name = "integration_test_positive_flow"

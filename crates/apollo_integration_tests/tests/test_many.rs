@@ -22,7 +22,7 @@ async fn many_txs_fill_at_least_one_block() {
             TestIdentifier::EndToEndFlowTestManyTxs,
             create_many_txs_scenario(),
             // TODO(GFI): pass here the number of txs instead.
-            GasAmount(30000000),
+            GasAmount(80000000),
         )
         .expecting_full_blocks(),
     )

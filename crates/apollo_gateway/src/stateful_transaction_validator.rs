@@ -291,7 +291,7 @@ where
             self.config.versioned_constants_overrides.clone(),
         );
         // The validation of a transaction is not affected by the casm hash migration.
-        versioned_constants.enable_casm_hash_migration = false;
+        versioned_constants.disable_casm_hash_migration();
 
         let mut block_info = self.gateway_fixed_block_state_reader.get_block_info().await?;
         block_info.block_number = block_info.block_number.unchecked_next();

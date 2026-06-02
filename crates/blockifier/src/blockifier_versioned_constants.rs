@@ -421,6 +421,10 @@ impl VersionedConstants {
         self.os_constants.validate_rounding_consts.validate_timestamp_rounding
     }
 
+    pub fn disable_casm_hash_migration(&mut self) {
+        self.enable_casm_hash_migration = false;
+    }
+
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_account_testing() -> Self {
         let step_cost = ResourceCost::from_integer(1);

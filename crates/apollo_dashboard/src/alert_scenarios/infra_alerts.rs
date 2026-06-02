@@ -16,7 +16,8 @@ use crate::alerts::{
 define_metrics!(
     Pod => {
         MetricCounter { CONTAINER_CPU_USAGE_SECONDS_TOTAL, "container_cpu_usage_seconds_total", "Cumulative CPU time consumed by the container in seconds. Use with irate() for CPU usage rate.", init=0 },
-        MetricGauge { CONTAINER_MEMORY_WORKING_SET_BYTES, "container_memory_working_set_bytes", "Estimated amount of memory that cannot be evicted (working set: recently accessed memory, dirty memory, kernel memory). Used by the OOM killer for eviction decisions." },
+        MetricGauge { CONTAINER_MEMORY_WORKING_SET_BYTES, "container_memory_working_set_bytes", "Memory usage minus inactive file-backed pages (memory.usage_in_bytes - inactive_file). Includes anonymous memory, active file cache, and kernel memory. Active file cache is reclaimable, so this metric overstates true memory pressure. Used by the Kubernetes kubelet for pod eviction decisions (not the Linux OOM killer, which uses RSS/anon)." },
+        MetricGauge { CONTAINER_MEMORY_RSS, "container_memory_rss", "Resident set size: anonymous (non file-backed) memory used by the container. This is the cgroup memory.stat `anon` and corresponds to what the kernel OOM killer cannot reclaim." },
         MetricGauge { CONTAINER_SPEC_CPU_QUOTA, "container_spec_cpu_quota", "CPU quota in microseconds allocated to the container from the container spec (cgroups)." },
         MetricGauge { CONTAINER_SPEC_MEMORY_LIMIT_BYTES, "container_spec_memory_limit_bytes", "Memory limit for the container from the container spec, in bytes. Exceeding this limit can trigger OOM kill." },
         MetricGauge { KUBE_POD_CONTAINER_STATUS_READY, "kube_pod_container_status_ready", "Indicates whether a specific container within a pod has successfully passed its readiness check (Readiness Probe) and is currently ready to serve network traffic." },
@@ -87,11 +88,14 @@ fn get_general_pod_memory_utilization(
         AlertGroup::General,
         format!(
             // Calculates the memory usage percentage of each container in a pod, relative to its
-            // memory limit. This expression compares the actual memory usage
-            // (working_set_bytes) of containers against their defined memory limits
-            // (spec_memory_limit_bytes), and returns the result as a percentage.
+            // memory limit. This expression compares the container's resident set size
+            // (memory_rss, i.e. anonymous non-reclaimable memory) against its defined memory
+            // limit (spec_memory_limit_bytes), and returns the result as a percentage. RSS is
+            // used here instead of working_set_bytes so the alert tracks memory that the kernel
+            // cannot reclaim — which is what actually drives OOM kills — rather than including
+            // page cache that the kernel will free on demand.
             "max({}) by (container, pod, namespace) / max({}) by (container, pod, namespace) * 100",
-            CONTAINER_MEMORY_WORKING_SET_BYTES.get_name_with_filter(),
+            CONTAINER_MEMORY_RSS.get_name_with_filter(),
             CONTAINER_SPEC_MEMORY_LIMIT_BYTES.get_name_with_filter(),
         ),
         vec![AlertCondition::new(

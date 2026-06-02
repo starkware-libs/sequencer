@@ -9,29 +9,18 @@ use blockifier::blockifier::config::{
     ContractClassManagerConfig,
 };
 use blockifier::context::ChainInfo;
-use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::contract_class_manager::ContractClassManager;
-use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
-use starknet_api::block_hash::block_hash_calculator::{
-    calculate_block_commitments,
-    calculate_block_hash,
-    PartialBlockHashComponents,
-    TransactionHashingData,
-};
+use starknet_api::block::BlockNumber;
+#[cfg(feature = "cairo_native")]
+use starknet_api::block_hash::block_hash_calculator::TransactionHashingData;
 #[cfg(feature = "cairo_native")]
 use starknet_api::contract_class::SierraVersion;
 
 use crate::errors::{RPCStateReaderError, ReexecutionError, ReexecutionResult};
 use crate::state_reader::config::RpcStateReaderConfig;
-use crate::state_reader::reexecution_state_reader::{
-    ConsecutiveReexecutionStateReaders,
-    ReexecuteBlockOutcome,
-};
-use crate::state_reader::rpc_objects::BlockHeader;
-use crate::state_reader::rpc_state_reader::ConsecutiveRpcStateReaders;
-use crate::utils::{compare_state_diffs, get_chain_info};
-// Block hash comparison is only valid for Starknet v0.14.0 and later.
-const MIN_VERSION_FOR_BLOCK_HASH_COMPARISON: &str = "0.14.0";
+use crate::state_reader::reexecution_state_reader::{BlockReexecutor, ReexecuteBlockOutcome};
+use crate::state_reader::rpc_state_reader::RpcBlockReexecutor;
+use crate::utils::{compare_block_hash, compare_state_diffs, get_chain_info};
 
 struct ReplayCounters {
     matched: AtomicU64,
@@ -215,11 +204,8 @@ fn reexecute_block(
     contract_class_manager: &ContractClassManager,
     prefetch_initial_reads: bool,
 ) -> ReexecutionResult<bool> {
-    let prev_block = BlockNumber(block_number)
-        .prev()
-        .expect("Block number 0 cannot be reexecuted (no previous block).");
-    let readers = ConsecutiveRpcStateReaders::new(
-        prev_block,
+    let block_reexecutor = RpcBlockReexecutor::new(
+        BlockNumber(block_number),
         Some(config.clone()),
         chain_info.clone(),
         false,
@@ -227,10 +213,10 @@ fn reexecute_block(
         prefetch_initial_reads,
     );
 
-    let block_header = readers.get_next_block_header()?;
+    let block_header = block_reexecutor.get_block_header()?;
 
     let ReexecuteBlockOutcome { expected_state_diff, actual_state_diff, txs_hashing_data, .. } =
-        readers.reexecute_block()?;
+        block_reexecutor.reexecute_block()?;
 
     if !compare_state_diffs(
         expected_state_diff,
@@ -268,14 +254,10 @@ fn reexecute_block_native_vs_casm(
     casm_manager: &ContractClassManager,
     prefetch_initial_reads: bool,
 ) -> ReexecutionResult<bool> {
-    let prev_block = BlockNumber(block_number)
-        .prev()
-        .expect("Block number 0 cannot be reexecuted (no previous block).");
-
     let min_sierra_version_override = Some(SierraVersion::new(0, 0, 0));
 
-    let mut native_readers = ConsecutiveRpcStateReaders::new(
-        prev_block,
+    let mut native_readers = RpcBlockReexecutor::new(
+        BlockNumber(block_number),
         Some(config.clone()),
         chain_info.clone(),
         false,
@@ -289,8 +271,8 @@ fn reexecute_block_native_vs_casm(
         ..
     } = native_readers.reexecute_block()?;
 
-    let mut casm_readers = ConsecutiveRpcStateReaders::new(
-        prev_block,
+    let mut casm_readers = RpcBlockReexecutor::new(
+        BlockNumber(block_number),
         Some(config.clone()),
         chain_info.clone(),
         false,
@@ -352,62 +334,6 @@ fn compare_tx_hashing_data(
         );
     }
     false
-}
-
-/// Computes the block hash from the reexecution output and compares it against the expected hash
-/// from the chain. Returns `true` if they match, or if the block predates v0.14.0 (skipped).
-///
-/// Uses the state root from the RPC block header (`new_root`) since the blockifier does not
-/// compute state roots. If the state diff already matched, the state root should also match.
-///
-/// Note: Blocks before v0.14.0 may include deprecated (Cairo 0) declared classes which are not
-/// represented in [`CommitmentStateDiff`]; those blocks skip hash comparison below.
-async fn compare_block_hash(
-    txs_hashing_data: Vec<TransactionHashingData>,
-    actual_state_diff: CommitmentStateDiff,
-    block_header: &BlockHeader,
-    block_number: BlockNumber,
-) -> ReexecutionResult<bool> {
-    let starknet_version: StarknetVersion = block_header.starknet_version.clone().try_into()?;
-
-    let min_version: StarknetVersion =
-        MIN_VERSION_FOR_BLOCK_HASH_COMPARISON.try_into().expect("Invalid min version constant.");
-    if starknet_version < min_version {
-        tracing::debug!(
-            "Block {block_number}: skipping block hash comparison (version {} < {}).",
-            block_header.starknet_version,
-            MIN_VERSION_FOR_BLOCK_HASH_COMPARISON
-        );
-        return Ok(true);
-    }
-
-    let (commitments, _measurements) = calculate_block_commitments(
-        &txs_hashing_data,
-        actual_state_diff.into(),
-        block_header.l1_da_mode,
-        &starknet_version,
-    )
-    .await;
-
-    let block_info: BlockInfo = block_header.clone().try_into()?;
-    let partial_block_hash_components = PartialBlockHashComponents::new(&block_info, commitments);
-
-    let computed_hash = calculate_block_hash(
-        &partial_block_hash_components,
-        block_header.new_root,
-        block_header.parent_hash,
-    )?;
-
-    if computed_hash == block_header.block_hash {
-        Ok(true)
-    } else {
-        tracing::warn!(
-            "Block hash mismatch for block {block_number}.\n  expected: {}\n  actual:   {}",
-            block_header.block_hash,
-            computed_hash,
-        );
-        Ok(false)
-    }
 }
 
 fn is_block_not_found(err: &ReexecutionError) -> bool {

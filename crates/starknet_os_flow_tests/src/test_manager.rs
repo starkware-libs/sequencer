@@ -13,8 +13,8 @@ use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use blockifier_test_utils::fee_token_addresses::EXPECTED_STRK_FEE_TOKEN_ADDRESS;
 use cairo_vm::types::builtin_name::BuiltinName;
-use expect_test::{expect, Expect};
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
@@ -95,23 +95,12 @@ use crate::utils::{
     ExecutionOutput,
 };
 
-/// The STRK fee token address that was deployed when initializing the default initial state.
-/// The resulting address depends on the nonce of the deploying account - if extra init transactions
-/// are added to the initial state construction before the STRK fee token is deployed, the address
-/// must be updated.
-pub(crate) const EXPECTED_STRK_FEE_TOKEN_ADDRESS: Expect = expect![
-    r#"
-    0x4ff17bf76a1c6cebb82601a43bcab4f9650aea543c44f28e8863f8b624e4b58
-"#
-];
 const SEQUENCER_ADDRESS_FELT: Felt = Felt::from_hex_unchecked(TEST_SEQUENCER_ADDRESS);
 
 pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress(
-        PatriciaKey::try_from(Felt::from_hex_unchecked(
-            EXPECTED_STRK_FEE_TOKEN_ADDRESS.data.trim(),
-        ))
-        .unwrap(),
+        PatriciaKey::try_from(Felt::from_hex_unchecked(EXPECTED_STRK_FEE_TOKEN_ADDRESS.data()))
+            .unwrap(),
     )
 });
 /// The address of a funded account that is able to pay fees for transactions.
@@ -991,6 +980,23 @@ impl TestBuilder<DictStateReader> {
     ) -> (Self, [ContractAddress; N]) {
         Self::new_with_default_initial_state(extra_contracts, TestBuilderConfig::default(), true)
             .await
+    }
+
+    /// Virtual OS builder that overrides the block context.
+    pub(crate) async fn create_virtual_with_block_info(
+        block_info: BlockInfo,
+        config: TestBuilderConfig,
+    ) -> Self {
+        let (mut initial_state_data, []) =
+            create_default_initial_state_data::<DictStateReader, 0>([]).await;
+        let block_context = &initial_state_data.initial_state.block_context;
+        initial_state_data.initial_state.block_context = BlockContext::new(
+            block_info,
+            block_context.chain_info().clone(),
+            block_context.versioned_constants().clone(),
+            block_context.bouncer_config.clone(),
+        );
+        Self::new_with_initial_state_data(initial_state_data, config, true)
     }
 }
 

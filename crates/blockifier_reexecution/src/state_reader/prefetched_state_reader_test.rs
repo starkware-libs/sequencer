@@ -5,7 +5,7 @@ use blockifier::state::cached_state::StateMaps;
 use rstest::rstest;
 use serde_json::json;
 use starknet_api::core::ChainId;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::Transaction;
 use starknet_api::{class_hash, contract_address, felt, invoke_tx_args, nonce, storage_key};
 
 use super::prefetched_state_reader::{
@@ -61,17 +61,11 @@ async fn test_simulate_and_get_initial_reads() {
     };
 
     let invoke_args = invoke_tx_args!();
-    let tx = starknet_api::test_utils::invoke::invoke_tx(invoke_args);
-    let tx_hash = TransactionHash::default();
+    let invoke_tx = starknet_api::test_utils::invoke::invoke_tx(invoke_args);
+    let tx = Transaction::Invoke(invoke_tx);
 
     let state_maps = tokio::task::spawn_blocking(move || {
-        simulate_and_get_initial_reads(
-            &rpc_state_reader,
-            BlockId::Latest,
-            &[(tx, tx_hash)],
-            false,
-            false,
-        )
+        simulate_and_get_initial_reads(&rpc_state_reader, BlockId::Latest, &[tx], false, false)
     })
     .await
     .unwrap()
