@@ -1534,6 +1534,7 @@ dependencies = [
  "apollo_infra_utils",
  "async-trait",
  "rstest",
+ "thiserror 1.0.69",
  "tracing",
 ]
 

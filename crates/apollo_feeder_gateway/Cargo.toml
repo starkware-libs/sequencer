@@ -17,6 +17,7 @@ apollo_feeder_gateway_config.workspace = true
 apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
 async-trait.workspace = true
+thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
