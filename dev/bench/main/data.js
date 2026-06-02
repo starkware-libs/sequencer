@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780401064298,
+  "lastUpdate": 1780407371963,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5133,6 +5133,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1301.50690737,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7d1b97543c0e38426f3df6c60a8b409ebdaba8ad",
+          "message": "starknet_committer,apollo_committer: add timers for fetch patricia paths (#14189)",
+          "timestamp": "2026-06-02T13:23:30Z",
+          "tree_id": "d5fcfa4e177e3f9243d0920a5f8ddc4a90ff09cc",
+          "url": "https://github.com/starkware-libs/sequencer/commit/7d1b97543c0e38426f3df6c60a8b409ebdaba8ad"
+        },
+        "date": 1780407371323,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 833.8034384700001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1330.24941364,
             "unit": "ms"
           }
         ]
