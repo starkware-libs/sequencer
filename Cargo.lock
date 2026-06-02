@@ -1538,6 +1538,8 @@ dependencies = [
  "axum",
  "mockall",
  "rstest",
+ "serde",
+ "serde_json",
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",
