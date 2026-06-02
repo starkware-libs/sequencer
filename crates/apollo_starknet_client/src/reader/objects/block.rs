@@ -43,25 +43,28 @@ fn default_old_starknet_version() -> StarknetVersion {
 }
 
 /// A block as returned by the starknet feeder gateway since V0.13.1.
+// PARITY LOCK: field declaration order MUST match the Python feeder gateway's JSON key order
+// (verified against `resources/reader/block_post_0_14_3.json`). serde emits fields in declaration
+// order, and the feeder gateway re-serves this in the legacy byte-exact wire format, so do NOT
+// reorder these fields. See Reference B of the feeder gateway migration plan.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct BlockPostV0_13_1 {
     pub block_hash: BlockHash,
-    pub block_number: BlockNumber,
     pub parent_block_hash: BlockHash,
-    #[serde(default)]
-    pub sequencer_address: SequencerContractAddress,
+    pub block_number: BlockNumber,
     pub state_root: GlobalRoot,
+    pub transaction_commitment: TransactionCommitment,
+    pub event_commitment: EventCommitment,
+    // Additions to the block structure in V0.13.2. These additions do not appear in older blocks
+    // even if the Feeder Gateway is of this version.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub receipt_commitment: Option<ReceiptCommitment>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub state_diff_commitment: Option<StateDiffCommitment>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state_diff_length: Option<usize>,
     pub status: BlockStatus,
-    #[serde(default)]
-    pub timestamp: BlockTimestamp,
-    pub transactions: Vec<Transaction>,
-    // Default to empty for compatibility with ABORTED blocks that don't include this field.
-    #[serde(default)]
-    pub transaction_receipts: Vec<TransactionReceipt>,
-    // Default to PreV0_9_1 for compatibility with old blocks that don't include this field.
-    #[serde(default = "default_old_starknet_version")]
-    pub starknet_version: StarknetVersion,
     // Additions to the block structure in V0.13.1.
     pub l1_da_mode: L1DataAvailabilityMode,
     // Replacing the eth_l1_gas_price & strk_l1_gas_price fields with a single field.
@@ -70,18 +73,17 @@ pub struct BlockPostV0_13_1 {
     // New field in V0.13.3.
     #[serde(default)]
     pub l2_gas_price: GasPricePerToken,
-    pub transaction_commitment: TransactionCommitment,
-    pub event_commitment: EventCommitment,
-    // Additions to the block structure in V0.13.2. These additions do not appear in older blocks
-    // even if the Feeder Gateway is of this version.
+    pub transactions: Vec<Transaction>,
     #[serde(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub state_diff_commitment: Option<StateDiffCommitment>,
+    pub timestamp: BlockTimestamp,
     #[serde(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub receipt_commitment: Option<ReceiptCommitment>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub state_diff_length: Option<usize>,
+    pub sequencer_address: SequencerContractAddress,
+    // Default to empty for compatibility with ABORTED blocks that don't include this field.
+    #[serde(default)]
+    pub transaction_receipts: Vec<TransactionReceipt>,
+    // Default to PreV0_9_1 for compatibility with old blocks that don't include this field.
+    #[serde(default = "default_old_starknet_version")]
+    pub starknet_version: StarknetVersion,
 
     // New fields in V0.14.0. Only returned by the feeder gateway when the request includes
     // `withFeeMarketInfo=true`.
