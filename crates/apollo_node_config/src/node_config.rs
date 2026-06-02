@@ -26,6 +26,7 @@ use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
+use apollo_feeder_gateway_config::config::FeederGatewayConfig;
 use apollo_gateway_config::config::{GatewayConfig, GatewayDynamicConfig};
 use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -255,6 +256,8 @@ pub struct SequencerNodeConfig {
     #[validate(nested)]
     pub consensus_manager_config: Option<ConsensusManagerConfig>,
     #[validate(nested)]
+    pub feeder_gateway_config: Option<FeederGatewayConfig>,
+    #[validate(nested)]
     pub gateway_config: Option<GatewayConfig>,
     #[validate(nested)]
     pub http_server_config: Option<HttpServerConfig>,
@@ -300,6 +303,7 @@ impl SerializeConfig for SequencerNodeConfig {
             ser_optional_sub_config(&self.class_manager_config, "class_manager_config"),
             ser_optional_sub_config(&self.committer_config, "committer_config"),
             ser_optional_sub_config(&self.consensus_manager_config, "consensus_manager_config"),
+            ser_optional_sub_config(&self.feeder_gateway_config, "feeder_gateway_config"),
             ser_optional_sub_config(&self.gateway_config, "gateway_config"),
             ser_optional_sub_config(&self.http_server_config, "http_server_config"),
             ser_optional_sub_config(&self.mempool_config, "mempool_config"),
@@ -339,6 +343,7 @@ impl Default for SequencerNodeConfig {
             class_manager_config: Some(FsClassManagerConfig::default()),
             committer_config: Some(ApolloCommitterConfig::default()),
             consensus_manager_config: Some(ConsensusManagerConfig::default()),
+            feeder_gateway_config: Some(FeederGatewayConfig::default()),
             gateway_config: Some(GatewayConfig::default()),
             http_server_config: Some(HttpServerConfig::default()),
             l1_gas_price_provider_config: Some(L1GasPriceProviderConfig::default()),
@@ -523,6 +528,10 @@ impl SequencerNodeConfig {
         validate_component_config_is_set_iff_running_locally!(
             consensus_manager,
             consensus_manager_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            feeder_gateway,
+            feeder_gateway_config
         );
         validate_component_config_is_set_iff_running_locally!(gateway, gateway_config);
         validate_component_config_is_set_iff_running_locally!(http_server, http_server_config);

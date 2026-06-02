@@ -2949,6 +2949,21 @@
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
   },
+  "feeder_gateway_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "feeder_gateway_config.ip": {
+    "description": "The feeder gateway ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "feeder_gateway_config.port": {
+    "description": "The feeder gateway port.",
+    "privacy": "Public",
+    "value": 8082
+  },
   "gateway_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",

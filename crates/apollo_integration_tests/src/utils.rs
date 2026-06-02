@@ -45,6 +45,7 @@ use apollo_consensus_orchestrator_config::config::{
     ContextStaticConfig,
 };
 use apollo_deployments::service::NodeType;
+use apollo_feeder_gateway_config::config::FeederGatewayConfig;
 use apollo_gateway_config::config::{
     GatewayConfig,
     GatewayStaticConfig,
@@ -445,6 +446,8 @@ pub fn create_node_config(
     let committer_config = wrap_if_component_config_expected!(committer, committer_config);
     let consensus_manager_config =
         wrap_if_component_config_expected!(consensus_manager, consensus_manager_config);
+    let feeder_gateway_config =
+        wrap_if_component_config_expected!(feeder_gateway, FeederGatewayConfig::default());
     let gateway_config = wrap_if_component_config_expected!(gateway, gateway_config);
     let http_server_config = wrap_if_component_config_expected!(http_server, http_server_config);
     let l1_gas_price_provider_config =
@@ -475,6 +478,7 @@ pub fn create_node_config(
         components,
         config_manager_config,
         consensus_manager_config,
+        feeder_gateway_config,
         gateway_config,
         http_server_config,
         l1_gas_price_provider_config,
