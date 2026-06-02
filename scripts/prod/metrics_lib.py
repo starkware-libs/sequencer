@@ -4,6 +4,7 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import urllib.error
 import urllib.request
 from time import sleep
@@ -11,6 +12,24 @@ from typing import Any, Callable, Optional
 
 from common_lib import Colors, get_namespace_args, print_colored, print_error
 from prometheus_client.parser import text_string_to_metric_families
+
+# Registry of live `kubectl port-forward` processes, so they can be cleaned up even when `gate()`
+# runs on a worker thread (where it cannot install its own signal handlers). Guarded by a lock since
+# parallel waits register/unregister concurrently.
+_active_port_forwards_lock = threading.Lock()
+_active_port_forwards: set[subprocess.Popen] = set()
+
+
+def terminate_all_port_forwards() -> None:
+    """Terminate every port-forward process still running.
+
+    Best-effort cleanup intended to be called from a SIGINT/SIGTERM handler installed on the main
+    thread by the orchestrator when waits run in parallel (worker threads cannot install handlers).
+    """
+    with _active_port_forwards_lock:
+        port_forward_processes = list(_active_port_forwards)
+    for port_forward_process in port_forward_processes:
+        MetricConditionGater._terminate_port_forward_process(port_forward_process)
 
 
 class MetricConditionGater:
@@ -123,6 +142,8 @@ class MetricConditionGater:
                 print_colored("Force killing kubectl port-forward process")
                 pf_process.kill()
                 pf_process.wait()
+        with _active_port_forwards_lock:
+            _active_port_forwards.discard(pf_process)
 
     def gate(self):
         """Wait until the nodes metrics satisfy the condition."""
@@ -142,6 +163,8 @@ class MetricConditionGater:
 
         try:
             pf_process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            with _active_port_forwards_lock:
+                _active_port_forwards.add(pf_process)
             print("Waiting for forwarding to start")
             # Give the forwarding time to start.
             # TODO(guy.f): Consider poll until the forwarding is ready if we see any issues.
@@ -154,13 +177,19 @@ class MetricConditionGater:
                 f"Forwarding started (from local port {self.local_port} to {self.pod}:{self.metrics_port})"
             )
 
-            # Set up signal handler to ensure forwarding subprocess is terminated on interruption
-            def signal_handler(signum, frame):
-                self._terminate_port_forward_process(pf_process)
-                sys.exit(0)
+            # Set up a signal handler to terminate the forwarding subprocess on interruption.
+            # signal.signal only works on the main thread, so skip it when gating runs on a worker
+            # thread (parallel waits) — the orchestrator installs a main-thread handler that calls
+            # terminate_all_port_forwards instead, and the finally block below still cleans up on
+            # normal completion.
+            if threading.current_thread() is threading.main_thread():
 
-            signal.signal(signal.SIGINT, signal_handler)
-            signal.signal(signal.SIGTERM, signal_handler)
+                def signal_handler(signum, frame):
+                    self._terminate_port_forward_process(pf_process)
+                    sys.exit(0)
+
+                signal.signal(signal.SIGINT, signal_handler)
+                signal.signal(signal.SIGTERM, signal_handler)
 
             self._poll_until_condition_met()
 
