@@ -2,20 +2,16 @@
 mod Account {
     use array::{ArrayTrait, SpanTrait};
     use starknet::account::Call;
-    use starknet::{ClassHash, ContractAddress, call_contract_syscall};
     use starknet::info::SyscallResultTrait;
-    use starknet::syscalls;
+    use starknet::{ClassHash, ContractAddress, call_contract_syscall, syscalls};
     use zeroable::Zeroable;
 
     #[storage]
-    struct Storage {
-    }
+    struct Storage {}
 
     #[external(v0)]
     fn __validate_deploy__(
-        self: @ContractState,
-        class_hash: felt252,
-        contract_address_salt: felt252
+        self: @ContractState, class_hash: felt252, contract_address_salt: felt252,
     ) -> felt252 {
         starknet::VALIDATED
     }
@@ -30,7 +26,7 @@ mod Account {
         self: @ContractState,
         contract_address: ContractAddress,
         selector: felt252,
-        calldata: Array<felt252>
+        calldata: Array<felt252>,
     ) -> felt252 {
         starknet::VALIDATED
     }
@@ -44,25 +40,22 @@ mod Account {
         self: @ContractState,
         contract_address: ContractAddress,
         selector: felt252,
-        calldata: Array<felt252>
+        calldata: Array<felt252>,
     ) -> Span<felt252> {
         // Validate caller.
         assert(starknet::get_caller_address().is_zero(), 'INVALID_CALLER');
 
         call_contract_syscall(
-            address: contract_address,
-            entry_point_selector: selector,
-            calldata: calldata.span()
-        ).unwrap_syscall()
+            address: contract_address, entry_point_selector: selector, calldata: calldata.span(),
+        )
+            .unwrap_syscall()
     }
 
     /// Executes a sequence of calls and returns their concatenated return values.
     /// The intended invocation in tests is via `__execute__`, with `__execute__`
     /// forwarding `(self_address, "multi_call", serialized calls)` to this entry point.
     #[external(v0)]
-    fn multi_call(
-        self: @ContractState, mut calls: Array<Call>
-    ) -> Array<Span<felt252>> {
+    fn multi_call(self: @ContractState, mut calls: Array<Call>) -> Array<Span<felt252>> {
         let mut result = ArrayTrait::new();
         loop {
             match calls.pop_front() {
@@ -71,14 +64,13 @@ mod Account {
                         address: call.to,
                         entry_point_selector: call.selector,
                         calldata: call.calldata,
-                    ).unwrap_syscall();
+                    )
+                        .unwrap_syscall();
                     result.append(res);
                 },
-                Option::None => {
-                    break;
-                },
+                Option::None => { break; },
             };
-        };
+        }
         result
     }
 
@@ -87,10 +79,11 @@ mod Account {
         self: @ContractState,
         class_hash: ClassHash,
         contract_address_salt: felt252,
-        calldata: Array::<felt252>,
+        calldata: Array<felt252>,
+        deploy_from_zero: bool,
     ) -> ContractAddress {
         let (address, _) = syscalls::deploy_syscall(
-            class_hash, contract_address_salt, calldata.span(), false
+            class_hash, contract_address_salt, calldata.span(), deploy_from_zero,
         )
             .unwrap_syscall();
         address
