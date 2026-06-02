@@ -402,7 +402,7 @@
           "description": "Median of recent fee_proposals over the sliding window, in GFri",
           "type": "timeseries",
           "exprs": [
-            "snip35_fee_actual{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
+            "snip35_fee_actual_fri{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
           ],
           "extra_params": {}
         },
@@ -411,7 +411,7 @@
           "description": "fee_proposal this node published in the latest block, in GFri",
           "type": "timeseries",
           "exprs": [
-            "snip35_fee_proposal{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
+            "snip35_fee_proposal_fri{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
           ],
           "extra_params": {}
         },
@@ -420,7 +420,16 @@
           "description": "fee_target computed from the STRK/USD oracle, in GFri",
           "type": "timeseries",
           "exprs": [
-            "snip35_fee_target{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
+            "snip35_fee_target_fri{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Fee Target (USD per 1B L2 gas)",
+          "description": "Configured target USD cost per 1 billion L2 gas units (raw metric is atto-USD per L2 gas; atto-USD / 1e9 = USD per 1B L2 gas)",
+          "type": "timeseries",
+          "exprs": [
+            "snip35_fee_target_atto_usd{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
           ],
           "extra_params": {}
         },
@@ -1586,6 +1595,15 @@
           "type": "timeseries",
           "exprs": [
             "l1_message_provider_num_pending_txs{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "L1 Handler Tx Scrape Rate (per minute)",
+          "description": "Number of unique L1 handler transactions scraped from L1 over the last 1m window",
+          "type": "timeseries",
+          "exprs": [
+            "increase(l1_message_scraper_l1_handler_tx_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])"
           ],
           "extra_params": {}
         },

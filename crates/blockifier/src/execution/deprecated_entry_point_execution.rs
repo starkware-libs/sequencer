@@ -17,12 +17,8 @@ use crate::execution::call_info::{CallExecution, CallInfo, ExtendedExecutionReso
 use crate::execution::contract_class::{CompiledClassV0, TrackedResource};
 use crate::execution::deprecated_syscalls::deprecated_syscall_executor::DeprecatedSyscallExecutor;
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallHintProcessor;
-use crate::execution::entry_point::{
-    EntryPointExecutionContext,
-    EntryPointExecutionResult,
-    ExecutableCallEntryPoint,
-};
-use crate::execution::errors::{PostExecutionError, PreExecutionError};
+use crate::execution::entry_point::{EntryPointExecutionContext, ExecutableCallEntryPoint};
+use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{read_execution_retdata, Args, ReadOnlySegments};
 use crate::state::state_api::State;
 
@@ -48,22 +44,25 @@ pub fn execute_entry_point_call(
     compiled_class: CompiledClassV0,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
-) -> EntryPointExecutionResult<CallInfo> {
+) -> Result<CallInfo, EntryPointExecutionError> {
     let VmExecutionContext { mut runner, mut syscall_handler, initial_syscall_ptr, entry_point_pc } =
-        initialize_execution_context(&call, compiled_class, state, context)?;
+        initialize_execution_context(&call, compiled_class, state, context)
+            .map_err(EntryPointExecutionError::from)?;
 
     let (implicit_args, args) = prepare_call_arguments(
         &call,
         &mut runner,
         initial_syscall_ptr,
         &mut syscall_handler.read_only_segments,
-    )?;
+    )
+    .map_err(EntryPointExecutionError::from)?;
     let n_total_args = args.len();
 
     // Execute.
     run_entry_point(&mut runner, &mut syscall_handler, entry_point_pc, args)?;
 
-    Ok(finalize_execution(runner, syscall_handler, call, implicit_args, n_total_args)?)
+    finalize_execution(runner, syscall_handler, call, implicit_args, n_total_args)
+        .map_err(EntryPointExecutionError::from)
 }
 
 pub fn initialize_execution_context<'a>(
@@ -210,11 +209,11 @@ pub fn run_entry_point(
     hint_processor: &mut DeprecatedSyscallHintProcessor<'_>,
     entry_point_pc: usize,
     args: Args,
-) -> EntryPointExecutionResult<()> {
+) -> Result<(), EntryPointExecutionError> {
     let verify_secure = true;
     let program_segment_size = None; // Infer size from program.
     let args: Vec<&CairoArg> = args.iter().collect();
-    let result = runner
+    runner
         .run_from_entrypoint(
             entry_point_pc,
             &args,
@@ -222,9 +221,7 @@ pub fn run_entry_point(
             program_segment_size,
             hint_processor,
         )
-        .map_err(Box::new);
-
-    Ok(result?)
+        .map_err(|error| EntryPointExecutionError::from(Box::new(error)))
 }
 
 pub fn finalize_execution(

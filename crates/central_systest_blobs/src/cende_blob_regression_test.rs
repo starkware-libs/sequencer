@@ -858,7 +858,9 @@ async fn test_make_data() {
     // (to ensure the preconfirmed block is not empty).
     let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let account_with_real_validate = FeatureContract::AccountWithRealValidate(RunnableCairo1::Casm);
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    // Use the cende-dedicated feature contract so additions to the shared `test_contract`
+    // do not churn this regression's `preconfirmed_block.json` and GCS blob.
+    let test_contract = FeatureContract::CendeTest(RunnableCairo1::Casm);
     blob_factory.make_declare_tx(erc20_contract, None);
     blob_factory.close_block().await;
     blob_factory.make_declare_tx(account_with_real_validate, None);

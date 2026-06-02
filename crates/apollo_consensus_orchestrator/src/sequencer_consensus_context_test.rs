@@ -107,6 +107,7 @@ const HEIGHT_1: BlockNumber = BlockNumber(1);
 // Use heights < 10 to avoid triggering the height-10 block-hash mapping code path (not tested
 // here). Use non-zero height because height 0 always skips the write without querying the recorder.
 const HEIGHT_FOR_WRITE_TESTS: BlockNumber = BlockNumber(8);
+const TARGET_ATTO_USD_PER_L2_GAS: u128 = 3_000_000_000;
 
 const ROUND_0: Round = 0;
 const ROUND_1: Round = 1;
@@ -1685,7 +1686,8 @@ async fn test_compute_proposer_fee_proposal(
 
     let mut context = deps.build_context();
     context.l2_gas_price = l2_gas_price;
-    let proposal = context.compute_proposer_fee_proposal(fee_actual, 0).await;
+    let proposal =
+        context.compute_proposer_fee_proposal(fee_actual, 0, TARGET_ATTO_USD_PER_L2_GAS).await;
     assert_eq!(proposal, expected_fee_proposal);
 }
 
@@ -1725,7 +1727,9 @@ async fn test_compute_proposer_fee_proposal_converges_to_oracle_target() {
             let h = BlockNumber(height);
             let fee_actual = compute_fee_actual(&context.fee_proposals_window, h, window_size)
                 .expect("window stays complete across the loop");
-            let proposal = context.compute_proposer_fee_proposal(Some(fee_actual), 0).await;
+            let proposal = context
+                .compute_proposer_fee_proposal(Some(fee_actual), 0, TARGET_ATTO_USD_PER_L2_GAS)
+                .await;
             context.record_fee_proposal(h, Some(proposal));
             height += 1;
         }
