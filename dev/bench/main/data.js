@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780409547622,
+  "lastUpdate": 1780415705903,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5201,6 +5201,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1488.57805576,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "de95d9176962f10012627301f5d79a004f901db9",
+          "message": "starknet_committer: delete patricia paths on reverts (#14002)",
+          "timestamp": "2026-06-02T15:29:35Z",
+          "tree_id": "90eb8b9d24db9be21cd28acf0f0855adb9c36f69",
+          "url": "https://github.com/starkware-libs/sequencer/commit/de95d9176962f10012627301f5d79a004f901db9"
+        },
+        "date": 1780415705319,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1174.72275515,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1598.0055156800001,
             "unit": "ms"
           }
         ]
