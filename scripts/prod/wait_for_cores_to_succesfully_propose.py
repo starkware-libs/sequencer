@@ -77,6 +77,7 @@ def main():
             8082,
             RestartStrategy.NO_RESTART,
         ),
+        args.max_parallelism,
     )
 
 
