@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780400619930,
+  "lastUpdate": 1780401064298,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5099,6 +5099,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1362.85038081,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6e625f132243df9b9c75d7b0b62f86463556f5d8",
+          "message": "starknet_committer: delete dead code (#14098)\n\nRemove the unused STORAGE_LEAF_SIZE constant from node_serde.rs.\nThe constant has been annotated with #[allow(dead_code)] since it was\nintroduced and has never had a caller anywhere in the codebase.\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-06-02T11:27:25Z",
+          "tree_id": "a2c38a2844e0e794a7244b91e9ad46da449eedb3",
+          "url": "https://github.com/starkware-libs/sequencer/commit/6e625f132243df9b9c75d7b0b62f86463556f5d8"
+        },
+        "date": 1780401063823,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 894.6719954,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1301.50690737,
             "unit": "ms"
           }
         ]
