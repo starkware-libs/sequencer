@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780305156988,
+  "lastUpdate": 1780400619930,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5065,6 +5065,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1306.40706824,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2126e22f5fc947cf5fd972f755ca79a5190a11ab",
+          "message": "apollo_network: delete dead code (#14087)\n\nRemove the entire `src/authentication/` directory (3 files: `mod.rs`,\n`composed_noise.rs`, `negotiator.rs`). The module was never declared in\n`lib.rs`, so it was never compiled or reachable from any code path.\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-06-02T11:26:13Z",
+          "tree_id": "cb36cc24ffce2f409455640327d9ee53f0b9bf65",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2126e22f5fc947cf5fd972f755ca79a5190a11ab"
+        },
+        "date": 1780400619514,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 928.55817324,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1362.85038081,
             "unit": "ms"
           }
         ]
