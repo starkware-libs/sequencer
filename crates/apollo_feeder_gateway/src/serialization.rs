@@ -1,5 +1,7 @@
 use std::io;
 
+use axum::http::header;
+use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use serde_json::ser::{Formatter, Serializer};
 
@@ -89,4 +91,14 @@ pub fn to_python_json<T: Serialize>(value: &T) -> FgResult<String> {
         tracing::error!(error = %error, "feeder gateway JSON serialization produced invalid UTF-8");
         FeederGatewayError::Internal
     })
+}
+
+/// Builds a feeder gateway JSON `Response` from `value`, serialized with the byte-parity
+/// [`to_python_json`] formatter (never axum `Json<T>`, which is compact). On the unexpected
+/// serialization failure, returns the internal-error envelope.
+pub fn fg_json<T: Serialize>(value: &T) -> Response {
+    match to_python_json(value) {
+        Ok(body) => ([(header::CONTENT_TYPE, "application/json")], body).into_response(),
+        Err(error) => error.into_response(),
+    }
 }

@@ -1530,6 +1530,7 @@ name = "apollo_feeder_gateway"
 version = "0.0.0"
 dependencies = [
  "apollo_feeder_gateway_config",
+ "apollo_gateway_types",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_state_sync_types",
@@ -1537,6 +1538,7 @@ dependencies = [
  "async-trait",
  "axum",
  "mockall",
+ "regex",
  "rstest",
  "serde",
  "serde_json",
