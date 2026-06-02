@@ -1526,6 +1526,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_feeder_gateway"
+version = "0.0.0"
+dependencies = [
+ "apollo_infra",
+ "apollo_infra_utils",
+ "async-trait",
+ "rstest",
+ "tracing",
+]
+
+[[package]]
 name = "apollo_feeder_gateway_config"
 version = "0.0.0"
 dependencies = [

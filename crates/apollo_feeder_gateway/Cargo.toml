@@ -1,0 +1,22 @@
+[package]
+name = "apollo_feeder_gateway"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Feeder gateway read API server for the Apollo sequencer."
+
+[features]
+testing = []
+
+[lints]
+workspace = true
+
+[dependencies]
+apollo_infra.workspace = true
+apollo_infra_utils.workspace = true
+async-trait.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
