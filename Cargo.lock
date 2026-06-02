@@ -2889,6 +2889,7 @@ name = "apollo_transaction_converter"
 version = "0.19.0-rc.0"
 dependencies = [
  "apollo_class_manager_types",
+ "apollo_config",
  "apollo_metrics",
  "apollo_proof_manager_types",
  "assert_matches",
