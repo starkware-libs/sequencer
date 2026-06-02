@@ -46,7 +46,15 @@ impl CurrentProposalState {
             .expected_block_number
             .next()
             .expect("Block number overflow while advancing expected block after pop.");
-        self.emit_empty_block = false;
+        // Gate further pops within the current proposer round. Without this, the outer loop
+        // in `Mempool::get_txs` would keep calling `pop_ready_chunk` and — when the next
+        // mainnet block shares this block's wall-clock timestamp (which has happened in
+        // production: blocks 9188909 and 9188910 both at 1777228096) — `matches_tx` would
+        // pass on the new front and the proposer would silently drain the next block's tx
+        // into this block. The flag is cleared on the next round's `resolve_metadata` via
+        // `sync_proposal_state_from_queue_front_tx`'s "head matches the expected block"
+        // branch (or the "skip" branch if there's a real gap).
+        self.emit_empty_block = true;
     }
 }
 

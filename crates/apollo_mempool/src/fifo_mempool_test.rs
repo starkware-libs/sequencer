@@ -366,6 +366,37 @@ fn test_empty_block_metadata_has_correct_block_number(mut mempool: Mempool) {
     assert_eq!(mempool.get_txs(10).unwrap(), vec![input2.tx]);
 }
 
+// Regression: when two consecutive mainnet blocks share a wall-clock timestamp
+// (production occurrence: blocks 9188909 and 9188910 both at 1777228096), a single
+// `get_txs` call must not drain across the block boundary. The bug was that
+// `advance_block_if_drained` updated `expected_block_number` to N+1 but left the
+// timestamp at T_N — since T_{N+1} == T_N, `matches_tx` on the new front_tx returned
+// true and the outer `Mempool::get_txs` loop kept popping, pulling block N+1's tx
+// into the proposer's block-N proposal.
+#[rstest]
+fn test_get_txs_stops_at_block_boundary_even_with_shared_timestamp(mut mempool: Mempool) {
+    let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let input2 = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
+
+    // Block N and block N+1 share the same wall-clock timestamp.
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1777228096, 9188909));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(1777228096, 9188910));
+
+    add_tx(&mut mempool, &input1);
+    add_tx(&mut mempool, &input2);
+
+    // Round 1 builds block 9188909 — must contain ONLY input1, not input2 (which belongs
+    // to the next block on mainnet, even though they share the timestamp).
+    let meta = mempool.resolve_block_metadata();
+    assert_eq!(meta.block_number, Some(BlockNumber(9188909)));
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input1.tx]);
+
+    // Round 2 builds block 9188910 with input2.
+    let meta = mempool.resolve_block_metadata();
+    assert_eq!(meta.block_number, Some(BlockNumber(9188910)));
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![input2.tx]);
+}
+
 #[rstest]
 fn test_get_txs_returns_empty_result_with_gaps(mut mempool: Mempool) {
     let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
