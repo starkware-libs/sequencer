@@ -27,6 +27,23 @@ from common_lib import (
 from restarter_lib import ServiceRestarter
 
 
+class _ConciseHelpFormatter(argparse.RawDescriptionHelpFormatter):
+    """Help formatter that shows the metavar once per option.
+
+    Renders "-j, --service SERVICE" instead of argparse's default
+    "-j SERVICE, --service SERVICE". This matches argparse's own behavior in Python 3.13+; this
+    formatter provides it on the older versions we run on. Inherits RawDescriptionHelpFormatter so
+    the multi-line usage epilog is still printed verbatim.
+    """
+
+    def _format_action_invocation(self, action: argparse.Action) -> str:
+        if not action.option_strings or action.nargs == 0:
+            return super()._format_action_invocation(action)
+        default_metavar = self._get_default_metavar_for_optional(action)
+        args_string = self._format_args(action, default_metavar)
+        return ", ".join(action.option_strings) + " " + args_string
+
+
 class ApolloArgsParserBuilder:
     """Builder class for creating argument parsers with required flags and custom arguments."""
 
@@ -40,7 +57,7 @@ class ApolloArgsParserBuilder:
         self.usage_example = usage_example
         self.parser = argparse.ArgumentParser(
             description=description,
-            formatter_class=argparse.RawDescriptionHelpFormatter,
+            formatter_class=_ConciseHelpFormatter,
             epilog=usage_example,
         )
 
@@ -105,9 +122,10 @@ class ApolloArgsParserBuilder:
                 "-t",
                 "--restart-strategy",
                 type=restart_strategy_converter,
-                choices=list(RestartStrategy),
                 required=True,
-                help="Strategy for restarting nodes",
+                metavar="STRATEGY",
+                help="Strategy for restarting nodes. One of: "
+                + ", ".join(str(strategy) for strategy in RestartStrategy),
             )
 
     def add_argument(self, *args, **kwargs):

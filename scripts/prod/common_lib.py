@@ -156,6 +156,11 @@ class RestartStrategy(Enum):
     ONE_BY_ONE = "one_by_one"
     NO_RESTART = "no_restart"
 
+    def __str__(self) -> str:
+        # The accepted CLI token is the value (e.g. "all_at_once"); use it so argparse choices and
+        # error messages show what the user actually types rather than "RestartStrategy.ALL_AT_ONCE".
+        return self.value
+
 
 def restart_strategy_converter(strategy_name: str) -> RestartStrategy:
     """Convert string to RestartStrategy enum with informative error message"""
@@ -166,8 +171,9 @@ def restart_strategy_converter(strategy_name: str) -> RestartStrategy:
     strategy_name = strategy_name.lower()
 
     try:
+        # Looking an Enum up by value raises ValueError (not KeyError) when no member matches.
         return RestartStrategy(strategy_name)
-    except KeyError:
+    except ValueError:
         valid_strategies = ", ".join([strategy.value for strategy in RestartStrategy])
         raise argparse.ArgumentTypeError(
             f"Invalid restart strategy '{strategy_name}'. Valid options are: {valid_strategies}"
@@ -189,6 +195,11 @@ class Service(Enum):
     def __init__(self, config_map_name: str, pod_name: str) -> None:
         self.config_map_name = config_map_name
         self.pod_name = pod_name
+
+    def __str__(self) -> str:
+        # The accepted CLI token is the member name (e.g. "Core"); use it so argparse choices and
+        # error messages show what the user actually types rather than "Service.Core".
+        return self.name
 
 
 class NamespaceAndInstructionArgs:
