@@ -39,6 +39,7 @@ def set_revert_mode(
     restarter: ServiceRestarter,
     should_revert: bool,
     revert_up_to_block: int,
+    max_parallelism: int,
 ):
     config_overrides = {
         "revert_config.should_revert": should_revert,
@@ -49,6 +50,7 @@ def set_revert_mode(
         namespace_and_instruction_args,
         Service.Core,
         restarter,
+        max_parallelism,
     )
 
 
@@ -57,6 +59,7 @@ def enable_revert_mode(
     context_list: Optional[list[str]],
     project_name: Optional[str],
     revert_up_to_block: int,
+    max_parallelism: int,
 ):
     print_colored(
         f"Enabling revert mode (reverting up to and including block {revert_up_to_block})",
@@ -93,12 +96,15 @@ def enable_revert_mode(
         8082,
         RestartStrategy.ALL_AT_ONCE,
     )
-    set_revert_mode(namespace_and_instruction_args, restarter, True, revert_up_to_block)
+    set_revert_mode(
+        namespace_and_instruction_args, restarter, True, revert_up_to_block, max_parallelism
+    )
 
 
 def disable_revert_mode(
     namespace_list: list[str],
     context_list: Optional[list[str]],
+    max_parallelism: int,
 ):
     print_colored("Disabling revert mode", Colors.YELLOW)
     namespace_and_instruction_args = NamespaceAndInstructionArgs(namespace_list, context_list)
@@ -111,6 +117,7 @@ def disable_revert_mode(
         False,
         # Setting to max block to max u64 to disable revert.
         2**64 - 1,
+        max_parallelism,
     )
 
 
@@ -210,12 +217,14 @@ Examples:
             context_list,
             args.project_name,
             revert_up_to_block,
+            args.max_parallelism,
         )
 
     if should_disable_revert:
         disable_revert_mode(
             namespace_list,
             context_list,
+            args.max_parallelism,
         )
 
 

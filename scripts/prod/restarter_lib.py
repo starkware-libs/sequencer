@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import signal
 import sys
 from abc import ABC, abstractmethod
 from time import sleep
@@ -13,10 +14,11 @@ from common_lib import (
     get_namespace_args,
     print_colored,
     print_error,
+    run_in_parallel,
     run_kubectl_command,
     wait_until_y_or_n,
 )
-from metrics_lib import MetricConditionGater
+from metrics_lib import MetricConditionGater, terminate_all_port_forwards
 
 
 def _get_pod_names(
@@ -67,7 +69,11 @@ class ServiceRestarter(ABC):
             kubectl_args.extend(get_namespace_args(namespace, cluster))
 
             try:
-                run_kubectl_command(kubectl_args, capture_output=False)
+                # Capture (rather than stream) so output stays grouped per node when restarts run
+                # in parallel; echo it through print_colored which honors the per-node buffer.
+                result = run_kubectl_command(kubectl_args, capture_output=True)
+                if result.stdout:
+                    print_colored(result.stdout.rstrip())
                 print_colored(f"Restarted {pod} for node {index}")
             except Exception as e:
                 print_error(f"Failed restarting {pod} for node {index}: {e}")
@@ -76,6 +82,18 @@ class ServiceRestarter(ABC):
     @abstractmethod
     def restart_service(self, instance_index: int) -> bool:
         """Restart service for a specific instance. If returns False, the restart process should be aborted."""
+
+    def restart_all(self, max_parallelism: int) -> None:
+        """Restart all instances.
+
+        Default: sequential, one instance at a time, aborting if any `restart_service` returns
+        False. Subclasses that have no inter-node ordering dependency override this to run in
+        parallel. `max_parallelism` is ignored by this sequential default.
+        """
+        for instance_index in range(self.namespace_and_instruction_args.size()):
+            if not self.restart_service(instance_index):
+                print_colored("\nAborting restart process.")
+                sys.exit(1)
 
     # from_restart_strategy is a static method that returns the appropriate ServiceRestarter based on the restart strategy.
     @staticmethod
@@ -96,6 +114,7 @@ class ServiceRestarter(ABC):
                 service,
                 check_between_restarts,
                 RestartPodOnlyRestarter(namespace_and_instruction_args, service),
+                parallel=False,
             )
         elif restart_strategy == RestartStrategy.ALL_AT_ONCE:
             return ChecksBetweenRestartsCompositeRestarter(
@@ -103,6 +122,7 @@ class ServiceRestarter(ABC):
                 service,
                 lambda instance_index: True,
                 RestartPodOnlyRestarter(namespace_and_instruction_args, service),
+                parallel=True,
             )
         elif restart_strategy == RestartStrategy.NO_RESTART:
             assert (
@@ -142,10 +162,18 @@ class ChecksBetweenRestartsCompositeRestarter(ServiceRestarter):
         service: Service,
         check_between_restarts: Callable[[int], bool],
         base_service_restarter: ServiceRestarter,
+        parallel: bool = False,
     ):
         super().__init__(namespace_and_instruction_args, service)
         self.check_between_restarts = check_between_restarts
         self.base_service_restarter = base_service_restarter
+        # When True there is no inter-node ordering dependency (e.g. ALL_AT_ONCE), so restart_all
+        # restarts every node and then runs the post-restart checks concurrently. When False
+        # (interactive ONE_BY_ONE / NO_RESTART) restart_all stays sequential.
+        self.parallel = parallel
+
+    def _label(self, instance_index: int) -> str:
+        return self.namespace_and_instruction_args.get_namespace(instance_index)
 
     def restart_service(self, instance_index: int) -> bool:
         """Call the base restarter on each instance one by one, running the check_between_restarts in between each."""
@@ -155,6 +183,34 @@ class ChecksBetweenRestartsCompositeRestarter(ServiceRestarter):
         if instructions is not None:
             print_colored(f"{instructions} ", Colors.YELLOW)
         return self.check_between_restarts(instance_index)
+
+    def restart_all(self, max_parallelism: int) -> None:
+        if not self.parallel:
+            super().restart_all(max_parallelism)
+            return
+
+        indices = list(range(self.namespace_and_instruction_args.size()))
+
+        # Phase 1: restart every node's pod concurrently (pod deletes have no ordering dependency).
+        print_colored(f"\nRestarting {len(indices)} node(s) in parallel...", Colors.YELLOW)
+        run_in_parallel(
+            indices,
+            self.base_service_restarter.restart_service,
+            max_parallelism,
+            self._label,
+        )
+
+        for instance_index in indices:
+            instructions = self.namespace_and_instruction_args.get_instruction(instance_index)
+            if instructions is not None:
+                print_colored(f"[{self._label(instance_index)}] {instructions}", Colors.YELLOW)
+
+        # Phase 2: run post-restart checks (if any) concurrently.
+        self._wait_all(indices, max_parallelism)
+
+    def _wait_all(self, indices: list[int], max_parallelism: int) -> None:
+        """Run post-restart checks for all nodes concurrently. No-op when there is nothing to wait
+        for (overridden by restarters that gate on metrics)."""
 
 
 class NoOpServiceRestarter(ServiceRestarter):
@@ -177,11 +233,16 @@ class WaitOnMetricRestarter(ChecksBetweenRestartsCompositeRestarter):
     ):
         self.metrics = metrics
         self.metrics_port = metrics_port
+        # ALL_AT_ONCE has no inter-node ordering dependency: restart every node, then wait for all
+        # conditions concurrently. ONE_BY_ONE / NO_RESTART stay sequential (they prompt the user
+        # between nodes).
+        parallel = restart_strategy == RestartStrategy.ALL_AT_ONCE
         if restart_strategy == RestartStrategy.ONE_BY_ONE:
             check_function = self._check_between_each_restart
             base_restarter = RestartPodOnlyRestarter(namespace_and_instruction_args, service)
         elif restart_strategy == RestartStrategy.ALL_AT_ONCE:
-            check_function = self._check_all_only_after_last_restart
+            # check_function is unused in the parallel path (restart_all drives the phases directly).
+            check_function = lambda instance_index: True
             base_restarter = RestartPodOnlyRestarter(namespace_and_instruction_args, service)
         elif restart_strategy == RestartStrategy.NO_RESTART:
             check_function = self._check_between_each_restart
@@ -190,7 +251,9 @@ class WaitOnMetricRestarter(ChecksBetweenRestartsCompositeRestarter):
             print_error(f"Invalid restart strategy: {restart_strategy} for WaitOnMetricRestarter.")
             sys.exit(1)
 
-        super().__init__(namespace_and_instruction_args, service, check_function, base_restarter)
+        super().__init__(
+            namespace_and_instruction_args, service, check_function, base_restarter, parallel
+        )
 
     def _check_between_each_restart(self, instance_index: int) -> bool:
         if not self._wait_for_pod_to_satisfy_condition(instance_index):
@@ -200,16 +263,21 @@ class WaitOnMetricRestarter(ChecksBetweenRestartsCompositeRestarter):
             return True
         return wait_until_y_or_n(f"Do you want to restart the next pod?")
 
-    def _check_all_only_after_last_restart(self, instance_index: int) -> bool:
-        # Restart all nodes without waiting for confirmation.
-        if instance_index < self.namespace_and_instruction_args.size() - 1:
-            return True
+    def _wait_all(self, indices: list[int], max_parallelism: int) -> None:
+        # gate() starts a kubectl port-forward per node on a worker thread, which cannot install
+        # signal handlers; install one here (main thread) so Ctrl-C tears all of them down.
+        def signal_handler(signum, frame):
+            terminate_all_port_forwards()
+            sys.exit(0)
 
-        # After the last node has been restarted, wait for all pods to satisfy the condition.
-        for instance_index in range(self.namespace_and_instruction_args.size()):
-            if not self._wait_for_pod_to_satisfy_condition(instance_index):
-                print_error(f"Failed waiting for condition(s) for Pod {instance_index}.")
-        return True
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+
+        run_in_parallel(indices, self._wait_for_index, max_parallelism, self._label)
+
+    def _wait_for_index(self, instance_index: int) -> None:
+        if not self._wait_for_pod_to_satisfy_condition(instance_index):
+            print_error(f"Failed waiting for condition(s) for Pod {instance_index}.")
 
     def _wait_for_pod_to_satisfy_condition(self, instance_index: int) -> bool:
         # The sleep is to prevent the case where we get the pod name of the old pod we just deleted
@@ -234,6 +302,7 @@ class WaitOnMetricRestarter(ChecksBetweenRestartsCompositeRestarter):
                     self.metrics_port,
                 )
                 metric_condition_gater.gate()
+        return True
 
     @staticmethod
     def _wait_for_pods_to_be_ready(
@@ -263,7 +332,11 @@ class WaitOnMetricRestarter(ChecksBetweenRestartsCompositeRestarter):
                         f"{wait_timeout}s",
                     ]
                     kubectl_args.extend(get_namespace_args(namespace, cluster))
-                    result = run_kubectl_command(kubectl_args, capture_output=False)
+                    # Capture (rather than stream) so output stays grouped per node under parallel
+                    # waits; progress is surfaced by run_in_parallel's heartbeat instead.
+                    result = run_kubectl_command(kubectl_args, capture_output=True)
+                    if result.stdout:
+                        print_colored(result.stdout.rstrip())
 
                     if result.returncode != 0:
                         print_colored(

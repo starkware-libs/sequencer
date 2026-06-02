@@ -198,6 +198,7 @@ Examples:
         namespace_and_instruction_args,
         args.service,
         restarter,
+        args.max_parallelism,
     )
 
 

@@ -80,6 +80,15 @@ class ApolloArgsParserBuilder:
             help="The starting index for node IDs (default: 0)",
         )
 
+        self.parser.add_argument(
+            "-p",
+            "--max-parallelism",
+            type=int,
+            default=16,
+            help="Max number of nodes to restart / wait on concurrently for non-interactive "
+            "strategies (default: 16). Interactive strategies (one_by_one) always run sequentially.",
+        )
+
         cluster_group = self.parser.add_mutually_exclusive_group()
         cluster_group.add_argument(
             "-c", "--cluster-prefix", help="Optional cluster prefix for kubectl context"
@@ -450,6 +459,7 @@ def update_config_and_restart_nodes(
     namespace_and_instruction_args: NamespaceAndInstructionArgs,
     service: Service,
     restarter: ServiceRestarter,
+    max_parallelism: int = 1,
 ) -> None:
     assert namespace_and_instruction_args.namespace_list is not None, "namespaces must be provided"
 
@@ -462,9 +472,6 @@ def update_config_and_restart_nodes(
     if config_values_updater is not None:
         _update_config(config_values_updater, namespace_and_instruction_args, service)
 
-    for index in range(namespace_and_instruction_args.size()):
-        if not restarter.restart_service(index):
-            print_colored("\nAborting restart process.")
-            sys.exit(1)
+    restarter.restart_all(max_parallelism)
 
     print("\nOperation completed successfully!")
