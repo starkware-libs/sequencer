@@ -154,7 +154,7 @@ impl SerializeConfig for L1EventsScraperConfig {
             ser_param(
                 "chain_id",
                 &self.chain_id,
-                "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+                "The chain to follow. For more details see https://docs.starknet.io/learn/cheatsheets/transactions-reference#chain-id.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(

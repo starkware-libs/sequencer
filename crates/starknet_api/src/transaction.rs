@@ -459,7 +459,7 @@ macro_rules! impl_deploy_transaction_trait {
 impl<T: DeployTransactionTrait> CalculateContractAddress for T {
     /// Calculates the contract address for the contract deployed by a deploy account transaction.
     /// For more details see:
-    /// <https://docs.starknet.io/architecture-and-concepts/smart-contracts/contract-address/>
+    /// <https://docs.starknet.io/learn/cheatsheets/transactions-reference#deploy-account-v3>
     fn calculate_contract_address(&self) -> StarknetApiResult<ContractAddress> {
         // When the contract is deployed via a deploy-account transaction, the deployer address is
         // zero.
