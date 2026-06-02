@@ -1,3 +1,30 @@
+# Shared sequencer-node service body. Each node runs in its own container and reaches the others by
+# docker DNS name (sequencer-node-0, sequencer-node-1, ...). node_1+ are gated behind profiles so
+# only N_NODES of them start (see deploy_local_stack.sh).
+x-sequencer-node: &sequencer_node
+  depends_on:
+    config_injector:
+      condition: service_completed_successfully
+    sequencer_node_setup:
+      condition: service_completed_successfully
+    dummy_recorder:
+      condition: service_started
+    dummy_exchange_rate_oracle:
+      condition: service_started
+  build:
+    context: ${SEQUENCER_ROOT_DIR}
+    dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/Dockerfile
+    args:
+      BUILD_MODE: debug
+  environment:
+    - RUST_LOG=${RUST_LOG}
+    - RUST_BACKTRACE=${RUST_BACKTRACE}
+  volumes:
+    - data:/data
+    - config:/config
+  networks:
+    - sequencer-network
+
 services:
   prometheus:
     image: prom/prometheus
@@ -31,7 +58,7 @@ services:
       - RUST_BACKTRACE=${RUST_BACKTRACE}
     entrypoint: "/bin/bash -c"
     command: >
-      "./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-distributed 0 --n-hybrid 0 --n-consolidated 1;
+      "./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-distributed 0 --n-hybrid 0 --n-consolidated ${N_NODES:-1};
       cp -r ./output/data/* /data; cp -r ./output/configs/* /config"
     volumes:
       - data:/data
@@ -71,66 +98,81 @@ services:
     build:
       context: ${SEQUENCER_ROOT_DIR}
       dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/config_injector.Dockerfile
-    # TODO(Tsabary): change the setup binary to output the file to a specific path, and use it in the following command.
-    # TODO(Tsabary): the config changes need to be more robust, probably managed through a suitable rust binary.
-    command: |
-      "cp /config/node_0/node_integration_test_config_changes.json ${SEQUENCER_CONFIG_PATH} \
-      echo 'Injecting config changes...' && \
-      jq '.\"recorder_url\" = \"http://dummy_recorder:8080\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
-      jq '.\"l1_gas_price_provider_config.eth_to_strk_oracle_config.url_header_list\" = \"${ETH_STRK_ORACLE_URL_HEADERS:-http://dummy_exchange_rate_oracle:9000/eth_to_strk_oracle}\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
-      jq '.\"l1_gas_price_provider_config.eth_to_strk_oracle_config.lag_interval_seconds\" = ${ETH_STRK_ORACLE_LAG_SECONDS:-60}' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
-      jq '.\"l1_gas_price_provider_config.strk_to_usd_oracle_config.url_header_list\" = \"${STRK_USD_ORACLE_URL_HEADERS:-http://dummy_exchange_rate_oracle:9000/eth_to_strk_oracle}\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
-      jq '.\"l1_gas_price_provider_config.strk_to_usd_oracle_config.lag_interval_seconds\" = ${STRK_USD_ORACLE_LAG_SECONDS:-60}' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
-      jq '.\"http_server_config.static_config.ip\" = \"0.0.0.0\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
-      jq '.\"http_server_config.static_config.port\" = ${SEQUENCER_HTTP_PORT}' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
-      jq '.\"monitoring_endpoint_config.port\" = ${SEQUENCER_MONITORING_PORT}' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
-      # These are here to avoid using an L1 baselayer. This is because anvil was deliberately disabled in the docker test. 
-      jq '.\"components.l1_events_scraper.execution_mode\" = \"Disabled\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
-      jq '.\"l1_events_scraper_config.#is_none\" = true' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
-      jq '.\"l1_events_provider_config.dummy_mode\" = true' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
-      jq '.\"components.l1_gas_price_scraper.execution_mode\" = \"Disabled\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
-      jq '.\"l1_gas_price_scraper_config.#is_none\" = true' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
-      echo 'Printing final config:' && \
-      echo '----------------------------------------' && \
-      cat ${SEQUENCER_CONFIG_PATH} && \
-      echo '----------------------------------------' && \
-      echo 'Done'"
+    # Inject local-stack overrides into each node's config. Single $ is interpolated by docker
+    # compose (host env); $$ is passed through to the container shell. For N>1 the localhost
+    # full-mesh P2P bootstrap addresses are rewritten to per-node DNS names (entry j -> node j, since
+    # the list is node-index ordered and identical across nodes).
+    command:
+      - |
+        set -e
+        N_NODES=${N_NODES:-1}
+        for i in $$(seq 0 $$((N_NODES - 1))); do
+          cfg=/config/node_$$i/config.json
+          cp /config/node_$$i/node_integration_test_config_changes.json "$$cfg"
+          jq '."recorder_url" = "http://dummy_recorder:8080"' "$$cfg" | sponge "$$cfg"
+          jq --arg v "${ETH_STRK_ORACLE_URL_HEADERS:-http://dummy_exchange_rate_oracle:9000/eth_to_strk_oracle}" '."l1_gas_price_provider_config.eth_to_strk_oracle_config.url_header_list" = $$v' "$$cfg" | sponge "$$cfg"
+          jq --argjson v ${ETH_STRK_ORACLE_LAG_SECONDS:-60} '."l1_gas_price_provider_config.eth_to_strk_oracle_config.lag_interval_seconds" = $$v' "$$cfg" | sponge "$$cfg"
+          jq --arg v "${STRK_USD_ORACLE_URL_HEADERS:-http://dummy_exchange_rate_oracle:9000/eth_to_strk_oracle}" '."l1_gas_price_provider_config.strk_to_usd_oracle_config.url_header_list" = $$v' "$$cfg" | sponge "$$cfg"
+          jq --argjson v ${STRK_USD_ORACLE_LAG_SECONDS:-60} '."l1_gas_price_provider_config.strk_to_usd_oracle_config.lag_interval_seconds" = $$v' "$$cfg" | sponge "$$cfg"
+          jq '."http_server_config.static_config.ip" = "0.0.0.0"' "$$cfg" | sponge "$$cfg"
+          jq '."http_server_config.static_config.port" = 8081' "$$cfg" | sponge "$$cfg"
+          jq '."monitoring_endpoint_config.port" = 8082' "$$cfg" | sponge "$$cfg"
+          jq '."components.l1_events_scraper.execution_mode" = "Disabled"' "$$cfg" | sponge "$$cfg"
+          jq '."l1_events_scraper_config.#is_none" = true' "$$cfg" | sponge "$$cfg"
+          jq '."l1_events_provider_config.dummy_mode" = true' "$$cfg" | sponge "$$cfg"
+          jq '."components.l1_gas_price_scraper.execution_mode" = "Disabled"' "$$cfg" | sponge "$$cfg"
+          jq '."l1_gas_price_scraper_config.#is_none" = true' "$$cfg" | sponge "$$cfg"
+          if [ "$$N_NODES" -gt 1 ]; then
+            for key in consensus_manager_config.network_config.bootstrap_peer_multiaddr mempool_p2p_config.network_config.bootstrap_peer_multiaddr state_sync_config.static_config.network_config.bootstrap_peer_multiaddr; do
+              jq --arg k "$$key" '.[$$k] |= (split(",") | to_entries | map(.key as $$j | .value | sub("/ip4/[0-9.]+/"; "/dns4/sequencer-node-\($$j)/")) | join(","))' "$$cfg" | sponge "$$cfg"
+            done
+          fi
+        done
     volumes:
       - config:/config
     networks:
       - sequencer-network
 
-  sequencer_node:
-    depends_on:
-      config_injector:
-        condition: service_completed_successfully
-      dummy_recorder:
-        condition: service_started
-      sequencer_node_setup:
-        condition: service_completed_successfully
-    build:
-      context: ${SEQUENCER_ROOT_DIR}
-      dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/Dockerfile
-      args:
-        BUILD_MODE: debug
-    environment:
-      - RUST_LOG=${RUST_LOG}
-      - RUST_BACKTRACE=${RUST_BACKTRACE}
+  sequencer-node-0:
+    <<: *sequencer_node
     ports:
-      - ${SEQUENCER_HTTP_PORT}:${SEQUENCER_HTTP_PORT}
-      - ${SEQUENCER_MONITORING_PORT}:${SEQUENCER_MONITORING_PORT}
+      - "8081:8081"
+      - "8082:8082"
     command:
       - "--config_file"
-      - "${SEQUENCER_CONFIG_PATH}"
-    volumes:
-      - data:/data
-      - config:/config
-    networks:
-      - sequencer-network
+      - "/config/node_0/config.json"
+
+  sequencer-node-1:
+    <<: *sequencer_node
+    profiles: ["node1"]
+    command:
+      - "--config_file"
+      - "/config/node_1/config.json"
+
+  sequencer-node-2:
+    <<: *sequencer_node
+    profiles: ["node2"]
+    command:
+      - "--config_file"
+      - "/config/node_2/config.json"
+
+  sequencer-node-3:
+    <<: *sequencer_node
+    profiles: ["node3"]
+    command:
+      - "--config_file"
+      - "/config/node_3/config.json"
+
+  sequencer-node-4:
+    <<: *sequencer_node
+    profiles: ["node4"]
+    command:
+      - "--config_file"
+      - "/config/node_4/config.json"
 
   sequencer_simulator:
     depends_on:
-      - sequencer_node
+      - sequencer-node-0
     build:
       context: ${SEQUENCER_ROOT_DIR}
       dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/simulator.Dockerfile
@@ -141,10 +183,10 @@ services:
     entrypoint: "/bin/bash -c"
     command: >
       "./target/debug/sequencer_simulator \
-      --http-url http://sequencer_node \
-      --http-port ${SEQUENCER_HTTP_PORT} \
-      --monitoring-url http://sequencer_node \
-      --monitoring-port ${SEQUENCER_MONITORING_PORT} \
+      --http-url http://sequencer-node-0 \
+      --http-port 8081 \
+      --monitoring-url http://sequencer-node-0 \
+      --monitoring-port 8082 \
       $$(if [ \"$$SIMULATOR_RUN_FOREVER\" = \"true\" ]; then echo '--run-forever'; fi)"
     networks:
       - sequencer-network
