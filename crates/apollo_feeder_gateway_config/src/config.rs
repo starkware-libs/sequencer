@@ -1,9 +1,15 @@
 use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr};
 
-use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_param,
+    ser_param,
+    SerializeConfig,
+};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_api::core::ContractAddress;
 use validator::Validate;
 
 const FEEDER_GATEWAY_PORT: u16 = 8082; // configurable; intentionally NOT legacy 9713.
@@ -22,6 +28,36 @@ pub enum ReadBackend {
     Remote,
 }
 
+/// The well-known contract addresses served by `get_contract_addresses`. The field names use the
+/// Python feeder gateway's JSON key casing, since this struct is serialized directly into that
+/// endpoint's response.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+pub struct FeederGatewayContractAddresses {
+    #[serde(rename = "Starknet")]
+    pub starknet: ContractAddress,
+    #[serde(rename = "GpsStatementVerifier")]
+    pub gps_statement_verifier: ContractAddress,
+}
+
+impl SerializeConfig for FeederGatewayContractAddresses {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "starknet",
+                &self.starknet,
+                "The Starknet core contract address.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "gps_statement_verifier",
+                &self.gps_statement_verifier,
+                "The GPS statement verifier contract address.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct FeederGatewayConfig {
     pub ip: IpAddr,
@@ -30,6 +66,8 @@ pub struct FeederGatewayConfig {
     /// Maximum number of concurrent blocking reads. When unset (or 0), derived at runtime as ~1.5x
     /// the available CPUs.
     pub read_pool_size: Option<usize>,
+    #[validate(nested)]
+    pub contract_addresses: FeederGatewayContractAddresses,
 }
 
 impl Default for FeederGatewayConfig {
@@ -39,6 +77,7 @@ impl Default for FeederGatewayConfig {
             port: FEEDER_GATEWAY_PORT,
             read_backend: ReadBackend::default(),
             read_pool_size: None,
+            contract_addresses: FeederGatewayContractAddresses::default(),
         }
     }
 }
@@ -69,6 +108,7 @@ impl SerializeConfig for FeederGatewayConfig {
              CPUs at runtime.",
             ParamPrivacyInput::Public,
         ));
+        dump.extend(prepend_sub_config_name(self.contract_addresses.dump(), "contract_addresses"));
         dump
     }
 }

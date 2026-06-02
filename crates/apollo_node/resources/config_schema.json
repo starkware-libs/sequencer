@@ -2954,6 +2954,16 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "feeder_gateway_config.contract_addresses.gps_statement_verifier": {
+    "description": "The GPS statement verifier contract address.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "feeder_gateway_config.contract_addresses.starknet": {
+    "description": "The Starknet core contract address.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
   "feeder_gateway_config.ip": {
     "description": "The feeder gateway ip.",
     "privacy": "Public",

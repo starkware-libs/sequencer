@@ -46,6 +46,10 @@ impl FeederGateway {
                 "/feeder_gateway/is_ready",
                 get(|| async { (StatusCode::OK, "FeederGateway is ready") }),
             )
+            .route(
+                "/feeder_gateway/get_contract_addresses",
+                get(crate::handlers::get_contract_addresses),
+            )
             .layer(Extension(self.app_state.clone()))
     }
 }

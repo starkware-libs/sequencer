@@ -1556,6 +1556,7 @@ dependencies = [
  "apollo_config",
  "rstest",
  "serde",
+ "starknet_api",
  "validator",
 ]
 

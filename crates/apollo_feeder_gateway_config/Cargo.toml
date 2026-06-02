@@ -12,6 +12,7 @@ workspace = true
 [dependencies]
 apollo_config.workspace = true
 serde.workspace = true
+starknet_api.workspace = true
 validator.workspace = true
 
 [dev-dependencies]

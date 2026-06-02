@@ -3,5 +3,6 @@
 pub mod communication;
 pub mod errors;
 pub mod feeder_gateway;
+pub mod handlers;
 pub mod reader;
 pub mod serialization;
