@@ -8,3 +8,7 @@ pub mod metrics;
 pub mod objects;
 pub mod reader;
 pub mod serialization;
+
+#[cfg(test)]
+#[path = "felt_format_lock_test.rs"]
+mod felt_format_lock_test;
