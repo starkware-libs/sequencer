@@ -174,13 +174,15 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> GatewayForBenchma
     let class_manager_client = Arc::new(MockClassManagerClient::new());
     let proof_manager_client = Arc::new(MockProofManagerClient::new());
     let proof_archive_writer = Arc::new(MockProofArchiveWriterTrait::new());
-    let transaction_converter = TransactionConverter::new(
+    let transaction_converter = TransactionConverter::new_with_behavior_mode(
         class_manager_client.clone(),
         proof_manager_client.clone(),
         gateway_config.static_config.chain_info.chain_id.clone(),
+        gateway_config.static_config.behavior_mode.clone(),
     );
     let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
         config: gateway_config.static_config.stateless_tx_validator_config.clone(),
+        behavior_mode: gateway_config.static_config.behavior_mode.clone(),
     });
     mempool_client.expect_add_tx().returning(|_| Ok(()));
     mempool_client.expect_validate_tx().returning(|_| Ok(()));

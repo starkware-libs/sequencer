@@ -1,3 +1,4 @@
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_gateway_config::compiler_version::VersionId;
 use apollo_gateway_config::config::StatelessTransactionValidatorConfig;
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -26,6 +27,10 @@ pub trait StatelessTransactionValidatorTrait: Send + Sync {
 #[derive(Clone)]
 pub struct StatelessTransactionValidator {
     pub config: StatelessTransactionValidatorConfig,
+    // When set to `Echonet`, the consistency check accepts proof_facts without a proof
+    // (mainnet's feeder gateway strips the proof field, so a replayed private tx is
+    // sent here with proof_facts only). See `validate_proof_facts_and_proof_consistency`.
+    pub behavior_mode: BehaviorMode,
 }
 
 impl StatelessTransactionValidator {
@@ -253,6 +258,14 @@ impl StatelessTransactionValidator {
         let RpcInvokeTransaction::V3(tx) = tx;
         let has_proof_facts = !tx.proof_facts.is_empty();
         let has_proof = !tx.proof.is_empty();
+        // Echonet replays mainnet txs but mainnet's feeder gateway strips the `proof` field
+        // before serving — only `proof_facts` survives the round-trip. The proof is just
+        // verification metadata (not part of the tx hash, not read during execution); skipping
+        // its verification on replay produces the same tx hash, state diff, and block hash.
+        // So treat "facts present, proof absent" as valid in Echonet mode.
+        if self.behavior_mode == BehaviorMode::Echonet && has_proof_facts && !has_proof {
+            return Ok(());
+        }
         if has_proof_facts != has_proof {
             return Err(StatelessTransactionValidatorError::ProofFactsAndProofConsistency {
                 has_proof_facts,
