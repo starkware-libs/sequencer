@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780407371963,
+  "lastUpdate": 1780409547622,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5167,6 +5167,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1330.24941364,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "03c4c84aba32b136323c225a91b551bf6b14fc98",
+          "message": "starknet_os: initial test, measure call contract resources (#14128)",
+          "timestamp": "2026-06-02T13:58:27Z",
+          "tree_id": "03b0df78e2d7e6a967b9f4b13a80721794336614",
+          "url": "https://github.com/starkware-libs/sequencer/commit/03c4c84aba32b136323c225a91b551bf6b14fc98"
+        },
+        "date": 1780409547040,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 957.92626415,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1488.57805576,
             "unit": "ms"
           }
         ]
