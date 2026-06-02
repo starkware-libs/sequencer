@@ -2,6 +2,8 @@ pub mod errors;
 pub mod filled_tree;
 pub mod node_data;
 pub mod original_skeleton_tree;
+#[cfg(feature = "testing")]
+pub mod storage_proof_verification;
 pub mod traversal;
 pub mod types;
 pub mod updated_skeleton_tree;
