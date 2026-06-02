@@ -724,11 +724,30 @@ impl Batcher {
     }
 
     #[instrument(skip(self), err)]
-    pub async fn get_block_metadata(&self) -> BatcherResult<ReplayMetadata> {
+    pub async fn get_block_metadata(&mut self) -> BatcherResult<ReplayMetadata> {
+        // Abort any stale active proposal BEFORE mutating the mempool below. The proposer
+        // side of consensus has no other path that calls `abort_proposal` on round
+        // transitions (unlike the validator side in validate_proposal.rs), so the previous
+        // round's block builder is otherwise still alive and polling the mempool. The
+        // `commit_block(default)` below would then feed it the rewound staged txs, it would
+        // re-execute them, and (in FIFO mode) a second pop of the same txs trips the
+        // duplicate-rejection assert in block_builder.rs:695. The abort signal causes that
+        // block builder to exit at its next loop iteration, bounding any further polling to
+        // a single iteration — not enough for the duplicate to materialize.
+        self.abort_active_proposal().await;
+
         let mempool_client = self.mempool_client.as_ref().expect(
             "Mempool client must be present in non-validation-only mode. Unreachable code when \
              validation-only mode is enabled.",
         );
+        // Round-start signal: rewinds any staged txs left behind by an aborted prior round so
+        // resolve_block_metadata below reflects the block we're actually about to build. In
+        // normal flow staged_txs is empty here and this is a no-op. propose_block will issue
+        // the same call again; with the FIFO queue's state-realignment invariant it's idempotent.
+        mempool_client.commit_block(CommitBlockArgs::default()).await.map_err(|err| {
+            error!("Mempool not ready for round start in get_block_metadata: {err}");
+            BatcherError::NotReady
+        })?;
         mempool_client.resolve_block_metadata().await.map_err(|err| {
             error!("Failed to get block metadata from mempool: {err}");
             BatcherError::InternalError
