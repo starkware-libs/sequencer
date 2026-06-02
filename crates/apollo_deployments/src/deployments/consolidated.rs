@@ -63,6 +63,7 @@ fn get_consolidated_config() -> ComponentConfig {
         committer: base.clone(),
         config_manager: base.clone(),
         consensus_manager: ActiveComponentExecutionConfig::enabled(),
+        feeder_gateway: ActiveComponentExecutionConfig::disabled(),
         gateway: base.clone(),
         http_server: ActiveComponentExecutionConfig::enabled(),
         l1_events_provider: base.clone(),

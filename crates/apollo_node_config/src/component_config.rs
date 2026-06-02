@@ -55,6 +55,8 @@ pub struct ComponentConfig {
     #[validate(nested)]
     pub consensus_manager: ActiveComponentExecutionConfig,
     #[validate(nested)]
+    pub feeder_gateway: ActiveComponentExecutionConfig,
+    #[validate(nested)]
     pub http_server: ActiveComponentExecutionConfig,
     #[validate(nested)]
     pub l1_events_scraper: ActiveComponentExecutionConfig,
@@ -72,6 +74,7 @@ impl SerializeConfig for ComponentConfig {
             prepend_sub_config_name(self.committer.dump(), "committer"),
             prepend_sub_config_name(self.config_manager.dump(), "config_manager"),
             prepend_sub_config_name(self.consensus_manager.dump(), "consensus_manager"),
+            prepend_sub_config_name(self.feeder_gateway.dump(), "feeder_gateway"),
             prepend_sub_config_name(self.gateway.dump(), "gateway"),
             prepend_sub_config_name(self.http_server.dump(), "http_server"),
             prepend_sub_config_name(self.l1_events_provider.dump(), "l1_events_provider"),
@@ -99,6 +102,7 @@ impl ComponentConfig {
             committer: ReactiveComponentExecutionConfig::disabled(),
             config_manager: ReactiveComponentExecutionConfig::disabled(),
             consensus_manager: ActiveComponentExecutionConfig::disabled(),
+            feeder_gateway: ActiveComponentExecutionConfig::disabled(),
             http_server: ActiveComponentExecutionConfig::disabled(),
             gateway: ReactiveComponentExecutionConfig::disabled(),
             l1_events_provider: ReactiveComponentExecutionConfig::disabled(),

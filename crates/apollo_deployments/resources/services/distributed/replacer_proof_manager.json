@@ -33,6 +33,7 @@
   "components.config_manager.remote_server_config.#is_none": true,
   "components.config_manager.url": "localhost",
   "components.consensus_manager.execution_mode": "Disabled",
+  "components.feeder_gateway.execution_mode": "Disabled",
   "components.gateway.execution_mode": "Disabled",
   "components.gateway.local_server_config.#is_none": true,
   "components.gateway.port": 0,
