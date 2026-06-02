@@ -1532,6 +1532,7 @@ dependencies = [
  "apollo_feeder_gateway_config",
  "apollo_infra",
  "apollo_infra_utils",
+ "apollo_storage",
  "async-trait",
  "axum",
  "mockall",

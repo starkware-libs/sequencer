@@ -6,6 +6,7 @@ use starknet_api::block::BlockHeader;
 
 use crate::errors::FeederGatewayError;
 
+pub mod colocated;
 pub mod executor;
 
 #[cfg(test)]
