@@ -1526,6 +1526,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_feeder_gateway_config"
+version = "0.0.0"
+dependencies = [
+ "apollo_config",
+ "rstest",
+ "serde",
+ "validator",
+]
+
+[[package]]
 name = "apollo_gateway"
 version = "0.0.0"
 dependencies = [

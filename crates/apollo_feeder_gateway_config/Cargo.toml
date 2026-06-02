@@ -1,0 +1,18 @@
+[package]
+name = "apollo_feeder_gateway_config"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Configuration types for the Apollo feeder gateway."
+
+[lints]
+workspace = true
+
+[dependencies]
+apollo_config.workspace = true
+serde.workspace = true
+validator.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
