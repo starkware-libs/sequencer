@@ -163,7 +163,7 @@ impl L1HandlerTransaction {
 }
 
 /// Calculating the message hash of L1 -> L2 message.
-/// For more info: <https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/messaging-mechanism/#structure_and_hashing_l1-l2>
+/// For more info: <https://docs.starknet.io/learn/protocol/messaging#l1-l2-message-hashing>
 pub fn l1_handler_message_hash(
     contract_address: &ContractAddress,
     nonce: Nonce,
