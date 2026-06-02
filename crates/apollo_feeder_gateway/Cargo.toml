@@ -7,7 +7,7 @@ repository.workspace = true
 description = "Feeder gateway read API server for the Apollo sequencer."
 
 [features]
-testing = []
+testing = ["mockall"]
 
 [lints]
 workspace = true
@@ -18,10 +18,13 @@ apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
 async-trait.workspace = true
 axum.workspace = true
+mockall = { workspace = true, optional = true }
+starknet_api.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
 
 [dev-dependencies]
+mockall.workspace = true
 rstest.workspace = true
 tower = { workspace = true, features = ["util"] }

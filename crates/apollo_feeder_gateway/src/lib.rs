@@ -3,3 +3,4 @@
 pub mod communication;
 pub mod errors;
 pub mod feeder_gateway;
+pub mod reader;
