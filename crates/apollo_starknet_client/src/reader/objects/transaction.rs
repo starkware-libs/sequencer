@@ -2,8 +2,7 @@
 #[path = "transaction_test.rs"]
 mod transaction_test;
 
-use std::collections::HashMap;
-
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use starknet_api::core::{
@@ -657,7 +656,9 @@ impl TryFrom<IntermediateInvokeTransaction> for starknet_api::transaction::Invok
 pub struct ExecutionResources {
     // Note: in starknet_api this field is named `steps`
     pub n_steps: u64,
-    pub builtin_instance_counter: HashMap<Builtin, u64>,
+    // PARITY: `IndexMap` (not `HashMap`) so builtin keys serialize in a deterministic, insertion
+    // order matching the Python feeder gateway, which does NOT sort them (Reference B).
+    pub builtin_instance_counter: IndexMap<Builtin, u64>,
     // Note: in starknet_api this field is named `memory_holes`
     pub n_memory_holes: u64,
     // This field is missing in blocks created before v0.13.1, even if the feeder gateway is of

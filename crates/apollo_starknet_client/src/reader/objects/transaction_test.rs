@@ -1,7 +1,34 @@
 use assert_matches::assert_matches;
+use indexmap::IndexMap;
 
-use super::{Transaction, TransactionReceipt};
+use super::{Builtin, ExecutionResources, Transaction, TransactionReceipt};
 use crate::test_utils::read_resource::read_resource_file;
+
+/// The builtin counter must serialize in insertion order (the Python feeder gateway does not sort
+/// it), which is why it is an `IndexMap` rather than a `HashMap`.
+#[test]
+fn builtin_instance_counter_serializes_in_insertion_order() {
+    let mut builtin_instance_counter = IndexMap::new();
+    builtin_instance_counter.insert(Builtin::Poseidon, 1);
+    builtin_instance_counter.insert(Builtin::RangeCheck, 2);
+    builtin_instance_counter.insert(Builtin::Pedersen, 3);
+    let execution_resources = ExecutionResources {
+        n_steps: 0,
+        builtin_instance_counter,
+        n_memory_holes: 0,
+        data_availability: None,
+        total_gas_consumed: None,
+    };
+
+    let serialized = serde_json::to_string(&execution_resources).unwrap();
+    let poseidon = serialized.find("poseidon_builtin").unwrap();
+    let range_check = serialized.find("range_check_builtin").unwrap();
+    let pedersen = serialized.find("pedersen_builtin").unwrap();
+    assert!(
+        poseidon < range_check && range_check < pedersen,
+        "builtins serialized out of insertion order: {serialized}"
+    );
+}
 
 #[test]
 fn load_deploy_transaction_succeeds() {

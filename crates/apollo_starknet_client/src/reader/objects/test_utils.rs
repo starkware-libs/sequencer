@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use apollo_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
+use indexmap::IndexMap;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
@@ -164,7 +165,7 @@ auto_impl_get_test_instance! {
     }
     pub struct ExecutionResources {
         pub n_steps: u64,
-        pub builtin_instance_counter: HashMap<Builtin, u64>,
+        pub builtin_instance_counter: IndexMap<Builtin, u64>,
         pub n_memory_holes: u64,
         pub data_availability: Option<GasVector>,
         pub total_gas_consumed: Option<GasVector>,
