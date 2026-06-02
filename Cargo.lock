@@ -1529,6 +1529,7 @@ dependencies = [
 name = "apollo_feeder_gateway"
 version = "0.0.0"
 dependencies = [
+ "apollo_feeder_gateway_config",
  "apollo_infra",
  "apollo_infra_utils",
  "async-trait",
