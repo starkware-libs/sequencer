@@ -13,6 +13,7 @@ use apollo_consensus_manager::consensus_manager::{
     ConsensusManager,
     ConsensusManagerArgs,
 };
+use apollo_feeder_gateway::feeder_gateway::{create_feeder_gateway, FeederGateway};
 use apollo_gateway::gateway::{create_gateway, Gateway};
 use apollo_http_server::http_server::{create_http_server, HttpServer};
 use apollo_l1_events::event_identifiers_to_track;
@@ -52,6 +53,7 @@ pub struct SequencerNodeComponents {
     pub config_manager: Option<ConfigManager>,
     pub config_manager_runner: Option<ConfigManagerRunner>,
     pub consensus_manager: Option<ConsensusManager>,
+    pub feeder_gateway: Option<FeederGateway>,
     pub gateway: Option<Gateway>,
     pub http_server: Option<HttpServer>,
     pub l1_events_scraper:
@@ -280,6 +282,15 @@ pub async fn create_node_components(
                 config_manager_client,
                 gateway_client,
             ))
+        }
+        ActiveComponentExecutionMode::Disabled => None,
+    };
+
+    let feeder_gateway = match config.components.feeder_gateway.execution_mode {
+        ActiveComponentExecutionMode::Enabled => {
+            let feeder_gateway_config =
+                config.feeder_gateway_config.as_ref().expect("Feeder gateway config should be set");
+            Some(create_feeder_gateway(feeder_gateway_config.clone()))
         }
         ActiveComponentExecutionMode::Disabled => None,
     };
@@ -581,6 +592,7 @@ pub async fn create_node_components(
         config_manager,
         config_manager_runner,
         consensus_manager,
+        feeder_gateway,
         gateway,
         http_server,
         l1_events_scraper,

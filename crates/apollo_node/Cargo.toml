@@ -27,6 +27,7 @@ apollo_config.workspace = true
 apollo_config_manager.workspace = true
 apollo_config_manager_types.workspace = true
 apollo_consensus_manager.workspace = true
+apollo_feeder_gateway.workspace = true
 apollo_gateway.workspace = true
 apollo_gateway_types.workspace = true
 apollo_http_server.workspace = true
