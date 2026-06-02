@@ -232,13 +232,12 @@ impl TransactionConverterTrait for TransactionConverter {
                 // doesn't serve it on replay), so proof_manager has no entry. The downstream
                 // consumer treats this tx the same way (also echonet, also relaxed consistency
                 // check) — give back a default proof and let proof_facts flow through.
-                let proof = if tx.proof_facts.is_empty() {
-                    Proof::default()
-                } else if self.behavior_mode == BehaviorMode::Echonet {
-                    Proof::default()
-                } else {
-                    self.get_proof(&tx.proof_facts).await?
-                };
+                let proof =
+                    if tx.proof_facts.is_empty() || self.behavior_mode == BehaviorMode::Echonet {
+                        Proof::default()
+                    } else {
+                        self.get_proof(&tx.proof_facts).await?
+                    };
 
                 Ok(RpcTransaction::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
                     resource_bounds: tx.resource_bounds,
@@ -366,8 +365,8 @@ impl TransactionConverter {
                 // proof_facts without a proof. Treat as "no proof data" (skip verification +
                 // archive). `proof_facts` stays on the canonical tx; tx hash and execution are
                 // unaffected.
-                let skip_proof_for_replay = self.behavior_mode == BehaviorMode::Echonet
-                    && tx.proof.is_empty();
+                let skip_proof_for_replay =
+                    self.behavior_mode == BehaviorMode::Echonet && tx.proof.is_empty();
                 let proof_data = if tx.proof_facts.is_empty() || skip_proof_for_replay {
                     None
                 } else {
