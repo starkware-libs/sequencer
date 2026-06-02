@@ -39,7 +39,7 @@ pub fn create_state_sync_and_runner(
     config: StateSyncConfig,
     class_manager_client: SharedClassManagerClient,
     config_manager_client: SharedConfigManagerClient,
-) -> (StateSync, StateSyncRunner) {
+) -> (StateSync, StateSyncRunner, StorageReader) {
     let (new_block_sender, new_block_receiver) = channel(BUFFER_SIZE);
     let (state_sync_runner, storage_reader) = StateSyncRunner::new(
         config.clone(),
@@ -48,8 +48,9 @@ pub fn create_state_sync_and_runner(
         config_manager_client.clone(),
     );
     (
-        StateSync::new(storage_reader, new_block_sender, config, config_manager_client),
+        StateSync::new(storage_reader.clone(), new_block_sender, config, config_manager_client),
         state_sync_runner,
+        storage_reader,
     )
 }
 

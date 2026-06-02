@@ -573,7 +573,9 @@ pub async fn create_node_components(
             let config_manager_client = clients
                 .get_config_manager_shared_client()
                 .expect("Config Manager client should be available");
-            let (state_sync, state_sync_runner) = create_state_sync_and_runner(
+            // TODO(feeder_gateway): consume `_storage_reader` when wiring the co-located feeder
+            // gateway read backend.
+            let (state_sync, state_sync_runner, _storage_reader) = create_state_sync_and_runner(
                 state_sync_config.clone(),
                 class_manager_client,
                 config_manager_client,
