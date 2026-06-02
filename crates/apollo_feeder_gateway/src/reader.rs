@@ -8,6 +8,7 @@ use crate::errors::FeederGatewayError;
 
 pub mod colocated;
 pub mod executor;
+pub mod remote;
 
 #[cfg(test)]
 #[path = "reader_test.rs"]
@@ -29,4 +30,11 @@ pub trait ChainDataReader: Send + Sync + 'static {
 pub struct AppState {
     pub reader: Arc<dyn ChainDataReader>,
     pub config: FeederGatewayConfig,
+}
+
+/// Maps an internal read/backend error to [`FeederGatewayError::Internal`], logging the source here
+/// (the only place it is observed) so no internal detail leaks to the client.
+pub(crate) fn internal_error<E: std::fmt::Display>(error: E) -> FeederGatewayError {
+    tracing::error!(error = %error, "feeder gateway internal read error");
+    FeederGatewayError::Internal
 }

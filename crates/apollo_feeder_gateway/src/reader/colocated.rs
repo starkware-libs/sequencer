@@ -5,9 +5,8 @@ use apollo_storage::StorageReader;
 use async_trait::async_trait;
 use starknet_api::block::BlockHeader;
 
-use crate::errors::FeederGatewayError;
 use crate::reader::executor::ReadExecutor;
-use crate::reader::{ChainDataReader, FgResult};
+use crate::reader::{internal_error, ChainDataReader, FgResult};
 
 #[cfg(test)]
 #[path = "colocated_test.rs"]
@@ -38,22 +37,15 @@ impl ChainDataReader for ColocatedStorageReader {
         let storage_reader = self.storage_reader.clone();
         self.executor
             .run(move || {
-                let txn = storage_reader.begin_ro_txn().map_err(internal)?;
-                let header_marker = txn.get_header_marker().map_err(internal)?;
+                let txn = storage_reader.begin_ro_txn().map_err(internal_error)?;
+                let header_marker = txn.get_header_marker().map_err(internal_error)?;
                 // The header marker points one past the latest stored block; `prev()` is `None`
                 // only when no blocks have been synced yet.
                 let Some(latest_block_number) = header_marker.prev() else {
                     return Ok(None);
                 };
-                txn.get_block_header(latest_block_number).map_err(internal)
+                txn.get_block_header(latest_block_number).map_err(internal_error)
             })
             .await?
     }
-}
-
-/// Maps an internal read error to [`FeederGatewayError::Internal`], logging the source here (the
-/// only place it is observed) so no internal detail leaks to the client.
-fn internal<E: std::fmt::Display>(error: E) -> FeederGatewayError {
-    tracing::error!(error = %error, "feeder gateway internal read error");
-    FeederGatewayError::Internal
 }
