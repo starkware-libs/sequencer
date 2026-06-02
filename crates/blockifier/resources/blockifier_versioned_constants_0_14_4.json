@@ -247,15 +247,15 @@
             },
             "Deploy": {
                 "constant": {
-                    "n_steps": 1181,
+                    "n_steps": 1171,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 21,
-                        "pedersen_builtin": 8
+                        "pedersen_builtin": 7
                     }
                 },
                 "calldata_factor": {
-                    "n_steps": 8,
+                    "n_steps": 10,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "pedersen_builtin": 1
@@ -361,11 +361,11 @@
             },
             "MetaTxV0": {
                 "constant": {
-                    "n_steps": 1315,
+                    "n_steps": 1307,
                     "n_memory_holes": 0,
                     "builtin_instance_counter": {
                         "range_check_builtin": 20,
-                        "pedersen_builtin": 10
+                        "pedersen_builtin": 9
                     }
                 },
                 "calldata_factor": {

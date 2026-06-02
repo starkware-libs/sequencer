@@ -1,4 +1,5 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::sync::LazyLock;
 
 use assert_matches::assert_matches;
 use blockifier::blockifier_versioned_constants::{
@@ -76,10 +77,22 @@ const UNMEASURABLE_SYSCALLS: [Selector; 12] = [
     Selector::StorageWrite,
 ];
 
-/// Keccak does not store the linear factor in the same entry in the versioned constants, but it
-/// does have a measurable linear factor stored under [Selector::KeccakRound].
-const SYSCALLS_WITH_LINEAR_FACTOR: [Selector; 3] =
-    [Selector::Deploy, Selector::Keccak, Selector::MetaTxV0];
+/// Store a mapping from a linearly-charged syscall, with the number of "linear elements" in it's
+/// base measurement. For example, if we measure the base and linear costs of a [Selector::Deploy]
+/// by running:
+/// ```
+/// deploy_syscall(stable_class_hash, 3, array![2, 0, 0].span(), true).unwrap_syscall();
+/// deploy_syscall(stable_class_hash, 3, array![3, 0, 0, 0].span(), true).unwrap_syscall();
+/// ```
+/// ... then the linear factor is exactly the difference between the two measurements, because the
+/// second measurement has one more linear element (4) than the first measurement (3). However, the
+/// first call has 3 elements in it's calldata, so to compute the estimated cost of a zero-element
+/// call (base) we need to subtract three times the linear factor from the first measurement.
+/// Note: Keccak does not store the linear factor in the same entry in the versioned constants, but
+/// it does have a measurable linear factor stored under [Selector::KeccakRound].
+const SYSCALLS_WITH_LINEAR_FACTOR: LazyLock<HashMap<Selector, usize>> = LazyLock::new(|| {
+    HashMap::from([(Selector::Deploy, 1), (Selector::Keccak, 0), (Selector::MetaTxV0, 1)])
+});
 
 /// Syscalls that are implemented using virtual builtins. Such syscalls have their "heavy lifting"
 /// executed after the execute_syscalls part of the OS, so the consumed resources are not captured
@@ -420,7 +433,7 @@ async fn test_os_resources_regression() {
 
         // If this if a syscall with a linear factor, the next syscall should be the linear cost.
         // Otherwise, this syscall has a constant cost.
-        if SYSCALLS_WITH_LINEAR_FACTOR.contains(&selector) {
+        if let Some(linear_count_in_base) = SYSCALLS_WITH_LINEAR_FACTOR.get(&selector) {
             let next_syscall_trace = syscalls_iter.next().unwrap();
             assert_eq!(
                 selector,
@@ -434,6 +447,12 @@ async fn test_os_resources_regression() {
                 - &next_inner_overhead)
                 .filter_unused_builtins();
             let linear_factor_resources = (&next_resources - &resources).filter_unused_builtins();
+
+            // Linear factor is computed; deduct the linear overhead from the base cost to get the
+            // real base cost.
+            resources = (&resources - &(&linear_factor_resources * *linear_count_in_base))
+                .filter_unused_builtins();
+
             // Keccak is a special case - we store the linear cost as a separate syscall.
             if selector == Selector::Keccak {
                 // TODO(Dori): Currently, the Keccak base cost is enforced in the OS to equal the
