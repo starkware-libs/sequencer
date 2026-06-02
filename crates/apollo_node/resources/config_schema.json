@@ -2964,6 +2964,21 @@
     "privacy": "Public",
     "value": 8082
   },
+  "feeder_gateway_config.read_backend": {
+    "description": "The feeder gateway read backend (Colocated reads local storage; Remote reads via the state sync client).",
+    "privacy": "Public",
+    "value": "Colocated"
+  },
+  "feeder_gateway_config.read_pool_size": {
+    "description": "Maximum number of concurrent blocking reads. 0 (or unset) derives ~1.5x available CPUs at runtime.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "feeder_gateway_config.read_pool_size.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "gateway_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",

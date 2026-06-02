@@ -2213,6 +2213,7 @@ dependencies = [
  "apollo_config_manager_types",
  "apollo_consensus_manager",
  "apollo_feeder_gateway",
+ "apollo_feeder_gateway_config",
  "apollo_gateway",
  "apollo_gateway_types",
  "apollo_http_server",

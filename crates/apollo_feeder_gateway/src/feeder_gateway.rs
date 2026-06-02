@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use apollo_feeder_gateway_config::config::FeederGatewayConfig;
 use apollo_infra::component_definitions::ComponentStarter;
@@ -6,27 +7,28 @@ use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
 use axum::http::StatusCode;
 use axum::routing::get;
-use axum::{serve, Router};
+use axum::{serve, Extension, Router};
 use tokio::net::TcpListener;
 use tracing::info;
 
 use crate::errors::FeederGatewayRunError;
+use crate::reader::{AppState, ChainDataReader};
 
 #[cfg(test)]
 #[path = "feeder_gateway_test.rs"]
 mod feeder_gateway_test;
 
 pub struct FeederGateway {
-    pub config: FeederGatewayConfig,
+    pub app_state: AppState,
 }
 
 impl FeederGateway {
-    pub fn new(config: FeederGatewayConfig) -> Self {
-        Self { config }
+    pub fn new(config: FeederGatewayConfig, reader: Arc<dyn ChainDataReader>) -> Self {
+        Self { app_state: AppState { reader, config } }
     }
 
     pub async fn run(&mut self) -> Result<(), FeederGatewayRunError> {
-        let (ip, port) = self.config.ip_and_port();
+        let (ip, port) = self.app_state.config.ip_and_port();
         let addr = SocketAddr::new(ip, port);
         let app = self.app();
         info!("FeederGateway running on {}", addr);
@@ -44,11 +46,15 @@ impl FeederGateway {
                 "/feeder_gateway/is_ready",
                 get(|| async { (StatusCode::OK, "FeederGateway is ready") }),
             )
+            .layer(Extension(self.app_state.clone()))
     }
 }
 
-pub fn create_feeder_gateway(config: FeederGatewayConfig) -> FeederGateway {
-    FeederGateway::new(config)
+pub fn create_feeder_gateway(
+    config: FeederGatewayConfig,
+    reader: Arc<dyn ChainDataReader>,
+) -> FeederGateway {
+    FeederGateway::new(config, reader)
 }
 
 #[async_trait]

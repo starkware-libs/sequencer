@@ -14,6 +14,11 @@ use apollo_consensus_manager::consensus_manager::{
     ConsensusManagerArgs,
 };
 use apollo_feeder_gateway::feeder_gateway::{create_feeder_gateway, FeederGateway};
+use apollo_feeder_gateway::reader::colocated::ColocatedStorageReader;
+use apollo_feeder_gateway::reader::executor::ReadExecutor;
+use apollo_feeder_gateway::reader::remote::RemoteChainDataReader;
+use apollo_feeder_gateway::reader::ChainDataReader;
+use apollo_feeder_gateway_config::config::ReadBackend;
 use apollo_gateway::gateway::{create_gateway, Gateway};
 use apollo_http_server::http_server::{create_http_server, HttpServer};
 use apollo_l1_events::event_identifiers_to_track;
@@ -286,15 +291,6 @@ pub async fn create_node_components(
         ActiveComponentExecutionMode::Disabled => None,
     };
 
-    let feeder_gateway = match config.components.feeder_gateway.execution_mode {
-        ActiveComponentExecutionMode::Enabled => {
-            let feeder_gateway_config =
-                config.feeder_gateway_config.as_ref().expect("Feeder gateway config should be set");
-            Some(create_feeder_gateway(feeder_gateway_config.clone()))
-        }
-        ActiveComponentExecutionMode::Disabled => None,
-    };
-
     let l1_gas_price_provider = match config.components.l1_gas_price_provider.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -562,29 +558,55 @@ pub async fn create_node_components(
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
-    let (state_sync, state_sync_runner) = match config.components.state_sync.execution_mode {
-        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let state_sync_config =
-                config.state_sync_config.as_ref().expect("State Sync config should be set");
-            let class_manager_client = clients
-                .get_class_manager_shared_client()
-                .expect("Class Manager client should be available");
-            let config_manager_client = clients
-                .get_config_manager_shared_client()
-                .expect("Config Manager client should be available");
-            // TODO(feeder_gateway): consume `_storage_reader` when wiring the co-located feeder
-            // gateway read backend.
-            let (state_sync, state_sync_runner, _storage_reader) = create_state_sync_and_runner(
-                state_sync_config.clone(),
-                class_manager_client,
-                config_manager_client,
-            );
-            (Some(state_sync), Some(state_sync_runner))
+    let (state_sync, state_sync_runner, state_sync_storage_reader) =
+        match config.components.state_sync.execution_mode {
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+                let state_sync_config =
+                    config.state_sync_config.as_ref().expect("State Sync config should be set");
+                let class_manager_client = clients
+                    .get_class_manager_shared_client()
+                    .expect("Class Manager client should be available");
+                let config_manager_client = clients
+                    .get_config_manager_shared_client()
+                    .expect("Config Manager client should be available");
+                let (state_sync, state_sync_runner, storage_reader) = create_state_sync_and_runner(
+                    state_sync_config.clone(),
+                    class_manager_client,
+                    config_manager_client,
+                );
+                (Some(state_sync), Some(state_sync_runner), Some(storage_reader))
+            }
+            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+                (None, None, None)
+            }
+        };
+
+    // The feeder gateway read backend depends on whether state sync runs co-located in this
+    // process, so it is built after state sync.
+    let feeder_gateway = match config.components.feeder_gateway.execution_mode {
+        ActiveComponentExecutionMode::Enabled => {
+            let feeder_gateway_config =
+                config.feeder_gateway_config.as_ref().expect("Feeder gateway config should be set");
+            let reader: Arc<dyn ChainDataReader> = match feeder_gateway_config.read_backend {
+                ReadBackend::Colocated => {
+                    let storage_reader = state_sync_storage_reader.clone().expect(
+                        "Co-located feeder gateway requires a local state sync storage reader",
+                    );
+                    let executor =
+                        Arc::new(ReadExecutor::new(feeder_gateway_config.read_pool_size()));
+                    Arc::new(ColocatedStorageReader::new(storage_reader, executor))
+                }
+                ReadBackend::Remote => {
+                    let state_sync_client = clients
+                        .get_state_sync_shared_client()
+                        .expect("State Sync client should be available");
+                    Arc::new(RemoteChainDataReader::new(state_sync_client))
+                }
+            };
+            Some(create_feeder_gateway(feeder_gateway_config.clone(), reader))
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            (None, None)
-        }
+        ActiveComponentExecutionMode::Disabled => None,
     };
 
     SequencerNodeComponents {
