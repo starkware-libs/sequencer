@@ -235,11 +235,10 @@ fn test_invalid_resource_bounds(
     #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
     tx_type: TransactionType,
 ) {
-    let tx_validator =
-        StatelessTransactionValidator {
-            config: DEFAULT_VALIDATOR_CONFIG.to_owned(),
-            behavior_mode: BehaviorMode::default(),
-        };
+    let tx_validator = StatelessTransactionValidator {
+        config: DEFAULT_VALIDATOR_CONFIG.to_owned(),
+        behavior_mode: BehaviorMode::default(),
+    };
 
     let tx = rpc_tx_for_testing(tx_type, rpc_tx_args);
 
@@ -268,11 +267,10 @@ fn test_invalid_max_l2_gas_amount(
     #[case] expected_error: StatelessTransactionValidatorError,
     #[values(TransactionType::DeployAccount, TransactionType::Invoke)] tx_type: TransactionType,
 ) {
-    let tx_validator =
-        StatelessTransactionValidator {
-            config: DEFAULT_VALIDATOR_CONFIG.to_owned(),
-            behavior_mode: BehaviorMode::default(),
-        };
+    let tx_validator = StatelessTransactionValidator {
+        config: DEFAULT_VALIDATOR_CONFIG.to_owned(),
+        behavior_mode: BehaviorMode::default(),
+    };
 
     let tx = rpc_tx_for_testing(tx_type, rpc_tx_args);
 
@@ -483,11 +481,10 @@ fn test_declare_sierra_version_failure(
     #[case] sierra_program: Vec<Felt>,
     #[case] expected_error: StatelessTransactionValidatorError,
 ) {
-    let tx_validator =
-        StatelessTransactionValidator {
-            config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
-            behavior_mode: BehaviorMode::default(),
-        };
+    let tx_validator = StatelessTransactionValidator {
+        config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
+        behavior_mode: BehaviorMode::default(),
+    };
 
     let contract_class = SierraContractClass { sierra_program, ..Default::default() };
     let tx = rpc_declare_tx(declare_tx_args!(), contract_class);
@@ -506,11 +503,10 @@ fn test_declare_sierra_version_failure(
 ))]
 #[case::max_sierra_version(create_sierra_program(&MAX_SIERRA_VERSION))]
 fn test_declare_sierra_version_sucsses(#[case] sierra_program: Vec<Felt>) {
-    let tx_validator =
-        StatelessTransactionValidator {
-            config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
-            behavior_mode: BehaviorMode::default(),
-        };
+    let tx_validator = StatelessTransactionValidator {
+        config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
+        behavior_mode: BehaviorMode::default(),
+    };
 
     let contract_class = SierraContractClass { sierra_program, ..Default::default() };
     let tx = rpc_declare_tx(declare_tx_args!(), contract_class);
@@ -612,11 +608,10 @@ fn test_declare_entry_points_not_sorted_by_selector(
     #[case] entry_points: Vec<EntryPoint>,
     #[case] expected: StatelessTransactionValidatorResult<()>,
 ) {
-    let tx_validator =
-        StatelessTransactionValidator {
-            config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
-            behavior_mode: BehaviorMode::default(),
-        };
+    let tx_validator = StatelessTransactionValidator {
+        config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
+        behavior_mode: BehaviorMode::default(),
+    };
 
     let contract_class = SierraContractClass {
         sierra_program: create_sierra_program(&MIN_SIERRA_VERSION),
