@@ -718,6 +718,14 @@ impl Batcher {
             "Mempool client must be present in non-validation-only mode. Unreachable code when \
              validation-only mode is enabled.",
         );
+        // Round-start signal: rewinds any staged txs left behind by an aborted prior round so
+        // resolve_block_metadata below reflects the block we're actually about to build. In
+        // normal flow staged_txs is empty here and this is a no-op. propose_block will issue
+        // the same call again; with the FIFO queue's state-realignment invariant it's idempotent.
+        mempool_client.commit_block(CommitBlockArgs::default()).await.map_err(|err| {
+            error!("Mempool not ready for round start in get_block_metadata: {err}");
+            BatcherError::NotReady
+        })?;
         mempool_client.resolve_block_metadata().await.map_err(|err| {
             error!("Failed to get block metadata from mempool: {err}");
             BatcherError::InternalError
