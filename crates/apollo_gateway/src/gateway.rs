@@ -539,13 +539,15 @@ pub fn create_gateway(
         class_manager_client: class_manager_client.clone(),
         runtime,
     });
-    let transaction_converter = Arc::new(TransactionConverter::new(
+    let transaction_converter = Arc::new(TransactionConverter::new_with_behavior_mode(
         class_manager_client,
         proof_manager_client,
         config.static_config.chain_info.chain_id.clone(),
+        config.static_config.behavior_mode.clone(),
     ));
     let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
         config: config.static_config.stateless_tx_validator_config.clone(),
+        behavior_mode: config.static_config.behavior_mode.clone(),
     });
 
     // Create proof archive writer: use NoOp if bucket name is empty, otherwise use real GCS.
