@@ -469,6 +469,42 @@ fn test_realign_to_earlier_block_after_rewind(mut mempool: Mempool) {
 }
 
 #[rstest]
+fn test_rewind_realigns_state_so_pop_succeeds_without_resolve_metadata(mut mempool: Mempool) {
+    // Regression: when a proposer round drains a block's txs and then aborts (e.g., cende
+    // write failure), the next round-start signal (commit_block with default args) rewinds the
+    // staged txs back to the queue head. pop_ready_chunk MUST then return those txs WITHOUT
+    // requiring an intervening resolve_block_metadata call — observed in production at echonet
+    // block 6502414, where this gap caused an empty block and a transaction_commitment
+    // mismatch with mainnet.
+    //
+    // Note: this test deliberately calls `mempool.get_txs(...)` directly instead of
+    // `get_txs_and_assert_expected`, because the latter implicitly calls
+    // `resolve_block_metadata` first in FIFO mode, which would mask the bug by realigning
+    // state via that path.
+    let block_1_tx = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let block_2_tx = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
+
+    mempool.update_tx_block_metadata(tx_hash!(1), tx_metadata(1000, 1));
+    mempool.update_tx_block_metadata(tx_hash!(2), tx_metadata(2000, 2));
+
+    add_tx(&mut mempool, &block_1_tx);
+    add_tx(&mut mempool, &block_2_tx);
+
+    // Round 0 of block 1: resolve metadata, drain block-1 tx. After the drain,
+    // expected_block_number advances to 2 (block-2 tx is the new queue head).
+    assert_eq!(mempool.resolve_block_metadata().timestamp, 1000);
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![block_1_tx.tx.clone()]);
+
+    // Round 0 aborts before commit. Round 1 starts: only the round-start commit_block(default)
+    // is issued — no resolve_block_metadata call between the rewind and the pop below.
+    commit_block(&mut mempool, [], []);
+
+    // pop_ready_chunk must succeed: rewind put block-1 tx back at the queue head and the
+    // realignment in rewind_txs must have reset expected_block_number back to 1.
+    assert_eq!(mempool.get_txs(10).unwrap(), vec![block_1_tx.tx]);
+}
+
+#[rstest]
 fn test_rewind_preserves_timestamp_order(mut mempool: Mempool) {
     let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
     let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
