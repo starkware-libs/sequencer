@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use apollo_class_manager_types::{ClassHashes, MockClassManagerClient};
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_proof_manager_types::MockProofManagerClient;
 use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
@@ -230,4 +231,55 @@ async fn test_convert_internal_rpc_tx_to_rpc_tx_with_proof(proof_facts: ProofFac
         transaction_converter.convert_internal_rpc_tx_to_rpc_tx(internal_tx).await.unwrap();
 
     assert_eq!(rpc_tx, rpc_tx_from_internal);
+}
+
+// In Echonet mode, gateway flow skips storing the proof in proof_manager (mainnet's feeder
+// doesn't expose it on replay). When the proposer later converts the internal tx back to RPC
+// to stream the proposal to peers, it must NOT call get_proof — there's nothing to get and
+// `ProofNotFound` would abort the proposal. The converter should hand back `Proof::default()`
+// and let proof_facts flow through unchanged.
+// In Echonet mode, gateway flow receives a replayed tx with `proof_facts` populated but no
+// `proof` (mainnet's feeder strips it). Gateway skips storing the proof in proof_manager.
+// When the proposer later converts the internal tx back to RPC to stream the proposal to
+// peers, the converter must NOT call get_proof — there's nothing to get and `ProofNotFound`
+// would abort the proposal. The converter should hand back `Proof::default()` and let
+// proof_facts flow through unchanged.
+#[rstest]
+#[tokio::test]
+async fn test_internal_rpc_to_rpc_in_echonet_mode_skips_proof_manager_lookup(
+    proof_facts: ProofFacts,
+) {
+    // Simulate the echonet replay path: proof_facts present, proof absent.
+    let rpc_tx = invoke_tx_client_side_proving(
+        CairoVersion::default(),
+        proof_facts.clone(),
+        Proof::default(),
+    );
+
+    // No expectations on the mock — neither contains_proof nor get_proof should be called in
+    // Echonet mode. The mock asserts no unexpected calls.
+    let mock_proof_manager_client = MockProofManagerClient::new();
+
+    let transaction_converter = TransactionConverter::new_with_behavior_mode(
+        Arc::new(MockClassManagerClient::new()),
+        Arc::new(mock_proof_manager_client),
+        ChainInfo::create_for_testing().chain_id,
+        BehaviorMode::Echonet,
+    );
+
+    let (internal_tx, verification_handle) =
+        transaction_converter.convert_rpc_tx_to_internal_rpc_tx(rpc_tx.clone()).await.unwrap();
+    assert!(verification_handle.is_none(), "echonet must not spawn proof verification");
+
+    let rpc_tx_from_internal =
+        transaction_converter.convert_internal_rpc_tx_to_rpc_tx(internal_tx).await.unwrap();
+
+    // proof_facts are preserved; proof remains the default we put in.
+    let RpcTransaction::Invoke(starknet_api::rpc_transaction::RpcInvokeTransaction::V3(out_tx)) =
+        rpc_tx_from_internal
+    else {
+        panic!("expected V3 invoke");
+    };
+    assert_eq!(out_tx.proof_facts, proof_facts);
+    assert!(out_tx.proof.is_empty(), "proof must be default in echonet round-trip");
 }

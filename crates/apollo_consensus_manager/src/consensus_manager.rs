@@ -292,10 +292,11 @@ impl ConsensusManager {
         SequencerConsensusContext::new(
             self.config.context_config.clone(),
             SequencerConsensusContextDeps {
-                transaction_converter: Arc::new(TransactionConverter::new(
+                transaction_converter: Arc::new(TransactionConverter::new_with_behavior_mode(
                     Arc::clone(&self.class_manager_client),
                     Arc::clone(&self.proof_manager_client),
                     self.config.context_config.static_config.chain_id.clone(),
+                    self.config.context_config.static_config.behavior_mode.clone(),
                 )),
                 state_sync_client: Arc::clone(&self.state_sync_client),
                 batcher: Arc::clone(&self.batcher_client),
