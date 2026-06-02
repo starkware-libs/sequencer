@@ -15,6 +15,7 @@ use apollo_compile_to_casm::metrics::SIERRA_COMPILER_INFRA_METRICS;
 use apollo_config_manager::communication::{ConfigManagerRunnerServer, LocalConfigManagerServer};
 use apollo_config_manager::metrics::CONFIG_MANAGER_INFRA_METRICS;
 use apollo_consensus_manager::communication::ConsensusManagerServer;
+use apollo_feeder_gateway::communication::FeederGateway;
 use apollo_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use apollo_gateway::metrics::GATEWAY_INFRA_METRICS;
 use apollo_http_server::communication::HttpServer;
@@ -94,6 +95,7 @@ struct LocalServers {
 struct WrapperServers {
     pub(crate) config_manager_runner: Option<Box<ConfigManagerRunnerServer>>,
     pub(crate) consensus_manager: Option<Box<ConsensusManagerServer>>,
+    pub(crate) feeder_gateway: Option<Box<FeederGateway>>,
     pub(crate) http_server: Option<Box<HttpServer>>,
     pub(crate) l1_events_scraper_server:
         Option<Box<L1EventsScraperServer<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>>,
@@ -668,6 +670,11 @@ fn create_wrapper_servers(
         components.consensus_manager
     );
 
+    let feeder_gateway = create_wrapper_server!(
+        &config.components.feeder_gateway.execution_mode,
+        components.feeder_gateway
+    );
+
     let http_server = create_wrapper_server!(
         &config.components.http_server.execution_mode,
         components.http_server
@@ -701,6 +708,7 @@ fn create_wrapper_servers(
     WrapperServers {
         consensus_manager: consensus_manager_server,
         config_manager_runner: config_manager_runner_server,
+        feeder_gateway,
         http_server,
         l1_events_scraper_server,
         l1_gas_price_scraper_server,
@@ -715,6 +723,7 @@ impl WrapperServers {
         create_servers(vec![
             server_future_and_label(self.config_manager_runner, "Config Manager Runner"),
             server_future_and_label(self.consensus_manager, "Consensus Manager"),
+            server_future_and_label(self.feeder_gateway, "Feeder Gateway"),
             server_future_and_label(self.http_server, "Http"),
             server_future_and_label(self.l1_events_scraper_server, "L1 Events Scraper"),
             server_future_and_label(self.l1_gas_price_scraper_server, "L1 Gas Price Scraper"),
