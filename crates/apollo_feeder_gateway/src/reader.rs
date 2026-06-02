@@ -6,6 +6,8 @@ use starknet_api::block::BlockHeader;
 
 use crate::errors::FeederGatewayError;
 
+pub mod executor;
+
 #[cfg(test)]
 #[path = "reader_test.rs"]
 mod reader_test;
