@@ -265,12 +265,30 @@ impl<T> ForestReaderWithEmptyContext for T where
 ///
 /// Types that require external context (e.g., `FactsDb` which needs roots provided externally as
 /// they are not part of the committer storage) should NOT implement this trait.
+#[cfg(not(feature = "os_input"))]
 pub trait ForestStorageWithEmptyReadContext:
     ForestReaderWithEmptyContext + ForestWriterWithMetadata + StorageInitializer
 {
 }
 
+#[cfg(not(feature = "os_input"))]
 impl<T> ForestStorageWithEmptyReadContext for T where
     T: ForestReaderWithEmptyContext + ForestWriterWithMetadata + StorageInitializer
+{
+}
+
+#[cfg(feature = "os_input")]
+pub trait ForestStorageWithEmptyReadContext:
+    ForestReaderWithEmptyContext
+    + forest_trait_witnesses::ForestWriterWithMetadataAndWitnesses
+    + StorageInitializer
+{
+}
+
+#[cfg(feature = "os_input")]
+impl<T> ForestStorageWithEmptyReadContext for T where
+    T: ForestReaderWithEmptyContext
+        + forest_trait_witnesses::ForestWriterWithMetadataAndWitnesses
+        + StorageInitializer
 {
 }
