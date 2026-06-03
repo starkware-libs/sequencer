@@ -1846,3 +1846,71 @@ round); FG `ExecutionResources`/`StateUpdate` "already matches Python" claim (ne
   reference `apollo_rpc/src/v0_8/api/api_impl.rs`.
 - Deployment: `apollo_deployments/src/deployments/*`, `deployment_definitions.rs`,
   `bin/deployment_generator.rs`; `deployments/sequencer/...`. Scopes: `commitlint.config.js`.
+
+---
+
+# Implementation progress & findings (2026-06-03)
+
+Bottom-up Graphite stack built and validated (every PR compiles; `116` tests pass across the
+touched crates). **Implemented (in stack order):**
+PR1, PR2 (empty crates) · PR3–PR8 (config + component skeleton + axum health routes) ·
+PR9–PR12 (node wiring; FG boots disabled, serves health; REGEN clean) ·
+PR16 (ChainDataReader + AppState + mock) · PR17 (state-sync returns `storage_reader`) ·
+PR17b (bounded ReadExecutor) · PR18 (ColocatedStorageReader) · PR20 (RemoteChainDataReader) ·
+PR19 (select backend by topology + read-pool config; REGEN) ·
+PR-parity-1 (reorder `BlockPostV0_13_1`) · PR-parity-2 (`builtin_instance_counter` → IndexMap) ·
+PR-parity-3 (`to_python_json` spaced serializer + ensure_ascii + `fg_json`) ·
+PR-parity-Felt (Felt + newtype JSON lock) · PR15 (legacy error envelope, byte-parity) ·
+E0 (`get_contract_addresses`, byte-parity tested end-to-end).
+
+## NEW blockers found (corrections to this plan — resolve before E1.c et al.)
+1. **Transaction byte-parity is BLOCKED by serde tag position.** `reader::objects::transaction::
+   Transaction` is `#[serde(tag = "type")]`, which serde serializes **tag-first**
+   (`{"type": "INVOKE_FUNCTION", ...}`). The Python fixture puts `"type"` **last** (verified:
+   invoke keys end with `type`). Field reordering (PR-parity-1/M11) CANNOT move the tag — it needs
+   a **custom `Serialize` for `Transaction`** (emit variant fields then `type`) or restructuring to
+   an untagged enum with an explicit trailing `type` field. This is a wire-format change in the
+   shared `apollo_starknet_client` crate, so it needs a deliberate decision/review. **Gates every
+   tx-carrying response: E1.c (get_block), E3 (get_transaction), E4 (get_transaction_receipt).**
+2. **Fixture coverage gap.** `block_post_0_14_3.json` contains only invoke-v3 txs, so the
+   declare/deploy/deploy_account/l1_handler converters (E1.b) and the L1-handler receipt-message
+   path cannot be round-trip/byte verified from the committed fixture. Capture additional Python-FG
+   fixtures (or `/regen-snip35-block-fixture` variants) before landing those converters, per the
+   repo verification mandate (don't ship unverified conversions).
+3. **Receipt optional-message parity.** FG `TransactionReceipt.l1_to_l2_consumed_message` has no
+   `skip_serializing_if`, so it always serializes, but Python omits it for non-L1Handler receipts —
+   another byte-parity gap for the receipt converter/struct (M11 area).
+
+## Intentional deviations from the written plan (applied in the stack)
+- **PR1/PR2:** each crate's `members` + `[workspace.dependencies]` + commitlint entries land in the
+  PR that *creates* that crate (the plan front-loaded both crates into PR1, but `members` is eager
+  so a member dir that doesn't exist yet fails `cargo build`).
+- **PR9:** `feeder_gateway` is deliberately NOT added to `validate_tx_ingestion_components_disabled`
+  — it is a read-only component, not tx-ingestion; adding it would wrongly force FG off on
+  validation-only nodes (where re-serving reads is desirable). Field/dump/`disabled()` entries added.
+- **PR17b ReadExecutor:** implemented as the B1 simplification — a bounded `tokio::sync::Semaphore`
+  (size `read_pool_size`) gating `spawn_blocking`; `run()` awaits a permit and never rejects (M5).
+  Dropped the separate `read_channel_capacity` config (the semaphore subsumes the bound). Kept
+  `max_concurrency()`/`in_flight()` saturation accessors. Swap to the `std::thread` pool only if the
+  PR21 perf test shows tokio lazy-spawn overhead matters.
+- **PR19:** FG component construction relocated to AFTER state-sync in `components.rs` (the colocated
+  backend needs state-sync's `storage_reader`); the state-sync match now yields
+  `Option<StorageReader>`. Config gained `read_backend` (default `Colocated`) + `read_pool_size`.
+- **PR-parity-1:** reordered only the top-level `BlockPostV0_13_1` (verified against the fixture).
+  Nested tx/receipt reordering deferred — tx byte-parity is blocked by finding 1 regardless, so
+  reordering them now buys no verified parity and risks churn.
+- **PR-parity-2:** `builtin_instance_counter` → IndexMap now (get_block path). Deferred
+  `ContractClass.entry_points_by_type` → IndexMap to E5 (it ripples into `starknet_api`'s
+  `from_hash_map` and is on the get_class path, not get_block).
+- **PR15:** BLOCK_NOT_FOUND / TRANSACTION_NOT_FOUND map to HTTP **404** per Reference E (the PR15
+  code snippet's 400 contradicted Reference E; followed Reference E). Error body uses `to_python_json`
+  (M1). `fg_json` defined in `serialization.rs` (needs `FeederGatewayError: IntoResponse`, so it
+  lands with PR15, not PR-parity-3).
+- **PR16:** added only `starknet_api` (per m7); a minimal `FeederGatewayError::Internal` was added in
+  PR16 so `FgResult` has an error type, then expanded into the full envelope in PR15.
+
+## Remaining work (not yet implemented)
+E1.b/E1.c (get_block conversions + handler — **gated on finding 1**), E1.d/E1.e, the per-endpoint
+`RemoteChainDataReader` methods + Reference-C state-sync extensions, E2–E12, PR13/PR14/PR21, and
+Phases F/G/H/I. Verifiable next steps that do NOT carry transactions (so are unblocked by finding 1):
+E6 (`get_storage_at`/`get_nonce`/`get_class_hash_at` — bare scalars), E8 (id↔hash), PR13 (metric).
