@@ -241,7 +241,7 @@ impl From<starknet_api::data_availability::DataAvailabilityMode> for ReservedDat
 ///
 /// Supports multiple transaction versions (V0/V1/V2/V3) through optional fields.
 // TODO(shahak, 01/11/2023): Add serde tests for v3 transactions.
-#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct IntermediateDeclareTransaction {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -266,6 +266,51 @@ pub struct IntermediateDeclareTransaction {
     pub max_fee: Option<Fee>,
     pub version: TransactionVersion,
     pub transaction_hash: TransactionHash,
+}
+
+// PARITY LOCK: key order replicates the live Python feeder gateway DECLARE wire format per
+// version (captured 2026-06-03; fixtures in apollo_feeder_gateway resources/parity/transactions).
+// V0-V2 emit class_hash (and V2's compiled_class_hash) BEFORE sender_address; V3 emits
+// sender_address first, so a single derived field order cannot express the wire format.
+impl Serialize for IntermediateDeclareTransaction {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("transaction_hash", &self.transaction_hash)?;
+        map.serialize_entry("version", &self.version)?;
+        if self.version == TransactionVersion::THREE {
+            map.serialize_entry("signature", &self.signature)?;
+            map.serialize_entry("nonce", &self.nonce)?;
+            serialize_entry_if_some(
+                &mut map,
+                "nonce_data_availability_mode",
+                &self.nonce_data_availability_mode,
+            )?;
+            serialize_entry_if_some(
+                &mut map,
+                "fee_data_availability_mode",
+                &self.fee_data_availability_mode,
+            )?;
+            serialize_entry_if_some(&mut map, "resource_bounds", &self.resource_bounds)?;
+            serialize_entry_if_some(&mut map, "tip", &self.tip)?;
+            serialize_entry_if_some(&mut map, "paymaster_data", &self.paymaster_data)?;
+            map.serialize_entry("sender_address", &self.sender_address)?;
+            map.serialize_entry("class_hash", &self.class_hash)?;
+            serialize_entry_if_some(&mut map, "compiled_class_hash", &self.compiled_class_hash)?;
+            serialize_entry_if_some(
+                &mut map,
+                "account_deployment_data",
+                &self.account_deployment_data,
+            )?;
+        } else {
+            serialize_entry_if_some(&mut map, "max_fee", &self.max_fee)?;
+            map.serialize_entry("signature", &self.signature)?;
+            map.serialize_entry("nonce", &self.nonce)?;
+            map.serialize_entry("class_hash", &self.class_hash)?;
+            serialize_entry_if_some(&mut map, "compiled_class_hash", &self.compiled_class_hash)?;
+            map.serialize_entry("sender_address", &self.sender_address)?;
+        }
+        map.end()
+    }
 }
 
 // TODO(shahak, 01/11/2023): Add conversion tests.

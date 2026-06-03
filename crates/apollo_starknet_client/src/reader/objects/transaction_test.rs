@@ -289,3 +289,66 @@ fn invoke_serializes_in_live_wire_order_per_version() {
         ],
     );
 }
+
+#[test]
+fn declare_serializes_in_live_wire_order_per_version() {
+    let declare_v0: Transaction =
+        serde_json::from_str(&read_resource_file("reader/declare_v0.json")).unwrap();
+    assert_serialized_key_order(
+        &declare_v0,
+        &[
+            "transaction_hash",
+            "version",
+            "max_fee",
+            "signature",
+            "nonce",
+            "class_hash",
+            "sender_address",
+            "type",
+        ],
+    );
+
+    // V2 inserts compiled_class_hash between class_hash and sender_address (verified live).
+    let declare_v2: Transaction = serde_json::from_str(
+        r#"{"transaction_hash": "0x1", "version": "0x2", "max_fee": "0x2", "signature": [],
+            "nonce": "0x0", "class_hash": "0x3", "compiled_class_hash": "0x4",
+            "sender_address": "0x5", "type": "DECLARE"}"#,
+    )
+    .unwrap();
+    assert_serialized_key_order(
+        &declare_v2,
+        &[
+            "transaction_hash",
+            "version",
+            "max_fee",
+            "signature",
+            "nonce",
+            "class_hash",
+            "compiled_class_hash",
+            "sender_address",
+            "type",
+        ],
+    );
+
+    let declare_v3: Transaction =
+        serde_json::from_str(&read_resource_file("reader/declare_v3.json")).unwrap();
+    assert_serialized_key_order(
+        &declare_v3,
+        &[
+            "transaction_hash",
+            "version",
+            "signature",
+            "nonce",
+            "nonce_data_availability_mode",
+            "fee_data_availability_mode",
+            "resource_bounds",
+            "tip",
+            "paymaster_data",
+            "sender_address",
+            "class_hash",
+            "compiled_class_hash",
+            "account_deployment_data",
+            "type",
+        ],
+    );
+}

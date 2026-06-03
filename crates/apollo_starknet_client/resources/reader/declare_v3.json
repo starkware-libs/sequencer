@@ -21,6 +21,5 @@
     "tip": "0x0",
     "transaction_hash": "0x308104e126e1d6659ef499da73eeb88ba9f066a57ad75d8d27fa3ff420cded2",
     "version": "0x3",
-    "max_fee": "0x0",
     "type": "DECLARE"
 }
