@@ -2989,6 +2989,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "feeder_gateway_config.sequencer_public_key": {
+    "description": "The sequencer public key served by get_public_key.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
   "gateway_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",

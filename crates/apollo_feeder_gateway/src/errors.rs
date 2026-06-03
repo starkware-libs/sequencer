@@ -41,8 +41,8 @@ pub enum FeederGatewayError {
 impl IntoResponse for FeederGatewayError {
     fn into_response(self) -> Response {
         // Status mapping mirrors the Python feeder gateway: a `StarknetErrorCode` body is HTTP 400
-        // (verified against the live feeder gateway: BLOCK_NOT_FOUND returns 400, not 404), and only
-        // unhandled internal errors are 500.
+        // (verified against the live feeder gateway: BLOCK_NOT_FOUND returns 400, not 404), and
+        // only unhandled internal errors are 500.
         let (status, starknet_error) = match self {
             FeederGatewayError::BlockNotFound => (
                 StatusCode::BAD_REQUEST,

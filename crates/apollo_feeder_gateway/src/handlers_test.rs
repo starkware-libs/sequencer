@@ -4,7 +4,8 @@ use apollo_feeder_gateway_config::config::{FeederGatewayConfig, FeederGatewayCon
 use axum::body::{to_bytes, Body};
 use axum::http::{Request, StatusCode};
 use starknet_api::block::BlockHash;
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ContractAddress, SequencerPublicKey};
+use starknet_api::crypto::utils::PublicKey;
 use starknet_api::hash::StarkHash;
 use tower::util::ServiceExt;
 
@@ -36,6 +37,28 @@ async fn get_contract_addresses_returns_byte_parity_json() {
     assert_eq!(response.status(), StatusCode::OK);
     let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     assert_eq!(&body[..], br#"{"Starknet": "0x1234", "GpsStatementVerifier": "0xabcd"}"#);
+}
+
+#[tokio::test]
+async fn get_public_key_returns_bare_felt() {
+    let config = FeederGatewayConfig {
+        sequencer_public_key: SequencerPublicKey(PublicKey(StarkHash::from(0x1252_u128))),
+        ..Default::default()
+    };
+    let feeder_gateway = FeederGateway::new(config, Arc::new(MockChainDataReader::new()));
+
+    let response = feeder_gateway
+        .app()
+        .oneshot(
+            Request::builder().uri("/feeder_gateway/get_public_key").body(Body::empty()).unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    // The live feeder gateway serves the public key as a bare quoted felt (e.g. "0x1252b6...").
+    assert_eq!(&body[..], br#""0x1252""#);
 }
 
 #[tokio::test]

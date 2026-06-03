@@ -9,7 +9,7 @@ use apollo_config::dumping::{
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ContractAddress, SequencerPublicKey};
 use validator::Validate;
 
 const FEEDER_GATEWAY_PORT: u16 = 8082; // configurable; intentionally NOT legacy 9713.
@@ -68,6 +68,8 @@ pub struct FeederGatewayConfig {
     pub read_pool_size: Option<usize>,
     #[validate(nested)]
     pub contract_addresses: FeederGatewayContractAddresses,
+    /// The sequencer public key served by `get_public_key` (a bare felt). Network-specific.
+    pub sequencer_public_key: SequencerPublicKey,
 }
 
 impl Default for FeederGatewayConfig {
@@ -78,6 +80,7 @@ impl Default for FeederGatewayConfig {
             read_backend: ReadBackend::default(),
             read_pool_size: None,
             contract_addresses: FeederGatewayContractAddresses::default(),
+            sequencer_public_key: SequencerPublicKey::default(),
         }
     }
 }
@@ -109,6 +112,12 @@ impl SerializeConfig for FeederGatewayConfig {
             ParamPrivacyInput::Public,
         ));
         dump.extend(prepend_sub_config_name(self.contract_addresses.dump(), "contract_addresses"));
+        dump.extend([ser_param(
+            "sequencer_public_key",
+            &self.sequencer_public_key,
+            "The sequencer public key served by get_public_key.",
+            ParamPrivacyInput::Public,
+        )]);
         dump
     }
 }

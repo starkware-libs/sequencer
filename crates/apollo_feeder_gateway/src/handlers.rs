@@ -19,6 +19,12 @@ pub(crate) async fn get_contract_addresses(Extension(state): Extension<AppState>
     fg_json(&state.config.contract_addresses)
 }
 
+/// `GET /feeder_gateway/get_public_key` — returns the configured sequencer public key as a bare
+/// felt, matching the Python feeder gateway (verified against the live service).
+pub(crate) async fn get_public_key(Extension(state): Extension<AppState>) -> Response {
+    fg_json(&state.config.sequencer_public_key)
+}
+
 /// `GET /feeder_gateway/get_block_hash_by_id?blockId=<n>` — returns the block hash of the given
 /// block, or the legacy error envelope if it is not synced. The query parameter is named `blockId`
 /// to match the Python feeder gateway (verified against the live service).
@@ -35,8 +41,8 @@ pub(crate) async fn get_block_hash_by_id(
 /// adversarial: a missing or non-`u64` value yields a `MalformedRequest` (400) rather than a panic,
 /// and `u64` parsing caps the value inherently.
 ///
-/// TODO(feeder_gateway): `blockId` also accepts `latest`/`pending`/a block hash on the Python feeder
-/// gateway; only the numeric form is handled for now.
+/// TODO(feeder_gateway): `blockId` also accepts `latest`/`pending`/a block hash on the Python
+/// feeder gateway; only the numeric form is handled for now.
 fn parse_block_id(params: &HashMap<String, String>) -> FgResult<BlockNumber> {
     let raw = params
         .get("blockId")
