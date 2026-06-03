@@ -6,6 +6,10 @@ use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockSignature};
 use crate::errors::FeederGatewayError;
 use crate::reader::{internal_error, ChainDataReader, FgResult};
 
+#[cfg(test)]
+#[path = "remote_test.rs"]
+mod remote_test;
+
 /// A [`ChainDataReader`] for different-pod/node deployments: it delegates every read to the
 /// state-sync process over the network via a [`SharedStateSyncClient`]. The feeder gateway is
 /// stateless in this mode and holds no local storage.
@@ -31,14 +35,13 @@ impl ChainDataReader for RemoteChainDataReader {
 
     async fn block_signature(
         &self,
-        _block_number: BlockNumber,
+        block_number: BlockNumber,
     ) -> FgResult<(BlockHash, BlockSignature)> {
-        // The state-sync client has no block-signature read yet (it needs a Reference-C extension:
-        // a GetBlockSignature request/response variant + handler). The remote backend is
-        // default-off (the node defaults to co-located), so this is a documented gap, not a
-        // default code path.
-        tracing::error!("get_signature is not yet supported on the remote feeder gateway backend");
-        Err(FeederGatewayError::Internal)
+        let block_hash =
+            self.client.get_block_hash(block_number).await.map_err(map_client_error)?;
+        let signature =
+            self.client.get_block_signature(block_number).await.map_err(map_client_error)?;
+        Ok((block_hash, signature))
     }
 }
 
