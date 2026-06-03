@@ -5255,16 +5255,8 @@ name = "circuits-stark-verifier"
 version = "0.1.0"
 source = "git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a#618db0a21e68fdf91db8b839227bf7258a543cf7"
 dependencies = [
-<<<<<<< HEAD
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=c99a181)",
- "hashbrown 0.17.1",
-||||||| 4ce21e5639
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=c99a181)",
- "hashbrown 0.16.0",
-=======
  "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
  "hashbrown 0.17.1",
->>>>>>> origin/main-v0.14.3
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
