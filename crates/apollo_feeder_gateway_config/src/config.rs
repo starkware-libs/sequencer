@@ -1,6 +1,10 @@
 use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr};
 
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
+
 use apollo_config::dumping::{
     prepend_sub_config_name,
     ser_optional_param,
@@ -8,8 +12,10 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use serde::{Deserialize, Serialize};
-use starknet_api::core::{ContractAddress, SequencerPublicKey};
+use serde::de::Error;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use starknet_api::core::{ContractAddress, EthAddress, SequencerPublicKey};
+use starknet_api::hash::StarkHash;
 use validator::Validate;
 
 const FEEDER_GATEWAY_PORT: u16 = 8082; // configurable; intentionally NOT legacy 9713.
@@ -28,30 +34,90 @@ pub enum ReadBackend {
     Remote,
 }
 
-/// The well-known contract addresses served by `get_contract_addresses`. The field names use the
-/// Python feeder gateway's JSON key casing, since this struct is serialized directly into that
-/// endpoint's response.
+/// The well-known contract addresses served by `get_contract_addresses`.
+///
+/// The live Python feeder gateway's response is NETWORK-VARIABLE: an ordered map of well-known L1
+/// contracts (mainnet serves 4 keys, sepolia 8, in different orders; verified live 2026-06-03)
+/// followed by the two L2 fee-token address felts. The L1 contract set and its order are
+/// therefore plain configuration.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct FeederGatewayContractAddresses {
-    #[serde(rename = "Starknet")]
-    pub starknet: ContractAddress,
-    #[serde(rename = "GpsStatementVerifier")]
-    pub gps_statement_verifier: ContractAddress,
+    /// Ordered `(name, address)` pairs of the network's well-known L1 contracts; the endpoint
+    /// serves them in this order, EIP-55 checksummed. Configured as a space-separated
+    /// `Name:0xaddress` string.
+    #[serde(
+        serialize_with = "serialize_l1_contract_addresses",
+        deserialize_with = "deserialize_l1_contract_addresses"
+    )]
+    pub l1_contract_addresses: Vec<(String, EthAddress)>,
+    pub strk_l2_token_address: ContractAddress,
+    pub eth_l2_token_address: ContractAddress,
+}
+
+/// Formats the ordered L1 contract list as its space-separated `Name:0xaddress` config form
+/// (which preserves order, unlike a JSON object through `serde_json`'s sorted map).
+fn l1_contract_addresses_to_string(l1_contract_addresses: &[(String, EthAddress)]) -> String {
+    l1_contract_addresses
+        .iter()
+        .map(|(contract_name, address)| format!("{contract_name}:0x{:x}", address.0))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn serialize_l1_contract_addresses<S: Serializer>(
+    l1_contract_addresses: &[(String, EthAddress)],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serializer.serialize_str(&l1_contract_addresses_to_string(l1_contract_addresses))
+}
+
+fn deserialize_l1_contract_addresses<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<(String, EthAddress)>, D::Error> {
+    let raw_pairs: String = Deserialize::deserialize(deserializer)?;
+    if raw_pairs.is_empty() {
+        return Ok(Vec::new());
+    }
+    raw_pairs
+        .split(' ')
+        .map(|raw_pair| {
+            let (contract_name, address_hex) = raw_pair.split_once(':').ok_or_else(|| {
+                D::Error::custom(format!("pair \"{raw_pair}\" is not in Name:0xaddress form"))
+            })?;
+            let address = StarkHash::from_hex(address_hex)
+                .map_err(|error| {
+                    D::Error::custom(format!("invalid address in \"{raw_pair}\": {error}"))
+                })
+                .and_then(|felt_value| {
+                    EthAddress::try_from(felt_value).map_err(|error| {
+                        D::Error::custom(format!("invalid address in \"{raw_pair}\": {error}"))
+                    })
+                })?;
+            Ok((contract_name.to_string(), address))
+        })
+        .collect()
 }
 
 impl SerializeConfig for FeederGatewayContractAddresses {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
-                "starknet",
-                &self.starknet,
-                "The Starknet core contract address.",
+                "l1_contract_addresses",
+                &l1_contract_addresses_to_string(&self.l1_contract_addresses),
+                "Ordered space-separated Name:0xaddress pairs of the network's well-known L1 \
+                 contracts, served in this order (EIP-55 checksummed) by get_contract_addresses.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "gps_statement_verifier",
-                &self.gps_statement_verifier,
-                "The GPS statement verifier contract address.",
+                "strk_l2_token_address",
+                &self.strk_l2_token_address,
+                "The STRK fee token L2 address.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "eth_l2_token_address",
+                &self.eth_l2_token_address,
+                "The ETH fee token L2 address.",
                 ParamPrivacyInput::Public,
             ),
         ])

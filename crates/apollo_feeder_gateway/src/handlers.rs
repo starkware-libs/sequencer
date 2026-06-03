@@ -8,7 +8,7 @@ use starknet_api::hash::StarkHash;
 
 use crate::errors::FeederGatewayError;
 use crate::legacy_params::{parse_legacy_json_scalar, LegacyJsonScalar};
-use crate::objects::FeederGatewaySignature;
+use crate::objects::{FeederGatewayContractAddressesResponse, FeederGatewaySignature};
 use crate::reader::{AppState, FgResult};
 use crate::serialization::fg_json;
 
@@ -17,9 +17,10 @@ use crate::serialization::fg_json;
 mod handlers_test;
 
 /// `GET /feeder_gateway/get_contract_addresses` — returns the configured well-known contract
-/// addresses in the legacy Python feeder gateway JSON shape.
+/// addresses in the legacy Python feeder gateway JSON shape (ordered EIP-55 L1 contracts followed
+/// by the two L2 fee-token felts).
 pub(crate) async fn get_contract_addresses(Extension(state): Extension<AppState>) -> Response {
-    fg_json(&state.config.contract_addresses)
+    fg_json(&FeederGatewayContractAddressesResponse(&state.config.contract_addresses))
 }
 
 /// `GET /feeder_gateway/get_public_key` — returns the configured sequencer public key as a bare

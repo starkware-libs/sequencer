@@ -2954,13 +2954,18 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "feeder_gateway_config.contract_addresses.gps_statement_verifier": {
-    "description": "The GPS statement verifier contract address.",
+  "feeder_gateway_config.contract_addresses.eth_l2_token_address": {
+    "description": "The ETH fee token L2 address.",
     "privacy": "Public",
     "value": "0x0"
   },
-  "feeder_gateway_config.contract_addresses.starknet": {
-    "description": "The Starknet core contract address.",
+  "feeder_gateway_config.contract_addresses.l1_contract_addresses": {
+    "description": "Ordered space-separated Name:0xaddress pairs of the network's well-known L1 contracts, served in this order (EIP-55 checksummed) by get_contract_addresses.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "feeder_gateway_config.contract_addresses.strk_l2_token_address": {
+    "description": "The STRK fee token L2 address.",
     "privacy": "Public",
     "value": "0x0"
   },
