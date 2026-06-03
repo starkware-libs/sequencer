@@ -3,9 +3,9 @@ use std::sync::Arc;
 use apollo_feeder_gateway_config::config::{FeederGatewayConfig, FeederGatewayContractAddresses};
 use axum::body::{to_bytes, Body};
 use axum::http::{Request, StatusCode};
-use starknet_api::block::BlockHash;
+use starknet_api::block::{BlockHash, BlockSignature};
 use starknet_api::core::{ContractAddress, SequencerPublicKey};
-use starknet_api::crypto::utils::PublicKey;
+use starknet_api::crypto::utils::{PublicKey, Signature};
 use starknet_api::hash::StarkHash;
 use tower::util::ServiceExt;
 
@@ -59,6 +59,37 @@ async fn get_public_key_returns_bare_felt() {
     let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     // The live feeder gateway serves the public key as a bare quoted felt (e.g. "0x1252b6...").
     assert_eq!(&body[..], br#""0x1252""#);
+}
+
+#[tokio::test]
+async fn get_signature_returns_byte_parity_json() {
+    let mut reader = MockChainDataReader::new();
+    reader.expect_block_signature().returning(|_| {
+        Ok((
+            BlockHash(StarkHash::from(0x1_u128)),
+            BlockSignature(Signature {
+                r: StarkHash::from(0x2_u128),
+                s: StarkHash::from(0x3_u128),
+            }),
+        ))
+    });
+    let feeder_gateway = FeederGateway::new(FeederGatewayConfig::default(), Arc::new(reader));
+
+    let response = feeder_gateway
+        .app()
+        .oneshot(
+            Request::builder()
+                .uri("/feeder_gateway/get_signature?blockNumber=1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    // Matches the live shape: {"block_hash": "0x..", "signature": ["0x..", "0x.."]}.
+    assert_eq!(&body[..], br#"{"block_hash": "0x1", "signature": ["0x2", "0x3"]}"#);
 }
 
 #[tokio::test]

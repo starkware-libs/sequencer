@@ -55,6 +55,7 @@ impl FeederGateway {
                 get(crate::handlers::get_block_hash_by_id),
             )
             .route("/feeder_gateway/get_public_key", get(crate::handlers::get_public_key))
+            .route("/feeder_gateway/get_signature", get(crate::handlers::get_signature))
             .layer(Extension(self.app_state.clone()))
     }
 }
