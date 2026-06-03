@@ -9,6 +9,7 @@ use starknet_api::crypto::utils::{PublicKey, Signature};
 use starknet_api::hash::StarkHash;
 use tower::util::ServiceExt;
 
+use crate::errors::FeederGatewayError;
 use crate::feeder_gateway::FeederGateway;
 use crate::reader::MockChainDataReader;
 
@@ -216,6 +217,31 @@ async fn get_block_id_by_hash_non_hex_is_bad_request() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn get_block_hash_by_id_out_of_range_is_malformed_request() {
+    let mut reader = MockChainDataReader::new();
+    reader.expect_block_hash().returning(|_| Err(FeederGatewayError::BlockNotFound));
+    let feeder_gateway = FeederGateway::new(FeederGatewayConfig::default(), Arc::new(reader));
+
+    let response = feeder_gateway
+        .app()
+        .oneshot(
+            Request::builder()
+                .uri("/feeder_gateway/get_block_hash_by_id?blockId=99999999")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    // Verified live: a block id beyond the chain head is MALFORMED_REQUEST, not BLOCK_NOT_FOUND.
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let body_text = String::from_utf8(body.to_vec()).unwrap();
+    assert!(body_text.contains("MALFORMED_REQUEST"));
+    assert!(!body_text.contains("BLOCK_NOT_FOUND"));
 }
 
 #[tokio::test]

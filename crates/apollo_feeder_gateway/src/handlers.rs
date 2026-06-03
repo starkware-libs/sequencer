@@ -39,14 +39,22 @@ pub(crate) async fn get_signature(
 }
 
 /// `GET /feeder_gateway/get_block_hash_by_id?blockId=<n>` — returns the block hash of the given
-/// block, or the legacy error envelope if it is not synced. The query parameter is named `blockId`
-/// to match the Python feeder gateway (verified against the live service).
+/// block. The query parameter is named `blockId` to match the Python feeder gateway (verified
+/// against the live service).
 pub(crate) async fn get_block_hash_by_id(
     Extension(state): Extension<AppState>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Response, FeederGatewayError> {
     let block_number = parse_block_id(&params)?;
-    let block_hash = state.reader.block_hash(block_number).await?;
+    let block_hash = state.reader.block_hash(block_number).await.map_err(|error| match error {
+        // Verified live: a block id beyond the chain head is MALFORMED_REQUEST ("Block ID should
+        // be in the range [0, <head+1>); got: <id>."), NOT BLOCK_NOT_FOUND. A synced-storage miss
+        // is exactly that out-of-range condition (headers are stored contiguously from genesis).
+        FeederGatewayError::BlockNotFound => {
+            FeederGatewayError::MalformedRequest(format!("block id out of range: {block_number}"))
+        }
+        other => other,
+    })?;
     Ok(fg_json(&block_hash))
 }
 
@@ -71,8 +79,9 @@ pub(crate) async fn get_block_id_by_hash(
 /// adversarial: a missing or non-`u64` value yields a `MalformedRequest` (400) rather than a panic,
 /// and `u64` parsing caps the value inherently.
 ///
-/// TODO(feeder_gateway): `blockId` also accepts `latest`/`pending`/a block hash on the Python
-/// feeder gateway; only the numeric form is handled for now.
+/// Only the numeric form exists: the live feeder gateway parses `blockId` as a JSON integer and
+/// rejects `latest`/`pending`/hash/`null` forms as MALFORMED_REQUEST (verified live; an earlier
+/// plan note claiming otherwise was wrong).
 fn parse_block_id(params: &HashMap<String, String>) -> FgResult<BlockNumber> {
     let raw = params
         .get("blockId")
