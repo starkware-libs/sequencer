@@ -80,8 +80,16 @@ impl CommitterTaskOutput {
 
     pub(crate) fn height(&self) -> BlockNumber {
         match self {
-            Self::Commit(CommitmentTaskOutput { height, .. })
-            | Self::Revert(RevertTaskOutput { height, .. }) => *height,
+            Self::Commit(output) => output.height,
+            Self::Revert(output) => output.height,
+        }
+    }
+
+    /// The committer endpoint that produced this output.
+    pub(crate) fn task_label(&self) -> CommitterRequestLabelValue {
+        match self {
+            Self::Commit(_) => CommitterRequestLabelValue::CommitBlock,
+            Self::Revert(_) => CommitterRequestLabelValue::RevertBlock,
         }
     }
 }
