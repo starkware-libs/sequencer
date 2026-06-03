@@ -8,6 +8,11 @@ description = "Main Starknet sequencer node orchestrating all components."
 
 [features]
 cairo_native = ["apollo_batcher/cairo_native", "apollo_gateway/cairo_native"]
+os_input = [
+  "apollo_batcher/os_input",
+  "apollo_committer/os_input",
+  "apollo_committer_types/os_input",
+]
 testing = ["tokio-util"]
 
 [lints]
