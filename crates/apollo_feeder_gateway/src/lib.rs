@@ -13,3 +13,7 @@ pub mod serialization;
 #[cfg(test)]
 #[path = "felt_format_lock_test.rs"]
 mod felt_format_lock_test;
+
+#[cfg(test)]
+#[path = "transaction_parity_test.rs"]
+mod transaction_parity_test;

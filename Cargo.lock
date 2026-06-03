@@ -1536,6 +1536,7 @@ dependencies = [
  "apollo_infra_utils",
  "apollo_metrics",
  "apollo_proc_macros",
+ "apollo_starknet_client",
  "apollo_state_sync_types",
  "apollo_storage",
  "async-trait",
