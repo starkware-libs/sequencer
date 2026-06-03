@@ -268,7 +268,7 @@ class _BlockHashMismatchTracker:
 class _BlockStore:
     """In-memory storage for echo_center outputs and raw feeder blocks."""
 
-    _MAX_BLOCKS_ARCHIVES_BYTES: ClassVar[int] = 30 * 1024 * 1024 * 1024  # 30 GiB
+    _MAX_BLOCKS_ARCHIVES_BYTES: ClassVar[int] = 90 * 1024 * 1024 * 1024  # 30 GiB
     _CLEANUP_INTERVAL_SECONDS: ClassVar[int] = 5 * 60  # avoid expensive scans too frequently
     _last_cleanup_monotonic: ClassVar[float] = 0.0
 

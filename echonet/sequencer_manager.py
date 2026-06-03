@@ -200,7 +200,7 @@ class SequencerManager:
     def wait_for_state_sync_and_batcher_revert_complete(
         self,
         target_block: int,
-        timeout_seconds: float = 10000.0,
+        timeout_seconds: float = 100000.0,
         poll_interval_seconds: float = 1.0,
         tail_lines: int = 1000,
         pod_name: Optional[str] = None,
