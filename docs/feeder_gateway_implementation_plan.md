@@ -1861,7 +1861,11 @@ PR19 (select backend by topology + read-pool config; REGEN) ·
 PR-parity-1 (reorder `BlockPostV0_13_1`) · PR-parity-2 (`builtin_instance_counter` → IndexMap) ·
 PR-parity-3 (`to_python_json` spaced serializer + ensure_ascii + `fg_json`) ·
 PR-parity-Felt (Felt + newtype JSON lock) · PR15 (legacy error envelope, byte-parity) ·
-E0 (`get_contract_addresses`, byte-parity tested end-to-end).
+E0 (`get_contract_addresses`, byte-parity tested end-to-end) ·
+E8-partial (`get_block_hash_by_id`, both backends, 404 on miss) ·
+PR13 (`FEEDER_GATEWAY_REQUESTS_TOTAL` metric + `MetricScope::FeederGateway`) ·
+PR14 (dashboard row + dedup-test entry; `dev_grafana.json` regenerated) ·
+B7 (`docs/feeder_gateway_configuration.md` config reference).
 
 ## NEW blockers found (corrections to this plan — resolve before E1.c et al.)
 1. **Transaction byte-parity is BLOCKED by serde tag position.** `reader::objects::transaction::
@@ -1910,7 +1914,68 @@ E0 (`get_contract_addresses`, byte-parity tested end-to-end).
   PR16 so `FgResult` has an error type, then expanded into the full envelope in PR15.
 
 ## Remaining work (not yet implemented)
-E1.b/E1.c (get_block conversions + handler — **gated on finding 1**), E1.d/E1.e, the per-endpoint
-`RemoteChainDataReader` methods + Reference-C state-sync extensions, E2–E12, PR13/PR14/PR21, and
-Phases F/G/H/I. Verifiable next steps that do NOT carry transactions (so are unblocked by finding 1):
-E6 (`get_storage_at`/`get_nonce`/`get_class_hash_at` — bare scalars), E8 (id↔hash), PR13 (metric).
+- **Decision-gated (finding 1):** E1.b/E1.c (get_block conversions + handler), E1.d/E1.e, E3, E4 —
+  all carry transactions, so they need the custom `Transaction` `Serialize` decision first.
+- **Needs a live Python FG / more fixtures to verify edge cases:** E6
+  (`get_storage_at`/`get_nonce`/`get_class_hash_at`). The happy path is byte-trivial (bare felt), but
+  the undeployed-contract behavior diverges between backends today — the co-located `StateReader`
+  returns `0x0` for storage of an undeployed contract while the state-sync client errors
+  `ContractNotFound` — and which one matches Python is unverified here. Resolve (and make the backends
+  consistent) against the Python FG before shipping.
+- **Phase H — deployment (own pod), well-scoped but large/mechanical:** add a `FeederGateway` variant
+  to `DistributedNodeServiceName` AND `ComponentConfigInService`; because `get_components_in_service`
+  matches `ComponentConfigInService` exhaustively in every per-service arm, a new variant requires an
+  added arm in each (~12 services); also `get_scale_policy` (AutoScaled), `get_retries`,
+  `get_component_configs` (a `get_feeder_gateway_component_config(state_sync.remote(),
+  class_manager.remote())` builder), bump `DISTRIBUTED_NODE_REQUIRED_PORTS_NUM` 11→12, add the k8s
+  service yaml, and regen `deployment_generator`. Deferred because the Remote topology it serves is
+  default-off (B6) and the wide exhaustive-match edit is error-prone; do it as a focused PR.
+- **Also remaining:** the per-endpoint `RemoteChainDataReader` methods + Reference-C state-sync
+  extensions (e.g. `GetBlockTransactionsWithOutputs`, `GetBlockNumberByHash`), E2/E5/E7/E9–E12, PR21
+  (perf test), the observability middleware that records `FEEDER_GATEWAY_REQUESTS_TOTAL` (A4), and
+  Phases F (compute), G (caching), I (parity hardening + benchmark/API-diff).
+
+---
+
+# Live feeder gateway verification (2026-06-03)
+
+The Python feeder gateway is reachable for ground-truth byte/behavior checks at
+`https://feeder.<network>.starknet.io/feeder_gateway/<endpoint>` (e.g.
+`feeder.alpha-sepolia.starknet.io`, `feeder.alpha-mainnet.starknet.io`) — note the `feeder.`
+subdomain. This is the canonical way to verify parity; **guesses (and even this plan's "Reference E")
+were wrong in several places**, caught only by hitting the live service. Findings so far:
+
+- **Error HTTP status is 400, not 404 (FIXED).** `get_block?blockNumber=999999999` →
+  `HTTP 400 {"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block number 999999999 was not
+  found."}`. Reference E claimed 404 for BLOCK_NOT_FOUND/TRANSACTION_NOT_FOUND; the live service
+  returns 400 (a `StarknetErrorCode` body is 400 by default). The error-envelope PR was corrected to
+  map both to 400. **Follow-up:** the live message embeds the block number, so full message parity
+  needs the number threaded into `FeederGatewayError::BlockNotFound`.
+- **`get_block_hash_by_id` parameter is `blockId`, not `blockNumber` (FIXED).** Verified
+  `...get_block_hash_by_id?blockId=1` → `"0x78b6..."` (bare quoted hash, HTTP 200); `blockNumber` is
+  rejected. The handler now reads `blockId` (numeric form; `latest`/`pending`/hash forms are a
+  follow-up).
+- **`get_contract_addresses` is wrong, and is a NETWORK-VARIABLE MAP (DOCUMENTED, not yet fixed).**
+  The response is not a fixed-shape struct: **mainnet returns 4 fields**
+  (`Starknet`, `GpsStatementVerifier`, `strk_l2_token_address`, `eth_l2_token_address`) while
+  **sepolia returns 8** (adds `MemoryPageFactRegistry`, `MerkleStatementContract`,
+  `FriStatementContract`, `HybridGpsFactAdapter`) in a DIFFERENT key order. So the L1-contract set and
+  its order are network-specific. The `Starknet`/`GpsStatementVerifier`/etc. values are **EIP-55
+  checksummed L1 (Ethereum) addresses** (e.g. `0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4`), NOT
+  felts; `strk_l2_token_address`/`eth_l2_token_address` are felts. The current
+  `FeederGatewayContractAddresses` (two `ContractAddress` felt fields) is therefore byte-wrong on
+  count, type, AND shape. **Correct model:** a config-driven ORDERED map (e.g. `IndexMap<String,
+  EthAddress>`, preserving the per-network insertion order) of L1 contracts serialized with EIP-55
+  checksum (sha3/Keccak256 is a workspace dep; `EthAddress`/`H160` default `Serialize` is lowercase,
+  so a checksum serializer is needed), plus the two L2 token-address felt fields. This is a design
+  decision (ordered-map config schema + EIP-55), not a quick struct edit — verify the exact per-network
+  field set + order against the live service.
+- **Transaction `type` is LAST (CONFIRMED).** A real DECLARE tx (sepolia block 1) serializes its keys
+  ending in `type`, confirming the serde `#[serde(tag="type")]` tag-first blocker is real and that
+  `get_block`/`get_transaction`/`get_transaction_receipt` need the custom `Transaction` `Serialize`
+  (emit fields then `type`) before they can be byte-parity. Sepolia block 1 is also a ready DECLARE
+  fixture; iterate block numbers to capture invoke/deploy/l1_handler fixtures for the other converters.
+
+**Recommended process going forward:** for each endpoint, fetch the live response first, diff against
+the Rust output byte-for-byte, and only then ship. The live service makes every parity claim testable;
+do not rely on the plan's prose for status codes, field sets, param names, or formats.
