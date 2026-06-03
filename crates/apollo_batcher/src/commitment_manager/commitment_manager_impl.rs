@@ -220,6 +220,10 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 CommitterTaskOutput::Commit(commitment_task_result) => {
                     commitment_results.push(commitment_task_result)
                 }
+                #[cfg(feature = "os_input")]
+                CommitterTaskOutput::ReadPathsAndCommitBlock(read_path_and_commit_task_result) => {
+                    commitment_results.push(read_path_and_commit_task_result)
+                }
                 CommitterTaskOutput::Revert(revert_task_result) => {
                     return (commitment_results, revert_task_result);
                 }
@@ -548,7 +552,6 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                     // TODO(Ariel): Add dedicated metrics once we use os_input in prod.
                     record_commit_block_metric(task_duration, height, task_type)
                 }
-
             }
         }
     }

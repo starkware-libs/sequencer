@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use std::time::Instant;
 
+#[cfg(feature = "os_input")]
+use apollo_committer_types::committer_types::ReadPathsAndCommitBlockRequest;
 use apollo_committer_types::committer_types::{
     CommitBlockRequest,
     CommitBlockResponse,
@@ -20,6 +22,8 @@ use tracing::warn;
 #[cfg_attr(test, derive(Clone))]
 pub(crate) enum CommitterTaskInput {
     Commit(CommitBlockRequest),
+    #[cfg(feature = "os_input")]
+    ReadPathsAndCommitBlock(ReadPathsAndCommitBlockRequest),
     Revert(RevertBlockRequest),
 }
 
@@ -27,13 +31,18 @@ impl CommitterTaskInput {
     pub(crate) fn height(&self) -> BlockNumber {
         match self {
             Self::Commit(request) => request.height,
+            #[cfg(feature = "os_input")]
+            Self::ReadPathsAndCommitBlock(request) => request.commit.height,
             Self::Revert(request) => request.height,
         }
     }
 
+    /// The committer endpoint this task will use.
     pub(crate) fn task_type(&self) -> CommitterRequestLabelValue {
         match self {
             Self::Commit(_) => CommitterRequestLabelValue::CommitBlock,
+            #[cfg(feature = "os_input")]
+            Self::ReadPathsAndCommitBlock(_) => CommitterRequestLabelValue::ReadPathsAndCommitBlock,
             Self::Revert(_) => CommitterRequestLabelValue::RevertBlock,
         }
     }
@@ -46,6 +55,15 @@ impl Display for CommitterTaskInput {
                 f,
                 "Commit(height={}, state_diff_commitment={:?})",
                 request.height, request.state_diff_commitment
+            ),
+            #[cfg(feature = "os_input")]
+            Self::ReadPathsAndCommitBlock(request) => write!(
+                f,
+                "ReadPathsAndCommitBlock(height={}, state_diff_commitment={:?}, \
+                 num_accessed_keys={})",
+                request.commit.height,
+                request.commit.state_diff_commitment,
+                request.accessed_keys.len()
             ),
             Self::Revert(request) => write!(f, "Revert(height={})", request.height),
         }
@@ -67,6 +85,8 @@ pub(crate) struct RevertTaskOutput {
 #[derive(Clone, Debug)]
 pub(crate) enum CommitterTaskOutput {
     Commit(CommitmentTaskOutput),
+    #[cfg(feature = "os_input")]
+    ReadPathsAndCommitBlock(CommitmentTaskOutput),
     Revert(RevertTaskOutput),
 }
 
@@ -74,6 +94,8 @@ impl CommitterTaskOutput {
     pub(crate) fn expect_commitment(self) -> CommitmentTaskOutput {
         match self {
             Self::Commit(commitment_task_output) => commitment_task_output,
+            #[cfg(feature = "os_input")]
+            Self::ReadPathsAndCommitBlock(commitment_task_output) => commitment_task_output,
             Self::Revert(_) => panic!("Got revert output: {self:?}"),
         }
     }
@@ -81,14 +103,17 @@ impl CommitterTaskOutput {
     pub(crate) fn height(&self) -> BlockNumber {
         match self {
             Self::Commit(output) => output.height,
+            #[cfg(feature = "os_input")]
+            Self::ReadPathsAndCommitBlock(output) => output.height,
             Self::Revert(output) => output.height,
         }
     }
 
-    /// The committer endpoint that produced this output.
     pub(crate) fn task_label(&self) -> CommitterRequestLabelValue {
         match self {
             Self::Commit(_) => CommitterRequestLabelValue::CommitBlock,
+            #[cfg(feature = "os_input")]
+            Self::ReadPathsAndCommitBlock(_) => CommitterRequestLabelValue::ReadPathsAndCommitBlock,
             Self::Revert(_) => CommitterRequestLabelValue::RevertBlock,
         }
     }
