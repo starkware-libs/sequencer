@@ -22,7 +22,7 @@ use apollo_storage::{StorageReader, StorageTxn};
 use async_trait::async_trait;
 use futures::channel::mpsc::{channel, Sender};
 use futures::SinkExt;
-use starknet_api::block::{BlockHash, BlockHeader, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockSignature};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::{StateNumber, StorageKey};
@@ -119,6 +119,14 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
             }
             StateSyncRequest::GetBlockHash(block_number) => {
                 StateSyncResponse::GetBlockHash(self.get_block_hash(block_number).await)
+            }
+            StateSyncRequest::GetBlockSignature(block_number) => {
+                StateSyncResponse::GetBlockSignature(self.get_block_signature(block_number).await)
+            }
+            StateSyncRequest::GetBlockNumberByHash(block_hash) => {
+                StateSyncResponse::GetBlockNumberByHash(
+                    self.get_block_number_by_hash(block_hash).await,
+                )
             }
             StateSyncRequest::AddNewBlock(sync_block) => StateSyncResponse::AddNewBlock(
                 self.new_block_sender.send(*sync_block).await.map_err(StateSyncError::from),
@@ -218,6 +226,23 @@ impl StateSync {
             }
             (None, None) => Err(StateSyncError::BlockNotFound(block_number)),
         }
+    }
+
+    async fn get_block_signature(
+        &self,
+        block_number: BlockNumber,
+    ) -> StateSyncResult<BlockSignature> {
+        self.storage_reader
+            .begin_ro_txn()?
+            .get_block_signature(block_number)?
+            .ok_or(StateSyncError::BlockNotFound(block_number))
+    }
+
+    async fn get_block_number_by_hash(
+        &self,
+        block_hash: BlockHash,
+    ) -> StateSyncResult<Option<BlockNumber>> {
+        Ok(self.storage_reader.begin_ro_txn()?.get_block_number_by_hash(&block_hash)?)
     }
 
     async fn get_storage_at(

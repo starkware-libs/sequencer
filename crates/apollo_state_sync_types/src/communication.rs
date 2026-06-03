@@ -18,7 +18,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockHeader, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockSignature};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -40,6 +40,21 @@ pub trait StateSyncClient: Send + Sync {
     /// Returns a [BlockNotFound](StateSyncError::BlockNotFound) error if the block doesn't exist or
     /// the sync hasn't downloaded it yet.
     async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncClientResult<BlockHash>;
+
+    /// Request for a block signature at a specific height.
+    /// Returns a [BlockNotFound](StateSyncError::BlockNotFound) error if the block doesn't exist
+    /// or the sync hasn't downloaded its signature yet.
+    async fn get_block_signature(
+        &self,
+        block_number: BlockNumber,
+    ) -> StateSyncClientResult<BlockSignature>;
+
+    /// Request for the block number of the block with the given hash.
+    /// Returns None if no synced block has this hash.
+    async fn get_block_number_by_hash(
+        &self,
+        block_hash: BlockHash,
+    ) -> StateSyncClientResult<Option<BlockNumber>>;
 
     /// Notify the sync that a new block has been created within the node so that other peers can
     /// learn about it through sync.
@@ -128,6 +143,8 @@ pub type StateSyncRequestWrapper = RequestWrapper<StateSyncRequest, StateSyncRes
 pub enum StateSyncRequest {
     GetBlock(BlockNumber),
     GetBlockHash(BlockNumber),
+    GetBlockSignature(BlockNumber),
+    GetBlockNumberByHash(BlockHash),
     AddNewBlock(Box<SyncBlock>),
     GetStorageAt(BlockNumber, ContractAddress, StorageKey),
     GetNonceAt(BlockNumber, ContractAddress),
@@ -145,7 +162,9 @@ impl PrioritizedRequest for StateSyncRequest {
             StateSyncRequest::GetBlock(_) | StateSyncRequest::GetBlockHash(_) => {
                 RequestPriority::High
             }
-            StateSyncRequest::GetStorageAt(_, _, _)
+            StateSyncRequest::GetBlockSignature(_)
+            | StateSyncRequest::GetBlockNumberByHash(_)
+            | StateSyncRequest::GetStorageAt(_, _, _)
             | StateSyncRequest::GetNonceAt(_, _)
             | StateSyncRequest::GetClassHashAt(_, _)
             | StateSyncRequest::AddNewBlock(_)
@@ -161,6 +180,8 @@ impl PrioritizedRequest for StateSyncRequest {
 pub enum StateSyncResponse {
     GetBlock(StateSyncResult<Box<SyncBlock>>),
     GetBlockHash(StateSyncResult<BlockHash>),
+    GetBlockSignature(StateSyncResult<BlockSignature>),
+    GetBlockNumberByHash(StateSyncResult<Option<BlockNumber>>),
     AddNewBlock(StateSyncResult<()>),
     GetStorageAt(StateSyncResult<Felt>),
     GetNonceAt(StateSyncResult<Nonce>),
@@ -197,6 +218,38 @@ where
             request,
             StateSyncResponse,
             GetBlockHash,
+            StateSyncClientError,
+            StateSyncError,
+            Direct
+        )
+    }
+
+    async fn get_block_signature(
+        &self,
+        block_number: BlockNumber,
+    ) -> StateSyncClientResult<BlockSignature> {
+        let request = StateSyncRequest::GetBlockSignature(block_number);
+        handle_all_response_variants!(
+            self,
+            request,
+            StateSyncResponse,
+            GetBlockSignature,
+            StateSyncClientError,
+            StateSyncError,
+            Direct
+        )
+    }
+
+    async fn get_block_number_by_hash(
+        &self,
+        block_hash: BlockHash,
+    ) -> StateSyncClientResult<Option<BlockNumber>> {
+        let request = StateSyncRequest::GetBlockNumberByHash(block_hash);
+        handle_all_response_variants!(
+            self,
+            request,
+            StateSyncResponse,
+            GetBlockNumberByHash,
             StateSyncClientError,
             StateSyncError,
             Direct

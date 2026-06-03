@@ -23,7 +23,7 @@ use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
-use starknet_api::block::{BlockHash, BlockHeader, BlockInfo, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHeader, BlockInfo, BlockNumber, BlockSignature};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
@@ -241,6 +241,20 @@ impl StateSyncClient for SharedStateSyncClientMetricWrapper {
     }
     async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncClientResult<BlockHash> {
         self.run_command_with_metrics(self.state_sync_client.get_block_hash(block_number)).await
+    }
+    async fn get_block_signature(
+        &self,
+        block_number: BlockNumber,
+    ) -> StateSyncClientResult<BlockSignature> {
+        self.run_command_with_metrics(self.state_sync_client.get_block_signature(block_number))
+            .await
+    }
+    async fn get_block_number_by_hash(
+        &self,
+        block_hash: BlockHash,
+    ) -> StateSyncClientResult<Option<BlockNumber>> {
+        self.run_command_with_metrics(self.state_sync_client.get_block_number_by_hash(block_hash))
+            .await
     }
     async fn add_new_block(&self, sync_block: SyncBlock) -> StateSyncClientResult<()> {
         self.run_command_with_metrics(self.state_sync_client.add_new_block(sync_block)).await

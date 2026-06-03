@@ -16,7 +16,7 @@ use futures::channel::mpsc::channel;
 use indexmap::IndexMap;
 use mockall::predicate;
 use rand::Rng;
-use starknet_api::block::{Block, BlockHash, BlockHeader, BlockNumber};
+use starknet_api::block::{Block, BlockHash, BlockHeader, BlockNumber, BlockSignature};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{StorageKey, ThinStateDiff};
@@ -121,6 +121,92 @@ async fn test_get_block_hash() {
     };
 
     assert_eq!(block_hash, expected_header.block_hash);
+}
+
+#[tokio::test]
+async fn test_get_block_signature() {
+    let (mut state_sync, mut storage_writer) = setup();
+
+    let Block { header: expected_header, .. } = get_test_block(1, None, None, None);
+    let block_number = expected_header.block_header_without_hash.block_number;
+    let expected_signature = BlockSignature::get_test_instance(&mut get_rng());
+
+    storage_writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(block_number, &expected_header)
+        .unwrap()
+        .append_block_signature(block_number, &expected_signature)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let response =
+        state_sync.handle_request(StateSyncRequest::GetBlockSignature(block_number)).await;
+    let StateSyncResponse::GetBlockSignature(Ok(signature)) = response else {
+        panic!("Expected StateSyncResponse::GetBlockSignature::Ok(_), but got {response:?}");
+    };
+
+    assert_eq!(signature, expected_signature);
+}
+
+#[tokio::test]
+async fn test_get_block_signature_of_unsynced_block_returns_block_not_found() {
+    let (mut state_sync, _storage_writer) = setup();
+
+    let block_number = BlockNumber(0);
+    let response =
+        state_sync.handle_request(StateSyncRequest::GetBlockSignature(block_number)).await;
+    let StateSyncResponse::GetBlockSignature(Err(StateSyncError::BlockNotFound(
+        not_found_block_number,
+    ))) = response
+    else {
+        panic!(
+            "Expected StateSyncResponse::GetBlockSignature::Err(BlockNotFound(_)), but got \
+             {response:?}"
+        );
+    };
+
+    assert_eq!(not_found_block_number, block_number);
+}
+
+#[tokio::test]
+async fn test_get_block_number_by_hash() {
+    let (mut state_sync, mut storage_writer) = setup();
+
+    let Block { header: expected_header, .. } = get_test_block(1, None, None, None);
+    let block_number = expected_header.block_header_without_hash.block_number;
+
+    storage_writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(block_number, &expected_header)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let response = state_sync
+        .handle_request(StateSyncRequest::GetBlockNumberByHash(expected_header.block_hash))
+        .await;
+    let StateSyncResponse::GetBlockNumberByHash(Ok(Some(found_block_number))) = response else {
+        panic!(
+            "Expected StateSyncResponse::GetBlockNumberByHash::Ok(Some(_)), but got {response:?}"
+        );
+    };
+
+    assert_eq!(found_block_number, block_number);
+}
+
+#[tokio::test]
+async fn test_get_block_number_by_unknown_hash_returns_none() {
+    let (mut state_sync, _storage_writer) = setup();
+
+    let unknown_block_hash = BlockHash(StarkHash::from_hex_unchecked("0x1234"));
+    let response =
+        state_sync.handle_request(StateSyncRequest::GetBlockNumberByHash(unknown_block_hash)).await;
+    let StateSyncResponse::GetBlockNumberByHash(Ok(None)) = response else {
+        panic!("Expected StateSyncResponse::GetBlockNumberByHash::Ok(None), but got {response:?}");
+    };
 }
 
 #[tokio::test]
