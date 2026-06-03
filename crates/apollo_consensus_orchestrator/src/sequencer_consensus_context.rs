@@ -547,10 +547,11 @@ impl SequencerConsensusContext {
             .collect::<Vec<_>>();
 
         // The conversion should never fail, if we already managed to get a decision.
-        let Ok(cende_block_info) = convert_to_sn_api_block_info(init) else {
-            warn!("Failed to convert block info to SN API block info at height {height}: {init:?}");
-            return;
-        };
+        let cende_block_info = convert_to_sn_api_block_info(init).expect(
+            "Failed to convert block info to SN API block info (required for state sync and \
+             preparing the cende blob). IMPORTANT: The block was committed; a revert might be \
+             required for the node to be able to proceed.",
+        );
 
         if let Err(e) = self
             .update_state_sync_with_new_block(
