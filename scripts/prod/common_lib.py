@@ -184,6 +184,8 @@ class Service(Enum):
     """Service types mapping to their configmap and pod names."""
 
     Core = ("sequencer-core-config", "sequencer-core-statefulset-0")
+    # Committer runs as a StatefulSet (like Core), so its pod ends in "-statefulset-0".
+    Committer = ("sequencer-committer-config", "sequencer-committer-statefulset-0")
     Gateway = ("sequencer-gateway-config", "sequencer-gateway-deployment")
     L1 = ("sequencer-l1-config", "sequencer-l1-deployment")
     Mempool = ("sequencer-mempool-config", "sequencer-mempool-deployment")

@@ -24,6 +24,12 @@ def test_service_str_is_the_accepted_token():
         assert Service[str(service)] is service
 
 
+def test_committer_service_maps_to_statefulset_resources():
+    # Committer runs as a StatefulSet, so it follows the Core "-statefulset-0" pod pattern.
+    assert Service.Committer.config_map_name == "sequencer-committer-config"
+    assert Service.Committer.pod_name == "sequencer-committer-statefulset-0"
+
+
 def test_invalid_restart_strategy_raises_informative_error():
     # Enum value lookup raises ValueError; the converter must translate it to ArgumentTypeError
     # with the valid options, rather than letting argparse fall back to a generic message.
