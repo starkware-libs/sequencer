@@ -1936,6 +1936,53 @@ B7 (`docs/feeder_gateway_configuration.md` config reference).
   gauge — the unlabeled request counter IS recorded now), and Phases F (compute), G (caching),
   I (parity hardening + benchmark/API-diff).
 
+## Third pass (2026-06-03) — the byte-parity blockers are RESOLVED
+All three recorded blockers (and the get_contract_addresses + message-parity deferrals) are done:
+- **Finding 1 RESOLVED — `type` tag:** `Transaction` serializes via a `#[serde(flatten)]` wrapper
+  emitting payload fields then a trailing `type` (derived tagged `Deserialize` unchanged). Chosen
+  over serde_json `preserve_order` (global map-ordering flip) and over an enum restructure.
+- **Finding 2 RESOLVED — fixtures:** eleven live tx byte fixtures captured (declare v0-v3, deploy
+  v0, deploy_account v1/v3, invoke v0/v1/v3, l1_handler v0; sepolia blocks 1/3/10/5345/6355/
+  436000/1360000/2705000/6990000, mainnet 0-1) under
+  `apollo_feeder_gateway/resources/parity/transactions/`, each verified equal to Python's
+  json.dumps re-emission, with `to_python_json` round-trip BYTE locks. KEY DISCOVERY: per-version
+  wire orders within a family are IRRECONCILABLE by declaration order (invoke v0 puts calldata
+  before the address under the legacy `contract_address` KEY; declare v3 puts sender_address
+  before class_hash, v0-v2 after; deploy_account v1 serves `contract_address`, v3
+  `sender_address`), so invoke/declare/deploy_account have version-branched manual `Serialize`
+  impls; deploy/l1_handler are plain reorders. Also: live serves the data-gas bound as
+  `L1_DATA_GAS` (starknet_api emits `L1_DATA`; a local wrapper fixes the feeder wire only). The
+  committed `declare_v3.json` per-family fixture carried a bogus `max_fee` (live v3 has none) —
+  fixed.
+- **Finding 3 RESOLVED — receipts:** live order is `revert_error?` (REVERTED leads with it),
+  `execution_status`, `transaction_index`, `transaction_hash`, `l1_to_l2_consumed_message`
+  (L1_HANDLER ONLY — skipped when default), messages, events, resources, fee; struct reordered,
+  four live receipt byte fixtures locked. Receipt message L1 addresses are EIP-55 on the wire;
+  `eip55` now lives in `apollo_starknet_client` (checksum fn + `serialize_eip55` field helper) and
+  the feeder gateway imports it.
+- **get_contract_addresses RESOLVED:** config is an ordered `Vec<(String, EthAddress)>` (one
+  space-separated `Name:0xaddress` string param, order-preserving) + two L2 felts; the wire
+  serializer emits the pairs EIP-55 checksummed then the felts; live mainnet + sepolia responses
+  are committed fixtures with byte-parity tests.
+- **Message parity RESOLVED for served endpoints:** sanitization REMOVED (live echoes verbatim,
+  JSON-escaped only — the apollo_http_server sanitizer was a write-gateway thing); BLOCK_NOT_FOUND
+  carries the number ("Block number {n} was not found.") or the raw hash ("Block hash {raw} does
+  not exist."); blockHash messages replicated; and `legacy_params` replicates Python's
+  `int(json.loads(v))`: blockId coerces floats/bools (1.5 and true ARE block 1, live-verified),
+  missing field echoes the KeyError (`'blockId'`), null echoes the int(None) TypeError, non-JSON
+  echoes json.loads errors with computed positions, out-of-range gets the range message (bound =
+  our head+1; the LIVE bound is its block-ID assignment counter, observed ~5K AHEAD of its
+  finalized tip — instance state, format-parity only). get_signature: missing/null blockNumber
+  serves the LATEST signature (behavior fix — we errored before); strict non-negative-int
+  validation ("Field blockNumber must be a non-negative integer, or 'null';got: int(-1)." — no
+  space after ';', sic); bools accepted (Python int subclass, live-verified); beyond-u64 ints are
+  BLOCK_NOT_FOUND with arbitrary-precision digits echoed.
+- **Documented divergences (accepted):** JSON strings/arrays/objects as blockId values, scientific
+  notation float echoes (Python shortest-repr), and instance-state range bounds.
+- **NOW UNBLOCKED:** E1 (get_block), E3 (get_transaction), E4 (receipts) — the tx serialization
+  gate is gone; remaining work for E1 is the `GetBlockTransactionsWithOutputs` extension, the
+  header/block-level conversions, and handler flags (headerOnly, fee stripping).
+
 ## Second pass (2026-06-03, this session) — implemented additions
 - **A4 (base):** `FEEDER_GATEWAY_REQUESTS_TOTAL` is now recorded by one axum middleware layer over
   the API routes only (health probes excluded so k8s polling doesn't drown the metric).
