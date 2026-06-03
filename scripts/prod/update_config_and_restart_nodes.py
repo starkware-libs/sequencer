@@ -138,11 +138,10 @@ Examples:
         "--service",
         type=service_type_converter,
         choices=list(Service),
-        default=Service.Core,
+        required=True,
         metavar="SERVICE",
         help="Service type to operate on; determines configmap and pod names. One of: "
-        + ", ".join(str(service) for service in Service)
-        + " (default: Core)",
+        + ", ".join(str(service) for service in Service),
     )
 
     args_builder.add_argument(
