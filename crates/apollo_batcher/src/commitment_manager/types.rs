@@ -107,9 +107,17 @@ impl TaskTimer {
     pub(crate) fn start_timer(&mut self, task: CommitterRequestLabelValue, height: BlockNumber) {
         let instant = Instant::now();
         match task {
-            CommitterRequestLabelValue::CommitBlock => self.commit.insert(height, instant),
-            CommitterRequestLabelValue::RevertBlock => self.revert.insert(height, instant),
-        };
+            CommitterRequestLabelValue::CommitBlock => {
+                self.commit.insert(height, instant);
+            }
+            #[cfg(feature = "os_input")]
+            CommitterRequestLabelValue::ReadPathsAndCommitBlock => {
+                self.commit.insert(height, instant);
+            }
+            CommitterRequestLabelValue::RevertBlock => {
+                self.revert.insert(height, instant);
+            }
+        }
     }
 
     /// Returns the duration of the task in milliseconds.
@@ -120,6 +128,8 @@ impl TaskTimer {
     ) -> Option<u128> {
         let map = match task {
             CommitterRequestLabelValue::CommitBlock => &mut self.commit,
+            #[cfg(feature = "os_input")]
+            CommitterRequestLabelValue::ReadPathsAndCommitBlock => &mut self.commit,
             CommitterRequestLabelValue::RevertBlock => &mut self.revert,
         };
 

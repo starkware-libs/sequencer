@@ -551,6 +551,16 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                     COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY.increment(task_duration);
                     COMMITMENT_MANAGER_REVERT_BLOCK_COUNT.increment(1);
                 }
+                #[cfg(feature = "os_input")]
+                CommitterRequestLabelValue::ReadPathsAndCommitBlock => {
+                    debug!(
+                        "Read paths and commit block latency for block {height}: {task_duration} \
+                         milliseconds."
+                    );
+                    // TODO(Ariel): Add dedicated metrics once we use os_input in prod.
+                    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.increment(task_duration);
+                    COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT.increment(1);
+                }
             }
         }
     }
