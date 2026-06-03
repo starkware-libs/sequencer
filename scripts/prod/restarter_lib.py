@@ -191,6 +191,15 @@ class ChecksBetweenRestartsCompositeRestarter(ServiceRestarter):
 
         indices = list(range(self.namespace_and_instruction_args.size()))
 
+        # Restarting every Core pod simultaneously brings all consensus validators down at once and
+        # can halt the chain. Require an explicit extra confirmation before doing so.
+        if self.service == Service.Core and not wait_until_y_or_n(
+            f"WARNING: this will restart ALL {len(indices)} Core pods at the same time, which can "
+            "halt consensus. Are you sure you want to continue?"
+        ):
+            print_colored("\nAborting restart process.")
+            sys.exit(1)
+
         # Phase 1: restart every node's pod concurrently (pod deletes have no ordering dependency).
         print_colored(f"\nRestarting {len(indices)} node(s) in parallel...", Colors.YELLOW)
         run_in_parallel(

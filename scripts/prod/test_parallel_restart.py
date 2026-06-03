@@ -43,6 +43,7 @@ class _ConcurrencyRecorder:
 
 
 def test_all_at_once_restarts_every_node_concurrently(monkeypatch):
+    monkeypatch.setattr("restarter_lib.wait_until_y_or_n", lambda question: True)
     recorder = _ConcurrencyRecorder()
     monkeypatch.setattr(
         ServiceRestarter,
@@ -65,6 +66,7 @@ def test_all_at_once_restarts_every_node_concurrently(monkeypatch):
 
 
 def test_max_parallelism_caps_concurrency(monkeypatch):
+    monkeypatch.setattr("restarter_lib.wait_until_y_or_n", lambda question: True)
     recorder = _ConcurrencyRecorder()
     monkeypatch.setattr(
         ServiceRestarter,
@@ -82,6 +84,7 @@ def test_max_parallelism_caps_concurrency(monkeypatch):
 
 
 def test_all_at_once_waits_for_every_node_concurrently(monkeypatch):
+    monkeypatch.setattr("restarter_lib.wait_until_y_or_n", lambda question: True)
     # Restarts are mocked to be instant; the wait phase is what we measure.
     monkeypatch.setattr(
         ServiceRestarter, "_restart_pod", staticmethod(lambda *args, **kwargs: None)
@@ -131,6 +134,45 @@ def test_no_restart_metric_restarter_is_sequential():
         RestartStrategy.NO_RESTART,
     )
     assert restarter.parallel is False
+
+
+def test_core_all_at_once_aborts_when_user_declines(monkeypatch):
+    monkeypatch.setattr("restarter_lib.wait_until_y_or_n", lambda question: False)
+    restarted = []
+    monkeypatch.setattr(
+        ServiceRestarter,
+        "_restart_pod",
+        staticmethod(lambda namespace, service, index, cluster=None: restarted.append(namespace)),
+    )
+
+    restarter = ServiceRestarter.from_restart_strategy(
+        RestartStrategy.ALL_AT_ONCE, _make_args(), Service.Core
+    )
+    with pytest.raises(SystemExit) as exit_info:
+        restarter.restart_all(max_parallelism=len(NAMESPACES))
+
+    assert exit_info.value.code == 1
+    assert restarted == []  # declining means nothing is restarted
+
+
+def test_non_core_all_at_once_does_not_prompt(monkeypatch):
+    def fail_if_called(question):
+        raise AssertionError("Non-Core restarts must not prompt for confirmation")
+
+    monkeypatch.setattr("restarter_lib.wait_until_y_or_n", fail_if_called)
+    restarted = []
+    monkeypatch.setattr(
+        ServiceRestarter,
+        "_restart_pod",
+        staticmethod(lambda namespace, service, index, cluster=None: restarted.append(namespace)),
+    )
+
+    restarter = ServiceRestarter.from_restart_strategy(
+        RestartStrategy.ALL_AT_ONCE, _make_args(), Service.Gateway
+    )
+    restarter.restart_all(max_parallelism=len(NAMESPACES))
+
+    assert sorted(restarted) == sorted(NAMESPACES)
 
 
 if __name__ == "__main__":
