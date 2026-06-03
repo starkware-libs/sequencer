@@ -5078,10 +5078,10 @@ dependencies = [
 [[package]]
 name = "circuit-air"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=2591775#2591775ae8fd7634eda7b77c471f87c163f65eb1"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d#9aa1b00dd46a7d828cb224cd3be756056cd423f3"
 dependencies = [
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
  "itertools 0.12.1",
  "num-traits",
  "serde",
@@ -5093,12 +5093,12 @@ dependencies = [
 [[package]]
 name = "circuit-cairo-air"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=2591775#2591775ae8fd7634eda7b77c471f87c163f65eb1"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d#9aa1b00dd46a7d828cb224cd3be756056cd423f3"
 dependencies = [
  "cairo-air 1.1.0",
- "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
+ "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
@@ -5129,19 +5129,6 @@ dependencies = [
 [[package]]
 name = "circuit-common"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=2591775#2591775ae8fd7634eda7b77c471f87c163f65eb1"
-dependencies = [
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "itertools 0.12.1",
- "rand_chacha 0.3.1",
- "stwo 2.1.0",
- "stwo-cairo-common 1.1.0",
- "stwo-constraint-framework 2.1.0",
-]
-
-[[package]]
-name = "circuit-common"
-version = "0.1.0"
 source = "git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a#618db0a21e68fdf91db8b839227bf7258a543cf7"
 dependencies = [
  "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
@@ -5151,6 +5138,19 @@ dependencies = [
  "stwo 2.2.0",
  "stwo-cairo-common 1.2.2",
  "stwo-constraint-framework 2.2.0",
+]
+
+[[package]]
+name = "circuit-common"
+version = "0.1.0"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d#9aa1b00dd46a7d828cb224cd3be756056cd423f3"
+dependencies = [
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "itertools 0.12.1",
+ "rand_chacha 0.3.1",
+ "stwo 2.1.0",
+ "stwo-cairo-common 1.1.0",
+ "stwo-constraint-framework 2.1.0",
 ]
 
 [[package]]
@@ -5177,22 +5177,22 @@ dependencies = [
 [[package]]
 name = "circuit-serialize"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=2591775#2591775ae8fd7634eda7b77c471f87c163f65eb1"
-dependencies = [
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "num-traits",
- "stwo 2.1.0",
-]
-
-[[package]]
-name = "circuit-serialize"
-version = "0.1.0"
 source = "git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a#618db0a21e68fdf91db8b839227bf7258a543cf7"
 dependencies = [
  "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
  "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a)",
  "stwo 2.2.0",
+]
+
+[[package]]
+name = "circuit-serialize"
+version = "0.1.0"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d#9aa1b00dd46a7d828cb224cd3be756056cd423f3"
+dependencies = [
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "num-traits",
+ "stwo 2.1.0",
 ]
 
 [[package]]
@@ -5213,19 +5213,6 @@ dependencies = [
 [[package]]
 name = "circuits"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=2591775#2591775ae8fd7634eda7b77c471f87c163f65eb1"
-dependencies = [
- "blake2",
- "hashbrown 0.17.1",
- "indexmap 2.14.0",
- "itertools 0.12.1",
- "num-traits",
- "stwo 2.1.0",
-]
-
-[[package]]
-name = "circuits"
-version = "0.1.0"
 source = "git+https://github.com/starkware-libs/stwo-circuits?rev=618db0a#618db0a21e68fdf91db8b839227bf7258a543cf7"
 dependencies = [
  "blake2",
@@ -5238,17 +5225,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "circuits-stark-verifier"
+name = "circuits"
 version = "0.1.0"
-source = "git+https://github.com/starkware-libs/stwo-circuits?rev=2591775#2591775ae8fd7634eda7b77c471f87c163f65eb1"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d#9aa1b00dd46a7d828cb224cd3be756056cd423f3"
 dependencies = [
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
+ "blake2",
  "hashbrown 0.17.1",
  "indexmap 2.14.0",
  "itertools 0.12.1",
  "num-traits",
  "stwo 2.1.0",
- "stwo-constraint-framework 2.1.0",
 ]
 
 [[package]]
@@ -5264,6 +5250,20 @@ dependencies = [
  "serde",
  "stwo 2.2.0",
  "stwo-constraint-framework 2.2.0",
+]
+
+[[package]]
+name = "circuits-stark-verifier"
+version = "0.1.0"
+source = "git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d#9aa1b00dd46a7d828cb224cd3be756056cd423f3"
+dependencies = [
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "hashbrown 0.17.1",
+ "indexmap 2.14.0",
+ "itertools 0.12.1",
+ "num-traits",
+ "stwo 2.1.0",
+ "stwo-constraint-framework 2.1.0",
 ]
 
 [[package]]
@@ -9842,7 +9842,7 @@ dependencies = [
  "serde_derive",
  "sha2 0.10.9",
  "thiserror 2.0.17",
- "toml 0.9.8",
+ "toml 0.8.23",
 ]
 
 [[package]]
@@ -10441,17 +10441,17 @@ dependencies = [
 [[package]]
 name = "privacy-circuit-verify"
 version = "1.1.0"
-source = "git+https://github.com/starkware-libs/proving-utils?rev=580135e#580135ebc86cd4ece92e44e78e54e49e22bec323"
+source = "git+https://github.com/starkware-libs/proving-utils?rev=18f6cac#18f6caca80acfc6eae5a06b7ce41400533aa2d18"
 dependencies = [
  "anyhow",
  "cairo-air 1.1.0",
  "cairo-vm",
  "circuit-air",
  "circuit-cairo-air",
- "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "circuit-serialize 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
- "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=2591775)",
+ "circuit-common 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "circuit-serialize 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "circuits 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
+ "circuits-stark-verifier 0.1.0 (git+https://github.com/starkware-libs/stwo-circuits?rev=9aa1b00d)",
  "clap",
  "itertools 0.12.1",
  "log",
@@ -14010,21 +14010,6 @@ dependencies = [
  "serde_spanned 0.6.9",
  "toml_datetime 0.6.11",
  "toml_edit 0.22.27",
-]
-
-[[package]]
-name = "toml"
-version = "0.9.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0dc8b1fb61449e27716ec0e1bdf0f6b8f3e8f6b05391e8497b8b6d7804ea6d8"
-dependencies = [
- "indexmap 2.14.0",
- "serde_core",
- "serde_spanned 1.1.1",
- "toml_datetime 0.7.3",
- "toml_parser",
- "toml_writer",
- "winnow 0.7.13",
 ]
 
 [[package]]
