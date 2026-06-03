@@ -220,6 +220,10 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 CommitterTaskOutput::Commit(commitment_task_result) => {
                     commitment_results.push(commitment_task_result)
                 }
+                #[cfg(feature = "os_input")]
+                CommitterTaskOutput::ReadPathsAndCommitBlock(read_path_and_commit_task_result) => {
+                    commitment_results.push(read_path_and_commit_task_result)
+                }
                 CommitterTaskOutput::Revert(revert_task_result) => {
                     return (commitment_results, revert_task_result);
                 }
