@@ -42,11 +42,16 @@ async fn internal_envelope_is_byte_parity_and_leaks_nothing() {
 }
 
 #[tokio::test]
-async fn malformed_request_sanitizes_message() {
-    let (status, body) =
-        response_status_and_body(FeederGatewayError::MalformedRequest("bad \"x\" <y>".to_string()))
-            .await;
+async fn malformed_request_echoes_message_verbatim() {
+    // The live feeder gateway echoes request values verbatim with JSON escaping only (verified
+    // live: blockHash=zz";<>&x echoes as zz\";<>&x), so no sanitization is applied.
+    let (status, body) = response_status_and_body(FeederGatewayError::MalformedRequest(
+        "got: zz\";<>&x.".to_string(),
+    ))
+    .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    // Quotes become single quotes and disallowed characters (`<`, `>`) become spaces.
-    assert_eq!(body, r#"{"code": "StarkErrorCode.MALFORMED_REQUEST", "message": "bad 'x'  y "}"#);
+    assert_eq!(
+        body,
+        r#"{"code": "StarkErrorCode.MALFORMED_REQUEST", "message": "got: zz\";<>&x."}"#
+    );
 }

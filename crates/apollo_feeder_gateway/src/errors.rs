@@ -7,7 +7,6 @@ use apollo_gateway_types::deprecated_gateway_error::{
 };
 use axum::http::{header, StatusCode};
 use axum::response::{IntoResponse, Response};
-use regex::Regex;
 use thiserror::Error;
 
 use crate::serialization::to_python_json;
@@ -83,17 +82,12 @@ impl IntoResponse for FeederGatewayError {
     }
 }
 
-/// Serializes a [`StarknetError`] into a byte-parity error response. The message is sanitized like
-/// the Python feeder gateway (see `apollo_http_server`), and the body is serialized with the spaced
-/// Python formatter (not `serde_json::to_vec`) so the error envelope is byte-exact too.
+/// Serializes a [`StarknetError`] into a byte-parity error response: the spaced Python formatter
+/// (not `serde_json::to_vec`) so the envelope is byte-exact. The message is NOT sanitized: the
+/// live feeder gateway echoes request values verbatim in messages (verified 2026-06-03 with
+/// quotes/`;`/`<>` inputs), relying only on JSON string escaping; the `apollo_http_server`
+/// sanitizer belongs to the write gateway, not here.
 fn serialize_error(status: StatusCode, error: &StarknetError) -> Response {
-    let quote_re = Regex::new(r#"["`]"#).unwrap(); // " and ` => ' (single quote)
-    // All other non-alphanumeric characters except [:.,[](){}]'_ => ' ' (space).
-    let sanitize_re = Regex::new(r#"[^a-zA-Z0-9 :.,\[\]\(\)\{\}'_]"#).unwrap();
-    let message =
-        sanitize_re.replace_all(&quote_re.replace_all(&error.message, "'"), " ").to_string();
-    let sanitized_error = StarknetError { code: error.code.clone(), message };
-
-    let body = to_python_json(&sanitized_error).expect("StarknetError is serializable");
+    let body = to_python_json(error).expect("StarknetError is serializable");
     (status, [(header::CONTENT_TYPE, "application/json")], body).into_response()
 }
