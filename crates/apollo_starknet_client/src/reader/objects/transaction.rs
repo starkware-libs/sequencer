@@ -460,7 +460,7 @@ impl From<DeployTransaction> for starknet_api::transaction::DeployTransaction {
 ///
 /// Supports multiple transaction versions (V1/V3) through optional fields.
 // TODO(shahak, 01/11/2023): Add serde tests for v3 transactions.
-#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct IntermediateDeployAccountTransaction {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -486,6 +486,44 @@ pub struct IntermediateDeployAccountTransaction {
     pub max_fee: Option<Fee>,
     pub transaction_hash: TransactionHash,
     pub version: TransactionVersion,
+}
+
+// PARITY LOCK: key order and names replicate the live Python feeder gateway DEPLOY_ACCOUNT wire
+// format (captured 2026-06-03; fixtures in apollo_feeder_gateway resources/parity/transactions).
+// V1 and V3 share one relative order (the V3-only fields are presence-driven), but the address
+// key is version-dependent: V1 serves the legacy `contract_address`, V3 `sender_address`.
+impl Serialize for IntermediateDeployAccountTransaction {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("transaction_hash", &self.transaction_hash)?;
+        map.serialize_entry("version", &self.version)?;
+        serialize_entry_if_some(&mut map, "max_fee", &self.max_fee)?;
+        map.serialize_entry("signature", &self.signature)?;
+        map.serialize_entry("nonce", &self.nonce)?;
+        serialize_entry_if_some(
+            &mut map,
+            "nonce_data_availability_mode",
+            &self.nonce_data_availability_mode,
+        )?;
+        serialize_entry_if_some(
+            &mut map,
+            "fee_data_availability_mode",
+            &self.fee_data_availability_mode,
+        )?;
+        serialize_entry_if_some(&mut map, "resource_bounds", &self.resource_bounds)?;
+        serialize_entry_if_some(&mut map, "tip", &self.tip)?;
+        serialize_entry_if_some(&mut map, "paymaster_data", &self.paymaster_data)?;
+        let address_key = if self.version == TransactionVersion::THREE {
+            "sender_address"
+        } else {
+            "contract_address"
+        };
+        map.serialize_entry(address_key, &self.sender_address)?;
+        map.serialize_entry("contract_address_salt", &self.contract_address_salt)?;
+        map.serialize_entry("class_hash", &self.class_hash)?;
+        map.serialize_entry("constructor_calldata", &self.constructor_calldata)?;
+        map.end()
+    }
 }
 
 // TODO(shahak, 01/11/2023): Add conversion tests.

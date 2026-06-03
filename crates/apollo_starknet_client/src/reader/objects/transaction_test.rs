@@ -352,3 +352,52 @@ fn declare_serializes_in_live_wire_order_per_version() {
         ],
     );
 }
+
+#[test]
+fn deploy_account_serializes_in_live_wire_order_per_version() {
+    let deploy_account_v1: Transaction = serde_json::from_str(
+        r#"{"transaction_hash": "0x1", "version": "0x1", "max_fee": "0x2", "signature": [],
+            "nonce": "0x0", "contract_address": "0x3", "contract_address_salt": "0x4",
+            "class_hash": "0x5", "constructor_calldata": [], "type": "DEPLOY_ACCOUNT"}"#,
+    )
+    .unwrap();
+    assert_serialized_key_order(
+        &deploy_account_v1,
+        &[
+            "transaction_hash",
+            "version",
+            "max_fee",
+            "signature",
+            "nonce",
+            "contract_address",
+            "contract_address_salt",
+            "class_hash",
+            "constructor_calldata",
+            "type",
+        ],
+    );
+    // V1 must serve the legacy address key, not the modern one.
+    assert!(!serde_json::to_string(&deploy_account_v1).unwrap().contains("sender_address"));
+
+    let deploy_account_v3: Transaction =
+        serde_json::from_str(&read_resource_file("reader/deploy_account_v3.json")).unwrap();
+    assert_serialized_key_order(
+        &deploy_account_v3,
+        &[
+            "transaction_hash",
+            "version",
+            "signature",
+            "nonce",
+            "nonce_data_availability_mode",
+            "fee_data_availability_mode",
+            "resource_bounds",
+            "tip",
+            "paymaster_data",
+            "sender_address",
+            "contract_address_salt",
+            "class_hash",
+            "constructor_calldata",
+            "type",
+        ],
+    );
+}
