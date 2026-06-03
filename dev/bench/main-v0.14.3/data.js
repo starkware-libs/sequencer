@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780497532776,
+  "lastUpdate": 1780501522121,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -135,6 +135,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1280.69377444,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8fec81e6f7333485a86281764af7144bf1c25998",
+          "message": "release: bump compiler version to 2.19.0-rc.2 (#14314)\n\nSigned-off-by: Dori Medini <dori@starkware.co>",
+          "timestamp": "2026-06-03T15:29:15Z",
+          "tree_id": "bb70d47b3f34b2f8223e401edeec33ebc2136315",
+          "url": "https://github.com/starkware-libs/sequencer/commit/8fec81e6f7333485a86281764af7144bf1c25998"
+        },
+        "date": 1780501521534,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 916.58008662,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1374.75226284,
             "unit": "ms"
           }
         ]
