@@ -1,6 +1,12 @@
 use std::time::Duration;
 
 use apollo_committer_types::committer_types::{CommitBlockRequest, RevertBlockRequest};
+#[cfg(feature = "os_input")]
+use apollo_committer_types::committer_types::{
+    CommitBlockResponse,
+    ReadPathsAndCommitBlockRequest,
+    ReadPathsAndCommitBlockResponse,
+};
 use apollo_committer_types::communication::SharedCommitterClient;
 use apollo_committer_types::errors::CommitterClientResult;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -90,6 +96,14 @@ async fn perform_task(
             CommitterTaskInput::Commit(commit_block_request) => {
                 perform_commit_block_task(commit_block_request.clone(), committer_client).await
             }
+            #[cfg(feature = "os_input")]
+            CommitterTaskInput::ReadPathsAndCommitBlock(read_paths_and_commit_block_request) => {
+                perform_read_paths_and_commit_block_task(
+                    read_paths_and_commit_block_request.clone(),
+                    committer_client,
+                )
+                .await
+            }
             CommitterTaskInput::Revert(revert_block_request) => {
                 perform_revert_block_task(revert_block_request.clone(), committer_client).await
             }
@@ -111,6 +125,22 @@ async fn perform_commit_block_task(
     let height = commit_block_request.height;
     let response = committer_client.commit_block(commit_block_request).await?;
     Ok(CommitterTaskOutput::Commit(CommitmentTaskOutput { response, height }))
+}
+
+/// Commits the block and fetches the Patricia witnesses for the accessed keys via
+/// `ReadPathsAndCommitBlock`.
+#[cfg(feature = "os_input")]
+async fn perform_read_paths_and_commit_block_task(
+    request: ReadPathsAndCommitBlockRequest,
+    committer_client: &SharedCommitterClient,
+) -> CommitterClientResult<CommitterTaskOutput> {
+    let height = request.commit.height;
+    let ReadPathsAndCommitBlockResponse { global_root, patricia_proofs: _ } =
+        committer_client.read_paths_and_commit_block(request).await?;
+    Ok(CommitterTaskOutput::ReadPathsAndCommitBlock(CommitmentTaskOutput {
+        response: CommitBlockResponse { global_root },
+        height,
+    }))
 }
 
 async fn perform_revert_block_task(
