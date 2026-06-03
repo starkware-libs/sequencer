@@ -15,7 +15,7 @@ mod TestContract {
     use core::pedersen::PedersenTrait;
     use core::poseidon::PoseidonTrait;
     use core::sha256::{SHA256_INITIAL_STATE, compute_sha256_u32_array, sha256_state_handle_init};
-    use core::sha512::compute_sha512_u64_array;
+    use core::sha512::{compute_sha512_u64_array, u3};
     use dict::Felt252DictTrait;
     use ec::EcPointTrait;
     use starknet::class_hash::ClassHashZero;
@@ -709,7 +709,7 @@ mod TestContract {
     }
 
     fn test_sha512_helper(
-        input: Array<u64>, last_word: u64, last_num_bytes: u32, expected_first_word: u64,
+        input: Array<u64>, last_word: u64, last_num_bytes: u3, expected_first_word: u64,
     ) {
         let [res, _, _, _, _, _, _, _] = compute_sha512_u64_array(input, last_word, last_num_bytes);
         assert(res == expected_first_word, 'Wrong hash value');
