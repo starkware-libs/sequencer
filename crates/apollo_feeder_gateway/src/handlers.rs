@@ -99,14 +99,20 @@ fn parse_block_id(params: &HashMap<String, String>) -> FgResult<BlockNumber> {
 /// prefix is required, matching the live feeder gateway (it rejects `0X`-prefixed and bare-hex
 /// forms).
 fn parse_block_hash(params: &HashMap<String, String>) -> FgResult<(BlockHash, &str)> {
-    let raw = params
-        .get("blockHash")
-        .ok_or_else(|| FeederGatewayError::MalformedRequest("missing blockHash".to_string()))?;
+    // Both message texts replicate the live service verbatim (verified 2026-06-03), including
+    // rejecting `null` and `0X`-prefixed forms with the same "should be a hexadecimal" message.
+    let raw = params.get("blockHash").ok_or_else(|| {
+        FeederGatewayError::MalformedRequest("Block hash must be given.".to_string())
+    })?;
+    let malformed_block_hash = || {
+        FeederGatewayError::MalformedRequest(format!(
+            "Block hash should be a hexadecimal string starting with 0x, or 'null'; got: {raw}."
+        ))
+    };
     if !raw.starts_with("0x") {
-        return Err(FeederGatewayError::MalformedRequest(format!("invalid blockHash: {raw}")));
+        return Err(malformed_block_hash());
     }
-    let felt_value = StarkHash::from_hex(raw)
-        .map_err(|_| FeederGatewayError::MalformedRequest(format!("invalid blockHash: {raw}")))?;
+    let felt_value = StarkHash::from_hex(raw).map_err(|_| malformed_block_hash())?;
     Ok((BlockHash(felt_value), raw))
 }
 
