@@ -165,7 +165,6 @@ pub(super) fn l1_data_availability_mode_to_enum_int(value: L1DataAvailabilityMod
     }
 }
 
-#[allow(dead_code)]
 pub(crate) fn enum_int_to_volition_domain(
     value: i32,
 ) -> Result<DataAvailabilityMode, ProtobufConversionError> {
