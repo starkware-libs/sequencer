@@ -146,3 +146,30 @@ fn load_transaction_receipt_succeeds() {
         );
     }
 }
+
+/// The Python feeder gateway serializes the `type` tag LAST in every transaction object; serde's
+/// `#[serde(tag)]` would emit it first, so `Transaction` has a custom `Serialize`. Locks the tag
+/// position for every variant and proves the custom impl round-trips losslessly.
+#[test]
+fn transaction_serializes_type_tag_last() {
+    for (file_name, type_tag) in [
+        ("reader/declare_v0.json", "DECLARE"),
+        ("reader/declare_v3.json", "DECLARE"),
+        ("reader/deploy_account_v3.json", "DEPLOY_ACCOUNT"),
+        ("reader/deploy_v0.json", "DEPLOY"),
+        ("reader/invoke_v0.json", "INVOKE_FUNCTION"),
+        ("reader/invoke_v3.json", "INVOKE_FUNCTION"),
+        ("reader/l1_handler_v0.json", "L1_HANDLER"),
+    ] {
+        let transaction: Transaction =
+            serde_json::from_str(&read_resource_file(file_name)).unwrap();
+        let serialized = serde_json::to_string(&transaction).unwrap();
+        assert!(
+            serialized.ends_with(&format!(r#""type":"{type_tag}"}}"#)),
+            "`type` is not the last key for {file_name}: {serialized}"
+        );
+
+        let round_tripped: Transaction = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(round_tripped, transaction, "lossy serialization for {file_name}");
+    }
+}

@@ -53,7 +53,7 @@ use crate::reader::ReaderClientError;
 /// Used in [`BlockPostV0_13_1::transactions`](crate::reader::objects::block::BlockPostV0_13_1::transactions)
 /// when syncing historical block data from the Feeder Gateway API.
 // TODO(dan): consider extracting common fields out (version, hash, type).
-#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
+#[derive(Debug, Deserialize, Clone, Eq, PartialEq)]
 #[serde(tag = "type")]
 pub enum Transaction {
     #[serde(rename = "DECLARE")]
@@ -66,6 +66,44 @@ pub enum Transaction {
     Invoke(IntermediateInvokeTransaction),
     #[serde(rename = "L1_HANDLER")]
     L1Handler(L1HandlerTransaction),
+}
+
+/// Serialization helper emitting the payload's fields followed by a trailing `type` tag. The
+/// Python feeder gateway puts `type` LAST in every transaction object, while serde's
+/// `#[serde(tag = "type")]` representation emits it first; `Transaction` therefore derives only
+/// `Deserialize` (internally tagged deserialization accepts the tag at any position) and
+/// serializes through this wrapper. `#[serde(flatten)]` forwards the payload's fields in their
+/// declaration order, so byte parity is preserved with any serializer.
+#[derive(Serialize)]
+struct TypeTaggedLastTransaction<'a, Payload: Serialize> {
+    #[serde(flatten)]
+    payload: &'a Payload,
+    r#type: &'static str,
+}
+
+impl Serialize for Transaction {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // The tag strings must match the variants' `#[serde(rename)]` attributes above.
+        match self {
+            Transaction::Declare(payload) => {
+                TypeTaggedLastTransaction { payload, r#type: "DECLARE" }.serialize(serializer)
+            }
+            Transaction::DeployAccount(payload) => {
+                TypeTaggedLastTransaction { payload, r#type: "DEPLOY_ACCOUNT" }
+                    .serialize(serializer)
+            }
+            Transaction::Deploy(payload) => {
+                TypeTaggedLastTransaction { payload, r#type: "DEPLOY" }.serialize(serializer)
+            }
+            Transaction::Invoke(payload) => {
+                TypeTaggedLastTransaction { payload, r#type: "INVOKE_FUNCTION" }
+                    .serialize(serializer)
+            }
+            Transaction::L1Handler(payload) => {
+                TypeTaggedLastTransaction { payload, r#type: "L1_HANDLER" }.serialize(serializer)
+            }
+        }
+    }
 }
 
 impl TryFrom<Transaction> for starknet_api::transaction::Transaction {
