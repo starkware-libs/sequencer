@@ -8,6 +8,11 @@ description = "Main Starknet sequencer node orchestrating all components."
 
 [features]
 cairo_native = ["apollo_batcher/cairo_native", "apollo_gateway/cairo_native"]
+# Forwarded so that `--all-features` builds enable `apollo_committer/os_input` (and its transitive
+# `starknet_committer/os_input`), keeping the cross-crate feature gating unified. Without it, a
+# build that enables `starknet_committer/os_input` while leaving `apollo_committer/os_input` off
+# fails to compile `apollo_committer` (E0027 on the `os_input`-gated `BlockMeasurement` field).
+os_input = ["apollo_committer/os_input"]
 testing = ["tokio-util"]
 
 [lints]
