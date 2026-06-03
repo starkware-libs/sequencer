@@ -1,0 +1,1 @@
+{"execution_status": "SUCCEEDED", "transaction_index": 0, "transaction_hash": "0x3f786ecc4955a2602c91a291328518ef866cb7f3d50e4b16fd42282952623aa", "l2_to_l1_messages": [], "events": [], "execution_resources": {"n_steps": 5531, "builtin_instance_counter": {"range_check_builtin": 122, "ecdsa_builtin": 1, "pedersen_builtin": 23}, "n_memory_holes": 0}, "actual_fee": "0x0"}

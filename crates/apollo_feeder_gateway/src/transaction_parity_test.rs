@@ -1,4 +1,4 @@
-use apollo_starknet_client::reader::objects::transaction::Transaction;
+use apollo_starknet_client::reader::objects::transaction::{Transaction, TransactionReceipt};
 use rstest::rstest;
 
 use crate::serialization::to_python_json;
@@ -32,4 +32,19 @@ fn transaction_round_trip_is_byte_identical_to_live_bytes(#[case] fixture_name: 
     let transaction: Transaction = serde_json::from_str(&live_bytes)
         .unwrap_or_else(|error| panic!("deserializing {fixture_name}: {error}"));
     assert_eq!(to_python_json(&transaction).unwrap(), live_bytes, "drift in {fixture_name}");
+}
+
+/// The receipt byte-parity lock, covering the three live shapes: succeeded (old- and new-era
+/// execution resources), reverted (`revert_error` leads), and l1_handler (the only family serving
+/// `l1_to_l2_consumed_message`).
+#[rstest]
+#[case::succeeded_pre_0_13_1("receipt_succeeded_pre_0_13_1.json")]
+#[case::succeeded("receipt_succeeded.json")]
+#[case::reverted("receipt_reverted.json")]
+#[case::l1_handler("receipt_l1_handler.json")]
+fn receipt_round_trip_is_byte_identical_to_live_bytes(#[case] fixture_name: &str) {
+    let live_bytes = read_transaction_parity_fixture(fixture_name);
+    let receipt: TransactionReceipt = serde_json::from_str(&live_bytes)
+        .unwrap_or_else(|error| panic!("deserializing {fixture_name}: {error}"));
+    assert_eq!(to_python_json(&receipt).unwrap(), live_bytes, "drift in {fixture_name}");
 }

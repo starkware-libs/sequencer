@@ -4,8 +4,8 @@ use starknet_api::hash::StarkHash;
 
 use crate::eip55::eip55_checksum_address;
 
-/// Every case is a ground-truth value served by the live Python feeder gateway's
-/// get_contract_addresses on mainnet or sepolia (captured 2026-06-03).
+/// Every case is a ground-truth value served by the live Python feeder gateway on mainnet or
+/// sepolia (get_contract_addresses values and receipt message addresses; captured 2026-06-03).
 #[rstest]
 #[case::mainnet_starknet("0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4")]
 #[case::mainnet_gps_statement_verifier("0x47312450B3Ac8b5b8e247a6bB6d523e7605bDb60")]
@@ -15,6 +15,8 @@ use crate::eip55::eip55_checksum_address;
 #[case::sepolia_merkle_statement_contract("0xd414f8f535D4a96cB00fFC8E85160b353cb7809c")]
 #[case::sepolia_fri_statement_contract("0x55d049b4C82807808E76e61a08C6764bbf2ffB55")]
 #[case::sepolia_hybrid_gps_fact_adapter("0x68cb84164E27cbf65222F604BAef58CC4149FCFC")]
+#[case::sepolia_l1_handler_from_address("0x8453FC6Cd1bCfE8D4dFC069C400B433054d47bDc")]
+#[case::sepolia_l2_to_l1_to_address("0xFc7ED3b60532FcA7bEeD02ec0A2A7F6B79382DD4")]
 fn checksum_matches_live_feeder_gateway(#[case] live_checksummed_address: &str) {
     let address = EthAddress::try_from(
         StarkHash::from_hex(&live_checksummed_address.to_lowercase()).unwrap(),

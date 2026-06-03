@@ -1,7 +1,6 @@
 //! Feeder gateway read API server for the Apollo sequencer.
 
 pub mod communication;
-pub mod eip55;
 pub mod errors;
 pub mod feeder_gateway;
 pub mod handlers;

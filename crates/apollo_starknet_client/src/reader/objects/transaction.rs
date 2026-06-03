@@ -48,6 +48,7 @@ use starknet_api::transaction::{
 use strum::EnumIter;
 use tracing::error;
 
+use crate::eip55::serialize_eip55;
 use crate::reader::ReaderClientError;
 
 /// Transaction format returned by Feeder Gateway in blocks.
@@ -995,24 +996,35 @@ impl From<ExecutionResources> for starknet_api::execution_resources::ExecutionRe
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
+// PARITY LOCK: field order replicates the live Python feeder gateway receipt wire order (captured
+// 2026-06-03): `revert_error` leads when present (REVERTED receipts), then `execution_status`
+// first among the always-present fields; do not reorder.
 pub struct TransactionReceipt {
+    // Note that in starknet_api this field is named `revert_reason`.
+    // Assumption: if the transaction execution status is Succeeded, then revert_error is None, and
+    // if the transaction execution status is Reverted, then revert_error is Some.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revert_error: Option<String>,
+    // TODO(Yair): Check if we can remove the serde(default).
+    #[serde(default)]
+    pub execution_status: TransactionExecutionStatus,
     pub transaction_index: TransactionOffsetInBlock,
     pub transaction_hash: TransactionHash,
-    #[serde(default)]
+    // The live service serves this key ONLY for L1_HANDLER receipts; everywhere else the value is
+    // the empty default, which must be omitted for byte parity.
+    #[serde(default, skip_serializing_if = "is_default_l1_to_l2_message")]
     pub l1_to_l2_consumed_message: L1ToL2Message,
     pub l2_to_l1_messages: Vec<L2ToL1Message>,
     pub events: Vec<Event>,
     #[serde(default)]
     pub execution_resources: ExecutionResources,
     pub actual_fee: Fee,
-    // TODO(Yair): Check if we can remove the serde(default).
-    #[serde(default)]
-    pub execution_status: TransactionExecutionStatus,
-    // Note that in starknet_api this field is named `revert_reason`.
-    // Assumption: if the transaction execution status is Succeeded, then revert_error is None, and
-    // if the transaction execution status is Reverted, then revert_error is Some.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub revert_error: Option<String>,
+}
+
+/// Whether the consumed message is the empty default (a non-L1_HANDLER receipt), which the live
+/// feeder gateway omits from the wire.
+fn is_default_l1_to_l2_message(l1_to_l2_consumed_message: &L1ToL2Message) -> bool {
+    *l1_to_l2_consumed_message == L1ToL2Message::default()
 }
 
 /// Transaction execution status.
@@ -1105,6 +1117,8 @@ pub struct L1ToL2Nonce(pub StarkHash);
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct L1ToL2Message {
+    // The live feeder gateway serves L1 addresses EIP-55 checksummed (verified 2026-06-03).
+    #[serde(serialize_with = "serialize_eip55")]
     pub from_address: EthAddress,
     pub to_address: ContractAddress,
     pub selector: EntryPointSelector,
@@ -1125,6 +1139,8 @@ impl From<L1ToL2Message> for starknet_api::transaction::MessageToL2 {
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct L2ToL1Message {
     pub from_address: ContractAddress,
+    // The live feeder gateway serves L1 addresses EIP-55 checksummed (verified 2026-06-03).
+    #[serde(serialize_with = "serialize_eip55")]
     pub to_address: EthAddress,
     pub payload: L2ToL1Payload,
 }

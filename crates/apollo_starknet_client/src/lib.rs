@@ -8,6 +8,7 @@
 //!
 //! [`Starknet`]: https://starknet.io/
 
+pub mod eip55;
 pub mod reader;
 pub mod retry;
 #[cfg(test)]
