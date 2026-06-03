@@ -3,6 +3,7 @@
 mod transaction_test;
 
 use indexmap::IndexMap;
+use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use starknet_api::core::{
@@ -540,7 +541,7 @@ impl TryFrom<IntermediateDeployAccountTransaction>
 ///
 /// Supports multiple transaction versions (V0/V1/V3) through optional fields.
 // TODO(shahak, 01/11/2023): Add serde tests for v3 transactions.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Deserialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct IntermediateInvokeTransaction {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -572,6 +573,67 @@ pub struct IntermediateInvokeTransaction {
     pub proof_facts: Option<ProofFacts>,
     pub transaction_hash: TransactionHash,
     pub version: TransactionVersion,
+}
+
+/// Serializes `value` under `key` only when present, preserving the live feeder gateway behavior
+/// of omitting absent optional fields (the manual wire-order impls cannot use
+/// `skip_serializing_if`).
+fn serialize_entry_if_some<M: SerializeMap, T: Serialize>(
+    map: &mut M,
+    key: &str,
+    value: &Option<T>,
+) -> Result<(), M::Error> {
+    match value {
+        Some(value) => map.serialize_entry(key, value),
+        None => Ok(()),
+    }
+}
+
+// PARITY LOCK: key order and names replicate the live Python feeder gateway INVOKE_FUNCTION wire
+// format per version (captured 2026-06-03; fixtures in apollo_feeder_gateway
+// resources/parity/transactions). V0 differs from V1/V3 in both field order (calldata precedes
+// the address) and the address key name (`contract_address`), so a single derived field order
+// cannot express the wire format.
+impl Serialize for IntermediateInvokeTransaction {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("transaction_hash", &self.transaction_hash)?;
+        map.serialize_entry("version", &self.version)?;
+        if self.version == TransactionVersion::ZERO {
+            serialize_entry_if_some(&mut map, "max_fee", &self.max_fee)?;
+            map.serialize_entry("signature", &self.signature)?;
+            serialize_entry_if_some(&mut map, "entry_point_selector", &self.entry_point_selector)?;
+            map.serialize_entry("calldata", &self.calldata)?;
+            // V0 predates the `sender_address` rename; the live service serves the legacy key.
+            map.serialize_entry("contract_address", &self.sender_address)?;
+        } else {
+            serialize_entry_if_some(&mut map, "max_fee", &self.max_fee)?;
+            map.serialize_entry("signature", &self.signature)?;
+            serialize_entry_if_some(&mut map, "nonce", &self.nonce)?;
+            serialize_entry_if_some(
+                &mut map,
+                "nonce_data_availability_mode",
+                &self.nonce_data_availability_mode,
+            )?;
+            serialize_entry_if_some(
+                &mut map,
+                "fee_data_availability_mode",
+                &self.fee_data_availability_mode,
+            )?;
+            serialize_entry_if_some(&mut map, "resource_bounds", &self.resource_bounds)?;
+            serialize_entry_if_some(&mut map, "tip", &self.tip)?;
+            serialize_entry_if_some(&mut map, "paymaster_data", &self.paymaster_data)?;
+            map.serialize_entry("sender_address", &self.sender_address)?;
+            map.serialize_entry("calldata", &self.calldata)?;
+            serialize_entry_if_some(
+                &mut map,
+                "account_deployment_data",
+                &self.account_deployment_data,
+            )?;
+            serialize_entry_if_some(&mut map, "proof_facts", &self.proof_facts)?;
+        }
+        map.end()
+    }
 }
 
 // TODO(shahak, 01/11/2023): Add conversion tests.

@@ -228,3 +228,64 @@ fn l1_handler_serializes_in_live_wire_order() {
         ],
     );
 }
+
+#[test]
+fn invoke_serializes_in_live_wire_order_per_version() {
+    let invoke_v0: Transaction =
+        serde_json::from_str(&read_resource_file("reader/invoke_v0.json")).unwrap();
+    assert_serialized_key_order(
+        &invoke_v0,
+        &[
+            "transaction_hash",
+            "version",
+            "max_fee",
+            "signature",
+            "entry_point_selector",
+            "calldata",
+            "contract_address",
+            "type",
+        ],
+    );
+    // V0 must serve the legacy address key, not the modern one.
+    assert!(!serde_json::to_string(&invoke_v0).unwrap().contains("sender_address"));
+
+    let invoke_v1: Transaction = serde_json::from_str(
+        r#"{"transaction_hash": "0x1", "version": "0x1", "max_fee": "0x2", "signature": [],
+            "nonce": "0x0", "sender_address": "0x3", "calldata": [], "type": "INVOKE_FUNCTION"}"#,
+    )
+    .unwrap();
+    assert_serialized_key_order(
+        &invoke_v1,
+        &[
+            "transaction_hash",
+            "version",
+            "max_fee",
+            "signature",
+            "nonce",
+            "sender_address",
+            "calldata",
+            "type",
+        ],
+    );
+
+    let invoke_v3: Transaction =
+        serde_json::from_str(&read_resource_file("reader/invoke_v3.json")).unwrap();
+    assert_serialized_key_order(
+        &invoke_v3,
+        &[
+            "transaction_hash",
+            "version",
+            "signature",
+            "nonce",
+            "nonce_data_availability_mode",
+            "fee_data_availability_mode",
+            "resource_bounds",
+            "tip",
+            "paymaster_data",
+            "sender_address",
+            "calldata",
+            "account_deployment_data",
+            "type",
+        ],
+    );
+}
