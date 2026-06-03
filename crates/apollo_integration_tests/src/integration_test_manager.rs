@@ -583,8 +583,9 @@ impl IntegrationTestManager {
         max_attempts: usize,
     ) {
         info!("Waiting for all idle nodes to finish reverting.");
-        let condition =
-            |&latest_block_number: &BlockNumber| latest_block_number == expected_block_number;
+        let condition = |latest_block_number: &Option<BlockNumber>| {
+            latest_block_number.is_some_and(|block_number| block_number == expected_block_number)
+        };
 
         let await_reverted_tasks = self.running_nodes.values().map(|running_node| async {
             let running_node_setup = &running_node.node_setup;
@@ -950,8 +951,9 @@ impl IntegrationTestManager {
         &mut self,
         expected_block_number: BlockNumber,
     ) {
-        let condition =
-            |&latest_block_number: &BlockNumber| latest_block_number >= expected_block_number;
+        let condition = |latest_block_number: &Option<BlockNumber>| {
+            latest_block_number.is_some_and(|block_number| block_number >= expected_block_number)
+        };
 
         self.perform_action_on_all_running_nodes(|running_node| async move {
             let node_setup = &running_node.node_setup;
