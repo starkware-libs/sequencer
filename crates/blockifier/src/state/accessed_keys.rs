@@ -59,6 +59,15 @@ impl From<StateChangesKeys> for AccessedKeys {
 }
 
 impl AccessedKeys {
+    /// The total number of accessed trie leaves across all three tries.
+    pub fn len(&self) -> usize {
+        self.storage_keys.len() + self.accessed_contracts.len() + self.accessed_class_hashes.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Builds the [`AccessedKeys`] the OS needs to read at the execution of a block.
     pub fn new<'a>(
         execution_infos: impl IntoIterator<Item = &'a TransactionExecutionInfo>,
