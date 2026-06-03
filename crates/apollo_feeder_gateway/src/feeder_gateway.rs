@@ -50,6 +50,10 @@ impl FeederGateway {
                 "/feeder_gateway/get_contract_addresses",
                 get(crate::handlers::get_contract_addresses),
             )
+            .route(
+                "/feeder_gateway/get_block_hash_by_id",
+                get(crate::handlers::get_block_hash_by_id),
+            )
             .layer(Extension(self.app_state.clone()))
     }
 }

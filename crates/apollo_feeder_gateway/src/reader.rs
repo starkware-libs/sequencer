@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use apollo_feeder_gateway_config::config::FeederGatewayConfig;
 use async_trait::async_trait;
-use starknet_api::block::BlockHeader;
+use starknet_api::block::{BlockHash, BlockHeader, BlockNumber};
 
 use crate::errors::FeederGatewayError;
 
@@ -23,6 +23,10 @@ pub type FgResult<T> = Result<T, FeederGatewayError>;
 #[async_trait]
 pub trait ChainDataReader: Send + Sync + 'static {
     async fn latest_block_header(&self) -> FgResult<Option<BlockHeader>>;
+
+    /// The block hash of `block_number`, or [`FeederGatewayError::BlockNotFound`] if no such block
+    /// has been synced.
+    async fn block_hash(&self, block_number: BlockNumber) -> FgResult<BlockHash>;
 }
 
 /// Shared state handed to every axum handler via `Extension`.

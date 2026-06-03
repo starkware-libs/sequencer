@@ -3,8 +3,9 @@ use std::sync::Arc;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::StorageReader;
 use async_trait::async_trait;
-use starknet_api::block::BlockHeader;
+use starknet_api::block::{BlockHash, BlockHeader, BlockNumber};
 
+use crate::errors::FeederGatewayError;
 use crate::reader::executor::ReadExecutor;
 use crate::reader::{internal_error, ChainDataReader, FgResult};
 
@@ -45,6 +46,18 @@ impl ChainDataReader for ColocatedStorageReader {
                     return Ok(None);
                 };
                 txn.get_block_header(latest_block_number).map_err(internal_error)
+            })
+            .await?
+    }
+
+    async fn block_hash(&self, block_number: BlockNumber) -> FgResult<BlockHash> {
+        let storage_reader = self.storage_reader.clone();
+        self.executor
+            .run(move || {
+                let txn = storage_reader.begin_ro_txn().map_err(internal_error)?;
+                let header = txn.get_block_header(block_number).map_err(internal_error)?;
+                // Read the hash from the synced header (NOT the batcher-only block_hashes table).
+                header.map(|header| header.block_hash).ok_or(FeederGatewayError::BlockNotFound)
             })
             .await?
     }
