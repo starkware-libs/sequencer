@@ -4,6 +4,7 @@ pub mod communication;
 pub mod errors;
 pub mod feeder_gateway;
 pub mod handlers;
+pub(crate) mod legacy_params;
 pub mod metrics;
 pub mod objects;
 pub mod reader;

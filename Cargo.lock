@@ -1543,6 +1543,7 @@ dependencies = [
  "metrics",
  "metrics-exporter-prometheus",
  "mockall",
+ "num-traits",
  "rstest",
  "serde",
  "serde_json",

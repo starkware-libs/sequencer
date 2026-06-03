@@ -29,6 +29,11 @@ pub enum FeederGatewayRunError {
 pub enum FeederGatewayError {
     #[error("Block number {0} was not found.")]
     BlockNotFound(BlockNumber),
+    /// BLOCK_NOT_FOUND for a requested block number beyond `u64`: Python parses
+    /// arbitrary-precision integers and echoes the digits, and no such block can exist, so the
+    /// digits are carried as a string.
+    #[error("Block number {0} was not found.")]
+    OversizedBlockNumberNotFound(String),
     /// Carries the request's RAW hash string: the live service echoes it verbatim (an unpadded or
     /// short form is not normalized).
     #[error("Block hash {0} does not exist.")]
@@ -54,6 +59,13 @@ impl IntoResponse for FeederGatewayError {
                 StarknetError {
                     code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::BlockNotFound),
                     message: format!("Block number {block_number} was not found."),
+                },
+            ),
+            FeederGatewayError::OversizedBlockNumberNotFound(python_int_echo) => (
+                StatusCode::BAD_REQUEST,
+                StarknetError {
+                    code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::BlockNotFound),
+                    message: format!("Block number {python_int_echo} was not found."),
                 },
             ),
             FeederGatewayError::BlockHashNotFound(raw_block_hash) => (

@@ -3,7 +3,8 @@ use std::sync::Arc;
 use apollo_feeder_gateway_config::config::{FeederGatewayConfig, FeederGatewayContractAddresses};
 use axum::body::{to_bytes, Body};
 use axum::http::{Request, StatusCode};
-use starknet_api::block::{BlockHash, BlockNumber, BlockSignature};
+use rstest::rstest;
+use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockSignature};
 use starknet_api::core::{ContractAddress, SequencerPublicKey};
 use starknet_api::crypto::utils::{PublicKey, Signature};
 use starknet_api::hash::StarkHash;
@@ -225,6 +226,12 @@ async fn get_block_hash_by_id_out_of_range_is_malformed_request() {
     reader
         .expect_block_hash()
         .returning(|block_number| Err(FeederGatewayError::BlockNotFound(block_number)));
+    // The range bound in the message is one past the latest synced block.
+    reader.expect_latest_block_header().returning(|| {
+        let mut header = BlockHeader::default();
+        header.block_header_without_hash.block_number = BlockNumber(5);
+        Ok(Some(header))
+    });
     let feeder_gateway = FeederGateway::new(FeederGatewayConfig::default(), Arc::new(reader));
 
     let response = feeder_gateway
@@ -238,16 +245,153 @@ async fn get_block_hash_by_id_out_of_range_is_malformed_request() {
         .await
         .unwrap();
 
-    // Verified live: a block id beyond the chain head is MALFORMED_REQUEST, not BLOCK_NOT_FOUND.
+    // Verified live: a block id beyond the chain head is MALFORMED_REQUEST with the range
+    // message, not BLOCK_NOT_FOUND.
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
-    let body_text = String::from_utf8(body.to_vec()).unwrap();
-    assert!(body_text.contains("MALFORMED_REQUEST"));
-    assert!(!body_text.contains("BLOCK_NOT_FOUND"));
+    assert_eq!(
+        String::from_utf8(body.to_vec()).unwrap(),
+        r#"{"code": "StarkErrorCode.MALFORMED_REQUEST", "message": "Block ID should be in the range [0, 6); got: 99999999."}"#
+    );
+}
+
+/// Live semantics: blockId goes through Python's int(json.loads(value)), so floats truncate and
+/// booleans coerce (verified live: blockId=1.5 and blockId=true both serve block 1).
+#[rstest]
+#[case::float_truncates("1.5")]
+#[case::bool_coerces("true")]
+#[tokio::test]
+async fn get_block_hash_by_id_coerces_to_int_like_python(#[case] block_id: &str) {
+    let mut reader = MockChainDataReader::new();
+    reader
+        .expect_block_hash()
+        .withf(|block_number| *block_number == BlockNumber(1))
+        .returning(|_| Ok(BlockHash(StarkHash::from(0x1234_u128))));
+    let feeder_gateway = FeederGateway::new(FeederGatewayConfig::default(), Arc::new(reader));
+
+    let response = feeder_gateway
+        .app()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/feeder_gateway/get_block_hash_by_id?blockId={block_id}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    assert_eq!(&body[..], br#""0x1234""#);
 }
 
 #[tokio::test]
-async fn get_block_hash_by_id_missing_param_is_bad_request() {
+async fn get_block_hash_by_id_null_echoes_python_none_int_error() {
+    let feeder_gateway =
+        FeederGateway::new(FeederGatewayConfig::default(), Arc::new(MockChainDataReader::new()));
+
+    let response = feeder_gateway
+        .app()
+        .oneshot(
+            Request::builder()
+                .uri("/feeder_gateway/get_block_hash_by_id?blockId=null")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    // The exact live message: Python's int(None) TypeError echo.
+    assert_eq!(
+        String::from_utf8(body.to_vec()).unwrap(),
+        r#"{"code": "StarkErrorCode.MALFORMED_REQUEST", "message": "int() argument must be a string, a bytes-like object or a number, not 'NoneType'"}"#
+    );
+}
+
+/// Live semantics: a missing or null blockNumber serves the LATEST synced block's signature.
+#[rstest]
+#[case::missing_param("")]
+#[case::null_param("?blockNumber=null")]
+#[tokio::test]
+async fn get_signature_without_block_number_serves_latest(#[case] query_string: &str) {
+    let mut reader = MockChainDataReader::new();
+    reader.expect_latest_block_header().returning(|| {
+        let mut header = BlockHeader::default();
+        header.block_header_without_hash.block_number = BlockNumber(9);
+        Ok(Some(header))
+    });
+    reader
+        .expect_block_signature()
+        .withf(|block_number| *block_number == BlockNumber(9))
+        .returning(|_| {
+            Ok((
+                BlockHash(StarkHash::from(0x1_u128)),
+                BlockSignature(Signature {
+                    r: StarkHash::from(0x2_u128),
+                    s: StarkHash::from(0x3_u128),
+                }),
+            ))
+        });
+    let feeder_gateway = FeederGateway::new(FeederGatewayConfig::default(), Arc::new(reader));
+
+    let response = feeder_gateway
+        .app()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/feeder_gateway/get_signature{query_string}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    assert_eq!(&body[..], br#"{"block_hash": "0x1", "signature": ["0x2", "0x3"]}"#);
+}
+
+/// Every expected message is the exact live response text for the same input.
+#[rstest]
+#[case::negative_int(
+    "-1",
+    r#"{"code": "StarkErrorCode.MALFORMED_REQUEST", "message": "Field blockNumber must be a non-negative integer, or 'null';got: int(-1)."}"#
+)]
+#[case::float_rejected(
+    "1.5",
+    r#"{"code": "StarkErrorCode.MALFORMED_REQUEST", "message": "Field blockNumber must be a non-negative integer, or 'null';got: float(1.5)."}"#
+)]
+#[case::beyond_u64_is_not_found(
+    "99999999999999999999999",
+    r#"{"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block number 99999999999999999999999 was not found."}"#
+)]
+#[tokio::test]
+async fn get_signature_invalid_block_number_replicates_live_messages(
+    #[case] block_number: &str,
+    #[case] live_body: &str,
+) {
+    let feeder_gateway =
+        FeederGateway::new(FeederGatewayConfig::default(), Arc::new(MockChainDataReader::new()));
+
+    let response = feeder_gateway
+        .app()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/feeder_gateway/get_signature?blockNumber={block_number}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    assert_eq!(String::from_utf8(body.to_vec()).unwrap(), live_body);
+}
+
+#[tokio::test]
+async fn get_block_hash_by_id_missing_param_echoes_python_key_error() {
     let feeder_gateway =
         FeederGateway::new(FeederGatewayConfig::default(), Arc::new(MockChainDataReader::new()));
 
@@ -263,4 +407,10 @@ async fn get_block_hash_by_id_missing_param_is_bad_request() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    // The exact live message: Python's KeyError echo for the missing field.
+    assert_eq!(
+        String::from_utf8(body.to_vec()).unwrap(),
+        r#"{"code": "StarkErrorCode.MALFORMED_REQUEST", "message": "'blockId'"}"#
+    );
 }
