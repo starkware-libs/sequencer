@@ -3,6 +3,7 @@ pub(crate) mod blockifier;
 pub(crate) mod class_manager;
 pub(crate) mod committer;
 pub(crate) mod consensus;
+pub(crate) mod feeder_gateway;
 pub(crate) mod gateway;
 pub(crate) mod http_server;
 pub(crate) mod l1_events;

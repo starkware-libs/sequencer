@@ -20,6 +20,7 @@ use apollo_config_manager::metrics::{
 use apollo_consensus::metrics::CONSENSUS_ALL_METRICS;
 use apollo_consensus_manager::metrics::CONSENSUS_MANAGER_ALL_METRICS;
 use apollo_consensus_orchestrator::metrics::CONSENSUS_ORCHESTRATOR_ALL_METRICS;
+use apollo_feeder_gateway::metrics::FEEDER_GATEWAY_ALL_METRICS;
 use apollo_gateway::metrics::{GATEWAY_ALL_METRICS, INFRA_ALL_METRICS as GATEWAY_INFRA_METRICS};
 use apollo_http_server::metrics::HTTP_SERVER_ALL_METRICS;
 use apollo_infra::tokio_metrics::TOKIO_ALL_METRICS;
@@ -68,6 +69,7 @@ fn metric_names_no_duplications() {
         .chain(CONSENSUS_ALL_METRICS.iter())
         .chain(CONSENSUS_MANAGER_ALL_METRICS.iter())
         .chain(CONSENSUS_ORCHESTRATOR_ALL_METRICS.iter())
+        .chain(FEEDER_GATEWAY_ALL_METRICS.iter())
         .chain(GATEWAY_ALL_METRICS.iter())
         .chain(GATEWAY_INFRA_METRICS.iter())
         .chain(HTTP_SERVER_ALL_METRICS.iter())

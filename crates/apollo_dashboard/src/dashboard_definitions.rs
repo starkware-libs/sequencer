@@ -31,6 +31,7 @@ use crate::panels::consensus::{
     get_panel_consensus_round,
     get_snip35_row,
 };
+use crate::panels::feeder_gateway::get_feeder_gateway_row;
 use crate::panels::gateway::{get_gateway_row, get_panel_gateway_add_tx_failure_by_reason};
 use crate::panels::http_server::{
     get_http_server_row,
@@ -104,6 +105,7 @@ pub fn get_apollo_dashboard() -> Dashboard {
             get_committer_row(),
             // ─── Sync & external sources ───
             get_state_sync_row(),
+            get_feeder_gateway_row(),
             get_l1_events_row(),
             get_l1_gas_price_row(),
             // ─── Operational ───
