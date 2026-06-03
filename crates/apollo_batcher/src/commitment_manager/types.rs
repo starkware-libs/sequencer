@@ -13,6 +13,8 @@ use apollo_committer_types::committer_types::{
     RevertBlockResponse,
 };
 use apollo_committer_types::communication::CommitterRequestLabelValue;
+#[cfg(feature = "os_input")]
+use apollo_storage::patricia_proofs::StarknetForestProofs;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::GlobalRoot;
 use tracing::warn;
@@ -74,6 +76,10 @@ impl Display for CommitterTaskInput {
 pub(crate) struct CommitmentTaskOutput {
     pub(crate) response: CommitBlockResponse,
     pub(crate) height: BlockNumber,
+    // The Patricia witnesses returned by the committer. `None` when the block was committed via
+    // `CommitBlock` (no accessed keys were available to request the witnesses).
+    #[cfg(feature = "os_input")]
+    pub(crate) patricia_proofs: Option<StarknetForestProofs>,
 }
 
 #[derive(Clone, Debug)]
@@ -125,6 +131,9 @@ pub(crate) struct FinalBlockCommitment {
     // cannot be finalized.
     pub(crate) block_hash: Option<BlockHash>,
     pub(crate) global_root: GlobalRoot,
+    // `None` when the block was committed via `CommitBlock` (no Patricia witnesses requested).
+    #[cfg(feature = "os_input")]
+    pub(crate) patricia_proofs: Option<StarknetForestProofs>,
 }
 
 pub(crate) struct TaskTimer {

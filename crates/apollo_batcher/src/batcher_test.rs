@@ -1833,21 +1833,27 @@ async fn get_block_hash_after_reading_commitment_results() {
         .expect_get_parent_hash_and_partial_block_hash_components()
         .with(eq(INITIAL_HEIGHT))
         .returning(move |_| Ok((Some(parent_hash), Some(partial_components.clone()))));
-    mock_dependencies
-        .storage_writer
-        .expect_set_global_root_and_block_hash()
-        .times(1)
+    let set_global_root_expectation =
+        mock_dependencies.storage_writer.expect_set_global_root_and_block_hash();
+    set_global_root_expectation.times(1);
+    #[cfg(not(feature = "os_input"))]
+    set_global_root_expectation
         .with(eq(INITIAL_HEIGHT), eq(global_root), always())
         .returning(|_, _, _| Ok(()));
+    #[cfg(feature = "os_input")]
+    set_global_root_expectation
+        .with(eq(INITIAL_HEIGHT), eq(global_root), always(), always())
+        .returning(|_, _, _, _| Ok(()));
 
     let mut batcher = create_batcher(mock_dependencies).await;
 
     // Send a commitment task directly to the state committer so a result will be available.
-    let task = CommitterTaskInput::Commit(CommitBlockRequest {
+    let commit_block_request = CommitBlockRequest {
         height: INITIAL_HEIGHT,
         state_diff: ThinStateDiff::default(),
         state_diff_commitment: None,
-    });
+    };
+    let task = CommitterTaskInput::Commit(commit_block_request);
     batcher.commitment_manager.tasks_sender.send(task).await.unwrap();
     wait_for_n_items(&mut batcher.commitment_manager.results_receiver, 1).await;
 
