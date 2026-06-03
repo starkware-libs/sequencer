@@ -700,8 +700,12 @@ class BlobTransformer:
             {"address": a, "class_hash": c} for a, c in deployed_contracts_map.items()
         ]
 
-        # TODO(Ron): Add declared classes to the state update.
-        declared_classes: List[JsonObject] = []
+        declared_classes: List[JsonObject] = [
+            {"class_hash": class_hash, "compiled_class_hash": compiled_class_hash}
+            for class_hash, compiled_class_hash in state_diff.get(
+                "class_hash_to_compiled_class_hash", {}
+            ).items()
+        ]
 
         return {
             "block_hash": block_hash,
