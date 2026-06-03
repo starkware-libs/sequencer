@@ -13,6 +13,8 @@ use apollo_storage::class_manager::ClassManagerStorageWriter;
 use apollo_storage::global_root::GlobalRootStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
+#[cfg(feature = "os_input")]
+use apollo_storage::patricia_proofs::PatriciaProofsStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::StorageWriter;
 use futures::future::pending;
@@ -147,7 +149,11 @@ pub fn revert_block(storage_writer: &mut StorageWriter, target_block_marker: Blo
         .unwrap();
 
     #[cfg(feature = "os_input")]
-    let txn = txn.revert_accessed_keys(target_block_marker).unwrap();
+    let txn = txn
+        .revert_accessed_keys(target_block_marker)
+        .unwrap()
+        .revert_patricia_proofs(target_block_marker)
+        .unwrap();
 
     txn.commit().unwrap();
 }

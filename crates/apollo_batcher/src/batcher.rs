@@ -64,6 +64,8 @@ use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageReader,
     PartialBlockHashComponentsStorageWriter,
 };
+#[cfg(feature = "os_input")]
+use apollo_storage::patricia_proofs::{PatriciaProofsStorageWriter, StarknetForestProofs};
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use apollo_storage::storage_reader_server::{
     DynamicConfigError,
@@ -1841,11 +1843,26 @@ pub trait BatcherStorageWriter: Send + Sync {
     /// Sets the global root and block hash (unless it's None) for the given height.
     /// Increments the block hash marker by 1.
     /// Block hash is optional because for old blocks, the block hash was set separately.
+    #[cfg(not(feature = "os_input"))]
     fn set_global_root_and_block_hash(
         &mut self,
         height: BlockNumber,
         global_root: GlobalRoot,
         block_hash: Option<BlockHash>,
+    ) -> StorageResult<()>;
+
+    /// Sets the global root and block hash (unless it's None) for the given height, and persists
+    /// the Patricia witnesses (when present) in the same transaction.
+    /// Increments the block hash marker by 1.
+    /// Block hash is optional because for old blocks, the block hash was set separately.
+    /// Patricia witnesses are optional for blocks that doesn't come from decision_reached flow.
+    #[cfg(feature = "os_input")]
+    fn set_global_root_and_block_hash(
+        &mut self,
+        height: BlockNumber,
+        global_root: GlobalRoot,
+        block_hash: Option<BlockHash>,
+        patricia_proofs: Option<StarknetForestProofs>,
     ) -> StorageResult<()>;
 
     fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()>;
@@ -1891,10 +1908,18 @@ impl BatcherStorageWriter for StorageWriter {
         height: BlockNumber,
         global_root: GlobalRoot,
         block_hash: Option<BlockHash>,
+        #[cfg(feature = "os_input")] patricia_proofs: Option<StarknetForestProofs>,
     ) -> StorageResult<()> {
+        #[cfg(not(feature = "os_input"))]
         info!(
             "Setting global root and block hash for height {height}. Root: {global_root:?}, Block \
              hash: {block_hash:?}."
+        );
+        #[cfg(feature = "os_input")]
+        info!(
+            "Setting global root and block hash for height {height}. Root: {global_root:?}, Block \
+             hash: {block_hash:?}, Patricia proofs length: {:?}.",
+            patricia_proofs.as_ref().map(|patricia_proofs| patricia_proofs.get_nodes_count())
         );
         let mut txn = self
             .begin_rw_txn()?
@@ -1902,6 +1927,10 @@ impl BatcherStorageWriter for StorageWriter {
             .checked_increment_global_root_marker(height)?;
         if let Some(block_hash) = block_hash {
             txn = txn.set_block_hash(&height, block_hash)?;
+        }
+        #[cfg(feature = "os_input")]
+        if let Some(patricia_proofs) = patricia_proofs {
+            txn = txn.append_patricia_proofs(height, &patricia_proofs)?;
         }
         txn.commit()
     }

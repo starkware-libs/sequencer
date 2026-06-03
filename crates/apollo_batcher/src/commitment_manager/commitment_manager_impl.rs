@@ -271,12 +271,17 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             };
 
             // Get the final commitment.
-            let FinalBlockCommitment { height, block_hash, global_root } =
-                Self::finalize_commitment_output(
-                    storage_reader.clone(),
-                    commitment_task_output,
-                    should_finalize_block_hash,
-                )?;
+            let FinalBlockCommitment {
+                height,
+                block_hash,
+                global_root,
+                #[cfg(feature = "os_input")]
+                patricia_proofs,
+            } = Self::finalize_commitment_output(
+                storage_reader.clone(),
+                commitment_task_output,
+                should_finalize_block_hash,
+            )?;
 
             // Verify the first new block hash matches the configured block hash.
             if let Some(FirstBlockWithPartialBlockHash {
@@ -304,7 +309,13 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             }
 
             // Write the block hash and global root to storage.
-            storage_writer.set_global_root_and_block_hash(height, global_root, block_hash)?;
+            storage_writer.set_global_root_and_block_hash(
+                height,
+                global_root,
+                block_hash,
+                #[cfg(feature = "os_input")]
+                patricia_proofs,
+            )?;
             GLOBAL_ROOT_HEIGHT.increment(1);
         }
 
@@ -515,13 +526,18 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     // TODO(Amos): Test blocks [0,10] in OS flow tests.
     fn finalize_commitment_output<R: BatcherStorageReader + ?Sized>(
         storage_reader: Arc<R>,
-        CommitmentTaskOutput { response: CommitBlockResponse { global_root }, height }: CommitmentTaskOutput,
+        CommitmentTaskOutput {
+            response: CommitBlockResponse { global_root },
+            height,
+            #[cfg(feature = "os_input")]
+            patricia_proofs,
+        }: CommitmentTaskOutput,
         should_finalize_block_hash: bool,
     ) -> CommitmentManagerResult<FinalBlockCommitment> {
-        match should_finalize_block_hash {
+        let block_hash = match should_finalize_block_hash {
             false => {
                 debug!("Finalized commitment for block {height} without calculating block hash.");
-                Ok(FinalBlockCommitment { height, block_hash: None, global_root })
+                None
             }
             true => {
                 debug!("Finalizing commitment for block {height} with calculating block hash.");
@@ -542,14 +558,20 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 debug!(
                     "Global root: {global_root:?}, previous block hash: {previous_block_hash:?}"
                 );
-                let block_hash = calculate_block_hash(
+                Some(calculate_block_hash(
                     &partial_block_hash_components,
                     global_root,
                     previous_block_hash,
-                )?;
-                Ok(FinalBlockCommitment { height, block_hash: Some(block_hash), global_root })
+                )?)
             }
-        }
+        };
+        Ok(FinalBlockCommitment {
+            height,
+            block_hash,
+            global_root,
+            #[cfg(feature = "os_input")]
+            patricia_proofs,
+        })
     }
 
     fn update_task_duration_metric(
