@@ -54,6 +54,10 @@ define_versioned_constants!(
     (V0_14_0, "../resources/blockifier_versioned_constants_0_14_0.json"),
     (V0_14_1, "../resources/blockifier_versioned_constants_0_14_1.json"),
     (V0_14_2, "../resources/blockifier_versioned_constants_0_14_2.json"),
+    // V0_14_3 on the 0.14.2 prover line: intentionally a copy of the 0.14.2 constants. This
+    // (old-OS / v0) prover proves 0.14.3 blocks with 0.14.2 execution semantics; the real version
+    // is preserved only so the OS computes the correct block hash (which embeds the version felt).
+    (V0_14_3, "../resources/blockifier_versioned_constants_0_14_3.json"),
 );
 
 pub type SyscallGasCostsMap = HashMap<SyscallSelector, RawSyscallGasCost>;

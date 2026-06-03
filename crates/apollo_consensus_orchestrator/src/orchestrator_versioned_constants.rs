@@ -34,6 +34,8 @@ define_versioned_constants!(
     (V0_14_0, "../resources/orchestrator_versioned_constants_0_14_0.json"),
     (V0_14_1, "../resources/orchestrator_versioned_constants_0_14_1.json"),
     (V0_14_2, "../resources/orchestrator_versioned_constants_0_14_2.json"),
+    // V0_14_3 mirrors 0.14.2 on this line; see blockifier_versioned_constants.rs for rationale.
+    (V0_14_3, "../resources/orchestrator_versioned_constants_0_14_3.json"),
 );
 
 /// Error type for the Consensus' versioned constants.
