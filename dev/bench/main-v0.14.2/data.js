@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778643381124,
+  "lastUpdate": 1780477272807,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -3365,6 +3365,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1220.51435519,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "00fb954958e6d9a2311ccbd17fbe79eb2cea0c51",
+          "message": "Merge pull request #14297 from starkware-libs/aviv/fix-APOLLO-0.14.2-RC.7-fix-1.1\n\nstarknet_proof_verifier: bump proving-utils to 18f6cac and regenerate proof fixture",
+          "timestamp": "2026-06-03T08:34:18Z",
+          "tree_id": "e503671c6d311af384e4fe84de04fb01311c731c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/00fb954958e6d9a2311ccbd17fbe79eb2cea0c51"
+        },
+        "date": 1780477272288,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 837.4267538500001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1275.88439947,
             "unit": "ms"
           }
         ]
