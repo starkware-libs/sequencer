@@ -173,3 +173,58 @@ fn transaction_serializes_type_tag_last() {
         assert_eq!(round_tripped, transaction, "lossy serialization for {file_name}");
     }
 }
+
+/// Asserts the top-level keys of the serialized transaction appear in exactly the given order
+/// (the live Python feeder gateway wire order; key sets and orders were captured live per
+/// transaction family and version on 2026-06-03).
+fn assert_serialized_key_order(transaction: &Transaction, expected_key_order: &[&str]) {
+    let serialized = serde_json::to_string(transaction).unwrap();
+    let mut key_positions = Vec::with_capacity(expected_key_order.len());
+    for key in expected_key_order {
+        let needle = format!(r#""{key}":"#);
+        let position = serialized
+            .find(&needle)
+            .unwrap_or_else(|| panic!("missing key {key} in: {serialized}"));
+        key_positions.push(position);
+    }
+    assert!(
+        key_positions.windows(2).all(|pair| pair[0] < pair[1]),
+        "keys serialized out of live wire order (expected {expected_key_order:?}): {serialized}"
+    );
+}
+
+#[test]
+fn deploy_serializes_in_live_wire_order() {
+    let transaction: Transaction =
+        serde_json::from_str(&read_resource_file("reader/deploy_v0.json")).unwrap();
+    assert_serialized_key_order(
+        &transaction,
+        &[
+            "transaction_hash",
+            "version",
+            "contract_address",
+            "contract_address_salt",
+            "class_hash",
+            "constructor_calldata",
+            "type",
+        ],
+    );
+}
+
+#[test]
+fn l1_handler_serializes_in_live_wire_order() {
+    let transaction: Transaction =
+        serde_json::from_str(&read_resource_file("reader/l1_handler_v0.json")).unwrap();
+    assert_serialized_key_order(
+        &transaction,
+        &[
+            "transaction_hash",
+            "version",
+            "contract_address",
+            "entry_point_selector",
+            "nonce",
+            "calldata",
+            "type",
+        ],
+    );
+}

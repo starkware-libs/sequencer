@@ -181,13 +181,15 @@ impl Transaction {
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 #[serde(deny_unknown_fields)]
+// PARITY LOCK: field order replicates the live Python feeder gateway L1_HANDLER wire order
+// (captured 2026-06-03, sepolia block 10); do not reorder.
 pub struct L1HandlerTransaction {
     pub transaction_hash: TransactionHash,
     pub version: TransactionVersion,
-    #[serde(default)]
-    pub nonce: Nonce,
     pub contract_address: ContractAddress,
     pub entry_point_selector: EntryPointSelector,
+    #[serde(default)]
+    pub nonce: Nonce,
     pub calldata: Calldata,
 }
 
@@ -385,14 +387,16 @@ impl TryFrom<IntermediateDeclareTransaction> for starknet_api::transaction::Decl
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
+// PARITY LOCK: field order replicates the live Python feeder gateway DEPLOY wire order
+// (captured 2026-06-03, mainnet block 0); do not reorder.
 pub struct DeployTransaction {
+    pub transaction_hash: TransactionHash,
+    #[serde(default)]
+    pub version: TransactionVersion,
     pub contract_address: ContractAddress,
     pub contract_address_salt: ContractAddressSalt,
     pub class_hash: ClassHash,
     pub constructor_calldata: Calldata,
-    pub transaction_hash: TransactionHash,
-    #[serde(default)]
-    pub version: TransactionVersion,
 }
 
 impl From<DeployTransaction> for starknet_api::transaction::DeployTransaction {
