@@ -8,6 +8,16 @@ description = "Main Starknet sequencer node orchestrating all components."
 
 [features]
 cairo_native = ["apollo_batcher/cairo_native", "apollo_gateway/cairo_native"]
+# Forwarded to every direct dependency that defines an `os_input` feature, so `--all-features`
+# builds keep the cross-crate gating unified. Without it, `--all-features` enables the `os_input`
+# gates on shared types (e.g. `apollo_committer_types`/`starknet_committer`) while leaving the
+# consumers' own `os_input` off, producing non-exhaustive match / missing-field errors (E0027,
+# E0004) in `apollo_committer` and `apollo_batcher`.
+os_input = [
+  "apollo_batcher/os_input",
+  "apollo_committer/os_input",
+  "apollo_committer_types/os_input",
+]
 testing = ["tokio-util"]
 
 [lints]
