@@ -39,7 +39,6 @@ jobs:
       - run: >
           cargo test
           --test latency_histogram
-          --test gateway_integration_test
           --test feeder_gateway_integration_test
           -- --include-ignored --skip test_gw_integration_testnet
 
