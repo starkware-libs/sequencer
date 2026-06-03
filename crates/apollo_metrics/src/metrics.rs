@@ -30,6 +30,7 @@ pub enum MetricScope {
     Consensus,
     ConsensusManager,
     ConsensusOrchestrator,
+    FeederGateway,
     Gateway,
     HttpServer,
     Infra,

@@ -28,6 +28,7 @@ impl FeederGateway {
     }
 
     pub async fn run(&mut self) -> Result<(), FeederGatewayRunError> {
+        crate::metrics::init_metrics();
         let (ip, port) = self.app_state.config.ip_and_port();
         let addr = SocketAddr::new(ip, port);
         let app = self.app();
