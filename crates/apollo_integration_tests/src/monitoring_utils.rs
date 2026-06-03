@@ -24,17 +24,17 @@ const ATTEMPTS_FOR_VERIFY_TXS: usize = 1000;
 const ATTEMPTS_FOR_AWAIT_TXS: usize = 2500;
 
 /// Gets the latest block number from the batcher's metrics.
+/// If the metric is not yet registered, or building height is zero, returns None.
 pub async fn get_batcher_latest_block_number(
     batcher_monitoring_client: &MonitoringClient,
-) -> BlockNumber {
-    BlockNumber(
-        batcher_monitoring_client
-            .get_metric::<u64>(BUILDING_HEIGHT.get_name())
-            .await
-            .expect("Failed to get storage height metric."),
-    )
-    .prev() // The metric is the height marker so we need to subtract 1 to get the latest.
-    .expect("The height being built should be at least 1.")
+) -> Option<BlockNumber> {
+    let height = match batcher_monitoring_client.get_metric::<u64>(BUILDING_HEIGHT.get_name()).await
+    {
+        Ok(h) => h,
+        Err(MonitoringClientError::MetricNotFound { .. }) => return None,
+        Err(e) => panic!("Failed to get storage height metric: {e}"),
+    };
+    BlockNumber(height).prev()
 }
 
 /// Gets the latest decisions reached by consensus from the consensus metrics.
@@ -48,8 +48,15 @@ pub async fn get_consensus_decisions_reached(
 }
 
 /// Gets the latest block number from the sync's metrics.
-async fn get_sync_latest_block_number(sync_monitoring_client: &MonitoringClient) -> BlockNumber {
-    let metrics = sync_monitoring_client.get_metrics().await.expect("Failed to get metrics.");
+/// If the metric is not yet registered or the latest marker is zero, returns None.
+async fn get_sync_latest_block_number(
+    sync_monitoring_client: &MonitoringClient,
+) -> Option<BlockNumber> {
+    let metrics = match sync_monitoring_client.get_metrics().await {
+        Ok(metrics) => metrics,
+        Err(MonitoringClientError::MetricNotFound { .. }) => return None,
+        Err(e) => panic!("Failed to get metrics: {e}"),
+    };
 
     let latest_marker_value = [
         STATE_SYNC_HEADER_MARKER,
@@ -71,16 +78,15 @@ async fn get_sync_latest_block_number(sync_monitoring_client: &MonitoringClient)
     .min()
     .unwrap_or(0);
 
-    BlockNumber(latest_marker_value)
-    .prev() // The metric is the height marker so we need to subtract 1 to get the latest.
-    .expect("Sync marker should be at least 1.")
+    // The metric is the height marker so we need to subtract 1 to get the latest.
+    BlockNumber(latest_marker_value).prev()
 }
 
 /// Sample the metrics until sufficiently many blocks have been reported by the batcher. Returns an
 /// error if after the given number of attempts the target block number has not been reached.
 pub async fn await_batcher_block(
     interval: u64,
-    condition: impl Fn(&BlockNumber) -> bool + Send + Sync,
+    condition: impl Fn(&Option<BlockNumber>) -> bool + Send + Sync,
     max_attempts: usize,
     batcher_monitoring_client: &MonitoringClient,
     logger: CustomLogger,
@@ -88,23 +94,43 @@ pub async fn await_batcher_block(
     let get_latest_block_number_closure =
         || get_batcher_latest_block_number(batcher_monitoring_client);
 
-    run_until(interval, max_attempts, get_latest_block_number_closure, condition, Some(logger))
-        .await
-        .ok_or(())
+    match run_until(
+        interval,
+        max_attempts,
+        get_latest_block_number_closure,
+        condition,
+        Some(logger),
+    )
+    .await
+    {
+        Some(Some(block_number)) => Ok(block_number),
+        Some(None) => panic!("The height being built should be at least 1."),
+        None => Err(()),
+    }
 }
 
 pub async fn await_sync_block(
     interval: u64,
-    condition: impl Fn(&BlockNumber) -> bool + Send + Sync,
+    condition: impl Fn(&Option<BlockNumber>) -> bool + Send + Sync,
     max_attempts: usize,
     sync_monitoring_client: &MonitoringClient,
     logger: CustomLogger,
 ) -> Result<BlockNumber, ()> {
     let get_latest_block_number_closure = || get_sync_latest_block_number(sync_monitoring_client);
 
-    run_until(interval, max_attempts, get_latest_block_number_closure, condition, Some(logger))
-        .await
-        .ok_or(())
+    match run_until(
+        interval,
+        max_attempts,
+        get_latest_block_number_closure,
+        condition,
+        Some(logger),
+    )
+    .await
+    {
+        Some(Some(block_number)) => Ok(block_number),
+        Some(None) => panic!("Sync marker should be at least 1."),
+        None => Err(()),
+    }
 }
 
 pub async fn await_block(
@@ -117,8 +143,9 @@ pub async fn await_block(
         "Awaiting until {expected_block_number} blocks have been created in sequencer {}.",
         node_index
     );
-    let condition =
-        |&latest_block_number: &BlockNumber| latest_block_number >= expected_block_number;
+    let condition = |latest_block_number: &Option<BlockNumber>| {
+        latest_block_number.is_some_and(|block_number| block_number >= expected_block_number)
+    };
 
     let expected_height = expected_block_number.unchecked_next();
     let [batcher_logger, sync_logger] = ["Batcher", "Sync"].map(|component_name| {
