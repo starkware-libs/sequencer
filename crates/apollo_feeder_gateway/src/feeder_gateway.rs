@@ -7,7 +7,7 @@ use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
 use axum::http::StatusCode;
 use axum::routing::get;
-use axum::{serve, Extension, Router};
+use axum::{middleware, serve, Extension, Router};
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -40,14 +40,6 @@ impl FeederGateway {
     pub fn app(&self) -> Router {
         Router::new()
             .route(
-                "/feeder_gateway/is_alive",
-                get(|| async { (StatusCode::OK, "FeederGateway is alive") }),
-            )
-            .route(
-                "/feeder_gateway/is_ready",
-                get(|| async { (StatusCode::OK, "FeederGateway is ready") }),
-            )
-            .route(
                 "/feeder_gateway/get_contract_addresses",
                 get(crate::handlers::get_contract_addresses),
             )
@@ -61,6 +53,18 @@ impl FeederGateway {
             )
             .route("/feeder_gateway/get_public_key", get(crate::handlers::get_public_key))
             .route("/feeder_gateway/get_signature", get(crate::handlers::get_signature))
+            // A router layer wraps only the routes added before it, so the request metric counts
+            // API requests but not the health probes below (kubernetes polls those constantly,
+            // which would drown the metric in probe noise).
+            .layer(middleware::from_fn(crate::metrics::record_request_metrics))
+            .route(
+                "/feeder_gateway/is_alive",
+                get(|| async { (StatusCode::OK, "FeederGateway is alive") }),
+            )
+            .route(
+                "/feeder_gateway/is_ready",
+                get(|| async { (StatusCode::OK, "FeederGateway is ready") }),
+            )
             .layer(Extension(self.app_state.clone()))
     }
 }
