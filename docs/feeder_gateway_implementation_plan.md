@@ -1930,10 +1930,37 @@ B7 (`docs/feeder_gateway_configuration.md` config reference).
   class_manager.remote())` builder), bump `DISTRIBUTED_NODE_REQUIRED_PORTS_NUM` 11→12, add the k8s
   service yaml, and regen `deployment_generator`. Deferred because the Remote topology it serves is
   default-off (B6) and the wide exhaustive-match edit is error-prone; do it as a focused PR.
-- **Also remaining:** the per-endpoint `RemoteChainDataReader` methods + Reference-C state-sync
-  extensions (e.g. `GetBlockTransactionsWithOutputs`, `GetBlockNumberByHash`), E2/E5/E7/E9–E12, PR21
-  (perf test), the observability middleware that records `FEEDER_GATEWAY_REQUESTS_TOTAL` (A4), and
-  Phases F (compute), G (caching), I (parity hardening + benchmark/API-diff).
+- **Also remaining:** the `GetBlockTransactionsWithOutputs` Reference-C extension (deliberately
+  deferred with its only consumers, the tx-carrying endpoints), E2/E5/E10/E12, PR21 (perf test), the
+  A4 expansions (per-endpoint labels, failure counter, latency histogram, ReadExecutor saturation
+  gauge — the unlabeled request counter IS recorded now), and Phases F (compute), G (caching),
+  I (parity hardening + benchmark/API-diff).
+
+## Second pass (2026-06-03, this session) — implemented additions
+- **A4 (base):** `FEEDER_GATEWAY_REQUESTS_TOTAL` is now recorded by one axum middleware layer over
+  the API routes only (health probes excluded so k8s polling doesn't drown the metric).
+- **Reference-C extensions:** `GetBlockSignature(BlockNumber) -> BlockSignature` (BlockNotFound
+  error, NOT the plan table's `Option` — matches the sibling per-block-number read convention) and
+  `GetBlockNumberByHash(BlockHash) -> Option<BlockNumber>`, with handler tests; the gateway's
+  `SharedStateSyncClientMetricWrapper` gained the pass-throughs.
+- **E9 remote:** `block_signature` now real on the remote backend (hash + signature client reads);
+  the documented internal-error gap is gone.
+- **E8 COMPLETE:** `get_block_id_by_hash` served on both backends (live-verified: param
+  `blockHash`, lowercase-`0x`-only, bare unquoted number response, BLOCK_NOT_FOUND envelope on
+  unknown hash) + the `blockId` behavior fix below.
+- **E0.b:** `status::finalized_block_status(block_number, base_layer_marker)` —
+  ACCEPTED_ON_L1 strictly below the marker (storage marker = first block NOT on L1). PROVEN_ON_L2
+  (no proven marker in synced storage) and E3.b finality (wire enum belongs to the deferred E3
+  response objects) intentionally not included. Marker plumbing ships with the first consumer.
+- **E11:** end-to-end smoke test booting `FeederGateway::run` over real test storage
+  (colocated backend), asserting byte-exact bodies + envelopes for every served route.
+- **E6/E7 + `get_transaction_receipt`: DEPRECATED on the live feeder gateway** (verified in the
+  get_public_key session) — intentionally not implemented; the E6 backend-divergence item above is
+  moot for serving purposes.
+- **Stack hygiene:** PR10 was amended with the `feeder_gateway_config` field in
+  `apollo_integration_tests`' exhaustive `SequencerNodeConfig` initializer (the stack didn't
+  compile workspace-wide without it), and the spaced-serializer PR was amended for two
+  `sliced_string_as_bytes` clippy warnings.
 
 ---
 
@@ -1975,6 +2002,19 @@ were wrong in several places**, caught only by hitting the live service. Finding
   `get_block`/`get_transaction`/`get_transaction_receipt` need the custom `Transaction` `Serialize`
   (emit fields then `type`) before they can be byte-parity. Sepolia block 1 is also a ready DECLARE
   fixture; iterate block numbers to capture invoke/deploy/l1_handler fixtures for the other converters.
+
+- **`get_block_hash_by_id` accepts ONLY a numeric `blockId` (FIXED — plan note disproved).** The
+  live service parses `blockId` as a JSON integer: `latest`/`pending`/hash/`null`/garbage are all
+  `MALFORMED_REQUEST` (400). The handler TODO promising `latest`/`pending`/hash support was wrong
+  and is removed. Additionally, an in-format id beyond the chain head returns MALFORMED_REQUEST
+  `"Block ID should be in the range [0, <head+1>); got: <id>."` — NOT BLOCK_NOT_FOUND; the handler
+  now maps a synced-storage miss to MALFORMED_REQUEST (generic message; exact message needs a
+  latest-block read on the error path AND the shared sanitizer currently strips `;`, so it is part
+  of the message-parity pass).
+- **`get_block_id_by_hash` verified end-to-end:** param `blockHash`, success is a bare unquoted
+  number, unknown hash is `BLOCK_NOT_FOUND` 400 (`"Block hash 0x... does not exist."`),
+  missing/bare-hex/`0X`-prefixed/`null` are MALFORMED_REQUEST. Note its not-found message style
+  differs from the block-number one — another message-parity item.
 
 **Recommended process going forward:** for each endpoint, fetch the live response first, diff against
 the Rust output byte-for-byte, and only then ship. The live service makes every parity claim testable;
