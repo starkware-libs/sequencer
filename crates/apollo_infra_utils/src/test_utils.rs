@@ -51,6 +51,7 @@ pub enum TestIdentifier {
     AnvilStartsWithNoContractTest,
     ClassManagerUnitTests,
     ValidationOnlyNodeNeededForQuorumTest,
+    FeederGatewayUnitTests,
 }
 
 #[derive(Debug)]

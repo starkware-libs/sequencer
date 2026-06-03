@@ -1545,6 +1545,7 @@ dependencies = [
  "metrics-exporter-prometheus",
  "mockall",
  "num-traits",
+ "reqwest 0.12.24",
  "rstest",
  "serde",
  "serde_json",

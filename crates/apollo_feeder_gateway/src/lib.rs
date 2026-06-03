@@ -16,5 +16,9 @@ pub mod status;
 mod felt_format_lock_test;
 
 #[cfg(test)]
+#[path = "smoke_test.rs"]
+mod smoke_test;
+
+#[cfg(test)]
 #[path = "transaction_parity_test.rs"]
 mod transaction_parity_test;

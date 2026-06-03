@@ -34,11 +34,14 @@ tokio = { workspace = true, features = ["rt", "sync"] }
 tracing.workspace = true
 
 [dev-dependencies]
+apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
+reqwest.workspace = true
 rstest.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
 tower = { workspace = true, features = ["util"] }
