@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780415705903,
+  "lastUpdate": 1780507395713,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5235,6 +5235,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1598.0055156800001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e03db6d36c7deebd62be6743068a2a9681079346",
+          "message": "Merge pull request #14298 from starkware-libs/nimrod/merge-main-v0.14.3-into-main-1780407216\n\nMerge main-v0.14.3 into main",
+          "timestamp": "2026-06-03T17:10:18Z",
+          "tree_id": "749e1ff752280593c02aa1c7a4e90ccef89e8b43",
+          "url": "https://github.com/starkware-libs/sequencer/commit/e03db6d36c7deebd62be6743068a2a9681079346"
+        },
+        "date": 1780507395166,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 846.32659412,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1313.5723835899998,
             "unit": "ms"
           }
         ]
