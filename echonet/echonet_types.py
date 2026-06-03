@@ -184,6 +184,13 @@ class GcpLogsConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class NotificationsConfig:
+    """Outbound alerting. Empty `slack_webhook_url` disables Slack notifications."""
+
+    slack_webhook_url: str
+
+
+@dataclass(frozen=True, slots=True)
 class EchonetConfig:
     feeder: FeederGatewayConfig
     sequencer: SequencerGatewayConfig
@@ -196,6 +203,7 @@ class EchonetConfig:
     tx_filter: TxFilterConfig
     l1: L1Config
     gcp_logs: GcpLogsConfig
+    notifications: NotificationsConfig
 
     @classmethod
     def from_files(cls, keys_path: Path, secrets_path: Path) -> "EchonetConfig":
@@ -220,6 +228,8 @@ class EchonetConfig:
         gcp_project_id = str(secrets.get("gcp_project_id", ""))
         gcp_location = str(secrets.get("gcp_location", ""))
         gke_cluster_name = str(secrets.get("gke_cluster_name", ""))
+
+        slack_webhook_url = str(secrets.get("slack_webhook_url", "")).strip()
 
         return cls(
             feeder=FeederGatewayConfig(
@@ -259,6 +269,9 @@ class EchonetConfig:
                 project_id=gcp_project_id,
                 location=gcp_location,
                 gke_cluster_name=gke_cluster_name,
+            ),
+            notifications=NotificationsConfig(
+                slack_webhook_url=slack_webhook_url,
             ),
         )
 
