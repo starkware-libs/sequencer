@@ -80,8 +80,16 @@ impl CommitterTaskOutput {
 
     pub(crate) fn height(&self) -> BlockNumber {
         match self {
-            Self::Commit(CommitmentTaskOutput { height, .. })
-            | Self::Revert(RevertTaskOutput { height, .. }) => *height,
+            Self::Commit(output) => output.height,
+            Self::Revert(output) => output.height,
+        }
+    }
+
+    /// The committer endpoint that produced this output.
+    pub(crate) fn task_label(&self) -> CommitterRequestLabelValue {
+        match self {
+            Self::Commit(_) => CommitterRequestLabelValue::CommitBlock,
+            Self::Revert(_) => CommitterRequestLabelValue::RevertBlock,
         }
     }
 }
@@ -135,7 +143,7 @@ impl TaskTimer {
         &mut self,
         task: CommitterRequestLabelValue,
         height: BlockNumber,
-    ) -> Option<u128> {
+    ) -> Option<u64> {
         let Some(instant) = self.map_for_label(task).remove(&height) else {
             warn!(
                 "Can't stop timer for {task:?} task for block number {height} because timer was \
@@ -143,6 +151,7 @@ impl TaskTimer {
             );
             return None;
         };
-        Some(instant.elapsed().as_millis())
+        let duration = instant.elapsed().as_millis();
+        Some(u64::try_from(duration).expect("Duration is not more than 500 million years."))
     }
 }
