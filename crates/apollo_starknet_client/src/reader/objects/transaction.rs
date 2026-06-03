@@ -23,6 +23,7 @@ use starknet_api::transaction::fields::{
     Fee,
     PaymasterData,
     ProofFacts,
+    ResourceBounds,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -290,7 +291,7 @@ impl Serialize for IntermediateDeclareTransaction {
                 "fee_data_availability_mode",
                 &self.fee_data_availability_mode,
             )?;
-            serialize_entry_if_some(&mut map, "resource_bounds", &self.resource_bounds)?;
+            serialize_resource_bounds_entry(&mut map, &self.resource_bounds)?;
             serialize_entry_if_some(&mut map, "tip", &self.tip)?;
             serialize_entry_if_some(&mut map, "paymaster_data", &self.paymaster_data)?;
             map.serialize_entry("sender_address", &self.sender_address)?;
@@ -510,7 +511,7 @@ impl Serialize for IntermediateDeployAccountTransaction {
             "fee_data_availability_mode",
             &self.fee_data_availability_mode,
         )?;
-        serialize_entry_if_some(&mut map, "resource_bounds", &self.resource_bounds)?;
+        serialize_resource_bounds_entry(&mut map, &self.resource_bounds)?;
         serialize_entry_if_some(&mut map, "tip", &self.tip)?;
         serialize_entry_if_some(&mut map, "paymaster_data", &self.paymaster_data)?;
         let address_key = if self.version == TransactionVersion::THREE {
@@ -672,6 +673,46 @@ fn serialize_entry_if_some<M: SerializeMap, T: Serialize>(
     }
 }
 
+/// Serializes resource bounds with the live feeder gateway's `L1_DATA_GAS` data-gas key.
+/// `starknet_api`'s `ValidResourceBounds` serializes that key as `L1_DATA` and only ACCEPTS
+/// `L1_DATA_GAS` as a deserialize alias, but the live service serves `L1_DATA_GAS` (verified
+/// 2026-06-03), so the manual transaction impls route the field through this wrapper. The key
+/// order (`L1_GAS`, `L2_GAS`, `L1_DATA_GAS`) matches both the live service and `starknet_api`'s
+/// `BTreeMap` order.
+struct FeederGatewayResourceBounds<'a>(&'a ValidResourceBounds);
+
+impl Serialize for FeederGatewayResourceBounds<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(None)?;
+        match self.0 {
+            ValidResourceBounds::L1Gas(l1_gas_bounds) => {
+                map.serialize_entry("L1_GAS", l1_gas_bounds)?;
+                // Mirrors starknet_api: the pre-0.13.3 form carries signed-but-unused L2 bounds.
+                map.serialize_entry("L2_GAS", &ResourceBounds::default())?;
+            }
+            ValidResourceBounds::AllResources(all_resource_bounds) => {
+                map.serialize_entry("L1_GAS", &all_resource_bounds.l1_gas)?;
+                map.serialize_entry("L2_GAS", &all_resource_bounds.l2_gas)?;
+                map.serialize_entry("L1_DATA_GAS", &all_resource_bounds.l1_data_gas)?;
+            }
+        }
+        map.end()
+    }
+}
+
+/// Serializes the optional `resource_bounds` entry through [`FeederGatewayResourceBounds`].
+fn serialize_resource_bounds_entry<M: SerializeMap>(
+    map: &mut M,
+    resource_bounds: &Option<ValidResourceBounds>,
+) -> Result<(), M::Error> {
+    match resource_bounds {
+        Some(resource_bounds) => {
+            map.serialize_entry("resource_bounds", &FeederGatewayResourceBounds(resource_bounds))
+        }
+        None => Ok(()),
+    }
+}
+
 // PARITY LOCK: key order and names replicate the live Python feeder gateway INVOKE_FUNCTION wire
 // format per version (captured 2026-06-03; fixtures in apollo_feeder_gateway
 // resources/parity/transactions). V0 differs from V1/V3 in both field order (calldata precedes
@@ -703,7 +744,7 @@ impl Serialize for IntermediateInvokeTransaction {
                 "fee_data_availability_mode",
                 &self.fee_data_availability_mode,
             )?;
-            serialize_entry_if_some(&mut map, "resource_bounds", &self.resource_bounds)?;
+            serialize_resource_bounds_entry(&mut map, &self.resource_bounds)?;
             serialize_entry_if_some(&mut map, "tip", &self.tip)?;
             serialize_entry_if_some(&mut map, "paymaster_data", &self.paymaster_data)?;
             map.serialize_entry("sender_address", &self.sender_address)?;
