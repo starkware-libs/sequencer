@@ -6,3 +6,4 @@
 ~ /os_resources/execute_syscalls/Sha512ProcessBlock/n_steps: 4737
 ~ /os_resources/execute_syscalls/StorageRead/n_steps: 240
 ~ /os_resources/execute_syscalls/StorageWrite/n_steps: 599
+~ /strip_vm_frames_in_sierra_gas: true

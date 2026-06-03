@@ -2729,6 +2729,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "consensus_manager_config.context_config.dynamic_config.snip35_target_atto_usd_per_l2_gas": {
+    "description": "SNIP-35 target USD cost per L2 gas unit, in atto-USD ($0.88 per 1e9 L2 gas = 880_000_000 atto-USD).",
+    "privacy": "Public",
+    "value": 880000000
+  },
   "consensus_manager_config.context_config.static_config.behavior_mode": {
     "description": "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
     "pointer_target": "behavior_mode",

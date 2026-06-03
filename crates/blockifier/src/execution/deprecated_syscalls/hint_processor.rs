@@ -88,7 +88,10 @@ use crate::execution::entry_point::{
     ConstructorContext,
     EntryPointExecutionContext,
 };
-use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
+use crate::execution::errors::{
+    AnnotatedEntryPointExecutionError,
+    ConstructorEntryPointExecutionError,
+};
 use crate::execution::execution_utils::{
     execute_deployment,
     felt_from_ptr,
@@ -114,7 +117,7 @@ pub enum DeprecatedSyscallExecutionError {
     #[error(transparent)]
     BaseError(#[from] DeprecatedSyscallExecutorBaseError),
     #[error(transparent)]
-    EntryPointExecutionError(#[from] EntryPointExecutionError),
+    EntryPointExecutionError(#[from] AnnotatedEntryPointExecutionError),
     #[error(transparent)]
     ConstructorEntryPointExecutionError(#[from] ConstructorEntryPointExecutionError),
     #[error("{error}")]

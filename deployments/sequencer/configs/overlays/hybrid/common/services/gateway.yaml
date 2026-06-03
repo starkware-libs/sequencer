@@ -1,0 +1,33 @@
+name: gateway
+config:
+  configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_gateway.json
+  sequencerConfig:
+    gateway_config.static_config.authorized_declarer_accounts: ''
+    gateway_config.static_config.authorized_declarer_accounts.#is_none: true
+    gateway_config.static_config.stateful_tx_validator_config.max_allowed_nonce_gap: 200
+    gateway_config.static_config.stateless_tx_validator_config.max_contract_bytecode_size: 81920
+    components.class_manager.port: 55001
+    components.class_manager.url: sequencer-core-service
+    components.gateway.port: 55002
+    components.gateway.url: sequencer-gateway-service
+    components.mempool.port: 55006
+    components.mempool.url: sequencer-mempool-service
+    components.proof_manager.port: 55012
+    components.proof_manager.url: sequencer-core-service
+    components.state_sync.port: 55009
+    components.state_sync.url: sequencer-core-service
+    gateway_config.static_config.stateless_tx_validator_config.min_gas_price: 8000000000
+    http_server_config.static_config.port: 8080
+
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+  - name: gateway
+    port: 55002
+    targetPort: 55002
+    protocol: TCP
+  - name: http-server
+    port: 8080
+    targetPort: 8080
+    protocol: TCP

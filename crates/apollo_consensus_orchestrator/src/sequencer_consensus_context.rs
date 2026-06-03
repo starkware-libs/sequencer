@@ -90,7 +90,6 @@ use crate::dynamic_gas_price::{
     compute_fee_target,
     proposal_commitment_from,
     FeeProposalInfo,
-    TARGET_ATTO_USD_PER_L2_GAS,
 };
 use crate::fee_market::{
     calculate_next_l2_gas_price_for_fin,
@@ -102,9 +101,10 @@ use crate::metrics::{
     record_validate_proposal_failure,
     register_metrics,
     CONSENSUS_L2_GAS_PRICE,
-    SNIP35_FEE_ACTUAL,
-    SNIP35_FEE_PROPOSAL,
-    SNIP35_FEE_TARGET,
+    SNIP35_FEE_ACTUAL_FRI,
+    SNIP35_FEE_PROPOSAL_FRI,
+    SNIP35_FEE_TARGET_ATTO_USD,
+    SNIP35_FEE_TARGET_FRI,
 };
 use crate::utils::{
     convert_to_sn_api_block_info,
@@ -438,27 +438,20 @@ impl SequencerConsensusContext {
         )
     }
 
-    /// Compute the proposer's fee_proposal: clamp the oracle's `fee_target` to a margin around
-    /// `fee_actual`. When `fee_actual` is `None` (window incomplete), freeze at `l2_gas_price`; the
-    /// validator derives the same fallback so both sides agree.
-    async fn compute_proposer_fee_proposal(
+    async fn resolve_fee_target(
         &self,
-        fee_actual: Option<GasPrice>,
         timestamp: u64,
-    ) -> GasPrice {
-        let Some(fee_actual) = fee_actual else {
-            warn!("fee_actual unavailable, freezing fee_proposal at l2_gas_price");
-            SNIP35_FEE_PROPOSAL.set_lossy(self.l2_gas_price.0);
-            return self.l2_gas_price;
-        };
-        SNIP35_FEE_ACTUAL.set_lossy(fee_actual.0);
-
-        let fee_target = match self.deps.l1_gas_price_provider.get_strk_to_usd_rate(timestamp).await
-        {
+        target_atto_usd_per_l2_gas: u128,
+    ) -> Option<GasPrice> {
+        if let Some(v) = self.config.dynamic_config.override_l2_gas_price_fri {
+            SNIP35_FEE_TARGET_FRI.set_lossy(v);
+            return Some(GasPrice(v));
+        }
+        match self.deps.l1_gas_price_provider.get_strk_to_usd_rate(timestamp).await {
             Ok(rate) => {
-                let target = compute_fee_target(TARGET_ATTO_USD_PER_L2_GAS, rate);
+                let target = compute_fee_target(target_atto_usd_per_l2_gas, rate);
                 match target {
-                    Some(t) => SNIP35_FEE_TARGET.set_lossy(t.0),
+                    Some(t) => SNIP35_FEE_TARGET_FRI.set_lossy(t.0),
                     None => warn!("STRK/USD oracle returned zero rate, freezing fee_proposal"),
                 }
                 target
@@ -467,14 +460,34 @@ impl SequencerConsensusContext {
                 warn!("STRK/USD oracle error: {e:?}, freezing fee_proposal");
                 None
             }
+        }
+    }
+
+    /// Compute the proposer's fee_proposal: clamp the oracle's `fee_target` to a margin around
+    /// `fee_actual`. When `fee_actual` is `None` (window incomplete), freeze at `l2_gas_price`; the
+    /// validator derives the same fallback so both sides agree.
+    async fn compute_proposer_fee_proposal(
+        &self,
+        fee_actual: Option<GasPrice>,
+        timestamp: u64,
+        target_atto_usd_per_l2_gas: u128,
+    ) -> GasPrice {
+        SNIP35_FEE_TARGET_ATTO_USD.set_lossy(target_atto_usd_per_l2_gas);
+        let Some(fee_actual) = fee_actual else {
+            warn!("fee_actual unavailable, freezing fee_proposal at l2_gas_price");
+            SNIP35_FEE_PROPOSAL_FRI.set_lossy(self.l2_gas_price.0);
+            return self.l2_gas_price;
         };
+        SNIP35_FEE_ACTUAL_FRI.set_lossy(fee_actual.0);
+
+        let fee_target = self.resolve_fee_target(timestamp, target_atto_usd_per_l2_gas).await;
 
         let proposal = compute_fee_proposal(
             fee_target,
             fee_actual,
             VersionedConstants::latest_constants().fee_proposal_margin_ppt,
         );
-        SNIP35_FEE_PROPOSAL.set_lossy(proposal.0);
+        SNIP35_FEE_PROPOSAL_FRI.set_lossy(proposal.0);
         proposal
     }
 
@@ -563,6 +576,15 @@ impl SequencerConsensusContext {
             self.wait_for_block_hash(height).await;
         }
 
+        // The parent block's `fee_proposal_fri` is needed to reconstruct its V0_14_3 commitment
+        // (`Poseidon(partial_block_hash, fee_proposal_fri)`). It is read from the in-memory
+        // `fee_proposals_window`, which mirrors `BlockHeaderWithoutHash` storage. `None` means the
+        // parent is pre-V0_14_3 (or, near genesis, is absent from the window).
+        let parent_fee_proposal = height
+            .prev()
+            .and_then(|parent_height| self.fee_proposals_window.get(&parent_height).copied())
+            .flatten();
+
         if let Err(e) = self
             .deps
             .cende_ambassador
@@ -588,13 +610,9 @@ impl SequencerConsensusContext {
                 compiled_class_hashes_for_migration: central_objects
                     .compiled_class_hashes_for_migration,
                 proposal_commitment: commitment,
-                // TODO(AndrewL): plumb the parent block's `fee_proposal_fri` here once
-                // `central_objects.parent_proposal_commitment` carries it (or read from
-                // BlockHeaderWithoutHash storage). Today we pass `None`, which means
-                // pre-V0_14_3 commitments — correct for pre-V0_14_3 deployments only.
                 parent_proposal_commitment: central_objects
                     .parent_proposal_commitment
-                    .map(|c| proposal_commitment_from(c.partial_block_hash, None)),
+                    .map(|c| proposal_commitment_from(c.partial_block_hash, parent_fee_proposal)),
                 recent_block_hashes: self.collect_recent_block_hashes(height).await,
             })
             .await
@@ -723,8 +741,13 @@ impl ConsensusContext for SequencerConsensusContext {
             build_param.height,
             VersionedConstants::latest_constants().fee_proposal_window_size,
         );
-        let fee_proposal =
-            self.compute_proposer_fee_proposal(fee_actual, self.deps.clock.unix_now()).await;
+        let fee_proposal = self
+            .compute_proposer_fee_proposal(
+                fee_actual,
+                self.deps.clock.unix_now(),
+                self.config.dynamic_config.snip35_target_atto_usd_per_l2_gas,
+            )
+            .await;
         let round = build_param.round;
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),
