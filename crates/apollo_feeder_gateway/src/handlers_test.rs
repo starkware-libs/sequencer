@@ -222,7 +222,9 @@ async fn get_block_id_by_hash_non_hex_is_bad_request() {
 #[tokio::test]
 async fn get_block_hash_by_id_out_of_range_is_malformed_request() {
     let mut reader = MockChainDataReader::new();
-    reader.expect_block_hash().returning(|_| Err(FeederGatewayError::BlockNotFound));
+    reader
+        .expect_block_hash()
+        .returning(|block_number| Err(FeederGatewayError::BlockNotFound(block_number)));
     let feeder_gateway = FeederGateway::new(FeederGatewayConfig::default(), Arc::new(reader));
 
     let response = feeder_gateway

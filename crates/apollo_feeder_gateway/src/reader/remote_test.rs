@@ -37,7 +37,7 @@ async fn block_signature_of_unsynced_block_is_block_not_found() {
 
     let result = reader.block_signature(BlockNumber(7)).await;
 
-    assert!(matches!(result, Err(FeederGatewayError::BlockNotFound)));
+    assert!(matches!(result, Err(FeederGatewayError::BlockNotFound(BlockNumber(7)))));
 }
 
 #[tokio::test]
@@ -63,5 +63,5 @@ async fn block_signature_missing_signature_is_block_not_found() {
 
     let result = reader.block_signature(BlockNumber(7)).await;
 
-    assert!(matches!(result, Err(FeederGatewayError::BlockNotFound)));
+    assert!(matches!(result, Err(FeederGatewayError::BlockNotFound(BlockNumber(7)))));
 }

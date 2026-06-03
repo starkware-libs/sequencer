@@ -7,6 +7,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
 };
 use axum::http::{header, StatusCode};
 use axum::response::{IntoResponse, Response};
+use starknet_api::block::BlockNumber;
 use thiserror::Error;
 
 use crate::serialization::to_python_json;
@@ -22,11 +23,16 @@ pub enum FeederGatewayRunError {
 }
 
 /// Errors returned by feeder gateway request handling. Each maps to the legacy Python feeder
-/// gateway error envelope (`{code, message}`) and HTTP status (see [`IntoResponse`]).
+/// gateway error envelope (`{code, message}`) and HTTP status (see [`IntoResponse`]); the message
+/// texts replicate the live service (verified 2026-06-03).
 #[derive(Debug, Error)]
 pub enum FeederGatewayError {
-    #[error("Block not found")]
-    BlockNotFound,
+    #[error("Block number {0} was not found.")]
+    BlockNotFound(BlockNumber),
+    /// Carries the request's RAW hash string: the live service echoes it verbatim (an unpadded or
+    /// short form is not normalized).
+    #[error("Block hash {0} does not exist.")]
+    BlockHashNotFound(String),
     #[error("Transaction hash not found")]
     TransactionNotFound,
     #[error("Malformed request: {0}")]
@@ -43,11 +49,18 @@ impl IntoResponse for FeederGatewayError {
         // (verified against the live feeder gateway: BLOCK_NOT_FOUND returns 400, not 404), and
         // only unhandled internal errors are 500.
         let (status, starknet_error) = match self {
-            FeederGatewayError::BlockNotFound => (
+            FeederGatewayError::BlockNotFound(block_number) => (
                 StatusCode::BAD_REQUEST,
                 StarknetError {
                     code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::BlockNotFound),
-                    message: "Block not found".to_string(),
+                    message: format!("Block number {block_number} was not found."),
+                },
+            ),
+            FeederGatewayError::BlockHashNotFound(raw_block_hash) => (
+                StatusCode::BAD_REQUEST,
+                StarknetError {
+                    code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::BlockNotFound),
+                    message: format!("Block hash {raw_block_hash} does not exist."),
                 },
             ),
             FeederGatewayError::TransactionNotFound => (

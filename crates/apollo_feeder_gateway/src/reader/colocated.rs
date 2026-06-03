@@ -57,7 +57,9 @@ impl ChainDataReader for ColocatedStorageReader {
                 let txn = storage_reader.begin_ro_txn().map_err(internal_error)?;
                 let header = txn.get_block_header(block_number).map_err(internal_error)?;
                 // Read the hash from the synced header (NOT the batcher-only block_hashes table).
-                header.map(|header| header.block_hash).ok_or(FeederGatewayError::BlockNotFound)
+                header
+                    .map(|header| header.block_hash)
+                    .ok_or(FeederGatewayError::BlockNotFound(block_number))
             })
             .await?
     }
@@ -73,12 +75,12 @@ impl ChainDataReader for ColocatedStorageReader {
                 let block_hash = txn
                     .get_block_header(block_number)
                     .map_err(internal_error)?
-                    .ok_or(FeederGatewayError::BlockNotFound)?
+                    .ok_or(FeederGatewayError::BlockNotFound(block_number))?
                     .block_hash;
                 let signature = txn
                     .get_block_signature(block_number)
                     .map_err(internal_error)?
-                    .ok_or(FeederGatewayError::BlockNotFound)?;
+                    .ok_or(FeederGatewayError::BlockNotFound(block_number))?;
                 Ok((block_hash, signature))
             })
             .await?

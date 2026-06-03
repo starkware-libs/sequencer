@@ -1,6 +1,7 @@
 use axum::body::to_bytes;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use starknet_api::block::BlockNumber;
 
 use crate::errors::FeederGatewayError;
 
@@ -13,11 +14,26 @@ async fn response_status_and_body(error: FeederGatewayError) -> (StatusCode, Str
 
 #[tokio::test]
 async fn block_not_found_envelope_is_byte_parity() {
-    let (status, body) = response_status_and_body(FeederGatewayError::BlockNotFound).await;
+    // Live format: get_block?blockNumber=999999999 echoes the number (verified 2026-06-03).
+    let (status, body) =
+        response_status_and_body(FeederGatewayError::BlockNotFound(BlockNumber(999999999))).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(
         body,
-        r#"{"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block not found"}"#
+        r#"{"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block number 999999999 was not found."}"#
+    );
+}
+
+#[tokio::test]
+async fn block_hash_not_found_envelope_is_byte_parity() {
+    // Live format: get_block_id_by_hash?blockHash=0xdeadbeef echoes the raw hash string.
+    let (status, body) =
+        response_status_and_body(FeederGatewayError::BlockHashNotFound("0xdeadbeef".to_string()))
+            .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(
+        body,
+        r#"{"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block hash 0xdeadbeef does not exist."}"#
     );
 }
 

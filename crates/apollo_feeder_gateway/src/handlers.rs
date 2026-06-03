@@ -50,7 +50,7 @@ pub(crate) async fn get_block_hash_by_id(
         // Verified live: a block id beyond the chain head is MALFORMED_REQUEST ("Block ID should
         // be in the range [0, <head+1>); got: <id>."), NOT BLOCK_NOT_FOUND. A synced-storage miss
         // is exactly that out-of-range condition (headers are stored contiguously from genesis).
-        FeederGatewayError::BlockNotFound => {
+        FeederGatewayError::BlockNotFound(_) => {
             FeederGatewayError::MalformedRequest(format!("block id out of range: {block_number}"))
         }
         other => other,
@@ -66,12 +66,13 @@ pub(crate) async fn get_block_id_by_hash(
     Extension(state): Extension<AppState>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Response, FeederGatewayError> {
-    let block_hash = parse_block_hash(&params)?;
+    let (block_hash, raw_block_hash) = parse_block_hash(&params)?;
     let block_number = state
         .reader
         .block_number_by_hash(block_hash)
         .await?
-        .ok_or(FeederGatewayError::BlockNotFound)?;
+        // The live message echoes the request's raw hash string verbatim.
+        .ok_or_else(|| FeederGatewayError::BlockHashNotFound(raw_block_hash.to_string()))?;
     Ok(fg_json(&block_number))
 }
 
@@ -92,11 +93,12 @@ fn parse_block_id(params: &HashMap<String, String>) -> FgResult<BlockNumber> {
     Ok(BlockNumber(block_number))
 }
 
-/// Parses the required `blockHash` query parameter as a block hash. Treats the request as
-/// adversarial: a missing value or a non-felt yields a `MalformedRequest` (400) rather than a
-/// panic. The lowercase `0x` prefix is required, matching the live feeder gateway (it rejects
-/// `0X`-prefixed and bare-hex forms).
-fn parse_block_hash(params: &HashMap<String, String>) -> FgResult<BlockHash> {
+/// Parses the required `blockHash` query parameter, returning the parsed hash and the raw string
+/// (live error messages echo the raw form verbatim). Treats the request as adversarial: a missing
+/// value or a non-felt yields a `MalformedRequest` (400) rather than a panic. The lowercase `0x`
+/// prefix is required, matching the live feeder gateway (it rejects `0X`-prefixed and bare-hex
+/// forms).
+fn parse_block_hash(params: &HashMap<String, String>) -> FgResult<(BlockHash, &str)> {
     let raw = params
         .get("blockHash")
         .ok_or_else(|| FeederGatewayError::MalformedRequest("missing blockHash".to_string()))?;
@@ -105,7 +107,7 @@ fn parse_block_hash(params: &HashMap<String, String>) -> FgResult<BlockHash> {
     }
     let felt_value = StarkHash::from_hex(raw)
         .map_err(|_| FeederGatewayError::MalformedRequest(format!("invalid blockHash: {raw}")))?;
-    Ok(BlockHash(felt_value))
+    Ok((BlockHash(felt_value), raw))
 }
 
 /// Parses the required `blockNumber` query parameter as a block number (never panics on bad input;

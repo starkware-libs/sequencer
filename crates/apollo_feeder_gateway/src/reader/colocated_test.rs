@@ -63,7 +63,7 @@ async fn block_hash_missing_block_is_block_not_found() {
 
     assert!(matches!(
         reader.block_hash(BlockNumber(7)).await,
-        Err(FeederGatewayError::BlockNotFound)
+        Err(FeederGatewayError::BlockNotFound(_))
     ));
 }
 

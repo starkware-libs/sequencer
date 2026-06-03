@@ -53,8 +53,8 @@ impl ChainDataReader for RemoteChainDataReader {
 /// becomes the legacy BlockNotFound envelope, HTTP 400) and treating everything else as internal.
 fn map_client_error(error: StateSyncClientError) -> FeederGatewayError {
     match error {
-        StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(_)) => {
-            FeederGatewayError::BlockNotFound
+        StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(block_number)) => {
+            FeederGatewayError::BlockNotFound(block_number)
         }
         other => internal_error(other),
     }
