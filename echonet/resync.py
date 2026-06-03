@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import Callable, Dict, Optional
 
-from echonet import reports
+from echonet import notifier, reports
 from echonet.echonet_types import JsonObject, ResyncTriggerPayload, RevertErrorInfo
 from echonet.logger import get_logger
 from echonet.sequencer_manager import SequencerManager
@@ -112,6 +112,18 @@ class ResyncExecutor:
             trigger["reason"],
         )
 
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None,
+            lambda: notifier.notify_resync(
+                reason=trigger["reason"],
+                tx_hash=trigger["tx_hash"],
+                failure_block_number=trigger["failure_block_number"],
+                next_start_block=next_start_block,
+                is_repeated_trigger=is_repeated_trigger,
+            ),
+        )
+
         self._get_sequencer_manager().scale_to_zero()
         reports.write_pre_resync_reports(
             trigger_tx_hash=trigger["tx_hash"],
@@ -122,7 +134,6 @@ class ResyncExecutor:
         )
         shared.clear_for_resync()
 
-        loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None,
             lambda: self._get_sequencer_manager().resync(block_number=next_start_block),
