@@ -43,6 +43,10 @@ impl ChainDataReader for RemoteChainDataReader {
             self.client.get_block_signature(block_number).await.map_err(map_client_error)?;
         Ok((block_hash, signature))
     }
+
+    async fn block_number_by_hash(&self, block_hash: BlockHash) -> FgResult<Option<BlockNumber>> {
+        self.client.get_block_number_by_hash(block_hash).await.map_err(internal_error)
+    }
 }
 
 /// Maps a state-sync client error to a feeder gateway error, preserving the not-found case (so it

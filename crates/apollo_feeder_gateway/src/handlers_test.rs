@@ -3,7 +3,7 @@ use std::sync::Arc;
 use apollo_feeder_gateway_config::config::{FeederGatewayConfig, FeederGatewayContractAddresses};
 use axum::body::{to_bytes, Body};
 use axum::http::{Request, StatusCode};
-use starknet_api::block::{BlockHash, BlockSignature};
+use starknet_api::block::{BlockHash, BlockNumber, BlockSignature};
 use starknet_api::core::{ContractAddress, SequencerPublicKey};
 use starknet_api::crypto::utils::{PublicKey, Signature};
 use starknet_api::hash::StarkHash;
@@ -112,6 +112,110 @@ async fn get_block_hash_by_id_returns_byte_parity_hash() {
     assert_eq!(response.status(), StatusCode::OK);
     let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     assert_eq!(&body[..], br#""0x1234""#);
+}
+
+#[tokio::test]
+async fn get_block_id_by_hash_returns_byte_parity_number() {
+    let mut reader = MockChainDataReader::new();
+    reader.expect_block_number_by_hash().returning(|_| Ok(Some(BlockNumber(1))));
+    let feeder_gateway = FeederGateway::new(FeederGatewayConfig::default(), Arc::new(reader));
+
+    let response = feeder_gateway
+        .app()
+        .oneshot(
+            Request::builder()
+                .uri("/feeder_gateway/get_block_id_by_hash?blockHash=0x1234")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    // The live feeder gateway serves the block number as a bare unquoted number.
+    assert_eq!(&body[..], br#"1"#);
+}
+
+#[tokio::test]
+async fn get_block_id_by_hash_unknown_hash_is_block_not_found() {
+    let mut reader = MockChainDataReader::new();
+    reader.expect_block_number_by_hash().returning(|_| Ok(None));
+    let feeder_gateway = FeederGateway::new(FeederGatewayConfig::default(), Arc::new(reader));
+
+    let response = feeder_gateway
+        .app()
+        .oneshot(
+            Request::builder()
+                .uri("/feeder_gateway/get_block_id_by_hash?blockHash=0x1234")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    // Verified live: an unknown hash is the BLOCK_NOT_FOUND envelope with HTTP 400.
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    assert!(String::from_utf8(body.to_vec()).unwrap().contains("BLOCK_NOT_FOUND"));
+}
+
+#[tokio::test]
+async fn get_block_id_by_hash_missing_param_is_bad_request() {
+    let feeder_gateway =
+        FeederGateway::new(FeederGatewayConfig::default(), Arc::new(MockChainDataReader::new()));
+
+    let response = feeder_gateway
+        .app()
+        .oneshot(
+            Request::builder()
+                .uri("/feeder_gateway/get_block_id_by_hash")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn get_block_id_by_hash_without_0x_prefix_is_bad_request() {
+    let feeder_gateway =
+        FeederGateway::new(FeederGatewayConfig::default(), Arc::new(MockChainDataReader::new()));
+
+    // Verified live: bare-hex and 0X-prefixed forms are rejected as MALFORMED_REQUEST.
+    let response = feeder_gateway
+        .app()
+        .oneshot(
+            Request::builder()
+                .uri("/feeder_gateway/get_block_id_by_hash?blockHash=1234")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn get_block_id_by_hash_non_hex_is_bad_request() {
+    let feeder_gateway =
+        FeederGateway::new(FeederGatewayConfig::default(), Arc::new(MockChainDataReader::new()));
+
+    let response = feeder_gateway
+        .app()
+        .oneshot(
+            Request::builder()
+                .uri("/feeder_gateway/get_block_id_by_hash?blockHash=0xzzz")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]

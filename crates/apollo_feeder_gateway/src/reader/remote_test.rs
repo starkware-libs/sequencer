@@ -41,6 +41,18 @@ async fn block_signature_of_unsynced_block_is_block_not_found() {
 }
 
 #[tokio::test]
+async fn block_number_by_hash_delegates_to_state_sync() {
+    let mut client = MockStateSyncClient::new();
+    client.expect_get_block_number_by_hash().returning(|_| Ok(Some(BlockNumber(7))));
+    let reader = RemoteChainDataReader::new(Arc::new(client));
+
+    let block_number =
+        reader.block_number_by_hash(BlockHash(StarkHash::from(0x1_u128))).await.unwrap();
+
+    assert_eq!(block_number, Some(BlockNumber(7)));
+}
+
+#[tokio::test]
 async fn block_signature_missing_signature_is_block_not_found() {
     let mut client = MockStateSyncClient::new();
     client.expect_get_block_hash().returning(|_| Ok(BlockHash(StarkHash::from(0x1_u128))));

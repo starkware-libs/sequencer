@@ -34,6 +34,10 @@ pub trait ChainDataReader: Send + Sync + 'static {
         &self,
         block_number: BlockNumber,
     ) -> FgResult<(BlockHash, BlockSignature)>;
+
+    /// The block number of the synced block with hash `block_hash`, or `None` if no synced block
+    /// has this hash.
+    async fn block_number_by_hash(&self, block_hash: BlockHash) -> FgResult<Option<BlockNumber>>;
 }
 
 /// Shared state handed to every axum handler via `Extension`.

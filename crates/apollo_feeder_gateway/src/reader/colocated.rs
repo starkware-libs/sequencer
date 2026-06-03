@@ -83,4 +83,14 @@ impl ChainDataReader for ColocatedStorageReader {
             })
             .await?
     }
+
+    async fn block_number_by_hash(&self, block_hash: BlockHash) -> FgResult<Option<BlockNumber>> {
+        let storage_reader = self.storage_reader.clone();
+        self.executor
+            .run(move || {
+                let txn = storage_reader.begin_ro_txn().map_err(internal_error)?;
+                txn.get_block_number_by_hash(&block_hash).map_err(internal_error)
+            })
+            .await?
+    }
 }

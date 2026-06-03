@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
-use starknet_api::block::{BlockHeader, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHeader, BlockNumber};
+use starknet_api::hash::StarkHash;
 
 use crate::errors::FeederGatewayError;
 use crate::reader::colocated::ColocatedStorageReader;
@@ -64,4 +65,32 @@ async fn block_hash_missing_block_is_block_not_found() {
         reader.block_hash(BlockNumber(7)).await,
         Err(FeederGatewayError::BlockNotFound)
     ));
+}
+
+#[tokio::test]
+async fn block_number_by_hash_returns_appended_block_number() {
+    let ((storage_reader, mut writer), _temp_dir) = get_test_storage();
+    let header = BlockHeader::default();
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(BlockNumber(0), &header)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let reader = ColocatedStorageReader::new(storage_reader, executor());
+
+    assert_eq!(reader.block_number_by_hash(header.block_hash).await.unwrap(), Some(BlockNumber(0)));
+}
+
+#[tokio::test]
+async fn block_number_by_unknown_hash_returns_none() {
+    let ((storage_reader, _writer), _temp_dir) = get_test_storage();
+    let reader = ColocatedStorageReader::new(storage_reader, executor());
+
+    assert_eq!(
+        reader.block_number_by_hash(BlockHash(StarkHash::from(0x1234_u128))).await.unwrap(),
+        None
+    );
 }
