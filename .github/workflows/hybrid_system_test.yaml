@@ -16,7 +16,7 @@ env:
   cluster_name: hybrid-system-test
   crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"
   path_triggers: ".github/workflows/hybrid_system_test.yaml,scripts/**,deployments/sequencer/**,deployments/images/**"
-  path_triggers_exclude: "scripts/prod/**/*"
+  path_triggers_exclude: "scripts/prod/**"
   pvc_storage_class_name: "premium-rwo"
   anvil_port: "8545"
   dockerfile_base_path: ./deployments/images/sequencer
@@ -74,10 +74,10 @@ jobs:
           OUTPUT_FILE=$(mktemp)
 
           python ./scripts/check_test_trigger.py --output_file $OUTPUT_FILE \
-            --commit_id ${{ github.event.pull_request.base.sha }} \
-            --crate_triggers ${{ env.crate_triggers }} \
-            --path_triggers ${{ env.path_triggers }} \
-            --path_triggers_exclude ${{ env.path_triggers_exclude }}
+            --commit_id "${{ github.event.pull_request.base.sha }}" \
+            --crate_triggers "${{ env.crate_triggers }}" \
+            --path_triggers "${{ env.path_triggers }}" \
+            --path_triggers_exclude "${{ env.path_triggers_exclude }}"
 
           should_run=$(cat "$OUTPUT_FILE")
           echo "Captured output: $should_run"
@@ -147,6 +147,12 @@ jobs:
       - name: Create k3d cluster (Local k8s)
         uses: AbsaOSS/k3d-action@v2.4.0
         with:
+          # Pin k3d explicitly: the action's default (v5.4.6) predates the checksums.txt release
+          # asset that the current k3d install.sh fetches (with --fail), so its install 404s. v5.5.0
+          # is the earliest release that ships checksums.txt (smallest bump from the old default).
+          # Must be the k3d-version input (the composite action maps it to K3D_VERSION); a plain env
+          # var is overridden by the action's own empty input default.
+          k3d-version: v5.5.0
           # Assumption: only one PR can run per machine at a time.
           cluster-name: ${{ env.cluster_name }}
           args: >-
