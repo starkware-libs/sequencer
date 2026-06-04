@@ -23,7 +23,7 @@ pub trait TreeHashFunction<L: Leaf> {
     fn compute_node_hash(node_data: &NodeData<L, HashOutput>) -> HashOutput;
 
     /// The default implementation for internal nodes is based on the following reference:
-    /// <https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/starknet-state/#trie_construction>
+    /// <https://docs.starknet.io/learn/protocol/state#trie-construction>
     /// This code is layout independent. After computing the children hashes, NodeData can be
     /// instantiated with the concrete HashOutput for ChildData, regardless of what's stored in the
     /// db.
