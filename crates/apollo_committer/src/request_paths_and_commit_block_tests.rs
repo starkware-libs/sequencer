@@ -10,7 +10,13 @@ use apollo_committer_types::committer_types::{
 use indexmap::indexmap;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, StateDiffCommitment};
+use starknet_api::core::{
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    StateDiffCommitment,
+    PATRICIA_KEY_UPPER_BOUND_FELT,
+};
 use starknet_api::hash::HashOutput;
 use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::input::{
@@ -30,9 +36,17 @@ use starknet_committer::patricia_merkle_tree::types::{
     CompiledClassHash as CommitterCompiledClassHash,
     StarknetForestProofs,
 };
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
+    BinaryData,
+    EdgeData,
+    EdgePath,
+    EdgePathLength,
+    NodeData,
+    PathToBottom,
+};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::storage_proof_verification::verify_patricia_proof;
-use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 
 use crate::committer::committer_test::{new_test_committer, ApolloTestCommitter};
@@ -358,4 +372,197 @@ async fn revert_removes_witnesses_and_digest() {
         .unwrap();
     assert_witnesses_and_digest_absent(&mut committer, BlockNumber(height_1)).await;
     assert_eq!(committer.offset, BlockNumber(height_1));
+}
+
+/// Flow overview:
+/// 1. Commit block 0 with three class leaves that form this Patricia topology:
+/// ```text
+///         R
+///        / \
+///       E   F
+///       |   |
+///       G   |
+///      / \   \
+///     A   B   D
+/// ```
+/// 2. Commit block 1 via [crate::committer::Committer::read_paths_and_commit_block], deleting `D`
+///    and requesting witnesses only for the deleted key.
+/// 3. Assert the returned classes-trie proof contains node `E`.
+#[tokio::test]
+async fn test_bottom_of_new_edge_to_an_unmoidifed_subtree_is_present() {
+    // Set the two leftmost and the rightmost leaves.
+    let class_hash_a = ClassHash(0_u64.into());
+    let class_hash_b = ClassHash(1_u64.into());
+    let class_hash_d = ClassHash(PATRICIA_KEY_UPPER_BOUND_FELT - 1_u64);
+
+    let compiled_class_hash_a_felt = 100_u64.into();
+    let compiled_class_hash_b_felt = 101_u64.into();
+    let compiled_class_hash_d_felt = 102_u64.into();
+
+    let mut committer = new_test_committer().await;
+    let height_0 = 0;
+    let height_1 = 1;
+    let block_0_state_diff = ThinStateDiff {
+        class_hash_to_compiled_class_hash: indexmap! {
+            class_hash_a => CompiledClassHash(compiled_class_hash_a_felt),
+            class_hash_b => CompiledClassHash(compiled_class_hash_b_felt),
+            class_hash_d => CompiledClassHash(compiled_class_hash_d_felt),
+        },
+        ..Default::default()
+    };
+    let block_1_state_diff = ThinStateDiff {
+        class_hash_to_compiled_class_hash: indexmap! {
+            class_hash_d => CompiledClassHash(0_u64.into()),
+        },
+        ..Default::default()
+    };
+    let accessed_keys = AccessedKeys {
+        accessed_class_hashes: BTreeSet::from([class_hash_d]),
+        ..Default::default()
+    };
+
+    committer
+        .commit_block(CommitBlockRequest {
+            state_diff: block_0_state_diff.clone(),
+            state_diff_commitment: Some(calculate_state_diff_hash(&block_0_state_diff)),
+            height: BlockNumber(height_0),
+        })
+        .await
+        .unwrap();
+
+    let response = committer
+        .read_paths_and_commit_block(read_paths_and_commit_block_request(
+            block_1_state_diff.clone(),
+            Some(calculate_state_diff_hash(&block_1_state_diff)),
+            height_1,
+            accessed_keys,
+        ))
+        .await
+        .unwrap();
+
+    let leaf_a_hash = TreeHashFunctionImpl::compute_leaf_hash(&CommitterCompiledClassHash(
+        compiled_class_hash_a_felt,
+    ));
+    let leaf_b_hash = TreeHashFunctionImpl::compute_leaf_hash(&CommitterCompiledClassHash(
+        compiled_class_hash_b_felt,
+    ));
+    let node_g_hash = TreeHashFunctionImpl::compute_node_hash(&NodeData::<
+        CommitterCompiledClassHash,
+        HashOutput,
+    >::Binary(BinaryData {
+        left_data: leaf_a_hash,
+        right_data: leaf_b_hash,
+    }));
+    // Keys 0 and 1 place G one level above the leaves; E is the root's left child.
+    let path_e_to_g = PathToBottom::new(
+        EdgePath::default(),
+        EdgePathLength::new(SubTreeHeight::ACTUAL_HEIGHT.0 - 1).expect("Illegal edge path length"),
+    )
+    .expect("Illegal path from E to G");
+    let node_e_hash = TreeHashFunctionImpl::compute_node_hash(&NodeData::<
+        CommitterCompiledClassHash,
+        HashOutput,
+    >::Edge(EdgeData {
+        bottom_data: node_g_hash,
+        path_to_bottom: path_e_to_g,
+    }));
+
+    assert!(
+        response.patricia_proofs.classes_trie_proof.contains_key(&node_e_hash),
+        "missing node attesting to the topology of the new tree",
+    );
+
+    // Today we also include the bottom of every traversed edge node. This is not necessary, and is
+    // expected to fail once we are more strict in the fetched preimages.
+    assert!(
+        response.patricia_proofs.classes_trie_proof.contains_key(&node_g_hash),
+        "missing bottom of a new edge node in a proof",
+    );
+}
+
+/// Flow overview:
+/// 1. Commit block 0 with three class leaves that form this Patricia topology:
+/// ```text
+///         R
+///         |
+///         T
+///        / \
+///       E   F
+///      / \   \
+///     A   B   D
+/// ```
+/// 2. Commit block 1 via [crate::committer::Committer::read_paths_and_commit_block], deleting `D`
+///    and requesting witnesses only for the deleted key.
+/// 3. Assert the returned classes-trie proof contains node `E`. In this test, E is not the bottom
+///    of an existing edge, so it must be included in the proof to become convinced of the new
+///    tree's validity.
+#[tokio::test]
+async fn test_bottom_of_new_edge_to_a_binary_unmodified_subtree_is_present() {
+    let class_hash_a = ClassHash(0_u64.into());
+    let class_hash_b = ClassHash(1_u64.into());
+    let class_hash_d = ClassHash(3_u64.into());
+
+    let compiled_class_hash_a_felt = 100_u64.into();
+    let compiled_class_hash_b_felt = 101_u64.into();
+    let compiled_class_hash_d_felt = 102_u64.into();
+
+    let mut committer = new_test_committer().await;
+    let height_0 = 0;
+    let height_1 = 1;
+    let block_0_state_diff = ThinStateDiff {
+        class_hash_to_compiled_class_hash: indexmap! {
+            class_hash_a => CompiledClassHash(compiled_class_hash_a_felt),
+            class_hash_b => CompiledClassHash(compiled_class_hash_b_felt),
+            class_hash_d => CompiledClassHash(compiled_class_hash_d_felt),
+        },
+        ..Default::default()
+    };
+    let block_1_state_diff = ThinStateDiff {
+        class_hash_to_compiled_class_hash: indexmap! {
+            class_hash_d => CompiledClassHash(0_u64.into()),
+        },
+        ..Default::default()
+    };
+    let accessed_keys = AccessedKeys {
+        accessed_class_hashes: BTreeSet::from([class_hash_d]),
+        ..Default::default()
+    };
+
+    committer
+        .commit_block(CommitBlockRequest {
+            state_diff: block_0_state_diff.clone(),
+            state_diff_commitment: Some(calculate_state_diff_hash(&block_0_state_diff)),
+            height: BlockNumber(height_0),
+        })
+        .await
+        .unwrap();
+
+    let response = committer
+        .read_paths_and_commit_block(read_paths_and_commit_block_request(
+            block_1_state_diff.clone(),
+            Some(calculate_state_diff_hash(&block_1_state_diff)),
+            height_1,
+            accessed_keys,
+        ))
+        .await
+        .unwrap();
+
+    let leaf_a_hash = TreeHashFunctionImpl::compute_leaf_hash(&CommitterCompiledClassHash(
+        compiled_class_hash_a_felt,
+    ));
+    let leaf_b_hash = TreeHashFunctionImpl::compute_leaf_hash(&CommitterCompiledClassHash(
+        compiled_class_hash_b_felt,
+    ));
+    let node_e_hash = TreeHashFunctionImpl::compute_node_hash(&NodeData::<
+        CommitterCompiledClassHash,
+        HashOutput,
+    >::Binary(BinaryData {
+        left_data: leaf_a_hash,
+        right_data: leaf_b_hash,
+    }));
+
+    assert!(
+        response.patricia_proofs.classes_trie_proof.contains_key(&node_e_hash),
+        "missing bottom of a new edge node in a proof",
+    );
 }
