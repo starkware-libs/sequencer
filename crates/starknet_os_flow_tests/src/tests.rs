@@ -1516,6 +1516,14 @@ async fn test_new_syscalls_flow(#[case] use_kzg_da: bool, #[case] n_blocks_in_mu
     );
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
 
+    // Test that get_class_hash_at returns 0 for the alias contract address.
+    let calldata = create_calldata(
+        main_contract_address,
+        "test_get_class_hash_at",
+        &[**ALIAS_CONTRACT_ADDRESS, Felt::ZERO, undeployed_address],
+    );
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
     // Test send-message-to-L1 syscall.
     let test_send_message_to_l1_to_address = Felt::ZERO;
     let test_send_message_to_l1_payload = vec![Felt::from(4365), Felt::from(23)];
