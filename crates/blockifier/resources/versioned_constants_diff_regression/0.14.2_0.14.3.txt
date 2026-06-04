@@ -1,5 +1,6 @@
 ~ /enable_casm_hash_migration: true
 + /os_constants/allowed_virtual_os_program_hashes/1: "0x6ecb73d21c7d98ddd4148f5bcd91cc2747c65364245fbf32a63b05cca1685c2"
++ /os_constants/allowed_virtual_os_program_hashes/2: "0x26499328a26c5c7390631049a5272dbeb46cb6aa099a1433253769e31aa8493"
 ~ /os_constants/execute_max_sierra_gas: 1110000000
 + /os_resources/execute_syscalls/Sha512ProcessBlock/builtin_instance_counter/bitwise_builtin: 3320
 + /os_resources/execute_syscalls/Sha512ProcessBlock/builtin_instance_counter/range_check_builtin: 65
