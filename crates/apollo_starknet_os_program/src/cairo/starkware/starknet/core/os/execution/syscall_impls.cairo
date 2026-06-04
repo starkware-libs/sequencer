@@ -84,6 +84,7 @@ from starkware.starknet.core.os.builtins import (
     SelectableBuiltins,
 )
 from starkware.starknet.core.os.constants import (
+    ALIAS_CONTRACT_ADDRESS,
     BLOCK_HASH_CONTRACT_ADDRESS,
     CALL_CONTRACT_GAS_COST,
     CONSTRUCTOR_ENTRY_POINT_SELECTOR,
@@ -578,6 +579,12 @@ func execute_get_class_hash_at{
 
     let response = cast(syscall_ptr, GetClassHashAtResponse*);
     let syscall_ptr = syscall_ptr + GetClassHashAtResponse.SIZE;
+
+    if (request.contract_address == ALIAS_CONTRACT_ADDRESS) {
+        // The alias contract is a system contract with no associated class.
+        assert [response] = GetClassHashAtResponse(class_hash=0);
+        return ();
+    }
 
     // Read the state entry of the requested address.
     let (raw_state_entry) = dict_read{dict_ptr=contract_state_changes}(
