@@ -65,7 +65,7 @@ fn test_l2_to_l1_message_header_size() {
 
 #[test]
 fn test_compiled_class_version() {
-    assert_eq!(Const::CompiledClassVersion.fetch_from_os_program().unwrap(), *COMPILED_CLASS_V1);
+    assert_eq!(Const::CompiledClassVersion.fetch_from_os_program().unwrap(), COMPILED_CLASS_V1);
 }
 
 /// Asserts that the Rust VIRTUAL_OS_OUTPUT_VERSION constant matches the Cairo constant.

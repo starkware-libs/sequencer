@@ -283,7 +283,7 @@ fn expected_validate_call_info(
 ) -> Option<CallInfo> {
     let retdata = match cairo_version {
         CairoVersion::Cairo0 => Retdata::default(),
-        CairoVersion::Cairo1(_) => retdata!(*constants::VALIDATE_RETDATA),
+        CairoVersion::Cairo1(_) => retdata!(constants::VALIDATE_RETDATA),
     };
     let cairo_native = cairo_version.is_cairo_native();
     // Extra range checks in regular (invoke) validate call, due to calldata passed as array.

@@ -66,8 +66,8 @@ pub fn get_fee_token_addresses(
         // Mainnet, testnet and integration systems have the same fee token addresses.
         ChainId::Mainnet | ChainId::Sepolia | ChainId::IntegrationSepolia => FeeTokenAddresses {
             strk_fee_token_address: strk_fee_token_address_override
-                .unwrap_or(*STRK_FEE_CONTRACT_ADDRESS),
-            eth_fee_token_address: *ETH_FEE_CONTRACT_ADDRESS,
+                .unwrap_or(STRK_FEE_CONTRACT_ADDRESS),
+            eth_fee_token_address: ETH_FEE_CONTRACT_ADDRESS,
         },
         unknown_chain => unimplemented!("Unknown chain ID {unknown_chain}."),
     }

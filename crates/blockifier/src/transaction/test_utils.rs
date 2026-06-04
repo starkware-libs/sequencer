@@ -513,7 +513,7 @@ impl ExpectedExecutionInfo {
     ) -> Self {
         let mut version = Felt::THREE;
         if only_query {
-            version += *QUERY_VERSION_BASE;
+            version += QUERY_VERSION_BASE;
         }
         Self {
             version: TransactionVersion(version),

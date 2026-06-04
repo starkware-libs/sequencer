@@ -1,9 +1,7 @@
-use std::sync::LazyLock;
-
 use starknet_types_core::felt::Felt;
 
 use crate::block::BlockNumber;
-use crate::core::{ascii_as_felt, ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use crate::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::DataAvailabilityMode;
 use crate::transaction::fields::{
@@ -50,17 +48,11 @@ const L1_GAS: &ResourceName = b"\0L1_GAS";
 const L2_GAS: &ResourceName = b"\0L2_GAS";
 const L1_DATA_GAS: &ResourceName = b"L1_DATA";
 
-static DECLARE: LazyLock<Felt> =
-    LazyLock::new(|| ascii_as_felt("declare").expect("ascii_as_felt failed for 'declare'"));
-static DEPLOY: LazyLock<Felt> =
-    LazyLock::new(|| ascii_as_felt("deploy").expect("ascii_as_felt failed for 'deploy'"));
-static DEPLOY_ACCOUNT: LazyLock<Felt> = LazyLock::new(|| {
-    ascii_as_felt("deploy_account").expect("ascii_as_felt failed for 'deploy_account'")
-});
-static INVOKE: LazyLock<Felt> =
-    LazyLock::new(|| ascii_as_felt("invoke").expect("ascii_as_felt failed for 'invoke'"));
-static L1_HANDLER: LazyLock<Felt> =
-    LazyLock::new(|| ascii_as_felt("l1_handler").expect("ascii_as_felt failed for 'l1_handler'"));
+const DECLARE: Felt = Felt::from_hex_unchecked("0x6465636c617265");
+const DEPLOY: Felt = Felt::from_hex_unchecked("0x6465706c6f79");
+const DEPLOY_ACCOUNT: Felt = Felt::from_hex_unchecked("0x6465706c6f795f6163636f756e74");
+const INVOKE: Felt = Felt::from_hex_unchecked("0x696e766f6b65");
+const L1_HANDLER: Felt = Felt::from_hex_unchecked("0x6c315f68616e646c6572");
 const CONSTRUCTOR_ENTRY_POINT_SELECTOR: Felt =
     Felt::from_hex_unchecked("0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194");
 
@@ -488,9 +480,9 @@ fn get_common_l1_handler_transaction_hash(
         HashChain::new()
         .chain_if_fn(|| {
             if version == L1HandlerVersions::AsInvoke {
-                Some(*INVOKE)
+                Some(INVOKE)
             } else {
-                Some(*L1_HANDLER)
+                Some(L1_HANDLER)
             }
         })
         .chain_if_fn(|| {

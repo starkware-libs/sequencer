@@ -1,4 +1,3 @@
-use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
@@ -20,7 +19,6 @@ use crate::block::{
     StarknetVersion,
 };
 use crate::core::{
-    ascii_as_felt,
     EventCommitment,
     GlobalRoot,
     ReceiptCommitment,
@@ -41,15 +39,12 @@ use crate::{StarknetApiError, StarknetApiResult};
 #[path = "block_hash_calculator_test.rs"]
 mod block_hash_calculator_test;
 
-static STARKNET_BLOCK_HASH0: LazyLock<Felt> = LazyLock::new(|| {
-    ascii_as_felt("STARKNET_BLOCK_HASH0").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH0'")
-});
-pub static STARKNET_BLOCK_HASH1: LazyLock<Felt> = LazyLock::new(|| {
-    ascii_as_felt("STARKNET_BLOCK_HASH1").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH1'")
-});
-pub static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
-    ascii_as_felt("STARKNET_GAS_PRICES0").expect("ascii_as_felt failed for 'STARKNET_GAS_PRICES0'")
-});
+const STARKNET_BLOCK_HASH0: Felt =
+    Felt::from_hex_unchecked("0x535441524b4e45545f424c4f434b5f4841534830");
+pub const STARKNET_BLOCK_HASH1: Felt =
+    Felt::from_hex_unchecked("0x535441524b4e45545f424c4f434b5f4841534831");
+pub const STARKNET_GAS_PRICES0: Felt =
+    Felt::from_hex_unchecked("0x535441524b4e45545f4741535f50524943455330");
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd)]
@@ -88,8 +83,8 @@ type BlockHashConstant = Felt;
 impl From<BlockHashVersion> for BlockHashConstant {
     fn from(block_hash_version: BlockHashVersion) -> Self {
         match block_hash_version {
-            BlockHashVersion::V0_13_2 => *STARKNET_BLOCK_HASH0,
-            BlockHashVersion::V0_13_4 => *STARKNET_BLOCK_HASH1,
+            BlockHashVersion::V0_13_2 => STARKNET_BLOCK_HASH0,
+            BlockHashVersion::V0_13_4 => STARKNET_BLOCK_HASH1,
         }
     }
 }

@@ -299,7 +299,7 @@ fn run_compiled_class_hash_entry_point(
     // Create constants.
     let constants = HashMap::from([(
         <&'static str>::from(Const::CompiledClassVersion).to_string(),
-        *COMPILED_CLASS_V1,
+        COMPILED_CLASS_V1,
     )]);
 
     // Create explicit arguments for the Cairo entrypoint function.

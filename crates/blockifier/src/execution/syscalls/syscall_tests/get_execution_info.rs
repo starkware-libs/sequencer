@@ -161,7 +161,7 @@ fn compute_expected_tx_version(
         flags.is_v1_bound_account && !flags.tip_exceeds_v1_bound_threshold;
     let mut version = if is_v1_bound_without_high_tip { 1.into() } else { tx_version.0 };
     if flags.only_query {
-        version += *QUERY_VERSION_BASE;
+        version += QUERY_VERSION_BASE;
     }
     version
 }

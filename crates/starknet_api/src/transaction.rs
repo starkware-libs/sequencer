@@ -1,5 +1,3 @@
-use std::sync::LazyLock;
-
 use apollo_sizeof::SizeOf;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
@@ -53,10 +51,7 @@ mod transaction_test;
 pub mod constants;
 pub mod fields;
 
-pub static QUERY_VERSION_BASE: LazyLock<Felt> = LazyLock::new(|| {
-    const QUERY_VERSION_BASE_BIT: u32 = 128;
-    Felt::TWO.pow(QUERY_VERSION_BASE_BIT)
-});
+pub const QUERY_VERSION_BASE: Felt = Felt::from_hex_unchecked("0x100000000000000000000000000000000");
 
 pub trait TransactionHasher {
     fn calculate_transaction_hash(
@@ -968,7 +963,7 @@ pub fn signed_tx_version(
     transaction_options: &TransactionOptions,
 ) -> TransactionVersion {
     // If only_query is true, set the 128-th bit.
-    let query_only_bit = *QUERY_VERSION_BASE;
+    let query_only_bit = QUERY_VERSION_BASE;
     assert_eq!(
         tx_version.0.to_biguint() & query_only_bit.to_biguint(),
         BigUint::from(0_u8),

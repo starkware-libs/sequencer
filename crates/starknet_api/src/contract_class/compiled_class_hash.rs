@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::sync::LazyLock;
 
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_lang_starknet_classes::NestedIntList;
@@ -10,8 +9,8 @@ use starknet_types_core::hash::{Blake2Felt252, Poseidon, StarkHash};
 use crate::core::CompiledClassHash;
 
 /// Constant that defines the version of the compiled class hash algorithm.
-pub static COMPILED_CLASS_V1: LazyLock<Felt> =
-    LazyLock::new(|| Felt::from_bytes_be_slice(b"COMPILED_CLASS_V1"));
+pub const COMPILED_CLASS_V1: Felt =
+    Felt::from_hex_unchecked("0x434f4d50494c45445f434c4153535f5631");
 
 /// The version of the hash function used to compute the compiled class hash.
 #[derive(Clone, Copy, PartialEq)]
@@ -169,7 +168,7 @@ where
 
     // Compute total hash by hashing each component on top of the previous one.
     CompiledClassHash(H::hash_array(&[
-        *COMPILED_CLASS_V1,
+        COMPILED_CLASS_V1,
         external_funcs_hash,
         l1_handlers_hash,
         constructors_hash,

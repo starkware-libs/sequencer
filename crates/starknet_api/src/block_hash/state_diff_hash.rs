@@ -1,16 +1,7 @@
-use std::sync::LazyLock;
-
 use indexmap::IndexMap;
 use starknet_types_core::felt::Felt;
 
-use crate::core::{
-    ascii_as_felt,
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    Nonce,
-    StateDiffCommitment,
-};
+use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, StateDiffCommitment};
 use crate::crypto::utils::HashChain;
 use crate::hash::PoseidonHash;
 use crate::state::{StorageKey, ThinStateDiff};
@@ -19,9 +10,8 @@ use crate::state::{StorageKey, ThinStateDiff};
 #[path = "state_diff_hash_test.rs"]
 mod state_diff_hash_test;
 
-static STARKNET_STATE_DIFF0: LazyLock<Felt> = LazyLock::new(|| {
-    ascii_as_felt("STARKNET_STATE_DIFF0").expect("ascii_as_felt failed for 'STARKNET_STATE_DIFF0'")
-});
+const STARKNET_STATE_DIFF0: Felt =
+    Felt::from_hex_unchecked("0x535441524b4e45545f53544154455f4449464630");
 
 /// Poseidon(
 ///     "STARKNET_STATE_DIFF0", deployed_contracts, declared_classes, deprecated_declared_classes,

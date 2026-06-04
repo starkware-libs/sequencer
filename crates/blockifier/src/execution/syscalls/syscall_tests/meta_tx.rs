@@ -96,8 +96,8 @@ fn test_meta_tx_v0(
     let nonce: Felt252 = 13.into();
     let tx_hash: Felt252 = 0xabcdef.into();
     let account_address: ContractAddress = 0xfedcba0000_u128.into();
-    let expected_version = felt!(3_u32) + (if only_query { *QUERY_VERSION_BASE } else { 0.into() });
-    let expected_meta_tx_version = if only_query { *QUERY_VERSION_BASE } else { 0.into() };
+    let expected_version = felt!(3_u32) + (if only_query { QUERY_VERSION_BASE } else { 0.into() });
+    let expected_meta_tx_version = if only_query { QUERY_VERSION_BASE } else { 0.into() };
 
     let expected_meta_tx_hash = InvokeTransactionV0 {
         max_fee: Fee(0),

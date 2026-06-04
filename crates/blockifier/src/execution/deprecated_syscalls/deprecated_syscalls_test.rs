@@ -579,7 +579,7 @@ fn test_tx_info(
     let mut version = felt!(3_u8);
     let mut expected_version = if v1_bound_account && !high_tip { felt!(1_u8) } else { version };
     if only_query {
-        let simulate_version_base = *QUERY_VERSION_BASE;
+        let simulate_version_base = QUERY_VERSION_BASE;
         version += simulate_version_base;
         expected_version += simulate_version_base;
     }

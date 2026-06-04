@@ -20,7 +20,7 @@ pub mod testing_instances;
 pub mod objects;
 use std::cell::Cell;
 use std::collections::BTreeMap;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_config::dumping::{ser_param, SerializeConfig};
@@ -63,7 +63,7 @@ use starknet_api::block::{
     StarknetVersion,
 };
 use starknet_api::contract_class::{ClassInfo, EntryPointType, SierraVersion};
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector, PatriciaKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::{StateNumber, ThinStateDiff};
@@ -84,7 +84,6 @@ use starknet_api::transaction::{
 use starknet_api::transaction_hash::get_transaction_hash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::StarknetApiError;
-use starknet_types_core::felt::Felt;
 use state_reader::ExecutionStateReader;
 use tokio::runtime::Handle;
 use tracing::trace;
@@ -103,22 +102,12 @@ const DEFAULT_INITIAL_GAS_COST: u64 = 10000000000;
 pub type ExecutionResult<T> = Result<T, ExecutionError>;
 
 /// The address of the STRK fee contract on Starknet.
-pub static STRK_FEE_CONTRACT_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
-    ContractAddress::try_from(
-        Felt::from_hex(STRK_FEE_CONTRACT_ADDRESS_STR)
-            .expect("Error converting strk fee contract address from hex"),
-    )
-    .expect("Error converting strk fee contract address from felt")
-});
+pub const STRK_FEE_CONTRACT_ADDRESS: ContractAddress =
+    ContractAddress(PatriciaKey::from_hex_unchecked(STRK_FEE_CONTRACT_ADDRESS_STR));
 
 /// The address of the ETH fee contract on Starknet.
-pub static ETH_FEE_CONTRACT_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
-    ContractAddress::try_from(
-        Felt::from_hex(ETH_FEE_CONTRACT_ADDRESS_STR)
-            .expect("Error converting eth fee contract address from hex"),
-    )
-    .expect("Error converting eth fee contract address from felt")
-});
+pub const ETH_FEE_CONTRACT_ADDRESS: ContractAddress =
+    ContractAddress(PatriciaKey::from_hex_unchecked(ETH_FEE_CONTRACT_ADDRESS_STR));
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
 /// Parameters that are needed for execution.
@@ -134,8 +123,8 @@ pub struct ExecutionConfig {
 impl Default for ExecutionConfig {
     fn default() -> Self {
         ExecutionConfig {
-            strk_fee_contract_address: *STRK_FEE_CONTRACT_ADDRESS,
-            eth_fee_contract_address: *ETH_FEE_CONTRACT_ADDRESS,
+            strk_fee_contract_address: STRK_FEE_CONTRACT_ADDRESS,
+            eth_fee_contract_address: ETH_FEE_CONTRACT_ADDRESS,
             default_initial_gas_cost: DEFAULT_INITIAL_GAS_COST,
         }
     }
