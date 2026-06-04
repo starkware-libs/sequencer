@@ -8,12 +8,18 @@ use apollo_batcher_config::config::{
     FirstBlockWithPartialBlockHash,
 };
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
+#[cfg(feature = "os_input")]
+use apollo_committer_types::committer_types::ReadPathsAndCommitBlockResponse;
 use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
 use apollo_committer_types::communication::MockCommitterClient;
 use apollo_committer_types::test_utils::MockCommitterClientWithOffset;
 use apollo_l1_events_types::MockL1EventsProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
+#[cfg(feature = "os_input")]
+use apollo_storage::accessed_keys::AccessedKeys;
+#[cfg(feature = "os_input")]
+use apollo_storage::patricia_proofs::{ContractsTrieProof, StarknetForestProofs};
 use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::BlockExecutionSummary;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
@@ -294,6 +300,15 @@ impl Default for MockClients {
         committer_client_inner.expect_revert_block().returning(|_| {
             Box::pin(async { Ok(RevertBlockResponse::RevertedTo(GlobalRoot::default())) })
         });
+        #[cfg(feature = "os_input")]
+        committer_client_inner.expect_read_paths_and_commit_block().returning(|_| {
+            Box::pin(async {
+                Ok(ReadPathsAndCommitBlockResponse {
+                    global_root: GlobalRoot::default(),
+                    patricia_proofs: empty_patricia_proofs(),
+                })
+            })
+        });
         let committer_client =
             MockCommitterClientWithOffset::new(committer_client_inner, Some(INITIAL_HEIGHT));
 
@@ -329,6 +344,8 @@ impl Default for MockDependencies {
             .returning(|_| {
                 Ok((Some(BlockHash::default()), Some(PartialBlockHashComponents::default())))
             });
+        #[cfg(feature = "os_input")]
+        storage_reader.expect_get_accessed_keys().returning(|_| Ok(Some(AccessedKeys::default())));
 
         let batcher_config = BatcherConfig {
             static_config: BatcherStaticConfig {
@@ -373,6 +390,15 @@ pub async fn wait_for_n_items<T>(receiver: &mut Receiver<T>, expected_n_results:
         &format!("Timed out waiting for {} items in channel.", expected_n_results),
     )
     .await;
+}
+
+#[cfg(feature = "os_input")]
+pub(crate) fn empty_patricia_proofs() -> StarknetForestProofs {
+    StarknetForestProofs {
+        classes_trie_proof: HashMap::new(),
+        contracts_trie_proof: ContractsTrieProof { nodes: HashMap::new(), leaves: HashMap::new() },
+        contracts_trie_storage_proofs: HashMap::new(),
+    }
 }
 
 pub fn get_number_of_items_in_channel_from_sender<T>(sender: &Sender<T>) -> usize {

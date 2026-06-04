@@ -36,6 +36,8 @@ use apollo_mempool_types::communication::{
 };
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+#[cfg(feature = "os_input")]
+use apollo_storage::accessed_keys::AccessedKeys;
 use apollo_storage::db::DbError;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
@@ -1192,6 +1194,8 @@ async fn add_sync_block(
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_state_diff_height().returning(move || Ok(block_number));
     storage_reader.expect_global_root_height().returning(move || Ok(block_number));
+    #[cfg(feature = "os_input")]
+    storage_reader.expect_get_accessed_keys().returning(|_| Ok(Some(AccessedKeys::default())));
 
     let mut storage_writer = MockBatcherStorageWriter::new();
     storage_writer
@@ -1342,6 +1346,8 @@ async fn add_sync_block_for_first_new_block() {
     storage_reader
         .expect_global_root_height()
         .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
+    #[cfg(feature = "os_input")]
+    storage_reader.expect_get_accessed_keys().returning(|_| Ok(Some(AccessedKeys::default())));
     let mut mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
 
     // Expect setting the block hash for the last old block (i.e the parent of the first new block).
