@@ -23,13 +23,14 @@ use blockifier_reexecution::state_reader::prefetched_state_reader::{
 use blockifier_reexecution::state_reader::rpc_objects::{BlockHeader, BlockId};
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockInfo};
+use starknet_api::block::{BlockHash, BlockInfo, StarknetVersion};
 use starknet_api::block_hash::block_hash_calculator::{concat_counts, BlockHeaderCommitments};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{InvokeTransaction, MessageToL1, Transaction, TransactionHash};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+use starknet_api::StarknetApiError;
 use tracing::error;
 
 use crate::errors::VirtualBlockExecutorError;
@@ -75,6 +76,9 @@ impl Default for RpcVirtualBlockExecutorConfig {
 /// This struct contains all the execution data needed for proof generation.
 pub(crate) struct BaseBlockInfo {
     pub(crate) block_context: BlockContext,
+    /// The base block's version string exactly as returned by the RPC; may be newer than the
+    /// latest known `StarknetVersion`. The OS uses it to recompute the base block hash.
+    pub(crate) raw_starknet_version: String,
     /// The block hash of the base block,
     /// in which the virtual block is executed.
     pub(crate) base_block_hash: BlockHash,
@@ -91,7 +95,7 @@ impl BaseBlockInfo {
     /// When `use_latest_versioned_constants` is `true`, the latest versioned constants are used
     /// instead of the ones matching the block's Starknet version.
     pub(crate) fn new(
-        header: BlockHeader,
+        mut header: BlockHeader,
         chain_info: ChainInfo,
         use_latest_versioned_constants: bool,
     ) -> Result<Self, VirtualBlockExecutorError> {
@@ -110,6 +114,17 @@ impl BaseBlockInfo {
             ),
         };
 
+        let raw_starknet_version = header.starknet_version.clone();
+        // Versions newer than the latest known one are executed with the latest known semantics;
+        // the raw version string is kept separately so the OS recomputes the on-chain block hash
+        // from the exact version string.
+        header.starknet_version = starknet_version_or_latest(&raw_starknet_version)
+            .map_err(|e| {
+                VirtualBlockExecutorError::TransactionExecutionError(format!(
+                    "Unsupported starknet version in block header: {e}"
+                ))
+            })?
+            .to_string();
         let block_info: BlockInfo = header.try_into().map_err(|e| {
             VirtualBlockExecutorError::TransactionExecutionError(format!(
                 "Failed to convert block header to block info: {e}"
@@ -141,10 +156,29 @@ impl BaseBlockInfo {
 
         Ok(BaseBlockInfo {
             block_context,
+            raw_starknet_version,
             base_block_hash,
             base_block_header_commitments,
             prev_base_block_hash,
         })
+    }
+}
+
+/// Returns the [StarknetVersion] matching the given version string, falling back to
+/// [StarknetVersion::LATEST] for versions newer than `LATEST`, so blocks of versions unknown to
+/// this binary are executed with the latest known semantics. Unknown versions that are not newer
+/// than `LATEST` are errors: all historical versions exist as enum variants, so such a version
+/// cannot appear in a real block header.
+fn starknet_version_or_latest(version_string: &str) -> Result<StarknetVersion, StarknetApiError> {
+    match StarknetVersion::try_from(version_string) {
+        // `InvalidStarknetVersion` carries the parsed version segments, whose lexicographic order
+        // matches version order.
+        Err(StarknetApiError::InvalidStarknetVersion(segments))
+            if segments > Vec::<u8>::from(StarknetVersion::LATEST) =>
+        {
+            Ok(StarknetVersion::LATEST)
+        }
+        result => result,
     }
 }
 
