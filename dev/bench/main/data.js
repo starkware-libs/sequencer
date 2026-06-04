@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780507395713,
+  "lastUpdate": 1780574112703,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5269,6 +5269,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1313.5723835899998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asaf@starkware.co",
+            "name": "asaf-sw",
+            "username": "asaf-sw"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b10c5e7abd9dc17c9a49701a0605f408df672478",
+          "message": "starknet_patricia: remove stale allow(dead_code) (#14376)\n\nThe `OriginalSkeletonTree::get_sorted_leaf_indices` trait method was annotated\nwith `#[allow(dead_code)]`, but it is live:\n- Called in production at `updated_skeleton_tree/create_tree_helper.rs:97`\n  (`finalize_middle_layers`, a non-test `pub(crate)` method), via\n  `original_skeleton.get_sorted_leaf_indices()` where `original_skeleton:\n  &impl OriginalSkeletonTree`.\n- The `OriginalSkeletonTree` trait is also public API used cross-crate by\n  `starknet_committer`.\n\n(Note: the similarly-named `SubTreeTrait::get_sorted_leaf_indices` in\n`traversal.rs` is a different method on a different trait.)\n\nRemoved only the annotation; no behavior change. Verified the lib and test\nbuilds compile with no dead_code warnings.\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-06-04T11:42:30Z",
+          "tree_id": "520be5d8a2120e9dcbe19843b736cb84ebc10aca",
+          "url": "https://github.com/starkware-libs/sequencer/commit/b10c5e7abd9dc17c9a49701a0605f408df672478"
+        },
+        "date": 1780574112177,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 901.57568549,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1352.58443925,
             "unit": "ms"
           }
         ]
