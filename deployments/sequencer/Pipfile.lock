@@ -128,11 +128,11 @@
         },
         "jsii": {
             "hashes": [
-                "sha256:37664c25ac8dfaf6c1bab214ff58eec62d515e70311c349240b43bdd733beccb",
-                "sha256:895b1f27f67e1fac3797abeeeb0ded0e1a64a155a32e1547174735d293eca0cb"
+                "sha256:22aa450dc9538952453dcd4e51de0b9e92e3c94a6b4e468832acbcbd7b124b57",
+                "sha256:c2288ce3568222883e1620dc9c2f2477331d36a4925a84711cf48297ee13cb50"
             ],
-            "markers": "python_version ~= '3.9'",
-            "version": "==1.125.0"
+            "markers": "python_version >= '3.10'",
+            "version": "==1.134.0"
         },
         "jsonschema": {
             "hashes": [
