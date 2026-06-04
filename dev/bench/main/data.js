@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780574112703,
+  "lastUpdate": 1780577030601,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5303,6 +5303,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1352.58443925,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "144585602+eitanm-starkware@users.noreply.github.com",
+            "name": "eitanm-starkware",
+            "username": "eitanm-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3a75386d22b72ae607605b7e677e408b996d2366",
+          "message": "apollo_node: migrate Starknet docs URLs to new paths (#14295)\n\nUpdate documentation links per docs.starknet.io site restructure.\n\nCo-authored-by: Eitan Moed <eitan@Eitan-mac.local>\nCo-authored-by: Cursor <cursoragent@cursor.com>",
+          "timestamp": "2026-06-04T12:31:17Z",
+          "tree_id": "95c50909c5e448b41afd4eb439de60e28a544016",
+          "url": "https://github.com/starkware-libs/sequencer/commit/3a75386d22b72ae607605b7e677e408b996d2366"
+        },
+        "date": 1780577030072,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 867.55074123,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1288.01290592,
             "unit": "ms"
           }
         ]
