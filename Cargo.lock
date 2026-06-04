@@ -926,6 +926,8 @@ dependencies = [
  "serde",
  "starknet-types-core",
  "starknet_api",
+ "starknet_committer",
+ "starknet_patricia",
  "strum",
  "tempfile",
  "thiserror 1.0.69",
