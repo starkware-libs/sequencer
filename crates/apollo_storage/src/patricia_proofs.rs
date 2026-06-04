@@ -5,7 +5,10 @@
 mod patricia_proofs_test;
 
 use starknet_api::block::BlockNumber;
-pub use starknet_committer::patricia_merkle_tree::types::StarknetForestProofs;
+pub use starknet_committer::patricia_merkle_tree::types::{
+    ContractsTrieProof,
+    StarknetForestProofs,
+};
 
 use crate::compression_utils::{compress, decompress};
 use crate::db::serialization::{StorageSerde, StorageSerdeError};
