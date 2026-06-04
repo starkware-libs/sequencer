@@ -88,6 +88,10 @@ service:
     port: 53080
     targetPort: 53080
     protocol: TCP
+  - name: proof-manager
+    port: 55012
+    targetPort: 55012
+    protocol: TCP
   - name: signature-manager
     port: 55008
     targetPort: 55008
