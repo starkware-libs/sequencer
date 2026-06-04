@@ -14,6 +14,7 @@ os_input = [
   "apollo_reverts/os_input",
   "apollo_storage/os_input",
   "dep:starknet_committer",
+  "dep:starknet_patricia",
 ]
 testing = []
 
@@ -50,6 +51,7 @@ reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true
 starknet_api.workspace = true
 starknet_committer = { workspace = true, optional = true }
+starknet_patricia = { workspace = true, optional = true }
 strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio.workspace = true

@@ -907,10 +907,14 @@ impl Batcher {
         )
         .await?;
 
+        // Synced blocks are not executed locally, so no accessed keys are available; the block is
+        // committed via `CommitBlock`.
         self.write_commitment_results_and_add_new_task(
             height,
             state_diff,
             optional_state_diff_commitment,
+            #[cfg(feature = "os_input")]
+            None,
         )
         .await?;
 
@@ -975,7 +979,7 @@ impl Batcher {
                 .unzip();
 
         #[cfg(feature = "os_input")]
-        self.write_block_accessed_keys(
+        let accessed_keys = self.write_block_accessed_keys(
             height,
             &block_execution_artifacts.commitment_state_diff,
             &block_execution_artifacts.execution_data.proof_facts_block_numbers,
@@ -986,6 +990,8 @@ impl Batcher {
             height,
             state_diff.clone(), // TODO(Nimrod): Remove the clone here.
             Some(state_diff_commitment),
+            #[cfg(feature = "os_input")]
+            Some(accessed_keys),
         )
         .await?;
 
@@ -1536,6 +1542,7 @@ impl Batcher {
         height: BlockNumber,
         state_diff: ThinStateDiff,
         optional_state_diff_commitment: Option<StateDiffCommitment>,
+        #[cfg(feature = "os_input")] accessed_keys: Option<AccessedKeys>,
     ) -> BatcherResult<()> {
         self.get_commitment_results_and_write_to_storage()?;
         self.commitment_manager
@@ -1546,6 +1553,8 @@ impl Batcher {
                 &self.config.static_config.first_block_with_partial_block_hash,
                 self.storage_reader.clone(),
                 &mut self.storage_writer,
+                #[cfg(feature = "os_input")]
+                accessed_keys,
             )
             .await
             .expect("The commitment offset unexpectedly doesn't match the given block height.");
