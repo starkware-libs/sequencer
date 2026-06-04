@@ -20,8 +20,6 @@ pub(crate) const HISTOGRAM_TIME_RANGE: &str = "5m";
 pub(crate) enum PanelType {
     Stat,
     TimeSeries,
-    #[allow(dead_code)] // TODO(Ron): use BarGauge in panels
-    BarGauge,
     PieChart,
 }
 
@@ -60,10 +58,7 @@ impl Serialize for Unit {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ThresholdMode {
-    #[allow(dead_code)] // TODO(Ron): use in panels
     Absolute,
-    #[allow(dead_code)] // TODO(Ron): use in panels
-    Percentage,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -82,7 +77,6 @@ pub struct Thresholds {
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
 pub struct ExtraParams {
     pub unit: Option<Unit>,
-    pub show_percent_change: Option<bool>,
     pub log_query: Option<String>,
     pub log_comment: Option<String>,
     pub thresholds: Option<Thresholds>,
@@ -155,18 +149,6 @@ impl Panel {
         self.extra.unit = Some(unit);
         self
     }
-    #[allow(dead_code)] // TODO(Ron): use in panels
-    pub fn show_percent_change(mut self) -> Self {
-        assert_eq!(
-            self.panel_type,
-            PanelType::Stat,
-            "show_percent_change is only supported on Stat panels; got {:?}",
-            self.panel_type
-        );
-        self.extra.show_percent_change = Some(true);
-        self
-    }
-
     fn quote_if_missing(s: &str) -> String {
         if s.contains('"') { s.to_string() } else { format!("\"{}\"", s) }
     }
@@ -176,7 +158,6 @@ impl Panel {
         self.extra.log_query = Some(query);
         self
     }
-    #[allow(dead_code)] // TODO(Ron): use in panels
     pub fn with_log_comment(mut self, log_comment: impl Into<String>) -> Self {
         let comment = Self::quote_if_missing(&log_comment.into());
         self.extra.log_comment = Some(format!("-- {}", comment));
@@ -254,12 +235,6 @@ impl Panel {
     /// - RGB/HSL: "rgb(255,0,0)", "hsl(120,100%,50%)", etc.
     pub fn with_absolute_thresholds(self, steps: Vec<(impl ToString, Option<f64>)>) -> Self {
         self.with_thresholds(ThresholdMode::Absolute, steps)
-    }
-
-    #[allow(dead_code)] // TODO(Ron): use in panels
-    // Percentage means relative to min and max.
-    pub fn with_percentage_thresholds(self, steps: Vec<(impl ToString, Option<f64>)>) -> Self {
-        self.with_thresholds(ThresholdMode::Percentage, steps)
     }
 
     pub(crate) fn ratio_time_series(
