@@ -57,6 +57,11 @@ impl SierraToNativeCompiler {
 }
 
 // Returns the OUT_DIR. This function is only operable at run time.
+// The compile-time fallback bakes the build machine's OUT_DIR into the binary, which breaks
+// prebuilt binaries on machines where that path does not exist; setting
+// `RUNTIME_ACCESSIBLE_OUT_DIR` in the runtime environment overrides it.
 fn out_dir() -> PathBuf {
-    env!("RUNTIME_ACCESSIBLE_OUT_DIR").into()
+    std::env::var("RUNTIME_ACCESSIBLE_OUT_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| env!("RUNTIME_ACCESSIBLE_OUT_DIR").into())
 }
