@@ -47,7 +47,11 @@ use apollo_reverts::revert_block;
 use apollo_state_reader::apollo_state::ApolloReader;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 #[cfg(feature = "os_input")]
-use apollo_storage::accessed_keys::{AccessedKeys, AccessedKeysStorageWriter};
+use apollo_storage::accessed_keys::{
+    AccessedKeys,
+    AccessedKeysStorageReader,
+    AccessedKeysStorageWriter,
+};
 use apollo_storage::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
 use apollo_storage::global_root::{GlobalRootStorageReader, GlobalRootStorageWriter};
 use apollo_storage::global_root_marker::{
@@ -958,13 +962,6 @@ impl Batcher {
         )
         .await?;
 
-        self.write_commitment_results_and_add_new_task(
-            height,
-            state_diff.clone(), // TODO(Nimrod): Remove the clone here.
-            Some(state_diff_commitment),
-        )
-        .await?;
-
         let (tx_hashes, tx_execution_infos): (Vec<TransactionHash>, Vec<TransactionExecutionInfo>) =
             block_execution_artifacts
                 .execution_data
@@ -980,6 +977,13 @@ impl Batcher {
             &block_execution_artifacts.execution_data.proof_facts_block_numbers,
             &tx_execution_infos,
         )?;
+
+        self.write_commitment_results_and_add_new_task(
+            height,
+            state_diff.clone(), // TODO(Nimrod): Remove the clone here.
+            Some(state_diff_commitment),
+        )
+        .await?;
 
         let execution_infos = tx_hashes.into_iter().zip(tx_execution_infos.into_iter()).collect();
 
@@ -1010,6 +1014,7 @@ impl Batcher {
         })
     }
 
+    /// Builds the accessed keys for the block, persists them to storage, and returns them.
     #[cfg(feature = "os_input")]
     fn write_block_accessed_keys(
         &mut self,
@@ -1017,7 +1022,7 @@ impl Batcher {
         commitment_state_diff: &CommitmentStateDiff,
         proof_facts_block_numbers: &IndexMap<TransactionHash, BlockNumber>,
         tx_execution_infos: &[TransactionExecutionInfo],
-    ) -> BatcherResult<()> {
+    ) -> BatcherResult<AccessedKeys> {
         let accessed_keys = AccessedKeys::new(
             tx_execution_infos.iter(),
             proof_facts_block_numbers.values(),
@@ -1027,7 +1032,8 @@ impl Batcher {
         self.storage_writer.write_accessed_keys(height, &accessed_keys).map_err(|err| {
             error!("Failed to write accessed keys to storage: {}", err);
             BatcherError::InternalError
-        })
+        })?;
+        Ok(accessed_keys)
     }
 
     async fn commit_proposal_and_block(
@@ -1695,6 +1701,9 @@ pub trait BatcherStorageReader: Send + Sync {
     ) -> StorageResult<(Option<BlockHash>, Option<PartialBlockHashComponents>)>;
 
     fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<BlockHeaderWithoutHash>;
+
+    #[cfg(feature = "os_input")]
+    fn get_accessed_keys(&self, height: BlockNumber) -> StorageResult<Option<AccessedKeys>>;
 }
 
 impl BatcherStorageReader for StorageReader {
@@ -1801,6 +1810,11 @@ impl BatcherStorageReader for StorageReader {
                 resource_type: "block header".to_string(),
                 resource_id: block_number.to_string(),
             })
+    }
+
+    #[cfg(feature = "os_input")]
+    fn get_accessed_keys(&self, height: BlockNumber) -> StorageResult<Option<AccessedKeys>> {
+        self.begin_ro_txn()?.get_accessed_keys(height)
     }
 }
 
