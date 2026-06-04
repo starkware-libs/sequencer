@@ -7,8 +7,12 @@ use apollo_batcher_config::config::{
     CommitmentManagerConfig,
     FirstBlockWithPartialBlockHash,
 };
+#[cfg(feature = "os_input")]
+use apollo_committer_types::committer_types::ReadPathsAndCommitBlockResponse;
 use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
 use apollo_committer_types::communication::MockCommitterClient;
+#[cfg(feature = "os_input")]
+use apollo_storage::accessed_keys::AccessedKeys;
 use apollo_storage::StorageResult;
 use assert_matches::assert_matches;
 use mockall::predicate::eq;
@@ -16,6 +20,8 @@ use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
+#[cfg(feature = "os_input")]
+use starknet_committer::patricia_merkle_tree::types::StateCommitmentInfos;
 use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::batcher::{MockBatcherStorageReader, MockBatcherStorageWriter};
@@ -59,8 +65,25 @@ fn mock_dependencies() -> MockDependencies {
     committer_client.expect_revert_block().returning(|_| {
         Box::pin(async { Ok(RevertBlockResponse::RevertedTo(GlobalRoot::default())) })
     });
+    #[cfg(feature = "os_input")]
+    committer_client.expect_read_paths_and_commit_block().returning(|_| {
+        Box::pin(async {
+            Ok(ReadPathsAndCommitBlockResponse {
+                global_root: GlobalRoot::default(),
+                state_commitment_infos: StateCommitmentInfos::default(),
+            })
+        })
+    });
+    #[cfg(not(feature = "os_input"))]
+    let storage_reader = MockBatcherStorageReader::new();
+    #[cfg(feature = "os_input")]
+    let storage_reader = {
+        let mut storage_reader = MockBatcherStorageReader::new();
+        storage_reader.expect_get_accessed_keys().returning(|_| Ok(Some(AccessedKeys::default())));
+        storage_reader
+    };
     MockDependencies {
-        storage_reader: MockBatcherStorageReader::new(),
+        storage_reader,
         storage_writer: Box::new(MockBatcherStorageWriter::new()),
         batcher_config,
         committer_client,
@@ -141,6 +164,8 @@ async fn fill_channels(
             first_block_with_partial_block_hash,
             storage_reader.clone(),
             storage_writer,
+            #[cfg(feature = "os_input")]
+            Some(AccessedKeys::default()),
         )
         .await
         .unwrap_or_else(|_| panic!("Failed to add commitment task with correct height."));
@@ -159,6 +184,8 @@ async fn fill_channels(
             first_block_with_partial_block_hash,
             storage_reader.clone(),
             storage_writer,
+            #[cfg(feature = "os_input")]
+            Some(AccessedKeys::default()),
         )
         .await
         .unwrap_or_else(|_| panic!("Failed to add commitment task with correct height."));
@@ -171,6 +198,8 @@ async fn fill_channels(
             first_block_with_partial_block_hash,
             storage_reader.clone(),
             storage_writer,
+            #[cfg(feature = "os_input")]
+            Some(AccessedKeys::default()),
         )
         .await
         .unwrap_or_else(|_| panic!("Failed to add commitment task with correct height."));
@@ -240,6 +269,64 @@ async fn test_add_missing_commitment_tasks(mut mock_dependencies: MockDependenci
     assert_eq!(result.height, global_root_height);
 }
 
+/// When no accessed keys are stored for a height, the catch-up flow must fall back to `CommitBlock`
+/// (not `ReadPathsAndCommitBlock`).
+#[cfg(feature = "os_input")]
+#[rstest]
+#[tokio::test]
+async fn test_add_missing_commitment_tasks_without_accessed_keys(
+    mut mock_dependencies: MockDependencies,
+) {
+    let global_root_height = INITIAL_HEIGHT.prev().unwrap();
+    // Discard the fixture's catch-all expectations; mockall matches expectations in FIFO order,
+    // so they would shadow the diverging expectations this test sets below.
+    mock_dependencies.storage_reader.checkpoint();
+    mock_dependencies.committer_client.checkpoint();
+    mock_dependencies
+        .committer_client
+        .expect_commit_block()
+        .returning(|_| Box::pin(async { Ok(CommitBlockResponse::default()) }));
+    // The block has no stored accessed keys, so the witness-fetching endpoint must not be called.
+    mock_dependencies.committer_client.expect_read_paths_and_commit_block().never();
+
+    mock_dependencies
+        .storage_reader
+        .expect_global_root_height()
+        .returning(move || Ok(global_root_height));
+    mock_dependencies
+        .storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(global_root_height))
+        .returning(|height| get_dummy_parent_hash_and_partial_block_hash_components(&height));
+    mock_dependencies
+        .storage_reader
+        .expect_get_state_diff()
+        .with(eq(global_root_height))
+        .returning(|_| Ok(Some(test_state_diff())));
+    mock_dependencies
+        .storage_reader
+        .expect_get_accessed_keys()
+        .with(eq(global_root_height))
+        .returning(|_| Ok(None));
+
+    let batcher_config = mock_dependencies.batcher_config.clone();
+    let (mut commitment_manager, storage_reader, mut storage_writer) =
+        create_commitment_manager(mock_dependencies).await;
+
+    commitment_manager
+        .add_missing_commitment_tasks(
+            INITIAL_HEIGHT,
+            &batcher_config,
+            storage_reader,
+            &mut storage_writer,
+        )
+        .await;
+
+    let results = await_items(&mut commitment_manager.results_receiver, 1).await;
+    let result = results.first().unwrap().clone().expect_commitment();
+    assert_eq!(result.height, global_root_height);
+}
+
 #[rstest]
 #[tokio::test]
 async fn test_add_commitment_task(mut mock_dependencies: MockDependencies) {
@@ -260,6 +347,8 @@ async fn test_add_commitment_task(mut mock_dependencies: MockDependencies) {
             &None,
             storage_reader.clone(),
             &mut storage_writer,
+            #[cfg(feature = "os_input")]
+            Some(AccessedKeys::default()),
         )
         .await;
     assert_matches!(
@@ -282,6 +371,8 @@ async fn test_add_commitment_task(mut mock_dependencies: MockDependencies) {
             &None,
             storage_reader.clone(),
             &mut storage_writer,
+            #[cfg(feature = "os_input")]
+            Some(AccessedKeys::default()),
         )
         .await
         .unwrap_or_else(|_| panic!("Failed to add commitment task with correct height."));
@@ -330,6 +421,8 @@ async fn test_add_task_wait_for_full_channel(mut mock_dependencies: MockDependen
             &None,
             storage_reader.clone(),
             &mut storage_writer,
+            #[cfg(feature = "os_input")]
+            Some(AccessedKeys::default()),
         )
         .await
         .unwrap();
@@ -388,6 +481,8 @@ async fn test_add_task_panic_on_full_channel(mut mock_dependencies: MockDependen
             &None,
             storage_reader.clone(),
             &mut storage_writer,
+            #[cfg(feature = "os_input")]
+            Some(AccessedKeys::default()),
         )
         .await
         .expect("This call should panic.")
@@ -422,6 +517,8 @@ async fn test_get_commitment_results(mut mock_dependencies: MockDependencies) {
             &None,
             storage_reader.clone(),
             &mut storage_writer,
+            #[cfg(feature = "os_input")]
+            Some(AccessedKeys::default()),
         )
         .await
         .unwrap();
@@ -433,6 +530,8 @@ async fn test_get_commitment_results(mut mock_dependencies: MockDependencies) {
             &None,
             storage_reader,
             &mut storage_writer,
+            #[cfg(feature = "os_input")]
+            Some(AccessedKeys::default()),
         )
         .await
         .unwrap();
@@ -461,6 +560,8 @@ async fn add_commitments_and_revert_tasks(
                 &None,
                 storage_reader.clone(),
                 storage_writer,
+                #[cfg(feature = "os_input")]
+                Some(AccessedKeys::default()),
             )
             .await
             .unwrap();

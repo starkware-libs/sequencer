@@ -90,6 +90,7 @@ impl Default for CommitmentInfo {
 
 /// Contains all commitment information for a block's state trees.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[cfg_attr(any(feature = "testing", test), derive(Default))]
 pub struct StateCommitmentInfos {
     pub contracts_trie_commitment_info: CommitmentInfo,
     pub classes_trie_commitment_info: CommitmentInfo,

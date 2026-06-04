@@ -6,12 +6,16 @@ use apollo_batcher_config::config::{
     CommitmentManagerConfig,
     FirstBlockWithPartialBlockHash,
 };
+#[cfg(feature = "os_input")]
+use apollo_committer_types::committer_types::ReadPathsAndCommitBlockRequest;
 use apollo_committer_types::committer_types::{
     CommitBlockRequest,
     CommitBlockResponse,
     RevertBlockRequest,
 };
 use apollo_committer_types::communication::{CommitterRequestLabelValue, SharedCommitterClient};
+#[cfg(feature = "os_input")]
+use apollo_storage::accessed_keys::AccessedKeys as StorageAccessedKeys;
 use lru::LruCache;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
@@ -91,6 +95,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
 
     /// Adds a commitment task to the state committer. If the task height does not match the
     /// task offset, an error is returned.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn add_commitment_task<
         R: BatcherStorageReader + ?Sized,
         W: BatcherStorageWriter + ?Sized,
@@ -102,6 +107,9 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         first_block_with_partial_block_hash: &Option<FirstBlockWithPartialBlockHash>,
         storage_reader: Arc<R>,
         storage_writer: &mut Box<W>,
+        // When present, the task issues `ReadPathsAndCommitBlock` to also fetch the Patricia
+        // witnesses; otherwise it falls back to `CommitBlock`.
+        #[cfg(feature = "os_input")] accessed_keys: Option<StorageAccessedKeys>,
     ) -> CommitmentManagerResult<()> {
         if height != self.commitment_task_offset {
             return Err(CommitmentManagerError::WrongCommitmentTaskHeight {
@@ -110,19 +118,28 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 state_diff_commitment,
             });
         }
-        let commitment_task_input = CommitterTaskInput::Commit(CommitBlockRequest {
-            height,
-            state_diff,
-            state_diff_commitment,
-        });
+        let commit_request = CommitBlockRequest { height, state_diff, state_diff_commitment };
+        #[cfg(feature = "os_input")]
+        let task_input = match accessed_keys {
+            Some(accessed_keys) => {
+                CommitterTaskInput::ReadPathsAndCommitBlock(ReadPathsAndCommitBlockRequest {
+                    commit: commit_request,
+                    accessed_keys,
+                })
+            }
+            None => CommitterTaskInput::Commit(commit_request),
+        };
+        #[cfg(not(feature = "os_input"))]
+        let task_input = CommitterTaskInput::Commit(commit_request);
+        let commit_label = task_input.task_type();
         self.add_task_with_retries(
-            commitment_task_input,
+            task_input,
             first_block_with_partial_block_hash,
             storage_reader,
             storage_writer,
         )
         .await?;
-        self.successfully_added_commitment_task(height, state_diff_commitment);
+        self.successfully_added_commitment_task(height, state_diff_commitment, commit_label);
         Ok(())
     }
 
@@ -320,11 +337,12 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         &mut self,
         height: BlockNumber,
         state_diff_commitment: Option<StateDiffCommitment>,
+        commit_label: CommitterRequestLabelValue,
     ) {
-        self.task_timer.start_timer(CommitterRequestLabelValue::CommitBlock, height);
+        self.task_timer.start_timer(commit_label, height);
         debug!(
-            "Sent commitment task for block {height} and state diff {state_diff_commitment:?} to \
-             state committer."
+            "Sent {commit_label:?} task for block {height} and state diff \
+             {state_diff_commitment:?} to state committer."
         );
         self.increase_commitment_task_offset();
     }
@@ -399,6 +417,13 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 Err(err) => panic!("Failed to read hash commitment for height {height}: {err}"),
             }
         };
+        // If accessed keys were persisted for this height, the task fetches the Patricia witnesses
+        // via `ReadPathsAndCommitBlock`; otherwise it falls back to `CommitBlock`.
+        #[cfg(feature = "os_input")]
+        let accessed_keys =
+            batcher_storage_reader.get_accessed_keys(height).unwrap_or_else(|err| {
+                panic!("Failed to read accessed keys for height {height}: {err}")
+            });
         self.add_commitment_task(
             height,
             state_diff,
@@ -406,6 +431,8 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             &batcher_config.static_config.first_block_with_partial_block_hash,
             batcher_storage_reader,
             storage_writer,
+            #[cfg(feature = "os_input")]
+            accessed_keys,
         )
         .await
         .unwrap();
