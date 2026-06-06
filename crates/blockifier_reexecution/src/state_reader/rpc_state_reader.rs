@@ -138,7 +138,6 @@ pub struct RpcStateReader {
     pub(crate) retry_config: RetryConfig,
 
     pub chain_info: ChainInfo,
-    #[allow(dead_code)]
     pub(crate) contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
 }
 
