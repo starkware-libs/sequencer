@@ -219,8 +219,6 @@ async fn test_execute_with_prefetch() {
     .await
     .unwrap();
 
-    test_mode.finalize();
-
     let result = result.expect("execute with prefetch should succeed");
 
     assert_eq!(result.execution_outputs.len(), 1, "Should have exactly one execution output");
@@ -231,6 +229,8 @@ async fn test_execute_with_prefetch() {
         "Transaction should not revert. Error: {:?}",
         execution_info.revert_error
     );
+
+    test_mode.finalize();
 }
 
 /// Verifies that a transaction is rejected when the bouncer config has tight capacity limits.
