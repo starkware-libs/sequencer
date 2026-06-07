@@ -40,6 +40,8 @@ pub mod tls;
 pub use health::{HealthLayer, HEALTH_PATH};
 
 #[cfg(test)]
+mod cors_test;
+#[cfg(test)]
 mod rpc_spec_test;
 
 #[cfg(test)]
