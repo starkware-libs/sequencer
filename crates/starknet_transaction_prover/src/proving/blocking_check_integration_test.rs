@@ -16,11 +16,17 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::InvokeTransaction;
+use starknet_types_core::felt::Felt;
 use url::Url;
 
-use super::virtual_snos_prover::VirtualSnosProver;
 use crate::blocking_check::BlockingCheckClient;
 use crate::errors::{RunnerError, VirtualSnosProverError};
+use crate::proving::virtual_snos_prover::{
+    AdditionalData,
+    ProveTransactionResult,
+    ScreeningSignature,
+    VirtualSnosProver,
+};
 use crate::running::runner::{RunnerOutput, VirtualSnosRunner};
 use crate::test_utils::resource_bounds_for_client_side_tx;
 
@@ -122,6 +128,89 @@ async fn test_check_allowed_proceeds_to_proving() {
 
     let result = prove(&prover).await;
     assert_runner_error(&result);
+}
+
+#[tokio::test]
+async fn test_check_allowed_with_signature_proceeds_to_proving() {
+    let mut server = Server::new_async().await;
+    let _mock = server
+        .mock("POST", "/")
+        .with_status(200)
+        .with_body(
+            r#"{"jsonrpc":"2.0","result":{"allowed":true,"signature":{"issued_at":1716579600,"sig_r":"0x1","sig_s":"0x2"}},"id":1}"#,
+        )
+        .create_async()
+        .await;
+
+    let url = Url::parse(&server.url()).unwrap();
+    let client = BlockingCheckClient::new(url, TEST_TIMEOUT_MILLIS, true);
+    let prover = build_prover(MockRunner, Some(client));
+
+    // The MockRunner errors before producing a result, so the signature relay
+    // itself is covered by the serde tests below; this confirms a signed allow
+    // routes to proving rather than blocking.
+    let result = prove(&prover).await;
+    assert_runner_error(&result);
+}
+
+fn sample_screening_signature() -> ScreeningSignature {
+    ScreeningSignature {
+        issued_at: 1716579600,
+        sig_r: Felt::from_hex_unchecked("0x6e6f63c8"),
+        sig_s: Felt::from_hex_unchecked("0x58a68a71"),
+    }
+}
+
+#[test]
+fn test_additional_data_serializes_signature_as_hex_felts() {
+    let additional_data = AdditionalData { signature: Some(sample_screening_signature()) };
+    let json = serde_json::to_value(&additional_data).unwrap();
+    assert_eq!(
+        json,
+        serde_json::json!({
+            "signature": {
+                "issued_at": 1716579600_u64,
+                "sig_r": "0x6e6f63c8",
+                "sig_s": "0x58a68a71",
+            }
+        })
+    );
+}
+
+#[test]
+fn test_additional_data_roundtrip() {
+    let additional_data = AdditionalData { signature: Some(sample_screening_signature()) };
+    let json = serde_json::to_string(&additional_data).unwrap();
+    let deserialized: AdditionalData = serde_json::from_str(&json).unwrap();
+    assert_eq!(deserialized, additional_data);
+}
+
+#[test]
+fn test_additional_data_rejects_unknown_fields() {
+    let json = r#"{"signature":null,"unexpected_entry":1}"#;
+    assert!(serde_json::from_str::<AdditionalData>(json).is_err());
+}
+
+#[test]
+fn test_empty_additional_data_is_omitted_from_prove_result_json() {
+    // The committed mock fixture carries no additional_data; the field must
+    // deserialize to its empty default and stay absent on re-serialization.
+    let fixture = include_str!("../../resources/mock_proving_rpc/prove_transaction_result.json");
+    let result: ProveTransactionResult = serde_json::from_str(fixture).unwrap();
+    assert!(result.additional_data.is_empty());
+
+    let json = serde_json::to_value(&result).unwrap();
+    assert!(json.get("additional_data").is_none());
+}
+
+#[test]
+fn test_populated_additional_data_is_present_in_prove_result_json() {
+    let fixture = include_str!("../../resources/mock_proving_rpc/prove_transaction_result.json");
+    let mut result: ProveTransactionResult = serde_json::from_str(fixture).unwrap();
+    result.additional_data.signature = Some(sample_screening_signature());
+
+    let json = serde_json::to_value(&result).unwrap();
+    assert_eq!(json["additional_data"]["signature"]["sig_r"], "0x6e6f63c8");
 }
 
 #[tokio::test]

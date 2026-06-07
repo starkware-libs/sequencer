@@ -38,6 +38,31 @@ pub struct ProveTransactionResult {
     pub proof_facts: ProofFacts,
     /// Messages sent from L2 to L1 during execution.
     pub l2_to_l1_messages: Vec<MessageToL1>,
+    /// Typed side-channel attached alongside the proof; omitted from the JSON
+    /// response when empty.
+    #[serde(default, skip_serializing_if = "AdditionalData::is_empty")]
+    pub additional_data: AdditionalData,
+}
+
+/// Typed side-channel on the prove response.
+///
+/// Currently carries the screening signature for screened transactions; future
+/// capabilities add sibling optional keys. `deny_unknown_fields` catches schema
+/// drift early.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AdditionalData {
+    /// Screening signature for an allowed, screened transaction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signature: Option<ScreeningSignature>,
+}
+
+impl AdditionalData {
+    /// True when no entry is populated; an empty `additional_data` is omitted
+    /// from the serialized response.
+    pub fn is_empty(&self) -> bool {
+        self.signature.is_none()
+    }
 }
 
 /// Screening signature the external blocking check service attaches to an allowed,
@@ -250,22 +275,24 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
             tokio::time::timeout(timeout_duration, client.check_transaction(block_id, transaction))
                 .await;
 
-        let allow = match check_outcome {
+        // A transaction allowed via the fail-open policy (inconclusive check or
+        // timeout) carries no screening signature.
+        let (allow, screening_signature) = match check_outcome {
             Ok(BlockingCheckResult::Blocked) => {
                 info!("Transaction blocked by external check");
-                false
+                (false, None)
             }
-            Ok(BlockingCheckResult::Allowed(_)) => {
+            Ok(BlockingCheckResult::Allowed(signature)) => {
                 info!("Transaction allowed by external check");
-                true
+                (true, signature)
             }
             Ok(BlockingCheckResult::Inconclusive) => {
                 info!(fail_open = client.fail_open, "Blocking check inconclusive");
-                client.fail_open
+                (client.fail_open, None)
             }
             Err(_) => {
                 info!(fail_open = client.fail_open, "Blocking check timed out");
-                client.fail_open
+                (client.fail_open, None)
             }
         };
 
@@ -274,11 +301,13 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
             return Err(VirtualSnosProverError::TransactionBlocked);
         }
 
-        match prove_handle.await {
-            Ok(result) => result,
+        let mut result = match prove_handle.await {
+            Ok(prove_result) => prove_result?,
             Err(err) if err.is_panic() => std::panic::resume_unwind(err.into_panic()),
             Err(err) => unreachable!("prove task cancelled unexpectedly: {err}"),
-        }
+        };
+        result.additional_data.signature = screening_signature;
+        Ok(result)
     }
 
     /// Proves a Virtual Starknet OS run from its output.
@@ -345,6 +374,7 @@ async fn prove_virtual_snos_run_with_precomputes(
         proof: prover_output.proof,
         proof_facts,
         l2_to_l1_messages: runner_output.l2_to_l1_messages,
+        additional_data: AdditionalData::default(),
     })
 }
 
