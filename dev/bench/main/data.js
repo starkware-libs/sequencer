@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780577030601,
+  "lastUpdate": 1780825527644,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -5337,6 +5337,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1288.01290592,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "47b5a2fbadeece7330b424adcca04dd40334796b",
+          "message": "release: upgrade tokio to 1.53 (#14400)\n\nSigned-off-by: Dori Medini <dori@starkware.co>",
+          "timestamp": "2026-06-07T09:23:37Z",
+          "tree_id": "31d8def51a7943b322a9769cac4a848864b4da03",
+          "url": "https://github.com/starkware-libs/sequencer/commit/47b5a2fbadeece7330b424adcca04dd40334796b"
+        },
+        "date": 1780825527201,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 853.5552380800001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1313.27470626,
             "unit": "ms"
           }
         ]
