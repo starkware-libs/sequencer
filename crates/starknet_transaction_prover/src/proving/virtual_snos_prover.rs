@@ -106,16 +106,7 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
     /// This constructor allows using any runner implementation.
     #[allow(dead_code)]
     pub(crate) fn from_runner(runner: R) -> Self {
-        #[cfg(feature = "stwo_proving")]
-        let precomputes = prepare_recursive_prover_precomputes()
-            .expect("Failed to prepare recursive prover precomputes");
-        Self {
-            runner,
-            validate_zero_fee_fields: true,
-            blocking_check_client: None,
-            #[cfg(feature = "stwo_proving")]
-            precomputes,
-        }
+        Self::from_runner_with_options(runner, true, None)
     }
 
     /// Creates a new VirtualSnosProver from a runner with an optional blocking check client.
@@ -124,12 +115,32 @@ impl<R: VirtualSnosRunner + 'static> VirtualSnosProver<R> {
         runner: R,
         blocking_check_client: Option<BlockingCheckClient>,
     ) -> Self {
+        Self::from_runner_with_options(runner, true, blocking_check_client)
+    }
+
+    /// Creates a new VirtualSnosProver from a runner with fee-field validation disabled.
+    ///
+    /// Tests that drive the runner with non-zero resource bounds or tip use this so the request
+    /// reaches the runner instead of being rejected by the up-front fee-field check.
+    #[allow(dead_code)]
+    pub(crate) fn from_runner_without_fee_validation(runner: R) -> Self {
+        Self::from_runner_with_options(runner, false, None)
+    }
+
+    /// Shared constructor backing the `from_runner*` helpers; `validate_zero_fee_fields` mirrors the
+    /// `ProverConfig` field of the same name.
+    #[allow(dead_code)]
+    fn from_runner_with_options(
+        runner: R,
+        validate_zero_fee_fields: bool,
+        blocking_check_client: Option<BlockingCheckClient>,
+    ) -> Self {
         #[cfg(feature = "stwo_proving")]
         let precomputes = prepare_recursive_prover_precomputes()
             .expect("Failed to prepare recursive prover precomputes");
         Self {
             runner,
-            validate_zero_fee_fields: true,
+            validate_zero_fee_fields,
             blocking_check_client,
             #[cfg(feature = "stwo_proving")]
             precomputes,
