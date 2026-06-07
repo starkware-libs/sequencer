@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780501522121,
+  "lastUpdate": 1780848208684,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -169,6 +169,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1374.75226284,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "66b2ac270c2caea504f9b83fbda3f804458ab0d7",
+          "message": "workspace: bump privacy-circuit-verify-v1 and privacy-prove to v0.14.3 (#14409)\n\nFollow-up to #14254 (which moved both to v0.14.3-rc-1). v0.14.3 is the\nproving-utils tag of commit abdc99c (same commit as v0.14.3-rc-2). Upstream\nchanges since v0.14.3-rc-1:\n- PrivacyProofOutput gained a version field recording which privacy-prove\n  version generated the proof (proving-utils#349): populate it at the two\n  sequencer construction sites; the verifier ignores it.\n- stwo-circuits bumped 618db0a -> 24f39918 (proving-utils#361), changing the\n  circuit preprocessed root and therefore the on-chain proof bytes.\n\nSince the proof bytes change, regenerate the serialized proof fixtures:\n- proof_flow/proof.bin (apollo_integration_tests) via\n  `cargo +nightly-2025-07-14 test -p starknet_os_flow_tests --features\n  starknet_transaction_prover/stwo_proving --release generate_proof_fixtures\n  -- --ignored`\n- example_proof.bin (apollo_transaction_converter) via\n  `cargo +nightly-2025-07-14 test -p starknet_transaction_prover --features\n  stwo_proving --release -- --ignored regenerate_proof_fixtures`\n- regression_test/0.14.3/example_proof.bin (starknet_proof_verifier) is a\n  copy of the apollo_transaction_converter fixture.\nThe proof facts JSONs are unchanged: the circuit bump changes proof bytes but\nnot the program output.\n\nCo-authored-by: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-06-07T15:38:56Z",
+          "tree_id": "73fc72478d291b682c3d7befe477c164bca8a7b0",
+          "url": "https://github.com/starkware-libs/sequencer/commit/66b2ac270c2caea504f9b83fbda3f804458ab0d7"
+        },
+        "date": 1780848208218,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1392.74944165,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1712.9419976,
             "unit": "ms"
           }
         ]
