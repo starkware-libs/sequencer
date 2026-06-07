@@ -4,15 +4,12 @@
 
 use std::collections::HashMap;
 use std::io::{self, Read};
-use std::sync::LazyLock;
 
-use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
-use apollo_compile_to_casm_types::RawClass;
-use apollo_sierra_compilation_config::config::{
-    SierraCompilationConfig,
-    DEFAULT_MAX_BYTECODE_SIZE,
-};
+use apollo_compilation_utils::class_utils::into_contract_class_for_compilation;
+use apollo_sierra_compilation_config::config::DEFAULT_MAX_BYTECODE_SIZE;
 use blockifier::state::state_api::StateResult;
+use cairo_lang_starknet_classes::allowed_libfuncs::ListSelector;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use flate2::bufread;
 use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion};
 use starknet_api::core::EntryPointSelector;
@@ -30,13 +27,9 @@ use starknet_core::types::{
     LegacyEntryPointsByType,
 };
 
-static SIERRA_COMPILER: LazyLock<SierraCompiler> = LazyLock::new(|| {
-    create_sierra_compiler(SierraCompilationConfig {
-        max_bytecode_size: 10 * DEFAULT_MAX_BYTECODE_SIZE,
-        audited_libfuncs_only: false,
-        ..Default::default()
-    })
-});
+#[cfg(test)]
+#[path = "compile_test.rs"]
+pub mod test;
 
 /// Maps `LegacyEntryPointsByType` to a `HashMap` where each `EntryPointType`
 /// is associated with a vector of `EntryPoint`. Converts selectors and offsets
@@ -76,22 +69,35 @@ pub fn decode_reader(bytes: Vec<u8>) -> io::Result<String> {
     Ok(s)
 }
 
-/// Compile a SierraContractClass to a versioned ContractClass V1 (casm) using
-/// apollo_compile_to_casm.
+/// Compile a SierraContractClass to a versioned ContractClass V1 (casm) in-process, using the
+/// Sierra→Casm compiler as a library. The classes compiled here are fetched from the chain, so
+/// unlike the sequencer gateway (which compiles user-submitted classes in a resource-limited
+/// subprocess), no process isolation is needed.
 pub fn sierra_to_versioned_contract_class_v1(
     sierra_contract: SierraContractClass,
 ) -> StateResult<(ContractClass, SierraVersion)> {
     let sierra_version = SierraVersion::extract_from_program(&sierra_contract.sierra_program)
         .unwrap_or_else(|err| panic!("Failed to extract Sierra version: {err}"));
-    let raw_class = RawClass::try_from(sierra_contract)
-        .unwrap_or_else(|err| panic!("Failed to convert SierraContractClass into RawClass: {err}"));
-    let (raw_executable_class, _) = SIERRA_COMPILER
-        .compile(raw_class)
-        .unwrap_or_else(|err| panic!("Failed to compile Sierra to Casm: {err}"));
-    let contract_class: ContractClass = serde_json::from_value(raw_executable_class.into_value())
-        .unwrap_or_else(|err| panic!("Failed to deserialize ContractClass: {err}"));
+    let contract_class_for_compilation = into_contract_class_for_compilation(&sierra_contract);
+    let extracted_sierra_program = contract_class_for_compilation
+        .extract_sierra_program(false)
+        .unwrap_or_else(|err| panic!("Failed to extract the Sierra program: {err}"));
+    // Re-execution must accept any class the network accepted; do not restrict to the audited
+    // libfuncs list.
+    extracted_sierra_program
+        .validate_version_compatible(ListSelector::ListName("all".to_string()))
+        .unwrap_or_else(|err| panic!("Sierra program version validation failed: {err}"));
+    let casm_contract_class = CasmContractClass::from_contract_class(
+        contract_class_for_compilation,
+        extracted_sierra_program,
+        // Add pythonic hints, as the sequencer does when compiling declared classes.
+        true,
+        // Generous bound; declared classes already passed the network's bytecode-size limit.
+        10 * DEFAULT_MAX_BYTECODE_SIZE,
+    )
+    .unwrap_or_else(|err| panic!("Failed to compile Sierra to Casm: {err}"));
 
-    Ok((contract_class, sierra_version))
+    Ok((ContractClass::V1((casm_contract_class, sierra_version.clone())), sierra_version))
 }
 
 /// Compile a CompressedLegacyContractClass to a ContractClass V0 using cairo_lang_starknet_classes.
