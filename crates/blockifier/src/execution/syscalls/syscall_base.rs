@@ -226,6 +226,22 @@ impl<'state> SyscallHandlerBase<'state> {
             self.reject_syscall_in_validate_mode("get_class_hash_at")?;
         }
 
+        let alias_contract_address = self
+            .context
+            .tx_context
+            .block_context
+            .versioned_constants
+            .os_constants
+            .os_contract_addresses
+            .alias_contract_address();
+        if contract_address == alias_contract_address {
+            return Err(SyscallExecutorBaseError::InvalidSyscallInput {
+                input: contract_address.into(),
+                info: "get_class_hash_at on the alias contract address is not allowed".to_string(),
+            }
+            .into());
+        }
+
         self.storage_access_tracker.accessed_contract_addresses.insert(contract_address);
         let class_hash = self.state.get_class_hash_at(contract_address)?;
         self.storage_access_tracker.read_class_hash_values.push(class_hash);
